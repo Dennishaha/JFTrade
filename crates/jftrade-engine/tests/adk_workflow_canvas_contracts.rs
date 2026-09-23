@@ -1020,6 +1020,7 @@ fn workflow_mutation_routes_keep_the_go_not_found_codes() {
 /// returned.  A wrong secret is a `401 ADK_WORKFLOW_WEBHOOK_FAILED` while the
 /// correct secret runs the workflow under a `workflow.webhook` trigger log.
 // Parity: go:452dea11:internal/api/assistant/workflow_routes_test.go:14 TestWorkflowRoutesCoverDefinitionTriggerRunAndWebhookContracts
+// Parity: go:452dea11:internal/assistant/workflows_test.go:88 TestWorkflowWebhookTriggerSecretLifecycle
 #[test]
 fn workflow_webhook_secret_lifecycle_stays_sanitized_and_authenticated() {
     let cluster = EngineTestCluster::new();

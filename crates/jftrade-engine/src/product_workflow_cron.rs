@@ -314,6 +314,7 @@ mod tests {
         assert_eq!(parsed.dow.values, BTreeSet::from([1, 2, 3, 4, 5]));
     }
 
+    // Parity: go:452dea11:internal/assistant/workflows_test.go:11 TestNextWorkflowScheduleRunUsesFiveFieldCronAndTimezone
     #[test]
     fn parse_invalid_cron_expressions() {
         assert_eq!(
@@ -364,6 +365,24 @@ mod tests {
         let base_after = parse_time("2026-09-08T02:00:00Z");
         let next_after = next_schedule_run(&config, base_after).expect("next run after");
         assert_eq!(next_after, parse_time("2026-09-09T01:30:00Z"));
+    }
+
+    // Parity: go:452dea11:internal/assistant/workflows_test.go:11 TestNextWorkflowScheduleRunUsesFiveFieldCronAndTimezone
+    // Weekday-range schedules stay on Friday evening and roll over the weekend.
+    #[test]
+    fn next_schedule_run_skips_weekend_for_weekday_cron() {
+        let config = json!({
+            "cron": "0 8 * * 1-5",
+            "timezone": "Asia/Shanghai",
+        });
+        // Wednesday 2026-07-01 07:59 Asia/Shanghai -> same-day 08:00 run.
+        let base = parse_time("2026-06-30T23:59:00Z");
+        let next = next_schedule_run(&config, base).expect("next weekday run");
+        assert_eq!(next, parse_time("2026-07-01T00:00:00Z"));
+        // Friday 2026-07-03 08:01 Asia/Shanghai -> Monday 08:00 run.
+        let base = parse_time("2026-07-03T00:01:00Z");
+        let next = next_schedule_run(&config, base).expect("next rollover run");
+        assert_eq!(next, parse_time("2026-07-06T00:00:00Z"));
     }
 
     #[test]

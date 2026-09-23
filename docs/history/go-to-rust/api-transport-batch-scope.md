@@ -2403,3 +2403,42 @@ owner：service 层是领域行为的组装面，状态写入 owner 在领域 cr
 | 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy` | 仍因 `deny.toml` 的 `advisory-not-detected`（advisories FAILED，bans/licenses/sources ok）失败 |
 
 后续：队列进入 `internal/assistant/workflow*` 顶层 33 行，随后 workflow 目录 5、assembly 104、engine 626 与 apiserver 下 assistant/ADK 相关 14 行。
+
+### 第 129 批分片五：`internal/assistant/workflow*` 顶层 33 行（3 行升级 + 4 处缺口纠正）
+
+范围（按文件与行号升序）：`workflow_async_tools_test.go:12/:49/:86`、`workflow_crud_test.go:14/:116/:228/:314/:400/:455/:497/:555/:616/:671`、`workflow_lifecycle_test.go:13/:58/:98`、`workflow_store_failures_test.go:13`、`workflows_extended_test.go:14/:135/:208/:278/:528/:631`、`workflows_resource_recovery_test.go:11/:52/:105`、`workflows_test.go:11/:39/:88/:157/:198/:248/:276`。此前 33 行全部为 partial。
+
+owner：工作流运行、调度与后台任务的写入 owner 在领域 crate——运行入口与失败持久化由 `crates/jftrade-engine` 的 ADK 端口承接，cron/阈值/画布编译由 `crates/jftrade-engine` 的工作流助手与 `crates/jftrade-assistant` 的画布模型承接，队列原子性由 `crates/jftrade-store-sqlite` 承接。
+
+复核方法：逐条用参考提交的 Go 源码核对测试定义行（33/33 行号签名一致），再核对账本每行 rust_entry 首段用例在 Rust 侧存在（全部可解析）。对可能等价的行打开 Rust 实现逐断言比对，缺口补断言后升级；对结论过宽的行按实现纠正。
+
+新增与补强证据：
+
+1. `crates/jftrade-engine/src/product_workflow_cron.rs::next_schedule_run_skips_weekend_for_weekday_cron`（新用例）：锁定工作日 1-5 范围同日 08:00 与周五过点后跳到周一，与参考 `workflows_test.go:11` 相同取值。
+2. `product_workflow_threshold.rs::evaluate_cross_up_transitions`（补断言）：匹配负载的 `instrumentId` 与 `edge` 字段，与参考 `workflows_test.go:39` 的负载断言对齐。
+3. `product_workflow_threshold.rs::evaluate_above_and_below_levels`（补断言）：显式大于运算符的首匹配，与参考的 above 分支对齐。
+4. `product_production_assembly_tests.rs::production_adk_local_mutations_persist_tasks_memory_and_workflow_triggers`（补断言）：显式重置发放与旧值不同的新密钥，与参考 `workflows_test.go:88` 的重置断言对齐。
+
+映射终值（33 行）：`[x]` 3（`workflows_test.go:11/:39/:88`）、partial 30、boundary 0。
+
+关键事实与缺口（本分片新登记与纠正，按优先级）：
+
+1. **无画布图运行入口兜底与参考相反（P1，运行行为）**：参考 `workflows_test.go:248` 要求缺图运行失败且无回退；Rust 运行入口在 canvasGraph 缺失时以 `WorkflowCanvasGraph::single_agent()` 兜底继续运行。修复位置：`product_production_ports_adk_mutation_workflow_runtime.rs` 的缺图分支。回归要求：补缺图必须失败且无回退响应的运行入口用例，或明确记录保留兜底的产品决策后再关闭。
+2. **分页上收敛与日志默认条数、标签归一化（P1，wire 契约）**：参考 `workflow_crud_test.go:14` 要求 limit 200 收敛 100、日志默认 20、更新标签去空格去重去空；Rust 分页助手只在 limit 非正时回默认值、不做上收敛，日志默认 100，更新入口无标签归一化。修复位置：`product_production_ports_adk_projection.rs::page` 与工作流更新入口。回归要求：补分页边界用例与标签归一化用例。
+3. **缺失 agent 的 not found 文案（P2，错误消息）**：参考 `workflow_crud_test.go:228` 对缺失 agent 要求 agent not found；Rust 缺失或禁用 agent 统一报 enabled agent is required。修复位置：`product_production_ports_adk_mutation.rs::validate_session_agent` 的缺失分支。回归要求：补缺失 agent 报 not found 的路由级用例，或明确记录统一文案的产品决策。
+4. **非法 work mode 被静默归一（P2，写入校验）**：参考 `workflows_resource_recovery_test.go:11` 要求非法模式被拒；Rust 的 `normalize_workflow_mode` 把非法值归一为 loop。修复位置：工作流写入入口的模式校验。回归要求：补非法模式被拒的写入用例，或明确记录归一策略的产品决策。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 新增/补强用例 | engine 目标 8 用例组合过滤 | 8/8 通过 |
+| 映射写入 | 7 行 payload 经账本写入脚本应用（3 升级 + 4 纠正） | `[x]` 1588 → 1591、partial 2226 不变、boundary 637 不变（合计 4451） |
+| 审计 | `python3 scripts/compatibility/audit_test_parity.py` | 0 条引用不存在 crate、0 条 `[x]` 缺 function_exact、rust_entry 唯一；缺锚点告警 188 不变；Rust 测试 3292 → 3293 |
+| 锚点 | `python3 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1649 → 1652、unrecorded 0、stale 0、unknown 52 |
+| 静态与格式 | `cargo fmt --all -- --check`、`pnpm run check:clippy`、`pnpm run check:rust:architecture` | 全部通过 |
+| 整轮 nextest | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast` | 首轮 1911/1911 通过（本分片无抖动） |
+| 兼容与门禁 | `pnpm run check:compatibility`、`check:generated`、`check:ai-context`、`check:zero-go`、`pnpm run check:quick` | compatibility exit 0（278 OpenAPI 操作、18 路由组、19 探针；assistant-runtime 9 状态 12 迁移；desktop 3 平台档 6 link case 10 facade 4 event）；generated 未改动工作树；ai-context 6 模块 8 指令文件；zero-go 2953 files；`check:quick` 首轮在 nextest 段 `adk_session_detail_omits_resolved_approval_groups` 抖动一次（已知抖动项，隔离复跑 3/3 通过）→ 次轮 nextest 1941/1941、node 98 pass 全过；中途 target-health 因 .rcgu.o 超 50000 阻断一次，按流程确认无 Cargo 进程后 clean artifacts 重跑通过 |
+| 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy` | 仍因 `deny.toml` 的 `advisory-not-detected`（advisories FAILED，bans/licenses/sources ok）失败 |
+
+后续：队列进入 `internal/assistant/workflow` 目录 5 行，随后 assembly 104、engine 626 与 apiserver 下 assistant/ADK 相关 14 行。

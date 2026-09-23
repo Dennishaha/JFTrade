@@ -318,6 +318,7 @@ mod tests {
         OffsetDateTime::parse(s, &Rfc3339).expect("parse time")
     }
 
+    // Parity: go:452dea11:internal/assistant/workflows_test.go:39 TestEvaluateMarketThresholdTriggerEdgesAndCooldown
     #[test]
     fn evaluate_cross_up_transitions() {
         let mut config = json!({
@@ -349,6 +350,8 @@ mod tests {
         assert_eq!(matches2.len(), 1);
         assert!(changed2);
         assert_eq!(matches2[0].instrument_id, "US.AAPL");
+        assert_eq!(matches2[0].threshold["instrumentId"], "US.AAPL");
+        assert_eq!(matches2[0].threshold["edge"], "cross_up");
         assert_eq!(matches2[0].threshold["current"], 152.0);
         assert_eq!(matches2[0].threshold["previous"], 148.0);
 
@@ -392,6 +395,7 @@ mod tests {
         assert_eq!(matches2[0].threshold["previous"], 205.0);
     }
 
+    // Parity: go:452dea11:internal/assistant/workflows_test.go:39 TestEvaluateMarketThresholdTriggerEdgesAndCooldown
     #[test]
     fn evaluate_above_and_below_levels() {
         let mut config = json!({
@@ -428,5 +432,22 @@ mod tests {
         });
         let (matches3, _) = evaluate_market_threshold_trigger(&mut config, &[event3], now3);
         assert_eq!(matches3.len(), 1);
+
+        // Explicit ">" operator fires on a strict first match above the level.
+        let mut strict_config = json!({
+            "instrumentIds": ["US.AAPL"],
+            "snapshotPath": "snapshot.price",
+            "value": 100.0,
+            "edge": "above",
+            "operator": ">",
+            "cooldownSec": 900,
+        });
+        let strict_event = json!({
+            "entityId": "US.AAPL",
+            "snapshot": { "price": 101.0 }
+        });
+        let (strict_matches, _) =
+            evaluate_market_threshold_trigger(&mut strict_config, &[strict_event], now);
+        assert_eq!(strict_matches.len(), 1);
     }
 }

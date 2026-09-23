@@ -2718,11 +2718,11 @@ mod product_production_assembly_tests {
             .as_str()
             .expect("trigger id")
             .to_owned();
-        assert!(
-            trigger_response["data"]["secret"]
-                .as_str()
-                .is_some_and(|value| !value.is_empty())
-        );
+        let created_secret = trigger_response["data"]["secret"]
+            .as_str()
+            .expect("created webhook secret")
+            .to_owned();
+        assert!(!created_secret.is_empty());
         assert!(trigger_response["data"]["trigger"]["secretHash"].is_null());
 
         let (trigger_list_status, trigger_list_response) = request_json_with_status(
@@ -2761,10 +2761,15 @@ mod product_production_assembly_tests {
             trigger_update_response["data"]["trigger"]["title"],
             "Updated webhook"
         );
-        assert!(
-            trigger_update_response["data"]["secret"]
-                .as_str()
-                .is_some_and(|value| !value.is_empty())
+        // Parity: go:452dea11:internal/assistant/workflows_test.go:88 TestWorkflowWebhookTriggerSecretLifecycle
+        let reset_secret = trigger_update_response["data"]["secret"]
+            .as_str()
+            .expect("reset webhook secret")
+            .to_owned();
+        assert!(!reset_secret.is_empty());
+        assert_ne!(
+            reset_secret, created_secret,
+            "an explicit reset issues a fresh one-time secret"
         );
 
         let (task_status, task_response) = request_json_with_status(

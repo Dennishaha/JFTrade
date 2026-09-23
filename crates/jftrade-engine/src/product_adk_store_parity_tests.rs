@@ -850,6 +850,7 @@ fn trigger_ids(snapshot: &Value) -> Vec<String> {
 
 /// Parity: go:452dea11:internal/assistant/assembly/workflow_tools_test.go:132
 /// `TestWorkflowManagementToolUpdatesUsePatchSemantics`.
+/// Parity: go:452dea11:internal/assistant/workflows_test.go:88 TestWorkflowWebhookTriggerSecretLifecycle
 ///
 /// Go's `workflows.update` / `workflow_triggers.update` tools patch instead of
 /// replacing: an omitted field keeps its stored value, while an explicitly
