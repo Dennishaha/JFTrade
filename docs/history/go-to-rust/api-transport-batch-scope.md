@@ -3151,3 +3151,32 @@ owner：marketdata sidecar 资产面在 Rust 由 `jftrade-integration-marketdata
 | 文档门禁 | `check:ai-context`、quick 完整计划 | ai-context 过；quick 文档计划 exit 0（policy 9 项并行全过） | /tmp/s29_aictx.log、/tmp/s29_quick.log |
 
 后续：other 域首片完成（余 532 行）；队列随后 api_transport 439、backtest_calendar 307、storage_sqlite 196、marketdata_quotes 161、futu_opend 142、trading_broker 56、settings_watchlist 39。
+
+### 第 129 批分片三十：other 域 market/calendar 家族 35 行（1 处引用纠正，无 verdict 变更）
+
+范围（账本 rows 2747-2781）：`marketdataassets/cache_test.go:407` 收尾 1 行、`pkg/market/calendar/builtin_test.go:8/:38/:54/:73/:92`、`calendar_boundaries_test.go:8/:34`、`helpers_boundaries_test.go:8/:52/:87/:136/:167`、`types_json_test.go:10`、`pkg/market/hk/hk_test.go:8/:20`、`instrument_session_validation_test.go:8/:31`、`market_normalization_test.go:32/:83/:108/:140/:161/:191/:248/:264/:302/:330/:382`、`market_test.go:11/:38/:51/:78/:115/:142`。初值 `[x]` 1、partial 32、boundary 2。
+
+owner：交易日历面在 Rust 由 `jftrade-calendar`（manager_policy/manager_session/snapshot/manager_calendar 与 manager_boundaries/candle_completion 契约）与 `jftrade-marketdata` 的品种目录持有；节假日/提前收盘/交易时段判定无双写。
+
+复核方法：35 条全量枚举 rustEvidence（文件加函数须指向真实 `#[test]`，生产函数引用一律视为错位），逐条抽查 Go 原文与缺口描述；1 条 `[x]`（types_json:10）核对断言等价与锚点归属（锚点在 snapshot.rs:429，断言逐项一致）。结论：34 条引用有效且缺口描述相符（时区/DST/节假日/早收/午休/隔夜/自定义窗口/标签 bucket 差异均有 owner 与回归要求），1 处引用纠正，无升级项。
+
+纠正：2762（hk:20 静默回退 UTC）原引用生产函数 `market_local_midnight` 而非测试；Rust 时区加载失败 fail-closed（`TimeZone::get` 失败即返回错误），无静默回退语义，改為不适用 prose 边界保留并重写结论。verdict 保持 boundary 不变，无新增锚点（prose-only 参照 task_limit:11 惯例）。
+
+新增证据：无 Rust 改动、无新增用例、无新增锚点；账本 1 行变更（v2 写入器）。
+
+映射终值（35 行）：`[x]` 1、partial 32、boundary 2。全量：`[x]` 1566、partial 2248、boundary 637（合计 4451）；Rust 测试 3295 不变。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 逐行复核 | 35 条全量枚举引用有效性加缺口抽查，1 条 `[x]` 核对断言等价 | 1 引用纠正，无升级项；重复 `[x]` 全文唯一性检查通（0 重复） |
+| 账本写入 | 1 行变更（v2 写入器），其余不动 | `[x]` 1566 不变、partial 2248 不变、boundary 637 不变（合计 4451） |
+| 审计 | `python3 scripts/compatibility/audit_test_parity.py --write-report` | 通过（exit 0）；0 条引用不存在 crate、0 条 `[x]` 缺 function_exact；缺锚点告警 120 不变 |
+| 锚点 | `python3 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1724、已记录 1676、unrecorded 0、stale 0、unknown 48（均不变） |
+| 静态与格式 | `cargo fmt --all -- --check`（过，无 Rust 改动）、`pnpm run check:clippy`（exit 0）、`check:rust:architecture`（passed）、`check:migration-manifest`（passed） | /tmp/s30_clippy.log |
+| 受影响 nextest | calendar 引用 5 用例定向 5/5（含 `[x]` 快照 JSON 用例） | /tmp/s30_t1.log |
+| 兼容与门禁 | generated/ai-context/zero-go 均过；quick 完整计划 | quick exit 0（账本变更工作树精简计划） | /tmp/s30_quick.log |
+| 已知失败（如实记录） | `check:rust:static`、`check:rust:policy` 结果见日志；`--strict` 全仓缺口未达标（非本分片阻塞）；失败项不记为通过 | static exit 0、policy exit 0 | /tmp/s30_static.log、/tmp/s30_policy.log |
+
+后续：other 域 market/calendar 片完成（余 497 行）；队列随后 api_transport 439、backtest_calendar 307、storage_sqlite 196、marketdata_quotes 161、futu_opend 142、trading_broker 56、settings_watchlist 39。
