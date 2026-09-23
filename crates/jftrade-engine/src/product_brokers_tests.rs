@@ -79,6 +79,7 @@ fn broker_read_fixture() -> BrokerReadFixture {
     fixture
 }
 
+// Parity: go:452dea11:internal/trading/responses_test.go:12 TestBrokerRuntimeResponseJSONShape
 #[tokio::test]
 async fn broker_read_routes_match_group_fixture_in_cutover_only() {
     let fixture = broker_read_fixture();

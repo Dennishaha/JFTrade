@@ -7,7 +7,7 @@
     "treeSha": "0ee26444be21c15d9760f358a34649f78402f0fb"
   },
   "generatorVersion": "v2_writer.py@slice23",
-  "generatedAt": "2026-09-23T21:28:18Z",
+  "generatedAt": "2026-09-23T21:31:48Z",
   "mappings": {
     "cmd/jftrade-api/main_test.go:13:TestValidateArgsAllowsNoArgs": {
       "status": "[~]",
@@ -285961,7 +285961,12 @@
           "file": "crates/jftrade-engine/src/product_brokers_tests.rs",
           "test": "broker_read_routes_match_group_fixture_in_cutover_only",
           "crate": "jftrade-engine",
-          "anchor": null
+          "anchor": {
+            "goFile": "internal/trading/responses_test.go",
+            "goLine": 12,
+            "rustFile": "crates/jftrade-engine/src/product_brokers_tests.rs",
+            "rustLine": 82
+          }
         }
       ],
       "assertionCoverage": {
@@ -287359,7 +287364,12 @@
           "file": "crates/jftrade-broker/tests/market_rules_snapshot_errors.rs",
           "test": "broker_lot_size_initializes_minimum_and_step_quantity",
           "crate": "jftrade-broker",
-          "anchor": null
+          "anchor": {
+            "goFile": "pkg/broker/broker_test.go",
+            "goLine": 157,
+            "rustFile": "crates/jftrade-broker/tests/market_rules_snapshot_errors.rs",
+            "rustLine": 74
+          }
         }
       ],
       "assertionCoverage": {

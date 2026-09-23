@@ -4472,3 +4472,34 @@ owner：预交易风控决策由 jftrade-trading 承接，执行端口读写与�
 | 文档门禁 | fmt、ai-context、migration-manifest、zero-go、quick、diff check | 全过（fmt 过；ai-context 过；migration-manifest 过；zero-go 过；quick 全过一次通过；diff check 过） |
 
 后续：继续 35 行步调（rows 4399 起；尾部余约 53 行）；队列按账本实际顺序推进。
+
+### 第 129 批分片七十八：rows 4399-4433 trading 订单更新尾部与 broker 包 35 行（0 降级、2 处补锚）
+
+范围（账本 rows 4399-4433，按写入顺序）：trading order_updates:397/:414/:427/:442/:469/:508/:531、ports:50/:82、responses:12/:55/:107/:141、risk_shape_boundaries:11/:78、risk_status_broker_boundaries:13/:82/:124/:187/:228、service:8/:24/:45、pkg/broker broker:13/:27/:46/:67/:85/:97/:114/:157/:175/:194、catalog:11/:44。初值 [x] 11、partial 8、boundary 16；终值不变。首键自检通过，无重叠。
+
+owner：对账 worker 诊断由 jftrade-engine 承接，风控与状态机由 jftrade-trading 承接，券商注册表与目录面在 Rust 无运行时表（闭集枚举加静态目录），推送订阅面属 jftrade-integration-futu 会话层，无双写。
+
+复核方法：35 条全量枚举引用有效性（30 个去重引用逐个核对 #[test]/#[tokio::test]，0 缺失），11 条 [x] 逐条核对锚点归属与断言等价（逐段比对 Go 原文，fixture 字节比对面逐键核对）。结论：0 纠正、0 升级、0 降级；2 处缺锚补齐。
+
+补锚一：responses:12 所引 broker_read_routes_match_group_fixture_in_cutover_only 无锚点。已核对冻结 fixture 的 runtime 用例逐键覆盖 Go 断言（顶层 descriptor/session/accounts、session 含 connection/connectivity/globalState/liveWebSocketClients、globalState 与 lastError 为 null、accounts 为空数组），Rust 按字节比对 response data，补 :12 锚点并经 v2 写入器刷新落锚。
+
+补锚二：broker:157 所引 broker_lot_size_initializes_minimum_and_step_quantity 只有 :62 行锚点（与 pkg/futu/exchange_test.go:62 共享证据，entry 共享后缀可追溯）。补 :157 内联锚点，两行同指同一测试，dup-x 保持 0。
+
+抽查证据：:82 的 12 项小写映射加 stored/reconcile/终态共 18 项断言与 Rust 逐项一致；:414 的 25 次扫描截断 20 条与 Go 上限一致；:97 的 broker 身份由路由承载、三个作用域逐字段编码一致；partial 行缺口诚实（失败降级信封、伪造字段矩阵、产品价格矩阵均声明未覆盖面与登记位置）；boundary 行升级路径完整（注册表、指针、反射、订阅面）。
+
+新增证据：2 处测试注释锚点（无生产改动）；2 行账本刷新（:12、:157 落锚）。
+
+映射终值（35 行）：[x] 11、partial 8、boundary 16。全量：[x] 1561、partial 2252、boundary 638（合计 4451）；Rust 测试 3297 不变。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 逐行复核 | 35 条全量枚举引用有效性（30 去重引用）加 [x] 断言等价核对 | 0 纠正、0 升级、0 降级；重复 [x] 全文唯一性检查通（0 重复） |
+| 账本写入 | v2 写入器 2 行 | [x] 1561、partial 2252、boundary 638（合计 4451）不变 |
+| Rust 定向测试 | engine fixture 回放 1 用例、broker lot 规则 1 用例 | 1/1 通过；1/1 通过 |
+| 审计 | python3 scripts/compatibility/audit_test_parity.py --write-report | 通过（exit 0）；缺锚点告警 111→109；report/inventory 刷新 |
+| 锚点 | python3 scripts/compatibility/parity_anchor_reconcile.py | anchors 1733、已记录 1687、unrecorded 0、stale 0、unknown 46 |
+| 文档门禁 | fmt、ai-context、migration-manifest、zero-go、quick、diff check | 全过（fmt 过；ai-context 过；migration-manifest 过；zero-go 过；quick 全过，engine 2495/2495 加 clippy 与兼容 replay；diff check 过） |
+
+后续：继续步调（rows 4434 起；尾部余约 18 行）；队列按账本实际顺序推进。

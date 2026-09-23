@@ -71,6 +71,7 @@ fn broker_lot_size_initializes_minimum_and_step_quantity() {
     // TestEnsureMarketWithContextAppliesBrokerLotSize. Go copies the broker's
     // lot size into both MinQuantity and StepSize when no explicit override is
     // present; the Rust broker-neutral market rule must do the same.
+    // Parity: go:452dea11:pkg/broker/broker_test.go:157 TestApplyMarketRuleUsesLotSizeAsQuantityConstraints
     let market = MarketQuantityConstraints {
         symbol: "HK.00700".to_owned(),
         min_quantity: fixed("1"),
