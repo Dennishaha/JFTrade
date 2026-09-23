@@ -7,7 +7,7 @@
     "treeSha": "0ee26444be21c15d9760f358a34649f78402f0fb"
   },
   "generatorVersion": "v2_writer.py@slice23",
-  "generatedAt": "2026-09-23T20:24:30Z",
+  "generatedAt": "2026-09-23T20:38:37Z",
   "mappings": {
     "cmd/jftrade-api/main_test.go:13:TestValidateArgsAllowsNoArgs": {
       "status": "[~]",
@@ -274058,7 +274058,7 @@
             "goFile": "pkg/strategy/pineengine/pine_ts_payload_test.go",
             "goLine": 97,
             "rustFile": "crates/jftrade-engine/src/product_mcp_production_executor_tests.rs",
-            "rustLine": 389
+            "rustLine": 366
           }
         },
         {
@@ -274069,7 +274069,7 @@
             "goFile": "pkg/strategy/pineengine/pine_ts_payload_test.go",
             "goLine": 97,
             "rustFile": "crates/jftrade-engine/src/product_mcp_production_executor_tests.rs",
-            "rustLine": 389
+            "rustLine": 366
           }
         }
       ],

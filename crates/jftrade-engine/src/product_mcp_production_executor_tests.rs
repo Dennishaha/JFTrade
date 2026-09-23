@@ -362,6 +362,8 @@ fn pine_external_mode_parser_accepts_only_supported_values() {
 /// Parity: go:452dea11:pkg/strategy/pineengine/pine_ts_payload_test.go:39 TestShadowPayloadReportsWorkerStartupFailure
 ///
 /// Parity: go:452dea11:pkg/strategy/pineengine/pine_ts_payload_test.go:190 TestWorkerErrorStringAndStderrSuffix
+///
+/// Parity: go:452dea11:pkg/strategy/pineengine/pine_ts_payload_test.go:97 TestExternalEnginePayloadFromResultMapsSuccessAndFailure
 #[test]
 fn pine_shadow_error_payload_keeps_the_worker_failure_message() {
     let payload = super::pine::pine_shadow_error_payload(

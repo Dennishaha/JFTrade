@@ -4319,3 +4319,29 @@ owner：Pine 请求安全/风险声明/语义校验由 jftrade-strategy 承接�
 | 文档门禁 | check:ai-context、migration-manifest、zero-go、quick、diff check | 见下 |
 
 后续：继续 35 行步调（rows 4224 起；尾部余约 228 行）；队列按账本实际顺序推进（策略尾部、行情、集成、设置）。
+
+### 第 129 批分片七十三：rows 4224-4258 PineTS 负载/运行时与 worker 客户端 35 行（1 行补锚点，无 verdict 变更）
+
+范围（账本 rows 4224-4258，按写入顺序）：strategy pineengine pine_ts_payload:18/:39/:55/:72/:97/:131/:190/:207/:224/:236、pine_ts_runtime:12/:31/:58、pinespec lint_helpers:5、skill_metadata:8/:80、spec:14/:28/:59/:108/:248/:274/:285、pineworker client:12/:41/:56/:81/:92/:103/:114/:125/:143/:161、grpc_dialer:9/:23。初值 [x] 2、partial 28、boundary 5，终值不变。首键自检通过，无重叠。
+
+owner：PineTS 负载/影子投影由 jftrade-engine 承接，worker 传输/进程/资产由 jftrade-integration-pine 承接，规范面由 jftrade-strategy 承接，无双写。
+
+复核方法：35 条全量枚举引用有效性（21 个去重后引用逐个核对 #[test]，0 缺失），2 条 [x] 逐条核对锚点归属与断言等价（逐字段比对 Go 原文：:72 合规阻断五元组 Enabled/OK/Mode/Status/诊断码全对齐；:97 成功/失败两半与两个 Rust 用例逐字段对应，PayloadMap 差异已在结论中声明），partial 与 boundary 抽查缺口诚实度（:274 生成快照校验、:125/:143 性能闸门、:23 nil 接收者三处边界理由与 Go 原文一致）。结论：0 升级、0 降级；1 行补锚点（只加注释，不改行为）。
+
+补锚点：pine_ts_payload:97 的失败半所引 pine_shadow_error_payload_keeps_the_worker_failure_message 缺该行锚点（已有 :39/:190 锚点），补一行 // Parity: 注释；账本该行经 v2 写入器刷新为 2/2 evidence 落锚。
+
+抽查证据：[x] 结论均为逐值写法（含差异声明）；partial 缺口诚实（含传输/资产/校验面的归属拆分）；dup-x 为 0（审计 exit 0）。
+
+映射终值（35 行）：[x] 2、partial 28、boundary 5。全量：[x] 1565、partial 2248、boundary 638（合计 4451）；Rust 测试 3295 不变。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 逐行复核 | 35 条全量枚举引用有效性（21 去重引用）加 [x] 断言等价核对 | 1 行补锚点；0 升级、0 降级；重复 [x] 全文唯一性检查通（0 重复） |
+| 账本写入 | v2 写入器 1 行 | rows touched 1，2/2 evidence anchored；[x] 1565、partial 2248、boundary 638（合计 4451）不变 |
+| 审计 | python3 scripts/compatibility/audit_test_parity.py --write-report | 通过（exit 0）；report 刷新基线；既有告警不变（缺锚点 116 为按测试口径计数，本行另一证据已有锚点） |
+| 锚点 | python3 scripts/compatibility/parity_anchor_reconcile.py | anchors 1727、已记录 1680、unrecorded 0、stale 0、unknown 47（均不变，:97 已由此行另一证据记录） |
+| 文档门禁 | fmt、ai-context、migration-manifest、zero-go、定向 engine、quick、diff check | 见下 |
+
+后续：继续 35 行步调（rows 4259 起；尾部余约 193 行）；队列按账本实际顺序推进（策略尾部、行情、集成、设置）。
