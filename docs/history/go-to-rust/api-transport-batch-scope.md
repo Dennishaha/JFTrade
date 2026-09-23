@@ -4149,3 +4149,31 @@ owner：指标预热与规划由 jftrade-strategy 承接，指标兼容由 jftra
 | 文档门禁 | check:ai-context、migration-manifest、zero-go、quick、diff check | 见下 |
 
 后续：继续 35 行步调（rows 4014 起；尾部余 438 行）；队列按账本实际顺序推进（策略、行情、集成、设置）。
+
+### 第 129 批分片六十七：rows 4014-4048 IR 规划与 Pine 编译 35 行（纯复核，无引用纠正、无 verdict 变更）
+
+范围（账本 rows 4014-4048，按写入顺序）：strategy ir planner_business_boundary:100/:165、planner_indicator_matrix:8/:55/:147、planner_internal_boundaries:9/:57/:101/:131/:188/:217、planner_internal:5/:88/:122、planner:10/:51/:62/:73/:85/:100/:122/:204/:254/:265/:310、pine collection_object_bounds:11/:85/:141、compiler_and_security_diagnostics:11/:44/:70、compiler_rejection_contracts:9/:79/:180、control_flow_reject:8。初值 [x] 2、partial 28、boundary 5，终值不变。首键自检通过，无重叠。
+
+owner：IR 规划与 Pine 编译由 jftrade-strategy 承接，无双写。
+
+复核方法：35 条全量枚举引用有效性（9 个去重后引用逐个核对 #[test]，0 缺失），2 条 [x] 逐条核对锚点归属与断言等价（全部 function_exact 且带锚点），partial 与 boundary 抽查缺口诚实度。结论：0 纠正、0 升级、0 降级。
+
+核查说明：本片 3 条 partial 空引用（request-security 纯度、编辑器恢复、控制流/UDF）经核对审计口径，属允许的缺口散文体（结论内记探针观察、owner 与回归要求），无需补引用；dup-x 为 0。
+
+抽查证据：[x] 结论均为逐键/逐形态写法（含探针记录）；partial 缺口诚实（含缺失键族与 owner）；boundary 均为无同形实现（含升级路径）。
+
+新增证据：无（纯复核分片，无 Rust 改动、无账本行变更、无新增锚点）。
+
+映射终值（35 行）：[x] 2、partial 28、boundary 5。全量：[x] 1565、partial 2248、boundary 638（合计 4451）；Rust 测试 3295 不变。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 逐行复核 | 35 条全量枚举引用有效性（9 去重引用）加 [x] 断言等价核对 | 0 纠正、0 升级、0 降级；重复 [x] 全文唯一性检查通（0 重复） |
+| 账本写入 | 无变更 | [x] 1565、partial 2248、boundary 638（合计 4451）不变 |
+| 审计 | python3 scripts/compatibility/audit_test_parity.py --write-report | 通过（exit 0）；report 仅刷新基线，inventory 无变化；既有告警不变 |
+| 锚点 | python3 scripts/compatibility/parity_anchor_reconcile.py | anchors 1724、已记录 1677、unrecorded 0、stale 0、unknown 47（均不变） |
+| 文档门禁 | check:ai-context、migration-manifest、zero-go、quick、diff check | 见下 |
+
+后续：继续 35 行步调（rows 4049 起；尾部余 403 行）；队列按账本实际顺序推进（策略、行情、集成、设置）。
