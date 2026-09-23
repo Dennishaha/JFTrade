@@ -9367,8 +9367,8 @@
   },
   "internal/assistant/engine/runtime_execution_lease_boundaries_test.go:176:TestRuntimeCloseCancelsAndWaitsForInFlightRunLease": {
     "status": "[x]",
-    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_fencing_tests.rs::challenge_continuation_supervisor_concurrent_spawn_shutdown_race",
-    "conclusion": "function_exact：Go 断言运行时关闭会取消并等待在途 run 租约任务（关闭完成后不得仍有任务在跑）。Rust 的 challenge_continuation_supervisor_concurrent_spawn_shutdown_race 在 200 轮并发 spawn×shutdown 竞态下断言 shutdown() 返回后没有任何任务仍处于活动状态（取消+join 契约），与 API handler close 一例（challenge_continuation_supervisor_shutdown_blocks_for_all_tasks）分属不同入口，避免审计重复引用。",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_fencing_tests.rs::challenge_continuation_supervisor_concurrent_spawn_shutdown_race + crates/jftrade-engine/src/product_adk_model_runtime_fencing_tests.rs::challenge_continuation_supervisor_cancellation_signal_propagates + crates/jftrade-engine/src/product_adk_model_runtime_fencing_tests.rs::challenge_continuation_supervisor_claims_are_exclusive_and_released",
+    "conclusion": "function_exact（三元组合，逐分支对应）：Go 断言关闭取消在途 run 租约、关闭等待释放完成后再返回、释放后租约行 OwnerID 清空。取消半由 challenge_continuation_supervisor_cancellation_signal_propagates 覆盖（20 个在途任务全部观察到取消标志且 shutdown 快速返回）；等待半由 challenge_continuation_supervisor_concurrent_spawn_shutdown_race 覆盖（200 轮并发 spawn 与 shutdown 竞态下 shutdown 返回后无任务仍活动）；释放半由 challenge_continuation_supervisor_claims_are_exclusive_and_released 覆盖（任务结束 claim 即释放、同一 run 可再次认领、shutdown 后不再受理）。本批把原单测 entry 纠正为三元组合（单测只覆盖等待半），组合全文在 [x] 行间唯一；三处锚点均在 fencing_tests.rs。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "function_exact"
   },

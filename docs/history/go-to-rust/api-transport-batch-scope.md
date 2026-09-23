@@ -2758,3 +2758,32 @@ owner：聊天投影/终态/审计由 engine 模型运行时承接，快照与�
 | 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy` | 按预期失败（deny.toml advisory-not-detected），与本分片无关 |
 
 后续：engine 第七片完成；队列进入 engine 第八片（账本 1322 起约 35 行），engine 共 626 行约 18 片；随后 apiserver 下 assistant/ADK 相关 14 行。
+
+### 第 129 批分片十七：`internal/assistant/engine` 第八片 35 行（1 处单测 entry 纠正为三元组合，无 verdict 翻转）
+
+范围（账本 inventory 1322-1356，按账本顺序）：`runner_goal_test.go:72/:111/:174/:264`、`runner_lifecycle_boundaries_test.go:24`、`runner_lifecycle_reconciliation_test.go:9/:70/:106/:146`、`runner_lifecycle_shutdown_failures_test.go:8`、`runner_plugin_test.go:11/:38`、`runtime_execution_lease_boundaries_test.go:14/:108/:133/:144/:161/:176/:234`、`runtime_store_test.go:36/:117/:174/:193/:286/:362/:409/:434/:454/:485`、`session_compaction_boundaries_test.go:12`、`session_context_conflict_test.go:11`、`session_context_json_test.go:9`、`session_context_projection_test.go:15/:60/:118`（35 行中 [x]1/partial29/boundary5）。
+
+owner：目标暂停/恢复与生命周期对账由 ADK 变更端口与恢复扫描承接，执行租约认领/心跳/续期由 assistant claims 层与 supervisor 层承接，store 启动与内置目录由组装层承接，会话压缩与上下文投影由 session 上下文层承接。
+
+复核方法：唯一 [x]（`:176`）按基线逐分支核对，发现原单测 entry 只覆盖等待半，纠正为三元组合；partial 行逐条核对结论与 Go 原文的缺口描述（租约心跳触发链、续租 TTL 细节、标题截断、pause-requested 幂等、nil 管理器等），其中 :72 的 resume 四状态分支经核对确认缺直接断言（缺失运行 404 与 chat resume 400 有覆盖，child/running/unsupported-reason 的 resume 拒绝无逐条断言），partial 结论成立；boundary 行核对 Go 专属面（插件 nil execution、nil runtime 访问器、omitempty 序列化等）在 Rust 确无对应实现。
+
+结论：0 verdict 翻转。1 处 entry 纠正：`runtime_execution_lease_boundaries_test.go:176` 由单测 entry 改为三元组合（200 轮竞态等待半 + 取消信号半 + 认领释放半，分别对应 Go 的等待返回、取消在途、租约行清空三条断言），组合全文在 [x] 行间唯一，三处锚点同在 fencing_tests.rs。
+
+新增证据（注释 only）：2 行规范锚点（:176 在取消半与认领半用例各一），无生产实现改动，无探针。
+
+映射终值（35 行）：`[x]` 1、partial 29、boundary 5。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 逐行复核 | 1 条 [x] 逐分支核对、34 条 partial/boundary 结论与 Go 原文抽查 | 0 verdict 问题，1 entry 组合化 |
+| 账本写入 | 1 行 entry 调整（b82_apply），verdict 不变 | `[x]` 1586 不变、partial 2228 不变、boundary 637 不变（合计 4451） |
+| 审计 | `python3 scripts/compatibility/audit_test_parity.py` | 0 条引用不存在 crate、0 条 `[x]` 缺 function_exact；缺锚点告警 168 不变；Rust 测试 3293 不变 |
+| 锚点 | `python3 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1671 不变（:176 新增两锚点指向同一行）、已记录 1621 不变、unrecorded 0、stale 0、unknown 50 不变 |
+| 静态与格式 | `cargo fmt --all -- --check`、`pnpm run check:clippy`、`pnpm run check:rust:architecture` | fmt 通过、clippy exit 0、architecture 通过；:176 三元组合 3 测全过 |
+| 整轮 nextest | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast` | 1911/1911 passed，exit 0，一次通过无抖动（含两 launcher 集成测） |
+| 兼容与门禁 | `pnpm run check:compatibility`、`check:generated`、`check:ai-context`、`check:zero-go`、`pnpm run check:quick` | compat/generated/ai-context/zero-go 均 exit 0；quick 共 7 轮：第 2-5 轮倒在 launcher 已知抖动、第 6 轮倒在 input_response 重启时序与 web 单测 5 秒超时（隔离复测分别 3/3、8/8 通过，工作树零 web 改动），第 7 轮工作区 3419/3419（含两 launcher 测与 :176 三元组合）、web 2435/2435、pine 98/98、python 337 全绿，仅 static 未过（见下一行） |
+| 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy` | 按预期失败（deny.toml advisory-not-detected），与本分片无关；第 7 轮 quick exit 1 唯一原因即此项 |
+
+后续：engine 第八片完成；队列进入 engine 第九片（账本 1357 起约 35 行），engine 共 626 行约 18 片；随后 apiserver 下 assistant/ADK 相关 14 行。
