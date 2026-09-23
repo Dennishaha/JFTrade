@@ -1919,3 +1919,47 @@ owner：`crates/jftrade-engine`（影子 payload 与外部引擎投影）、`cra
 | 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy` | 仍因 `deny.toml` 8 条 `advisory-not-detected` 失败 |
 
 后续：分片十六进入 `pkg/strategy/pineworker` 67 行（先 `client_test.go` 10 + `types_test.go` 8 + `proto_mapping_test.go` 5 + `grpc_*` 4 = 27 行，随后 `manager_test.go`/`process_launcher`/`runtime_boundaries`/`payload_size`/`process_smoke`/`hardcut_audit`/`proto_contract` 约 40 行）；之后 `internal/strategy/pineruntime` 25 → `internal/strategy` 其余子域，直至 strategy_pine 域清空。
+
+### 分片十六：`pkg/strategy/pineworker` 首批 27 行（客户端/类型/协议映射/拨号）
+
+范围：`client_test.go:12/:41/:56/:81/:92/:103/:114/:125/:143/:161`、`types_test.go:10/:21/:41/:92/:105/:147/:164/:171`、`proto_mapping_test.go:15/:154/:182/:197/:212`、`grpc_dialer_test.go:9/:23`、`grpc_transport_test.go:16/:71`。
+owner：`crates/jftrade-integration-pine`（执行端口校验、进程/就绪/池、mock worker、asset 选择）、`workers/pineworker`（gRPC 服务端契约与 proto）。
+
+队列说明：该族在更早批次已给过终值。本分片做二次核对，重点是 Go 侧 `ValidateRunScriptRequest` 契约在 Rust 执行端口里的逐条等价性——核对发现 Rust 的 `validate_request`/`validate_candle` 已实现同一张表，但过去只有“超长源码 + high 越界”两条断言，逐字段契约没有被回归锁定。
+
+新增证据（`crates/jftrade-integration-pine/src/execution/tests.rs`，5 条用例）：
+
+1. `request_validation_rejects_every_incomplete_or_inconsistent_field`：合法请求通过 + 9 个拒绝形态（缺 job/source/symbol/timeframe、`mode=scan`、无 K 线、high<low、open 越界、负 volume），逐条断言与参考实现同义的错误文案。
+2. `analyze_mode_accepts_an_empty_candle_list`：analyze 模式允许空 K 线，backtest 仍报 `candles are required`。
+3. `live_session_contract_requires_identity_mode_and_revisions`：open/append/close 三段合法序列 + 5 个拒绝形态（未支持操作、会话要求 live、open 必须 revision 0、append 必须正 revision、操作必须带 session id）。
+4. `request_validation_enforces_the_candle_limit`：`max_candles=1` 时两根被拒（`too many candles`）、一根通过。
+5. `non_finite_candle_values_are_rejected_before_transport`：`open=NaN`、`high=+Inf`、`volume=-Inf` 三个形态在传输前失败（`must be finite`）。
+
+映射终值（27 行）：`[x]` 4 行、partial 20 行、boundary 3 行；其中 5 行结论与证据刷新。
+
+- **升级为 `[x]`（4 行，均为 types 校验表）**：`:41 TestValidateRunScriptRequest`、`:92 TestValidateRunScriptRequestAnalyzeModeAllowsNoCandles`、`:105 TestValidateRunScriptRequestLiveSessionContract`、`:147 TestValidateRunScriptRequestRejectsTooManyCandles`。
+- **刷新证据（1 行）**：`:164 TestRunScriptPayloadSizeRejectsNonFiniteCandle` 仍为 partial——Rust 没有 `jsonSize` 体积估算入口，非有限字段改在编码前校验阶段拒绝（`must be finite`），拒绝点与文案不同但强度等价。
+- **保持终值（22 行）**：客户端元数据缺省与体积/性能门（`client_test.go:12`/`:56`/`:125`/`:143`）、传输/超时/worker 错误映射（`:81`/`:92`/`:103`/`:114`）、`NewClient` 依赖校验（`:161`）、运行时归一与默认 worker 规模（`types_test.go:10`/`:21`）、性能门（`:171`）、proto 往返/金标/health 能力/nil 边界（`proto_mapping_test.go` 5 行）、拨号与传输边界（`grpc_dialer_test.go` 2 行、`grpc_transport_test.go` 2 行）——既有结论与当前代码一致，本分片未改动。
+
+剩余缺口：
+
+1. **运行时归一与默认 worker 规模无 Rust 同形对象（P2）**：Go 的 `NormalizeRuntime`/`SupportsRuntime`（`pine-go-plan` → `pine-pinets`）与 `DefaultWorkerConfig(cpu)`（live/backtest/optimization 随 CPU 缩放、默认不限消息与 K 线数）在 Rust 分别由 `crates/jftrade-engine` 的 runtime 标识常量/落库归一与 `PineExecutionConfig` 的显式上限承担；没有同名函数的逐值断言。
+2. **客户端元数据缺省（P2）**：Go 的 `Client.RunScript` 会回填 duration/requestBytes/responseBytes 并支持性能门；Rust 的 gRPC 执行端口不做响应元数据回填，性能门这一层在 Rust 由进程就绪/超时与 wire 预算承担（`grpc_request_message_limit_has_exact_encoded_boundaries`）。
+3. **proto 映射面差异（P2）**：Go 的 `proto_mapping_test.go` 断言自定义 proto 映射与金标向量；Rust 走 prost 生成的 `proto/pineworker` 冻结输入（`tests/pineworker_proto_frozen_inputs.rs` 锁定三份 proto 的树摘要与文件数），没有逐字段映射往返用例。
+4. **真实进程冒烟默认忽略（P2）**：`process_smoke_test.go` 对应的 Rust 冒烟（`tests/real_worker_smoke.rs`）需环境变量并标记 ignored；普通回归使用 mock worker/记录端口。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 新增用例 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine --all-targets --locked` | 见下方受影响 crate 记录（5 条新用例全绿） |
+| 受影响 crate | `cargo test -p jftrade-integration-pine --lib` | 37/37 通过 |
+| 映射写入 | 5 行 payload `/tmp/s128s16_payload.json` 经 `/tmp/b82_apply.py` 应用 | `[x]` 1580 → 1584、partial 2233 → 2229、boundary 638 不变（合计 4451） |
+| 审计 | `python3 scripts/compatibility/audit_test_parity.py` | 0 条引用不存在 crate、0 条 `[x]` 缺 function_exact、rust_entry 唯一；partial 引用不可解析 2；Rust 测试 3276+5 |
+| 锚点 | `python3 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1619、unrecorded 0、stale 0、unknown 53 |
+| 静态与格式 | `cargo fmt --all -- --check`、`pnpm run check:clippy`、`pnpm run check:rust:architecture`、`git diff --check` | 全部通过（clippy 首轮两条 `type_complexity` 报错，改为 `RequestMutation`/`ValidationCase`/`SessionCase` 类型别名后转绿） |
+| 整轮 nextest | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast` | 1899/1899 通过 |
+| 兼容与门禁 | `pnpm run check:compatibility`、`check:generated`、`check:ai-context`、`check:zero-go`（2953 files）、`pnpm run check:quick` | compatibility exit 0（278 operations / 18 groups / 19 probes；desktop 3 平台档 6 link case 10 facade 4 event）；generated/ai-context/zero-go 通过；`check:quick` 首轮 exit 0（nextest 1974/1974 + node 124+19 全绿），`.rcgu.o` 计数 0 未触发清理 |
+| 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy` | 仍因 `deny.toml` 8 条 `advisory-not-detected` 失败 |
+
+后续：分片十七进入 `pkg/strategy/pineworker` 余量约 40 行（`manager_test.go` 13、`process_launcher_boundaries_test.go` 5、`process_launcher_test.go` 7、`runtime_boundaries_test.go` 7、`payload_size_test.go` 3、`process_smoke_test.go` 2、`hardcut_audit_test.go` 1、`manager_readiness_recovery_test.go` 1、`proto_contract_test.go` 1）；之后 `internal/strategy/pineruntime` 25 → `internal/strategy` 其余子域，直至 strategy_pine 域清空。

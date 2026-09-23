@@ -476,3 +476,199 @@ fn endpoint_and_token_boundaries_fail_closed() {
         Err(PineExecutionError::WeakToken)
     ));
 }
+
+type RequestMutation = fn(&mut PineRunRequest);
+type ValidationCase = (&'static str, RequestMutation, &'static str);
+type SessionCase = (&'static str, &'static str, RequestMutation);
+
+fn validation_port(max_candles: usize) -> GrpcPineExecutionPort {
+    GrpcPineExecutionPort::new(PineExecutionConfig {
+        endpoint: "http://127.0.0.1:50051".to_owned(),
+        max_candles,
+        ..PineExecutionConfig::default()
+    })
+    .expect("validation port")
+}
+
+/// Parity: go:452dea11:pkg/strategy/pineworker/types_test.go:41 TestValidateRunScriptRequest
+#[test]
+fn request_validation_rejects_every_incomplete_or_inconsistent_field() {
+    let port = validation_port(0);
+    port.request_to_proto(&request()).expect("valid request");
+
+    let cases: [ValidationCase; 9] = [
+        (
+            "missing job",
+            |request| request.job_id.clear(),
+            "job id is required",
+        ),
+        (
+            "missing source",
+            |request| request.source.clear(),
+            "source is required",
+        ),
+        (
+            "missing symbol",
+            |request| request.symbol.clear(),
+            "symbol is required",
+        ),
+        (
+            "missing timeframe",
+            |request| request.timeframe.clear(),
+            "timeframe is required",
+        ),
+        (
+            "unsupported mode",
+            |request| request.mode = "scan".to_owned(),
+            "unsupported pine worker mode",
+        ),
+        (
+            "missing candles",
+            |request| request.candles.clear(),
+            "candles are required",
+        ),
+        (
+            "high below low",
+            |request| request.candles[0].high = 8.0,
+            "high is below low",
+        ),
+        (
+            "open outside range",
+            |request| request.candles[0].open = 99.0,
+            "open is outside high/low range",
+        ),
+        (
+            "negative volume",
+            |request| request.candles[0].volume = -1.0,
+            "volume is negative",
+        ),
+    ];
+    for (name, mutate, message) in cases {
+        let mut invalid = request();
+        mutate(&mut invalid);
+        let error = port.request_to_proto(&invalid).expect_err(name).to_string();
+        assert!(
+            error.contains(message),
+            "{name}: error {error:?} must contain {message:?}"
+        );
+    }
+}
+
+/// Parity: go:452dea11:pkg/strategy/pineworker/types_test.go:92 TestValidateRunScriptRequestAnalyzeModeAllowsNoCandles
+#[test]
+fn analyze_mode_accepts_an_empty_candle_list() {
+    let port = validation_port(0);
+    let mut analyze = request();
+    analyze.mode = "analyze".to_owned();
+    analyze.candles.clear();
+    port.request_to_proto(&analyze)
+        .expect("analyze mode runs without candles");
+
+    let mut backtest = request();
+    backtest.candles.clear();
+    let error = port
+        .request_to_proto(&backtest)
+        .expect_err("backtest still needs candles")
+        .to_string();
+    assert!(error.contains("candles are required"), "error {error:?}");
+}
+
+/// Parity: go:452dea11:pkg/strategy/pineworker/types_test.go:105 TestValidateRunScriptRequestLiveSessionContract
+#[test]
+fn live_session_contract_requires_identity_mode_and_revisions() {
+    let port = validation_port(0);
+    let mut open = request();
+    open.mode = "live".to_owned();
+    open.session_id = "session-1".to_owned();
+    open.session_operation = "open".to_owned();
+    port.request_to_proto(&open).expect("open");
+
+    let mut append = open.clone();
+    append.session_operation = "append".to_owned();
+    append.expected_revision = 1;
+    port.request_to_proto(&append).expect("append");
+
+    let mut close = append.clone();
+    close.session_operation = "close".to_owned();
+    port.request_to_proto(&close).expect("close");
+
+    let cases: [SessionCase; 5] = [
+        (
+            "unsupported operation",
+            "unsupported pine worker session operation",
+            |request| {
+                request.session_operation = "replace".to_owned();
+            },
+        ),
+        (
+            "session requires live mode",
+            "require live mode",
+            |request| {
+                request.mode = "backtest".to_owned();
+            },
+        ),
+        (
+            "open starts at zero",
+            "requires expected revision 0",
+            |request| {
+                request.expected_revision = 1;
+            },
+        ),
+        (
+            "append needs a revision",
+            "requires a positive expected revision",
+            |request| {
+                request.session_operation = "append".to_owned();
+            },
+        ),
+        (
+            "operation needs an id",
+            "session id is required",
+            |request| {
+                request.session_id.clear();
+            },
+        ),
+    ];
+    for (name, message, mutate) in cases {
+        let mut invalid = open.clone();
+        mutate(&mut invalid);
+        let error = port.request_to_proto(&invalid).expect_err(name).to_string();
+        assert!(
+            error.contains(message),
+            "{name}: error {error:?} must contain {message:?}"
+        );
+    }
+}
+
+/// Parity: go:452dea11:pkg/strategy/pineworker/types_test.go:147 TestValidateRunScriptRequestRejectsTooManyCandles
+#[test]
+fn request_validation_enforces_the_candle_limit() {
+    let port = validation_port(1);
+    let mut two_candles = request();
+    two_candles.candles.push(two_candles.candles[0].clone());
+    let error = port
+        .request_to_proto(&two_candles)
+        .expect_err("candle limit")
+        .to_string();
+    assert!(error.contains("too many candles"), "error {error:?}");
+    port.request_to_proto(&request()).expect("one candle fits");
+}
+
+/// Parity: go:452dea11:pkg/strategy/pineworker/types_test.go:164 TestRunScriptPayloadSizeRejectsNonFiniteCandle
+#[test]
+fn non_finite_candle_values_are_rejected_before_transport() {
+    let port = validation_port(0);
+    let mut nan_open = request();
+    nan_open.candles[0].open = f64::NAN;
+    let mut infinite_high = request();
+    infinite_high.candles[0].high = f64::INFINITY;
+    let mut negative_infinite_volume = request();
+    negative_infinite_volume.candles[0].volume = f64::NEG_INFINITY;
+    for invalid in [nan_open, infinite_high, negative_infinite_volume] {
+        let error = port
+            .request_to_proto(&invalid)
+            .expect_err("non-finite candle value")
+            .to_string();
+        assert!(error.contains("must be finite"), "error {error:?}");
+    }
+}

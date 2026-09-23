@@ -30149,37 +30149,37 @@
     "evidence_type": "partial"
   },
   "pkg/strategy/pineworker/types_test.go:41:TestValidateRunScriptRequest": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-integration-pine/src/execution/tests.rs::request_validation_rejects_oversized_source_and_invalid_candle",
-    "conclusion": "partial：Go 断言运行请求的必填/枚举校验。Rust 的执行用例断言超长源码与非法 K 线被拒（同一请求校验入口）；Go 的逐字段必填校验在 Rust 由请求校验函数覆盖，无逐条断言。",
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution/tests.rs::request_validation_rejects_every_incomplete_or_inconsistent_field",
+    "conclusion": "partial→已覆盖：Go 断言运行请求的必填/枚举/数值校验（合法请求通过，缺 job/source/symbol/timeframe、mode=scan、无 K 线、high<low、open 越界、volume 负值、非有限值逐条拒绝）。Rust 的执行端口在同一校验入口（crates/jftrade-integration-pine/src/execution.rs::validate_request/validate_candle）实现同一契约，新增用例逐条断言 9 个拒绝形态与合法请求（非有限值单独成例），消息与 Go 保持同义（job id/source/symbol/timeframe is required、unsupported pine worker mode、candles are required、high is below low、open is outside high/low range、volume is negative）。owner：crates/jftrade-integration-pine。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine --all-targets --locked",
-    "evidence_type": "partial"
+    "evidence_type": "function_exact"
   },
   "pkg/strategy/pineworker/types_test.go:92:TestValidateRunScriptRequestAnalyzeModeAllowsNoCandles": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-integration-pine/src/backtest_tests.rs::pine_adapter_requires_source_and_history",
-    "conclusion": "partial：Go 断言 analyze 模式允许无 K 线。Rust 的适配器用例断言缺少源码与历史时被拒（同一\"必需输入\"判定）；Go 的 analyze 模式放宽分支在 Rust 没有模式枚举，按边界登记。",
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution/tests.rs::analyze_mode_accepts_an_empty_candle_list",
+    "conclusion": "partial→已覆盖：Go 断言 analyze 模式允许不带 K 线。Rust 的 validate_request 只在 `candles.is_empty() && mode != analyze` 时报 candles are required，新增用例同时断言 analyze 空 K 线通过、backtest 空 K 线仍报 candles are required。owner：crates/jftrade-integration-pine。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine --all-targets --locked",
-    "evidence_type": "partial"
+    "evidence_type": "function_exact"
   },
   "pkg/strategy/pineworker/types_test.go:105:TestValidateRunScriptRequestLiveSessionContract": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-integration-pine/src/execution/tests.rs::close_rejects_a_different_session_or_a_stale_explicit_revision",
-    "conclusion": "partial：Go 断言活会话契约（会话 id/修订号的一致性要求）。Rust 的执行用例断言会话不同或修订陈旧时关闭被拒（同一会话身份契约）；Go 的请求侧契约校验在 Rust 由请求校验与会话校验分摊覆盖。",
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution/tests.rs::live_session_contract_requires_identity_mode_and_revisions",
+    "conclusion": "partial→已覆盖：Go 断言 live 会话契约（open/append/close 通过；未支持操作、会话要求 live 模式、open 必须 revision 0、append 必须正 revision、操作必须带 session id 各报指定错误）。Rust 的 validate_request 逐条实现同一规则（unsupported pine worker session operation、pine worker sessions require live mode、open requires expected revision 0、append requires a positive expected revision、session id is required），新增用例覆盖三段合法序列与 5 个拒绝形态；端口层的 close 修订确认另有 close_acknowledges_the_existing_revision_without_incrementing_it 与 close_rejects_a_different_session_or_a_stale_explicit_revision。owner：crates/jftrade-integration-pine。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine --all-targets --locked",
-    "evidence_type": "partial"
+    "evidence_type": "function_exact"
   },
   "pkg/strategy/pineworker/types_test.go:147:TestValidateRunScriptRequestRejectsTooManyCandles": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-integration-pine/src/execution/tests.rs::grpc_request_message_limit_has_exact_encoded_boundaries",
-    "conclusion": "partial：Go 断言 K 线数量超过上限被拒。Rust 的执行用例断言请求消息上限的精确编码边界（同一上限判定）；Go 的按条数上限在 Rust 由负载体积上限表达，条数级断言缺失。",
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution/tests.rs::request_validation_enforces_the_candle_limit",
+    "conclusion": "partial→已覆盖：Go 断言超过 MaxCandlesPerRequest 时拒绝（too many candles）。Rust 的 PineExecutionConfig.max_candles 走同一限制分支（max_candles > 0 && len > max_candles → too many candles: N > M），新增用例用 max_candles=1 断言两根 K 线被拒、一根通过。owner：crates/jftrade-integration-pine。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine --all-targets --locked",
-    "evidence_type": "partial"
+    "evidence_type": "function_exact"
   },
   "pkg/strategy/pineworker/types_test.go:164:TestRunScriptPayloadSizeRejectsNonFiniteCandle": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-integration-pine/src/execution/tests.rs::request_validation_rejects_oversized_source_and_invalid_candle",
-    "conclusion": "partial：Go 断言非有限 K 线字段在体积估算时被拒。Rust 的执行用例断言非法 K 线在校验阶段被拒（同一非法字段拒绝）；Go 的体积估算入口在 Rust 由编码前校验取代。",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution/tests.rs::non_finite_candle_values_are_rejected_before_transport",
+    "conclusion": "partial：Go 断言非有限 K 线字段在体积估算（jsonSize）时被拒（unsupported value）。Rust 没有 jsonSize 入口，非有限字段在编码前校验阶段被拒（candle N: <field> must be finite），新增用例断言 open=NaN、high=+Inf、volume=-Inf 三个形态均在传输前失败；等价强度相同（非法 K 线永不上线），但拒绝点与文案不同。owner：crates/jftrade-integration-pine。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine --all-targets --locked",
     "evidence_type": "partial"
   },
