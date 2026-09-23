@@ -3569,3 +3569,31 @@ owner：系统实盘状态与控制由 engine 领域 crate 承接；bbgo floats 
 | 文档门禁 | check:ai-context、migration-manifest、zero-go、quick 完整计划 | ai-context 过；migration-manifest 过；zero-go 过；quick exit 0 |
 
 后续：api_transport 域本片完成 35 行（余约 404 行）；队列随后 backtest_calendar 307、storage_sqlite 196、marketdata_quotes 161、futu_opend 142、trading_broker 56、settings_watchlist 39。
+
+### 第 129 批分片四十六：api_transport 域 bbgo 类型家族 35 行（2 处结论勘误，无 verdict 变更）
+
+范围（账本 rows 3314-3348，按写入顺序）：expirable:43/:50、reduce:9、fixedpoint slice:10、types account:11/:37/:64、balance:13/:43、connectivity:8、connectivitygroup:11/:38/:295、duration:13/:59、error:10、exchange:9、indicator:16/:35/:41/:55/:75/:95/:109/:115/:121/:128/:137/:146/:152/:160/:169/:178/:186/:204。初值 partial 10、boundary 25，终值不变。
+
+owner：账户与余额语义由 jftrade-trading 承接，指标序列算术由 jftrade-backtest 承接，连接状态由 jftrade-integration-futu 受管会话承接，过期值语义由 jftrade-marketdata 缓存与租约承接，无双写。
+
+复核方法：35 条全量枚举引用有效性，partial 与 boundary 逐条核对缺口诚实度，并抽查 Go 原文核对结论算术。结论：引用全部有效，verdict 0 变更；2 处 partial 结论括号内算术描述与 Go 原文对不齐，仅做文字勘误。
+
+纠正证据：indicator TestDiv 结论曾写 3/2=1.5，Go 原文是序列 {3.0,1.0,2.0} 除以常量 2.0（Last(0)=1.0、Last(1)=0.5、Length=3）；TestMul 结论补全 Last(0)=4.0。两处 verdict 与 entry 不变，仍是 partial（Rust 无 Series.Div/Mul API，逐元素运算内嵌在指标实现中）。
+
+抽查证据：account 锁定两分支对可卖量扣减、期货持仓事件投影收敛、余额估值成本回退、连接组汇合信号对单会话就绪、指标窗口极值对权益峰值回撤，缺口描述均与实现一致；boundary 侧 Rust 无对应对象（分位数助手、dnum 双实现、Reduce 折叠、channel 连接接口、字符串组合时长、逻辑回归训练等）成立；dup-x 为 0。
+
+新增证据：无 Rust 改动；账本 2 行结论文字勘误，无新增锚点。
+
+映射终值（35 行）：[x] 0、partial 10、boundary 25。全量：[x] 1565、partial 2249、boundary 637（合计 4451）；Rust 测试 3295 不变。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 逐行复核 | 35 条全量枚举引用有效性加缺口诚实度抽查 | 0 verdict 变更、2 处结论文字勘误；重复 [x] 全文唯一性检查通（0 重复） |
+| 账本写入 | v2_writer 2 行结论勘误 | [x] 1565、partial 2249、boundary 637（合计 4451）不变 |
+| 审计 | python3 scripts/compatibility/audit_test_parity.py --write-report | 通过（exit 0）；inventory 与 report 同步结论文本；既有告警不变 |
+| 锚点 | python3 scripts/compatibility/parity_anchor_reconcile.py | anchors 1724、已记录 1676、unrecorded 0、stale 0、unknown 48（均不变） |
+| 文档门禁 | check:ai-context、migration-manifest、zero-go、quick 完整计划 | ai-context 过；migration-manifest 过；zero-go 过；quick exit 0 |
+
+后续：api_transport 域继续（余约 334 行）；队列随后 backtest_calendar 307、storage_sqlite 196、marketdata_quotes 161、futu_opend 142、trading_broker 56、settings_watchlist 39。

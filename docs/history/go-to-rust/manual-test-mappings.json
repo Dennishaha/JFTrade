@@ -7,7 +7,7 @@
     "treeSha": "0ee26444be21c15d9760f358a34649f78402f0fb"
   },
   "generatorVersion": "v2_writer.py@slice23",
-  "generatedAt": "2026-09-23T19:21:16Z",
+  "generatedAt": "2026-09-23T19:24:19Z",
   "mappings": {
     "cmd/jftrade-api/main_test.go:13:TestValidateArgsAllowsNoArgs": {
       "status": "[~]",
@@ -218781,7 +218781,7 @@
     "pkg/bbgo/types/indicator_test.go:160:TestDiv": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-backtest/src/indicators.rs::indicator_properties_stay_within_go_compatibility_bounds",
-      "conclusion": "部分覆盖：Go 断言逐元素除法（3/2=1.5→Last(1)=0.5）。Rust 指标内部做逐元素除法（该用例覆盖 EMA/MACD 除法路径）；差异是 Rust 无 Series.Div API。",
+      "conclusion": "部分覆盖：Go 断言逐元素除法（序列 {3.0,1.0,2.0} 除以常量 2.0：Last(0)=1.0、Last(1)=0.5、Length=3）。Rust 指标内部做逐元素除法（该用例覆盖 EMA/MACD 除法路径）；差异是 Rust 无 Series.Div API。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-backtest --all-targets --locked",
       "evidence_type": "partial",
       "source": {
@@ -218801,7 +218801,7 @@
       "assertionCoverage": {
         "covered": [],
         "uncovered": [
-          "部分覆盖：Go 断言逐元素除法（3/2=1.5→Last(1)=0.5）。Rust 指标内部做逐元素除法（该用例覆盖 EMA/MACD 除法路径）；差异是 Rust 无 Series.Div API。"
+          "部分覆盖：Go 断言逐元素除法（序列 {3.0,1.0,2.0} 除以常量 2.0：Last(0)=1.0、Last(1)=0.5、Length=3）。Rust 指标内部做逐元素除法（该用例覆盖 EMA/MACD 除法路径）；差异是 Rust 无 Series.Div API。"
         ],
         "source": "legacy-conclusion"
       },
@@ -218836,14 +218836,14 @@
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
-        "部分覆盖：Go 断言逐元素除法（3/2=1.5→Last(1)=0.5）。Rust 指标内部做逐元素除法（该用例覆盖 EMA/MACD 除法路径）；差异是 Rust 无 Series.Div API。"
+        "部分覆盖：Go 断言逐元素除法（序列 {3.0,1.0,2.0} 除以常量 2.0：Last(0)=1.0、Last(1)=0.5、Length=3）。Rust 指标内部做逐元素除法（该用例覆盖 EMA/MACD 除法路径）；差异是 Rust 无 Series.Div API。"
       ],
       "boundaryReason": null
     },
     "pkg/bbgo/types/indicator_test.go:169:TestMul": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-backtest/src/indicators.rs::indicator_properties_stay_within_go_compatibility_bounds",
-      "conclusion": "部分覆盖：Go 断言逐元素乘法（3*2=6→Last(1)=2）。Rust 指标内部逐元素乘法（该用例覆盖 MACD 乘数路径）；差异是 Rust 无 Series.Mul API。",
+      "conclusion": "部分覆盖：Go 断言逐元素乘法（序列 {3.0,1.0,2.0} 乘以常量 2.0：Last(0)=4.0、Last(1)=2.0、Length=3）。Rust 指标内部逐元素乘法（该用例覆盖 MACD 乘数路径）；差异是 Rust 无 Series.Mul API。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-backtest --all-targets --locked",
       "evidence_type": "partial",
       "source": {
@@ -218863,7 +218863,7 @@
       "assertionCoverage": {
         "covered": [],
         "uncovered": [
-          "部分覆盖：Go 断言逐元素乘法（3*2=6→Last(1)=2）。Rust 指标内部逐元素乘法（该用例覆盖 MACD 乘数路径）；差异是 Rust 无 Series.Mul API。"
+          "部分覆盖：Go 断言逐元素乘法（序列 {3.0,1.0,2.0} 乘以常量 2.0：Last(0)=4.0、Last(1)=2.0、Length=3）。Rust 指标内部逐元素乘法（该用例覆盖 MACD 乘数路径）；差异是 Rust 无 Series.Mul API。"
         ],
         "source": "legacy-conclusion"
       },
@@ -218898,7 +218898,7 @@
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
-        "部分覆盖：Go 断言逐元素乘法（3*2=6→Last(1)=2）。Rust 指标内部逐元素乘法（该用例覆盖 MACD 乘数路径）；差异是 Rust 无 Series.Mul API。"
+        "部分覆盖：Go 断言逐元素乘法（序列 {3.0,1.0,2.0} 乘以常量 2.0：Last(0)=4.0、Last(1)=2.0、Length=3）。Rust 指标内部逐元素乘法（该用例覆盖 MACD 乘数路径）；差异是 Rust 无 Series.Mul API。"
       ],
       "boundaryReason": null
     },
