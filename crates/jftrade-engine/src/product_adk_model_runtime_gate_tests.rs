@@ -728,6 +728,8 @@ fn first_tool_call_failure_matches_the_go_selection_rules() {
 ///
 /// Reference: go:452dea11:internal/assistant/engine/store_ops_test.go
 /// `TestResolveSessionRejectsDifferentAgent`.
+/// Parity: go:452dea11:internal/assistant/engine/store_ops_test.go:281
+/// `TestResolveSessionRejectsDifferentAgent`.
 #[test]
 fn chat_rejects_a_session_owned_by_a_different_agent() {
     let (directory, store, session_store) = initialized_stores();
@@ -845,6 +847,8 @@ fn chat_rejects_a_session_owned_by_a_different_agent() {
 /// workspace rows with the agent's own rows and bounded to 4000 runes.
 ///
 /// Reference: go:452dea11:internal/assistant/engine/store_ops_test.go
+/// `TestPrepareAgentInjectsMemoryOnlyWhenEnabled`.
+/// Parity: go:452dea11:internal/assistant/engine/store_ops_test.go:939
 /// `TestPrepareAgentInjectsMemoryOnlyWhenEnabled`.
 #[test]
 fn chat_injects_memory_into_the_instruction_only_when_enabled() {

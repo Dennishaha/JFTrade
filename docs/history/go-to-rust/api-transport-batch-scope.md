@@ -2874,3 +2874,32 @@ owner：异步审批续跑与审计分页由 SQLite ADK 存储层承接，provid
 | 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy` | static/policy 均 exit 1，失败原因与预期一致（deny advisory-not-detected，RUSTSEC-2026-0285 无 crate 命中），与本分片无关 |
 
 后续：engine 第十一片完成（626 行中 385 行）；队列进入 engine 第十二片（账本 1462 起约 35 行，以 `store_maintenance_test.go:54` 开头），随后 apiserver 下 assistant/ADK 相关 14 行。
+
+### 第 129 批分片二十一：`internal/assistant/engine` 第十二片 35 行（3 处过宽纠正 + 1 组合修正 + 1 结论收紧，无新增实现）
+
+范围（账本 inventory 1462-1496，按账本顺序）：`store_maintenance_test.go:54`、`store_ops_test.go:21/:36/:88/:128/:147/:184/:224/:281/:294/:320/:363/:402/:426/:436/:452/:486/:527/:565/:621/:745/:788/:844/:899/:939/:961/:998`、`store_recover_test.go:9/:66/:111/:127`、`store_test.go:59/:75/:127/:198`（35 行中 [x]20、partial15、boundary0）。
+
+owner：技能与模板目录由组装层承接，agent 软删与恢复由生产端口层承接，run 取消/审批幂等/分页由生产端口与存储 CAS 层承接，重启续跑与孤立回收由运行时 reconcile 承接，任务/记忆/工具域由生产端口层承接，provider 默认修复与写 fencing 由 SQLite 存储层承接。
+
+复核方法：23 条原 [x] 逐条对照 Go 基线分支与 Rust 断言。保留的 19 条 [x] 分支相符：压缩包安装保资源（:184）、异属会话拒绝（:281）、agent 软删/列表/恢复（:294/:320/:363）、取消连带拒绝审批（:402）、缺失取消与幂等空包络（:426/:436）、存储层幂等（:452）、run 分页排序（:486）、重复批准单续跑（:527）、重启恢复恰好执行一次（:621）、孤立 run 标 FAILED（:745）、双审批门禁（:788）、任务归一化（:844）、记忆过滤（:899）、记忆注入开关（:939）、默认修复组合（:9）、写 fencing（:59）。12 条 partial（含 3 条新增降级）的缺口描述与 Go 原文相符。
+
+结论：3 处 verdict 纠正（均为过宽降级）+ 1 处组合修正 + 1 处结论收紧。其一是 `store_ops_test.go:128` 由 [x] 降为 partial：Go 断言默认模板技能集、模板仅 1 个、4 个退役 id 全部下线，Rust 引用测试只断言默认助手存在与 investment-analyst 缺席一支，且其锚点指向另一基线用例；其二是 `store_ops_test.go:961` 由 [x] 降为 partial：Go 执行 tools.search 断言只返回当前 agent 可见工具，Rust 只断言 scope 归一化谓词，且 Reference 误指另一文件；其三是 `store_ops_test.go:998` 由 [x] 降为 partial：Go 经 Chat 执行 6 个低风险写入断言各执行一次且零 pending，Rust 只断言豁免谓词，chat 接线仍是 follow-up；其四是 `store_ops_test.go:565` 保持 [x] 但由单条目扩展为组合（终局投影测试 + :621 重启 e2e 测试），分别覆盖审计顺序与重启执行一次分支；其五是 `store_recover_test.go:9` 保持 [x]，结论收紧（HasAPIKey 无同形断言的结构性说明：Rust 密钥在 payload 外，修复不碰密钥）。组合条目在 [x] 行间唯一。
+
+新增证据（注释 only）：7 行规范锚点（:184 归 skill mutation 测试，:281/:939 归 gate 测试，:294/:320/:363/:402 归 ports 测试），无生产实现改动，无探针。
+
+映射终值（35 行）：`[x]` 20、partial 15、boundary 0。全量：`[x]` 1578、partial 2236、boundary 637（合计 4451）；Rust 测试 3293 不变。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 逐行复核 | 23 条原 [x] 逐分支核对、12 条 partial 结论抽查 | 3 verdict 纠正（:128、:961、:998）加 1 组合修正（:565）加 1 结论收紧（:9），7 锚点补齐 |
+| 账本写入 | 5 行变更（b82_apply），其余不动 | `[x]` 1581→1578、partial 2233→2236、boundary 637 不变（合计 4451） |
+| 审计 | `python3 scripts/compatibility/audit_test_parity.py` | 通过（exit 0）；0 条引用不存在 crate、0 条 `[x]` 缺 function_exact；缺锚点告警 153→144；Rust 测试 3293 不变；重复 `[x]` 唯一性检查通过 |
+| 锚点 | `python3 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1684→1691、已记录 1634→1641、unrecorded 0、stale 0、unknown 50 不变 |
+| 静态与格式 | `cargo fmt --all -- --check`、`pnpm run check:clippy`、`check:rust:architecture` | fmt exit 0、clippy exit 0、architecture 通过；改动仅注释锚点加账本结论 |
+| 整轮 nextest | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast` 及 assistant/sqlite 受影响定向 | 1911/1911 passed，exit 0，一次通过无抖动；assistant 41/41 exit 0；sqlite 定向 2/2 exit 0 |
+| 兼容与门禁 | `pnpm run check:compatibility`、`check:generated`、`check:ai-context`、`check:zero-go`、`pnpm run check:quick` | compat/generated/ai-context/zero-go 均 exit 0；quick 第二轮 exit 0（rust 1941/1941、pineworker 98/98；首轮倒在 launcher 已知抖动，隔离复跑 1/1 后整轮确认） |
+| 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy` | static/policy 均 exit 1，失败原因与预期一致（deny advisory-not-detected），与本分片无关 |
+
+后续：engine 第十二片完成（626 行中 420 行）；队列进入 engine 第十三片（账本 1497 起约 35 行），随后 apiserver 下 assistant/ADK 相关 14 行。

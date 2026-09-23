@@ -61,6 +61,8 @@ fn skill_archive(entries: &[(&str, &str)]) -> Vec<u8> {
 /// A downloaded archive keeps every bundled resource next to its `SKILL.md`
 /// and records the source URL plus the parsed metadata, exactly like the
 /// reference `InstallArchive` -> `InstallExtractedArchiveSkill` path.
+/// Parity: go:452dea11:internal/assistant/engine/store_ops_test.go:184
+/// `TestInstallSkillArchivePreservesResources`.
 #[test]
 fn skill_archive_install_preserves_resources_and_metadata() {
     let root = tempdir().expect("temp dir");

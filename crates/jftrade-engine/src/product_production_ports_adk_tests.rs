@@ -7216,6 +7216,8 @@ fn catalog_read_faults_expose_the_go_resource_error_codes() {
 ///
 /// Reference: go:452dea11:internal/assistant/engine/store_ops_test.go
 /// `TestDeleteAgentSoftDeletesHistoricalRecord`.
+/// Parity: go:452dea11:internal/assistant/engine/store_ops_test.go:294
+/// `TestDeleteAgentSoftDeletesHistoricalRecord`.
 #[test]
 fn adk_agent_delete_soft_deletes_the_historical_row() {
     let (port, store, _directory) = setup_test_adk_mutation_port(None);
@@ -7259,6 +7261,8 @@ fn adk_agent_delete_soft_deletes_the_historical_row() {
 /// diverge by exactly the soft-deleted records.
 ///
 /// Reference: go:452dea11:internal/assistant/engine/store_ops_test.go
+/// `TestListAgentsExcludesSoftDeletedWhileListAllIncludesThem`.
+/// Parity: go:452dea11:internal/assistant/engine/store_ops_test.go:320
 /// `TestListAgentsExcludesSoftDeletedWhileListAllIncludesThem`.
 #[test]
 fn adk_agent_listing_excludes_soft_deleted_rows_but_keeps_history() {
@@ -7324,6 +7328,8 @@ fn adk_agent_listing_excludes_soft_deleted_rows_but_keeps_history() {
 ///
 /// Reference: go:452dea11:internal/assistant/engine/store_ops_test.go
 /// `TestSaveAgentRestoresDeletedAgentRecord`.
+/// Parity: go:452dea11:internal/assistant/engine/store_ops_test.go:363
+/// `TestSaveAgentRestoresDeletedAgentRecord`.
 #[test]
 fn adk_agent_save_restores_a_soft_deleted_row() {
     let (port, _store, _directory) = setup_test_adk_mutation_port(None);
@@ -7375,6 +7381,8 @@ fn adk_agent_save_restores_a_soft_deleted_row() {
 /// terminal run.
 ///
 /// Reference: go:452dea11:internal/assistant/engine/store_ops_test.go
+/// `TestCancelPendingRunDeniesApprovals`.
+/// Parity: go:452dea11:internal/assistant/engine/store_ops_test.go:402
 /// `TestCancelPendingRunDeniesApprovals`.
 #[test]
 fn cancelling_a_run_denies_its_pending_approvals() {

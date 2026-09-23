@@ -10255,11 +10255,11 @@
     "evidence_type": "boundary"
   },
   "internal/assistant/engine/store_ops_test.go:128:TestBuiltinAgentTemplatesOnlyExposeDefaultAgent": {
-    "status": "[x]",
+    "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_production_assembly_tests.rs::production_adk_catalog_templates_and_delete_agent_contracts_hold",
-    "conclusion": "function_exact：`GET /api/v1/adk/agent-templates` 只暴露内置默认助手模板（响应含“默认助手”），已下线的旧模板 id（`investment-analyst` 等）不再出现；同一测试随后对 `PUT/DELETE /api/v1/adk/agents/jftrade-default` 断言内置 agent 不可编辑/不可删除。Go 该用例的默认模板 + 退役模板集合两个断言都由此覆盖。",
+    "conclusion": "partial（纠正过宽）：Go 断言默认模板存在且技能集等于全部 builtin、模板仅 1 个、4 个退役 id 全部下线。Rust 引用测试只在 HTTP 模板投影中断言含默认助手且不含 investment-analyst 一支；其余三个退役 id、技能集合等价、模板数量在 Rust 无逐条断言，且该测试锚定的是另一基线用例。缺口与回归要求：补退役集合与技能集断言后再升级。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "function_exact"
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/store_ops_test.go:147:TestBuiltinRefreshDoesNotOverrideNonBuiltinSkill": {
     "status": "[~]",
@@ -10354,8 +10354,8 @@
   },
   "internal/assistant/engine/store_ops_test.go:565:TestPendingApprovalResumesThroughGoogleADKAfterRuntimeRestart": {
     "status": "[x]",
-    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_tool_failure_tests.rs::a_resumed_approval_run_completes_with_the_confirmation_resolved_state",
-    "conclusion": "function_exact：审批续跑在终局投影里保留 Go `hydrateResumedRun` 的 `resumeState=adk_confirmation_resolved` 与 `completedAt`，run 进入 COMPLETED；Rust 原先把续跑与普通 chat 混同（resumeState 丢失），控制台和 `resumed` 指标都会误判。测试同时断言持久化 payload 保留该状态。探针：删除 stream 的 resumeState 写入后本用例与 restart 恢复用例同时转红。 本批补强：同一回归新增断言，批准续跑必须先写 `run.resumed` 审计行（metadata.resumeState=adk_confirmation_resolved），随后才是 `run.completed` 终态行，对应 Go `auditResumedRun` 在 `PersistRunTerminalState` 之前执行；修复位置：product_adk_model_runtime_audit.rs 的 record_resumed_run_audit 与 product_adk_model_runtime_stream.rs 的 persist_success（chat.resumed 分支）。",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_tool_failure_tests.rs::a_resumed_approval_run_completes_with_the_confirmation_resolved_state; crates/jftrade-engine/src/product_adk_model_runtime_lifecycle_tests.rs::an_approval_resuming_run_is_recovered_after_a_runtime_restart",
+    "conclusion": "function_exact（组合覆盖，修正单条目过窄）：Go 断言审批带 confirmation 标识、重启后 run 保持 PENDING、批准后工具恰好执行一次、终局 COMPLETED 且 resumeState 为 adk_confirmation_resolved。终局投影、completedAt 与 run.resumed 先于 run.completed 的审计顺序由前一测试断言；重启水合、工具恰好执行一次、终局状态由后一测试以真实 loopback provider 重启 e2e 断言；两者合起来覆盖 Go 的重启续跑分支。原单条目只覆盖终局投影一半，已扩展为组合。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "function_exact"
   },
@@ -10402,23 +10402,23 @@
     "evidence_type": "function_exact"
   },
   "internal/assistant/engine/store_ops_test.go:961:TestToolsSearchReturnsOnlyCurrentAgentTools": {
-    "status": "[x]",
+    "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_gate_tests.rs::agent_tool_scope_follows_the_go_access_mode_normalization",
-    "conclusion": "function_exact：新增回归测试断言 AgentToolScope 归一化与 Go ToolDescriptorsForAgent 一致：toolAccessMode=selected 只放行 allowlist、none 全部隐藏、all/空 tools 放行全部、research_backtest 或 optimize 隐含 backtest.kline_sync_status。修复位置：product_adk_model_runtime_lifecycle.rs agent_tool_scope + events 的两条 tool 列表构造路径，原先 Rust 无条件下发全部模型工具。",
+    "conclusion": "partial（纠正过宽）：Go 执行 tools.search 并断言只返回当前 agent 可见工具且结果带 requiresApprovalIn。Rust 引用测试只断言 agent_tool_scope 归一化（allowlist 与模式、隐含 companion 关系），search 执行结果的 agent 过滤在 Rust 无端到端断言；且该测试的 Reference 误指另一文件。缺口与回归要求：补 search 执行面断言后再升级。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "function_exact"
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/store_ops_test.go:998:TestWorkflowWriteToolsRequireApprovalExceptLowRiskTaskWrites": {
-    "status": "[x]",
+    "status": "[~]",
     "rust_entry": "crates/jftrade-assistant/src/model.rs::tests::low_risk_workflow_writes_skip_approval_in_approval_mode",
-    "conclusion": "function_exact：Go 该用例的核心是 `assistantmodel.ToolRequiresApproval` 的“低风险工作流写入豁免”规则——`tasks.create/update/delete`、`memory.remember/forget`、`strategy.save_draft` 在 `approval` 模式下不要求审批（用户消息显式要求执行这些工具时不应产生 PendingApprovals）。Rust 侧此前没有这个纯函数，runtime 也完全不读 agent 的 `permissionMode`；本批按 Go 语义把它补进 jftrade-assistant（唯一 assistant 领域 owner）的 `tool_policy` 模块，并由同模块 7 条测试覆盖全部风险/权限类/模式组合。runtime 的 `permissionMode` 接线是该策略函数的下一个消费点，已记入 assistant-workflow-adk-batch-scope.md 的下一批清单。",
+    "conclusion": "partial（纠正过宽）：Go 经 Chat 执行 6 个低风险写入并断言各执行一次且零 PendingApprovals。Rust 引用测试只断言 tool_requires_approval 谓词对这些工具返回 false（机制层）；chat 路径是否采纳该谓词、无 pending 审批的端到端行为在 Rust 无断言，permissionMode 接线仍是 follow-up。缺口与回归要求：补执行面断言后再升级。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant --all-targets --locked",
-    "evidence_type": "function_exact"
+    "evidence_type": "partial"
   },
   "internal/assistant/engine/store_recover_test.go:9:TestStoreListProvidersRepairsPersistedDefaultSelection": {
     "status": "[x]",
     "rust_entry": "crates/jftrade-store-sqlite/tests/adk_store_contracts.rs::provider_list_normalizes_default_selection_and_orders_default_first; crates/jftrade-store-sqlite/tests/adk_store_contracts.rs::provider_delete_promotes_the_replacement_and_keeps_one_default",
-    "conclusion": "function_exact：Go 断言手工制造重复默认后 ListProviders 读修复为唯一默认。Rust 的两条测试分别断言默认选择归一/排序与删除后提升唯一默认，合起来等价于“读取路径修复默认选择”。",
+    "conclusion": "function_exact（结论收紧，分支无变化）：Go 断言手工制造重复默认后 ListProviders 读修复为唯一默认、首位为最早默认、其余持久化非默认。Rust 的前一测试以 SQL 强制全表重复默认并断言坍缩为唯一默认与创建序，后一测试断言删默认提升；合起来等价于读取路径修复默认选择。范围说明：Go 的 HasAPIKey 标记分支在 Rust 无同形断言，Rust 密钥存于 payload 之外的 secret 存档，读修复只改写 default 位，不存在拭除密钥的路径。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked",
     "evidence_type": "function_exact"
   },
