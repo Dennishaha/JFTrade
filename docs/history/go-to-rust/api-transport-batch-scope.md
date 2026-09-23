@@ -4663,3 +4663,27 @@ owner：能力目录与路由投影由 jftrade-engine 承接，市场规则与�
 | 快速门禁 | pnpm run check:quick | 通过 exit 0（单实例整轮，1954 用例段无失败，含 launcher 端到端）|
 
 后续：第 130 批分片五之二取 broker_test 186/453/533/735 与 broker_conformance/account 余量。
+
+### 第 130 批分片五之二：broker 快照映射与符号归一（测试-only，无生产变更）
+
+范围：internal/trading/broker_test.go:186（13 读操作映射）、:453（组合与回退响应）、:735（符号归一与运行时默认）。owner：读投影归 jftrade-engine 生产端口，请求解析归 trade_requests，API 层不复制业务逻辑。
+
+补测：trade_tests 新增 HistoryBackfillRead、SecurityCaptureRead 与 3 个用例。history_orders_backfill_account_market_and_environment_from_the_query 关闭 :186 缺口③（历史订单响应行 accountId/market/tradingEnvironment/symbol 取自请求；Rust 投影层统一构造，无 Go 逐行回填分支）。portfolio_cash_balances_carry_created_at_alongside_updated_at 关闭 :453 缺口①（现金余额每行 createdAt 与 updatedAt 同时存在且相等）。margin_ratios_prefix_a_bare_symbol_with_the_request_market 补 :735 裸符号前缀化（symbol=AAPL&market=US 解析为 code AAPL 配市场码 11）。
+
+探针：三段各转红一次后恢复，生产三文件均按字节回滚（trade.rs 5bfd38da、requests e1b6b10d、projection a485e213 前后一致，与 HEAD 无 diff）。探针三把默认市场改坏为 HK 后转红，恰好复现 :735 注册的 HK 兜底 hazard 形状。
+
+映射终值：三行均保留 partial，缺口收窄并写清残留（:186 残留 fills/klines 正向投影；:453 残留超时契约与降级 wire 形状；:735 残留配置默认市场注入的生产修复）。全量：[x] 1565、partial 2248、boundary 638（合计 4451）；Rust 测试 3310 到 3313（本批新增 3 个用例）。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 回归先红后绿 | 三段探针各转红一次，恢复后通过 | 红绿确认 |
+| Rust 定向测试 | jftrade-engine trade 端口新用例 | 3/3 通过 |
+| 账本写入 | v2 写入器 3 行 | [x] 1565、partial 2248、boundary 638（合计 4451） |
+| 审计 | python3 scripts/compatibility/audit_test_parity.py --write-report | 通过 exit 0；dup 校验通过；report/inventory 刷新 |
+| 锚点 | python3 scripts/compatibility/parity_anchor_reconcile.py | anchors 1739、已记录 1693、unrecorded 0、stale 0、unknown 46 |
+| 文档门禁 | fmt、ai-context、migration-manifest、zero-go、diff check | 全过 |
+| 快速门禁 | pnpm run check:quick | 通过 exit 0（单实例整轮，1957 用例段无失败）|
+
+后续：第 130 批分片五之三取 broker_conformance 58/107 与 order_updates 余量；:735 配置默认市场注入单独立项做生产修复。

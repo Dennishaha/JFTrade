@@ -7,7 +7,7 @@
     "treeSha": "0ee26444be21c15d9760f358a34649f78402f0fb"
   },
   "generatorVersion": "v2_writer.py@slice23",
-  "generatedAt": "2026-09-23T23:35:59Z",
+  "generatedAt": "2026-09-23T23:50:32Z",
   "mappings": {
     "cmd/jftrade-api/main_test.go:13:TestValidateArgsAllowsNoArgs": {
       "status": "[~]",
@@ -280065,9 +280065,9 @@
     },
     "internal/trading/broker_test.go:186:TestServiceBrokerReadOperationsMapSnapshotsAndQueries": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::broker_read_projects_futu_funds_from_neutral_client；crates/jftrade-engine/src/product_production_ports_trade_tests.rs::position_projection_prefers_diluted_cost_and_account_pnl_with_legacy_fallback；crates/jftrade-engine/src/product_production_ports_trade_tests.rs::broker_current_orders_hide_terminal_statuses_while_history_keeps_them；crates/jftrade-engine/src/product_production_ports_trade_tests.rs::broker_read_projects_cash_flows_with_baseline_fields_and_sorting；crates/jftrade-engine/src/product_production_ports_trade_tests.rs::broker_read_projects_order_fees_and_merges_order_id_queries；crates/jftrade-engine/src/product_production_ports_trade_tests.rs::broker_read_projects_margin_ratios_with_real_environment_and_omits_absent_values；crates/jftrade-engine/src/product_production_ports_trade_tests.rs::broker_read_projects_max_trade_quantity_snapshot；crates/jftrade-engine/src/product_production_ports_trade_tests.rs::broker_quote_projects_real_futu_tick_cache_for_all_symbols；crates/jftrade-engine/src/product_production_ports_trade_tests.rs::broker_securities_projects_real_futu_tick_cache",
-      "conclusion": "部分覆盖：Go 的 service 把 13 个 broker 读操作逐一路由到 broker 并把 query 透传（Runtime/Funds 含币种余额/Positions/Orders 当前与历史/Fills 当前与历史/CashFlows/OrderFees/MarginRatios/MaxTradeQuantity/Quote/KLines/Securities），历史订单缺作用域时用请求补齐，并把运行时连通性时间戳落到响应。Rust 已有等价的投影矩阵（同一 crate product_production_ports_trade_tests.rs）：资金+币种余额 broker_read_projects_futu_funds_from_neutral_client、组合持仓 position_projection_prefers_diluted_cost_and_account_pnl_with_legacy_fallback、当前/历史订单分流 broker_current_orders_hide_terminal_statuses_while_history_keeps_them、现金流 broker_read_projects_cash_flows_with_baseline_fields_and_sorting、费用 broker_read_projects_order_fees_and_merges_order_id_queries、保证金 broker_read_projects_margin_ratios_with_real_environment_and_omits_absent_values、最大可买 broker_read_projects_max_trade_quantity_snapshot、报价 broker_quote_projects_real_futu_tick_cache_for_all_symbols、证券 broker_securities_projects_real_futu_tick_cache，另有参数校验与失败分级（cash_flows_require_clearing_date、order_fees_require_at_least_one_non_empty_order_id、margin_ratios_require_symbols 等）。缺口（需新增测试）：①成交流水成功投影无专门用例——现有只有降级/失败形状（test_service_broker_read_operations_return_fallback_when_market_data_unavailable，已被 internal/trading/broker_boundaries_test.go:11 的 [x] 行占用）与执行对账侧的 fills 用例，缺“broker 返回 fills → 响应 fills 数组 + 字段映射”的正向断言；②历史 K 线（/api/v1/brokers/futu/klines?period=1d&limit=10）正向投影缺专门用例，现有为无源 fail-closed（broker_klines_valid_request_fails_closed_without_historical_source）、参数校验与 current kline 委派；③历史订单的空作用域回填无逐字段断言——Rust 在投影层统一用请求作用域构造订单行，不存在 Go 的 per-row 回填分支，需以“历史订单响应行携带请求作用域”形式补断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(broker_read_projects_futu_funds_from_neutral_client) or test(position_projection_prefers_diluted_cost_and_account_pnl_with_legacy_fallback) or test(broker_current_orders_hide_terminal_statuses_while_history_keeps_them)'",
+      "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::broker_read_projects_futu_funds_from_neutral_client；crates/jftrade-engine/src/product_production_ports_trade_tests.rs::position_projection_prefers_diluted_cost_and_account_pnl_with_legacy_fallback；crates/jftrade-engine/src/product_production_ports_trade_tests.rs::broker_current_orders_hide_terminal_statuses_while_history_keeps_them；crates/jftrade-engine/src/product_production_ports_trade_tests.rs::broker_read_projects_cash_flows_with_baseline_fields_and_sorting；crates/jftrade-engine/src/product_production_ports_trade_tests.rs::broker_read_projects_order_fees_and_merges_order_id_queries；crates/jftrade-engine/src/product_production_ports_trade_tests.rs::broker_read_projects_margin_ratios_with_real_environment_and_omits_absent_values；crates/jftrade-engine/src/product_production_ports_trade_tests.rs::broker_read_projects_max_trade_quantity_snapshot；crates/jftrade-engine/src/product_production_ports_trade_tests.rs::broker_quote_projects_real_futu_tick_cache_for_all_symbols；crates/jftrade-engine/src/product_production_ports_trade_tests.rs::broker_securities_projects_real_futu_tick_cache；crates/jftrade-engine/src/product_production_ports_trade_tests.rs::history_orders_backfill_account_market_and_environment_from_the_query",
+      "conclusion": "部分覆盖：Go 的 service 把 13 个 broker 读操作逐一路由到 broker 并把 query 透传（Runtime/Funds 含币种余额/Positions/Orders 当前与历史/Fills 当前与历史/CashFlows/OrderFees/MarginRatios/MaxTradeQuantity/Quote/KLines/Securities），历史订单缺作用域时用请求补齐，并把运行时连通性时间戳落到响应。Rust 已有等价的投影矩阵（同一 crate product_production_ports_trade_tests.rs）：资金+币种余额 broker_read_projects_futu_funds_from_neutral_client、组合持仓 position_projection_prefers_diluted_cost_and_account_pnl_with_legacy_fallback、当前/历史订单分流 broker_current_orders_hide_terminal_statuses_while_history_keeps_them、现金流 broker_read_projects_cash_flows_with_baseline_fields_and_sorting、费用 broker_read_projects_order_fees_and_merges_order_id_queries、保证金 broker_read_projects_margin_ratios_with_real_environment_and_omits_absent_values、最大可买 broker_read_projects_max_trade_quantity_snapshot、报价 broker_quote_projects_real_futu_tick_cache_for_all_symbols、证券 broker_securities_projects_real_futu_tick_cache，另有参数校验与失败分级（cash_flows_require_clearing_date、order_fees_require_at_least_one_non_empty_order_id、margin_ratios_require_symbols 等）。缺口（需新增测试）：①成交流水成功投影无专门用例——现有只有降级/失败形状（test_service_broker_read_operations_return_fallback_when_market_data_unavailable，已被 internal/trading/broker_boundaries_test.go:11 的 [x] 行占用）与执行对账侧的 fills 用例，缺“broker 返回 fills → 响应 fills 数组 + 字段映射”的正向断言；②历史 K 线（/api/v1/brokers/futu/klines?period=1d&limit=10）正向投影缺专门用例，现有为无源 fail-closed（broker_klines_valid_request_fails_closed_without_historical_source）、参数校验与 current kline 委派；③历史订单的空作用域回填无逐字段断言——Rust 在投影层统一用请求作用域构造订单行，不存在 Go 的 per-row 回填分支，需以“历史订单响应行携带请求作用域”形式补断言。【本批收口】缺口③已补：新增 history_orders_backfill_account_market_and_environment_from_the_query，以 HistoryBackfillRead 返回裸快照，断言历史订单响应行 accountId/market/tradingEnvironment/symbol 均取自请求（Rust 投影层统一构造，无 Go 的逐行回填分支）；探针把 order_value 的 market 改坏后转红，恢复后通过，生产按字节回滚。残留缺口①②（fills 正向投影、klines 正向投影）。",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(broker_read_projects_futu_funds_from_neutral_client) or test(position_projection_prefers_diluted_cost_and_account_pnl_with_legacy_fallback) or test(broker_current_orders_hide_terminal_statuses_while_history_keeps_them)' or test(history_orders_backfill_account_market_and_environment_from_the_query)",
       "evidence_type": "partial",
       "source": {
         "file": "internal/trading/broker_test.go",
@@ -280080,61 +280080,117 @@
           "file": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs",
           "test": "broker_read_projects_futu_funds_from_neutral_client",
           "crate": "jftrade-engine",
-          "anchor": null
+          "anchor": {
+            "goFile": "internal/trading/broker_test.go",
+            "goLine": 186,
+            "rustFile": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs",
+            "rustLine": 4998
+          }
         },
         {
           "file": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs",
           "test": "position_projection_prefers_diluted_cost_and_account_pnl_with_legacy_fallback",
           "crate": "jftrade-engine",
-          "anchor": null
+          "anchor": {
+            "goFile": "internal/trading/broker_test.go",
+            "goLine": 186,
+            "rustFile": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs",
+            "rustLine": 4998
+          }
         },
         {
           "file": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs",
           "test": "broker_current_orders_hide_terminal_statuses_while_history_keeps_them",
           "crate": "jftrade-engine",
-          "anchor": null
+          "anchor": {
+            "goFile": "internal/trading/broker_test.go",
+            "goLine": 186,
+            "rustFile": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs",
+            "rustLine": 4998
+          }
         },
         {
           "file": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs",
           "test": "broker_read_projects_cash_flows_with_baseline_fields_and_sorting",
           "crate": "jftrade-engine",
-          "anchor": null
+          "anchor": {
+            "goFile": "internal/trading/broker_test.go",
+            "goLine": 186,
+            "rustFile": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs",
+            "rustLine": 4998
+          }
         },
         {
           "file": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs",
           "test": "broker_read_projects_order_fees_and_merges_order_id_queries",
           "crate": "jftrade-engine",
-          "anchor": null
+          "anchor": {
+            "goFile": "internal/trading/broker_test.go",
+            "goLine": 186,
+            "rustFile": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs",
+            "rustLine": 4998
+          }
         },
         {
           "file": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs",
           "test": "broker_read_projects_margin_ratios_with_real_environment_and_omits_absent_values",
           "crate": "jftrade-engine",
-          "anchor": null
+          "anchor": {
+            "goFile": "internal/trading/broker_test.go",
+            "goLine": 186,
+            "rustFile": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs",
+            "rustLine": 4998
+          }
         },
         {
           "file": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs",
           "test": "broker_read_projects_max_trade_quantity_snapshot",
           "crate": "jftrade-engine",
-          "anchor": null
+          "anchor": {
+            "goFile": "internal/trading/broker_test.go",
+            "goLine": 186,
+            "rustFile": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs",
+            "rustLine": 4998
+          }
         },
         {
           "file": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs",
           "test": "broker_quote_projects_real_futu_tick_cache_for_all_symbols",
           "crate": "jftrade-engine",
-          "anchor": null
+          "anchor": {
+            "goFile": "internal/trading/broker_test.go",
+            "goLine": 186,
+            "rustFile": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs",
+            "rustLine": 4998
+          }
         },
         {
           "file": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs",
           "test": "broker_securities_projects_real_futu_tick_cache",
           "crate": "jftrade-engine",
-          "anchor": null
+          "anchor": {
+            "goFile": "internal/trading/broker_test.go",
+            "goLine": 186,
+            "rustFile": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs",
+            "rustLine": 4998
+          }
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs",
+          "test": "history_orders_backfill_account_market_and_environment_from_the_query",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/trading/broker_test.go",
+            "goLine": 186,
+            "rustFile": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs",
+            "rustLine": 4998
+          }
         }
       ],
       "assertionCoverage": {
         "covered": [],
         "uncovered": [
-          "部分覆盖：Go 的 service 把 13 个 broker 读操作逐一路由到 broker 并把 query 透传（Runtime/Funds 含币种余额/Positions/Orders 当前与历史/Fills 当前与历史/CashFlows/OrderFees/MarginRatios/MaxTradeQuantity/Quote/KLines/Securities），历史订单缺作用域时用请求补齐，并把运行时连通性时间戳落到响应。Rust 已有等价的投影矩阵（同一 crate product_production_ports_trade_tests.rs）：资金+币种余额 broker_read_projects_futu_funds_from_neutral_client、组合持仓 position_projection_prefers_diluted_cost_and_account_pnl_with_legacy_fallback、当前/历史订单分流 broker_current_orders_hide_terminal_statuses_while_history_keeps_them、现金流 broker_read_projects_cash_flows_with_baseline_fields_and_sorting、费用 broker_read_projects_order_fees_and_merges_order_id_queries、保证金 broker_read_projects_margin_ratios_with_real_environment_and_omits_absent_values、最大可买 broker_read_projects_max_trade_quantity_snapshot、报价 broker_quote_projects_real_futu_tick_cache_for_all_symbols、证券 broker_securities_projects_real_futu_tick_cache，另有参数校验与失败分级（cash_flows_require_clearing_date、order_fees_require_at_least_one_non_empty_order_id、margin_ratios_require_symbols 等）。缺口（需新增测试）：①成交流水成功投影无专门用例——现有只有降级/失败形状（test_service_broker_read_operations_return_fallback_when_market_data_unavailable，已被 internal/trading/broker_boundaries_test.go:11 的 [x] 行占用）与执行对账侧的 fills 用例，缺“broker 返回 fills → 响应 fills 数组 + 字段映射”的正向断言；②历史 K 线（/api/v1/brokers/futu/klines?period=1d&limit=10）正向投影缺专门用例，现有为无源 fail-closed（broker_klines_valid_request_fails_closed_without_historical_source）、参数校验与 current kline 委派；③历史订单的空作用域回填无逐字段断言——Rust 在投影层统一用请求作用域构造订单行，不存在 Go 的 per-row 回填分支，需以“历史订单响应行携带请求作用域”形式补断言。"
+          "部分覆盖：Go 的 service 把 13 个 broker 读操作逐一路由到 broker 并把 query 透传（Runtime/Funds 含币种余额/Positions/Orders 当前与历史/Fills 当前与历史/CashFlows/OrderFees/MarginRatios/MaxTradeQuantity/Quote/KLines/Securities），历史订单缺作用域时用请求补齐，并把运行时连通性时间戳落到响应。Rust 已有等价的投影矩阵（同一 crate product_production_ports_trade_tests.rs）：资金+币种余额 broker_read_projects_futu_funds_from_neutral_client、组合持仓 position_projection_prefers_diluted_cost_and_account_pnl_with_legacy_fallback、当前/历史订单分流 broker_current_orders_hide_terminal_statuses_while_history_keeps_them、现金流 broker_read_projects_cash_flows_with_baseline_fields_and_sorting、费用 broker_read_projects_order_fees_and_merges_order_id_queries、保证金 broker_read_projects_margin_ratios_with_real_environment_and_omits_absent_values、最大可买 broker_read_projects_max_trade_quantity_snapshot、报价 broker_quote_projects_real_futu_tick_cache_for_all_symbols、证券 broker_securities_projects_real_futu_tick_cache，另有参数校验与失败分级（cash_flows_require_clearing_date、order_fees_require_at_least_one_non_empty_order_id、margin_ratios_require_symbols 等）。缺口（需新增测试）：①成交流水成功投影无专门用例——现有只有降级/失败形状（test_service_broker_read_operations_return_fallback_when_market_data_unavailable，已被 internal/trading/broker_boundaries_test.go:11 的 [x] 行占用）与执行对账侧的 fills 用例，缺“broker 返回 fills → 响应 fills 数组 + 字段映射”的正向断言；②历史 K 线（/api/v1/brokers/futu/klines?period=1d&limit=10）正向投影缺专门用例，现有为无源 fail-closed（broker_klines_valid_request_fails_closed_without_historical_source）、参数校验与 current kline 委派；③历史订单的空作用域回填无逐字段断言——Rust 在投影层统一用请求作用域构造订单行，不存在 Go 的 per-row 回填分支，需以“历史订单响应行携带请求作用域”形式补断言。【本批收口】缺口③已补：新增 history_orders_backfill_account_market_and_environment_from_the_query，以 HistoryBackfillRead 返回裸快照，断言历史订单响应行 accountId/market/tradingEnvironment/symbol 均取自请求（Rust 投影层统一构造，无 Go 的逐行回填分支）；探针把 order_value 的 market 改坏后转红，恢复后通过，生产按字节回滚。残留缺口①②（fills 正向投影、klines 正向投影）。"
         ],
         "source": "legacy-conclusion"
       },
@@ -280148,7 +280204,9 @@
           "--all-targets",
           "--locked",
           "-E",
-          "test(broker_read_projects_futu_funds_from_neutral_client) or test(position_projection_prefers_diluted_cost_and_account_pnl_with_legacy_fallback) or test(broker_current_orders_hide_terminal_statuses_while_history_keeps_them)"
+          "test(broker_read_projects_futu_funds_from_neutral_client) or test(position_projection_prefers_diluted_cost_and_account_pnl_with_legacy_fallback) or test(broker_current_orders_hide_terminal_statuses_while_history_keeps_them)",
+          "or",
+          "test(history_orders_backfill_account_market_and_environment_from_the_query)"
         ],
         "testFilter": [
           "broker_read_projects_futu_funds_from_neutral_client",
@@ -280159,7 +280217,8 @@
           "broker_read_projects_margin_ratios_with_real_environment_and_omits_absent_values",
           "broker_read_projects_max_trade_quantity_snapshot",
           "broker_quote_projects_real_futu_tick_cache_for_all_symbols",
-          "broker_securities_projects_real_futu_tick_cache"
+          "broker_securities_projects_real_futu_tick_cache",
+          "history_orders_backfill_account_market_and_environment_from_the_query"
         ],
         "runnerVersion": null,
         "toolchain": null,
@@ -280179,15 +280238,15 @@
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
-        "部分覆盖：Go 的 service 把 13 个 broker 读操作逐一路由到 broker 并把 query 透传（Runtime/Funds 含币种余额/Positions/Orders 当前与历史/Fills 当前与历史/CashFlows/OrderFees/MarginRatios/MaxTradeQuantity/Quote/KLines/Securities），历史订单缺作用域时用请求补齐，并把运行时连通性时间戳落到响应。Rust 已有等价的投影矩阵（同一 crate product_production_ports_trade_tests.rs）：资金+币种余额 broker_read_projects_futu_funds_from_neutral_client、组合持仓 position_projection_prefers_diluted_cost_and_account_pnl_with_legacy_fallback、当前/历史订单分流 broker_current_orders_hide_terminal_statuses_while_history_keeps_them、现金流 broker_read_projects_cash_flows_with_baseline_fields_and_sorting、费用 broker_read_projects_order_fees_and_merges_order_id_queries、保证金 broker_read_projects_margin_ratios_with_real_environment_and_omits_absent_values、最大可买 broker_read_projects_max_trade_quantity_snapshot、报价 broker_quote_projects_real_futu_tick_cache_for_all_symbols、证券 broker_securities_projects_real_futu_tick_cache，另有参数校验与失败分级（cash_flows_require_clearing_date、order_fees_require_at_least_one_non_empty_order_id、margin_ratios_require_symbols 等）。缺口（需新增测试）：①成交流水成功投影无专门用例——现有只有降级/失败形状（test_service_broker_read_operations_return_fallback_when_market_data_unavailable，已被 internal/trading/broker_boundaries_test.go:11 的 [x] 行占用）与执行对账侧的 fills 用例，缺“broker 返回 fills → 响应 fills 数组 + 字段映射”的正向断言；②历史 K 线（/api/v1/brokers/futu/klines?period=1d&limit=10）正向投影缺专门用例，现有为无源 fail-closed（broker_klines_valid_request_fails_closed_without_historical_source）、参数校验与 current kline 委派；③历史订单的空作用域回填无逐字段断言——Rust 在投影层统一用请求作用域构造订单行，不存在 Go 的 per-row 回填分支，需以“历史订单响应行携带请求作用域”形式补断言。"
+        "部分覆盖：Go 的 service 把 13 个 broker 读操作逐一路由到 broker 并把 query 透传（Runtime/Funds 含币种余额/Positions/Orders 当前与历史/Fills 当前与历史/CashFlows/OrderFees/MarginRatios/MaxTradeQuantity/Quote/KLines/Securities），历史订单缺作用域时用请求补齐，并把运行时连通性时间戳落到响应。Rust 已有等价的投影矩阵（同一 crate product_production_ports_trade_tests.rs）：资金+币种余额 broker_read_projects_futu_funds_from_neutral_client、组合持仓 position_projection_prefers_diluted_cost_and_account_pnl_with_legacy_fallback、当前/历史订单分流 broker_current_orders_hide_terminal_statuses_while_history_keeps_them、现金流 broker_read_projects_cash_flows_with_baseline_fields_and_sorting、费用 broker_read_projects_order_fees_and_merges_order_id_queries、保证金 broker_read_projects_margin_ratios_with_real_environment_and_omits_absent_values、最大可买 broker_read_projects_max_trade_quantity_snapshot、报价 broker_quote_projects_real_futu_tick_cache_for_all_symbols、证券 broker_securities_projects_real_futu_tick_cache，另有参数校验与失败分级（cash_flows_require_clearing_date、order_fees_require_at_least_one_non_empty_order_id、margin_ratios_require_symbols 等）。缺口（需新增测试）：①成交流水成功投影无专门用例——现有只有降级/失败形状（test_service_broker_read_operations_return_fallback_when_market_data_unavailable，已被 internal/trading/broker_boundaries_test.go:11 的 [x] 行占用）与执行对账侧的 fills 用例，缺“broker 返回 fills → 响应 fills 数组 + 字段映射”的正向断言；②历史 K 线（/api/v1/brokers/futu/klines?period=1d&limit=10）正向投影缺专门用例，现有为无源 fail-closed（broker_klines_valid_request_fails_closed_without_historical_source）、参数校验与 current kline 委派；③历史订单的空作用域回填无逐字段断言——Rust 在投影层统一用请求作用域构造订单行，不存在 Go 的 per-row 回填分支，需以“历史订单响应行携带请求作用域”形式补断言。【本批收口】缺口③已补：新增 history_orders_backfill_account_market_and_environment_from_the_query，以 HistoryBackfillRead 返回裸快照，断言历史订单响应行 accountId/market/tradingEnvironment/symbol 均取自请求（Rust 投影层统一构造，无 Go 的逐行回填分支）；探针把 order_value 的 market 改坏后转红，恢复后通过，生产按字节回滚。残留缺口①②（fills 正向投影、klines 正向投影）。"
       ],
       "boundaryReason": null
     },
     "internal/trading/broker_test.go:453:TestServicePortfolioAndFallbackResponses": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::portfolio_cash_balances_prefer_currency_rows_over_summary_fallback；crates/jftrade-engine/src/product_production_ports_trade_tests.rs::portfolio_cash_balances_fall_back_to_market_currency_when_summary_currency_is_absent；crates/jftrade-engine/src/product_production_ports_trade_tests.rs::position_projection_prefers_diluted_cost_and_account_pnl_with_legacy_fallback",
-      "conclusion": "部分覆盖：Go 断言（1）组合现金余额在无币种明细时回退到 summary 的 Cash+Currency 并补齐 updatedAt/createdAt；（2）组合持仓把 CostPrice 映射为 averagePrice；（3）无 broker 时 Funds 返回 connectivity=degraded 且 lastError 非空；（4）Quote 遇到 'i/o timeout' 时 connectivity=disconnected。Rust 证据：portfolio_cash_balances_prefer_currency_rows_over_summary_fallback（币种行优先、未知币种枚举丢弃后回退 summary）、portfolio_cash_balances_fall_back_to_market_currency_when_summary_currency_is_absent（无币种明细时回退市场默认币种，修过“资金丢失”回归）、position_projection_prefers_diluted_cost_and_account_pnl_with_legacy_fallback（组合持仓字段与 legacy 回退）。被占用的 portfolio_cash_balances_fall_back_to_summary_currency_when_breakdown_is_empty 已作为 internal/app/apiserver/servercoretest/portfolio_routes_test.go:12 的 [x] 证据，也是唯一断言 updatedAt 的用例（本行不重复占用）。缺口（需新增测试）：①createdAt 戳未断言（仅有 updatedAt）；②degraded + lastError 的降级形状由 test_service_broker_read_operations_return_fallback_when_market_data_unavailable 覆盖，但该测试已被 internal/trading/broker_boundaries_test.go:11 的 [x] 行占用；③超时映射缺失——Go 把读端口超时归为 disconnected，Rust 读端口没有 timeout 参数与 LastError 文本契约（deadline 属 transport 层），需新增用例固定“读端口超时 → 超时错误/disconnected 形状”才能对齐。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(portfolio_cash_balances_prefer_currency_rows_over_summary_fallback) or test(portfolio_cash_balances_fall_back_to_market_currency_when_summary_currency_is_absent) or test(position_projection_prefers_diluted_cost_and_account_pnl_with_legacy_fallback)'",
+      "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::portfolio_cash_balances_prefer_currency_rows_over_summary_fallback；crates/jftrade-engine/src/product_production_ports_trade_tests.rs::portfolio_cash_balances_fall_back_to_market_currency_when_summary_currency_is_absent；crates/jftrade-engine/src/product_production_ports_trade_tests.rs::position_projection_prefers_diluted_cost_and_account_pnl_with_legacy_fallback；crates/jftrade-engine/src/product_production_ports_trade_tests.rs::portfolio_cash_balances_carry_created_at_alongside_updated_at",
+      "conclusion": "部分覆盖：Go 断言（1）组合现金余额在无币种明细时回退到 summary 的 Cash+Currency 并补齐 updatedAt/createdAt；（2）组合持仓把 CostPrice 映射为 averagePrice；（3）无 broker 时 Funds 返回 connectivity=degraded 且 lastError 非空；（4）Quote 遇到 'i/o timeout' 时 connectivity=disconnected。Rust 证据：portfolio_cash_balances_prefer_currency_rows_over_summary_fallback（币种行优先、未知币种枚举丢弃后回退 summary）、portfolio_cash_balances_fall_back_to_market_currency_when_summary_currency_is_absent（无币种明细时回退市场默认币种，修过“资金丢失”回归）、position_projection_prefers_diluted_cost_and_account_pnl_with_legacy_fallback（组合持仓字段与 legacy 回退）。被占用的 portfolio_cash_balances_fall_back_to_summary_currency_when_breakdown_is_empty 已作为 internal/app/apiserver/servercoretest/portfolio_routes_test.go:12 的 [x] 证据，也是唯一断言 updatedAt 的用例（本行不重复占用）。缺口（需新增测试）：①createdAt 戳未断言（仅有 updatedAt）；②degraded + lastError 的降级形状由 test_service_broker_read_operations_return_fallback_when_market_data_unavailable 覆盖，但该测试已被 internal/trading/broker_boundaries_test.go:11 的 [x] 行占用；③超时映射缺失——Go 把读端口超时归为 disconnected，Rust 读端口没有 timeout 参数与 LastError 文本契约（deadline 属 transport 层），需新增用例固定“读端口超时 → 超时错误/disconnected 形状”才能对齐。【本批收口】缺口①已补：新增 portfolio_cash_balances_carry_created_at_alongside_updated_at，断言现金余额每行同时携带 createdAt 与 updatedAt 且相等；探针把回退分支 createdAt 改坏后转红，恢复后通过，生产按字节回滚。残留：超时分类契约（需先定义）、降级 wire 形状差异。",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(portfolio_cash_balances_prefer_currency_rows_over_summary_fallback) or test(portfolio_cash_balances_fall_back_to_market_currency_when_summary_currency_is_absent) or test(position_projection_prefers_diluted_cost_and_account_pnl_with_legacy_fallback)' or test(portfolio_cash_balances_carry_created_at_alongside_updated_at)",
       "evidence_type": "partial",
       "source": {
         "file": "internal/trading/broker_test.go",
@@ -280204,7 +280263,7 @@
             "goFile": "internal/trading/broker_test.go",
             "goLine": 453,
             "rustFile": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs",
-            "rustLine": 1713
+            "rustLine": 1714
           }
         },
         {
@@ -280215,7 +280274,7 @@
             "goFile": "internal/trading/broker_test.go",
             "goLine": 453,
             "rustFile": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs",
-            "rustLine": 1713
+            "rustLine": 1714
           }
         },
         {
@@ -280226,14 +280285,25 @@
             "goFile": "internal/trading/broker_test.go",
             "goLine": 453,
             "rustFile": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs",
-            "rustLine": 1713
+            "rustLine": 1714
+          }
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs",
+          "test": "portfolio_cash_balances_carry_created_at_alongside_updated_at",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/trading/broker_test.go",
+            "goLine": 453,
+            "rustFile": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs",
+            "rustLine": 1714
           }
         }
       ],
       "assertionCoverage": {
         "covered": [],
         "uncovered": [
-          "部分覆盖：Go 断言（1）组合现金余额在无币种明细时回退到 summary 的 Cash+Currency 并补齐 updatedAt/createdAt；（2）组合持仓把 CostPrice 映射为 averagePrice；（3）无 broker 时 Funds 返回 connectivity=degraded 且 lastError 非空；（4）Quote 遇到 'i/o timeout' 时 connectivity=disconnected。Rust 证据：portfolio_cash_balances_prefer_currency_rows_over_summary_fallback（币种行优先、未知币种枚举丢弃后回退 summary）、portfolio_cash_balances_fall_back_to_market_currency_when_summary_currency_is_absent（无币种明细时回退市场默认币种，修过“资金丢失”回归）、position_projection_prefers_diluted_cost_and_account_pnl_with_legacy_fallback（组合持仓字段与 legacy 回退）。被占用的 portfolio_cash_balances_fall_back_to_summary_currency_when_breakdown_is_empty 已作为 internal/app/apiserver/servercoretest/portfolio_routes_test.go:12 的 [x] 证据，也是唯一断言 updatedAt 的用例（本行不重复占用）。缺口（需新增测试）：①createdAt 戳未断言（仅有 updatedAt）；②degraded + lastError 的降级形状由 test_service_broker_read_operations_return_fallback_when_market_data_unavailable 覆盖，但该测试已被 internal/trading/broker_boundaries_test.go:11 的 [x] 行占用；③超时映射缺失——Go 把读端口超时归为 disconnected，Rust 读端口没有 timeout 参数与 LastError 文本契约（deadline 属 transport 层），需新增用例固定“读端口超时 → 超时错误/disconnected 形状”才能对齐。"
+          "部分覆盖：Go 断言（1）组合现金余额在无币种明细时回退到 summary 的 Cash+Currency 并补齐 updatedAt/createdAt；（2）组合持仓把 CostPrice 映射为 averagePrice；（3）无 broker 时 Funds 返回 connectivity=degraded 且 lastError 非空；（4）Quote 遇到 'i/o timeout' 时 connectivity=disconnected。Rust 证据：portfolio_cash_balances_prefer_currency_rows_over_summary_fallback（币种行优先、未知币种枚举丢弃后回退 summary）、portfolio_cash_balances_fall_back_to_market_currency_when_summary_currency_is_absent（无币种明细时回退市场默认币种，修过“资金丢失”回归）、position_projection_prefers_diluted_cost_and_account_pnl_with_legacy_fallback（组合持仓字段与 legacy 回退）。被占用的 portfolio_cash_balances_fall_back_to_summary_currency_when_breakdown_is_empty 已作为 internal/app/apiserver/servercoretest/portfolio_routes_test.go:12 的 [x] 证据，也是唯一断言 updatedAt 的用例（本行不重复占用）。缺口（需新增测试）：①createdAt 戳未断言（仅有 updatedAt）；②degraded + lastError 的降级形状由 test_service_broker_read_operations_return_fallback_when_market_data_unavailable 覆盖，但该测试已被 internal/trading/broker_boundaries_test.go:11 的 [x] 行占用；③超时映射缺失——Go 把读端口超时归为 disconnected，Rust 读端口没有 timeout 参数与 LastError 文本契约（deadline 属 transport 层），需新增用例固定“读端口超时 → 超时错误/disconnected 形状”才能对齐。【本批收口】缺口①已补：新增 portfolio_cash_balances_carry_created_at_alongside_updated_at，断言现金余额每行同时携带 createdAt 与 updatedAt 且相等；探针把回退分支 createdAt 改坏后转红，恢复后通过，生产按字节回滚。残留：超时分类契约（需先定义）、降级 wire 形状差异。"
         ],
         "source": "legacy-conclusion"
       },
@@ -280247,12 +280317,15 @@
           "--all-targets",
           "--locked",
           "-E",
-          "test(portfolio_cash_balances_prefer_currency_rows_over_summary_fallback) or test(portfolio_cash_balances_fall_back_to_market_currency_when_summary_currency_is_absent) or test(position_projection_prefers_diluted_cost_and_account_pnl_with_legacy_fallback)"
+          "test(portfolio_cash_balances_prefer_currency_rows_over_summary_fallback) or test(portfolio_cash_balances_fall_back_to_market_currency_when_summary_currency_is_absent) or test(position_projection_prefers_diluted_cost_and_account_pnl_with_legacy_fallback)",
+          "or",
+          "test(portfolio_cash_balances_carry_created_at_alongside_updated_at)"
         ],
         "testFilter": [
           "portfolio_cash_balances_prefer_currency_rows_over_summary_fallback",
           "portfolio_cash_balances_fall_back_to_market_currency_when_summary_currency_is_absent",
-          "position_projection_prefers_diluted_cost_and_account_pnl_with_legacy_fallback"
+          "position_projection_prefers_diluted_cost_and_account_pnl_with_legacy_fallback",
+          "portfolio_cash_balances_carry_created_at_alongside_updated_at"
         ],
         "runnerVersion": null,
         "toolchain": null,
@@ -280272,7 +280345,7 @@
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
-        "部分覆盖：Go 断言（1）组合现金余额在无币种明细时回退到 summary 的 Cash+Currency 并补齐 updatedAt/createdAt；（2）组合持仓把 CostPrice 映射为 averagePrice；（3）无 broker 时 Funds 返回 connectivity=degraded 且 lastError 非空；（4）Quote 遇到 'i/o timeout' 时 connectivity=disconnected。Rust 证据：portfolio_cash_balances_prefer_currency_rows_over_summary_fallback（币种行优先、未知币种枚举丢弃后回退 summary）、portfolio_cash_balances_fall_back_to_market_currency_when_summary_currency_is_absent（无币种明细时回退市场默认币种，修过“资金丢失”回归）、position_projection_prefers_diluted_cost_and_account_pnl_with_legacy_fallback（组合持仓字段与 legacy 回退）。被占用的 portfolio_cash_balances_fall_back_to_summary_currency_when_breakdown_is_empty 已作为 internal/app/apiserver/servercoretest/portfolio_routes_test.go:12 的 [x] 证据，也是唯一断言 updatedAt 的用例（本行不重复占用）。缺口（需新增测试）：①createdAt 戳未断言（仅有 updatedAt）；②degraded + lastError 的降级形状由 test_service_broker_read_operations_return_fallback_when_market_data_unavailable 覆盖，但该测试已被 internal/trading/broker_boundaries_test.go:11 的 [x] 行占用；③超时映射缺失——Go 把读端口超时归为 disconnected，Rust 读端口没有 timeout 参数与 LastError 文本契约（deadline 属 transport 层），需新增用例固定“读端口超时 → 超时错误/disconnected 形状”才能对齐。"
+        "部分覆盖：Go 断言（1）组合现金余额在无币种明细时回退到 summary 的 Cash+Currency 并补齐 updatedAt/createdAt；（2）组合持仓把 CostPrice 映射为 averagePrice；（3）无 broker 时 Funds 返回 connectivity=degraded 且 lastError 非空；（4）Quote 遇到 'i/o timeout' 时 connectivity=disconnected。Rust 证据：portfolio_cash_balances_prefer_currency_rows_over_summary_fallback（币种行优先、未知币种枚举丢弃后回退 summary）、portfolio_cash_balances_fall_back_to_market_currency_when_summary_currency_is_absent（无币种明细时回退市场默认币种，修过“资金丢失”回归）、position_projection_prefers_diluted_cost_and_account_pnl_with_legacy_fallback（组合持仓字段与 legacy 回退）。被占用的 portfolio_cash_balances_fall_back_to_summary_currency_when_breakdown_is_empty 已作为 internal/app/apiserver/servercoretest/portfolio_routes_test.go:12 的 [x] 证据，也是唯一断言 updatedAt 的用例（本行不重复占用）。缺口（需新增测试）：①createdAt 戳未断言（仅有 updatedAt）；②degraded + lastError 的降级形状由 test_service_broker_read_operations_return_fallback_when_market_data_unavailable 覆盖，但该测试已被 internal/trading/broker_boundaries_test.go:11 的 [x] 行占用；③超时映射缺失——Go 把读端口超时归为 disconnected，Rust 读端口没有 timeout 参数与 LastError 文本契约（deadline 属 transport 层），需新增用例固定“读端口超时 → 超时错误/disconnected 形状”才能对齐。【本批收口】缺口①已补：新增 portfolio_cash_balances_carry_created_at_alongside_updated_at，断言现金余额每行同时携带 createdAt 与 updatedAt 且相等；探针把回退分支 createdAt 改坏后转红，恢复后通过，生产按字节回滚。残留：超时分类契约（需先定义）、降级 wire 形状差异。"
       ],
       "boundaryReason": null
     },
@@ -280594,9 +280667,9 @@
     },
     "internal/trading/broker_test.go:735:TestNormalizeSymbolsAndRuntimeDefaults": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::broker_runtime_projects_configured_connection_and_live_hub；crates/jftrade-engine/src/product_production_ports_trade_tests.rs::broker_runtime_requires_real_projection_sources；crates/jftrade-engine/src/product_production_ports_trade_tests.rs::trade_security_parsing_accepts_every_go_prefix_and_rejects_invalid_symbols；crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::buying_power_defaults_follow_settings_and_preserve_explicit_environment",
-      "conclusion": "部分覆盖：Go 断言（1）ReadQuery(broker, env, account, market=\"\") 用 WithDefaultMarket 的配置值补齐 market；（2）NormalizeSymbols(\"US\", [\"AAPL\",\"MSFT\"]) 前缀化为 US.AAPL/US.MSFT，空符号报错；（3）无运行时投影的 broker 返回空 session/accounts（不报错）。Rust 证据：（2）由 trade_security_parsing_accepts_every_go_prefix_and_rejects_invalid_symbols 断言各市场前缀（含 US:AAPL 冒号形式）与非法前缀拒绝，裸代码在 TradeRequest::securities() 里用请求 market 标签前缀化并对全空输入返回 \"query parameter symbol is required\"；（3）由 broker_runtime_projects_configured_connection_and_live_hub 断言配置齐全时的会话/连接字段、broker_runtime_requires_real_projection_sources 断言缺投影源时 fail-closed（Rust 不以空 session 冒充可用，属保留差异而非报错差异）。功能差异（需修复）：（1）Rust 交易读请求不读配置默认市场——product_production_ports_trade_requests.rs::market_label()（第 233 行）在 query 缺 market 时硬编码回退 \"HK\"，而设置里存在对应字段 FutuIntegrationConfig.trade_market（crates/jftrade-settings/src/broker.rs:20，默认 \"HK\"）未被读路径使用；resolve_trade_request 则改从账户权限列表推导市场。复现：把 futu.tradeMarket 设为 US 后请求 /api/v1/brokers/futu/margin-ratios?accountId=...&symbol=AAPL（省略 market），Rust 仍按 HK 解析并以 400 拒绝（symbol 与 market 冲突），Go 会取配置默认市场 US。预期：省略 market 时取 futu.tradeMarket、显式 market 优先、空配置回退 HK。修复位置：组合根按 default_trading_environment 同法注入默认市场 getter，替换 market_label 的 HK 兜底；回归要求：省略 market → 取配置值、显式 market 优先、空配置回退 HK、裸代码与显式市场的冲突校验保持不变。缺口（需新增测试）：裸代码 + market 参数在交易读路由上的前缀化没有专门断言（现有用例以显式前缀为主）。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(broker_runtime_projects_configured_connection_and_live_hub) or test(broker_runtime_requires_real_projection_sources) or test(trade_security_parsing_accepts_every_go_prefix_and_rejects_invalid_symbols) or test(buying_power_defaults_follow_settings_and_preserve_explicit_environment)'",
+      "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::broker_runtime_projects_configured_connection_and_live_hub；crates/jftrade-engine/src/product_production_ports_trade_tests.rs::broker_runtime_requires_real_projection_sources；crates/jftrade-engine/src/product_production_ports_trade_tests.rs::trade_security_parsing_accepts_every_go_prefix_and_rejects_invalid_symbols；crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::buying_power_defaults_follow_settings_and_preserve_explicit_environment；crates/jftrade-engine/src/product_production_ports_trade_tests.rs::margin_ratios_prefix_a_bare_symbol_with_the_request_market",
+      "conclusion": "部分覆盖：Go 断言（1）ReadQuery(broker, env, account, market=\"\") 用 WithDefaultMarket 的配置值补齐 market；（2）NormalizeSymbols(\"US\", [\"AAPL\",\"MSFT\"]) 前缀化为 US.AAPL/US.MSFT，空符号报错；（3）无运行时投影的 broker 返回空 session/accounts（不报错）。Rust 证据：（2）由 trade_security_parsing_accepts_every_go_prefix_and_rejects_invalid_symbols 断言各市场前缀（含 US:AAPL 冒号形式）与非法前缀拒绝，裸代码在 TradeRequest::securities() 里用请求 market 标签前缀化并对全空输入返回 \"query parameter symbol is required\"；（3）由 broker_runtime_projects_configured_connection_and_live_hub 断言配置齐全时的会话/连接字段、broker_runtime_requires_real_projection_sources 断言缺投影源时 fail-closed（Rust 不以空 session 冒充可用，属保留差异而非报错差异）。功能差异（需修复）：（1）Rust 交易读请求不读配置默认市场——product_production_ports_trade_requests.rs::market_label()（第 233 行）在 query 缺 market 时硬编码回退 \"HK\"，而设置里存在对应字段 FutuIntegrationConfig.trade_market（crates/jftrade-settings/src/broker.rs:20，默认 \"HK\"）未被读路径使用；resolve_trade_request 则改从账户权限列表推导市场。复现：把 futu.tradeMarket 设为 US 后请求 /api/v1/brokers/futu/margin-ratios?accountId=...&symbol=AAPL（省略 market），Rust 仍按 HK 解析并以 400 拒绝（symbol 与 market 冲突），Go 会取配置默认市场 US。预期：省略 market 时取 futu.tradeMarket、显式 market 优先、空配置回退 HK。修复位置：组合根按 default_trading_environment 同法注入默认市场 getter，替换 market_label 的 HK 兜底；回归要求：省略 market → 取配置值、显式 market 优先、空配置回退 HK、裸代码与显式市场的冲突校验保持不变。缺口（需新增测试）：裸代码 + market 参数在交易读路由上的前缀化没有专门断言（现有用例以显式前缀为主）。【本批收口】裸符号前缀化已补：新增 margin_ratios_prefix_a_bare_symbol_with_the_request_market，以 SecurityCaptureRead 捕获 reader 收到的证券，断言 symbol=AAPL&market=US 解析为 code AAPL 配市场码 11（US）；探针把默认市场改坏为 HK 后转红，恢复后通过，生产按字节回滚。残留功能差异（1）配置默认市场注入仍需生产修复，复现与修复位置见上文。",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(broker_runtime_projects_configured_connection_and_live_hub) or test(broker_runtime_requires_real_projection_sources) or test(trade_security_parsing_accepts_every_go_prefix_and_rejects_invalid_symbols) or test(buying_power_defaults_follow_settings_and_preserve_explicit_environment)' or test(margin_ratios_prefix_a_bare_symbol_with_the_request_market)",
       "evidence_type": "partial",
       "source": {
         "file": "internal/trading/broker_test.go",
@@ -280609,31 +280682,57 @@
           "file": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs",
           "test": "broker_runtime_projects_configured_connection_and_live_hub",
           "crate": "jftrade-engine",
-          "anchor": null
+          "anchor": {
+            "goFile": "internal/trading/broker_test.go",
+            "goLine": 735,
+            "rustFile": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs",
+            "rustLine": 5140
+          }
         },
         {
           "file": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs",
           "test": "broker_runtime_requires_real_projection_sources",
           "crate": "jftrade-engine",
-          "anchor": null
+          "anchor": {
+            "goFile": "internal/trading/broker_test.go",
+            "goLine": 735,
+            "rustFile": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs",
+            "rustLine": 5140
+          }
         },
         {
           "file": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs",
           "test": "trade_security_parsing_accepts_every_go_prefix_and_rejects_invalid_symbols",
           "crate": "jftrade-engine",
-          "anchor": null
+          "anchor": {
+            "goFile": "internal/trading/broker_test.go",
+            "goLine": 735,
+            "rustFile": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs",
+            "rustLine": 5140
+          }
         },
         {
           "file": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs",
           "test": "buying_power_defaults_follow_settings_and_preserve_explicit_environment",
           "crate": "jftrade-engine",
           "anchor": null
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs",
+          "test": "margin_ratios_prefix_a_bare_symbol_with_the_request_market",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/trading/broker_test.go",
+            "goLine": 735,
+            "rustFile": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs",
+            "rustLine": 5140
+          }
         }
       ],
       "assertionCoverage": {
         "covered": [],
         "uncovered": [
-          "部分覆盖：Go 断言（1）ReadQuery(broker, env, account, market=\"\") 用 WithDefaultMarket 的配置值补齐 market；（2）NormalizeSymbols(\"US\", [\"AAPL\",\"MSFT\"]) 前缀化为 US.AAPL/US.MSFT，空符号报错；（3）无运行时投影的 broker 返回空 session/accounts（不报错）。Rust 证据：（2）由 trade_security_parsing_accepts_every_go_prefix_and_rejects_invalid_symbols 断言各市场前缀（含 US:AAPL 冒号形式）与非法前缀拒绝，裸代码在 TradeRequest::securities() 里用请求 market 标签前缀化并对全空输入返回 \"query parameter symbol is required\"；（3）由 broker_runtime_projects_configured_connection_and_live_hub 断言配置齐全时的会话/连接字段、broker_runtime_requires_real_projection_sources 断言缺投影源时 fail-closed（Rust 不以空 session 冒充可用，属保留差异而非报错差异）。功能差异（需修复）：（1）Rust 交易读请求不读配置默认市场——product_production_ports_trade_requests.rs::market_label()（第 233 行）在 query 缺 market 时硬编码回退 \"HK\"，而设置里存在对应字段 FutuIntegrationConfig.trade_market（crates/jftrade-settings/src/broker.rs:20，默认 \"HK\"）未被读路径使用；resolve_trade_request 则改从账户权限列表推导市场。复现：把 futu.tradeMarket 设为 US 后请求 /api/v1/brokers/futu/margin-ratios?accountId=...&symbol=AAPL（省略 market），Rust 仍按 HK 解析并以 400 拒绝（symbol 与 market 冲突），Go 会取配置默认市场 US。预期：省略 market 时取 futu.tradeMarket、显式 market 优先、空配置回退 HK。修复位置：组合根按 default_trading_environment 同法注入默认市场 getter，替换 market_label 的 HK 兜底；回归要求：省略 market → 取配置值、显式 market 优先、空配置回退 HK、裸代码与显式市场的冲突校验保持不变。缺口（需新增测试）：裸代码 + market 参数在交易读路由上的前缀化没有专门断言（现有用例以显式前缀为主）。"
+          "部分覆盖：Go 断言（1）ReadQuery(broker, env, account, market=\"\") 用 WithDefaultMarket 的配置值补齐 market；（2）NormalizeSymbols(\"US\", [\"AAPL\",\"MSFT\"]) 前缀化为 US.AAPL/US.MSFT，空符号报错；（3）无运行时投影的 broker 返回空 session/accounts（不报错）。Rust 证据：（2）由 trade_security_parsing_accepts_every_go_prefix_and_rejects_invalid_symbols 断言各市场前缀（含 US:AAPL 冒号形式）与非法前缀拒绝，裸代码在 TradeRequest::securities() 里用请求 market 标签前缀化并对全空输入返回 \"query parameter symbol is required\"；（3）由 broker_runtime_projects_configured_connection_and_live_hub 断言配置齐全时的会话/连接字段、broker_runtime_requires_real_projection_sources 断言缺投影源时 fail-closed（Rust 不以空 session 冒充可用，属保留差异而非报错差异）。功能差异（需修复）：（1）Rust 交易读请求不读配置默认市场——product_production_ports_trade_requests.rs::market_label()（第 233 行）在 query 缺 market 时硬编码回退 \"HK\"，而设置里存在对应字段 FutuIntegrationConfig.trade_market（crates/jftrade-settings/src/broker.rs:20，默认 \"HK\"）未被读路径使用；resolve_trade_request 则改从账户权限列表推导市场。复现：把 futu.tradeMarket 设为 US 后请求 /api/v1/brokers/futu/margin-ratios?accountId=...&symbol=AAPL（省略 market），Rust 仍按 HK 解析并以 400 拒绝（symbol 与 market 冲突），Go 会取配置默认市场 US。预期：省略 market 时取 futu.tradeMarket、显式 market 优先、空配置回退 HK。修复位置：组合根按 default_trading_environment 同法注入默认市场 getter，替换 market_label 的 HK 兜底；回归要求：省略 market → 取配置值、显式 market 优先、空配置回退 HK、裸代码与显式市场的冲突校验保持不变。缺口（需新增测试）：裸代码 + market 参数在交易读路由上的前缀化没有专门断言（现有用例以显式前缀为主）。【本批收口】裸符号前缀化已补：新增 margin_ratios_prefix_a_bare_symbol_with_the_request_market，以 SecurityCaptureRead 捕获 reader 收到的证券，断言 symbol=AAPL&market=US 解析为 code AAPL 配市场码 11（US）；探针把默认市场改坏为 HK 后转红，恢复后通过，生产按字节回滚。残留功能差异（1）配置默认市场注入仍需生产修复，复现与修复位置见上文。"
         ],
         "source": "legacy-conclusion"
       },
@@ -280647,13 +280746,16 @@
           "--all-targets",
           "--locked",
           "-E",
-          "test(broker_runtime_projects_configured_connection_and_live_hub) or test(broker_runtime_requires_real_projection_sources) or test(trade_security_parsing_accepts_every_go_prefix_and_rejects_invalid_symbols) or test(buying_power_defaults_follow_settings_and_preserve_explicit_environment)"
+          "test(broker_runtime_projects_configured_connection_and_live_hub) or test(broker_runtime_requires_real_projection_sources) or test(trade_security_parsing_accepts_every_go_prefix_and_rejects_invalid_symbols) or test(buying_power_defaults_follow_settings_and_preserve_explicit_environment)",
+          "or",
+          "test(margin_ratios_prefix_a_bare_symbol_with_the_request_market)"
         ],
         "testFilter": [
           "broker_runtime_projects_configured_connection_and_live_hub",
           "broker_runtime_requires_real_projection_sources",
           "trade_security_parsing_accepts_every_go_prefix_and_rejects_invalid_symbols",
-          "buying_power_defaults_follow_settings_and_preserve_explicit_environment"
+          "buying_power_defaults_follow_settings_and_preserve_explicit_environment",
+          "margin_ratios_prefix_a_bare_symbol_with_the_request_market"
         ],
         "runnerVersion": null,
         "toolchain": null,
@@ -280673,7 +280775,7 @@
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
-        "部分覆盖：Go 断言（1）ReadQuery(broker, env, account, market=\"\") 用 WithDefaultMarket 的配置值补齐 market；（2）NormalizeSymbols(\"US\", [\"AAPL\",\"MSFT\"]) 前缀化为 US.AAPL/US.MSFT，空符号报错；（3）无运行时投影的 broker 返回空 session/accounts（不报错）。Rust 证据：（2）由 trade_security_parsing_accepts_every_go_prefix_and_rejects_invalid_symbols 断言各市场前缀（含 US:AAPL 冒号形式）与非法前缀拒绝，裸代码在 TradeRequest::securities() 里用请求 market 标签前缀化并对全空输入返回 \"query parameter symbol is required\"；（3）由 broker_runtime_projects_configured_connection_and_live_hub 断言配置齐全时的会话/连接字段、broker_runtime_requires_real_projection_sources 断言缺投影源时 fail-closed（Rust 不以空 session 冒充可用，属保留差异而非报错差异）。功能差异（需修复）：（1）Rust 交易读请求不读配置默认市场——product_production_ports_trade_requests.rs::market_label()（第 233 行）在 query 缺 market 时硬编码回退 \"HK\"，而设置里存在对应字段 FutuIntegrationConfig.trade_market（crates/jftrade-settings/src/broker.rs:20，默认 \"HK\"）未被读路径使用；resolve_trade_request 则改从账户权限列表推导市场。复现：把 futu.tradeMarket 设为 US 后请求 /api/v1/brokers/futu/margin-ratios?accountId=...&symbol=AAPL（省略 market），Rust 仍按 HK 解析并以 400 拒绝（symbol 与 market 冲突），Go 会取配置默认市场 US。预期：省略 market 时取 futu.tradeMarket、显式 market 优先、空配置回退 HK。修复位置：组合根按 default_trading_environment 同法注入默认市场 getter，替换 market_label 的 HK 兜底；回归要求：省略 market → 取配置值、显式 market 优先、空配置回退 HK、裸代码与显式市场的冲突校验保持不变。缺口（需新增测试）：裸代码 + market 参数在交易读路由上的前缀化没有专门断言（现有用例以显式前缀为主）。"
+        "部分覆盖：Go 断言（1）ReadQuery(broker, env, account, market=\"\") 用 WithDefaultMarket 的配置值补齐 market；（2）NormalizeSymbols(\"US\", [\"AAPL\",\"MSFT\"]) 前缀化为 US.AAPL/US.MSFT，空符号报错；（3）无运行时投影的 broker 返回空 session/accounts（不报错）。Rust 证据：（2）由 trade_security_parsing_accepts_every_go_prefix_and_rejects_invalid_symbols 断言各市场前缀（含 US:AAPL 冒号形式）与非法前缀拒绝，裸代码在 TradeRequest::securities() 里用请求 market 标签前缀化并对全空输入返回 \"query parameter symbol is required\"；（3）由 broker_runtime_projects_configured_connection_and_live_hub 断言配置齐全时的会话/连接字段、broker_runtime_requires_real_projection_sources 断言缺投影源时 fail-closed（Rust 不以空 session 冒充可用，属保留差异而非报错差异）。功能差异（需修复）：（1）Rust 交易读请求不读配置默认市场——product_production_ports_trade_requests.rs::market_label()（第 233 行）在 query 缺 market 时硬编码回退 \"HK\"，而设置里存在对应字段 FutuIntegrationConfig.trade_market（crates/jftrade-settings/src/broker.rs:20，默认 \"HK\"）未被读路径使用；resolve_trade_request 则改从账户权限列表推导市场。复现：把 futu.tradeMarket 设为 US 后请求 /api/v1/brokers/futu/margin-ratios?accountId=...&symbol=AAPL（省略 market），Rust 仍按 HK 解析并以 400 拒绝（symbol 与 market 冲突），Go 会取配置默认市场 US。预期：省略 market 时取 futu.tradeMarket、显式 market 优先、空配置回退 HK。修复位置：组合根按 default_trading_environment 同法注入默认市场 getter，替换 market_label 的 HK 兜底；回归要求：省略 market → 取配置值、显式 market 优先、空配置回退 HK、裸代码与显式市场的冲突校验保持不变。缺口（需新增测试）：裸代码 + market 参数在交易读路由上的前缀化没有专门断言（现有用例以显式前缀为主）。【本批收口】裸符号前缀化已补：新增 margin_ratios_prefix_a_bare_symbol_with_the_request_market，以 SecurityCaptureRead 捕获 reader 收到的证券，断言 symbol=AAPL&market=US 解析为 code AAPL 配市场码 11（US）；探针把默认市场改坏为 HK 后转红，恢复后通过，生产按字节回滚。残留功能差异（1）配置默认市场注入仍需生产修复，复现与修复位置见上文。"
       ],
       "boundaryReason": null
     },
@@ -299518,6 +299620,14 @@
       "allowed": true,
       "reviewStatus": "single"
     },
+    "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::history_orders_backfill_account_market_and_environment_from_the_query": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/trading/broker_test.go:186:TestServiceBrokerReadOperationsMapSnapshotsAndQueries"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
     "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::history_query_converts_hk_rfc3339_to_local_wall_clock": {
       "referenceCount": 2,
       "referenceKeys": [
@@ -299567,6 +299677,14 @@
       "referenceCount": 1,
       "referenceKeys": [
         "pkg/futu/trade_margin_ratio_boundaries_test.go:86:TestBrokerMarginRatioFallsBackToRecentCacheAndSurfacesInputFailures"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::margin_ratios_prefix_a_bare_symbol_with_the_request_market": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/trading/broker_test.go:735:TestNormalizeSymbolsAndRuntimeDefaults"
       ],
       "allowed": true,
       "reviewStatus": "single"
@@ -299632,6 +299750,14 @@
       ],
       "allowed": false,
       "reviewStatus": "unreviewed"
+    },
+    "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::portfolio_cash_balances_carry_created_at_alongside_updated_at": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/trading/broker_test.go:453:TestServicePortfolioAndFallbackResponses"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
     },
     "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::portfolio_cash_balances_fall_back_to_market_currency_when_summary_currency_is_absent": {
       "referenceCount": 2,
