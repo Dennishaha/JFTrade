@@ -3390,3 +3390,28 @@ owner：akshare 客户端编码与转换由 marketdata helper 与 engine 研究�
 | 文档门禁 | check:ai-context、quick 完整计划 | ai-context 过；quick exit 0 |
 
 后续：other 域本片完成（余 217 行）；队列随后 api_transport 439、backtest_calendar 307、storage_sqlite 196、marketdata_quotes 161、futu_opend 142、trading_broker 56、settings_watchlist 39。
+### 第 129 批分片三十九：other 域 akshare 与 yfinance 35 行（纯复核，无引用纠正、无 verdict 变更）
+
+范围（账本 rows 3062-3096，按写入顺序）：akshare provider_rankings:82/:108/:141/:159/:172/:231、provider_screen:16/:83/:133/:160/:179/:202、provider:20/:51/:115/:186/:236/:272/:286/:404、yfinance client_news:14/:39/:66/:83、client:17/:30/:56/:75/:86/:110/:136/:156/:172/:192/:214。初值 [x] 0、partial 35、boundary 0。
+
+owner：排行、筛选、榜单、提供商描述符与 yfinance 客户端由 marketdata helper 与 engine 研究面承接，无双写。
+
+复核方法：35 条全量枚举引用有效性，逐条抽查 Go 原文与缺口描述；高风险面为重试、取消、超时、分页与能力错误。结论：引用全部存在且指向真实 Rust 测试，缺口描述诚实，0 纠正、0 升级。
+
+抽查证据：板块转义、提供商能力集合、base URL 校验三条缺口均为真实设计差异；其余引用逐条确认存在。
+
+新增证据：无（纯复核分片，无 Rust 改动、无账本行变更、无新增锚点）。
+
+映射终值（35 行）：[x] 0、partial 35、boundary 0。全量：[x] 1566、partial 2248、boundary 637（合计 4451）；Rust 测试 3295 不变。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 逐行复核 | 35 条全量枚举引用有效性加缺口抽查，0 条 [x] | 0 纠正、0 升级；重复 [x] 全文唯一性检查通（0 重复） |
+| 账本写入 | 无变更 | [x] 1566、partial 2248、boundary 637（合计 4451）不变 |
+| 审计 | python3 scripts/compatibility/audit_test_parity.py --write-report | 通过（exit 0）；report 仅刷新 Rust 基线，inventory 无变化 |
+| 锚点 | python3 scripts/compatibility/parity_anchor_reconcile.py | anchors 1724、已记录 1676、unrecorded 0、stale 0、unknown 48（均不变） |
+| 文档门禁 | check:ai-context、quick 完整计划 | ai-context 过；quick exit 0 |
+
+后续：other 域本片完成（余 182 行）；队列随后 api_transport 439、backtest_calendar 307、storage_sqlite 196、marketdata_quotes 161、futu_opend 142、trading_broker 56、settings_watchlist 39。
