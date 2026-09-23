@@ -3709,3 +3709,31 @@ owner：定义归一化与目录由 jftrade-research 承接，尽力审计由 en
 | 文档门禁 | check:ai-context、migration-manifest、zero-go、quick 完整计划 | ai-context 过；migration-manifest 过；zero-go 过；quick exit 0 |
 
 后续：下一分片必须从 rows 3454 起取新范围（settings 家族），避免再次重叠；api_transport 域余约 194 行；队列随后 backtest_calendar 307、storage_sqlite 196、marketdata_quotes 161、futu_opend 142、trading_broker 56、settings_watchlist 39。
+
+### 第 129 批分片五十一：rows 3454-3488 新范围 35 行（10 处结论纠正，无 verdict 变更）
+
+范围（账本 rows 3454-3488，按写入顺序）：catalog:97、definition_edges:13/:56/:94/:132/:199/:249、definition:10/:35/:71/:87/:103/:139、archive_frontend_assets:11、go-test-quality:8/:14/:30/:39/:44/:59/:78/:94/:100/:119、settings market_data:56/:99/:143/:161/:203/:224/:252、persistence_and_mcp_failures:55/:90/:125、service_managed_accounts:13。初值 [x] 10、partial 13、boundary 12，终值不变。首末键自检通过，与分片四十九/五十无重叠（:13 的补齐归属分片五十，本片不再计数）。
+
+owner：目录与定义由 jftrade-research 承接，提供商设置与 MCP 回滚由 jftrade-settings 承接，脚本工具链不入运行时，无双写。
+
+复核方法：35 条全量枚举引用有效性，[x] 逐条核对锚点与断言等价，partial 抽查缺口诚实度，boundary 逐条核对保留理由。结论：10 处结论文字纠正、0 verdict 变更。
+
+纠正证据：go-test-quality 十条 boundary 结论原为同一占位写法（待补证据），实际该工具是面向 Go 测试源码的 AST 断言分析器，仓库已无 Go 工具链，不会新建 Rust 对应物；十条结论已按各子例改写（无断言拒绝、发布形态、两类断言识别、跨文件 helper、嵌套子测试、豁免新鲜度），明确由 Rust 侧门禁（clippy、架构测试、审计复核）承担对应质量职能。
+
+抽查证据：catalog:97 十因子展示表、定义参数与联合矩阵、设置重试与回滚 [x] 均有专用锚点且断言一致；定义 partial 六条语料对照诚实（含 [x] 唯一引用约束说明）；设置 partial 明确写出不能等价的 side-effect（OnProviderChanged 回调、fakeStore 形态）；archive 打包边界成立；dup-x 为 0。
+
+新增证据：无 Rust 改动；账本 10 行结论文字纠正，无新增锚点。
+
+映射终值（35 行）：[x] 10、partial 13、boundary 12。全量：[x] 1565、partial 2248、boundary 638（合计 4451）；Rust 测试 3295 不变。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 逐行复核 | 35 条全量枚举引用有效性加断言等价抽查 | 10 处结论文字纠正、0 verdict 变更；重复 [x] 全文唯一性检查通（0 重复） |
+| 账本写入 | v2_writer 10 行结论纠正 | [x] 1565、partial 2248、boundary 638（合计 4451）不变 |
+| 审计 | python3 scripts/compatibility/audit_test_parity.py --write-report | 通过（exit 0）；inventory 与 report 同步结论文本；既有告警不变 |
+| 锚点 | python3 scripts/compatibility/parity_anchor_reconcile.py | anchors 1724、已记录 1676、unrecorded 0、stale 0、unknown 48（均不变） |
+| 文档门禁 | check:ai-context、migration-manifest、zero-go、quick 完整计划 | ai-context 过；migration-manifest 过；zero-go 过；quick exit 0 |
+
+后续：api_transport 域继续（rows 3489 起；余约 159 行）；队列随后 backtest_calendar 307、storage_sqlite 196、marketdata_quotes 161、futu_opend 142、trading_broker 56、settings_watchlist 39。

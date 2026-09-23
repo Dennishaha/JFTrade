@@ -7,7 +7,7 @@
     "treeSha": "0ee26444be21c15d9760f358a34649f78402f0fb"
   },
   "generatorVersion": "v2_writer.py@slice23",
-  "generatedAt": "2026-09-23T19:29:02Z",
+  "generatedAt": "2026-09-23T19:31:24Z",
   "mappings": {
     "cmd/jftrade-api/main_test.go:13:TestValidateArgsAllowsNoArgs": {
       "status": "[~]",
@@ -226207,7 +226207,7 @@
     "scripts/go-test-quality/main_test.go:8:TestAnalyzeSourcesRejectsCallsWithoutAssertions": {
       "status": "[~]",
       "rust_entry": "不适用：Go 专用测试质量分析工具",
-      "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
+      "conclusion": "不适用/边界保留（分片五十一复核纠正：原结论待补证据系占位写法。Go 的 go-test-quality 是面向 Go 测试源码的 AST 断言分析工具（检查测试函数是否含断言、识别标准/testify 断言、跨文件 helper 跟踪、豁免条目新鲜度），仓库已无 Go 生产代码与 Go 工具链，该工具无 Rust 对应物也不会新建；测试质量由 Rust 侧门禁承担：clippy、架构测试、测试命名规范与 nextest 全量运行）。具体：Go 断言无断言的测试调用被拒绝。Rust 侧空断言 helper 由审计显式列出复核（既有 2 处），无 AST 工具。",
       "command": "pnpm run check:quick",
       "evidence_type": "boundary",
       "source": {
@@ -226220,7 +226220,7 @@
       "assertionCoverage": {
         "covered": [],
         "uncovered": [
-          "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价"
+          "不适用/边界保留（分片五十一复核纠正：原结论待补证据系占位写法。Go 的 go-test-quality 是面向 Go 测试源码的 AST 断言分析工具（检查测试函数是否含断言、识别标准/testify 断言、跨文件 helper 跟踪、豁免条目新鲜度），仓库已无 Go 生产代码与 Go 工具链，该工具无 Rust 对应物也不会新建；测试质量由 Rust 侧门禁承担：clippy、架构测试、测试命名规范与 nextest 全量运行）。具体：Go 断言无断言的测试调用被拒绝。Rust 侧空断言 helper 由审计显式列出复核（既有 2 处），无 AST 工具。"
         ],
         "source": "legacy-conclusion"
       },
@@ -226249,14 +226249,14 @@
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
-        "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价"
+        "不适用/边界保留（分片五十一复核纠正：原结论待补证据系占位写法。Go 的 go-test-quality 是面向 Go 测试源码的 AST 断言分析工具（检查测试函数是否含断言、识别标准/testify 断言、跨文件 helper 跟踪、豁免条目新鲜度），仓库已无 Go 生产代码与 Go 工具链，该工具无 Rust 对应物也不会新建；测试质量由 Rust 侧门禁承担：clippy、架构测试、测试命名规范与 nextest 全量运行）。具体：Go 断言无断言的测试调用被拒绝。Rust 侧空断言 helper 由审计显式列出复核（既有 2 处），无 AST 工具。"
       ],
-      "boundaryReason": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价"
+      "boundaryReason": "不适用/边界保留（分片五十一复核纠正：原结论待补证据系占位写法。Go 的 go-test-quality 是面向 Go 测试源码的 AST 断言分析工具（检查测试函数是否含断言、识别标准/testify 断言、跨文件 helper 跟踪、豁免条目新鲜度），仓库已无 Go 生产代码与 Go 工具链，该工具无 Rust 对应物也不会新建；测试质量由 Rust 侧门禁承担：clippy、架构测试、测试命名规范与 nextest 全量运行）。具体：Go 断言无断言的测试调用被拒绝。Rust 侧空断言 helper 由审计显式列出复核（既有 2 处），无 AST 工具。"
     },
     "scripts/go-test-quality/main_test.go:14:TestPublishes": {
       "status": "[~]",
       "rust_entry": "不适用：Go 专用测试质量分析工具",
-      "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
+      "conclusion": "不适用/边界保留（分片五十一复核纠正：原结论待补证据系占位写法。Go 的 go-test-quality 是面向 Go 测试源码的 AST 断言分析工具（检查测试函数是否含断言、识别标准/testify 断言、跨文件 helper 跟踪、豁免条目新鲜度），仓库已无 Go 生产代码与 Go 工具链，该工具无 Rust 对应物也不会新建；测试质量由 Rust 侧门禁承担：clippy、架构测试、测试命名规范与 nextest 全量运行）。具体：Go 断言分析结果的发布形态。Rust 侧报告由审计脚本生成 inventory/report，无对应发布契约。",
       "command": "pnpm run check:quick",
       "evidence_type": "boundary",
       "source": {
@@ -226269,7 +226269,7 @@
       "assertionCoverage": {
         "covered": [],
         "uncovered": [
-          "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价"
+          "不适用/边界保留（分片五十一复核纠正：原结论待补证据系占位写法。Go 的 go-test-quality 是面向 Go 测试源码的 AST 断言分析工具（检查测试函数是否含断言、识别标准/testify 断言、跨文件 helper 跟踪、豁免条目新鲜度），仓库已无 Go 生产代码与 Go 工具链，该工具无 Rust 对应物也不会新建；测试质量由 Rust 侧门禁承担：clippy、架构测试、测试命名规范与 nextest 全量运行）。具体：Go 断言分析结果的发布形态。Rust 侧报告由审计脚本生成 inventory/report，无对应发布契约。"
         ],
         "source": "legacy-conclusion"
       },
@@ -226298,14 +226298,14 @@
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
-        "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价"
+        "不适用/边界保留（分片五十一复核纠正：原结论待补证据系占位写法。Go 的 go-test-quality 是面向 Go 测试源码的 AST 断言分析工具（检查测试函数是否含断言、识别标准/testify 断言、跨文件 helper 跟踪、豁免条目新鲜度），仓库已无 Go 生产代码与 Go 工具链，该工具无 Rust 对应物也不会新建；测试质量由 Rust 侧门禁承担：clippy、架构测试、测试命名规范与 nextest 全量运行）。具体：Go 断言分析结果的发布形态。Rust 侧报告由审计脚本生成 inventory/report，无对应发布契约。"
       ],
-      "boundaryReason": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价"
+      "boundaryReason": "不适用/边界保留（分片五十一复核纠正：原结论待补证据系占位写法。Go 的 go-test-quality 是面向 Go 测试源码的 AST 断言分析工具（检查测试函数是否含断言、识别标准/testify 断言、跨文件 helper 跟踪、豁免条目新鲜度），仓库已无 Go 生产代码与 Go 工具链，该工具无 Rust 对应物也不会新建；测试质量由 Rust 侧门禁承担：clippy、架构测试、测试命名规范与 nextest 全量运行）。具体：Go 断言分析结果的发布形态。Rust 侧报告由审计脚本生成 inventory/report，无对应发布契约。"
     },
     "scripts/go-test-quality/main_test.go:30:TestAnalyzeSourcesRecognizesStandardAndTestifyAssertions": {
       "status": "[~]",
       "rust_entry": "不适用：Go 专用测试质量分析工具",
-      "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
+      "conclusion": "不适用/边界保留（分片五十一复核纠正：原结论待补证据系占位写法。Go 的 go-test-quality 是面向 Go 测试源码的 AST 断言分析工具（检查测试函数是否含断言、识别标准/testify 断言、跨文件 helper 跟踪、豁免条目新鲜度），仓库已无 Go 生产代码与 Go 工具链，该工具无 Rust 对应物也不会新建；测试质量由 Rust 侧门禁承担：clippy、架构测试、测试命名规范与 nextest 全量运行）。具体：Go 断言识别标准库与 testify 两类断言写法。Rust 断言只有标准 assert 系宏，无多框架识别问题。",
       "command": "pnpm run check:quick",
       "evidence_type": "boundary",
       "source": {
@@ -226318,7 +226318,7 @@
       "assertionCoverage": {
         "covered": [],
         "uncovered": [
-          "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价"
+          "不适用/边界保留（分片五十一复核纠正：原结论待补证据系占位写法。Go 的 go-test-quality 是面向 Go 测试源码的 AST 断言分析工具（检查测试函数是否含断言、识别标准/testify 断言、跨文件 helper 跟踪、豁免条目新鲜度），仓库已无 Go 生产代码与 Go 工具链，该工具无 Rust 对应物也不会新建；测试质量由 Rust 侧门禁承担：clippy、架构测试、测试命名规范与 nextest 全量运行）。具体：Go 断言识别标准库与 testify 两类断言写法。Rust 断言只有标准 assert 系宏，无多框架识别问题。"
         ],
         "source": "legacy-conclusion"
       },
@@ -226347,14 +226347,14 @@
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
-        "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价"
+        "不适用/边界保留（分片五十一复核纠正：原结论待补证据系占位写法。Go 的 go-test-quality 是面向 Go 测试源码的 AST 断言分析工具（检查测试函数是否含断言、识别标准/testify 断言、跨文件 helper 跟踪、豁免条目新鲜度），仓库已无 Go 生产代码与 Go 工具链，该工具无 Rust 对应物也不会新建；测试质量由 Rust 侧门禁承担：clippy、架构测试、测试命名规范与 nextest 全量运行）。具体：Go 断言识别标准库与 testify 两类断言写法。Rust 断言只有标准 assert 系宏，无多框架识别问题。"
       ],
-      "boundaryReason": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价"
+      "boundaryReason": "不适用/边界保留（分片五十一复核纠正：原结论待补证据系占位写法。Go 的 go-test-quality 是面向 Go 测试源码的 AST 断言分析工具（检查测试函数是否含断言、识别标准/testify 断言、跨文件 helper 跟踪、豁免条目新鲜度），仓库已无 Go 生产代码与 Go 工具链，该工具无 Rust 对应物也不会新建；测试质量由 Rust 侧门禁承担：clippy、架构测试、测试命名规范与 nextest 全量运行）。具体：Go 断言识别标准库与 testify 两类断言写法。Rust 断言只有标准 assert 系宏，无多框架识别问题。"
     },
     "scripts/go-test-quality/main_test.go:39:TestStandard": {
       "status": "[~]",
       "rust_entry": "不适用：Go 专用测试质量分析工具",
-      "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
+      "conclusion": "不适用/边界保留（分片五十一复核纠正：原结论待补证据系占位写法。Go 的 go-test-quality 是面向 Go 测试源码的 AST 断言分析工具（检查测试函数是否含断言、识别标准/testify 断言、跨文件 helper 跟踪、豁免条目新鲜度），仓库已无 Go 生产代码与 Go 工具链，该工具无 Rust 对应物也不会新建；测试质量由 Rust 侧门禁承担：clippy、架构测试、测试命名规范与 nextest 全量运行）。具体：Go 标准断言识别子例。Rust 只有 assert!/assert_eq!，由编译器保证存在，无需识别。",
       "command": "pnpm run check:quick",
       "evidence_type": "boundary",
       "source": {
@@ -226367,7 +226367,7 @@
       "assertionCoverage": {
         "covered": [],
         "uncovered": [
-          "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价"
+          "不适用/边界保留（分片五十一复核纠正：原结论待补证据系占位写法。Go 的 go-test-quality 是面向 Go 测试源码的 AST 断言分析工具（检查测试函数是否含断言、识别标准/testify 断言、跨文件 helper 跟踪、豁免条目新鲜度），仓库已无 Go 生产代码与 Go 工具链，该工具无 Rust 对应物也不会新建；测试质量由 Rust 侧门禁承担：clippy、架构测试、测试命名规范与 nextest 全量运行）。具体：Go 标准断言识别子例。Rust 只有 assert!/assert_eq!，由编译器保证存在，无需识别。"
         ],
         "source": "legacy-conclusion"
       },
@@ -226396,14 +226396,14 @@
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
-        "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价"
+        "不适用/边界保留（分片五十一复核纠正：原结论待补证据系占位写法。Go 的 go-test-quality 是面向 Go 测试源码的 AST 断言分析工具（检查测试函数是否含断言、识别标准/testify 断言、跨文件 helper 跟踪、豁免条目新鲜度），仓库已无 Go 生产代码与 Go 工具链，该工具无 Rust 对应物也不会新建；测试质量由 Rust 侧门禁承担：clippy、架构测试、测试命名规范与 nextest 全量运行）。具体：Go 标准断言识别子例。Rust 只有 assert!/assert_eq!，由编译器保证存在，无需识别。"
       ],
-      "boundaryReason": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价"
+      "boundaryReason": "不适用/边界保留（分片五十一复核纠正：原结论待补证据系占位写法。Go 的 go-test-quality 是面向 Go 测试源码的 AST 断言分析工具（检查测试函数是否含断言、识别标准/testify 断言、跨文件 helper 跟踪、豁免条目新鲜度），仓库已无 Go 生产代码与 Go 工具链，该工具无 Rust 对应物也不会新建；测试质量由 Rust 侧门禁承担：clippy、架构测试、测试命名规范与 nextest 全量运行）。具体：Go 标准断言识别子例。Rust 只有 assert!/assert_eq!，由编译器保证存在，无需识别。"
     },
     "scripts/go-test-quality/main_test.go:44:TestTestify": {
       "status": "[~]",
       "rust_entry": "不适用：Go 专用测试质量分析工具",
-      "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
+      "conclusion": "不适用/边界保留（分片五十一复核纠正：原结论待补证据系占位写法。Go 的 go-test-quality 是面向 Go 测试源码的 AST 断言分析工具（检查测试函数是否含断言、识别标准/testify 断言、跨文件 helper 跟踪、豁免条目新鲜度），仓库已无 Go 生产代码与 Go 工具链，该工具无 Rust 对应物也不会新建；测试质量由 Rust 侧门禁承担：clippy、架构测试、测试命名规范与 nextest 全量运行）。具体：Go testify 断言识别子例。Rust 无 testify 系框架对应物。",
       "command": "pnpm run check:quick",
       "evidence_type": "boundary",
       "source": {
@@ -226416,7 +226416,7 @@
       "assertionCoverage": {
         "covered": [],
         "uncovered": [
-          "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价"
+          "不适用/边界保留（分片五十一复核纠正：原结论待补证据系占位写法。Go 的 go-test-quality 是面向 Go 测试源码的 AST 断言分析工具（检查测试函数是否含断言、识别标准/testify 断言、跨文件 helper 跟踪、豁免条目新鲜度），仓库已无 Go 生产代码与 Go 工具链，该工具无 Rust 对应物也不会新建；测试质量由 Rust 侧门禁承担：clippy、架构测试、测试命名规范与 nextest 全量运行）。具体：Go testify 断言识别子例。Rust 无 testify 系框架对应物。"
         ],
         "source": "legacy-conclusion"
       },
@@ -226445,14 +226445,14 @@
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
-        "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价"
+        "不适用/边界保留（分片五十一复核纠正：原结论待补证据系占位写法。Go 的 go-test-quality 是面向 Go 测试源码的 AST 断言分析工具（检查测试函数是否含断言、识别标准/testify 断言、跨文件 helper 跟踪、豁免条目新鲜度），仓库已无 Go 生产代码与 Go 工具链，该工具无 Rust 对应物也不会新建；测试质量由 Rust 侧门禁承担：clippy、架构测试、测试命名规范与 nextest 全量运行）。具体：Go testify 断言识别子例。Rust 无 testify 系框架对应物。"
       ],
-      "boundaryReason": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价"
+      "boundaryReason": "不适用/边界保留（分片五十一复核纠正：原结论待补证据系占位写法。Go 的 go-test-quality 是面向 Go 测试源码的 AST 断言分析工具（检查测试函数是否含断言、识别标准/testify 断言、跨文件 helper 跟踪、豁免条目新鲜度），仓库已无 Go 生产代码与 Go 工具链，该工具无 Rust 对应物也不会新建；测试质量由 Rust 侧门禁承担：clippy、架构测试、测试命名规范与 nextest 全量运行）。具体：Go testify 断言识别子例。Rust 无 testify 系框架对应物。"
     },
     "scripts/go-test-quality/main_test.go:59:TestAnalyzeSourcesFollowsAssertionHelpersAcrossFiles": {
       "status": "[~]",
       "rust_entry": "不适用：Go 专用测试质量分析工具",
-      "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
+      "conclusion": "不适用/边界保留（分片五十一复核纠正：原结论待补证据系占位写法。Go 的 go-test-quality 是面向 Go 测试源码的 AST 断言分析工具（检查测试函数是否含断言、识别标准/testify 断言、跨文件 helper 跟踪、豁免条目新鲜度），仓库已无 Go 生产代码与 Go 工具链，该工具无 Rust 对应物也不会新建；测试质量由 Rust 侧门禁承担：clippy、架构测试、测试命名规范与 nextest 全量运行）。具体：Go 断言跨文件 helper 跟踪。Rust 侧 helper 内断言由复核人工确认（如本账本既有 2 处空断言 helper），无跨文件跟踪工具。",
       "command": "pnpm run check:quick",
       "evidence_type": "boundary",
       "source": {
@@ -226465,7 +226465,7 @@
       "assertionCoverage": {
         "covered": [],
         "uncovered": [
-          "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价"
+          "不适用/边界保留（分片五十一复核纠正：原结论待补证据系占位写法。Go 的 go-test-quality 是面向 Go 测试源码的 AST 断言分析工具（检查测试函数是否含断言、识别标准/testify 断言、跨文件 helper 跟踪、豁免条目新鲜度），仓库已无 Go 生产代码与 Go 工具链，该工具无 Rust 对应物也不会新建；测试质量由 Rust 侧门禁承担：clippy、架构测试、测试命名规范与 nextest 全量运行）。具体：Go 断言跨文件 helper 跟踪。Rust 侧 helper 内断言由复核人工确认（如本账本既有 2 处空断言 helper），无跨文件跟踪工具。"
         ],
         "source": "legacy-conclusion"
       },
@@ -226494,14 +226494,14 @@
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
-        "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价"
+        "不适用/边界保留（分片五十一复核纠正：原结论待补证据系占位写法。Go 的 go-test-quality 是面向 Go 测试源码的 AST 断言分析工具（检查测试函数是否含断言、识别标准/testify 断言、跨文件 helper 跟踪、豁免条目新鲜度），仓库已无 Go 生产代码与 Go 工具链，该工具无 Rust 对应物也不会新建；测试质量由 Rust 侧门禁承担：clippy、架构测试、测试命名规范与 nextest 全量运行）。具体：Go 断言跨文件 helper 跟踪。Rust 侧 helper 内断言由复核人工确认（如本账本既有 2 处空断言 helper），无跨文件跟踪工具。"
       ],
-      "boundaryReason": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价"
+      "boundaryReason": "不适用/边界保留（分片五十一复核纠正：原结论待补证据系占位写法。Go 的 go-test-quality 是面向 Go 测试源码的 AST 断言分析工具（检查测试函数是否含断言、识别标准/testify 断言、跨文件 helper 跟踪、豁免条目新鲜度），仓库已无 Go 生产代码与 Go 工具链，该工具无 Rust 对应物也不会新建；测试质量由 Rust 侧门禁承担：clippy、架构测试、测试命名规范与 nextest 全量运行）。具体：Go 断言跨文件 helper 跟踪。Rust 侧 helper 内断言由复核人工确认（如本账本既有 2 处空断言 helper），无跨文件跟踪工具。"
     },
     "scripts/go-test-quality/main_test.go:78:TestWorkflow": {
       "status": "[~]",
       "rust_entry": "不适用：Go 专用测试质量分析工具",
-      "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
+      "conclusion": "不适用/边界保留（分片五十一复核纠正：原结论待补证据系占位写法。Go 的 go-test-quality 是面向 Go 测试源码的 AST 断言分析工具（检查测试函数是否含断言、识别标准/testify 断言、跨文件 helper 跟踪、豁免条目新鲜度），仓库已无 Go 生产代码与 Go 工具链，该工具无 Rust 对应物也不会新建；测试质量由 Rust 侧门禁承担：clippy、架构测试、测试命名规范与 nextest 全量运行）。具体：Go 端到端工作流子例。Rust 侧门禁编排由 package.json 脚本与 CI 工作流承担，以 check:quick 等实际运行为证据。",
       "command": "pnpm run check:quick",
       "evidence_type": "boundary",
       "source": {
@@ -226514,7 +226514,7 @@
       "assertionCoverage": {
         "covered": [],
         "uncovered": [
-          "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价"
+          "不适用/边界保留（分片五十一复核纠正：原结论待补证据系占位写法。Go 的 go-test-quality 是面向 Go 测试源码的 AST 断言分析工具（检查测试函数是否含断言、识别标准/testify 断言、跨文件 helper 跟踪、豁免条目新鲜度），仓库已无 Go 生产代码与 Go 工具链，该工具无 Rust 对应物也不会新建；测试质量由 Rust 侧门禁承担：clippy、架构测试、测试命名规范与 nextest 全量运行）。具体：Go 端到端工作流子例。Rust 侧门禁编排由 package.json 脚本与 CI 工作流承担，以 check:quick 等实际运行为证据。"
         ],
         "source": "legacy-conclusion"
       },
@@ -226543,14 +226543,14 @@
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
-        "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价"
+        "不适用/边界保留（分片五十一复核纠正：原结论待补证据系占位写法。Go 的 go-test-quality 是面向 Go 测试源码的 AST 断言分析工具（检查测试函数是否含断言、识别标准/testify 断言、跨文件 helper 跟踪、豁免条目新鲜度），仓库已无 Go 生产代码与 Go 工具链，该工具无 Rust 对应物也不会新建；测试质量由 Rust 侧门禁承担：clippy、架构测试、测试命名规范与 nextest 全量运行）。具体：Go 端到端工作流子例。Rust 侧门禁编排由 package.json 脚本与 CI 工作流承担，以 check:quick 等实际运行为证据。"
       ],
-      "boundaryReason": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价"
+      "boundaryReason": "不适用/边界保留（分片五十一复核纠正：原结论待补证据系占位写法。Go 的 go-test-quality 是面向 Go 测试源码的 AST 断言分析工具（检查测试函数是否含断言、识别标准/testify 断言、跨文件 helper 跟踪、豁免条目新鲜度），仓库已无 Go 生产代码与 Go 工具链，该工具无 Rust 对应物也不会新建；测试质量由 Rust 侧门禁承担：clippy、架构测试、测试命名规范与 nextest 全量运行）。具体：Go 端到端工作流子例。Rust 侧门禁编排由 package.json 脚本与 CI 工作流承担，以 check:quick 等实际运行为证据。"
     },
     "scripts/go-test-quality/main_test.go:94:TestAnalyzeSourcesRecognizesAssertionsInsideNestedSubtests": {
       "status": "[~]",
       "rust_entry": "不适用：Go 专用测试质量分析工具",
-      "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
+      "conclusion": "不适用/边界保留（分片五十一复核纠正：原结论待补证据系占位写法。Go 的 go-test-quality 是面向 Go 测试源码的 AST 断言分析工具（检查测试函数是否含断言、识别标准/testify 断言、跨文件 helper 跟踪、豁免条目新鲜度），仓库已无 Go 生产代码与 Go 工具链，该工具无 Rust 对应物也不会新建；测试质量由 Rust 侧门禁承担：clippy、架构测试、测试命名规范与 nextest 全量运行）。具体：Go 嵌套子测试内断言识别。Rust 无嵌套 subtest 概念，测试均为扁平 #[test] 函数。",
       "command": "pnpm run check:quick",
       "evidence_type": "boundary",
       "source": {
@@ -226563,7 +226563,7 @@
       "assertionCoverage": {
         "covered": [],
         "uncovered": [
-          "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价"
+          "不适用/边界保留（分片五十一复核纠正：原结论待补证据系占位写法。Go 的 go-test-quality 是面向 Go 测试源码的 AST 断言分析工具（检查测试函数是否含断言、识别标准/testify 断言、跨文件 helper 跟踪、豁免条目新鲜度），仓库已无 Go 生产代码与 Go 工具链，该工具无 Rust 对应物也不会新建；测试质量由 Rust 侧门禁承担：clippy、架构测试、测试命名规范与 nextest 全量运行）。具体：Go 嵌套子测试内断言识别。Rust 无嵌套 subtest 概念，测试均为扁平 #[test] 函数。"
         ],
         "source": "legacy-conclusion"
       },
@@ -226592,14 +226592,14 @@
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
-        "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价"
+        "不适用/边界保留（分片五十一复核纠正：原结论待补证据系占位写法。Go 的 go-test-quality 是面向 Go 测试源码的 AST 断言分析工具（检查测试函数是否含断言、识别标准/testify 断言、跨文件 helper 跟踪、豁免条目新鲜度），仓库已无 Go 生产代码与 Go 工具链，该工具无 Rust 对应物也不会新建；测试质量由 Rust 侧门禁承担：clippy、架构测试、测试命名规范与 nextest 全量运行）。具体：Go 嵌套子测试内断言识别。Rust 无嵌套 subtest 概念，测试均为扁平 #[test] 函数。"
       ],
-      "boundaryReason": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价"
+      "boundaryReason": "不适用/边界保留（分片五十一复核纠正：原结论待补证据系占位写法。Go 的 go-test-quality 是面向 Go 测试源码的 AST 断言分析工具（检查测试函数是否含断言、识别标准/testify 断言、跨文件 helper 跟踪、豁免条目新鲜度），仓库已无 Go 生产代码与 Go 工具链，该工具无 Rust 对应物也不会新建；测试质量由 Rust 侧门禁承担：clippy、架构测试、测试命名规范与 nextest 全量运行）。具体：Go 嵌套子测试内断言识别。Rust 无嵌套 subtest 概念，测试均为扁平 #[test] 函数。"
     },
     "scripts/go-test-quality/main_test.go:100:TestNested": {
       "status": "[~]",
       "rust_entry": "不适用：Go 专用测试质量分析工具",
-      "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
+      "conclusion": "不适用/边界保留（分片五十一复核纠正：原结论待补证据系占位写法。Go 的 go-test-quality 是面向 Go 测试源码的 AST 断言分析工具（检查测试函数是否含断言、识别标准/testify 断言、跨文件 helper 跟踪、豁免条目新鲜度），仓库已无 Go 生产代码与 Go 工具链，该工具无 Rust 对应物也不会新建；测试质量由 Rust 侧门禁承担：clippy、架构测试、测试命名规范与 nextest 全量运行）。具体：Go 嵌套用例识别子例。同上，Rust 测试扁平化，无对应形态。",
       "command": "pnpm run check:quick",
       "evidence_type": "boundary",
       "source": {
@@ -226612,7 +226612,7 @@
       "assertionCoverage": {
         "covered": [],
         "uncovered": [
-          "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价"
+          "不适用/边界保留（分片五十一复核纠正：原结论待补证据系占位写法。Go 的 go-test-quality 是面向 Go 测试源码的 AST 断言分析工具（检查测试函数是否含断言、识别标准/testify 断言、跨文件 helper 跟踪、豁免条目新鲜度），仓库已无 Go 生产代码与 Go 工具链，该工具无 Rust 对应物也不会新建；测试质量由 Rust 侧门禁承担：clippy、架构测试、测试命名规范与 nextest 全量运行）。具体：Go 嵌套用例识别子例。同上，Rust 测试扁平化，无对应形态。"
         ],
         "source": "legacy-conclusion"
       },
@@ -226641,14 +226641,14 @@
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
-        "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价"
+        "不适用/边界保留（分片五十一复核纠正：原结论待补证据系占位写法。Go 的 go-test-quality 是面向 Go 测试源码的 AST 断言分析工具（检查测试函数是否含断言、识别标准/testify 断言、跨文件 helper 跟踪、豁免条目新鲜度），仓库已无 Go 生产代码与 Go 工具链，该工具无 Rust 对应物也不会新建；测试质量由 Rust 侧门禁承担：clippy、架构测试、测试命名规范与 nextest 全量运行）。具体：Go 嵌套用例识别子例。同上，Rust 测试扁平化，无对应形态。"
       ],
-      "boundaryReason": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价"
+      "boundaryReason": "不适用/边界保留（分片五十一复核纠正：原结论待补证据系占位写法。Go 的 go-test-quality 是面向 Go 测试源码的 AST 断言分析工具（检查测试函数是否含断言、识别标准/testify 断言、跨文件 helper 跟踪、豁免条目新鲜度），仓库已无 Go 生产代码与 Go 工具链，该工具无 Rust 对应物也不会新建；测试质量由 Rust 侧门禁承担：clippy、架构测试、测试命名规范与 nextest 全量运行）。具体：Go 嵌套用例识别子例。同上，Rust 测试扁平化，无对应形态。"
     },
     "scripts/go-test-quality/main_test.go:119:TestValidateExemptionsRejectsStaleEntries": {
       "status": "[~]",
       "rust_entry": "不适用：Go 专用测试质量分析工具",
-      "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
+      "conclusion": "不适用/边界保留（分片五十一复核纠正：原结论待补证据系占位写法。Go 的 go-test-quality 是面向 Go 测试源码的 AST 断言分析工具（检查测试函数是否含断言、识别标准/testify 断言、跨文件 helper 跟踪、豁免条目新鲜度），仓库已无 Go 生产代码与 Go 工具链，该工具无 Rust 对应物也不会新建；测试质量由 Rust 侧门禁承担：clippy、架构测试、测试命名规范与 nextest 全量运行）。具体：Go 豁免条目新鲜度校验。Rust 侧豁免（如审计既有告警）在报告中显式列出并逐轮复核，无条目注册表可校验。",
       "command": "pnpm run check:quick",
       "evidence_type": "boundary",
       "source": {
@@ -226661,7 +226661,7 @@
       "assertionCoverage": {
         "covered": [],
         "uncovered": [
-          "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价"
+          "不适用/边界保留（分片五十一复核纠正：原结论待补证据系占位写法。Go 的 go-test-quality 是面向 Go 测试源码的 AST 断言分析工具（检查测试函数是否含断言、识别标准/testify 断言、跨文件 helper 跟踪、豁免条目新鲜度），仓库已无 Go 生产代码与 Go 工具链，该工具无 Rust 对应物也不会新建；测试质量由 Rust 侧门禁承担：clippy、架构测试、测试命名规范与 nextest 全量运行）。具体：Go 豁免条目新鲜度校验。Rust 侧豁免（如审计既有告警）在报告中显式列出并逐轮复核，无条目注册表可校验。"
         ],
         "source": "legacy-conclusion"
       },
@@ -226690,9 +226690,9 @@
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
-        "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价"
+        "不适用/边界保留（分片五十一复核纠正：原结论待补证据系占位写法。Go 的 go-test-quality 是面向 Go 测试源码的 AST 断言分析工具（检查测试函数是否含断言、识别标准/testify 断言、跨文件 helper 跟踪、豁免条目新鲜度），仓库已无 Go 生产代码与 Go 工具链，该工具无 Rust 对应物也不会新建；测试质量由 Rust 侧门禁承担：clippy、架构测试、测试命名规范与 nextest 全量运行）。具体：Go 豁免条目新鲜度校验。Rust 侧豁免（如审计既有告警）在报告中显式列出并逐轮复核，无条目注册表可校验。"
       ],
-      "boundaryReason": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价"
+      "boundaryReason": "不适用/边界保留（分片五十一复核纠正：原结论待补证据系占位写法。Go 的 go-test-quality 是面向 Go 测试源码的 AST 断言分析工具（检查测试函数是否含断言、识别标准/testify 断言、跨文件 helper 跟踪、豁免条目新鲜度），仓库已无 Go 生产代码与 Go 工具链，该工具无 Rust 对应物也不会新建；测试质量由 Rust 侧门禁承担：clippy、架构测试、测试命名规范与 nextest 全量运行）。具体：Go 豁免条目新鲜度校验。Rust 侧豁免（如审计既有告警）在报告中显式列出并逐轮复核，无条目注册表可校验。"
     },
     "internal/settings/market_data_test.go:56:TestMarketDataProviderSettingsNormalizeAndApply": {
       "status": "[~]",
