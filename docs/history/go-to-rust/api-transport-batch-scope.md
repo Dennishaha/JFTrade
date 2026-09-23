@@ -2100,3 +2100,54 @@ owner：`crates/jftrade-engine`（product 策略路由与写端口、strategy ru
 | 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy` | 仍因 `deny.toml` 的 `advisory-not-detected`（advisories FAILED，bans/licenses/sources ok）失败 |
 
 后续：分片二十进入 `internal/strategy/runtimecontrol` 10 行（`optional_values_risk_off_test.go` 2、`policy_test.go` 7、`semantics_test.go` 1）与 `liveruntime` 余量，之后回补 `catalog` 余量（22 行）与 `definition` 4 行，直至 strategy_pine 域清空。
+
+### 分片二十：`internal/strategy/runtimecontrol` 10 行 + `liveruntime` 关停/订阅/符号族 11 行（含时区功能修复）
+
+范围：`runtimecontrol/optional_values_risk_off_test.go` 2 行（`:8`/`:33`）、`runtimecontrol/policy_test.go` 7 行（`:11`/`:53`/`:68`/`:83`/`:102`/`:120`/`:146`）、`runtimecontrol/semantics_test.go:5`、`liveruntime/manager_close_test.go` 3 行（`:86`/`:140`/`:188`）、`liveruntime/nil_boundaries_test.go` 2 行（`:10`/`:43`）、`liveruntime/runtime_risk_evidence_test.go:18`、`liveruntime/subscription_lifecycle_test.go` 3 行（`:14`/`:58`/`:81`）、`liveruntime/symbol_failure_business_test.go` 2 行（`:14`/`:57`）。
+
+owner：`crates/jftrade-trading`（风险求值器 `risk.rs`、持仓匹配与可卖数量 `portfolio.rs`）、`crates/jftrade-engine`（策略运行时的每日订单窗口、风控审计与暂停、关停顺序、订阅需求与租约、符号级行情循环）、`crates/jftrade-calendar`（市场本地午夜）、`crates/jftrade-marketdata`（订阅引用与租约）。
+
+队列说明：该族此前只做过结构映射，本分片做行为核对。核对发现一处真实功能差异：参考实现的每日订单窗口按 **订单符号所属市场的本地午夜** 切分（`US` → America/New_York、`HK` → Asia/Hong_Kong，含夏令时夜盘），而 Rust 的策略运行时用 **UTC 午夜** 作为窗口起点，导致美港股在 UTC 00:00–市场午夜之间提交的订单被算进错误的交易日。本分片修复该差异并补回归；另外把风险求值、持仓匹配、监控模式等已有等价断言的条目升级为 `[x]`。
+
+功能修复与新增证据：
+
+1. `crates/jftrade-engine/src/strategy_runtime_execution.rs` 新增 `strategy_market_day_start_ms(market, now_utc)`：`US`/`HK`/`CN`/`SH`/`SZ` 走 `jftrade_calendar::market_day_start_for_market` 取市场本地午夜（毫秒），其它市场或日历失败回落到 UTC 午夜，不阻断下单路径；`today_midnight_ms` 改由该函数计算，每日订单计数与日订单预留共用同一日界。
+2. 新增用例 `strategy_market_day_start_follows_the_order_market_timezone`（US 2025-12-31T05:00Z、HK 2025-12-31T16:00Z、未知市场回落 UTC 午夜）与 `strategy_market_day_start_follows_dst_transition`（2026-06-14 美东夏令时夜盘日界 2026-06-14T04:00Z），两条都带 `// Parity: go:452dea11:internal/strategy/runtimecontrol/policy_test.go:83` 锚点。
+3. 探针（证明修复被断言咬住）：把 `strategy_market_day_start_ms` 临时改成恒返回 UTC 午夜，两条用例同时先红（`left: 1767232800000` / `right: 1781409600000` 等），按字节回滚后 2/2 通过。`strategy_runtime_execution.rs` shasum `9a01c3c8…`（改动前）→ `a960775c…`（修复后）。
+4. `crates/jftrade-trading/tests/risk_engine_tests.rs`：为风险原因表用例补 `policy_test.go:11` 锚点；监控模式用例补参考实现的日计数场景（monitor + `daily_max_orders` + 当日 3 单 → matched、不拒绝、detail 前缀 `rule=daily_max_orders`）与 `policy_test.go:53` 锚点。
+5. `crates/jftrade-trading/src/portfolio.rs`：为持仓匹配/可卖数量用例补 `policy_test.go:120` 锚点。
+
+映射终值（21 行）：`[x]` 4 行（`:11`/`:53`/`:83`/`:120`）、partial 15 行、boundary 2 行（`policy_test.go:146`、`semantics_test.go:5`；另有 `nil_boundaries_test.go:10` 同批按 boundary 保留）。
+
+- **升级为 `[x]`（4 行）**：风险原因表（`:11`）、监控模式记录不拒绝（`:53`）、市场本地日界（`:83`，含修复）、持仓符号匹配与可卖数量（`:120`）。
+- **保持 boundary（3 行）**：`policy_test.go:146` 负零格式化（Rust 定点数无带符号零，由类型表示保证）、`semantics_test.go:5` 实盘 Pine 能力清单（Rust 无限制列表对象）、`nil_boundaries_test.go:10` nil 接收者空状态边界。
+- **保持 partial（15 行）**：可选值/时间辅助（`:8`）、观测投影文本格式（`:102`）、关停聚合与等待（`manager_close_test.go:86`/`:140`/`:188`）、命令回调委托（`nil_boundaries_test.go:43`）、风控审计与暂停的部分差异（`runtime_risk_evidence_test.go:18`）、订阅租约回滚与 panic 释放（`subscription_lifecycle_test.go:14`/`:58`）、订阅引用符号归一（`:81`）、行情轮询与成交桶边界（`symbol_failure_business_test.go:14`/`:57`）。
+
+剩余缺口（本批新增/细化）：
+
+1. **关停错误聚合缺回归（P1）**：参考实现把每个具名会话的关闭错误聚合后返回，并保证并发 Close 只上报一次（`manager_close_test.go:86`）；Rust 只记录日志不返回聚合错误，也没有并发幂等断言。
+2. **启动/关停竞态与顺序缺回归（P1/P2）**：等待进行中启动并回收其关闭错误（`:140`）、以及“后台同步先退出再关 Pine 会话”的顺序（`:188`）在 Rust 无断言。
+3. **订阅租约失败回滚缺回归（P1）**：租约获取失败不建运行时、预热失败只释放一次租约、异常路径仍释放租约（`subscription_lifecycle_test.go:14`/`:58`）。
+4. **订阅引用符号归一缺回归（P1）**：小写与空白归一（` us.aapl ` → `US.AAPL`）与周期映射（15m）在 Rust 缺同形断言（`:81`）。
+5. **成交桶边界缺回归（P1）**：缺时间戳成交仍建当前桶、乱序（重连后迟到）成交不污染当前桶（`symbol_failure_business_test.go:14`）。
+6. **观测文本精度与错误裁剪缺回归（P2）**：微秒精度时间文本与 `last_error` 首尾裁剪（`policy_test.go:102`）。
+7. **风控计数失败策略差异（P2）**：参考实现在审计计数失败时按 0 计数（容错下单），Rust 直接上抛并拒绝本单（失败关闭），需要在文档/设置页说明或补显式策略（`runtime_risk_evidence_test.go:18`）。
+8. **可选值辅助与负零格式化无同形对象（P2）**：Optional*/MaxTime 辅助与负零格式化在 Rust 由类型表示与调用方比较承担（`optional_values_risk_off_test.go:8`、`policy_test.go:146`）。
+9. **关停期迟到回调缺回归（P2）**：`symbol_failure_business_test.go:57` 的日志兜底与父取消可见性在 Rust 无同形断言。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 修复前先红 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib --locked strategy_market_day_start`（恒返回 UTC 午夜的探针） | 2/2 失败 |
+| 修复后 | 同命令 | 2/2 通过 |
+| 受影响 crate | `node scripts/quality/cargo-nextest.mjs run -p jftrade-trading --all-targets --locked` | 85/85 通过 |
+| 映射写入 | 21 行 payload `/tmp/s128s20_payload.json` 经 `/tmp/b82_apply.py` 应用 | `[x]` 1588 → 1592、partial 2227 → 2222、boundary 636 → 637（合计 4451） |
+| 审计 | `python3 scripts/compatibility/audit_test_parity.py` | 0 条引用不存在 crate、0 条 `[x]` 缺 function_exact、rust_entry 唯一；partial 引用不可解析 2；Rust 测试 3289 |
+| 锚点 | `python3 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1632、unrecorded 0、stale 0、unknown 53 |
+| 静态与格式 | `cargo fmt --all -- --check`、`pnpm run check:clippy`、`pnpm run check:rust:architecture`、`git diff --check` | 全部通过 |
+| 整轮 nextest | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast` | 1906/1906 通过 |
+| 兼容与门禁 | `pnpm run check:compatibility`、`check:generated`、`check:ai-context`、`check:zero-go`、`jftrade-integration-pine` 50/50、`pnpm run check:quick` | compatibility exit 0（desktop 3 平台档 6 link case 10 facade 4 event）；generated 未改动工作树；ai-context 6 模块 8 指令文件；zero-go 2953 files；`check:quick` 首轮因已知抖动（api_launcher 起始地址用例）失败，隔离复跑 2/2 通过、第二轮 `check:quick` exit 0（按规则不把抖动记为通过） |
+| 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy` | 仍因 `deny.toml` 的 `advisory-not-detected`（advisories FAILED，bans/licenses/sources ok）失败 |
+
+后续：分片二十一进入 `liveruntime` 余量（`manager_boundaries` 11、`order_risk` 余量 3、`pineworker_live` 6、`product_lifecycle` 4、`runtime_boundaries` 6），之后回补 `catalog` 余量 22 与 `definition` 4，直至 strategy_pine 域清空。

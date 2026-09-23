@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use super::strategy_runtime_simulate::*;
-use jftrade_kernel::Decimal;
+use jftrade_kernel::{Decimal, WireTimestamp};
 use jftrade_store_sqlite::StrategyRuntimeStore;
 use jftrade_trading::{
     RuntimeRiskContext, RuntimeRiskOrder, RuntimeRiskSettings, VirtualAccountState,
@@ -85,9 +85,7 @@ pub(super) fn execute_strategy_intents(
     let risk_settings = risk_settings.normalize();
 
     let now_utc = OffsetDateTime::now_utc();
-    let today_midnight_ms = OffsetDateTime::new_utc(now_utc.date(), time::Time::MIDNIGHT)
-        .unix_timestamp_nanos() as i64
-        / 1_000_000;
+    let today_midnight_ms = strategy_market_day_start_ms(ctx.market, now_utc);
     let mut placed = false;
     let mut submitted_count = 0_i64;
     for (index, intent) in intents.iter().enumerate() {
@@ -348,6 +346,34 @@ pub(super) fn execute_strategy_intents(
         submitted_count += 1;
     }
     Ok(placed)
+}
+
+/// Exchange-local day start used by the strategy daily order window.
+///
+/// The reference implementation resolves the order symbol's market timezone
+/// (`US` -> America/New_York, `HK` -> Asia/Hong_Kong, `CN`/`SH`/`SZ` ->
+/// Asia/Shanghai) and counts the day from that market's midnight, so a UTC
+/// midnight cannot be used as the window boundary. Unsupported markets and
+/// calendar failures fall back to UTC midnight instead of failing the order
+/// path.
+fn strategy_market_day_start_ms(market: &str, now_utc: OffsetDateTime) -> i64 {
+    let utc_midnight = i64::try_from(
+        OffsetDateTime::new_utc(now_utc.date(), time::Time::MIDNIGHT)
+            .unix_timestamp_nanos()
+            .div_euclid(1_000_000),
+    )
+    .unwrap_or(0);
+    let market = market.trim().to_ascii_uppercase();
+    if !matches!(market.as_str(), "US" | "HK" | "CN" | "SH" | "SZ") {
+        return utc_midnight;
+    }
+    jftrade_calendar::market_day_start_for_market(
+        &market,
+        WireTimestamp::from_offset_datetime(now_utc),
+    )
+    .ok()
+    .and_then(|timestamp| timestamp.unix_millis().ok())
+    .unwrap_or(utc_midnight)
 }
 
 #[allow(clippy::too_many_arguments)]

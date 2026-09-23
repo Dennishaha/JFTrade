@@ -295,6 +295,7 @@ mod tests {
     }
 
     #[test]
+    // Parity: go:452dea11:internal/strategy/runtimecontrol/policy_test.go:120 TestPositionMatchesMarketQualifiedSymbols
     fn positions_match_qualified_symbols_and_sum_sellable_quantity() {
         let positions = vec![
             PositionProjection {

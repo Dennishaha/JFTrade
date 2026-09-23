@@ -127,6 +127,7 @@ fn runtime_risk_off_ignores_configured_limits() {
 }
 
 // Parity: go:452dea11:internal/strategy/liveruntime/order_risk_business_test.go:67 TestRuntimeRiskEvaluatesOrderLimits
+// Parity: go:452dea11:internal/strategy/runtimecontrol/policy_test.go:11 TestEvaluateRiskAppliesRuntimeLimits
 #[test]
 fn runtime_risk_reason_codes_match_the_live_executor_table() {
     let settings = RuntimeRiskSettings {
@@ -223,6 +224,7 @@ fn runtime_risk_enforce_applies_close_only_quantity_notional_and_daily_limits() 
 }
 
 #[test]
+// Parity: go:452dea11:internal/strategy/runtimecontrol/policy_test.go:53 TestEvaluateRiskMonitorModeRecordsButDoesNotReject
 fn runtime_risk_monitor_records_match_without_rejecting_and_uses_fallback_price() {
     let decision = evaluate_runtime_risk(
         RuntimeRiskSettings {
@@ -242,6 +244,25 @@ fn runtime_risk_monitor_records_match_without_rejecting_and_uses_fallback_price(
             .detail
             .as_deref()
             .is_some_and(|detail| detail.starts_with("rule=max_order_notional"))
+    );
+
+    let daily = evaluate_runtime_risk(
+        RuntimeRiskSettings {
+            mode: RUNTIME_RISK_MODE_MONITOR.to_owned(),
+            daily_max_orders: Some(3),
+            ..RuntimeRiskSettings::default()
+        },
+        &runtime_order("BUY", "1", None),
+        &runtime_context("0", None, 3),
+    );
+    assert!(daily.matched);
+    assert!(!daily.rejected);
+    assert_eq!(daily.reason.as_deref(), Some("daily_max_orders"));
+    assert!(
+        daily
+            .detail
+            .as_deref()
+            .is_some_and(|detail| detail.starts_with("rule=daily_max_orders"))
     );
 }
 

@@ -1251,3 +1251,45 @@ fn broker_unavailability_does_not_create_a_virtual_fill() {
     let audits = store.list_audit_events("inst-fallback").expect("audits");
     assert!(!audits.iter().any(|ev| ev.kind == "ORDER_FILLED"));
 }
+
+// Parity: go:452dea11:internal/strategy/runtimecontrol/policy_test.go:83 TestMarketDayStartUTCUsesOrderSymbolTimezone
+#[test]
+fn strategy_market_day_start_follows_the_order_market_timezone() {
+    let instant = time::OffsetDateTime::parse(
+        "2026-01-01T02:00:00Z",
+        &time::format_description::well_known::Rfc3339,
+    )
+    .expect("instant");
+    // 2025-12-31T21:00 in New York, so the current trading day started at
+    // 2025-12-31T05:00Z for a US symbol.
+    assert_eq!(
+        strategy_market_day_start_ms("US", instant),
+        1_767_157_200_000
+    );
+    // 2026-01-01T10:00 in Hong Kong, so the day started at 2025-12-31T16:00Z.
+    assert_eq!(
+        strategy_market_day_start_ms("HK", instant),
+        1_767_196_800_000
+    );
+    // Unsupported markets keep UTC midnight instead of failing the order path.
+    assert_eq!(
+        strategy_market_day_start_ms("XX", instant),
+        1_767_225_600_000
+    );
+}
+
+// Parity: go:452dea11:internal/strategy/runtimecontrol/policy_test.go:83 TestMarketDayStartUTCUsesOrderSymbolTimezone
+#[test]
+fn strategy_market_day_start_follows_dst_transition() {
+    let overnight = time::OffsetDateTime::parse(
+        "2026-06-15T00:30:00Z",
+        &time::format_description::well_known::Rfc3339,
+    )
+    .expect("instant");
+    // 2026-06-14T20:30 in New York (EDT), so the US day started at
+    // 2026-06-14T04:00Z, not at the previous UTC midnight.
+    assert_eq!(
+        strategy_market_day_start_ms("US", overnight),
+        1_781_409_600_000
+    );
+}
