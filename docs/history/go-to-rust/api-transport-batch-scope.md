@@ -3793,4 +3793,35 @@ owner：自选名额与快照由 jftrade-watchlist 与 engine 自选产品承接
 
 后续：api_transport 域继续（rows 3559 起；余约 89 行）；队列随后 backtest_calendar 307、storage_sqlite 196、marketdata_quotes 161、futu_opend 142、trading_broker 56、settings_watchlist 39。
 
-抖动记录（未记为通过）：product_api_launcher_lifecycle::api_launcher_serves_on_the_configured_address_and_stops_on_termination_signal 在两轮 quick 整轮中均失败（exit 状为被信号终止而非 Some(0)，30 秒超时未触发），隔离复跑该文件 2 通过；本片改动为注释加账本加文档，不触及 launcher 关闭路径，判定为高并行负载下时序抖动，留待低负载整轮复确认（日志见 /tmp/quick.log 与 /tmp/quick2.log，隔离通过见 /tmp/launcher.log）。
+抖动记录（未记为通过，分片五十四更新）：product_api_launcher_lifecycle::api_launcher_serves_on_the_configured_address_and_stops_on_termination_signal 四次运行中失败三次（两轮 quick 整轮各一；低负载隔离复跑该文件时本用例失败，另第二用例的失败是 nextest fail-fast 取消仍在运行测试造成的人工失败，非真实失败）。失败形态均为子进程 exit 状为被信号终止而非 Some(0)，30 秒超时从未触发；成功的一次为隔离运行。测试先等 TCP 可连接再发 TERM，TCP 就绪早于信号处理器安装即构成真实竞态窗口，与负载相关但非负载独有。本片改动为注释加账本加文档，不触及 launcher 路径；该文件属 launcher 端到端契约（头注记：无 Parity 锚点），修复信号安装竞态属产品行为变更，不在本分片范围，登记为已知不稳定用例待 owner 跟进。证据：/tmp/quick.log、/tmp/quick2.log（整轮）、/tmp/launcher.log（隔离 2 通过）、/tmp/launcher2.log（隔离本用例失败加取消人工失败）。
+
+### 第 129 批分片五十四：launcher 抖动复确认加 rows 3559-3593 存储家族 35 行（无账本改动）
+
+两步：第一步复确认分片五十三遗留的 launcher 时序用例；第二步复核新范围。
+
+第一步结论更新：低负载隔离复跑 product_api_launcher_lifecycle 文件结果为 0 通过 2 失败，其中第二用例失败系 nextest fail-fast 取消仍在运行测试造成的人工失败；第一用例（TERM 后应干净退出 Some(0)，实际被信号终止，30 秒超时未触发）在四次运行中失败三次、成功一次。TCP 就绪先于信号处理器安装即构成竞态窗口，与负载相关但非负载独有；该文件属 launcher 端到端契约（头注记无 Parity 锚点），修复属产品行为变更，不在本分片范围，登记为已知不稳定用例待 owner 跟进。证据：/tmp/quick.log、/tmp/quick2.log、/tmp/launcher.log、/tmp/launcher2.log。
+
+第二步范围（账本 rows 3559-3593，按写入顺序）：backtest store:168、sync_tasks:12/:48、exchangecalendar snapshot_load_failures:12、store_boundaries:13/:31/:45、store_snapshot_failures:31/:73/:95/:136/:169/:199/:214、exchangecalendar store:12/:58、research maintenance:8、research store:16/:84/:122/:142/:190、settingsfile legacy:10、market_data:14/:82/:113/:130/:145、normalization:13/:53/:74/:92/:114/:178、persist_failures:26。初值 [x] 13、partial 22、boundary 0，终值不变。首键自检通过，无重叠。
+
+owner：交易日历快照由 jftrade-calendar 承接，回测与研究存储由 jftrade-store-sqlite 承接，设置文件由 jftrade-store-settings-file 与 jftrade-settings 承接，无双写。
+
+复核方法：35 条全量枚举引用有效性，[x] 逐条核对锚点归属与断言等价，partial 抽查缺口诚实度。结论：引用全部有效，0 纠正、0 升级。
+
+抽查证据：日历十三条 [x] 全部锚定 snapshot.rs（含原子替换失败旧字节不变加无临时残留的真实缝测试）；研究与设置文件 partial 缺口诚实（取消回调覆盖不全、临时文件 fsync 注入无断言、不可用接收者由类型系统阻止等）；dup-x 为 0。
+
+新增证据：无 Rust 改动；无账本行变更；无新增锚点。
+
+映射终值（35 行）：[x] 13、partial 22、boundary 0。全量：[x] 1565、partial 2248、boundary 638（合计 4451）；Rust 测试 3295 不变。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| launcher 复确认 | 低负载隔离跑 --test product_api_launcher_lifecycle | 0 通过 2 失败（其一为取消人工失败）；第一用例 1/4 成功率，登记已知不稳定，不记为通过 |
+| 逐行复核 | 35 条全量枚举引用有效性加断言等价抽查 | 0 纠正、0 升级；重复 [x] 全文唯一性检查通（0 重复） |
+| 账本写入 | 无变更 | [x] 1565、partial 2248、boundary 638（合计 4451）不变 |
+| 审计 | python3 scripts/compatibility/audit_test_parity.py --write-report | 通过（exit 0）；report 仅刷新基线，inventory 无变化；既有告警不变 |
+| 锚点 | python3 scripts/compatibility/parity_anchor_reconcile.py | anchors 1724、已记录 1677、unrecorded 0、stale 0、unknown 47（均不变） |
+| 文档门禁 | check:ai-context、migration-manifest、zero-go、quick、diff check | ai-context 过；migration-manifest 过；zero-go 过；quick exit 0（文档账本类改动，空受影响计划）；diff check 过 |
+
+后续：api_transport 域继续（rows 3594 起；余约 54 行）；队列随后 backtest_calendar 307、storage_sqlite 196、marketdata_quotes 161、futu_opend 142、trading_broker 56、settings_watchlist 39。
