@@ -2239,3 +2239,49 @@ owner：`crates/jftrade-engine`（策略活动读取与分页、定义与插件�
 **strategy_pine 域状态**：`internal/strategy`（catalog、instancebinding、instanceview、live_command_business_boundaries、liveruntime、pine_live_command、pine_live_executor、pineruntime、runtimecontrol、service、types、errors）与 `pkg/strategy`（definition、indicatorbinding、indicatorwarmup、ir、pine、pineengine、pinespec、pineworker）共 538 行全部持有终值并带结论（`[x]` 81、partial 383、boundary 74；module_only 0、missing 0、无缺 command 行）。其中 431 行的结论/证据在第 128 批被改写；本批 Rust 测试总数由 3204 增至 3290（+86），并落地 11 处生产修复（提交 014e66d6、f865e10a、d9155270、433405e3、4a8a92aa、3c0e10b1、e0313575、661dd659、61234727、cebff772、962d3a39、cbc7a4e5 中标注 fix 的部分）；余下 107 行的终值来自更早批次，本批对应分片（分片一、五、六、八~十七）已逐条复核并记为“保持终值”（见各分片小节，例如分片十七列出的 32 行保持项）。
 
 后续：下一批转入 `assistant_workflow` 域 560 行（`internal/assistant/*`、`internal/api/assistant/*`、ADK 审批与工作流租约、会话/工件/审批恢复等），仍按每分片一次提交、逐条终值、缺口登记与门禁全跑的标准推进。
+
+## 第 129 批：`assistant_workflow` 域
+
+范围（本批 892 行，每分片一次提交）：`internal/api/assistant` 82 行、`internal/assistant/model` 10 行、`internal/assistant`（顶层 service/workflow 用例）32 行、`internal/assistant/workflow` 38 行、`internal/assistant/assembly` 104 行、`internal/assistant/engine` 626 行，另含 `internal/app/apiserver` 下 8 行 assistant 相关用例。
+
+owner：`crates/jftrade-engine`（ADK 读/mutation/chat-stream 端口、生产装配、审批与会话写入所有权）、`crates/jftrade-store-sqlite`（ADK 会话/工件/审批持久化）、`crates/jftrade-api`（transport 契约与 legacy 路由 404）、`apps/desktop/src-tauri`（桌面侧 ADK 命令投影，如涉及）。
+
+队列说明：本批承接 strategy_pine 域完结后的域序，先清 `internal/api/assistant`（82 行，两片），再依次进入 model → 顶层 → workflow → assembly → engine。每分片按文件与行号升序推进，逐行给出终值（`[x]`/partial/boundary），缺锚点的 `[x]` 行在本批补齐锚点，发现判定过宽的行改回 partial 并写明缺口、修复位置与回归要求。
+
+### 分片一：`internal/api/assistant` 首批 30 行（10 处锚点补齐 + 1 条专属回归测试）
+
+范围（按文件与行号升序）：`adk_approval_test.go:16/:183/:282/:335/:382/:450` 6 行、`adk_integration_test.go:20` 1 行、`adk_normalize_test.go:15` 1 行、`adk_ops_test.go:18/:216/:247/:286/:394/:448/:468` 7 行、`adk_routes_test.go:26/:165/:214/:245/:359/:420/:481/:552/:578/:597/:634/:707/:741/:787/:858` 15 行。
+
+owner：`crates/jftrade-engine`（`product_production_ports_adk_*`、`product_adk_read_tests`、`product_adk_mutation_*`、`product_adk_chat_stream_*`、`product_adk_model_runtime*`、`product_production_assembly_tests`）、`crates/jftrade-api`（`tests/transport_contracts.rs` 的 legacy assistant 路由 404）。
+
+队列说明：本分片是 assistant_workflow 域的开篇。核对方式是先按 `git show 452dea11:<path>` 读出 30 行参考测试的函数签名与断言，再对照 Rust 侧证据；同时用工具校验四条不变式：参考行号确实落在同名 `func Test...(t *testing.T)` 上、锚点所在文件必须出现在该行 `rust_entry` 内、锚点携带的参考测试名必须与该行一致、boundary 行不得挂锚点（本分片 30 行 0 违规）。
+
+新增证据：
+
+1. `crates/jftrade-engine/tests/adk_mutations_compatibility.rs::adk_provider_save_rejects_the_truncated_payload_with_the_reference_message`（对应 `adk_routes_test.go:578 TestADKProviderSaveRejectsInvalidPayload`）。此前该行只引用 21 路由畸形体矩阵（仅断言状态与错误码），provider 专属文案没有 wire 断言；新用例断言截断体 `{"displayName":` 在 `POST /api/v1/adk/providers` 上返回 400、`BAD_REQUEST` 与 `invalid provider payload` 三件套，并锁定该文案来自 `body_error_message` 的 `CreateProvider` 分支而非通用 mutation 文案。
+2. 10 处缺失锚点补齐：`product_production_assembly_tests.rs` 3 处（任务/记忆/工作流触发路由、暂停与恢复原子持久化、指标聚合）、`product_adk_read_tests.rs` 1 处（审计分页拒绝非正 limit/负 offset）、`product_adk_model_runtime_tool_failure_tests.rs` 3 处（chat 回放工具失败信封、stream 只出终帧 final、从持久化终态重建 final）、`tests/adk_chat_stream_compatibility.rs` 1 处（SSE 畸形 chat 体返回 error 帧）、`tests/adk_mutations_compatibility.rs` 1 处（provider 截断体文案）、`product_adk_mutation_product_tests.rs` 1 处（优化任务查询与取消持久化）。
+3. 14 处既有锚点补全参考测试名（13 处原先只写 `file:line`，另有 1 处以散文形式引用，一并改为规范锚点），使锚点可从代码侧自证到参考测试名，而不只依赖行号。
+4. 3 处 `rust_entry` 修正：`product_adk_model_runtime.rs::tool_failure_tests::X` 改为 `product_adk_model_runtime_tool_failure_tests.rs::X`。三个用例实际由 `#[path]` 引入的模块文件承载，条目与锚点必须指向同一文件，否则锚点侧会判为 stale。
+
+映射终值（30 行）：`[x]` 29 行、boundary 1 行（`adk_integration_test.go:20 TestRealADKChatStreamWithSavedProvider`，真实模型 Provider live 调用，仅在显式 live workflow 中验证）、partial 0 行。本分片未把任何 `[x]` 行收紧为 partial：29 行的断言与参考测试逐一对应（回放信封、暂停/恢复状态迁移、负路径错误码、分页拒绝、畸形体文案、指标聚合字段）。
+
+剩余缺口（本分片未新登记 P0/P1；P2 仅记录口径）：
+
+1. **live Provider 集成（P2，边界保留）**：`adk_integration_test.go:20` 依赖真实模型 Provider，Rust 侧由显式 live workflow 覆盖，普通测试保持不联网；升级路径是在 live workflow 中新增端到端 chat stream 冒烟。
+2. **同类文案口径（P2）**：本分片为 provider 文案补了专属断言；其它写路由（task/memory/session/workflow/agent/skill）的专属文案仍只由路由级矩阵的状态码与错误码覆盖，后续在各自分片按同一方式补 wire 文案断言（`body_error_message` 已给出唯一映射，`crates/jftrade-engine/src/product_adk_mutation_port.rs`）。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 新增用例 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --test adk_mutations_compatibility --locked` | 9/9 通过（含新用例） |
+| 映射写入 | 4 行 payload `/tmp/b129s1_payload.json` 经 `/tmp/b82_apply.py` 应用 | `[x]` 1591 不变、partial 2222 不变、boundary 638 不变（合计 4451） |
+| 逐行复核 | 自建校验（参考行号签名、锚点文件与 `rust_entry` 一致性、锚点名一致性、boundary 无锚点） | 30 行 0 问题 |
+| 审计 | `python3 scripts/compatibility/audit_test_parity.py` | 0 条引用不存在 crate、0 条 `[x]` 缺 function_exact、rust_entry 唯一；缺锚点告警 208 → 198；Rust 测试 3290 → 3291 |
+| 锚点 | `python3 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1633 → 1643、unrecorded 0、stale 0、unknown 53 |
+| 静态与格式 | `cargo fmt --all -- --check`、`pnpm run check:clippy`、`pnpm run check:rust:architecture` | 全部通过 |
+| 整轮 nextest | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast` | 首轮 1909/1910（`api_launcher_reports_startup_failure_when_the_configured_address_is_taken` 抖动）→ 隔离复跑 2/2 通过 → 整轮复跑 1910/1910 通过 |
+| 兼容与门禁 | `pnpm run check:compatibility`、`check:generated`、`check:ai-context`、`check:zero-go`、`pnpm run check:quick` | compatibility exit 0（278 OpenAPI 操作、18 路由组、19 探针；desktop 3 平台档 6 link case 10 facade 4 event）；generated 未改动工作树；ai-context 6 模块 8 指令文件；zero-go 2953 files；`check:quick` exit 0 |
+| 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy` | 仍因 `deny.toml` 的 `advisory-not-detected`（advisories FAILED，bans/licenses/sources ok）失败 |
+
+后续：分片二进入 `internal/api/assistant` 余 52 行（`adk_routes_test.go:911` 起、`adk_sessions_test.go`、`adk_transport_contracts_test.go`、`chat_helpers_test.go`、`chat_stream_lifecycle_test.go`、`routes_resource_contracts_test.go`、`routes_test.go`、`workflow_routes_test.go` 等），其中 9 行尚缺锚点（`adk_sessions_test.go:15`、`adk_transport_contracts_test.go:10`、`chat_helpers_test.go:167/:216/:260`、`chat_stream_lifecycle_test.go:9`、`routes_resource_contracts_test.go:159`、`routes_test.go:136`、`workflow_routes_test.go:14`），随后按队列进入 `internal/assistant/model` 10 行。

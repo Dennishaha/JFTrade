@@ -475,6 +475,7 @@ fn adk_read_routes_clamp_pagination_beyond_available_items() {
     }
 }
 
+// Parity: go:452dea11:internal/api/assistant/adk_routes_test.go:214 TestADKAuditRouteRejectsInvalidPagination
 #[test]
 fn adk_read_pagination_rejects_non_positive_limits_and_negative_offsets() {
     for query in ["limit=0", "limit=-1", "offset=-1"] {
@@ -731,8 +732,8 @@ fn adk_runs_route_filters_by_status_and_agent_id() {
             dir.path().join("settings.json"),
         );
 
-    // Parity: internal/api/assistant/adk_approval_test.go:335 — one CANCELLED run
-    // for agent-1 and one COMPLETED run for agent-2.
+    // Parity: go:452dea11:internal/api/assistant/adk_approval_test.go:335 TestADKRunCancelAndFilteredList
+    // One CANCELLED run for agent-1 and one COMPLETED run for agent-2.
     for (id, agent, status) in [
         ("run-cancel", "agent-1", "CANCELLED"),
         ("run-other", "agent-2", "COMPLETED"),

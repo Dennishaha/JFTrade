@@ -3173,7 +3173,7 @@ fn assert_bad_request(error: AdkMutationPortError, expected: &str) {
     }
 }
 
-/// Parity: go:452dea11:internal/api/assistant/adk_routes_test.go:634
+/// Parity: go:452dea11:internal/api/assistant/adk_routes_test.go:634 TestADKAgentSaveValidationFailures
 /// TestADKAgentSaveValidationFailures
 ///
 /// The agent write contract classifies provider lifecycle, unknown catalogue
@@ -3293,7 +3293,7 @@ fn adk_agent_write_reports_the_go_validation_messages() {
     }
 }
 
-/// Parity: go:452dea11:internal/api/assistant/adk_routes_test.go:741
+/// Parity: go:452dea11:internal/api/assistant/adk_routes_test.go:741 TestADKBindAgentWithPreinstalledNeodataFinancialSearch
 /// TestADKBindAgentWithPreinstalledNeodataFinancialSearch
 ///
 /// A preinstalled external skill is addressable by the agent write path, so a
@@ -3452,7 +3452,7 @@ fn builtin_default_agent_tools_all_resolve_in_the_assembled_catalog() {
     assert_bad_request(error, "unknown ADK tool: not.an.assembled.tool");
 }
 
-/// Parity: go:452dea11:internal/api/assistant/adk_routes_test.go:707
+/// Parity: go:452dea11:internal/api/assistant/adk_routes_test.go:707 TestADKSkillInstallAndUninstallFailureRoutes
 /// TestADKSkillInstallAndUninstallFailureRoutes
 ///
 /// Install failures are reported as `400 ADK_SKILL_INSTALL_FAILED` with the
@@ -3780,7 +3780,7 @@ fn adk_read_resource_misses_keep_the_go_route_error_codes() {
     }
 }
 
-/// Parity: go:452dea11:internal/api/assistant/adk_approval_test.go:282
+/// Parity: go:452dea11:internal/api/assistant/adk_approval_test.go:282 TestADKProviderDeleteRejectsReferencedProvider
 /// TestADKProviderDeleteRejectsReferencedProvider
 ///
 /// Go's store wraps `ErrProviderInUse` with the referencing agent name and
@@ -3972,7 +3972,7 @@ fn adk_run_input_response_route_accepts_then_conflicts() {
     drop(directory);
 }
 
-/// Parity: go:452dea11:internal/api/assistant/adk_routes_test.go:858
+/// Parity: go:452dea11:internal/api/assistant/adk_routes_test.go:858 TestADKRunNegativeRoutes
 /// TestADKRunNegativeRoutes.
 ///
 /// Go's run handlers use two different 404 shapes: `GET /runs/{runId}` answers
@@ -4822,7 +4822,7 @@ fn seed_pending_approval_rows(
     (run_id, approval_id)
 }
 
-/// Parity: go:452dea11:internal/api/assistant/adk_approval_test.go:16
+/// Parity: go:452dea11:internal/api/assistant/adk_approval_test.go:16 TestADKApprovalApproveRouteReturnsRunningResolutionEnvelope
 /// TestADKApprovalApproveRouteReturnsRunningResolutionEnvelope.
 ///
 /// Go answers `200 ok=true` with the resolution envelope while the approved
@@ -4927,7 +4927,7 @@ fn adk_approval_approve_returns_the_running_resolution_envelope() {
     );
 }
 
-/// Parity: go:452dea11:internal/api/assistant/adk_approval_test.go:183
+/// Parity: go:452dea11:internal/api/assistant/adk_approval_test.go:183 TestADKApprovalRouteReturnsResolutionEnvelope
 /// TestADKApprovalRouteReturnsResolutionEnvelope.
 ///
 /// Go's denial path keeps the same envelope shape: `200 ok=true`, approval
@@ -5112,7 +5112,7 @@ fn provider_default_contract_orders_the_default_first_and_keeps_the_route_code()
     }
 }
 
-/// Parity: go:452dea11:internal/api/assistant/adk_routes_test.go:787
+/// Parity: go:452dea11:internal/api/assistant/adk_routes_test.go:787 TestADKSessionNegativeRoutes
 /// TestADKSessionNegativeRoutes.
 ///
 /// Go keeps a dedicated error envelope per session negative case: a missing or
@@ -5383,7 +5383,7 @@ fn adk_approval_wakeup_accepts_an_already_claimed_continuation() {
     );
 }
 
-/// Parity: go:452dea11:internal/api/assistant/adk_routes_test.go:26
+/// Parity: go:452dea11:internal/api/assistant/adk_routes_test.go:26 TestADKSessionDetailOmitsResolvedApprovalGroups
 /// TestADKSessionDetailOmitsResolvedApprovalGroups.
 ///
 /// Once an approval is resolved, Go's session detail no longer carries an

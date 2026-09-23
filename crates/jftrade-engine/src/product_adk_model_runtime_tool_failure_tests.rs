@@ -208,6 +208,7 @@ fn a_failed_tool_result_is_persisted_on_the_call_not_the_run() {
     );
 }
 
+// Parity: go:452dea11:internal/api/assistant/adk_routes_test.go:359 TestADKChatReturnsCompletedEnvelopeWithVisibleToolFailure
 /// Port of Go's `TestADKChatReturnsCompletedEnvelopeWithVisibleToolFailure`.
 ///
 /// The durable shape is a run whose only tool call is `FAILED` with a
@@ -290,6 +291,7 @@ fn a_completed_run_with_a_failed_tool_replays_as_the_chat_envelope() {
     }
 }
 
+// Parity: go:452dea11:internal/api/assistant/adk_routes_test.go:420 TestADKChatStreamReturnsFinalEventForCompletedRunWithToolFailure
 /// Port of Go's `TestADKChatStreamReturnsFinalEventForCompletedRunWithToolFailure`.
 ///
 /// The stream route must publish the persisted completed run as the terminal
@@ -365,6 +367,7 @@ fn a_completed_run_with_a_failed_tool_replays_as_a_stream_final_frame() {
     }
 }
 
+// Parity: go:452dea11:internal/api/assistant/adk_routes_test.go:481 TestADKChatStreamRecoversCompletedRunAsFinalEventWhenFinalMessageAppendFails
 /// Port of Go's
 /// `TestADKChatStreamRecoversCompletedRunAsFinalEventWhenFinalMessageAppendFails`.
 ///

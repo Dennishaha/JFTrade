@@ -204,23 +204,23 @@
   },
   "internal/api/assistant/adk_routes_test.go:359:TestADKChatReturnsCompletedEnvelopeWithVisibleToolFailure": {
     "status": "[x]",
-    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime.rs::tool_failure_tests::a_completed_run_with_a_failed_tool_replays_as_the_chat_envelope",
-    "conclusion": "completed：chat 路由回放已完成 run 的持久化信封：status=COMPLETED、message=\"completed\"、failureReason/errorCode 为空、degraded=true（由 FirstToolCallFailure 推导）、toolCalls[0].status=FAILED 且 error 保留原始 \"disk full\"；dispatch(Chat) 原样返回存储的 response。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'test(tool_failure) | test(first_tool_call_failure) | test(persist_success_marks)'",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_tool_failure_tests.rs::a_completed_run_with_a_failed_tool_replays_as_the_chat_envelope",
+    "conclusion": "completed：chat 路由回放已完成 run 的持久化信封：status=COMPLETED、message=\"completed\"、failureReason/errorCode 为空、degraded=true（由 FirstToolCallFailure 推导）、toolCalls[0].status=FAILED 且 error 保留原始 \"disk full\"；dispatch(Chat) 原样返回存储的 response。测试位于 product_adk_model_runtime_tool_failure_tests.rs（由 product_adk_model_runtime.rs 以 mod tool_failure_tests + #[path] 引入），锚点写在该测试上方。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'test(a_completed_run_with_a_failed_tool_replays_as_the_chat_envelope)'",
     "evidence_type": "function_exact"
   },
   "internal/api/assistant/adk_routes_test.go:420:TestADKChatStreamReturnsFinalEventForCompletedRunWithToolFailure": {
     "status": "[x]",
-    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime.rs::tool_failure_tests::a_completed_run_with_a_failed_tool_replays_as_a_stream_final_frame",
-    "conclusion": "completed：stream 路由对同一持久化终态 run 只产出末帧 final（携带存储 response、run=COMPLETED/degraded=true、toolCalls[0].error 含 disk full），且不伪造 error 帧。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'test(tool_failure) | test(first_tool_call_failure) | test(persist_success_marks)'",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_tool_failure_tests.rs::a_completed_run_with_a_failed_tool_replays_as_a_stream_final_frame",
+    "conclusion": "completed：stream 路由对同一持久化终态 run 只产出末帧 final（携带存储 response、run=COMPLETED/degraded=true、toolCalls[0].error 含 disk full），且不伪造 error 帧；测试位于 product_adk_model_runtime_tool_failure_tests.rs，锚点写在该测试上方。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'test(a_completed_run_with_a_failed_tool_replays_as_a_stream_final_frame)'",
     "evidence_type": "function_exact"
   },
   "internal/api/assistant/adk_routes_test.go:481:TestADKChatStreamRecoversCompletedRunAsFinalEventWhenFinalMessageAppendFails": {
     "status": "[x]",
-    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime.rs::tool_failure_tests::a_terminal_run_without_a_stream_final_frame_recovers_a_final_frame",
-    "conclusion": "completed：Rust 的等价恢复路径是从持久化终态 run 重建终帧。streamEvents 只有 run 帧时，stream_from_payload 依据 durable response 合成 sequence=2 的 final 帧且不产生 error 帧，语义对应 Go 的 RecoverTerminalChatResponse 回退；Rust 无 ADK session AppendEvent 注入点，故以同一 durable 形态（append 后缺失终帧）作为等价边界，详见批次小结。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'test(tool_failure) | test(first_tool_call_failure) | test(persist_success_marks)'",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_tool_failure_tests.rs::a_terminal_run_without_a_stream_final_frame_recovers_a_final_frame",
+    "conclusion": "completed：Rust 的等价恢复路径是从持久化终态 run 重建终帧。streamEvents 只有 run 帧时，stream_from_payload 依据 durable response 合成 final 帧且不产生 error 帧，语义对应参考实现的 RecoverTerminalChatResponse 回退；Rust 无 ADK session AppendEvent 注入点，故以同一 durable 形态（append 后缺失终帧）作为等价边界。测试位于 product_adk_model_runtime_tool_failure_tests.rs，锚点写在该测试上方。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'test(a_terminal_run_without_a_stream_final_frame_recovers_a_final_frame)'",
     "evidence_type": "function_exact"
   },
   "internal/api/assistant/adk_routes_test.go:552:TestADKChatStreamReturnsErrorEventForInvalidPayload": {
@@ -232,9 +232,9 @@
   },
   "internal/api/assistant/adk_routes_test.go:578:TestADKProviderSaveRejectsInvalidPayload": {
     "status": "[x]",
-    "rust_entry": "crates/jftrade-engine/src/product_adk_mutation_port.rs::invalid_mutation_input（\"invalid provider payload\"）；crates/jftrade-engine/tests/adk_mutations_compatibility.rs::adk_mutation_routes_reject_malformed_mutation_payloads",
-    "conclusion": "function_exact：畸形 provider payload 返回 400 BAD_REQUEST + \"invalid provider payload\"，由 mutation 负路径测试断言。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_mutation_port.rs::body_error_message（CreateProvider → \"invalid provider payload\"）；crates/jftrade-engine/tests/adk_mutations_compatibility.rs::adk_provider_save_rejects_the_truncated_payload_with_the_reference_message",
+    "conclusion": "completed：POST /api/v1/adk/providers 收到截断体 `{\"displayName\":` 时，wire 返回 400 BAD_REQUEST 且 message 为 provider 专属的 \"invalid provider payload\"（来自 body_error_message 的 CreateProvider 分支，而非通用 mutation 文案）；由专属回归测试断言状态、错误码与文案三件套，锚点写在该测试上方。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --test adk_mutations_compatibility --locked",
     "evidence_type": "function_exact"
   },
   "internal/api/assistant/adk_routes_test.go:597:TestADKProviderSaveReturnsRequestTimeoutMs": {

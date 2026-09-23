@@ -2681,6 +2681,7 @@ mod product_production_assembly_tests {
         handle.shutdown().await.expect("shutdown cleanly");
     }
 
+    // Parity: go:452dea11:internal/api/assistant/adk_ops_test.go:286 TestADKTaskAndMemoryWorkflowRoutes
     #[tokio::test]
     async fn production_adk_local_mutations_persist_tasks_memory_and_workflow_triggers() {
         let (_temp_dir, _settings_path, config, _security) = setup_test_env();
@@ -3109,6 +3110,7 @@ mod product_production_assembly_tests {
     }
 
     // Parity: go:452dea11:internal/assistant/engine/workflow_goal_test.go:119 TestGoalWorkflowPauseAfterContinueAndResume
+    // Parity: go:452dea11:internal/api/assistant/adk_approval_test.go:382 TestADKRunPauseAndResumeRoutes
     #[tokio::test]
     async fn production_adk_goal_pause_and_resume_are_persisted_atomically() {
         let (_temp_dir, settings_path, config, _security) = setup_test_env();
@@ -3395,6 +3397,7 @@ mod product_production_assembly_tests {
         handle.shutdown().await.expect("shutdown after resume");
     }
 
+    // Parity: go:452dea11:internal/api/assistant/adk_ops_test.go:18 TestADKMetricsExposeLifecycleAndApprovalLatency
     #[test]
     fn production_adk_metrics_are_aggregated_from_persisted_records() {
         let (_temp_dir, settings_path, config, security) = setup_test_env();
@@ -5405,7 +5408,7 @@ mod product_production_assembly_tests {
         handle.shutdown().await.expect("shutdown");
     }
 
-    /// Parity: go:452dea11:internal/api/assistant/adk_ops_test.go:468
+    /// Parity: go:452dea11:internal/api/assistant/adk_ops_test.go:468 TestADKSnapshotAndToolsRoutesReturnCatalogData
     /// TestADKSnapshotAndToolsRoutesReturnCatalogData.
     ///
     /// Go's snapshot handler returns the whole ADK catalog in one payload:

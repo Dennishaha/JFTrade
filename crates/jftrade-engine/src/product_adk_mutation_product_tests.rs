@@ -308,10 +308,9 @@ fn production_optimization_port(
     )
 }
 
+// Parity: go:452dea11:internal/api/assistant/adk_ops_test.go:247 TestADKOptimizationTaskCanBeQueriedAndCancelled
 #[tokio::test]
 async fn optimization_task_http_cancellation_persists_through_production_port_restart() {
-    // go:452dea11 internal/api/assistant/adk_ops_test.go:247
-    // TestADKOptimizationTaskCanBeQueriedAndCancelled
     let directory = tempdir().expect("temporary directory");
     let settings_path = directory.path().join("settings.json");
     let port = production_optimization_port(directory.path(), true);
@@ -382,7 +381,7 @@ async fn optimization_task_http_cancellation_persists_through_production_port_re
     handle.shutdown().await.expect("shutdown restarted product");
 }
 
-/// Parity: go:452dea11:internal/api/assistant/adk_ops_test.go:394
+/// Parity: go:452dea11:internal/api/assistant/adk_ops_test.go:394 TestADKOptimizationTaskNegativeRoutes
 /// TestADKOptimizationTaskNegativeRoutes.
 ///
 /// Go answers the optimization-task negative matrix through two handlers that
@@ -443,7 +442,7 @@ async fn optimization_task_negative_routes_match_the_reference_matrix() {
     handle.shutdown().await.expect("shutdown product");
 }
 
-/// Parity: go:452dea11:internal/api/assistant/adk_approval_test.go:450
+/// Parity: go:452dea11:internal/api/assistant/adk_approval_test.go:450 TestADKRunPauseResumeRoutesRejectInvalidRuns
 /// TestADKRunPauseResumeRoutesRejectInvalidRuns.
 ///
 /// Go's pause handler validates the run before mutating it: a loop-mode child

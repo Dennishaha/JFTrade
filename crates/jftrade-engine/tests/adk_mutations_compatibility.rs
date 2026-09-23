@@ -368,6 +368,22 @@ fn adk_mutation_routes_reject_malformed_mutation_payloads() {
     }
 }
 
+// Parity: go:452dea11:internal/api/assistant/adk_routes_test.go:578 TestADKProviderSaveRejectsInvalidPayload
+/// The reference route answers the truncated provider body
+/// (`{"displayName":`) with `400 BAD_REQUEST` and the provider-specific
+/// message, not the generic mutation text the other write routes use.
+#[test]
+fn adk_provider_save_rejects_the_truncated_payload_with_the_reference_message() {
+    let request = request_with_body("POST", "/api/v1/adk/providers", br#"{"displayName":"#);
+    let response = dispatch_adk_mutation(&request, None, FIXTURE_TIMESTAMP);
+    assert_eq!(response.status, 400);
+    assert_eq!(response.body["error"]["code"], "BAD_REQUEST");
+    assert_eq!(
+        response.body["error"]["message"], "invalid provider payload",
+        "the provider route owns its own payload message"
+    );
+}
+
 /// Parity: go:452dea11:internal/api/assistant/routes_boundary_contracts_test.go:369
 /// TestAssistantMutationRoutesRejectMalformedJSON.
 ///

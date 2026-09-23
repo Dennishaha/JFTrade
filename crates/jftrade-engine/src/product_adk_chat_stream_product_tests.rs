@@ -1529,7 +1529,7 @@ fn spawn_loopback_model_provider() -> (String, std::thread::JoinHandle<()>) {
     )
 }
 
-/// Parity: go:452dea11:internal/api/assistant/adk_routes_test.go:245
+/// Parity: go:452dea11:internal/api/assistant/adk_routes_test.go:245 TestADKChatStreamEmitsSessionRunAndFinalEvents
 /// TestADKChatStreamEmitsSessionRunAndFinalEvents.
 ///
 /// Go runs a real chat against a saved provider and requires the live SSE
