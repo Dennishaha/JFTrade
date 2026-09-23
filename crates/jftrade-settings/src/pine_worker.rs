@@ -99,5 +99,6 @@ mod tests {
             }
         );
         assert_eq!(PineWorkerSettings::default().backtest_worker_limit, 2);
+        assert_eq!(PineWorkerSettings::default().instance_worker_limit, 10);
     }
 }

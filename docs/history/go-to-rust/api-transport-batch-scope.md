@@ -2010,3 +2010,51 @@ owner：`crates/jftrade-integration-pine`（`pool.rs` worker 池与预留、`pro
 | 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy` | 仍因 `deny.toml` 8 条 `advisory-not-detected` 失败 |
 
 后续：分片十八进入 `internal/strategy/pineruntime` 25 行（`runtime_test.go` 13、`runtime_failure_contracts_test.go` 7、`runner_lifecycle_test.go` 4、`recovery_contracts_test.go` 1）；之后按 `internal/strategy` 族余量继续推进，直至 strategy_pine 域清空。
+
+### 分片十八：`internal/strategy/pineruntime` 25 行（配置解析、运行期路径优先级、runner 生命周期）
+
+范围：`runtime_test.go` 13 行（`:18`/`:60`/`:79`/`:105`/`:118`/`:145`/`:165`/`:185`/`:228`/`:250`/`:278`/`:325`/`:344`）、`runtime_failure_contracts_test.go` 7 行（`:16`/`:30`/`:52`/`:76`/`:99`/`:146`/`:171`）、`runner_lifecycle_test.go` 4 行（`:41`/`:59`/`:110`/`:157`）、`recovery_contracts_test.go:9`。
+
+owner：`crates/jftrade-engine`（运行期依赖解析与 node 候选、桌面运行期配置、装配与关停）、`crates/jftrade-settings`（PineWorkerSettings 归一与默认值）、`crates/jftrade-integration-pine`（资产校验与物化、进程启停、就绪监视、worker 池与会话）。
+
+队列说明：该族在更早批次已给过终值，本分片做二次核对——重点是参考实现里 `ResolveConfig` 的三件事（settings 与环境合并、嵌入/外部资产切换、运行期路径优先级）在 Rust 的拆分实现是否被回归锁定。核对发现运行期路径优先级链（settings > `JFTRADE_PINEWORKER_RUNTIME` > `JFTRADE_NODE_BINARY` > PATH）在 Rust 只有“设置路径优先”一段断言，环境变量层的顺序与空白回落没有任何证据，因此本分片补了可注入接缝与用例。
+
+新增证据：
+
+1. `crates/jftrade-engine/src/runtime_dependencies.rs` 提取 `node_candidates_with(configured_path, lookup)` 接缝（无行为变更），`node_candidates` 继续用 `env::var_os` 调用；新增用例 `runtime_path_precedence_prefers_settings_then_worker_env_then_legacy_binary`，断言四个层级：设置路径压过两个环境变量（`source = settings`）、worker 环境变量压过 legacy（`source = env:JFTRADE_PINEWORKER_RUNTIME`）、仅 legacy 时取 `env:JFTRADE_NODE_BINARY`、worker 环境变量为空白时回落 legacy，并覆盖两侧嵌套引号与空白裁剪；用例带 `// Parity: go:452dea11:internal/strategy/pineruntime/runtime_test.go:105` 锚点。
+2. `crates/jftrade-settings/src/pine_worker.rs` 的 `worker_limits_and_nested_quotes_match_go_settings_owner` 增加 `instance_worker_limit` 默认值断言（10），补齐参考实现默认 worker 规模（backtest 2 / instance 10）的 Rust 侧证据。
+
+探针（证明新增断言有效）：把生产代码的候选顺序临时改成 legacy 优先（其余不动），只跑 `runtime_path_precedence_prefers_settings_then_worker_env_then_legacy_binary` 得到 1 失败（`left: legacy-node` / `right: /env/node`），按字节回滚后 13/13 通过；`runtime_dependencies.rs` shasum `d21a3f8c…`（改动前）→ `ac3050c5…`（探针回滚后，含接缝与新用例）。
+
+映射终值（25 行）：partial 24 行、boundary 1 行；本分片无新增 `[x]`——参考实现的 `ResolveConfig`/`Manager`/`ephemeralRunner` 在 Rust 分别落到设置归一、engine 装配与进程/池三处，逐条都是“语义等价但对象不同”，按执行标准不把结构性差异记成等价。
+
+- **保持 boundary（1 行）**：`recovery_contracts_test.go:9`（Go 的 nil 接收者防御分支在 Rust 由类型系统排除，升级路径写进结论）。
+- **刷新 partial 证据（24 行）**：`:105` 改引新增的运行期优先级用例，`:30` 同源引用；`:18`/`:79` 指向设置归一用例并登记 0 值语义缺口；资产族 `:60`/`:16` 指向 `asset.rs` 两条用例；进程族 `:118`/`:145`/`:325`/`:344` 指向 `process.rs` 的 loopback 与身份探针用例；就绪族 `:41`/`:110`/`:146`/`:171` 指向 `readiness.rs` 的监视停止与停止后迟到结果用例；会话族 `:59`/`:157`/`:278` 指向 `pool.rs` 与执行端口契约用例。
+
+剩余缺口（本批新增/细化）：
+
+1. **worker 上限 → 实际 worker 数缺失（P1）**：参考实现把 `BacktestWorkerLimit`/`InstanceWorkerLimit` 换算成实际 worker 数，并把 0 解释成默认 2/10；Rust 的 `normalize_pine_worker_settings` 把 0 clamp 成 1，且没有任何消费方把上限换算成池规模（`JFTRADE_PINEWORKER_WORKERS` 与池大小由调用方另给）。修复位置：`crates/jftrade-settings` 的归一层区分“0=取默认”与“越界=报错或收敛”，并在 engine 装配处消费该上限；回归按 `runtime_test.go:79`/`:105` 与 `runtime_failure_contracts_test.go:30` 断言。
+2. **禁用开关缺失（P1）**：参考实现的 `JFTRADE_PINEWORKER_DISABLED` 会整体禁用运行时；Rust 没有等价开关，部署只能通过不提供 bundle/proto 表达。修复位置：engine 的桌面运行期配置解析（`from_process_env`）与装配短路；回归要求：开关为真时不构建进程、不发布运行期句柄。
+3. **配对发布与回滚缺回归（P1）**：参考实现的 Manager 在任一 Runner 构建失败时不发布半成品并回滚；Rust 的 engine 装配没有“第二个组件失败 → 第一个组件回滚且不对外发布”的用例（`runtime_test.go:185`/`:228`、`runtime_failure_contracts_test.go:76`）。
+4. **关停排空（drain）缺回归（P1）**：参考实现 Close 会排空活跃 live 会话并归还容量（`runtime_failure_contracts_test.go:171`）；Rust 由监视任务 join + 进程 stop_timeout + 池层释放组合承担，缺少端到端用例。
+5. **容量等待与取消缺回归（P1）**：参考实现的 runner 在容量满时排队等待并可被上下文取消（`runtime_failure_contracts_test.go:99`）；Rust 池即时拒绝（`CapacityExceeded`），排队/背压在 engine 层，缺“排队 → 取消 → 释放后放行”的用例。
+6. **工作目录与 proto 自动定位缺失（P2）**：参考实现从 bundle 路径向上找仓库根并支持 proto 覆盖（`runtime_test.go:118`/`:165`、`runtime_failure_contracts_test.go:52`）；Rust 要求调用方显式给出工作目录与 proto。
+7. **停机超时推导缺失（P2）**：参考实现的 stopTimeout 默认 5s、并被请求超时压到 10s 上限（`runtime_test.go:325`）；Rust 用显式 `stop_timeout`，没有默认与上限推导。
+8. **关停错误聚合缺失（P2）**：参考实现的 CloseRunners 聚合两个组件关闭错误（`runtime_test.go:250`）；Rust 的 engine 关闭路径没有逐条断言。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 新增用例 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib --locked runtime_dependencies` | 13/13 通过（含新增优先级用例） |
+| 探针先红 | 同命令过滤 `runtime_path_precedence`（候选顺序临时改成 legacy 优先） | 1 failed（`left: legacy-node` / `right: /env/node`），按字节回滚后恢复绿 |
+| 设置侧断言 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-settings --all-targets --locked` | 59/59 通过 |
+| 映射写入 | 25 行 payload `/tmp/s128s18_payload.json` 经 `/tmp/b82_apply.py` 应用 | 25 行结论全部刷新为终值（24 partial + 1 boundary），计数不变：`[x]` 1587 + partial 2228 + boundary 636 = 4451 |
+| 审计 | `python3 scripts/compatibility/audit_test_parity.py` | 0 条引用不存在 crate、0 条 `[x]` 缺 function_exact、rust_entry 唯一；partial 引用不可解析 2；Rust 测试 3286 + 1 = 3287 |
+| 锚点 | `python3 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1627、unrecorded 0、stale 0、unknown 53 |
+| 静态与格式 | `cargo fmt --all -- --check`、`pnpm run check:clippy`、`pnpm run check:rust:architecture`、`git diff --check` | 全部通过 |
+| 整轮 nextest | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast` | 1900/1900 通过（新增用例计入） |
+| 兼容与门禁 | `pnpm run check:compatibility`、`check:generated`、`check:ai-context`、`check:zero-go`、`pnpm run check:quick` | compatibility exit 0（278 operations / 18 route groups / 19 probes；desktop 3 平台档 6 link case 10 facade 4 event）；generated 未改动工作树；ai-context 6 模块 8 指令文件；zero-go 2953 files；`check:quick` exit 0 |
+| 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy` | 仍因 `deny.toml` 的 `advisory-not-detected`（advisories FAILED，bans/licenses/sources ok）失败 |
+
+后续：分片十九进入 `internal/strategy` 其余子域（`service_test.go` 10、`pine_live_command_test.go` 11、`runtimecontrol` 10、`liveruntime` 余量约 22、`definition` 4、`types_test.go` 2、`errors_test.go` 1），直至 strategy_pine 域清空。

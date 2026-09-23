@@ -234,6 +234,13 @@ fn resolve_node(configured_path: &str) -> Resolution {
 }
 
 fn node_candidates(configured_path: &str) -> Vec<Candidate> {
+    node_candidates_with(configured_path, |name| env::var_os(name))
+}
+
+fn node_candidates_with(
+    configured_path: &str,
+    lookup: impl Fn(&str) -> Option<OsString>,
+) -> Vec<Candidate> {
     if !configured_path.is_empty() {
         return vec![Candidate {
             path: configured_path.into(),
@@ -247,7 +254,7 @@ fn node_candidates(configured_path: &str) -> Vec<Candidate> {
         ),
         ("JFTRADE_NODE_BINARY", "env:JFTRADE_NODE_BINARY"),
     ] {
-        if let Some(path) = env::var_os(name).and_then(normalize_executable_path) {
+        if let Some(path) = lookup(name).and_then(normalize_executable_path) {
             return vec![Candidate {
                 path: path.into(),
                 source: source.to_owned(),
@@ -536,6 +543,42 @@ mod tests {
         } else {
             assert_eq!(sources, vec!["path"]);
         }
+    }
+
+    // Parity: go:452dea11:internal/strategy/pineruntime/runtime_test.go:105 TestResolveConfigUsesWorkerDefaultsAndRuntimePrecedence
+    #[test]
+    fn runtime_path_precedence_prefers_settings_then_worker_env_then_legacy_binary() {
+        let worker_env_and_legacy = |name: &str| match name {
+            "JFTRADE_PINEWORKER_RUNTIME" => Some(OsString::from("  '\"/env/node\"'  ")),
+            "JFTRADE_NODE_BINARY" => Some(OsString::from("legacy-node")),
+            _ => None,
+        };
+        assert_eq!(
+            node_candidates_with("/settings/node", worker_env_and_legacy),
+            vec![Candidate {
+                path: PathBuf::from("/settings/node"),
+                source: "settings".to_owned(),
+            }]
+        );
+
+        let worker_env = node_candidates_with("", worker_env_and_legacy);
+        assert_eq!(worker_env.len(), 1);
+        assert_eq!(worker_env[0].path, PathBuf::from("/env/node"));
+        assert_eq!(worker_env[0].source, "env:JFTRADE_PINEWORKER_RUNTIME");
+
+        let legacy_only = node_candidates_with("", |name| {
+            (name == "JFTRADE_NODE_BINARY").then(|| OsString::from("legacy-node"))
+        });
+        assert_eq!(legacy_only[0].path, PathBuf::from("legacy-node"));
+        assert_eq!(legacy_only[0].source, "env:JFTRADE_NODE_BINARY");
+
+        let blank_worker_env = node_candidates_with("", |name| match name {
+            "JFTRADE_PINEWORKER_RUNTIME" => Some(OsString::from("   ")),
+            "JFTRADE_NODE_BINARY" => Some(OsString::from("legacy-node")),
+            _ => None,
+        });
+        assert_eq!(blank_worker_env[0].path, PathBuf::from("legacy-node"));
+        assert_eq!(blank_worker_env[0].source, "env:JFTRADE_NODE_BINARY");
     }
 
     // Parity: go:452dea11:internal/app/apiserver/runtime/dependencies_test.go:94 TestCheckNodeRuntimeDependencyMissingMessageListsMacOSAttempts

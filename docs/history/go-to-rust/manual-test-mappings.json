@@ -27315,176 +27315,176 @@
   },
   "internal/strategy/pineruntime/recovery_contracts_test.go:9:TestManagerReconfigureRejectsNilManager": {
     "status": "[~]",
-    "rust_entry": "不适用：Go nil manager 的 Reconfigure 防御分支",
-    "conclusion": "boundary（结构差异）：Go 断言 nil manager 的 Reconfigure 返回 disabled 错误。Rust 管理器为拥有型结构，无 nil 接收者分支，该防御在类型层面不存在。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine --all-targets --locked",
+    "rust_entry": "不适用：Go nil 接收者的 Reconfigure 防御分支（Rust 无空指针接收者）",
+    "conclusion": "boundary：Go 对 `var manager *Manager` 调用 Reconfigure 断言返回错误且 enabled=false。Rust 的方法调用必须有有效接收者，空指针防御分支不存在（编译器与类型系统排除），也不该为对齐而引入可空包装；工程内的“未初始化即拒绝”表达是 Option/Result 构造期校验（如 WorkerPool::new 空池报 PoolError::Empty）。升级路径：若未来出现运行期失效的运行时句柄，应在 engine 装配层用状态机（未初始化/运行中/已关停）表达并补关停后拒绝的回归用例。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "boundary"
   },
   "internal/strategy/pineruntime/runner_lifecycle_test.go:41:TestLiveSessionContextWatcherExitsWhenSessionCloses": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-integration-pine/src/readiness.rs::dropping_monitor_marks_shared_state_stopped",
-    "conclusion": "partial：Go 断言会话关闭后上下文 watcher 退出。Rust 该用例断言丢弃监控会把共享状态标记为 stopped（watcher 收敛语义）。",
+    "rust_entry": "crates/jftrade-integration-pine/src/readiness.rs::monitor_shutdown_marks_state_and_joins_task",
+    "conclusion": "partial：Go 断言会话 Close 后等待会话完成的 goroutine 必须退出（1 秒内），即关闭会发布完成信号。Rust 没有 liveSession 与 watch goroutine 的配对：就绪监视任务在停止/关闭时被标记并 join（本行引用用例），池侧会话在 close 预留释放后不再可寻址（pool.rs::closing_a_live_session_releases_its_pin）。语义等价但对象不同，故记 partial。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/strategy/pineruntime/runner_lifecycle_test.go:59:TestOpenLiveSessionCleansUpWhenRunnerClosesBeforeRegistration": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-integration-pine/src/pool.rs::live_sessions_are_pinned_and_open_failure_rolls_back",
-    "conclusion": "partial：Go 断言注册前 runner 关闭时会话打开失败并释放容量。Rust 该用例断言打开失败回滚与容量释放。",
+    "conclusion": "partial：Go 在 open 的传输回调里提前关闭 runner，断言 OpenLiveSession 报 closed、不返回会话、容量被归还（busy 为空）、worker 启停各一次。Rust 的等价保证在池层：open 失败会回滚预留、不保留 sessions 映射、容量归还（本行引用用例），进程启停由 PineProcess/PineProcessPool 保证 start 与 stop 成对；没有“注册期间关闭”的并发编排用例，故记 partial。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/strategy/pineruntime/runner_lifecycle_test.go:110:TestLiveSessionContextWatcherCancellationBoundaries": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-integration-pine/src/readiness.rs::monitor_shutdown_marks_state_and_joins_task",
-    "conclusion": "partial：Go 断言 watcher 取消边界（nil runner、拥有会话）与会话完成信号。Rust 该用例断言监控关闭汇合任务并标记状态。",
+    "conclusion": "partial：Go 断言上下文取消时（nil runner 与自有 runner 两种情况）完成信号被初始化、自有会话被关闭、会话从 runner 注册表移除且容量归还。Rust 的取消语义由 tokio 任务承担：监视任务在取消/停止时发布状态并 join（本行引用用例），池侧 close 预留释放容量并移除会话（pool.rs::closing_a_live_session_releases_its_pin）。没有“取消 → 会话注销 + 容量归还”的同一用例串起两层。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/strategy/pineruntime/runner_lifecycle_test.go:157:TestLiveSessionCloseInitializesCompletionSignal": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-integration-pine/src/readiness.rs::stopped_state_ignores_late_health_success",
-    "conclusion": "partial：Go 断言 Close 发布会话完成信号。Rust 该用例断言 stopped 状态忽略迟到的健康成功（完成/停止后的状态语义）。",
+    "rust_entry": "crates/jftrade-integration-pine/src/pool.rs::closing_a_live_session_releases_its_pin",
+    "conclusion": "partial：Go 断言对零值会话直接 Close 会初始化并发布完成信号。Rust 没有会话完成信号（无 done channel），关闭语义是释放池内 pin 并让后续 append 报 SessionNotFound（本行引用用例）；重复关闭在池层是幂等的（release 可重复调用），但没有单独的完成信号断言对象。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/strategy/pineruntime/runtime_failure_contracts_test.go:16:TestResolveConfigReportsUnavailableEmbeddedBundle": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-integration-pine/src/asset.rs::test_select_from_fs_treats_missing_and_empty_bundles_as_unavailable",
-    "conclusion": "partial：Go 断言内嵌 bundle 不可用时的配置结果。Rust 该用例断言缺失/空 bundle 视为不可用（unavailable），与 Go 结论一致。",
+    "conclusion": "partial：Go 断言嵌入资产选择器报错时 Config 为空、enabled=false 且错误原样上抛（errors.Is）。Rust 的嵌入资产不可用表现为 PineBundle 校验/物化失败与文件缺失判定（本行引用用例断言缺失与空 bundle 视为不可用），engine 装配在资产不可用时不启动进程；但错误不保留选择器原始错误对象，也没有 enabled 标志位。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/strategy/pineruntime/runtime_failure_contracts_test.go:30:TestResolveConfigHonorsRuntimeFallbacksAndConfiguredWorkerLimits": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-integration-pine/src/process.rs::readiness_policy_preserves_go_delay_and_supports_capped_backoff",
-    "conclusion": "partial：Go 断言运行时回退与配置的 worker 限额。Rust 该用例断言 readiness 延迟与封顶退避策略（限额语义）。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine --all-targets --locked",
+    "rust_entry": "crates/jftrade-engine/src/runtime_dependencies.rs::runtime_path_precedence_prefers_settings_then_worker_env_then_legacy_binary",
+    "conclusion": "partial：Go 断言 JFTRADE_PINEWORKER_RUNTIME 压过 legacy JFTRADE_NODE_BINARY、清空 worker 环境变量后回落到 legacy，并且设置里的 BacktestWorkerLimit=4/InstanceWorkerLimit=8 被原样采纳。Rust 前半段由本行引用的新增用例锁定（含空白值回落与引号裁剪），后半段只有 clamp 语义（normalize_pine_worker_settings 保留 4/8、越界收敛），且 worker 上限没有消费方把上限换算成实际 worker 数。缺口（P1）：worker 上限 → 实际 worker 数的映射在 Rust 缺失。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/strategy/pineruntime/runtime_failure_contracts_test.go:52:TestResolveWorkDirFindsRepositoryFromExternalBundleAfterGetwdFailure": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-integration-pine/src/asset.rs::test_select_from_fs_returns_embedded_bundle_metadata",
-    "conclusion": "partial：Go 断言 getwd 失败后仍能从外部 bundle 找到仓库工作目录。Rust 该用例断言从文件系统选择 bundle 元数据（路径解析）；getwd 失败回退为 Go 侧路径策略。",
+    "conclusion": "partial：Go 在 getwd 失败时改从外部 bundle 路径向上找到仓库根（含 go.mod 与默认 proto），并断言 abs 解析可注入。Rust 没有“从 bundle 反推工作目录”的实现：工作目录与 proto 由 engine 显式给出（PineProcessConfig），资产物化目录由调用方提供（本行引用用例锁定物化文件名与元数据）。缺口（P2）：外部 bundle 部署下的自动定位与失败回落没有同形对象。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/strategy/pineruntime/runtime_failure_contracts_test.go:76:TestManagerDoesNotPublishWhenBacktestRunnerCannotBeBuilt": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-integration-pine/src/pool.rs::live_sessions_are_pinned_and_open_failure_rolls_back",
-    "conclusion": "partial：Go 断言回测 runner 构建失败时不发布且不保留失败对。Rust 该用例断言打开失败回滚与容量释放（不发布语义）。",
+    "conclusion": "partial：Go 断言 backtest Runner 构建失败（launcher 工厂返回错误）时不发布任何 Runner、Runners() 为空、工厂只被调用一次且错误上抛。Rust 没有 Manager 发布层，构建失败由 engine 装配顺序与池的失败回滚承担（本行引用用例）；没有“首个组件失败 → 不发布且不重试”的用例。缺口（P2）同 TestManagerDoesNotPublishPartialPairAndRollsBack，可一并补 engine 层回归。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/strategy/pineruntime/runtime_failure_contracts_test.go:99:TestBacktestRunnerWaitsForCapacityAndPropagatesStartupFailures": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-integration-pine/src/pool.rs::restart_drops_pinned_sessions_and_requires_new_health",
-    "conclusion": "partial：Go 断言回测 runner 等待容量并传播启动失败（默认容量 1）。Rust 该用例断言重启丢弃固定会话并要求新健康检查（容量与失败传播语义）。",
+    "rust_entry": "crates/jftrade-integration-pine/src/pool.rs::healthy_workers_are_selected_in_rotation",
+    "conclusion": "partial：Go 断言 backtest runner 默认容量 1、容量等待在上下文取消时返回 context.Canceled、非法 host 报 allocate pine worker port、launcher 启动失败报 worker start failed。Rust 的池是即时拒绝而非排队等待（CapacityExceeded，见 pool.rs 轮转用例），取消感知的排队由 engine 的并发/背压层承担；非法 host 由 process.rs 的 loopback 校验拒绝，启动失败由 PineProcessError 承担。缺口（P1）：容量等待 + 取消的排队语义在 engine 侧缺少回归证据。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/strategy/pineruntime/runtime_failure_contracts_test.go:146:TestRunnerAndSessionNilAndClosedLifecycleBoundaries": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-integration-pine/src/pool.rs::restart_drops_pinned_sessions_and_requires_new_health",
-    "conclusion": "partial：Go 断言 nil/已关闭 runner 与会话的边界及默认 host 端口。Rust 该用例断言关闭后会话被丢弃且需重新健康检查；nil 分支由 Option 表达。",
+    "rust_entry": "crates/jftrade-integration-pine/src/readiness.rs::stopped_state_ignores_late_health_success",
+    "conclusion": "partial：Go 覆盖 nil runner 的 OpenLiveSession/Close、nil session 的 Append/Close、已关闭 runner 注册会话被拒（错误含 closed）、默认 host 的空字符串端口分配成功。Rust 无 nil 接收者；已停止状态拒绝迟到结果的语义由本行引用用例锁定，关闭后的会话由池层拒绝（SessionNotFound），空 host 端口分配由 engine 的 allocate_loopback_port（集成侧）承担。对象不同，故记 partial。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/strategy/pineruntime/runtime_failure_contracts_test.go:171:TestManagerCloseDrainsActiveLiveSession": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-integration-pine/src/readiness.rs::monitor_shutdown_marks_state_and_joins_task",
-    "conclusion": "partial：Go 断言关闭管理器排空活动 live 会话并停止 worker。Rust 该用例断言监控关闭标记状态并汇合任务（关停排空语义）。",
+    "conclusion": "partial：Go 断言运行期 Close 会排空活跃 live 会话（关闭后 append 报 closed、重复 session.Close 返回 nil）、worker 只停一次。Rust 的关闭由 readiness monitor 停止并 join（本行引用用例）+ 进程 stop_timeout 停机 + 池层会话释放（close 后 append 报 SessionNotFound）组合承担；没有“运行期关闭排空活跃会话”的端到端断言。缺口（P1）：关停排空（drain）语义需要 engine 层回归，覆盖活跃会话在关停时的最终一致状态。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/strategy/pineruntime/runtime_test.go:18:TestResolveConfigUsesEnvironmentAndSettings": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-integration-pine/src/process.rs::validates_loopback_worker_boundary_before_spawn",
-    "conclusion": "partial：Go 断言 ResolveConfig 合并环境与设置（identity/worker/runtime/resource/gate 配置）。Rust 的 Pine worker 配置来自 engine 装配与 integration-pine 的显式结构，该用例断言环回 worker 边界在启动前被校验；配置合并的逐字段断言未复刻。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine --all-targets --locked",
+    "rust_entry": "crates/jftrade-settings/src/pine_worker.rs::worker_limits_and_nested_quotes_match_go_settings_owner",
+    "conclusion": "partial：Go 用一张 20 个环境变量的表把 settings 与环境合并成 Config（bundle/sha256/worker 数/host/端口/临时目录/proto/版本/mock/超时/预算/性能门/RSS）。Rust 没有同形的 ResolveConfig：身份三件套（worker 数上限、node 路径带空白与嵌套引号裁剪）归 crates/jftrade-settings 的 PineWorkerSettings 与 normalize_pine_worker_settings（本行引用用例逐值锁定），进程侧 bundle/proto/runtime/worker 数由 crates/jftrade-engine/src/product_runtime_workers.rs::DesktopRetainedRuntimeConfig::from_process_env 读 JFTRADE_PINEWORKER_BUNDLE/PROTO/RUNTIME/WORKERS，超时、最大消息、最大 K 线、性能门与 RSS 上限由 engine 注入的 PineProcessConfig/PineReadinessPolicy/PineExecutionConfig 显式参数承担，没有 20 变量合并的单一入口。owner：crates/jftrade-settings + crates/jftrade-engine + crates/jftrade-integration-pine。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/strategy/pineruntime/runtime_test.go:60:TestResolveConfigSelectsEmbeddedAssetAndExternalOverride": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-integration-pine/src/asset.rs::test_select_from_fs_returns_embedded_bundle_metadata",
-    "conclusion": "partial：Go 断言内嵌资产与外部覆盖的选择。Rust 该用例断言从文件系统选择内嵌 bundle 的元数据；外部覆盖路径由 Rust 的显式配置表达。",
+    "conclusion": "partial：Go 断言默认走嵌入资产（Source() == embedded、bundleData 来自资产、sha 来自资产），设置 EnvBundle 后切外部文件（Source() == external、bundleData 为空）。Rust 的嵌入/外部区分由 engine 装配承担：嵌入资产经 PineBundle::verify 校验 sha256 后 materialize 到临时目录（本行引用用例锁定文件名与校验，另有 checksum_is_verified_before_worker_asset_is_written 覆盖写入前校验），显式 bundle_path 时直接使用外部文件；没有 Config::Source() 这样的运行期标记，也没有 EnvBundle 覆盖判定，故不判等价。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/strategy/pineruntime/runtime_test.go:79:TestResolveConfigDisabledAndInvalidLimits": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-integration-pine/src/asset.rs::test_select_from_fs_treats_missing_and_empty_bundles_as_unavailable",
-    "conclusion": "partial：Go 断言禁用配置与非法限额。Rust 该用例断言缺失/空 bundle 视为不可用；非法限额在 Rust 由类型化配置校验承担。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine --all-targets --locked",
+    "rust_entry": "crates/jftrade-settings/src/pine_worker.rs::worker_limits_and_nested_quotes_match_go_settings_owner",
+    "conclusion": "partial：Go 有 JFTRADE_PINEWORKER_DISABLED 开关（true 时 enabled=false 且 Config 为空），且 11 类非法值（worker 数 0/1001、端口 0、超时解析失败或 0s、负字节数、0 K 线、性能门 0、RSS 解析失败）一律报错并禁用。Rust 没有禁用开关；非法值不报错而是收敛：normalize_pine_worker_settings 把 worker 上限 clamp 到 1..1000（本行引用用例断言 0→1、1001→1000），PineProcessConfig 的校验只覆盖 loopback 绑定与请求编码上限。缺口（P1）：0 值语义与参考实现不同——参考实现把 BacktestWorkerLimit=0 视为用默认 2、InstanceWorkerLimit=0 视为默认 10，Rust 直接 clamp 成 1，落地前需在设置归一层区分 0（取默认）与越界（报错或 clamp）；同时缺少禁用开关的等价表达。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/strategy/pineruntime/runtime_test.go:105:TestResolveConfigUsesWorkerDefaultsAndRuntimePrecedence": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-integration-pine/src/process.rs::readiness_policy_preserves_go_delay_and_supports_capped_backoff",
-    "conclusion": "partial：Go 断言 worker 默认值与运行时优先顺序。Rust 该用例断言 readiness 策略保留 Go 延迟并支持封顶退避（默认与上限语义）。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine --all-targets --locked",
+    "rust_entry": "crates/jftrade-engine/src/runtime_dependencies.rs::runtime_path_precedence_prefers_settings_then_worker_env_then_legacy_binary",
+    "conclusion": "partial：运行期优先级 settings > JFTRADE_PINEWORKER_RUNTIME > JFTRADE_NODE_BINARY > PATH 在 Rust 由 node_candidates 实现，本分片新增用例逐层锁定（设置路径压过两个环境变量、worker 环境变量压过 legacy、空白 worker 环境变量回落到 legacy、两侧嵌套引号与空白被裁剪），并为该 Go 行补了 Parity 锚点；worker 默认值 2/10 由 PineWorkerSettings::default 与设置侧用例断言。仍不判等价的原因：参考实现把 settings 里 0 或负数的 worker 上限解释成默认值 2/10，Rust 的 normalize 把 0 clamp 成 1（见 runtime_test.go:79 缺口）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/strategy/pineruntime/runtime_test.go:118:TestResolveConfigFindsRepositoryAndHonorsProtoOverride": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-integration-pine/src/process.rs::grpc_probe_authenticates_and_rejects_endpoint_identity_mismatch",
-    "conclusion": "partial：Go 断言查找仓库路径与 proto 覆盖。Rust 该用例断言 gRPC 探针认证并拒绝端点身份不匹配（端点来源在配置中固定）；仓库查找/proto 覆盖为 Go 侧路径策略。",
+    "conclusion": "partial：Go 从 bundle 路径向上查找含 go.mod 且带默认 proto 的仓库根作为 WorkDir，并允许 EnvProto 覆盖 proto 路径。Rust 没有工作目录发现：proto 路径与工作目录由 engine 显式注入（PineProcessConfig.proto_path 为 Option 且直接使用），身份校验改由 gRPC 探针用例承担（token 认证 + 端点身份不匹配拒绝）。缺口（P2）：bundle 在仓库外的部署形态在 Rust 需要调用方显式给出 proto 与工作目录，缺少自动定位与覆盖优先级的回归证据。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/strategy/pineruntime/runtime_test.go:145:TestRuntimeDependencyOptionsAndDefaultFactories": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-integration-pine/src/process.rs::validates_loopback_worker_boundary_before_spawn",
-    "conclusion": "partial：Go 断言运行时依赖选项与默认工厂（NodeLauncher/GRPCDialer）。Rust 该用例断言环回 worker 边界在 spawning 前校验；依赖构造在 Rust 由显式结构体注入。",
+    "conclusion": "partial：Go 通过 Option 注入依赖（WithRuntimeResolver 覆盖运行期解析、WithLauncherFactory、WithDialerFactory），并断言 NewNodeLauncher 与 NewGRPCDialer 返回非空。Rust 用显式构造与结构体注入（PineProcessConfig + PineProcess::spawn、GrpcPineClient、WorkerPool::new），没有 Option 层；可注入性体现为每个测试自建配置（如本行引用用例用最小配置断言 loopback 边界），工厂不会返回空值由类型系统保证。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/strategy/pineruntime/runtime_test.go:165:TestRuntimePathAndWorkDirFallbacks": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-integration-pine/src/asset.rs::test_select_from_fs_returns_embedded_bundle_metadata",
-    "conclusion": "partial：Go 断言运行时路径与工作目录回退。Rust 该用例断言内嵌 bundle 元数据选择（含路径解析）；工作目录回退策略为 Go 侧路径规则。",
+    "conclusion": "partial：Go 断言三处回落：getwd 与 abs 同时失败时工作目录为空且相对路径原样返回、只有 getwd 可用时用 getwd 作为工作目录、绝对基目录可用时相对路径拼成绝对路径。Rust 没有 resolveWorkDir/resolvePath 这层（工作目录与 proto 由 engine 传入绝对路径，资产物化走 PineBundle::materialize 到指定目录，本行引用用例锁定文件名与 sha 校验），失败回落语义没有同形对象。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/strategy/pineruntime/runtime_test.go:185:TestManagerBuildsPublishesAndRetiresRunnerPairs": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-integration-pine/src/pool.rs::live_sessions_are_pinned_and_open_failure_rolls_back",
-    "conclusion": "partial：Go 断言管理器构建/发布/退役 runner 对与 worker 生命周期计数。Rust 该用例断言 live 会话被固定（pinned）且打开失败回滚（含容量释放）。",
+    "conclusion": "partial：Go 的 Manager.Reconfigure 解析配置后构建 backtest/instance 两个 Runner 并一次性发布，随后可 Retire（Close 幂等、已退休 Runner 再跑返回 closed）。Rust 没有 Manager/Runner 配对对象：构建与发布由 engine 装配（进程、就绪监视、worker 池按顺序建立后一次性交给运行时），关闭由 engine 的关闭路径与进程 stop_timeout 承担；池侧的占用与失败回滚由本行引用用例锁定，但没有“配对整体发布/退休”的单点断言。缺口（P2）：engine 装配缺少“配对构建完成后才对外可见 + 关停后拒绝再入”的回归用例。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/strategy/pineruntime/runtime_test.go:228:TestManagerDoesNotPublishPartialPairAndRollsBack": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-integration-pine/src/pool.rs::live_sessions_are_pinned_and_open_failure_rolls_back",
-    "conclusion": "partial：Go 断言 runner 对不完整时不发布并回滚。Rust 该用例断言打开失败回滚与容量释放，对应“部分构建不发布”语义。",
+    "conclusion": "partial：Go 让第二次 launcher 工厂失败（calls==2），断言 enabled=false、published=false 且错误上抛，即不发布半成品配对。Rust 的等价约束由构建顺序与池的失败回滚承担（本行引用用例断言 open 失败会释放预留、不留下半开会话），但 engine 侧没有“第二个组件构建失败 → 第一个组件回滚且不对外发布”的用例。缺口（P1）：恢复/回滚语义需要 engine 层回归，避免半发布。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/strategy/pineruntime/runtime_test.go:250:TestManagerNilClosedAndNonClosableRunnerBoundaries": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-integration-pine/src/pool.rs::restart_drops_pinned_sessions_and_requires_new_health",
-    "conclusion": "partial：Go 断言 nil/已关闭/不可关闭 runner 的边界。Rust 该用例断言重启丢弃固定会话并要求重新健康检查（关闭后的状态语义）；nil 分支由 Option 表达。",
+    "rust_entry": "crates/jftrade-integration-pine/src/readiness.rs::stopped_state_ignores_late_health_success",
+    "conclusion": "partial：Go 覆盖 nil Manager 的三个入口、不可关闭 Runner 的 closeRunner、CloseRunners 同时聚合两个关闭错误，以及已关闭 Manager 再次 Reconfigure 被拒。Rust 无 nil 接收者（类型系统排除），关闭幂等与“停止后忽略迟到结果”由本行引用的 readiness 用例锁定；CloseRunners 的错误聚合在 engine 关闭路径没有逐条断言。缺口（P2）：多组件关停时的错误聚合与首个错误选取缺少回归证据。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/strategy/pineruntime/runtime_test.go:278:TestEphemeralRunnerConcurrencyAndLiveSessionLifecycle": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-integration-pine/src/pool.rs::live_sessions_are_pinned_and_open_failure_rolls_back",
-    "conclusion": "partial：Go 断言临时 runner 并发与 live 会话生命周期（二次获取失败、Append 后关闭失败）。Rust 该用例断言会话固定与失败回滚（并发容量语义）。",
+    "rust_entry": "crates/jftrade-integration-pine/src/execution/tests.rs::live_session_contract_requires_identity_mode_and_revisions",
+    "conclusion": "partial：Go 断言 instance worker 容量为 1 时第二次 acquire 报 CapacityExceededError，且 live 会话 open→append→close 的 revision 依次为 1、2，close 后 append 报 closed。Rust 把这两层拆开：容量与预留由 WorkerPool.reserve/release（CapacityExceeded、SessionAlreadyOpen、SessionNotFound，见 pool.rs 的轮转与预留用例），会话身份与 revision 递增由执行端口契约用例（本行引用用例，open revision 0、append +1、close 后拒绝）锁定；没有 ephemeralRunner 的 acquire/release 对象与“容量 1 的实例 runner”集成断言。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/strategy/pineruntime/runtime_test.go:325:TestEphemeralRunnerFailureBoundaries": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-integration-pine/src/process.rs::validates_loopback_worker_boundary_before_spawn",
-    "conclusion": "partial：Go 断言 nil runner、缺失 bundle、非法 host 与停止超时上限。Rust 该用例断言非法 host 的环回校验在启动前失败（子集）。",
+    "conclusion": "partial：Go 覆盖 nil runner、缺失 bundle、非法 host、以及 stopTimeout 默认 5s/被 RequestTimeout 上限压到 10s。Rust 侧：缺失 bundle 由 PineBundle 校验与物化失败覆盖（asset.rs），非法 host 由本行引用用例的 loopback 边界锁定，进程停止超时是 PineProcessConfig.stop_timeout 的显式值（默认由调用方给出，engine 用固定 1s/5s 档），没有“默认 5s、再按请求超时压到 10s”的推导函数。缺口（P2）：stop_timeout 的默认与上限推导缺失，停机时长不可预测。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine --all-targets --locked",
     "evidence_type": "partial"
   },
   "internal/strategy/pineruntime/runtime_test.go:344:TestEphemeralRunnerOpenSessionFailureBoundaries": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-integration-pine/src/pool.rs::live_sessions_are_pinned_and_open_failure_rolls_back",
-    "conclusion": "partial：Go 断言已关闭/繁忙/非法 host/worker 启动失败时拒绝会话。Rust 该用例断言打开失败回滚与容量释放（拒绝语义）。",
+    "rust_entry": "crates/jftrade-integration-pine/src/process.rs::validates_loopback_worker_boundary_before_spawn",
+    "conclusion": "partial：Go 断言四种拒绝：已关闭 runner、忙碌且开启拒绝时返回 ErrCapacityExceeded、非法 host、worker 启动失败。Rust 对应：池满/重复会话由 WorkerPool.reserve 返回 CapacityExceeded/SessionAlreadyOpen（见 pool.rs 用例），非法 host 由本行引用用例锁定，启动失败由 PineProcess::spawn 的 PineProcessError 承担（process.rs 的启停用例）。没有 ephemeralRunner.OpenLiveSession 的单入口断言，四类拒绝分散在池与进程两层。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine --all-targets --locked",
     "evidence_type": "partial"
   },
