@@ -3263,3 +3263,28 @@ owner：生成器流水线（protoc 调用、暂存目录原子替换、CLI 参�
 | 文档门禁 | check:ai-context、quick 完整计划 | ai-context 过；quick exit 0 |
 
 后续：other 域本片完成（余 392 行）；队列随后 api_transport 439、backtest_calendar 307、storage_sqlite 196、marketdata_quotes 161、futu_opend 142、trading_broker 56、settings_watchlist 39。
+### 第 129 批分片三十四：other 域 protogen 与桌面 35 行（纯复核，无引用纠正、无 verdict 变更）
+
+范围（账本 rows 2887-2921，按写入顺序）：protogen files:13/:24/:39/:55、repository:12/:23、tools:15/:65/:74、desktop profile dev:10、release:11、startup:15/:29/:67/:93/:124、updates:9/:33、window_state:12/:22/:46/:60、main:19/:39/:52/:66/:93/:110/:131/:149/:166/:179/:195/:217/:236。初值 [x] 3、partial 21、boundary 11。
+
+owner：仓库根探测由桌面端资源完整性承接；更新通道开关由 profile 与 updater 配置层承接；桌面生命周期、窗口、托盘、资源路由由 Tauri 适配层承接；protoc 文件操作与工具链安装无 Rust 同形对象。
+
+复核方法：35 条全量枚举引用有效性，3 条 [x] 逐分支核对 Go 原文与 Rust 断言等价（含 Parity 锚点归属与全文唯一性）；partial 逐条核对缺口诚实度；boundary 抽查 Go 原文确认无同形对象。结论：引用全部有效、缺口描述相符，0 纠正、0 升级。
+
+抽查证据：repository 两条 Rust 用例均携带对应行号 Parity 锚点，嵌套 walk-up、marker 文件校验与缺失 fail-closed 分支与 Go 一致；更新通道 Rust 用例同时断言开发态关闭与发布态开启；dup-x 为 0。
+
+新增证据：无（纯复核分片，无 Rust 改动、无账本行变更、无新增锚点）。
+
+映射终值（35 行）：[x] 3、partial 21、boundary 11。全量：[x] 1566、partial 2248、boundary 637（合计 4451）；Rust 测试 3295 不变。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 逐行复核 | 35 条全量枚举引用有效性加缺口抽查，3 条 [x] 核对断言等价 | 0 纠正、0 升级；重复 [x] 全文唯一性检查通（0 重复） |
+| 账本写入 | 无变更 | [x] 1566、partial 2248、boundary 637（合计 4451）不变 |
+| 审计 | python3 scripts/compatibility/audit_test_parity.py --write-report | 通过（exit 0）；report 仅刷新 Rust 基线，inventory 无变化 |
+| 锚点 | python3 scripts/compatibility/parity_anchor_reconcile.py | anchors 1724、已记录 1676、unrecorded 0、stale 0、unknown 48（均不变） |
+| 文档门禁 | check:ai-context、quick 完整计划 | ai-context 过；quick exit 0 |
+
+后续：other 域本片完成（余 357 行）；队列随后 api_transport 439、backtest_calendar 307、storage_sqlite 196、marketdata_quotes 161、futu_opend 142、trading_broker 56、settings_watchlist 39。
