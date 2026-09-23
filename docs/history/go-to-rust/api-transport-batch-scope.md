@@ -4177,3 +4177,33 @@ owner：IR 规划与 Pine 编译由 jftrade-strategy 承接，无双写。
 | 文档门禁 | check:ai-context、migration-manifest、zero-go、quick、diff check | 见下 |
 
 后续：继续 35 行步调（rows 4049 起；尾部余 403 行）；队列按账本实际顺序推进（策略、行情、集成、设置）。
+
+### 第 129 批分片六十八：rows 4049-4083 Pine 表达式与对象集合 35 行（1 处引用纠正，无 verdict 变更）
+
+范围（账本 rows 4049-4083，按写入顺序）：strategy pine control_flow_reject:43、controlflow_object_collection_contracts:11/:85/:157、expression:5/:11/:21、extended_ticker:5/:49、language_execution_boundaries:12/:99/:179/:287/:364/:454/:531/:600、language_failure_contracts:9/:149/:239、object_collect_bounds:12/:57/:83、object_collect_reject:9、object_declaration_contracts:10/:120、order_command_security_rejection:11/:82、order_metadata_contracts:8、parse_benchmark_business:5、parse_collection:11/:140/:210/:233/:274。初值 [x] 6、partial 15、boundary 14，终值不变。首键自检通过，无重叠。
+
+owner：Pine 表达式与编译拒绝由 jftrade-strategy 承接，无双写。
+
+复核方法：35 条全量枚举引用有效性（18 个去重后引用逐个核对 #[test]，含嵌套模块路径拆分），6 条 [x] 逐条核对锚点归属与断言等价（全部 function_exact 且带锚点），partial 与 boundary 抽查缺口诚实度。结论：1 处引用纠正，0 升级、0 降级。
+
+纠正：object_collect_bounds:57 引用的多 bar 历史用例实际位于 src/pine/mod.rs 的 parse_history_reference_tests 模块（带 #[test]），而非 tests 目录文件；经 v2 写入器纠正文件路径；verdict 保持 boundary（对象方法降级本身无同形实现，引用仅为同形证据）。
+
+核查说明：9 条空引用行结论均为实质缺口散文（探针观察、owner、回归要求或升级路径齐全），其中 partial 空引用属审计允许的缺口散文体；dup-x 为 0。
+
+抽查证据：[x] 结论均为逐条诊断文案写法；partial 缺口诚实；boundary 均为无同形实现。
+
+新增证据：无 Rust 改动；账本 1 行纠正；无新增锚点。
+
+映射终值（35 行）：[x] 6、partial 15、boundary 14。全量：[x] 1565、partial 2248、boundary 638（合计 4451）；Rust 测试 3295 不变。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 逐行复核 | 35 条全量枚举引用有效性（18 去重引用）加 [x] 断言等价核对 | 1 引用纠正；0 升级、0 降级；重复 [x] 全文唯一性检查通（0 重复） |
+| 账本写入 | v2 写入器 1 行 | [x] 1565、partial 2248、boundary 638（合计 4451）不变 |
+| 审计 | python3 scripts/compatibility/audit_test_parity.py --write-report | 通过（exit 0）；inventory 随纠正行更新，report 刷新基线；既有告警不变 |
+| 锚点 | python3 scripts/compatibility/parity_anchor_reconcile.py | anchors 1724、已记录 1677、unrecorded 0、stale 0、unknown 47（均不变） |
+| 文档门禁 | check:ai-context、migration-manifest、zero-go、quick、diff check | 见下 |
+
+后续：继续 35 行步调（rows 4084 起；尾部余 368 行）；队列按账本实际顺序推进（策略、行情、集成、设置）。

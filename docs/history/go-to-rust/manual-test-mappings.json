@@ -7,7 +7,7 @@
     "treeSha": "0ee26444be21c15d9760f358a34649f78402f0fb"
   },
   "generatorVersion": "v2_writer.py@slice23",
-  "generatedAt": "2026-09-23T20:13:24Z",
+  "generatedAt": "2026-09-23T20:16:43Z",
   "mappings": {
     "cmd/jftrade-api/main_test.go:13:TestValidateArgsAllowsNoArgs": {
       "status": "[~]",
@@ -264040,7 +264040,7 @@
     },
     "pkg/strategy/pine/object_collect_bounds_test.go:57:TestObjectMethodLoweringHandlesHistoryNamedDefaultsAndExpressionReceivers": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-strategy/tests/pine_expression_and_security_boundaries.rs::compile_supports_multi_bar_history_references",
+      "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs::parse_history_reference_tests::compile_supports_multi_bar_history_references",
       "conclusion": "boundary（结构差异 / worker owner，本批复核）：Go 断言 lowerObjectMethodCalls 把 box.score(named)/box[1].score(...)/object_method(...).score(...) 降级为 object_method(\"PriceBox\", \"score\", receiver, ...) 并保留 history(box, 1) 接收者。Rust 不做对象方法降级（worker 承担）；Rust 侧同形证据是多 bar history 与对象字段历史的降级用例（close[2]/upper[2]/emaFast[5] 保留）。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
       "evidence_type": "boundary",
@@ -264052,7 +264052,7 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-strategy/tests/pine_expression_and_security_boundaries.rs",
+          "file": "crates/jftrade-strategy/src/pine/mod.rs",
           "test": "compile_supports_multi_bar_history_references",
           "crate": "jftrade-strategy",
           "anchor": null
@@ -309144,12 +309144,13 @@
       "reviewStatus": "unreviewed"
     },
     "crates/jftrade-strategy/src/pine/mod.rs::compile_supports_multi_bar_history_references": {
-      "referenceCount": 1,
+      "referenceCount": 2,
       "referenceKeys": [
+        "pkg/strategy/pine/object_collect_bounds_test.go:57:TestObjectMethodLoweringHandlesHistoryNamedDefaultsAndExpressionReceivers",
         "pkg/strategy/pine/parse_test.go:232:TestCompileSupportsMultiBarHistoryReferences"
       ],
-      "allowed": true,
-      "reviewStatus": "single"
+      "allowed": false,
+      "reviewStatus": "unreviewed"
     },
     "crates/jftrade-strategy/src/pine/mod.rs::compile_supports_runtime_risk_declarations": {
       "referenceCount": 5,
@@ -309278,14 +309279,6 @@
       ],
       "allowed": false,
       "reviewStatus": "unreviewed"
-    },
-    "crates/jftrade-strategy/tests/pine_expression_and_security_boundaries.rs::compile_supports_multi_bar_history_references": {
-      "referenceCount": 1,
-      "referenceKeys": [
-        "pkg/strategy/pine/object_collect_bounds_test.go:57:TestObjectMethodLoweringHandlesHistoryNamedDefaultsAndExpressionReceivers"
-      ],
-      "allowed": true,
-      "reviewStatus": "single"
     },
     "crates/jftrade-strategy/tests/pine_expression_and_security_boundaries.rs::expression_parser_accepts_trimmed_expressions": {
       "referenceCount": 1,
