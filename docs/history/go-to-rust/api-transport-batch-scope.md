@@ -2332,3 +2332,41 @@ owner：`crates/jftrade-engine`（ADK 读/写与 chat-stream 端口、生产装�
 | 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy` | 仍因 `deny.toml` 的 `advisory-not-detected`（advisories FAILED，bans/licenses/sources ok）失败 |
 
 后续：`internal/api/assistant` 已清空，队列进入 `internal/assistant/model` 10 行，随后 `internal/assistant` 顶层 32 行、`internal/assistant/workflow` 38 行、`internal/assistant/assembly` 104 行、`internal/assistant/engine` 626 行与 `internal/app/apiserver` 下 8 行 assistant 用例；本分片登记的 provider `/test` 状态码缺口（P1）列为下一批优先修复项。
+
+### 分片三：`internal/assistant/model` 10 行（复核后升级/细化 + 2 处断言补强）
+
+范围（按文件与行号升序）：`provider_reasoning_config_test.go:8/:27/:65`、`timeline_helper_test.go:5`、`timeline_reply_ordering_test.go:11`、`workflow_graph_resume_identity_test.go:5`、`workflow_plan_test.go:8/:31/:100`、`workflow_task_tools_test.go:8`。
+
+owner：`crates/jftrade-assistant`（模型层的任务图、计划与审批作用域）、`crates/jftrade-engine`（provider 写入与 test 投影、运行/会话读取、消息时间线合并、chat 覆盖项校验）。
+
+队列说明：本分片是 `internal/assistant/model`（模型层）10 行。这 10 行此前全部为 partial/boundary，因此本分片的目标不是补锚点，而是逐条比对参考断言与 Rust 实现，把已有等价证据的部分写实、把仍缺失的部分写清，并把判定过宽/过窄的行纠正（`provider_reasoning_config_test.go:65` 由 boundary 改为 partial）。
+
+新增证据：
+
+1. `crates/jftrade-assistant/src/workflow.rs::graph_orders_equal_rank_tasks_by_id_and_reports_graph_faults`（新用例）：锁定等 order 任务按 id 升序（对应参考 `SortWorkflowTasks` 的确定性），并把三种图故障区分开——真实环 `WorkflowError::Cycle`、未知依赖 `WorkflowError::MissingDependency`（对应参考“未知依赖不算环”）、自环 `WorkflowError::SelfDependency`。
+2. `crates/jftrade-engine/src/product_adk_model_runtime_gate_tests.rs::chat_rejects_invalid_permission_work_mode_and_reasoning_overrides`（补断言）：把哨兵档位 `default` 加入拒绝表，锁定参考 `ValidateOptionalReasoningEffort` 对 `default` 的拒绝语义（此前只用 `turbo` 代表非法值）。
+
+映射终值（10 行）：partial 10、boundary 0、`[x]` 0。未升级为 `[x]` 的原因是每条参考用例都同时包含 Rust 尚未具备的对象或助手（推理配置解析层、时间线助手族、图指纹、展示文案、run 作用域过滤、目标决策工具层），已有证据只覆盖其中一部分。
+
+关键事实与缺口（本分片细化，按优先级）：
+
+1. **目标决策工具层缺失（P1，沿用既有登记）**：`workflow_task_tools_test.go:8` 的 `WorkflowGoalDecision` 相位/快照、目标提示词、planner 参数强制在 Rust 无同形对象（提示词与快照属 workflowexec 未迁移部分）。修复位置：`crates/jftrade-assistant` 新增目标决策模型与 planner 参数助手，引擎工具调用路径接入。
+2. **推理配置解析层缺失（P2）**：参考的 `DefaultProviderReasoningConfig` / `NormalizeProviderReasoningConfig` / `ValidateProviderReasoningConfig` / `ResolveProviderReasoning` 在 Rust 没有对应实现——provider 写入只透传 `reasoningConfig`，provider test 投影直接回显 requestField/mappings 并把每个映射标为 ok。影响 `provider_reasoning_config_test.go:8/:27/:65` 三行。修复位置：`crates/jftrade-assistant` 提供归一/校验/解析，`crates/jftrade-engine` 的 provider 写入与 test 投影调用。
+3. **时间线助手族与排序规则（P2）**：Rust 的 `merge_session_timeline` 按 createdAt→id 排序（无 order 次级键、无无效时间戳兜底断言），且没有前缀剥离、首个非空、首个工具时间、首个审批时间助手；最终回复与工具活动的相对顺序也没有断言。影响 `timeline_helper_test.go:5` 与 `timeline_reply_ordering_test.go:11`。修复位置：`crates/jftrade-engine/src/product_production_ports_adk_notices.rs`、`product_production_ports_adk_read.rs` 与 run 投影。
+4. **工作流图指纹（P2，恢复语义）**：参考用归一化指纹判定恢复身份与执行漂移；Rust 以 trigger log 的 nodeRuns 与在途请求身份承接，缺“集合顺序无关”“内容漂移敏感”两条断言（`workflow_graph_resume_identity_test.go:5`）。修复位置：`crates/jftrade-assistant/src/workflow_canvas.rs` 新增身份哈希并在恢复路径调用。
+5. **计划呈现与审批作用域（P2）**：步骤描述、待审批回复、摘要空白过滤、`UpdateWorkflowPlanForChildAt` 匹配规则、`ApprovalsForRun` 的 run 作用域与空白边界在 Rust 无断言（审批读取路由只支持 status/agentId 过滤）。影响 `workflow_plan_test.go:8/:31/:100`。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 新增/补强用例 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib --locked -E 'test(chat_rejects_invalid_permission_work_mode_and_reasoning_overrides)'` | jftrade-assistant 41/41 通过（含新用例）；engine 目标用例 1/1 通过 |
+| 映射写入 | 10 行 payload `/tmp/b129s3_payload.json` 经 `/tmp/b82_apply.py` 应用 | `[x]` 1588 不变、partial 2225 → 2226、boundary 638 → 637（合计 4451） |
+| 审计 | `python3 scripts/compatibility/audit_test_parity.py` | 0 条引用不存在 crate、0 条 `[x]` 缺 function_exact、rust_entry 唯一；缺锚点告警 189 不变；Rust 测试 3291 → 3292 |
+| 锚点 | `python3 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1649、unrecorded 0、stale 0、unknown 53 |
+| 静态与格式 | `cargo fmt --all -- --check`、`pnpm run check:clippy`、`pnpm run check:rust:architecture` | 全部通过 |
+| 整轮 nextest | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast` | 首轮 1910/1910 通过（本分片无抖动） |
+| 兼容与门禁 | `pnpm run check:compatibility`、`check:generated`、`check:ai-context`、`check:zero-go`、`pnpm run check:quick` | compatibility exit 0（278 OpenAPI 操作、18 路由组、19 探针；assistant-runtime 9 状态 12 迁移；desktop 3 平台档 6 link case 10 facade 4 event）；generated 未改动工作树；ai-context 6 模块 8 指令文件；zero-go 2953 files；`check:quick` exit 0（nextest 1981/1981、node 48 pass） |
+| 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy` | 仍因 `deny.toml` 的 `advisory-not-detected`（advisories FAILED，bans/licenses/sources ok）失败 |
+
+后续：队列进入 `internal/assistant`（顶层 service/workflow 用例）32 行，随后 `internal/assistant/workflow` 38 行、`internal/assistant/assembly` 104 行、`internal/assistant/engine` 626 行与 `internal/app/apiserver` 下 8 行 assistant 用例。

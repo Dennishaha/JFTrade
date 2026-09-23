@@ -408,6 +408,11 @@ fn chat_rejects_invalid_permission_work_mode_and_reasoning_overrides() {
             "turbo",
             "invalid reasoning effort \"turbo\"",
         ),
+        (
+            "reasoningEffortOverride",
+            "default",
+            "invalid reasoning effort \"default\"",
+        ),
     ] {
         for agent_id in ["agent-override", "agent-that-does-not-exist"] {
             match dispatch(agent_id, field, value)

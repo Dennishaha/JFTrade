@@ -11768,72 +11768,72 @@
   },
   "internal/assistant/model/provider_reasoning_config_test.go:8:TestProviderReasoningPresetsAndExplicitEmptyMappings": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_mutation_provider.rs::saved_provider_normalizes_the_request_timeout_on_write",
-    "conclusion": "partial：Go 断言 provider 推理配置预设（responses 预设只设 reasoning.effort、不假设映射）、缺失配置与显式空映射的解析差异（空映射视为不支持）。Rust 的 provider 写入用例断言请求超时在写入时归一化（同一 provider 配置写入口）；Rust 没有 reasoningConfig 的预设/映射解析层，映射解析差异登记为缺口（P2）。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_mutation_provider.rs::saved_provider_normalizes_the_request_timeout_on_write（同一 provider 写入口的归一化断言）",
+    "conclusion": "partial：参考断言 responses 预设（requestField=reasoning.effort 且不假设映射）、缺失配置补默认字段、显式空映射保留为空集合、空映射解析报 ErrProviderReasoningUnsupported。Rust 没有 reasoningConfig 归一/解析层：写入时把 reasoningConfig 原样存入 provider 载荷（product_production_ports_adk_mutation_provider.rs 的透传键表），provider test 投影只回显 requestField/mappings（product_production_ports_adk_mutation_runtime.rs::test_provider），既不补默认字段也不把空映射判为不支持。缺口：默认预设与显式空映射语义（P2）。修复位置：在模型层新增 reasoning 配置归一/解析（建议 crates/jftrade-assistant 提供归一，crates/jftrade-engine 的 provider 写入与 test 投影调用）。回归要求：补预设、缺失、显式空映射三组断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(saved_provider_normalizes_the_request_timeout_on_write) or test(test_provider)'",
     "evidence_type": "partial"
   },
   "internal/assistant/model/provider_reasoning_config_test.go:27:TestProviderReasoningValidationAndCustomMapping": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_mutation_provider.rs::saved_provider_normalizes_the_request_timeout_on_write",
-    "conclusion": "partial：Go 断言自定义推理映射校验（大小写保真、未知档位不得静默按模型默认、非法配置被拒）。Rust 的 provider 写入用例断言配置归一化并落库；Rust 没有 reasoningConfig.mappings 的校验实现，未知档位静默处理与非法配置拒绝均无对应断言（登记为 P2 缺口）。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_mutation_provider.rs::saved_provider_normalizes_the_request_timeout_on_write（同一 provider 写入口的归一化断言）",
+    "conclusion": "partial：参考断言自定义映射校验（requestField 点分形状、重复 effort、空白 value、effort=default 均非法）、映射值大小写保真（LOW/balanced）、未映射档位与未知档位不得静默按模型默认。Rust 的 provider 写入只做透传与超时归一，没有 mappings 校验实现；provider test 投影对每个 mapping 直接输出 ok=true（product_production_ports_adk_mutation_runtime.rs::test_provider），因此非法配置既不会被拒也不会标记失败。缺口：mappings 校验与解析（P2）。修复位置同上（模型层 reasoning 校验 + provider 写入调用）。回归要求：补合法映射解析（大小写保真）、重复/空白/非法字段拒绝、未映射档位报不支持三组断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(saved_provider_normalizes_the_request_timeout_on_write) or test(test_provider)'",
     "evidence_type": "partial"
   },
   "internal/assistant/model/provider_reasoning_config_test.go:65:TestOptionalReasoningEffortRejectsDefault": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_mutation_provider.rs::saved_provider_normalizes_the_request_timeout_on_write",
-    "conclusion": "boundary（功能缺失，保留，P2）：Go 断言可选推理档位不得取 \"default\"（按缺省档位处理时拒绝）。Rust 的 provider 写入校验没有推理档位枚举（只在运行时透传 reasoningEffortOverride），该拒绝分支不存在。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-    "evidence_type": "boundary"
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_gate_tests.rs::chat_rejects_invalid_permission_work_mode_and_reasoning_overrides",
+    "conclusion": "partial：参考断言可选推理档位不得取哨兵值 default（ValidateOptionalReasoningEffort 与 ResolveProviderReasoning 两条路径都拒绝）。Rust 的 validate_reasoning_effort_override（product_adk_model_runtime_lifecycle.rs）白名单为 空/low/medium/high/xhigh/max，本分片把 default 加入拒绝表并已通过，锁定该哨兵不得透传。缺口：参考第二条断言依赖 provider 级 ResolveProviderReasoning(default)，Rust 无该解析层（同 :8/:27 的 P2 缺口）。修复位置：模型层 reasoning 解析（crates/jftrade-assistant）+ 运行时调用点。回归要求：解析层建立后补 default 在 provider 路径同样报错的断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib --locked -E 'test(chat_rejects_invalid_permission_work_mode_and_reasoning_overrides)'",
+    "evidence_type": "partial"
   },
   "internal/assistant/model/timeline_helper_test.go:5:TestTimelineHelperBoundaries": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_run_projection_tests.rs::a_tool_round_projects_the_pre_tool_reply_and_session_timeline",
-    "conclusion": "partial：Go 断言时间线助手：前缀剥离（精确/空白）、时间戳与前缀排序（无效时间戳排后、同时间戳按序与 id）、首个非空值、首个工具时间。Rust 的运行投影用例断言工具轮投影出工具前回复与会话时间线（同一时间线投影面）；Go 的排序助手在 Rust 由事件序列扫描实现，无逐条断言。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_run_projection_tests.rs::a_tool_round_projects_the_pre_tool_reply_and_session_timeline；crates/jftrade-engine/src/product_production_ports_adk_notices.rs::merge_session_timeline（排序实现，无独立断言）",
+    "conclusion": "partial：参考断言五组时间线助手边界：前缀剥离（精确/空白）、键比较（有效时间戳优先、无效时间戳排后、同时间戳按 order、再按 id）、首个非空值、首个工具时间、首个审批时间。Rust 的等价面是 merge_session_timeline（product_production_ports_adk_notices.rs:167）按 createdAt→id 排序并重排 sequence；没有前缀剥离、首个非空、首个工具/审批时间助手，也没有 order 次级键。缺口：排序规则（无效时间戳兜底、order 次级键）与四个助手均无断言（P2）；新增断言需先确认是否要补 order 次级键。修复位置：product_production_ports_adk_notices.rs::merge_session_timeline 与 run 投影。回归要求：补乱序/无效时间戳/同键 tie-break 的表驱动断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(session_timeline) or test(notice)'",
     "evidence_type": "partial"
   },
   "internal/assistant/model/timeline_reply_ordering_test.go:11:TestBuildSessionTimelinePlacesFinalReplyAfterToolActivity": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_run_projection_tests.rs::staging_a_tool_round_freezes_the_pre_tool_assistant_text",
-    "conclusion": "partial：Go 断言会话时间线把最终回复放在工具活动之后（kind 顺序与最终文本）。Rust 的用例断言工具轮暂存冻结工具前助手文本（同一“工具前文本与最终回复分离”的投影时序）；Go 的 kind 序列逐项断言在 Rust 由时间线投影实现覆盖。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "conclusion": "partial：参考断言会话时间线的 kind 顺序为 user_message → toolGroup → assistant_message，且末条文本是最终回复。Rust 的时间线由消息与通知按 createdAt 合并（product_production_ports_adk_notices.rs::merge_session_timeline），工具活动不进时间线（以 run.toolSummaries 与 approval_group 表达），因此没有 toolGroup 位置断言；已有断言只覆盖 user_message/assistant_message 前两位（product_adk_model_runtime_run_projection_tests.rs）与工具前文本冻结。缺口：最终回复相对工具活动的顺序无断言（P2）。修复位置：会话读取投影（product_production_ports_adk_read.rs::session）与 run 投影。回归要求：构造同 run 含工具调用与最终回复的会话，断言最终回复位于工具摘要之后。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(timeline) or test(run_projection)'",
     "evidence_type": "partial"
   },
   "internal/assistant/model/workflow_graph_resume_identity_test.go:5:TestWorkflowGraphFingerprintNormalizesSetsAndDetectsExecutionDrift": {
     "status": "[~]",
     "rust_entry": "crates/jftrade-engine/tests/adk_workflow_canvas_contracts.rs::restart_keeps_completed_nodes_and_the_inflight_request_identity",
-    "conclusion": "partial：Go 断言工作流图指纹对集合归一后一致、执行漂移后不同。Rust 的恢复用例断言重启后已完成节点保留且在途请求保持同一身份（同一执行身份语义）；Go 的图指纹算法在 Rust 由画布图校验覆盖，没有指纹级断言。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "conclusion": "partial：参考断言工作流图指纹对集合归一（依赖/技能去重排序、空白裁剪）后一致，且消息漂移后指纹不同。Rust 没有图指纹函数，恢复身份由 trigger log 的 nodeRuns 与在途请求身份承接（本引用用例断言重启后已完成节点保留、在途节点仍为 RUNNING 并可续跑）。缺口：集合归一与漂移检测无断言（P2，恢复语义）。修复位置：crates/jftrade-assistant/src/workflow_canvas.rs（新增指纹/身份哈希）并在引擎恢复路径调用。回归要求：补“同图不同集合顺序 → 同指纹”“内容漂移 → 不同指纹”两条断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --test adk_workflow_canvas_contracts --locked -E 'test(restart_keeps_completed_nodes_and_the_inflight_request_identity)'",
     "evidence_type": "partial"
   },
   "internal/assistant/model/workflow_plan_test.go:8:TestWorkflowPlanPresentationKeepsDeterministicHumanState": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-assistant/src/workflow.rs::graph_exposes_one_deterministic_ready_task",
-    "conclusion": "partial：Go 断言工作流计划呈现的确定性（等序任务按 id 排序、步骤描述、待处理回复去掉空子回复）。Rust 的工作流用例断言图暴露唯一确定性就绪任务（同一确定性排序语义）；Go 的展示文案与空回复裁剪在 Rust 没有对应呈现层。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant --all-targets --locked",
+    "rust_entry": "crates/jftrade-assistant/src/workflow.rs::graph_orders_equal_rank_tasks_by_id_and_reports_graph_faults；crates/jftrade-assistant/src/workflow.rs::graph_exposes_one_deterministic_ready_task",
+    "conclusion": "partial：参考断言等 order 的工作流任务按 id 升序（SortWorkflowTasks）、步骤描述带 Agent role 文案、普通待审批回复文案、计划摘要丢弃空白子回复。Rust 的 TaskGraph::tasks 按 (order, id) 排序，本分片新增断言锁定等 order 的 id 顺序（graph_orders_equal_rank_tasks_by_id_and_reports_graph_faults），ready_task 确定性沿用既有断言。缺口：步骤描述、待审批回复与摘要空白过滤属于呈现层，Rust 无同形对象（P2）。修复位置：如需对齐控制台文案，在 crates/jftrade-assistant 的展示助手或引擎读取投影中实现。回归要求：补步骤描述/待审批回复/摘要空白过滤三条断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant --all-targets --locked -E 'test(graph_) or test(workflow)'",
     "evidence_type": "partial"
   },
   "internal/assistant/model/workflow_plan_test.go:31:TestWorkflowPlanBoundaryFormattingAndGraphSemantics": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-assistant/src/workflow_canvas.rs::test_node_title_and_data_helpers",
-    "conclusion": "partial：Go 断言计划边界格式化（自我任务摘要截断/显式摘要、角色描述回退）、循环依赖拒绝且未知依赖不算环、待处理与子任务更新匹配。Rust 的画布用例断言节点标题与数据助手（同一节点描述归一）；Go 的循环依赖判定由画布环检测用例（test_canvas_cycle_detection / test_canvas_self_loop）覆盖，格式化文案无对应实现。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant --all-targets --locked",
+    "rust_entry": "crates/jftrade-assistant/src/workflow.rs::graph_orders_equal_rank_tasks_by_id_and_reports_graph_faults；crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_task_normalization_and_validation_match_go；crates/jftrade-engine/tests/adk_workflow_canvas_contracts.rs::test_canvas_workflow_cycle_detection_rejects_with_400",
+    "conclusion": "partial：参考断言自我任务摘要（长描述截断、显式结果优先）、步骤描述角色回退、失败/回退待审批回复、目标模式回复、运行时依赖环拒绝且未知依赖不算环、按子运行更新计划、子智能体覆盖继承、摘要截断与去重助手。Rust 已覆盖环语义：TaskGraph 对自环报 SelfDependency、真实环报 Cycle、未知依赖报 MissingDependency（新断言），画布环由 canvas cycle 用例拒绝；任务依赖归一由 adk_task_normalization_and_validation_match_go 覆盖（去重/排序/空白、自依赖 400）。缺口：摘要/描述/待审批回复等格式化文案与 UpdateWorkflowPlanForChildAt 的匹配规则无断言（P2）。修复位置：crates/jftrade-assistant 的展示助手与引擎的计划更新路径。回归要求：补截断/回退、未知依赖不报环、按子运行更新与不匹配不改写四组断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant --all-targets --locked -E 'test(graph_) or test(workflow)'",
     "evidence_type": "partial"
   },
   "internal/assistant/model/workflow_plan_test.go:100:TestApprovalsForRunScoping": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-assistant/src/model.rs::low_risk_workflow_writes_skip_approval_in_approval_mode",
-    "conclusion": "partial：Go 断言按运行范围过滤审批（只取该运行的审批集合）。Rust 的模型用例断言低风险工作流写入在审批模式下跳过审批（同一审批作用域判定）；Go 的按 run 过滤集合在 Rust 由运行负载内嵌审批解析覆盖，无独立断言。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant --all-targets --locked",
+    "rust_entry": "crates/jftrade-assistant/src/model.rs::low_risk_workflow_writes_skip_approval_in_approval_mode；crates/jftrade-engine/src/product_production_ports_adk_read.rs::approvals（按 status/agentId 过滤，无 runId，无独立断言）",
+    "conclusion": "partial：参考断言 ApprovalsForRun：空白 run 选择返回 nil，非空 run 只取该 run 的待审批集合（忽略其它 run）。Rust 的审批行带 run_id 外键、运行载荷内嵌 pendingApprovals，审批读取路由只支持 status/agentId 过滤（product_production_ports_adk_read.rs::approvals），没有 run 作用域过滤函数，也没有“只返回该 run 审批”的断言；引用的模型用例只覆盖审批模式下的低风险跳过。缺口：run 作用域过滤与空白 run 边界（P2）。修复位置：审批读取层新增 runId 过滤或补运行投影断言。回归要求：补空白/多 run 混合集合两条断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(approval)'",
     "evidence_type": "partial"
   },
   "internal/assistant/model/workflow_task_tools_test.go:8:TestWorkflowGoalDecisionAndUtilityContracts": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-assistant/src/workflow.rs::graph_exposes_one_deterministic_ready_task",
-    "conclusion": "partial：Go 断言目标决策与工具契约（nil 决策惰性、复位/进入阶段、快照状态、目标提示保留用户目标、任务结果摘要与计划字符串切片）。Rust 的工作流用例断言图就绪任务确定性（同族任务编排面）；Rust 没有目标决策工具层（Go workflowexec 的 goal decision 未迁移，见第 76 批 P1 登记）。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant --all-targets --locked",
+    "rust_entry": "crates/jftrade-assistant/src/workflow.rs::graph_exposes_one_deterministic_ready_task；crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_task_normalization_and_validation_match_go",
+    "conclusion": "partial：参考断言目标决策对象（nil 惰性、Reset/BeginDecision 相位、complete/continue 快照裁剪）、目标提示保留用户目标、任务结果摘要去空白、planer 字符串列表参数强制（混合类型保留可转字符串、类型化非 any 切片拒绝、缺失或畸形返回 nil）。Rust 没有目标决策工具层（workflowexec 的 goal decision 未迁移，见既有 P1 登记），提示词与快照无同形对象；utilities 半边由任务归一用例覆盖（NormalizeStringSlice 同族的去重/排序/空白裁剪与自依赖拒绝）。缺口：目标决策相位/快照/提示词与 planner 参数强制（P1 目标决策、P2 planner 参数）。修复位置：crates/jftrade-assistant 新增 goal decision 模型与 planner 参数助手，引擎工具调用路径接入。回归要求：补相位/快照表、提示词包含用户目标、planner 参数强制的断言。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant --all-targets --locked -E 'test(graph_) or test(workflow)'",
     "evidence_type": "partial"
   },
   "internal/assistant/service_audit_pagination_test.go:9:TestServiceGetAuditPagePreservesFilteredPagination": {

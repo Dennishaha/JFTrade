@@ -164,6 +164,57 @@ fn has_cycle(tasks: &BTreeMap<String, WorkflowTask>) -> bool {
 mod tests {
     use super::*;
 
+    fn todo_task(id: &str, order: i32, depends_on: Vec<&str>) -> WorkflowTask {
+        WorkflowTask {
+            id: id.to_owned(),
+            title: id.to_owned(),
+            status: WorkflowTaskStatus::Todo,
+            depends_on: depends_on.into_iter().map(str::to_owned).collect(),
+            order,
+            result_summary: String::new(),
+        }
+    }
+
+    #[test]
+    fn graph_orders_equal_rank_tasks_by_id_and_reports_graph_faults() {
+        // Go's `SortWorkflowTasks` breaks an equal `Order` tie with the task id,
+        // so the same input never renders two different plans.
+        let graph = TaskGraph::new(vec![
+            todo_task("z-last", 1, vec![]),
+            todo_task("a-first", 1, vec![]),
+        ])
+        .expect("graph");
+        let ordered = graph
+            .tasks()
+            .into_iter()
+            .map(|task| task.id)
+            .collect::<Vec<_>>();
+        assert_eq!(ordered, vec!["a-first".to_owned(), "z-last".to_owned()]);
+
+        // A real loop, an unknown dependency and a self edge stay distinct
+        // faults: Go's `WorkflowTasksHaveCycle` answers false for an unknown
+        // dependency rather than fabricating a cycle.
+        assert_eq!(
+            TaskGraph::new(vec![
+                todo_task("a", 1, vec!["b"]),
+                todo_task("b", 2, vec!["a"])
+            ])
+            .expect_err("cycle"),
+            WorkflowError::Cycle
+        );
+        assert_eq!(
+            TaskGraph::new(vec![todo_task("a", 1, vec!["missing"])]).expect_err("missing edge"),
+            WorkflowError::MissingDependency {
+                task: "a".to_owned(),
+                dependency: "missing".to_owned(),
+            }
+        );
+        assert_eq!(
+            TaskGraph::new(vec![todo_task("a", 1, vec!["a"])]).expect_err("self edge"),
+            WorkflowError::SelfDependency("a".to_owned())
+        );
+    }
+
     #[test]
     fn graph_exposes_one_deterministic_ready_task() {
         let mut graph = TaskGraph::new(vec![
