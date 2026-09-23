@@ -7,7 +7,7 @@
     "treeSha": "0ee26444be21c15d9760f358a34649f78402f0fb"
   },
   "generatorVersion": "v2_writer.py@slice23",
-  "generatedAt": "2026-09-23T21:10:35Z",
+  "generatedAt": "2026-09-23T21:28:18Z",
   "mappings": {
     "cmd/jftrade-api/main_test.go:13:TestValidateArgsAllowsNoArgs": {
       "status": "[~]",
@@ -283385,11 +283385,11 @@
       "boundaryReason": null
     },
     "internal/trading/execution_test.go:573:TestPreTradeRiskRejectsKillSwitchAndLimits": {
-      "status": "[x]",
-      "evidence_type": "function_exact",
-      "rust_entry": "crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs::pre_trade_risk_fails_when_kill_switch_active",
-      "conclusion": "function_exact：REAL 单在 kill switch/quantity/notional 三种策略下分别返回 REAL_TRADE_KILL_SWITCH_ACTIVE、MAX_ORDER_QUANTITY_EXCEEDED、MAX_ORDER_NOTIONAL_EXCEEDED；缺 price 时 RISK_PRICE_UNAVAILABLE。Rust 以等价 reason_code 断言覆盖同一矩阵（quantity/notional 分别见 pre_trade_risk_enforces_quantity_limit 与 pre_trade_risk_requires_price_for_notional_limit）。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(pre_trade_risk_fails_when_kill_switch_active)'",
+      "status": "[~]",
+      "evidence_type": "partial",
+      "rust_entry": "crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs::pre_trade_risk_fails_when_kill_switch_active + crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs::pre_trade_risk_enforces_quantity_limit + crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs::pre_trade_risk_enforces_notional_limit_with_option_multiplier",
+      "conclusion": "部分覆盖：Go 四分支中三支在 Rust 有等价断言——kill switch 分支（pre_trade_risk_fails_when_kill_switch_active，REAL_TRADE_KILL_SWITCH_ACTIVE）、quantity 分支（pre_trade_risk_enforces_quantity_limit，qty 10 越过上限 5 得 MAX_ORDER_QUANTITY_EXCEEDED）、notional 超限原因码（同一 live seam 的 option/amount/combo 变体断言 MAX_ORDER_NOTIONAL_EXCEEDED，同一比较路径；缺普通 equity-units 形状的超限用例）。未覆盖：止损单分支——Go 用 StopPrice 回退计算名义金额（6 手乘 10 得 60 越过 40 → MAX_ORDER_NOTIONAL_EXCEEDED），Rust 的 PreTradeRiskOrder 无 stop price 字段，build_pre_trade_risk_order 只传 parsed.price，止损市价单在名义限额下得 RISK_PRICE_UNAVAILABLE。生产确认：risk.rs 的 evaluate_pre_trade_risk 只认 order.price（现价回退只存在于旧 evaluate_runtime_risk）。回归要求：在所属领域 crate 补止损价回退的失败回归测试（STOP 市价单 price 缺失、stopPrice 10、qty 6、notional 40，期望 MAX_ORDER_NOTIONAL_EXCEEDED），再定 engine 侧 stopPrice 到 risk price 的映射或领域侧回退语义；普通 equity 超限形状可一并补。",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading",
       "source": {
         "file": "internal/trading/execution_test.go",
         "line": 573,
@@ -283401,14 +283401,41 @@
           "file": "crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs",
           "test": "pre_trade_risk_fails_when_kill_switch_active",
           "crate": "jftrade-trading",
-          "anchor": null
+          "anchor": {
+            "goFile": "internal/trading/execution_test.go",
+            "goLine": 573,
+            "rustFile": "crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs",
+            "rustLine": 187
+          }
+        },
+        {
+          "file": "crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs",
+          "test": "pre_trade_risk_enforces_quantity_limit",
+          "crate": "jftrade-trading",
+          "anchor": {
+            "goFile": "internal/trading/execution_test.go",
+            "goLine": 573,
+            "rustFile": "crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs",
+            "rustLine": 187
+          }
+        },
+        {
+          "file": "crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs",
+          "test": "pre_trade_risk_enforces_notional_limit_with_option_multiplier",
+          "crate": "jftrade-trading",
+          "anchor": {
+            "goFile": "internal/trading/execution_test.go",
+            "goLine": 573,
+            "rustFile": "crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs",
+            "rustLine": 187
+          }
         }
       ],
       "assertionCoverage": {
-        "covered": [
-          "function_exact：REAL 单在 kill switch/quantity/notional 三种策略下分别返回 REAL_TRADE_KILL_SWITCH_ACTIVE、MAX_ORDER_QUANTITY_EXCEEDED、MAX_ORDER_NOTIONAL_EXCEEDED；缺 price 时 RISK_PRICE_UNAVAILABLE。Rust 以等价 reason_code 断言覆盖同一矩阵（quantity/notional 分别见 pre_trade_risk_enforces_quantity_limit 与 pre_trade_risk_requires_price_for_notional_limit）。"
+        "covered": [],
+        "uncovered": [
+          "部分覆盖：Go 四分支中三支在 Rust 有等价断言——kill switch 分支（pre_trade_risk_fails_when_kill_switch_active，REAL_TRADE_KILL_SWITCH_ACTIVE）、quantity 分支（pre_trade_risk_enforces_quantity_limit，qty 10 越过上限 5 得 MAX_ORDER_QUANTITY_EXCEEDED）、notional 超限原因码（同一 live seam 的 option/amount/combo 变体断言 MAX_ORDER_NOTIONAL_EXCEEDED，同一比较路径；缺普通 equity-units 形状的超限用例）。未覆盖：止损单分支——Go 用 StopPrice 回退计算名义金额（6 手乘 10 得 60 越过 40 → MAX_ORDER_NOTIONAL_EXCEEDED），Rust 的 PreTradeRiskOrder 无 stop price 字段，build_pre_trade_risk_order 只传 parsed.price，止损市价单在名义限额下得 RISK_PRICE_UNAVAILABLE。生产确认：risk.rs 的 evaluate_pre_trade_risk 只认 order.price（现价回退只存在于旧 evaluate_runtime_risk）。回归要求：在所属领域 crate 补止损价回退的失败回归测试（STOP 市价单 price 缺失、stopPrice 10、qty 6、notional 40，期望 MAX_ORDER_NOTIONAL_EXCEEDED），再定 engine 侧 stopPrice 到 risk price 的映射或领域侧回退语义；普通 equity 超限形状可一并补。"
         ],
-        "uncovered": [],
         "source": "legacy-conclusion"
       },
       "verification": {
@@ -283417,12 +283444,12 @@
           "scripts/quality/cargo-nextest.mjs",
           "run",
           "-p",
-          "jftrade-trading",
-          "-E",
-          "test(pre_trade_risk_fails_when_kill_switch_active)"
+          "jftrade-trading"
         ],
         "testFilter": [
-          "pre_trade_risk_fails_when_kill_switch_active"
+          "pre_trade_risk_fails_when_kill_switch_active",
+          "pre_trade_risk_enforces_quantity_limit",
+          "pre_trade_risk_enforces_notional_limit_with_option_multiplier"
         ],
         "runnerVersion": null,
         "toolchain": null,
@@ -283435,15 +283462,15 @@
       "risk": "normal",
       "owner": "trading_broker",
       "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "function_exact：REAL 单在 kill switch/quantity/notional 三种策略下分别返回 REAL_TRADE_KILL_SWITCH_ACTIVE、MAX_ORDER_QUANTITY_EXCEEDED、MAX_ORDER_NOTIONAL_EXCEEDED；缺 price 时 RISK_PRICE_UNAVAILABLE。Rust 以等价 reason_code 断言覆盖同一矩阵（quantity/notional 分别见 pre_trade_risk_enforces_quantity_limit 与 pre_trade_risk_requires_price_for_notional_limit）。"
+      "coveredAssertions": [],
+      "uncoveredAssertions": [
+        "部分覆盖：Go 四分支中三支在 Rust 有等价断言——kill switch 分支（pre_trade_risk_fails_when_kill_switch_active，REAL_TRADE_KILL_SWITCH_ACTIVE）、quantity 分支（pre_trade_risk_enforces_quantity_limit，qty 10 越过上限 5 得 MAX_ORDER_QUANTITY_EXCEEDED）、notional 超限原因码（同一 live seam 的 option/amount/combo 变体断言 MAX_ORDER_NOTIONAL_EXCEEDED，同一比较路径；缺普通 equity-units 形状的超限用例）。未覆盖：止损单分支——Go 用 StopPrice 回退计算名义金额（6 手乘 10 得 60 越过 40 → MAX_ORDER_NOTIONAL_EXCEEDED），Rust 的 PreTradeRiskOrder 无 stop price 字段，build_pre_trade_risk_order 只传 parsed.price，止损市价单在名义限额下得 RISK_PRICE_UNAVAILABLE。生产确认：risk.rs 的 evaluate_pre_trade_risk 只认 order.price（现价回退只存在于旧 evaluate_runtime_risk）。回归要求：在所属领域 crate 补止损价回退的失败回归测试（STOP 市价单 price 缺失、stopPrice 10、qty 6、notional 40，期望 MAX_ORDER_NOTIONAL_EXCEEDED），再定 engine 侧 stopPrice 到 risk price 的映射或领域侧回退语义；普通 equity 超限形状可一并补。"
       ],
-      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/trading/execution_test.go:613:TestPreTradeRiskEnforcesAmountModeQuantityAndNotionalLimits": {
@@ -283610,7 +283637,7 @@
       "status": "[x]",
       "evidence_type": "function_exact",
       "rust_entry": "crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs::pre_trade_risk_requires_price_for_notional_limit",
-      "conclusion": "function_exact：REAL 单缺 price 且配置 notional 上限时返回 RISK_PRICE_UNAVAILABLE 且不允许，与 Go 禁止未知名义金额绕过真实交易控制一致。",
+      "conclusion": "function_exact：Go 在 REAL、缺 price、notional 上限 1000 时要求 RISK_PRICE_UNAVAILABLE 且不放行；Rust 用同一形状（REAL 单、price 为 None、notional 上限 1000）断言不放行且原因码为 RISK_PRICE_UNAVAILABLE。补 :703 锚点。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(pre_trade_risk_requires_price_for_notional_limit)'",
       "source": {
         "file": "internal/trading/execution_test.go",
@@ -283623,12 +283650,17 @@
           "file": "crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs",
           "test": "pre_trade_risk_requires_price_for_notional_limit",
           "crate": "jftrade-trading",
-          "anchor": null
+          "anchor": {
+            "goFile": "internal/trading/execution_test.go",
+            "goLine": 703,
+            "rustFile": "crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs",
+            "rustLine": 235
+          }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "function_exact：REAL 单缺 price 且配置 notional 上限时返回 RISK_PRICE_UNAVAILABLE 且不允许，与 Go 禁止未知名义金额绕过真实交易控制一致。"
+          "function_exact：Go 在 REAL、缺 price、notional 上限 1000 时要求 RISK_PRICE_UNAVAILABLE 且不放行；Rust 用同一形状（REAL 单、price 为 None、notional 上限 1000）断言不放行且原因码为 RISK_PRICE_UNAVAILABLE。补 :703 锚点。"
         ],
         "uncovered": [],
         "source": "legacy-conclusion"
@@ -283663,7 +283695,7 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "function_exact：REAL 单缺 price 且配置 notional 上限时返回 RISK_PRICE_UNAVAILABLE 且不允许，与 Go 禁止未知名义金额绕过真实交易控制一致。"
+        "function_exact：Go 在 REAL、缺 price、notional 上限 1000 时要求 RISK_PRICE_UNAVAILABLE 且不放行；Rust 用同一形状（REAL 单、price 为 None、notional 上限 1000）断言不放行且原因码为 RISK_PRICE_UNAVAILABLE。补 :703 锚点。"
       ],
       "uncoveredAssertions": [],
       "boundaryReason": null
@@ -284079,7 +284111,7 @@
     "internal/trading/execution_test.go:988:TestExecutionNormalizationHelpersRejectUnsupportedInputs": {
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_order_validation_tests.rs::test_execution_normalization_helpers_reject_unsupported_inputs",
-      "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+      "conclusion": "function_exact：Go 断言 normalizeExecutionOrderType（iceberg）与 normalizeExecutionSession（US/LIMIT/pre-open）均为请求错误；Rust 在 parse_order 等价面逐条断言：iceberg orderType 被拒且错误含 unsupported 或 invalid，pre-open session 被拒且错误含 session、unsupported 或 invalid。请求错误分类由 wire 层承载（parse 错误映射 Failed{400,BAD_REQUEST}，见 :327 行证据），消息子串断言即锁定同一拒绝面。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine",
       "evidence_type": "function_exact",
       "source": {
@@ -284103,7 +284135,7 @@
       ],
       "assertionCoverage": {
         "covered": [
-          "已找到 Rust 源码中的对应 Parity 测试证据"
+          "function_exact：Go 断言 normalizeExecutionOrderType（iceberg）与 normalizeExecutionSession（US/LIMIT/pre-open）均为请求错误；Rust 在 parse_order 等价面逐条断言：iceberg orderType 被拒且错误含 unsupported 或 invalid，pre-open session 被拒且错误含 session、unsupported 或 invalid。请求错误分类由 wire 层承载（parse 错误映射 Failed{400,BAD_REQUEST}，见 :327 行证据），消息子串断言即锁定同一拒绝面。"
         ],
         "uncovered": [],
         "source": "legacy-conclusion"
@@ -284136,7 +284168,7 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "已找到 Rust 源码中的对应 Parity 测试证据"
+        "function_exact：Go 断言 normalizeExecutionOrderType（iceberg）与 normalizeExecutionSession（US/LIMIT/pre-open）均为请求错误；Rust 在 parse_order 等价面逐条断言：iceberg orderType 被拒且错误含 unsupported 或 invalid，pre-open session 被拒且错误含 session、unsupported 或 invalid。请求错误分类由 wire 层承载（parse 错误映射 Failed{400,BAD_REQUEST}，见 :327 行证据），消息子串断言即锁定同一拒绝面。"
       ],
       "uncoveredAssertions": [],
       "boundaryReason": null
@@ -284335,7 +284367,7 @@
     "internal/trading/order_status_test.go:5:TestCanonicalBrokerOrderStatusCoversFutuLifecycle": {
       "status": "[x]",
       "rust_entry": "crates/jftrade-trading/tests/order_status_reconciliation_parity.rs::test_canonical_broker_order_status_covers_futu_lifecycle",
-      "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+      "conclusion": "function_exact：Go 18 项 raw 到 canonical 映射表逐项一致，Rust 用同一 18 元组断言 canonical_broker_status，含 Unsubmitted/WAITING_SUBMIT/Submitting 到 Submitting、NEW/Submitted 到 BrokerAccepted、Filled_Part 到 PartiallyFilled、Filled_All 到 Filled、Cancelling 系列到 CancelRequested、Cancelled 系列到 Cancelled、SubmitFailed/Failed/Disabled 与 FillCancelled 到 Rejected、Deleted 到 Cancelled、TimeOut 与未知串到 Unknown。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading",
       "evidence_type": "function_exact",
       "source": {
@@ -284359,7 +284391,7 @@
       ],
       "assertionCoverage": {
         "covered": [
-          "已找到 Rust 源码中的对应 Parity 测试证据"
+          "function_exact：Go 18 项 raw 到 canonical 映射表逐项一致，Rust 用同一 18 元组断言 canonical_broker_status，含 Unsubmitted/WAITING_SUBMIT/Submitting 到 Submitting、NEW/Submitted 到 BrokerAccepted、Filled_Part 到 PartiallyFilled、Filled_All 到 Filled、Cancelling 系列到 CancelRequested、Cancelled 系列到 Cancelled、SubmitFailed/Failed/Disabled 与 FillCancelled 到 Rejected、Deleted 到 Cancelled、TimeOut 与未知串到 Unknown。"
         ],
         "uncovered": [],
         "source": "legacy-conclusion"
@@ -284392,7 +284424,7 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "已找到 Rust 源码中的对应 Parity 测试证据"
+        "function_exact：Go 18 项 raw 到 canonical 映射表逐项一致，Rust 用同一 18 元组断言 canonical_broker_status，含 Unsubmitted/WAITING_SUBMIT/Submitting 到 Submitting、NEW/Submitted 到 BrokerAccepted、Filled_Part 到 PartiallyFilled、Filled_All 到 Filled、Cancelling 系列到 CancelRequested、Cancelled 系列到 Cancelled、SubmitFailed/Failed/Disabled 与 FillCancelled 到 Rejected、Deleted 到 Cancelled、TimeOut 与未知串到 Unknown。"
       ],
       "uncoveredAssertions": [],
       "boundaryReason": null
@@ -284400,7 +284432,7 @@
     "internal/trading/order_status_test.go:33:TestReconcileCanonicalOrderStatusPreventsBrokerRegressions": {
       "status": "[x]",
       "rust_entry": "crates/jftrade-trading/tests/order_status_reconciliation_parity.rs::test_reconcile_canonical_order_status_prevents_broker_regressions",
-      "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+      "conclusion": "function_exact：Go 7 个子测试逐项一致，Rust 用同一 7 元组断言 reconcile_status 返回的状态与 accepted 位：accepted 到 partial 接受、partial 回退到 accepted 拒绝、cancel 竞态成交流接受、cancel 后 partial 回退忽略、filled 终态拒绝回退、unknown 恢复接受、known 忽略 unknown。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading",
       "evidence_type": "function_exact",
       "source": {
@@ -284424,7 +284456,7 @@
       ],
       "assertionCoverage": {
         "covered": [
-          "已找到 Rust 源码中的对应 Parity 测试证据"
+          "function_exact：Go 7 个子测试逐项一致，Rust 用同一 7 元组断言 reconcile_status 返回的状态与 accepted 位：accepted 到 partial 接受、partial 回退到 accepted 拒绝、cancel 竞态成交流接受、cancel 后 partial 回退忽略、filled 终态拒绝回退、unknown 恢复接受、known 忽略 unknown。"
         ],
         "uncovered": [],
         "source": "legacy-conclusion"
@@ -284457,7 +284489,7 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "已找到 Rust 源码中的对应 Parity 测试证据"
+        "function_exact：Go 7 个子测试逐项一致，Rust 用同一 7 元组断言 reconcile_status 返回的状态与 accepted 位：accepted 到 partial 接受、partial 回退到 accepted 拒绝、cancel 竞态成交流接受、cancel 后 partial 回退忽略、filled 终态拒绝回退、unknown 恢复接受、known 忽略 unknown。"
       ],
       "uncoveredAssertions": [],
       "boundaryReason": null
@@ -284465,7 +284497,7 @@
     "internal/trading/order_status_test.go:59:TestCanonicalTerminalOrderStatus": {
       "status": "[x]",
       "rust_entry": "crates/jftrade-trading/tests/order_status_reconciliation_parity.rs::test_canonical_terminal_order_status",
-      "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+      "conclusion": "function_exact：Go 断言 5 终态（PrecheckReject、Filled、Cancelled、Rejected、Expired）与 7 非终态；Rust 断言同一 5 终态（wire 值 PRECHECK_REJECTED 与 Go 的 OrderStatusPrecheckReject 同值）与同一 7 非终态，另把 Rust 自有状态 SubmissionUnknown 断言为非终态（Go 同名字面量走默认分支同样非终态），为超集而不断言冲突。锚点行号 :61 改 :59。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading",
       "evidence_type": "function_exact",
       "source": {
@@ -284479,12 +284511,17 @@
           "file": "crates/jftrade-trading/tests/order_status_reconciliation_parity.rs",
           "test": "test_canonical_terminal_order_status",
           "crate": "jftrade-trading",
-          "anchor": null
+          "anchor": {
+            "goFile": "internal/trading/order_status_test.go",
+            "goLine": 59,
+            "rustFile": "crates/jftrade-trading/tests/order_status_reconciliation_parity.rs",
+            "rustLine": 118
+          }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "已找到 Rust 源码中的对应 Parity 测试证据"
+          "function_exact：Go 断言 5 终态（PrecheckReject、Filled、Cancelled、Rejected、Expired）与 7 非终态；Rust 断言同一 5 终态（wire 值 PRECHECK_REJECTED 与 Go 的 OrderStatusPrecheckReject 同值）与同一 7 非终态，另把 Rust 自有状态 SubmissionUnknown 断言为非终态（Go 同名字面量走默认分支同样非终态），为超集而不断言冲突。锚点行号 :61 改 :59。"
         ],
         "uncovered": [],
         "source": "legacy-conclusion"
@@ -284517,7 +284554,7 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "已找到 Rust 源码中的对应 Parity 测试证据"
+        "function_exact：Go 断言 5 终态（PrecheckReject、Filled、Cancelled、Rejected、Expired）与 7 非终态；Rust 断言同一 5 终态（wire 值 PRECHECK_REJECTED 与 Go 的 OrderStatusPrecheckReject 同值）与同一 7 非终态，另把 Rust 自有状态 SubmissionUnknown 断言为非终态（Go 同名字面量走默认分支同样非终态），为超集而不断言冲突。锚点行号 :61 改 :59。"
       ],
       "uncoveredAssertions": [],
       "boundaryReason": null
@@ -310124,9 +310161,18 @@
       "reviewStatus": "single"
     },
     "crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs::pre_trade_risk_enforces_notional_limit_with_option_multiplier": {
+      "referenceCount": 2,
+      "referenceKeys": [
+        "pkg/bbgo/types/market_test.go:270:TestMarket_AdjustQuantityToContractSize",
+        "internal/trading/execution_test.go:573:TestPreTradeRiskRejectsKillSwitchAndLimits"
+      ],
+      "allowed": false,
+      "reviewStatus": "unreviewed"
+    },
+    "crates/jftrade-trading/tests/pre_trade_risk_domain_tests.rs::pre_trade_risk_enforces_quantity_limit": {
       "referenceCount": 1,
       "referenceKeys": [
-        "pkg/bbgo/types/market_test.go:270:TestMarket_AdjustQuantityToContractSize"
+        "internal/trading/execution_test.go:573:TestPreTradeRiskRejectsKillSwitchAndLimits"
       ],
       "allowed": true,
       "reviewStatus": "single"

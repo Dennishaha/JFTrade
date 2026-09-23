@@ -4439,3 +4439,36 @@ owner：真实交易控制面由 jftrade-engine 经 ExecutionRiskCoordinator 承
 | 文档门禁 | fmt、ai-context、migration-manifest、zero-go、quick、diff check | 全过（fmt 过；ai-context 过；migration-manifest 过；zero-go 过；quick 全过，engine 1943/1943，兼容 replay 全过；diff check 过；中途 target 健康拦截按标准清产物后重跑通过） |
 
 后续：继续 35 行步调（rows 4364 起；尾部余约 88 行）；队列按账本实际顺序推进。
+
+### 第 129 批分片七十七：rows 4364-4398 trading 执行风控与订单更新 35 行（1 处降级、4 处占位改写、5 处补锚）
+
+范围（账本 rows 4364-4398，按写入顺序）：trading execution:367/:397/:426/:470/:496/:573/:613/:687/:703/:718/:738/:813/:874/:939/:965/:988/:997/:1014/:1047、order_status:5/:33/:59、order_update_recovery:11/:68、order_updates_concurrency:9、order_updates_reconnect:12/:68、order_updates:158/:180/:228/:263/:280/:322/:343/:369。初值 [x] 23、partial 1、boundary 11；终值 [x] 22、partial 2、boundary 11。首键自检通过，无重叠。
+
+owner：预交易风控决策由 jftrade-trading 承接，执行端口读写与对账 worker 由 jftrade-engine 承接，推送订阅面属 jftrade-integration-futu 会话层（engine 无调用方），无双写。
+
+复核方法：35 条全量枚举引用有效性（34 个去重引用逐个核对 #[test]，0 缺失），23 条 [x] 逐条核对锚点归属与断言等价（逐段比对 Go 原文）。发现 1 处实质行为差异并降级，4 处占位结论按子例改写，5 处缺锚补齐。
+
+纠正（降级）：execution:573 原 [x] 过宽——Go 第四分支用 StopPrice 回退计算名义金额（6 手乘 10 得 60 越过 40 → MAX_ORDER_NOTIONAL_EXCEEDED），Rust 的 PreTradeRiskOrder 无 stop price 字段，build_pre_trade_risk_order 只传 parsed.price，止损市价单在名义限额下得 RISK_PRICE_UNAVAILABLE；生产确认 risk.rs 的 evaluate_pre_trade_risk 只认 order.price（现价回退只存在于旧 evaluate_runtime_risk）。entry 改为三测组合（kill-switch、quantity、notional-multiplier），降为 partial 并登记回归要求（止损价回退的失败回归测试加 engine 侧映射或领域侧回退语义二选一，普通 equity 超限形状可一并补）。
+
+补锚：:573 三测组合各补 :573 内联锚点，:703 补 :703 内联锚点，order_status:59 锚点行号 :61 改 :59（Go 函数在 59 行，原 :61 落入 unknown）。
+
+占位改写：:988（iceberg 与 pre-open 双分支等价面加 wire 层 400 分类说明）、order_status:5（18 项映射逐项点名）、:33（7 子测试逐项点名）、:59（5 终态加 7 非终态，PRECHECK_REJECTED 同值，SubmissionUnknown 超集声明）四行按子例改写为实质结论。
+
+抽查证据：其余 [x] 结论均为逐值写法（含探针与回滚记录）；boundary 行缺口诚实（订阅/刷新/节流面均声明无同形对象与升级路径）；dup-x 为 0（审计 exit 0）。
+
+新增证据：5 处测试注释锚点（无生产改动）；6 行账本刷新（:573 降级改组合 entry，:703/:988/:5/:33/:59 改写结论）。
+
+映射终值（35 行）：[x] 22、partial 2、boundary 11。全量：[x] 1561、partial 2252、boundary 638（合计 4451）；Rust 测试 3297 不变。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 逐行复核 | 35 条全量枚举引用有效性（34 去重引用）加 [x] 断言等价核对 | 1 降级、4 改写、5 补锚；重复 [x] 全文唯一性检查通（0 重复） |
+| 账本写入 | v2 写入器 6 行 | [x] 1561、partial 2252、boundary 638（合计 4451） |
+| Rust 定向测试 | trading 风控域 4 用例加订单状态 3 用例 | 7/7 通过 |
+| 审计 | python3 scripts/compatibility/audit_test_parity.py --write-report | 通过（exit 0）；缺锚点告警 114→111；report/inventory 刷新 |
+| 锚点 | python3 scripts/compatibility/parity_anchor_reconcile.py | anchors 1731、已记录 1685、unrecorded 0、stale 0、unknown 46 |
+| 文档门禁 | fmt、ai-context、migration-manifest、zero-go、quick、diff check | 全过（fmt 过；ai-context 过；migration-manifest 过；zero-go 过；quick 全过一次通过；diff check 过） |
+
+后续：继续 35 行步调（rows 4399 起；尾部余约 53 行）；队列按账本实际顺序推进。

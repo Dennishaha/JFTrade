@@ -115,7 +115,7 @@ fn test_reconcile_canonical_order_status_prevents_broker_regressions() {
 
 #[test]
 fn test_canonical_terminal_order_status() {
-    // Parity: internal/trading/order_status_test.go:61 TestCanonicalTerminalOrderStatus
+    // Parity: internal/trading/order_status_test.go:59 TestCanonicalTerminalOrderStatus
     let terminals = [
         OrderStatus::PrecheckRejected,
         OrderStatus::Filled,

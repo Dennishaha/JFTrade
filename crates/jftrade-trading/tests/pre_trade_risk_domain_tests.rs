@@ -184,6 +184,7 @@ fn pre_trade_risk_fails_when_real_trading_disabled() {
 
 #[test]
 fn pre_trade_risk_fails_when_kill_switch_active() {
+    // Parity: go:452dea11:internal/trading/execution_test.go:573 TestPreTradeRiskRejectsKillSwitchAndLimits
     let mut policy = valid_policy();
     policy.kill_switch_active = true;
     let order = test_order(TradingEnvironment::Real);
@@ -217,6 +218,7 @@ fn pre_trade_risk_fails_when_hard_stop_matches() {
 
 #[test]
 fn pre_trade_risk_enforces_quantity_limit() {
+    // Parity: go:452dea11:internal/trading/execution_test.go:573 TestPreTradeRiskRejectsKillSwitchAndLimits
     let mut policy = valid_policy();
     policy.effective_max_order_quantity = Some(Decimal::from_str("5").unwrap());
     let order = test_order(TradingEnvironment::Real); // qty 10
@@ -230,6 +232,7 @@ fn pre_trade_risk_enforces_quantity_limit() {
 
 #[test]
 fn pre_trade_risk_requires_price_for_notional_limit() {
+    // Parity: go:452dea11:internal/trading/execution_test.go:703 TestPreTradeRiskDoesNotLetUnknownNotionalBypassRealTradeControls
     let mut policy = valid_policy();
     policy.effective_max_order_notional = Some(Decimal::from_str("1000").unwrap());
     let mut order = test_order(TradingEnvironment::Real);
@@ -244,6 +247,7 @@ fn pre_trade_risk_requires_price_for_notional_limit() {
 
 #[test]
 fn pre_trade_risk_enforces_notional_limit_with_option_multiplier() {
+    // Parity: go:452dea11:internal/trading/execution_test.go:573 TestPreTradeRiskRejectsKillSwitchAndLimits
     let mut policy = valid_policy();
     policy.effective_max_order_notional = Some(Decimal::from_str("5000").unwrap());
     let mut order = test_order(TradingEnvironment::Real);
