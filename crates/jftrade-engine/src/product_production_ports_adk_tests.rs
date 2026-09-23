@@ -843,6 +843,7 @@ fn detached_adk_tool_executor_reports_domain_tools_as_unavailable() {
     }
 }
 
+/// Parity: go:452dea11:internal/assistant/engine/input_request_test.go:449 TestResolveRunInputIsValidatedAndIdempotent
 #[test]
 fn adk_respond_to_input_strict_validation_idempotency_and_conflict() {
     let directory = tempfile::tempdir().expect("temporary directory");

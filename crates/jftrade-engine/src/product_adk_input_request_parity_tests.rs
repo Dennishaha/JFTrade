@@ -26,6 +26,9 @@ fn valid_arguments() -> Value {
 /// TestInputRequestToolRunReturnsCorrectableFeedbackForInvalidArgs — the
 /// validator half.  The end-to-end feedback path is covered by
 /// `an_invalid_request_user_call_returns_correctable_feedback_before_parking`.
+/// Parity: go:452dea11:internal/assistant/engine/input_request_test.go:114
+/// `TestInputRequestValidationAndErrorEdges` (validator half; declaration half
+/// is `request_user_tool_declaration_publishes_the_two_or_three_option_budget`).
 #[test]
 fn request_user_arguments_accept_valid_calls_and_report_the_reference_errors() {
     assert_eq!(request_user_arguments_error(&valid_arguments()), None);

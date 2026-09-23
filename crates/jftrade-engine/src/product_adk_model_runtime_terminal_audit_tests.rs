@@ -832,6 +832,8 @@ fn terminal_failure_mapping_matches_the_reference_table() {
 /// Reference: go:452dea11:internal/assistant/engine/input_request_test.go:584
 /// `TestRequestUserToolPausesAndResumesChatRun` (the `run.awaiting_input`
 /// assertion at `:605`), plus `runner_chat.go:267` `FinishPendingInputRun`.
+/// Parity: go:452dea11:internal/assistant/engine/input_request_test.go:584
+/// `TestRequestUserToolPausesAndResumesChatRun` (awaiting_input audit half).
 #[test]
 fn a_pending_input_run_audits_awaiting_input_with_the_decision_kind() {
     let (directory, store, session_store) = initialized_stores();

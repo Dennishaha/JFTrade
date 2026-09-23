@@ -2642,3 +2642,32 @@ owner：执行调用复用/完成与回调串行由模型运行时投影与围�
 | 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy` | 按预期失败（deny.toml advisory-not-detected），与本分片无关 |
 
 后续：engine 第三片完成；队列进入 engine 第四片（账本 1182 起约 35 行），engine 共 626 行约 18 片；随后 apiserver 下 assistant/ADK 相关 14 行。
+
+### 第 129 批分片十三：`internal/assistant/engine` 第四片 35 行（6 处缺失锚点补齐，无 verdict 翻转）
+
+范围（账本 inventory 1182-1216，按文件与行号升序）：`handoff_notice_test.go:10/:100`、`input_continuation_failure_recovery_test.go:13/:110/:140`、`input_continuation_idempotency_test.go:14/:87`、`input_request_test.go:16/:72/:114/:225/:305/:413/:449/:490/:530/:556/:584/:647/:694/:738/:773/:802`、`input_workflow_test.go:9`、`lifecycle_reconciliation_failures_test.go:9/:102`、`mcp_server_test.go:17/:119/:129/:136/:162/:194/:266/:293/:333`（35 行中 [x]23/partial12，含 boundary 1）。
+
+owner：输入请求/续跑/幂等由 engine 输入端口与 ADK 认领层承接，MCP 目录与宿主防护由 MCP 生产执行器承接，会话时间线由事件投影拥有（`input_request :530` 记 boundary）。
+
+复核方法：35/35 参考行号签名一致；23 条 `[x]` 全部逐分支核对 Go 断言（输入校验三段、取消与迟答、暂停续跑、顺序问答、审批流转、重启续跑、载荷锚点、MCP 目录与宿主防护）；17 条锚点名字逐个匹配，6 条缺失锚点在核对通过后补齐。
+
+结论：0 verdict 翻转。6 处缺失锚点全部补齐（均为先核对通过、再补锚点）：`input_request :114`（校验一半，声明一半在另一用例）、`:449`（校验幂等冲突加回滚三段）、`:584`（原散文 Reference 行升级为规范锚点，awaiting_input 审计一半）、`mcp_server :129`（空目录不可构造的结构不变式）、`:136`（关闭幂等加拒绝重绑）、`:266`（evil 与缺失 Host 双 403）。其余 `[x]` 行证据与锚点齐备（`:72` 校验一半加端到端一半互链、`:738` 含上批修错的 resumeState 回归、MCP 各行均为镜像命名的新增复刻用例）。partial 行缺口均为真实结构差异。
+
+新增证据（注释 only）：6 行规范锚点分属 `product_adk_input_request_parity_tests.rs`（1）、`product_production_ports_adk_tests.rs`（1）、`product_mcp_server_tests.rs`（3）、`product_adk_model_runtime_terminal_audit_tests.rs`（1），无生产实现改动，无探针。
+
+映射终值（35 行）：`[x]` 23、partial 11、boundary 1。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 逐行复核 | 自建校验（参考行号签名 35/35、`[x]` 断言逐分支、`[x]` 锚点名字 23/23）在位 | 35 行 0 verdict 问题，6 锚点补齐 |
+| 账本写入 | 本分片只改 Rust 注释与文档账本再生，不涉及 verdict 变更 | `[x]` 1587 不变、partial 2227 不变、boundary 637 不变（合计 4451） |
+| 审计 | `python3 scripts/compatibility/audit_test_parity.py` | 0 条引用不存在 crate、0 条 `[x]` 缺 function_exact、rust_entry 唯一；缺锚点告警 182→176；Rust 测试 3293 不变 |
+| 锚点 | `python3 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1658→1664、已记录 1607→1613、unrecorded 0、stale 0、unknown 51 不变 |
+| 静态与格式 | `cargo fmt --all -- --check`、`pnpm run check:clippy`、`pnpm run check:rust:architecture` | 全过 |
+| 整轮 nextest | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast`（engine 整轮） | 首轮 1911/1911 一次通过，无抖动 |
+| 兼容与门禁 | `pnpm run check:compatibility`、`check:generated`、`check:ai-context`、`check:zero-go`、`pnpm run check:quick` | 全过：compat exit 0、generated 未改动工作树、ai-context 6 模块 8 指令文件、zero-go 2953 files、quick exit 0（nextest 1941/1941、pineworker 98/98） |
+| 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy` | 按预期失败（deny.toml advisory-not-detected），与本分片无关 |
+
+后续：engine 第四片完成；队列进入 engine 第五片（账本 1217 起约 35 行），engine 共 626 行约 18 片；随后 apiserver 下 assistant/ADK 相关 14 行。

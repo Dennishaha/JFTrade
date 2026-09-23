@@ -1043,6 +1043,7 @@ fn native_mcp_names_have_explicit_mapping_and_fail_closed_matrix() {
     }
 }
 
+/// Parity: go:452dea11:internal/assistant/engine/mcp_server_test.go:129 TestLocalMCPHandlerRequiresAtLeastOneReviewedTool
 #[test]
 fn reviewed_mcp_catalog_reports_native_and_fail_closed_counts() {
     let native = PRODUCTION_MCP_EXECUTABLE_TOOLS
@@ -3245,6 +3246,7 @@ fn non_post_requests_still_cross_security_boundary_before_method_rejection() {
     runtime.shutdown_blocking().expect("shutdown MCP");
 }
 
+/// Parity: go:452dea11:internal/assistant/engine/mcp_server_test.go:266 TestLocalMCPHandlerPreservesMCPHostProtection
 #[test]
 fn host_rebinding_and_missing_host_are_rejected() {
     let runtime = runtime();
@@ -3372,6 +3374,7 @@ fn cold_start_listener_failure_records_the_reason_and_recovery_clears_it() {
     runtime.shutdown_blocking().expect("shutdown MCP");
 }
 
+/// Parity: go:452dea11:internal/assistant/engine/mcp_server_test.go:136 TestLocalMCPHandlerCloseUnsubscribesRegistryListener
 #[test]
 fn shutdown_is_idempotent_and_closed_runtime_rejects_rebind() {
     let runtime = runtime();
