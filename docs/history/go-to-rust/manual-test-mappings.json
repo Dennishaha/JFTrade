@@ -7,7 +7,7 @@
     "treeSha": "0ee26444be21c15d9760f358a34649f78402f0fb"
   },
   "generatorVersion": "v2_writer.py@slice23",
-  "generatedAt": "2026-09-23T21:44:07Z",
+  "generatedAt": "2026-09-23T21:57:11Z",
   "mappings": {
     "cmd/jftrade-api/main_test.go:13:TestValidateArgsAllowsNoArgs": {
       "status": "[~]",
@@ -281116,11 +281116,11 @@
       "boundaryReason": null
     },
     "internal/trading/control_plane_state_audit_test.go:250:TestControlPlaneSurfacesHardStopRejectionAuditPersistenceFailure": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-trading/tests/hard_stop_environment_scope.rs::test_control_plane_surfaces_hard_stop_rejection_audit_persistence_failure",
-      "conclusion": "部分覆盖：Rust 用例仅断言风控拒绝的原因码为 REAL_TRADE_HARD_STOP_ACTIVE。未覆盖：降级快照字段（available=false、ControlPlaneError 含 persist hard-stop rejection audit、matched hard stop 保留且 AccountID 为 ACC-1、reason 文案含 hard-stop audit unavailable）、失败审计无内存事件泄漏（events 长度不变）、后续 mutation 报 unavailable。生产侧 Rust 已有该文案（product_execution_risk_coordinator.rs:315）但无测试覆盖。回归要求：用阻塞审计持久化驱动等价 seam（ExecutionRiskCoordinator::execute_with_risk_guard）提交 REAL 单，断言降级快照字段、事件无泄漏与后续 mutation 不可用后再升 [x]。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading",
-      "evidence_type": "partial",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-engine/src/product_execution_risk_coordinator_tests.rs::hard_stop_rejection_audit_failure_degrades_the_snapshot_and_blocks_later_mutations",
+      "conclusion": "已覆盖（本批生产修复）：Go 要求审计持久化失败时订单仍以 REAL_TRADE_HARD_STOP_ACTIVE 被拒、快照降级、matched hard stop 保留、无内存事件泄漏、后续 mutation 报 unavailable。Rust 原先返回 500 CONTROL_PLANE_PERSIST_FAILED 且无粘性降级。本批在 ExecutionRiskCoordinator 加粘性 audit_unavailable（对标 Go 永不清除的 unavailableErr）：拒绝审计落盘失败时恢复内存状态、记录 persist hard-stop rejection audit、返回 403 REAL_TRADE_HARD_STOP_ACTIVE 且消息带 hard-stop audit unavailable；snapshot 优先报告粘性记录（available=false，读文件恢复正常也不清除）；mutate_with 先查粘性并返回 Unavailable real-trade control plane is unavailable。新增测试用只读目录隔离审计落盘失败，逐项断言 403 与原因码、消息文案、快照降级字段与 ACC-1 条目保留、拒绝事件零增长、后续释放报 Unavailable。先红（500 对 403）后绿；同模块 20/20、trading 整轮 85/85 无波及。",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(hard_stop_rejection_audit_failure_degrades_the_snapshot_and_blocks_later_mutations)'",
+      "evidence_type": "function_exact",
       "source": {
         "file": "internal/trading/control_plane_state_audit_test.go",
         "line": 250,
@@ -281129,22 +281129,22 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-trading/tests/hard_stop_environment_scope.rs",
-          "test": "test_control_plane_surfaces_hard_stop_rejection_audit_persistence_failure",
-          "crate": "jftrade-trading",
+          "file": "crates/jftrade-engine/src/product_execution_risk_coordinator_tests.rs",
+          "test": "hard_stop_rejection_audit_failure_degrades_the_snapshot_and_blocks_later_mutations",
+          "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/trading/control_plane_state_audit_test.go",
             "goLine": 250,
-            "rustFile": "crates/jftrade-trading/tests/hard_stop_environment_scope.rs",
-            "rustLine": 177
+            "rustFile": "crates/jftrade-engine/src/product_execution_risk_coordinator_tests.rs",
+            "rustLine": 300
           }
         }
       ],
       "assertionCoverage": {
-        "covered": [],
-        "uncovered": [
-          "部分覆盖：Rust 用例仅断言风控拒绝的原因码为 REAL_TRADE_HARD_STOP_ACTIVE。未覆盖：降级快照字段（available=false、ControlPlaneError 含 persist hard-stop rejection audit、matched hard stop 保留且 AccountID 为 ACC-1、reason 文案含 hard-stop audit unavailable）、失败审计无内存事件泄漏（events 长度不变）、后续 mutation 报 unavailable。生产侧 Rust 已有该文案（product_execution_risk_coordinator.rs:315）但无测试覆盖。回归要求：用阻塞审计持久化驱动等价 seam（ExecutionRiskCoordinator::execute_with_risk_guard）提交 REAL 单，断言降级快照字段、事件无泄漏与后续 mutation 不可用后再升 [x]。"
+        "covered": [
+          "已覆盖（本批生产修复）：Go 要求审计持久化失败时订单仍以 REAL_TRADE_HARD_STOP_ACTIVE 被拒、快照降级、matched hard stop 保留、无内存事件泄漏、后续 mutation 报 unavailable。Rust 原先返回 500 CONTROL_PLANE_PERSIST_FAILED 且无粘性降级。本批在 ExecutionRiskCoordinator 加粘性 audit_unavailable（对标 Go 永不清除的 unavailableErr）：拒绝审计落盘失败时恢复内存状态、记录 persist hard-stop rejection audit、返回 403 REAL_TRADE_HARD_STOP_ACTIVE 且消息带 hard-stop audit unavailable；snapshot 优先报告粘性记录（available=false，读文件恢复正常也不清除）；mutate_with 先查粘性并返回 Unavailable real-trade control plane is unavailable。新增测试用只读目录隔离审计落盘失败，逐项断言 403 与原因码、消息文案、快照降级字段与 ACC-1 条目保留、拒绝事件零增长、后续释放报 Unavailable。先红（500 对 403）后绿；同模块 20/20、trading 整轮 85/85 无波及。"
         ],
+        "uncovered": [],
         "source": "legacy-conclusion"
       },
       "verification": {
@@ -281153,10 +281153,14 @@
           "scripts/quality/cargo-nextest.mjs",
           "run",
           "-p",
-          "jftrade-trading"
+          "jftrade-engine",
+          "--all-targets",
+          "--locked",
+          "-E",
+          "test(hard_stop_rejection_audit_failure_degrades_the_snapshot_and_blocks_later_mutations)"
         ],
         "testFilter": [
-          "test_control_plane_surfaces_hard_stop_rejection_audit_persistence_failure"
+          "hard_stop_rejection_audit_failure_degrades_the_snapshot_and_blocks_later_mutations"
         ],
         "runnerVersion": null,
         "toolchain": null,
@@ -281169,15 +281173,15 @@
       "risk": "high",
       "owner": "trading_broker",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
+      "nextAction": "record_receipt_and_review_assertions",
       "blockedBy": [
-        "behavioral-parity-review"
+        "verification-receipt"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [],
-      "uncoveredAssertions": [
-        "部分覆盖：Rust 用例仅断言风控拒绝的原因码为 REAL_TRADE_HARD_STOP_ACTIVE。未覆盖：降级快照字段（available=false、ControlPlaneError 含 persist hard-stop rejection audit、matched hard stop 保留且 AccountID 为 ACC-1、reason 文案含 hard-stop audit unavailable）、失败审计无内存事件泄漏（events 长度不变）、后续 mutation 报 unavailable。生产侧 Rust 已有该文案（product_execution_risk_coordinator.rs:315）但无测试覆盖。回归要求：用阻塞审计持久化驱动等价 seam（ExecutionRiskCoordinator::execute_with_risk_guard）提交 REAL 单，断言降级快照字段、事件无泄漏与后续 mutation 不可用后再升 [x]。"
+      "coveredAssertions": [
+        "已覆盖（本批生产修复）：Go 要求审计持久化失败时订单仍以 REAL_TRADE_HARD_STOP_ACTIVE 被拒、快照降级、matched hard stop 保留、无内存事件泄漏、后续 mutation 报 unavailable。Rust 原先返回 500 CONTROL_PLANE_PERSIST_FAILED 且无粘性降级。本批在 ExecutionRiskCoordinator 加粘性 audit_unavailable（对标 Go 永不清除的 unavailableErr）：拒绝审计落盘失败时恢复内存状态、记录 persist hard-stop rejection audit、返回 403 REAL_TRADE_HARD_STOP_ACTIVE 且消息带 hard-stop audit unavailable；snapshot 优先报告粘性记录（available=false，读文件恢复正常也不清除）；mutate_with 先查粘性并返回 Unavailable real-trade control plane is unavailable。新增测试用只读目录隔离审计落盘失败，逐项断言 403 与原因码、消息文案、快照降级字段与 ACC-1 条目保留、拒绝事件零增长、后续释放报 Unavailable。先红（500 对 403）后绿；同模块 20/20、trading 整轮 85/85 无波及。"
       ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/trading/execution_combo_lifecycle_test.go:15:TestExecutionComboCompletePreviewPlaceCancelAndBuyingPower": {
@@ -293577,6 +293581,14 @@
       "referenceCount": 1,
       "referenceKeys": [
         "internal/trading/execution_test.go:874:TestRealTradeControlPlaneRollsBackFailedPersistence"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_execution_risk_coordinator_tests.rs::hard_stop_rejection_audit_failure_degrades_the_snapshot_and_blocks_later_mutations": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/trading/control_plane_state_audit_test.go:250:TestControlPlaneSurfacesHardStopRejectionAuditPersistenceFailure"
       ],
       "allowed": true,
       "reviewStatus": "single"
@@ -310076,14 +310088,6 @@
       "referenceCount": 1,
       "referenceKeys": [
         "internal/trading/risk_status_broker_boundaries_test.go:13:TestRiskDecisionAndHardStopBoundarySemantics"
-      ],
-      "allowed": true,
-      "reviewStatus": "single"
-    },
-    "crates/jftrade-trading/tests/hard_stop_environment_scope.rs::test_control_plane_surfaces_hard_stop_rejection_audit_persistence_failure": {
-      "referenceCount": 1,
-      "referenceKeys": [
-        "internal/trading/control_plane_state_audit_test.go:250:TestControlPlaneSurfacesHardStopRejectionAuditPersistenceFailure"
       ],
       "allowed": true,
       "reviewStatus": "single"

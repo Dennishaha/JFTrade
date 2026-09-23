@@ -297,6 +297,108 @@ fn mutate_with_persist_failure_fails_closed_and_preserves_memory_state() {
     }
 }
 
+/// Parity: go:452dea11:internal/trading/control_plane_state_audit_test.go:250 TestControlPlaneSurfacesHardStopRejectionAuditPersistenceFailure
+#[test]
+fn hard_stop_rejection_audit_failure_degrades_the_snapshot_and_blocks_later_mutations() {
+    let dir = TempDir::new().unwrap();
+    let initial_json = r#"{
+        "riskConfig": {
+            "realTradingEnabled": true
+        },
+        "hardStops": [
+            {
+                "id": "hs-acc-1",
+                "brokerId": "futu",
+                "tradingEnvironment": "REAL",
+                "accountId": "ACC-1",
+                "market": "US",
+                "symbol": "AAPL"
+            }
+        ]
+    }"#;
+    let path = write_control_file(dir.path(), initial_json);
+    let mut coordinator = ExecutionRiskCoordinator::new(path);
+
+    let before = coordinator.snapshot();
+    assert!(before.control_plane_available);
+    assert_eq!(before.hard_stop_events.len(), 0);
+
+    // Block audit persistence while keeping reads working: the rejection audit
+    // cannot be persisted, so the order must stay hard-stop rejected with a
+    // degraded snapshot instead of failing as a persistence error.
+    let readonly_dir = dir.path().join("ro");
+    fs::create_dir(&readonly_dir).unwrap();
+    let readonly_path = readonly_dir.join("control.json");
+    fs::write(&readonly_path, initial_json).unwrap();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        fs::set_permissions(&readonly_dir, fs::Permissions::from_mode(0o555)).unwrap();
+    }
+    coordinator.path = readonly_path.clone();
+
+    let order = test_order(TradingEnvironment::Real, 1.0, 10.0);
+    let rejection = coordinator
+        .execute_with_risk_guard(&order, || Ok("submitted"))
+        .expect_err("hard-stop order must be rejected when the rejection audit cannot persist");
+    match rejection {
+        ExecutionWritePortError::Failed {
+            status,
+            code,
+            message,
+        } => {
+            assert_eq!(status, 403);
+            assert_eq!(code, "REAL_TRADE_HARD_STOP_ACTIVE");
+            assert!(
+                message.contains("hard-stop audit unavailable"),
+                "message = {message}"
+            );
+        }
+        other => panic!("expected 403 REAL_TRADE_HARD_STOP_ACTIVE, got {other:?}"),
+    }
+
+    // The failed audit must not leak a durable event, and the degraded
+    // snapshot keeps the matched hard stop while reporting unavailable.
+    let degraded = coordinator.snapshot();
+    assert!(!degraded.control_plane_available);
+    let error = degraded
+        .control_plane_error
+        .expect("degraded snapshot must carry the audit error");
+    assert!(
+        error.contains("persist hard-stop rejection audit"),
+        "error = {error}"
+    );
+    assert_eq!(degraded.hard_stop_events.len(), 0);
+    assert!(
+        degraded
+            .hard_stop_entries
+            .iter()
+            .any(|entry| entry.account_id == "ACC-1"),
+        "entries = {:?}",
+        degraded.hard_stop_entries
+    );
+
+    // Later mutations fail closed while the plane stays degraded.
+    let blocked = coordinator
+        .mutate_with(|state| {
+            state.hard_stops.clear();
+            Ok(())
+        })
+        .expect_err("mutations must be unavailable after an audit persistence failure");
+    match blocked {
+        SystemWritePortError::Unavailable(message) => {
+            assert!(message.contains("unavailable"), "message = {message}");
+        }
+        other => panic!("expected unavailable mutation error, got {other:?}"),
+    }
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let _ = fs::set_permissions(&readonly_dir, fs::Permissions::from_mode(0o755));
+    }
+}
+
 fn kill_switch_entry(id: &str) -> jftrade_trading::RealTradeKillSwitchEntry {
     jftrade_trading::RealTradeKillSwitchEntry {
         id: id.to_owned(),

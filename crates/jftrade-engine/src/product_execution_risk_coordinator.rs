@@ -25,6 +25,11 @@ struct CoordinatorInner {
     generation: u64,
     state: RealTradeControlState,
     control_plane_error: Option<String>,
+    /// Sticky degradation left by a failed hard-stop rejection audit. Go keeps
+    /// this flag for the plane lifetime (`unavailableErr` is never cleared):
+    /// later snapshots stay unavailable and later mutations fail closed even
+    /// when the control file reads fine again.
+    audit_unavailable: Option<String>,
 }
 
 impl ExecutionRiskCoordinator {
@@ -39,6 +44,7 @@ impl ExecutionRiskCoordinator {
                 generation: 1,
                 state,
                 control_plane_error: None,
+                audit_unavailable: None,
             }),
         })
     }
@@ -57,6 +63,7 @@ impl ExecutionRiskCoordinator {
                 generation: 1,
                 state,
                 control_plane_error,
+                audit_unavailable: None,
             }),
         }
     }
@@ -97,10 +104,11 @@ impl ExecutionRiskCoordinator {
             }
         }
         if let Ok(guard) = self.state.lock() {
-            RealTradeRiskSnapshot::from_control_state(
-                guard.state.clone(),
-                guard.control_plane_error.clone(),
-            )
+            let degraded = guard
+                .audit_unavailable
+                .clone()
+                .or(guard.control_plane_error.clone());
+            RealTradeRiskSnapshot::from_control_state(guard.state.clone(), degraded)
         } else {
             RealTradeRiskSnapshot::from_control_state(
                 RealTradeControlState::default(),
@@ -122,6 +130,20 @@ impl ExecutionRiskCoordinator {
         let _gate = self.submission_gate.lock().map_err(|_| {
             SystemWritePortError::Unavailable("submission gate poisoned".to_owned())
         })?;
+
+        if let Some(record) = self
+            .state
+            .lock()
+            .map_err(|_| {
+                SystemWritePortError::Unavailable("risk coordinator lock poisoned".to_owned())
+            })?
+            .audit_unavailable
+            .clone()
+        {
+            return Err(SystemWritePortError::Unavailable(format!(
+                "real-trade control plane is unavailable: {record}"
+            )));
+        }
 
         let fresh_state = match load_state_strict(&self.path) {
             Ok(s) => s,
@@ -305,14 +327,16 @@ impl ExecutionRiskCoordinator {
             );
             candidate.events.truncate(REAL_TRADE_EVENT_LIMIT);
             if let Err(error) = persist_state(&self.path, &candidate) {
+                let record = format!("persist hard-stop rejection audit: {error}");
                 if let Ok(mut guard) = self.state.lock() {
-                    guard.control_plane_error = Some(error.clone());
+                    guard.audit_unavailable = Some(record.clone());
+                    guard.control_plane_error = Some(record.clone());
                     guard.generation = guard.generation.wrapping_add(1);
                 }
                 return Err(ExecutionWritePortError::Failed {
-                    status: 500,
-                    code: "CONTROL_PLANE_PERSIST_FAILED".to_owned(),
-                    message: format!("persist hard-stop rejection audit: {error}"),
+                    status: 403,
+                    code: code.clone(),
+                    message: format!("{message} (hard-stop audit unavailable: {record})"),
                 });
             }
             if let Ok(mut guard) = self.state.lock() {

@@ -4532,3 +4532,28 @@ owner：能力目录与路由投影由 jftrade-engine 承接，市场规则与�
 | 文档门禁 | fmt、ai-context、migration-manifest、zero-go、quick、diff check | 全过（fmt 过；ai-context 过；migration-manifest 过；zero-go 过；quick 全过，engine 1943/1943 加 clippy 与兼容 replay；diff check 过） |
 
 后续：第 129 批收口；4451 行全量终值 [x] 1561、partial 2252、boundary 638。已登记缺口按 P0→P1→P2 进入补测与功能修复阶段（含 control_plane_state_audit:99/:250、execution:573 等 trading 域回归要求）。
+
+### 第 130 批分片一：control_plane_state_audit:250 降级快照回归闭环（1 处生产修复、1 行升 [x]）
+
+范围：internal/trading/control_plane_state_audit_test.go:250 TestControlPlaneSurfacesHardStopRejectionAuditPersistenceFailure。owner：真实交易控制面由 jftrade-engine 经 ExecutionRiskCoordinator 承接，无双写。
+
+缺口复述：Go 要求拒绝审计落盘失败时订单仍以 REAL_TRADE_HARD_STOP_ACTIVE 被拒、快照降级（available=false、ControlPlaneError 含 persist hard-stop rejection audit、matched hard stop 保留、reason 含 hard-stop audit unavailable）、无内存事件泄漏、后续 mutation 报 unavailable。Rust 原先返回 500 CONTROL_PLANE_PERSIST_FAILED，且降级标记会被一次成功重读清除、后续 mutation 不报 unavailable。
+
+生产修复（crates/jftrade-engine/src/product_execution_risk_coordinator.rs）：加粘性 audit_unavailable（对标 Go 永不清除的 unavailableErr）。拒绝审计落盘失败时恢复内存候选、记录 persist hard-stop rejection audit、返回 403 REAL_TRADE_HARD_STOP_ACTIVE 且消息为原风控消息加 hard-stop audit unavailable 后缀；snapshot 优先报告粘性记录；mutate_with 先查粘性并返回 Unavailable real-trade control plane is unavailable。matched 语义由快照的 hard_stop_entries 保留 ACC-1 条目承载（Rust 该面无逐决策 matched 对象）。
+
+回归测试：hard_stop_rejection_audit_failure_degrades_the_snapshot_and_blocks_later_mutations，用只读目录隔离审计落盘失败（读正常、写失败），逐项断言 403 与原因码、消息文案、快照降级字段与 ACC-1 条目保留、拒绝事件零增长、后续释放报 Unavailable。先红（500 对 403，EXIT=100）后绿；同模块 20/20、trading 整轮 85/85 无波及。
+
+映射终值：该行 partial→[x]。全量：[x] 1562、partial 2251、boundary 638（合计 4451）；Rust 测试 3297→3298（本批新增 1 个 engine 回归用例）。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 回归先红后绿 | 新测试在未改生产前跑出 500 对 403（EXIT=100），修复后通过 | 红绿确认 |
+| Rust 定向测试 | engine 协调器模块 20 用例、trading 整轮 | 20/20 通过；85/85 通过 |
+| 账本写入 | v2 写入器 1 行 | [x] 1562、partial 2251、boundary 638（合计 4451） |
+| 审计 | python3 scripts/compatibility/audit_test_parity.py --write-report | 通过（exit 0）；report/inventory 刷新 |
+| 锚点 | python3 scripts/compatibility/parity_anchor_reconcile.py | anchors 1734、已记录 1688、unrecorded 0、stale 0、unknown 46 |
+| 文档门禁 | fmt、ai-context、migration-manifest、zero-go、quick、diff check | 全过（fmt 过；ai-context 过；migration-manifest 过；zero-go 过；quick 全过，engine 1944/1944 加 clippy 与兼容 replay；diff check 过） |
+
+后续：第 130 批分片二取 control_plane_state_audit:99（空白与不可用平面 mutation 矩阵）。
