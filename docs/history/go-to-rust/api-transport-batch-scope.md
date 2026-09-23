@@ -2535,3 +2535,29 @@ owner：组装中段覆盖 MCP 服务管理、市场指数/新闻工具、组合
 | 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy` | 仍因 `deny.toml` 的 `advisory-not-detected`（advisories FAILED，bans/licenses/sources ok）失败 |
 
 后续：队列进入 `internal/assistant/assembly` 末段 34 行，随后 engine 626 与 apiserver 下 assistant/ADK 相关 14 行。
+
+### 第 129 批分片九：`internal/assistant/assembly` 末段 34 行（assembly 收官，无 verdict 翻转）
+
+范围（按文件与行号升序）：`product_adapters_test.go:15/:26/:83/:186/:217`、`product_execution_contracts_test.go:84`、`runtime_test.go:14/:45/:55/:74/:131`、`tool_catalog_test.go:16/:159/:272/:415/:550/:672/:707`、`typed_product_capabilities_test.go:11/:45`、`watchlist_adapter_test.go:24/:72`、`workflow_bridge_contracts_test.go:14/:103`、`workflow_execution_injection_test.go:60`、`workflow_tools_error_boundaries_test.go:52/:103`、`workflow_tools_test.go:15/:68/:86/:132/:183/:240/:285`（34 行中 [x]8/partial26）。至此 assembly 104 行全部收口（前 35、中段 35、末段 34）。
+
+owner：末段覆盖产品/执行适配器、运行时生命周期、工具目录、类型化能力、自选适配器与工作流管理工具；写入 owner 在领域 crate——运行时装配由 engine composition root 承接，工具目录与适配器由 MCP 生产执行器承接，工作流管理由 ADK 读写端口承接。
+
+复核方法：34/34 参考行号签名一致；账本引用逐段解析全部指向真实测试；8 条 `[x]` 锚点在位；partial 行抽查 Go 原文与结论对应关系（运行时生命周期、工具目录助手、轮询等待、bridge 读写、执行器注入）。
+
+结论：35 行级复核 0 verdict 问题——`[x]` 行证据与锚点齐备；partial 行缺口均为真实结构差异（运行期工具注册通道、轮询等待工具、交互式 session 门禁、注入执行器入口等 Go 独有面已按边界保留并登记升级路径）。无升级、无降级、无新增缺口。
+
+映射终值（34 行）：`[x]` 8、partial 26、boundary 0。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 逐行复核 | 自建校验（参考行号签名 34/34、引用逐段可解析 34/34、`[x]` 锚点在位 8/8） | 34 行 0 verdict 问题 |
+| 审计 | `python3 scripts/compatibility/audit_test_parity.py` | 0 条引用不存在 crate、0 条 `[x]` 缺 function_exact、rust_entry 唯一；缺锚点告警 183 不变；Rust 测试 3293 不变 |
+| 锚点 | `python3 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1658 不变、unrecorded 0、stale 0、unknown 51 不变 |
+| 静态与格式 | `cargo fmt --all -- --check`、`pnpm run check:clippy`、`pnpm run check:rust:architecture` | 全过 |
+| 整轮 nextest | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast`（engine 整轮） | 1941/1941 通过 |
+| 兼容与门禁 | `pnpm run check:compatibility`、`check:generated`、`check:ai-context`、`check:zero-go`、`pnpm run check:quick` | 全过：transport 278 ops / provider 14+9+3+3 / storage replay 通过，pineworker 98/98，nextest 1941/1941 |
+| 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy` | 按预期失败（deny.toml advisory-not-detected），与本分片无关 |
+
+后续：assembly 收官；队列进入 `internal/assistant/engine` 626 行（需再分片），随后 apiserver 下 assistant/ADK 相关 14 行。
