@@ -3211,3 +3211,30 @@ owner：交易会话与日历边界在 Rust 由 jftrade-calendar（manager_sessi
 | 已知失败（如实记录） | check:rust:static、check:rust:policy 结果见日志；--strict 全仓缺口未达标（非本分片阻塞）；失败项不记为通过 | static exit 0、policy exit 0 |
 
 后续：other 域本片完成（余 462 行）；队列随后 api_transport 439、backtest_calendar 307、storage_sqlite 196、marketdata_quotes 161、futu_opend 142、trading_broker 56、settings_watchlist 39。另：对齐审计线程提醒的 runner_chat:423 与 store:792 重复 [x] 本工作树已为 [x]+partial（审计唯一性通过），本次提交不改动该结论；strategy 15.5% 与 backtest 6.3% 仍为关键域缺口，按排期处理。
+
+### 第 129 批分片三十二：other 域覆盖工具 35 行（纯复核，无引用纠正、无 verdict 变更）
+
+范围（账本 rows 2817-2851，按写入顺序）：changed_lines_analysis_test.go:313/:326/:355/:372/:380/:393、main_test.go:17/:37/:61/:87/:95/:101/:116/:151/:188、profile_analysis_test.go:14/:46/:59/:85/:109/:120/:137/:173/:179/:202/:219/:238/:274/:291/:313、profile_merge_test.go:13/:30、runner_test.go:46/:53/:82。初值 [x] 0、partial 1、boundary 34。
+
+owner：Go 覆盖率 CLI 工具面已随 Go 运行时删除，Rust 侧无覆盖度分析实现；等价 owner 为 Node 覆盖门禁脚本，无双写。
+
+复核方法：35 条全量枚举引用有效性，逐条抽查 Go 原文与缺口描述；唯一 partial（profile_analysis:109 空业务覆盖 fail-closed）核对 Node 等价与 fail-open 差异登记；34 条 boundary 核对 Go 专用工具诚实度（go test 执行、coverprofile 合并、diff 解析、CLI 配置均无 Rust 同形对象）。结论：引用全部有效、缺口描述相符，0 纠正、0 升级。
+
+抽查证据：profile_analysis:109 的 Node 等价 owner 与阈值脚本测试本机 EXIT=0；changed_lines_analysis 家族与 runner 家族抽查 Go 原文均为 go.mod/diff 文本/coverprofile 专用逻辑，boundary 保留成立。
+
+新增证据：无（纯复核分片，无 Rust 改动、无账本行变更、无新增锚点）。
+
+映射终值（35 行）：[x] 0、partial 1、boundary 34。全量：[x] 1566、partial 2248、boundary 637（合计 4451）；Rust 测试 3295 不变。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 逐行复核 | 35 条全量枚举引用有效性加缺口抽查，0 条 [x] | 0 纠正、0 升级；重复 [x] 全文唯一性检查通（0 重复） |
+| 账本写入 | 无变更 | [x] 1566、partial 2248、boundary 637（合计 4451）不变 |
+| 审计 | python3 scripts/compatibility/audit_test_parity.py --write-report | 通过（exit 0）；report 仅刷新 Rust 基线到 d99764d9，inventory 无变化 |
+| 锚点 | python3 scripts/compatibility/parity_anchor_reconcile.py | anchors 1724、已记录 1676、unrecorded 0、stale 0、unknown 48（均不变） |
+| 受影响证据 | node scripts/check-web-diff-thresholds.test.mjs | EXIT=0 |
+| 文档门禁 | check:ai-context、quick 完整计划 | ai-context 过；quick exit 0 | /tmp/s32_quick.log |
+
+后续：other 域本片完成（余 427 行）；队列随后 api_transport 439、backtest_calendar 307、storage_sqlite 196、marketdata_quotes 161、futu_opend 142、trading_broker 56、settings_watchlist 39。
