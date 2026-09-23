@@ -7,7 +7,7 @@
     "treeSha": "0ee26444be21c15d9760f358a34649f78402f0fb"
   },
   "generatorVersion": "v2_writer.py@slice23",
-  "generatedAt": "2026-09-23T20:03:51Z",
+  "generatedAt": "2026-09-23T20:05:41Z",
   "mappings": {
     "cmd/jftrade-api/main_test.go:13:TestValidateArgsAllowsNoArgs": {
       "status": "[~]",
@@ -243524,7 +243524,7 @@
     },
     "internal/store/trading/submission_safety_test.go:117:TestPredictionRFQPersistsBindingExpiryAndSingleConsumption": {
       "status": "[x]",
-      "rust_entry": "crates/jftrade-store-sqlite/src/prediction_quote.rs; crates/jftrade-store-sqlite/tests/prediction_quote_ledger.rs::prediction_rfq_persists_binding_expiry_and_single_consumption; ::prediction_rfq_rejects_missing_expired_and_malformed_rows; ::prediction_rfq_consume_is_fenced_by_status_and_expiry_in_one_transaction",
+      "rust_entry": "crates/jftrade-store-sqlite/tests/prediction_quote_ledger.rs::prediction_rfq_persists_binding_expiry_and_single_consumption; crates/jftrade-store-sqlite/tests/prediction_quote_ledger.rs::prediction_rfq_rejects_missing_expired_and_malformed_rows; crates/jftrade-store-sqlite/tests/prediction_quote_ledger.rs::prediction_rfq_consume_is_fenced_by_status_and_expiry_in_one_transaction",
       "conclusion": "function_exact：Rust 在 execution-orders SQLite 库内新增 `execution_prediction_quotes`，由同一个权威写入 owner（`ExecutionOrderStore` 唯一写锁）持有，三个行为一对一：保存后按相同 broker/account/environment/mvc/legsHash 验证成功并回读 `expirySource`；跨账户或改动 mvc/legsHash、超过 expires_at、空值/非法 status 全部失败（`NotFound`/`Validation`）；消费在 `BEGIN IMMEDIATE` 单事务内以 `UPDATE ... WHERE status='active' AND expires_at > now` 围栏，相同 preview/client 重放幂等，第二个 preview 触发 `Conflict`。Go 的幂等消费与过期围栏语义均被冻结。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(prediction_rfq)'",
       "evidence_type": "function_exact",
@@ -243538,6 +243538,28 @@
         {
           "file": "crates/jftrade-store-sqlite/tests/prediction_quote_ledger.rs",
           "test": "prediction_rfq_persists_binding_expiry_and_single_consumption",
+          "crate": "jftrade-store-sqlite",
+          "anchor": {
+            "goFile": "internal/store/trading/submission_safety_test.go",
+            "goLine": 117,
+            "rustFile": "crates/jftrade-store-sqlite/tests/prediction_quote_ledger.rs",
+            "rustLine": 1
+          }
+        },
+        {
+          "file": "crates/jftrade-store-sqlite/tests/prediction_quote_ledger.rs",
+          "test": "prediction_rfq_rejects_missing_expired_and_malformed_rows",
+          "crate": "jftrade-store-sqlite",
+          "anchor": {
+            "goFile": "internal/store/trading/submission_safety_test.go",
+            "goLine": 117,
+            "rustFile": "crates/jftrade-store-sqlite/tests/prediction_quote_ledger.rs",
+            "rustLine": 1
+          }
+        },
+        {
+          "file": "crates/jftrade-store-sqlite/tests/prediction_quote_ledger.rs",
+          "test": "prediction_rfq_consume_is_fenced_by_status_and_expiry_in_one_transaction",
           "crate": "jftrade-store-sqlite",
           "anchor": {
             "goFile": "internal/store/trading/submission_safety_test.go",
@@ -243565,7 +243587,9 @@
           "test(prediction_rfq)"
         ],
         "testFilter": [
-          "prediction_rfq_persists_binding_expiry_and_single_consumption"
+          "prediction_rfq_persists_binding_expiry_and_single_consumption",
+          "prediction_rfq_rejects_missing_expired_and_malformed_rows",
+          "prediction_rfq_consume_is_fenced_by_status_and_expiry_in_one_transaction"
         ],
         "runnerVersion": null,
         "toolchain": null,
@@ -308695,7 +308719,23 @@
       "allowed": false,
       "reviewStatus": "unreviewed"
     },
+    "crates/jftrade-store-sqlite/tests/prediction_quote_ledger.rs::prediction_rfq_consume_is_fenced_by_status_and_expiry_in_one_transaction": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/store/trading/submission_safety_test.go:117:TestPredictionRFQPersistsBindingExpiryAndSingleConsumption"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
     "crates/jftrade-store-sqlite/tests/prediction_quote_ledger.rs::prediction_rfq_persists_binding_expiry_and_single_consumption": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/store/trading/submission_safety_test.go:117:TestPredictionRFQPersistsBindingExpiryAndSingleConsumption"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-store-sqlite/tests/prediction_quote_ledger.rs::prediction_rfq_rejects_missing_expired_and_malformed_rows": {
       "referenceCount": 1,
       "referenceKeys": [
         "internal/store/trading/submission_safety_test.go:117:TestPredictionRFQPersistsBindingExpiryAndSingleConsumption"

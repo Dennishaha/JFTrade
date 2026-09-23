@@ -3933,3 +3933,31 @@ owner：成交对账语义由 jftrade-engine 承接，执行订单持久化与�
 | 文档门禁 | check:ai-context、migration-manifest、zero-go、quick、diff check | 见下 |
 
 后续：继续 35 行步调（rows 3734 起；尾部余 718 行）；队列按账本实际顺序推进（交易、存储、行情、集成、设置）。
+
+### 第 129 批分片五十九：rows 3734-3768 交易尾与自选股存储 35 行（1 处引用纠正，无 verdict 变更）
+
+范围（账本 rows 3734-3768，按写入顺序）：trading startup_compatibility:87/:105/:131/:156、submission_safety:13/:63/:117、watchlist delete_transaction_rollback:9/:84、import_persistence_boundaries:13/:130/:172、import_storage_faults:10、import:47/:150/:174/:239、items_query_plan:12/:70、maintenance:8、storage_failure_boundaries:14/:126/:151/:213/:292、store_availability_and_filters:12/:44/:89/:164、store:14/:100/:122/:150/:196/:253。初值 [x] 4、partial 24、boundary 7，终值不变。首键自检通过，无重叠。
+
+owner：执行订单持久化与预测询价账本由 jftrade-store-sqlite 承接（预测消费围栏在 ExecutionOrderStore 唯一写锁内），自选股存储由 jftrade-store-sqlite 承接，维护快照由 maintenance 契约承接，无双写。
+
+复核方法：35 条全量枚举引用有效性（17 个去重后引用逐个核对 #[test]），4 条 [x] 逐条核对锚点归属与断言等价（全部带锚点），partial 与 boundary 抽查缺口诚实度。结论：1 处引用纠正，0 升级、0 降级。
+
+纠正：submission_safety:117 的引用串格式损坏（裸生产文件加两个缺文件名的片段，解析只命中 1 个证据），正主为 prediction_quote_ledger.rs 内三个同文件用例（均带 #[test]，文件头带本 Go 用例的 Parity 锚点），经 v2 写入器纠正为三条完整路径，证据 3/3 带锚点；verdict 保持 [x]（三行为一对一）。
+
+抽查证据：部分残表/错列布局/缺运行时表拒绝均为同形建库断言；boundary 均为结构差异（Rust 无 nil 对象、无连接器重校验层、无序号后缀回读）；dup-x 为 0。
+
+新增证据：无 Rust 改动；账本 1 行纠正；无新增锚点。
+
+映射终值（35 行）：[x] 4、partial 24、boundary 7。全量：[x] 1565、partial 2248、boundary 638（合计 4451）；Rust 测试 3295 不变。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 逐行复核 | 35 条全量枚举引用有效性（17 去重引用）加 [x] 断言等价核对 | 1 引用纠正；0 升级、0 降级；重复 [x] 全文唯一性检查通（0 重复） |
+| 账本写入 | v2 写入器 1 行 | [x] 1565、partial 2248、boundary 638（合计 4451）不变 |
+| 审计 | python3 scripts/compatibility/audit_test_parity.py --write-report | 通过（exit 0）；inventory 随纠正行更新，report 刷新基线；既有告警不变 |
+| 锚点 | python3 scripts/compatibility/parity_anchor_reconcile.py | anchors 1724、已记录 1677、unrecorded 0、stale 0、unknown 47（均不变） |
+| 文档门禁 | check:ai-context、migration-manifest、zero-go、quick、diff check | 见下 |
+
+后续：继续 35 行步调（rows 3769 起；尾部余 683 行）；队列按账本实际顺序推进（自选股、存储、行情、集成、设置）。
