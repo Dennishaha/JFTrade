@@ -2700,3 +2700,32 @@ owner：MCP 状态面由 MCP 生产执行器承接，租约/重放/崩溃策略�
 | 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy` | 按预期失败（deny.toml advisory-not-detected），与本分片无关 |
 
 后续：engine 第五片完成；队列进入 engine 第六片（账本 1252 起约 35 行），engine 共 626 行约 18 片；随后 apiserver 下 assistant/ADK 相关 14 行。
+
+### 第 129 批分片十五：`internal/assistant/engine` 第六片 35 行（2 处锚点修正，无 verdict 翻转）
+
+范围（账本 inventory 1252-1286，按账本顺序）：`providers/probe_test.go:81/:105`、`providers/reasoning_effort_transport_test.go:14/:64`、`providers/responses_model_test.go:18/:48/:87/:96/:112/:144`、`providers/safe_http_test.go:14/:41`、`reasoning_effort_lifecycle_test.go:10/:23`、`responses_model_runtime_test.go:9`、`responses_stream_projection_test.go:12`、`resumed_execution_recovery_boundaries_test.go:14/:92/:111`、`run_timeline_test.go:8`、`runner_approval_concurrency_test.go:12/:92/:119/:154/:191`、`runner_chat_callbacks_test.go:49`、`runner_chat_continuation_signal_test.go:9/:22/:52`、`runner_chat_runtime_branches_test.go:55/:190/:337/:487`、`runner_chat_test.go:18`（[x]，组合证据）、`:56`（boundary，RequestedInput 触发面不存在）（35 行中 [x]5/partial18/boundary12）。
+
+owner：provider 探针/推理传输/模型请求面由 provider 适配层承接（Rust 无 reasoning 注入与 safe dial 面，记边界缺口），审批并发与续跑租约由 assistant claims 层与 engine fencing 层承接，聊天校验与闸门由 ADK 聊天端口承接。
+
+复核方法：5 条 `[x]` 全部逐分支核对 Go 原文与 Rust 证据（并发审批幂等与冲突安全、兄弟审批合并后只续跑一次、已认领 continuation 答 envelope 且工具只执行一次、取消信号传播到等待方、并发闸门第 11 个失败关闭与释放重放行；:18 的空消息/超长/裁剪分支由聊天错误分类用例覆盖，最大长度按 rune 计数、裁剪后度量）；partial/boundary 行抽查结论与 Go 原文对应关系（safe dial、reasoning 注入、流式 usage、continuation-only 信号识别等面在 Rust 确无对应实现）。
+
+结论：0 verdict 翻转。2 处锚点修正：其一 `runner_approval_concurrency_test.go:119` 的既有锚点误写 `:105`（落到 unknown 桶），行为核对通过后按基线函数行号修正为标准单行锚点；其二 `runner_chat_test.go:18` 缺锚点，行为经组合证据核对通过后补规范锚点，并把该行 entry 补成组合形式（闸门用例 + 聊天错误分类用例，组合全文在 [x] 行间唯一）。:12/:92/:191 的锚点行号与基线一致、证据齐备。
+
+新增证据（注释 only）：1 行锚点修正（`product_production_ports_adk_tests.rs`）、1 行规范锚点（`product_adk_model_runtime_gate_tests.rs`），无生产实现改动，无探针。
+
+映射终值（35 行）：`[x]` 5、partial 18、boundary 12。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 逐行复核 | 5 条 [x] 逐分支核对、partial/boundary 抽查 Go 原文 | 35 行 0 verdict 问题，2 锚点修正 |
+| 账本写入 | 1 行 entry 补组合形式（b82_apply），verdict 不变 | `[x]` 1587 不变、partial 2227 不变、boundary 637 不变（合计 4451） |
+| 审计 | `python3 scripts/compatibility/audit_test_parity.py` | 0 条引用不存在 crate、0 条 `[x]` 缺 function_exact；缺锚点告警 175→173；Rust 测试 3293 不变 |
+| 锚点 | `python3 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1665→1666、已记录 1614→1616、unrecorded 0、stale 0、unknown 51→50 |
+| 静态与格式 | `cargo fmt --all -- --check`、`pnpm run check:clippy`、`pnpm run check:rust:architecture` | fmt 通过、clippy exit 0、architecture 通过 |
+| 整轮 nextest | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast` | 首轮 1910/1911（1 抖动，见下），隔离 3/3 后第二轮 1911/1911 全绿；抖动为 compacted_context 消息排序用例，与本分片注释改动无关（不同文件、注释 only） |
+| 兼容与门禁 | `pnpm run check:compatibility`、`check:generated`、`check:ai-context`、`check:zero-go`、`pnpm run check:quick` | compat/generated/ai-context/zero-go 均 exit 0；quick exit 0（nextest 1941/1941、pineworker 98/98） |
+| 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy` | 按预期失败（deny.toml advisory-not-detected），与本分片无关 |
+
+后续：engine 第六片完成；队列进入 engine 第七片（账本 1287 起约 35 行），engine 共 626 行约 18 片；随后 apiserver 下 assistant/ADK 相关 14 行。

@@ -8989,7 +8989,7 @@
   },
   "internal/assistant/engine/runner_chat_test.go:18:TestPrepareChatRequestValidationAndConcurrency": {
     "status": "[x]",
-    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_gate_tests.rs::run_gate_rejects_the_eleventh_concurrent_run_and_releases_on_drop",
+    "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_gate_tests.rs::run_gate_rejects_the_eleventh_concurrent_run_and_releases_on_drop + crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_chat_route_reports_the_go_error_classification",
     "conclusion": "function_exact：Go prepareChatRequest 的非阻塞并发闸门（MaxConcurrentRuns=10）在 Rust 中补齐：第 11 个并发 run 立即以 400 ADK_CHAT_FAILED + \"maximum concurrent runs (10) reached, please try again later\" 失败，run 结束（guard drop）后重新放行；长度/空消息校验由 adk_chat_route_reports_the_go_error_classification 覆盖。probe B 证明移除闸门后测试转红。",
     "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(run_gate_'",
     "evidence_type": "function_exact"

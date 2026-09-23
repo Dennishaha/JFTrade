@@ -5453,8 +5453,7 @@ fn adk_approval_negative_and_idempotent_routes_match_the_go_envelopes() {
     assert_eq!(blank.body["error"]["message"], "approvalId is invalid");
 }
 
-/// Parity: go:452dea11:internal/assistant/engine/runner_approval_concurrency_test.go:105
-/// TestConcurrentSiblingAsyncApprovalsEnqueueOneContinuation.
+/// Parity: go:452dea11:internal/assistant/engine/runner_approval_concurrency_test.go:119 TestConcurrentSiblingAsyncApprovalsEnqueueOneContinuation.
 ///
 /// Go claims the continuation before starting it, so a second wakeup for a run
 /// whose continuation is already in flight returns the resolution envelope

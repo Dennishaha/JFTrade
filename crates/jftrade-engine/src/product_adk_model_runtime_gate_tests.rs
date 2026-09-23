@@ -49,6 +49,7 @@ fn initialized_stores() -> (tempfile::TempDir, Arc<AdkStore>, Arc<AdkSessionStor
 /// Go's `prepareChatRequest` rejects the request after the limit rather than
 /// queueing it, and reports the same wording as the reference implementation:
 /// `maximum concurrent runs (10) reached, please try again later`.
+/// Parity: go:452dea11:internal/assistant/engine/runner_chat_test.go:18 TestPrepareChatRequestValidationAndConcurrency
 #[test]
 fn run_gate_rejects_the_eleventh_concurrent_run_and_releases_on_drop() {
     assert_eq!(MAX_CONCURRENT_RUNS, 10);
