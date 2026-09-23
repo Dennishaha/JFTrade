@@ -3825,3 +3825,29 @@ owner：交易日历快照由 jftrade-calendar 承接，回测与研究存储由
 | 文档门禁 | check:ai-context、migration-manifest、zero-go、quick、diff check | ai-context 过；migration-manifest 过；zero-go 过；quick exit 0（文档账本类改动，空受影响计划）；diff check 过 |
 
 后续：api_transport 域继续（rows 3594 起；余约 54 行）；队列随后 backtest_calendar 307、storage_sqlite 196、marketdata_quotes 161、futu_opend 142、trading_broker 56、settings_watchlist 39。
+
+### 第 129 批分片五十五：rows 3594-3628 设置文件与连接家族 35 行（纯复核，无引用纠正、无 verdict 变更）
+
+范围（账本 rows 3594-3628，按写入顺序）：settingsfile rollback:13/:185/:232、store_persistence_contracts:15/:63/:105/:166/:203/:217/:261/:357/:397、store_recovery:13/:27/:55/:87/:111/:158、settingsfile store:13/:40/:83/:136/:154/:184/:205、sqliteconn conn:12/:47/:64/:76/:87/:125/:134/:163/:186/:203。初值 [x] 1、partial 28、boundary 6，终值不变。首键自检通过，无重叠。
+
+owner：设置文件持久化与回滚由 jftrade-store-settings-file 与 jftrade-settings 承接，SQLite 连接语义由 jftrade-store-sqlite 承接，无双写。
+
+复核方法：35 条全量枚举引用有效性，[x] 核对锚点与断言等价，partial 与 boundary 抽查缺口诚实度。结论：引用全部有效，0 纠正、0 升级。
+
+抽查证据：NYSE 唯一默认远端源两条列表断言一致；回滚覆盖不全（仅 appearance 可读）、原子替换失败上报缺失、只读写入拒绝无逐条断言、外键跨连接语义由单连接表达、连接池与并发读无对应物等缺口均诚实；dup-x 为 0。
+
+新增证据：无（纯复核分片，无 Rust 改动、无账本行变更、无新增锚点）。
+
+映射终值（35 行）：[x] 1、partial 28、boundary 6。全量：[x] 1565、partial 2248、boundary 638（合计 4451）；Rust 测试 3295 不变。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 逐行复核 | 35 条全量枚举引用有效性加断言等价抽查 | 0 纠正、0 升级；重复 [x] 全文唯一性检查通（0 重复） |
+| 账本写入 | 无变更 | [x] 1565、partial 2248、boundary 638（合计 4451）不变 |
+| 审计 | python3 scripts/compatibility/audit_test_parity.py --write-report | 通过（exit 0）；report 仅刷新基线，inventory 无变化；既有告警不变 |
+| 锚点 | python3 scripts/compatibility/parity_anchor_reconcile.py | anchors 1724、已记录 1677、unrecorded 0、stale 0、unknown 47（均不变） |
+| 文档门禁 | check:ai-context、migration-manifest、zero-go、quick、diff check | ai-context 过；migration-manifest 过；zero-go 过；quick exit 0（文档账本类改动，空受影响计划）；diff check 过 |
+
+后续：api_transport 域收尾（rows 3629 起；余约 19 行）；队列随后 backtest_calendar 307、storage_sqlite 196、marketdata_quotes 161、futu_opend 142、trading_broker 56、settings_watchlist 39。
