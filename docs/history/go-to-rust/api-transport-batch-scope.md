@@ -4345,3 +4345,29 @@ owner：PineTS 负载/影子投影由 jftrade-engine 承接，worker 传输/进�
 | 文档门禁 | fmt、ai-context、migration-manifest、zero-go、定向 engine、quick、diff check | 见下 |
 
 后续：继续 35 行步调（rows 4259 起；尾部余约 193 行）；队列按账本实际顺序推进（策略尾部、行情、集成、设置）。
+
+### 第 129 批分片七十四：rows 4259-4293 pineworker 管理器/启动器/传输 35 行（纯复核，无引用纠正、无 verdict 变更）
+
+范围（账本 rows 4259-4293，按写入顺序）：strategy pineworker grpc_transport:16/:71、hardcut_audit:12、manager_readiness_recovery:15、manager:14/:46/:74/:119/:158/:200/:236/:262/:281/:299/:324/:341/:359、payload_size:9/:26/:49、process_launcher_boundaries:19/:70/:94/:118/:165、process_launcher:16/:72/:88/:107/:114/:133/:141、process_smoke:20/:34、proto_contract:14。初值 [x] 3、partial 28、boundary 4，终值不变。首键自检通过，无重叠。
+
+owner：worker 池/进程/资产/传输由 jftrade-integration-pine 承接，输出有界预算由 jftrade-engine 承接，无双写。
+
+复核方法：35 条全量枚举引用有效性（19 个去重后引用逐个核对 #[test]/#[tokio::test] 与模块归属，0 缺失；初筛 5 个 MISS 均为 async fn 正则误报，直查源码确认），3 条 [x] 逐条核对锚点归属与断言等价（锚点齐全；:46 轮转 2/1 分布与 Rust 1→2→1 轮转对应，可观测字段差异已声明；:74 会话固定/轮转/关闭后不可 append 与 Rust pin/append/close/SessionNotFound 对应；:119 并发 open 竞态的保留写入机制由 Rust 同步 reserve 时写入 sessions 锁定，语义对应），partial 与 boundary 抽查缺口诚实度（:158 排队与失败关闭、:114 NODE_OPTIONS 规则、:133/:71 nil 防御三处边界理由与 Go 原文一致）。结论：0 纠正、0 升级、0 降级。
+
+抽查证据：[x] 结论均为逐值写法（含差异声明）；partial 缺口诚实（含池/进程/传输面的归属拆分）；dup-x 为 0（审计 exit 0）。
+
+新增证据：无（纯复核分片，无 Rust 改动、无账本行变更、无新增锚点）。
+
+映射终值（35 行）：[x] 3、partial 28、boundary 4。全量：[x] 1565、partial 2248、boundary 638（合计 4451）；Rust 测试 3295 不变。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 逐行复核 | 35 条全量枚举引用有效性（19 去重引用）加 [x] 断言等价核对 | 0 纠正、0 升级、0 降级；重复 [x] 全文唯一性检查通（0 重复） |
+| 账本写入 | 无变更 | [x] 1565、partial 2248、boundary 638（合计 4451）不变 |
+| 审计 | python3 scripts/compatibility/audit_test_parity.py --write-report | 通过（exit 0）；report 仅刷新基线，inventory 无变化；既有告警不变 |
+| 锚点 | python3 scripts/compatibility/parity_anchor_reconcile.py | anchors 1727、已记录 1680、unrecorded 0、stale 0、unknown 47（均不变） |
+| 文档门禁 | ai-context、migration-manifest、zero-go、quick、diff check | 见下 |
+
+后续：继续 35 行步调（rows 4294 起；尾部余约 158 行）；队列按账本实际顺序推进（策略尾部、行情、集成、设置）。
