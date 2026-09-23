@@ -7,7 +7,7 @@
     "treeSha": "0ee26444be21c15d9760f358a34649f78402f0fb"
   },
   "generatorVersion": "v2_writer.py@slice23",
-  "generatedAt": "2026-09-23T18:03:09Z",
+  "generatedAt": "2026-09-23T18:22:22Z",
   "mappings": {
     "cmd/jftrade-api/main_test.go:13:TestValidateArgsAllowsNoArgs": {
       "status": "[~]",
@@ -41815,8 +41815,8 @@
     },
     "internal/app/apiserver/runtimes/handle_lifecycle_test.go:573:TestHandleRejectsAssistantRuntimeInjectedAfterShutdown": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_production_assembly_tests.rs::production_adk_and_plugin_and_alert_ports",
-      "conclusion": "boundary：Rust Assistant 运行时由组合根持有，关闭后没有注入路径；端口在 shutdown 后不可用（ADK 端口关闭/错误码测试）。",
+      "rust_entry": "crates/jftrade-engine/src/product_runtime_tests.rs::test_product_runtime_ordered_shutdown_explicit",
+      "conclusion": "boundary（结构差异，本批纠正引用）：Go 断言关闭后注入的 Assistant 运行时被关闭一次且不发布，并返回 ErrResourcesClosed。原条目引用的是端口投影用例而非关闭面；Rust 没有 Handle/SetAssistant 注入路径（组合根持有全部运行时，迟到注入在类型系统层面不存在），最接近的结构类比是有序关闭用例（shutdown 成功且按构造逆序释放）。回归要求：若引入运行时热替换，需补“关闭后注入被拒绝且恰好关闭一次”断言后再升级。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
       "evidence_type": "boundary",
       "source": {
@@ -41827,16 +41827,21 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_production_assembly_tests.rs",
-          "test": "production_adk_and_plugin_and_alert_ports",
+          "file": "crates/jftrade-engine/src/product_runtime_tests.rs",
+          "test": "test_product_runtime_ordered_shutdown_explicit",
           "crate": "jftrade-engine",
-          "anchor": null
+          "anchor": {
+            "goFile": "internal/app/apiserver/runtimes/handle_lifecycle_test.go",
+            "goLine": 573,
+            "rustFile": "crates/jftrade-engine/src/product_runtime_tests.rs",
+            "rustLine": 682
+          }
         }
       ],
       "assertionCoverage": {
         "covered": [],
         "uncovered": [
-          "boundary：Rust Assistant 运行时由组合根持有，关闭后没有注入路径；端口在 shutdown 后不可用（ADK 端口关闭/错误码测试）。"
+          "boundary（结构差异，本批纠正引用）：Go 断言关闭后注入的 Assistant 运行时被关闭一次且不发布，并返回 ErrResourcesClosed。原条目引用的是端口投影用例而非关闭面；Rust 没有 Handle/SetAssistant 注入路径（组合根持有全部运行时，迟到注入在类型系统层面不存在），最接近的结构类比是有序关闭用例（shutdown 成功且按构造逆序释放）。回归要求：若引入运行时热替换，需补“关闭后注入被拒绝且恰好关闭一次”断言后再升级。"
         ],
         "source": "legacy-conclusion"
       },
@@ -41851,7 +41856,7 @@
           "--locked"
         ],
         "testFilter": [
-          "production_adk_and_plugin_and_alert_ports"
+          "test_product_runtime_ordered_shutdown_explicit"
         ],
         "runnerVersion": null,
         "toolchain": null,
@@ -41871,14 +41876,14 @@
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
-        "boundary：Rust Assistant 运行时由组合根持有，关闭后没有注入路径；端口在 shutdown 后不可用（ADK 端口关闭/错误码测试）。"
+        "boundary（结构差异，本批纠正引用）：Go 断言关闭后注入的 Assistant 运行时被关闭一次且不发布，并返回 ErrResourcesClosed。原条目引用的是端口投影用例而非关闭面；Rust 没有 Handle/SetAssistant 注入路径（组合根持有全部运行时，迟到注入在类型系统层面不存在），最接近的结构类比是有序关闭用例（shutdown 成功且按构造逆序释放）。回归要求：若引入运行时热替换，需补“关闭后注入被拒绝且恰好关闭一次”断言后再升级。"
       ],
-      "boundaryReason": "boundary：Rust Assistant 运行时由组合根持有，关闭后没有注入路径；端口在 shutdown 后不可用（ADK 端口关闭/错误码测试）。"
+      "boundaryReason": "boundary（结构差异，本批纠正引用）：Go 断言关闭后注入的 Assistant 运行时被关闭一次且不发布，并返回 ErrResourcesClosed。原条目引用的是端口投影用例而非关闭面；Rust 没有 Handle/SetAssistant 注入路径（组合根持有全部运行时，迟到注入在类型系统层面不存在），最接近的结构类比是有序关闭用例（shutdown 成功且按构造逆序释放）。回归要求：若引入运行时热替换，需补“关闭后注入被拒绝且恰好关闭一次”断言后再升级。"
     },
     "internal/app/apiserver/runtimes/handle_lifecycle_test.go:592:TestHandleCloseAndAssistantPublicationAreAtomic": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_runtime.rs",
-      "conclusion": "boundary：Rust 不存在并发“发布 vs 关闭”竞争面（Arc 所有权 + 单次组合），原子性由类型系统与单次 shutdown 保证。",
+      "rust_entry": "crates/jftrade-engine/src/product_runtime_tests.rs::test_product_runtime_ordered_shutdown_explicit",
+      "conclusion": "boundary（结构差异，本批纠正引用）：Go 以 100 轮并发 Set/Close 断言关闭恰好一次且发布身份稳定。原条目引用的是生产文件而非测试；Rust 不存在并发“发布 vs 关闭”竞争面（Arc 所有权加单次组合，关闭幂等由有序关闭用例锁定），最接近的结构类比是同一关闭用例。回归要求：若引入并发发布路径，需补 100 轮并发关闭恰好一次的断言后再升级。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
       "evidence_type": "boundary",
       "source": {
@@ -41887,11 +41892,23 @@
         "test": "TestHandleCloseAndAssistantPublicationAreAtomic",
         "blobSha": "9d3f2cc2d9d14ba19e36c0763a411a73d1704047"
       },
-      "rustEvidence": [],
+      "rustEvidence": [
+        {
+          "file": "crates/jftrade-engine/src/product_runtime_tests.rs",
+          "test": "test_product_runtime_ordered_shutdown_explicit",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/app/apiserver/runtimes/handle_lifecycle_test.go",
+            "goLine": 592,
+            "rustFile": "crates/jftrade-engine/src/product_runtime_tests.rs",
+            "rustLine": 683
+          }
+        }
+      ],
       "assertionCoverage": {
         "covered": [],
         "uncovered": [
-          "boundary：Rust 不存在并发“发布 vs 关闭”竞争面（Arc 所有权 + 单次组合），原子性由类型系统与单次 shutdown 保证。"
+          "boundary（结构差异，本批纠正引用）：Go 以 100 轮并发 Set/Close 断言关闭恰好一次且发布身份稳定。原条目引用的是生产文件而非测试；Rust 不存在并发“发布 vs 关闭”竞争面（Arc 所有权加单次组合，关闭幂等由有序关闭用例锁定），最接近的结构类比是同一关闭用例。回归要求：若引入并发发布路径，需补 100 轮并发关闭恰好一次的断言后再升级。"
         ],
         "source": "legacy-conclusion"
       },
@@ -41905,7 +41922,9 @@
           "--all-targets",
           "--locked"
         ],
-        "testFilter": [],
+        "testFilter": [
+          "test_product_runtime_ordered_shutdown_explicit"
+        ],
         "runnerVersion": null,
         "toolchain": null,
         "status": "unverified",
@@ -41924,9 +41943,9 @@
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
-        "boundary：Rust 不存在并发“发布 vs 关闭”竞争面（Arc 所有权 + 单次组合），原子性由类型系统与单次 shutdown 保证。"
+        "boundary（结构差异，本批纠正引用）：Go 以 100 轮并发 Set/Close 断言关闭恰好一次且发布身份稳定。原条目引用的是生产文件而非测试；Rust 不存在并发“发布 vs 关闭”竞争面（Arc 所有权加单次组合，关闭幂等由有序关闭用例锁定），最接近的结构类比是同一关闭用例。回归要求：若引入并发发布路径，需补 100 轮并发关闭恰好一次的断言后再升级。"
       ],
-      "boundaryReason": "boundary：Rust 不存在并发“发布 vs 关闭”竞争面（Arc 所有权 + 单次组合），原子性由类型系统与单次 shutdown 保证。"
+      "boundaryReason": "boundary（结构差异，本批纠正引用）：Go 以 100 轮并发 Set/Close 断言关闭恰好一次且发布身份稳定。原条目引用的是生产文件而非测试；Rust 不存在并发“发布 vs 关闭”竞争面（Arc 所有权加单次组合，关闭幂等由有序关闭用例锁定），最接近的结构类比是同一关闭用例。回归要求：若引入并发发布路径，需补 100 轮并发关闭恰好一次的断言后再升级。"
     },
     "internal/app/apiserver/runtimes/handle_lifecycle_test.go:622:TestHandleCreatesAndRegistersOnePineManagerConcurrently": {
       "status": "[~]",
@@ -295129,11 +295148,10 @@
       "reviewStatus": "unreviewed"
     },
     "crates/jftrade-engine/src/product_production_assembly_tests.rs::production_adk_and_plugin_and_alert_ports": {
-      "referenceCount": 3,
+      "referenceCount": 2,
       "referenceKeys": [
         "internal/app/apiserver/application/assistant_test.go:45:TestAssistantPortsProjectSettingsAndHealth",
-        "internal/app/apiserver/application/assistant_test.go:98:TestAssistantCompositionOpensRuntimeAndProjectsServices",
-        "internal/app/apiserver/runtimes/handle_lifecycle_test.go:573:TestHandleRejectsAssistantRuntimeInjectedAfterShutdown"
+        "internal/app/apiserver/application/assistant_test.go:98:TestAssistantCompositionOpensRuntimeAndProjectsServices"
       ],
       "allowed": false,
       "reviewStatus": "unreviewed"
@@ -299898,7 +299916,7 @@
       "reviewStatus": "unreviewed"
     },
     "crates/jftrade-engine/src/product_runtime_tests.rs::test_product_runtime_ordered_shutdown_explicit": {
-      "referenceCount": 16,
+      "referenceCount": 18,
       "referenceKeys": [
         "internal/app/apiserver/application/installers_test.go:16:TestInstallersExpressTypedDependencyOrder",
         "internal/app/apiserver/application/lifecycle_test.go:11:TestLifecycleClosesAdoptedResourcesInReverseOrderAndPreservesSetupError",
@@ -299909,6 +299927,8 @@
         "internal/app/apiserver/lifecycle/lifecycle_test.go:711:TestOnceShutdownReturnsStableHandlerError",
         "internal/app/apiserver/runtimes/handle_lifecycle_test.go:370:TestHandleRefusesPublicationWhenResourceGroupAlreadyClosed",
         "internal/app/apiserver/runtimes/handle_lifecycle_test.go:475:TestHandleClosesConsumersBeforeProvidersAndProvidersInReverseOrder",
+        "internal/app/apiserver/runtimes/handle_lifecycle_test.go:573:TestHandleRejectsAssistantRuntimeInjectedAfterShutdown",
+        "internal/app/apiserver/runtimes/handle_lifecycle_test.go:592:TestHandleCloseAndAssistantPublicationAreAtomic",
         "internal/app/apiserver/servercore/assistant_transport_lifecycle_test.go:11:TestServerCloseClosesAssistantHTTPTransport",
         "internal/app/apiserver/servercore/server_application_lifecycle_test.go:37:TestServerCloseUsesApplicationResourceOrderAndStableAggregation",
         "internal/app/apiserver/servercore/server_application_lifecycle_test.go:75:TestServerCloseStopsBacktestBeforeMarketDataRuntime",

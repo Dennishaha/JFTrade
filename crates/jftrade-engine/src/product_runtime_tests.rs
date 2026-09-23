@@ -679,6 +679,8 @@ async fn build_test_runtime_config(
 // Parity: go:452dea11:internal/app/apiserver/stores/handle_test.go:10 TestHandleClosesStoresInReverseOpenOrder
 // Parity: go:452dea11:internal/app/apiserver/application/resources_test.go:78 TestResourcesCloseIsIdempotentAndConcurrentSafe
 // Parity: go:452dea11:internal/app/apiserver/application/resources_test.go:12 TestResourcesClosesApplicationDependenciesInReverseStartupOrder
+// Parity: go:452dea11:internal/app/apiserver/runtimes/handle_lifecycle_test.go:573 TestHandleRejectsAssistantRuntimeInjectedAfterShutdown
+// Parity: go:452dea11:internal/app/apiserver/runtimes/handle_lifecycle_test.go:592 TestHandleCloseAndAssistantPublicationAreAtomic
 #[tokio::test]
 async fn test_product_runtime_ordered_shutdown_explicit() {
     let temp_dir = tempfile::tempdir().unwrap();

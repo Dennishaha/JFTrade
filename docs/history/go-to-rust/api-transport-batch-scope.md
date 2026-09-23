@@ -3096,3 +3096,33 @@ owner：workflowexec 编排层在 Rust 不存在（无 WorkflowExecutor、goal t
 | 已知失败（如实记录） | `check:rust:static`、`check:rust:policy` 结果见日志；`--strict` 全仓 4360 缺口未达标（非本分片阻塞）；失败项不记为通过 | static exit 0、policy exit 0 | /tmp/s27_static.log、/tmp/s27_policy.log |
 
 后续：engine 收口（626 行完成）；队列进入 apiserver 下 assistant/ADK 相关 14 行，随后 other 503、api_transport 439、backtest_calendar 307、storage_sqlite 196、marketdata_quotes 161、futu_opend 142、trading_broker 56、settings_watchlist 39。
+
+### 第 129 批分片二十八：apiserver 下 assistant/ADK 相关 14 行（2 处引用纠正 + 2 锚点，无 verdict 变更）
+
+范围（账本 rows 338-340、390、453-456、619-620、636-638、835）：`application/assistant_test.go:45/:75/:98`、`datamigration/maintenance_test.go:255`、`marketdataapp/assistant_provider_test.go:95/:114/:143/:159`、`runtimes/handle_lifecycle_test.go:573/:592`、`servercore/adk_data_management_test.go:15/:60`、`servercore/assistant_transport_lifecycle_test.go:11`、`servercoretest/installers_degraded_test.go:13`。初值 `[x]` 4、partial 7、boundary 3。
+
+owner：apiserver 装配面在 Rust 由组合根与领域 crate 持有——Assistant 端口投影与运行时打开归 engine 装配测试，ADK 清理与压缩归 store-sqlite 契约，provider 选择归 settings/marketdata，关闭与降级归 engine runtime。
+
+复核方法：14 条全量枚举 rustEvidence（文件加函数须指向真实 `#[test]`，生产函数与裸生产文件引用一律视为错位），逐条抽查 Go 原文与缺口描述；4 条 `[x]` 核对断言等价与锚点归属（338 与 340、390 与 636 为组合与单引用形式不同，全文唯一，无重复 `[x]`）。结论：12 条引用有效且缺口描述相符，2 处引用纠正，无升级项。抽查确认：339 的裸文件引用是刻意的 prose-only partial（read_helpers 无独立测试，路径派生只经 fixture 间接覆盖，结论已写清所有权差异）；340 的 `[x]` 维持（装配测试从 SQLite 打开生产端口并投影服务，go:98 锚点在位，不做翻转）；453/454/456/637/638/835 的 partial 缺口（无 MCP 工具面、scope 编码进路由、无 unknown 信封、无逐库 busy 注册表、无 keep-alive 关闭窗口、无降级启动）均有 owner 与回归要求。
+
+纠正：619 原引用端口投影用例（非关闭面），改指有序关闭用例并重写结论（Rust 无 Handle/SetAssistant 注入路径，迟到注入在类型系统层面不存在）；620 原引用裸生产文件 `product_runtime.rs`（非测试），改指同一关闭用例并重写结论（无并发发布竞争面，关闭幂等级由有序关闭用例锁定）。两处 verdict 保持 boundary 不变，另补 2 处 :573/:592 锚点（沿用该文件 `// Parity:` 惯例，与同文件 :475 锚点相邻）。
+
+新增证据：注释锚点 2 行，无新增用例，无生产实现改动。
+
+映射终值（14 行）：`[x]` 4、partial 7、boundary 3。全量：`[x]` 1566、partial 2248、boundary 637（合计 4451）；Rust 测试 3295 不变。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 逐行复核 | 14 条全量枚举引用有效性加缺口抽查，4 条 `[x]` 核对断言等价 | 2 引用纠正加 2 锚点，无升级项；重复 `[x]` 全文唯一性检查通（0 重复） |
+| 账本写入 | 2 行变更（v2 写入器重跑回填锚点），其余不动 | `[x]` 1566 不变、partial 2248 不变、boundary 637 不变（合计 4451）；引用测试全部存在且有锚点 |
+| 审计 | `python3 scripts/compatibility/audit_test_parity.py --write-report` | 通过（exit 0）；0 条引用不存在 crate、0 条 `[x]` 缺 function_exact；缺锚点告警 120 不变 |
+| 锚点 | `python3 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1722→1724、已记录 1674→1676、unrecorded 0、stale 0、unknown 48 |
+| 静态与格式 | `cargo fmt --all -- --check`（过，改动仅注释锚点）、`pnpm run check:clippy`、`check:rust:architecture`、`check:migration-manifest` | clippy exit 0、architecture passed、migration-manifest passed | /tmp/s28_clippy.log、/tmp/s28_arch.log、/tmp/s28_mig.log |
+| 受影响 nextest | engine 有序关闭用例定向 1/1 | /tmp/s28_t1.log |
+| 整轮 nextest | engine 全轮 `--no-fail-fast` | engine 全轮 --no-fail-fast 1910/1911（launcher serves_on_configured_address 端口竞争抖动，另一 launcher 用例通过）；launcher 双用例隔离复跑 2/2 | /tmp/s28_engine_full.log、/tmp/s28_flaky1.log |
+| 兼容与门禁 | generated/ai-context/zero-go 均过；quick 完整计划 | quick 首轮在 rust 阶段遇同一 launcher 抖动（fail-fast 取消后续）；重跑完整计划 exit 0（rust 1941/1941 含两 launcher、compat 7 项） | /tmp/s28_quick.log、/tmp/s28_quick2.log |
+| 已知失败（如实记录） | `check:rust:static`、`check:rust:policy` 结果见日志；`--strict` 全仓缺口未达标（非本分片阻塞）；失败项不记为通过 | static 首轮因 target-health（.rcgu.o 超 50000，构建残留）失败；确认无 Cargo 进程后 clean（115999 文件/32.8GiB）重跑全绿；policy exit 0 | /tmp/s28_static.log、/tmp/s28_policy.log、/tmp/s28_clean.log |
+
+后续：apiserver 相关 14 行完成；队列进入 other 503、api_transport 439、backtest_calendar 307、storage_sqlite 196、marketdata_quotes 161、futu_opend 142、trading_broker 56、settings_watchlist 39。
