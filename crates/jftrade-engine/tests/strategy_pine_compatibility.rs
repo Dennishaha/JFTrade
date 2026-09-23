@@ -190,6 +190,7 @@ fn strategy_pine_preserves_worker_shadow_errors_as_successful_projections() {
 
 #[test]
 // Parity: go:452dea11:internal/api/strategy/routes_test.go:181 TestHandleAnalyzePineMapsValidationErrors
+// Parity: go:452dea11:internal/strategy/service_test.go:198 TestServiceAnalyzePineRejectsUnsupportedSourceFormat
 fn strategy_pine_applies_input_validation_and_error_precedence_before_the_port() {
     let port = Arc::new(RecordingPort::new(Err(
         StrategyPineAnalyzeSnapshotError::Unavailable("owner unavailable".to_owned()),

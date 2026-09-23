@@ -2058,3 +2058,45 @@ owner：`crates/jftrade-engine`（运行期依赖解析与 node 候选、桌面�
 | 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy` | 仍因 `deny.toml` 的 `advisory-not-detected`（advisories FAILED，bans/licenses/sources ok）失败 |
 
 后续：分片十九进入 `internal/strategy` 其余子域（`service_test.go` 10、`pine_live_command_test.go` 11、`runtimecontrol` 10、`liveruntime` 余量约 22、`definition` 4、`types_test.go` 2、`errors_test.go` 1），直至 strategy_pine 域清空。
+
+### 分片十九：`internal/strategy` 余量第一批 24 行（service 门面、实盘命令映射、类型契约）
+
+范围：`service_test.go` 10 行（`:138`/`:165`/`:174`/`:198`/`:210`/`:223`/`:236`/`:255`/`:278`/`:304`）、`pine_live_command_test.go` 11 行（`:16`/`:36`/`:60`/`:76`/`:93`/`:130`/`:180`/`:194`/`:227`/`:257`/`:267`）、`types_test.go` 2 行（`:8`/`:42`）、`errors_test.go:8`。
+
+owner：`crates/jftrade-engine`（product 策略路由与写端口、strategy runtime 生命周期与执行意图解析）、`crates/jftrade-strategy`（领域类型与错误分类）、`crates/jftrade-backtest`（括号单与原子撮合）、`crates/jftrade-api`（transport 校验与错误映射）。
+
+队列说明：该族在更早批次已给过终值，本分片做二次核对——重点是参考实现 `Service` 门面里的“启动编排”（校验 → 启动 → 状态转换 → 刷新行情流，失败回滚）是否在 Rust 有对应断言，以及分析请求的输入校验优先级。核对发现分析入口的输入校验（非法 sourceFormat 在端口之前被拒）在 Rust 有完整断言，因此本行升级为 `[x]`；启动编排则分散在写端口、运行时 owner 与 API 错误映射三层，确认无同形断言，保留 partial 并逐条登记缺口。
+
+新增证据（本分片只补锚点，未新增测试）：`crates/jftrade-engine/tests/strategy_pine_compatibility.rs` 的 `strategy_pine_applies_input_validation_and_error_precedence_before_the_port` 增加 `// Parity: go:452dea11:internal/strategy/service_test.go:198 TestServiceAnalyzePineRejectsUnsupportedSourceFormat` 锚点（断言集合未改：两种非法 sourceFormat 与畸形 JSON 均 400 BAD_REQUEST、端口调用列表为空、合法请求归一为 PINE_V6_SOURCE_FORMAT）。
+
+映射终值（24 行）：`[x]` 1 行（`:198` 由 partial 升级）、partial 21 行、boundary 2 行（`pine_live_command_test.go:180`/`:194`，括号单与 OCO 展开归 jftrade-backtest 撮合 owner）。
+
+- **升级为 `[x]`（1 行）**：`service_test.go:198`——参考实现的“不支持的 sourceFormat 在分析器之前被拒”，Rust 在端口边界给出同义断言（400 + 端口零调用 + 合法请求归一）。
+- **保持 boundary（2 行）**：`:180` 不支持退出括号、`:194` 原子 OCO 展开，均在 jftrade-backtest 的保守 K 线执行器里完成校验与原子执行，拒绝点与错误归属迁移到撮合 owner。
+- **刷新 partial 证据（21 行）**：service 门面族（`:138` 门面 vs 路由+端口的对象差异、`:165` 存储错误传播、`:174` 分析器注入与默认 sourceFormat、`:210` 启动前拒绝、`:223` 容量→忙碌映射、`:236` 三条失败路径与回滚、`:255` 行情流刷新计数、`:278` 转换顺序与刷新、`:304` 门面入口清单），命令映射族（`:16`/`:36`/`:60`/`:76`/`:93`/`:130`/`:227`/`:257`/`:267`），类型契约族（`types_test.go:8`/`:42`）。
+
+剩余缺口（本批新增/细化）：
+
+1. **启动编排无同形断言（P1，交易安全）**：参考实现的 `StartInstance` 顺序是“查找 → ValidateStartable → 运行时启动 → 状态转换 → 刷新行情流”，且（a）状态转换失败要回滚已启动的运行时（stop 被调用），（b）成功后行情流刷新恰好一次，（c）不可启动时运行时零调用。Rust 三层分工（写端口校验、runtime owner、API 错误映射）缺少这三条断言（`service_test.go:210`/`:236`/`:255`/`:278`）。修复/补测位置：`crates/jftrade-engine` 的 strategy runtime 写路径集成用例。
+2. **存储错误传播缺回归（P2）**：定义存储报错需要原样上抛（保留错误身份），Rust 只有“端口缺失即失败关闭”的用例（`service_test.go:165`）。
+3. **忙碌文案与设置指引不对齐（P2）**：参考实现的容量耗尽错误带“运行实例 Worker 最大值”的设置指引，Rust 的 429 STRATEGY_PINE_BUSY 只带 Retry-After，指引文案不存在（`service_test.go:223`）。
+4. **作用域退出数量保留缺专用断言（P1，交易语义）**：限定到入场 ID 的退出必须保留数量语义（`pine_live_command_test.go:93`）。
+5. **条件单类型未逐类型比对（P2）**：Rust 只锁定订单类型与 OpenD wire 枚举对齐，参考实现的条件单类型集合没有逐项对照（`pine_live_command_test.go:130`）。
+6. **入场数量缺省与卖出开仓方向缺同形断言（P2）**：缺省数量 1 与“卖出开仓 → 做空”两条只有间接覆盖（`pine_live_command_test.go:257`/`:227`）。
+7. **类型契约缺少逐字段快照（P2）**：DefinitionView 扁平化与实例绑定 JSON 契约在 Rust 由 serde 结构 + 语料比对承担，没有独立的结构断言（`types_test.go:8`/`:42`）。
+8. **门面入口缺少清单式断言（P2）**：参考实现的 Service 入口清单在 Rust 没有一一对应的清单断言，只能靠多个族用例拼出（`service_test.go:138`/`:304`）。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 锚点用例 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --test strategy_pine_compatibility --locked` | 7/7 通过（新增锚点不影响断言集合） |
+| 映射写入 | 24 行 payload `/tmp/s128s19_payload.json` 经 `/tmp/b82_apply.py` 应用 | `[x]` 1587 → 1588、partial 2228 → 2227、boundary 636 不变（合计 4451） |
+| 审计 | `python3 scripts/compatibility/audit_test_parity.py` | 0 条引用不存在 crate、0 条 `[x]` 缺 function_exact、rust_entry 唯一；partial 引用不可解析 2；Rust 测试 3287 |
+| 锚点 | `python3 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1628、unrecorded 0、stale 0、unknown 53 |
+| 静态与格式 | `cargo fmt --all -- --check`、`pnpm run check:clippy`、`pnpm run check:rust:architecture`、`git diff --check` | 全部通过 |
+| 整轮 nextest | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast` | 1900/1900 通过 |
+| 兼容与门禁 | `pnpm run check:compatibility`、`check:generated`、`check:ai-context`、`check:zero-go`、`pnpm run check:quick` | compatibility exit 0（desktop 3 平台档 6 link case 10 facade 4 event）；generated 未改动工作树；ai-context 6 模块 8 指令文件；zero-go 2953 files；`check:quick` exit 0（前端 10 文件 98 用例等全绿） |
+| 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy` | 仍因 `deny.toml` 的 `advisory-not-detected`（advisories FAILED，bans/licenses/sources ok）失败 |
+
+后续：分片二十进入 `internal/strategy/runtimecontrol` 10 行（`optional_values_risk_off_test.go` 2、`policy_test.go` 7、`semantics_test.go` 1）与 `liveruntime` 余量，之后回补 `catalog` 余量（22 行）与 `definition` 4 行，直至 strategy_pine 域清空。
