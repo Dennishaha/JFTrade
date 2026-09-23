@@ -1876,3 +1876,46 @@ owner：`crates/jftrade-strategy`（planner 与 Pine 校验）、`crates/jftrade
 | 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy` | 仍因 `deny.toml` 8 条 `advisory-not-detected` 失败 |
 
 后续：分片十五进入 `pkg/strategy/pineengine` 16 行与 `pkg/strategy/pinespec` 10 行（worker 客户端、payload/shadow、资产发现与规范章节/示例族）；随后按序推进 `pkg/strategy/pineworker`、`internal/strategy/pineruntime`/`service`/`runtimecontrol` 等子域，直至 strategy_pine 域清空，再进入 assistant_workflow 560 → other 503 → api_transport 439 → backtest_calendar 307 → storage_sqlite 196 → marketdata_quotes 161 → futu_opend 142 → trading_broker 56 → settings_watchlist 39。
+
+### 分片十五：`pkg/strategy/pineengine` 16 行 + `pkg/strategy/pinespec` 10 行
+
+范围：`pine_ts_client_test.go:10/:20/:56`、`pine_ts_payload_test.go:18/:39/:55/:72/:97/:131/:190/:207/:224/:236`、`pine_ts_runtime_test.go:12/:31/:58`（pineengine 16 行）；
+`lint_helpers_test.go:5`、`skill_metadata_test.go:8/:80`、`spec_test.go:14/:28/:59/:108/:248/:274/:285`（pinespec 10 行）。
+owner：`crates/jftrade-engine`（影子 payload 与外部引擎投影）、`crates/jftrade-strategy`（pinespec 章节/示例/兼容注册表）、`crates/jftrade-integration-pine`（worker 进程、就绪与 grpc 执行端口）。
+
+队列说明：两族在更早批次已给出终值（本批分片五与分片七处理的是 `indicatorbinding` 与 `ir`）。本分片做二次核对：只补可被 Rust 同形面证明的证据、升级确有等价映射的行，其余保持终值并刷新与当前代码一致的证据引用。
+
+新增证据（`crates/jftrade-engine/src/product_mcp_production_executor_tests.rs`，4 条单元用例）：
+
+1. `pine_shadow_error_payload_keeps_the_worker_failure_message`：锁定 shadow_error payload 的 enabled/mode/engine/repository/ok/status 与单条 `PINETS_SHADOW_ERROR` 诊断的消息透传。
+2. `pine_shadow_success_payload_projects_engine_metadata_and_counts`：锁定 shadow_ok payload 的 engineVersion 透传、license、differenceSummary 的 evaluated/plots/signals 计数、自定义诊断逐字段投影，以及无法分类诊断的回退码。
+3. `pine_external_engine_payload_requires_the_agpl_notice_in_community_mode`：锁定 community-agpl 模式在缺失许可声明时先于分析端口返回 compliance_error，并清空 license/repository、给出 differenceSummary.reason。
+4. `pine_external_engine_payload_reports_a_missing_analyzer`：锁定未配置分析端口时返回可投影为 shadow_error 的错误消息（`pine analyzer is not configured`）。
+
+映射终值（26 行）：`[x]` 2 行、partial 21 行、boundary 3 行；其中 6 行结论与证据已刷新。
+
+- **升级为 `[x]`（2 行）**：`:72 TestCommunityAGPLModeBlocksExecutionWhenNoticeCannotBeFound`（同一触发条件、同一诊断码 `PINETS_AGPL_NOTICE_MISSING`、同一 status；单元用例 + 端到端用例 `production_mcp_pine_community_mode_requires_agpl_notice_before_analyzer` 证明合规门在端口调用前生效）；`:97 TestExternalEnginePayloadFromResultMapsSuccessAndFailure`（成功/失败两条投影与 Go 的字段集逐项对齐，端到端用例覆盖经 MCP validate 叶子的投影；Rust 直接返回 JSON 映射，无独立 `PayloadMap` 助手）。
+- **刷新证据（4 行）**：`:39`（payload 形态逐字段对齐，但 Rust 的失败触发是分析端口不可用而非按脚本检查 worker 脚本）、`:55`（投影面已对齐，真实 node worker 执行仅在显式 ignored 冒烟 `crates/jftrade-integration-pine/tests/real_worker_smoke.rs` 中验证）、`:18`（mode 表与禁用 payload 均已逐字段锁定；读 env 的一行包装因 edition 2024 的 `std::env::set_var` 为 unsafe 而无法在 crate 内驱动）、`:190`（Rust 把 worker 错误作为结构化 gRPC 状态投影进 shadow_error 诊断，没有 `workerError`/`stderrSuffix` 拼接形态）。
+- **保持终值（20 行）**：其余 pineengine 行（客户端 stdio 协议族 `:10`/`:20`/`:56`/`:131`/`:207`、有界 stderr `:224`、Close 等待 `:236`、资产发现 `:12`/`:31`/`:58`）与 pinespec 10 行的既有结论仍与当前代码一致，本分片未改动。
+
+剩余缺口：
+
+1. **客户端协议面结构性差异（P2）**：Go 的 `PinetsWorkerClient` 走 stdin/stdout JSON 协议（含响应 id 校验、stderr 有界捕获 4096B、Close 等待自有 worker），Rust 走 gRPC（loopback + bearer token + `max_message_bytes` 预算），两者错误形态不同；Rust 侧的有界捕获与停机等待由 `crates/jftrade-integration-pine` 的进程/就绪用例承担，无逐字段等价的 4096B 断言。
+2. **真实 worker 执行仅在显式冒烟中验证（P2）**：`crates/jftrade-integration-pine/tests/real_worker_smoke.rs::rust_client_executes_bundled_pinets_worker` 需 `JFTRADE_PINEWORKER_BUNDLE`/`JFTRADE_PINEWORKER_PROTO`/`JFTRADE_PINEWORKER_RUNTIME` 环境变量且标记 ignored；普通回归使用 mock worker 与记录端口。
+3. **生成式支持快照未迁移（boundary）**：`spec_test.go:274 TestGeneratedPineSupportSnapshotIsCurrent` 仍为 boundary——`docs/reference/generated/pine-v6-support.md` 是冻结产物，Rust 没有重新生成并 diff 该快照的门禁（`pnpm run generate:reference` 只覆盖 API/类型文档），该约束由仓库门禁与规范章节冻结共同承担。
+4. **pinespec 章节内容深度（P2）**：Rust 冻结了章节 id 集合与关键负载字段、示例选区与支持矩阵条目，但没有 Go 用例中逐章节正文级别的断言。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 新增用例 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(pine_shadow) \| test(pine_external_engine_payload) \| test(pine_external_mode)'` | 7/7 通过（含既有 mode 表用例与 2 条既有端到端影子用例） |
+| 受影响 crate | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast` | 见下方整轮记录 |
+| 映射写入 | 6 行 payload `/tmp/s128s15_payload.json` 经 `/tmp/b82_apply.py` 应用 | `[x]` 1578 → 1580、partial 2235 → 2233、boundary 638 不变（合计 4451） |
+| 审计 | `python3 scripts/compatibility/audit_test_parity.py` | 0 条引用不存在 crate、0 条 `[x]` 缺 function_exact、rust_entry 唯一；partial 引用不可解析 2；Rust 测试 3276 |
+| 锚点 | `python3 scripts/compatibility/parity_anchor_reconcile.py` | anchors 1614、unrecorded 0、stale 0、unknown 53（首轮 1 条 stale：新用例误挂 `pine_ts_runtime_test.go:31` 锚点而该行证据指向资产用例，已移除） |
+| 静态与格式 | `cargo fmt --all -- --check`、`pnpm run check:clippy`、`pnpm run check:rust:architecture`、`git diff --check` | 全部通过 |
+| 兼容与门禁 | `pnpm run check:compatibility`、`check:generated`、`check:ai-context`、`check:zero-go`（2953 files）、`pnpm run check:quick` | compatibility exit 0（278 operations / 18 groups / 19 probes；desktop 3 平台档 6 link case 10 facade 4 event）；generated/ai-context/zero-go 通过；`check:quick` 首轮 1872/1929 失败于已知抖动用例 `api_launcher_reports_startup_failure_when_the_configured_address_is_taken`（隔离复跑 1/1 通过），次轮 exit 0（nextest 1929/1929，node 124+19+11+48 全绿） |
+| 已知失败（如实记录） | `pnpm run check:rust:static`、`pnpm run check:rust:policy` | 仍因 `deny.toml` 8 条 `advisory-not-detected` 失败 |
+
+后续：分片十六进入 `pkg/strategy/pineworker` 67 行（先 `client_test.go` 10 + `types_test.go` 8 + `proto_mapping_test.go` 5 + `grpc_*` 4 = 27 行，随后 `manager_test.go`/`process_launcher`/`runtime_boundaries`/`payload_size`/`process_smoke`/`hardcut_audit`/`proto_contract` 约 40 行）；之后 `internal/strategy/pineruntime` 25 → `internal/strategy` 其余子域，直至 strategy_pine 域清空。

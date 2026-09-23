@@ -358,3 +358,117 @@ fn pine_external_mode_parser_accepts_only_supported_values() {
     );
     assert_eq!(pine_external_mode_value(Some("unknown")), PINE_MODE_OFF);
 }
+
+/// Parity: go:452dea11:pkg/strategy/pineengine/pine_ts_payload_test.go:39 TestShadowPayloadReportsWorkerStartupFailure
+///
+/// Parity: go:452dea11:pkg/strategy/pineengine/pine_ts_payload_test.go:190 TestWorkerErrorStringAndStderrSuffix
+#[test]
+fn pine_shadow_error_payload_keeps_the_worker_failure_message() {
+    let payload = super::pine::pine_shadow_error_payload(
+        PINE_MODE_SHADOW,
+        "pinets worker script unavailable".to_owned(),
+    );
+    assert_eq!(payload["enabled"], true);
+    assert_eq!(payload["ok"], false);
+    assert_eq!(payload["mode"], PINE_MODE_SHADOW);
+    assert_eq!(payload["status"], "shadow_error");
+    assert_eq!(payload["engine"], "pinets-shadow");
+    assert_eq!(payload["repository"], "https://github.com/LuxAlgo/PineTS");
+    assert_eq!(payload["differenceSummary"]["evaluated"], false);
+    let diagnostics = payload["diagnostics"].as_array().expect("diagnostics");
+    assert_eq!(diagnostics.len(), 1);
+    assert_eq!(diagnostics[0]["code"], "PINETS_SHADOW_ERROR");
+    assert!(
+        diagnostics[0]["message"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("pinets worker script unavailable")
+    );
+}
+
+/// Parity: go:452dea11:pkg/strategy/pineengine/pine_ts_payload_test.go:97 TestExternalEnginePayloadFromResultMapsSuccessAndFailure
+#[test]
+fn pine_shadow_success_payload_projects_engine_metadata_and_counts() {
+    let payload = super::pine::pine_shadow_success_payload(
+        PINE_MODE_SHADOW,
+        serde_json::json!({
+            "ok": true,
+            "metadata": {"pineTsVersion": "0.9.31"},
+            "plots": {"SMA": {"title": "SMA"}},
+            "signals": {"cross": true},
+            "diagnostics": [{
+                "severity": "warning",
+                "code": "TEST_WARN",
+                "message": "mapped through",
+                "line": 3,
+                "column": 2
+            }]
+        }),
+    );
+    assert_eq!(payload["enabled"], true);
+    assert_eq!(payload["ok"], true);
+    assert_eq!(payload["status"], "shadow_ok");
+    assert_eq!(payload["mode"], PINE_MODE_SHADOW);
+    assert_eq!(payload["engine"], "pinets-shadow");
+    assert_eq!(payload["engineVersion"], "0.9.31");
+    assert_eq!(payload["license"], "AGPL-3.0-only");
+    assert_eq!(payload["differenceSummary"]["evaluated"], true);
+    assert_eq!(payload["differenceSummary"]["plots"], 1);
+    assert_eq!(payload["differenceSummary"]["signals"], 1);
+    let diagnostics = payload["diagnostics"].as_array().expect("diagnostics");
+    assert_eq!(diagnostics[0]["severity"], "warning");
+    assert_eq!(diagnostics[0]["code"], "TEST_WARN");
+    assert_eq!(diagnostics[0]["line"], 3);
+    // Go keeps a single diagnostic default for values it cannot classify.
+    let fallback = super::pine::pine_shadow_success_payload(
+        PINE_MODE_SHADOW,
+        serde_json::json!({"ok": true, "diagnostics": ["raw"]}),
+    );
+    assert_eq!(fallback["diagnostics"][0]["code"], "PINETS_SHADOW_ERROR");
+    assert_eq!(fallback["engineVersion"], "");
+    assert_eq!(fallback["differenceSummary"]["plots"], 0);
+}
+
+/// Parity: go:452dea11:pkg/strategy/pineengine/pine_ts_payload_test.go:72 TestCommunityAGPLModeBlocksExecutionWhenNoticeCannotBeFound
+#[test]
+fn pine_external_engine_payload_requires_the_agpl_notice_in_community_mode() {
+    let payload = super::pine::pine_external_engine_payload(
+        None,
+        PINE_MODE_COMMUNITY_AGPL,
+        "plot(close)",
+        false,
+    )
+    .expect("compliance gate runs before the analyzer");
+    assert_eq!(payload["enabled"], true);
+    assert_eq!(payload["ok"], false);
+    assert_eq!(payload["mode"], PINE_MODE_COMMUNITY_AGPL);
+    assert_eq!(payload["status"], "compliance_error");
+    assert_eq!(payload["license"], "");
+    assert_eq!(payload["repository"], "");
+    let diagnostics = payload["diagnostics"].as_array().expect("diagnostics");
+    assert_eq!(diagnostics.len(), 1);
+    assert_eq!(diagnostics[0]["code"], "PINETS_AGPL_NOTICE_MISSING");
+    assert_eq!(payload["differenceSummary"]["evaluated"], false);
+}
+
+/// Parity: go:452dea11:pkg/strategy/pineengine/pine_ts_payload_test.go:55 TestShadowPayloadRunsConfiguredWorkerAndReturnsExternalResult
+///
+/// A shadow mode without a configured analyzer surfaces the startup failure the
+/// caller projects through the error payload.
+#[test]
+fn pine_external_engine_payload_reports_a_missing_analyzer() {
+    let error = super::pine::pine_external_engine_payload(
+        None,
+        PINE_MODE_SHADOW,
+        "//@version=6\nindicator(\"SMA\")\nplot(close)",
+        true,
+    )
+    .expect_err("shadow mode requires the analyzer port");
+    assert!(
+        error.contains("pine analyzer is not configured"),
+        "error {error:?}"
+    );
+    let payload = super::pine::pine_shadow_error_payload(PINE_MODE_SHADOW, error);
+    assert_eq!(payload["status"], "shadow_error");
+    assert_eq!(payload["ok"], false);
+}

@@ -29562,38 +29562,38 @@
   },
   "pkg/strategy/pineengine/pine_ts_payload_test.go:18:TestExternalModeFromEnvAndDisabledShadowPayload": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-strategy/src/service.rs::live_uses_narrow_port_but_shadow_receipt_never_dispatches",
-    "conclusion": "partial：Go 断言外部模式由环境变量决定且禁用 shadow payload。Rust 的服务用例断言实盘走窄端口而 shadow 收据从不派发（同一实盘/shadow 分离）；Go 的环境变量开关在 Rust 由设置/运行模式配置承载。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
+    "rust_entry": "crates/jftrade-engine/src/product_mcp_production_executor_tests.rs::pine_external_mode_parser_accepts_only_supported_values + crates/jftrade-strategy/tests/pine_mcp_contract.rs::pine_spec_freezes_go_owner_sections_and_key_payload_fields",
+    "conclusion": "partial：Go 断言 JFTRADE_PINETS_MODE 取值归一（shadow/community-agpl/未知→off）与 off 模式下的禁用 payload（Enabled=false、Status=disabled、DifferenceSummary[evaluated]=false）。Rust 的 mode 表由 pine_external_mode_value 承担并由单元用例逐值锁定（None、\" off \"、\" SHADOW \"、community-agpl、unknown），禁用 payload 由 pinespec::external_engine_payload 冻结（mode=off、enabled=false、status=disabled、license/package/repository/worker 与 compliance、differenceSummary.evaluated=false），在 pine_mcp_contract 的字段集用例中逐字段断言。剩余差异：读 env 的一行包装（pine_external_mode）因 edition 2024 把 std::env::set_var 标为 unsafe、而 crate 声明 forbid(unsafe_code)，无法在用例内直接驱动。owner：crates/jftrade-engine + crates/jftrade-strategy。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(pine_shadow) | test(pine_external_engine_payload) | test(pine_external_mode)'",
     "evidence_type": "partial"
   },
   "pkg/strategy/pineengine/pine_ts_payload_test.go:39:TestShadowPayloadReportsWorkerStartupFailure": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-integration-pine/src/readiness.rs::explicit_health_failure_keeps_reachable_worker_unready",
-    "conclusion": "partial：Go 断言 shadow payload 上报 worker 启动失败。Rust 的就绪用例断言显式健康失败时即使可达也保持未就绪（同一启动失败上报）；Go 的 payload 字段在 Rust 由就绪状态与诊断覆盖。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine --all-targets --locked",
+    "rust_entry": "crates/jftrade-engine/src/product_mcp_production_executor_tests.rs::pine_shadow_error_payload_keeps_the_worker_failure_message",
+    "conclusion": "partial：Go 断言 worker 启动失败时 shadow payload 上报 shadow_error、Engine 标识与单个含 \"pinets worker script unavailable\" 的诊断。Rust 的启动失败形态不同（worker 由 engine 侧进程池管理，分析端口不可用时由对端错误驱动），pine_shadow_error_payload 逐字段对齐 payload 形态（enabled/mode/engine/repository/ok/status/diagnostics/differenceSummary），单元用例断言字段与消息透传，端到端用例 production_mcp_pine_shadow_mode_reports_unavailable_analyzer_truthfully 断言 shadow_error 与诊断码 PINETS_SHADOW_ERROR。剩余差异：Rust 没有按脚本检查 worker 脚本是否可用的本地前置校验（对应能力由 jftrade-integration-pine 的进程/资产校验承担，见 asset.rs 与 process.rs 的启动前校验用例）。owner：crates/jftrade-engine + crates/jftrade-integration-pine。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(pine_shadow) | test(pine_external_engine_payload) | test(pine_external_mode)'",
     "evidence_type": "partial"
   },
   "pkg/strategy/pineengine/pine_ts_payload_test.go:55:TestShadowPayloadRunsConfiguredWorkerAndReturnsExternalResult": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-strategy/src/service.rs::live_uses_narrow_port_but_shadow_receipt_never_dispatches",
-    "conclusion": "partial：Go 断言 shadow payload 运行配置的 worker 并返回外部结果。Rust 的服务用例断言 shadow 收据不派发下单（同一 shadow 语义边界）；Go 的 worker 结果返回在 Rust 由执行端口覆盖。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
+    "rust_entry": "crates/jftrade-engine/src/product_mcp_production_executor_tests.rs::pine_shadow_success_payload_projects_engine_metadata_and_counts",
+    "conclusion": "partial：Go 断言 shadow payload 跑通配置的 worker 并返回外部结果（Enabled/OK/Mode=shadow/Status=shadow_ok、Repository、DifferenceSummary[plots]!=0）。Rust 的投影面已逐字段对齐（新增单元用例断言 shadow_ok、engineVersion、plots/signals 计数、diagnostics 透传；端到端用例经 MCP validate 叶子断言同一 payload）。剩余差异：Rust 里真实 node worker 的执行只在显式 live/ignored 冒烟（crates/jftrade-integration-pine/tests/real_worker_smoke.rs::rust_client_executes_bundled_pinets_worker，需 JFTRADE_PINEWORKER_BUNDLE 等环境）中验证，普通用例用 mock worker/记录端口，不连接真实侧车。owner：crates/jftrade-engine + crates/jftrade-integration-pine。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(pine_shadow) | test(pine_external_engine_payload) | test(pine_external_mode)'",
     "evidence_type": "partial"
   },
   "pkg/strategy/pineengine/pine_ts_payload_test.go:72:TestCommunityAGPLModeBlocksExecutionWhenNoticeCannotBeFound": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-integration-pine/tests/real_worker_smoke.rs::rust_client_executes_bundled_pinets_worker",
-    "conclusion": "boundary（结构差异）：Go 断言社区 AGPL 模式下许可证声明缺失即阻断执行。Rust 无 AGPL 许可门（PineTS 独立许可，该用例断言内置 worker 可执行），该阻断规则不迁移。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine --all-targets --locked",
-    "evidence_type": "boundary"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_mcp_production_executor_tests.rs::pine_external_engine_payload_requires_the_agpl_notice_in_community_mode",
+    "conclusion": "partial→已覆盖：Go 断言 community-agpl 模式在许可证声明缺失时阻断执行（payload.Enabled=true、OK=false、Mode=community-agpl、Status=compliance_error、Diagnostics[0].Code=PINETS_AGPL_NOTICE_MISSING）。Rust 的 engine 影子面（crates/jftrade-engine/src/product_mcp_production_executor_pine.rs::pine_compliance_error_payload 与 pine_external_engine_payload 的 notice_available 前置门）逐项对齐同名码与状态，并额外清空 license/repository、给出 differenceSummary.reason；单元用例断言全部字段，端到端用例 production_mcp_pine_community_mode_requires_agpl_notice_before_analyzer 断言合规门在分析端口被调用前生效（analyzer 调用计数为 0）。owner：crates/jftrade-engine。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(pine_shadow) | test(pine_external_engine_payload) | test(pine_external_mode)'",
+    "evidence_type": "function_exact"
   },
   "pkg/strategy/pineengine/pine_ts_payload_test.go:97:TestExternalEnginePayloadFromResultMapsSuccessAndFailure": {
-    "status": "[~]",
-    "rust_entry": "crates/jftrade-integration-pine/src/execution/tests.rs::run_script_maps_binary_request_and_order_intent_response",
-    "conclusion": "partial：Go 断言外部引擎 payload 把结果映射为成功/失败结构。Rust 的执行用例断言请求/响应映射（同一结果映射面）；Go 的成功/失败外壳字段在 Rust 由端口输出枚举覆盖。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine --all-targets --locked",
-    "evidence_type": "partial"
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_mcp_production_executor_tests.rs::pine_shadow_success_payload_projects_engine_metadata_and_counts + crates/jftrade-engine/src/product_mcp_production_executor_tests.rs::pine_shadow_error_payload_keeps_the_worker_failure_message",
+    "conclusion": "partial→已覆盖：Go 断言 ExternalEnginePayloadFromResult 把 worker 结果映射为成功/失败结构（成功：Enabled/OK/Status=shadow_ok、Engine=pinets-shadow、DifferenceSummary plots/signals 计数；失败：Status=shadow_error 且 Diagnostics[0].Message 保留 worker 错误；PayloadMap 暴露 enabled/mode/status）。Rust 的 pine_shadow_success_payload/pine_shadow_error_payload 是同一映射面：成功用例断言 evaluated/plots/signals 计数、engineVersion 透传、自定义诊断逐字段投影与无法分类诊断的回退码，错误用例断言 shadow_error/ok=false/诊断消息透传；端到端用例 production_mcp_pine_shadow_success_maps_worker_metadata_and_difference_summary 覆盖经 MCP validate 叶子的投影。差异：Rust 直接返回 JSON 映射（无独立 PayloadMap 助手）。owner：crates/jftrade-engine。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(pine_shadow) | test(pine_external_engine_payload) | test(pine_external_mode)'",
+    "evidence_type": "function_exact"
   },
   "pkg/strategy/pineengine/pine_ts_payload_test.go:131:TestPinetsWorkerClientCallHandlesProtocolFailures": {
     "status": "[~]",
@@ -29604,9 +29604,9 @@
   },
   "pkg/strategy/pineengine/pine_ts_payload_test.go:190:TestWorkerErrorStringAndStderrSuffix": {
     "status": "[~]",
-    "rust_entry": "crates/jftrade-engine/src/runtime_dependencies.rs::command_error_summary_keeps_output_tail_within_wire_budget",
-    "conclusion": "partial：Go 断言 worker 错误字符串附带 stderr 尾部。Rust 的运行时依赖用例断言命令错误摘要保留输出尾部并限制 wire 预算（同一错误+日志尾部语义）；Go 的拼接格式在 Rust 由摘要函数覆盖。",
-    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+    "rust_entry": "crates/jftrade-engine/src/product_mcp_production_executor_tests.rs::pine_shadow_error_payload_keeps_the_worker_failure_message",
+    "conclusion": "partial：Go 断言 workerError.Error() 的 code 前缀拼接（\"E: with code\"）与 stderrSuffix 的 \": first\\nsecond\" 形态。Rust 的 worker 通信走 gRPC（结构化状态码 + 消息），没有 workerError 类型与 stderrSuffix 拼接；等价能力是错误消息透传进 shadow_error 诊断（新增用例断言消息原样保留）与有界 wire 预算（max_message_bytes）。owner：crates/jftrade-engine（错误投影）+ crates/jftrade-integration-pine（传输层状态）。",
+    "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(pine_shadow) | test(pine_external_engine_payload) | test(pine_external_mode)'",
     "evidence_type": "partial"
   },
   "pkg/strategy/pineengine/pine_ts_payload_test.go:207:TestPinetsWorkerConfigurationAndStartupErrors": {
