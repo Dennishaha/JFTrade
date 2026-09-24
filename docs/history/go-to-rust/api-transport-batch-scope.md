@@ -5867,3 +5867,19 @@ index 2、news 2、forwarding 1）。
 `git diff --check` 干净。
 
 下一片：130-09 切片三十一丙，marketdataapp sidecar 5 条 `[x]`。
+## 第 130 批 09 切片三十一丙：marketdataapp sidecar 5 条零纠正收官（2026-09-24）
+
+范围：`internal/app/apiserver/marketdataapp` sidecar 5 条 `[x]`（os_process 3、
+process 2）；marketdataapp 60 条至此全部复核完毕（s31a 24、s31b 31、s31c 5）。
+
+方法：Go 体全读；具名引用全存在；逐字比对。有界停止强杀升级、自然退出
+视为停止、已结束停止成功且可重复、托管复用与显式停止释放、失败启动无残留，
+五项逐条命中，零纠正（`[x]` 全量保持 1486）。说明：`:161` 的“无关错误不等
+于成功”子句在 Rust 实现层成立（真实错误经 `?` 透出，仅无 child/已退出走
+Ok），未被单测锁定，属守卫细节，主簇完整故维持；`:92` 的 endpoint 清空在
+Rust 无同形对象（endpoint 由配置派生，失败信号由 state=Failed 承担），结论
+已按此记录。
+
+验证：定向 nextest 6/6；`git diff --check` 干净；台账无改动故免审计重跑。
+
+下一片：130-09 切片三十二，servercoretest 59 条 `[x]`（api_transport 次大余量）。
