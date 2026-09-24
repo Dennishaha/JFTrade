@@ -618,3 +618,31 @@ Rust 文件改动故免 fmt 与 nextest；`check:ai-context`、
 `git diff --check` 见收尾。
 
 下一片：130-09 切片三十，datamigration 38 条 `[x]` 纠正式复核（s19 已深 recon，需逐字比对）。
+
+## 第 130 批 09 切片 s35：strategy [x] 前 20 条二次复核（2026-09-24）
+
+范围（台账顺序）：catalog:52、errors:8、binding:137、view:46、live_command:33、
+order_risk:18/:67/:235、pine_executor:80/:93/:119/:150、risk_off:33、
+policy:11/:53/:68/:120、service:198、warmup_internal:142、warmup_plan:12，
+共 20 条。Go 体全读，Rust 引用全部可解析且带 Parity 锚点。
+
+结论：20 条全部维持，零改判。抽核要点已逐项比对：
+
+- catalog:52 用双用例组合覆盖（恢复路径的 stopped 无写 + RUNTIME_EXITED 审计、
+  实时退出路径的原因透传审计/错误日志/通知），与 Go 的 saveCount/audit/log
+  三簇对应。
+- policy:11 与 order_risk:67 共用原因表用例（同表逐值一致，含 SELL 6 超量行），
+  前者另以 enforce 用例覆盖 PauseOnReject/日计数标志；monitor(:53) 含日计数
+  detail 前缀场景；normalize(:68)/risk_off(:33)/positions(:120) 逐项一致。
+- pine_executor 四条算式一致（50% 权益 5 股、50% 平仓 5、缺省全平 3）；
+  :80 的 REAL/ SIMULATE 区分与文案差已在结论披露。
+- order_risk:18 的 Rust payload orderType 取值为 STOP（Go 为 STOP_MARKET），
+  结论原文如实记录，止损价透传/无线价/reduce-only 三簇一致。
+- warmup:142 的周/月系数经 Go 源码核实为 390×5/×20，与 Rust 断言一致；
+  warmup_plan:12 以最大需求 20×390 为准一致。
+
+`[x]` 保持 1476。本片仅文档记录，无台账与代码变更。
+
+验证：`audit_test_parity.py`（只读）无告警增量；定向 nextest（jftrade-strategy
+104/104、risk_engine 8/8、strategy_pine_compatibility 7/7、engine strategy
+25/25、trading portfolio 2/2）；`git diff --check` 干净。
