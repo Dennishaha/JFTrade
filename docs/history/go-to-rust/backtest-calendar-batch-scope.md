@@ -166,3 +166,29 @@ P0 运行生命周期与恢复 22 条（`service_test.go` 15、`run_failure_reco
 `check:quick` 中 `pnpm run check:rust:workspace` **3049 passed / 2 skipped**、
 `check:web` 2435 passed、`check:python` 337 passed，目标健康告警按
 `docs/history/go-to-rust/README.md` 的处置流程执行 `cargo clean` 后消失。
+
+## 第 130 批 07 切片一：internal/backtest 首片 32 条 recon（2026-09-24）
+
+范围：`internal/backtest/business_test.go`（2）+ `historical_source_test.go`（9）+
+`input_and_readiness_validation_test.go`（10）+ `recovery_test.go`（3）+
+`result_view_aggregation_test.go`（2）+ `result_view_test.go`（6），共 32 条
+（[x] 1 + partial 31）。
+
+方法：Go 体逐条核对结论；[x] 确认 Rust 测试存在、短式 Parity 锚点在位、断言等价；
+全部 32 条 Rust 引用逐一 rg 命中（0 缺失）；高风险项（在途取消时序、重试计数与
+preflight 能力、向后分页与跨 provider 隔离、游标分页 nextCursor、panic 恢复语义、
+成交量守恒）抽查 Go 体，确认缺口描述与 Go 断言一致。
+
+结论：32 条 verdict 全部成立——1 [x]（空白脚本拒绝，文案 script is required，
+校验层等价）成立，唯一打磨是把该行薄结论补写为显式等价说明（v2_writer，
+[x] 1565 不变，anchored=1）；31 partial 缺口诚实（含 :111 在途取消时序、:147 重试
+计数与 preflight、:59 跨 provider 隔离、:34 游标分页、:27 panic 负载不捕获、
+:84 成交量守恒、:12 provider 元数据逐字段矩阵）。
+本片除该行结论补全外无判定与代码变更。
+
+验证：`audit_test_parity.py --write-report` exit 0；`parity_anchor_reconcile.py` 过；
+`cargo fmt -p jftrade-engine -- --check`、`check:ai-context`、`check:migration-manifest`、
+`check:zero-go`、定向 nextest（engine research/backtest 位 + backtest 兼容）、
+`check:quick`（单实例）、`git diff --check`。
+
+下一片：backtest_calendar 按文件行号继续（service/service_pineworker/sync/time 等）。

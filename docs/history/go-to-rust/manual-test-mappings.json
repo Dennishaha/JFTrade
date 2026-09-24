@@ -7,7 +7,7 @@
     "treeSha": "0ee26444be21c15d9760f358a34649f78402f0fb"
   },
   "generatorVersion": "v2_writer.py@slice23",
-  "generatedAt": "2026-09-24T00:54:37Z",
+  "generatedAt": "2026-09-24T01:07:27Z",
   "mappings": {
     "cmd/jftrade-api/main_test.go:13:TestValidateArgsAllowsNoArgs": {
       "status": "[~]",
@@ -118082,7 +118082,7 @@
     "internal/backtest/recovery_test.go:45:TestStartScriptRejectsBlankResearchScript": {
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/product_research_backtest_execution.rs::test_start_script_rejects_blank_research_script",
-      "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+      "conclusion": "已覆盖：Go 断言 StartScript 空白脚本报请求错误且文案含 script is required。Rust 在 research 后端执行入口前由 validate_research_script 承担同一校验，本行引用用例断言空白与空串均返回 Err(script is required)（短式 Parity 锚点在位）；请求错误分类由调用层按 Err 映射，语义等价。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine",
       "evidence_type": "function_exact",
       "source": {
@@ -118106,7 +118106,7 @@
       ],
       "assertionCoverage": {
         "covered": [
-          "已找到 Rust 源码中的对应 Parity 测试证据"
+          "已覆盖：Go 断言 StartScript 空白脚本报请求错误且文案含 script is required。Rust 在 research 后端执行入口前由 validate_research_script 承担同一校验，本行引用用例断言空白与空串均返回 Err(script is required)（短式 Parity 锚点在位）；请求错误分类由调用层按 Err 映射，语义等价。"
         ],
         "uncovered": [],
         "source": "legacy-conclusion"
@@ -118139,7 +118139,7 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "已找到 Rust 源码中的对应 Parity 测试证据"
+        "已覆盖：Go 断言 StartScript 空白脚本报请求错误且文案含 script is required。Rust 在 research 后端执行入口前由 validate_research_script 承担同一校验，本行引用用例断言空白与空串均返回 Err(script is required)（短式 Parity 锚点在位）；请求错误分类由调用层按 Err 映射，语义等价。"
       ],
       "uncoveredAssertions": [],
       "boundaryReason": null
