@@ -828,3 +828,28 @@ jftrade-integration-pine 视触及范围）全过；
 cargo fmt --check 与 git diff --check 干净；无台账变更、无 Rust 生产代码改动。
 
 下一片：130-12 切片二十一，strategy_pine 域 partial 第 81–100 行。
+
+## 第 130 批 12 切片二十一：strategy_pine 域 partial 第 81–100 行，20 行维持、零改判（2026-09-24）
+
+范围：strategy_pine 域 partial 第 81–100 行（pine 实盘命令 7、pine 实盘执行器 13，
+按文件加行号升序）。本域已核对 100/385（审计口径总量 385，历史 459 为旧口径）。
+
+方法：Go 体全读；11 个去重 Rust 引用逐项 rg 存在性核查；引用存在不等于断言等价。
+
+20 行维持（做空方向保留、空头退出转买入、作用域退出数量保留、条件单四格矩阵、
+卖出开仓规范化、缺省数量、非法意图拒绝、执行器端口保留、提交字段与 GTC、
+无定量时 quantityPct 报错、空头标签、无持仓平仓忽略、低于步长忽略、港股碎股忽略、
+缺市场规则忽略、告警聚合、自动平仓回补空头、显式空头平仓三分支、跟踪撤单、
+cancel-all 两笔清空，缺口 owner 与回归要求均与账本一致）。
+
+抽核要点：共享锚点 test_execute_strategy_intents_close_short_maps_to_buy 实现逐行核实
+（空头平仓 side=BUY、quantity=20、reduceOnly=true，断言落在执行结果而非命令 DTO，
+第 81/82/85/91/97/98 行 partial 成立）；第 84 行 limit 加 stop 意图层映射分歧
+（Rust 取 LIMIT，参考实现取 StopLimit）仍在账本结论中登记为候选分歧；
+partial 共用引用不受 [x] 唯一性约束。
+
+验证：audit --write-report 过（1472 exact；dup 0）；anchor 过（1742/1696/0/0/46）；
+定向 nextest（jftrade-engine、jftrade-broker 视触及范围）全过；
+cargo fmt --check 与 git diff --check 干净；无台账变更、无 Rust 生产代码改动。
+
+下一片：130-12 切片二十二，strategy_pine 域 partial 第 101–120 行。
