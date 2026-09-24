@@ -249,3 +249,29 @@ warmup 拒绝矩阵、终态保持注入、预设意图表、通道/流式 API �
 `check:quick`（单实例）、`git diff --check`。
 
 下一片：backtest_calendar 按文件行号继续（runmodel/storage 编解码与聚合系）。
+
+## 第 130 批 07 切片四：runmodel/storage 编解码与聚合 31 条 recon（2026-09-24）
+
+范围：`pkg/backtest/internal/runmodel/result_test.go`（6）+
+`pkg/backtest/internal/storage/` 6 文件（25：codec 2、codec_progress 6、
+query_failure 2、store_aggregation 8、store_business 6、corruption 1），
+共 31 条（partial 25 + boundary 6）。
+
+方法：Go 体逐条核对结论；全部 31 条 Rust 引用逐一 rg 命中（0 缺失）；
+结构性 claim 抽查 Rust 生产代码（Decimal 文本存取、无定点编解码层、
+ON CONFLICT upsert、损坏 schema 打开即拒）；高风险项核对 Go 体
+（损坏表须报 schema 错误而非覆盖缺失、同 bar 替换、空表空集、会话桶合并）。
+
+结论：31 条 verdict 全部成立，无判定变更、无代码变更——
+6 boundary 属实（Rust 以 Decimal 文本存取，无 fixedpoint 编解码/上游兜底层；
+结果快照可复现面由语料逐字节确定性覆盖）；
+partial 缺口具体（警告样本 cap、归组键文案、运行期错误计数、多标的与通道形态、
+消毒兜底、nil 快照别名、句柄计数、逐列短行分类、反解析矩阵、替换专项断言等）。
+本片为纯 recon。
+
+验证：`audit_test_parity.py --write-report` exit 0；`parity_anchor_reconcile.py` 过；
+`cargo fmt -p jftrade-engine -- --check`、`check:ai-context`、`check:migration-manifest`、
+`check:zero-go`、定向 nextest（store-sqlite 聚合/失败恢复/会话 + backtest 告警/兼容）、
+`check:quick`（单实例）、`git diff --check`。
+
+下一片：backtest_calendar 按文件行号继续（store 连接/失败/查询/运行时系）。
