@@ -724,3 +724,30 @@ strategy 域 `[x]` 二次复核全部完成（s35–s38 共 79 条，2 条降 pa
 验证：`audit_test_parity.py`（只读）OK（1474 exact，dup 0）；
 定向 nextest（integration-pine 50/50、risk_and_block 10/10、mcp_contract 4/4）；
 `git diff --check` 干净。
+
+## 第 130 批 12 切片十七：strategy_pine 域 partial 第 1–20 行，20 行维持、零改判（2026-09-24）
+
+范围：strategy_pine 域 partial 第 1–20 行（internal/strategy/catalog 活动降级 1、
+目录边界 5、实例生命周期 4、插件归一 5、仓库失败 3、运行时对账 2，
+按文件加行号升序）。本域共 459 partial。
+
+方法：Go 体全读；缺口验到代码行与用例断言；引用存在不等于断言等价。
+
+20 行维持（活动存储不可用降级空页 P1、查询失败空页、写失败不阻塞控制、
+定义同步六分类 P1、归一化调用方隔离、私有助手空值宽容、停止边界与删除门 P1、
+错误分类矩阵、定义刷新位置保留与关联分类、刷新使用注入存储、插件排序持久化、
+缺失资源分类、遗留快照迁移 P1、非法运行时两段式、插件兼容与卸载指引、
+构造失败传播、保存失败回滚 P1、独立副本隔离、转换计数与审计、启动对账幂等 P1，
+均与账本缺口一致）。
+
+抽核要点：20 条 Rust 引用逐项存在；第 1 行 fail-closed 链逐行核实
+（port 层 Unavailable → product_api_strategies 500 STRATEGY_FAILED）；
+第 4 行 definitionSync 五字段无 BlockedReason 已核实；
+第 3 行多处 let _ 忽略审计失败已核实；
+第 7/13 行缺口（删除门、遗留迁移）在引用文件内无对应断言。
+
+验证：audit --write-report 过（1472 exact；dup 0）；anchor 过（1742/1696/0/0/46）；
+定向 nextest（jftrade-engine、jftrade-store-sqlite 视触及范围）全过；
+cargo fmt --check 与 git diff --check 干净；无台账变更、无 Rust 生产代码改动。
+
+下一片：130-12 切片十八，strategy_pine 域 partial 第 21–40 行。
