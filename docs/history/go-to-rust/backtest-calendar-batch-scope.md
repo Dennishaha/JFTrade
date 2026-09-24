@@ -220,3 +220,32 @@ partial 缺口具体（含 :652 关后拒绝新 Start、:628 错误文本透传�
 `check:quick`（单实例）、`git diff --check`。
 
 下一片：backtest_calendar 按文件行号继续（run_failure_recovery/result_view 系 + pkg/backtest 执行器系）。
+
+## 第 130 批 07 切片三：run_failure_recovery/保守执行器/成本/会话查询 37 条 recon（2026-09-24）
+
+范围：`internal/backtest/run_failure_recovery_test.go`（3）+
+`pkg/backtest/conservative_bar_executor_test.go`（19）+
+`pkg/backtest/cost_account_failure_boundaries_test.go`（4）+
+`pkg/backtest/filter_store_session_queries_test.go`（11），共 37 条
+（partial 28 + boundary 9）。
+
+方法：Go 体逐条核对结论；全部 37 条 Rust 引用逐一 rg 命中（0 缺失，组合引用逐段命中）；
+保守执行器 16 个 Parity 锚点在位；高风险项深查 Go 体与 Rust 用例体
+（:89 部分成交三段订单流与逐笔成交、:147 父括号止损优先、:26 队列持久化失败不泄漏、
+:81 终态保持、费用预设与按单计费、错误分类器双片段）。
+
+结论：37 条 verdict 全部成立，无判定变更、无代码变更——
+曾存疑的“结果模型只导出终态订单行”表述经核实属实：Go :89 断言 NEW→PARTIALLY_FILLED
+（exec 10）→FILLED（exec 50）三段订单流与 10@101、40@102 逐笔成交，Rust 同场景用例
+断言终态单行 FILLED + totalFills 2 + 资金 4910/持仓 50（数值一致），中间态流式观测
+确无对应断言，P2 观测面差异成立；其余 partial/boundary 缺口（队列失败 Close 行为、
+warmup 拒绝矩阵、终态保持注入、预设意图表、通道/流式 API 不迁移、自定义区间回退）
+均与 Go 体一致。
+本片为纯 recon。
+
+验证：`audit_test_parity.py --write-report` exit 0；`parity_anchor_reconcile.py` 过；
+`cargo fmt -p jftrade-engine -- --check`、`check:ai-context`、`check:migration-manifest`、
+`check:zero-go`、定向 nextest（backtest 保守执行/费用/结果上报 + store-sqlite 会话/失败恢复）、
+`check:quick`（单实例）、`git diff --check`。
+
+下一片：backtest_calendar 按文件行号继续（runmodel/storage 编解码与聚合系）。
