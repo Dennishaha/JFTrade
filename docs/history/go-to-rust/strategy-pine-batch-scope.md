@@ -1261,3 +1261,58 @@ git diff --check
 本片结论：20/20 均保持 `partial`；精准测试为 strategy `104/104`、integration-pine `50/50`（另 1 skipped）、
 engine runtime `1/1`（另 1929 skipped），均通过。未发现可安全升为 `[x]` 的条目，也没有足够证据触发 Rust
 生产功能修复。下一片为 strategy_pine partial 第 341–360 行。
+
+## 第 130 批 12 切片三十四：strategy_pine 域 partial 第 341–370 行，30 行维持、零改判（2026-09-24）
+
+范围：strategy_pine 域 `evidence_type=partial` 的第 341–370 行（Pine worker client/transport、manager
+readiness/pool、payload size、Node worker bundle materialization/process lifecycle）。本批按 30 条处理以减少
+审计与切片切换；没有 Rust 生产代码修改。共享 pool/readiness/asset 测试只按直接断言计证据，未把相邻生命周期
+主题视为等价行为。
+
+| 序号 | Go 测试 | Rust 证据 | 级别 | 结论 |
+| ---: | --- | --- | :---: | --- |
+| 341 | `pineworker/client_test.go:92:TestClientRunScriptMapsTimeout` | `jftrade-integration-pine/src/execution/tests.rs::run_script_maps_remote_unavailable_timeout_and_cancellation` | P1 | `partial`；Rust 覆盖 timeout 映射，但未证明 Go 的 client 错误文案、deadline 分类与响应清理完全一致。 |
+| 342 | `pineworker/client_test.go:103:TestClientRunScriptMapsWorkerError` | `jftrade-integration-pine/src/execution/tests.rs::run_script_rejects_worker_error_and_identity_mismatch` | P2 | `partial`；Rust 拒绝 worker error 并保留失败边界，未覆盖 Go compile failed 文案和 metadata 组合。 |
+| 343 | `pineworker/client_test.go:114:TestClientRunScriptRejectsMismatchedJobID` | `jftrade-integration-pine/src/execution/tests.rs::run_script_rejects_worker_error_and_identity_mismatch` | P2 | `partial`；Rust 覆盖 identity mismatch，未单独证明 Go 的 job id 错误文本、空 metadata 与响应消费顺序。 |
+| 344 | `pineworker/client_test.go:161:TestNewClientRequiresTransport` | `jftrade-integration-pine/src/execution/tests.rs::endpoint_and_token_boundaries_fail_closed` | P2 | `partial`；Rust 验证 endpoint/token 配置 fail-closed，但没有 Go `NewClient(nil)` 构造器错误的同形断言。 |
+| 345 | `pineworker/grpc_dialer_test.go:9:TestGRPCDialerCreatesManagedTransport` | `jftrade-integration-pine/src/process.rs::grpc_probe_authenticates_and_rejects_endpoint_identity_mismatch` | P2 | `partial`；Rust 覆盖 gRPC probe/auth 与 endpoint identity，未证明 Go managed transport 的创建、Close 和 nil receiver 矩阵。 |
+| 346 | `pineworker/grpc_transport_test.go:16:TestGRPCTransportRunScriptAndHealthCheck` | `jftrade-integration-pine/src/execution/tests.rs::run_script_maps_binary_request_and_order_intent_response` + `jftrade-integration-pine/src/mock_worker.rs::health_probe_authenticates_and_reports_controllable_ok_flag` | P2 | `partial`；Rust 分别覆盖 RunScript response 与 health probe，未逐字段对齐 Go plots/order/metadata/strategy metrics 和 transport nil 边界。 |
+| 347 | `pineworker/hardcut_audit_test.go:12:TestPineTSHardCutDoesNotExposeGoPineRuntime` | `jftrade-integration-pine/tests/real_worker_smoke.rs::rust_client_executes_bundled_pinets_worker` (ignored) | P2 | `partial`；Rust 只有 ignored bundled-worker smoke，未迁移 Go 的仓库扫描、前端/文档 hard-cut 与 CI 资产审计矩阵。 |
+| 348 | `pineworker/manager_readiness_recovery_test.go:15:TestWorkerManagerReadinessFailuresCloseTransportAndRespectCancellation` | `jftrade-integration-pine/src/readiness.rs::monitor_shutdown_marks_state_and_joins_task` | P1 | `partial`；Rust 覆盖 monitor shutdown/join，未覆盖 Go readiness failure 关闭 transport、取消传播和重启状态组合。 |
+| 349 | `pineworker/manager_test.go:14:TestWorkerManagerStartStopAndSnapshot` | `jftrade-integration-pine/src/pool.rs::health_results_and_restarts_project_into_the_snapshot` | P2 | `partial`；Rust 验证健康/重启 snapshot 投影，未覆盖 Go start-stop 全生命周期、worker id/version 与空快照断言。 |
+| 350 | `pineworker/manager_test.go:200:TestWorkerManagerRunScriptRejectsWhenBusyIfConfigured` | `jftrade-integration-pine/src/pool.rs::healthy_workers_are_selected_in_rotation` | P2 | `partial`；Rust 只验证健康 worker 轮转，不覆盖 Go busy gate、并发 RunScript 拒绝和配置开关。 |
+| 351 | `pineworker/manager_test.go:236:TestWorkerManagerCheckHealthRestartsFailedWorker` | `jftrade-integration-pine/src/pool.rs::health_results_and_restarts_project_into_the_snapshot` | P2 | `partial`；Rust 覆盖 restart count/health snapshot，未覆盖 Go 检查触发时序、重启后连接重建与所有错误字段。 |
+| 352 | `pineworker/manager_test.go:262:TestWorkerManagerCheckHealthReportsRestartFailure` | `jftrade-integration-pine/src/pool.rs::health_results_and_restarts_project_into_the_snapshot` | P2 | `partial`；Rust 有 restart snapshot 证据，未覆盖 Go restart failure 的错误传播、LastError 文案和 manager 状态回滚。 |
+| 353 | `pineworker/manager_test.go:281:TestWorkerManagerStartCleansUpAfterDialFailure` | `jftrade-integration-pine/src/process.rs::validates_loopback_worker_boundary_before_spawn` | P2 | `partial`；Rust 验证 spawn 前 loopback 边界，未覆盖 Go 多 worker dial 失败时全部 process stop 与空 snapshot 清理。 |
+| 354 | `pineworker/manager_test.go:299:TestWorkerManagerStartDialFailureIncludesProcessDiagnostics` | `jftrade-integration-pine/src/process.rs::grpc_probe_authenticates_and_rejects_endpoint_identity_mismatch` | P2 | `partial`；Rust 覆盖 probe 身份失败，未覆盖 Go bundle/runtime/cwd/stderr diagnostics 拼接和失败 worker stop。 |
+| 355 | `pineworker/manager_test.go:324:TestWorkerManagerStartRetriesDialUntilWorkerReady` | `jftrade-integration-pine/src/process.rs::readiness_policy_preserves_go_delay_and_supports_capped_backoff` | P2 | `partial`；Rust 验证 Go delay/backoff cap，未覆盖 Go 实际 dial attempt 次数、ready snapshot 和 retry 成功路径。 |
+| 356 | `pineworker/manager_test.go:341:TestWorkerManagerStopReturnsFirstCloseError` | `jftrade-integration-pine/src/readiness.rs::monitor_shutdown_marks_state_and_joins_task` | P2 | `partial`；Rust 证明 monitor 可 shutdown/join，未覆盖 Go first close error 优先级和 Stop 后 pool 清空。 |
+| 357 | `pineworker/manager_test.go:359:TestWorkerManagerRequiresDependenciesAndStart` | `jftrade-integration-pine/src/pool.rs::empty_pools_and_unknown_workers_fail_closed` | P1 | `partial`；Rust 覆盖 empty/unknown worker fail-closed，未覆盖 Go zero workers、缺 launcher 与未 Start 运行请求的构造器矩阵。 |
+| 358 | `pineworker/payload_size_test.go:9:TestJSONSizeMatchesMarshalAcrossPayloadShapes` | `jftrade-integration-pine/src/execution/tests.rs::grpc_request_message_limit_has_exact_encoded_boundaries` | P2 | `partial`；Rust 核对 protobuf encoded boundary，不是 Go JSON marshal size 的 nil/map/unicode/array 全量矩阵。 |
+| 359 | `pineworker/payload_size_test.go:26:TestEstimateRunScriptRequestJSONSizeHandlesNilAndEmptyCollections` | `jftrade-integration-pine/src/execution/tests.rs::grpc_request_message_limit_has_exact_encoded_boundaries` | P1 | `partial`；Rust 覆盖 request message size 限制，未证明 Go nil/empty collections 的 JSON byte size 精确相等。 |
+| 360 | `pineworker/payload_size_test.go:49:TestEstimateCandleJSONSizeRejectsNonFiniteFields` | `jftrade-integration-pine/src/execution/tests.rs::request_validation_rejects_oversized_source_and_invalid_candle` | P2 | `partial`；Rust 拒绝 invalid candle，未逐项覆盖 Go NaN/+Inf/-Inf 的 candle 与 candle-list size helper 错误。 |
+| 361 | `pineworker/process_launcher_boundaries_test.go:19:TestNodeWorkerLauncherDefaultsAndMaterializationBoundaries` | `jftrade-integration-pine/src/asset.rs::test_select_from_fs_returns_embedded_bundle_metadata` | P2 | `partial`；Rust 覆盖 embedded bundle metadata，未覆盖 Go launcher 默认 runtime/name/timeout、临时目录和 materialize bytes。 |
+| 362 | `pineworker/process_launcher_boundaries_test.go:70:TestNodeWorkerLauncherRemovesMaterializedBundleWhenContextAlreadyCanceled` | `jftrade-integration-pine/src/asset.rs::checksum_is_verified_before_worker_asset_is_written` | P1 | `partial`；Rust 验证 checksum 在写文件前检查，未覆盖 Go 已取消 context 下启动失败和 materialized bundle 清理。 |
+| 363 | `pineworker/process_launcher_boundaries_test.go:94:TestOSWorkerProcessDiagnosticsAndNilBoundaries` | `jftrade-engine/src/runtime_dependencies.rs::command_error_summary_keeps_output_tail_within_wire_budget` | P2 | `partial`；Rust 验证 command error tail wire budget，未覆盖 Go nil process、stdout 2000 字符尾部、writerString 和 exit helper。 |
+| 364 | `pineworker/process_launcher_boundaries_test.go:118:TestOSWorkerProcessForcesTerminationOnTimeoutAndCancellation` | `jftrade-integration-pine/src/process.rs::readiness_policy_preserves_go_delay_and_supports_capped_backoff` | P1 | `partial`；Rust 只有 readiness backoff 证据，未覆盖 Go interrupt-ignoring process 的超时/取消强制终止及文件清理。 |
+| 365 | `pineworker/process_launcher_boundaries_test.go:165:TestPineworkerInterruptIgnoringHelperProcess` | `jftrade-integration-pine/src/readiness.rs::monitor_shutdown_marks_state_and_joins_task` | P2 | `partial`；Rust monitor join 不等价于 Go helper process 忽略信号并验证终止路径，需后续进程级回归测试。 |
+| 366 | `pineworker/process_launcher_test.go:16:TestNodeWorkerLauncherMaterializesBundleWithArgs` | `jftrade-integration-pine/src/asset.rs::checksum_is_verified_before_worker_asset_is_written` | P2 | `partial`；Rust 覆盖 bundle 写入完整性，未覆盖 Go cwd、stderr、worker args、extra args 与 mock 参数顺序。 |
+| 367 | `pineworker/process_launcher_test.go:72:TestNodeWorkerLauncherRejectsBadChecksum` | `jftrade-integration-pine/src/asset.rs::checksum_is_verified_before_worker_asset_is_written` | P2 | `partial`；Rust 验证 checksum 先于发布，未逐项对齐 Go bad checksum 错误文本和启动前不残留文件。 |
+| 368 | `pineworker/process_launcher_test.go:88:TestNodeWorkerLauncherStopKillsLongRunningProcess` | `jftrade-integration-pine/src/readiness.rs::monitor_shutdown_marks_state_and_joins_task` | P2 | `partial`；Rust 只覆盖 monitor task join，未覆盖 Go long-running worker 的 Stop timeout、kill 与进程回收。 |
+| 369 | `pineworker/process_launcher_test.go:107:TestNewNodeWorkerLauncherRequiresBundle` | `jftrade-integration-pine/src/asset.rs::test_select_from_fs_treats_missing_and_empty_bundles_as_unavailable` | P2 | `partial`；Rust 覆盖 missing/empty bundle unavailable，未覆盖 Go launcher 构造器缺 bundle data 的错误边界。 |
+| 370 | `pineworker/process_launcher_test.go:141:TestNodeWorkerLauncherReturnsStartErrorAndRemovesFile` | `jftrade-integration-pine/src/asset.rs::test_select_from_fs_treats_missing_and_empty_bundles_as_unavailable` | P2 | `partial`；Rust 覆盖 unavailable bundle，未覆盖 Go runtime start error 后 materialized file 删除和错误传播。 |
+
+验证命令：
+
+```bash
+python3 scripts/compatibility/audit_test_parity.py --write-report
+python3 scripts/compatibility/parity_anchor_reconcile.py
+node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine --all-targets --locked --no-fail-fast
+node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'test(command_error_summary_keeps_output_tail_within_wire_budget)'
+cargo fmt --check
+git diff --check
+```
+
+本片结论：30/30 均保持 `partial`；下一批固定为每批 30 条，下一片为 strategy_pine partial 第 371–400 行。
+P1 的 timeout/cancellation、busy gate、retry/rollback、进程强制终止和精确 JSON size 缺口已保留为后续回归方向；
+本片没有足够证据升格 `[x]`，也没有发现需要立即修改 Rust 生产代码的单一行为差异。
