@@ -760,3 +760,31 @@ command 执行器 17，按文件加行号升序）。
 cargo fmt --check 与 git diff --check 干净；无 Rust 生产代码改动、无新增测试。
 
 下一片：130-11 切片十一，backtest 域 partial 第 201–220 行。
+## 第 130 批 11 切片十一：backtest 域 partial 第 201–220 行，18 行维持、2 行结论纠正（2026-09-24）
+
+范围：backtest 域 partial 第 201–220 行（command 执行器余 6、replay pump 4、
+replay source 3、replay 规划 6、runner 边界 1，按文件加行号升序）。
+
+方法：Go 体全读；缺口验到代码行与用例断言；引用存在不等于断言等价。
+
+18 行维持（畸形 bracket 形态矩阵、执行器错误双通道传播、业务边界三分支、
+撤单四边界、pump 消费执行顺序、pump 形状校验、pump 缺 bar 检测、pump 错误传播、
+收集器过滤与错误映射、分块容量细节、请求组装助手、请求字段校验、planner 分组、
+bar 越界拒绝、同 bar 归一化、worker 错误传播、运行时数据不可用，均与账本缺口一致）。
+
+2 行结论纠正（verdict 仍为 partial，[x] 1472 不变，b83 dry-run 先行、entry_changed 等于 0）：
+
+- command_executor:452：原结论只写原子提交，漏掉 Go 后半段
+  （逻辑 OCO 整体撤销产生 2 条 cancelled）；补上该半段无对应断言。
+- command_executor:579：原结论把止损价（Stops）误读为失败停止并虚构 ID 生成失败分支
+  （Go 实际断言 ID 前缀格式、市价止损单字段与跟踪回退）；按 Go 体重写缺口。
+
+抽核要点：:452 的 Rust 用例覆盖三腿原子与 stop-first，不管 OCO 整体撤销；
+:579 的 Rust 引用只覆盖按 ID 撤销，与 ID 生成格式无关，维持 partial 已是宽容口径；
+其余 replay pump/source/planner 的 Rust 引用逐项存在，结构差异如实记录为 boundary。
+
+验证：audit --write-report 过（1472 exact；dup 0）；anchor 过（1742/1696/0/0/46）；
+定向 nextest（jftrade-backtest、integration-pine、engine 执行族）全过；
+cargo fmt --check 与 git diff --check 干净；无 Rust 生产代码改动、无新增测试。
+
+下一片：130-11 切片十二，backtest 域 partial 第 221–240 行。

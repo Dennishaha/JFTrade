@@ -129399,7 +129399,7 @@
     "pkg/backtest/pineworker_command_executor_test.go:452:TestPineWorkerCommandExecutorSubmitsParentOCOBracketAtomically": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-backtest/tests/conservative_bar_execution.rs::parent_bracket_runs_atomically_with_stop_first_protection",
-      "conclusion": "partial：Go 断言父单 OCO bracket 原子提交。Rust 的父 bracket 以原子组执行并保持 stop-first 保护（该用例），原子性由撮合原子组保证。",
+      "conclusion": "partial：Go 断言父单 OCO bracket 原子提交（三条腿分组、保护腿字段）与逻辑 OCO 整体撤销（2 条腿）。Rust 的父 bracket 以原子组执行并保持 stop-first 保护（该用例）；逻辑 OCO 整体撤销的 2 条腿断言无对应。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-backtest --all-targets --locked",
       "evidence_type": "partial",
       "source": {
@@ -129419,7 +129419,7 @@
       "assertionCoverage": {
         "covered": [],
         "uncovered": [
-          "partial：Go 断言父单 OCO bracket 原子提交。Rust 的父 bracket 以原子组执行并保持 stop-first 保护（该用例），原子性由撮合原子组保证。"
+          "partial：Go 断言父单 OCO bracket 原子提交（三条腿分组、保护腿字段）与逻辑 OCO 整体撤销（2 条腿）。Rust 的父 bracket 以原子组执行并保持 stop-first 保护（该用例）；逻辑 OCO 整体撤销的 2 条腿断言无对应。"
         ],
         "source": "legacy-conclusion"
       },
@@ -129454,7 +129454,7 @@
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
-        "partial：Go 断言父单 OCO bracket 原子提交。Rust 的父 bracket 以原子组执行并保持 stop-first 保护（该用例），原子性由撮合原子组保证。"
+        "partial：Go 断言父单 OCO bracket 原子提交（三条腿分组、保护腿字段）与逻辑 OCO 整体撤销（2 条腿）。Rust 的父 bracket 以原子组执行并保持 stop-first 保护（该用例）；逻辑 OCO 整体撤销的 2 条腿断言无对应。"
       ],
       "boundaryReason": null
     },
@@ -129647,7 +129647,7 @@
     "pkg/backtest/pineworker_command_executor_test.go:579:TestPineWorkerCommandExecutorGeneratedOrderIDStopsAndTrackingFallbacks": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/strategy_runtime_execution_tests.rs::test_execute_strategy_intents_cancel_dispatches_order_cancel",
-      "conclusion": "partial：Go 断言生成订单 ID 失败时的停止与跟踪回退。Rust 的撤销按订单 ID 派发（该用例），ID 生成失败在命令层直接失败，没有 Go 的跟踪回退路径。",
+      "conclusion": "partial：Go 断言生成订单 ID 的前缀格式、市价止损单字段与跟踪回退（去空格建跟踪、空 ID 不跟踪）。Rust 的撤销按订单 ID 派发（该用例）；ID 生成格式与跟踪回退逻辑无对应断言。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
       "evidence_type": "partial",
       "source": {
@@ -129667,7 +129667,7 @@
       "assertionCoverage": {
         "covered": [],
         "uncovered": [
-          "partial：Go 断言生成订单 ID 失败时的停止与跟踪回退。Rust 的撤销按订单 ID 派发（该用例），ID 生成失败在命令层直接失败，没有 Go 的跟踪回退路径。"
+          "partial：Go 断言生成订单 ID 的前缀格式、市价止损单字段与跟踪回退（去空格建跟踪、空 ID 不跟踪）。Rust 的撤销按订单 ID 派发（该用例）；ID 生成格式与跟踪回退逻辑无对应断言。"
         ],
         "source": "legacy-conclusion"
       },
@@ -129702,7 +129702,7 @@
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
-        "partial：Go 断言生成订单 ID 失败时的停止与跟踪回退。Rust 的撤销按订单 ID 派发（该用例），ID 生成失败在命令层直接失败，没有 Go 的跟踪回退路径。"
+        "partial：Go 断言生成订单 ID 的前缀格式、市价止损单字段与跟踪回退（去空格建跟踪、空 ID 不跟踪）。Rust 的撤销按订单 ID 派发（该用例）；ID 生成格式与跟踪回退逻辑无对应断言。"
       ],
       "boundaryReason": null
     },
