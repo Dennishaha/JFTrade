@@ -5802,3 +5802,33 @@ runner_chat:423 为 `[x]`、store:792 为 `[~]`，`[x]` 共享 rust_entry
 
 下一片：130-09 切片三十一，marketdataapp 60 条 `[x]`（最大余量目录，
 需拆片）。
+## 第 130 批 09 切片三十一甲：marketdataapp 缓存/查询/搜索 24 条含 2 处纠正（2026-09-24）
+
+范围：`internal/app/apiserver/marketdataapp` 24 条 `[x]`（data_plane_switch 4、
+market_depth 2、market_http 11、provider 2、provider_boundaries 1、query 4），
+marketdataapp 60 条的第一片；其余 runtime_* 31 条与 sidecar 5 条拆后片。
+
+方法：Go 体全读；28 个具名引用全存在（0 缺失）；逐字比对后，断言逐字
+不等价即 partial，辅助探针缺失则维持。
+
+2 处纠正（`[x]` 降为 partial，`[x]` 1490→1488）：
+
+- provider `:107`：未知前缀不推断市场的主张成立，但 Go 同层返回空市场
+  与原始大小写，Rust 同层大写归一并保留前缀字面量，逐字不等价。
+- market_http `:478`：一次快照 RPC 与 name/price/peRate 成立，但
+  exchangeType 投影、meta.fromCache=false 与 GetStaticInfo 调用无对应
+ （前端对前两者有回退，P2；static-info 在 Rust 属独立 catalog 端口，
+  保持边界）。
+
+其余 22 条维持 `[x]`（原子切换单提交点、失败保留代际、depth 钳制六值、
+快照/tick 缓存与回退、session 标签与分类、别名映射与窗口边界均逐项
+命中；`:140` sidecar stub 计数属异构件探针，主簇完整故维持）。
+
+缺口 owner 与回归：搜索未知前缀大小写/空市场形状、安全详情
+exchangeType 与 fromCache 投影；回归要求见各行 uncoveredAssertions。
+
+验证：`audit_test_parity.py --write-report` exit 0（1488 exact 全引用
+存在；dup 0）；`parity_anchor_reconcile.py` 过；受影响定向 nextest；
+`git diff --check` 干净。
+
+下一片：130-09 切片三十一乙，marketdataapp runtime_* 31 条 `[x]`。

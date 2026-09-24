@@ -32898,10 +32898,10 @@
       "boundaryReason": null
     },
     "internal/app/apiserver/marketdataapp/market_http_test.go:478:TestMarketSecurityDetailsResponseQueriesSecuritySnapshot": {
-      "status": "[x]",
-      "evidence_type": "function_exact",
+      "status": "[~]",
+      "evidence_type": "partial",
       "rust_entry": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::securities_route_queries_the_security_snapshot_once",
-      "conclusion": "function_exact：security details 恰好一次 GetSecuritySnapshot（计数 fixture），name/currentPrice 来自实时快照、equity.peRate 投影存在。Go 另有 GetStaticInfo 调用属于其 pkg/futu 详情模型（Rust 该字段来自 snapshot 或 search lookup），已作为边界记录；本轮修复 currentPrice/peRate 等价格字段以字符串输出，与 Go decimalJSON 契约一致。",
+      "conclusion": "partial：一次快照 RPC 与 name/currentPrice/peRate 投影成立；但 Go 同测的 exchangeType 投影（Rust 路由不输出该字段，前端靠 exchange/market 回退）、meta.fromCache=false（Rust 直接省略该键）与一次 GetStaticInfo 调用（Rust 该路由无同形步骤，查阅走独立 catalog 端口）无对应。回归要求：补 exchangeType 与 fromCache:false 投影断言；static-info 保持边界。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(securities_route_queries_the_security_snapshot_once)'",
       "source": {
         "file": "internal/app/apiserver/marketdataapp/market_http_test.go",
@@ -32923,10 +32923,10 @@
         }
       ],
       "assertionCoverage": {
-        "covered": [
-          "function_exact：security details 恰好一次 GetSecuritySnapshot（计数 fixture），name/currentPrice 来自实时快照、equity.peRate 投影存在。Go 另有 GetStaticInfo 调用属于其 pkg/futu 详情模型（Rust 该字段来自 snapshot 或 search lookup），已作为边界记录；本轮修复 currentPrice/peRate 等价格字段以字符串输出，与 Go decimalJSON 契约一致。"
+        "covered": [],
+        "uncovered": [
+          "partial：一次快照 RPC 与 name/currentPrice/peRate 投影成立；但 exchangeType 投影、meta.fromCache=false 与一次 GetStaticInfo 调用无对应。回归要求：补 exchangeType 与 fromCache:false 投影；static-info 保持边界。"
         ],
-        "uncovered": [],
         "source": "legacy-conclusion"
       },
       "verification": {
@@ -32953,15 +32953,15 @@
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "function_exact：security details 恰好一次 GetSecuritySnapshot（计数 fixture），name/currentPrice 来自实时快照、equity.peRate 投影存在。Go 另有 GetStaticInfo 调用属于其 pkg/futu 详情模型（Rust 该字段来自 snapshot 或 search lookup），已作为边界记录；本轮修复 currentPrice/peRate 等价格字段以字符串输出，与 Go decimalJSON 契约一致。"
+      "coveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial：一次快照 RPC 与 name/currentPrice/peRate 投影成立；但 exchangeType 投影、meta.fromCache=false 与一次 GetStaticInfo 调用无对应。回归要求：补 exchangeType 与 fromCache:false 投影；static-info 保持边界。"
       ],
-      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/app/apiserver/marketdataapp/market_http_test.go:533:TestMarketSecurityDetailsResponseIncludesWarrantBlock": {
@@ -33844,11 +33844,11 @@
       "boundaryReason": null
     },
     "internal/app/apiserver/marketdataapp/provider_test.go:107:TestBrokerSearchInstrumentPartsRejectsUnknownPrefixInference": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_catalog_futu.rs::unknown_search_prefixes_are_never_inferred_as_a_market; crates/jftrade-engine/src/product_production_ports_market_data_catalog_futu.rs::canonical_search_code_does_not_double_prefix_the_market",
-      "conclusion": "[x]：Go 断言未知前缀 bad.CODE 在空市场下不做推断、返回空市场与原始代码。Rust 的 canonical_search_market_prefix 只映射已知别名（cnsh/cnsz/hkfuture|hk_futures/cc），其余前缀保持自身，绝不推断成 HK/SH/SZ；新用例断言 \"bad\" 保持为 BAD（大小写由全局搜索归一承担）与 canonical_search_code(\"\", \"bad.CODE\") 保持点号形状、裸代码 00700 不带前缀，同族用例继续覆盖已知前缀与点号代码保留。",
+      "conclusion": "partial：未知前缀不推断成 HK/SH/SZ 的主张成立；但逐字输出不等价——Go 同层返回空市场与原始大小写 (\"\", \"bad.CODE\")，Rust 在同层做 ASCII 大写归一并保留前缀字面量 (canonical_search_code(\"\", \"bad.CODE\")==\"BAD.CODE\")。回归要求：确认全局搜索归一是否覆盖该大小写/空市场差异，或在同层对齐大小写保留与空市场形状。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(unknown_search_prefixes_are_never_inferred_as_a_market) | test(canonical_search_code_does_not_double_prefix_the_market)'",
-      "evidence_type": "function_exact",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/marketdataapp/provider_test.go",
         "line": 107,
@@ -33880,10 +33880,10 @@
         }
       ],
       "assertionCoverage": {
-        "covered": [
-          "[x]：Go 断言未知前缀 bad.CODE 在空市场下不做推断、返回空市场与原始代码。Rust 的 canonical_search_market_prefix 只映射已知别名（cnsh/cnsz/hkfuture|hk_futures/cc），其余前缀保持自身，绝不推断成 HK/SH/SZ；新用例断言 \"bad\" 保持为 BAD（大小写由全局搜索归一承担）与 canonical_search_code(\"\", \"bad.CODE\") 保持点号形状、裸代码 00700 不带前缀，同族用例继续覆盖已知前缀与点号代码保留。"
+        "covered": [],
+        "uncovered": [
+          "partial：未知前缀不推断成 HK/SH/SZ 的主张成立；但逐字输出不等价——Go 同层返回空市场与原始大小写 (\"\", \"bad.CODE\")，Rust 在同层做 ASCII 大写归一并保留前缀字面量。回归要求：确认全局搜索归一覆盖或同层对齐。"
         ],
-        "uncovered": [],
         "source": "legacy-conclusion"
       },
       "verification": {
@@ -33913,15 +33913,15 @@
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "[x]：Go 断言未知前缀 bad.CODE 在空市场下不做推断、返回空市场与原始代码。Rust 的 canonical_search_market_prefix 只映射已知别名（cnsh/cnsz/hkfuture|hk_futures/cc），其余前缀保持自身，绝不推断成 HK/SH/SZ；新用例断言 \"bad\" 保持为 BAD（大小写由全局搜索归一承担）与 canonical_search_code(\"\", \"bad.CODE\") 保持点号形状、裸代码 00700 不带前缀，同族用例继续覆盖已知前缀与点号代码保留。"
+      "coveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial：未知前缀不推断成 HK/SH/SZ 的主张成立；但逐字输出不等价——Go 同层返回 (\"\", \"bad.CODE\")，Rust 返回 \"BAD.CODE\"（大写归一+前缀保留）。回归要求：确认全局搜索归一覆盖或同层对齐。"
       ],
-      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/app/apiserver/marketdataapp/python_runtime_test.go:13:TestResolveSourcePythonRuntimeHonorsEnvironmentAndFallbacks": {
