@@ -275,3 +275,30 @@ partial 缺口具体（警告样本 cap、归组键文案、运行期错误计�
 `check:quick`（单实例）、`git diff --check`。
 
 下一片：backtest_calendar 按文件行号继续（store 连接/失败/查询/运行时系）。
+
+## 第 130 批 07 切片五：store 连接/失败/查询/运行时 32 条 recon（2026-09-24）
+
+范围：`pkg/backtest/internal/storage/store_connection_test.go`（4）+
+`store_failure_boundaries_test.go`（5）+ `store_query_aggregation_contracts_test.go`（3）+
+`store_runtime_invariants_test.go`（14）+ `store_session_aggregation_contracts_test.go`（4）+
+`stream_query_failure_sorting_test.go`（2），共 32 条（partial 23 + boundary 9）。
+
+方法：Go 体逐条核对结论；全部 32 条 Rust 引用逐一 rg 命中（0 缺失）；
+并发与结构性 claim 抽查 Rust 生产代码（Mutex 单连接 + busy_timeout 10s、
+无 WAL 配置、WriterLease 拒绝第二写入者、TransactionBehavior::Immediate、
+每次读 sqlite_master 无存在性缓存）与 Go 体（连接池 8 连接、双实例串行写、
+WAL 并行读、排队写可见性、触发器中途失败回滚）。
+
+结论：32 条 verdict 全部成立，无判定变更、无代码变更——
+9 boundary 属实（连接池/WAL/排队写/通道流式/多标的排序/存在性缓存/逐不变量助手
+在 Rust 无对应对象，升级路径已登记）；
+partial 缺口具体，含 :208 批量中途失败无残留行的专项断言缺失（已登记回归要求，
+P0 恢复类）、:500 会话分页缺口上报、:58 港股跨时段聚合 P2、:59 首个存在表回退选择。
+本片为纯 recon。
+
+验证：`audit_test_parity.py --write-report` exit 0；`parity_anchor_reconcile.py` 过；
+`cargo fmt -p jftrade-engine -- --check`、`check:ai-context`、`check:migration-manifest`、
+`check:zero-go`、定向 nextest（store-sqlite 全量 + backtest 全量）、
+`check:quick`（单实例）、`git diff --check`。
+
+下一片：backtest_calendar 按文件行号继续（pine/costs/collector/runner/result 系）。
