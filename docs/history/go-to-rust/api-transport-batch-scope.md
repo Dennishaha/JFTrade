@@ -6314,3 +6314,24 @@ simulate 闭环、account、lifecycle 有界、broker market_rules）全过；ca
 账本与 Rust 代码零改动（纯复核片）。
 
 下一片：130-10 切片六，strategy 域 partial 第 81–100 行。
+## 第 130 批 10 切片六：strategy 域 partial 第 81–100 行，19 行维持、1 行结论锐化（2026-09-24）
+
+范围：strategy 域 partial 第 81–100 行（订阅租约与符号失败、pine 在线命令 15 行、执行器端口与数量 5 行，
+按文件加行号升序）。
+
+方法：Go 体按簇抽读；P1 缺口验到代码行；意图层订单类型映射逐分支核对发现候选分歧，当场登记。
+
+19 行维持（异常路径租约释放、订阅归一与周期映射、桶边界与乱序、关停期回调、K 线逐字段、批量映射、方向保持、
+条件单之外的退出作用域与方向归一、OCO 展开为 boundary、卖出开仓归一、缺省数量、未知意图、控制端口身份、
+GTC 与限价组合、sizer 缺失语义、空头标签、告警通道均无同形断言，均与账本缺口一致）。
+
+1 行结论锐化（状态保持 partial，[x] 1472 不变，b83 dry-run 先行、entry_changed 等于 0）：
+
+- pine_live_command:130：意图层以 limit 优先（limit 加 stop 得 LIMIT），而参考实现同输入得 StopLimit；
+  下游是否把 LIMIT 加 stopPrice 等价处理尚未验证。逐类型回归必须覆盖该格后再收敛。
+
+验证：audit --write-report 过（1472 exact；dup 0）；anchor 过；定向 nextest（execution 意图、wire 枚举、
+订阅、candle 生命周期、owner、simulate 闭环）全过；cargo fmt --check 与 git diff --check 干净；
+无 Rust 生产代码改动、无新增测试。
+
+下一片：130-10 切片七，strategy 域 partial 第 101–120 行。
