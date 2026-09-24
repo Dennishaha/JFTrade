@@ -295,3 +295,53 @@ function_exact 1209 + partial 2147 + boundary 529 + module_only 4 + **missing 56
    没有逐入口断言（前缀推断有测试，路由改写无）。
 
 验证：`cargo fmt --all -- --check`；`node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -p jftrade-watchlist -p jftrade-engine --all-targets --locked --no-fail-fast`（**1782 passed / 0 skipped**）；`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **2927 Rust** / **1209 `[x]`**；missing 562、partial 2147、boundary 529、module_only 4；0 破坏引用、0 重复 rust_entry、未锚定告警 193 = 前批基线、7 条 partial 无解析引用与 2 条无断言为前批已登记缺口）；`pnpm run check:compatibility`（EXIT=0）；`node scripts/check-zero-go.mjs`（2891 tracked files / 0 release artifact）；`pnpm run check:rust:architecture`；`git diff --check`；`pnpm run check:quick`（EXIT=0）；`pnpm run check:ai-context`。
+
+## 第 130 批 12 切片三十九：`internal/marketdata` partial 第 1–30 条逐项复核（2026-09-25）
+
+本批以 Go `internal/marketdata` 的清单顺序处理 30 条（broker candle 5、cache 8、
+calendar/macro 4、candle session 5、collector 8）。逐一读取 Go 测试函数体和 Rust
+证据函数；本批没有发现需要先写失败回归测试的新增生产行为差异。所有条目继续保持
+`[~]`/`partial`，因为 Rust 证据只覆盖断言子集、测试结构不同，或其行为由类型/租约
+边界表达；不因存在 `Parity` 引用而升级为 exact。
+
+| 复核 | Go 测试（清单键） | Rust 证据 | P | 本批结论 |
+| :---: | --- | --- | :---: | --- |
+| [x] | `broker_candles_test.go:12:TestBrokerKLineCandlesResponseProjectsStrictPage` | `product_market_data_candle_pagination_tests::test_broker_k_line_candles_response_projects_strict_page` | P1 | partial：页大小、分页标记和基本字段有证据；未锁定 Go 的时间、收盘值、source、extendedHours、session wire 值。 |
+| [x] | `broker_candles_test.go:51:TestBrokerKLineCandlesResponseHandlesTerminalAndBoundedPages` | `...::test_broker_k_line_candles_response_handles_terminal_and_bounded_pages` | P1 | partial：Rust 实际只走 terminal 分支；Go 的 bounded 分支与 pagination 对象字段数未同形断言。 |
+| [x] | `broker_candles_test.go:77:TestBrokerKLineCandlesResponseRejectsInvalidProviderRows` | `...::test_broker_k_line_candles_response_rejects_invalid_provider_rows` | P2 | partial：仅 close 正数/非法值；nil snapshot、cursor、乱序、时间、缺字段、非有限值和 session 矩阵未覆盖。 |
+| [x] | `broker_candles_test.go:109:TestBrokerKLineHelpersClassifySessionsAndNumbers` | `...::test_broker_k_line_helpers_classify_sessions_and_numbers` | P1 | partial：时间/数字解析有证据；默认 regular、显式 after 及 CandleSession 分组未断言。 |
+| [x] | `broker_candles_test.go:137:TestBrokerKLinePaginationRejectsInvalidBoundedAndPagedMetadata` | `...::test_broker_k_line_pagination_rejects_invalid_bounded_and_paged_metadata` | P1 | partial：bounded hasMore 与 page 超限有证据；bounded cursor、空/非法/不匹配 nextBefore 未全覆盖。 |
+| [x] | `cache_test.go:12:TestCacheDeduplicatesPromotesAndInherits` | `jftrade-marketdata/tests/cache_boundaries.rs::test_cache_deduplicates_promotes_and_inherits` | P1 | partial：同价 promotion/计数有证据；observedAt、trade bid/ask/volumeDelta、close/pre-market/turnover/session 继承未等价断言。 |
+| [x] | `cache_test.go:76:TestCacheFreshnessRetentionAndMaximum` | `.../cache_boundaries.rs::test_cache_freshness_retention_and_maximum` | P1 | partial：fresh/stale 有证据；retention 清理、max=3 顺序和 AllFresh 未覆盖。 |
+| [x] | `cache_test.go:103:TestCacheDoesNotInheritExtendedSessionsAcrossTradingDays` | `.../cache_extended_sessions_parity.rs::test_cache_does_not_inherit_extended_sessions_across_trading_days` | P1 | partial：交易日变化阻断 session/pre/after 继承；ExtendedHours、overnight、bid/ask/volume 未全投影。 |
+| [x] | `cache_test.go:138:TestCachePromotesUSRegularCloseWhenAfterHoursTradeArrives` | `.../cache_extended_sessions_parity.rs::test_cache_promotes_us_regular_close_when_after_hours_trade_arrives` | P1 | partial：previous/last close 和价格 promotion 有证据；SnapshotJSON 及后续 after-hours 上下文保留未覆盖。 |
+| [x] | `cache_test.go:185:TestCacheRetainsNewExtendedQuoteWhenPriceIsUnchanged` | `.../cache_extended_sessions_parity.rs::test_cache_retains_extended_quote_when_price_is_unchanged` | P1 | partial：同价 after quote 有证据；计数、quote 时间和 close 字段完整保留未断言。 |
+| [x] | `cache_test.go:261:TestSerializationPreservesNullExtendedAndStringPrices` | `product_production_ports_market_data_quote_snapshot.rs::cached_projection_uses_active_after_quote_and_separates_closes` | P1 | partial：字符串价格、after quote、session 窗口和 observedAt 有证据；Availability.Authoritative→null 无同形 wire 断言。 |
+| [x] | `cache_test.go:301:TestServiceUsesSingleCacheForSnapshotCandlesAndLatest` | snapshot/tick/security cache tests | P1 | partial：各入口分别证明 cache hit；Go 的同一 Service 串联 snapshot→tick→latest 单一缓存断言未复现。 |
+| [x] | `cache_test.go:337:TestServiceTickCandleFallsBackToRetainedCache` | `product_market_data_candle_pagination_tests::tick_candles_fall_back_to_retained_cache_on_ticker_error` | P1 | partial：语义证据已被 market HTTP 行唯一占用；为保持 rust_entry 全局唯一，本行不升 exact。 |
+| [x] | `calendar_macro_facade_test.go:66:TestServiceCalendarMacroRejectsProvidersWithoutCapability` | `product_production_ports_research_calendar_tests::{calendar_and_macro_routes_fail_closed_for_other_providers,calendar_and_macro_propagate_capability_and_busy_errors}` | P2 | partial：fail-closed/能力错误有证据；Go 六个操作逐项 unsupported 文本矩阵未同形覆盖。 |
+| [x] | `calendar_macro_facade_test.go:109:TestServiceCalendarValidatesDateFormats` | `...::{calendar_operations_map_to_provider_reads_on_the_wire,economic_calendar_route_derives_date_and_time}` | P2 | partial：参数转发和日期派生有证据；RFC3339/日期非法输入矩阵未逐项断言。 |
+| [x] | `calendar_macro_facade_test.go:144:TestServiceMacroIndicatorHistoryValidatesIDAndLimit` | `...::{macro_history_limit_is_bounded_and_defaults,macro_history_uses_page_size_before_legacy_limit,macro_indicator_history_route_rejects_identity_and_type_drift}` | P2 | partial：limit/default/pageSize 与身份漂移有证据；空 ID、超界 limit 的 Go 错误矩阵未完全对齐。 |
+| [x] | `calendar_macro_facade_test.go:163:TestServiceCalendarMacroPassesProviderErrorsThrough` | `...::{calendar_and_macro_propagate_capability_and_busy_errors,macro_projection_rejects_missing_or_malformed_typed_fields}` | P2 | partial：错误分类/畸形字段有证据；Go provider 原文透传未逐操作锁定。 |
+| [x] | `candle_sessions_test.go:8:TestParseCandleSessionsNormalizesCSVAndRepeatedValues` | `product_query::tests::candle_sessions_parse_dedup_order_and_reject_invalid` | P1 | partial：同一输入的去重排序有证据，但该 Rust 函数已被 query 行占用，不能重复升 exact。 |
+| [x] | `candle_sessions_test.go:18:TestParseCandleSessionsRejectsEmptyAndUnknownValues` | `product_query::tests::candle_sessions_parse_dedup_order_and_reject_invalid` + assembly validation | P1 | partial：空/未知 token 及 400 映射有证据；`regular,invalid` 组合和 Go 统一错误变体未同形断言。 |
+| [x] | `candle_sessions_test.go:26:TestResolveCandleSessionsDefaultsAndRejectsUnsupportedValues` | `...::us_intraday_futu_candles_carry_calendar_resolved_session_labels` + assembly validation | P1 | partial：默认会话和不支持值有证据；available 集合顺序/overnight 缺失的函数级语义未单独钉住。 |
+| [x] | `candle_sessions_test.go:44:TestFilterCandlesBySessionsPreservesUnknownAsRegular` | `...::{tick_candles_filter_sessions_before_applying_the_limit,broker_kline_pagination_helpers_cover_sessions_bounds_and_listing_dates}` | P1 | partial：过滤及 limit 前顺序有证据；未知标签降 regular、nil filter 和映射表未同形覆盖。 |
+| [x] | `candle_sessions_test.go:71:TestNormalizeInstrumentFallsBackForUnqualifiedInput` | `jftrade-marketdata::catalog_tests::{infer_cn_prefix_supports_various_formats_and_preserves_explicit_prefixes,normalize_instrument_rejects_unsupported_market_and_market_mismatch}` | P1 | partial：合法推断和 fail-closed 有证据；Go 对 `??` 仍宽松生成 `??.CODE`，属于冻结的 go-behavior quirk。 |
+| [x] | `collector_test.go:15:TestCollectorCloseCancelsBlockingConnectAndPreventsRevival` | Futu stale executor/closed session + marketdata runtime recorder | P1 | partial：关闭 fence、幂等和不触 transport 有证据；阻塞 Connect 取消及 Wake 不新建 stream 的计数未同形断言。 |
+| [x] | `collector_test.go:47:TestCollectorOldGenerationCannotCommitPushOrConnect` | `quote_push_tests::lifecycle_accepts_active_push_preserves_recorder_failures_and_rejects_stale_push` + snapshot generation fence | P2 | partial：旧 generation push/在途结果拒绝有证据；旧 handler tick 计数与新流 connected 结构不同。 |
+| [x] | `collector_test.go:79:TestCollectorResetBoundsStreamCloseAndRejectsLateTick` | stale executor + router deactivation + `runtime::reconfigure_preserves_demand_and_clears_previous_runtime_state` | P2 | partial：generation/reset/late callback fence 有证据；Go 的 500ms 与 closeRelease 时序边界未同形验证。 |
+| [x] | `collector_test.go:114:TestCollectorCloseBoundsUncooperativeConnectAndKeepsError` | `managed_session_tests::close_is_idempotent_and_joins_the_single_reader` + helper process kill escalation | P2 | partial：关闭有界/幂等有证据；首次超时错误文本保留与重复 Close 文本未锁定。 |
+| [x] | `collector_test.go:142:TestCollectorPollingFallbackDoesNotCallPushHandler` | `snapshot_poll::poll_normalizes_demand_writes_only_requested_ticks_and_skips_fresh_cache` | P1 | partial：poll 只写 cache 的类型边界有证据；没有 Go 式 push handler 计数 seam。 |
+| [x] | `collector_test.go:161:TestCollectorSkipsDynamicallyUnavailablePushSource` | `snapshot_poll::empty_invalid_closed_and_inactive_demand_never_calls_provider` + router provider state | P2 | partial：无需求/不健康时 fail-closed 有证据；动态 push source NewStream 调用计数未暴露。 |
+| [x] | `collector_test.go:180:TestCollectorPollsFallbackInstrumentsWithoutAddingThemToPushStream` | snapshot poll demand normalization + `poll_only_read_routes_prioritize_capabilities_and_preserve_leases` | P1 | partial：需求集合与轮询写入有证据；实时/回退分流的 push stream 只含可用标的未同形断言。 |
+| [x] | `collector_test.go:223:TestCollectorUsesDynamicPollingPolicyAndPreventsOverlap` | `snapshot_poll::{missing_cache_poll_respects_one_second_cadence,non_positive_policy_values_retain_collector_defaults}` | P2 | partial：cadence/default policy 有证据；Go 的阻塞期间多次 poll 计数=1 未直接验证，Rust 由串行 executor 表达。 |
+
+本批勾选结果：30/30 已读取 Go 断言并核对 Rust 证据；精准 Rust 测试共 38 条（engine 18、
+marketdata 14、integration-futu 3、marketdata-helper 1、catalog 2），全部通过。没有新增
+`function_exact`，没有新增生产修复；P1 缺口保留在对应映射的 `nextAction`，后续若要升级必须
+先补同形回归测试并重新核对唯一 `rust_entry`。
+
+验证：`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast`（本批精准 18/18）；`node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --all-targets --locked --no-fail-fast`（14/14）；`node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked --no-fail-fast`（3/3）；`node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper --all-targets --locked --no-fail-fast`（1/1）；`python3 scripts/compatibility/audit_test_parity.py`；`python3 scripts/compatibility/parity_anchor_reconcile.py`；`git diff --check`。
+
+下一片：`internal/marketdata` partial 第 31–60 条（collector 余量、company/index/research façade）；若该片出现真实 P1 行为差异，先补失败回归测试再修复所属 owner。
