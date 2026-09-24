@@ -4769,3 +4769,53 @@ exec_validate（4）+ execution_routes（3）+ portfolio_routes（3），
 `check:zero-go`、`check:quick`（单实例）、`git diff --check`。
 
 下一片：api_transport 按目录继续（marketdataapp/servercore 余量）。
+
+## 第 130 批 09 切片三：marketdataapp runtime/forwarding/health 37 条 recon（2026-09-24）
+
+范围：`internal/app/apiserver/marketdataapp/runtime_test.go`（22）+
+`runtime_forwarding_test.go`（4）+ `runtime_health_test.go`（11），
+共 37 条（原 18 `[x]` + 19 `[~]`）。
+
+方法：Go 体逐条核对结论；37 条 Rust 引用逐一 rg 命中
+（`:167` 首元实为 `jftrade-integration-marketdata-helper/src/client.rs`，
+存在；其余 0 缺失）；`[x]` 锚点：15 条有锚、3 条无锚（`:113`、`:64`、
+`:276`，均落判改判）；组合条目逐项拆验；引用存在≠断言等价
+（`function_exact`＝断言等价，报告口径）。
+6 条收回过宽 `[x]`→partial：
+
+- `:113` 未知激活拒绝+清理失败不阻塞切换：Rust 引用用例的切换本身被
+  拒绝（与 Go“清理失败但切换成功”方向相反），未知 provider 拒绝与
+  sidecar 计数无断言，属错贴主题引用。
+- `:64` 健康失败恢复 sidecar：与 akshare `:97` 真重复（同一 Rust 用例，
+  `::tests::` 写法差异致审计字符串去重漏网）；sidecar 回滚计数与健康
+  通过前订阅保留无断言，`[x]` 归属保留给主题相符的 `:97`。
+- `:276` 清理与激活串行：Rust 状态机无非活动清理路径，引用用例的
+  Parity 归属是 `:476`/`:337` 而非本条，跨操作门控与 desired 快照无断言。
+- `:14` 双向稳定数据面：Rust 仅覆盖串行/max_in_flight/generation，
+  descriptor/push/订阅/流/sidecar/quote 等数据面断言无引用覆盖。
+- `:191` sidecar 失败与关闭：原组合第二元无 Parity 归属且主题为托管
+  订阅 fence，已摘除；sidecar 失败阻塞激活、Close 错误透出无断言。
+- `:437` 关闭竞态：Rust 允许抢赢关闭的激活提交生效（Go 持关机锁恒拒绝，
+  属竞态窗口行为差异，已登记）；零回调执行在该用例中无断言
+  （由 `:414` 引用用例另行覆盖）。
+
+口径：题眼断言无覆盖→partial；建模层等价（retire/handover、
+rollback 后可用性、关闭后拒绝）且 Parity 精确归属→保留 `[x]`
+（`:143`/`:168`/`:337`/`:414`/`:504`、router 系 `:13`/`:167`/`:183`/
+`:205`/`:240`/`:261`、组合 `:166`）。
+
+结论：37 条 verdict = **12 `[x]` + 25 `[~]`**
+（`[x]` 1554→1548）。本片仅台账修正 + 报告/清单重生 + 文档，
+无代码变更。附带：对齐审计线程阻塞项（runner_chat `:423`/store
+`:792` 重复）工作区核实已解（`:792` 为 `[~]`，`beb5174c` 落库），
+本轮生成器在映射校验通过后重跑，report 与 inventory 同步落库。
+
+验证：`v2_writer.py --check` 过后落库；`audit_test_parity.py --write-report`
+exit 0（exact 无锚点警告 108→104；其余已知警告 0/2/2 不变）；
+`parity_anchor_reconcile.py` 过（1693/0/0/46）；
+`cargo fmt -p jftrade-engine -- --check` 过；定向 nextest（engine 5 +
+marketdata 1，见日志）；`check:ai-context`、`check:migration-manifest`、
+`check:zero-go`、`check:quick`（单实例）、`git diff --check`。
+
+下一片：api_transport marketdataapp 余量（data_plane_switch 系等）或
+servercore 余量，按文件行号升序。

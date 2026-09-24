@@ -7,7 +7,7 @@
     "treeSha": "0ee26444be21c15d9760f358a34649f78402f0fb"
   },
   "generatorVersion": "v2_writer.py@slice23",
-  "generatedAt": "2026-09-24T01:50:11Z",
+  "generatedAt": "2026-09-24T01:59:03Z",
   "mappings": {
     "cmd/jftrade-api/main_test.go:13:TestValidateArgsAllowsNoArgs": {
       "status": "[~]",
@@ -35509,11 +35509,11 @@
       "boundaryReason": null
     },
     "internal/app/apiserver/marketdataapp/runtime_forwarding_test.go:191:TestRuntimeSidecarFailureAndCloseKeepSelectionStable": {
-      "status": "[x]",
-      "rust_entry": "crates/jftrade-engine/src/product_active_provider_state.rs::tests::activation_after_shutdown_is_rejected_and_leaves_the_snapshot_committed; crates/jftrade-marketdata/src/router.rs::deactivation_fences_cache_and_marks_router_inactive",
-      "conclusion": "function_exact：Go 断言 sidecar 失败与 Close 之后选择保持稳定（不因失败/关闭改写 active provider）。Rust 的 activation_after_shutdown_is_rejected_and_leaves_the_snapshot_committed 断言关闭后激活被拒绝且已提交快照不变，deactivation_fences_cache_and_marks_router_inactive 断言停用后运行时 provider 清空、缓存被栅栏，覆盖同一稳定性契约。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-marketdata --all-targets --locked",
-      "evidence_type": "function_exact",
+      "status": "[~]",
+      "rust_entry": "crates/jftrade-engine/src/product_active_provider_state.rs::tests::activation_after_shutdown_is_rejected_and_leaves_the_snapshot_committed",
+      "conclusion": "部分覆盖：Go 断言 sidecar ensure 失败时激活报错且选择仍为 Futu、Close 透出 closeErr、nil sidecar 下 Close 成功。Rust 的 activation_after_shutdown_is_rejected_and_leaves_the_snapshot_committed 仅覆盖关闭后选择稳定（拒绝激活、回调零执行、快照不变）；差异是 sidecar 失败阻塞激活、Close 错误透出与 nil sidecar 路径均无断言（原组合第二元 deactivation_fences_cache_and_marks_router_inactive 主题为托管订阅 fence 且无 Parity 归属，与本条无关，已摘除）。",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/marketdataapp/runtime_forwarding_test.go",
         "line": 191,
@@ -35531,19 +35531,13 @@
             "rustFile": "crates/jftrade-engine/src/product_active_provider_state.rs",
             "rustLine": 320
           }
-        },
-        {
-          "file": "crates/jftrade-marketdata/src/router.rs",
-          "test": "deactivation_fences_cache_and_marks_router_inactive",
-          "crate": "jftrade-marketdata",
-          "anchor": null
         }
       ],
       "assertionCoverage": {
-        "covered": [
-          "function_exact：Go 断言 sidecar 失败与 Close 之后选择保持稳定（不因失败/关闭改写 active provider）。Rust 的 activation_after_shutdown_is_rejected_and_leaves_the_snapshot_committed 断言关闭后激活被拒绝且已提交快照不变，deactivation_fences_cache_and_marks_router_inactive 断言停用后运行时 provider 清空、缓存被栅栏，覆盖同一稳定性契约。"
+        "covered": [],
+        "uncovered": [
+          "部分覆盖：Go 断言 sidecar ensure 失败时激活报错且选择仍为 Futu、Close 透出 closeErr、nil sidecar 下 Close 成功。Rust 的 activation_after_shutdown_is_rejected_and_leaves_the_snapshot_committed 仅覆盖关闭后选择稳定（拒绝激活、回调零执行、快照不变）；差异是 sidecar 失败阻塞激活、Close 错误透出与 nil sidecar 路径均无断言（原组合第二元 deactivation_fences_cache_and_marks_router_inactive 主题为托管订阅 fence 且无 Parity 归属，与本条无关，已摘除）。"
         ],
-        "uncovered": [],
         "source": "legacy-conclusion"
       },
       "verification": {
@@ -35553,14 +35547,11 @@
           "run",
           "-p",
           "jftrade-engine",
-          "-p",
-          "jftrade-marketdata",
           "--all-targets",
           "--locked"
         ],
         "testFilter": [
-          "activation_after_shutdown_is_rejected_and_leaves_the_snapshot_committed",
-          "deactivation_fences_cache_and_marks_router_inactive"
+          "activation_after_shutdown_is_rejected_and_leaves_the_snapshot_committed"
         ],
         "runnerVersion": null,
         "toolchain": null,
@@ -35573,15 +35564,15 @@
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "function_exact：Go 断言 sidecar 失败与 Close 之后选择保持稳定（不因失败/关闭改写 active provider）。Rust 的 activation_after_shutdown_is_rejected_and_leaves_the_snapshot_committed 断言关闭后激活被拒绝且已提交快照不变，deactivation_fences_cache_and_marks_router_inactive 断言停用后运行时 provider 清空、缓存被栅栏，覆盖同一稳定性契约。"
+      "coveredAssertions": [],
+      "uncoveredAssertions": [
+        "部分覆盖：Go 断言 sidecar ensure 失败时激活报错且选择仍为 Futu、Close 透出 closeErr、nil sidecar 下 Close 成功。Rust 的 activation_after_shutdown_is_rejected_and_leaves_the_snapshot_committed 仅覆盖关闭后选择稳定（拒绝激活、回调零执行、快照不变）；差异是 sidecar 失败阻塞激活、Close 错误透出与 nil sidecar 路径均无断言（原组合第二元 deactivation_fences_cache_and_marks_router_inactive 主题为托管订阅 fence 且无 Parity 归属，与本条无关，已摘除）。"
       ],
-      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/app/apiserver/marketdataapp/runtime_health_test.go:13:TestRuntimeExplicitYFinanceActivationRequiresHealthBeforePublishing": {
@@ -35652,11 +35643,11 @@
       "boundaryReason": null
     },
     "internal/app/apiserver/marketdataapp/runtime_health_test.go:64:TestRuntimeFailedHealthCheckRestoresSidecarWithoutChangingProvider": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "crates/jftrade-marketdata/src/router.rs::tests::recovery_after_a_failed_health_check_publishes_a_healthy_provider",
-      "conclusion": "function_exact：Go 断言 health 检查失败时 Activate 返回该错误、active provider 仍是 Futu。Rust 的 recovery_after_a_failed_health_check_publishes_a_healthy_provider 先让 helper 健康检查失败，断言 activate 报错且 active_provider 仍为 futu，随后 update_health 成功再激活时发布 helper 并报告 Ready/connected，覆盖同一“失败不改选择、恢复后发布”的语义。",
+      "conclusion": "部分覆盖：Go 断言健康检查失败时 Activate 返回该错误且 active provider 仍是 Futu（Rust recovery_after_a_failed_health_check_publishes_a_healthy_provider 已覆盖失败不改选择、恢复后发布）。差异是 sidecar 回滚计数 ensure=1/stop=1 与健康通过前订阅不释放（desired 保留）无 Rust 断言；该 Rust 用例的断言主题与 akshare runtime_akshare_test.go:97（不可用 provider 恢复重试）相同，故本条降为 partial，[x] 归属保留给 :97。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --all-targets --locked",
-      "evidence_type": "function_exact",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/marketdataapp/runtime_health_test.go",
         "line": 64,
@@ -35672,10 +35663,10 @@
         }
       ],
       "assertionCoverage": {
-        "covered": [
-          "function_exact：Go 断言 health 检查失败时 Activate 返回该错误、active provider 仍是 Futu。Rust 的 recovery_after_a_failed_health_check_publishes_a_healthy_provider 先让 helper 健康检查失败，断言 activate 报错且 active_provider 仍为 futu，随后 update_health 成功再激活时发布 helper 并报告 Ready/connected，覆盖同一“失败不改选择、恢复后发布”的语义。"
+        "covered": [],
+        "uncovered": [
+          "部分覆盖：Go 断言健康检查失败时 Activate 返回该错误且 active provider 仍是 Futu（Rust recovery_after_a_failed_health_check_publishes_a_healthy_provider 已覆盖失败不改选择、恢复后发布）。差异是 sidecar 回滚计数 ensure=1/stop=1 与健康通过前订阅不释放（desired 保留）无 Rust 断言；该 Rust 用例的断言主题与 akshare runtime_akshare_test.go:97（不可用 provider 恢复重试）相同，故本条降为 partial，[x] 归属保留给 :97。"
         ],
-        "uncovered": [],
         "source": "legacy-conclusion"
       },
       "verification": {
@@ -35702,15 +35693,15 @@
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "function_exact：Go 断言 health 检查失败时 Activate 返回该错误、active provider 仍是 Futu。Rust 的 recovery_after_a_failed_health_check_publishes_a_healthy_provider 先让 helper 健康检查失败，断言 activate 报错且 active_provider 仍为 futu，随后 update_health 成功再激活时发布 helper 并报告 Ready/connected，覆盖同一“失败不改选择、恢复后发布”的语义。"
+      "coveredAssertions": [],
+      "uncoveredAssertions": [
+        "部分覆盖：Go 断言健康检查失败时 Activate 返回该错误且 active provider 仍是 Futu（Rust recovery_after_a_failed_health_check_publishes_a_healthy_provider 已覆盖失败不改选择、恢复后发布）。差异是 sidecar 回滚计数 ensure=1/stop=1 与健康通过前订阅不释放（desired 保留）无 Rust 断言；该 Rust 用例的断言主题与 akshare runtime_akshare_test.go:97（不可用 provider 恢复重试）相同，故本条降为 partial，[x] 归属保留给 :97。"
       ],
-      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/app/apiserver/marketdataapp/runtime_health_test.go:94:TestRuntimeReportsBothHealthAndSidecarRestoreFailures": {
@@ -37067,11 +37058,11 @@
       "boundaryReason": null
     },
     "internal/app/apiserver/marketdataapp/runtime_test.go:14:TestRuntimeSwitchesStableDataPlaneBetweenFutuAndYFinance": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_active_provider_state.rs::tests::provider_transitions_are_serialized_and_publish_one_snapshot",
-      "conclusion": "function_exact：Go 断言初始 provider=Futu、Activate(yfinance) 后 ActiveProviderID 发布 yfinance、再 Activate(futu) 恢复 Futu。Rust 的 provider_transitions_are_serialized_and_publish_one_snapshot 断言初始 Yfinance、两次切换分别发布 Akshare 与 Futu、最终 snapshot().provider 等于最后一次切换目标且 generation==2，逐条对应“切换必须发布新的 active provider 快照”。Go 中 sidecar ensure/stop 与 quote/push 路由字段属于 Python sidecar 进程模型，已在 sidecar 边界条目单独记录。",
+      "conclusion": "部分覆盖：Go 断言 futu↔yfinance 双向稳定切换（provider、push 可用性）与串行提交。Rust 的 provider_transitions_are_serialized_and_publish_one_snapshot 仅覆盖并发转换串行（max_in_flight==1）、previous-owner 链与 generation 推进；差异是 descriptor 内容、push 可用性、订阅释放/状态、NewStream 错误、sidecar ensure/stop 计数、quote 调用等数据面断言均无引用覆盖。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-      "evidence_type": "function_exact",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/marketdataapp/runtime_test.go",
         "line": 14,
@@ -37092,10 +37083,10 @@
         }
       ],
       "assertionCoverage": {
-        "covered": [
-          "function_exact：Go 断言初始 provider=Futu、Activate(yfinance) 后 ActiveProviderID 发布 yfinance、再 Activate(futu) 恢复 Futu。Rust 的 provider_transitions_are_serialized_and_publish_one_snapshot 断言初始 Yfinance、两次切换分别发布 Akshare 与 Futu、最终 snapshot().provider 等于最后一次切换目标且 generation==2，逐条对应“切换必须发布新的 active provider 快照”。Go 中 sidecar ensure/stop 与 quote/push 路由字段属于 Python sidecar 进程模型，已在 sidecar 边界条目单独记录。"
+        "covered": [],
+        "uncovered": [
+          "部分覆盖：Go 断言 futu↔yfinance 双向稳定切换（provider、push 可用性）与串行提交。Rust 的 provider_transitions_are_serialized_and_publish_one_snapshot 仅覆盖并发转换串行（max_in_flight==1）、previous-owner 链与 generation 推进；差异是 descriptor 内容、push 可用性、订阅释放/状态、NewStream 错误、sidecar ensure/stop 计数、quote 调用等数据面断言均无引用覆盖。"
         ],
-        "uncovered": [],
         "source": "legacy-conclusion"
       },
       "verification": {
@@ -37122,15 +37113,15 @@
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "function_exact：Go 断言初始 provider=Futu、Activate(yfinance) 后 ActiveProviderID 发布 yfinance、再 Activate(futu) 恢复 Futu。Rust 的 provider_transitions_are_serialized_and_publish_one_snapshot 断言初始 Yfinance、两次切换分别发布 Akshare 与 Futu、最终 snapshot().provider 等于最后一次切换目标且 generation==2，逐条对应“切换必须发布新的 active provider 快照”。Go 中 sidecar ensure/stop 与 quote/push 路由字段属于 Python sidecar 进程模型，已在 sidecar 边界条目单独记录。"
+      "coveredAssertions": [],
+      "uncoveredAssertions": [
+        "部分覆盖：Go 断言 futu↔yfinance 双向稳定切换（provider、push 可用性）与串行提交。Rust 的 provider_transitions_are_serialized_and_publish_one_snapshot 仅覆盖并发转换串行（max_in_flight==1）、previous-owner 链与 generation 推进；差异是 descriptor 内容、push 可用性、订阅释放/状态、NewStream 错误、sidecar ensure/stop 计数、quote 调用等数据面断言均无引用覆盖。"
       ],
-      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/app/apiserver/marketdataapp/runtime_test.go:85:TestRuntimeCommitsFutuWhenSidecarCleanupNeedsRetry": {
@@ -37187,11 +37178,11 @@
       "boundaryReason": "边界保留：Go 让 Activate(futu) 容忍 sidecar 清理失败并在 Close 重试；Rust 把该职责拆到 jftrade-integration-marketdata-helper 的 HelperProcess::stop（失败保留 last_error、state=Failed）与 crates/jftrade-engine/src/product_runtime_supervisor.rs 的停机顺序聚合，没有“切换容忍延迟清理”这一逐步对应对象。"
     },
     "internal/app/apiserver/marketdataapp/runtime_test.go:113:TestRuntimeRejectsInvalidActivationAndDefersFutuCleanupFailure": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_active_provider_state.rs::tests::same_provider_activation_is_idempotent_after_a_rejected_switch",
-      "conclusion": "function_exact：Go 断言未知 provider 被拒绝、Futu 清理失败不阻塞切换、切换后 active provider 提交为 yfinance。Rust 的 same_provider_activation_is_idempotent_after_a_rejected_switch 让切换回调对 yfinance 返回 Err，断言 rejected 快照 provider 仍为 Futu、activated==false、generation==0，随后提交当前 provider 成功并只发布一次 generation==1，逐条对应“校验/清理失败绝不改变已提交 provider，且失败后状态仍可继续使用”。",
+      "conclusion": "部分覆盖：Go 断言未知 provider 被拒绝、Futu 清理失败不阻塞切换且提交 yfinance、sidecar ensure=1/stop=0/running。Rust 的 same_provider_activation_is_idempotent_after_a_rejected_switch 仅覆盖“被拒绝的切换不改变已提交 provider 且状态仍可继续激活”一半；差异是 Rust 用例的切换本身被拒绝（与 Go“清理失败但切换成功”方向相反），未知 provider 拒绝与 sidecar ensure/stop 计数均无断言。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-      "evidence_type": "function_exact",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/marketdataapp/runtime_test.go",
         "line": 113,
@@ -37207,10 +37198,10 @@
         }
       ],
       "assertionCoverage": {
-        "covered": [
-          "function_exact：Go 断言未知 provider 被拒绝、Futu 清理失败不阻塞切换、切换后 active provider 提交为 yfinance。Rust 的 same_provider_activation_is_idempotent_after_a_rejected_switch 让切换回调对 yfinance 返回 Err，断言 rejected 快照 provider 仍为 Futu、activated==false、generation==0，随后提交当前 provider 成功并只发布一次 generation==1，逐条对应“校验/清理失败绝不改变已提交 provider，且失败后状态仍可继续使用”。"
+        "covered": [],
+        "uncovered": [
+          "部分覆盖：Go 断言未知 provider 被拒绝、Futu 清理失败不阻塞切换且提交 yfinance、sidecar ensure=1/stop=0/running。Rust 的 same_provider_activation_is_idempotent_after_a_rejected_switch 仅覆盖“被拒绝的切换不改变已提交 provider 且状态仍可继续激活”一半；差异是 Rust 用例的切换本身被拒绝（与 Go“清理失败但切换成功”方向相反），未知 provider 拒绝与 sidecar ensure/stop 计数均无断言。"
         ],
-        "uncovered": [],
         "source": "legacy-conclusion"
       },
       "verification": {
@@ -37237,15 +37228,15 @@
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "function_exact：Go 断言未知 provider 被拒绝、Futu 清理失败不阻塞切换、切换后 active provider 提交为 yfinance。Rust 的 same_provider_activation_is_idempotent_after_a_rejected_switch 让切换回调对 yfinance 返回 Err，断言 rejected 快照 provider 仍为 Futu、activated==false、generation==0，随后提交当前 provider 成功并只发布一次 generation==1，逐条对应“校验/清理失败绝不改变已提交 provider，且失败后状态仍可继续使用”。"
+      "coveredAssertions": [],
+      "uncoveredAssertions": [
+        "部分覆盖：Go 断言未知 provider 被拒绝、Futu 清理失败不阻塞切换且提交 yfinance、sidecar ensure=1/stop=0/running。Rust 的 same_provider_activation_is_idempotent_after_a_rejected_switch 仅覆盖“被拒绝的切换不改变已提交 provider 且状态仍可继续激活”一半；差异是 Rust 用例的切换本身被拒绝（与 Go“清理失败但切换成功”方向相反），未知 provider 拒绝与 sidecar ensure/stop 计数均无断言。"
       ],
-      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/app/apiserver/marketdataapp/runtime_test.go:143:TestRuntimeRollsBackYFinanceWhenNonFutuProviderRetirementFails": {
@@ -37507,11 +37498,11 @@
       "boundaryReason": null
     },
     "internal/app/apiserver/marketdataapp/runtime_test.go:276:TestRuntimeSerializesInactiveCleanupWithFutuReactivation": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_active_provider_state.rs::tests::queued_transitions_observe_the_committed_provider_as_their_previous_owner",
-      "conclusion": "function_exact：Go 断言非活动清理进行中时 Futu 重新激活不得超车，最终 provider=Futu 且 desired 恰为激活请求的一组。Rust 的 queued_transitions_observe_the_committed_provider_as_their_previous_owner 并发跑两个 activate，断言每次回调都从“当时已提交的 provider”出发、被拒绝的转换不会成为下一次的 previous owner、最终 provider 与 generation 只由成功的转换推进，对应“清理与切换串行且不得交错”的要求（串行互斥本身由 provider_transitions_are_serialized_and_publish_one_snapshot 断言 max_in_flight==1）。",
+      "conclusion": "部分覆盖：Go 断言非活动清理进行中时 Futu 重新激活不得超车、最终 provider=Futu 且 desired 为激活请求的一组。Rust 的 queued_transitions_observe_the_committed_provider_as_their_previous_owner 仅覆盖并发 activate 观察已提交 provider、被拒绝转换不成为下一次 previous owner；差异是 Rust ActiveProviderState 无非活动清理（ReconcileInactiveSubscriptions）路径，清理与激活之间的跨操作串行门控、desired 订阅快照均无断言（该 Rust 用例的 Parity 归属是 :476/:337 而非本条）。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-      "evidence_type": "function_exact",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/marketdataapp/runtime_test.go",
         "line": 276,
@@ -37527,10 +37518,10 @@
         }
       ],
       "assertionCoverage": {
-        "covered": [
-          "function_exact：Go 断言非活动清理进行中时 Futu 重新激活不得超车，最终 provider=Futu 且 desired 恰为激活请求的一组。Rust 的 queued_transitions_observe_the_committed_provider_as_their_previous_owner 并发跑两个 activate，断言每次回调都从“当时已提交的 provider”出发、被拒绝的转换不会成为下一次的 previous owner、最终 provider 与 generation 只由成功的转换推进，对应“清理与切换串行且不得交错”的要求（串行互斥本身由 provider_transitions_are_serialized_and_publish_one_snapshot 断言 max_in_flight==1）。"
+        "covered": [],
+        "uncovered": [
+          "部分覆盖：Go 断言非活动清理进行中时 Futu 重新激活不得超车、最终 provider=Futu 且 desired 为激活请求的一组。Rust 的 queued_transitions_observe_the_committed_provider_as_their_previous_owner 仅覆盖并发 activate 观察已提交 provider、被拒绝转换不成为下一次 previous owner；差异是 Rust ActiveProviderState 无非活动清理（ReconcileInactiveSubscriptions）路径，清理与激活之间的跨操作串行门控、desired 订阅快照均无断言（该 Rust 用例的 Parity 归属是 :476/:337 而非本条）。"
         ],
-        "uncovered": [],
         "source": "legacy-conclusion"
       },
       "verification": {
@@ -37557,15 +37548,15 @@
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "function_exact：Go 断言非活动清理进行中时 Futu 重新激活不得超车，最终 provider=Futu 且 desired 恰为激活请求的一组。Rust 的 queued_transitions_observe_the_committed_provider_as_their_previous_owner 并发跑两个 activate，断言每次回调都从“当时已提交的 provider”出发、被拒绝的转换不会成为下一次的 previous owner、最终 provider 与 generation 只由成功的转换推进，对应“清理与切换串行且不得交错”的要求（串行互斥本身由 provider_transitions_are_serialized_and_publish_one_snapshot 断言 max_in_flight==1）。"
+      "coveredAssertions": [],
+      "uncoveredAssertions": [
+        "部分覆盖：Go 断言非活动清理进行中时 Futu 重新激活不得超车、最终 provider=Futu 且 desired 为激活请求的一组。Rust 的 queued_transitions_observe_the_committed_provider_as_their_previous_owner 仅覆盖并发 activate 观察已提交 provider、被拒绝转换不成为下一次 previous owner；差异是 Rust ActiveProviderState 无非活动清理（ReconcileInactiveSubscriptions）路径，清理与激活之间的跨操作串行门控、desired 订阅快照均无断言（该 Rust 用例的 Parity 归属是 :476/:337 而非本条）。"
       ],
-      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/app/apiserver/marketdataapp/runtime_test.go:337:TestRuntimeRestoresPreviousSubscriptionsAfterActivationFailure": {
@@ -37818,11 +37809,11 @@
       "boundaryReason": null
     },
     "internal/app/apiserver/marketdataapp/runtime_test.go:437:TestRuntimeCloseWinsConcurrentActivationWithoutRestartingSidecar": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_active_provider_state.rs::tests::concurrent_close_and_activation_commit_exactly_one_outcome",
-      "conclusion": "function_exact：Go 断言 Close 与并发 Activate 竞争时 Close 获胜、Activate 返回 ErrRuntimeClosed、sidecar 不被重启。Rust 的 concurrent_close_and_activation_commit_exactly_one_outcome 用 Barrier 让 begin_shutdown 与 activate 真正并发，断言最终 closing==true，且激活要么在关闭前已成功提交（provider==Yfinance），要么被拒绝并保持 Futu 且错误含 shutting down，不会出现关闭后重新拉起 provider 的状态。",
+      "conclusion": "部分覆盖：Go 断言关闭进行中时并发激活被阻塞、最终报 ErrRuntimeClosed、sidecar 零 ensure（不重启）。Rust 的 concurrent_close_and_activation_commit_exactly_one_outcome 覆盖关闭必胜（closing 置位）与拒绝时报错并保留 Futu；差异有二：一是 Rust 允许抢赢关闭的激活提交生效（Go 持关机锁恒拒绝，属竞态窗口行为差异）；二是激活回调零执行（不重启 sidecar）在该用例中无断言（零执行由 :414 引用用例另行覆盖）。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-      "evidence_type": "function_exact",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/marketdataapp/runtime_test.go",
         "line": 437,
@@ -37843,10 +37834,10 @@
         }
       ],
       "assertionCoverage": {
-        "covered": [
-          "function_exact：Go 断言 Close 与并发 Activate 竞争时 Close 获胜、Activate 返回 ErrRuntimeClosed、sidecar 不被重启。Rust 的 concurrent_close_and_activation_commit_exactly_one_outcome 用 Barrier 让 begin_shutdown 与 activate 真正并发，断言最终 closing==true，且激活要么在关闭前已成功提交（provider==Yfinance），要么被拒绝并保持 Futu 且错误含 shutting down，不会出现关闭后重新拉起 provider 的状态。"
+        "covered": [],
+        "uncovered": [
+          "部分覆盖：Go 断言关闭进行中时并发激活被阻塞、最终报 ErrRuntimeClosed、sidecar 零 ensure（不重启）。Rust 的 concurrent_close_and_activation_commit_exactly_one_outcome 覆盖关闭必胜（closing 置位）与拒绝时报错并保留 Futu；差异有二：一是 Rust 允许抢赢关闭的激活提交生效（Go 持关机锁恒拒绝，属竞态窗口行为差异）；二是激活回调零执行（不重启 sidecar）在该用例中无断言（零执行由 :414 引用用例另行覆盖）。"
         ],
-        "uncovered": [],
         "source": "legacy-conclusion"
       },
       "verification": {
@@ -37873,15 +37864,15 @@
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "function_exact：Go 断言 Close 与并发 Activate 竞争时 Close 获胜、Activate 返回 ErrRuntimeClosed、sidecar 不被重启。Rust 的 concurrent_close_and_activation_commit_exactly_one_outcome 用 Barrier 让 begin_shutdown 与 activate 真正并发，断言最终 closing==true，且激活要么在关闭前已成功提交（provider==Yfinance），要么被拒绝并保持 Futu 且错误含 shutting down，不会出现关闭后重新拉起 provider 的状态。"
+      "coveredAssertions": [],
+      "uncoveredAssertions": [
+        "部分覆盖：Go 断言关闭进行中时并发激活被阻塞、最终报 ErrRuntimeClosed、sidecar 零 ensure（不重启）。Rust 的 concurrent_close_and_activation_commit_exactly_one_outcome 覆盖关闭必胜（closing 置位）与拒绝时报错并保留 Futu；差异有二：一是 Rust 允许抢赢关闭的激活提交生效（Go 持关机锁恒拒绝，属竞态窗口行为差异）；二是激活回调零执行（不重启 sidecar）在该用例中无断言（零执行由 :414 引用用例另行覆盖）。"
       ],
-      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/app/apiserver/marketdataapp/runtime_test.go:476:TestRuntimeDoesNotCommitActivationCanceledWhileQueued": {
@@ -306994,9 +306985,8 @@
       "reviewStatus": "unreviewed"
     },
     "crates/jftrade-marketdata/src/router.rs::deactivation_fences_cache_and_marks_router_inactive": {
-      "referenceCount": 6,
+      "referenceCount": 5,
       "referenceKeys": [
-        "internal/app/apiserver/marketdataapp/runtime_forwarding_test.go:191:TestRuntimeSidecarFailureAndCloseKeepSelectionStable",
         "internal/marketdata/collector_test.go:79:TestCollectorResetBoundsStreamCloseAndRejectsLateTick",
         "internal/marketdata/instrument_resolver_test.go:314:TestMarketSubsetInstrumentResolverResetSeparatesProviderGenerations",
         "internal/marketdata/provider_switch_boundaries_test.go:141:TestCollectorCloseHelpersRejectElapsedDeadlines",
