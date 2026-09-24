@@ -5349,3 +5349,30 @@ fmt 与 nextest；`check:ai-context`、`check:migration-manifest`、
 `check:zero-go` 过；`check:quick` 与 `git diff --check` 见收尾。
 
 下一片：api_transport 余量继续按文件行号升序（backtest 等目录）。
+
+## 第 130 批 09 切片十八：backtest 路由 14 条 recon（2026-09-24）
+
+范围：`internal/api/backtest/` 全目录 14 条（11 `[x]` + 3 partial）。
+
+方法：Go 体逐段核对；11 个 `[x]` 引用存在且锚点齐全（逐一命中）。
+结论：14 条 verdict 全部成立，无判定变更、无命令变更、无代码变更，
+本片为纯 recon。
+
+抽查实据：`:19` 空列表 `"runs":null` 序列化与缺失 404；`:32` 畸形体
+400 加策略缺失 404；`:53` sync 200 含 taskId 与 US.AAPL；`:78`
+sessionScope=legacy 400 且语料固定无适配器调用；`:143`/`:160` 的 store
+失败 500 BACKTEST_RUN_STORE_FAILED 与删除竞态 404 逐字断言；`:35`
+适配器失败 500 SYNC_FAILED；`:85` 启动信封 id/status/message 逐字一致。
+partial 均为诚实缺口：`:98` 空参 400 对 404 模板差异已登记；`:71`
+sync progress 双态无冻结语料；`:21` 为真实功能差异——`{"symbol":"bad
+symbol"}` 在 Rust 静默回退 HK.00700 而 Go 返回 400（owner 为
+product_backtest_sync_request，需按 Go 收紧并补回归）。
+
+验证：`audit_test_parity.py --write-report` exit 0（1530 exact 全引用
+存在；已知警告不变；仅 report 基线号重生，inventory 无差）；
+`parity_anchor_reconcile.py` 过（1695/0/0/46）；无 Rust 文件改动故免
+fmt 与 nextest；`check:ai-context`、`check:migration-manifest`、
+`check:zero-go` 过；`check:quick` 与 `git diff --check` 见收尾。
+
+下一片：api_transport 余量继续推进（backtest 域已清，internal/api
+全目录 recon 完毕，余量为其他树）。
