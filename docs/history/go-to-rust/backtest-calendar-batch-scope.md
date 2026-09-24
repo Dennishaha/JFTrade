@@ -407,3 +407,32 @@ Rust 模型无字段）属实，升级路径已登记。
 `check:quick`（单实例）、`git diff --check`。
 
 下一片：backtest_calendar 按域余量继续（exchangecalendar 约 59 条）。
+
+## 第 130 批 07 切片十：exchangecalendar manager 系 35 条 recon（2026-09-24）
+
+范围：`internal/exchangecalendar/manager_test.go`（21）+
+`manager_boundaries_test.go`（9）+ `manager_probe_test.go`（1）+
+`manager_runtime_test.go`（4），共 35 条（原 35 [x]）。
+
+方法：Go 体逐条核对结论；35 条 Rust 引用逐一 rg 命中（0 缺失），`[x]` 唯一性
+无重复；其余 32 条结论带探针/回滚证据或逐字段断言，成立。3 条收回过宽 `[x]`→partial：
+
+- `:33` 失败退避：Go 只断言 NextRefreshAt 状态计算（1h 起步、24h 封顶，
+  refresh 路径从不查阅该值）；Rust 状态值一致，但把该时间兼作退避门
+  （提前 refresh 计 skipped_backoff 并跳过抓取），调度语义不等价。
+- `:50` 预热超时：Go 断言常量不等式 60s>=3*15s（多源串行窗口）；
+  Rust 无远端 provider、无 warmup 常量，只断言单次调用受 probe 预算约束。
+- `:876` 市场本地年：US 侧规则等价（EST 窗口固定），HK 侧年份推导与键格式无断言。
+
+结论：35 条 verdict = **32 `[x]` + 3 partial**（`[x]` 1565→1562，
+partial 2248→2251）。有代码变更需求（退避门裁决、HK 窗口断言、warmup 预算关系）
+已记入各条回归要求，本片仅台账修正 + 文档。
+
+验证：`v2_writer.py --check` 过后落库；`audit_test_parity.py --write-report` exit 0；
+`parity_anchor_reconcile.py` 过（1693/0/0/46）；`cargo fmt -p jftrade-engine -- --check`；
+定向 nextest（jftrade-calendar 89 + jftrade-integration-calendar 23 全过）；
+`check:ai-context`、`check:migration-manifest`、`check:zero-go`、
+`check:quick`（单实例）、`git diff --check`。
+
+下一片：backtest_calendar 按域余量继续（http_source 系 21 + snapshot/health 3 +
+pkg/market/calendar 13 = 37 条）。

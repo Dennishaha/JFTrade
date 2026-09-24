@@ -7,7 +7,7 @@
     "treeSha": "0ee26444be21c15d9760f358a34649f78402f0fb"
   },
   "generatorVersion": "v2_writer.py@slice23",
-  "generatedAt": "2026-09-24T01:07:27Z",
+  "generatedAt": "2026-09-24T01:32:34Z",
   "mappings": {
     "cmd/jftrade-api/main_test.go:13:TestValidateArgsAllowsNoArgs": {
       "status": "[~]",
@@ -195671,11 +195671,11 @@
       "boundaryReason": null
     },
     "internal/exchangecalendar/manager_test.go:33:TestManagerFailureBackoffUsesHoursAndCapsAtTwentyFour": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "crates/jftrade-calendar/tests/failure_backoff_contracts.rs::source_failure_retry_delay_starts_at_one_hour_and_caps_at_one_day",
-      "conclusion": "function_exact：Go 断言失败后 NextRefreshAt 从 1 小时开始、每次失败递增 1 小时、封顶 24 小时（operation 与 source 两条记录路径）。Rust 用同一个 record_failure 承载两者，既有测试已逐条断言：首次失败后 next_refresh_at = now+1h；推进时钟重复失败后 consecutive_failures=30 且 next_refresh_at = now+24h（爬梯封顶）。结论：Go 的 NextRefreshAt 是**状态展示**，Go 的 refresh 从不用它跳过抓取；Rust 额外把该时间当作退避门（skipped_backoff 计数），这是 Rust 侧的附加节流，不改公开状态语义，故本项行为等价。",
+      "conclusion": "partial（收回过宽exact）：Go只断言状态计算——首次失败后NextRefreshAt=now+1h、30次失败后封顶now+24h，且Go的refresh路径从不查阅NextRefreshAt（manager_status.go仅做状态序列化，refresh无引用）。Rust的状态值逐项一致（now+1h起步、consecutive_failures=30时current+24h封顶），但Rust把next_refresh_at兼作退避门（提前refresh计skipped_backoff并跳过抓取），这是Go没有的附加节流调度语义。状态展示等价、调度语义不等价，故降为partial。回归要求：若要升级，需先裁决该退避门是否为有意设计并补齐文档/契约，再断言门内跳过与门外抓取的完整矩阵。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar -E 'test(source_failure_retry_delay_starts_at_one_hour_and_caps_at_one_day)'",
-      "evidence_type": "function_exact",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/exchangecalendar/manager_test.go",
         "line": 33,
@@ -195691,10 +195691,10 @@
         }
       ],
       "assertionCoverage": {
-        "covered": [
-          "function_exact：Go 断言失败后 NextRefreshAt 从 1 小时开始、每次失败递增 1 小时、封顶 24 小时（operation 与 source 两条记录路径）。Rust 用同一个 record_failure 承载两者，既有测试已逐条断言：首次失败后 next_refresh_at = now+1h；推进时钟重复失败后 consecutive_failures=30 且 next_refresh_at = now+24h（爬梯封顶）。结论：Go 的 NextRefreshAt 是**状态展示**，Go 的 refresh 从不用它跳过抓取；Rust 额外把该时间当作退避门（skipped_backoff 计数），这是 Rust 侧的附加节流，不改公开状态语义，故本项行为等价。"
+        "covered": [],
+        "uncovered": [
+          "partial（收回过宽exact）：Go只断言状态计算——首次失败后NextRefreshAt=now+1h、30次失败后封顶now+24h，且Go的refresh路径从不查阅NextRefreshAt（manager_status.go仅做状态序列化，refresh无引用）。Rust的状态值逐项一致（now+1h起步、consecutive_failures=30时current+24h封顶），但Rust把next_refresh_at兼作退避门（提前refresh计skipped_backoff并跳过抓取），这是Go没有的附加节流调度语义。状态展示等价、调度语义不等价，故降为partial。回归要求：若要升级，需先裁决该退避门是否为有意设计并补齐文档/契约，再断言门内跳过与门外抓取的完整矩阵。"
         ],
-        "uncovered": [],
         "source": "legacy-conclusion"
       },
       "verification": {
@@ -195721,23 +195721,23 @@
       "risk": "normal",
       "owner": "backtest_calendar",
       "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "function_exact：Go 断言失败后 NextRefreshAt 从 1 小时开始、每次失败递增 1 小时、封顶 24 小时（operation 与 source 两条记录路径）。Rust 用同一个 record_failure 承载两者，既有测试已逐条断言：首次失败后 next_refresh_at = now+1h；推进时钟重复失败后 consecutive_failures=30 且 next_refresh_at = now+24h（爬梯封顶）。结论：Go 的 NextRefreshAt 是**状态展示**，Go 的 refresh 从不用它跳过抓取；Rust 额外把该时间当作退避门（skipped_backoff 计数），这是 Rust 侧的附加节流，不改公开状态语义，故本项行为等价。"
+      "coveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial（收回过宽exact）：Go只断言状态计算——首次失败后NextRefreshAt=now+1h、30次失败后封顶now+24h，且Go的refresh路径从不查阅NextRefreshAt（manager_status.go仅做状态序列化，refresh无引用）。Rust的状态值逐项一致（now+1h起步、consecutive_failures=30时current+24h封顶），但Rust把next_refresh_at兼作退避门（提前refresh计skipped_backoff并跳过抓取），这是Go没有的附加节流调度语义。状态展示等价、调度语义不等价，故降为partial。回归要求：若要升级，需先裁决该退避门是否为有意设计并补齐文档/契约，再断言门内跳过与门外抓取的完整矩阵。"
       ],
-      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/exchangecalendar/manager_test.go:50:TestDefaultWarmupRefreshTimeoutCoversSequentialRemoteSources": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "crates/jftrade-calendar/tests/manager_lifecycle.rs::probe_budget_bounds_one_provider_call_without_hanging_the_manager",
-      "conclusion": "function_exact（含边界说明）：Go 断言 defaultWarmupRefreshTimeout(60s) >= 3 * defaultHTTPTimeout(15s)，因为一次 warmup 可能串行扇出多个远端 HTTP provider。Rust 生产组合里没有任何远端 calendar provider（CalendarSourcePort 仅由 embedder/测试实现，见 product_production_ports.rs 用 CalendarSourceRegistry::default() 注册零个 source），没有可对照的 warmup deadline 常量。测试改为断言等价的可保证性质：单次 provider 调用受 probe 预算约束（25ms 预算下 probe_market_with_timeout 返回 failures=1 且在 3s 内返回），即 provider 无法挂死 warmup。",
+      "conclusion": "partial（收回过宽exact）：Go断言常量不等式defaultWarmupRefreshTimeout(60s)>=3*defaultHTTPTimeout(15s)，即一次warmup可串行扇出多个远端provider。Rust生产组合无任何远端calendar provider、无warmup deadline常量，现有用例只断言单次provider调用受probe预算约束（25ms预算下3s内返回failures=1），即“provider挂不死warmup”。预热预算覆盖多源串行窗口的关系无对应断言，故降为partial。升级路径：若Rust引入远端provider组合，需补warmup deadline与串行fetch窗口的预算关系断言；否则保持partial。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar -E 'test(probe_budget_bounds_one_provider_call_without_hanging_the_manager)'",
-      "evidence_type": "function_exact",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/exchangecalendar/manager_test.go",
         "line": 50,
@@ -195758,10 +195758,10 @@
         }
       ],
       "assertionCoverage": {
-        "covered": [
-          "function_exact（含边界说明）：Go 断言 defaultWarmupRefreshTimeout(60s) >= 3 * defaultHTTPTimeout(15s)，因为一次 warmup 可能串行扇出多个远端 HTTP provider。Rust 生产组合里没有任何远端 calendar provider（CalendarSourcePort 仅由 embedder/测试实现，见 product_production_ports.rs 用 CalendarSourceRegistry::default() 注册零个 source），没有可对照的 warmup deadline 常量。测试改为断言等价的可保证性质：单次 provider 调用受 probe 预算约束（25ms 预算下 probe_market_with_timeout 返回 failures=1 且在 3s 内返回），即 provider 无法挂死 warmup。"
+        "covered": [],
+        "uncovered": [
+          "partial（收回过宽exact）：Go断言常量不等式defaultWarmupRefreshTimeout(60s)>=3*defaultHTTPTimeout(15s)，即一次warmup可串行扇出多个远端provider。Rust生产组合无任何远端calendar provider、无warmup deadline常量，现有用例只断言单次provider调用受probe预算约束（25ms预算下3s内返回failures=1），即“provider挂不死warmup”。预热预算覆盖多源串行窗口的关系无对应断言，故降为partial。升级路径：若Rust引入远端provider组合，需补warmup deadline与串行fetch窗口的预算关系断言；否则保持partial。"
         ],
-        "uncovered": [],
         "source": "legacy-conclusion"
       },
       "verification": {
@@ -195788,15 +195788,15 @@
       "risk": "high",
       "owner": "backtest_calendar",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "function_exact（含边界说明）：Go 断言 defaultWarmupRefreshTimeout(60s) >= 3 * defaultHTTPTimeout(15s)，因为一次 warmup 可能串行扇出多个远端 HTTP provider。Rust 生产组合里没有任何远端 calendar provider（CalendarSourcePort 仅由 embedder/测试实现，见 product_production_ports.rs 用 CalendarSourceRegistry::default() 注册零个 source），没有可对照的 warmup deadline 常量。测试改为断言等价的可保证性质：单次 provider 调用受 probe 预算约束（25ms 预算下 probe_market_with_timeout 返回 failures=1 且在 3s 内返回），即 provider 无法挂死 warmup。"
+      "coveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial（收回过宽exact）：Go断言常量不等式defaultWarmupRefreshTimeout(60s)>=3*defaultHTTPTimeout(15s)，即一次warmup可串行扇出多个远端provider。Rust生产组合无任何远端calendar provider、无warmup deadline常量，现有用例只断言单次provider调用受probe预算约束（25ms预算下3s内返回failures=1），即“provider挂不死warmup”。预热预算覆盖多源串行窗口的关系无对应断言，故降为partial。升级路径：若Rust引入远端provider组合，需补warmup deadline与串行fetch窗口的预算关系断言；否则保持partial。"
       ],
-      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/exchangecalendar/manager_test.go:64:TestManagerFallsBackToBuiltinWhenOfficialRefreshFails": {
@@ -196872,11 +196872,11 @@
       "boundaryReason": null
     },
     "internal/exchangecalendar/manager_test.go:876:TestSnapshotCacheKeyUsesMarketLocalYear": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "crates/jftrade-calendar/tests/fetch_window_timezone.rs::probe_uses_market_local_year_when_us_crosses_utc_new_year",
-      "conclusion": "function_exact（同源规则，不同可观测点）：Go 断言内存缓存键恰为 source|HK|2026 与 source|US|2025，即市场本地年份推导。Rust 无字符串缓存键（快照按年缓存结构不同），同一规则由探针 fetch 窗口承担：UTC 午夜前后两次 probe 分别取到 US 本地 2025 与 2026 年窗口，EST 边界固定。差异：Rust 未逐字断言键格式，HK 侧未直接覆盖（同机制，US 侧已覆盖边界翻转）；键格式为 Go 内部索引细节，不属跨实现契约。",
+      "conclusion": "partial（收回过宽exact）：Go断言内存缓存键恰为source|HK|2026与source|US|2025（市场本地年份推导，HK+US双市场）。Rust无字符串缓存键，同一规则由探针fetch窗口承担且仅US侧被固定（UTC午夜前后两次probe取到US本地2025/2026年窗口，EST边界固定）；HK侧年份推导与键格式均无断言。US侧规则等价、HK侧缺失，故降为partial。回归要求：补HK跨UTC新年窗口断言（或书面裁决HK由同机制覆盖且无需专项用例）后再升级。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar -E 'test(probe_uses_market_local_year_when_us_crosses_utc_new_year)'",
-      "evidence_type": "function_exact",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/exchangecalendar/manager_test.go",
         "line": 876,
@@ -196897,10 +196897,10 @@
         }
       ],
       "assertionCoverage": {
-        "covered": [
-          "function_exact（同源规则，不同可观测点）：Go 断言内存缓存键恰为 source|HK|2026 与 source|US|2025，即市场本地年份推导。Rust 无字符串缓存键（快照按年缓存结构不同），同一规则由探针 fetch 窗口承担：UTC 午夜前后两次 probe 分别取到 US 本地 2025 与 2026 年窗口，EST 边界固定。差异：Rust 未逐字断言键格式，HK 侧未直接覆盖（同机制，US 侧已覆盖边界翻转）；键格式为 Go 内部索引细节，不属跨实现契约。"
+        "covered": [],
+        "uncovered": [
+          "partial（收回过宽exact）：Go断言内存缓存键恰为source|HK|2026与source|US|2025（市场本地年份推导，HK+US双市场）。Rust无字符串缓存键，同一规则由探针fetch窗口承担且仅US侧被固定（UTC午夜前后两次probe取到US本地2025/2026年窗口，EST边界固定）；HK侧年份推导与键格式均无断言。US侧规则等价、HK侧缺失，故降为partial。回归要求：补HK跨UTC新年窗口断言（或书面裁决HK由同机制覆盖且无需专项用例）后再升级。"
         ],
-        "uncovered": [],
         "source": "legacy-conclusion"
       },
       "verification": {
@@ -196927,15 +196927,15 @@
       "risk": "high",
       "owner": "backtest_calendar",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "function_exact（同源规则，不同可观测点）：Go 断言内存缓存键恰为 source|HK|2026 与 source|US|2025，即市场本地年份推导。Rust 无字符串缓存键（快照按年缓存结构不同），同一规则由探针 fetch 窗口承担：UTC 午夜前后两次 probe 分别取到 US 本地 2025 与 2026 年窗口，EST 边界固定。差异：Rust 未逐字断言键格式，HK 侧未直接覆盖（同机制，US 侧已覆盖边界翻转）；键格式为 Go 内部索引细节，不属跨实现契约。"
+      "coveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial（收回过宽exact）：Go断言内存缓存键恰为source|HK|2026与source|US|2025（市场本地年份推导，HK+US双市场）。Rust无字符串缓存键，同一规则由探针fetch窗口承担且仅US侧被固定（UTC午夜前后两次probe取到US本地2025/2026年窗口，EST边界固定）；HK侧年份推导与键格式均无断言。US侧规则等价、HK侧缺失，故降为partial。回归要求：补HK跨UTC新年窗口断言（或书面裁决HK由同机制覆盖且无需专项用例）后再升级。"
       ],
-      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/exchangecalendar/manager_test.go:890:TestSnapshotCacheIndexesEveryCoveredMarketYear": {
