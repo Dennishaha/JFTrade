@@ -7,7 +7,7 @@
     "treeSha": "0ee26444be21c15d9760f358a34649f78402f0fb"
   },
   "generatorVersion": "v2_writer.py@slice23",
-  "generatedAt": "2026-09-24T02:47:06Z",
+  "generatedAt": "2026-09-24T02:51:26Z",
   "mappings": {
     "cmd/jftrade-api/main_test.go:13:TestValidateArgsAllowsNoArgs": {
       "status": "[~]",
@@ -5470,11 +5470,11 @@
       "boundaryReason": null
     },
     "internal/api/assistant/routes_test.go:136:TestChatStreamHubReplayAndCleanupBoundaries": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart；crates/jftrade-engine/src/product_adk_model_runtime_recovery_tests.rs::recovered_terminal_stream_frame_carries_the_replay_marker",
-      "conclusion": "function_exact：Go 断言重连帧带 replay 标记且已过期 stream 会被 cleanup 移除。Rust 无内存 hub，等价的持久化 model 是“保留历史只通过 durable replay 提供”：断线后 GET /api/v1/adk/streams/{id}?after= 只返回序号大于 after 的 retained 帧并带 replay:true（新增 mark_replayed/replayed_event），run 终态后才能重放，重启后仍一致（不可恢复的 stream 不会跨重启残留）。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'",
-      "evidence_type": "function_exact",
+      "conclusion": "partial：已覆盖 retained 终帧带 replay:true、after 游标过滤旧帧与重启后一致（引用第二元原条目名截断，现补全）。缺口：Go 同用例还断言新帧不得带 replay 标记（live event 不 replay），Rust 无反向断言；hub 过期清理在 Rust 无直接对应（durable 模型下不可恢复不跨重启残留未断言）。回归：补 fresh-frame replay-absent 断言后再升 exact。",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart) or test(recovered_terminal_stream_frame_carries_the_replay_marker)'",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/api/assistant/routes_test.go",
         "line": 136,
@@ -5501,10 +5501,10 @@
         }
       ],
       "assertionCoverage": {
-        "covered": [
-          "function_exact：Go 断言重连帧带 replay 标记且已过期 stream 会被 cleanup 移除。Rust 无内存 hub，等价的持久化 model 是“保留历史只通过 durable replay 提供”：断线后 GET /api/v1/adk/streams/{id}?after= 只返回序号大于 after 的 retained 帧并带 replay:true（新增 mark_replayed/replayed_event），run 终态后才能重放，重启后仍一致（不可恢复的 stream 不会跨重启残留）。"
+        "covered": [],
+        "uncovered": [
+          "partial：已覆盖 retained 终帧带 replay:true、after 游标过滤旧帧与重启后一致（引用第二元原条目名截断，现补全）。缺口：Go 同用例还断言新帧不得带 replay 标记（live event 不 replay），Rust 无反向断言；hub 过期清理在 Rust 无直接对应（durable 模型下不可恢复不跨重启残留未断言）。回归：补 fresh-frame replay-absent 断言后再升 exact。"
         ],
-        "uncovered": [],
         "source": "legacy-conclusion"
       },
       "verification": {
@@ -5515,7 +5515,7 @@
           "-p",
           "jftrade-engine",
           "-E",
-          "test(adk)"
+          "test(adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart) or test(recovered_terminal_stream_frame_carries_the_replay_marker)"
         ],
         "testFilter": [
           "adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart",
@@ -5532,15 +5532,15 @@
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "function_exact：Go 断言重连帧带 replay 标记且已过期 stream 会被 cleanup 移除。Rust 无内存 hub，等价的持久化 model 是“保留历史只通过 durable replay 提供”：断线后 GET /api/v1/adk/streams/{id}?after= 只返回序号大于 after 的 retained 帧并带 replay:true（新增 mark_replayed/replayed_event），run 终态后才能重放，重启后仍一致（不可恢复的 stream 不会跨重启残留）。"
+      "coveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial：已覆盖 retained 终帧带 replay:true、after 游标过滤旧帧与重启后一致（引用第二元原条目名截断，现补全）。缺口：Go 同用例还断言新帧不得带 replay 标记（live event 不 replay），Rust 无反向断言；hub 过期清理在 Rust 无直接对应（durable 模型下不可恢复不跨重启残留未断言）。回归：补 fresh-frame replay-absent 断言后再升 exact。"
       ],
-      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/api/assistant/routes_test.go:180:TestSessionTimelineFailureKeepsLegacyErrorCode": {
@@ -5611,11 +5611,11 @@
       "boundaryReason": null
     },
     "internal/api/assistant/routes_test.go:265:TestChatAndSSEContracts": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::production_live_chat_stream_emits_session_before_run_and_terminal_frame",
-      "conclusion": "function_exact：驱动真实 ProductionAdkChatRuntime + 真实 HTTP 路由，断言 live /api/v1/adk/chat/stream 首帧为 session 且携带持久化 session id、其后才是 run 快照、并且最终产生终帧；Go 的 session/run/final 事件集合与首帧顺序因此逐条对齐。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'",
-      "evidence_type": "function_exact",
+      "conclusion": "partial：已覆盖 live 流首帧为 session、先于 run 快照、携带持久化 session id 并最终产生终帧。缺口：Go 同用例还断言 POST chat 的 200 ok 信封、成功流的 SSE Content-Type 与 X-ADK-Stream-Idle-Timeout-Ms 为 420000；Rust 的 preview 用例仅三条帧断言，idle 头仅在错误路径有断言。回归：补成功流响应头与 chat 信封断言后再升 exact。",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(production_live_chat_stream_emits_session_before_run_and_terminal_frame)'",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/api/assistant/routes_test.go",
         "line": 265,
@@ -5636,10 +5636,10 @@
         }
       ],
       "assertionCoverage": {
-        "covered": [
-          "function_exact：驱动真实 ProductionAdkChatRuntime + 真实 HTTP 路由，断言 live /api/v1/adk/chat/stream 首帧为 session 且携带持久化 session id、其后才是 run 快照、并且最终产生终帧；Go 的 session/run/final 事件集合与首帧顺序因此逐条对齐。"
+        "covered": [],
+        "uncovered": [
+          "partial：已覆盖 live 流首帧为 session、先于 run 快照、携带持久化 session id 并最终产生终帧。缺口：Go 同用例还断言 POST chat 的 200 ok 信封、成功流的 SSE Content-Type 与 X-ADK-Stream-Idle-Timeout-Ms 为 420000；Rust 的 preview 用例仅三条帧断言，idle 头仅在错误路径有断言。回归：补成功流响应头与 chat 信封断言后再升 exact。"
         ],
-        "uncovered": [],
         "source": "legacy-conclusion"
       },
       "verification": {
@@ -5650,7 +5650,7 @@
           "-p",
           "jftrade-engine",
           "-E",
-          "test(adk)"
+          "test(production_live_chat_stream_emits_session_before_run_and_terminal_frame)"
         ],
         "testFilter": [
           "production_live_chat_stream_emits_session_before_run_and_terminal_frame"
@@ -5666,15 +5666,15 @@
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "function_exact：驱动真实 ProductionAdkChatRuntime + 真实 HTTP 路由，断言 live /api/v1/adk/chat/stream 首帧为 session 且携带持久化 session id、其后才是 run 快照、并且最终产生终帧；Go 的 session/run/final 事件集合与首帧顺序因此逐条对齐。"
+      "coveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial：已覆盖 live 流首帧为 session、先于 run 快照、携带持久化 session id 并最终产生终帧。缺口：Go 同用例还断言 POST chat 的 200 ok 信封、成功流的 SSE Content-Type 与 X-ADK-Stream-Idle-Timeout-Ms 为 420000；Rust 的 preview 用例仅三条帧断言，idle 头仅在错误路径有断言。回归：补成功流响应头与 chat 信封断言后再升 exact。"
       ],
-      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/api/assistant/routes_test.go:301:TestChatRequestIdempotencyContracts": {

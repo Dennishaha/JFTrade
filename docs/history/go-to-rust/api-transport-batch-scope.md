@@ -5110,3 +5110,43 @@ exit 0（已知警告 0/2/100/2 不变）；`parity_anchor_reconcile.py` 过
 下一片：api_transport 余量继续按文件行号升序
 （`internal/api/assistant` 仅剩 routes_test 9 加 workflow_routes 2，
 之后进入 backtest/middleware/live 等目录）。
+
+## 第 130 批 09 切片十一：assistant 收尾加 backtest/bindings 37 条 recon（2026-09-24）
+
+范围：`internal/api/assistant/routes_test.go`（9）+
+`workflow_routes_test.go`（2）+ `internal/api/backtest/`
+routes_boundaries（5）+ routes_progress（4）+ routes（5）+
+`internal/api/httpserver/` bindings_boundaries（6）+
+bindings（6），共 37 条（原 29 `[x]` + 8 partial）。
+`internal/api/assistant` 目录至此全部 recon（82 行）。
+
+方法：Go 体逐条核对结论；29 个 `[x]` 的 Rust 引用逐一命中且每行至少一锚；
+组合条目逐项拆验，本片无生产函数元；Rust 体抽查关键断言
+（幂等 400/409 与流复用、bool 别名表 56 断言、fixture case 回放、
+workflow 多节点执行、compact 错误码、replay 标记）。
+2 条台账修正（另顺手收紧两条过宽 `-E test(adk)` 证据命令）：
+
+- `:136` replay 加 cleanup 降为 partial：retained 终帧 replay:true、
+  after 过滤与重启一致已覆盖；缺新帧不得带 replay 的反向断言，
+  hub 过期清理无直接对应；引用第二元原条目名截断一并补全。
+- `:265` chat 加 SSE 契约降为 partial：首帧 session 顺序、session id
+  与终帧已覆盖；缺同体 chat 200 ok 信封、成功流 Content-Type 与
+  idle 超时 420000（idle 头仅错误路径有断言）。
+
+保留说明：`:29` 的 Rust 用例无 `assert!`（审计启发式警告），但 12 条读路由
+以 expect 加 Json 形状匹配逐条验失败即 panic，加 DeleteProvider 成功，
+与 Go 的 12 路由 200 加删除成功等价，保留 `[x]`。
+
+结论：37 条 verdict = **27 `[x]` + 10 partial**
+（`[x]` 1535→1533）。本片仅台账修正加报告清单重生加文档，
+无代码变更。
+
+验证：`v2_writer.py --check` 过后落库；`audit_test_parity.py --write-report`
+exit 0（已知警告 0/2/100/2 不变）；`parity_anchor_reconcile.py` 过
+（1695/0/0/46）；`cargo fmt -p jftrade-engine -- --check` 过；定向 nextest
+3/3（replay 二元组、preview 单测）；`check:ai-context`、
+`check:migration-manifest`、`check:zero-go` 过；`check:quick` 与
+`git diff --check` 见收尾。
+
+下一片：api_transport 余量继续按文件行号升序（sse/live/dispatcher、
+marketdata、middleware、origin 等目录）。
