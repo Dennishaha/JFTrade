@@ -519,3 +519,31 @@ runtime_failure 7 partial 相符（含 :30 worker 上限映射缺失 P1、:99 �
 `check:zero-go`、`check:quick`（单实例）、`git diff --check`。
 
 下一片：strategy_pine 余量按文件行号继续（pine_live_executor 24 条 + pineruntime/runtime_test 13 条）。
+
+## 第 130 批 06B 切片六：pine_live_executor/runtime_test 37 条 recon（2026-09-24）
+
+范围：`internal/strategy/pine_live_executor_test.go`（24：[x] 4 + partial 17 + boundary 3）、
+`internal/strategy/pineruntime/runtime_test.go`（13：partial 13）。
+
+方法：Go 体逐条核对结论；4 [x] 确认 Rust 测试存在、Parity 锚点被识别、断言等价；
+全部 37 条 Rust 引用逐一 rg 命中（0 缺失）；[x] Rust 条目唯一性复核重复组为 0；
+高风险缺口（未知 kind 回落、timeInForce 缺失、空头标签缺失、0 值语义、半发布回滚）
+抽查 Rust 生产代码（strategy_runtime_execution.rs 无 timeInForce/tag 字段、
+数量回落分支、INTENT_SKIPPED 与 cancel_all partially failed 聚合）确认结论诚实。
+
+结论：37 条 verdict 全部成立，无判定变更、无代码变更——
+4 [x]（平仓百分比按现仓取整、缺省全平、REAL 下缺数量 fail-closed 且零券商调用、
+权益百分比按 notional/price 取整）与 Go 算式同值，:80 的 SIMULATE 缺省 1 语义
+在结论中已显式区分为离线模拟语义，live 行为等价；
+3 boundary 属实（实时无原子括号路径，括号语义归 backtest 撮合 owner）；
+partial 缺口与 Go 体一致（含 :556 未知 kind 落入 entry 分支、:36 缺 GTC 组合断言、
+:79 0 值 clamp 与参考默认语义差 P1、:228 半发布回滚缺失 P1、
+:18 20 变量合并无单一入口、:278 容量与 revision 分层承担）。
+:105 的 runtime_path 新增锚点在位（runtime_dependencies.rs:548）。
+
+验证：`audit_test_parity.py --write-report` exit 0；`parity_anchor_reconcile.py` 过；
+`cargo fmt -p jftrade-engine -- --check`、`check:ai-context`、`check:migration-manifest`、
+`check:zero-go`、定向 nextest（integration-pine 全量 + engine strategy_runtime_execution 过滤）、
+`check:quick`（单实例）、`git diff --check`。
+
+下一片：strategy_pine 收尾 22 条（runtimecontrol 10 + service 10 + types 2），随后进 backtest_calendar。
