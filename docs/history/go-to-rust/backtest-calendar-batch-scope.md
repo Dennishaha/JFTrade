@@ -541,3 +541,30 @@ store 契约无写失败注入，终态保持缺口成立。
 cargo fmt --check 与 git diff --check 干净；账本与 Rust 代码零改动（纯复核片）。
 
 下一片：130-11 切片三，backtest 域 partial 第 41–60 行。
+## 第 130 批 11 切片三：backtest 域 partial 第 41–60 行，18 行维持、2 行结论纠正（2026-09-24）
+
+范围：backtest 域 partial 第 41–60 行（service 10、sync 10，按文件加行号升序）。
+
+方法：Go 体全读；缺口验到代码行与用例断言；引用存在不等于断言等价。
+
+18 行维持（失败不同重启、终态枚举与停止重试、任务清理时机、最大 warmup 取值、
+窗口游标与聚合数值、校验矩阵分散、错误文本透传、关闭态拒绝新 Start、内存兜底
+另一半语义、进度委托、适配器转换矩阵、失败关闭顺序、取消关闭时序、任务 ID 唯一、
+缺存储清理路径、受理前拒绝顺序、构造后校验清理，均与账本缺口一致）。
+
+2 行结论纠正（verdict 不变，[x] 1472 不变，b83 dry-run 先行、entry_changed 等于 0）：
+
+- service:680：原结论称同一 Rust 测试被 :168 行作 function_exact 证据占用，
+  与事实不符（:168 行同为 partial）；partial 共用引用不受 [x] 唯一性约束，
+  本行维持 partial 并保留引用，理由已改写。
+- sync:298：Rust 引用覆盖非法 since、非法周期、区间倒置三处 BadRequest，
+  原结论误写成两类；无效符号与非法 until 仍无覆盖。
+
+抽核要点：未知 rehabType 在 Rust 解析器归一为 forward（request.rs），行为在位、
+显式回退断言缺失，缺口成立；store 契约无写失败注入。
+
+验证：audit --write-report 过（1472 exact；dup 0）；anchor 过（1742/1696/0/0/46）；
+定向 nextest（engine backtest 族 66/66、store-sqlite backtest 8/8）全过；
+cargo fmt --check 与 git diff --check 干净；无 Rust 生产代码改动、无新增测试。
+
+下一片：130-11 切片四，backtest 域 partial 第 61–80 行。

@@ -119798,7 +119798,7 @@
     "internal/backtest/service_test.go:680:TestRunStoreDelegation": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-store-sqlite/tests/backtest_run_store_contracts.rs::test_in_memory_store_implements_run_lifecycle_and_cancellation",
-      "conclusion": "partial（唯一引用约束）：该 Rust 测试已作为 internal/store/backtest/store_test.go:168 的 function_exact 证据占用，本行按其生命周期/取消断言记为 partial 并保留引用；差异：Go 断言 List 轻量态不含结果详情、GetStatus/GetResult 分离与 Delete 后不可见，Rust 未逐方法断言投影粒度。",
+      "conclusion": "partial：同一 Rust 测试亦被 internal/store/backtest/store_test.go:168 行（partial）引用，partial 共用引用不受 [x] 唯一性约束；差异：Go 断言 List 轻量态不含结果详情、GetStatus/GetResult 分离与 Delete 后不可见，Rust 未逐方法断言投影粒度，故本行记 partial 并保留引用。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(backtest)'",
       "evidence_type": "partial",
       "source": {
@@ -119818,7 +119818,7 @@
       "assertionCoverage": {
         "covered": [],
         "uncovered": [
-          "partial（唯一引用约束）：该 Rust 测试已作为 internal/store/backtest/store_test.go:168 的 function_exact 证据占用，本行按其生命周期/取消断言记为 partial 并保留引用；差异：Go 断言 List 轻量态不含结果详情、GetStatus/GetResult 分离与 Delete 后不可见，Rust 未逐方法断言投影粒度。"
+          "partial：同一 Rust 测试亦被 internal/store/backtest/store_test.go:168 行（partial）引用，partial 共用引用不受 [x] 唯一性约束；差异：Go 断言 List 轻量态不含结果详情、GetStatus/GetResult 分离与 Delete 后不可见，Rust 未逐方法断言投影粒度，故本行记 partial 并保留引用。"
         ],
         "source": "legacy-conclusion"
       },
@@ -119853,7 +119853,7 @@
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
-        "partial（唯一引用约束）：该 Rust 测试已作为 internal/store/backtest/store_test.go:168 的 function_exact 证据占用，本行按其生命周期/取消断言记为 partial 并保留引用；差异：Go 断言 List 轻量态不含结果详情、GetStatus/GetResult 分离与 Delete 后不可见，Rust 未逐方法断言投影粒度。"
+        "partial：同一 Rust 测试亦被 internal/store/backtest/store_test.go:168 行（partial）引用，partial 共用引用不受 [x] 唯一性约束；差异：Go 断言 List 轻量态不含结果详情、GetStatus/GetResult 分离与 Delete 后不可见，Rust 未逐方法断言投影粒度，故本行记 partial 并保留引用。"
       ],
       "boundaryReason": null
     },
@@ -120418,7 +120418,7 @@
     "internal/backtest/sync_test.go:298:TestSyncRequestErrors": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_backtest_sync_start_tests.rs::sync_request_rejects_invalid_ranges_and_intervals",
-      "conclusion": "partial：Rust 断言非法区间/区间列表返回 BadRequest；差异：Go 断言全部请求校验错误都归类为 RequestError（含类型与消息），Rust 只覆盖区间与区间值的两类错误。",
+      "conclusion": "partial：Rust 断言非法 since、非法周期与区间倒置三处 BadRequest；差异：Go 断言无效符号、非法 since/until 与区间倒置四类 RequestError（含类型与消息），Rust 未覆盖无效符号与非法 until。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'",
       "evidence_type": "partial",
       "source": {
@@ -120438,7 +120438,7 @@
       "assertionCoverage": {
         "covered": [],
         "uncovered": [
-          "partial：Rust 断言非法区间/区间列表返回 BadRequest；差异：Go 断言全部请求校验错误都归类为 RequestError（含类型与消息），Rust 只覆盖区间与区间值的两类错误。"
+          "partial：Rust 断言非法 since、非法周期与区间倒置三处 BadRequest；差异：Go 断言无效符号、非法 since/until 与区间倒置四类 RequestError（含类型与消息），Rust 未覆盖无效符号与非法 until。"
         ],
         "source": "legacy-conclusion"
       },
@@ -120473,7 +120473,7 @@
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
-        "partial：Rust 断言非法区间/区间列表返回 BadRequest；差异：Go 断言全部请求校验错误都归类为 RequestError（含类型与消息），Rust 只覆盖区间与区间值的两类错误。"
+        "partial：Rust 断言非法 since、非法周期与区间倒置三处 BadRequest；差异：Go 断言无效符号、非法 since/until 与区间倒置四类 RequestError（含类型与消息），Rust 未覆盖无效符号与非法 until。"
       ],
       "boundaryReason": null
     },
