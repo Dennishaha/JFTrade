@@ -1216,3 +1216,48 @@ git diff --check
 ```
 
 本片结论：20/20 均保持 `partial`；精准验证为 strategy `104/104`、integration-pine `2/2`、engine Pine payload `3/3`，均通过。下一片为 strategy_pine partial 第 321–340 行。
+
+## 第 130 批 12 切片三十三：strategy_pine 域 partial 第 321–340 行，20 行维持、零改判（2026-09-24）
+
+范围：strategy_pine 域 `evidence_type=partial` 的第 321–340 行（PineTS payload/client/runtime、PineSpec
+skill/spec、worker client、integration-pine endpoint/readiness/asset/process 与 engine runtime error summary），
+按账本写入顺序逐条核对。本片没有 Rust 生产代码修改；跨 crate 引用仅按其直接断言字段计证据，不因存在同名主题而升为 exact。
+
+| 序号 | Go 测试 | Rust 证据 | 级别 | 结论 |
+| ---: | --- | --- | :---: | --- |
+| 321 | `pine_ts_payload_test.go:131:TestPineTsPayloadEndpointAndTokenBoundaries` | `jftrade-integration-pine/src/execution/tests.rs::endpoint_and_token_boundaries_fail_closed` | P2 | `partial`；Rust 验证 endpoint/token 缺失与非法边界 fail-closed，但未覆盖 Go payload 的完整字段投影与差异摘要。 |
+| 322 | `pine_ts_payload_test.go:190:TestPineTsPayloadWorkerFailureProjection` | `jftrade-engine/src/product_mcp_production_executor_tests.rs::pine_shadow_error_payload_keeps_the_worker_failure_message` | P2 | `partial`；Rust 保留 worker failure message，未逐项覆盖 Go 的 enabled、status、repository 与 diagnostics payload。 |
+| 323 | `pine_ts_payload_test.go:207:TestPineTsPayloadRejectsNonLoopbackWorkerBeforeSpawn` | `jftrade-integration-pine/src/execution/tests.rs::validates_loopback_worker_boundary_before_spawn` | P1 | `partial`；Rust 验证非 loopback worker 在 spawn 前拒绝，未覆盖 Go 的环境清洗、端口组合与错误字段完整性。 |
+| 324 | `pine_ts_payload_test.go:224:TestPineTsPayloadCapsWorkerStderrTail` | `jftrade-engine/src/runtime_dependencies_tests.rs::command_error_summary_keeps_output_tail_within_wire_budget` | P1 | `partial`；Rust 验证 stderr tail wire budget，未覆盖 Go payload 对 truncation 标记、status 和多行 stderr 的完整投影。 |
+| 325 | `pine_ts_payload_test.go:236:TestPineTsPayloadReadinessShutdownAndJoin` | `jftrade-integration-pine/src/readiness.rs::monitor_shutdown_marks_state_and_joins_task` | P1 | `partial`；Rust 证明 readiness monitor shutdown/join 清理，未复现 Go 的 worker 进程退出码与 payload 生命周期字段。 |
+| 326 | `pine_ts_runtime_test.go:12:TestPineTsRuntimeExecutesBundledWorkerSmoke` | `jftrade-integration-pine/tests/real_worker_smoke.rs::rust_client_executes_bundled_pinets_worker` (ignored) | P1 | `partial`；Rust 提供真实 bundled Node PineTS worker smoke 入口但默认 ignored，未形成常规 CI 等价证据。 |
+| 327 | `pine_ts_runtime_test.go:31:TestPineTsRuntimeUsesEmbeddedBundleMetadata` | `jftrade-integration-pine/src/asset.rs::test_select_from_fs_returns_embedded_bundle_metadata` | P2 | `partial`；Rust 检查 embedded bundle metadata 存在，未覆盖 Go 的版本、license、入口文件和运行时可执行性全量断言。 |
+| 328 | `pine_ts_runtime_test.go:58:TestPineTsRuntimeMapsProtocolBoundaryFailures` | `jftrade-integration-pine/src/execution/tests.rs::run_script_maps_remote_unavailable_timeout_and_cancellation` | P1 | `partial`；Rust 覆盖 unavailable/timeout/cancellation mapping，未覆盖 Go malformed protocol、空响应和 worker close 顺序。 |
+| 329 | `pinespec/skill_metadata_test.go:8:TestPineSpecSkillMetadataPayloadFields` | `jftrade-strategy/tests/pine_mcp_contract.rs::pine_spec_freezes_go_owner_sections_and_key_payload_fields` | P2 | `partial`；Rust 冻结 owner sections/key payload fields，未覆盖 Go skill metadata 的全部资源、描述和版本字段。 |
+| 330 | `pinespec/skill_metadata_test.go:80:TestPineSpecUnknownSectionUsesFallbackFormatting` | `jftrade-strategy/tests/pine_mcp_contract.rs::pine_spec_freezes_go_owner_sections_and_key_payload_fields` | P2 | `partial`；Rust 冻结已知 section/key payload，未覆盖 unknown section fallback 文本、多 section 顺序、空值和资源链接组合。 |
+| 331 | `pinespec/spec_test.go:14:TestPineSpecExamplesParseAndPlan` | `jftrade-strategy/tests/pine_mcp_contract.rs::native_pipeline_parses_lowers_and_plans_strategy_requirements` | P2 | `partial`；Rust 覆盖 native pipeline parse/lower/plan 基本路径，未逐项对齐 Go 每个 example 的语义节点、错误和计划字段。 |
+| 332 | `pinespec/spec_test.go:28:TestPineSpecGoldenExamplesAnalyzeAndPlan` | `jftrade-strategy/tests/pine_mcp_contract.rs::pine_spec_examples_section_includes_examples_when_selected_or_requested` | P2 | `partial`；Rust 验证 examples section 输出，未证明 Go golden 的完整 diagnostics、requirements 与 output 顺序。 |
+| 333 | `pinespec/spec_test.go:59:TestPineSpecToolPayloadSectionsAndExamples` | `jftrade-strategy/tests/pine_mcp_contract.rs::pine_spec_freezes_go_owner_sections_and_key_payload_fields` | P2 | `partial`；Rust 覆盖 payload section/example 子集，未逐字段迁移 Go tool payload 的所有 section 和示例内容。 |
+| 334 | `pinespec/spec_test.go:108:TestPineSpecSupportMatrix` | `jftrade-strategy/tests/pine_mcp_contract.rs::pine_spec_freezes_go_owner_sections_and_key_payload_fields` | P2 | `partial`；Rust 核对 support-matrix section 边界，未覆盖 Go matrix 的全部 feature 状态、原因和版本列。 |
+| 335 | `pinespec/spec_test.go:248:TestPineSpecBrokerBoundary` | `jftrade-strategy/tests/pine_mcp_contract.rs::pine_spec_freezes_go_owner_sections_and_key_payload_fields` | P2 | `partial`；Rust 验证 broker boundary 字段存在，未覆盖 Go broker capability/error payload 与 order lifecycle 说明。 |
+| 336 | `pinespec/spec_test.go:285:TestPineSpecSkillResourcesAndExamples` | `jftrade-strategy/tests/pine_mcp_contract.rs::pine_spec_examples_section_includes_examples_when_selected_or_requested` | P2 | `partial`；Rust 检查 examples section 输出，未覆盖 Go 的资源数量、路径、内容摘要和 fallback 组合。 |
+| 337 | `pineworker/client_test.go:12:TestPineWorkerClientMetadataDefaults` | `jftrade-integration-pine/src/asset.rs::test_select_from_fs_returns_embedded_bundle_metadata` | P2 | `partial`；Rust 覆盖 embedded bundle metadata，未覆盖 Go client 初始化时的完整 engine info、license 与 worker capability projection。 |
+| 338 | `pineworker/client_test.go:41:TestPineWorkerClientRejectsInvalidRequestBeforeTransport` | `jftrade-integration-pine/src/execution/tests.rs::request_validation_rejects_every_incomplete_or_inconsistent_field` | P1 | `partial`；Rust 证明 invalid request 在 transport 前拒绝，未覆盖 Go 各类 request shape、字段路径和错误码文本。 |
+| 339 | `pineworker/client_test.go:56:TestPineWorkerClientUsesExactJsonSize` | `jftrade-integration-pine/src/execution/tests.rs::grpc_request_message_limit_has_exact_encoded_boundaries` | P2 | `partial`；Rust 核对 encoded request size boundary，未覆盖 Go JSON byte size、unicode、嵌套 payload 与 framing/limit 组合。 |
+| 340 | `pineworker/client_test.go:81:TestPineWorkerClientMapsTransportError` | `jftrade-integration-pine/src/execution/tests.rs::run_script_maps_remote_unavailable_timeout_and_cancellation` | P1 | `partial`；Rust 映射 remote unavailable/timeout/cancel，未覆盖 Go EOF/reset 分类、可重试标记和 Close 后行为。 |
+
+验证命令：
+
+```bash
+python3 scripts/compatibility/audit_test_parity.py --write-report
+python3 scripts/compatibility/parity_anchor_reconcile.py
+node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked --no-fail-fast
+node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine --all-targets --locked --no-fail-fast
+node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'test(command_error_summary_keeps_output_tail_within_wire_budget)'
+cargo fmt --check
+git diff --check
+```
+
+本片结论：20/20 均保持 `partial`；精准测试为 strategy `104/104`、integration-pine `50/50`（另 1 skipped）、
+engine runtime `1/1`（另 1929 skipped），均通过。未发现可安全升为 `[x]` 的条目，也没有足够证据触发 Rust
+生产功能修复。下一片为 strategy_pine partial 第 341–360 行。
