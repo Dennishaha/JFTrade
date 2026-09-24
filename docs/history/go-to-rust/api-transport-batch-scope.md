@@ -6335,3 +6335,19 @@ GTC 与限价组合、sizer 缺失语义、空头标签、告警通道均无同�
 无 Rust 生产代码改动、无新增测试。
 
 下一片：130-10 切片七，strategy 域 partial 第 101–120 行。
+## 第 130 批 10 切片七：strategy 域 partial 第 101–120 行，20 行维持、零修改（2026-09-24）
+
+范围：strategy 域 partial 第 101–120 行（pine 执行器数量与平仓取消 15 行、pineruntime 恢复与会话 5 行，
+按文件加行号升序）。
+
+方法：Go 体按簇抽读；缺口验到代码行与用例断言；引用存在不等于断言等价。
+
+20 行维持（低于步长与碎股无实时守卫、无缺规则开关、无告警聚合、缺省空头全平、显式空头平仓方向、别名逐一取消、
+cancel-all 计数与部分失败聚合、原子括号三行为 boundary、无提交失败文案透传、无未知 kind 拒绝、id 全形状与停止单
+跟踪、nil 防御为 boundary、会话完成信号与容量归还均无同层串联断言，均与账本缺口一致）。
+
+验证：audit --write-report 过（1472 exact；dup 0）；anchor 过；定向 nextest（execution 意图、market_rules、
+pine 池与 readiness、write 兼容）全过；cargo fmt --check 与 git diff --check 干净；账本与 Rust 代码零改动
+（纯复核片）。
+
+下一片：130-10 切片八，strategy 域 partial 第 121–140 行。
