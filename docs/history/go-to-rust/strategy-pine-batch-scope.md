@@ -1316,3 +1316,42 @@ git diff --check
 本片结论：30/30 均保持 `partial`；下一批固定为每批 30 条，下一片为 strategy_pine partial 第 371–400 行。
 P1 的 timeout/cancellation、busy gate、retry/rollback、进程强制终止和精确 JSON size 缺口已保留为后续回归方向；
 本片没有足够证据升格 `[x]`，也没有发现需要立即修改 Rust 生产代码的单一行为差异。
+
+## 第 130 批 12 切片三十五：strategy_pine 域 partial 第 371–385 行，15 行维持、零改判（2026-09-24）
+
+范围：strategy_pine partial 队列尾部第 371–385 行（process smoke、protobuf contract/mapping、runtime
+boundaries、settings/types）。partial 队列共 385 条，因此本片为尾批 15 条；没有 Rust 生产代码修改。
+
+| 序号 | Go 测试 | Rust 证据 | 级别 | 结论 |
+| ---: | --- | --- | :---: | --- |
+| 371 | `pineworker/process_smoke_test.go:20:TestWorkerManagerProcessSmokeWithNodeWorker` | `jftrade-integration-pine/tests/real_worker_smoke.rs::rust_client_executes_bundled_pinets_worker` (ignored) | P2 | `partial`；Rust 提供 bundled worker smoke 入口但默认 ignored，未形成 Go mock Node 进程 manager 的常规 CI 证据。 |
+| 372 | `pineworker/process_smoke_test.go:34:TestWorkerManagerRealPineTSProcessSmoke` | `jftrade-integration-pine/tests/real_worker_smoke.rs::rust_client_executes_bundled_pinets_worker` (ignored) | P2 | `partial`；Rust smoke 依赖外部 bundle/runtime 且 ignored，未覆盖 Go 的 pinets 安装检查、版本 metadata 和 manager start/stop。 |
+| 373 | `pineworker/proto_contract_test.go:14:TestPineWorkerProtoCompilesAndExposesContract` | `jftrade-integration-pine/src/execution/tests.rs::grpc_request_message_limit_has_exact_encoded_boundaries` | P2 | `partial`；Rust 验证 gRPC 编码边界，不是 Go protoc descriptor 的 package/import/service/message/field 全量契约审计。 |
+| 374 | `pineworker/proto_mapping_test.go:15:TestProtoMappingRoundTripRequestAndResponse` | `jftrade-integration-pine/src/execution/tests.rs::run_script_maps_binary_request_and_order_intent_response` | P2 | `partial`；Rust 映射 binary request/order response 子集，未逐字段覆盖 Go session/chart/alerts/visuals/diagnostics/metrics 与 nil mapping。 |
+| 375 | `pineworker/proto_mapping_test.go:154:TestCandleBatchEncodingGoldenVector` | `jftrade-integration-pine/src/execution/tests.rs::grpc_request_message_limit_has_exact_encoded_boundaries` | P2 | `partial`；Rust 证明 encoded message limit，未覆盖 Go CandleBatch 固定 56-byte little-endian golden vector。 |
+| 376 | `pineworker/proto_mapping_test.go:197:TestHealthFromProtoCopiesCapabilities` | `jftrade-integration-pine/src/mock_worker.rs::health_probe_authenticates_and_reports_controllable_ok_flag` | P2 | `partial`；Rust 验证 health probe/auth/ok 状态，未覆盖 Go capabilities 深拷贝、version/PineTS 字段与 nil health。 |
+| 377 | `pineworker/runtime_boundaries_test.go:14:TestTailBufferRetainsOnlyConfiguredProcessLogTail` | `jftrade-engine/src/runtime_dependencies.rs::command_error_summary_keeps_output_tail_within_wire_budget` | P2 | `partial`；Rust 保证 command error tail 在 wire budget 内，未覆盖 Go 可配置 tail buffer、stdout/stderr 来源和精确 2000 字节截断。 |
+| 378 | `pineworker/runtime_boundaries_test.go:66:TestWorkerConfigAndCandleTimeBoundaries` | `jftrade-settings/src/pine_worker.rs::worker_limits_and_nested_quotes_match_go_settings_owner` | P2 | `partial`；Rust 覆盖 settings limits/quotes，未覆盖 Go candle 时间顺序、zero/negative 边界和完整 WorkerConfig 默认值矩阵。 |
+| 379 | `pineworker/runtime_boundaries_test.go:79:TestClientDefaultsAndResponseIdentityBoundaries` | `jftrade-integration-pine/src/execution/tests.rs::endpoint_and_token_boundaries_fail_closed` | P2 | `partial`；Rust 覆盖 endpoint/token fail-closed，未覆盖 Go client timeout/now 默认、response identity 和 nil client 行为。 |
+| 380 | `pineworker/runtime_boundaries_test.go:107:TestGRPCTransportPropagatesRPCFailures` | `jftrade-integration-pine/src/execution/tests.rs::run_script_maps_remote_unavailable_timeout_and_cancellation` | P2 | `partial`；Rust 映射 unavailable/timeout/cancel，未覆盖 Go RunScript/HealthCheck 原始 RPC error 传播、nil transport 和 dialer defaults。 |
+| 381 | `pineworker/runtime_boundaries_test.go:134:TestWorkerManagerSelectionCapacityAndErrorBoundaries` | `jftrade-integration-pine/src/pool.rs::live_sessions_are_pinned_and_open_failure_rolls_back` | P2 | `partial`；Rust 覆盖 live-session pin/rollback，未覆盖 Go capacity token、取消 acquire、未启动/无健康 worker 与 execution error 矩阵。 |
+| 382 | `pineworker/runtime_boundaries_test.go:189:TestWorkerManagerDiagnosticErrorFormatting` | `jftrade-integration-pine/src/process.rs::grpc_probe_authenticates_and_rejects_endpoint_identity_mismatch` | P2 | `partial`；Rust 覆盖 probe identity mismatch，未覆盖 Go health/restart diagnostics 四种组合的稳定错误格式。 |
+| 383 | `pineworker/types_test.go:10:TestNormalizeRuntimeMigratesLegacyRuntime` | `jftrade-settings/src/pine_worker.rs::worker_limits_and_nested_quotes_match_go_settings_owner` | P2 | `partial`；Rust settings owner 不证明 Go legacy runtime id 归一化与 unsupported runtime 拒绝。 |
+| 384 | `pineworker/types_test.go:21:TestDefaultWorkerConfigScalesByCPU` | `jftrade-settings/src/pine_worker.rs::worker_limits_and_nested_quotes_match_go_settings_owner` | P2 | `partial`；Rust 只覆盖配置限制/嵌套 quotes，未覆盖 Go CPU=1/8 的 live/backtest/optimization worker scaling 及 timeout/message/candle defaults。 |
+| 385 | `pineworker/types_test.go:164:TestRunScriptPayloadSizeRejectsNonFiniteCandle` | `jftrade-integration-pine/src/execution/tests.rs::non_finite_candle_values_are_rejected_before_transport` | P2 | `partial`；Rust 拒绝 non-finite candle before transport，未覆盖 Go JSON size helper 对 NaN/+Inf/-Inf 及 candle list 的完整错误矩阵。 |
+
+验证命令：
+
+```bash
+python3 scripts/compatibility/audit_test_parity.py --write-report
+python3 scripts/compatibility/parity_anchor_reconcile.py
+node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine --all-targets --locked --no-fail-fast
+node scripts/quality/cargo-nextest.mjs run -p jftrade-settings --all-targets --locked --no-fail-fast -E 'test(worker_limits_and_nested_quotes_match_go_settings_owner)'
+node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'test(command_error_summary_keeps_output_tail_within_wire_budget)'
+cargo fmt --check
+git diff --check
+```
+
+本片结论：15/15 均保持 `partial`；strategy_pine partial 队列至此全部核对完毕（385/385）。ignored smoke、
+descriptor/golden mapping、legacy runtime normalization 和 CPU scaling 缺口均保留为后续补测方向；没有足够证据
+升格 `[x]`，也没有发现应立即修改 Rust 生产代码的单一行为差异。下一步应转入其他领域的 P0/P1 队列。
