@@ -6351,3 +6351,27 @@ pine 池与 readiness、write 兼容）全过；cargo fmt --check 与 git diff -
 （纯复核片）。
 
 下一片：130-10 切片八，strategy 域 partial 第 121–140 行。
+## 第 130 批 10 切片八：strategy 域 partial 第 121–140 行，20 行维持、零修改（2026-09-24）
+
+范围：strategy 域 partial 第 121–140 行（pineruntime 失败契约 7 行、pineruntime 配置与生命周期 13 行，
+按文件加行号升序）。
+
+方法：Go 体全读；缺口验到代码行与用例断言；引用存在不等于断言等价。
+
+20 行维持（嵌入资产不可用错误身份与 enabled 标志缺失、运行期回落前半锁定而 worker 上限到实际数映射缺失、
+无 bundle 反推工作目录对象、无 Manager 发布层、容量即时拒绝而排队加取消缺 engine 回归、nil 对象无同形体、
+关停排空无端到端断言、20 变量无单一合并入口、无 Source 运行期标记、禁用开关与 0 值语义差、settings 零值
+解释差、proto 与工作目录显式注入、无 Option 层、无 resolveWorkDir 层、配对发布退休无单点断言、半发布回滚
+缺 engine 用例、关停错误聚合缺证据、容量 1 集成断言缺失、stop_timeout 默认与上限推导缺失、四类拒绝分散
+池与进程两层，均与账本缺口一致）。
+
+抽核要点：`:99` 轮转用例显式锁定即时拒绝（注释写明 engine 拥有容量等待）；
+`:278` 会话契约锁定 open revision 0、append 需正 revision；
+`:105` Parity 锚点在位（runtime_dependencies.rs:548）；
+`:79` 的 clamp(1,1000) 与 `:325` 的显式 stop_timeout 经代码行核实，缺口成立。
+
+验证：audit --write-report 过（1472 exact；dup 0）；anchor 过（1742/1696/0/0/46）；
+定向 nextest（integration-pine 50/50、settings 109/109、engine runtime_dependencies 13/13）全过；
+cargo fmt --check 与 git diff --check 干净；账本与 Rust 代码零改动（纯复核片）。
+
+下一片：130-10 切片九，strategy 域 partial 第 141–156 行（末 16 行，收尾 strategy）。
