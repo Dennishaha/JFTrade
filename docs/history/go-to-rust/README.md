@@ -11,6 +11,7 @@
 - [`go_to_rust_comprehensive_verification_matrix.md`](go_to_rust_comprehensive_verification_matrix.md)：Go 到 Rust 迁移全景深度验证矩阵与发布准入总览（主导航索引）
 - [`high-value-test-mapping-checklist.md`](high-value-test-mapping-checklist.md)：高风险 Go 测试到 Rust 行为的样本核对清单（非全量）
 - [`test-parity-inventory.md`](test-parity-inventory.md)：全量 Go 测试逐项勾选清单；每项都必须人工确认 Rust 测试映射，自动生成的 crate 候选仅作起点
+- [`parity-progress-summary.md`](parity-progress-summary.md)：当前数量、已完成核对、真实功能修复、未闭环缺口和单队列调度规则摘要
 - Watchlist/Futu 相关 `[~]` 项已按远程 reader、批量 snapshot、订阅配额和 session quote projection 分解，待对应 Rust adapter/port 建立后统一补测。
 - [`verification-matrix/`](verification-matrix/)：十大核心领域代码级对比、边界失效推演与测试用例分卷目录
 
