@@ -39,6 +39,41 @@ fn assert_error(body: &str, code: &str, message: &str) {
     );
 }
 
+/// Parity: go:452dea11:pkg/strategy/pine/language_failure_contracts_test.go:149
+/// TestRequestSecurityAndTupleContractsRejectUnsafeExpressions
+///
+/// Go does not let unsupported TA calls hide behind the opaque `security:`
+/// requirement.  The native compiler must reject the same unsupported inner
+/// expression and malformed advanced-indicator arguments before planning.
+#[test]
+fn request_security_rejects_unsupported_inner_ta_contracts() {
+    for (body, message) in [
+        (
+            r#"value = request.security(syminfo.tickerid, "60", ta.sum(close, 5))"#,
+            "unsupported",
+        ),
+        (
+            r#"value = request.security(syminfo.tickerid, "60", ta.bb(close, 20))"#,
+            "requires",
+        ),
+        (
+            r#"value = request.security(syminfo.tickerid, "60", ta.correlation(close, last_price, 20))"#,
+            "source",
+        ),
+        (
+            r#"value = request.security(syminfo.tickerid, "D", ta.obv)"#,
+            "timeframe",
+        ),
+    ] {
+        let (code, diagnostic) = compile_error(body);
+        assert_eq!(code, "PINE_REQUEST_SECURITY_EXPRESSION_UNSUPPORTED");
+        assert!(
+            diagnostic.to_ascii_lowercase().contains(message),
+            "diagnostic {diagnostic:?} for {body} must mention {message:?}"
+        );
+    }
+}
+
 /// Parity: go:452dea11:pkg/strategy/pine/order_metadata_contracts_test.go:8 TestOrderMetadataRejectsAmbiguousInputsAndKeepsSupportedPositionals
 ///
 /// Parity: go:452dea11:pkg/strategy/pine/language_failure_contracts_test.go:239 TestOrderAndTupleHelperContractsKeepTradeInstructionsUnambiguous

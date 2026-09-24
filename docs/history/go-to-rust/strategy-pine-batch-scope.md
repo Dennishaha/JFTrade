@@ -1317,6 +1317,49 @@ git diff --check
 P1 的 timeout/cancellation、busy gate、retry/rollback、进程强制终止和精确 JSON size 缺口已保留为后续回归方向；
 本片没有足够证据升格 `[x]`，也没有发现需要立即修改 Rust 生产代码的单一行为差异。
 
+## 第 130 批 12 切片三十六：strategy_pine partial 第 241–260 行（2026-09-24）
+
+本片按 20 条尾批逐项读取 Go 函数体并复核 Rust 断言粒度；没有把聚合测试或
+worker-owned 旧解析助手升格为 `function_exact`。其中第 260 行发现真实的
+`request.security` 内部 TA 校验缺口，先以失败回归测试复现，再在 semantic owner
+拒绝不支持的 TA/参数组合。
+
+| 序号 | Go 测试 | Rust 证据/结论 |
+| ---: | --- | --- |
+| 241 | `compiler_and_security_diagnostics_test.go:70:TestPineEditorRecoveryAndCapabilityEvidenceContracts` | `partial`；pinespec 能力矩阵有旁证，但 Rust 没有 Go 编辑器恢复助手与 analyzed=0.5 计分层。 |
+| 242 | `compiler_rejection_contracts_test.go:9:TestUnsupportedSyntaxDiagnosticsDescribeUnsafeRequestSecurityContracts` | `partial`；静态 timeframe 与主要拒绝码有证据，malformed 参数、collection 文案和部分 tuple 专码仍不同。 |
+| 243 | `compiler_rejection_contracts_test.go:79:TestTupleHelpersRejectMalformedIndicatorArityWithoutInventingAliases` | `partial`；Rust 覆盖 tuple arity/period 拒绝，缺 Go helper handoff 与 normalizationErr 传播。 |
+| 244 | `compiler_rejection_contracts_test.go:180:TestTALoweringLeavesMalformedCallsUntouched` | `partial`；窗口缺省已在 planner 对齐，Rust 没有旧字符串 lowering 的原文保留层。 |
+| 245 | `control_flow_reject_test.go:8:TestCompileRejectsInvalidControlFlowAndUDFContracts` | `partial`；for 可达性有证据，UDF 参数/多行体、break/continue 专文案与嵌套深度仍缺。 |
+| 246 | `control_flow_reject_test.go:43:TestCompilePreservesDescendingAndConditionalLoopSemantics` | `partial`；Rust 当前不支持 while 与 continue/break 的 Go 语义，保留 P1 失败回归方向。 |
+| 247 | `controlflow_object_collection_contracts_test.go:11:TestControlFlowParserRetainsUserFunctionAndCollectionLoopSemantics` | `boundary`；多行 UDF 与 collection loop 属 PineTS/旧 owner，Rust 无同形执行面。 |
+| 248 | `controlflow_object_collection_contracts_test.go:85:TestObjectLifecycleParserCoversFieldsMultilineMethodsAndReceivers` | `boundary`；UDT 字段、方法重载和 receiver 降级不在 Rust engine owner。 |
+| 249 | `controlflow_object_collection_contracts_test.go:157:TestCollectionParserKeepsHistoryAndExpressionContracts` | `boundary`；集合声明、历史读取和 collection namespace 仍由 worker 侧承担。 |
+| 250 | `extended_ticker_test.go:5:TestExtendedTickerRequestSecuritySupportsCurrentSymbolOnly` | `partial`；Rust whitelist 与动态 symbol 诊断已测，但 requirement 键仍不是 Go 的 `security_source`。 |
+| 251 | `language_execution_boundaries_test.go:12:TestRequestSecuritySupportedTAFamiliesKeepTheirExecutionContracts` | `partial`；timeframe 映射与部分 TA 已覆盖，MTF TA 键覆盖及 security_source 键空间仍有缺口。 |
+| 252 | `language_execution_boundaries_test.go:99:TestCollectionExecutionParserKeepsReceiverAndErrorBoundaries` | `boundary`；collection parser/lowering 属旧 worker owner，Rust 没有同形入口。 |
+| 253 | `language_execution_boundaries_test.go:179:TestTupleLoweringHelpersMaintainAliasAndArityContracts` | `partial`；tuple 宽度/拒绝有证据，typed IR 不保留 Go expressionAliases 与 MTF tuple helper。 |
+| 254 | `language_execution_boundaries_test.go:287:TestCompilerHeadersAndLexicalHelpersRetainPineV6Rules` | `partial`；version/strategy header 拒绝一致，CRLF scanner、regexp cache、TA/color helper 无同形 Rust 断言。 |
+| 255 | `language_execution_boundaries_test.go:364:TestObjectExecutionParserPreservesDeclaredTypeContracts` | `boundary`；UDT constructor/method overload 仍属于 worker-owned 旧执行面。 |
+| 256 | `language_execution_boundaries_test.go:454:TestCollectionLexicalParserRejectsMalformedHistoryAndNamespaceReferences` | `boundary`；collection lexical namespace/history helper 未迁移。 |
+| 257 | `language_execution_boundaries_test.go:531:TestUDFAndDynamicLoopHelpersProtectRuntimeBoundaries` | `partial`；Rust 缺 UDF 多行体与 runtime for/while，保留 P1 回归要求。 |
+| 258 | `language_execution_boundaries_test.go:600:TestTALoweringHelpersKeepNativePineArgumentSemantics` | `partial`；planner 已覆盖窗口族缺省，旧 TA 字符串重写与高级 security helper 仍无同形层。 |
+| 259 | `language_failure_contracts_test.go:9:TestObjectAndCollectionParserFailureContracts` | `boundary`；对象/集合失败契约由 PineTS worker 承担，Rust 只提供整体拒绝边界。 |
+| 260 | `language_failure_contracts_test.go:149:TestRequestSecurityAndTupleContractsRejectUnsafeExpressions` | `partial`；新增 `request_security_rejects_unsupported_inner_ta_contracts`，修复 `ta.sum`、缺 multiplier 的 `ta.bb`、非法 correlation source 与日周期 `ta.obv` 误接受；Go helper 级纯度/lowering 仍无同形实现。 |
+
+本片验证：
+
+```bash
+node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked -E 'test(request_security_rejects_unsupported_inner_ta_contracts) | test(request_security_rejects_unlisted_static_timeframe_strings) | test(request_security_tickers_follow_the_go_whitelist) | test(request_security_tuple_diagnostics_match_go_codes) | test(tuple_assignments_keep_the_go_alias_and_width_contract) | test(window_family_defaults_keep_the_go_source_and_period) | test(malformed_tuple_and_switch_scripts_are_rejected) | test(compile_supports_framework_language_features)'
+python3 scripts/compatibility/audit_test_parity.py --write-report
+python3 scripts/compatibility/parity_anchor_reconcile.py
+cargo fmt --all -- --check
+git diff --check
+```
+
+8 个精准 Rust 测试全部通过；本片 20/20 仍为 `partial` 或明确 `boundary`，没有新增
+`function_exact`。下一片固定为 strategy_pine partial 第 261–280 行。
+
 ## 第 130 批 12 切片三十五：strategy_pine 域 partial 第 371–385 行，15 行维持、零改判（2026-09-24）
 
 范围：strategy_pine partial 队列尾部第 371–385 行（process smoke、protobuf contract/mapping、runtime

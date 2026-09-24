@@ -958,8 +958,93 @@ fn request_security_diagnostic(
             "request.security() expression must be pure; strategy, alert, visual, collection mutation, and reassignment side effects are not supported",
         );
     }
+    if let Some(message) = request_security_inner_ta_contract(&arguments[2], &arguments[1]) {
+        return error("PINE_REQUEST_SECURITY_EXPRESSION_UNSUPPORTED", &message);
+    }
     let _ = callee;
     None
+}
+
+/// Go's request.security lowering accepts a narrower TA subset than the
+/// chart-timeframe planner.  Keep unsupported inner calls from silently
+/// falling back to an opaque `security:` requirement, which would make an
+/// invalid MTF expression look executable.
+fn request_security_inner_ta_contract(expression: &Expr, timeframe: &Expr) -> Option<String> {
+    match &expression.kind {
+        ExprKind::Call { callee, arguments } => {
+            let lower = callee.to_ascii_lowercase();
+            match lower.as_str() {
+                "ta.sum" => {
+                    return Some("request.security() expression ta.sum is unsupported".to_owned());
+                }
+                "ta.bb" if arguments.len() != 3 => {
+                    return Some(
+                        "request.security() ta.bb requires source, length, and multiplier"
+                            .to_owned(),
+                    );
+                }
+                "ta.correlation"
+                    if arguments
+                        .get(1)
+                        .is_some_and(|value| !request_security_source_is_allowed(value)) =>
+                {
+                    return Some(
+                        "request.security() ta.correlation second source is unsupported".to_owned(),
+                    );
+                }
+                "ta.obv" if !request_security_timeframe_is_intraday(timeframe) => {
+                    return Some(
+                        "request.security() ta.obv is supported only for intraday timeframes"
+                            .to_owned(),
+                    );
+                }
+                _ => {}
+            }
+            arguments
+                .iter()
+                .find_map(|argument| request_security_inner_ta_contract(argument, timeframe))
+        }
+        ExprKind::Member { object, member }
+            if member.eq_ignore_ascii_case("obv")
+                && matches!(&object.kind, ExprKind::Identifier { name } if name.eq_ignore_ascii_case("ta"))
+                && !request_security_timeframe_is_intraday(timeframe) =>
+        {
+            Some("request.security() ta.obv is supported only for intraday timeframes".to_owned())
+        }
+        ExprKind::Binary { left, right, .. } => request_security_inner_ta_contract(left, timeframe)
+            .or_else(|| request_security_inner_ta_contract(right, timeframe)),
+        ExprKind::Unary { expression, .. }
+        | ExprKind::Index {
+            object: expression, ..
+        } => request_security_inner_ta_contract(expression, timeframe),
+        ExprKind::Ternary {
+            condition,
+            when_true,
+            when_false,
+        } => request_security_inner_ta_contract(condition, timeframe)
+            .or_else(|| request_security_inner_ta_contract(when_true, timeframe))
+            .or_else(|| request_security_inner_ta_contract(when_false, timeframe)),
+        ExprKind::Tuple { items } => items
+            .iter()
+            .find_map(|item| request_security_inner_ta_contract(item, timeframe)),
+        ExprKind::Member { object, .. } => request_security_inner_ta_contract(object, timeframe),
+        _ => None,
+    }
+}
+
+fn request_security_source_is_allowed(expression: &Expr) -> bool {
+    matches!(&expression.kind, ExprKind::Identifier { name }
+        if matches!(name.to_ascii_lowercase().as_str(), "open" | "high" | "low" | "close" | "volume" | "hl2" | "hlc3" | "ohlc4"))
+}
+
+fn request_security_timeframe_is_intraday(expression: &Expr) -> bool {
+    let ExprKind::String { value } = &expression.kind else {
+        return false;
+    };
+    matches!(
+        value.trim().to_ascii_uppercase().as_str(),
+        "1" | "5" | "15" | "30" | "45" | "60" | "120" | "240"
+    )
 }
 
 /// Argument lists Go accepts for each executable order call

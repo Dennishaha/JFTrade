@@ -263878,9 +263878,9 @@
     },
     "pkg/strategy/pine/language_failure_contracts_test.go:149:TestRequestSecurityAndTupleContractsRejectUnsafeExpressions": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-strategy/tests/pine_order_metadata_and_security_rejections.rs::request_security_tuple_diagnostics_match_go_codes",
-      "conclusion": "partial（本批补强）：新用例把 request.security 元组的四类诊断对齐到 Go 码与文案（TUPLE_ASSIGNMENT「must be assigned with matching tuple aliases」、宽度越界 TUPLE_UNSUPPORTED「support 2 to 8 values」、别名不匹配 TUPLE_MISMATCH「tuple returns N values but assignment has M aliases」，以及合法元组通过），并把策略/日志/绘图/集合变异副作用映射到 PINE_REQUEST_SECURITY_SIDE_EFFECT。Go 另断言内部纯度助手（requestSecurityLoweredASTIsPure、pureRequestSecurityRuntimeCall 白名单、close+open source 二义性不被 mask、未闭合 TA 调用不被 mask）与 lowerSupportedRequestSecurity 的参数拒绝；Rust 以 AST 纯度检查替代文本 helper，helper 级断言没有对应物。本批新登记 P1 缺口：security 表达式内 TA 白名单与高级指标参数校验缺失——ta.sum(close,5)、ta.bb(close,20)、ta.correlation(close,last_price,20)、request.security(..., \"D\", ta.obv) 在 Rust 均编译通过（探针 ok=true），Go 分别以 PINE_REQUEST_SECURITY_EXPRESSION_UNSUPPORTED 与高级指标参数规则拒绝。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
+      "rust_entry": "crates/jftrade-strategy/tests/pine_order_metadata_and_security_rejections.rs::request_security_tuple_diagnostics_match_go_codes；crates/jftrade-strategy/tests/pine_order_metadata_and_security_rejections.rs::request_security_rejects_unsupported_inner_ta_contracts",
+      "conclusion": "partial（本批补强）：新增 Rust 回归 `request_security_rejects_unsupported_inner_ta_contracts`，对 ta.sum、缺 multiplier 的 ta.bb、非法 correlation source 与日周期 ta.obv 逐项拒绝，修复 Rust 原先退化为 opaque security requirement 的行为差异；Go 另断言的内部纯度 helper 与旧字符串 lowering 层在 Rust 无同形对象，故仍为 partial。",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked -E 'test(request_security_rejects_unsupported_inner_ta_contracts) | test(request_security_tuple_diagnostics_match_go_codes)'",
       "evidence_type": "partial",
       "source": {
         "file": "pkg/strategy/pine/language_failure_contracts_test.go",
@@ -263899,12 +263899,23 @@
             "rustFile": "crates/jftrade-strategy/tests/pine_order_metadata_and_security_rejections.rs",
             "rustLine": 329
           }
+        },
+        {
+          "file": "crates/jftrade-strategy/tests/pine_order_metadata_and_security_rejections.rs",
+          "test": "request_security_rejects_unsupported_inner_ta_contracts",
+          "crate": "jftrade-strategy",
+          "anchor": {
+            "goFile": "pkg/strategy/pine/language_failure_contracts_test.go",
+            "goLine": 149,
+            "rustFile": "crates/jftrade-strategy/tests/pine_order_metadata_and_security_rejections.rs",
+            "rustLine": 49
+          }
         }
       ],
       "assertionCoverage": {
         "covered": [],
         "uncovered": [
-          "partial（本批补强）：新用例把 request.security 元组的四类诊断对齐到 Go 码与文案（TUPLE_ASSIGNMENT「must be assigned with matching tuple aliases」、宽度越界 TUPLE_UNSUPPORTED「support 2 to 8 values」、别名不匹配 TUPLE_MISMATCH「tuple returns N values but assignment has M aliases」，以及合法元组通过），并把策略/日志/绘图/集合变异副作用映射到 PINE_REQUEST_SECURITY_SIDE_EFFECT。Go 另断言内部纯度助手（requestSecurityLoweredASTIsPure、pureRequestSecurityRuntimeCall 白名单、close+open source 二义性不被 mask、未闭合 TA 调用不被 mask）与 lowerSupportedRequestSecurity 的参数拒绝；Rust 以 AST 纯度检查替代文本 helper，helper 级断言没有对应物。本批新登记 P1 缺口：security 表达式内 TA 白名单与高级指标参数校验缺失——ta.sum(close,5)、ta.bb(close,20)、ta.correlation(close,last_price,20)、request.security(..., \"D\", ta.obv) 在 Rust 均编译通过（探针 ok=true），Go 分别以 PINE_REQUEST_SECURITY_EXPRESSION_UNSUPPORTED 与高级指标参数规则拒绝。"
+          "partial（本批补强）：新增 Rust 回归 `request_security_rejects_unsupported_inner_ta_contracts`，对 ta.sum、缺 multiplier 的 ta.bb、非法 correlation source 与日周期 ta.obv 逐项拒绝，修复 Rust 原先退化为 opaque security requirement 的行为差异；Go 另断言的内部纯度 helper 与旧字符串 lowering 层在 Rust 无同形对象，故仍为 partial。"
         ],
         "source": "legacy-conclusion"
       },
@@ -263916,9 +263927,12 @@
           "-p",
           "jftrade-strategy",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(request_security_rejects_unsupported_inner_ta_contracts) | test(request_security_tuple_diagnostics_match_go_codes)"
         ],
         "testFilter": [
+          "request_security_rejects_unsupported_inner_ta_contracts",
           "request_security_tuple_diagnostics_match_go_codes"
         ],
         "runnerVersion": null,
@@ -263939,7 +263953,7 @@
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
-        "partial（本批补强）：新用例把 request.security 元组的四类诊断对齐到 Go 码与文案（TUPLE_ASSIGNMENT「must be assigned with matching tuple aliases」、宽度越界 TUPLE_UNSUPPORTED「support 2 to 8 values」、别名不匹配 TUPLE_MISMATCH「tuple returns N values but assignment has M aliases」，以及合法元组通过），并把策略/日志/绘图/集合变异副作用映射到 PINE_REQUEST_SECURITY_SIDE_EFFECT。Go 另断言内部纯度助手（requestSecurityLoweredASTIsPure、pureRequestSecurityRuntimeCall 白名单、close+open source 二义性不被 mask、未闭合 TA 调用不被 mask）与 lowerSupportedRequestSecurity 的参数拒绝；Rust 以 AST 纯度检查替代文本 helper，helper 级断言没有对应物。本批新登记 P1 缺口：security 表达式内 TA 白名单与高级指标参数校验缺失——ta.sum(close,5)、ta.bb(close,20)、ta.correlation(close,last_price,20)、request.security(..., \"D\", ta.obv) 在 Rust 均编译通过（探针 ok=true），Go 分别以 PINE_REQUEST_SECURITY_EXPRESSION_UNSUPPORTED 与高级指标参数规则拒绝。"
+        "partial（本批补强）：新增 Rust 回归 `request_security_rejects_unsupported_inner_ta_contracts`，对 ta.sum、缺 multiplier 的 ta.bb、非法 correlation source 与日周期 ta.obv 逐项拒绝，修复 Rust 原先退化为 opaque security requirement 的行为差异；Go 另断言的内部纯度 helper 与旧字符串 lowering 层在 Rust 无同形对象，故仍为 partial。"
       ],
       "boundaryReason": null
     },
@@ -310117,6 +310131,14 @@
       ],
       "allowed": false,
       "reviewStatus": "unreviewed"
+    },
+    "crates/jftrade-strategy/tests/pine_order_metadata_and_security_rejections.rs::request_security_rejects_unsupported_inner_ta_contracts": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "pkg/strategy/pine/language_failure_contracts_test.go:149:TestRequestSecurityAndTupleContractsRejectUnsafeExpressions"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
     },
     "crates/jftrade-strategy/tests/pine_parse_diagnostics.rs::blank_lines_before_the_script_keep_later_diagnostic_lines": {
       "referenceCount": 1,
