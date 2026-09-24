@@ -383,3 +383,27 @@ partial 诚实；9 boundary 属实（合成订单委托层、包装 store、流�
 `check:quick`（单实例）、`git diff --check`。
 
 下一片：backtest_calendar 按文件行号继续（source/store/costs 余量 37 条）。
+
+## 第 130 批 07 切片九：source/store/costs 余量 37 条 recon（2026-09-24）
+
+范围：`pkg/backtest/source_exchange_business_test.go`（2）+
+`store_session_synth_test.go`（8）+ `store_test.go`（14）+
+`sync_progress_test.go`（1）+ `trading_cost_replay_boundaries_test.go`（4）+
+`trading_costs_test.go`（8），共 37 条（partial 35 + boundary 2）。
+
+方法：Go 体逐条核对结论；全部 37 条 Rust 引用逐一 rg 命中（15 个唯一入口，0 缺失）；
+关键语义抽查：`trading_costs:275` 按单最低费分笔增量（Go total 12 + breakdown 12
+与 Rust `totalBrokerFees "12"` + breakdown amount "12" 同值）；
+`store:532` 1 分钟合成 5 分钟 OHLCV 精确断言（Go high 102.5/low 99/close 101.5/
+volume 510 语义与 Rust open/high/low/close/volume 精确断言一致，API 形态不同故
+partial 诚实）；2 boundary（sync 快照别名隔离归因所有权系统、费用生效日期区间
+Rust 模型无字段）属实，升级路径已登记。
+
+结论：37 条 verdict 全部成立，无判定变更、无代码变更。本片为纯 recon。
+
+验证：`audit_test_parity.py --write-report` exit 0；`parity_anchor_reconcile.py` 过；
+`cargo fmt -p jftrade-engine -- --check`、`check:ai-context`、`check:migration-manifest`、
+`check:zero-go`、定向 nextest（backtest 费用行为 + store-sqlite 聚合/会话/日历）、
+`check:quick`（单实例）、`git diff --check`。
+
+下一片：backtest_calendar 按域余量继续（exchangecalendar 约 59 条）。
