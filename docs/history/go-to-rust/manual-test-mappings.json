@@ -124057,7 +124057,7 @@
     "pkg/backtest/internal/storage/query_failure_empty_recovery_test.go:120:TestStoredReadersSkipEmptyScopedTables": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-store-sqlite/tests/backtest_market_data_failure_recovery.rs::empty_regular_and_extended_tables_return_empty_results",
-      "conclusion": "partial：Go 断言空作用域表的读取返回空集。Rust 的空表用例断言 regular/extended 空表返回空结果（同一语义，前向/后向 API 均覆盖）。",
+      "conclusion": "partial：Go 断言空作用域表的前向与后向读取均返回空集。Rust 的空表用例断言 regular/extended 空表返回空结果（同一语义），但 Rust 只有单时间区间读取 API，无前向/后向双路径，方向相关语义无对应断言。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked",
       "evidence_type": "partial",
       "source": {
@@ -124077,7 +124077,7 @@
       "assertionCoverage": {
         "covered": [],
         "uncovered": [
-          "partial：Go 断言空作用域表的读取返回空集。Rust 的空表用例断言 regular/extended 空表返回空结果（同一语义，前向/后向 API 均覆盖）。"
+          "partial：Go 断言空作用域表的前向与后向读取均返回空集。Rust 的空表用例断言 regular/extended 空表返回空结果（同一语义），但 Rust 只有单时间区间读取 API，无前向/后向双路径，方向相关语义无对应断言。"
         ],
         "source": "legacy-conclusion"
       },
@@ -124112,7 +124112,7 @@
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
-        "partial：Go 断言空作用域表的读取返回空集。Rust 的空表用例断言 regular/extended 空表返回空结果（同一语义，前向/后向 API 均覆盖）。"
+        "partial：Go 断言空作用域表的前向与后向读取均返回空集。Rust 的空表用例断言 regular/extended 空表返回空结果（同一语义），但 Rust 只有单时间区间读取 API，无前向/后向双路径，方向相关语义无对应断言。"
       ],
       "boundaryReason": null
     },

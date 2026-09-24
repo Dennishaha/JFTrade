@@ -619,3 +619,28 @@ filter_store 11，按文件加行号升序）。
 cargo fmt --check 与 git diff --check 干净；账本与 Rust 代码零改动（纯复核片）。
 
 下一片：130-11 切片六，backtest 域 partial 第 101–120 行。
+## 第 130 批 11 切片六：backtest 域 partial 第 101–120 行，19 行维持、1 行结论纠正（2026-09-24）
+
+范围：backtest 域 partial 第 101–120 行（runmodel 6、storage 14，按文件加行号升序）。
+
+方法：Go 体全读；缺口验到代码行与用例断言；引用存在不等于断言等价。
+
+19 行维持（快照独立拷贝与运行期错误模型缺席、空计数省略、样本去重上限、
+警告样本上限、归组键文案、边界记账、损坏聚合等价性、进度状态机与别名保护、
+定点编解码层、行扫描分类、schema 兜底消毒、空路径与 legacy 拒绝、只读库连接
+释放、上游解析兜底、多标的与通道形态、周期值映射、反解析矩阵、作用域归一，
+均与账本缺口一致）。
+
+1 行结论纠正（verdict 不变，[x] 1472 不变，b83 dry-run 先行、entry_changed 等于 0）：
+
+- query_failure:120：原结论称 Rust 空表用例覆盖前向/后向双路径，与事实不符
+  （Rust 只有单时间区间读取 API，无方向变体）；改写为方向语义无对应断言。
+
+抽核要点：警告用例确无 100 样本上限与归组断言；read_candles 签名确无方向参数；
+周期值映射与反解析矩阵逐项读过 Go 体。
+
+验证：audit --write-report 过（1472 exact；dup 0）；anchor 过（1742/1696/0/0/46）；
+定向 nextest（jftrade-backtest 57/57、jftrade-store-sqlite 整轮 188/188）全过；
+cargo fmt --check 与 git diff --check 干净；无 Rust 生产代码改动、无新增测试。
+
+下一片：130-11 切片七，backtest 域 partial 第 121–140 行。
