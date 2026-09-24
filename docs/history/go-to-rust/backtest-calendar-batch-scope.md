@@ -703,3 +703,32 @@ store_session_aggregation 3，按文件加行号升序）。
 cargo fmt --check 与 git diff --check 干净；无 Rust 生产代码改动、无新增测试。
 
 下一片：130-11 切片九，backtest 域 partial 第 161–180 行。
+## 第 130 批 11 切片九：backtest 域 partial 第 161–180 行，19 行维持、1 行结论收紧（2026-09-24）
+
+范围：backtest 域 partial 第 161–180 行（store_session 排序 1、stream 排序失败 2、
+pine 成本 4、pine 语料与冒烟 2、pineworker 适配 11，按文件加行号升序）。
+
+方法：Go 体全读；缺口验到代码行与用例断言；引用存在不等于断言等价。
+
+19 行维持（多标的混合周期排序边界、损坏流多形态边界、多标的稳定排序键边界、
+佣金百分比换算、初始资金优先级链边界、滑点 tick 双向、滑点执行与撤单分担、
+语料报告与字节确定性、真实 worker 双 opt-in 冒烟、意图转命令三类、空头方向保持、
+空头退出买入映射、作用域数量存活、条件单类型映射、OCO 拒绝时机、OCO 双腿展开、
+缺省数量、拒绝分类、适配器 Run 职责，均与账本缺口一致）。
+
+1 行结论收紧（verdict 仍为 partial，[x] 1472 不变，b83 dry-run 先行、entry_changed 等于 0）：
+
+- pineworker_adapter:208：原结论称规范化规则一致，与事实不符
+  （Rust 仅断言空头平仓映射为买且带 reduceOnly）；改写为 sell 入场规范化为
+  short 无对应断言，归一化位于执行层而非适配层。
+
+抽核要点：171/172/177 共用同一 Rust 用例属 partial 共用（非 [x] 唯一性约束），
+其中 171/172 已显式限定覆盖范围，仅 177 高估一致性；166 的 100.03/99.97 双向数值
+在 Rust 为同值端口用例，保持 partial（助手直测与执行链路层位差）；165 的初始资金
+仅随请求传递、无优先级链断言，维持 boundary；169 双边均为 opt-in（Go 跳过、Rust 忽略）。
+
+验证：audit --write-report 过（1472 exact；dup 0）；anchor 过（1742/1696/0/0/46）；
+定向 nextest（jftrade-backtest 57/57、jftrade-integration-pine、engine 执行族）全过；
+cargo fmt --check 与 git diff --check 干净；无 Rust 生产代码改动、无新增测试。
+
+下一片：130-11 切片十，backtest 域 partial 第 181–200 行。

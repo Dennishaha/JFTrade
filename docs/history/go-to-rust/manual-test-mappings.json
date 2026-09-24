@@ -127911,7 +127911,7 @@
     "pkg/backtest/pineworker_adapter_test.go:208:TestCommandFromOrderIntentCanonicalizesSellEntryAsShort": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/strategy_runtime_execution_tests.rs::test_execute_strategy_intents_close_short_maps_to_buy",
-      "conclusion": "partial：Go 断言 sell entry 规范化为 short、close 规范化为 cover。Rust 在执行层按方向归一化（该用例断言空头平仓映射为买），规范化规则一致但位于不同 owner。",
+      "conclusion": "partial：Go 断言 sell 入场规范化为 short、close 规范化为 cover（方向字段与买卖面）。Rust 的执行层用例仅断言空头平仓映射为买且带 reduceOnly（该用例）；sell 入场规范化为 short 在 Rust 无对应断言，归一化位于执行层而非适配层。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
       "evidence_type": "partial",
       "source": {
@@ -127931,7 +127931,7 @@
       "assertionCoverage": {
         "covered": [],
         "uncovered": [
-          "partial：Go 断言 sell entry 规范化为 short、close 规范化为 cover。Rust 在执行层按方向归一化（该用例断言空头平仓映射为买），规范化规则一致但位于不同 owner。"
+          "partial：Go 断言 sell 入场规范化为 short、close 规范化为 cover（方向字段与买卖面）。Rust 的执行层用例仅断言空头平仓映射为买且带 reduceOnly（该用例）；sell 入场规范化为 short 在 Rust 无对应断言，归一化位于执行层而非适配层。"
         ],
         "source": "legacy-conclusion"
       },
@@ -127966,7 +127966,7 @@
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
-        "partial：Go 断言 sell entry 规范化为 short、close 规范化为 cover。Rust 在执行层按方向归一化（该用例断言空头平仓映射为买），规范化规则一致但位于不同 owner。"
+        "partial：Go 断言 sell 入场规范化为 short、close 规范化为 cover（方向字段与买卖面）。Rust 的执行层用例仅断言空头平仓映射为买且带 reduceOnly（该用例）；sell 入场规范化为 short 在 Rust 无对应断言，归一化位于执行层而非适配层。"
       ],
       "boundaryReason": null
     },
