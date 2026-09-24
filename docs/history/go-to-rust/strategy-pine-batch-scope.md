@@ -698,3 +698,29 @@ Go 体全读，Rust 引用全部可解析。
 验证：`audit_test_parity.py --write-report` exit 0（1474 exact，dup 0）；
 `parity_anchor_reconcile.py` 1742/1696/0/0/46；strategy parse 相关 4/4；
 `git diff --check` 干净。
+
+## 第 130 批 09 切片 s38：strategy [x] 第 61–79 条二次复核，strategy 域收官（2026-09-24）
+
+范围（台账顺序）：strategy_business:11/:130、call_bounds:98/:120、tuple:11、
+validation:43/:70/:86/:96/:108、pineengine:72/:97、pineworker manager:46/:74/
+:119、types:41/:92/:105/:147，共 19 条。Go 体全读，Rust 引用全部可解析。
+
+结论：19 条全部维持，零改判。抽核要点：
+
+- 风险参数矩阵双用例覆盖（方向/类型/正数/count/单参有效 + 16 项拒绝），
+  助手级 raw 字符串形态不可达已披露；risk 边界四例为其子集。
+- call_bounds 双组合覆盖 11 边界 + 27 表达式拒绝（码名差 P2 已登记）；
+  cancel_all 带参由同族 guard 覆盖。
+- tuple 三拒绝 + reassign 模式一致（注错注入 seam 无 Rust 同形对象）。
+- validation 五条一致（含真实修复记录与 P2 文案差）。
+- pineengine 两条一致（PayloadMap 助手缺席已披露）；pineworker 池级等价
+  与请求校验 9+1（非有限值单独成例，结论已说明）一致。
+- types:41 的 rust_entry 保持单引用：非有限值用例另有 :164 行引用，
+  为保 [x] 唯一性不做双组合，结论文字已准确。
+
+strategy 域 `[x]` 二次复核全部完成（s35–s38 共 79 条，2 条降 partial）。
+`[x]` 保持 1474。本片仅文档记录，无台账与代码变更。
+
+验证：`audit_test_parity.py`（只读）OK（1474 exact，dup 0）；
+定向 nextest（integration-pine 50/50、risk_and_block 10/10、mcp_contract 4/4）；
+`git diff --check` 干净。
