@@ -933,3 +933,29 @@ partial 共用引用不受 [x] 唯一性约束。
 cargo fmt --check 与 git diff --check 干净；无台账变更、无 Rust 生产代码改动。
 
 下一片：130-12 切片二十五，strategy_pine 域 partial 第 161–180 行。
+
+## 第 130 批 12 切片二十五：strategy_pine 域 partial 第 161–180 行，20 行维持、零改判（2026-09-24）
+
+范围：strategy_pine 域 partial 第 161–180 行（指标数值解析 2、indicatorwarmup
+解析与校验 15、IR planner 1、按文件加行号升序）。本域已核对 180/385。
+
+方法：Go 体全读；15 个去重 Rust 引用逐项 rg 存在性核查；引用存在不等于断言等价。
+
+20 行维持（正浮点与百分比解析、advanced key 形状拒绝、固定周期族校验、
+风险时间与策略校验、source-aware/legacy 指标键解析、plan 空白裁剪与严格拒绝、
+全指标族非法边界、均线与风险键边界、时间单位与 source 归一、warmup 综合窗口、
+交易周期回退、advanced lookback、固定周期合法与低频错误、脚本/plan 非法输入、
+loop/exit/divergence/legacy protect 需求收集，缺口 owner 与回归要求均与账本一致）。
+
+抽核要点：第 161/162 行 Rust percentile 用例逐项确认正值、百分比边界与规范化；
+第 173 行 Rust planner 只覆盖 broker interval 与安全回退，不等同 Go 的完整
+normalizeWindowFunction/normalizeSourceOrClose 表；第 174–177 行 warmup 族群
+引用分别覆盖指标值、period 拒绝、MACD lookback 与风险元数据投影，综合窗口和
+固定周期组合仍为 partial；第 180 行 planner requirement key 用例逐项核对
+loop/exit/divergence/protect 键，引用存在不等于所有 legacy 键断言等价。
+
+验证：audit --write-report 过（1472 exact；dup 0）；anchor 过（1742/1696/0/0/46）；
+定向 nextest（jftrade-engine、jftrade-strategy、jftrade-backtest 视触及范围）全过；
+cargo fmt --check 与 git diff --check 干净；无台账变更、无 Rust 生产代码改动。
+
+下一片：130-12 切片二十六，strategy_pine 域 partial 第 181–200 行。
