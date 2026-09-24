@@ -5318,3 +5318,34 @@ fmt 与 nextest；`check:ai-context`、`check:migration-manifest`、
 
 下一片：api_transport 余量继续按文件行号升序（trading、watchlist、
 backtest 等目录）。
+
+## 第 130 批 09 切片十七：trading 与 watchlist 路由 40 条 recon（2026-09-24）
+
+范围：`internal/api/trading/`（28）+ `internal/api/watchlist/`（12），
+共 40 条（23 `[x]` + 17 partial）。
+
+方法：Go 体逐段核对（交易执行 P0 域从严）；23 个 `[x]` 引用存在且锚点
+齐全（逐一命中）。结论：40 条 verdict 全部成立，无判定变更、无命令
+变更、无代码变更，本片为纯 recon。
+
+抽查实据（交易执行）：buying-power/preview/place/cancel 全链路 200 与
+端口计数由产品用例（重启保持）加语料 portCall 断言复刻；风控拒绝 409
+且 portCall=false；股票 amount/predictionSide 伪装 400 且 broker 未调用；
+cancel/place/preview 各失败码 502/504/429 由语料逐 case 固定；7 路由
+200 与 3 路由 400 在生产 HTTP 面逐条复现；`:131` 的 13 项 %zz 清单全部
+400（含本批修复的 portfolio Invalid→400，探针 shasum 已登记）。
+抽查实据（watchlist）：14 路由 503 逐条枚举（8 写 + 6 读，同码
+WATCHLIST_UNAVAILABLE）；9 领域错误表由 45 用例 fixture 逐条重放；
+`:281` 的 8 请求 400 由三处证据合并覆盖。partial 均为诚实缺口：
+错误细分码（NOT_CONNECTED/COMMAND_FAILED/账户缺失 400）、降级 200 对
+fail-closed 503 的 P1 语义差异（`:17`）、校验顺序 400/503 差异
+（`:95`）、空 id 的 404 对 400 模板差异、计数器 worker 语义、生命周期
+单条串联等，各有 owner 与回归要求。
+
+验证：`audit_test_parity.py --write-report` exit 0（1530 exact 全引用
+存在；已知警告不变；仅 report 基线号重生，inventory 无差）；
+`parity_anchor_reconcile.py` 过（1695/0/0/46）；无 Rust 文件改动故免
+fmt 与 nextest；`check:ai-context`、`check:migration-manifest`、
+`check:zero-go` 过；`check:quick` 与 `git diff --check` 见收尾。
+
+下一片：api_transport 余量继续按文件行号升序（backtest 等目录）。
