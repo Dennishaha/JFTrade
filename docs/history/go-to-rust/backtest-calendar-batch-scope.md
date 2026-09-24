@@ -596,3 +596,26 @@ engine execution_model 4/4）全过；cargo fmt --check 与 git diff --check 干
 无 Rust 生产代码改动、无新增测试。
 
 下一片：130-11 切片五，backtest 域 partial 第 81–100 行。
+## 第 130 批 11 切片五：backtest 域 partial 第 81–100 行，20 行维持、零修改（2026-09-24）
+
+范围：backtest 域 partial 第 81–100 行（conservative 余 5、cost_account 4、
+filter_store 11，按文件加行号升序）。
+
+方法：Go 体全读；缺口验到代码行与用例断言；引用存在不等于断言等价。
+
+20 行维持（止损触发语义加 P2 观测面、警告去重口径、流动性阈值来源、助手白盒
+分支口径、pending 内部状态边界、预设意图字段、非计费与不重复收费、权益点抑制
+另一半语义、字符串片段分类器、包装委托计数、逐页过滤 nil 语义、通道回退路径、
+自定义区间路由、后向窗口裁剪、通道扩展行、通道常规过滤、通道错误形态、区间
+回退路径、流式扩展行、包装助手函数，均与账本缺口一致）。
+
+抽核要点：:652 的 Rust 引用为场景级滑点用例，与 Go 白盒助手分支口径不同，
+缺口成立；:771 的 pending 切片断言在 Rust 无同形对象，边界成立；
+:26 的不重复收费由双用例共担（后者逐行核实存在）；:56 的 engine 侧对应
+用例逐行核实存在，权益点抑制仍缺直接断言。
+
+验证：audit --write-report 过（1472 exact；dup 0）；anchor 过（1742/1696/0/0/46）；
+定向 nextest（jftrade-backtest 57/57、store-sqlite 市场数据族 28/28）全过；
+cargo fmt --check 与 git diff --check 干净；账本与 Rust 代码零改动（纯复核片）。
+
+下一片：130-11 切片六，backtest 域 partial 第 101–120 行。
