@@ -131879,7 +131879,7 @@
     "pkg/backtest/result_collector_test.go:256:TestResultCollectorFeeBoundaryBranches": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-backtest/tests/execution_cost_result_boundaries.rs::per_order_fee_is_charged_once_for_each_distinct_order",
-      "conclusion": "partial：Go 断言费用边界分支（每单只收一次）。Rust 的用例断言每个不同订单的按单费用只收一次（该用例），边界分支集合不同。",
+      "conclusion": "partial：Go 断言费用收集器的空分支无操作（空交易、零订单号查询、空条目应用）。Rust 的用例断言每个不同订单的按单费用只收一次（该用例）；空/零费用分支的无操作断言无对应。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-backtest --all-targets --locked",
       "evidence_type": "partial",
       "source": {
@@ -131899,7 +131899,7 @@
       "assertionCoverage": {
         "covered": [],
         "uncovered": [
-          "partial：Go 断言费用边界分支（每单只收一次）。Rust 的用例断言每个不同订单的按单费用只收一次（该用例），边界分支集合不同。"
+          "partial：Go 断言费用收集器的空分支无操作（空交易、零订单号查询、空条目应用）。Rust 的用例断言每个不同订单的按单费用只收一次（该用例）；空/零费用分支的无操作断言无对应。"
         ],
         "source": "legacy-conclusion"
       },
@@ -131934,7 +131934,7 @@
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
-        "partial：Go 断言费用边界分支（每单只收一次）。Rust 的用例断言每个不同订单的按单费用只收一次（该用例），边界分支集合不同。"
+        "partial：Go 断言费用收集器的空分支无操作（空交易、零订单号查询、空条目应用）。Rust 的用例断言每个不同订单的按单费用只收一次（该用例）；空/零费用分支的无操作断言无对应。"
       ],
       "boundaryReason": null
     },
@@ -132561,7 +132561,7 @@
     "pkg/backtest/run_result_test.go:8:TestRunResultSnapshotReturnsIndependentCopy": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-backtest/tests/backtest_compatibility.rs::corpus_output_is_byte_deterministic_across_replays",
-      "conclusion": "boundary（结构差异）：Rust 结果模型只导出 warnings 与终态统计，不导出 Go runmodel 的 runtime error 计数/样本，因此按 boundary 记录并登记为 P2 观测面差异。",
+      "conclusion": "boundary（结构差异）：Go 断言 RunResult.Snapshot 返回深拷贝独立副本（标量、切片与计数字典互不影响）。Rust 结果模型没有 Snapshot API（每次执行产出全新结果值）；原结论误贴 253 行的运行时错误文案，已按 Go 体重写。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-backtest --all-targets --locked",
       "evidence_type": "boundary",
       "source": {
@@ -132581,7 +132581,7 @@
       "assertionCoverage": {
         "covered": [],
         "uncovered": [
-          "boundary（结构差异）：Rust 结果模型只导出 warnings 与终态统计，不导出 Go runmodel 的 runtime error 计数/样本，因此按 boundary 记录并登记为 P2 观测面差异。"
+          "boundary（结构差异）：Go 断言 RunResult.Snapshot 返回深拷贝独立副本（标量、切片与计数字典互不影响）。Rust 结果模型没有 Snapshot API（每次执行产出全新结果值）；原结论误贴 253 行的运行时错误文案，已按 Go 体重写。"
         ],
         "source": "legacy-conclusion"
       },
@@ -132616,9 +132616,9 @@
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
-        "boundary（结构差异）：Rust 结果模型只导出 warnings 与终态统计，不导出 Go runmodel 的 runtime error 计数/样本，因此按 boundary 记录并登记为 P2 观测面差异。"
+        "boundary（结构差异）：Go 断言 RunResult.Snapshot 返回深拷贝独立副本（标量、切片与计数字典互不影响）。Rust 结果模型没有 Snapshot API（每次执行产出全新结果值）；原结论误贴 253 行的运行时错误文案，已按 Go 体重写。"
       ],
-      "boundaryReason": "boundary（结构差异）：Rust 结果模型只导出 warnings 与终态统计，不导出 Go runmodel 的 runtime error 计数/样本，因此按 boundary 记录并登记为 P2 观测面差异。"
+      "boundaryReason": "boundary（结构差异）：Go 断言 RunResult.Snapshot 返回深拷贝独立副本（标量、切片与计数字典互不影响）。Rust 结果模型没有 Snapshot API（每次执行产出全新结果值）；原结论误贴 253 行的运行时错误文案，已按 Go 体重写。"
     },
     "pkg/backtest/run_result_test.go:83:TestRunResultAddRuntimeErrorAggregatesCountsAndCapsSamples": {
       "status": "[~]",

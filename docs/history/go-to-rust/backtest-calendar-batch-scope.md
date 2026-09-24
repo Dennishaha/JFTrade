@@ -817,3 +817,30 @@ quantity pct 数量基数、来源回退不拒单、worker 错误映射、sizer 
 cargo fmt --check 与 git diff --check 干净；无 Rust 生产代码改动、无新增测试。
 
 下一片：130-11 切片十三，backtest 域 partial 第 241–260 行。
+## 第 130 批 11 切片十三：backtest 域 partial 第 241–260 行，18 行维持、2 行结论纠正（2026-09-24）
+
+范围：backtest 域 partial 第 241–260 行（result 收集 5、trade stats 6、run result 2、
+runner 硬切与助手 2、session 过滤 4、short 回放 1，按文件加行号升序）。
+
+方法：Go 体全读；缺口验到代码行与用例断言；引用存在不等于断言等价。
+
+18 行维持（回撤指标、非正收盘告警、订单身份三级回退、终结与 warmup 标记、
+加权成本三行、部分平仓聚合、撤单终结、warmup 平仓、防御边界、运行时错误聚合、
+旧 runner 硬切、助手族、会话过滤三行、美股自定义聚合、短回放委托，均与账本缺口一致）。
+
+2 行结论纠正（verdict 不变，[x] 1472 不变，b83 dry-run 先行、entry_changed 等于 0）：
+
+- result_collector:256：原结论描述的是 Rust 侧（每单只收一次），不是 Go 侧
+  （Go 实际断言空交易、零订单号、空条目应用均为无操作）；按 Go 体重写缺口。
+- run_result:8：原结论误贴 253 行的运行时错误文案（计数/样本不导出）
+  （Go 实际断言 Snapshot 深拷贝独立副本）；按 Go 体重写，维持 boundary。
+
+抽核要点：两处均为结论与 Go 体错位、非 verdict 错误；:256 的 Rust 用例逐行核实
+为按单计费场景；:8 的 Rust 引用为字节确定性回放，无 Snapshot API；
+其余 18 行引用逐项存在。
+
+验证：audit --write-report 过（1472 exact；dup 0）；anchor 过（1742/1696/0/0/46）；
+定向 nextest（jftrade-backtest、integration-pine、strategy 族）全过；
+cargo fmt --check 与 git diff --check 干净；无 Rust 生产代码改动、无新增测试。
+
+下一片：130-11 切片十四，backtest 域 partial 第 261–280 行。
