@@ -4981,3 +4981,43 @@ exit 0（已知警告 0/2/2 不变）；`parity_anchor_reconcile.py` 过
 
 下一片：api_transport 余量（servercore 其他文件或 servercoretest 余量），
 按文件行号升序。
+
+## 第 130 批 09 切片八：servercore 数据管理/鉴权/执行/行情 34 条 recon（2026-09-24）
+
+范围：`adk_data_management_test.go`（2）+ `assistant_transport_lifecycle_test.go`（1）+
+`broker_read_query_default_test.go`（1）+ `data_management_failure_boundaries_test.go`（6）+
+`data_management_test.go`（4）+ `desktop_token_test.go`（5）+
+`exec_writeback_test.go`（2）+ `instrument_ref_test.go`（1）+
+`market_depth_test.go`（2）+ `market_details_ws_test.go`（1）+
+`market_instrument_resolver_test.go`（2）+ `market_realtime_test.go`（1）+
+`notification_market_workflow_contracts_test.go`（4）+
+`notification_sources_test.go`（2），共 34 条（原 14 `[x]` + 20 `[~]`）。
+
+方法：Go 体逐条核对结论；40 个 Rust 引用逐一命中（边界散文 1 处除外，
+为预期内）；`[x]` Parity 名搜核对，8 个组合第二元逐项拆验。
+2 条收回过宽 `[x]`→partial，1 条摘除无关第二元（verdict 不变）：
+
+- `:140` 真实交易控制路径显式覆盖：题眼的 env 覆盖分支无断言
+  （工作区禁进程 env 写入，需确定性覆盖测试），降 partial。
+- desktop `:14` 中间件同时保护 HTTP/WS：Rust 覆盖 HTTP bearer 矩阵，
+  WS 协议头 token 路径无断言（原组合第二元为限流/来源用例，已摘除），
+  降 partial。
+- realtime `:18` 当前实时桶：首证据逐项等价（历史页 + 当前桶 OHLC/
+  volume/closed=false + 游标），原组合第二元为租约失败用例已摘除，
+  保持 `[x]` 单证据。
+
+保留 12 `[x]`：数据管理三组合（同域互补，第一元锚定）、desktop
+`:101`/`:127`、exec `:11`、depth `:33`、details `:11`（双锚）、
+resolver `:65`。20 partial 结论均实质明确。
+
+结论：34 条 verdict = **12 `[x]` + 22 `[~]`**
+（`[x]` 1541→1539）。本片仅台账修正 + 报告/清单重生 + 文档，
+无代码变更。
+
+验证：`v2_writer.py --check` 过后落库；`audit_test_parity.py --write-report`
+exit 0（已知警告 0/2/2 不变）；`parity_anchor_reconcile.py` 过
+（1695/0/0/46）；`cargo fmt -p jftrade-engine -- --check` 过；定向 nextest
+3/3；`check:ai-context`、`check:migration-manifest`、`check:zero-go` 过；
+`check:quick` 工作树计划 exit 0；`git diff --check` 过。
+
+下一片：api_transport 余量继续按文件行号升序。

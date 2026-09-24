@@ -7,7 +7,7 @@
     "treeSha": "0ee26444be21c15d9760f358a34649f78402f0fb"
   },
   "generatorVersion": "v2_writer.py@slice23",
-  "generatedAt": "2026-09-24T02:26:54Z",
+  "generatedAt": "2026-09-24T02:29:31Z",
   "mappings": {
     "cmd/jftrade-api/main_test.go:13:TestValidateArgsAllowsNoArgs": {
       "status": "[~]",
@@ -43872,11 +43872,11 @@
       "boundaryReason": null
     },
     "internal/app/apiserver/servercore/desktop_token_test.go:14:TestDesktopTokenMiddlewareProtectsHTTPAndWebSocket": {
-      "status": "[x]",
-      "rust_entry": "crates/jftrade-engine/src/product_system_control_read_tests.rs::system_control_reads_are_authenticated_and_do_not_create_control_state; crates/jftrade-engine/src/product_ws_live_tests.rs::ws_live_transport_rejects_origin_and_limit_without_leaking_permits",
-      "conclusion": "function_exact：Go 断言桌面 token 同时保护 HTTP 与 WebSocket；Rust 断言无 token 的 HTTP 读取返回 401 且不产生控制面副作用，WS 升级在来源/许可校验失败时拒绝且不泄漏租约。",
+      "status": "[~]",
+      "rust_entry": "crates/jftrade-engine/src/product_system_control_read_tests.rs::system_control_reads_are_authenticated_and_do_not_create_control_state",
+      "conclusion": "部分覆盖：Go 断言桌面 token 中间件同时保护 HTTP（无 token 403、有 token 204）与 WebSocket（协议头带 token 放行）。Rust 的 system_control_reads_are_authenticated_and_do_not_create_control_state 覆盖 HTTP bearer 401/200 矩阵且不创建控制态；差异是 WS 协议头 token 路径无断言（原组合第二元为限流/来源用例，主题不相干，已摘除）。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(system_control_reads_are_authenticated_and_do_not_create_control_state)'",
-      "evidence_type": "function_exact",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/servercore/desktop_token_test.go",
         "line": 14,
@@ -43894,19 +43894,13 @@
             "rustFile": "crates/jftrade-engine/src/product_system_control_read_tests.rs",
             "rustLine": 94
           }
-        },
-        {
-          "file": "crates/jftrade-engine/src/product_ws_live_tests.rs",
-          "test": "ws_live_transport_rejects_origin_and_limit_without_leaking_permits",
-          "crate": "jftrade-engine",
-          "anchor": null
         }
       ],
       "assertionCoverage": {
-        "covered": [
-          "function_exact：Go 断言桌面 token 同时保护 HTTP 与 WebSocket；Rust 断言无 token 的 HTTP 读取返回 401 且不产生控制面副作用，WS 升级在来源/许可校验失败时拒绝且不泄漏租约。"
+        "covered": [],
+        "uncovered": [
+          "部分覆盖：Go 断言桌面 token 中间件同时保护 HTTP（无 token 403、有 token 204）与 WebSocket（协议头带 token 放行）。Rust 的 system_control_reads_are_authenticated_and_do_not_create_control_state 覆盖 HTTP bearer 401/200 矩阵且不创建控制态；差异是 WS 协议头 token 路径无断言（原组合第二元为限流/来源用例，主题不相干，已摘除）。"
         ],
-        "uncovered": [],
         "source": "legacy-conclusion"
       },
       "verification": {
@@ -43920,8 +43914,7 @@
           "test(system_control_reads_are_authenticated_and_do_not_create_control_state)"
         ],
         "testFilter": [
-          "system_control_reads_are_authenticated_and_do_not_create_control_state",
-          "ws_live_transport_rejects_origin_and_limit_without_leaking_permits"
+          "system_control_reads_are_authenticated_and_do_not_create_control_state"
         ],
         "runnerVersion": null,
         "toolchain": null,
@@ -43934,15 +43927,15 @@
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "function_exact：Go 断言桌面 token 同时保护 HTTP 与 WebSocket；Rust 断言无 token 的 HTTP 读取返回 401 且不产生控制面副作用，WS 升级在来源/许可校验失败时拒绝且不泄漏租约。"
+      "coveredAssertions": [],
+      "uncoveredAssertions": [
+        "部分覆盖：Go 断言桌面 token 中间件同时保护 HTTP（无 token 403、有 token 204）与 WebSocket（协议头带 token 放行）。Rust 的 system_control_reads_are_authenticated_and_do_not_create_control_state 覆盖 HTTP bearer 401/200 矩阵且不创建控制态；差异是 WS 协议头 token 路径无断言（原组合第二元为限流/来源用例，主题不相干，已摘除）。"
       ],
-      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/app/apiserver/servercore/desktop_token_test.go:46:TestDesktopSidecarDoesNotDoubleAsBrowserListener": {
@@ -45324,8 +45317,8 @@
     },
     "internal/app/apiserver/servercore/market_realtime_test.go:18:TestMarketCandlesEndpointIncludesCurrentRealtimeBucket": {
       "status": "[x]",
-      "rust_entry": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::candle_route_keeps_latest_history_after_all_forward_pages_and_current_bar; crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::candle_read_without_a_kline_lease_fails_before_realtime_provider_access",
-      "conclusion": "function_exact：Go 断言 candles 响应把 Qot_GetKL 当前实时桶并入历史序列。Rust 用例固定历史两页 + 当前桶：末根为当前桶起点、OHLC/成交量保留上游值、closed=false，分页 hasMore/nextBefore 齐备，且当前桶读取前必须先持有 K 线租约（引用第二条）；锚点 internal/app/apiserver/servercore/market_realtime_test.go:18。",
+      "rust_entry": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::candle_route_keeps_latest_history_after_all_forward_pages_and_current_bar",
+      "conclusion": "function_exact：Go 断言历史分页之后附带当前实时桶（未收口、OHLC/volume 保持上游值）。Rust 的 candle_route_keeps_latest_history_after_all_forward_pages_and_current_bar 逐项断言历史页、当前桶 at/open/high/low/close/volume/closed=false 与分页游标；原组合第二元为 K 线租约失败用例，主题不相干，已摘除，单证据即等价。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
       "evidence_type": "function_exact",
       "source": {
@@ -45345,17 +45338,11 @@
             "rustFile": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs",
             "rustLine": 246
           }
-        },
-        {
-          "file": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs",
-          "test": "candle_read_without_a_kline_lease_fails_before_realtime_provider_access",
-          "crate": "jftrade-engine",
-          "anchor": null
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "function_exact：Go 断言 candles 响应把 Qot_GetKL 当前实时桶并入历史序列。Rust 用例固定历史两页 + 当前桶：末根为当前桶起点、OHLC/成交量保留上游值、closed=false，分页 hasMore/nextBefore 齐备，且当前桶读取前必须先持有 K 线租约（引用第二条）；锚点 internal/app/apiserver/servercore/market_realtime_test.go:18。"
+          "function_exact：Go 断言历史分页之后附带当前实时桶（未收口、OHLC/volume 保持上游值）。Rust 的 candle_route_keeps_latest_history_after_all_forward_pages_and_current_bar 逐项断言历史页、当前桶 at/open/high/low/close/volume/closed=false 与分页游标；原组合第二元为 K 线租约失败用例，主题不相干，已摘除，单证据即等价。"
         ],
         "uncovered": [],
         "source": "legacy-conclusion"
@@ -45371,8 +45358,7 @@
           "--locked"
         ],
         "testFilter": [
-          "candle_route_keeps_latest_history_after_all_forward_pages_and_current_bar",
-          "candle_read_without_a_kline_lease_fails_before_realtime_provider_access"
+          "candle_route_keeps_latest_history_after_all_forward_pages_and_current_bar"
         ],
         "runnerVersion": null,
         "toolchain": null,
@@ -45391,7 +45377,7 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "function_exact：Go 断言 candles 响应把 Qot_GetKL 当前实时桶并入历史序列。Rust 用例固定历史两页 + 当前桶：末根为当前桶起点、OHLC/成交量保留上游值、closed=false，分页 hasMore/nextBefore 齐备，且当前桶读取前必须先持有 K 线租约（引用第二条）；锚点 internal/app/apiserver/servercore/market_realtime_test.go:18。"
+        "function_exact：Go 断言历史分页之后附带当前实时桶（未收口、OHLC/volume 保持上游值）。Rust 的 candle_route_keeps_latest_history_after_all_forward_pages_and_current_bar 逐项断言历史页、当前桶 at/open/high/low/close/volume/closed=false 与分页游标；原组合第二元为 K 线租约失败用例，主题不相干，已摘除，单证据即等价。"
       ],
       "uncoveredAssertions": [],
       "boundaryReason": null
@@ -45512,11 +45498,11 @@
       "boundaryReason": null
     },
     "internal/app/apiserver/servercore/notification_market_workflow_contracts_test.go:140:TestRealTradeControlPathPrefersExplicitOverride": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/real_trade_control.rs::path_is_sibling_of_settings_file",
-      "conclusion": "function_exact：Go 断言 JFTRADE_REAL_TRADE_CONTROL_PATH 优先、空值回退同目录默认名；Rust 断言派生规则（同目录 real-trade-control.json，相对设置路径退化为文件名），env 覆盖读取在 ProductConfig::new（工作区禁止进程级 env 写入，覆盖分支为 partial 记录在 runtime/resources_test.go:58 行）。",
+      "conclusion": "部分覆盖：Go 断言 JFTRADE_REAL_TRADE_CONTROL_PATH 显式覆盖优先、空值回退同目录默认名。Rust 的 path_is_sibling_of_settings_file 仅覆盖同目录派生与相对路径退化为文件名；差异是题眼的 env 显式覆盖分支无断言（工作区禁止进程级 env 写入，需确定性覆盖路径测试，缺口记于此）。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(path_is_sibling_of_settings_file)'",
-      "evidence_type": "function_exact",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/servercore/notification_market_workflow_contracts_test.go",
         "line": 140,
@@ -45532,15 +45518,15 @@
             "goFile": "internal/app/apiserver/servercore/notification_market_workflow_contracts_test.go",
             "goLine": 140,
             "rustFile": "crates/jftrade-engine/src/real_trade_control.rs",
-            "rustLine": 138
+            "rustLine": 140
           }
         }
       ],
       "assertionCoverage": {
-        "covered": [
-          "function_exact：Go 断言 JFTRADE_REAL_TRADE_CONTROL_PATH 优先、空值回退同目录默认名；Rust 断言派生规则（同目录 real-trade-control.json，相对设置路径退化为文件名），env 覆盖读取在 ProductConfig::new（工作区禁止进程级 env 写入，覆盖分支为 partial 记录在 runtime/resources_test.go:58 行）。"
+        "covered": [],
+        "uncovered": [
+          "部分覆盖：Go 断言 JFTRADE_REAL_TRADE_CONTROL_PATH 显式覆盖优先、空值回退同目录默认名。Rust 的 path_is_sibling_of_settings_file 仅覆盖同目录派生与相对路径退化为文件名；差异是题眼的 env 显式覆盖分支无断言（工作区禁止进程级 env 写入，需确定性覆盖路径测试，缺口记于此）。"
         ],
-        "uncovered": [],
         "source": "legacy-conclusion"
       },
       "verification": {
@@ -45567,15 +45553,15 @@
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "function_exact：Go 断言 JFTRADE_REAL_TRADE_CONTROL_PATH 优先、空值回退同目录默认名；Rust 断言派生规则（同目录 real-trade-control.json，相对设置路径退化为文件名），env 覆盖读取在 ProductConfig::new（工作区禁止进程级 env 写入，覆盖分支为 partial 记录在 runtime/resources_test.go:58 行）。"
+      "coveredAssertions": [],
+      "uncoveredAssertions": [
+        "部分覆盖：Go 断言 JFTRADE_REAL_TRADE_CONTROL_PATH 显式覆盖优先、空值回退同目录默认名。Rust 的 path_is_sibling_of_settings_file 仅覆盖同目录派生与相对路径退化为文件名；差异是题眼的 env 显式覆盖分支无断言（工作区禁止进程级 env 写入，需确定性覆盖路径测试，缺口记于此）。"
       ],
-      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/app/apiserver/servercore/notification_market_workflow_contracts_test.go:154:TestWorkflowMarketAdaptersRejectInvalidInputsAndPreserveMetadata": {
@@ -294410,9 +294396,8 @@
       "reviewStatus": "unreviewed"
     },
     "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::candle_read_without_a_kline_lease_fails_before_realtime_provider_access": {
-      "referenceCount": 5,
+      "referenceCount": 4,
       "referenceKeys": [
-        "internal/app/apiserver/servercore/market_realtime_test.go:18:TestMarketCandlesEndpointIncludesCurrentRealtimeBucket",
         "internal/app/apiserver/servercoretest/broker_new_test.go:126:TestBrokerQuoteWithoutLeaseIsDegraded",
         "pkg/futu/adapter_bridge_test.go:608:TestBrokerAdapterQuoteKLinesSubscriptionsAndValidation",
         "pkg/futu/subscription_lifecycle_test.go:123:TestQueryKLinesWithoutLeaseReturnsExplicitErrorBeforeRealtimeRead",
@@ -301241,10 +301226,9 @@
       "reviewStatus": "unreviewed"
     },
     "crates/jftrade-engine/src/product_ws_live_tests.rs::ws_live_transport_rejects_origin_and_limit_without_leaking_permits": {
-      "referenceCount": 3,
+      "referenceCount": 2,
       "referenceKeys": [
         "internal/api/live/handler_test.go:342:TestHandlerConnectionLimitAndCloseLifecycle",
-        "internal/app/apiserver/servercore/desktop_token_test.go:14:TestDesktopTokenMiddlewareProtectsHTTPAndWebSocket",
         "internal/app/apiserver/servercore/live_runtime_test.go:13:TestLiveStreamDiagnosticsUseConfiguredLimit"
       ],
       "allowed": false,
