@@ -436,3 +436,34 @@ partial 2248→2251）。有代码变更需求（退避门裁决、HK 窗口断�
 
 下一片：backtest_calendar 按域余量继续（http_source 系 21 + snapshot/health 3 +
 pkg/market/calendar 13 = 37 条）。
+
+## 第 130 批 07 切片十一：http_source/健康/calendar 37 条 recon，backtest_calendar 收官（2026-09-24）
+
+范围：`internal/exchangecalendar/http_source_test.go`（14）+
+`http_source_boundaries_test.go`（7）+ `source_health_status_test.go`（2）+
+`source_json_test.go`（1）+ `pkg/market/calendar/`（13：builtin 5、
+calendar_boundaries 2、helpers_boundaries 5、types_json 1），共 37 条。
+
+方法：Go 体逐条核对结论；37 条 Rust 引用逐一 rg 命中（0 缺失），`[x]` 无重复；
+parser/validator/注册表/超时/快照元数据/状态错误 21 条 [x] 均为 fixture 级逐项
+等价（含真实修复与探针证据），成立；12 partial + 2 JSON `[x]` 口径诚实。1 条收回
+过宽 `[x]`→partial：
+
+- `http_source_boundaries:298` nil 管理器安全：Go 整条断言 nil receiver guard、
+  nil-clock 回退、nil-resolver 拒绝；Rust 无 nil 语义，现有用例断言空 registry
+  生命周期安全。空集合安全等价，后三者在 Rust 无对应断言。
+- `source_health:17` 的 `[x]` 复核保留：其断言主体是分源健康真实性（单次
+  refresh/probe，退避门不触发），与 Go 逐项一致；退避门差异仅作上下文说明，
+  与 `:33`（断言主体即 NextRefreshAt 调度语义）性质不同。
+
+结论：37 条 verdict = **24 `[x]` + 13 partial**（`[x]` 1562→1561，
+partial 2251→2252）。**backtest_calendar 域 376 条全部 recon 完毕**；
+本片仅台账修正 + 文档，无代码变更。
+
+验证：`v2_writer.py --check` 过后落库；`audit_test_parity.py --write-report` exit 0；
+`parity_anchor_reconcile.py` 过（1693/0/0/46）；`cargo fmt -p jftrade-engine -- --check`；
+定向 nextest（jftrade-calendar 89 + jftrade-integration-calendar 23 全过）；
+`check:ai-context`、`check:migration-manifest`、`check:zero-go`、
+`check:quick`（单实例）、`git diff --check`。
+
+下一域：按余量排序的下一块（`internal/store`，recon 口径待定）。

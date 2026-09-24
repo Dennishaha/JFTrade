@@ -7,7 +7,7 @@
     "treeSha": "0ee26444be21c15d9760f358a34649f78402f0fb"
   },
   "generatorVersion": "v2_writer.py@slice23",
-  "generatedAt": "2026-09-24T01:32:34Z",
+  "generatedAt": "2026-09-24T01:35:08Z",
   "mappings": {
     "cmd/jftrade-api/main_test.go:13:TestValidateArgsAllowsNoArgs": {
       "status": "[~]",
@@ -193760,11 +193760,11 @@
       "boundaryReason": null
     },
     "internal/exchangecalendar/http_source_boundaries_test.go:298:TestNilCalendarManagerOperationsRemainSafeDuringStartupAndShutdown": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "crates/jftrade-calendar/tests/manager_lifecycle.rs::manager_without_configured_sources_stays_safe_across_its_lifecycle",
-      "conclusion": "function_exact（等效替代，无 nil receiver 语义）：Go 的用例靠 (*Manager)(nil) receiver guard 覆盖 nil manager 的 settings/currentTime/录制函数，并验证 NewManager 未注入 clock 时 currentTime 回退 time.Now().UTC()，以及 manualOverrideSchedule 在 nil builtin resolver 下返回 false。Rust 无 nil receiver：CalendarManager::new 总是安装 OffsetDateTime::now_utc，空 registry 合法。等价边界用空 registry + 空 settings 驱动：status_snapshot 只启用 builtin_rules/manual_override 两个本地 owner 且不臆造 health state；start/refresh_all/probe_all/close/重复 close 全部安全，refresh/probe 为零更新零失败。",
+      "conclusion": "partial（收回过宽exact）：Go整条用例断言nil语义——(*Manager)(nil)的settings/currentTime/5个录制函数不panic、未注入clock时currentTime回退time.Now().UTC()、nil builtin resolver下manualOverrideSchedule返回false。Rust无nil receiver（CalendarManager::new恒装now_utc），现有用例断言的是另一场景：空registry+空settings下status只列本地owner、start/refresh_all/probe_all/close与重复close安全且零更新零失败。空集合生命周期安全等价；nil receiver guard、nil-clock回退、nil-resolver拒绝在Rust无对应断言（前者由所有权系统使之不可表达，后两者无专项用例），故降为partial。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar -E 'test(manager_without_configured_sources_stays_safe_across_its_lifecycle)'",
-      "evidence_type": "function_exact",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/exchangecalendar/http_source_boundaries_test.go",
         "line": 298,
@@ -193785,10 +193785,10 @@
         }
       ],
       "assertionCoverage": {
-        "covered": [
-          "function_exact（等效替代，无 nil receiver 语义）：Go 的用例靠 (*Manager)(nil) receiver guard 覆盖 nil manager 的 settings/currentTime/录制函数，并验证 NewManager 未注入 clock 时 currentTime 回退 time.Now().UTC()，以及 manualOverrideSchedule 在 nil builtin resolver 下返回 false。Rust 无 nil receiver：CalendarManager::new 总是安装 OffsetDateTime::now_utc，空 registry 合法。等价边界用空 registry + 空 settings 驱动：status_snapshot 只启用 builtin_rules/manual_override 两个本地 owner 且不臆造 health state；start/refresh_all/probe_all/close/重复 close 全部安全，refresh/probe 为零更新零失败。"
+        "covered": [],
+        "uncovered": [
+          "partial（收回过宽exact）：Go整条用例断言nil语义——(*Manager)(nil)的settings/currentTime/5个录制函数不panic、未注入clock时currentTime回退time.Now().UTC()、nil builtin resolver下manualOverrideSchedule返回false。Rust无nil receiver（CalendarManager::new恒装now_utc），现有用例断言的是另一场景：空registry+空settings下status只列本地owner、start/refresh_all/probe_all/close与重复close安全且零更新零失败。空集合生命周期安全等价；nil receiver guard、nil-clock回退、nil-resolver拒绝在Rust无对应断言（前者由所有权系统使之不可表达，后两者无专项用例），故降为partial。"
         ],
-        "uncovered": [],
         "source": "legacy-conclusion"
       },
       "verification": {
@@ -193815,15 +193815,15 @@
       "risk": "normal",
       "owner": "backtest_calendar",
       "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "function_exact（等效替代，无 nil receiver 语义）：Go 的用例靠 (*Manager)(nil) receiver guard 覆盖 nil manager 的 settings/currentTime/录制函数，并验证 NewManager 未注入 clock 时 currentTime 回退 time.Now().UTC()，以及 manualOverrideSchedule 在 nil builtin resolver 下返回 false。Rust 无 nil receiver：CalendarManager::new 总是安装 OffsetDateTime::now_utc，空 registry 合法。等价边界用空 registry + 空 settings 驱动：status_snapshot 只启用 builtin_rules/manual_override 两个本地 owner 且不臆造 health state；start/refresh_all/probe_all/close/重复 close 全部安全，refresh/probe 为零更新零失败。"
+      "coveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial（收回过宽exact）：Go整条用例断言nil语义——(*Manager)(nil)的settings/currentTime/5个录制函数不panic、未注入clock时currentTime回退time.Now().UTC()、nil builtin resolver下manualOverrideSchedule返回false。Rust无nil receiver（CalendarManager::new恒装now_utc），现有用例断言的是另一场景：空registry+空settings下status只列本地owner、start/refresh_all/probe_all/close与重复close安全且零更新零失败。空集合生命周期安全等价；nil receiver guard、nil-clock回退、nil-resolver拒绝在Rust无对应断言（前者由所有权系统使之不可表达，后两者无专项用例），故降为partial。"
       ],
-      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/exchangecalendar/http_source_test.go:21:TestDefaultRegistryRegistersExpectedSources": {
