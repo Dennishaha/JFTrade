@@ -1047,3 +1047,47 @@ object history/method/export、V29 receiver/MTF history、V29/V32 request.securi
 与 git diff --check 干净；无台账变更、无 Rust 生产代码改动。
 
 下一片：130-12 切片二十九，strategy_pine 域 partial 第 241–260 行。
+
+## 第 130 批 12 切片二十九：strategy_pine 域 partial 第 241–260 行，20 行维持、零改判（2026-09-24）
+
+范围：strategy_pine 域 `evidence_type=partial` 的第 241–260 行（parse_object、parse_request、
+parse_semantic 的 V14–V17/V30 声明、语义、MTF、tuple、TA 与控制流行为），按账本写入顺序逐条核对。
+strategy_pine 审计口径共 385 条 partial；另有 74 条 P2 boundary 不计入本序列。本片没有 Rust
+生产代码修改；共享 framework 测试只作证据引用，不因存在引用而升为 exact。
+
+| 序号 | Go 测试 | Rust 证据 | 级别 | 结论 |
+| ---: | --- | --- | :---: | --- |
+| 241 | `parse_object_test.go:206:TestCompileSupportsV30SemanticDeclarationModelAndVaripPolicy` | `src/pine/mod.rs::framework_language_feature_tests::compile_supports_framework_language_features` | P2 | `partial`；Rust 只覆盖 assignment/ternary/if，未覆盖 Go 的 PriceBox type/method/export/import、varip warning 与 semantic declaration signatures。 |
+| 242 | `parse_object_test.go:249:TestAnalyzeScriptReportsCollectionTypeDiagnostics` | 同上 | P2 | `partial`；Go 的 7 条 collection type/namespace/element mismatch 诊断没有 Rust 同形矩阵。 |
+| 243 | `parse_object_test.go:289:TestAnalyzeScriptReportsCollectionMethodStyleSignatureDiagnostics` | 同上 | P1 | `partial`；Go 覆盖 array/matrix method-style 操作与两类 signature error，Rust framework 聚合测试不含 collection diagnostics。 |
+| 244 | `parse_object_test.go:313:TestAnalyzeScriptReportsDeclarationSemanticDiagnostics` | 同上 | P2 | `partial`；重复字段、重复参数、semantic declaration 数量和字段投影尚无 Rust 断言。 |
+| 245 | `parse_object_test.go:341:TestAnalyzeScriptReportsTypeAndMethodRegistryDiagnostics` | 同上 | P2 | `partial`；type registry、receiver 类型、重载 method、map receiver 和 object operation projection 未逐项迁移。 |
+| 246 | `parse_object_test.go:410:TestAnalyzeScriptReportsImportAliasDeclarationDiagnostics` | 同上 | P2 | `partial`；import path/version/alias 及重复 alias diagnostic 无 Rust 对应测试。 |
+| 247 | `parse_object_test.go:438:TestAnalyzeScriptReportsObjectOperationSignatureDiagnostics` | 同上 | P2 | `partial`；对象构造和 method 调用的缺参/超参四格 signature diagnostics 未覆盖。 |
+| 248 | `parse_request_test.go:10:TestCompileSupportsMovingAverageRequestSecuritySubset` | `tests/pine_request_and_visual_contracts.rs::request_security_moving_average_keys_keep_type_period_source_and_time_unit` | P2 | `partial`；Rust 只核对 4 个 moving-average requirement keys，Go 另有 plain source、dynamic timeframe、history 与 merge flags 的完整 lowering/requirements。 |
+| 249 | `parse_request_test.go:97:TestCompileSupportsCommonTradingViewTAFunctions` | `tests/pine_request_and_visual_contracts.rs::common_ta_window_keys_keep_the_requested_source` | P2 | `partial`；Rust 核对 window keys 子集，未断言 Go 的 Bollinger tuple、wpr 条件和完整 hook statement 顺序。 |
+| 250 | `parse_request_test.go:141:TestCompileSupportsV14WindowMomentumAndStatefulIndicators` | `src/pine/mod.rs::framework_language_feature_tests::compile_supports_framework_language_features` | P1 | `partial`；stdev/variance/highestbars/lowestbars/change/mom/roc/rising/falling 与 barssince/valuewhen/tr 的 V14 矩阵未覆盖。 |
+| 251 | `parse_request_test.go:183:TestCompileSupportsV14RequestSecurityPureExpression` | 同上 | P2 | `partial`；Rust 未逐项验证 security expression、nested history lowering 及四类 requirement keys。 |
+| 252 | `parse_request_test.go:217:TestCompileSupportsV15RequestSecurityCommonTAExpression` | 同上 | P2 | `partial`；Rust 未覆盖 RSI/MACD/ATR/Bollinger/Supertrend 的 security expression fragments 与 range/mode keys。 |
+| 253 | `parse_request_test.go:263:TestCompileSupportsV16RequestSecurityTupleWhitelist` | 同上 | P2 | `partial`；Rust 未覆盖 tuple security 的 EMA/SMA/MACD/Bollinger expression、alias projection 和 requirement matrix。 |
+| 254 | `parse_semantic_test.go:10:TestAnalyzeScriptIncludesV17SemanticSummary` | 同上 | P2 | `partial`；semantic symbols、tuple bindings、function calls 的 supported/value-kind 投影没有 Rust 对应断言。 |
+| 255 | `parse_semantic_test.go:55:TestAnalyzeScriptReportsSupportedTASemanticSignatures` | 同上 | P2 | `partial`；9 个 TA semantic signatures 的 supported/signature 字段未逐项映射。 |
+| 256 | `parse_semantic_test.go:98:TestAnalyzeScriptReportsSupportedUtilitySemanticSignatures` | 同上 | P2 | `partial`；input/math/string 25 项 utility semantic signature 矩阵无 Rust 同形证据。 |
+| 257 | `parse_semantic_test.go:180:TestAnalyzeScriptReportsSemanticSignatureDiagnostics` | 同上 | P2 | `partial`；Rust 没有 semantic signature 错误码、行号和缺参诊断断言。 |
+| 258 | `parse_semantic_test.go:195:TestCompileSupportsV15StaticForLoopControl` | 同上 | P2 | `partial`；Rust 只保留静态 loop 的聚合编译/边界证据，未断言 Go 的 continue/break 展开结果和顺序。 |
+| 259 | `parse_semantic_test.go:230:TestCompileSupportsInputMathCrossAndSourceAwareMovingAverages` | 同上 | P2 | `partial`；input defaults、source-aware MA、math/cross lowering 与 if condition 结构未逐项覆盖。 |
+| 260 | `parse_semantic_test.go:268:TestCompileSupportsPineStrategyPositionVariables` | 同上 | P2 | `partial`；position_avg_price/position_size 的表达式和 close hook 结构未由 Rust framework 测试单独证明。 |
+
+验证命令：
+
+```bash
+python3 scripts/compatibility/audit_test_parity.py --write-report
+python3 scripts/compatibility/parity_anchor_reconcile.py
+node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked --no-fail-fast
+cargo fmt --check
+git diff --check
+```
+
+实测：jftrade-strategy nextest `104/104` 通过；audit/anchor、`cargo fmt --check` 与
+`git diff --check` 均通过。20/20 均保持 `partial`；不存在可安全升为 `[x]` 的条目，也没有发现
+应立即修复的 Rust 生产功能差异。下一片为 strategy_pine partial 第 261–280 行。
