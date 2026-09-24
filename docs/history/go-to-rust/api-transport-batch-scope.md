@@ -4746,3 +4746,26 @@ exit 0；`parity_anchor_reconcile.py` 过（1693/0/0/46）；
 `check:quick`（单实例）、`git diff --check`。
 
 下一片：api_transport 按目录继续（servercore/servercoretest 系）。
+
+## 第 130 批 09 切片二：servercoretest broker/contract/exec 路由 38 条 recon（2026-09-24）
+
+范围：`internal/app/apiserver/servercoretest/` broker_new（18）+
+broker_read（1）+ broker_routes（2）+ contract（6）+ exec_routes（1）+
+exec_validate（4）+ execution_routes（3）+ portfolio_routes（3），
+共 38 条（19 `[x]` + 19 partial）。
+
+方法：Go 体逐条核对结论；38 条 Rust 引用逐一 rg 命中（0 缺失），
+`[x]` 无重复、锚点齐全；19 `[x]` 均为 wire 级逐项断言（状态码、错误文案、
+键集合、响应体全等、EXPLAIN 式查询计划类比），抽查 `:388`（funds 六键 +
+显式 null lastError）逐项成立。19 partial 缺口明确，均带 owner 与回归要求；
+主题性差异：Go 断连读走 200 degraded 信封，Rust 走 503 fail-closed，
+已按产品决策项登记（:14/:126/:155/:181/:237），不属本片裁决范围。
+
+结论：38 条 verdict 全部成立，无判定变更、无代码变更。本片为纯 recon。
+
+验证：`audit_test_parity.py --write-report` exit 0；`parity_anchor_reconcile.py`
+过（1693/0/0/46）；`cargo fmt -p jftrade-engine -- --check`；定向 nextest
+（engine 端口/装配相关）；`check:ai-context`、`check:migration-manifest`、
+`check:zero-go`、`check:quick`（单实例）、`git diff --check`。
+
+下一片：api_transport 按目录继续（marketdataapp/servercore 余量）。
