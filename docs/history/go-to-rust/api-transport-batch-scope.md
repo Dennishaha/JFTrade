@@ -4687,3 +4687,25 @@ owner：能力目录与路由投影由 jftrade-engine 承接，市场规则与�
 | 快速门禁 | pnpm run check:quick | 通过 exit 0（单实例整轮，1957 用例段无失败）|
 
 后续：第 130 批分片五之三取 broker_conformance 58/107 与 order_updates 余量；:735 配置默认市场注入单独立项做生产修复。
+
+### 第 130 批分片五之三：conformance 与 order_updates recon（无代码变更）
+
+范围：internal/trading/broker_conformance_test.go:58/107、order_updates 系列 26 行（含 tradingapp/apiserver、integration/futu、recovery、reconnect）。owner：执行写路径归 jftrade-engine，对账归 reconciliation，推送订阅无 Rust 持有人。
+
+复核方法：逐行读 Go 基线（fake harness 的 ApplyOrder/ApplyFill/RejectCancel 推送语义）与 Rust 生产代码（cancel_order/place 失败分支、reconcile_pending_orders_inner 扫描结构、discovery 写回事件），复核账本结论的每一条边界断言。
+
+结论一（conformance 58/107，保持 partial，不改代码）：Go 的 cancel-rejected 保留 CANCEL_REQUESTED 并写 lastError/source broker.cancel 加 BROKER_CANCEL_REJECTED 事件；Rust 的 cancel_order 在 modify 失败时走 persist_unknown（UNKNOWN + source opend + cancel_failed 事件，orders_impl.rs:498）。Go 的 place-rejected 落 REJECTED + rawBrokerStatus；Rust 落 UNKNOWN（submission_failed）。unsupported capability Go 回 4xx，Rust 经 map_trade_error 回 503。对齐需要区分可重试拒单与不可知失败并改写失败语义，会波及已固定的 fail-closed 契约（reconciliation_keep 等），单独立项做生产变更，不在本分片动。
+
+结论二（order_updates 26 行，边界结论成立，不改代码）：Rust 引擎不持有推送订阅（subscribe_trade_accounts 仅会话层定义，生产无调用方；调用点 grep 仅 tests）；对账写回只发 BROKER_SYNC_DISCOVERED（discovery.rs:170）与状态转移事件；每次扫描必读账户与发现页（reconciliation.rs 内层逻辑），计数式 historyCalls==0 在 Rust 按设计不成立；内存订单缓存无同形对象（SQLite 唯一真相）。账本的保留边界结论逐条复核成立。
+
+验证记录：
+
+| 项目 | 命令 | 结果 |
+| --- | --- | --- |
+| 边界复核 | grep BROKER_SYNC_DISCOVERED/BROKER_CACHE_/subscribe_trade_accounts/persist_unknown | 断言成立，见上文 |
+| 审计 | python3 scripts/compatibility/audit_test_parity.py --write-report | 通过 exit 0；dup 校验通过；仅基线戳更新（2008effb） |
+| 锚点 | python3 scripts/compatibility/parity_anchor_reconcile.py | anchors 1739、已记录 1693、unrecorded 0、stale 0、unknown 46 |
+| 文档门禁 | fmt、ai-context、migration-manifest、zero-go、diff check | 全过 |
+| 快速门禁 | pnpm run check:quick | 通过 exit 0（文档范围、policy 门禁；Rust 树与 130-05b 整轮通过时一致）|
+
+后续：trading 域收口完成（余量均为已审定 deliberate partial/boundary）；下一批转向 :735 配置默认市场注入生产修复或 strategy/backtest 域，按目标排期。
