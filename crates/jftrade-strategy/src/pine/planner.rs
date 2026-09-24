@@ -39,6 +39,7 @@ impl IndicatorRequirement {
 
         let tf_opt = match self.kind.as_str() {
             "security" => parts.get(2).copied(),
+            "security_source" => parts.get(1).copied(),
             "ma" if parts.len() >= 4 => parts.last().copied(),
             _ => None,
         };
@@ -82,10 +83,15 @@ impl IndicatorRequirement {
         let parts: Vec<&str> = self.key.split(':').collect();
 
         match self.kind.as_str() {
-            "security" => {
-                let timeframe = parts.get(2).copied().unwrap_or_default();
+            "security" | "security_source" => {
+                let timeframe_index = usize::from(self.kind == "security") + 1;
+                let timeframe = parts.get(timeframe_index).copied().unwrap_or_default();
                 let expression = parts.get(3).copied().unwrap_or_default();
-                let period = parse_expression_period(expression);
+                let period = if self.kind == "security_source" {
+                    expression.parse::<usize>().unwrap_or(0)
+                } else {
+                    parse_expression_period(expression)
+                };
                 let tf_minutes = resolve_timeframe_minutes(timeframe, minutes_per_day)
                     .unwrap_or(minutes_per_day);
                 (period * tf_minutes).div_ceil(interval_minutes)
@@ -317,6 +323,7 @@ pub fn plan_requirements(program: &LoweredProgram) -> Result<Requirements, Plann
         indicators: BTreeMap::new(),
         result: Requirements::default(),
         aliases: BTreeMap::new(),
+        timeframe_aliases: BTreeMap::new(),
     };
     for hook in &program.hooks {
         for statement in &hook.statements {
@@ -336,6 +343,10 @@ struct PlannerContext {
     /// `ma:SMA:5:hl2`. An assignment that is not a plain OHLCV source keeps an
     /// empty value, which means "known local, value unknown".
     aliases: BTreeMap<String, String>,
+    /// Compile-time defaults returned by `input.timeframe`, including aliases
+    /// assigned through a plain identifier (`tf2 = tf`). Go resolves these
+    /// defaults before planning request.security requirement keys.
+    timeframe_aliases: BTreeMap<String, String>,
 }
 
 impl PlannerContext {
@@ -357,6 +368,25 @@ impl PlannerContext {
         String::new()
     }
 
+    fn resolve_timeframe_alias(&self, expression: &Expr) -> Option<String> {
+        match &expression.kind {
+            ExprKind::String { value } => Some(value.clone()),
+            ExprKind::Identifier { name } => self
+                .timeframe_aliases
+                .get(&name.to_ascii_lowercase())
+                .cloned(),
+            ExprKind::Call { callee, arguments }
+                if callee.eq_ignore_ascii_case("input.timeframe") =>
+            {
+                arguments.first().and_then(|argument| match &argument.kind {
+                    ExprKind::String { value } => Some(value.clone()),
+                    _ => None,
+                })
+            }
+            _ => None,
+        }
+    }
+
     fn visit_statement(&mut self, statement: &LoweredStatement) -> Result<(), PlannerError> {
         match statement {
             LoweredStatement::Let {
@@ -370,12 +400,17 @@ impl PlannerContext {
                         name,
                         expression.range.start_line,
                         &self.aliases,
+                        &self.timeframe_aliases,
                     )?
                 {
                     self.indicators.insert(requirement.key.clone(), requirement);
                 }
                 let resolved = self.resolve_alias(expression);
                 self.aliases.insert(name.to_ascii_lowercase(), resolved);
+                if let Some(timeframe) = self.resolve_timeframe_alias(expression) {
+                    self.timeframe_aliases
+                        .insert(name.to_ascii_lowercase(), timeframe);
+                }
             }
             LoweredStatement::Tuple {
                 expression, names, ..
@@ -388,6 +423,7 @@ impl PlannerContext {
                         names.first().map(String::as_str).unwrap_or_default(),
                         expression.range.start_line,
                         &self.aliases,
+                        &self.timeframe_aliases,
                     )?
                 {
                     self.indicators.insert(requirement.key.clone(), requirement);
@@ -457,7 +493,14 @@ impl PlannerContext {
             }
             _ => {}
         }
-        if let Some(requirement) = requirement_for_call(call, arguments, "", line, &self.aliases)? {
+        if let Some(requirement) = requirement_for_call(
+            call,
+            arguments,
+            "",
+            line,
+            &self.aliases,
+            &self.timeframe_aliases,
+        )? {
             self.indicators.insert(requirement.key.clone(), requirement);
         }
         Ok(())
@@ -532,6 +575,7 @@ impl PlannerContext {
                     "",
                     expression.range.start_line,
                     &self.aliases,
+                    &self.timeframe_aliases,
                 )? {
                     self.indicators.insert(requirement.key.clone(), requirement);
                 }
@@ -552,6 +596,7 @@ fn requirement_for_call(
     alias: &str,
     line: usize,
     aliases: &BTreeMap<String, String>,
+    timeframe_aliases: &BTreeMap<String, String>,
 ) -> Result<Option<IndicatorRequirement>, PlannerError> {
     let lower = callee.to_ascii_lowercase();
     if lower == "ta.crossover" || lower == "ta.crossunder" || lower == "ta.cross" {
@@ -637,6 +682,20 @@ fn requirement_for_call(
             for argument in arguments {
                 key_parts
                     .push(argument_text(Some(argument)).unwrap_or_else(|| argument.to_string()));
+            }
+        }
+        "ta.bb" => {
+            kind = "bollinger";
+            let source = argument_text(arguments.first()).unwrap_or_else(|| "close".to_owned());
+            let source = ensure_price_source(line, callee, &source, aliases)?;
+            let length = argument_text(arguments.get(1))
+                .ok_or_else(|| invalid(line, "ta.bb requires a length"))?;
+            ensure_positive_period(line, callee, &length)?;
+            let multiplier = argument_text(arguments.get(2))
+                .ok_or_else(|| invalid(line, "ta.bb requires a multiplier"))?;
+            key_parts.extend([length, multiplier]);
+            if source != "close" {
+                key_parts.insert(0, source);
             }
         }
         "ta.atr" | "ta.variance" | "ta.vwap" | "ta.mfi" => {
@@ -845,7 +904,25 @@ fn requirement_for_call(
             // indicator key with a time-unit suffix
             // (`linreg:close:5:0:15m`), so downstream workers resolve the same
             // catalog entry as a chart-timeframe indicator.
-            let timeframe_text = argument_text(arguments.get(1)).unwrap_or_default();
+            let timeframe_text = arguments
+                .get(1)
+                .and_then(|argument| match &argument.kind {
+                    ExprKind::Identifier { name } => {
+                        timeframe_aliases.get(&name.to_ascii_lowercase()).cloned()
+                    }
+                    _ => argument_text(Some(argument)),
+                })
+                .unwrap_or_default();
+            if let Some(time_unit) = indicator_time_unit(&timeframe_text)
+                && let Some(parts) = security_source_binding(arguments.get(2), line)?
+            {
+                let key = format!("security_source:{}:{}", time_unit, parts.join(":"));
+                return Ok(Some(IndicatorRequirement {
+                    alias: alias.to_owned(),
+                    kind: "security_source".to_owned(),
+                    key,
+                }));
+            }
             if let Some(time_unit) = indicator_time_unit(&timeframe_text)
                 && let Some((inner_kind, mut parts)) =
                     security_inner_binding(arguments.get(2), line)?
@@ -889,6 +966,44 @@ fn requirement_for_call(
         kind: kind.to_owned(),
         key: format!("{}:{}", kind, key_parts.join(":")),
     }))
+}
+
+/// Go gives plain `request.security` source expressions their own catalog
+/// family instead of falling back to an opaque `security:<symbol>:<tf>:...`
+/// key. Keep the source and optional history lookback in the same order used
+/// by `security_source:<time unit>:<source>[:<lookback>]`.
+fn security_source_binding(
+    expression: Option<&Expr>,
+    line: usize,
+) -> Result<Option<Vec<String>>, PlannerError> {
+    let Some(expression) = expression else {
+        return Ok(None);
+    };
+    match &expression.kind {
+        ExprKind::Identifier { name } => Ok(price_source(name).map(|source| vec![source])),
+        ExprKind::Index { object, index } => {
+            let ExprKind::Identifier { name } = &object.kind else {
+                return Ok(None);
+            };
+            let Some(source) = price_source(name) else {
+                return Ok(None);
+            };
+            let Some(lookback) = argument_text(Some(index)) else {
+                return Ok(None);
+            };
+            let Some(value) = lookback.parse::<u64>().ok() else {
+                return Ok(None);
+            };
+            if value > 500 {
+                return Err(invalid(
+                    line,
+                    "request.security source history lookback exceeds 500",
+                ));
+            }
+            Ok(Some(vec![source, lookback]))
+        }
+        _ => Ok(None),
+    }
 }
 
 /// Go's `pineTimeframeUnit` accepts a fixed set of timeframes and represents

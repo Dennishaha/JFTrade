@@ -104,9 +104,8 @@ fn extended_ticker_and_chart_flags_keep_requirements() {
 /// TestExtendedTickerRequestSecuritySupportsCurrentSymbolOnly
 ///
 /// Go keeps the current-symbol tickers and rejects every other symbol with
-/// `PINE_REQUEST_SECURITY_DYNAMIC_SYMBOL`. Rust lowers the accepted tickers to
-/// the opaque `security:` requirement instead of Go's `security_source` key,
-/// so only the acceptance and the diagnostic code are compared here.
+/// `PINE_REQUEST_SECURITY_DYNAMIC_SYMBOL`; accepted plain sources use the
+/// stable `security_source` requirement family.
 #[test]
 fn request_security_tickers_follow_the_go_whitelist() {
     for ticker in [

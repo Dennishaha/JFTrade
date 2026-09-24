@@ -109,23 +109,84 @@ const MTF_MA_SCRIPT: &str = r#"//@version=6
 strategy("MTF MA", overlay=true)
 fast = request.security(syminfo.tickerid, "D", ta.ema(close, 5))
 slow = request.security(syminfo.tickerid, "60", ta.sma(close, 20))
+dailyClose = request.security(syminfo.tickerid, "D", close)
+dailyHlc3 = request.security(syminfo.tickerid, "D", hlc3)
 dailyHlc3Ema = request.security(syminfo.tickerid, "D", ta.ema(hlc3, 20))
-fifteenHlc3Ema = request.security(syminfo.tickerid, "15", ta.ema(hlc3, 20))"#;
+tf = input.timeframe("15", "MTF")
+fifteenClose = request.security(syminfo.tickerid, tf, close)
+fourHourHlc3 = request.security(syminfo.tickerid, "240", hlc3)
+dailyPreviousClose = request.security(syminfo.tickerid, "D", close[1])
+fifteenHlc3Ema = request.security(syminfo.tickerid, "15", ta.ema(hlc3, 20), gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_off)"#;
 
 /// Parity: go:452dea11:pkg/strategy/pine/parse_request_test.go:10 TestCompileSupportsMovingAverageRequestSecuritySubset
 #[test]
 fn request_security_moving_average_keys_keep_type_period_source_and_time_unit() {
-    // The moving-average subset of Go's MTF matrix maps onto the shared `ma`
-    // key with the requested time unit; the plain source subset is covered by
-    // the `security_source:` gap recorded in the parity ledger.
+    // Go's MTF matrix keeps moving-average and plain source requirements in
+    // separate catalog families, including source history lookbacks.
     let keys = planned_keys(MTF_MA_SCRIPT);
     for wanted in [
         "ma:EMA:5:day",
         "ma:SMA:20:hour",
+        "security_source:day:close",
+        "security_source:day:hlc3",
         "ma:EMA:20:day:hlc3",
+        "security_source:15m:close",
+        "security_source:240m:hlc3",
+        "security_source:day:close:1",
         "ma:EMA:20:15m:hlc3",
     ] {
         assert!(keys.iter().any(|key| key == wanted), "{wanted} in {keys:?}");
+    }
+}
+
+/// Parity: go:452dea11:pkg/strategy/pine/parse_request_test.go:141
+/// TestCompileSupportsV14WindowMomentumAndStatefulIndicators
+#[test]
+fn compile_v14_window_momentum_fixture_keeps_go_requirement_keys() {
+    let script = r#"//@version=6
+strategy("v1.4 window state", overlay=true)
+dev = ta.stdev(close, 5)
+variance = ta.variance(close, 5)
+hb = ta.highestbars(high, 5)
+lb = ta.lowestbars(low, 5)
+delta = ta.change(close)
+momentum = ta.mom(close, 3)
+rate = ta.roc(close, 3)
+up = ta.rising(close, 3)
+down = ta.falling(close, 3)
+bars = ta.barssince(close > open)
+value = ta.valuewhen(close > open, close, 0)
+trTrue = ta.tr(true)
+trFalse = ta.tr(false)
+if up and not down and nz(bars, 999) < 5 and nz(value, close) > 0 and trTrue >= trFalse
+    strategy.entry("Long", strategy.long, qty=1)"#;
+    let compilation = compile(script);
+    assert!(
+        compilation.ok,
+        "Go V14 fixture must compile in Rust: {:?}",
+        compilation.diagnostics
+    );
+    let keys = compilation
+        .requirements
+        .indicators
+        .iter()
+        .map(|requirement| requirement.key.as_str())
+        .collect::<Vec<_>>();
+    for expected in [
+        "stdev:5",
+        "variance:close:5",
+        "highestbars:high:5",
+        "lowestbars:low:5",
+        "change:close:1",
+        "mom:close:3",
+        "roc:close:3",
+        "rising:close:3",
+        "falling:close:3",
+    ] {
+        assert!(
+            keys.contains(&expected),
+            "Go V14 fixture requirements {keys:?} missing {expected}"
+        );
     }
 }
 
@@ -138,7 +199,10 @@ delta = ta.change(close)
 momentum = ta.mom(close, 5)
 rate = ta.roc(close, 12)
 trendUp = ta.rising(close, 3)
-wr = ta.wpr(14)"#;
+wr = ta.wpr(14)
+[basis, upper, lower] = ta.bb(close, 20, 2)
+if trendUp and close > hh and close < upper and wr < -20
+    strategy.entry("Long", strategy.long, qty=1)"#;
 
 /// Parity: go:452dea11:pkg/strategy/pine/parse_request_test.go:97 TestCompileSupportsCommonTradingViewTAFunctions
 #[test]
@@ -153,6 +217,7 @@ fn common_ta_window_keys_keep_the_requested_source() {
         "roc:close:12",
         "rising:close:3",
         "williamsr:14",
+        "bollinger:20:2",
     ] {
         assert!(keys.iter().any(|key| key == wanted), "{wanted} in {keys:?}");
     }

@@ -197,7 +197,7 @@ fn security_timeframes_use_the_static_pine_whitelist() {
     );
     assert_eq!(
         requirement_keys("x = request.security(syminfo.tickerid, \"D\", close)"),
-        vec!["security:syminfo.tickerid:\"D\":close"]
+        vec!["security_source:day:close"]
     );
 
     for timeframe in ["\"15m\"", "\"60m\"", "\"1m\"", "\"0m\"", "\"2\""] {

@@ -1442,3 +1442,54 @@ git diff --check
 本片结论：20/20 保持 `partial` 或明确 `boundary`，没有新增 Rust 生产修复；
 benchmark corpus、collection runtime、UDT/method lowering 和完整动态控制流缺口
 继续登记为后续补测方向。下一片固定为 strategy_pine partial 第 281–300 行。
+
+## 第 130 批 12 切片三十八：strategy_pine partial 第 281–300 行（2026-09-24）
+
+本片按用户要求逐条核对 20 个 Go 测试。281–297 主要是 Pine v2.3–v3.2 的
+UDT、collection、对象/方法和 AnalyzeScript semantic projection；这些行为的
+执行 owner 仍在 PineTS worker，Rust 的 framework/diagnostic 聚合用例不能当作
+字段级等价证据，因此维持 `partial` 或 `boundary`。298–300 则形成了可复现的
+Rust requirement 差异：先用失败回归测试确认，再在 parser/planner owner 修复；
+修复后仍不升格为 `[x]`，因为 Go 还断言完整 typed semantic model。
+
+| ✓ | 序号 | Go 测试 | Rust 证据/结论 |
+| --- | ---: | --- | --- |
+| [x] | 281 | `parse_collection_test.go:554:TestCompileSupportsV23LocalObjectFieldReassignment` | `partial`；Rust framework 编译证据不投影 Go 的对象字段局部重赋值与运行时值传播。 |
+| [x] | 282 | `parse_collection_test.go:587:TestCompileSupportsV23RequestSecurityPureObjectAndCollectionExpressions` | `boundary`；纯对象/集合表达式的 request.security 执行语义仍由 PineTS worker 承担。 |
+| [x] | 283 | `parse_collection_test.go:628:TestCompileSupportsV24CollectionExpansionAndMTFStoch` | `partial`；Rust 有 MTF/指标 requirement 旁证，但没有 collection expansion 与 `ta.stoch` 同脚本的 Go 结构断言。 |
+| [x] | 284 | `parse_collection_test.go:678:TestCompileSupportsV24NamedObjectMethodExpressionAndRuntimeLoopFallback` | `boundary`；具名对象方法与 runtime loop fallback 没有 Rust 同形 lowering owner。 |
+| [x] | 285 | `parse_collection_test.go:724:TestCompileSupportsV25ArrayStringAndTimeframeHelpers` | `boundary`；array/string/timeframe helper 的值语义属于 worker runtime，Rust 仅有静态 timeframe 校验。 |
+| [x] | 286 | `parse_collection_test.go:768:TestCompileSupportsV26CollectionIterationHistoryAndObjectCollectionFields` | `boundary`；collection iteration/history/object field 组合没有 Rust typed execution 面。 |
+| [x] | 287 | `parse_object_test.go:10:TestCompileSupportsV27CollectionTimeframeAndMTFHelpers` | `partial`；timeframe alias 与 MTF requirement 已有证据，但 collection helper 结果未逐字段投影。 |
+| [x] | 288 | `parse_object_test.go:65:TestCompileSupportsV28ObjectHistoryMethodChainAndExportMetadata` | `boundary`；对象 history method chain 与 export metadata 仍是 worker-owned 旧表面。 |
+| [x] | 289 | `parse_object_test.go:103:TestCompileSupportsV29ObjectHistoryMethodReceiverAndMTFHistoryExpression` | `boundary`；Rust 的普通 history 引用测试不等价于对象 receiver/MTF history expression。 |
+| [x] | 290 | `parse_object_test.go:173:TestAnalyzeScriptReportsV32RequestSecurityDiagnosticMatrix` | `partial`；request.security 基础诊断已覆盖，缺 Go v3.2 matrix 的全部 tuple/object 专码与字段。 |
+| [x] | 291 | `parse_object_test.go:206:TestCompileSupportsV30SemanticDeclarationModelAndVaripPolicy` | `partial`；Rust 可编译基础声明，但未投影 Go semantic declaration model 与 `varip` policy。 |
+| [x] | 292 | `parse_object_test.go:249:TestAnalyzeScriptReportsCollectionTypeDiagnostics` | `boundary`；collection type diagnostics 无 Rust 同形 typed registry，不能由 unsupported 聚合断言替代。 |
+| [x] | 293 | `parse_object_test.go:289:TestAnalyzeScriptReportsCollectionMethodStyleSignatureDiagnostics` | `boundary`；method-style collection signature 校验属于 worker parser/runtime。 |
+| [x] | 294 | `parse_object_test.go:313:TestAnalyzeScriptReportsDeclarationSemanticDiagnostics` | `partial`；Rust 有通用声明拒绝边界，缺 Go declaration semantic diagnostics 的稳定专码矩阵。 |
+| [x] | 295 | `parse_object_test.go:341:TestAnalyzeScriptReportsTypeAndMethodRegistryDiagnostics` | `boundary`；类型/方法 registry 由旧执行 owner 管理，Rust 没有可映射入口。 |
+| [x] | 296 | `parse_object_test.go:410:TestAnalyzeScriptReportsImportAliasDeclarationDiagnostics` | `boundary`；import alias declaration diagnostics 没有 Rust parser 对应层。 |
+| [x] | 297 | `parse_object_test.go:438:TestAnalyzeScriptReportsObjectOperationSignatureDiagnostics` | `boundary`；对象 operation signature 与 receiver/arity 组合仍属 worker-owned。 |
+| [x] | 298 | `parse_request_test.go:10:TestCompileSupportsMovingAverageRequestSecuritySubset` | `partial（修复）`；Rust 新增 `security_source:<unit>:<source>[:lookback]`，并覆盖 Go 的 9 个 MTF key；仍缺完整 typed expression 与 binding.Args 投影。 |
+| [x] | 299 | `parse_request_test.go:97:TestCompileSupportsCommonTradingViewTAFunctions` | `partial（修复）`；planner 归一化窗口族并新增 `ta.bb` → `bollinger` requirement；仍缺 Go lowered expression/condition 全量投影。 |
+| [x] | 300 | `parse_request_test.go:141:TestCompileSupportsV14WindowMomentumAndStatefulIndicators` | `partial（修复）`；parser 支持 Pine `not`，V14 fixture 逐项生成 stdev/variance/highestbars/lowestbars/change/mom/roc/rising/falling key；仍缺 AnalyzeScript semantic model 逐字段对齐。 |
+
+本片变更闭环：
+
+- [x] 先以失败探针复现 `not`、plain `request.security` source/source[1] 与 `ta.bb` requirement 缺口。
+- [x] 在 `parser.rs`/`planner.rs` 所属 owner 修复，并为三类行为增加 Rust 回归测试。
+- [x] `jftrade-strategy` nextest 106/106 通过；精准测试 7/7 通过。
+- [x] 审计通过：Go 4451、Rust 3318、`function_exact=1472`、`partial=2343`、`boundary=636`；anchor reconcile 无未记录/陈旧锚点。
+- [ ] AnalyzeScript typed semantic model、UDT/collection runtime 和完整 binding.Args 投影仍未完成，不能宣称策略域功能等价。
+
+验证命令：
+
+```bash
+node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked
+python3 scripts/compatibility/audit_test_parity.py --write-report
+python3 scripts/compatibility/parity_anchor_reconcile.py
+```
+
+下一片固定为其他领域的 P0/P1 队列；strategy_pine 的 385 条 partial 已全部逐项核对，
+本片不重复复核已完成的切片。

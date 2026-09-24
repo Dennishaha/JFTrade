@@ -1017,13 +1017,19 @@ impl ExpressionParser<'_> {
             .get(self.cursor)
             .ok_or_else(|| self.error("PINE_EXPRESSION_REQUIRED", "expression is required"))?
             .clone();
-        if token.lexeme == "-" || token.lexeme == "+" || token.lexeme == "!" {
+        let keyword_not =
+            token.kind == TokenKind::Identifier && token.lexeme.eq_ignore_ascii_case("not");
+        if token.lexeme == "-" || token.lexeme == "+" || token.lexeme == "!" || keyword_not {
             self.cursor += 1;
             let expression = self.parse_prefix()?;
-            let op = match token.lexeme.as_str() {
-                "-" => UnaryOp::Negate,
-                "!" => UnaryOp::Not,
-                _ => UnaryOp::Positive,
+            let op = if keyword_not {
+                UnaryOp::Not
+            } else {
+                match token.lexeme.as_str() {
+                    "-" => UnaryOp::Negate,
+                    "!" => UnaryOp::Not,
+                    _ => UnaryOp::Positive,
+                }
             };
             let range = merge_ranges(
                 SourceRange::line(self.line, token.column, token.end_column),

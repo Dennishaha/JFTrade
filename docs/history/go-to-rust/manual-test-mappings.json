@@ -266465,7 +266465,7 @@
     "pkg/strategy/pine/parse_request_test.go:10:TestCompileSupportsMovingAverageRequestSecuritySubset": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-strategy/tests/pine_request_and_visual_contracts.rs::request_security_moving_average_keys_keep_type_period_source_and_time_unit",
-      "conclusion": "partial：Go 断言 MTF 均线与纯 source 子集，并列出 9 个需求键（ma:EMA:5:day、ma:SMA:20:hour、security_source:day:close、security_source:day:hlc3、ma:EMA:20:day:hlc3、security_source:15m:close、security_source:240m:hlc3、security_source:day:close:1、ma:EMA:20:15m:hlc3）。Rust 新用例断言其中四条 MTF 均线键逐字一致（ma:EMA:5:day、ma:SMA:20:hour、ma:EMA:20:day:hlc3、ma:EMA:20:15m:hlc3）；缺口：纯 source 的 MTF 需求在 Rust 仍是退化键 security:syminfo.tickerid:\"D\":close（Go 为 security_source:day:close），键空间命名与 source[n] 语义未对齐；owner：crates/jftrade-strategy/src/pine/planner.rs（security_inner_binding 与 request.security 分支）。回归要求：为纯 source/历史引用补 security_source:<unit>:<source>[:n] 键并与 Go 逐键比对。",
+      "conclusion": "partial（本批修复）：Rust planner 新增 `security_source:<unit>:<source>[:lookback]` 需求键，并解析 `input.timeframe` 默认别名；回归用例覆盖 Go 的 9 个 MTF 键（均线、纯 source、source[1]）以及动态别名的 opaque fallback。仍为 partial：Rust 尚未投影 Go 的全部 typed expression 字段与 binding.Args。owner：crates/jftrade-strategy/src/pine/planner.rs。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
       "evidence_type": "partial",
       "source": {
@@ -266599,7 +266599,7 @@
     "pkg/strategy/pine/parse_request_test.go:97:TestCompileSupportsCommonTradingViewTAFunctions": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-strategy/tests/pine_request_and_visual_contracts.rs::common_ta_window_keys_keep_the_requested_source",
-      "conclusion": "partial：Go 断言常见 TA 窗口族（highest/lowest/change/mom/roc/rising/wpr/bollinger）可编译并归一化缺省参数（ta.highest(20)→highest(high, 20)、ta.change(close)→change(close, 1)）。本批修复：Rust planner 原先把单参数窗口形态直接入键（highest:20、change:close），与 Go 及 pinespec 金标 change:close:1 不一致；现按 Go 归一化补缺省 source/length。先红探针：回滚 planner.rs 到 f61ae3c0…（分片七值）后新用例失败，恢复后通过（修复后 shasum 88dd2ef3…）。Rust 新用例逐键断言 highest:high:20（两次）、lowest:low:10、change:close:1、mom:close:5、roc:close:12、rising:close:3、williamsr:14；缺口：bollinger 族（ta.bb）在 Rust 无需求键实现，Go 断言 bollinger(20, 2)。owner：crates/jftrade-strategy/src/pine/planner.rs。",
+      "conclusion": "partial（本批修复）：Rust planner 现按 Go 归一化窗口族缺省 source/length，并新增 `ta.bb` 的 `bollinger[:source]:length:multiplier` requirement；Rust 回归脚本覆盖 highest/lowest/change/mom/roc/rising/wpr/bollinger 的关键键形。仍为 partial：Go 还断言完整 lowered expression/condition 投影，Rust 仅证明 requirement 与编译成功。owner：crates/jftrade-strategy/src/pine/planner.rs。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
       "evidence_type": "partial",
       "source": {
@@ -266665,8 +266665,8 @@
     },
     "pkg/strategy/pine/parse_request_test.go:141:TestCompileSupportsV14WindowMomentumAndStatefulIndicators": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs::compile_supports_framework_language_features",
-      "conclusion": "partial：Go 断言 V14WindowMomentumAndStatefulIndicators 场景可用；Rust 用同一脚本实测被拒（诊断码 `PINE_EXPRESSION_INVALID`），该语言族在 Rust 编译器（mod.rs、parser.rs、lower.rs、semantic.rs）尚未实现，也无 Go 同形的 typed 投影。回归要求：实现该族后用 Go 脚本作金标断言编译通过与同形 IR/需求键。",
+      "rust_entry": "crates/jftrade-strategy/tests/pine_request_and_visual_contracts.rs::compile_v14_window_momentum_fixture_keeps_go_requirement_keys",
+      "conclusion": "partial（本批修复）：Rust parser 支持 Pine `not` 一元关键字，planner 对 V14 fixture 生成 Go 对齐的 stdev/variance/highestbars/lowestbars/change/mom/roc/rising/falling keys；新增回归用例逐键断言并确认完整脚本编译成功。仍为 partial：Go 还验证 AnalyzeScript 语义对象的完整投影，Rust 测试只覆盖 compile/requirements。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
       "evidence_type": "partial",
       "source": {
@@ -266677,18 +266677,23 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-strategy/src/pine/mod.rs",
-          "test": "compile_supports_framework_language_features",
+          "file": "crates/jftrade-strategy/tests/pine_request_and_visual_contracts.rs",
+          "test": "compile_v14_window_momentum_fixture_keeps_go_requirement_keys",
           "crate": "jftrade-strategy",
-          "anchor": null
+          "anchor": {
+            "goFile": "pkg/strategy/pine/parse_request_test.go",
+            "goLine": 141,
+            "rustFile": "crates/jftrade-strategy/tests/pine_request_and_visual_contracts.rs",
+            "rustLine": 174
+          }
         }
       ],
       "assertionCoverage": {
         "covered": [],
         "uncovered": [
-          "partial：Go 断言 V14WindowMomentumAndStatefulIndicators 场景可用；Rust 用同一脚本实测被拒（诊断码 `PINE_EXPRESSION_INVALID`），该语言族在 Rust 编译器（mod.rs、parser.rs、lower.rs、semantic.rs）尚未实现，也无 Go 同形的 typed 投影。回归要求：实现该族后用 Go 脚本作金标断言编译通过与同形 IR/需求键。"
+          "Go 仍有 AnalyzeScript 语义对象投影未在 Rust 测试中逐字段断言。"
         ],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -266701,7 +266706,7 @@
           "--locked"
         ],
         "testFilter": [
-          "compile_supports_framework_language_features"
+          "compile_v14_window_momentum_fixture_keeps_go_requirement_keys"
         ],
         "runnerVersion": null,
         "toolchain": null,
@@ -266719,9 +266724,11 @@
         "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [],
+      "coveredAssertions": [
+        "Rust parser 接受 Pine not 一元关键字；完整 Go V14 fixture 编译成功，并逐项生成 stdev/variance/highestbars/lowestbars/change/mom/roc/rising/falling requirement keys。"
+      ],
       "uncoveredAssertions": [
-        "partial：Go 断言 V14WindowMomentumAndStatefulIndicators 场景可用；Rust 用同一脚本实测被拒（诊断码 `PINE_EXPRESSION_INVALID`），该语言族在 Rust 编译器（mod.rs、parser.rs、lower.rs、semantic.rs）尚未实现，也无 Go 同形的 typed 投影。回归要求：实现该族后用 Go 脚本作金标断言编译通过与同形 IR/需求键。"
+        "Go 仍有 AnalyzeScript 语义对象投影未在 Rust 测试中逐字段断言。"
       ],
       "boundaryReason": null
     },
@@ -309596,7 +309603,7 @@
       "reviewStatus": "unreviewed"
     },
     "crates/jftrade-strategy/src/pine/mod.rs::compile_supports_framework_language_features": {
-      "referenceCount": 49,
+      "referenceCount": 48,
       "referenceKeys": [
         "pkg/strategy/pine/language_failure_contracts_test.go:9:TestObjectAndCollectionParserFailureContracts",
         "pkg/strategy/pine/object_collect_bounds_test.go:12:TestObjectNamedArgumentNormalizationBusinessBoundaries",
@@ -309630,7 +309637,6 @@
         "pkg/strategy/pine/parse_object_test.go:341:TestAnalyzeScriptReportsTypeAndMethodRegistryDiagnostics",
         "pkg/strategy/pine/parse_object_test.go:410:TestAnalyzeScriptReportsImportAliasDeclarationDiagnostics",
         "pkg/strategy/pine/parse_object_test.go:438:TestAnalyzeScriptReportsObjectOperationSignatureDiagnostics",
-        "pkg/strategy/pine/parse_request_test.go:141:TestCompileSupportsV14WindowMomentumAndStatefulIndicators",
         "pkg/strategy/pine/parse_request_test.go:183:TestCompileSupportsV14RequestSecurityPureExpression",
         "pkg/strategy/pine/parse_request_test.go:217:TestCompileSupportsV15RequestSecurityCommonTAExpression",
         "pkg/strategy/pine/parse_request_test.go:263:TestCompileSupportsV16RequestSecurityTupleWhitelist",
@@ -309650,6 +309656,14 @@
       ],
       "allowed": false,
       "reviewStatus": "unreviewed"
+    },
+    "crates/jftrade-strategy/tests/pine_request_and_visual_contracts.rs::compile_v14_window_momentum_fixture_keeps_go_requirement_keys": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "pkg/strategy/pine/parse_request_test.go:141:TestCompileSupportsV14WindowMomentumAndStatefulIndicators"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
     },
     "crates/jftrade-strategy/src/pine/mod.rs::compile_supports_multi_bar_history_references": {
       "referenceCount": 2,
