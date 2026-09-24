@@ -1132,3 +1132,44 @@ git diff --check
 ```
 
 本片结论：20/20 均保持 `partial`；P1 缺口已明确 owner/回归方向，但本片没有足够证据升格或触发生产修复。下一片为 strategy_pine partial 第 281–300 行。
+
+## 第 130 批 12 切片三十一：strategy_pine 域 partial 第 281–300 行，20 行维持、零改判（2026-09-24）
+
+范围：strategy_pine 域 `evidence_type=partial` 的第 281–300 行（parser recovery/helper、动态
+loop、order/tuple boundary、request.security purity/diagnostics、动态 for fallback），按账本写入顺序逐条核对。
+本片没有 Rust 生产代码修改；共享 MCP、order 和 request.security 测试仅按已断言字段计证据。
+
+| 序号 | Go 测试 | Rust 证据 | 级别 | 结论 |
+| ---: | --- | --- | :---: | --- |
+| 281 | `parser_and_lowering_recovery_test.go:43:TestMethodAndControlFlowFailuresKeepSourceContracts` | `tests/pine_mcp_contract.rs::semantic_checker_rejects_non_boolean_conditions_and_unsupported_declarations` | P1 | `partial`；Rust 未覆盖 multiline method body/default、incomplete assignment/if、invalid else、switch mutation 等私有 parser 错误。 |
+| 282 | `parser_and_lowering_recovery_test.go:119:TestNestedLoopStateAndImportRecoveryRemainStable` | `src/pine/mod.rs::udf_and_loop_boundary_tests::compile_accepts_expression_udf_and_static_for_unroll` | P1 | `partial`；Rust 只证明 public UDF/static loop 可编译，未覆盖 collection/static loop state restore 与 empty import version。 |
+| 283 | `parser_and_lowering_recovery_test.go:162:TestOrderAndTupleErrorsPreserveExecutableBoundaries` | `src/pine/mod.rs::public_helper_guard_tests::compile_accepts_strategy_order_subset_scripts` | P1 | `partial`；Rust order subset不是同形错误测试，缺 collection mutation、advanced exit、qty conflict 和 malformed tuple error。 |
+| 284 | `parser_and_lowering_recovery_test.go:206:TestOrderCallsRejectUnknownNamedArgumentsBeforePlanning` | `tests/pine_mcp_contract.rs::validation_payload_matches_save_hint_and_rejection_contract` | P1 | `partial`；Rust validation payload 只验证公开 rejection contract，未逐项覆盖 entry/exit unknown named argument 的 parser-before-planning 断言。 |
+| 285 | `parser_and_lowering_recovery_test.go:235:TestSourceAnnotationsAndCommentsKeepTheirSeparateRoles` | `src/pine/mod.rs::history_reference_boundary_tests::history_references_ignore_string_literals` | P1 | `partial`；Rust 覆盖字符串中的 history，不覆盖 entry policy annotation、comment tokenization 和 unannotated default。 |
+| 286 | `parser_helper_boundaries_test.go:11:TestParserHelperContractsCoverEmptyHeadersAndLexicalEdges` | `tests/pine_mcp_contract.rs::parser_handles_strings_history_and_nested_calls_without_regex` | P1 | `partial`；Rust 未覆盖 empty/indented header、fallback compilation result、declaration block skip、callArgs/callName/unquote 边界。 |
+| 287 | `parser_helper_boundaries_test.go:66:TestValidationAndDynamicWhileHelpersKeepDiagnosticsActionable` | `tests/pine_request_and_visual_contracts.rs::unsupported_request_security_forms_keep_the_go_diagnostic_codes` | P2 | `partial`；Rust request.security 诊断子集未覆盖 dynamic while AST/depth、unsupported TA scanner 和 tuple diagnostic helper 细节。 |
+| 288 | `parser_helper_boundaries_test.go:110:TestRuntimeLoopAndTupleParserErrorContracts` | `tests/pine_request_and_visual_contracts.rs::request_security_moving_average_keys_keep_type_period_source_and_time_unit` | P2 | `partial`；Rust MTF key 测试不覆盖 runtime loop normalization/body/while error、tuple MTF helper 和 request tuple width。 |
+| 289 | `parser_loop_boundaries_test.go:63:TestTupleIndicatorsExposeUnsupportedCallHistory` | `tests/pine_tuple_contracts.rs::malformed_tuple_and_switch_scripts_are_rejected` | P2 | `partial`；Rust malformed tuple 子集未覆盖 indicator call-result history 的 assign-first 诊断和 tuple helper arity。 |
+| 290 | `parser_recovery_boundaries_test.go:12:TestParserRejectsMalformedUDFAndStatementBoundaries` | `src/pine/mod.rs::udf_and_loop_boundary_tests::validate_script_reports_supported_udf_and_static_for_boundaries` | P1 | `partial`；Rust 只测部分 UDF/loop validation，未覆盖 malformed header、nested/empty UDF、unsupported executable/statement boundary 矩阵。 |
+| 291 | `public_lowering_test.go:38:TestTALoweringBoundariesPreserveInvalidNativeCalls` | `src/pine/mod.rs::advanced_indicator_requirement_tests::compile_supports_v12_advanced_indicators` | P2 | `partial`；Rust advanced indicator compile 不断言 invalid native TA call 原文保留、错误 arity 与 unsupported lowering。 |
+| 292 | `public_lowering_test.go:84:TestRequestSecurityArgsFromLineCoversAssignmentForms` | `src/pine/mod.rs::request_security_tests::compile_accepts_native_pine_indicator_public_entry` | P2 | `partial`；Rust public entry 只验证脚本可编译，未覆盖 line-level request.security 参数拆分、assignment forms 和 tuple extraction。 |
+| 293 | `public_lowering_test.go:130:TestStrategyQuantityAndMetadataBoundaries` | `src/pine/mod.rs::parse_metadata_tests::compile_parses_backtest_strategy_metadata` | P2 | `partial`；Rust metadata 测试覆盖 backtest fields，未覆盖 Go 的 quantity mode/pyramiding/explicit quantity normalization helper 矩阵。 |
+| 294 | `request_security_ast_contracts_test.go:5:TestRequestSecurityPurityRejectsUnsafeLoweredExpressions` | `tests/pine_order_metadata_and_security_rejections.rs::request_security_rejects_impure_member_and_visual_side_effects` | P2 | `partial`；Rust 公共 compile 覆盖若干 side effects，未覆盖 Go lowered-AST purity、source-ambiguous MA 与 unterminated masking helper。 |
+| 295 | `request_security_ast_contracts_test.go:26:TestRequestSecurityRejectsMalformedAdvancedIndicatorArguments` | `src/pine/mod.rs::advanced_indicator_requirement_tests::compile_supports_v13_indicators_in_static_intraday_security` | P2 | `partial`；Rust advanced indicator success case 不覆盖 bb/stoch/correlation malformed argument rejection。 |
+| 296 | `request_security_diagnostics_test.go:8:TestRequestSecurityDiagnosticsRejectUnsafeOrAmbiguousInputs` | `tests/pine_order_metadata_and_security_rejections.rs::request_security_merge_flags_are_rejected_in_named_and_positional_form` | P2 | `partial`；Rust 只断言 merge flags 子集，Go 还逐项覆盖 unclosed/missing expression/dynamic symbol/timeframe/nested/side-effect/tuple/unsupported TA code+line。 |
+| 297 | `request_security_diagnostics_test.go:52:TestRequestSecurityLoweringRetainsOnlyPureStaticExpressions` | `tests/pine_order_metadata_and_security_rejections.rs::request_security_rejects_impure_member_and_visual_side_effects` | P2 | `partial`；Rust 未覆盖 source history、source-aware MA、OBV property、general tuple lowering 与 pure allowlist 全量结果。 |
+| 298 | `request_security_object_contracts_test.go:11:TestRequestSecurityLoweringRejectsUnrepresentableExecutionBoundaries` | `tests/pine_order_metadata_and_security_rejections.rs::request_security_merge_flags_are_rejected_in_named_and_positional_form` | P2 | `partial`；Rust merge rejection 不覆盖 gaps tuple、history mask、advanced source/arity 与 object/collection execution boundary。 |
+| 299 | `runtime_and_parser_boundaries_test.go:9:TestOrderAndParserBoundaryContracts` | `tests/pine_order_metadata_and_security_rejections.rs::compile_accepts_supported_order_positional_metadata` | P2 | `partial`；Rust order metadata success 子集未覆盖 stale AST fallback、empty lowered source、object/collection normalization 和 no-argument UDF history rejection。 |
+| 300 | `runtime_and_parser_boundaries_test.go:46:TestDynamicForBoundsUseRuntimeFallback` | 无可解析 Rust 测试 | P1 | `partial`；动态 start/end/step 应退回 runtime loop 的 Go 私有 parser 语义暂无 Rust 同形测试，需后续补回归。 |
+
+验证命令：
+
+```bash
+python3 scripts/compatibility/audit_test_parity.py --write-report
+python3 scripts/compatibility/parity_anchor_reconcile.py
+node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked --no-fail-fast
+cargo fmt --check
+git diff --check
+```
+
+本片结论：20/20 均保持 `partial`；第 300 条 P1 动态 loop fallback 明确登记为待补 Rust 回归测试。下一片为 strategy_pine partial 第 301–320 行。
