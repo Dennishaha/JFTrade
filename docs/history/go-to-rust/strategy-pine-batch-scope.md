@@ -423,3 +423,25 @@ P2 17 项： Observability 富化、定义同步状态对象等）；1 条 [x]�
 `check:migration-manifest`、`check:zero-go`、`check:quick`（单实例）、`git diff --check`。
 
 下一片：strategy_pine 余量按文件行号继续（internal/strategy/catalog 之后）。
+
+## 第 130 批 06B 切片二：errors/instancebinding/instanceview 16 条 recon（2026-09-24）
+
+范围：strategy_pine 域按文件行号升序第二片，`internal/strategy/errors_test.go`（1）、
+`internal/strategy/instancebinding/binding_test.go`（9）、`internal/strategy/instanceview/`（6），
+共 16 条（[x] 3 + partial 13）。
+
+方法：逐条核对 Go 断言与账本结论，[x] 行逐一确认 Rust 测试存在、锚点被识别、断言等价或超集。
+
+结论：3 条 [x] 全部成立——errors:8 四类哨兵等价（Rust 以枚举匹配 + 消息保留翻译 errors.Is，
+Display 全串断言为超集）；binding:137 三分支归一等价（Go 单断言，Rust 覆盖空/None/有效三分支）；
+view:46 已有先红探针证据。锚点均为无 `go:` 前缀形态，reconciler 三形态均识别，已逐条验证。
+13 条 partial 结论与 Go 体相符（instruments 优先、旧 params 回填字段、ApplyParams 规范字段、
+chartType 保留与未知值静默清空、审计明细文案、params 回退与 trim），
+其中 binding:96 记录在案的行为差异（Rust 未知 chartType 报 400，Go 静默清空）维持 partial。
+本片无判定变更、无代码变更，账本仅做只读校验。
+
+验证：`audit_test_parity.py --write-report` exit 0；`parity_anchor_reconcile.py` 过；
+`cargo fmt -p jftrade-engine -- --check`、`check:ai-context`、`check:migration-manifest`、
+`check:zero-go`、`check:quick`（单实例）、`git diff --check`。
+
+下一片：strategy_pine 余量按文件行号继续（instanceview 之后）。
