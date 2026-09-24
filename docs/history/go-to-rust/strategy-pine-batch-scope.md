@@ -751,3 +751,29 @@ strategy 域 `[x]` 二次复核全部完成（s35–s38 共 79 条，2 条降 pa
 cargo fmt --check 与 git diff --check 干净；无台账变更、无 Rust 生产代码改动。
 
 下一片：130-12 切片十八，strategy_pine 域 partial 第 21–40 行。
+
+## 第 130 批 12 切片十八：strategy_pine 域 partial 第 21–40 行，20 行维持、零改判（2026-09-24）
+
+范围：strategy_pine 域 partial 第 21–40 行（目录活动分页富化 1、绑定归一 8、
+实例视图 5、实时命令边界 6，按文件加行号升序）。本域已核对 40/459。
+
+方法：Go 体全读；缺口验到代码行与用例断言；引用存在不等于断言等价。
+
+20 行维持（活动分页过滤与观测富化、显式 instruments 优先、旧 params 回填、
+ApplyParams 规范写回、chartType 保留与未知清空的行为差异、审计明细文案、
+旧数组载荷、类型边界、nil 与陈旧字段清理、非类型化视图、runtime/source
+回退、definitionId trim、视图绑定归一与副本隔离、实例 ID 前缀、默认模板边界、
+OCO 腿校验边界、方向别名、整 bar 预检、原子组形状、原子提交，缺口 owner 与
+回归要求均与账本一致）。
+
+抽核要点：20 条 Rust 引用逐项存在；第 25 行行为差异逐行核实
+（Rust renko 直接 is_err，Go 静默清空为 standard）；
+第 24 行 Rust 无 ApplyParams 写回层已核实；
+第 37/38 行 Rust 仅有 invalid direction 错误、无 kind 白名单已核实；
+第 39/40 行原子组概念缺席成立。
+
+验证：audit --write-report 过（1472 exact；dup 0）；anchor 过（1742/1696/0/0/46）；
+定向 nextest（jftrade-engine、jftrade-backtest 视触及范围）全过；
+cargo fmt --check 与 git diff --check 干净；无台账变更、无 Rust 生产代码改动。
+
+下一片：130-12 切片十九，strategy_pine 域 partial 第 41–60 行。
