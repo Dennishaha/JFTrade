@@ -35575,8 +35575,8 @@
     },
     "internal/app/apiserver/marketdataapp/runtime_health_test.go:13:TestRuntimeExplicitYFinanceActivationRequiresHealthBeforePublishing": {
       "status": "[x]",
-      "rust_entry": "crates/jftrade-marketdata/src/router.rs::tests::explicit_activation_requires_ready_health_but_startup_restore_allows_warming",
-      "conclusion": "function_exact：Go 断言显式 Activate(yfinance, RequireHealthy) 必须先通过 health 才发布 provider，且激活成功后 Futu 订阅被释放。Rust 的 explicit_activation_requires_ready_health_but_startup_restore_allows_warming 断言 warming 的 helper 在 ActivationMode::Explicit 下被拒绝（active_provider 仍为 futu，不发布），只有 StartupRestore 才允许发布 warming provider 并报告 readiness/connected，逐条对应“显式激活必须先健康、否则不得发布”。",
+      "rust_entry": "crates/jftrade-marketdata/src/router.rs::tests::explicit_activation_requires_ready_health_but_startup_restore_allows_warming; crates/jftrade-marketdata/src/router.rs::explicit_activation_fails_closed_and_switch_clears_cache",
+      "conclusion": "function_exact：显式激活不健康不得发布由 explicit_activation_requires_ready_health_but_startup_restore_allows_warming 断言（warming 显式拒绝、仅 StartupRestore 发布）；健康路径的发布与旧缓存清理由 explicit_activation_fails_closed_and_switch_clears_cache 补证（健康激活 generation 递进、不健康切换 fail-closed 且清缓存，对应旧 Futu 订阅释放）；sidecar stub 计数属异构件探针，不在路由层断言。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --all-targets --locked",
       "evidence_type": "function_exact",
       "source": {
@@ -35596,11 +35596,22 @@
             "rustFile": "crates/jftrade-marketdata/src/router.rs",
             "rustLine": 483
           }
+        },
+        {
+          "file": "crates/jftrade-marketdata/src/router.rs",
+          "test": "explicit_activation_fails_closed_and_switch_clears_cache",
+          "crate": "jftrade-marketdata",
+          "anchor": {
+            "goFile": "internal/app/apiserver/marketdataapp/runtime_health_test.go",
+            "goLine": 13,
+            "rustFile": "crates/jftrade-marketdata/src/router.rs",
+            "rustLine": 344
+          }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "function_exact：Go 断言显式 Activate(yfinance, RequireHealthy) 必须先通过 health 才发布 provider，且激活成功后 Futu 订阅被释放。Rust 的 explicit_activation_requires_ready_health_but_startup_restore_allows_warming 断言 warming 的 helper 在 ActivationMode::Explicit 下被拒绝（active_provider 仍为 futu，不发布），只有 StartupRestore 才允许发布 warming provider 并报告 readiness/connected，逐条对应“显式激活必须先健康、否则不得发布”。"
+          "function_exact：显式激活不健康不得发布；健康激活发布并清理旧缓存。"
         ],
         "uncovered": [],
         "source": "legacy-conclusion"
@@ -35616,7 +35627,8 @@
           "--locked"
         ],
         "testFilter": [
-          "explicit_activation_requires_ready_health_but_startup_restore_allows_warming"
+          "explicit_activation_requires_ready_health_but_startup_restore_allows_warming",
+          "explicit_activation_fails_closed_and_switch_clears_cache"
         ],
         "runnerVersion": null,
         "toolchain": null,
@@ -35635,7 +35647,7 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "function_exact：Go 断言显式 Activate(yfinance, RequireHealthy) 必须先通过 health 才发布 provider，且激活成功后 Futu 订阅被释放。Rust 的 explicit_activation_requires_ready_health_but_startup_restore_allows_warming 断言 warming 的 helper 在 ActivationMode::Explicit 下被拒绝（active_provider 仍为 futu，不发布），只有 StartupRestore 才允许发布 warming provider 并报告 readiness/connected，逐条对应“显式激活必须先健康、否则不得发布”。"
+        "function_exact：显式激活不健康不得发布（warming 显式拒绝、仅 StartupRestore 发布）；健康激活发布并清理旧缓存（generation 递进）；sidecar stub 计数为异构件探针。"
       ],
       "uncoveredAssertions": [],
       "boundaryReason": null
@@ -36039,11 +36051,11 @@
       "boundaryReason": null
     },
     "internal/app/apiserver/marketdataapp/runtime_health_test.go:205:TestWaitForProviderHealthStopsOnFailedWarmup": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "crates/jftrade-marketdata/src/router.rs::tests::failed_warmup_blocks_startup_restore_and_reports_last_error",
-      "conclusion": "function_exact：Go 断言 readiness=Failed 时 waitForProviderHealth 立即返回错误且错误文本含 provider 的 LastError。Rust 的 failed_warmup_blocks_startup_restore_and_reports_last_error 断言 StartupRestore 对 readiness=Failed 的 provider 报 ProviderUnavailable，且 reason 恰为 \"missing runtime asset\"（provider 自己的 last_error），active provider 不变，逐条对应“失败预热立即停止并透出原因”。",
+      "conclusion": "partial：Rust 断言失败原因透出 provider 自身 last_error 且不发布，成立；但题眼“立即停止”（单次探测、不重试，Go 断言 calls==1）无对应——Rust 在路由层是单发构造，等待层对 Failed readiness 是否不重试无断言。回归要求：等待层对 Failed 状态单次停止不断重试的断言。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --all-targets --locked",
-      "evidence_type": "function_exact",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/marketdataapp/runtime_health_test.go",
         "line": 205,
@@ -36064,10 +36076,10 @@
         }
       ],
       "assertionCoverage": {
-        "covered": [
-          "function_exact：Go 断言 readiness=Failed 时 waitForProviderHealth 立即返回错误且错误文本含 provider 的 LastError。Rust 的 failed_warmup_blocks_startup_restore_and_reports_last_error 断言 StartupRestore 对 readiness=Failed 的 provider 报 ProviderUnavailable，且 reason 恰为 \"missing runtime asset\"（provider 自己的 last_error），active provider 不变，逐条对应“失败预热立即停止并透出原因”。"
+        "covered": [],
+        "uncovered": [
+          "partial：Rust 断言失败原因透出 provider 自身 last_error 且不发布，成立；但题眼“立即停止”（单次探测、不重试，Go 断言 calls==1）无对应——Rust 在路由层是单发构造，等待层对 Failed readiness 是否不重试无断言。回归要求：等待层对 Failed 状态单次停止不断重试的断言。"
         ],
-        "uncovered": [],
         "source": "legacy-conclusion"
       },
       "verification": {
@@ -36094,15 +36106,15 @@
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "function_exact：Go 断言 readiness=Failed 时 waitForProviderHealth 立即返回错误且错误文本含 provider 的 LastError。Rust 的 failed_warmup_blocks_startup_restore_and_reports_last_error 断言 StartupRestore 对 readiness=Failed 的 provider 报 ProviderUnavailable，且 reason 恰为 \"missing runtime asset\"（provider 自己的 last_error），active provider 不变，逐条对应“失败预热立即停止并透出原因”。"
+      "coveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial：Rust 断言失败原因透出 provider 自身 last_error 且不发布，成立；但题眼“立即停止”（单次探测、不重试，Go 断言 calls==1）无对应——Rust 在路由层是单发构造，等待层对 Failed readiness 是否不重试无断言。回归要求：等待层对 Failed 状态单次停止不断重试的断言。"
       ],
-      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/app/apiserver/marketdataapp/runtime_health_test.go:222:TestProviderHealthRetryDelayBacksOffAndCaps": {
@@ -36168,11 +36180,11 @@
       "boundaryReason": null
     },
     "internal/app/apiserver/marketdataapp/runtime_health_test.go:240:TestWaitForProviderHealthPreservesLastFailureOnCancellation": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "crates/jftrade-marketdata/src/router.rs::tests::disconnected_provider_reports_its_reason_and_keeps_the_previous_selection",
-      "conclusion": "function_exact：Go 断言探测失败时返回底层错误（errors.Is 命中 probeErr），provider 上报 disconnected 时错误文本含 \"reported disconnected\"。Rust 的 disconnected_provider_reports_its_reason_and_keeps_the_previous_selection 断言 connected=false 的 provider 激活失败返回 ProviderUnavailable{reason==\"connection refused\"}（保留最后一次失败原因），active provider 与 streaming 能力保持不变，对应“保留最后失败原因、不改变选择”。",
+      "conclusion": "partial：Rust 仅覆盖 disconnected 上报原因并保持既有选择；Go 同测的取消路径半侧（探测失败透出底层 probeErr、单次探测）无对应，Rust 侧无取消语义用例。回归要求：取消保留最后探测错误且不额外重试的断言。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --all-targets --locked",
-      "evidence_type": "function_exact",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/marketdataapp/runtime_health_test.go",
         "line": 240,
@@ -36193,10 +36205,10 @@
         }
       ],
       "assertionCoverage": {
-        "covered": [
-          "function_exact：Go 断言探测失败时返回底层错误（errors.Is 命中 probeErr），provider 上报 disconnected 时错误文本含 \"reported disconnected\"。Rust 的 disconnected_provider_reports_its_reason_and_keeps_the_previous_selection 断言 connected=false 的 provider 激活失败返回 ProviderUnavailable{reason==\"connection refused\"}（保留最后一次失败原因），active provider 与 streaming 能力保持不变，对应“保留最后失败原因、不改变选择”。"
+        "covered": [],
+        "uncovered": [
+          "partial：Rust 仅覆盖 disconnected 上报原因并保持既有选择；Go 同测的取消路径半侧（探测失败透出底层 probeErr、单次探测）无对应，Rust 侧无取消语义用例。回归要求：取消保留最后探测错误且不额外重试的断言。"
         ],
-        "uncovered": [],
         "source": "legacy-conclusion"
       },
       "verification": {
@@ -36223,15 +36235,15 @@
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "function_exact：Go 断言探测失败时返回底层错误（errors.Is 命中 probeErr），provider 上报 disconnected 时错误文本含 \"reported disconnected\"。Rust 的 disconnected_provider_reports_its_reason_and_keeps_the_previous_selection 断言 connected=false 的 provider 激活失败返回 ProviderUnavailable{reason==\"connection refused\"}（保留最后一次失败原因），active provider 与 streaming 能力保持不变，对应“保留最后失败原因、不改变选择”。"
+      "coveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial：Rust 仅覆盖 disconnected 上报原因并保持既有选择；Go 同测的取消路径半侧（探测失败透出底层 probeErr、单次探测）无对应，Rust 侧无取消语义用例。回归要求：取消保留最后探测错误且不额外重试的断言。"
       ],
-      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/app/apiserver/marketdataapp/runtime_health_test.go:261:TestWaitForProviderHealthAndRuntimeDefaultCheckerBoundaries": {
@@ -36449,8 +36461,8 @@
     },
     "internal/app/apiserver/marketdataapp/runtime_news_forwarding_test.go:52:TestRuntimeForwardsNewsAndCorporateActionsToCapableActiveProvider": {
       "status": "[x]",
-      "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_news_tests.rs::production_news_actions_port_forwards_corporate_actions_window",
-      "conclusion": "function_exact：Go 断言新闻与公司行动按窗口转发给具备能力的 provider。Rust 的 production_news_actions_port_forwards_corporate_actions_window（同族 corporate_actions_route_uses_the_sidecar_default_window、production_news_actions_port_forwards_yfinance_news_request）断言同一窗口与请求转发语义。",
+      "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_news_tests.rs::production_news_actions_port_forwards_yfinance_news_request; crates/jftrade-engine/src/product_production_ports_market_data_news_tests.rs::production_news_actions_port_forwards_corporate_actions_window; crates/jftrade-engine/src/product_production_ports_market_data_news_tests.rs::production_news_actions_port_maps_helper_failure_and_rejects_bad_limit",
+      "conclusion": "function_exact：新闻请求转发（路径与 instrumentId 投影）、公司行动窗口转发（from/to 与事件投影）、上游失败映射三段分别由三个同文件用例断言，对应 Go 的新闻/行动转发与双路径错误透传；limit 非法拒绝为同路由额外门禁。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
       "evidence_type": "function_exact",
       "source": {
@@ -36470,11 +36482,33 @@
             "rustFile": "crates/jftrade-engine/src/product_production_ports_market_data_news_tests.rs",
             "rustLine": 57
           }
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_production_ports_market_data_news_tests.rs",
+          "test": "production_news_actions_port_forwards_yfinance_news_request",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/app/apiserver/marketdataapp/runtime_news_forwarding_test.go",
+            "goLine": 52,
+            "rustFile": "crates/jftrade-engine/src/product_production_ports_market_data_news_tests.rs",
+            "rustLine": 29
+          }
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_production_ports_market_data_news_tests.rs",
+          "test": "production_news_actions_port_maps_helper_failure_and_rejects_bad_limit",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/app/apiserver/marketdataapp/runtime_news_forwarding_test.go",
+            "goLine": 52,
+            "rustFile": "crates/jftrade-engine/src/product_production_ports_market_data_news_tests.rs",
+            "rustLine": 91
+          }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "function_exact：Go 断言新闻与公司行动按窗口转发给具备能力的 provider。Rust 的 production_news_actions_port_forwards_corporate_actions_window（同族 corporate_actions_route_uses_the_sidecar_default_window、production_news_actions_port_forwards_yfinance_news_request）断言同一窗口与请求转发语义。"
+          "function_exact：新闻请求转发、公司行动窗口转发、上游失败映射三段全覆盖。"
         ],
         "uncovered": [],
         "source": "legacy-conclusion"
@@ -36490,7 +36524,9 @@
           "--locked"
         ],
         "testFilter": [
-          "production_news_actions_port_forwards_corporate_actions_window"
+          "production_news_actions_port_forwards_yfinance_news_request",
+          "production_news_actions_port_forwards_corporate_actions_window",
+          "production_news_actions_port_maps_helper_failure_and_rejects_bad_limit"
         ],
         "runnerVersion": null,
         "toolchain": null,
@@ -36509,7 +36545,7 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "function_exact：Go 断言新闻与公司行动按窗口转发给具备能力的 provider。Rust 的 production_news_actions_port_forwards_corporate_actions_window（同族 corporate_actions_route_uses_the_sidecar_default_window、production_news_actions_port_forwards_yfinance_news_request）断言同一窗口与请求转发语义。"
+        "function_exact：新闻请求转发、公司行动窗口转发、上游失败映射三段全覆盖，对应新闻/行动转发与双路径错误透传。"
       ],
       "uncoveredAssertions": [],
       "boundaryReason": null
@@ -297906,18 +297942,20 @@
       "reviewStatus": "unreviewed"
     },
     "crates/jftrade-engine/src/product_production_ports_market_data_news_tests.rs::production_news_actions_port_forwards_yfinance_news_request": {
-      "referenceCount": 1,
-      "referenceKeys": [
-        "internal/api/marketdata/routes_news_actions_test.go:76:TestNewsRouteValidatesLimitAndForwardsToService"
-      ],
-      "allowed": true,
-      "reviewStatus": "single"
-    },
-    "crates/jftrade-engine/src/product_production_ports_market_data_news_tests.rs::production_news_actions_port_maps_helper_failure_and_rejects_bad_limit": {
       "referenceCount": 2,
       "referenceKeys": [
         "internal/api/marketdata/routes_news_actions_test.go:76:TestNewsRouteValidatesLimitAndForwardsToService",
-        "internal/api/marketdata/routes_news_actions_test.go:160:TestNewsAndCorporateActionsRoutesMapCapabilityAndProviderFailures"
+        "internal/app/apiserver/marketdataapp/runtime_news_forwarding_test.go:52:TestRuntimeForwardsNewsAndCorporateActionsToCapableActiveProvider"
+      ],
+      "allowed": false,
+      "reviewStatus": "unreviewed"
+    },
+    "crates/jftrade-engine/src/product_production_ports_market_data_news_tests.rs::production_news_actions_port_maps_helper_failure_and_rejects_bad_limit": {
+      "referenceCount": 3,
+      "referenceKeys": [
+        "internal/api/marketdata/routes_news_actions_test.go:76:TestNewsRouteValidatesLimitAndForwardsToService",
+        "internal/api/marketdata/routes_news_actions_test.go:160:TestNewsAndCorporateActionsRoutesMapCapabilityAndProviderFailures",
+        "internal/app/apiserver/marketdataapp/runtime_news_forwarding_test.go:52:TestRuntimeForwardsNewsAndCorporateActionsToCapableActiveProvider"
       ],
       "allowed": false,
       "reviewStatus": "unreviewed"
@@ -306881,10 +306919,11 @@
       "reviewStatus": "unreviewed"
     },
     "crates/jftrade-marketdata/src/router.rs::explicit_activation_fails_closed_and_switch_clears_cache": {
-      "referenceCount": 2,
+      "referenceCount": 3,
       "referenceKeys": [
         "internal/app/apiserver/marketdataapp/data_plane_switch_test.go:16:TestApplyProviderSettingsUsesAtomicQuoteProviderSwitch",
-        "internal/marketdata/provider_switch_lifecycle_test.go:184:TestProviderChangeInvalidatesCacheBeforeUnblockingReaders"
+        "internal/marketdata/provider_switch_lifecycle_test.go:184:TestProviderChangeInvalidatesCacheBeforeUnblockingReaders",
+        "internal/app/apiserver/marketdataapp/runtime_health_test.go:13:TestRuntimeExplicitYFinanceActivationRequiresHealthBeforePublishing"
       ],
       "allowed": false,
       "reviewStatus": "unreviewed"

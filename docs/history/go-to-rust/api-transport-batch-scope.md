@@ -5832,3 +5832,38 @@ exchangeType 与 fromCache 投影；回归要求见各行 uncoveredAssertions。
 `git diff --check` 干净。
 
 下一片：130-09 切片三十一乙，marketdataapp runtime_* 31 条 `[x]`。
+## 第 130 批 09 切片三十一乙：marketdataapp runtime_* 31 条含 2 处纠正与 2 处补证（2026-09-24）
+
+范围：`internal/app/apiserver/marketdataapp` runtime_* 31 条 `[x]`（health 6、
+runtime 5、akshare 3、calendar 3、company 3、rankings/industry 3、screen 3、
+index 2、news 2、forwarding 1）。
+
+方法：Go 体全读；46 个具名引用全存在（0 缺失）；逐字比对后，题眼簇
+缺失即 partial，主簇完整仅异构件探针缺失则维持。
+
+2 处纠正（`[x]` 降为 partial，`[x]` 1488→1486）：
+
+- health `:205`：失败原因透出成立，但题眼“立即停止”（单次探测不重试）
+  无对应，等待层对 Failed 是否重试无断言。
+- health `:240`：disconnected 原因保留成立，但取消路径半侧（探测错误
+  透出、单次探测）无对应，Rust 侧无取消语义用例。
+
+2 处补证（维持 `[x]`，只加台账证据）：
+
+- health `:13`：加健康发布与清缓存用例为第二证据（健康激活递进、
+  不健康切换 fail-closed 清缓存，对应旧订阅释放）。
+- news `:52`：单证据仅覆盖行动窗口，扩展为新闻转发、行动窗口、
+  上游失败映射三段组合，对应双路径转发与错误透传。
+
+其余 27 条维持 `[x]`（warming 发布门禁、重试恢复、回滚不发布、关闭后
+拒绝、sidecar 复用与回收、各类能力转发与拒绝均逐项命中；`:167` 重试
+阶梯常量差异已另登 `:222` partial，不在本条宣称）。
+
+缺口 owner 与回归：等待层 Failed 单次停止、取消保留最后探测错误；
+回归要求见各行 uncoveredAssertions。
+
+验证：`audit_test_parity.py --write-report` exit 0（1486 exact 全引用
+存在；dup 0）；`parity_anchor_reconcile.py` 过；受影响定向 nextest；
+`git diff --check` 干净。
+
+下一片：130-09 切片三十一丙，marketdataapp sidecar 5 条 `[x]`。
