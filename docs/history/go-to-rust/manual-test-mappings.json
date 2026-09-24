@@ -7,7 +7,7 @@
     "treeSha": "0ee26444be21c15d9760f358a34649f78402f0fb"
   },
   "generatorVersion": "v2_writer.py@slice23",
-  "generatedAt": "2026-09-24T02:07:02Z",
+  "generatedAt": "2026-09-24T02:10:26Z",
   "mappings": {
     "cmd/jftrade-api/main_test.go:13:TestValidateArgsAllowsNoArgs": {
       "status": "[~]",
@@ -34558,11 +34558,11 @@
       "boundaryReason": null
     },
     "internal/app/apiserver/marketdataapp/runtime_akshare_test.go:48:TestRuntimeKeepsSharedSidecarOnCrossPythonActivationFailure": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "crates/jftrade-marketdata/tests/provider_activation_recovery.rs::provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update",
-      "conclusion": "function_exact：Go 断言 AKShare 健康检查失败时返回原错误、active provider 保持 yfinance，且共享 sidecar 不被停止。Rust 同形断言激活失败保留上一 provider 与 generation（并保留其缓存），恢复健康后才提交新代际，等价于 “跨 Python 激活失败保留共享 sidecar/选择”。",
+      "conclusion": "部分覆盖：Go 断言 AKShare 健康失败时切换报错且保持 yfinance。Rust 的 provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update 覆盖失败不改选择、不清旧代际缓存、恢复后可提交；差异是共享 sidecar 存活计数 ensure=2/stop=0/running 无 Rust 断言（Rust 路由激活本就不触达进程启停，该行为仅由架构空成立，无测试覆盖）。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --all-targets --locked",
-      "evidence_type": "function_exact",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/marketdataapp/runtime_akshare_test.go",
         "line": 48,
@@ -34583,10 +34583,10 @@
         }
       ],
       "assertionCoverage": {
-        "covered": [
-          "function_exact：Go 断言 AKShare 健康检查失败时返回原错误、active provider 保持 yfinance，且共享 sidecar 不被停止。Rust 同形断言激活失败保留上一 provider 与 generation（并保留其缓存），恢复健康后才提交新代际，等价于 “跨 Python 激活失败保留共享 sidecar/选择”。"
+        "covered": [],
+        "uncovered": [
+          "部分覆盖：Go 断言 AKShare 健康失败时切换报错且保持 yfinance。Rust 的 provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update 覆盖失败不改选择、不清旧代际缓存、恢复后可提交；差异是共享 sidecar 存活计数 ensure=2/stop=0/running 无 Rust 断言（Rust 路由激活本就不触达进程启停，该行为仅由架构空成立，无测试覆盖）。"
         ],
-        "uncovered": [],
         "source": "legacy-conclusion"
       },
       "verification": {
@@ -34613,15 +34613,15 @@
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "function_exact：Go 断言 AKShare 健康检查失败时返回原错误、active provider 保持 yfinance，且共享 sidecar 不被停止。Rust 同形断言激活失败保留上一 provider 与 generation（并保留其缓存），恢复健康后才提交新代际，等价于 “跨 Python 激活失败保留共享 sidecar/选择”。"
+      "coveredAssertions": [],
+      "uncoveredAssertions": [
+        "部分覆盖：Go 断言 AKShare 健康失败时切换报错且保持 yfinance。Rust 的 provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update 覆盖失败不改选择、不清旧代际缓存、恢复后可提交；差异是共享 sidecar 存活计数 ensure=2/stop=0/running 无 Rust 断言（Rust 路由激活本就不触达进程启停，该行为仅由架构空成立，无测试覆盖）。"
       ],
-      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/app/apiserver/marketdataapp/runtime_akshare_test.go:78:TestRuntimeStopsNewSidecarWhenInitialAKShareActivationFails": {
@@ -35060,7 +35060,7 @@
     "internal/app/apiserver/marketdataapp/runtime_company_forwarding_test.go:57:TestRuntimeCompanyResearchForwarding": {
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/product_production_ports_research_company_tests.rs::company_financials_forwards_market_symbol_and_statement; crates/jftrade-engine/src/product_production_ports_research_company_tests.rs::company_research_default_operations_project_on_the_wire",
-      "conclusion": "function_exact：Go 断言公司研究（profile/financials/analyst/ownership）按操作转发市场与代码、错误原样传播、Futu 上不支持操作返回 capability 错误。Rust 的 company_financials_forwards_market_symbol_and_statement、company_research_propagates_capability_and_lifecycle_errors 与 company_research_stays_off_the_helper_for_futu 分别断言转发字段、能力/生命周期错误传播与 Futu 不调用 helper；补充证据：company_research_default_operations_project_on_the_wire。",
+      "conclusion": "function_exact：Go 断言公司研究各操作按市场与代码转发到 provider 路径。Rust 的 company_financials_forwards_market_symbol_and_statement 断言 financials 转发 market/symbol/statement 到 provider 路径，company_research_default_operations_project_on_the_wire 断言 profile/statements/consensus/overview 各内嵌操作映射到对应 provider 路径且无 broker 中转，逐条对应按操作转发（原结论误列组合外用例，已按 entry 重写）。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
       "evidence_type": "function_exact",
       "source": {
@@ -35095,7 +35095,7 @@
       ],
       "assertionCoverage": {
         "covered": [
-          "function_exact：Go 断言公司研究（profile/financials/analyst/ownership）按操作转发市场与代码、错误原样传播、Futu 上不支持操作返回 capability 错误。Rust 的 company_financials_forwards_market_symbol_and_statement、company_research_propagates_capability_and_lifecycle_errors 与 company_research_stays_off_the_helper_for_futu 分别断言转发字段、能力/生命周期错误传播与 Futu 不调用 helper；补充证据：company_research_default_operations_project_on_the_wire。"
+          "function_exact：Go 断言公司研究各操作按市场与代码转发到 provider 路径。Rust 的 company_financials_forwards_market_symbol_and_statement 断言 financials 转发 market/symbol/statement 到 provider 路径，company_research_default_operations_project_on_the_wire 断言 profile/statements/consensus/overview 各内嵌操作映射到对应 provider 路径且无 broker 中转，逐条对应按操作转发（原结论误列组合外用例，已按 entry 重写）。"
         ],
         "uncovered": [],
         "source": "legacy-conclusion"
@@ -35131,7 +35131,7 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "function_exact：Go 断言公司研究（profile/financials/analyst/ownership）按操作转发市场与代码、错误原样传播、Futu 上不支持操作返回 capability 错误。Rust 的 company_financials_forwards_market_symbol_and_statement、company_research_propagates_capability_and_lifecycle_errors 与 company_research_stays_off_the_helper_for_futu 分别断言转发字段、能力/生命周期错误传播与 Futu 不调用 helper；补充证据：company_research_default_operations_project_on_the_wire。"
+        "function_exact：Go 断言公司研究各操作按市场与代码转发到 provider 路径。Rust 的 company_financials_forwards_market_symbol_and_statement 断言 financials 转发 market/symbol/statement 到 provider 路径，company_research_default_operations_project_on_the_wire 断言 profile/statements/consensus/overview 各内嵌操作映射到对应 provider 路径且无 broker 中转，逐条对应按操作转发（原结论误列组合外用例，已按 entry 重写）。"
       ],
       "uncoveredAssertions": [],
       "boundaryReason": null

@@ -325,9 +325,11 @@ mod tests {
     #[test]
     // Parity: go:452dea11:internal/api/httpserver/bindings_boundaries_test.go:37 TestNormalizeCandlePeriodSupportsEveryDocumentedFamily
     // Parity: go:452dea11:internal/api/httpserver/bindings_test.go:186 TestCandlePeriodAndPaginationNormalization
+    // Parity: go:452dea11:internal/app/apiserver/marketdataapp/query_test.go:11 TestNormalizeCandlePeriodMapsAliases
     // The reference owner normalizes the same documented family aliases and
     // trims surrounding whitespace; the pagination half is owned by the candle
     // route clamp in `product_production_ports_market_data_quote_reads.rs`.
+    // The padded k_60m alias resolves through the same trim-then-match path.
     fn candle_period_normalizes_aliases_and_rejects_unsupported() {
         assert_eq!(normalize_candle_period("ticker").unwrap(), "tick");
         assert_eq!(normalize_candle_period("k_tick").unwrap(), "tick");
@@ -435,6 +437,7 @@ mod tests {
     fn candle_sessions_parse_dedup_order_and_reject_invalid() {
         // Parity: go:452dea11:internal/marketdata/candle_sessions_test.go:8
         // TestParseCandleSessionsNormalizesCSVAndRepeatedValues
+        // Parity: go:452dea11:internal/app/apiserver/marketdataapp/query_test.go:45 TestDecodeMarketCandlesQueryParsesRepeatedSessions
         let multi = vec![
             "overnight,regular".to_owned(),
             "extended".to_owned(),

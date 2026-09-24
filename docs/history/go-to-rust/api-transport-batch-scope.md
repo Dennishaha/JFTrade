@@ -4856,3 +4856,46 @@ exit 0；`git diff --check` 过。
 
 下一片：api_transport marketdataapp 余量（provider/query/sidecar/heartbeat
 余量等，按文件行号升序）。
+
+## 第 130 批 09 切片五：marketdataapp query/akshare/forwarding 系 30 条 recon（2026-09-24）
+
+范围：`query_test.go`（5）+ `runtime_akshare_test.go`（5）+
+`runtime_calendar_forwarding_test.go`（3）+
+`runtime_company_forwarding_test.go`（3）+
+`runtime_index_constituents_forwarding_test.go`（2）+
+`runtime_news_forwarding_test.go`（2）+
+`runtime_rankings_industry_forwarding_test.go`（3）+
+`runtime_screen_forwarding_test.go`（3）+
+`assistant_provider_test.go`（4），共 30 条（原 24 `[x]` + 6 `[~]`）。
+
+方法：Go 体逐条核对结论；38 个 Rust 引用逐一命中（0 缺失）；
+`[x]` 锚点：22/24 有锚，2 条无锚（query `:11`、`:45`，其 Parity 行归属
+同族他用例，体已逐项验等价）；Parity 名搜核对转发系组合双元；
+组合第二元逐项拆验（真实测试 + 主题相干）。
+1 条收回过宽 `[x]`→partial，1 条结论重写（verdict 不变），2 行注释锚点补齐：
+
+- `:48` 跨 Python 激活失败保共享 sidecar：Rust 仅覆盖失败不改选择/
+  不清旧缓存/恢复可提交，题眼的共享 sidecar 存活计数
+  ensure=2/stop=0/running 无断言（路由激活本就不触达进程启停），降 partial。
+- `:57` 公司研究转发：verdict 保持 `[x]`，原结论误列组合外用例，
+  已按 entry（financials 转发 + 默认操作 wire 映射）重写。
+- query `:11`/`:45`：Rust 体与 Go 逐项等价（k_60m 别名+去白、会话去重
+  定序），补 `// Parity` 行使账本可验证，锚点 1693→1695。
+- akshare `:11` 组合第二元（opend 就绪保持）主题相干（跨 helper 切换
+  不拆共享态），保留；depth `:143` 第二元主归属 `pkg/futu` `:492`，
+  主题相干，保留。
+
+结论：30 条 verdict = **23 `[x]` + 7 `[~]`**
+（`[x]` 1547→1546）。本片含 2 行 Rust 测试注释锚点，无生产代码变更。
+
+验证：`v2_writer.py --check` 过后落库；`audit_test_parity.py --write-report`
+exit 0（已知警告 0/2/2 不变）；`parity_anchor_reconcile.py` 过
+（1695/0/0/46）；`cargo fmt -p jftrade-engine -- --check` 过；定向 nextest
+4/4（query 2 + recovery 1 + company 1）；`check:ai-context`、
+`check:migration-manifest`、`check:zero-go` 过；`check:quick` 全量计划
+首轮 1917 通过 + launcher 端口竞争抖动（隔离 1/1），`--no-fail-fast`
+第二轮 1958/1959 + adk_session 抖动（隔离 3/3），两抖动均与本片注释
+改动无关；`git diff --check` 过。
+
+下一片：api_transport marketdataapp 余量（provider/provider_boundaries/
+python_runtime/sidecar×3/unavailable/watchlist 共 35 条，按文件行号升序）。
