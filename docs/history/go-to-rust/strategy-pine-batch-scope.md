@@ -907,3 +907,29 @@ jftrade-settings 视触及范围）全过；cargo fmt --check 与 git diff --che
 无台账变更、无 Rust 生产代码改动。
 
 下一片：130-12 切片二十四，strategy_pine 域 partial 第 141–160 行。
+
+## 第 130 批 12 切片二十四：strategy_pine 域 partial 第 141–160 行，20 行维持、零改判（2026-09-24）
+
+范围：strategy_pine 域 partial 第 141–160 行（定义视图与绑定契约 2、
+源码格式与脚本校验 3、指标绑定时间单位与均线键 6、数量模式 2、
+保护模式与方向 5、正整数解析 1，按文件加行号升序）。本域已核对 160/385。
+
+方法：Go 体全读；15 个去重 Rust 引用逐项 rg 存在性核查；引用存在不等于断言等价。
+
+20 行维持（视图扁平、绑定 JSON 契约、格式缺省 PineV6、脚本校验与可实例化、
+v6 源码接受、引号时间单位表、均线可选参数表、价格源白名单与带源键、
+均线类型十表、类型归一回退、DSL 词表、归一缺省、均线键三值、数量模式八表、
+数量归一回退、保护模式表、保护模式归一、保护方向表、保护方向归一、
+正整数解析，缺口 owner 与回归要求均与账本一致）。
+
+抽核要点：第 151 行 Rust 引用实现逐行核实（词形十表加 bar 空后缀与 year 拒绝
+与账本一致，hr/hrs/mins/mon 等别名确未逐项断言，partial 成立）；
+第 149 行均线键用例逐字断言 ma:EMA:14:minute 与 ma:SMA:5:day，
+Go 侧 MA 类型在 Rust 无对应调用名缺口仍在；
+partial 共用引用不受 [x] 唯一性约束。
+
+验证：audit --write-report 过（1472 exact；dup 0）；anchor 过（1742/1696/0/0/46）；
+定向 nextest（jftrade-engine、jftrade-strategy 视触及范围）全过；
+cargo fmt --check 与 git diff --check 干净；无台账变更、无 Rust 生产代码改动。
+
+下一片：130-12 切片二十五，strategy_pine 域 partial 第 161–180 行。
