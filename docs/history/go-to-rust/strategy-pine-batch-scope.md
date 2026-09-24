@@ -853,3 +853,30 @@ partial 共用引用不受 [x] 唯一性约束。
 cargo fmt --check 与 git diff --check 干净；无台账变更、无 Rust 生产代码改动。
 
 下一片：130-12 切片二十二，strategy_pine 域 partial 第 101–120 行。
+
+## 第 130 批 12 切片二十二：strategy_pine 域 partial 第 101–120 行，20 行维持、零改判（2026-09-24）
+
+范围：strategy_pine 域 partial 第 101–120 行（pine 实盘执行器 4、runner 生命周期 4、
+运行时失败契约 5、运行时配置解析 7，按文件加行号升序）。本域已核对 120/385。
+
+方法：Go 体全读；14 个去重 Rust 引用逐项 rg 存在性核查；引用存在不等于断言等价。
+
+20 行维持（提交取消错误透传、业务边界错误集、订单 ID 生成与跟踪回退、
+取消边界四分支、会话关闭退出监视、注册期关闭清理、取消边界双分支、
+关闭初始化完成信号、嵌入 bundle 不可用上报、运行时回退与 worker 上限、
+getwd 失败工作目录定位、失败不发布、容量等待与启动失败传播、
+nil 与已关闭生命周期边界、关闭排空活跃会话、环境与设置合并二十字段、
+嵌入与外部选择、禁用开关与非法值、worker 默认与运行时优先级、
+仓库定位与 proto 覆盖，缺口 owner 与回归要求均与账本一致）。
+
+抽核要点：第 119 行 Rust 引用实现逐行核实（runtime_test.go:105 Parity 锚点
+仍在 runtime_dependencies.rs:548，优先级逐层锁定，但 settings 0 值语义分歧
+未收敛，partial 成立）；第 102/104 行未知 kind 与缺失归属硬错误分歧仍在
+账本结论中登记；partial 共用引用不受 [x] 唯一性约束。
+
+验证：audit --write-report 过（1472 exact；dup 0）；anchor 过（1742/1696/0/0/46）；
+定向 nextest（jftrade-engine、jftrade-integration-pine、jftrade-settings
+视触及范围）全过；cargo fmt --check 与 git diff --check 干净；
+无台账变更、无 Rust 生产代码改动。
+
+下一片：130-12 切片二十三，strategy_pine 域 partial 第 121–140 行。
