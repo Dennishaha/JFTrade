@@ -5434,3 +5434,46 @@ fmt 与 nextest；`check:ai-context`、`check:migration-manifest`、
 
 下一片：servercore 余量 42 条（openapi/product/request/settings/
 strategy/system/trading/watchlist/ws 文件）。
+
+## 第 130 批 09 切片二十一：servercore 余量 42 条 recon（2026-09-24）
+
+范围：`internal/app/apiserver/servercore/` openapi（3）+ product（7）+
+request（2）+ settings（9）+ strategy（9）+ system（1）+ trading（2）+
+watchlist（3）+ ws（6），共 42 条（18 `[x]` + 17 partial + 7 boundary）。
+
+方法：Go 体逐段核对；18 个 `[x]` 引用存在且锚点齐全（逐一命中；
+其中 ws `:45` 的 rust_entry 含一裸文件段，主证据为具名 ws-live 回放
+测试且审计解析通过，verdict 不变；其余裸文件段引用均在 partial /
+boundary 行内作模块上下文，符合口径）。
+结论：42 条 verdict 全部成立，无判定变更、无命令变更、无代码变更，
+本片为纯 recon。
+
+抽查实据：`:11` 两条 swagger 路径返回 307 + Location=/swagger/index.html
+且体为空，逐条回放；`:85` 能力目录无悬空能力面；`:14`/`:46` 观测
+注入稳定 envelope（含非法 request id 替换）；`:16`/`:66` OpenD 健康
+诊断不可达与旧 build 拒绝指引；settings_security 五条（`:14`/`:37`/
+`:86`/`:95`/`:116`）默认桌面可用、密码不回显、无密码开启 400、
+浏览器会话禁改暴露、禁用 web 即时失效浏览器会话，均与 Go 体一致；
+`:16` 删除守卫由兼容测试覆盖版本回滚与关联删除；`:12` K 线租约
+exact 持有至 stop/close；ws `:20`/`:45`/`:152` 心跳、系统通知与首
+tick 刷新 observed_at 由 ws-live 语料回放覆盖，`:45` 另有投影器
+投递内容与游标引用。
+partial 均为诚实缺口：注册路由集合与文档 operation 等式无 Rust 内
+测试（owner 路由清单 + check-api-transport）、nil-store/nil-owner
+Go 独有形状、费用只写 live ledger 但无 nil-owner 分支、yfinance
+轮询租约无专门断言、reconcile/取消合约/观察探针的题眼无对应断言，
+各有 owner 与回归要求。boundary 七条属实（nil 容忍辅助、snapshot
+identity helper、startup 边界、strategy store nil no-op、market
+tick nil、watchlist nil service 等无同形对象）。
+
+验证：`audit_test_parity.py --write-report` exit 0（1530 exact 全引用
+存在；已知警告不变：2 partial 无可解析引用、100 exact 缺锚点、
+2 assertionless；仅 report 基线号重生 1 行，inventory 无差；
+已按 beb5174c 新口径执行，基线 pin 校验通过无 drift）；
+`parity_anchor_reconcile.py` 过（1695/0/0/46）；无 Rust 文件改动故免
+fmt 与 nextest；`check:ai-context`、`check:migration-manifest`、
+`check:zero-go` 过；`check:quick` 与 `git diff --check` 见收尾。
+
+下一片：servercoretest 余量 65 条（s2 已做 broker_new 等 38 条），
+拆两片；之后 webaccess 31、tradingapp 22、runtime/runtimes、
+backtestapp、futuapp、liveapp 等。
