@@ -5549,3 +5549,37 @@ fmt 与 nextest；`check:ai-context`、`check:migration-manifest`、
 
 下一片：servercoretest 清空（103/103）；之后 webaccess 31、tradingapp 22、
 runtime/runtimes、backtestapp、futuapp、liveapp 等。
+
+## 第 130 批 09 切片二十四：webaccess 认证/前端/安全集成 31 条 recon（2026-09-24）
+
+范围：`internal/app/apiserver/webaccess/` auth_boundaries（8）+
+frontend（6）+ security_integration（17），共 31 条（13 `[x]` + 18 partial，
+含 2 条以 `[~]` 登记的工具面边界）。
+
+方法：Go 体逐段核对；具名引用 0 缺失；13 个 `[x]` 锚点齐全（逐一命中）。
+结论：31 条 verdict 全部成立，无判定变更、无命令变更、无代码变更，
+本片为纯 recon。
+
+抽查实据（安全 P0 项逐项对照 Go 原文）：`:335` 连续 8 次错密码 401、
+第 9 次 429 + Retry-After（组合：manager 限流断言 + envelope 透传断言）；
+`:293` 同一会话读 200、无 CSRF 写 403、带 CSRF 写 200 且端口恰收两次调用；
+`:352` 改密码后旧会话失效；`:400` cookie 逐字含 HttpOnly/SameSite=Strict/
+Path；`:490` 仅会话 cookie 升级 101 的真实握手；`:282` 回环取转发链末段、
+非回环忽略（防伪造），其 scheme 半支由 `:139` 的 TLS/回环代理断言覆盖；
+`:188`/`:362`/`:379`/`:422`/`:510` 导航文案、开发源不信任、登出清 cookie、
+未受信 Origin 拒绝、旧 token 路由 404。
+partial 均为诚实缺口：登录矩阵缺熵失败 500/取消专门断言（`:138`）、
+SettingsChanged 409 分支无测试（`:195` 登记待补）、超限表大小无直接断言
+（`:295`）、远端转发协议头伪装无测试（`:237` 登记待补）、publicAccess 与
+远端拦截为绑定策略差异（`:256`/`:437`）、runtime-config 服务端生成缺失
+（`:50`）、SPA 判定仅部分分支（`:106`）等，各有 owner 与回归要求；
+`:67`/`:81` 开发代理与 helper 形态属工具/接口边界保留。
+
+验证：`audit_test_parity.py --write-report` exit 0（1530 exact 全引用
+存在；已知警告不变；仅 report 基线号重生，inventory 无差）；
+`parity_anchor_reconcile.py` 过（1695/0/0/46）；无 Rust 文件改动故免
+fmt 与 nextest；`check:ai-context`、`check:migration-manifest`、
+`check:zero-go` 过；`check:quick` 与 `git diff --check` 见收尾。
+
+下一片：webaccess 清空（31/31）；之后 tradingapp 22、runtime/runtimes、
+backtestapp、futuapp、liveapp 等。
