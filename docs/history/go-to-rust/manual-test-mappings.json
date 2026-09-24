@@ -267920,10 +267920,10 @@
       "boundaryReason": null
     },
     "pkg/strategy/pine/parse_test.go:126:TestCompileUsesStrategyDefaultQuantityForEntryWithoutQty": {
-      "status": "[x]",
-      "evidence_type": "function_exact",
+      "status": "[~]",
+      "evidence_type": "partial",
       "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs::parse_ir_tests::compile_uses_strategy_default_quantity_for_entry_without_qty",
-      "conclusion": "function_exact：default_qty_type=strategy.percent_of_equity → default_qty_mode=percent_of_equity、default_qty_value=10、pyramiding=2，与 Go 的 strategy 默认数量元数据一致。",
+      "conclusion": "partial（订单继承一半缺失）：Go 的标题行为是无数量 entry 继承策略默认数量——断言元数据 percent_of_equity/10/pyramiding=2 之外，还断言首条 OrderStmt 的 QuantityMode==\"account_position_percent\" 且 QuantityExpression==\"10\"。Rust 引用的用例只锁定了元数据一半；lowered IR 没有 QuantityMode 概念（named-arg Action 形态），全仓 grep 也无 account_position_percent——策略默认数量从未被解析进订单。执行侧 strategy_runtime_execution.rs 以 allow_default_quantity 回退到数量 1（SIMULATE）或直接拒绝缺数量（REAL，:80 已锁定），即 Rust 用“执行期缺省/拒绝”代替了 Go 的“解析期继承”。缺口与回归要求：明确产品语义——若要继承，在 lowering 或执行期实现 percent_of_equity→数量解析并补断言后升级；若按执行期缺省设计退役，需登记设计决策并说明与 Go 行为的差异。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(parse_ir_tests)'",
       "source": {
         "file": "pkg/strategy/pine/parse_test.go",
@@ -267945,10 +267945,10 @@
         }
       ],
       "assertionCoverage": {
-        "covered": [
-          "function_exact：default_qty_type=strategy.percent_of_equity → default_qty_mode=percent_of_equity、default_qty_value=10、pyramiding=2，与 Go 的 strategy 默认数量元数据一致。"
+        "covered": [],
+        "uncovered": [
+          "partial（订单继承一半缺失）：Go 的标题行为是无数量 entry 继承策略默认数量——断言元数据 percent_of_equity/10/pyramiding=2 之外，还断言首条 OrderStmt 的 QuantityMode==\"account_position_percent\" 且 QuantityExpression==\"10\"。Rust 引用的用例只锁定了元数据一半；lowered IR 没有 QuantityMode 概念（named-arg Action 形态），全仓 grep 也无 account_position_percent——策略默认数量从未被解析进订单。执行侧 strategy_runtime_execution.rs 以 allow_default_quantity 回退到数量 1（SIMULATE）或直接拒绝缺数量（REAL，:80 已锁定），即 Rust 用“执行期缺省/拒绝”代替了 Go 的“解析期继承”。缺口与回归要求：明确产品语义——若要继承，在 lowering 或执行期实现 percent_of_equity→数量解析并补断言后升级；若按执行期缺省设计退役，需登记设计决策并说明与 Go 行为的差异。"
         ],
-        "uncovered": [],
         "source": "legacy-conclusion"
       },
       "verification": {
@@ -267975,15 +267975,15 @@
       "risk": "normal",
       "owner": "strategy_pine",
       "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
         "verification-receipt"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "function_exact：default_qty_type=strategy.percent_of_equity → default_qty_mode=percent_of_equity、default_qty_value=10、pyramiding=2，与 Go 的 strategy 默认数量元数据一致。"
+      "coveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial（订单继承一半缺失）：Go 的标题行为是无数量 entry 继承策略默认数量——断言元数据 percent_of_equity/10/pyramiding=2 之外，还断言首条 OrderStmt 的 QuantityMode==\"account_position_percent\" 且 QuantityExpression==\"10\"。Rust 引用的用例只锁定了元数据一半；lowered IR 没有 QuantityMode 概念（named-arg Action 形态），全仓 grep 也无 account_position_percent——策略默认数量从未被解析进订单。执行侧 strategy_runtime_execution.rs 以 allow_default_quantity 回退到数量 1（SIMULATE）或直接拒绝缺数量（REAL，:80 已锁定），即 Rust 用“执行期缺省/拒绝”代替了 Go 的“解析期继承”。缺口与回归要求：明确产品语义——若要继承，在 lowering 或执行期实现 percent_of_equity→数量解析并补断言后升级；若按执行期缺省设计退役，需登记设计决策并说明与 Go 行为的差异。"
       ],
-      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "pkg/strategy/pine/parse_test.go:145:TestCompileParsesBacktestStrategyMetadata": {

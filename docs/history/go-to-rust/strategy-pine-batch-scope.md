@@ -672,3 +672,29 @@ parse_semantic:377、parse:10/:54/:84，共 20 条。Go 体全读，Rust 引用�
 验证：`audit_test_parity.py --write-report` exit 0（1475 exact，dup 0）；
 `parity_anchor_reconcile.py` 1742/1696/0/0/46；jftrade-strategy 104/104；
 `git diff --check` 干净。
+
+## 第 130 批 09 切片 s37：strategy [x] 第 41–60 条二次复核（2026-09-24）
+
+范围（台账顺序）：parse:126/:145/:186/:202/:232/:253/:367/:464/:488/:560/
+:587/:621/:651/:690/:718/:732/:763/:1014/:1044、parser_loop:38，共 20 条。
+Go 体全读，Rust 引用全部可解析。
+
+结论：19 条维持，1 条收回过宽 `[x]`→partial：
+
+- `parse_test:126` 策略默认数量继承：Go 的标题行为是无数量 entry 在解析期继承
+  策略默认（OrderStmt QuantityMode==account_position_percent、
+  QuantityExpression==10）；Rust 只锁了元数据一半，lowered IR 无 QuantityMode
+  概念，全仓无 account_position_percent——策略默认数量从未被解析进订单。
+  执行侧以缺省 1（SIMULATE）/拒绝（REAL）代替继承。回归要求已记入 uncovered
+ （实现继承或登记设计决策后升级）。
+- 其余维持要点：回测元数据全字段、显式 qty 覆盖、request.security 四拒绝
+  （码+行号）、历史引用四处保留（typed Index 形态已披露）、历史引用两拒绝、
+  exit 元数据、trail 拒绝、v40 六诊断（码+行号）、framework 语言特性、V12/V13
+  键集（含 MTF）、风险声明全字段、兼容性注册表（68 在列+2 排除+唯一）、结构化
+  诊断行号、字符串字面量豁免、静态循环边界黑盒等价。
+
+`[x]` 1475→1474。本片仅台账 + 报告/库存再生，无 Rust 代码变更。
+
+验证：`audit_test_parity.py --write-report` exit 0（1474 exact，dup 0）；
+`parity_anchor_reconcile.py` 1742/1696/0/0/46；strategy parse 相关 4/4；
+`git diff --check` 干净。
