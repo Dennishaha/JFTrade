@@ -467,3 +467,25 @@ chartType 保留与未知值静默清空、审计明细文案、params 回退与
 `check:zero-go`、`check:quick`（单实例）、`git diff --check`。
 
 下一片：strategy_pine 余量按文件行号继续（manager_boundaries 之后：manager_close/nil/order_risk/live_business/lifecycle 等）。
+
+## 第 130 批 06B 切片四：liveruntime 余量 32 条 recon（2026-09-24）
+
+范围：`internal/strategy/liveruntime/` 除 manager_boundaries 外 9 文件 32 条
+（[x] 3 + partial 27 + boundary 2）。
+
+方法：[x]/boundary 全验（测试存在、锚点识别、断言/结构相符）；partial 逐条核对结论，
+高风险项（时区、日界计数、关停聚合、预热、租约回滚）抽查 Go 体与交叉引用。
+
+结论：32 条 verdict 全部成立——3 [x]（止损单字段、原因码表、日界计数）测试与锚点俱在；
+2 boundary 属实（nil 接收者归类型系统、反射断言归架构门禁）；partial 缺口与 Go 体一致。
+唯一打磨：order_risk:216 的交叉引用补全测试名
+（internal/strategy/runtimecontrol/policy_test.go:83:TestMarketDayStartUTCUsesOrderSymbolTimezone），
+并核实本包 marketDayStartUTC（risk.go:110）确为转调；其引用测试的锚点指向 runtimecontrol 行，
+属 partial 证据复用（允许），非缺口。
+本片除该行结论补全外无判定与代码变更。
+
+验证：`audit_test_parity.py --write-report` exit 0；`parity_anchor_reconcile.py` 过；
+`cargo fmt -p jftrade-engine -- --check`、`check:ai-context`、`check:migration-manifest`、
+`check:zero-go`、`check:quick`（单实例）、`git diff --check`。
+
+下一片：strategy_pine 余量按文件行号继续（pine_live_command/pine_live_executor/pineruntime 等）。

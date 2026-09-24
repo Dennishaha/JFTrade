@@ -7,7 +7,7 @@
     "treeSha": "0ee26444be21c15d9760f358a34649f78402f0fb"
   },
   "generatorVersion": "v2_writer.py@slice23",
-  "generatedAt": "2026-09-24T00:40:13Z",
+  "generatedAt": "2026-09-24T00:54:37Z",
   "mappings": {
     "cmd/jftrade-api/main_test.go:13:TestValidateArgsAllowsNoArgs": {
       "status": "[~]",
@@ -250050,7 +250050,7 @@
     "internal/strategy/liveruntime/order_risk_business_test.go:216:TestMarketDayStartUsesOrderSymbolTimezone": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/strategy_runtime_execution_tests.rs::strategy_market_day_start_follows_the_order_market_timezone",
-      "conclusion": "partial：与 runtimecontrol 的同名用例同一语义（该包的 marketDayStartUTC 直接转调 runtimecontrol）。Rust 现按市场本地午夜切分（US 05:00Z、HK 16:00Z，未知市场回落 UTC 午夜），与参考实现的本地午夜分支一致；但参考实现在扩展时段用“交易日边界起点”（美股上一本地日 20:00 延续），夜盘时刻两者不同（参考 2026-06-15T00:00Z，Rust 2026-06-14T04:00Z）。缺口（P1）与修复位置见 runtimecontrol/policy_test.go:83 行。",
+      "conclusion": "partial：与 runtimecontrol 的同名用例同一语义（该包的 marketDayStartUTC 直接转调 runtimecontrol）。Rust 现按市场本地午夜切分（US 05:00Z、HK 16:00Z，未知市场回落 UTC 午夜），与参考实现的本地午夜分支一致；但参考实现在扩展时段用“交易日边界起点”（美股上一本地日 20:00 延续），夜盘时刻两者不同（参考 2026-06-15T00:00Z，Rust 2026-06-14T04:00Z）。缺口（P1）与修复位置见 internal/strategy/runtimecontrol/policy_test.go:83:TestMarketDayStartUTCUsesOrderSymbolTimezone 行 （该行结论：本地午夜等价、夜盘不等价，修复位置 crates/jftrade-calendar 交易日边界起点 API）。【130-06B slice4 recon】已核对本包 marketDayStartUTC（risk.go:110）确为转调 runtimecontrol.MarketDayStartUTC，结论维持。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
       "evidence_type": "partial",
       "source": {
@@ -250070,7 +250070,7 @@
       "assertionCoverage": {
         "covered": [],
         "uncovered": [
-          "partial：与 runtimecontrol 的同名用例同一语义（该包的 marketDayStartUTC 直接转调 runtimecontrol）。Rust 现按市场本地午夜切分（US 05:00Z、HK 16:00Z，未知市场回落 UTC 午夜），与参考实现的本地午夜分支一致；但参考实现在扩展时段用“交易日边界起点”（美股上一本地日 20:00 延续），夜盘时刻两者不同（参考 2026-06-15T00:00Z，Rust 2026-06-14T04:00Z）。缺口（P1）与修复位置见 runtimecontrol/policy_test.go:83 行。"
+          "partial：与 runtimecontrol 的同名用例同一语义（该包的 marketDayStartUTC 直接转调 runtimecontrol）。Rust 现按市场本地午夜切分（US 05:00Z、HK 16:00Z，未知市场回落 UTC 午夜），与参考实现的本地午夜分支一致；但参考实现在扩展时段用“交易日边界起点”（美股上一本地日 20:00 延续），夜盘时刻两者不同（参考 2026-06-15T00:00Z，Rust 2026-06-14T04:00Z）。缺口（P1）与修复位置见 internal/strategy/runtimecontrol/policy_test.go:83:TestMarketDayStartUTCUsesOrderSymbolTimezone 行 （该行结论：本地午夜等价、夜盘不等价，修复位置 crates/jftrade-calendar 交易日边界起点 API）。【130-06B slice4 recon】已核对本包 marketDayStartUTC（risk.go:110）确为转调 runtimecontrol.MarketDayStartUTC，结论维持。"
         ],
         "source": "legacy-conclusion"
       },
@@ -250105,7 +250105,7 @@
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
-        "partial：与 runtimecontrol 的同名用例同一语义（该包的 marketDayStartUTC 直接转调 runtimecontrol）。Rust 现按市场本地午夜切分（US 05:00Z、HK 16:00Z，未知市场回落 UTC 午夜），与参考实现的本地午夜分支一致；但参考实现在扩展时段用“交易日边界起点”（美股上一本地日 20:00 延续），夜盘时刻两者不同（参考 2026-06-15T00:00Z，Rust 2026-06-14T04:00Z）。缺口（P1）与修复位置见 runtimecontrol/policy_test.go:83 行。"
+        "partial：与 runtimecontrol 的同名用例同一语义（该包的 marketDayStartUTC 直接转调 runtimecontrol）。Rust 现按市场本地午夜切分（US 05:00Z、HK 16:00Z，未知市场回落 UTC 午夜），与参考实现的本地午夜分支一致；但参考实现在扩展时段用“交易日边界起点”（美股上一本地日 20:00 延续），夜盘时刻两者不同（参考 2026-06-15T00:00Z，Rust 2026-06-14T04:00Z）。缺口（P1）与修复位置见 internal/strategy/runtimecontrol/policy_test.go:83:TestMarketDayStartUTCUsesOrderSymbolTimezone 行 （该行结论：本地午夜等价、夜盘不等价，修复位置 crates/jftrade-calendar 交易日边界起点 API）。【130-06B slice4 recon】已核对本包 marketDayStartUTC（risk.go:110）确为转调 runtimecontrol.MarketDayStartUTC，结论维持。"
       ],
       "boundaryReason": null
     },
