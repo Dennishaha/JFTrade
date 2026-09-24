@@ -6215,3 +6215,23 @@ git diff --check 干净；生产改动为零（测试文件加 1 行 brokers 长
 
 下一片：strategy 域首片（按提醒线程的旁观提示，strategy 15.5% 与 backtest 6.3% 合计 886 条、
 占关键域 46% 且连续多轮零移动，trading 收官后优先啃这两块；先从 strategy [x] 切片开始）。
+## 第 130 批 10 切片一：strategy 域 [x] 18 条全复核，零纠正（2026-09-24）
+
+范围：strategy 域全部 [x] 行（catalog:52、errors:8、binding:137、view:46、live_command:33、
+liveruntime:18/:67/:235、pine_executor:80/:93/:119/:150、risk_off:33、policy:11/:53/:68/:120、
+service:198）。trading 收官后首啃 strategy，按旁观提示优先关键域。
+
+方法：Go 体全读；20 条级以下小体逐断言比对；引用存在不等于断言等价；锚点 18 行全命中。
+
+18 条维持 [x]（运行失败只收敛 RUNNING、停止态零落盘、STOPPED 加 runtime_exited 审计加错误日志；
+四类哨兵逐类加文案；空绑定三分支归一；pine-pinets 加 pine-v6 四组 startable；定义版本历史身份键
+在真实 SQLite 上同键读取；止损单 STOP 加原值 stopPrice、无 price、reduceOnly；风控五元组加
+close_only 关闭后数量上限；跨市场日界 US 计 2、HK 计 1、他实例计 0；缺数量拒收且零端口调用、
+50% 权益得 5、50% 持仓得 5、无数量全平得 3；off 零决策；四行原因表加 enforce 三标志；monitor 日计数
+matched 不拒绝加 detail 前缀；未知模式归一 off 并清空；持仓四匹配加可卖求和；非法 sourceFormat 在
+端口前 400 且端口零调用，均逐项命中）。文案差但语义一致处（:80 拒收文案、:82 枚举对照）结论中已显式登记。
+
+验证：audit --write-report 过；anchor 过；定向 nextest（strategy_runtime、risk_engine、portfolio、
+pine_compatibility、strategy model）全过；cargo fmt --check 与 git diff --check 干净；无 Rust 代码改动。
+
+下一片：130-10 切片二，strategy 域 partial 首批 20 行（catalog activity/catalog 边界行为起，按文件加行号升序）。
