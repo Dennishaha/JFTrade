@@ -5516,3 +5516,36 @@ fmt 与 nextest；`check:ai-context`、`check:migration-manifest`、
 server_definitions、settings_broker/interfaces/normalization/onboarding、
 strategy_logs/preview/sync、swagger_openapi、system_routes、
 watchlist_runtime）。
+
+## 第 130 批 09 切片二十三：servercoretest settings/definitions/preview/swagger/system/watchlist 33 条 recon（2026-09-24）
+
+范围：`internal/app/apiserver/servercoretest/` server_business_public（2）+
+server_definitions（4）+ settings_broker（6）+ settings_interfaces（2）+
+settings_normalization（3）+ settings_onboarding（3）+ strategy_logs（3）+
+strategy_preview（2）+ strategy_sync（1）+ swagger_openapi（2）+
+system_routes（3）+ watchlist_runtime（2），共 33 条（22 `[x]` + 11 partial）。
+
+方法：Go 体逐段核对；具名引用 0 缺失（`::tests::` 限定写法经逐字核实
+为真命中，初筛误报已排除）；22 个 `[x]` 锚点齐全（逐一命中）。
+结论：33 条 verdict 全部成立，无判定变更、无命令变更、无代码变更，
+本片为纯 recon。
+
+抽查实据：`:236` 缺 id 生成 UUID（Rust 对显式与缺 id 双 payload 断言
+RFC4122 v4，强于 Go）；`:149` 完成后依赖失败重建议 OOBE 且首因为
+RUNTIME_DEPENDENCY_UNSATISFIED（Rust 逐字断言）；`:28` legacy-v0 种入
+后实例化 400 与逐字文案；`:281` 托管券商账户 CRUD 后投影仅剩更新账户
+且集成字段原样；`:14`/`:72` swagger 离线 UI 与冻结核心路径（engine 注入
+与 Go 生成包差异已登记，探针史齐全）；`:12`/`:89` 系统状态与 request-id
+透传；`:58` 接口覆盖、` :10`/`:40`/`:69` 归一默认。
+partial 均为诚实缺口：launch 默认与 nil 安全属形态/所有权边界（`:15`/
+`:48`）；strategy_logs 三条缺 catalog 因果链（owner 策略运行时读投影）；
+`:17` definitionSync 缺改版因果链；其余缺口各有 owner 与回归要求。
+
+验证：`audit_test_parity.py --write-report` exit 0（1530 exact 全引用
+存在；已知警告不变；仅 report 基线号重生，inventory 无差）；
+`parity_anchor_reconcile.py` 过（1695/0/0/46）；无 Rust 文件改动故免
+fmt 与 nextest；`check:ai-context`、`check:migration-manifest`、
+`check:zero-go` 过；`check:quick` 与 `git diff --check` 见收尾。
+
+下一片：servercoretest 清空（103/103）；之后 webaccess 31、tradingapp 22、
+runtime/runtimes、backtestapp、futuapp、liveapp 等。
