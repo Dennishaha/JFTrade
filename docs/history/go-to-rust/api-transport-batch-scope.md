@@ -5256,3 +5256,34 @@ fmt 与 nextest；`check:ai-context`、`check:migration-manifest`、
 
 下一片：api_transport 余量继续按文件行号升序（settings、strategy、
 system、trading、watchlist、backtest 等目录）。
+
+## 第 130 批 09 切片十五：settings 与 system 路由 35 条 recon（2026-09-24）
+
+范围：`internal/api/settings/`（26）+ `internal/api/system/`（9），共 35 条
+（4 `[x]` + 29 partial + 2 boundary）。
+
+方法：Go 体逐段核对；4 个 `[x]` 引用存在且锚点齐全（逐一命中）。结论：
+35 条 verdict 全部成立，无判定变更、无命令变更、无代码变更，
+本片为纯 recon。
+
+抽查实据：`:20` 的 8 条写路由截断 JSON 逐路由 400 + ok=false +
+BAD_REQUEST；`:350` 的 PUT/DELETE 缺失记录 404 不再隐式创建；
+`:376` 服务层空白 accountId 拒收且存储零调用、HTTP 层 BAD_REQUEST；
+`:393` 服务层清除客户端 id/时间戳且 accountId 归一（Rust 用例连
+" acc-1 " 脏输入一并覆盖，强于 Go 体）。partial 缺口均为诚实登记：
+注入服务副作用（execution/onboarding/calendar/provider 回调记录）、
+失败切换后 stored/GET 回读不变、逐错误码矩阵、16 条系统读路由键集合、
+已移除路由的 404 wire 断言（Rust 以未注册表达）等，各有 owner 与回归
+要求。boundary 两条属实：legacy yfinance 前缀 Rust 从未注册（`:115`）、
+缺参 handler 分支在模板路由下不存在（uri `:12`，Rust 为统一 JSON 404）。
+附带观察：market `:18` 的默认 provider（Go 体 yfinance / Rust akshare）
+差异已在结论中点名，未另立缺口。
+
+验证：`audit_test_parity.py --write-report` exit 0（1530 exact 全引用
+存在；已知警告不变；仅 report 基线号重生，inventory 无差）；
+`parity_anchor_reconcile.py` 过（1695/0/0/46）；无 Rust 文件改动故免
+fmt 与 nextest；`check:ai-context`、`check:migration-manifest`、
+`check:zero-go` 过；`check:quick` 与 `git diff --check` 见收尾。
+
+下一片：api_transport 余量继续按文件行号升序（strategy、trading、
+watchlist、backtest 等目录）。
