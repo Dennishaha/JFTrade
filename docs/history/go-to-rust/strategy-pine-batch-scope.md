@@ -880,3 +880,30 @@ nil 与已关闭生命周期边界、关闭排空活跃会话、环境与设置�
 无台账变更、无 Rust 生产代码改动。
 
 下一片：130-12 切片二十三，strategy_pine 域 partial 第 121–140 行。
+
+## 第 130 批 12 切片二十三：strategy_pine 域 partial 第 121–140 行，20 行维持、零改判（2026-09-24）
+
+范围：strategy_pine 域 partial 第 121–140 行（运行时依赖与配对管理 8、
+风控时间与持仓辅助 1、交易日边界 1、观测投影 1、Service 门面 9，
+按文件加行号升序）。本域已核对 140/385。
+
+方法：Go 体全读；13 个去重 Rust 引用逐项 rg 存在性核查；引用存在不等于断言等价。
+
+20 行维持（依赖注入工厂、路径与工作目录回退、配对构建发布退休、
+半成品配对回滚、nil 与不可关闭边界、并发容量与会话 revision、
+失败边界五分支、打开会话四拒绝、可选时间与持仓边角、交易日夜盘边界、
+观测时间精度与错误裁剪、门面 store 与 runtime 委托、存储错误透传、
+分析器注入与默认格式、启动前拒绝零触碰、容量转忙碌文案、
+三条启动失败路径、启动后刷新计数、暂停停止顺序与刷新、
+目录运行时生命周期入口委托，缺口 owner 与回归要求均与账本一致）。
+
+抽核要点：第 130 行双引用逐项存在（含 DST 变体），账本结论把历史过宽 [x]
+纠正为 partial 并登记夜盘边界分歧（P1，calendar 暴露交易日边界起点 API），
+本轮复核 Go 体三断言与该结论一致；partial 共用引用不受 [x] 唯一性约束。
+
+验证：audit --write-report 过（1472 exact；dup 0）；anchor 过（1742/1696/0/0/46）；
+定向 nextest（jftrade-engine、jftrade-integration-pine、jftrade-trading、
+jftrade-settings 视触及范围）全过；cargo fmt --check 与 git diff --check 干净；
+无台账变更、无 Rust 生产代码改动。
+
+下一片：130-12 切片二十四，strategy_pine 域 partial 第 141–160 行。
