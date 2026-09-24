@@ -302,3 +302,29 @@ P0 恢复类）、:500 会话分页缺口上报、:58 港股跨时段聚合 P2�
 `check:quick`（单实例）、`git diff --check`。
 
 下一片：backtest_calendar 按文件行号继续（pine/costs/collector/runner/result 系）。
+
+## 第 130 批 07 切片六：pineworker 命令执行/适配/原子边界 37 条 recon（2026-09-24）
+
+范围：`pkg/backtest/pineworker_command_executor_test.go`（23）+
+`pkg/backtest/pineworker_atomic_boundaries_test.go`（2）+
+`pkg/backtest/pineworker_adapter_test.go`（12），共 37 条（partial 37）。
+
+方法：Go 体逐条核对结论；全部 37 条 Rust 引用逐一 rg 命中（0 缺失）；
+核心结构 claim 实证：Rust 全仓无 CommandFromOrderIntent/command 转换层
+（rg 零命中），worker 意图经执行端口/确定性撮合直接执行；
+适配器拒绝非法意图在位（requires long/short）；
+Go WorkerOrderCommand DTO 形态（Kind/ID/Side/OrderType/Quantity/GTC）抽查确认。
+
+结论：37 条 verdict 全部成立，无判定变更、无代码变更——
+统一结论线与 strategy 域 s5/s6 一致：Go 的 command 转换层不迁移，
+方向归一/数量解析/失败关闭/撤单派发落在执行层与撮合层，
+逐 command 字段（方向字段、GTC、跟踪回退、畸形矩阵、港股整手、 sizing 文案）
+无同形断言，partial 诚实。
+本片为纯 recon。
+
+验证：`audit_test_parity.py --write-report` exit 0；`parity_anchor_reconcile.py` 过；
+`cargo fmt -p jftrade-engine -- --check`、`check:ai-context`、`check:migration-manifest`、
+`check:zero-go`、定向 nextest（integration-pine 适配/e2e + engine 意图执行 + backtest 全量）、
+`check:quick`（单实例）、`git diff --check`。
+
+下一片：backtest_calendar 按文件行号继续（replay/sizer/runner/collector/result 系）。
