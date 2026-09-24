@@ -467,3 +467,26 @@ partial 2251→2252）。**backtest_calendar 域 376 条全部 recon 完毕**；
 `check:quick`（单实例）、`git diff --check`。
 
 下一域：按余量排序的下一块（`internal/store`，recon 口径待定）。
+
+## 第 130 批 09 切片 c：backtest [x] 第 45–64 条二次复核（2026-09-24）
+
+范围：`internal/exchangecalendar/manager_test.go` 14 条（:291/:346/:393/:444/
+:488/:543/:613/:670/:736/:751/:779/:811/:890/:917）+ `source_health_status_test.go`
+2 条 + `source_json_test.go` 1 条 + `pine_ts_shadow_reference_test.go` 2 条，
+共 20 条。Go 体全读，Rust 引用 22/22 可解析且 1:1 名匹配。
+
+结论：19 条维持，1 条收回过宽 `[x]`→partial，1 条结论措辞修正（verdict 不变）：
+
+- `manager_test:613` 超时变体去重：Go 标题断言是三轮变体失败只产生一条告警
+  （`len(alerts)==1`）+ 指纹归一；Rust 用例只锁定指纹归一（每轮 fingerprint/
+  status 断言 + 探针回滚证据），三轮 `last_alert_at` 仅收 3/3 非空、未如 :543
+  那样断言去重不变。“引用存在 ≠ 断言等价”，按口径降为 partial；回归要求已记
+  入 uncovered（补同指纹重复失败不刷新 `last_alert_at` 的断言，或登记设计决策）。
+- `manager_test:291` 结论把 Rust 侧多加的 validUntil 隔离段误写成 Go 原文两段，
+  已修正措辞（Go 本体一段 + Rust 加强一段），`[x]` 不变。
+
+`[x]` 1477→1476。本片仅台账 + 报告/库存再生，无 Rust 代码变更。
+
+验证：`audit_test_parity.py --write-report` exit 0（1476 exact，dup 0）；
+`parity_anchor_reconcile.py` 1742/1696/0/0/46；定向 nextest（jftrade-calendar
+89/89，backtest pine 9/9）；`git diff --check` 干净。

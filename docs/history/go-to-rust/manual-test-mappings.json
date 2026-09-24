@@ -196104,7 +196104,7 @@
     "internal/exchangecalendar/manager_test.go:291:TestManagerIgnoresStaleRemoteSnapshots": {
       "status": "[x]",
       "rust_entry": "crates/jftrade-calendar/tests/manager_lifecycle.rs::stale_remote_snapshot_is_ignored_in_favour_of_builtin_rules",
-      "conclusion": "function_exact：Go 的 snapshotFresh 先看 validUntil，再看 staleAfterHours 的 fetchedAt 年龄；过期快照即使覆盖当天也不能回答，改由 builtin 规则。测试两段：(1) validUntil 已过期 + staleAfterHours=24 → schedule.source_id=builtin_rules、status=open、reason≠stale_remote；(2) 把 staleAfterHours 设为 0 隔离绝对过期规则（fetchedAt 很新但 validUntil 已过）→ 仍必须是 builtin_rules，证明判定来自 validUntil 本身。探针：注释掉 validUntil 判断 → 第二段返回 nyse_official，测试失败并已回滚。",
+      "conclusion": "function_exact：Go 的 snapshotFresh 先看 validUntil，再看 staleAfterHours 的 fetchedAt 年龄；过期快照即使覆盖当天也不能回答，改由 builtin 规则。Go 本体只有一段：validUntil 已过期 + staleAfterHours=24（fetchedAt 同样过期）→ schedule.source_id=builtin_rules、status=open、reason≠stale_remote。Rust 在复刻该段之外多加一段隔离：staleAfterHours=0 且 fetchedAt 很新但 validUntil 已过 → 仍必须是 builtin_rules，证明判定来自 validUntil 本身（Rust 侧加强，非 Go 原文两段）。探针：注释掉 validUntil 判断 → 隔离段返回 nyse_official，测试失败并已回滚。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar -E 'test(stale_remote_snapshot_is_ignored_in_favour_of_builtin_rules)'",
       "evidence_type": "function_exact",
       "source": {
@@ -196128,7 +196128,7 @@
       ],
       "assertionCoverage": {
         "covered": [
-          "function_exact：Go 的 snapshotFresh 先看 validUntil，再看 staleAfterHours 的 fetchedAt 年龄；过期快照即使覆盖当天也不能回答，改由 builtin 规则。测试两段：(1) validUntil 已过期 + staleAfterHours=24 → schedule.source_id=builtin_rules、status=open、reason≠stale_remote；(2) 把 staleAfterHours 设为 0 隔离绝对过期规则（fetchedAt 很新但 validUntil 已过）→ 仍必须是 builtin_rules，证明判定来自 validUntil 本身。探针：注释掉 validUntil 判断 → 第二段返回 nyse_official，测试失败并已回滚。"
+          "function_exact：Go 的 snapshotFresh 先看 validUntil，再看 staleAfterHours 的 fetchedAt 年龄；过期快照即使覆盖当天也不能回答，改由 builtin 规则。Go 本体只有一段：validUntil 已过期 + staleAfterHours=24（fetchedAt 同样过期）→ schedule.source_id=builtin_rules、status=open、reason≠stale_remote。Rust 在复刻该段之外多加一段隔离：staleAfterHours=0 且 fetchedAt 很新但 validUntil 已过 → 仍必须是 builtin_rules，证明判定来自 validUntil 本身（Rust 侧加强，非 Go 原文两段）。探针：注释掉 validUntil 判断 → 隔离段返回 nyse_official，测试失败并已回滚。"
         ],
         "uncovered": [],
         "source": "legacy-conclusion"
@@ -196163,7 +196163,7 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "function_exact：Go 的 snapshotFresh 先看 validUntil，再看 staleAfterHours 的 fetchedAt 年龄；过期快照即使覆盖当天也不能回答，改由 builtin 规则。测试两段：(1) validUntil 已过期 + staleAfterHours=24 → schedule.source_id=builtin_rules、status=open、reason≠stale_remote；(2) 把 staleAfterHours 设为 0 隔离绝对过期规则（fetchedAt 很新但 validUntil 已过）→ 仍必须是 builtin_rules，证明判定来自 validUntil 本身。探针：注释掉 validUntil 判断 → 第二段返回 nyse_official，测试失败并已回滚。"
+        "function_exact：Go 的 snapshotFresh 先看 validUntil，再看 staleAfterHours 的 fetchedAt 年龄；过期快照即使覆盖当天也不能回答，改由 builtin 规则。Go 本体只有一段：validUntil 已过期 + staleAfterHours=24（fetchedAt 同样过期）→ schedule.source_id=builtin_rules、status=open、reason≠stale_remote。Rust 在复刻该段之外多加一段隔离：staleAfterHours=0 且 fetchedAt 很新但 validUntil 已过 → 仍必须是 builtin_rules，证明判定来自 validUntil 本身（Rust 侧加强，非 Go 原文两段）。探针：注释掉 validUntil 判断 → 隔离段返回 nyse_official，测试失败并已回滚。"
       ],
       "uncoveredAssertions": [],
       "boundaryReason": null
@@ -196504,11 +196504,11 @@
       "boundaryReason": null
     },
     "internal/exchangecalendar/manager_test.go:613:TestManagerSourceAlertsDeduplicateNetworkTimeoutVariants": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "crates/jftrade-calendar/tests/manager_lifecycle.rs::network_timeout_variants_share_one_alert_fingerprint",
-      "conclusion": "function_exact：Go 把 context.Canceled / context.DeadlineExceeded / 含 client.timeout exceeded 的 HTTP 错误三种变体归并成同一个 network_timeout_or_cancelled 指纹，避免一次故障产生三条告警。测试连续注入三种文本，断言每轮 health_fingerprint 与 last_alert_fingerprint 都是 nyse_official|US|fetch_failed|network_timeout_or_cancelled、health_state=unhealthy、last_alert_status=triggered。注意 Rust 额外有退避门，需每轮推进时钟越过 24h 才真正触达 provider（已在测试注明）。探针：把归并条件改成永不匹配 → 失败（指纹退化成原始错误文本）并已回滚。",
+      "conclusion": "partial（告警计数去重未锁定）：Go 的标题断言是三次变体失败只产生一条告警（len(alerts)==1）且该告警指纹为 nyse_official|US|fetch_failed|network_timeout_or_cancelled。Rust 用例只锁定了后一半：每轮 health_fingerprint 与 last_alert_fingerprint 归一到该指纹、health_state=unhealthy、last_alert_status=triggered（探针：归并条件永不匹配 → 指纹退化，失败并已回滚）。但 Rust 没有 alert-sink 端口，用例仅收集三轮 last_alert_at 非空（3/3），从未断言三轮告警去重为一（如 :543 那样断言 last_alert_at 不变），因此“一次故障一条告警”在 Rust 无对应断言。注意 Rust 额外有退避门，需每轮推进时钟越过 24h 才真正触达 provider（已在测试注明），Go 则连续三次 RefreshAll 无节流。缺口与回归要求：在 manager_lifecycle.rs 为该用例补“同指纹重复失败不刷新 last_alert_at”的去重断言（向 :543 对齐），或明确登记 Rust 以状态行代替告警计数的设计决策后升级。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar -E 'test(network_timeout_variants_share_one_alert_fingerprint)'",
-      "evidence_type": "function_exact",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/exchangecalendar/manager_test.go",
         "line": 613,
@@ -196529,10 +196529,10 @@
         }
       ],
       "assertionCoverage": {
-        "covered": [
-          "function_exact：Go 把 context.Canceled / context.DeadlineExceeded / 含 client.timeout exceeded 的 HTTP 错误三种变体归并成同一个 network_timeout_or_cancelled 指纹，避免一次故障产生三条告警。测试连续注入三种文本，断言每轮 health_fingerprint 与 last_alert_fingerprint 都是 nyse_official|US|fetch_failed|network_timeout_or_cancelled、health_state=unhealthy、last_alert_status=triggered。注意 Rust 额外有退避门，需每轮推进时钟越过 24h 才真正触达 provider（已在测试注明）。探针：把归并条件改成永不匹配 → 失败（指纹退化成原始错误文本）并已回滚。"
+        "covered": [],
+        "uncovered": [
+          "partial（告警计数去重未锁定）：Go 的标题断言是三次变体失败只产生一条告警（len(alerts)==1）且该告警指纹为 nyse_official|US|fetch_failed|network_timeout_or_cancelled。Rust 用例只锁定了后一半：每轮 health_fingerprint 与 last_alert_fingerprint 归一到该指纹、health_state=unhealthy、last_alert_status=triggered（探针：归并条件永不匹配 → 指纹退化，失败并已回滚）。但 Rust 没有 alert-sink 端口，用例仅收集三轮 last_alert_at 非空（3/3），从未断言三轮告警去重为一（如 :543 那样断言 last_alert_at 不变），因此“一次故障一条告警”在 Rust 无对应断言。注意 Rust 额外有退避门，需每轮推进时钟越过 24h 才真正触达 provider（已在测试注明），Go 则连续三次 RefreshAll 无节流。缺口与回归要求：在 manager_lifecycle.rs 为该用例补“同指纹重复失败不刷新 last_alert_at”的去重断言（向 :543 对齐），或明确登记 Rust 以状态行代替告警计数的设计决策后升级。"
         ],
-        "uncovered": [],
         "source": "legacy-conclusion"
       },
       "verification": {
@@ -196564,10 +196564,10 @@
         "verification-receipt"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "function_exact：Go 把 context.Canceled / context.DeadlineExceeded / 含 client.timeout exceeded 的 HTTP 错误三种变体归并成同一个 network_timeout_or_cancelled 指纹，避免一次故障产生三条告警。测试连续注入三种文本，断言每轮 health_fingerprint 与 last_alert_fingerprint 都是 nyse_official|US|fetch_failed|network_timeout_or_cancelled、health_state=unhealthy、last_alert_status=triggered。注意 Rust 额外有退避门，需每轮推进时钟越过 24h 才真正触达 provider（已在测试注明）。探针：把归并条件改成永不匹配 → 失败（指纹退化成原始错误文本）并已回滚。"
+      "coveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial（告警计数去重未锁定）：Go 的标题断言是三次变体失败只产生一条告警（len(alerts)==1）且该告警指纹为 nyse_official|US|fetch_failed|network_timeout_or_cancelled。Rust 用例只锁定了后一半：每轮 health_fingerprint 与 last_alert_fingerprint 归一到该指纹、health_state=unhealthy、last_alert_status=triggered（探针：归并条件永不匹配 → 指纹退化，失败并已回滚）。但 Rust 没有 alert-sink 端口，用例仅收集三轮 last_alert_at 非空（3/3），从未断言三轮告警去重为一（如 :543 那样断言 last_alert_at 不变），因此“一次故障一条告警”在 Rust 无对应断言。注意 Rust 额外有退避门，需每轮推进时钟越过 24h 才真正触达 provider（已在测试注明），Go 则连续三次 RefreshAll 无节流。缺口与回归要求：在 manager_lifecycle.rs 为该用例补“同指纹重复失败不刷新 last_alert_at”的去重断言（向 :543 对齐），或明确登记 Rust 以状态行代替告警计数的设计决策后升级。"
       ],
-      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/exchangecalendar/manager_test.go:670:TestManagerProbeRecoveryClearsCurrentFetchError": {
