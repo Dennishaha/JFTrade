@@ -844,3 +844,29 @@ runner 硬切与助手 2、session 过滤 4、short 回放 1，按文件加行�
 cargo fmt --check 与 git diff --check 干净；无 Rust 生产代码改动、无新增测试。
 
 下一片：130-11 切片十四，backtest 域 partial 第 261–280 行。
+
+## 第 130 批 11 切片十四：backtest 域 partial 第 261–280 行，19 行维持、1 行结论收紧（2026-09-24）
+
+范围：backtest 域 partial 第 261–280 行（短回放合成校验与价格回退 2、短回放入场回补与撤单过滤 2、
+来源市场固定规则 2、美股 2h/前向 2h/后向分页/日线/周线/月线合成与港股缺口 8、紧凑 schema/维度分表/
+作用域版本隔离/读写作用域优先与回退 6，按文件加行号升序）。
+
+方法：Go 体全读；缺口验到代码行与用例断言；引用存在不等于断言等价。
+
+19 行维持（合成校验与价格回退边界、短回放入场回补与撤单过滤、合约规格保守默认、
+美股 2h 与前向 2h 合成、后向分页一致性、美股日线与周月合成语义、港股午休 P2 缺口三行、
+紧凑 schema、维度分表、作用域版本隔离、读写作用域优先与不回退，均与账本缺口一致）。
+
+1 行结论收紧（verdict 不变，[x] 1472 不变，b83 dry-run 先行、entry_changed 等于 0）：
+
+- source_exchange:9：原结论“规则来源为快照、不触达实盘”易被误读为引用用例的断言；
+  按 Go 体重写，明确引用用例仅断言去空白匹配与覆盖顺序，存活操作拒绝链无对应断言。
+
+抽核要点：20 条 Rust 引用逐项存在；265 的 Rust 用例逐行核实仅覆盖 trim 与覆盖顺序；
+276 的别名共享与维度分表经核实相容（别名归一、维度缀名）。
+
+验证：audit --write-report 过（1472 exact；dup 0）；anchor 过（1742/1696/0/0/46）；
+定向 nextest（jftrade-backtest、jftrade-broker、jftrade-store-sqlite、jftrade-engine 执行族）全过；
+cargo fmt --check 与 git diff --check 干净；无 Rust 生产代码改动、无新增测试。
+
+下一片：130-11 切片十五，backtest 域 partial 第 281–300 行。

@@ -133367,7 +133367,7 @@
     "pkg/backtest/source_exchange_business_test.go:9:TestBacktestSourceExchangeExposesPinnedRulesWithoutLiveOperations": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-broker/tests/market_rules_snapshot_errors.rs::market_rules_match_trimmed_symbols_and_apply_overrides_in_order",
-      "conclusion": "partial：Go 断言回测来源市场暴露固定规则且不触达实盘操作。Rust 的市场规则用例断言按去空白标的匹配并按顺序应用覆盖（该用例），规则来源为快照、不触达实盘。",
+      "conclusion": "partial：Go 断言回测来源市场暴露固定规则且拒绝实盘操作（ticker/klines/下单拒绝、账户/撤单放行）。Rust 引用用例仅断言按去空白标的匹配并按顺序应用覆盖；规则来自快照、不触达实盘是模块结构事实，本用例未对其断言，存活操作拒绝链无对应断言。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-broker --all-targets --locked",
       "evidence_type": "partial",
       "source": {
@@ -133387,7 +133387,7 @@
       "assertionCoverage": {
         "covered": [],
         "uncovered": [
-          "partial：Go 断言回测来源市场暴露固定规则且不触达实盘操作。Rust 的市场规则用例断言按去空白标的匹配并按顺序应用覆盖（该用例），规则来源为快照、不触达实盘。"
+          "partial：Go 断言回测来源市场暴露固定规则且拒绝实盘操作（ticker/klines/下单拒绝、账户/撤单放行）。Rust 引用用例仅断言按去空白标的匹配并按顺序应用覆盖；规则来自快照、不触达实盘是模块结构事实，本用例未对其断言，存活操作拒绝链无对应断言。"
         ],
         "source": "legacy-conclusion"
       },
@@ -133422,7 +133422,7 @@
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
-        "partial：Go 断言回测来源市场暴露固定规则且不触达实盘操作。Rust 的市场规则用例断言按去空白标的匹配并按顺序应用覆盖（该用例），规则来源为快照、不触达实盘。"
+        "partial：Go 断言回测来源市场暴露固定规则且拒绝实盘操作（ticker/klines/下单拒绝、账户/撤单放行）。Rust 引用用例仅断言按去空白标的匹配并按顺序应用覆盖；规则来自快照、不触达实盘是模块结构事实，本用例未对其断言，存活操作拒绝链无对应断言。"
       ],
       "boundaryReason": null
     },
