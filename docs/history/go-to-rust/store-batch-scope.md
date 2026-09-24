@@ -46,3 +46,29 @@ busy_timeout 10000 + foreign_keys）与 Go `:11`（写者 FIFO + 读屏障门控
 定向 nextest（store-sqlite 整 crate）、`check:quick`（单实例）、`git diff --check`。
 
 下一片：store 域按文件继续（settingsfile 系 38 条）。
+
+## 第 130 批 08 切片三：settingsfile 38 条 recon（2026-09-24）
+
+范围：`internal/store/settingsfile/` 全域 8 文件 38 条：
+legacy 1、market_data 5、normalization 6、persist_failures 1、
+rollback 3、persistence_contracts 9、recovery 6、store 7
+（partial 37 + `[x]` 1）。
+
+方法：Go 体逐条核对结论；38 条 Rust 引用逐一 rg 命中（0 缺失）；
+唯一 `[x]`（`store:205` US 默认远端源 NYSE 列表）逐项等价，
+preferred/enabled 两列表同值断言 + `// Parity:` 锚点在位，成立。
+37 partial 均明确写出缺口（显式 false 保留、enabled 列表重写、
+scope ID 格式、未知字段不重写、逐日矩阵等），口径诚实。
+附带发现（非判定变更）：`test_failed_setting_saves_rollback_all_runtime_state`
+名实不符——函数名承诺失败回滚，函数体仅做 appearance 成功保存可读；
+台账结论已如实描述现状（partial），改名/补断言留待后续回归。
+
+结论：38 条 verdict 全部成立，无判定变更、无代码变更。本片为纯 recon。
+
+验证：`audit_test_parity.py --write-report` exit 0；`parity_anchor_reconcile.py` 过；
+`cargo fmt -p jftrade-engine -- --check`、`check:ai-context`、
+`check:migration-manifest`、`check:zero-go`、
+定向 nextest（store-settings-file + settings 整 crate）、
+`check:quick`（单实例）、`git diff --check`。
+
+下一片：store 域按文件继续（trading 系约 50 条）。
