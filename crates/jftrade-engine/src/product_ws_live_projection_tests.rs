@@ -103,6 +103,7 @@ fn subscription_normalization_matches_the_go_table() {
 }
 
 // Parity: go:452dea11:internal/api/live/dispatcher_boundaries_test.go:59 TestDispatcherAuxiliarySubscriptionBranches
+// Parity: go:452dea11:internal/app/apiserver/servercore/ws_events_test.go:215 TestLiveWebSocketSendsConsoleRefresh
 // The reference owner keeps the console refresh, skips only the provider
 // that failed (`securityErr`/`depthErr`) and still writes the remaining
 // auxiliary frames; the frozen projection must do the same.

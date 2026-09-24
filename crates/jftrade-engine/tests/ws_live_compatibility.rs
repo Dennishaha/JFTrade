@@ -10,6 +10,7 @@ const FIXTURE: &str =
 // Parity: go:452dea11:internal/app/apiserver/servercore/server_market_test.go:11 TestMarketDataSubscriptionHeartbeat
 // Parity: go:452dea11:internal/app/apiserver/servercore/ws_events_test.go:20 TestLiveWebSocketSendsHeartbeat
 // Parity: go:452dea11:internal/app/apiserver/servercore/ws_events_test.go:45 TestLiveWebSocketSendsSystemNotification
+// Parity: go:452dea11:internal/app/apiserver/servercore/ws_events_test.go:215 TestLiveWebSocketSendsConsoleRefresh
 #[test]
 fn ws_live_replays_complete_go_corpus() {
     let fixture: WsLiveFixture = serde_json::from_str(FIXTURE).expect("ws-live fixture");

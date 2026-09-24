@@ -50845,11 +50845,11 @@
       "boundaryReason": null
     },
     "internal/app/apiserver/servercore/settings_market_data_test.go:11:TestServerSettingsStoreDefaultsAndPersistsMarketDataSelection": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "crates/jftrade-settings/src/market_data_provider.rs::provider_normalization_matches_current_go_defaults",
-      "conclusion": "function_exact：Go 断言设置存储默认行情提供者为 AKShare、保存 FUTU 生效、非法值拒绝。Rust 引用测试断言归一与默认 AKShare、保存 yfinance 归一、非法值返回 Invalid。",
+      "conclusion": "partial（重载半侧缺失）：Go 断言设置存储默认行情提供者为 AKShare、保存 FUTU 后关闭重开仍为 FUTU。Rust provider_normalization 用例断言默认 AKShare、大小写/空白归一与非法值拒绝（有锚点），但保存的是 YFINANCE（内存 Store）且无关闭重开的文件往返断言。缺口与回归要求：补设置文件关闭重开后行情提供者选择保持的用例后再升级。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings -E 'test(provider_normalization_matches_current_go_defaults)'",
-      "evidence_type": "function_exact",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/servercore/settings_market_data_test.go",
         "line": 11,
@@ -50870,10 +50870,10 @@
         }
       ],
       "assertionCoverage": {
-        "covered": [
-          "function_exact：Go 断言设置存储默认行情提供者为 AKShare、保存 FUTU 生效、非法值拒绝。Rust 引用测试断言归一与默认 AKShare、保存 yfinance 归一、非法值返回 Invalid。"
+        "covered": [],
+        "uncovered": [
+          "partial（重载半侧缺失）：Go 断言设置存储默认行情提供者为 AKShare、保存 FUTU 后关闭重开仍为 FUTU。Rust provider_normalization 用例断言默认 AKShare、大小写/空白归一与非法值拒绝（有锚点），但保存的是 YFINANCE（内存 Store）且无关闭重开的文件往返断言。缺口与回归要求：补设置文件关闭重开后行情提供者选择保持的用例后再升级。"
         ],
-        "uncovered": [],
         "source": "legacy-conclusion"
       },
       "verification": {
@@ -50900,15 +50900,15 @@
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
         "verification-receipt"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "function_exact：Go 断言设置存储默认行情提供者为 AKShare、保存 FUTU 生效、非法值拒绝。Rust 引用测试断言归一与默认 AKShare、保存 yfinance 归一、非法值返回 Invalid。"
+      "coveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial（重载半侧缺失）：Go 断言设置存储默认行情提供者为 AKShare、保存 FUTU 后关闭重开仍为 FUTU。Rust provider_normalization 用例断言默认 AKShare、大小写/空白归一与非法值拒绝（有锚点），但保存的是 YFINANCE（内存 Store）且无关闭重开的文件往返断言。缺口与回归要求：补设置文件关闭重开后行情提供者选择保持的用例后再升级。"
       ],
-      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/app/apiserver/servercore/settings_market_data_test.go:32:TestStartupKeepsConfiguredYFinanceWhenHelperCannotActivate": {
@@ -50974,11 +50974,11 @@
       "boundaryReason": null
     },
     "internal/app/apiserver/servercore/settings_security_test.go:14:TestWebAccessSettingsDefaultToDesktopOnly": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_system_control_read_tests.rs::system_control_reads_are_authenticated_and_do_not_create_control_state; crates/jftrade-settings/src/security.rs::access_fails_closed_without_a_configured_password",
-      "conclusion": "function_exact：Go 断言默认设置下浏览器访问被拒、仅桌面可用；Rust 断言默认无凭据请求 401（桌面 token/会话之外不可读），且未配置密码时 web 访问整体 fail-closed。",
+      "conclusion": "partial（wire 状态码分叉）：Go 断言未开启 web 时浏览器 GET /api/v1/system/status 返回 403 且正文含 WEB_ACCESS_DISABLED，桌面 GET 安全设置返回 webAccessEnabled:false/passwordConfigured:false。Rust system_control_reads 用例断言 enforcing 下无凭据读控制面返回 401 且桌面 token 可读、不落控制状态，access_fails_closed 用例断言无密码时 fail-closed；但同一输入（无凭据浏览器请求）Go 给 403+WEB_ACCESS_DISABLED、Rust 给 401+ok:false，wire 契约不一致。默认体半侧由 product_server_persists_ui_settings 用例断言（未在本行引用）。缺口与回归要求：明确未开启 web 时匿名浏览器读状态的 wire 契约（403+WEB_ACCESS_DISABLED 还是 401+WEB_AUTH_REQUIRED），补路由级用例后再升级。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(system_control_reads_are_authenticated_and_do_not_create_control_state)'",
-      "evidence_type": "function_exact",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/servercore/settings_security_test.go",
         "line": 14,
@@ -51005,10 +51005,10 @@
         }
       ],
       "assertionCoverage": {
-        "covered": [
-          "function_exact：Go 断言默认设置下浏览器访问被拒、仅桌面可用；Rust 断言默认无凭据请求 401（桌面 token/会话之外不可读），且未配置密码时 web 访问整体 fail-closed。"
+        "covered": [],
+        "uncovered": [
+          "partial（wire 状态码分叉）：Go 断言未开启 web 时浏览器 GET /api/v1/system/status 返回 403 且正文含 WEB_ACCESS_DISABLED，桌面 GET 安全设置返回 webAccessEnabled:false/passwordConfigured:false。Rust system_control_reads 用例断言 enforcing 下无凭据读控制面返回 401 且桌面 token 可读、不落控制状态，access_fails_closed 用例断言无密码时 fail-closed；但同一输入（无凭据浏览器请求）Go 给 403+WEB_ACCESS_DISABLED、Rust 给 401+ok:false，wire 契约不一致。默认体半侧由 product_server_persists_ui_settings 用例断言（未在本行引用）。缺口与回归要求：明确未开启 web 时匿名浏览器读状态的 wire 契约（403+WEB_ACCESS_DISABLED 还是 401+WEB_AUTH_REQUIRED），补路由级用例后再升级。"
         ],
-        "uncovered": [],
         "source": "legacy-conclusion"
       },
       "verification": {
@@ -51036,23 +51036,23 @@
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
         "verification-receipt"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "function_exact：Go 断言默认设置下浏览器访问被拒、仅桌面可用；Rust 断言默认无凭据请求 401（桌面 token/会话之外不可读），且未配置密码时 web 访问整体 fail-closed。"
+      "coveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial（wire 状态码分叉）：Go 断言未开启 web 时浏览器 GET /api/v1/system/status 返回 403 且正文含 WEB_ACCESS_DISABLED，桌面 GET 安全设置返回 webAccessEnabled:false/passwordConfigured:false。Rust system_control_reads 用例断言 enforcing 下无凭据读控制面返回 401 且桌面 token 可读、不落控制状态，access_fails_closed 用例断言无密码时 fail-closed；但同一输入（无凭据浏览器请求）Go 给 403+WEB_ACCESS_DISABLED、Rust 给 401+ok:false，wire 契约不一致。默认体半侧由 product_server_persists_ui_settings 用例断言（未在本行引用）。缺口与回归要求：明确未开启 web 时匿名浏览器读状态的 wire 契约（403+WEB_ACCESS_DISABLED 还是 401+WEB_AUTH_REQUIRED），补路由级用例后再升级。"
       ],
-      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/app/apiserver/servercore/settings_security_test.go:37:TestDesktopCanEnablePasswordProtectedWebWithoutExposingPassword": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_tests.rs::product_server_persists_ui_settings_and_reports_actual_port",
-      "conclusion": "function_exact：Go 断言桌面可开启密码保护 web 访问且响应不回显密码；Rust 同一路由测试断言保存后响应无 passwordHash、启用成功并持久化。",
+      "conclusion": "partial（登录闭环缺失）：Go 断言桌面开启密码保护 web——响应 webAccessEnabled:true/passwordConfigured:true 且无 password/newPassword/passwordHash 明文、设置文件为 argon2id 且无明文与遗留字段、未登录 GET 返回 401、cookie 登录后 GET 返回 200 且无泄漏。Rust product_server_persists_ui_settings 用例断言 PUT 保存 web 密码后响应无 passwordHash/明文与启用标志（有锚点），但 web 密码的文件落盘哈希、401 与 cookie 登录往返均无断言（该用例内 argon2id 断言只针对 MCP token）。缺口与回归要求：在 jftrade-engine 补 web 密码保存->文件哈希->401->登录->200 的端到端用例后再升级。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(product_server_persists_ui_settings_and_reports_actual_port)'",
-      "evidence_type": "function_exact",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/servercore/settings_security_test.go",
         "line": 37,
@@ -51073,10 +51073,10 @@
         }
       ],
       "assertionCoverage": {
-        "covered": [
-          "function_exact：Go 断言桌面可开启密码保护 web 访问且响应不回显密码；Rust 同一路由测试断言保存后响应无 passwordHash、启用成功并持久化。"
+        "covered": [],
+        "uncovered": [
+          "partial（登录闭环缺失）：Go 断言桌面开启密码保护 web——响应 webAccessEnabled:true/passwordConfigured:true 且无 password/newPassword/passwordHash 明文、设置文件为 argon2id 且无明文与遗留字段、未登录 GET 返回 401、cookie 登录后 GET 返回 200 且无泄漏。Rust product_server_persists_ui_settings 用例断言 PUT 保存 web 密码后响应无 passwordHash/明文与启用标志（有锚点），但 web 密码的文件落盘哈希、401 与 cookie 登录往返均无断言（该用例内 argon2id 断言只针对 MCP token）。缺口与回归要求：在 jftrade-engine 补 web 密码保存->文件哈希->401->登录->200 的端到端用例后再升级。"
         ],
-        "uncovered": [],
         "source": "legacy-conclusion"
       },
       "verification": {
@@ -51103,15 +51103,15 @@
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
         "verification-receipt"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "function_exact：Go 断言桌面可开启密码保护 web 访问且响应不回显密码；Rust 同一路由测试断言保存后响应无 passwordHash、启用成功并持久化。"
+      "coveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial（登录闭环缺失）：Go 断言桌面开启密码保护 web——响应 webAccessEnabled:true/passwordConfigured:true 且无 password/newPassword/passwordHash 明文、设置文件为 argon2id 且无明文与遗留字段、未登录 GET 返回 401、cookie 登录后 GET 返回 200 且无泄漏。Rust product_server_persists_ui_settings 用例断言 PUT 保存 web 密码后响应无 passwordHash/明文与启用标志（有锚点），但 web 密码的文件落盘哈希、401 与 cookie 登录往返均无断言（该用例内 argon2id 断言只针对 MCP token）。缺口与回归要求：在 jftrade-engine 补 web 密码保存->文件哈希->401->登录->200 的端到端用例后再升级。"
       ],
-      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/app/apiserver/servercore/settings_security_test.go:86:TestWebAccessCannotBeEnabledWithoutPassword": {
@@ -51256,11 +51256,11 @@
       "boundaryReason": null
     },
     "internal/app/apiserver/servercore/settings_security_test.go:116:TestDisablingWebImmediatelyInvalidatesBrowserButNotDesktop": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_auth_session_manager.rs::auth_sessions_are_cookie_bound_hashed_and_restart_durable; crates/jftrade-engine/src/product_server_tests.rs::disabled_web_access_does_not_start_a_listener",
-      "conclusion": "function_exact：Go 断言关闭 web 后浏览器会话立即失效而桌面不受影响；Rust 断言安全设置保存即 invalidate_all（旧会话 authenticated=false 且不可验证），禁用 web 后不启动 listener（浏览器通道关闭），桌面 token 通道不受影响。",
+      "conclusion": "partial（保存触发接线缺失）：Go 断言关闭 web 后浏览器 cookie 会话立即失效（403）而桌面 token 仍返回 200。Rust auth_sessions 用例断言 invalidate_all 机制（cookie 绑定、哈希落盘、重启 durable、失效后不可验证，有锚点），disabled_web 用例断言禁用后不启动 listener；product_api 保存安全设置确会调 invalidate_all_sessions，但“保存触发旧会话失效”的接线与“桌面 token 通道不受影响”均无直接断言。缺口与回归要求：补桌面保存安全设置后浏览器会话失效、桌面 token 仍可用的路由级用例后再升级。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(auth_sessions_are_cookie_bound_hashed_and_restart_durable)'",
-      "evidence_type": "function_exact",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/servercore/settings_security_test.go",
         "line": 116,
@@ -51287,10 +51287,10 @@
         }
       ],
       "assertionCoverage": {
-        "covered": [
-          "function_exact：Go 断言关闭 web 后浏览器会话立即失效而桌面不受影响；Rust 断言安全设置保存即 invalidate_all（旧会话 authenticated=false 且不可验证），禁用 web 后不启动 listener（浏览器通道关闭），桌面 token 通道不受影响。"
+        "covered": [],
+        "uncovered": [
+          "partial（保存触发接线缺失）：Go 断言关闭 web 后浏览器 cookie 会话立即失效（403）而桌面 token 仍返回 200。Rust auth_sessions 用例断言 invalidate_all 机制（cookie 绑定、哈希落盘、重启 durable、失效后不可验证，有锚点），disabled_web 用例断言禁用后不启动 listener；product_api 保存安全设置确会调 invalidate_all_sessions，但“保存触发旧会话失效”的接线与“桌面 token 通道不受影响”均无直接断言。缺口与回归要求：补桌面保存安全设置后浏览器会话失效、桌面 token 仍可用的路由级用例后再升级。"
         ],
-        "uncovered": [],
         "source": "legacy-conclusion"
       },
       "verification": {
@@ -51318,21 +51318,21 @@
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
         "verification-receipt"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "function_exact：Go 断言关闭 web 后浏览器会话立即失效而桌面不受影响；Rust 断言安全设置保存即 invalidate_all（旧会话 authenticated=false 且不可验证），禁用 web 后不启动 listener（浏览器通道关闭），桌面 token 通道不受影响。"
+      "coveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial（保存触发接线缺失）：Go 断言关闭 web 后浏览器 cookie 会话立即失效（403）而桌面 token 仍返回 200。Rust auth_sessions 用例断言 invalidate_all 机制（cookie 绑定、哈希落盘、重启 durable、失效后不可验证，有锚点），disabled_web 用例断言禁用后不启动 listener；product_api 保存安全设置确会调 invalidate_all_sessions，但“保存触发旧会话失效”的接线与“桌面 token 通道不受影响”均无直接断言。缺口与回归要求：补桌面保存安全设置后浏览器会话失效、桌面 token 仍可用的路由级用例后再升级。"
       ],
-      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/app/apiserver/servercore/strategy_definition_delete_guard_test.go:16:TestDeleteStrategyDefinitionRequiresDeletingLinkedInstancesFirst": {
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/tests/strategy_definitions_write_compatibility.rs::sqlite_test_cutover_preserves_versions_rollback_linked_delete_and_restart",
-      "conclusion": "function_exact：Go 断言存在关联实例时删除策略定义被拒绝且需先删实例。Rust 兼容测试断言版本回滚、关联删除守卫与重启后状态一致。",
+      "conclusion": "function_exact：Go 断言存在关联实例时删除策略定义被拒绝且需先删实例。Rust 兼容测试断言版本回滚、关联删除守卫与重启后状态一致。（第 130 批 s33b 备注：守卫码 400 一致，但 Go 断言中文提示“请先删除对应实例再删除”，Rust DeleteGuard 消息为英文 cannot delete strategy definition with N active instances，文案差按状态语义一致口径维持；软删后 versions 端点（1 条非 current）无直接断言，属守卫细节，主簇（400 拦截->解链->软删隐藏->重启保持）完整。）",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(sqlite_test_cutover_preserves_versions_rollback_linked_delete_and_restart)'",
       "evidence_type": "function_exact",
       "source": {
@@ -51356,7 +51356,7 @@
       ],
       "assertionCoverage": {
         "covered": [
-          "function_exact：Go 断言存在关联实例时删除策略定义被拒绝且需先删实例。Rust 兼容测试断言版本回滚、关联删除守卫与重启后状态一致。"
+          "function_exact：Go 断言存在关联实例时删除策略定义被拒绝且需先删实例。Rust 兼容测试断言版本回滚、关联删除守卫与重启后状态一致。（第 130 批 s33b 备注：守卫码 400 一致，但 Go 断言中文提示“请先删除对应实例再删除”，Rust DeleteGuard 消息为英文 cannot delete strategy definition with N active instances，文案差按状态语义一致口径维持；软删后 versions 端点（1 条非 current）无直接断言，属守卫细节，主簇（400 拦截->解链->软删隐藏->重启保持）完整。）"
         ],
         "uncovered": [],
         "source": "legacy-conclusion"
@@ -51391,7 +51391,7 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "function_exact：Go 断言存在关联实例时删除策略定义被拒绝且需先删实例。Rust 兼容测试断言版本回滚、关联删除守卫与重启后状态一致。"
+        "function_exact：Go 断言存在关联实例时删除策略定义被拒绝且需先删实例。Rust 兼容测试断言版本回滚、关联删除守卫与重启后状态一致。（第 130 批 s33b 备注：守卫码 400 一致，但 Go 断言中文提示“请先删除对应实例再删除”，Rust DeleteGuard 消息为英文 cannot delete strategy definition with N active instances，文案差按状态语义一致口径维持；软删后 versions 端点（1 条非 current）无直接断言，属守卫细节，主簇（400 拦截->解链->软删隐藏->重启保持）完整。）"
       ],
       "uncoveredAssertions": [],
       "boundaryReason": null
@@ -52364,8 +52364,8 @@
     },
     "internal/app/apiserver/servercore/ws_events_test.go:45:TestLiveWebSocketSendsSystemNotification": {
       "status": "[x]",
-      "rust_entry": "crates/jftrade-engine/tests/ws_live_compatibility.rs::ws_live_replays_complete_go_corpus; crates/jftrade-engine/src/product_execution_notification_projector.rs",
-      "conclusion": "function_exact：Go 断言系统通知经 WS 推送；Rust corpus 的 notification-replay 用例断言通知帧顺序与去重，投递内容由执行通知投影端口生成。",
+      "rust_entry": "crates/jftrade-engine/tests/ws_live_compatibility.rs::ws_live_replays_complete_go_corpus; crates/jftrade-engine/src/product_ws_live_tests.rs::ws_live_transport_accepts_trusted_origin_and_streams_heartbeat_first",
+      "conclusion": "function_exact：Go 断言系统通知经 WS 推送（首帧 heartbeat、次帧 system.notification 且 source notification、title/message 透传）。Rust corpus notification-replay 用例以全帧比对锁定通知帧顺序、去重与 title/message 透传，transport 用例断言真机 WS 首帧 heartbeat（source system）。（第 130 批 s33b 修唯一性：原串混入无测试名的 projector 实现文件已裁剪；corpus 单串与 :58 重复，改 dual 组合，结论不变。）",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(ws_live_replays_complete_go_corpus)'",
       "evidence_type": "function_exact",
       "source": {
@@ -52385,11 +52385,22 @@
             "rustFile": "crates/jftrade-engine/tests/ws_live_compatibility.rs",
             "rustLine": 12
           }
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_ws_live_tests.rs",
+          "test": "ws_live_transport_accepts_trusted_origin_and_streams_heartbeat_first",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/app/apiserver/servercore/ws_events_test.go",
+            "goLine": 45,
+            "rustFile": "crates/jftrade-engine/src/product_ws_live_tests.rs",
+            "rustLine": 142
+          }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "function_exact：Go 断言系统通知经 WS 推送；Rust corpus 的 notification-replay 用例断言通知帧顺序与去重，投递内容由执行通知投影端口生成。"
+          "function_exact：Go 断言系统通知经 WS 推送（首帧 heartbeat、次帧 system.notification 且 source notification、title/message 透传）。Rust corpus notification-replay 用例以全帧比对锁定通知帧顺序、去重与 title/message 透传，transport 用例断言真机 WS 首帧 heartbeat（source system）。（第 130 批 s33b 修唯一性：原串混入无测试名的 projector 实现文件已裁剪；corpus 单串与 :58 重复，改 dual 组合，结论不变。）"
         ],
         "uncovered": [],
         "source": "legacy-conclusion"
@@ -52405,7 +52416,8 @@
           "test(ws_live_replays_complete_go_corpus)"
         ],
         "testFilter": [
-          "ws_live_replays_complete_go_corpus"
+          "ws_live_replays_complete_go_corpus",
+          "ws_live_transport_accepts_trusted_origin_and_streams_heartbeat_first"
         ],
         "runnerVersion": null,
         "toolchain": null,
@@ -52424,7 +52436,7 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "function_exact：Go 断言系统通知经 WS 推送；Rust corpus 的 notification-replay 用例断言通知帧顺序与去重，投递内容由执行通知投影端口生成。"
+        "function_exact：Go 断言系统通知经 WS 推送（首帧 heartbeat、次帧 system.notification 且 source notification、title/message 透传）。Rust corpus notification-replay 用例以全帧比对锁定通知帧顺序、去重与 title/message 透传，transport 用例断言真机 WS 首帧 heartbeat（source system）。（第 130 批 s33b 修唯一性：原串混入无测试名的 projector 实现文件已裁剪；corpus 单串与 :58 重复，改 dual 组合，结论不变。）"
       ],
       "uncoveredAssertions": [],
       "boundaryReason": null
@@ -52545,11 +52557,11 @@
       "boundaryReason": null
     },
     "internal/app/apiserver/servercore/ws_events_test.go:152:TestLiveWebSocketInitialMarketTickRefreshesObservedAt": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_runtime_opend_listener_tests.rs::basic_quote_pushes_publish_delta_and_cumulative_volume; crates/jftrade-engine/tests/ws_live_compatibility.rs::ws_live_replays_complete_go_corpus",
-      "conclusion": "function_exact：Go 断言首个行情 tick 刷新 observedAt；Rust 断言报价推送按快照时间发布事件（observedAt 来自推送），corpus 回放订阅事件顺序与归一化。",
+      "conclusion": "partial（题眼 observedAt 与 source 未覆盖）：Go 断言首个行情 tick 的 snapshot.observedAt==payload.at、volume/cumulativeVolume/volumeDelta 字符串、payload.source==bbgo:futu、at>=observedAt。Rust basic_quote_pushes 用例断言首 tick cumulativeVolume/volumeDelta/snapshot.volume 字符串（有锚点），corpus 锁订阅事件顺序；但 Rust tick 的 payload.source 恒为 futu（Go 要 bbgo:futu，wire 值分叉），snapshot 没有 observedAt 字段（Go 断言 observedAt==at）。缺口与回归要求：明确 tick source 取值与 snapshot.observedAt 契约（补字段或改值由前端消费决定），补首 tick 全字段用例后再升级。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(basic_quote_pushes_publish_delta_and_cumulative_volume)'",
-      "evidence_type": "function_exact",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/servercore/ws_events_test.go",
         "line": 152,
@@ -52576,10 +52588,10 @@
         }
       ],
       "assertionCoverage": {
-        "covered": [
-          "function_exact：Go 断言首个行情 tick 刷新 observedAt；Rust 断言报价推送按快照时间发布事件（observedAt 来自推送），corpus 回放订阅事件顺序与归一化。"
+        "covered": [],
+        "uncovered": [
+          "partial（题眼 observedAt 与 source 未覆盖）：Go 断言首个行情 tick 的 snapshot.observedAt==payload.at、volume/cumulativeVolume/volumeDelta 字符串、payload.source==bbgo:futu、at>=observedAt。Rust basic_quote_pushes 用例断言首 tick cumulativeVolume/volumeDelta/snapshot.volume 字符串（有锚点），corpus 锁订阅事件顺序；但 Rust tick 的 payload.source 恒为 futu（Go 要 bbgo:futu，wire 值分叉），snapshot 没有 observedAt 字段（Go 断言 observedAt==at）。缺口与回归要求：明确 tick source 取值与 snapshot.observedAt 契约（补字段或改值由前端消费决定），补首 tick 全字段用例后再升级。"
         ],
-        "uncovered": [],
         "source": "legacy-conclusion"
       },
       "verification": {
@@ -52607,22 +52619,22 @@
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
         "verification-receipt"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "function_exact：Go 断言首个行情 tick 刷新 observedAt；Rust 断言报价推送按快照时间发布事件（observedAt 来自推送），corpus 回放订阅事件顺序与归一化。"
+      "coveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial（题眼 observedAt 与 source 未覆盖）：Go 断言首个行情 tick 的 snapshot.observedAt==payload.at、volume/cumulativeVolume/volumeDelta 字符串、payload.source==bbgo:futu、at>=observedAt。Rust basic_quote_pushes 用例断言首 tick cumulativeVolume/volumeDelta/snapshot.volume 字符串（有锚点），corpus 锁订阅事件顺序；但 Rust tick 的 payload.source 恒为 futu（Go 要 bbgo:futu，wire 值分叉），snapshot 没有 observedAt 字段（Go 断言 observedAt==at）。缺口与回归要求：明确 tick source 取值与 snapshot.observedAt 契约（补字段或改值由前端消费决定），补首 tick 全字段用例后再升级。"
       ],
-      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/app/apiserver/servercore/ws_events_test.go:215:TestLiveWebSocketSendsConsoleRefresh": {
       "status": "[x]",
-      "rust_entry": "crates/jftrade-engine/src/product_runtime_opend_listener_tests.rs::provider_reconnect_publishes_resync_events_and_wakes_reconciliation",
-      "conclusion": "function_exact：Go 断言 WS 发送 console.refresh；Rust 断言 provider 重连只对已订阅标的重放并发布 console.refresh 唤醒控制台重建。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(provider_reconnect_publishes_resync_events_and_wakes_reconciliation)'",
+      "rust_entry": "crates/jftrade-engine/tests/ws_live_compatibility.rs::ws_live_replays_complete_go_corpus; crates/jftrade-engine/src/product_ws_live_projection_tests.rs::auxiliary_provider_failure_skips_only_the_failing_subscription_family",
+      "conclusion": "function_exact：Go 断言订阅 ConsoleRefresh:true 后服务端推送 console.refresh（source system、checkedAt 非空）。Rust corpus subscription-order 用例以全帧比对锁定订阅触发的 console.refresh（source system、checkedAt=fixture-time），auxiliary 用例断言 console_refresh:true 的订阅必产出 console.refresh 辅助帧。（第 130 批 s33b 纠正证据：原引用重连触发的 resync 用例，触发器与 source 均不同——重连帧 source 为 market-data；订阅路径由 corpus+auxiliary 锁定。）",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(ws_live_replays_complete_go_corpus)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/app/apiserver/servercore/ws_events_test.go",
@@ -52632,20 +52644,31 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_runtime_opend_listener_tests.rs",
-          "test": "provider_reconnect_publishes_resync_events_and_wakes_reconciliation",
+          "file": "crates/jftrade-engine/tests/ws_live_compatibility.rs",
+          "test": "ws_live_replays_complete_go_corpus",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/app/apiserver/servercore/ws_events_test.go",
             "goLine": 215,
-            "rustFile": "crates/jftrade-engine/src/product_runtime_opend_listener_tests.rs",
-            "rustLine": 423
+            "rustFile": "crates/jftrade-engine/tests/ws_live_compatibility.rs",
+            "rustLine": 13
+          }
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_ws_live_projection_tests.rs",
+          "test": "auxiliary_provider_failure_skips_only_the_failing_subscription_family",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/app/apiserver/servercore/ws_events_test.go",
+            "goLine": 215,
+            "rustFile": "crates/jftrade-engine/src/product_ws_live_projection_tests.rs",
+            "rustLine": 106
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "function_exact：Go 断言 WS 发送 console.refresh；Rust 断言 provider 重连只对已订阅标的重放并发布 console.refresh 唤醒控制台重建。"
+          "function_exact：Go 断言订阅 ConsoleRefresh:true 后服务端推送 console.refresh（source system、checkedAt 非空）。Rust corpus subscription-order 用例以全帧比对锁定订阅触发的 console.refresh（source system、checkedAt=fixture-time），auxiliary 用例断言 console_refresh:true 的订阅必产出 console.refresh 辅助帧。（第 130 批 s33b 纠正证据：原引用重连触发的 resync 用例，触发器与 source 均不同——重连帧 source 为 market-data；订阅路径由 corpus+auxiliary 锁定。）"
         ],
         "uncovered": [],
         "source": "legacy-conclusion"
@@ -52658,10 +52681,11 @@
           "-p",
           "jftrade-engine",
           "-E",
-          "test(provider_reconnect_publishes_resync_events_and_wakes_reconciliation)"
+          "test(ws_live_replays_complete_go_corpus)"
         ],
         "testFilter": [
-          "provider_reconnect_publishes_resync_events_and_wakes_reconciliation"
+          "ws_live_replays_complete_go_corpus",
+          "auxiliary_provider_failure_skips_only_the_failing_subscription_family"
         ],
         "runnerVersion": null,
         "toolchain": null,
@@ -52680,7 +52704,7 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "function_exact：Go 断言 WS 发送 console.refresh；Rust 断言 provider 重连只对已订阅标的重放并发布 console.refresh 唤醒控制台重建。"
+        "function_exact：Go 断言订阅 ConsoleRefresh:true 后服务端推送 console.refresh（source system、checkedAt 非空）。Rust corpus subscription-order 用例以全帧比对锁定订阅触发的 console.refresh（source system、checkedAt=fixture-time），auxiliary 用例断言 console_refresh:true 的订阅必产出 console.refresh 辅助帧。（第 130 批 s33b 纠正证据：原引用重连触发的 resync 用例，触发器与 source 均不同——重连帧 source 为 market-data；订阅路径由 corpus+auxiliary 锁定。）"
       ],
       "uncoveredAssertions": [],
       "boundaryReason": null
@@ -300267,13 +300291,12 @@
       "reviewStatus": "single"
     },
     "crates/jftrade-engine/src/product_runtime_opend_listener_tests.rs::provider_reconnect_publishes_resync_events_and_wakes_reconciliation": {
-      "referenceCount": 2,
+      "referenceCount": 1,
       "referenceKeys": [
-        "internal/app/apiserver/servercore/ws_events_test.go:215:TestLiveWebSocketSendsConsoleRefresh",
         "pkg/futu/stream_connection_quote_boundaries_test.go:317:TestStreamReconnectAndClientWatcherExitPaths"
       ],
-      "allowed": false,
-      "reviewStatus": "unreviewed"
+      "allowed": true,
+      "reviewStatus": "single"
     },
     "crates/jftrade-engine/src/product_runtime_provider_activation.rs::readiness_without_composed_runtimes_reports_all_false": {
       "referenceCount": 2,
@@ -301183,12 +301206,13 @@
       "reviewStatus": "unreviewed"
     },
     "crates/jftrade-engine/src/product_ws_live_projection_tests.rs::auxiliary_provider_failure_skips_only_the_failing_subscription_family": {
-      "referenceCount": 1,
+      "referenceCount": 2,
       "referenceKeys": [
-        "internal/api/live/dispatcher_boundaries_test.go:59:TestDispatcherAuxiliarySubscriptionBranches"
+        "internal/api/live/dispatcher_boundaries_test.go:59:TestDispatcherAuxiliarySubscriptionBranches",
+        "internal/app/apiserver/servercore/ws_events_test.go:215:TestLiveWebSocketSendsConsoleRefresh"
       ],
-      "allowed": true,
-      "reviewStatus": "single"
+      "allowed": false,
+      "reviewStatus": "unreviewed"
     },
     "crates/jftrade-engine/src/product_ws_live_projection_tests.rs::repeated_tick_observations_are_deduplicated_per_provider": {
       "referenceCount": 2,
@@ -301209,10 +301233,11 @@
       "reviewStatus": "unreviewed"
     },
     "crates/jftrade-engine/src/product_ws_live_tests.rs::ws_live_transport_accepts_trusted_origin_and_streams_heartbeat_first": {
-      "referenceCount": 2,
+      "referenceCount": 3,
       "referenceKeys": [
         "internal/api/live/handler_test.go:113:TestHandlerHeartbeatSubscribeNormalizationAndPayloads",
-        "internal/api/live/handler_test.go:421:TestHandlerAcceptsSameOriginWebSocket"
+        "internal/api/live/handler_test.go:421:TestHandlerAcceptsSameOriginWebSocket",
+        "internal/app/apiserver/servercore/ws_events_test.go:45:TestLiveWebSocketSendsSystemNotification"
       ],
       "allowed": false,
       "reviewStatus": "unreviewed"
@@ -302595,7 +302620,7 @@
       "reviewStatus": "single"
     },
     "crates/jftrade-engine/tests/ws_live_compatibility.rs::ws_live_replays_complete_go_corpus": {
-      "referenceCount": 19,
+      "referenceCount": 20,
       "referenceKeys": [
         "internal/api/live/dispatcher_boundaries_test.go:20:TestDispatcherInitialAndLiveDataFailures",
         "internal/api/live/dispatcher_boundaries_test.go:59:TestDispatcherAuxiliarySubscriptionBranches",
@@ -302615,7 +302640,8 @@
         "internal/app/apiserver/servercore/server_market_test.go:11:TestMarketDataSubscriptionHeartbeat",
         "internal/app/apiserver/servercore/ws_events_test.go:20:TestLiveWebSocketSendsHeartbeat",
         "internal/app/apiserver/servercore/ws_events_test.go:45:TestLiveWebSocketSendsSystemNotification",
-        "internal/app/apiserver/servercore/ws_events_test.go:152:TestLiveWebSocketInitialMarketTickRefreshesObservedAt"
+        "internal/app/apiserver/servercore/ws_events_test.go:152:TestLiveWebSocketInitialMarketTickRefreshesObservedAt",
+        "internal/app/apiserver/servercore/ws_events_test.go:215:TestLiveWebSocketSendsConsoleRefresh"
       ],
       "allowed": false,
       "reviewStatus": "unreviewed"

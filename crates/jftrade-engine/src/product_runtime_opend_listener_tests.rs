@@ -420,7 +420,9 @@ async fn basic_quote_pushes_drop_rows_without_a_usable_security_or_price() {
     );
 }
 
-// Parity: go:452dea11:internal/app/apiserver/servercore/ws_events_test.go:215 TestLiveWebSocketSendsConsoleRefresh
+// The reconnect path below is distinct from the subscribe-triggered console refresh
+// (see ws-live corpus subscription-event-order-and-normalization): it fires on
+// coordinator Reconnected outcomes with a market-data source, not on subscribe.
 // Parity: go:452dea11:pkg/futu/stream_connection_quote_boundaries_test.go:317
 // TestStreamReconnectAndClientWatcherExitPaths.
 //

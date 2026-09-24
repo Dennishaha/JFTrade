@@ -139,6 +139,7 @@ async fn ws_live_transport_rejects_untrusted_origin_before_upgrade() {
 
 // Parity: go:452dea11:internal/api/live/handler_test.go:421 TestHandlerAcceptsSameOriginWebSocket
 // Parity: go:452dea11:internal/api/live/handler_test.go:113 TestHandlerHeartbeatSubscribeNormalizationAndPayloads
+// Parity: go:452dea11:internal/app/apiserver/servercore/ws_events_test.go:45 TestLiveWebSocketSendsSystemNotification
 // The reference owner dials the page origin that served the console and reads
 // the first event; the Rust transport keeps that guarantee through the
 // desktop origin allow-list and answers with the initial heartbeat frame.

@@ -5967,3 +5967,50 @@ notifications 2、openapi 2、observability 2、runtime 观察轮询通知 3、r
 `git diff --check` 干净；无 Rust 生产改动。
 
 下一片：130-09 切片三十三乙，servercore 后 25 条 `[x]`。
+## 第 130 批 09 切片三十三乙：servercore 后 25 条含 5 处纠正与 2 处证据手术（2026-09-24）
+
+范围：`internal/app/apiserver/servercore` 后 25 条 `[x]`（runtime_trading 8、
+settings_security 5、ws_events 4、futu_health 2、market_data 1、delete_guard 1、
+subscription_lifecycle 1、lifecycle 1、market 1、server 1）。
+
+方法：Go 体全读；Rust 断言逐字比对；引用存在不等于断言等价。
+
+5 处纠正（`[x]` 降为 partial，`[x]` 1483→1478）：
+
+- settings_security `:14`：wire 状态码分叉——同为无凭据浏览器读状态，
+  Go 给 403+WEB_ACCESS_DISABLED，Rust 给 401，需明确契约。
+- settings_security `:37`：响应无泄漏半侧成立，但 web 密码文件落盘哈希、
+  401 与 cookie 登录往返无断言。
+- settings_security `:116`：invalidate 机制与无 listener 成立，但“保存触发
+  旧会话失效”接线与桌面 token 不受影响无直接断言。
+- settings_market_data `:11`：默认与归一成立，但保存后关闭重开的文件往返
+  无断言（Rust 只存了内存 Store 的 YFINANCE）。
+- ws_events `:152`：题眼即 observedAt——volume 字符串半侧成立，但 Rust
+  tick 的 payload.source 恒为 futu（Go 要 bbgo:futu），snapshot 无
+  observedAt 字段。
+
+2 处证据手术（维持 `[x]`，台账 + 注释锚点，reuse 同步 4 项）：
+
+- ws_events `:45`：裁剪混入的无测试名 projector 实现文件引用；corpus 单串
+  与 :58 重复，改为 corpus + heartbeat 首帧 transport 用例的 dual 组合。
+- ws_events `:215`：原引用重连触发的 resync 用例（触发器与 source 均不同），
+  改为 corpus 订阅帧 + auxiliary 订阅触发帧的 dual 组合；代码侧 :215 锚点
+  移至 corpus/auxiliary，重连测试注释改为无 Parity 标记的区分说明。
+
+1 处结论备注（维持 `[x]`）：delete_guard `:16` 主簇完整（400 拦截→解链→
+软删隐藏→重启保持），记录守卫消息中英文差与 versions 端点细节缺失。
+
+其余 17 条维持 `[x]`（runtime intent 八项锚点齐、heartbeat 首帧 corpus、
+futu 不可达/旧版诊断逐字段、缺密码拒绝、浏览器禁改、KLINE 租约、实例化
+非法 JSON、DB env override 均逐项命中）。
+
+缺口 owner 与回归：匿名浏览器状态码契约、web 密码登录闭环、保存失效接线、
+provider 选择重载、tick source/observedAt；回归要求见各行
+uncoveredAssertions。
+
+验证：`audit_test_parity.py --write-report` exit 0（1478 exact；dup 0）；
+`parity_anchor_reconcile.py` 过（1742/1696/0/0/46）；定向 nextest 5/5
+（corpus、transport 首帧、auxiliary、重连、首 tick）；`git diff --check`
+干净；无 Rust 生产改动（仅 4 处注释锚点）。
+
+下一片：130-09 切片三十四，servercore 之后领域的纠正式复核。
