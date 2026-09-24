@@ -1398,3 +1398,47 @@ git diff --check
 本片结论：15/15 均保持 `partial`；strategy_pine partial 队列至此全部核对完毕（385/385）。ignored smoke、
 descriptor/golden mapping、legacy runtime normalization 和 CPU scaling 缺口均保留为后续补测方向；没有足够证据
 升格 `[x]`，也没有发现应立即修改 Rust 生产代码的单一行为差异。下一步应转入其他领域的 P0/P1 队列。
+
+## 第 130 批 12 切片三十七：strategy_pine partial 第 261–280 行（2026-09-24）
+
+本片按当前窗口逐条读取 20 个 Go 测试函数体，并将断言拆成 Rust 已有证据、
+worker-owned 边界和待补功能三类。没有因为引用了 `framework_language_feature_tests`
+这一聚合用例就升格为 `[x]`；Go 的 UDT/collection 降级、Pine v2.0–v2.3
+语言表面和 benchmark corpus 仍保持 `partial`/`boundary`。
+
+| 序号 | Go 测试 | Rust 证据/结论 |
+| ---: | --- | --- |
+| 261 | `object_collect_bounds_test.go:12:TestObjectNamedArgumentNormalizationBusinessBoundaries` | `boundary`；Go 断言 UDT 构造器/方法具名参数补默认值、位置参数混用、重复/未知/缺省参数；归一化 owner 是 PineTS worker，Rust 编译器没有同形入口。 |
+| 262 | `object_collect_bounds_test.go:57:TestObjectMethodLoweringHandlesHistoryNamedDefaultsAndExpressionReceivers` | `boundary`；Go 的 `object_method(...)` 与 `history(box, 1)` 接收者降级由 worker 完成，Rust 仅有独立 history 引用证据，不能视为方法 lowering 等价。 |
+| 263 | `object_collect_bounds_test.go:83:TestCollectionStatementsAndReadLoweringBusinessBoundaries` | `boundary`；typed collection statement、`collection_array_*` read lowering 和缺 target 错误不属于 Rust strategy IR owner。 |
+| 264 | `object_collect_reject_test.go:9:TestCompileRejectsInvalidObjectAndCollectionContracts` | `boundary`；Go 25 个对象/集合拒绝文案由 worker parser 负责，Rust 只保留整体 unsupported declaration/call 边界。 |
+| 265 | `object_declaration_contracts_test.go:10:TestObjectDeclarationContractsRejectMalformedDomainTypesAndMethods` | `boundary`；非法 type/method/receiver/default/递归契约没有 Rust parser 同形入口，不能用 MCP rejection 聚合测试代替。 |
+| 266 | `object_declaration_contracts_test.go:120:TestObjectCallsPreserveNamedArgumentAndOverloadSafety` | `boundary`；对象构造/方法 overload 与具名参数安全由 worker 承担，Rust 不实现该调用重载层。 |
+| 267 | `order_command_security_rejection_test.go:82:TestRequestSecurityTupleValidationKeepsParserBoundaries` | `partial`；tuple 匹配和宽度诊断已有 `request_security_tuple_diagnostics_match_go_codes`，未闭合 call/TA helper 的错误码仍与 Go helper 契约不同。 |
+| 268 | `order_metadata_contracts_test.go:8:TestOrderMetadataRejectsAmbiguousInputsAndKeepsSupportedPositionals` | `partial`；Rust 已覆盖 close/close_all metadata 拒绝、单引号解码与 positional close 编译通过；`symbol_position_percent` 内部模式和旧 helper 级参数投影仍未同形。 |
+| 269 | `parse_benchmark_business_test.go:5:TestBenchmarkBusinessScriptsCompileAsRegressionCases` | `partial`；Go 的 6 个 benchmark case（minimal、indicator-heavy、MTF、native indicators、UDF/static-for、orders）未迁移为 Rust corpus；指标、security、UDF/loop、order 子集有分散旁证，但不等价于逐 case `Compile`+`AnalyzeScript`+AST/Semantic 断言。 |
+| 270 | `parse_collection_test.go:11:TestAnalyzeScriptIncludesV20CollectionAndDeclarationSemantics` | `partial`；Rust 对同脚本保持显式 unsupported diagnostics，但未提供 Go 的 typed collection/declaration semantic projection；待 worker/runtime owner 补齐后再加失败回归。 |
+| 271 | `parse_collection_test.go:140:TestPineV20LanguageFoundationGate` | `boundary`；Go 的语言 foundation gate 是旧 parser 的整体版本闸门，Rust 按能力逐项校验；同脚本的 parse-only 诊断不能当作 gate 等价。 |
+| 272 | `parse_collection_test.go:210:TestAnalyzeScriptReportsCollectionOperationSignatureDiagnostics` | `partial`；Go 的 collection signature diagnostics 在 Rust 仍落到 unsupported call，缺少逐 operation typed metadata 与稳定专码。 |
+| 273 | `parse_collection_test.go:233:TestAnalyzeScriptIncludesCollectionMethodStyleOperations` | `partial`；Rust 不实现 `arr.push`/`arr.get`/`map.put`/`matrix.set` 的 collection runtime projection，不能由通用 framework test 覆盖。 |
+| 274 | `parse_collection_test.go:274:TestAnalyzeScriptIncludesTypedCollectionDeclarations` | `partial`；Rust 保留 typed declaration 的拒绝边界，但没有 Go 的 declaration AST/collection operation 结构。 |
+| 275 | `parse_collection_test.go:330:TestCompileSupportsV21ExecutableCollectionCore` | `partial`；Go 的 9 条可执行 collection statement 与 runtime values 缺失，Rust 同脚本仍拒绝，待 PineTS/执行 owner 补回归。 |
+| 276 | `parse_collection_test.go:375:TestCompileSupportsV21CollectionAliases` | `partial`；alias mutation/read 的 collection target 传播不在 Rust IR，不能以普通 assignment 或 framework test 冒充。 |
+| 277 | `parse_collection_test.go:400:TestCompileSupportsV21BBWAndCOG` | `partial`；Rust 有 v12/v13 指标 requirement 测试和 security timeframe 测试，但本 Go 场景的 `bbw`、`cog`、anchored `vwap` 及其 MTF requirement key 未形成同一条 Rust 断言链。 |
+| 278 | `parse_collection_test.go:430:TestCompileSupportsV22StructuredASTGeneralTupleAndDynamicLoops` | `partial`；Rust tuple assignment、structured AST 和 static-for 各有专项测试，但 Go 的一般 tuple + dynamic `for`/`while`/`continue`/`break` 组合尚未完整对齐。 |
+| 279 | `parse_collection_test.go:477:TestCompileSupportsV22PureUDTAndMethodSubset` | `partial`；Go 期望 UDT/method 可执行并投影 typed `ObjectStmt`，Rust parser 当前对该多行对象表面保留拒绝边界，执行 owner 是 PineTS。 |
+| 280 | `parse_collection_test.go:515:TestCompileSupportsV23NamedObjectArgsAndPureMethodBody` | `partial`；Go 的 named constructor/method args 与 pure multi-line method body 尚无 Rust 同形 lowering，保持缺口，不把 framework 聚合测试升格。 |
+
+本片精准验证（9/9 通过）：
+
+```bash
+node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked -E 'test(compile_supports_framework_language_features) | test(compile_accepts_expression_udf_and_static_for_unroll) | test(compile_supports_v12_advanced_indicators) | test(compile_supports_v12_advanced_indicators_in_static_intraday_security) | test(compile_supports_v13_migration_indicators) | test(compile_supports_v13_indicators_in_static_intraday_security) | test(request_security_tuple_diagnostics_match_go_codes) | test(compile_preserves_order_notification_metadata_and_immediate_close) | test(compile_supports_multi_bar_history_references)'
+python3 scripts/compatibility/audit_test_parity.py --write-report
+python3 scripts/compatibility/parity_anchor_reconcile.py
+cargo fmt --all -- --check
+git diff --check
+```
+
+本片结论：20/20 保持 `partial` 或明确 `boundary`，没有新增 Rust 生产修复；
+benchmark corpus、collection runtime、UDT/method lowering 和完整动态控制流缺口
+继续登记为后续补测方向。下一片固定为 strategy_pine partial 第 281–300 行。
