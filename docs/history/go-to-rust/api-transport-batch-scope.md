@@ -5021,3 +5021,50 @@ exit 0（已知警告 0/2/2 不变）；`parity_anchor_reconcile.py` 过
 `check:quick` 工作树计划 exit 0；`git diff --check` 过。
 
 下一片：api_transport 余量继续按文件行号升序。
+
+## 第 130 批 09 切片九：CLI 启动 wrapper 与 assistant transport 首批 41 条 recon（2026-09-24）
+
+范围：`cmd/jftrade-api/main_test.go`（10）+
+`internal/api/assistant/adk_approval_test.go`（6）+
+`adk_integration_test.go`（1）+ `adk_normalize_test.go`（1）+
+`adk_ops_test.go`（7）+ `adk_routes_test.go`（16），共 41 条
+（原 32 `[x]` + 9 `[~]`，其中 8 条边界结论为占位话术）。
+
+方法：Go 体逐条核对结论；32 个 `[x]` 的 Rust 引用逐一命中且锚点齐备
+（29 标准形、launcher 两条为 zero-go 文档化例外、`:597` 为无前缀合法形，
+锚点核对脚本三形全认）；组合条目逐项拆验，生产函数元一律摘除；
+高风险断言抽查 Rust 体（`:335` 双 run 种子与 total=1、`：858`
+ADK_RUN_CANCEL_FAILED、`：282` 409 三件套加行保留、`:245`
+try_send 生产修复、`：707` 安装失败码、`：634` 校验矩阵）。
+14 条台账修正，verdict 零变化：
+
+- 6 条摘除非测试组合元（verdict 不变，`[x]` 归属唯一真实测试）：
+  `:282` DeleteProvider 枚举分支、`:552` dispatch_adk_chat、
+  `:578` body_error_message、`:634` validate_agent_write、
+  `:707` skill_install_failed/uninstall_skill、
+  `:741` validate_agent_skills。
+- 8 条 main_test.go 边界占位结论改写为实质边界：
+  Go CLI wrapper（validateArgs/isHelpArgs/runAPICommand 可注入层）
+  在 Rust 无同形对象，保留边界；可观察保证由 `:86`/`:121`
+  真实二进制端到端测试覆盖。
+
+附带修正（域外一行，审计不变式所迫）：`:282` 摘除后其单测条目与
+assistant 域 `store_lifecycle_test.go:17` 的 `[x]` 条目全文撞车。
+Rust 用例主题为端口投影（titular 锚点即 `:282`，走 port.mutate
+不断言 store 层哨兵），`:282` 保留 `[x]`，`:17` 降为 partial
+（缺 store 层 in-use 拒绝直测，回归要求已登记）。
+全量 `[x]` 1539→1538。
+
+结论：41 条 verdict = **32 `[x]` + 9 `[~]`**，另附带一行域外
+partial。本片仅台账修正加报告清单重生加文档，无代码变更。
+
+验证：`v2_writer.py --check` 过后落库；`audit_test_parity.py --write-report`
+exit 0（已知警告 0/2/100/2 不变；注意无 flag 版默认只写临时目录，
+beb5174c 起必须带 flag 才落库）；`parity_anchor_reconcile.py` 过
+（1695/0/0/46）；`cargo fmt -p jftrade-engine -- --check` 过；定向 nextest
+3/3；`check:ai-context`、`check:migration-manifest`、`check:zero-go` 过；
+`check:quick` 工作树计划与 `git diff --check` 见收尾。
+
+下一片：api_transport 余量继续按文件行号升序
+（`internal/api/assistant` 余量约 51 行：adk_routes 后续与
+adk_sessions/catalog/chat 等）。

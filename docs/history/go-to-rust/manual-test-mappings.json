@@ -7,13 +7,13 @@
     "treeSha": "0ee26444be21c15d9760f358a34649f78402f0fb"
   },
   "generatorVersion": "v2_writer.py@slice23",
-  "generatedAt": "2026-09-24T02:29:31Z",
+  "generatedAt": "2026-09-24T02:39:44Z",
   "mappings": {
     "cmd/jftrade-api/main_test.go:13:TestValidateArgsAllowsNoArgs": {
       "status": "[~]",
       "rust_entry": "不适用：无 Rust CLI 参数入口",
-      "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-      "command": "`pnpm run check:rust:architecture`",
+      "conclusion": "boundary：Go 断言 CLI 参数校验函数 validateArgs(nil) 放行；Rust 的 API 入口是进程级 launcher，没有可注入的 validateArgs/runAPICommand wrapper 层，无同形对象，保留边界。可观察的启动停止保证由同文件 :86/:121 的真实二进制端到端测试覆盖。",
+      "command": "pnpm run check:rust:architecture",
       "evidence_type": "boundary",
       "source": {
         "file": "cmd/jftrade-api/main_test.go",
@@ -25,7 +25,7 @@
       "assertionCoverage": {
         "covered": [],
         "uncovered": [
-          "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价"
+          "boundary：Go 断言 CLI 参数校验函数 validateArgs(nil) 放行；Rust 的 API 入口是进程级 launcher，没有可注入的 validateArgs/runAPICommand wrapper 层，无同形对象，保留边界。可观察的启动停止保证由同文件 :86/:121 的真实二进制端到端测试覆盖。"
         ],
         "source": "legacy-conclusion"
       },
@@ -54,15 +54,15 @@
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
-        "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价"
+        "boundary：Go 断言 CLI 参数校验函数 validateArgs(nil) 放行；Rust 的 API 入口是进程级 launcher，没有可注入的 validateArgs/runAPICommand wrapper 层，无同形对象，保留边界。可观察的启动停止保证由同文件 :86/:121 的真实二进制端到端测试覆盖。"
       ],
-      "boundaryReason": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价"
+      "boundaryReason": "boundary：Go 断言 CLI 参数校验函数 validateArgs(nil) 放行；Rust 的 API 入口是进程级 launcher，没有可注入的 validateArgs/runAPICommand wrapper 层，无同形对象，保留边界。可观察的启动停止保证由同文件 :86/:121 的真实二进制端到端测试覆盖。"
     },
     "cmd/jftrade-api/main_test.go:19:TestValidateArgsRejectsLegacySubcommands": {
       "status": "[~]",
       "rust_entry": "不适用：无 Rust CLI 子命令兼容层",
-      "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-      "command": "`pnpm run check:rust:architecture`",
+      "conclusion": "boundary：Go 断言 api/serve-api/run 旧子命令被拒绝；Rust 不设兼容子命令层，无同形校验函数，保留边界。",
+      "command": "pnpm run check:rust:architecture",
       "evidence_type": "boundary",
       "source": {
         "file": "cmd/jftrade-api/main_test.go",
@@ -74,7 +74,7 @@
       "assertionCoverage": {
         "covered": [],
         "uncovered": [
-          "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价"
+          "boundary：Go 断言 api/serve-api/run 旧子命令被拒绝；Rust 不设兼容子命令层，无同形校验函数，保留边界。"
         ],
         "source": "legacy-conclusion"
       },
@@ -103,15 +103,15 @@
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
-        "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价"
+        "boundary：Go 断言 api/serve-api/run 旧子命令被拒绝；Rust 不设兼容子命令层，无同形校验函数，保留边界。"
       ],
-      "boundaryReason": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价"
+      "boundaryReason": "boundary：Go 断言 api/serve-api/run 旧子命令被拒绝；Rust 不设兼容子命令层，无同形校验函数，保留边界。"
     },
     "cmd/jftrade-api/main_test.go:31:TestIsHelpArgs": {
       "status": "[~]",
       "rust_entry": "不适用：无 Rust `isHelpArgs`",
-      "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-      "command": "`pnpm run check:rust:architecture`",
+      "conclusion": "boundary：Go 断言 isHelpArgs 识别 help/--help/-h 并拒绝 nil 与多余组合；Rust 无该 helper（帮助文本由启动层与桌面壳处理），保留边界。",
+      "command": "pnpm run check:rust:architecture",
       "evidence_type": "boundary",
       "source": {
         "file": "cmd/jftrade-api/main_test.go",
@@ -123,7 +123,7 @@
       "assertionCoverage": {
         "covered": [],
         "uncovered": [
-          "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价"
+          "boundary：Go 断言 isHelpArgs 识别 help/--help/-h 并拒绝 nil 与多余组合；Rust 无该 helper（帮助文本由启动层与桌面壳处理），保留边界。"
         ],
         "source": "legacy-conclusion"
       },
@@ -152,15 +152,15 @@
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
-        "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价"
+        "boundary：Go 断言 isHelpArgs 识别 help/--help/-h 并拒绝 nil 与多余组合；Rust 无该 helper（帮助文本由启动层与桌面壳处理），保留边界。"
       ],
-      "boundaryReason": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价"
+      "boundaryReason": "boundary：Go 断言 isHelpArgs 识别 help/--help/-h 并拒绝 nil 与多余组合；Rust 无该 helper（帮助文本由启动层与桌面壳处理），保留边界。"
     },
     "cmd/jftrade-api/main_test.go:46:TestRunAPICommandPrintsUsageWithoutStartingTheServer": {
       "status": "[~]",
       "rust_entry": "不适用：无 Rust `runAPICommand` wrapper",
-      "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-      "command": "`pnpm run check:rust:architecture`",
+      "conclusion": "boundary：Go 断言 --help 只打印用法且不启动服务（runner 与 notifyContext 均不被调用）；Rust 无此可注入 wrapper，对应保证由同文件 :86 的真实二进制 ready/停止端到端测试覆盖，本 wrapper 层保留边界。",
+      "command": "pnpm run check:rust:architecture",
       "evidence_type": "boundary",
       "source": {
         "file": "cmd/jftrade-api/main_test.go",
@@ -172,7 +172,7 @@
       "assertionCoverage": {
         "covered": [],
         "uncovered": [
-          "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价"
+          "boundary：Go 断言 --help 只打印用法且不启动服务（runner 与 notifyContext 均不被调用）；Rust 无此可注入 wrapper，对应保证由同文件 :86 的真实二进制 ready/停止端到端测试覆盖，本 wrapper 层保留边界。"
         ],
         "source": "legacy-conclusion"
       },
@@ -201,15 +201,15 @@
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
-        "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价"
+        "boundary：Go 断言 --help 只打印用法且不启动服务（runner 与 notifyContext 均不被调用）；Rust 无此可注入 wrapper，对应保证由同文件 :86 的真实二进制 ready/停止端到端测试覆盖，本 wrapper 层保留边界。"
       ],
-      "boundaryReason": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价"
+      "boundaryReason": "boundary：Go 断言 --help 只打印用法且不启动服务（runner 与 notifyContext 均不被调用）；Rust 无此可注入 wrapper，对应保证由同文件 :86 的真实二进制 ready/停止端到端测试覆盖，本 wrapper 层保留边界。"
     },
     "cmd/jftrade-api/main_test.go:69:TestRunAPICommandRejectsUnsupportedArgsBeforeStartingTheServer": {
       "status": "[~]",
       "rust_entry": "不适用：无 Rust CLI wrapper",
-      "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-      "command": "`pnpm run check:rust:architecture`",
+      "conclusion": "boundary：Go 断言非法子命令在启动前返回 unsupported-command 错误且 getenv/setenv/runAPI 均不被调用；Rust 无该 wrapper 层，保留边界。",
+      "command": "pnpm run check:rust:architecture",
       "evidence_type": "boundary",
       "source": {
         "file": "cmd/jftrade-api/main_test.go",
@@ -221,7 +221,7 @@
       "assertionCoverage": {
         "covered": [],
         "uncovered": [
-          "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价"
+          "boundary：Go 断言非法子命令在启动前返回 unsupported-command 错误且 getenv/setenv/runAPI 均不被调用；Rust 无该 wrapper 层，保留边界。"
         ],
         "source": "legacy-conclusion"
       },
@@ -250,9 +250,9 @@
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
-        "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价"
+        "boundary：Go 断言非法子命令在启动前返回 unsupported-command 错误且 getenv/setenv/runAPI 均不被调用；Rust 无该 wrapper 层，保留边界。"
       ],
-      "boundaryReason": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价"
+      "boundaryReason": "boundary：Go 断言非法子命令在启动前返回 unsupported-command 错误且 getenv/setenv/runAPI 均不被调用；Rust 无该 wrapper 层，保留边界。"
     },
     "cmd/jftrade-api/main_test.go:86:TestRunAPICommandStartsAndStopsAPI": {
       "status": "[x]",
@@ -381,8 +381,8 @@
     "cmd/jftrade-api/main_test.go:142:TestRunAPICommandContinuesAfterBestEffortEnvironmentFailure": {
       "status": "[~]",
       "rust_entry": "不适用：Rust 无 Go 环境变量 best-effort wrapper",
-      "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-      "command": "`pnpm run check:rust:architecture`",
+      "conclusion": "boundary：Go 断言 setenv 返回失败时仍继续启动（best-effort 环境失败不阻塞）；Rust 无 setenv wrapper（JFTRADE_ 环境由配置层读取），无同形断言，保留边界。",
+      "command": "pnpm run check:rust:architecture",
       "evidence_type": "boundary",
       "source": {
         "file": "cmd/jftrade-api/main_test.go",
@@ -394,7 +394,7 @@
       "assertionCoverage": {
         "covered": [],
         "uncovered": [
-          "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价"
+          "boundary：Go 断言 setenv 返回失败时仍继续启动（best-effort 环境失败不阻塞）；Rust 无 setenv wrapper（JFTRADE_ 环境由配置层读取），无同形断言，保留边界。"
         ],
         "source": "legacy-conclusion"
       },
@@ -423,15 +423,15 @@
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
-        "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价"
+        "boundary：Go 断言 setenv 返回失败时仍继续启动（best-effort 环境失败不阻塞）；Rust 无 setenv wrapper（JFTRADE_ 环境由配置层读取），无同形断言，保留边界。"
       ],
-      "boundaryReason": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价"
+      "boundaryReason": "boundary：Go 断言 setenv 返回失败时仍继续启动（best-effort 环境失败不阻塞）；Rust 无 setenv wrapper（JFTRADE_ 环境由配置层读取），无同形断言，保留边界。"
     },
     "cmd/jftrade-api/main_test.go:160:TestMainDelegatesToCommandRunner": {
       "status": "[~]",
       "rust_entry": "不适用：Rust 无 Go `main` 委托测试入口",
-      "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-      "command": "`pnpm run check:rust:architecture`",
+      "conclusion": "boundary：Go 断言 main 把 os.Args 委托给可替换的 executeAPICommand；Rust bin main 直接装配，无同形委托测试入口，保留边界。",
+      "command": "pnpm run check:rust:architecture",
       "evidence_type": "boundary",
       "source": {
         "file": "cmd/jftrade-api/main_test.go",
@@ -443,7 +443,7 @@
       "assertionCoverage": {
         "covered": [],
         "uncovered": [
-          "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价"
+          "boundary：Go 断言 main 把 os.Args 委托给可替换的 executeAPICommand；Rust bin main 直接装配，无同形委托测试入口，保留边界。"
         ],
         "source": "legacy-conclusion"
       },
@@ -472,15 +472,15 @@
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
-        "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价"
+        "boundary：Go 断言 main 把 os.Args 委托给可替换的 executeAPICommand；Rust bin main 直接装配，无同形委托测试入口，保留边界。"
       ],
-      "boundaryReason": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价"
+      "boundaryReason": "boundary：Go 断言 main 把 os.Args 委托给可替换的 executeAPICommand；Rust bin main 直接装配，无同形委托测试入口，保留边界。"
     },
     "cmd/jftrade-api/main_test.go:191:TestReportFatalForwardsErrorsAndIgnoresNil": {
       "status": "[~]",
       "rust_entry": "不适用：Rust 不使用 Go `reportFatal` 进程级 fatal helper",
-      "conclusion": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价",
-      "command": "`pnpm run check:rust:architecture`",
+      "conclusion": "boundary：Go 断言 reportFatal 忽略 nil 并以 %v 转发错误；Rust 以错误返回与进程退出码处理启动失败（见同文件 :121 的退出码 1 加 stderr 断言），无进程级 fatal helper，保留边界。",
+      "command": "pnpm run check:rust:architecture",
       "evidence_type": "boundary",
       "source": {
         "file": "cmd/jftrade-api/main_test.go",
@@ -492,7 +492,7 @@
       "assertionCoverage": {
         "covered": [],
         "uncovered": [
-          "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价"
+          "boundary：Go 断言 reportFatal 忽略 nil 并以 %v 转发错误；Rust 以错误返回与进程退出码处理启动失败（见同文件 :121 的退出码 1 加 stderr 断言），无进程级 fatal helper，保留边界。"
         ],
         "source": "legacy-conclusion"
       },
@@ -521,9 +521,9 @@
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
-        "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价"
+        "boundary：Go 断言 reportFatal 忽略 nil 并以 %v 转发错误；Rust 以错误返回与进程退出码处理启动失败（见同文件 :121 的退出码 1 加 stderr 断言），无进程级 fatal helper，保留边界。"
       ],
-      "boundaryReason": "待补证据：仅定位到 Rust 模块/入口，未发现该 Go 测试对应的独立 Rust 测试函数或 Parity 注释；不得视为行为等价"
+      "boundaryReason": "boundary：Go 断言 reportFatal 忽略 nil 并以 %v 转发错误；Rust 以错误返回与进程退出码处理启动失败（见同文件 :121 的退出码 1 加 stderr 断言），无进程级 fatal helper，保留边界。"
     },
     "internal/api/assistant/adk_approval_test.go:16:TestADKApprovalApproveRouteReturnsRunningResolutionEnvelope": {
       "status": "[x]",
@@ -661,8 +661,8 @@
     },
     "internal/api/assistant/adk_approval_test.go:282:TestADKProviderDeleteRejectsReferencedProvider": {
       "status": "[x]",
-      "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_mutation_entities.rs::DeleteProvider；crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_provider_delete_reports_the_in_use_agent_and_keeps_the_go_projection",
-      "conclusion": "function_exact：新增回归测试构造被 agent 引用的 provider，断言 409 ADK_PROVIDER_DELETE_FAILED、消息含 \"used by agent\" 与引用 agent 名，并验证 provider 行未被删除。修复了原先错误的 409 ADK_PROVIDER_IN_USE / \"provider is referenced by an agent\" 投影。",
+      "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_provider_delete_reports_the_in_use_agent_and_keeps_the_go_projection",
+      "conclusion": "function_exact：DELETE 被 agent 引用的 provider 返回 409；回归测试断言 code 为 ADK_PROVIDER_DELETE_FAILED、message 含 used by agent 与引用 agent 名，且 provider 行未被删除（Go 体仅断言 409，Rust 为超集；原组合首元为生产枚举分支非测试，已摘除）。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
       "evidence_type": "function_exact",
       "source": {
@@ -673,12 +673,6 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_production_ports_adk_mutation_entities.rs",
-          "test": "DeleteProvider",
-          "crate": "jftrade-engine",
-          "anchor": null
-        },
-        {
           "file": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs",
           "test": "adk_provider_delete_reports_the_in_use_agent_and_keeps_the_go_projection",
           "crate": "jftrade-engine",
@@ -686,13 +680,13 @@
             "goFile": "internal/api/assistant/adk_approval_test.go",
             "goLine": 282,
             "rustFile": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs",
-            "rustLine": 3927
+            "rustLine": 3928
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "function_exact：新增回归测试构造被 agent 引用的 provider，断言 409 ADK_PROVIDER_DELETE_FAILED、消息含 \"used by agent\" 与引用 agent 名，并验证 provider 行未被删除。修复了原先错误的 409 ADK_PROVIDER_IN_USE / \"provider is referenced by an agent\" 投影。"
+          "function_exact：DELETE 被 agent 引用的 provider 返回 409；回归测试断言 code 为 ADK_PROVIDER_DELETE_FAILED、message 含 used by agent 与引用 agent 名，且 provider 行未被删除（Go 体仅断言 409，Rust 为超集；原组合首元为生产枚举分支非测试，已摘除）。"
         ],
         "uncovered": [],
         "source": "legacy-conclusion"
@@ -708,7 +702,6 @@
           "--locked"
         ],
         "testFilter": [
-          "DeleteProvider",
           "adk_provider_delete_reports_the_in_use_agent_and_keeps_the_go_projection"
         ],
         "runnerVersion": null,
@@ -728,7 +721,7 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "function_exact：新增回归测试构造被 agent 引用的 provider，断言 409 ADK_PROVIDER_DELETE_FAILED、消息含 \"used by agent\" 与引用 agent 名，并验证 provider 行未被删除。修复了原先错误的 409 ADK_PROVIDER_IN_USE / \"provider is referenced by an agent\" 投影。"
+        "function_exact：DELETE 被 agent 引用的 provider 返回 409；回归测试断言 code 为 ADK_PROVIDER_DELETE_FAILED、message 含 used by agent 与引用 agent 名，且 provider 行未被删除（Go 体仅断言 409，Rust 为超集；原组合首元为生产枚举分支非测试，已摘除）。"
       ],
       "uncoveredAssertions": [],
       "boundaryReason": null
@@ -2008,8 +2001,8 @@
     },
     "internal/api/assistant/adk_routes_test.go:552:TestADKChatStreamReturnsErrorEventForInvalidPayload": {
       "status": "[x]",
-      "rust_entry": "crates/jftrade-engine/src/product_adk_chat_stream_port.rs::dispatch_adk_chat（invalid chat payload SSE error frame）；crates/jftrade-engine/tests/adk_chat_stream_compatibility.rs::adk_chat_stream_replays_go_wire_fixture_for_leaf_owned_cases",
-      "conclusion": "function_exact：非法 JSON payload 的 /api/v1/adk/chat/stream 以 error 帧结束且 message 前缀 \"invalid chat payload\"，由 chat-stream fixture case stream-invalid-json 逐帧断言。",
+      "rust_entry": "crates/jftrade-engine/tests/adk_chat_stream_compatibility.rs::adk_chat_stream_replays_go_wire_fixture_for_leaf_owned_cases",
+      "conclusion": "function_exact：非法 JSON 的 chat/stream 以 error 帧结束且 message 前缀为 invalid chat payload，由 fixture case stream-invalid-json 逐帧断言（原组合首元为生产端口函数非测试，已摘除）。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
       "evidence_type": "function_exact",
       "source": {
@@ -2019,12 +2012,6 @@
         "blobSha": "c63a1c015bb06cf442d05ea994af3fdad75182ab"
       },
       "rustEvidence": [
-        {
-          "file": "crates/jftrade-engine/src/product_adk_chat_stream_port.rs",
-          "test": "dispatch_adk_chat",
-          "crate": "jftrade-engine",
-          "anchor": null
-        },
         {
           "file": "crates/jftrade-engine/tests/adk_chat_stream_compatibility.rs",
           "test": "adk_chat_stream_replays_go_wire_fixture_for_leaf_owned_cases",
@@ -2039,7 +2026,7 @@
       ],
       "assertionCoverage": {
         "covered": [
-          "function_exact：非法 JSON payload 的 /api/v1/adk/chat/stream 以 error 帧结束且 message 前缀 \"invalid chat payload\"，由 chat-stream fixture case stream-invalid-json 逐帧断言。"
+          "function_exact：非法 JSON 的 chat/stream 以 error 帧结束且 message 前缀为 invalid chat payload，由 fixture case stream-invalid-json 逐帧断言（原组合首元为生产端口函数非测试，已摘除）。"
         ],
         "uncovered": [],
         "source": "legacy-conclusion"
@@ -2055,7 +2042,6 @@
           "--locked"
         ],
         "testFilter": [
-          "dispatch_adk_chat",
           "adk_chat_stream_replays_go_wire_fixture_for_leaf_owned_cases"
         ],
         "runnerVersion": null,
@@ -2075,15 +2061,15 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "function_exact：非法 JSON payload 的 /api/v1/adk/chat/stream 以 error 帧结束且 message 前缀 \"invalid chat payload\"，由 chat-stream fixture case stream-invalid-json 逐帧断言。"
+        "function_exact：非法 JSON 的 chat/stream 以 error 帧结束且 message 前缀为 invalid chat payload，由 fixture case stream-invalid-json 逐帧断言（原组合首元为生产端口函数非测试，已摘除）。"
       ],
       "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/api/assistant/adk_routes_test.go:578:TestADKProviderSaveRejectsInvalidPayload": {
       "status": "[x]",
-      "rust_entry": "crates/jftrade-engine/src/product_adk_mutation_port.rs::body_error_message（CreateProvider → \"invalid provider payload\"）；crates/jftrade-engine/tests/adk_mutations_compatibility.rs::adk_provider_save_rejects_the_truncated_payload_with_the_reference_message",
-      "conclusion": "completed：POST /api/v1/adk/providers 收到截断体 `{\"displayName\":` 时，wire 返回 400 BAD_REQUEST 且 message 为 provider 专属的 \"invalid provider payload\"（来自 body_error_message 的 CreateProvider 分支，而非通用 mutation 文案）；由专属回归测试断言状态、错误码与文案三件套，锚点写在该测试上方。",
+      "rust_entry": "crates/jftrade-engine/tests/adk_mutations_compatibility.rs::adk_provider_save_rejects_the_truncated_payload_with_the_reference_message",
+      "conclusion": "completed：POST providers 收到截断体时 wire 返回 400 BAD_REQUEST 且 message 为 CreateProvider 专属的 invalid provider payload（原组合首元为生产函数非测试，已摘除）。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --test adk_mutations_compatibility --locked",
       "evidence_type": "function_exact",
       "source": {
@@ -2093,12 +2079,6 @@
         "blobSha": "c63a1c015bb06cf442d05ea994af3fdad75182ab"
       },
       "rustEvidence": [
-        {
-          "file": "crates/jftrade-engine/src/product_adk_mutation_port.rs",
-          "test": "body_error_message",
-          "crate": "jftrade-engine",
-          "anchor": null
-        },
         {
           "file": "crates/jftrade-engine/tests/adk_mutations_compatibility.rs",
           "test": "adk_provider_save_rejects_the_truncated_payload_with_the_reference_message",
@@ -2113,7 +2093,7 @@
       ],
       "assertionCoverage": {
         "covered": [
-          "completed：POST /api/v1/adk/providers 收到截断体 `{\"displayName\":` 时，wire 返回 400 BAD_REQUEST 且 message 为 provider 专属的 \"invalid provider payload\"（来自 body_error_message 的 CreateProvider 分支，而非通用 mutation 文案）；由专属回归测试断言状态、错误码与文案三件套，锚点写在该测试上方。"
+          "completed：POST providers 收到截断体时 wire 返回 400 BAD_REQUEST 且 message 为 CreateProvider 专属的 invalid provider payload（原组合首元为生产函数非测试，已摘除）。"
         ],
         "uncovered": [],
         "source": "legacy-conclusion"
@@ -2130,7 +2110,6 @@
           "--locked"
         ],
         "testFilter": [
-          "body_error_message",
           "adk_provider_save_rejects_the_truncated_payload_with_the_reference_message"
         ],
         "runnerVersion": null,
@@ -2150,7 +2129,7 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "completed：POST /api/v1/adk/providers 收到截断体 `{\"displayName\":` 时，wire 返回 400 BAD_REQUEST 且 message 为 provider 专属的 \"invalid provider payload\"（来自 body_error_message 的 CreateProvider 分支，而非通用 mutation 文案）；由专属回归测试断言状态、错误码与文案三件套，锚点写在该测试上方。"
+        "completed：POST providers 收到截断体时 wire 返回 400 BAD_REQUEST 且 message 为 CreateProvider 专属的 invalid provider payload（原组合首元为生产函数非测试，已摘除）。"
       ],
       "uncoveredAssertions": [],
       "boundaryReason": null
@@ -2224,8 +2203,8 @@
     },
     "internal/api/assistant/adk_routes_test.go:634:TestADKAgentSaveValidationFailures": {
       "status": "[x]",
-      "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_mutation_agent_validation.rs::validate_agent_write；crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_agent_write_reports_the_go_validation_messages",
-      "conclusion": "function_exact：Go 的 400 BAD_REQUEST 校验文案矩阵逐条断言（invalid agent status / invalid agent work mode / invalid tool access mode / loop max iterations 1..20 / invalid agent payload / provider not found / provider is disabled / provider АРI keys is not configured / unknown ADK tool / unknown ADK skill），并覆盖 disabled agent 保留 provider 引用与 enabled+keyed 成功的对照分支。",
+      "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_agent_write_reports_the_go_validation_messages",
+      "conclusion": "function_exact：Go 的 400 BAD_REQUEST 校验文案矩阵逐条断言（invalid agent status / invalid agent work mode / invalid tool access mode / loop max iterations 1..20 / invalid agent payload / provider not found / provider is disabled / provider API keys is not configured / unknown ADK tool / unknown ADK skill），并覆盖 disabled agent 保留 provider 引用与 enabled 加 key 成功的对照分支（原组合首元为生产校验函数非测试，已摘除）。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
       "evidence_type": "function_exact",
       "source": {
@@ -2236,12 +2215,6 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_production_ports_adk_mutation_agent_validation.rs",
-          "test": "validate_agent_write",
-          "crate": "jftrade-engine",
-          "anchor": null
-        },
-        {
           "file": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs",
           "test": "adk_agent_write_reports_the_go_validation_messages",
           "crate": "jftrade-engine",
@@ -2249,13 +2222,13 @@
             "goFile": "internal/api/assistant/adk_routes_test.go",
             "goLine": 634,
             "rustFile": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs",
-            "rustLine": 3320
+            "rustLine": 3321
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "function_exact：Go 的 400 BAD_REQUEST 校验文案矩阵逐条断言（invalid agent status / invalid agent work mode / invalid tool access mode / loop max iterations 1..20 / invalid agent payload / provider not found / provider is disabled / provider АРI keys is not configured / unknown ADK tool / unknown ADK skill），并覆盖 disabled agent 保留 provider 引用与 enabled+keyed 成功的对照分支。"
+          "function_exact：Go 的 400 BAD_REQUEST 校验文案矩阵逐条断言（invalid agent status / invalid agent work mode / invalid tool access mode / loop max iterations 1..20 / invalid agent payload / provider not found / provider is disabled / provider API keys is not configured / unknown ADK tool / unknown ADK skill），并覆盖 disabled agent 保留 provider 引用与 enabled 加 key 成功的对照分支（原组合首元为生产校验函数非测试，已摘除）。"
         ],
         "uncovered": [],
         "source": "legacy-conclusion"
@@ -2271,7 +2244,6 @@
           "--locked"
         ],
         "testFilter": [
-          "validate_agent_write",
           "adk_agent_write_reports_the_go_validation_messages"
         ],
         "runnerVersion": null,
@@ -2291,15 +2263,15 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "function_exact：Go 的 400 BAD_REQUEST 校验文案矩阵逐条断言（invalid agent status / invalid agent work mode / invalid tool access mode / loop max iterations 1..20 / invalid agent payload / provider not found / provider is disabled / provider АРI keys is not configured / unknown ADK tool / unknown ADK skill），并覆盖 disabled agent 保留 provider 引用与 enabled+keyed 成功的对照分支。"
+        "function_exact：Go 的 400 BAD_REQUEST 校验文案矩阵逐条断言（invalid agent status / invalid agent work mode / invalid tool access mode / loop max iterations 1..20 / invalid agent payload / provider not found / provider is disabled / provider API keys is not configured / unknown ADK tool / unknown ADK skill），并覆盖 disabled agent 保留 provider 引用与 enabled 加 key 成功的对照分支（原组合首元为生产校验函数非测试，已摘除）。"
       ],
       "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/api/assistant/adk_routes_test.go:707:TestADKSkillInstallAndUninstallFailureRoutes": {
       "status": "[x]",
-      "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_mutation_skill.rs::skill_install_failed/uninstall_skill；crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_skill_install_and_uninstall_failures_keep_the_go_codes、adk_skill_uninstall_removes_external_installs_and_reports_missing_files",
-      "conclusion": "function_exact：install 非 URL 返回 400 ADK_SKILL_INSTALL_FAILED，uninstall builtin 返回 500 ADK_SKILL_UNINSTALL_FAILED（消息含 builtin），外部 skill 卸载删除目录且二次卸载保留 Go 的 \"file does not exist\" 投影。",
+      "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_skill_install_and_uninstall_failures_keep_the_go_codes、adk_skill_uninstall_removes_external_installs_and_reports_missing_files",
+      "conclusion": "function_exact：install 非 URL 返回 400 ADK_SKILL_INSTALL_FAILED，uninstall builtin 返回 500 ADK_SKILL_UNINSTALL_FAILED（消息含 builtin），外部 skill 卸载删除目录且二次卸载保留 Go 的 file does not exist 投影（原组合首元为生产错误构造与卸载函数非测试，已摘除）。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
       "evidence_type": "function_exact",
       "source": {
@@ -2310,12 +2282,6 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_production_ports_adk_mutation_skill.rs",
-          "test": "skill_install_failed",
-          "crate": "jftrade-engine",
-          "anchor": null
-        },
-        {
           "file": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs",
           "test": "adk_skill_install_and_uninstall_failures_keep_the_go_codes",
           "crate": "jftrade-engine",
@@ -2323,13 +2289,13 @@
             "goFile": "internal/api/assistant/adk_routes_test.go",
             "goLine": 707,
             "rustFile": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs",
-            "rustLine": 3601
+            "rustLine": 3602
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "function_exact：install 非 URL 返回 400 ADK_SKILL_INSTALL_FAILED，uninstall builtin 返回 500 ADK_SKILL_UNINSTALL_FAILED（消息含 builtin），外部 skill 卸载删除目录且二次卸载保留 Go 的 \"file does not exist\" 投影。"
+          "function_exact：install 非 URL 返回 400 ADK_SKILL_INSTALL_FAILED，uninstall builtin 返回 500 ADK_SKILL_UNINSTALL_FAILED（消息含 builtin），外部 skill 卸载删除目录且二次卸载保留 Go 的 file does not exist 投影（原组合首元为生产错误构造与卸载函数非测试，已摘除）。"
         ],
         "uncovered": [],
         "source": "legacy-conclusion"
@@ -2345,7 +2311,6 @@
           "--locked"
         ],
         "testFilter": [
-          "skill_install_failed",
           "adk_skill_install_and_uninstall_failures_keep_the_go_codes"
         ],
         "runnerVersion": null,
@@ -2365,15 +2330,15 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "function_exact：install 非 URL 返回 400 ADK_SKILL_INSTALL_FAILED，uninstall builtin 返回 500 ADK_SKILL_UNINSTALL_FAILED（消息含 builtin），外部 skill 卸载删除目录且二次卸载保留 Go 的 \"file does not exist\" 投影。"
+        "function_exact：install 非 URL 返回 400 ADK_SKILL_INSTALL_FAILED，uninstall builtin 返回 500 ADK_SKILL_UNINSTALL_FAILED（消息含 builtin），外部 skill 卸载删除目录且二次卸载保留 Go 的 file does not exist 投影（原组合首元为生产错误构造与卸载函数非测试，已摘除）。"
       ],
       "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/api/assistant/adk_routes_test.go:741:TestADKBindAgentWithPreinstalledNeodataFinancialSearch": {
       "status": "[x]",
-      "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_mutation_agent_validation.rs::validate_agent_skills；crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_agent_write_accepts_preinstalled_external_and_builtin_skills",
-      "conclusion": "function_exact：预装外部 skill 与内置 skill 均可被 agent 保存引用，保存后的 skills 列表保留 neodata-financial-search 与 jftrade-market。",
+      "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_agent_write_accepts_preinstalled_external_and_builtin_skills",
+      "conclusion": "function_exact：预装外部 skill 与内置 skill 均可被 agent 保存引用，保存后的 skills 列表保留 neodata-financial-search 与 jftrade-market（原组合首元为生产校验函数非测试，已摘除）。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
       "evidence_type": "function_exact",
       "source": {
@@ -2384,12 +2349,6 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_production_ports_adk_mutation_agent_validation.rs",
-          "test": "validate_agent_skills",
-          "crate": "jftrade-engine",
-          "anchor": null
-        },
-        {
           "file": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs",
           "test": "adk_agent_write_accepts_preinstalled_external_and_builtin_skills",
           "crate": "jftrade-engine",
@@ -2397,13 +2356,13 @@
             "goFile": "internal/api/assistant/adk_routes_test.go",
             "goLine": 741,
             "rustFile": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs",
-            "rustLine": 3441
+            "rustLine": 3442
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "function_exact：预装外部 skill 与内置 skill 均可被 agent 保存引用，保存后的 skills 列表保留 neodata-financial-search 与 jftrade-market。"
+          "function_exact：预装外部 skill 与内置 skill 均可被 agent 保存引用，保存后的 skills 列表保留 neodata-financial-search 与 jftrade-market（原组合首元为生产校验函数非测试，已摘除）。"
         ],
         "uncovered": [],
         "source": "legacy-conclusion"
@@ -2419,7 +2378,6 @@
           "--locked"
         ],
         "testFilter": [
-          "validate_agent_skills",
           "adk_agent_write_accepts_preinstalled_external_and_builtin_skills"
         ],
         "runnerVersion": null,
@@ -2439,7 +2397,7 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "function_exact：预装外部 skill 与内置 skill 均可被 agent 保存引用，保存后的 skills 列表保留 neodata-financial-search 与 jftrade-market。"
+        "function_exact：预装外部 skill 与内置 skill 均可被 agent 保存引用，保存后的 skills 列表保留 neodata-financial-search 与 jftrade-market（原组合首元为生产校验函数非测试，已摘除）。"
       ],
       "uncoveredAssertions": [],
       "boundaryReason": null
@@ -95885,11 +95843,11 @@
       "boundaryReason": null
     },
     "internal/assistant/engine/store_lifecycle_test.go:17:TestDeleteProviderFailsWhenReferencedByAgent": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_provider_delete_reports_the_in_use_agent_and_keeps_the_go_projection",
-      "conclusion": "function_exact（修正条目形态，分支无变化）：provider 被 agent 引用时删除按 Go 的 ErrProviderInUse 语义被拒绝（409 ADK_PROVIDER_DELETE_FAILED + used by agent + agent 名），且不产生 durable 变更；原条目首段误引生产函数，已收敛为单一真实测试，锚点已补。",
+      "conclusion": "partial：与 internal/api/assistant/adk_approval_test.go:282 共用端口投影测试（409、ADK_PROVIDER_DELETE_FAILED、used by agent 加 agent 名、provider 行保留均断言），但 Go 本条断言的是 Store 层 DeleteProvider 的 ErrProviderInUse 哨兵语义；Rust 无 store 层删除被引用 provider 的直接单测，引用测试走 port.mutate 未直调 store 删除。缺口登记于此，回归要求在 store 层补 in-use 拒绝单测后再升 exact；此举同时解除与 :282 对同一 Rust 条目的 [x] 复用，满足审计唯一性不变式。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-      "evidence_type": "function_exact",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/assistant/engine/store_lifecycle_test.go",
         "line": 17,
@@ -95905,15 +95863,15 @@
             "goFile": "internal/assistant/engine/store_lifecycle_test.go",
             "goLine": 17,
             "rustFile": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs",
-            "rustLine": 3932
+            "rustLine": 3933
           }
         }
       ],
       "assertionCoverage": {
-        "covered": [
-          "function_exact（修正条目形态，分支无变化）：provider 被 agent 引用时删除按 Go 的 ErrProviderInUse 语义被拒绝（409 ADK_PROVIDER_DELETE_FAILED + used by agent + agent 名），且不产生 durable 变更；原条目首段误引生产函数，已收敛为单一真实测试，锚点已补。"
+        "covered": [],
+        "uncovered": [
+          "partial：与 internal/api/assistant/adk_approval_test.go:282 共用端口投影测试（409、ADK_PROVIDER_DELETE_FAILED、used by agent 加 agent 名、provider 行保留均断言），但 Go 本条断言的是 Store 层 DeleteProvider 的 ErrProviderInUse 哨兵语义；Rust 无 store 层删除被引用 provider 的直接单测，引用测试走 port.mutate 未直调 store 删除。缺口登记于此，回归要求在 store 层补 in-use 拒绝单测后再升 exact；此举同时解除与 :282 对同一 Rust 条目的 [x] 复用，满足审计唯一性不变式。"
         ],
-        "uncovered": [],
         "source": "legacy-conclusion"
       },
       "verification": {
@@ -95940,15 +95898,15 @@
       "risk": "normal",
       "owner": "assistant_workflow",
       "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "function_exact（修正条目形态，分支无变化）：provider 被 agent 引用时删除按 Go 的 ErrProviderInUse 语义被拒绝（409 ADK_PROVIDER_DELETE_FAILED + used by agent + agent 名），且不产生 durable 变更；原条目首段误引生产函数，已收敛为单一真实测试，锚点已补。"
+      "coveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial：与 internal/api/assistant/adk_approval_test.go:282 共用端口投影测试（409、ADK_PROVIDER_DELETE_FAILED、used by agent 加 agent 名、provider 行保留均断言），但 Go 本条断言的是 Store 层 DeleteProvider 的 ErrProviderInUse 哨兵语义；Rust 无 store 层删除被引用 provider 的直接单测，引用测试走 port.mutate 未直调 store 删除。缺口登记于此，回归要求在 store 层补 in-use 拒绝单测后再升 exact；此举同时解除与 :282 对同一 Rust 条目的 [x] 复用，满足审计唯一性不变式。"
       ],
-      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/assistant/engine/store_lifecycle_test.go:45:TestProvidersMaintainDefaultSelectionAndCreatedOrder": {
@@ -291601,14 +291559,6 @@
       "allowed": true,
       "reviewStatus": "single"
     },
-    "crates/jftrade-engine/src/product_adk_chat_stream_port.rs::dispatch_adk_chat": {
-      "referenceCount": 1,
-      "referenceKeys": [
-        "internal/api/assistant/adk_routes_test.go:552:TestADKChatStreamReturnsErrorEventForInvalidPayload"
-      ],
-      "allowed": true,
-      "reviewStatus": "single"
-    },
     "crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::adk_chat_idempotency_contract_matches_the_go_routes": {
       "referenceCount": 2,
       "referenceKeys": [
@@ -292592,14 +292542,6 @@
       "referenceCount": 1,
       "referenceKeys": [
         "internal/assistant/engine/workflow_tools_test.go:263:TestGoogleADKToolErrorEnvelopeClassifiesRetryability"
-      ],
-      "allowed": true,
-      "reviewStatus": "single"
-    },
-    "crates/jftrade-engine/src/product_adk_mutation_port.rs::body_error_message": {
-      "referenceCount": 1,
-      "referenceKeys": [
-        "internal/api/assistant/adk_routes_test.go:578:TestADKProviderSaveRejectsInvalidPayload"
       ],
       "allowed": true,
       "reviewStatus": "single"
@@ -295815,30 +295757,6 @@
       "allowed": false,
       "reviewStatus": "unreviewed"
     },
-    "crates/jftrade-engine/src/product_production_ports_adk_mutation_agent_validation.rs::validate_agent_skills": {
-      "referenceCount": 1,
-      "referenceKeys": [
-        "internal/api/assistant/adk_routes_test.go:741:TestADKBindAgentWithPreinstalledNeodataFinancialSearch"
-      ],
-      "allowed": true,
-      "reviewStatus": "single"
-    },
-    "crates/jftrade-engine/src/product_production_ports_adk_mutation_agent_validation.rs::validate_agent_write": {
-      "referenceCount": 1,
-      "referenceKeys": [
-        "internal/api/assistant/adk_routes_test.go:634:TestADKAgentSaveValidationFailures"
-      ],
-      "allowed": true,
-      "reviewStatus": "single"
-    },
-    "crates/jftrade-engine/src/product_production_ports_adk_mutation_entities.rs::DeleteProvider": {
-      "referenceCount": 1,
-      "referenceKeys": [
-        "internal/api/assistant/adk_approval_test.go:282:TestADKProviderDeleteRejectsReferencedProvider"
-      ],
-      "allowed": true,
-      "reviewStatus": "single"
-    },
     "crates/jftrade-engine/src/product_production_ports_adk_mutation_provider.rs::provider_payload": {
       "referenceCount": 1,
       "referenceKeys": [
@@ -295886,14 +295804,6 @@
       "referenceCount": 1,
       "referenceKeys": [
         "internal/assistant/engine/skill_reg_test.go:162:TestSkillRegistryInstallURLAndDirectoryBoundaries"
-      ],
-      "allowed": true,
-      "reviewStatus": "single"
-    },
-    "crates/jftrade-engine/src/product_production_ports_adk_mutation_skill.rs::skill_install_failed": {
-      "referenceCount": 1,
-      "referenceKeys": [
-        "internal/api/assistant/adk_routes_test.go:707:TestADKSkillInstallAndUninstallFailureRoutes"
       ],
       "allowed": true,
       "reviewStatus": "single"
