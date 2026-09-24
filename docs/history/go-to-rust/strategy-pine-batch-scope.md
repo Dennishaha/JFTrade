@@ -959,3 +959,32 @@ loop/exit/divergence/protect 键，引用存在不等于所有 legacy 键断言�
 cargo fmt --check 与 git diff --check 干净；无台账变更、无 Rust 生产代码改动。
 
 下一片：130-12 切片二十六，strategy_pine 域 partial 第 181–200 行。
+
+## 第 130 批 12 切片二十六：strategy_pine 域 partial 第 181–200 行，20 行维持、零改判（2026-09-25）
+
+范围：strategy_pine 域 partial 第 181–200 行（IR planner 分支/表达式/指标绑定/参数
+边界与 PlanRequirements 契约，按文件加行号升序）。本域已核对 200/385。
+
+方法：Go 体全读；5 个去重 Rust 引用逐项 rg 存在性核查，并抽读 planner requirement
+keys、native pipeline 与 account value 用例；引用存在不等于断言等价。
+
+20 行维持（循环、对象和退出表达式收集、业务非法参数拒绝、nil/unsupported statement、
+指标支持矩阵、参数校验矩阵、复合表达式收集与拒绝、source-aware 归一、均线/风险键
+边界、legacy close 键、运行时需求键完整性、PlanRequirements position/account value
+需求、无效绑定与均线类型、数量模式、保护时间单位、runtime binding parity、
+unsupported window source、advanced indicator bindings，缺口 owner 与回归要求均与账本一致）。
+
+抽核要点：Go 侧 planner_business_boundary、indicator_matrix、internal boundaries、
+planner_internal 与 planner 五组测试体均已读完；Rust 的
+`window_and_oscillator_keys_keep_the_requested_source`、
+`legacy_and_explicit_sources_keep_the_planned_keys`、
+`account_value_usage_in_statements_requires_total_account_value` 与
+`native_pipeline_parses_lowers_and_plans_strategy_requirements` 逐项存在。Rust 引用
+覆盖规划键和失败关闭主路径，但没有一一复刻 Go 的全部错误文案、unsupported statement
+集合和每个指标族的参数矩阵，因此继续标记 partial。
+
+验证：audit --write-report 过（1472 exact；dup 0）；anchor 过（1742/1696/0/0/46）；
+定向 nextest（jftrade-engine、jftrade-strategy、jftrade-backtest 视触及范围）全过；
+cargo fmt --check 与 git diff --check 干净；无台账变更、无 Rust 生产代码改动。
+
+下一片：130-12 切片二十七，strategy_pine 域 partial 第 201–220 行。
