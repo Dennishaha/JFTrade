@@ -732,3 +732,31 @@ pine 成本 4、pine 语料与冒烟 2、pineworker 适配 11，按文件加行�
 cargo fmt --check 与 git diff --check 干净；无 Rust 生产代码改动、无新增测试。
 
 下一片：130-11 切片十，backtest 域 partial 第 181–200 行。
+## 第 130 批 11 切片十：backtest 域 partial 第 181–200 行，18 行维持、2 行结论收紧（2026-09-24）
+
+范围：backtest 域 partial 第 181–200 行（adapter 错误映射 1、atomic 边界 2、
+command 执行器 17，按文件加行号升序）。
+
+方法：Go 体全读；缺口验到代码行与用例断言；引用存在不等于断言等价。
+
+18 行维持（worker 错误三形态映射、原子组 11 形态矩阵、原子执行失败边界、提交与审计链路、
+缺 sizing 拒绝文案、缺数量拒绝层位、权益与持仓百分比基数、无参 close 展平、参数less 跳过、
+步长与碎股与规则缺失三行、告警归组键文案、自动平仓触发、撤单与 cancel_all 直接对应、
+原子 bracket 先拒后零提交，均与账本缺口一致）。
+
+2 行结论收紧（verdict 仍为 partial，[x] 1472 不变，b83 dry-run 先行、entry_changed 等于 0）：
+
+- command_executor:158：原结论称订单标记由订单记录结构表达，未经证实
+  （Rust 证据无任何 Tag 断言）；改写为 Tag 标记无对应断言。
+- command_executor:361：原结论称显式平仓与告警开关由意图字段控制，含糊且掩盖三个子分支
+  （空头标记、无告警收集器、全平 sizing 错误）；改写为三者均无对应断言。
+
+抽核要点：Rust 无空头回放 Tag 概念（全仓 grep 无对应）；:361 的 Rust 用例只覆盖多头
+多入场展平归零，无空头、无告警、无 sizing 分支；192/193 共用 lot-size 用例属 partial
+共用，193 的 board-lot 缺口已显式登记；181 的三形态错误只覆盖不可用一支，维持 partial。
+
+验证：audit --write-report 过（1472 exact；dup 0）；anchor 过（1742/1696/0/0/46）；
+定向 nextest（jftrade-backtest、integration-pine、engine 执行族）全过；
+cargo fmt --check 与 git diff --check 干净；无 Rust 生产代码改动、无新增测试。
+
+下一片：130-11 切片十一，backtest 域 partial 第 201–220 行。

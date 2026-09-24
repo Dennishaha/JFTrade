@@ -128717,7 +128717,7 @@
     "pkg/backtest/pineworker_command_executor_test.go:158:TestPineWorkerCommandExecutorTagsShortReplayOrders": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/strategy_runtime_execution_tests.rs::test_execute_strategy_intents_close_short_maps_to_buy",
-      "conclusion": "partial：Go 断言回放中的空头订单被标记（方向/意图）。Rust 在执行层归一化空头方向与平仓映射（该用例），订单标记由订单记录结构表达。",
+      "conclusion": "partial：Go 断言回放中的空头订单被打标（方向 short 且 Tag 为空头回放标记）。Rust 的执行层用例仅断言空头平仓映射为买且带 reduceOnly（该用例）；订单 Tag 标记在 Rust 无对应断言。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
       "evidence_type": "partial",
       "source": {
@@ -128737,7 +128737,7 @@
       "assertionCoverage": {
         "covered": [],
         "uncovered": [
-          "partial：Go 断言回放中的空头订单被标记（方向/意图）。Rust 在执行层归一化空头方向与平仓映射（该用例），订单标记由订单记录结构表达。"
+          "partial：Go 断言回放中的空头订单被打标（方向 short 且 Tag 为空头回放标记）。Rust 的执行层用例仅断言空头平仓映射为买且带 reduceOnly（该用例）；订单 Tag 标记在 Rust 无对应断言。"
         ],
         "source": "legacy-conclusion"
       },
@@ -128772,7 +128772,7 @@
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
-        "partial：Go 断言回放中的空头订单被标记（方向/意图）。Rust 在执行层归一化空头方向与平仓映射（该用例），订单标记由订单记录结构表达。"
+        "partial：Go 断言回放中的空头订单被打标（方向 short 且 Tag 为空头回放标记）。Rust 的执行层用例仅断言空头平仓映射为买且带 reduceOnly（该用例）；订单 Tag 标记在 Rust 无对应断言。"
       ],
       "boundaryReason": null
     },
@@ -129151,7 +129151,7 @@
     "pkg/backtest/pineworker_command_executor_test.go:361:TestPineWorkerCommandExecutorHonorsExplicitShortCloseAndOptionalWarnings": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-integration-pine/tests/pine_backtest_matcher_intents_e2e.rs::close_all_normalized_exit_intent_flattens_multi_entry_position_in_matcher",
-      "conclusion": "partial：Go 断言显式空头平仓被尊重、可选告警被发出。Rust 的 flat/close-all 意图平掉多入场仓位（该用例），显式平仓与告警开关由意图字段控制。",
+      "conclusion": "partial：Go 断言显式空头平仓被尊重（含空头回放标记）、无告警收集器时忽略不失败、无仓位全平报 sizing 错误。Rust 的 close-all 用例仅断言多入场仓位被展平归零（该用例）；空头标记、无告警收集器语义与 sizing 错误分支无对应断言。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine --all-targets --locked",
       "evidence_type": "partial",
       "source": {
@@ -129171,7 +129171,7 @@
       "assertionCoverage": {
         "covered": [],
         "uncovered": [
-          "partial：Go 断言显式空头平仓被尊重、可选告警被发出。Rust 的 flat/close-all 意图平掉多入场仓位（该用例），显式平仓与告警开关由意图字段控制。"
+          "partial：Go 断言显式空头平仓被尊重（含空头回放标记）、无告警收集器时忽略不失败、无仓位全平报 sizing 错误。Rust 的 close-all 用例仅断言多入场仓位被展平归零（该用例）；空头标记、无告警收集器语义与 sizing 错误分支无对应断言。"
         ],
         "source": "legacy-conclusion"
       },
@@ -129206,7 +129206,7 @@
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
-        "partial：Go 断言显式空头平仓被尊重、可选告警被发出。Rust 的 flat/close-all 意图平掉多入场仓位（该用例），显式平仓与告警开关由意图字段控制。"
+        "partial：Go 断言显式空头平仓被尊重（含空头回放标记）、无告警收集器时忽略不失败、无仓位全平报 sizing 错误。Rust 的 close-all 用例仅断言多入场仓位被展平归零（该用例）；空头标记、无告警收集器语义与 sizing 错误分支无对应断言。"
       ],
       "boundaryReason": null
     },
