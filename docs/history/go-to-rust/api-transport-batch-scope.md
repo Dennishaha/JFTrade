@@ -6014,3 +6014,24 @@ uncoveredAssertions。
 干净；无 Rust 生产改动（仅 4 处注释锚点）。
 
 下一片：130-09 切片三十四，servercore 之后领域的纠正式复核。
+## 第 130 批 09 切片三十四甲：backtest 前 22 条零纠正（2026-09-24）
+
+范围：backtest_calendar 域 64 条 `[x]` 的前 22 条（internal/backtest recovery
+1、service 1、sync 2、time 3；internal/exchangecalendar boundaries 6、
+http_source 9）。
+
+方法：Go 体全读（`git show go:<path>`）；Rust 断言逐字比对；锚点全在位。
+
+22 条全部维持 `[x]`，零纠正：空白脚本 script is required（调用层映射已在
+结论披露）、chart 三归一、sync 表四项与 scope 非法四项全命中、DST 23 小时/
+HK 跨日/legacy +08:00 精确毫秒与元数据、calendar 注册表四源与 15s 超时、
+快照 checksum/validity、502 透传、稀疏拒绝、未来年豁免、US/NYSE/HK 解析、
+失败身份六分叉（nil/非法 URL 为结构边界已披露）、validator 四分支、畸形行
+丢弃、告警去重恢复、窄窗口裁剪。`[x]` 保持 1478。
+
+验证：`audit_test_parity.py --write-report` exit 0（1478 exact；dup 0）；
+`parity_anchor_reconcile.py` 过（1742/1696/0/0/46）；定向 nextest 31/31
+（engine 7、integration-calendar 23、calendar 1）；`git diff --check` 干净；
+无 Rust 代码改动。
+
+下一片：130-09 切片三十四乙，backtest 域 `[x]` 第 23–44 条。
