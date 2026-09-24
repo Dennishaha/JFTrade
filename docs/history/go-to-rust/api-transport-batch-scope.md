@@ -5150,3 +5150,31 @@ exit 0（已知警告 0/2/100/2 不变）；`parity_anchor_reconcile.py` 过
 
 下一片：api_transport 余量继续按文件行号升序（sse/live/dispatcher、
 marketdata、middleware、origin 等目录）。
+
+## 第 130 批 09 切片十二：sse 与 live 传输 28 条 recon（2026-09-24）
+
+范围：`internal/api/httpserver/` sse_boundaries（4）+
+sse_concurrent（1）+ sse（7）+ `internal/api/live/`
+dispatcher_boundaries（7）+ handler（9），共 28 条
+（17 `[x]` + 11 partial）。
+
+方法：Go 体逐条核对结论；17 个 `[x]` 的 Rust 引用逐一命中且每行至少一锚；
+组合条目逐项拆验，本片无生产函数元；Rust 体抽查关键断言
+（sse 三段式、bool 别名表、dedup 同观察一次加切换重发、幂等 400/409、
+fixture case 名实）。结论：28 条 verdict 全部成立，
+无判定变更、无命令变更、无代码变更，本片为纯 recon。
+
+保留说明两则：`:46` 与 assistant `:29` 的 Rust 用例无 `assert!`
+（审计启发式警告），但分别以 expect（失败即 panic）与 Json 形状匹配
+逐条验，语义等价，保留 `[x]`；`:207` 的分歧（语料固定无码关闭、
+运行时实际发 1008）经 fixture 与 router 源码双向核实，partial 结论属实。
+
+验证：`audit_test_parity.py --write-report` exit 0（已知警告 0/2/100/2
+不变；仅 report 重生，inventory 无差）；`parity_anchor_reconcile.py` 过
+（1695/0/0/46）；`cargo fmt -p jftrade-engine/api -- --check` 过；
+定向 nextest 3/3（sse 忽略触发器、并发串行化、tick 去重）；
+`check:ai-context`、`check:migration-manifest`、`check:zero-go` 过；
+`check:quick` 与 `git diff --check` 见收尾。
+
+下一片：api_transport 余量继续按文件行号升序（marketdata、middleware、
+origin、productfeatures、research、settings 等目录）。
