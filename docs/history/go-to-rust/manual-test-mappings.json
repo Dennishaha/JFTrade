@@ -7,7 +7,7 @@
     "treeSha": "0ee26444be21c15d9760f358a34649f78402f0fb"
   },
   "generatorVersion": "v2_writer.py@slice23",
-  "generatedAt": "2026-09-24T00:19:54Z",
+  "generatedAt": "2026-09-24T00:40:13Z",
   "mappings": {
     "cmd/jftrade-api/main_test.go:13:TestValidateArgsAllowsNoArgs": {
       "status": "[~]",
@@ -246964,7 +246964,7 @@
     "internal/strategy/catalog/runtime_reconciliation_business_test.go:52:TestCatalogRuntimeFailureReconcilesOnlyRunningInstance": {
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/strategy_runtime_port.rs::recovery_failure_converges_the_running_instance_to_stopped; crates/jftrade-engine/src/strategy_runtime_owner_tests.rs::runtime_exit_converges_to_stopped_with_audit_notification_and_error_log",
-      "conclusion": "已覆盖：参考实现断言运行失败只对 RUNNING 实例生效（停止态不落盘），并把实例置为 STOPPED、写 runtime_exited 审计与错误日志。Rust 的两个引用用例分别锁定端口层的失败收敛与运行时退出时写审计/通知/错误日志，本轮复核结论与证据仍成立。",
+      "conclusion": "已覆盖：参考实现断言运行失败只对 RUNNING 实例生效（停止态不落盘），并把实例置为 STOPPED、写 runtime_exited 审计与错误日志。Rust 的两个引用用例分别锁定端口层的失败收敛与运行时退出时写审计/通知/错误日志，本轮复核结论与证据仍成立。【130-06B slice1 recon】复核 Go 四断言：（1）停止态对账零落盘、（2）运行态转 STOPPED、（3）runtime_exited 审计带原因、（4）错误日志带原因。发现引用缺口：recovery_failure_converges_the_running_instance_to_stopped 只播种 RUNNING 实例，未断言停止态零写入；已补强：同一用例追加 already-stopped 实例，断言 reconcile 后其 audit/log 行数不变、状态保持 STOPPED（2 binaries 均过）。结论维持 [x]，证据不变（2 用例），停止态语义由结构（restore 循环跳过 STOPPED）+ 显式断言共同锁定。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
       "evidence_type": "function_exact",
       "source": {
@@ -246999,7 +246999,7 @@
       ],
       "assertionCoverage": {
         "covered": [
-          "已覆盖：参考实现断言运行失败只对 RUNNING 实例生效（停止态不落盘），并把实例置为 STOPPED、写 runtime_exited 审计与错误日志。Rust 的两个引用用例分别锁定端口层的失败收敛与运行时退出时写审计/通知/错误日志，本轮复核结论与证据仍成立。"
+          "已覆盖：参考实现断言运行失败只对 RUNNING 实例生效（停止态不落盘），并把实例置为 STOPPED、写 runtime_exited 审计与错误日志。Rust 的两个引用用例分别锁定端口层的失败收敛与运行时退出时写审计/通知/错误日志，本轮复核结论与证据仍成立。【130-06B slice1 recon】复核 Go 四断言：（1）停止态对账零落盘、（2）运行态转 STOPPED、（3）runtime_exited 审计带原因、（4）错误日志带原因。发现引用缺口：recovery_failure_converges_the_running_instance_to_stopped 只播种 RUNNING 实例，未断言停止态零写入；已补强：同一用例追加 already-stopped 实例，断言 reconcile 后其 audit/log 行数不变、状态保持 STOPPED（2 binaries 均过）。结论维持 [x]，证据不变（2 用例），停止态语义由结构（restore 循环跳过 STOPPED）+ 显式断言共同锁定。"
         ],
         "uncovered": [],
         "source": "legacy-conclusion"
@@ -247035,7 +247035,7 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "已覆盖：参考实现断言运行失败只对 RUNNING 实例生效（停止态不落盘），并把实例置为 STOPPED、写 runtime_exited 审计与错误日志。Rust 的两个引用用例分别锁定端口层的失败收敛与运行时退出时写审计/通知/错误日志，本轮复核结论与证据仍成立。"
+        "已覆盖：参考实现断言运行失败只对 RUNNING 实例生效（停止态不落盘），并把实例置为 STOPPED、写 runtime_exited 审计与错误日志。Rust 的两个引用用例分别锁定端口层的失败收敛与运行时退出时写审计/通知/错误日志，本轮复核结论与证据仍成立。【130-06B slice1 recon】复核 Go 四断言：（1）停止态对账零落盘、（2）运行态转 STOPPED、（3）runtime_exited 审计带原因、（4）错误日志带原因。发现引用缺口：recovery_failure_converges_the_running_instance_to_stopped 只播种 RUNNING 实例，未断言停止态零写入；已补强：同一用例追加 already-stopped 实例，断言 reconcile 后其 audit/log 行数不变、状态保持 STOPPED（2 binaries 均过）。结论维持 [x]，证据不变（2 用例），停止态语义由结构（restore 循环跳过 STOPPED）+ 显式断言共同锁定。"
       ],
       "uncoveredAssertions": [],
       "boundaryReason": null

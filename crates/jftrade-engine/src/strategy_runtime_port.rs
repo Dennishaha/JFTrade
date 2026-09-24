@@ -536,6 +536,25 @@ mod tests {
                 "2026-09-01T00:00:00Z",
             )
             .expect("seed stale instance");
+        // Parity: go:452dea11:internal/strategy/catalog/runtime_reconciliation_business_test.go:52
+        // `TestCatalogRuntimeFailureReconcilesOnlyRunningInstance` reconciles a
+        // STOPPED instance without persisting anything.
+        store
+            .seed_instance_with_binding(
+                "already-stopped",
+                "STOPPED",
+                Value::String("invalid".into()),
+                "2026-09-01T00:00:00Z",
+            )
+            .expect("seed stopped instance");
+        let stopped_audits_before = store
+            .list_audit_events("already-stopped")
+            .expect("stopped audits before")
+            .len();
+        let stopped_logs_before = store
+            .list_log_events("already-stopped")
+            .expect("stopped logs before")
+            .len();
         let manager = Arc::new(StrategyRuntimeManager::new(
             None,
             None,
@@ -562,6 +581,27 @@ mod tests {
                     && event.raw.contains("strategy runtime exited unexpectedly: ")
             }),
             "recovery failure logs = {logs:?}"
+        );
+        let stopped = store
+            .get_instance("already-stopped")
+            .expect("read stopped")
+            .expect("stopped instance");
+        assert_eq!(stopped.status, "STOPPED");
+        assert_eq!(
+            store
+                .list_audit_events("already-stopped")
+                .expect("stopped audits after")
+                .len(),
+            stopped_audits_before,
+            "a stopped instance must gain no audit rows during reconcile"
+        );
+        assert_eq!(
+            store
+                .list_log_events("already-stopped")
+                .expect("stopped logs after")
+                .len(),
+            stopped_logs_before,
+            "a stopped instance must gain no log rows during reconcile"
         );
         let audits = store.list_audit_events("stale").expect("audit");
         let exit = audits

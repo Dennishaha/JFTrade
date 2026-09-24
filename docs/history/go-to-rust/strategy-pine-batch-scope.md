@@ -401,3 +401,25 @@ node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --l
   `internal/watchlist` 31、`pkg/broker` 29，直至 4451 条清单全部完成。
 
 验证：`cargo fmt --all -- --check`、`cargo clippy -p jftrade-engine -p jftrade-trading -p jftrade-strategy --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-trading -p jftrade-strategy --all-targets --locked --no-fail-fast`（**1838 passed / 0 skipped**）、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **2925 Rust** / **1202 `[x]`**；missing 960、partial 1837、boundary 448、module_only 4；0 破坏引用、0 重复 rust_entry、未锚定告警 193 = 前批基线，7 条 partial 无解析引用与 2 条无断言为前批已登记缺口）、`pnpm run check:compatibility`、`node scripts/check-zero-go.mjs`（2888 tracked files / 0 release artifact）、`pnpm run check:rust:architecture`、`git diff --check`、`pnpm run check:quick`（先按 target 健康门执行 `cargo clean`）、`pnpm run check:ai-context`。
+
+## 第 130 批 06B 切片一：internal/strategy/catalog 22 条 recon（2026-09-24）
+
+范围：strategy_pine 域按文件行号升序首片，`internal/strategy/catalog/` 7 文件 22 条（partial 21 + function_exact 1）。
+全域基线（audit classifier 口径）：strategy_pine 538 条（[x] 81 + partial 383 + boundary 74），
+backtest_calendar 376 条（[x] 69 + partial 262 + boundary 45），合计 914 条。
+
+方法：逐条 `git show 452dea11:<path>` 核对 Go 断言与账本结论，引用 Rust 测试逐一确认存在且断言相符；
+引用存在不等于断言等价，过宽 [x] 必须纠正。
+
+结论：21 条 partial  verdict 成立（缺口与修复位置维持原结论，P1 4 项：活动查询降级空页 ×2、删除状态门、启动对账幂等计数；
+P2 17 项： Observability 富化、定义同步状态对象等）；1 条 [x]（runtime_reconciliation:52）复核发现引用缺口——
+运行失败只对 RUNNING 生效的“停止态零落盘”半侧无显式断言。已补强：
+`recovery_failure_converges_the_running_instance_to_stopped` 追加 already-stopped 实例，
+断言 reconcile 后其 audit/log 行数不变且状态保持 STOPPED（lib 与集成两 binaries 均过），[x] 维持，账本结论追加补强记录。
+无生产代码变更（restore 循环天然跳过 STOPPED，属测试补强）。
+
+验证：`cargo fmt -p jftrade-engine -- --check` 过；定向 nextest（recovery_failure…两 binaries）过；
+`audit_test_parity.py --write-report` 须 exit 0；`parity_anchor_reconcile.py` 过；`check:ai-context`、
+`check:migration-manifest`、`check:zero-go`、`check:quick`（单实例）、`git diff --check`。
+
+下一片：strategy_pine 余量按文件行号继续（internal/strategy/catalog 之后）。
