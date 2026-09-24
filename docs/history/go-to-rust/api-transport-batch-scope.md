@@ -6261,3 +6261,21 @@ strategies 读写兼容、store 合约、assembly、plugins、definitions 兼容
 git diff --check 干净；无 Rust 生产代码改动、无新增测试。
 
 下一片：130-10 切片三，strategy 域 partial 第 21–40 行。
+## 第 130 批 10 切片三：strategy 域 partial 第 21–40 行，20 行维持、零修改（2026-09-24）
+
+范围：strategy 域 partial 第 21–40 行（catalog 活动分页富化、binding 归一 7 行、instanceview 投影 5 行、
+live_command 边界 6 行、pine 默认模板 1 行，按文件加行号升序）。
+
+方法：Go 体按簇抽读；缺口逐条验鲜；结构性 boundary（无 OCO 腿模型、无后矛盾模板生成器、无 ApplyParams
+写回层）以代码级不存在确认；引用存在不等于断言等价。
+
+20 行维持（活动分页有断言、无观测富化合并断言；instruments 优先、旧 params 回填、审计明细文案、旧数组载荷、
+转换边界、nil 与陈旧字段清理均只有实现或分散断言、无逐项断言；chartType 未知值 Rust 拒收而 Go 静默清空，
+属待产品决议的行为差异；非类型化 runtime、params 回退、trim、视图隔离、ID 前缀 helper 均无同形 helper 断言；
+方向别名、整 bar 预检、11 类原子组形状、全有或全无提交、默认模板均无对应模型或生成器，保持 boundary/partial 结论）。
+
+验证：audit --write-report 过（1472 exact；dup 0）；anchor 过；定向 nextest（strategy_runtime_mutation、
+backtest_strategy 解析、execution 意图、backtest 保守撮合、plugins、assembly）全过；cargo fmt --check 与
+git diff --check 干净；账本与 Rust 代码零改动（纯复核片）。
+
+下一片：130-10 切片四，strategy 域 partial 第 41–60 行。
