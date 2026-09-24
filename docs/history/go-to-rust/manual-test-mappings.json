@@ -135599,9 +135599,9 @@
     "pkg/backtest/trading_costs_test.go:301:TestScriptCommissionMapsToBrokerFeesOnly": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-backtest/tests/trading_cost_behavior.rs::hong_kong_market_rules_round_currency_unit_and_keep_fee_groups_separate",
-      "conclusion": "partial：Go 断言脚本佣金只映射到 broker 费用。Rust 的费用用例断言 broker/market 费用组保持分离（该用例），脚本佣金→broker 的映射由费用规则解析承担。",
+      "conclusion": "boundary（结构差异）：Go 断言 Pine 脚本佣金只映射到 broker 费用（market 置 none）。Rust 无脚本佣金概念（backtest 与 integration-pine 均无 commission 映射，fees.rs 的 commission 仅为单测规则 ID），引用用例仅旁证 broker/market 费用组分离，不迁移。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-backtest --all-targets --locked",
-      "evidence_type": "partial",
+      "evidence_type": "boundary",
       "source": {
         "file": "pkg/backtest/trading_costs_test.go",
         "line": 301,
@@ -135619,7 +135619,7 @@
       "assertionCoverage": {
         "covered": [],
         "uncovered": [
-          "partial：Go 断言脚本佣金只映射到 broker 费用。Rust 的费用用例断言 broker/market 费用组保持分离（该用例），脚本佣金→broker 的映射由费用规则解析承担。"
+          "boundary（结构差异）：Go 断言 Pine 脚本佣金只映射到 broker 费用（market 置 none）。Rust 无脚本佣金概念（backtest 与 integration-pine 均无 commission 映射，fees.rs 的 commission 仅为单测规则 ID），引用用例仅旁证 broker/market 费用组分离，不迁移。"
         ],
         "source": "legacy-conclusion"
       },
@@ -135654,9 +135654,9 @@
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
-        "partial：Go 断言脚本佣金只映射到 broker 费用。Rust 的费用用例断言 broker/market 费用组保持分离（该用例），脚本佣金→broker 的映射由费用规则解析承担。"
+        "boundary（结构差异）：Go 断言 Pine 脚本佣金只映射到 broker 费用（market 置 none）。Rust 无脚本佣金概念（backtest 与 integration-pine 均无 commission 映射，fees.rs 的 commission 仅为单测规则 ID），引用用例仅旁证 broker/market 费用组分离，不迁移。"
       ],
-      "boundaryReason": null
+      "boundaryReason": "boundary（结构差异）：Go 断言 Pine 脚本佣金只映射到 broker 费用（market 置 none）。Rust 无脚本佣金概念（backtest 与 integration-pine 均无 commission 映射，fees.rs 的 commission 仅为单测规则 ID），引用用例仅旁证 broker/market 费用组分离，不迁移。"
     },
     "internal/integration/futu/candle_sessions_test.go:11:TestMarketSessionsForCandleSessions": {
       "status": "[x]",

@@ -901,3 +901,34 @@ cargo fmt --check 与 git diff --check 干净；无 Rust 生产代码改动、�
 无 Rust 生产代码改动、无新增测试。
 
 下一片：130-11 切片十六，backtest 域 partial 第 301–313 行（末片）＋下一域开片。
+
+## 第 130 批 11 切片十六：backtest 域 partial 第 301–313 行（末片），12 行维持、1 行 verdict 纠正（2026-09-24）
+
+范围：backtest 域 partial 第 301–313 行（脚本佣金映射 1、日历 builtin/边界/helper 12，
+按文件加行号升序）。本片后 backtest 域 partial 313/313 核对完毕。
+
+方法：Go 体全读；缺口验到代码行与用例断言；引用存在不等于断言等价。
+
+12 行维持（US 节假日与提前收盘、HK 工作日模板窗口、大陆节假日关闭与原因、
+工作日开放、别名共享节假日回退、年/月/周末 schedule 边界、helper 非法输入边界、
+快照市场日期与覆盖窗口、交易日会话业务状态、圣诞提前收盘与模板副本、解析器
+nil/零值/未知市场回退、会话归一化与时区回退，均与账本缺口一致；
+302/311 的 Rust 用例逐行核实覆盖 black_friday/christmas_eve/independence 三日
+与延长窗口保留，303–306 的 HK 分钟窗口与端午原因逐项对应）。
+
+1 行 verdict 纠正（[x] 1472 不变，b83 dry-run 先行、entry_changed 等于 0）：
+
+- trading_costs:301：由 partial 改为 boundary。Go 断言 Pine 脚本佣金只映射到
+  broker 费用；经核实 Rust 无脚本佣金概念（backtest 与 integration-pine 均无
+  commission 映射，fees.rs 的 commission 仅为单测规则 ID），引用用例仅旁证
+  费用组分离。原结论“映射由费用规则解析承担”属概念错位，按 Go 体与 Rust
+  体重写。
+
+抽核要点：13 条 Rust 引用逐项存在；7 个日历引用用例名逐项核实；
+integration-pine 无 commission 引用（rg 空）。
+
+验证：audit --write-report 过（1472 exact；dup 0）；anchor 过（1742/1696/0/0/46）；
+定向 nextest（jftrade-backtest、jftrade-calendar 视触及范围）全过；
+cargo fmt --check 与 git diff --check 干净；无 Rust 生产代码改动、无新增测试。
+
+下一域：strategy_pine（459 partial，为最大关键域缺口，见 automation s17 首片）。
