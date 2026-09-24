@@ -355,3 +355,31 @@ partial/boundary 缺口诚实（pump/planner/收集器/归一化层不迁移、
 `check:quick`（单实例）、`git diff --check`。
 
 下一片：backtest_calendar 按文件行号继续（sizer/collector/costs/result 余量系）。
+
+## 第 130 批 07 切片八：sizer/collector/short-replay/session-filter 31 条 recon（2026-09-24）
+
+范围：`pkg/backtest/replay_sizer_bounds_test.go`（4）+
+`result_collector_test.go`（8）+ `result_collector_trade_stats_test.go`（6）+
+`run_result_test.go`（2）+ `runner_hardcut_test.go`（1）+
+`runner_helpers_test.go`（1）+ `session_filter_store_boundaries_test.go`（3）+
+`session_filter_store_test.go`（1）+ `short_replay_bounds_test.go`（3）+
+`short_replay_test.go`（2），共 31 条（partial 22 + boundary 9）。
+
+方法：Go 体逐条核对结论；全部 31 条 Rust 引用逐一 rg 命中（0 缺失）；
+关键语义抽查 Rust 用例体（fills 数组逐笔 realizedPnl、终态 PARTIALLY_FILLED 导出、
+部分平仓撤单终结已成交分段）与 Go 体（:198 四段增量更新与去重、累计账本）；
+澄清与 s3 的关系：s3 的“终态订单行”指保守执行器 harness 的 orders 导出，
+本片 reporting harness 导出 fills 明细与终态部分成交态，两者结论各自精确、无矛盾。
+
+结论：31 条 verdict 全部成立，无判定变更、无代码变更——
+:198 增量跟踪语义一致（分笔累计），增量更新 API 的去重/累计账本无直接断言，
+partial 诚实；9 boundary 属实（合成订单委托层、包装 store、流式 API、
+旧入口 hardcut、runmodel 计数样本等不迁移，升级路径已登记）。
+本片为纯 recon。
+
+验证：`audit_test_parity.py --write-report` exit 0；`parity_anchor_reconcile.py` 过；
+`cargo fmt -p jftrade-engine -- --check`、`check:ai-context`、`check:migration-manifest`、
+`check:zero-go`、定向 nextest（backtest 结果上报/费用/撤单 + store-sqlite 会话）、
+`check:quick`（单实例）、`git diff --check`。
+
+下一片：backtest_calendar 按文件行号继续（source/store/costs 余量 37 条）。
