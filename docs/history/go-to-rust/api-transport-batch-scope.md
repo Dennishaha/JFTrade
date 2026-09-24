@@ -5178,3 +5178,40 @@ fixture case 名实）。结论：28 条 verdict 全部成立，
 
 下一片：api_transport 余量继续按文件行号升序（marketdata、middleware、
 origin、productfeatures、research、settings 等目录）。
+
+## 第 130 批 09 切片十三：marketdata 路由 40 条 recon（2026-09-24）
+
+范围：`internal/api/marketdata/` routes_boundaries（19）+
+routes_news_actions（4）+ routes_test（17），共 40 条
+（30 `[x]` + 7 partial + 3 boundary）。
+
+方法：Go 体逐段核对结论保真度（candles legacy 解析/sessions 归一/
+before 组合/tick 与 strict-before/depth num、news limit 与 range 转发、
+复合七段成功契约、六段失败映射）；30 个 `[x]` 的 Rust 引用逐一命中
+（30/30 存在）；锚点三形全认（带基线前缀、无前缀、单文件有效不追加）
+之下 27 条有锚，3 条无任何形式锚点（routes_boundaries `:229`
+时间解析、`:462` 订阅畸形拒绝、routes_test `:439` depth 非法 num），
+落在审计已知 100 exact-without-anchor 警告内，非失败，本片为纯 recon
+不追加锚点、不碰 Rust 文件。结论：40 条 verdict 全部成立，
+无判定变更、无命令变更、无代码变更。
+
+抽查实据三则：`candle_route_preserves_legacy_query_parsing` 用真实小写
+us/aapl 路径断言 period 归一 1h 与 from/to 窗口（含无前缀锚点）；
+news 非法 limit 三值 0/abc/51 在端口测试逐一 400；复合 `:459` 的七段
+成功契约确系分散覆盖（provider/catalog/quote-read/subscription/
+assembly），partial 保留诚实。partial 缺口登记不变：`:563` 快照 Futu
+无缓存无回退时 502 对 503（P2 待定边界）、news `:55` 传输层缺段 404
+对 400、`:160` helper 直通无 MARKET_NEWS_FAILED/Retry-After 分支、
+`:63` depth 通用失败码与 num 转发、` :119` 显式 brokerId 覆盖。3 条
+boundary 属实：Rust 无 broker-reader 分流谓词（`:167` usesActive 分流、
+`:239` yfinance 显式绕行、`:327` broker 错误通道）。
+
+验证：`audit_test_parity.py --write-report` exit 0（已知警告 0/2/100/2
+不变；仅 report 基线号重生，inventory 无差；`[x]` 全文唯一性不变式过，
+store `:792` 早已降为 partial，无重复 exact）；`parity_anchor_reconcile.py`
+过（1695/0/0/46）；无 Rust 文件改动故免 fmt 与 nextest；
+`check:ai-context`、`check:migration-manifest`、`check:zero-go` 过；
+`check:quick` 与 `git diff --check` 见收尾。
+
+下一片：api_transport 余量继续按文件行号升序（middleware、origin、
+productfeatures、research、settings 等目录）。
