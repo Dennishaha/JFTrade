@@ -579,3 +579,42 @@ service/types 10 partial 缺口与 Go 体一致（含 :236 启动后回滚 P1、
 `check:quick`（单实例）、`git diff --check`。
 
 下一域：backtest_calendar（376 条），按文件行号分片推进。
+## 第 130 批 09 切片二十九：internal/strategy 服务面 18 条 [x] 复核，零纠正（2026-09-24）
+
+范围：`internal/strategy` 服务面 18 条 `[x]`（errors、instancebinding、
+instanceview、liveruntime 3、pine_live_executor 4、runtimecontrol 5、
+catalog、live_command、service 各 1）。本片为独立复核抽查，非新映射。
+
+方法：Go 体全读；20 个具名 Rust 引用逐一全仓核实存在（0 缺失）；7 个
+高风险行逐字比对断言（`:33` 委派身份、`:235` 市场日窗口、`:80` 缺数量
+拒绝、`:52` 失败收敛、`:198` 非法格式前置校验、`:67`/`:11` 原因码表）；
+其余 11 行结论与锚点抽查。
+
+结论：18 条全部维持 `[x]`，零纠正（`[x]` 全量保持 1501）。核实要点：
+
+- `:33`：Rust 经 ProductionStrategyDefinitionPort 按身份键读写（未知
+  id 答 None、definitionId 回显、软删除保留历史），错配身份即失败，
+  委派契约成立。
+- `:235`：同一时刻两事件 US 计 2、HK 计 1、他实例计 0，与 Go 完全一致；
+  计数按实例加日界毫秒过滤，边界语义差已在测试内注明。
+- `:80`：REAL 绑定缺数量拒绝且零 broker 调用；SIMULATE 缺省 1 为离线语义，
+  测试内已区分。
+- `:52`：RUNNING 转 STOPPED 加错误日志，已停止实例审计与日志行数不变，
+  补强断言在位。
+- `:198`：非法格式 400 且端口零调用，合法请求才落端口；层位差已在结论
+  写明。
+- `:67`/`:11`：原因码表 6 断言逐条复刻，证据集不同（单用例与组合），
+  无重复 `[x]` 冲突。
+
+队列探查：strategy_pine、backtest_calendar、store 三域均已收官；
+api_transport 面 `[x]` 余量 30 个目录，以 marketdataapp 60、
+servercoretest 59、servercore 50、datamigration 38 为大头。
+
+验证：`audit_test_parity.py --write-report` exit 0（1501 exact 全引用
+存在；inventory 重生但计数不变）；`parity_anchor_reconcile.py` 过
+（1742 total、已记录 1696、unrecorded 0、stale 0、unknown 46）；本片无
+Rust 文件改动故免 fmt 与 nextest；`check:ai-context`、
+`check:migration-manifest`、`check:zero-go`、`check:quick` 与
+`git diff --check` 见收尾。
+
+下一片：130-09 切片三十，datamigration 38 条 `[x]` 纠正式复核（s19 已深 recon，需逐字比对）。
