@@ -445,3 +445,25 @@ chartType 保留与未知值静默清空、审计明细文案、params 回退与
 `check:zero-go`、`check:quick`（单实例）、`git diff --check`。
 
 下一片：strategy_pine 余量按文件行号继续（instanceview 之后）。
+
+## 第 130 批 06B 切片三：live_command/manager_boundaries 22 条 recon（2026-09-24）
+
+范围：strategy_pine 域按文件行号升序第三片，
+`internal/strategy/live_command_business_boundaries_test.go`（11：
+[x] 1 + partial 6 + boundary 4）与
+`internal/strategy/liveruntime/manager_boundaries_test.go`（11：partial 11）。
+
+方法：Go 体逐条核对结论；[x] 确认 Rust 测试与锚点；boundary 核对结构 claim（Rust 侧检索）。
+
+结论：22 条 verdict 全部成立，无判定变更、无代码变更——
+[x] live_command:33 身份保持等价（未知 id None、definitionId 归属、版本快照、软删除历史保留）；
+4 boundary 结构属实（atomicGroupId 仅存在于 PineTS worker 意图标签，Rust 引擎无原子组校验/提交语义；
+默认 Pine 模板无后端生成器）；partial 缺口描述与 Go 体一致（含 :127 整 bar 预检五分支、
+:545 陈旧取消容忍对 Rust 硬错误的决策差、:116 健康覆盖零调用、:94 双模式流式能力门）。
+本片账本仅做只读校验。
+
+验证：`audit_test_parity.py --write-report` exit 0；`parity_anchor_reconcile.py` 过；
+`cargo fmt -p jftrade-engine -- --check`、`check:ai-context`、`check:migration-manifest`、
+`check:zero-go`、`check:quick`（单实例）、`git diff --check`。
+
+下一片：strategy_pine 余量按文件行号继续（manager_boundaries 之后：manager_close/nil/order_risk/live_business/lifecycle 等）。
