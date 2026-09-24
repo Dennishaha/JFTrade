@@ -283055,11 +283055,11 @@
       "boundaryReason": null
     },
     "internal/trading/execution_test.go:173:TestExecutionOrderServiceFacadeUsesInjectedStoresAndBrokerCommands": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::execution_read_port_normalizes_filters_and_routes_order_identifiers",
-      "conclusion": "function_exact：Go 断言 facade 把归一后的过滤条件交给注入 store（TradingEnvironment=REAL（来自默认环境 real）、AccountID=acc-1（trim）、Market=US（大写）），并把返回订单 ID 原样传给 cancel 与 events 调用。Rust 把过滤条件的归一化与匹配放进生产读端口（ProductionExecutionPort::read：QueryMap 解析 + 逐字段 trim/大小写不敏感匹配 + status 排序），因此等价证据是「归一后的查询命中正确的订单集合 + ID 往返」：新增测试用生产端口落两笔订单，把其中一笔改成 REAL/acc-1/US，再以 scope=active&brokerId=%20futu%20&tradingEnvironment=%20real%20&accountId=%20acc-1%20&market=%20us%20 查询，断言只返回该笔（另一笔 SIMULATE/HK/42 被过滤掉），并用返回的 internalOrderId 读取 /orders/{id}/events，断言事件归属同一 ID 且非空。探针：去掉 market 字段的 trim → 过滤结果为空、断言转红（filtered orders = {\"orders\":[]}），按字节回滚（product_production_ports_execution_orders.rs shasum eae79748… 探测前后一致）。差异：Go 断言的是传给注入 store 的函数参数（listedFilter），Rust 的 store 查询由读端口内部构造，故断言落在端口输出与 ID 往返上；两处都覆盖「trim + 大小写不敏感 + REAL 默认环境」语义。",
+      "conclusion": "partial（facade 全 wiring 未闭环）：已覆盖过滤归一落到读端口输出——REAL 默认环境、acc-1 trim、US 大写经 scope=active 查询只命中 REAL/acc-1/US 订单，返回 internalOrderId 经 events 路由往返且事件非空；探针去 market trim 后空结果转红，已按字节回滚。缺口：Go 同用例还断言 (a) PreviewExecutionOrder 有效载荷回显（PreviewValid、BrokerID test-broker、Symbol US.AAPL、Price）；(b) Create 成功契约（Accepted、Operation PLACE、local-2、Remark=client-123 回显）；(c) snapshot 空过滤器返回全量且不碰过滤器；(d) single cancel 响应形状（Operation CANCEL、trim 后 local-2、BrokerOrderIDEx broker-ex-3）与 events 内容（order_submitted）。Rust 现有证据只锁读端口过滤与 ID 往返；cancel trim 由 combo :15 的证据覆盖，Remark 回退语义由 parse 层覆盖，但 preview/create/cancel 响应契约与 snapshot 空过滤无直接断言。回归：在 engine 补 facade 响应契约测试（preview 有效载荷回显、create Accepted/PLACE/Remark 回显、snapshot 空过滤、cancel CANCEL 形状、events 内容 order_submitted）后升级；业务逻辑不得复制进 API handler。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-      "evidence_type": "function_exact",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/trading/execution_test.go",
         "line": 173,
@@ -283080,10 +283080,10 @@
         }
       ],
       "assertionCoverage": {
-        "covered": [
-          "function_exact：Go 断言 facade 把归一后的过滤条件交给注入 store（TradingEnvironment=REAL（来自默认环境 real）、AccountID=acc-1（trim）、Market=US（大写）），并把返回订单 ID 原样传给 cancel 与 events 调用。Rust 把过滤条件的归一化与匹配放进生产读端口（ProductionExecutionPort::read：QueryMap 解析 + 逐字段 trim/大小写不敏感匹配 + status 排序），因此等价证据是「归一后的查询命中正确的订单集合 + ID 往返」：新增测试用生产端口落两笔订单，把其中一笔改成 REAL/acc-1/US，再以 scope=active&brokerId=%20futu%20&tradingEnvironment=%20real%20&accountId=%20acc-1%20&market=%20us%20 查询，断言只返回该笔（另一笔 SIMULATE/HK/42 被过滤掉），并用返回的 internalOrderId 读取 /orders/{id}/events，断言事件归属同一 ID 且非空。探针：去掉 market 字段的 trim → 过滤结果为空、断言转红（filtered orders = {\"orders\":[]}），按字节回滚（product_production_ports_execution_orders.rs shasum eae79748… 探测前后一致）。差异：Go 断言的是传给注入 store 的函数参数（listedFilter），Rust 的 store 查询由读端口内部构造，故断言落在端口输出与 ID 往返上；两处都覆盖「trim + 大小写不敏感 + REAL 默认环境」语义。"
+        "covered": [],
+        "uncovered": [
+          "partial（facade 全 wiring 未闭环）：已覆盖过滤归一落到读端口输出——REAL 默认环境、acc-1 trim、US 大写经 scope=active 查询只命中 REAL/acc-1/US 订单，返回 internalOrderId 经 events 路由往返且事件非空；探针去 market trim 后空结果转红，已按字节回滚。缺口：Go 同用例还断言 (a) PreviewExecutionOrder 有效载荷回显（PreviewValid、BrokerID test-broker、Symbol US.AAPL、Price）；(b) Create 成功契约（Accepted、Operation PLACE、local-2、Remark=client-123 回显）；(c) snapshot 空过滤器返回全量且不碰过滤器；(d) single cancel 响应形状（Operation CANCEL、trim 后 local-2、BrokerOrderIDEx broker-ex-3）与 events 内容（order_submitted）。Rust 现有证据只锁读端口过滤与 ID 往返；cancel trim 由 combo :15 的证据覆盖，Remark 回退语义由 parse 层覆盖，但 preview/create/cancel 响应契约与 snapshot 空过滤无直接断言。回归：在 engine 补 facade 响应契约测试（preview 有效载荷回显、create Accepted/PLACE/Remark 回显、snapshot 空过滤、cancel CANCEL 形状、events 内容 order_submitted）后升级；业务逻辑不得复制进 API handler。"
         ],
-        "uncovered": [],
         "source": "legacy-conclusion"
       },
       "verification": {
@@ -283110,15 +283110,15 @@
       "risk": "high",
       "owner": "trading_broker",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "function_exact：Go 断言 facade 把归一后的过滤条件交给注入 store（TradingEnvironment=REAL（来自默认环境 real）、AccountID=acc-1（trim）、Market=US（大写）），并把返回订单 ID 原样传给 cancel 与 events 调用。Rust 把过滤条件的归一化与匹配放进生产读端口（ProductionExecutionPort::read：QueryMap 解析 + 逐字段 trim/大小写不敏感匹配 + status 排序），因此等价证据是「归一后的查询命中正确的订单集合 + ID 往返」：新增测试用生产端口落两笔订单，把其中一笔改成 REAL/acc-1/US，再以 scope=active&brokerId=%20futu%20&tradingEnvironment=%20real%20&accountId=%20acc-1%20&market=%20us%20 查询，断言只返回该笔（另一笔 SIMULATE/HK/42 被过滤掉），并用返回的 internalOrderId 读取 /orders/{id}/events，断言事件归属同一 ID 且非空。探针：去掉 market 字段的 trim → 过滤结果为空、断言转红（filtered orders = {\"orders\":[]}），按字节回滚（product_production_ports_execution_orders.rs shasum eae79748… 探测前后一致）。差异：Go 断言的是传给注入 store 的函数参数（listedFilter），Rust 的 store 查询由读端口内部构造，故断言落在端口输出与 ID 往返上；两处都覆盖「trim + 大小写不敏感 + REAL 默认环境」语义。"
+      "coveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial（facade 全 wiring 未闭环）：已覆盖过滤归一落到读端口输出——REAL 默认环境、acc-1 trim、US 大写经 scope=active 查询只命中 REAL/acc-1/US 订单，返回 internalOrderId 经 events 路由往返且事件非空；探针去 market trim 后空结果转红，已按字节回滚。缺口：Go 同用例还断言 (a) PreviewExecutionOrder 有效载荷回显（PreviewValid、BrokerID test-broker、Symbol US.AAPL、Price）；(b) Create 成功契约（Accepted、Operation PLACE、local-2、Remark=client-123 回显）；(c) snapshot 空过滤器返回全量且不碰过滤器；(d) single cancel 响应形状（Operation CANCEL、trim 后 local-2、BrokerOrderIDEx broker-ex-3）与 events 内容（order_submitted）。Rust 现有证据只锁读端口过滤与 ID 往返；cancel trim 由 combo :15 的证据覆盖，Remark 回退语义由 parse 层覆盖，但 preview/create/cancel 响应契约与 snapshot 空过滤无直接断言。回归：在 engine 补 facade 响应契约测试（preview 有效载荷回显、create Accepted/PLACE/Remark 回显、snapshot 空过滤、cancel CANCEL 形状、events 内容 order_submitted）后升级；业务逻辑不得复制进 API handler。"
       ],
-      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/trading/execution_test.go:285:TestExecutionOrderServiceFacadeReturnsBusinessErrors": {

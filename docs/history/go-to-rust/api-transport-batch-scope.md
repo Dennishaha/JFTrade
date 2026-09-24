@@ -6102,3 +6102,35 @@ anchor 过（1742/1696/0/0/46）；新用例 1/1、control_plane_ 模块 11/11�
 生产改动为零（仅新增 1 条测试，52 行）。
 
 下一片：130-09 切片四十，trading 域 [x] 第 21–40 条。
+## 第 130 批 09 切片四十：trading 域 [x] 第 21–40 条，19 条维持、:173 降为 partial（2026-09-24）
+
+范围：trading_broker 域 [x] 第 21–40 条（execution_combo:237/:319/:412/:441、
+execution_products:12/:85/:128/:149/:193、
+execution_test:16/:47/:71/:96/:159/:173/:285/:327/:342/:367/:397）。
+
+方法：Go 体全读；Rust 断言逐项比对；引用存在不等于断言等价。
+
+19 条维持 [x]（10 条不安全边界逐条文案、故障矩阵分支、helper 三择一与网关
+契约、单腿与预测提交契约、衍生品 preview 锁定、equity 字段拒绝、期货权限
+矩阵、过期 RFQ、哈希绑定 clientOrderId、归一矩阵 5 组、错误包络 4 分类、
+非法载荷先拒、REAL 关闭拒单、运行期 REAL 放行、SIMULATE 放行，均逐项命中；
+:237 的 mixed 分支同时是 :149 的组合证据，:149 成功预览形状由 :15 同 seam
+交叉覆盖；:319 的 broker 结果信封无 Rust 同形对象，fail-closed 由传输层
+illegal-spread 用例承接，属不可表达项已披露；:319 无 OpenD 503 对 Go 400
+为既有 Futu-only provider 映射已登记）。
+
+1 处纠正（[x] 降为 partial，[x] 1474→1473）：
+
+- execution_test:173：Go 题眼是 facade 全 wiring（list 过滤归一、snapshot
+  空过滤、preview 有效载荷、create 成功契约、cancel 形状、events 内容），
+  Rust 证据只锁读端口过滤归一与 ID 经 events 路由往返。preview 回显
+  （PreviewValid/BrokerID/Symbol/Price）、create（Accepted/PLACE/
+  Remark=client-123）、snapshot 空过滤、single cancel（CANCEL/
+  BrokerOrderIDEx）、events（order_submitted）均无直接断言。回归：在
+  engine 补 facade 响应契约测试后升级；业务逻辑不得进 API handler。
+
+验证：audit --write-report 过（1473 exact；dup 0）；anchor 过
+（1742/1696/0/0/46）；定向 nextest 4/4（:173/:319/:441/:285 证据）；
+cargo fmt --check 与 git diff --check 干净；无 Rust 代码改动。
+
+下一片：130-09 切片四十一，trading 域 [x] 第 41–60 条。
