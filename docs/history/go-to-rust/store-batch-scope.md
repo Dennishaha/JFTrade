@@ -72,3 +72,32 @@ scope ID 格式、未知字段不重写、逐日矩阵等），口径诚实。
 `check:quick`（单实例）、`git diff --check`。
 
 下一片：store 域按文件继续（trading 系约 50 条）。
+
+## 第 130 批 08 切片四：trading 45 条 recon（2026-09-24）
+
+范围：`internal/store/trading/` 全域 15 文件 45 条
+（原 18 `[x]` + 17 partial + 10 boundary）。
+
+方法：Go 体逐条核对结论；45 条 Rust 引用逐一 rg 命中（0 缺失），
+`[x]` 唯一性无重复、锚点齐全；17 partial + 10 boundary 均带
+owner 与回归要求，口径诚实。1 条收回过宽 `[x]`→partial：
+
+- `persistence_failures:14` 构造依赖失败：Go 用注入断言 stat/open
+  失败传播（errors.Is + 文案谓词）+ 畸形 metadata + 缺表；Rust 无依赖
+  注入，后两条同形覆盖，前两条仅近似（EmptyPath/NotRegularFile），
+  谓词无对应。
+- 复核保留的两条：`out_of_order:43`（Go 对 changed 允许两种结果，
+  Rust 从不落事件满足全部断言）、`source_health` 式差异不适用本片。
+
+结论：45 条 verdict = **17 `[x]` + 18 partial + 10 boundary**
+（`[x]` 1561→1560，partial 2252→2253）。本片仅台账修正 + 文档，
+无代码变更。
+
+验证：`v2_writer.py --check` 过后落库；`audit_test_parity.py --write-report`
+exit 0；`parity_anchor_reconcile.py` 过（1693/0/0/46）；
+`cargo fmt -p jftrade-engine -- --check`；定向 nextest
+（store-sqlite + engine 对账相关）；`check:ai-context`、
+`check:migration-manifest`、`check:zero-go`、`check:quick`（单实例）、
+`git diff --check`。
+
+下一片：store 域按文件继续（strategy + research + backtest/store 余量约 42 条）。

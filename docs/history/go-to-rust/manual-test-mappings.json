@@ -7,7 +7,7 @@
     "treeSha": "0ee26444be21c15d9760f358a34649f78402f0fb"
   },
   "generatorVersion": "v2_writer.py@slice23",
-  "generatedAt": "2026-09-24T01:35:08Z",
+  "generatedAt": "2026-09-24T01:42:16Z",
   "mappings": {
     "cmd/jftrade-api/main_test.go:13:TestValidateArgsAllowsNoArgs": {
       "status": "[~]",
@@ -242528,11 +242528,11 @@
       "boundaryReason": null
     },
     "internal/store/trading/persistence_failures_test.go:14:TestExecutionPersistenceConstructorDependencyFailures": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "crates/jftrade-store-sqlite/tests/execution_order_store_contracts.rs::execution_orders_store_constructor_rejects_empty_missing_and_malformed_inputs",
-      "conclusion": "function_exact：Go 用注入依赖断言 stat 失败、open 失败、畸形 metadata（incompatible）与缺表构造失败。Rust 无依赖注入，改以同形的失败分类断言：空路径 → EmptyPath、缺失文件 → NotRegularFile、无 version 列的畸形 metadata → Schema 错误、缺 execution_orders 表 → Schema 错误。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked",
-      "evidence_type": "function_exact",
+      "conclusion": "partial（收回过宽exact）：Go用注入依赖断言4条构造失败——stat失败（errors.Is+文案含inspect）、open失败（errors.Is+文案含open）、畸形metadata（IsIncompatible）、缺表（load失败）。Rust无依赖注入：畸形metadata（同形SQL种子）与缺表两条同形覆盖（Schema拒绝）；注入式stat/open失败路径无对应表达（Rust以空路径EmptyPath/缺失文件NotRegularFile近似，错误谓词IsIncompatible与文案inspect/open无对应断言）。故降为partial。回归要求：若引入构造期依赖注入或统一错误谓词，需补stat/open注入失败的传播断言后再升级。",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -E 'test(execution_orders_store_constructor_rejects_empty_missing_and_malformed_inputs)'",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/store/trading/persistence_failures_test.go",
         "line": 14,
@@ -242553,10 +242553,10 @@
         }
       ],
       "assertionCoverage": {
-        "covered": [
-          "function_exact：Go 用注入依赖断言 stat 失败、open 失败、畸形 metadata（incompatible）与缺表构造失败。Rust 无依赖注入，改以同形的失败分类断言：空路径 → EmptyPath、缺失文件 → NotRegularFile、无 version 列的畸形 metadata → Schema 错误、缺 execution_orders 表 → Schema 错误。"
+        "covered": [],
+        "uncovered": [
+          "partial（收回过宽exact）：Go用注入依赖断言4条构造失败——stat失败（errors.Is+文案含inspect）、open失败（errors.Is+文案含open）、畸形metadata（IsIncompatible）、缺表（load失败）。Rust无依赖注入：畸形metadata（同形SQL种子）与缺表两条同形覆盖（Schema拒绝）；注入式stat/open失败路径无对应表达（Rust以空路径EmptyPath/缺失文件NotRegularFile近似，错误谓词IsIncompatible与文案inspect/open无对应断言）。故降为partial。回归要求：若引入构造期依赖注入或统一错误谓词，需补stat/open注入失败的传播断言后再升级。"
         ],
-        "uncovered": [],
         "source": "legacy-conclusion"
       },
       "verification": {
@@ -242566,8 +242566,8 @@
           "run",
           "-p",
           "jftrade-store-sqlite",
-          "--all-targets",
-          "--locked"
+          "-E",
+          "test(execution_orders_store_constructor_rejects_empty_missing_and_malformed_inputs)"
         ],
         "testFilter": [
           "execution_orders_store_constructor_rejects_empty_missing_and_malformed_inputs"
@@ -242583,15 +242583,15 @@
       "risk": "normal",
       "owner": "storage_sqlite",
       "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "function_exact：Go 用注入依赖断言 stat 失败、open 失败、畸形 metadata（incompatible）与缺表构造失败。Rust 无依赖注入，改以同形的失败分类断言：空路径 → EmptyPath、缺失文件 → NotRegularFile、无 version 列的畸形 metadata → Schema 错误、缺 execution_orders 表 → Schema 错误。"
+      "coveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial（收回过宽exact）：Go用注入依赖断言4条构造失败——stat失败（errors.Is+文案含inspect）、open失败（errors.Is+文案含open）、畸形metadata（IsIncompatible）、缺表（load失败）。Rust无依赖注入：畸形metadata（同形SQL种子）与缺表两条同形覆盖（Schema拒绝）；注入式stat/open失败路径无对应表达（Rust以空路径EmptyPath/缺失文件NotRegularFile近似，错误谓词IsIncompatible与文案inspect/open无对应断言）。故降为partial。回归要求：若引入构造期依赖注入或统一错误谓词，需补stat/open注入失败的传播断言后再升级。"
       ],
-      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/store/trading/persistence_failures_test.go:58:TestExecutionPersistenceLoadsStoredSequenceHighWaterMarks": {
