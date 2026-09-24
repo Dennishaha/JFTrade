@@ -4709,3 +4709,40 @@ owner：能力目录与路由投影由 jftrade-engine 承接，市场规则与�
 | 快速门禁 | pnpm run check:quick | 通过 exit 0（文档范围、policy 门禁；Rust 树与 130-05b 整轮通过时一致）|
 
 后续：trading 域收口完成（余量均为已审定 deliberate partial/boundary）；下一批转向 :735 配置默认市场注入生产修复或 strategy/backtest 域，按目标排期。
+
+## 第 130 批 09 切片一：apiserver application/lifecycle/desktop 启动编排 35 条 recon（2026-09-24）
+
+范围：`internal/app/apiserver/application/`（14：assistant 3、installers 2、
+lifecycle 3、resources 5、runtime_dependencies 1）+
+`internal/app/apiserver/lifecycle/lifecycle_test.go`（17）+
+`internal/app/apiserver/desktop_api_startup_test.go`（4），共 35 条
+（原 18 `[x]` + 12 partial + 5 boundary）。
+
+方法：Go 体逐条核对结论；35 条 Rust 引用逐一 rg 命中（0 缺失），锚点齐全；
+组合条目逐项拆验（分号组合必须全文唯一，组合元须为真实测试）。
+5 条收回过宽 `[x]`→partial：
+
+- `:110` 启动装配：Go 断言 apiPort/前端/security/来源全套装配值；
+  Rust 仅覆盖依赖顺序启停。
+- `:222` 绑定字符串：Go 断言禁用/本地/公开/loopback 四值矩阵；
+  Rust 行为级覆盖但精确字符串无断言。
+- `:243` 独立监听共存：Go 断言 StartForRunArgs 编排共存；
+  Rust 仅独立 runtime 绑定/服务/关闭。
+- `:275` 热重绑：Go 三项（重绑成功/冲突报错/旧存活），Rust 缺首项；
+  原组合第二元为结构体非测试。
+- `:378` 主机切换恢复：Go 注入式恢复矩阵，Rust 仅占位冲突存活；
+  原组合第二元为私有函数非测试。
+
+结论：35 条 verdict = **13 `[x]` + 17 partial + 5 boundary**
+（`[x]` 1559→1554，partial 2257→2262）。本片仅台账修正 + 文档，
+无代码变更。附带口径：组合证据的非测试元（结构体/私有函数）不计为
+等价证据，后续复核凡见此类组合须拆验。
+
+验证：`v2_writer.py --check` 过后落库；`audit_test_parity.py --write-report`
+exit 0；`parity_anchor_reconcile.py` 过（1693/0/0/46）；
+`cargo fmt -p jftrade-engine -- --check`；定向 nextest
+（engine server/runtime 相关 + desktop contracts）；
+`check:ai-context`、`check:migration-manifest`、`check:zero-go`、
+`check:quick`（单实例）、`git diff --check`。
+
+下一片：api_transport 按目录继续（servercore/servercoretest 系）。

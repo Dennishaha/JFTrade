@@ -7,7 +7,7 @@
     "treeSha": "0ee26444be21c15d9760f358a34649f78402f0fb"
   },
   "generatorVersion": "v2_writer.py@slice23",
-  "generatedAt": "2026-09-24T01:47:01Z",
+  "generatedAt": "2026-09-24T01:50:11Z",
   "mappings": {
     "cmd/jftrade-api/main_test.go:13:TestValidateArgsAllowsNoArgs": {
       "status": "[~]",
@@ -29453,11 +29453,11 @@
       "boundaryReason": "boundary：Rust 没有按启动参数进入 noop 的入口（桌面启动由 Tauri 命令 + profile 决定）；禁用的对应语义是 Web 访问关闭时不启动独立 listener，由 ProductWebServerRuntime 测试覆盖。"
     },
     "internal/app/apiserver/lifecycle/lifecycle_test.go:110:TestStartForRunArgsConfiguresRuntimeAndFrontend": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "apps/desktop/src-tauri/tests/desktop_contracts.rs::lifecycle_starts_in_dependency_order_and_shuts_down_in_reverse",
-      "conclusion": "function_exact：Go 断言按设置配置 API/GUI 绑定并注入运行时；Rust 断言运行时计划按依赖顺序启动（engine→pine worker→marketdata sidecar）并逆序关闭，绑定/前端由 DesktopProfile 决定。",
+      "conclusion": "partial（收回过宽exact）：Go断言StartForRunArgs全套装配矩阵（apiPort 6688、前端FS装载/baseURL、安全应用、auth来源、运行时集成host改写）。Rust仅覆盖依赖顺序启动/逆序关闭；装配值矩阵无对应断言，故降为partial。回归要求：补启动装配值（端口/前端/来源/集成改写）断言后再升级。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-desktop -E 'test(lifecycle_starts_in_dependency_order_and_shuts_down_in_reverse)'",
-      "evidence_type": "function_exact",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/lifecycle/lifecycle_test.go",
         "line": 110,
@@ -29478,10 +29478,10 @@
         }
       ],
       "assertionCoverage": {
-        "covered": [
-          "function_exact：Go 断言按设置配置 API/GUI 绑定并注入运行时；Rust 断言运行时计划按依赖顺序启动（engine→pine worker→marketdata sidecar）并逆序关闭，绑定/前端由 DesktopProfile 决定。"
+        "covered": [],
+        "uncovered": [
+          "partial（收回过宽exact）：Go断言StartForRunArgs全套装配矩阵（apiPort 6688、前端FS装载/baseURL、安全应用、auth来源、运行时集成host改写）。Rust仅覆盖依赖顺序启动/逆序关闭；装配值矩阵无对应断言，故降为partial。回归要求：补启动装配值（端口/前端/来源/集成改写）断言后再升级。"
         ],
-        "uncovered": [],
         "source": "legacy-conclusion"
       },
       "verification": {
@@ -29508,15 +29508,15 @@
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "function_exact：Go 断言按设置配置 API/GUI 绑定并注入运行时；Rust 断言运行时计划按依赖顺序启动（engine→pine worker→marketdata sidecar）并逆序关闭，绑定/前端由 DesktopProfile 决定。"
+      "coveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial（收回过宽exact）：Go断言StartForRunArgs全套装配矩阵（apiPort 6688、前端FS装载/baseURL、安全应用、auth来源、运行时集成host改写）。Rust仅覆盖依赖顺序启动/逆序关闭；装配值矩阵无对应断言，故降为partial。回归要求：补启动装配值（端口/前端/来源/集成改写）断言后再升级。"
       ],
-      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/app/apiserver/lifecycle/lifecycle_test.go:196:TestWebAccessBindDefaultsToLoopbackAndRequiresCompletePublicConfiguration": {
@@ -29582,11 +29582,11 @@
       "boundaryReason": "boundary：Rust desired_bind 在 publicAccessEnabled 时绑 0.0.0.0、否则 loopback；但未配置密码时 Rust 直接关闭整个 web 访问（fail-closed），比 Go 的“仍绑 loopback 但拒绝公开”更严格，属安全策略差异。"
     },
     "internal/app/apiserver/lifecycle/lifecycle_test.go:222:TestWebAccessListenerBindUsesIndependentConfiguredPort": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_server_tests.rs::enabled_web_access_binds_and_shutdown_releases_port; crates/jftrade-engine/src/product_server_tests.rs::disabled_web_access_does_not_start_a_listener",
-      "conclusion": "function_exact：Go 断言禁用时无监听、启用时使用独立 webPort（公开时 0.0.0.0）；Rust 断言禁用不启动 listener，启用时在独立 webPort 上可完成 HTTP 请求且关闭后端口释放。",
+      "conclusion": "partial（收回过宽exact）：Go断言绑定字符串矩阵（禁用→空、本地→127.0.0.1:7443、公开→0.0.0.0:7443、loopbackBind映射）。Rust行为级覆盖启用绑定可服务+禁用不监听，但精确绑定字符串无对应断言，故降为partial。回归要求：补绑定字符串矩阵断言后再升级。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(enabled_web_access_binds_and_shutdown_releases_port)'",
-      "evidence_type": "function_exact",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/lifecycle/lifecycle_test.go",
         "line": 222,
@@ -29618,10 +29618,10 @@
         }
       ],
       "assertionCoverage": {
-        "covered": [
-          "function_exact：Go 断言禁用时无监听、启用时使用独立 webPort（公开时 0.0.0.0）；Rust 断言禁用不启动 listener，启用时在独立 webPort 上可完成 HTTP 请求且关闭后端口释放。"
+        "covered": [],
+        "uncovered": [
+          "partial（收回过宽exact）：Go断言绑定字符串矩阵（禁用→空、本地→127.0.0.1:7443、公开→0.0.0.0:7443、loopbackBind映射）。Rust行为级覆盖启用绑定可服务+禁用不监听，但精确绑定字符串无对应断言，故降为partial。回归要求：补绑定字符串矩阵断言后再升级。"
         ],
-        "uncovered": [],
         "source": "legacy-conclusion"
       },
       "verification": {
@@ -29649,23 +29649,23 @@
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "function_exact：Go 断言禁用时无监听、启用时使用独立 webPort（公开时 0.0.0.0）；Rust 断言禁用不启动 listener，启用时在独立 webPort 上可完成 HTTP 请求且关闭后端口释放。"
+      "coveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial（收回过宽exact）：Go断言绑定字符串矩阵（禁用→空、本地→127.0.0.1:7443、公开→0.0.0.0:7443、loopbackBind映射）。Rust行为级覆盖启用绑定可服务+禁用不监听，但精确绑定字符串无对应断言，故降为partial。回归要求：补绑定字符串矩阵断言后再升级。"
       ],
-      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/app/apiserver/lifecycle/lifecycle_test.go:243:TestSeparateWebListenerStartsAlongsideLoopbackDesktopSidecar": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_server_tests.rs::enabled_web_access_binds_and_shutdown_releases_port",
-      "conclusion": "function_exact：Go 断言 API 绑 0.0.0.0:0 时独立 Web listener 仍按 webPort 启动；Rust 断言 API 与 Web listener 相互独立（Web runtime 拥有自己的 bind/port）并可同时存活。",
+      "conclusion": "partial（收回过宽exact）：Go断言StartForRunArgs编排下独立Web listener随API共存启动并回200。Rust仅覆盖独立runtime绑定/服务/关闭；启动编排与API共存无对应断言，故降为partial。回归要求：补编排共存断言后再升级。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(enabled_web_access_binds_and_shutdown_releases_port)'",
-      "evidence_type": "function_exact",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/lifecycle/lifecycle_test.go",
         "line": 243,
@@ -29686,10 +29686,10 @@
         }
       ],
       "assertionCoverage": {
-        "covered": [
-          "function_exact：Go 断言 API 绑 0.0.0.0:0 时独立 Web listener 仍按 webPort 启动；Rust 断言 API 与 Web listener 相互独立（Web runtime 拥有自己的 bind/port）并可同时存活。"
+        "covered": [],
+        "uncovered": [
+          "partial（收回过宽exact）：Go断言StartForRunArgs编排下独立Web listener随API共存启动并回200。Rust仅覆盖独立runtime绑定/服务/关闭；启动编排与API共存无对应断言，故降为partial。回归要求：补编排共存断言后再升级。"
         ],
-        "uncovered": [],
         "source": "legacy-conclusion"
       },
       "verification": {
@@ -29716,23 +29716,23 @@
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "function_exact：Go 断言 API 绑 0.0.0.0:0 时独立 Web listener 仍按 webPort 启动；Rust 断言 API 与 Web listener 相互独立（Web runtime 拥有自己的 bind/port）并可同时存活。"
+      "coveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial（收回过宽exact）：Go断言StartForRunArgs编排下独立Web listener随API共存启动并回200。Rust仅覆盖独立runtime绑定/服务/关闭；启动编排与API共存无对应断言，故降为partial。回归要求：补编排共存断言后再升级。"
       ],
-      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/app/apiserver/lifecycle/lifecycle_test.go:275:TestSeparateWebListenerRebindsImmediatelyAndKeepsOldPortOnConflict": {
-      "status": "[x]",
-      "rust_entry": "crates/jftrade-engine/src/product_server_tests.rs::port_conflict_keeps_the_previous_listener_running; crates/jftrade-engine/src/product_server_runtime.rs::ProductWebServerRuntime",
-      "conclusion": "function_exact：Go 断言改端口立即重绑、冲突时保留旧端口并报冲突；Rust 断言冲突时返回 Web access port conflict 且旧 listener 继续服务。",
+      "status": "[~]",
+      "rust_entry": "crates/jftrade-engine/src/product_server_tests.rs::port_conflict_keeps_the_previous_listener_running",
+      "conclusion": "partial（收回过宽exact）：Go断言三项——热重绑成功（新端口回200）、冲突报Web access port conflict、旧listener存活。Rust仅覆盖后两项；热重绑成功路径在本证据中无对应断言（原组合第二元为结构体非测试），故降为partial。回归要求：补热重绑成功断言后再升级。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(port_conflict_keeps_the_previous_listener_running)'",
-      "evidence_type": "function_exact",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/lifecycle/lifecycle_test.go",
         "line": 275,
@@ -29750,19 +29750,13 @@
             "rustFile": "crates/jftrade-engine/src/product_server_tests.rs",
             "rustLine": 105
           }
-        },
-        {
-          "file": "crates/jftrade-engine/src/product_server_runtime.rs",
-          "test": "ProductWebServerRuntime",
-          "crate": "jftrade-engine",
-          "anchor": null
         }
       ],
       "assertionCoverage": {
-        "covered": [
-          "function_exact：Go 断言改端口立即重绑、冲突时保留旧端口并报冲突；Rust 断言冲突时返回 Web access port conflict 且旧 listener 继续服务。"
+        "covered": [],
+        "uncovered": [
+          "partial（收回过宽exact）：Go断言三项——热重绑成功（新端口回200）、冲突报Web access port conflict、旧listener存活。Rust仅覆盖后两项；热重绑成功路径在本证据中无对应断言（原组合第二元为结构体非测试），故降为partial。回归要求：补热重绑成功断言后再升级。"
         ],
-        "uncovered": [],
         "source": "legacy-conclusion"
       },
       "verification": {
@@ -29776,8 +29770,7 @@
           "test(port_conflict_keeps_the_previous_listener_running)"
         ],
         "testFilter": [
-          "port_conflict_keeps_the_previous_listener_running",
-          "ProductWebServerRuntime"
+          "port_conflict_keeps_the_previous_listener_running"
         ],
         "runnerVersion": null,
         "toolchain": null,
@@ -29790,15 +29783,15 @@
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "function_exact：Go 断言改端口立即重绑、冲突时保留旧端口并报冲突；Rust 断言冲突时返回 Web access port conflict 且旧 listener 继续服务。"
+      "coveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial（收回过宽exact）：Go断言三项——热重绑成功（新端口回200）、冲突报Web access port conflict、旧listener存活。Rust仅覆盖后两项；热重绑成功路径在本证据中无对应断言（原组合第二元为结构体非测试），故降为partial。回归要求：补热重绑成功断言后再升级。"
       ],
-      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/app/apiserver/lifecycle/lifecycle_test.go:331:TestWebAccessServerManagerCoversLiveReconfigurationLifecycle": {
@@ -29869,11 +29862,11 @@
       "boundaryReason": null
     },
     "internal/app/apiserver/lifecycle/lifecycle_test.go:378:TestWebAccessServerManagerRestoresOldBindAfterHostSwitchFailure": {
-      "status": "[x]",
-      "rust_entry": "crates/jftrade-engine/src/product_server_tests.rs::port_conflict_keeps_the_previous_listener_running; crates/jftrade-engine/src/product_server_runtime.rs::desired_bind",
-      "conclusion": "function_exact：Go 断言主机切换失败后恢复旧绑定；Rust 的 rebind 路径先停旧 listener 再绑定，冲突时返回冲突错误并保留先前绑定状态（status 仍为 true）。",
+      "status": "[~]",
+      "rust_entry": "crates/jftrade-engine/src/product_server_tests.rs::port_conflict_keeps_the_previous_listener_running",
+      "conclusion": "partial（收回过宽exact）：Go断言注入式监听失败恢复旧绑定、恢复失败全 teardown、空恢复no-op。Rust仅覆盖占位端口冲突下旧listener存活；注入/恢复失败路径无对应断言（原组合第二元为私有函数非测试），故降为partial。回归要求：补注入失败恢复矩阵断言后再升级。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(port_conflict_keeps_the_previous_listener_running)'",
-      "evidence_type": "function_exact",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/lifecycle/lifecycle_test.go",
         "line": 378,
@@ -29891,19 +29884,13 @@
             "rustFile": "crates/jftrade-engine/src/product_server_tests.rs",
             "rustLine": 104
           }
-        },
-        {
-          "file": "crates/jftrade-engine/src/product_server_runtime.rs",
-          "test": "desired_bind",
-          "crate": "jftrade-engine",
-          "anchor": null
         }
       ],
       "assertionCoverage": {
-        "covered": [
-          "function_exact：Go 断言主机切换失败后恢复旧绑定；Rust 的 rebind 路径先停旧 listener 再绑定，冲突时返回冲突错误并保留先前绑定状态（status 仍为 true）。"
+        "covered": [],
+        "uncovered": [
+          "partial（收回过宽exact）：Go断言注入式监听失败恢复旧绑定、恢复失败全 teardown、空恢复no-op。Rust仅覆盖占位端口冲突下旧listener存活；注入/恢复失败路径无对应断言（原组合第二元为私有函数非测试），故降为partial。回归要求：补注入失败恢复矩阵断言后再升级。"
         ],
-        "uncovered": [],
         "source": "legacy-conclusion"
       },
       "verification": {
@@ -29917,8 +29904,7 @@
           "test(port_conflict_keeps_the_previous_listener_running)"
         ],
         "testFilter": [
-          "port_conflict_keeps_the_previous_listener_running",
-          "desired_bind"
+          "port_conflict_keeps_the_previous_listener_running"
         ],
         "runnerVersion": null,
         "toolchain": null,
@@ -29931,15 +29917,15 @@
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "function_exact：Go 断言主机切换失败后恢复旧绑定；Rust 的 rebind 路径先停旧 listener 再绑定，冲突时返回冲突错误并保留先前绑定状态（status 仍为 true）。"
+      "coveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial（收回过宽exact）：Go断言注入式监听失败恢复旧绑定、恢复失败全 teardown、空恢复no-op。Rust仅覆盖占位端口冲突下旧listener存活；注入/恢复失败路径无对应断言（原组合第二元为私有函数非测试），故降为partial。回归要求：补注入失败恢复矩阵断言后再升级。"
       ],
-      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/app/apiserver/lifecycle/lifecycle_test.go:424:TestStartForRunArgsStartsAPIOnlyAndShutsDown": {
@@ -300470,22 +300456,13 @@
       "allowed": false,
       "reviewStatus": "unreviewed"
     },
-    "crates/jftrade-engine/src/product_server_runtime.rs::ProductWebServerRuntime": {
+    "crates/jftrade-engine/src/product_server_runtime.rs::desired_bind": {
       "referenceCount": 1,
       "referenceKeys": [
-        "internal/app/apiserver/lifecycle/lifecycle_test.go:275:TestSeparateWebListenerRebindsImmediatelyAndKeepsOldPortOnConflict"
+        "internal/app/apiserver/webaccess/security_integration_test.go:437:TestLoopbackPolicyBlocksRemoteBrowserUntilExplicitlyEnabled"
       ],
       "allowed": true,
       "reviewStatus": "single"
-    },
-    "crates/jftrade-engine/src/product_server_runtime.rs::desired_bind": {
-      "referenceCount": 2,
-      "referenceKeys": [
-        "internal/app/apiserver/lifecycle/lifecycle_test.go:378:TestWebAccessServerManagerRestoresOldBindAfterHostSwitchFailure",
-        "internal/app/apiserver/webaccess/security_integration_test.go:437:TestLoopbackPolicyBlocksRemoteBrowserUntilExplicitlyEnabled"
-      ],
-      "allowed": false,
-      "reviewStatus": "unreviewed"
     },
     "crates/jftrade-engine/src/product_server_tests.rs::disabled_web_access_does_not_start_a_listener": {
       "referenceCount": 5,
