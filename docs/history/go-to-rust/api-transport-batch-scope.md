@@ -6134,3 +6134,49 @@ illegal-spread 用例承接，属不可表达项已披露；:319 无 OpenD 503 �
 cargo fmt --check 与 git diff --check 干净；无 Rust 代码改动。
 
 下一片：130-09 切片四十一，trading 域 [x] 第 41–60 条。
+## 第 130 批 09 切片四十一：trading 域 [x] 第 41–60 条，20 条维持、零纠正（2026-09-24）
+
+范围：trading_broker 域 [x] 第 41–60 条（execution_test:470/:496/:573/:613/
+:687/:703/:718/:738/:813/:874/:939/:965/:988/:997/:1014、
+order_status:5/:33/:59、order_updates_concurrency:9、order_updates:263）。
+
+方法：Go 体全读；Rust 断言逐项比对；引用存在不等于断言等价；本批 18 条
+沿用此前已验证结论（证据与生产实现均未变动），:263 与 :9 重读 Rust 证据
+与 scans 计数语义后确认。
+
+20 条维持 [x]（无网关 fail-closed；kill-switch 等待 in-flight，两线程
++50ms 与 Go 同抖动 profile，submission_gate 在生产侧；风控矩阵逐码一致，
+stop-price 回退与 amount 模式均命中；空向量；RISK_PRICE_UNAVAILABLE；
+环境变量零出现；RUNTIME source 与拒绝审计落库，重启后中间拒绝的 OR 码
+可接受因 Go 本来不断言该步；wire+控制面双层逐条；回滚；归一矩阵；
+12 事件取末 10 条 evt-03..12、checkedAt、404；18 映射表、7 元组、5+7 终态，
+SubmissionUnknown 超集已披露，均逐项命中）。
+
+两处显式登记的差异口径（失败关闭语义一致，维持 [x]）：
+
+- execution_test:939：损坏状态下 REAL 拒单码 Go=REAL_TRADE_KILL_SWITCH_ACTIVE、
+  Rust=500 CONTROL_PLANE_UNAVAILABLE，与 :319 的 503/400、:83 的码名差异
+  同一口径。
+- execution_test:319（跨片注记）：broker 结果信封在 Rust 无同形对象，
+  属不可表达项，fail-closed 由传输层 illegal-spread 用例承接。
+
+两处架构映射注记（结论已写明映射关系，维持 [x]）：
+
+- order_updates:263：Rust 无内存缓存（见 :180），强制路径等价于 push wake
+  立即触发对账扫描。已核实 scans 只在每次完整 broker 往返+落账后加一，
+  故“300ms 窗口不追加扫描 + 一次 wake 恰好追加一次扫描”即 Go“窗口内两次
+  force=true 各触发一次 current 调用”的同簇断言（Go 本体亦只断言调用
+  次数，未断言第二次读到 FILLED_ALL 内容）。
+- order_updates_concurrency:9：Go 只断言高并发后 brokerID 稳定（800 次推送
+  本体无逐条丢失断言）。Rust 以“扫描串行 + 唤醒不丢失”承接：首轮扫描被
+  阻塞时 scans 仍为 0（无并发第二轮初始化），连发 3 次 wake 后续扫
+  scans ≥ 首轮+2，快照落账 PARTIALLY_FILLED/filled=2.0 且 failures=0；
+  并发栅栏另有 single-writer-lease 邻近证据。
+
+验证：audit --write-report 过（1473 exact；dup 0）；anchor 过；定向 nextest
+（:263/:9 双 wake 用例、order_status 三元组、pre-trade 风控矩阵）全过；
+cargo fmt --check 与 git diff --check 干净；无 Rust 代码改动。
+
+下一片：130-09 切片四十二，trading 域 [x] 第 61–67 条（收尾 7 条：
+order_updates:414/:427、responses:12/:141、risk_shape:78、
+risk_status_broker:82、service:8）。
