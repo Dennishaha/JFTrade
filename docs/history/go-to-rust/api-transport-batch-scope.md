@@ -4941,3 +4941,43 @@ exit 0（已知警告 0/2/2 不变）；`parity_anchor_reconcile.py` 过
 s5 两轮）；`git diff --check` 过。
 
 下一片：api_transport servercore 余量（或按域顺延），按文件行号升序。
+
+## 第 130 批 09 切片七：servercore runtime/live 系 35 条 recon（2026-09-24）
+
+范围：`live_adapter_volume_test.go`（3）+ `live_heartbeat_boundaries_test.go`（1）+
+`live_runtime_test.go`（1）+ `live_ws_boundaries_test.go`（3）+
+`runtime_integration_boundaries_test.go`（5）+
+`runtime_observation_test.go`（3）+ `runtime_polling_test.go`（1）+
+`runtime_test.go`（5）+ `runtime_trading_test.go`（13），共 35 条
+（原 17 `[x]` + 18 `[~]`）。
+
+方法：Go 体逐条核对结论；36 个 Rust 引用逐一命中（1 处查无：
+`:13` 组合第二元 settings_file 测试不存在）；`[x]` Parity 名搜核对，
+5 个组合第二元逐项拆验（真实测试 + 主题相干）。
+2 条收回过宽 `[x]`→partial（均摘除问题第二元）：
+
+- live_runtime `:13` 诊断用配置限额：Rust 覆盖限额读取与执行
+  （超限 503/许可释放/来源拒绝），诊断上报值本身无断言；
+  原组合第二元查无此测试。
+- heartbeat `:27` 活动标的去重：Rust 覆盖传输指标去重排序/释放收敛/
+  空集投影；策略持有标的排除与 nil 服务守卫无断言；原组合第二元
+  主题为 OpenD 轮询/重连，与本条无关。
+
+保留 15 `[x]`：volume 三组合（首元逐项 + 零增量/负增量互补，
+第二元主归属他族同语义）、trading 系（`:123` 跨 crate 风控网关直测，
+`:334` 首元双归属 `:181`/`:334` + 无持仓跳过互补，`:506` 进行中
+bar 精确一次 + 多 bar 补齐时序不变量）、obs/poll/notify 单例。
+18 partial 结论均实质明确。
+
+结论：35 条 verdict = **15 `[x]` + 20 `[~]`**
+（`[x]` 1543→1541）。本片仅台账修正 + 报告/清单重生 + 文档，
+无代码变更。
+
+验证：`v2_writer.py --check` 过后落库；`audit_test_parity.py --write-report`
+exit 0（已知警告 0/2/2 不变）；`parity_anchor_reconcile.py` 过
+（1695/0/0/46）；`cargo fmt -p jftrade-engine -- --check` 过；定向 nextest
+2/2；`check:ai-context`、`check:migration-manifest`、`check:zero-go` 过；
+`check:quick` 工作树计划 exit 0；`git diff --check` 过。
+
+下一片：api_transport 余量（servercore 其他文件或 servercoretest 余量），
+按文件行号升序。

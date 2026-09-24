@@ -7,7 +7,7 @@
     "treeSha": "0ee26444be21c15d9760f358a34649f78402f0fb"
   },
   "generatorVersion": "v2_writer.py@slice23",
-  "generatedAt": "2026-09-24T02:23:24Z",
+  "generatedAt": "2026-09-24T02:26:54Z",
   "mappings": {
     "cmd/jftrade-api/main_test.go:13:TestValidateArgsAllowsNoArgs": {
       "status": "[~]",
@@ -44654,11 +44654,11 @@
       "boundaryReason": null
     },
     "internal/app/apiserver/servercore/live_heartbeat_boundaries_test.go:27:TestLiveHeartbeatActiveInstrumentDeduplicationBoundaries": {
-      "status": "[x]",
-      "rust_entry": "crates/jftrade-engine/src/product_system_control_read_tests.rs::system_status_live_projection_uses_shared_transport_metrics; crates/jftrade-engine/src/product_system_control_read_tests.rs::system_status_reflects_fixture_opend_poll_and_reconnect_lifecycle",
-      "conclusion": "function_exact：Go 断言心跳活动标的去重/排序且空服务返回 nil；Rust 断言共享传输指标去重排序（大小写/空白归一）、随连接释放收敛，空集投影为空数组。",
+      "status": "[~]",
+      "rust_entry": "crates/jftrade-engine/src/product_system_control_read_tests.rs::system_status_live_projection_uses_shared_transport_metrics",
+      "conclusion": "部分覆盖：Go 断言心跳活动标的去重排序、策略持有标的排除、空服务返回 nil。Rust 的 system_status_live_projection_uses_shared_transport_metrics 覆盖传输指标去重排序（大小写/空白归一）、随连接释放收敛、空集投影；差异是策略运行时持有标的排除与 nil 服务守卫无断言（原组合第二元主题为 OpenD 轮询/重连，与本条无关，已摘除）。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(system_status_live_projection_uses_shared_transport_metrics)'",
-      "evidence_type": "function_exact",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/servercore/live_heartbeat_boundaries_test.go",
         "line": 27,
@@ -44676,24 +44676,13 @@
             "rustFile": "crates/jftrade-engine/src/product_system_control_read_tests.rs",
             "rustLine": 1031
           }
-        },
-        {
-          "file": "crates/jftrade-engine/src/product_system_control_read_tests.rs",
-          "test": "system_status_reflects_fixture_opend_poll_and_reconnect_lifecycle",
-          "crate": "jftrade-engine",
-          "anchor": {
-            "goFile": "internal/app/apiserver/servercore/live_heartbeat_boundaries_test.go",
-            "goLine": 27,
-            "rustFile": "crates/jftrade-engine/src/product_system_control_read_tests.rs",
-            "rustLine": 1031
-          }
         }
       ],
       "assertionCoverage": {
-        "covered": [
-          "function_exact：Go 断言心跳活动标的去重/排序且空服务返回 nil；Rust 断言共享传输指标去重排序（大小写/空白归一）、随连接释放收敛，空集投影为空数组。"
+        "covered": [],
+        "uncovered": [
+          "部分覆盖：Go 断言心跳活动标的去重排序、策略持有标的排除、空服务返回 nil。Rust 的 system_status_live_projection_uses_shared_transport_metrics 覆盖传输指标去重排序（大小写/空白归一）、随连接释放收敛、空集投影；差异是策略运行时持有标的排除与 nil 服务守卫无断言（原组合第二元主题为 OpenD 轮询/重连，与本条无关，已摘除）。"
         ],
-        "uncovered": [],
         "source": "legacy-conclusion"
       },
       "verification": {
@@ -44707,8 +44696,7 @@
           "test(system_status_live_projection_uses_shared_transport_metrics)"
         ],
         "testFilter": [
-          "system_status_live_projection_uses_shared_transport_metrics",
-          "system_status_reflects_fixture_opend_poll_and_reconnect_lifecycle"
+          "system_status_live_projection_uses_shared_transport_metrics"
         ],
         "runnerVersion": null,
         "toolchain": null,
@@ -44721,23 +44709,23 @@
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "function_exact：Go 断言心跳活动标的去重/排序且空服务返回 nil；Rust 断言共享传输指标去重排序（大小写/空白归一）、随连接释放收敛，空集投影为空数组。"
+      "coveredAssertions": [],
+      "uncoveredAssertions": [
+        "部分覆盖：Go 断言心跳活动标的去重排序、策略持有标的排除、空服务返回 nil。Rust 的 system_status_live_projection_uses_shared_transport_metrics 覆盖传输指标去重排序（大小写/空白归一）、随连接释放收敛、空集投影；差异是策略运行时持有标的排除与 nil 服务守卫无断言（原组合第二元主题为 OpenD 轮询/重连，与本条无关，已摘除）。"
       ],
-      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/app/apiserver/servercore/live_runtime_test.go:13:TestLiveStreamDiagnosticsUseConfiguredLimit": {
-      "status": "[x]",
-      "rust_entry": "crates/jftrade-engine/src/product_ws_live_tests.rs::ws_live_transport_rejects_origin_and_limit_without_leaking_permits; crates/jftrade-store-settings-file/tests/settings_file_contracts.rs::live_websocket_interface_settings_round_trip",
-      "conclusion": "function_exact：Go 断言 live 诊断使用持久化的连接上限；Rust 断言 WS 传输在达到上限时拒绝且不泄漏许可，设置文件契约测试断言 liveWebSocketConnectionLimit 往返（上限来源）。",
+      "status": "[~]",
+      "rust_entry": "crates/jftrade-engine/src/product_ws_live_tests.rs::ws_live_transport_rejects_origin_and_limit_without_leaking_permits",
+      "conclusion": "部分覆盖：Go 断言诊断载荷上报 configuredOpenDWebSocketLimit/jftradeLiveWebSocketLimit 配置值。Rust 的 ws_live_transport_rejects_origin_and_limit_without_leaking_permits 覆盖同一配置限额的读取与执行（超限 503、许可释放、来源拒绝）；差异是诊断上报值本身无断言（原组合第二元查无此测试，已摘除）。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(ws_live_transport_rejects_origin_and_limit_without_leaking_permits)'",
-      "evidence_type": "function_exact",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/servercore/live_runtime_test.go",
         "line": 13,
@@ -44755,19 +44743,13 @@
             "rustFile": "crates/jftrade-engine/src/product_ws_live_tests.rs",
             "rustLine": 76
           }
-        },
-        {
-          "file": "crates/jftrade-store-settings-file/tests/settings_file_contracts.rs",
-          "test": "live_websocket_interface_settings_round_trip",
-          "crate": "jftrade-store-settings-file",
-          "anchor": null
         }
       ],
       "assertionCoverage": {
-        "covered": [
-          "function_exact：Go 断言 live 诊断使用持久化的连接上限；Rust 断言 WS 传输在达到上限时拒绝且不泄漏许可，设置文件契约测试断言 liveWebSocketConnectionLimit 往返（上限来源）。"
+        "covered": [],
+        "uncovered": [
+          "部分覆盖：Go 断言诊断载荷上报 configuredOpenDWebSocketLimit/jftradeLiveWebSocketLimit 配置值。Rust 的 ws_live_transport_rejects_origin_and_limit_without_leaking_permits 覆盖同一配置限额的读取与执行（超限 503、许可释放、来源拒绝）；差异是诊断上报值本身无断言（原组合第二元查无此测试，已摘除）。"
         ],
-        "uncovered": [],
         "source": "legacy-conclusion"
       },
       "verification": {
@@ -44781,8 +44763,7 @@
           "test(ws_live_transport_rejects_origin_and_limit_without_leaking_permits)"
         ],
         "testFilter": [
-          "ws_live_transport_rejects_origin_and_limit_without_leaking_permits",
-          "live_websocket_interface_settings_round_trip"
+          "ws_live_transport_rejects_origin_and_limit_without_leaking_permits"
         ],
         "runnerVersion": null,
         "toolchain": null,
@@ -44795,15 +44776,15 @@
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "function_exact：Go 断言 live 诊断使用持久化的连接上限；Rust 断言 WS 传输在达到上限时拒绝且不泄漏许可，设置文件契约测试断言 liveWebSocketConnectionLimit 往返（上限来源）。"
+      "coveredAssertions": [],
+      "uncoveredAssertions": [
+        "部分覆盖：Go 断言诊断载荷上报 configuredOpenDWebSocketLimit/jftradeLiveWebSocketLimit 配置值。Rust 的 ws_live_transport_rejects_origin_and_limit_without_leaking_permits 覆盖同一配置限额的读取与执行（超限 503、许可释放、来源拒绝）；差异是诊断上报值本身无断言（原组合第二元查无此测试，已摘除）。"
       ],
-      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/app/apiserver/servercore/live_ws_boundaries_test.go:36:TestLiveWebSocketUsesActivePollOnlyProviderBehindLegacyFutuSelection": {
@@ -300782,14 +300763,6 @@
       "allowed": false,
       "reviewStatus": "unreviewed"
     },
-    "crates/jftrade-engine/src/product_system_control_read_tests.rs::system_status_reflects_fixture_opend_poll_and_reconnect_lifecycle": {
-      "referenceCount": 1,
-      "referenceKeys": [
-        "internal/app/apiserver/servercore/live_heartbeat_boundaries_test.go:27:TestLiveHeartbeatActiveInstrumentDeduplicationBoundaries"
-      ],
-      "allowed": true,
-      "reviewStatus": "single"
-    },
     "crates/jftrade-engine/src/product_system_control_read_tests.rs::system_status_reports_the_persisted_default_trading_environment": {
       "referenceCount": 2,
       "referenceKeys": [
@@ -307888,14 +307861,6 @@
       "referenceCount": 1,
       "referenceKeys": [
         "internal/app/apiserver/servercoretest/settings_broker_test.go:95:TestSettingsStoreDirectSaveDoesNotMutateRuntimeEnv"
-      ],
-      "allowed": true,
-      "reviewStatus": "single"
-    },
-    "crates/jftrade-store-settings-file/tests/settings_file_contracts.rs::live_websocket_interface_settings_round_trip": {
-      "referenceCount": 1,
-      "referenceKeys": [
-        "internal/app/apiserver/servercore/live_runtime_test.go:13:TestLiveStreamDiagnosticsUseConfiguredLimit"
       ],
       "allowed": true,
       "reviewStatus": "single"
