@@ -42091,11 +42091,11 @@
       "boundaryReason": "boundary：Rust 桌面启动由 Tauri 命令与 DesktopChannel profile 决定，没有 “args 不匹配则 noop” 的启动门控。"
     },
     "internal/app/apiserver/server_test.go:85:TestStartDesktopDoesNotMutatePersistedWebAccessSettings": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_system_control_read_tests.rs::system_status_matches_go_stable_fields_without_claiming_migration_ownership; crates/jftrade-engine/src/product_server_tests.rs::dynamic_origin_allowlist_tracks_the_current_web_port",
-      "conclusion": "function_exact：Go 断言桌面启动不写回持久化 web 访问设置；Rust 系统状态/读取测试断言只读投影不改写 settings 文件字节，web 访问配置变更只通过显式 apply 路径产生。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(system_status_matches_go_stable_fields_without_claiming_migration_ownership)'",
-      "evidence_type": "function_exact",
+      "conclusion": "partial：Rust 系统状态测试断言启动加状态查询加关闭后 settings 文件字节不变，但种子不含 security/web 访问段（无 password hash），Go 钉住的“已配置 Web 访问口令场景下内存与落盘均不变”无对应；原引用的 allowlist 用例主题是重绑跟踪，与写回无关，已移出。回归要求：种子加入含口令 hash 的 security 段或补专用回归测试。",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/server_test.go",
         "line": 85,
@@ -42113,24 +42113,13 @@
             "rustFile": "crates/jftrade-engine/src/product_system_control_read_tests.rs",
             "rustLine": 333
           }
-        },
-        {
-          "file": "crates/jftrade-engine/src/product_server_tests.rs",
-          "test": "dynamic_origin_allowlist_tracks_the_current_web_port",
-          "crate": "jftrade-engine",
-          "anchor": {
-            "goFile": "internal/app/apiserver/server_test.go",
-            "goLine": 85,
-            "rustFile": "crates/jftrade-engine/src/product_server_tests.rs",
-            "rustLine": 126
-          }
         }
       ],
       "assertionCoverage": {
-        "covered": [
-          "function_exact：Go 断言桌面启动不写回持久化 web 访问设置；Rust 系统状态/读取测试断言只读投影不改写 settings 文件字节，web 访问配置变更只通过显式 apply 路径产生。"
+        "covered": [],
+        "uncovered": [
+          "partial：Rust 系统状态测试断言启动加状态查询加关闭后 settings 文件字节不变，但种子不含 security/web 访问段（无 password hash），Go 钉住的“已配置 Web 访问口令场景下内存与落盘均不变”无对应；原引用的 allowlist 用例主题是重绑跟踪，与写回无关，已移出。回归要求：种子加入含口令 hash 的 security 段或补专用回归测试。"
         ],
-        "uncovered": [],
         "source": "legacy-conclusion"
       },
       "verification": {
@@ -42140,12 +42129,11 @@
           "run",
           "-p",
           "jftrade-engine",
-          "-E",
-          "test(system_status_matches_go_stable_fields_without_claiming_migration_ownership)"
+          "--all-targets",
+          "--locked"
         ],
         "testFilter": [
-          "system_status_matches_go_stable_fields_without_claiming_migration_ownership",
-          "dynamic_origin_allowlist_tracks_the_current_web_port"
+          "system_status_matches_go_stable_fields_without_claiming_migration_ownership"
         ],
         "runnerVersion": null,
         "toolchain": null,
@@ -42158,23 +42146,23 @@
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "function_exact：Go 断言桌面启动不写回持久化 web 访问设置；Rust 系统状态/读取测试断言只读投影不改写 settings 文件字节，web 访问配置变更只通过显式 apply 路径产生。"
+      "coveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial：Rust 系统状态测试断言启动加状态查询加关闭后 settings 文件字节不变，但种子不含 security/web 访问段（无 password hash），Go 钉住的“已配置 Web 访问口令场景下内存与落盘均不变”无对应；原引用的 allowlist 用例主题是重绑跟踪，与写回无关，已移出。回归要求：种子加入含口令 hash 的 security 段或补专用回归测试。"
       ],
-      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/app/apiserver/server_test.go:150:TestResolveDesktopRuntimeConfigUsesProfileBindInsteadOfPersistedInterfaceBind": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "apps/desktop/src-tauri/tests/desktop_contracts.rs::build_profiles_preserve_tauri_identity_and_data_isolation",
-      "conclusion": "function_exact：Go 断言桌面运行时使用 profile 绑定而不是持久化 interfaces.apiBind；Rust 断言 DesktopProfile 为 dev/release 固定绑定（3008/6699）与设置路径，引擎启动绑定来自 profile 而非 settings 文件中的 apiBind。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-desktop -E 'test(build_profiles_preserve_tauri_identity_and_data_isolation)'",
-      "evidence_type": "function_exact",
+      "conclusion": "partial：Rust 断言 Dev/Release profile 固定绑定（127.0.0.1:3008/6699）与身份/路径隔离，但从未构造“settings 文件含冲突 interfaces.apiBind”的场景，profile 绑定优先于持久化绑定的断言无对应；APIBaseURL 由 profile 绑定派生的断言也无对应。回归要求：以含冲突 apiBind 的 settings 文件解析 profile，断言启动绑定仍为 profile 绑定。",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-desktop --all-targets --locked",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/server_test.go",
         "line": 150,
@@ -42195,10 +42183,10 @@
         }
       ],
       "assertionCoverage": {
-        "covered": [
-          "function_exact：Go 断言桌面运行时使用 profile 绑定而不是持久化 interfaces.apiBind；Rust 断言 DesktopProfile 为 dev/release 固定绑定（3008/6699）与设置路径，引擎启动绑定来自 profile 而非 settings 文件中的 apiBind。"
+        "covered": [],
+        "uncovered": [
+          "partial：Rust 断言 Dev/Release profile 固定绑定（127.0.0.1:3008/6699）与身份/路径隔离，但从未构造“settings 文件含冲突 interfaces.apiBind”的场景，profile 绑定优先于持久化绑定的断言无对应；APIBaseURL 由 profile 绑定派生的断言也无对应。回归要求：以含冲突 apiBind 的 settings 文件解析 profile，断言启动绑定仍为 profile 绑定。"
         ],
-        "uncovered": [],
         "source": "legacy-conclusion"
       },
       "verification": {
@@ -42208,8 +42196,8 @@
           "run",
           "-p",
           "jftrade-desktop",
-          "-E",
-          "test(build_profiles_preserve_tauri_identity_and_data_isolation)"
+          "--all-targets",
+          "--locked"
         ],
         "testFilter": [
           "build_profiles_preserve_tauri_identity_and_data_isolation"
@@ -42225,15 +42213,15 @@
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "function_exact：Go 断言桌面运行时使用 profile 绑定而不是持久化 interfaces.apiBind；Rust 断言 DesktopProfile 为 dev/release 固定绑定（3008/6699）与设置路径，引擎启动绑定来自 profile 而非 settings 文件中的 apiBind。"
+      "coveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial：Rust 断言 Dev/Release profile 固定绑定（127.0.0.1:3008/6699）与身份/路径隔离，但从未构造“settings 文件含冲突 interfaces.apiBind”的场景，profile 绑定优先于持久化绑定的断言无对应；APIBaseURL 由 profile 绑定派生的断言也无对应。回归要求：以含冲突 apiBind 的 settings 文件解析 profile，断言启动绑定仍为 profile 绑定。"
       ],
-      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/app/apiserver/server_test.go:176:TestResolveDesktopRuntimeConfigRejectsEphemeralAPIBind": {
@@ -42343,11 +42331,11 @@
       "boundaryReason": null
     },
     "internal/app/apiserver/server_test.go:224:TestResolvePackagedDesktopRuntimeRequiresLoopback": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_tests.rs::product_config_rejects_public_bind_and_missing_path",
-      "conclusion": "function_exact：Go 断言打包桌面运行时拒绝非 loopback 绑定；Rust ProductConfig::new 对非 loopback 返回 NonLoopbackBind 且缺设置路径返回 MissingSettingsPath，测试逐例断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(product_config_rejects_public_bind_and_missing_path)'",
-      "evidence_type": "function_exact",
+      "conclusion": "partial：Rust 在共享 ProductConfig::new 中强制 loopback，逐例断言 0.0.0.0 拒绝、缺设置路径与弱口令三种失败；但 Go 的打包路径 3 拒绝（0.0.0.0/LAN IP/[::]）加 3 放行（127.0.0.1/localhost/[::1]）矩阵仅覆盖 1 例，LAN IP 与 [::] 拒绝及三例放行断言无对应。回归要求：经 desktop_shadow 把 6 例矩阵补齐。",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/server_test.go",
         "line": 224,
@@ -42368,10 +42356,10 @@
         }
       ],
       "assertionCoverage": {
-        "covered": [
-          "function_exact：Go 断言打包桌面运行时拒绝非 loopback 绑定；Rust ProductConfig::new 对非 loopback 返回 NonLoopbackBind 且缺设置路径返回 MissingSettingsPath，测试逐例断言。"
+        "covered": [],
+        "uncovered": [
+          "partial：Rust 在共享 ProductConfig::new 中强制 loopback，逐例断言 0.0.0.0 拒绝、缺设置路径与弱口令三种失败；但 Go 的打包路径 3 拒绝（0.0.0.0/LAN IP/[::]）加 3 放行（127.0.0.1/localhost/[::1]）矩阵仅覆盖 1 例，LAN IP 与 [::] 拒绝及三例放行断言无对应。回归要求：经 desktop_shadow 把 6 例矩阵补齐。"
         ],
-        "uncovered": [],
         "source": "legacy-conclusion"
       },
       "verification": {
@@ -42381,8 +42369,8 @@
           "run",
           "-p",
           "jftrade-engine",
-          "-E",
-          "test(product_config_rejects_public_bind_and_missing_path)"
+          "--all-targets",
+          "--locked"
         ],
         "testFilter": [
           "product_config_rejects_public_bind_and_missing_path"
@@ -42398,15 +42386,15 @@
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "function_exact：Go 断言打包桌面运行时拒绝非 loopback 绑定；Rust ProductConfig::new 对非 loopback 返回 NonLoopbackBind 且缺设置路径返回 MissingSettingsPath，测试逐例断言。"
+      "coveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial：Rust 在共享 ProductConfig::new 中强制 loopback，逐例断言 0.0.0.0 拒绝、缺设置路径与弱口令三种失败；但 Go 的打包路径 3 拒绝（0.0.0.0/LAN IP/[::]）加 3 放行（127.0.0.1/localhost/[::1]）矩阵仅覆盖 1 例，LAN IP 与 [::] 拒绝及三例放行断言无对应。回归要求：经 desktop_shadow 把 6 例矩阵补齐。"
       ],
-      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/app/apiserver/server_test.go:250:TestStartDesktopStartsAPIButNotLegacyGUIServer": {
@@ -42472,11 +42460,11 @@
       "boundaryReason": "boundary：Rust 无 legacy GUI/Wails server；桌面只启动引擎 API 与受管进程（engine→pine→sidecar），由 RuntimePlan 测试覆盖。"
     },
     "internal/app/apiserver/server_test.go:280:TestStartDesktopAllowsWailsDevOrigin": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "crates/jftrade-api/src/auth.rs::desktop_trusted_origins_cover_development_and_packaged_wails_hosts; crates/jftrade-api/src/auth.rs::desktop_trusted_origins",
-      "conclusion": "function_exact：Go 断言桌面 API 接受 Wails 开发来源；Rust 本批新增测试断言桌面受信来源包含 127.0.0.1/localhost 的 3000/3003/3008/6699 与 tauri 方案。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(desktop_trusted_origins_cover_development_and_packaged_wails_hosts)'",
-      "evidence_type": "function_exact",
+      "conclusion": "partial：Rust 在单元层面断言桌面白名单含 loopback 开发端口与 tauri 打包来源；Go 断言的 wails:// 方案与 wails.localhost 来源、经真实服务的 CORS 回显（含 OPTIONS 204）在 Rust 无对应（已退役 wails 方案记为边界差异）；原引用的生产函数 desktop_trusted_origins 非测试，已移出。回归要求：桌面 CORS 端到端回显测试或 wails 边界显式 pin。",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --all-targets --locked",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/server_test.go",
         "line": 280,
@@ -42494,24 +42482,13 @@
             "rustFile": "crates/jftrade-api/src/auth.rs",
             "rustLine": 302
           }
-        },
-        {
-          "file": "crates/jftrade-api/src/auth.rs",
-          "test": "desktop_trusted_origins",
-          "crate": "jftrade-api",
-          "anchor": {
-            "goFile": "internal/app/apiserver/server_test.go",
-            "goLine": 280,
-            "rustFile": "crates/jftrade-api/src/auth.rs",
-            "rustLine": 302
-          }
         }
       ],
       "assertionCoverage": {
-        "covered": [
-          "function_exact：Go 断言桌面 API 接受 Wails 开发来源；Rust 本批新增测试断言桌面受信来源包含 127.0.0.1/localhost 的 3000/3003/3008/6699 与 tauri 方案。"
+        "covered": [],
+        "uncovered": [
+          "partial：Rust 在单元层面断言桌面白名单含 loopback 开发端口与 tauri 打包来源；Go 断言的 wails:// 方案与 wails.localhost 来源、经真实服务的 CORS 回显（含 OPTIONS 204）在 Rust 无对应（已退役 wails 方案记为边界差异）；原引用的生产函数 desktop_trusted_origins 非测试，已移出。回归要求：桌面 CORS 端到端回显测试或 wails 边界显式 pin。"
         ],
-        "uncovered": [],
         "source": "legacy-conclusion"
       },
       "verification": {
@@ -42521,12 +42498,11 @@
           "run",
           "-p",
           "jftrade-api",
-          "-E",
-          "test(desktop_trusted_origins_cover_development_and_packaged_wails_hosts)"
+          "--all-targets",
+          "--locked"
         ],
         "testFilter": [
-          "desktop_trusted_origins_cover_development_and_packaged_wails_hosts",
-          "desktop_trusted_origins"
+          "desktop_trusted_origins_cover_development_and_packaged_wails_hosts"
         ],
         "runnerVersion": null,
         "toolchain": null,
@@ -42539,23 +42515,23 @@
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "function_exact：Go 断言桌面 API 接受 Wails 开发来源；Rust 本批新增测试断言桌面受信来源包含 127.0.0.1/localhost 的 3000/3003/3008/6699 与 tauri 方案。"
+      "coveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial：Rust 在单元层面断言桌面白名单含 loopback 开发端口与 tauri 打包来源；Go 断言的 wails:// 方案与 wails.localhost 来源、经真实服务的 CORS 回显（含 OPTIONS 204）在 Rust 无对应（已退役 wails 方案记为边界差异）；原引用的生产函数 desktop_trusted_origins 非测试，已移出。回归要求：桌面 CORS 端到端回显测试或 wails 边界显式 pin。"
       ],
-      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/app/apiserver/server_test.go:310:TestDesktopTrustedOriginsDeriveDevelopmentPort": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "crates/jftrade-api/src/auth.rs::desktop_trusted_origins_cover_development_and_packaged_wails_hosts; crates/jftrade-api/src/auth.rs::canonical_origin",
-      "conclusion": "function_exact：Go 断言受信来源覆盖开发端口；Rust 断言开发端口 3003/3000/3008 与发行 6699 的 loopback 来源都在白名单内，且无关端口不进入白名单。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(desktop_trusted_origins_cover_development_and_packaged_wails_hosts)'",
-      "evidence_type": "function_exact",
+      "conclusion": "partial：Rust 断言静态开发/发行端口在白名单内且无关端口排除；Go 断言的按 FRONTEND_DEVSERVER_URL 动态派生端口（4317）、wails 方案四行与非桌面模式不信任开发端口，在 Rust 无对应（静态白名单，无 env 派生）；原引用的生产函数 canonical_origin 非测试，已移出。回归要求：动态派生或显式声明静态策略边界。",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --all-targets --locked",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/server_test.go",
         "line": 310,
@@ -42573,24 +42549,13 @@
             "rustFile": "crates/jftrade-api/src/auth.rs",
             "rustLine": 303
           }
-        },
-        {
-          "file": "crates/jftrade-api/src/auth.rs",
-          "test": "canonical_origin",
-          "crate": "jftrade-api",
-          "anchor": {
-            "goFile": "internal/app/apiserver/server_test.go",
-            "goLine": 310,
-            "rustFile": "crates/jftrade-api/src/auth.rs",
-            "rustLine": 303
-          }
         }
       ],
       "assertionCoverage": {
-        "covered": [
-          "function_exact：Go 断言受信来源覆盖开发端口；Rust 断言开发端口 3003/3000/3008 与发行 6699 的 loopback 来源都在白名单内，且无关端口不进入白名单。"
+        "covered": [],
+        "uncovered": [
+          "partial：Rust 断言静态开发/发行端口在白名单内且无关端口排除；Go 断言的按 FRONTEND_DEVSERVER_URL 动态派生端口（4317）、wails 方案四行与非桌面模式不信任开发端口，在 Rust 无对应（静态白名单，无 env 派生）；原引用的生产函数 canonical_origin 非测试，已移出。回归要求：动态派生或显式声明静态策略边界。"
         ],
-        "uncovered": [],
         "source": "legacy-conclusion"
       },
       "verification": {
@@ -42600,12 +42565,11 @@
           "run",
           "-p",
           "jftrade-api",
-          "-E",
-          "test(desktop_trusted_origins_cover_development_and_packaged_wails_hosts)"
+          "--all-targets",
+          "--locked"
         ],
         "testFilter": [
-          "desktop_trusted_origins_cover_development_and_packaged_wails_hosts",
-          "canonical_origin"
+          "desktop_trusted_origins_cover_development_and_packaged_wails_hosts"
         ],
         "runnerVersion": null,
         "toolchain": null,
@@ -42618,23 +42582,23 @@
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "function_exact：Go 断言受信来源覆盖开发端口；Rust 断言开发端口 3003/3000/3008 与发行 6699 的 loopback 来源都在白名单内，且无关端口不进入白名单。"
+      "coveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial：Rust 断言静态开发/发行端口在白名单内且无关端口排除；Go 断言的按 FRONTEND_DEVSERVER_URL 动态派生端口（4317）、wails 方案四行与非桌面模式不信任开发端口，在 Rust 无对应（静态白名单，无 env 派生）；原引用的生产函数 canonical_origin 非测试，已移出。回归要求：动态派生或显式声明静态策略边界。"
       ],
-      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/app/apiserver/server_test.go:331:TestStartDesktopAllowsPackagedWailsOrigins": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "crates/jftrade-api/src/auth.rs::desktop_trusted_origins_cover_development_and_packaged_wails_hosts; crates/jftrade-api/src/auth.rs::AccessPolicy::desktop",
-      "conclusion": "function_exact：Go 断言打包 Wails 来源被接受；Rust 断言 tauri://localhost、http(s)://tauri.localhost 与发行端口来源在桌面白名单内。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(desktop_trusted_origins_cover_development_and_packaged_wails_hosts)'",
-      "evidence_type": "function_exact",
+      "conclusion": "partial：Rust 断言 tauri 打包来源在桌面白名单内；Go 断言的打包 wails://localhost 与 http://wails.localhost 经真实服务 CORS 回显在 Rust 无对应（已退役 wails 方案记为边界差异）；原引用的生产函数 AccessPolicy::desktop 非测试，已移出。回归要求：同 :280，打包来源 CORS 回显或边界 pin。",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --all-targets --locked",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/server_test.go",
         "line": 331,
@@ -42652,24 +42616,13 @@
             "rustFile": "crates/jftrade-api/src/auth.rs",
             "rustLine": 304
           }
-        },
-        {
-          "file": "crates/jftrade-api/src/auth.rs",
-          "test": "desktop",
-          "crate": "jftrade-api",
-          "anchor": {
-            "goFile": "internal/app/apiserver/server_test.go",
-            "goLine": 331,
-            "rustFile": "crates/jftrade-api/src/auth.rs",
-            "rustLine": 304
-          }
         }
       ],
       "assertionCoverage": {
-        "covered": [
-          "function_exact：Go 断言打包 Wails 来源被接受；Rust 断言 tauri://localhost、http(s)://tauri.localhost 与发行端口来源在桌面白名单内。"
+        "covered": [],
+        "uncovered": [
+          "partial：Rust 断言 tauri 打包来源在桌面白名单内；Go 断言的打包 wails://localhost 与 http://wails.localhost 经真实服务 CORS 回显在 Rust 无对应（已退役 wails 方案记为边界差异）；原引用的生产函数 AccessPolicy::desktop 非测试，已移出。回归要求：同 :280，打包来源 CORS 回显或边界 pin。"
         ],
-        "uncovered": [],
         "source": "legacy-conclusion"
       },
       "verification": {
@@ -42679,12 +42632,11 @@
           "run",
           "-p",
           "jftrade-api",
-          "-E",
-          "test(desktop_trusted_origins_cover_development_and_packaged_wails_hosts)"
+          "--all-targets",
+          "--locked"
         ],
         "testFilter": [
-          "desktop_trusted_origins_cover_development_and_packaged_wails_hosts",
-          "desktop"
+          "desktop_trusted_origins_cover_development_and_packaged_wails_hosts"
         ],
         "runnerVersion": null,
         "toolchain": null,
@@ -42697,15 +42649,15 @@
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "function_exact：Go 断言打包 Wails 来源被接受；Rust 断言 tauri://localhost、http(s)://tauri.localhost 与发行端口来源在桌面白名单内。"
+      "coveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial：Rust 断言 tauri 打包来源在桌面白名单内；Go 断言的打包 wails://localhost 与 http://wails.localhost 经真实服务 CORS 回显在 Rust 无对应（已退役 wails 方案记为边界差异）；原引用的生产函数 AccessPolicy::desktop 非测试，已移出。回归要求：同 :280，打包来源 CORS 回显或边界 pin。"
       ],
-      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/app/apiserver/server_test.go:359:TestStartDesktopReportsAPIBindFailure": {
@@ -42771,11 +42723,11 @@
       "boundaryReason": null
     },
     "internal/app/apiserver/server_test.go:472:TestDependenciesApplyScheduledDatabaseRebuildBeforeStartup": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_data_management_pending_rebuild_tests.rs::startup_applies_a_pending_rebuild_only_to_the_selected_databases; crates/jftrade-engine/src/product_data_management_pending_rebuild_tests.rs::startup_rejects_a_tampered_pending_rebuild_without_deleting_any_source",
-      "conclusion": "function_exact：Go 断言启动前先应用计划重建；Rust 断言启动时按标记校验快照（大小/SHA-256/quick_check/FK）后只重建被选数据库，篡改标记时不删除任何源文件。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(startup_applies_a_pending_rebuild_only_to_the_selected_databases)'",
-      "evidence_type": "function_exact",
+      "conclusion": "partial：Rust 断言启动时按校验快照只重建被选库、合并后 marker 清除，篡改快照时不改任何源文件且 marker 保留；但 Go 钉住的中间态契约（删除阶段 db/wal/shm 已删而 marker 保留至 schema 初始化完成）在 Rust 无直接断言（生产侧虽拆分 apply_/complete_ 两阶段，测试只覆盖合并终态与拒绝路径）。回归要求：直调 apply_pending_rebuild 断言文件已删且 marker 仍在，complete 后清除。",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/server_test.go",
         "line": 472,
@@ -42807,10 +42759,10 @@
         }
       ],
       "assertionCoverage": {
-        "covered": [
-          "function_exact：Go 断言启动前先应用计划重建；Rust 断言启动时按标记校验快照（大小/SHA-256/quick_check/FK）后只重建被选数据库，篡改标记时不删除任何源文件。"
+        "covered": [],
+        "uncovered": [
+          "partial：Rust 断言启动时按校验快照只重建被选库、合并后 marker 清除，篡改快照时不改任何源文件且 marker 保留；但 Go 钉住的中间态契约（删除阶段 db/wal/shm 已删而 marker 保留至 schema 初始化完成）在 Rust 无直接断言（生产侧虽拆分 apply_/complete_ 两阶段，测试只覆盖合并终态与拒绝路径）。回归要求：直调 apply_pending_rebuild 断言文件已删且 marker 仍在，complete 后清除。"
         ],
-        "uncovered": [],
         "source": "legacy-conclusion"
       },
       "verification": {
@@ -42820,8 +42772,8 @@
           "run",
           "-p",
           "jftrade-engine",
-          "-E",
-          "test(startup_applies_a_pending_rebuild_only_to_the_selected_databases)"
+          "--all-targets",
+          "--locked"
         ],
         "testFilter": [
           "startup_applies_a_pending_rebuild_only_to_the_selected_databases",
@@ -42838,15 +42790,15 @@
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "function_exact：Go 断言启动前先应用计划重建；Rust 断言启动时按标记校验快照（大小/SHA-256/quick_check/FK）后只重建被选数据库，篡改标记时不删除任何源文件。"
+      "coveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial：Rust 断言启动时按校验快照只重建被选库、合并后 marker 清除，篡改快照时不改任何源文件且 marker 保留；但 Go 钉住的中间态契约（删除阶段 db/wal/shm 已删而 marker 保留至 schema 初始化完成）在 Rust 无直接断言（生产侧虽拆分 apply_/complete_ 两阶段，测试只覆盖合并终态与拒绝路径）。回归要求：直调 apply_pending_rebuild 断言文件已删且 marker 仍在，complete 后清除。"
       ],
-      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/app/apiserver/server_test.go:518:TestRunAPIOnlyReturnsAfterContextCancellation": {
@@ -289389,30 +289341,6 @@
       "allowed": false,
       "reviewStatus": "unreviewed"
     },
-    "crates/jftrade-api/src/auth.rs::canonical_origin": {
-      "referenceCount": 1,
-      "referenceKeys": [
-        "internal/app/apiserver/server_test.go:310:TestDesktopTrustedOriginsDeriveDevelopmentPort"
-      ],
-      "allowed": true,
-      "reviewStatus": "single"
-    },
-    "crates/jftrade-api/src/auth.rs::desktop": {
-      "referenceCount": 1,
-      "referenceKeys": [
-        "internal/app/apiserver/server_test.go:331:TestStartDesktopAllowsPackagedWailsOrigins"
-      ],
-      "allowed": true,
-      "reviewStatus": "single"
-    },
-    "crates/jftrade-api/src/auth.rs::desktop_trusted_origins": {
-      "referenceCount": 1,
-      "referenceKeys": [
-        "internal/app/apiserver/server_test.go:280:TestStartDesktopAllowsWailsDevOrigin"
-      ],
-      "allowed": true,
-      "reviewStatus": "single"
-    },
     "crates/jftrade-api/src/auth.rs::desktop_trusted_origins_cover_development_and_packaged_wails_hosts": {
       "referenceCount": 4,
       "referenceKeys": [
@@ -300423,10 +300351,9 @@
       "reviewStatus": "unreviewed"
     },
     "crates/jftrade-engine/src/product_server_tests.rs::dynamic_origin_allowlist_tracks_the_current_web_port": {
-      "referenceCount": 3,
+      "referenceCount": 2,
       "referenceKeys": [
         "internal/app/apiserver/lifecycle/lifecycle_test.go:331:TestWebAccessServerManagerCoversLiveReconfigurationLifecycle",
-        "internal/app/apiserver/server_test.go:85:TestStartDesktopDoesNotMutatePersistedWebAccessSettings",
         "internal/app/apiserver/servercoretest/runtime_defaults_test.go:48:TestAPIBaseURLForBindNormalizesWildcardHost"
       ],
       "allowed": false,

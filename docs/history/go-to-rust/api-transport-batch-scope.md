@@ -5710,3 +5710,44 @@ uncoveredAssertions。
 `check:zero-go` 过；`check:quick` 与 `git diff --check` 见收尾。
 
 下一片：server_test.go 14 条与 api_transport 收尾盘点。
+## 第 130 批 09 切片二十八：server_test.go 14 条含 7 处纠正，apiserver 面收尾（2026-09-24）
+
+范围：`internal/app/apiserver/server_test.go` 14 条（初值 7 `[x]` 加
+4 partial 加 3 boundary）。server_test.go 是 apiserver 面最后一个未
+recon 目录，本片后 apiserver 面 reconciled 行全清。
+
+方法：Go 体 527 行全读；7 个 `[x]` 逐字比对 Rust 断言；结论引用的具
+名测试全仓核实存在；7 个 partial 与 boundary 抽查 owner 与缺口描述，
+结论诚实则维持。
+
+7 处纠正（`[x]` 降为 partial，`[x]` 1508→1501）：
+
+- `:150`：profile 静态绑定有断言，但从未构造含冲突 persisted
+  apiBind 的 settings 场景，优先关系无对应；APIBaseURL 派生亦无对应。
+- `:224`：仅 0.0.0.0 单例拒绝有断言；LAN IP 与 `[::]` 拒绝、三例放行
+  无对应，原结论逐例断言失实。
+- `:280`、`:310`、`:331`：Rust 只在单元层面覆盖 tauri 方案静态白名
+  单；wails 方案来源、真实服务 CORS 回显、动态端口派生无对应；三条第
+  二证据引的是生产函数而非测试，一并移出并删除对应 reuse 项。
+- `:472`：合并终态与篡改拒绝有断言；删除阶段文件已删但 marker 保留
+  的中间态契约无直接断言。
+- `:85`：字节级不改写有断言，但种子不含 security 段；allowlist 用例
+  主题是重绑跟踪，与写回无关，移出并同步 reuse。
+
+其余 4 partial 与 3 boundary 维持不变：`:176` 临时端口无校验分支、
+`:184` 缺解析绑定保留断言、`:20` 无集中 layout 初始化、`:250` 无
+legacy GUI 服务、`:359` 缺桌面侧绑定失败端到端、`:518` 运行模型差异、
+`:73` 无 args 门控。
+
+缺口 owner 与回归：桌面 profile 绑定优先、CORS 回显、动态来源派生、
+重建中间态、口令场景写回；回归要求见各行 uncoveredAssertions。
+
+验证：`audit_test_parity.py --write-report` exit 0（1501 exact 全引用
+存在；警告均为已知类：重复基线名 32、partial 无测试引用 2、缺锚点
+99、无断言体 2；inventory 随改判重生）；
+`parity_anchor_reconcile.py` 过（1742 total、已记录 1696、unrecorded
+0、stale 0、unknown 46）；本片无 Rust 文件改动故免 fmt 与 nextest；
+`check:ai-context`、`check:migration-manifest`、`check:zero-go`、
+`check:quick` 与 `git diff --check` 见收尾。
+
+下一片：按队列出新域（strategy 与 backtest 停滞域优先，开片时确认）。
