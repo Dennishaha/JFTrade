@@ -24,3 +24,25 @@ busy_timeout 10000 + foreign_keys）与 Go `:11`（写者 FIFO + 读屏障门控
 `check:quick`（单实例）、`git diff --check`。
 
 下一片：store 域按文件继续（sqliteschema 系 30 条）。
+
+## 第 130 批 08 切片二：sqliteschema 30 条 recon（2026-09-24）
+
+范围：`internal/store/sqliteschema/catalog_test.go`（17）+
+`schema_boundaries_test.go`（8）+ `schema_fault_driver_test.go`（3）+
+`schema_test.go`（2），共 30 条（partial 29 + boundary 1）。
+
+方法：Go 体逐条核对结论；30 条 Rust 引用逐一 rg 命中（0 缺失）；
+关键语义抽查 Go `:170`（延迟外键提交失败→零表残留）与 Rust
+`test_p1_06_migration_syntax_error_triggers_atomic_rollback`
+（语法错误→丢弃事务→版本保持）：两者同断言初始化期原子回滚，
+延迟约束注入专项无对应断言，partial 诚实；唯一 boundary `:57`
+（database/sql 行集关闭错误合并）属实——rusqlite 无行集关闭错误合并层。
+
+结论：30 条 verdict 全部成立，无判定变更、无代码变更。本片为纯 recon。
+
+验证：`audit_test_parity.py --write-report` exit 0；`parity_anchor_reconcile.py` 过；
+`cargo fmt -p jftrade-engine -- --check`、`check:ai-context`、
+`check:migration-manifest`、`check:zero-go`、
+定向 nextest（store-sqlite 整 crate）、`check:quick`（单实例）、`git diff --check`。
+
+下一片：store 域按文件继续（settingsfile 系 38 条）。
