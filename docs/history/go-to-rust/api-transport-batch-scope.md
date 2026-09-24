@@ -5477,3 +5477,42 @@ fmt 与 nextest；`check:ai-context`、`check:migration-manifest`、
 下一片：servercoretest 余量 65 条（s2 已做 broker_new 等 38 条），
 拆两片；之后 webaccess 31、tradingapp 22、runtime/runtimes、
 backtestapp、futuapp、liveapp 等。
+
+## 第 130 批 09 切片二十二：servercoretest backtest/frontend/depth/profiles/openapi/plugin/research/defaults 32 条 recon（2026-09-24）
+
+范围：`internal/app/apiserver/servercoretest/` backtest_provider_runtime（4）+
+backtest_runs（4）+ frontend（6）+ installers_degraded（1）+
+market_depth_routes（4）+ market_profiles（2）+
+openapi_schema_compatibility（1）+ openapi_snapshot（4）+ plugin_lifecycle（1）+
+research_runtime（2）+ runtime_defaults（3），共 32 条（18 `[x]` + 14 partial，
+含 2 条 live 边界以 `[~]` 登记）。
+
+方法：Go 体逐段核对；18 个 `[x]` 引用存在且锚点齐全（逐一命中）；
+具名引用 0 缺失。结论：32 条 verdict 全部成立，无判定变更、无命令变更、
+无代码变更，本片为纯 recon。
+
+抽查实据：`:55` AKShare 一年 5m 同步 400 文案逐字一致且无 unavailable
+残留，3 天窗口与其他 provider 可通过（组合：run 无缓存失败与不落库、
+provider 不可用 503 各由引用用例覆盖）；`:127` 冻结语料 38 例逐项全等
+回放 4 条删除写路由（含拒绝文案与重复删除非幂等）；`:279` 缺失嵌套库
+目录启动创建并迁移到锚定 schema，读路由投影同一运行库（分层组合保留）；
+`:36` 研究预设库不可打开 503；`:15` 画像端点；openapi 四条文档快照与
+遗留 schema 名；market_depth 四条路由与方法守卫；`:25` 前端资源与 SPA
+回退；`:14` 研究库初始化。
+partial 均为诚实缺口：`:119`/`:162` live 真实行情矩阵保留在 live workflow；
+`:34` 重启恢复置 failed 但无 recovered 文案（owner execution 端口）；
+`:96` 开发模式 Vite 代理属桌面边界；`:13` 助手库不可用时 Rust fail-closed
+而 Go 降级启动（产品边界差异，已登记）；`:79` CN 归一 Rust 刻意放宽为
+前缀推断（catalog 测试内明确标注有意改进）；`:11`/`:28`/`:48` 启动默认
+形态差异；`:16` 插件目录端点。各有 owner 与回归要求。
+
+验证：`audit_test_parity.py --write-report` exit 0（1530 exact 全引用
+存在；已知警告不变；仅 report 基线号重生，inventory 无差）；
+`parity_anchor_reconcile.py` 过（1695/0/0/46）；无 Rust 文件改动故免
+fmt 与 nextest；`check:ai-context`、`check:migration-manifest`、
+`check:zero-go` 过；`check:quick` 与 `git diff --check` 见收尾。
+
+下一片：servercoretest 余量 33 条第二片（server_business_public、
+server_definitions、settings_broker/interfaces/normalization/onboarding、
+strategy_logs/preview/sync、swagger_openapi、system_routes、
+watchlist_runtime）。
