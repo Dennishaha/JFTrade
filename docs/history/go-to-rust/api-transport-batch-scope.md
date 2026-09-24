@@ -6375,3 +6375,27 @@ pine 池与 readiness、write 兼容）全过；cargo fmt --check 与 git diff -
 cargo fmt --check 与 git diff --check 干净；账本与 Rust 代码零改动（纯复核片）。
 
 下一片：130-10 切片九，strategy 域 partial 第 141–156 行（末 16 行，收尾 strategy）。
+## 第 130 批 10 切片九：strategy 域 partial 第 141–156 行，16 行维持、零修改（2026-09-24）
+
+范围：strategy 域 partial 末 16 行（runtimecontrol 时间与仓位 1 行、时区与投影 2 行、边界 2 行、
+service 门面 9 行、wire 契约 2 行，按文件加行号升序）。本片关闭 strategy 域 partial 二次核对
+（156/156 行全部复核完毕）。
+
+方法：Go 体全读；缺口验到代码行与用例断言；引用存在不等于断言等价。
+
+16 行维持（可空时间与 MaxTime 无同形对象而符号匹配已锁定、夜盘边界 P1 缺口与双锚点组合、
+微秒精度与错误裁剪无三合一断言、负零由 Decimal 类型表示保证、限制列表无同形对象、
+无 Service 门面而七写路由夹具锁定、存储错误身份无原样上抛、缺分析器报错无同形断言、
+启动前拒绝无零触碰计数、忙碌缺设置指引文案、启动后回滚 P1 缺口、刷新一次无计数断言、
+先转换后停无顺序断言、门面入口无清单式断言、扁平约束无独立回归、绑定缺逐字段快照，
+均与账本缺口一致）。
+
+抽核要点：portfolio 用例锁定空白返回零、跨市场不匹配、裸符号与冒号形式匹配；
+pine 路由用例锁定 503 不可用与 429 忙碌加 Retry-After；
+`:83` 双锚点用例在位（execution_tests.rs:1257/:1283）。
+
+验证：audit --write-report 过（1472 exact；dup 0）；anchor 过（1742/1696/0/0/46）；
+定向 nextest（trading portfolio 4/4、engine strategy 族 35/35）全过；
+cargo fmt --check 与 git diff --check 干净；账本与 Rust 代码零改动（纯复核片）。
+
+下一域：backtest_calendar（提醒线程口径：strategy 之后啃 backtest 6.3%）。
