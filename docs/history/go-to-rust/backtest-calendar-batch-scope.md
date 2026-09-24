@@ -328,3 +328,30 @@ Go WorkerOrderCommand DTO 形态（Kind/ID/Side/OrderType/Quantity/GTC）抽查�
 `check:quick`（单实例）、`git diff --check`。
 
 下一片：backtest_calendar 按文件行号继续（replay/sizer/runner/collector/result 系）。
+
+## 第 130 批 07 切片七：pine 成本/语料 + replay/runner 35 条 recon（2026-09-24）
+
+范围：`pkg/backtest/pine_costs_test.go`（4）+ `pine_ts_corpus_test.go`（1）+
+`pine_ts_shadow_reference_test.go`（2）+ `pine_ts_smoke_test.go`（1）+
+`pineworker_replay_pump_test.go`（4）+ `pineworker_replay_source_test.go`（3）+
+`pineworker_replay_test.go`（6）+ `pineworker_runner_boundaries_test.go`（4）+
+`pineworker_runner_failure_boundaries_test.go`（3）+
+`pineworker_runner_test.go`（7），共 35 条（[x] 2 + partial 23 + boundary 10）。
+
+方法：Go 体逐条核对结论；2 [x] 确认 Rust 测试存在、Parity 锚点在位、
+同输入同断言逐项等价（EMA 前 2 NaN + [2,3,4]、MACD NaN 分布与 1/1/0）；
+全部 35 条 Rust 引用逐一 rg 命中（0 缺失）；冒烟用例确认 opt-in ignore 形态，
+结论已注明默认门禁不跑。
+
+结论：35 条 verdict 全部成立，无判定变更、无代码变更——
+2 [x]（EMA SMA 初始化、MACD NaN 跳过）为纯数值语义等价；
+partial/boundary 缺口诚实（pump/planner/收集器/归一化层不迁移、
+报价货币默认表、缓存清理助手、逐 bar 完整性矩阵、港股整手等）。
+本片为纯 recon。
+
+验证：`audit_test_parity.py --write-report` exit 0；`parity_anchor_reconcile.py` 过；
+`cargo fmt -p jftrade-engine -- --check`、`check:ai-context`、`check:migration-manifest`、
+`check:zero-go`、定向 nextest（backtest 指标兼容 + integration-pine 全量）、
+`check:quick`（单实例）、`git diff --check`。
+
+下一片：backtest_calendar 按文件行号继续（sizer/collector/costs/result 余量系）。
