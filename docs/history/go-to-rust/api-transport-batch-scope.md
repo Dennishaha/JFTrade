@@ -5068,3 +5068,45 @@ beb5174c 起必须带 flag 才落库）；`parity_anchor_reconcile.py` 过
 下一片：api_transport 余量继续按文件行号升序
 （`internal/api/assistant` 余量约 51 行：adk_routes 后续与
 adk_sessions/catalog/chat 等）。
+
+## 第 130 批 09 切片十：assistant transport 余量 40 条 recon（2026-09-24）
+
+范围：`internal/api/assistant/` 14 个整文件——adk_sessions（1）、
+adk_transport_contracts（1）、adk_workflow_routes（2）、
+catalog_failure（1）、chat_helpers（8）、chat_stream_lifecycle（1）、
+chat_stream_recovery（2）、chat_transport_disconnect（2）、
+input_response（1）、query_encoding（1）、routes_boundary（6）、
+routes_error（2）、routes_identifier（1）、routes_payload_pagination（5）、
+routes_resource（6），共 40 条（原 30 `[x]` + 6 boundary + 4 partial）。
+
+方法：Go 体逐条核对结论；30 个 `[x]` 的 Rust 引用逐一命中且每行至少一锚；
+组合条目逐项拆验，本片无生产函数元；Rust 体抽查关键断言
+（sessions CRUD 矩阵、composer 非法覆盖、cancel 错误码、compact 错误码、
+replay 标记、try_send 生产修复、skill 安装码、校验矩阵）。
+4 条台账修正：
+
+- `:15` sessions 保持 `[x]`，补齐漏引第二元：
+  非法 composer PATCH（sequential/root 的 400）由
+  adk_composer_state_truncates_trim_and_rejects_invalid_modes
+  在端口级逐项断言，原单证据条目 expanded 为同主题组合。
+- 3 条收回过宽 `[x]`→partial（题眼或同体辅助断言无对应）：
+  `:216` 无效请求 error 帧已覆盖，缺 missing-agent preview 零帧；
+  `:41` 终态恢复 final 已覆盖，缺已知 context preview 投影；
+  `:262` 缺失资源 404 码已覆盖，缺三条非法 workflow 消息断言
+  （文案在生产实现但无测试）。
+  缺口与回归要求均已登记在条目结论内。
+
+结论：40 条 verdict = **27 `[x]` + 7 partial + 6 boundary**
+（`[x]` 1538→1535）。本片仅台账修正加报告清单重生加文档，
+无代码变更。
+
+验证：`v2_writer.py --check` 过后落库；`audit_test_parity.py --write-report`
+exit 0（已知警告 0/2/100/2 不变）；`parity_anchor_reconcile.py` 过
+（1695/0/0/46）；`cargo fmt -p jftrade-engine -- --check` 过；定向 nextest
+2/2（composer 非法覆盖、终态恢复）；`check:ai-context`、
+`check:migration-manifest`、`check:zero-go` 过；`check:quick` 与
+`git diff --check` 见收尾。
+
+下一片：api_transport 余量继续按文件行号升序
+（`internal/api/assistant` 仅剩 routes_test 9 加 workflow_routes 2，
+之后进入 backtest/middleware/live 等目录）。

@@ -7,7 +7,7 @@
     "treeSha": "0ee26444be21c15d9760f358a34649f78402f0fb"
   },
   "generatorVersion": "v2_writer.py@slice23",
-  "generatedAt": "2026-09-24T02:39:44Z",
+  "generatedAt": "2026-09-24T02:47:06Z",
   "mappings": {
     "cmd/jftrade-api/main_test.go:13:TestValidateArgsAllowsNoArgs": {
       "status": "[~]",
@@ -2605,8 +2605,8 @@
     },
     "internal/api/assistant/adk_sessions_test.go:15:TestADKSessionsCRUDAndFilteringRoutes": {
       "status": "[x]",
-      "rust_entry": "crates/jftrade-engine/src/product_production_assembly_tests.rs::tests::production_adk_public_sessions_use_main_store_and_support_crud",
-      "conclusion": "function_exact：create/list(agentId+query)/detail(含 timeline 数组与 composerState)/composer-state PATCH/rename PUT/delete/缺失 404/未知 agent 400 BAD_REQUEST（enabled agent is required 文案） 全流程断言。",
+      "rust_entry": "crates/jftrade-engine/src/product_production_assembly_tests.rs::tests::production_adk_public_sessions_use_main_store_and_support_crud；crates/jftrade-engine/src/product_adk_store_parity_tests.rs::adk_composer_state_truncates_trim_and_rejects_invalid_modes",
+      "conclusion": "function_exact：创建/列表过滤（agentId 加 query）/详情时间线与 composerState/composer PATCH happy path/rename PUT/删除/缺失 404/未知 agent 400 由 sessions 用例逐项断言；Go 的两个非法 composer PATCH 分支（workModeOverride 为 sequential、permissionModeOverride 为 root 的 400）由 composer 用例在端口级断言 400 ADK_SESSION_COMPOSER_STATE_UPDATE_FAILED。原条目漏引第二元，现补齐为同主题组合。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
       "evidence_type": "function_exact",
       "source": {
@@ -2626,11 +2626,17 @@
             "rustFile": "crates/jftrade-engine/src/product_production_assembly_tests.rs",
             "rustLine": 2564
           }
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_adk_store_parity_tests.rs",
+          "test": "adk_composer_state_truncates_trim_and_rejects_invalid_modes",
+          "crate": "jftrade-engine",
+          "anchor": null
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "function_exact：create/list(agentId+query)/detail(含 timeline 数组与 composerState)/composer-state PATCH/rename PUT/delete/缺失 404/未知 agent 400 BAD_REQUEST（enabled agent is required 文案） 全流程断言。"
+          "function_exact：创建/列表过滤（agentId 加 query）/详情时间线与 composerState/composer PATCH happy path/rename PUT/删除/缺失 404/未知 agent 400 由 sessions 用例逐项断言；Go 的两个非法 composer PATCH 分支（workModeOverride 为 sequential、permissionModeOverride 为 root 的 400）由 composer 用例在端口级断言 400 ADK_SESSION_COMPOSER_STATE_UPDATE_FAILED。原条目漏引第二元，现补齐为同主题组合。"
         ],
         "uncovered": [],
         "source": "legacy-conclusion"
@@ -2646,7 +2652,8 @@
           "--locked"
         ],
         "testFilter": [
-          "production_adk_public_sessions_use_main_store_and_support_crud"
+          "production_adk_public_sessions_use_main_store_and_support_crud",
+          "adk_composer_state_truncates_trim_and_rejects_invalid_modes"
         ],
         "runnerVersion": null,
         "toolchain": null,
@@ -2665,7 +2672,7 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "function_exact：create/list(agentId+query)/detail(含 timeline 数组与 composerState)/composer-state PATCH/rename PUT/delete/缺失 404/未知 agent 400 BAD_REQUEST（enabled agent is required 文案） 全流程断言。"
+        "function_exact：创建/列表过滤（agentId 加 query）/详情时间线与 composerState/composer PATCH happy path/rename PUT/删除/缺失 404/未知 agent 400 由 sessions 用例逐项断言；Go 的两个非法 composer PATCH 分支（workModeOverride 为 sequential、permissionModeOverride 为 root 的 400）由 composer 用例在端口级断言 400 ADK_SESSION_COMPOSER_STATE_UPDATE_FAILED。原条目漏引第二元，现补齐为同主题组合。"
       ],
       "uncoveredAssertions": [],
       "boundaryReason": null
@@ -2819,11 +2826,11 @@
       "boundaryReason": null
     },
     "internal/api/assistant/adk_workflow_routes_test.go:262:TestADKWorkflowRoutesRejectInvalidInputs": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_read_resource_misses_keep_the_go_route_error_codes；crates/jftrade-engine/tests/adk_workflow_canvas_contracts.rs::workflow_mutation_routes_keep_the_go_not_found_codes",
-      "conclusion": "function_exact：missing workflow GET/trigger-list 与 missing task/session-context 的 404 错误码逐条对齐 Go（ADK_WORKFLOW_GET_FAILED、ADK_WORKFLOW_TRIGGER_LIST_FAILED、ADK_TASK_NOT_FOUND、ADK_SESSION_CONTEXT_FAILED）；非法 payload/inputs 由 product_adk_mutation_port 的 BAD_REQUEST 消息契约覆盖。",
+      "conclusion": "partial：已覆盖 missing workflow GET 与 trigger-list、missing task 与 session-context 的 404 错误码逐条对齐。缺口：Go 同用例还断言非法 workflow payload、非法 workflow inputs（run）、非法 workflow trigger payload 的三条 400 消息（invalid workflow payload / invalid workflow inputs / invalid workflow trigger payload）；文案存在于生产端口实现但无任何测试断言。回归：补消息断言后再升 exact。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(adk_read_resource_misses_keep_the_go_route_error_codes) or test(workflow_mutation_routes_keep_the_go_not_found_codes)'",
-      "evidence_type": "function_exact",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/api/assistant/adk_workflow_routes_test.go",
         "line": 262,
@@ -2845,15 +2852,15 @@
             "goFile": "internal/api/assistant/adk_workflow_routes_test.go",
             "goLine": 262,
             "rustFile": "crates/jftrade-engine/tests/adk_workflow_canvas_contracts.rs",
-            "rustLine": 753
+            "rustLine": 754
           }
         }
       ],
       "assertionCoverage": {
-        "covered": [
-          "function_exact：missing workflow GET/trigger-list 与 missing task/session-context 的 404 错误码逐条对齐 Go（ADK_WORKFLOW_GET_FAILED、ADK_WORKFLOW_TRIGGER_LIST_FAILED、ADK_TASK_NOT_FOUND、ADK_SESSION_CONTEXT_FAILED）；非法 payload/inputs 由 product_adk_mutation_port 的 BAD_REQUEST 消息契约覆盖。"
+        "covered": [],
+        "uncovered": [
+          "partial：已覆盖 missing workflow GET 与 trigger-list、missing task 与 session-context 的 404 错误码逐条对齐。缺口：Go 同用例还断言非法 workflow payload、非法 workflow inputs（run）、非法 workflow trigger payload 的三条 400 消息（invalid workflow payload / invalid workflow inputs / invalid workflow trigger payload）；文案存在于生产端口实现但无任何测试断言。回归：补消息断言后再升 exact。"
         ],
-        "uncovered": [],
         "source": "legacy-conclusion"
       },
       "verification": {
@@ -2883,15 +2890,15 @@
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "function_exact：missing workflow GET/trigger-list 与 missing task/session-context 的 404 错误码逐条对齐 Go（ADK_WORKFLOW_GET_FAILED、ADK_WORKFLOW_TRIGGER_LIST_FAILED、ADK_TASK_NOT_FOUND、ADK_SESSION_CONTEXT_FAILED）；非法 payload/inputs 由 product_adk_mutation_port 的 BAD_REQUEST 消息契约覆盖。"
+      "coveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial：已覆盖 missing workflow GET 与 trigger-list、missing task 与 session-context 的 404 错误码逐条对齐。缺口：Go 同用例还断言非法 workflow payload、非法 workflow inputs（run）、非法 workflow trigger payload 的三条 400 消息（invalid workflow payload / invalid workflow inputs / invalid workflow trigger payload）；文案存在于生产端口实现但无任何测试断言。回归：补消息断言后再升 exact。"
       ],
-      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/api/assistant/catalog_failure_contracts_test.go:17:TestCatalogReadFaultsExposeStableAPIContracts": {
@@ -3298,11 +3305,11 @@
       "boundaryReason": null
     },
     "internal/api/assistant/chat_helpers_test.go:216:TestExecuteADKChatStreamPublishesTerminalErrorForInvalidRequest": {
-      "status": "[x]",
-      "rust_entry": "crates/jftrade-engine/tests/adk_chat_stream_compatibility.rs::adk_chat_stream_replays_go_wire_fixture_for_leaf_owned_cases（stream-invalid-json → 终局 error 帧）；crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::adk_chat_stream_routes_are_isolated_without_port（缺端口 fail-closed）",
-      "conclusion": "function_exact：无效请求的终局 error 帧由 wire fixture 用例锁定（stream-invalid-json 的期望体为 retry: 3000 加 data: {\"message\":\"invalid chat payload: unexpected EOF\",\"type\":\"error\"}），缺端口时的 fail-closed 404 由 adk_chat_stream_routes_are_isolated_without_port 断言。Go 的 executeADKChatStream/previewSession 是进程内 hub helper（sessionSent、missing-agent 不产生帧），Rust 按同一 hub-helper 边界族处理，等价保证落在 durable 终局 error 帧与路由 isolation 上。",
+      "status": "[~]",
+      "rust_entry": "crates/jftrade-engine/tests/adk_chat_stream_compatibility.rs::adk_chat_stream_replays_go_wire_fixture_for_leaf_owned_cases；crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::adk_chat_stream_routes_are_isolated_without_port",
+      "conclusion": "partial：已覆盖非法 JSON 的终局 error 帧（fixture 逐帧）与缺端口 fail-closed。缺口：Go 同用例还断言 previewSession 语义——有效 session 的 ensureSessionAndContext 置 sessionSent，以及未知 agent 的 preview 不产生任何帧；Rust 的 preview session 先于 run 断言挂在另一参考用例（routes_test.go:265）名下，missing-agent preview 零帧在 Rust 无对应断言。回归：在 stream 产品测试补 missing-agent preview 行为断言，或确认为 fail-closed 产品决策。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --test adk_chat_stream_compatibility --locked",
-      "evidence_type": "function_exact",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/api/assistant/chat_helpers_test.go",
         "line": 216,
@@ -3329,10 +3336,10 @@
         }
       ],
       "assertionCoverage": {
-        "covered": [
-          "function_exact：无效请求的终局 error 帧由 wire fixture 用例锁定（stream-invalid-json 的期望体为 retry: 3000 加 data: {\"message\":\"invalid chat payload: unexpected EOF\",\"type\":\"error\"}），缺端口时的 fail-closed 404 由 adk_chat_stream_routes_are_isolated_without_port 断言。Go 的 executeADKChatStream/previewSession 是进程内 hub helper（sessionSent、missing-agent 不产生帧），Rust 按同一 hub-helper 边界族处理，等价保证落在 durable 终局 error 帧与路由 isolation 上。"
+        "covered": [],
+        "uncovered": [
+          "partial：已覆盖非法 JSON 的终局 error 帧（fixture 逐帧）与缺端口 fail-closed。缺口：Go 同用例还断言 previewSession 语义——有效 session 的 ensureSessionAndContext 置 sessionSent，以及未知 agent 的 preview 不产生任何帧；Rust 的 preview session 先于 run 断言挂在另一参考用例（routes_test.go:265）名下，missing-agent preview 零帧在 Rust 无对应断言。回归：在 stream 产品测试补 missing-agent preview 行为断言，或确认为 fail-closed 产品决策。"
         ],
-        "uncovered": [],
         "source": "legacy-conclusion"
       },
       "verification": {
@@ -3361,15 +3368,15 @@
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "function_exact：无效请求的终局 error 帧由 wire fixture 用例锁定（stream-invalid-json 的期望体为 retry: 3000 加 data: {\"message\":\"invalid chat payload: unexpected EOF\",\"type\":\"error\"}），缺端口时的 fail-closed 404 由 adk_chat_stream_routes_are_isolated_without_port 断言。Go 的 executeADKChatStream/previewSession 是进程内 hub helper（sessionSent、missing-agent 不产生帧），Rust 按同一 hub-helper 边界族处理，等价保证落在 durable 终局 error 帧与路由 isolation 上。"
+      "coveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial：已覆盖非法 JSON 的终局 error 帧（fixture 逐帧）与缺端口 fail-closed。缺口：Go 同用例还断言 previewSession 语义——有效 session 的 ensureSessionAndContext 置 sessionSent，以及未知 agent 的 preview 不产生任何帧；Rust 的 preview session 先于 run 断言挂在另一参考用例（routes_test.go:265）名下，missing-agent preview 零帧在 Rust 无对应断言。回归：在 stream 产品测试补 missing-agent preview 行为断言，或确认为 fail-closed 产品决策。"
       ],
-      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/api/assistant/chat_helpers_test.go:260:TestAssistantRequestHelpersCoverInvalidAndBoundaryInputs": {
@@ -3564,11 +3571,11 @@
       "boundaryReason": "boundary：Go 的 `cloneADKChatStreamEvent` 用 JSON 往返克隆事件，并在 `func()` 这类不可序列化 tool output 上保留原事件（防止 live 事件被丢弃）。Rust 的事件在构造时就是 serde_json::Value，不可能出现不可序列化字段，因此不存在同等结构；timeline-only delta 不产生叙事重复的契约由 durable 投影承接——流事件写入 payload 的 `streamEvents` 且 final 只追加一帧（persisted_terminal_run_is_published_as_final_instead_of_a_second_error 断言终态只产生一个 final、无第二个 error）。"
     },
     "internal/api/assistant/chat_stream_recovery_contracts_test.go:41:TestChatStreamExecutionReusesKnownContextAndRecoversTerminalRun": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_recovery_tests.rs::persisted_terminal_run_is_published_as_final_instead_of_a_second_error",
-      "conclusion": "function_exact：Go 的 publishTerminalError 先向 RecoverTerminalChatResponse 要持久化终态 run，成功则只发 final、绝不再发第二个 error。Rust 等价路径是 durable 投影：streamEvents 缺终帧的 COMPLETED run 由 stream_from_payload 依 durable response 合成唯一 final 帧，测试断言 types 恰有一个 final、无 error、末帧 response.run.id 正确。探针：禁用合成分支后该测试转红，还原后通过。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'",
-      "evidence_type": "function_exact",
+      "conclusion": "partial：已覆盖持久化终态 run 只发 final 不伪造第二个 error（durable 合成，探针确认）。缺口：Go 同用例的前半断言已知 context 的 preview 投影（contextSent 即置 sessionSent 且恰好一帧 session、无重抓），Rust 无对应断言。回归：在 stream 产品测试补已知 context preview 断言后再升 exact。",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(persisted_terminal_run_is_published_as_final_instead_of_a_second_error)'",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/api/assistant/chat_stream_recovery_contracts_test.go",
         "line": 41,
@@ -3589,10 +3596,10 @@
         }
       ],
       "assertionCoverage": {
-        "covered": [
-          "function_exact：Go 的 publishTerminalError 先向 RecoverTerminalChatResponse 要持久化终态 run，成功则只发 final、绝不再发第二个 error。Rust 等价路径是 durable 投影：streamEvents 缺终帧的 COMPLETED run 由 stream_from_payload 依 durable response 合成唯一 final 帧，测试断言 types 恰有一个 final、无 error、末帧 response.run.id 正确。探针：禁用合成分支后该测试转红，还原后通过。"
+        "covered": [],
+        "uncovered": [
+          "partial：已覆盖持久化终态 run 只发 final 不伪造第二个 error（durable 合成，探针确认）。缺口：Go 同用例的前半断言已知 context 的 preview 投影（contextSent 即置 sessionSent 且恰好一帧 session、无重抓），Rust 无对应断言。回归：在 stream 产品测试补已知 context preview 断言后再升 exact。"
         ],
-        "uncovered": [],
         "source": "legacy-conclusion"
       },
       "verification": {
@@ -3603,7 +3610,7 @@
           "-p",
           "jftrade-engine",
           "-E",
-          "test(adk)"
+          "test(persisted_terminal_run_is_published_as_final_instead_of_a_second_error)"
         ],
         "testFilter": [
           "persisted_terminal_run_is_published_as_final_instead_of_a_second_error"
@@ -3619,15 +3626,15 @@
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "function_exact：Go 的 publishTerminalError 先向 RecoverTerminalChatResponse 要持久化终态 run，成功则只发 final、绝不再发第二个 error。Rust 等价路径是 durable 投影：streamEvents 缺终帧的 COMPLETED run 由 stream_from_payload 依 durable response 合成唯一 final 帧，测试断言 types 恰有一个 final、无 error、末帧 response.run.id 正确。探针：禁用合成分支后该测试转红，还原后通过。"
+      "coveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial：已覆盖持久化终态 run 只发 final 不伪造第二个 error（durable 合成，探针确认）。缺口：Go 同用例的前半断言已知 context 的 preview 投影（contextSent 即置 sessionSent 且恰好一帧 session、无重抓），Rust 无对应断言。回归：在 stream 产品测试补已知 context preview 断言后再升 exact。"
       ],
-      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/api/assistant/chat_transport_disconnect_test.go:55:TestChatStreamTransportHandlesDisconnectedClients": {
@@ -292938,8 +292945,9 @@
       "reviewStatus": "unreviewed"
     },
     "crates/jftrade-engine/src/product_adk_store_parity_tests.rs::adk_composer_state_truncates_trim_and_rejects_invalid_modes": {
-      "referenceCount": 4,
+      "referenceCount": 5,
       "referenceKeys": [
+        "internal/api/assistant/adk_sessions_test.go:15:TestADKSessionsCRUDAndFilteringRoutes",
         "internal/assistant/engine/adk_store_edges_test.go:404:TestStoreSessionComposerBoundaryBranches",
         "internal/assistant/engine/persistence/composer_normalize_test.go:8:TestNormalizeSessionComposerStateClearsInvalidModes",
         "internal/assistant/engine/reasoning_effort_lifecycle_test.go:23:TestReasoningEffortResumeUsesRunSnapshot",
