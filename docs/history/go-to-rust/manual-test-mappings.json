@@ -287103,11 +287103,11 @@
       "boundaryReason": null
     },
     "internal/trading/service_test.go:8:TestServiceReadQueryAppliesDefaultMarket": {
-      "status": "[x]",
-      "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::broker_read_query_without_market_defaults_to_hk（本批新增）",
-      "conclusion": "已覆盖：Go 断言 ReadQuery 显式 market 原样透传、缺省时用服务默认市场（HK）。Rust 的等价点在 product_production_ports_trade_requests.rs::resolve_account_with_environment：请求未带 market 时先按账户市场权限取首个市场（HK），无权限表时回退 \"HK\"，显式 market 必须出现在账户权限表中。新增测试用同一 fixture 账户（权限 [1,2]=HK/US）断言 `accountId=42` 无 market → summary.market=\"HK\"，`accountId=42&market=US` → summary.market=\"US\"。本行为既有实现，本批只补断言面（无生产改动，故无探针）。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(broker_read_query_without_market_defaults_to_hk)'",
-      "evidence_type": "function_exact",
+      "status": "[~]",
+      "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::broker_read_query_without_market_defaults_to_hk",
+      "conclusion": "部分覆盖：Go 三簇断言中两簇命中——显式 market 原样透传、无 market 时回退 HK（同一 fixture 账户 accountId 等于 42：无 market 得 HK、market 等于 US 得 US，既有用例 broker_read_query_without_market_defaults_to_hk 锁定）。缺口：Go 第一簇 WithDefaultMarket 自定义默认（返回 US 时缺省 market 落 US）在 Rust 账户解析读路径上不成立——default_trade_market 钩子只被 market_label 与 max-trade 消费，funds 等走 resolve_account 的路径经 resolve_account_with_environment 取账户权限表首个市场、无表回退 HK，从不读钩子。实测：default_trade_market 为 Some(US) 的 funds 读返回 HK。探针：把 ProductionBrokerPort 的 configured_default_market 短路为 None 后同一断言同样转红（HK 不等于 US），证明该路径本来就不读钩子；按字节回滚，product_production_ports_trade.rs 回滚前后 shasum 均为 bc1b4df58470fcbfaf2135622dfd298b5bedcc81d15255608dd7aafa9d2434d7。回归：在 jftrade-engine 把 default_market 引入账户解析（或如 Go 在解析层注入 query）后，补 funds 缺省 market 落自定义默认的用例再升级；业务逻辑不得进 API handler。",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E test(broker_read_query_without_market_defaults_to_hk)",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/trading/service_test.go",
         "line": 8,
@@ -287123,15 +287123,15 @@
             "goFile": "internal/trading/service_test.go",
             "goLine": 8,
             "rustFile": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs",
-            "rustLine": 832
+            "rustLine": 840
           }
         }
       ],
       "assertionCoverage": {
-        "covered": [
-          "已覆盖：Go 断言 ReadQuery 显式 market 原样透传、缺省时用服务默认市场（HK）。Rust 的等价点在 product_production_ports_trade_requests.rs::resolve_account_with_environment：请求未带 market 时先按账户市场权限取首个市场（HK），无权限表时回退 \"HK\"，显式 market 必须出现在账户权限表中。新增测试用同一 fixture 账户（权限 [1,2]=HK/US）断言 `accountId=42` 无 market → summary.market=\"HK\"，`accountId=42&market=US` → summary.market=\"US\"。本行为既有实现，本批只补断言面（无生产改动，故无探针）。"
+        "covered": [],
+        "uncovered": [
+          "部分覆盖：Go 三簇断言中两簇命中——显式 market 原样透传、无 market 时回退 HK（同一 fixture 账户 accountId 等于 42：无 market 得 HK、market 等于 US 得 US，既有用例 broker_read_query_without_market_defaults_to_hk 锁定）。缺口：Go 第一簇 WithDefaultMarket 自定义默认（返回 US 时缺省 market 落 US）在 Rust 账户解析读路径上不成立——default_trade_market 钩子只被 market_label 与 max-trade 消费，funds 等走 resolve_account 的路径经 resolve_account_with_environment 取账户权限表首个市场、无表回退 HK，从不读钩子。实测：default_trade_market 为 Some(US) 的 funds 读返回 HK。探针：把 ProductionBrokerPort 的 configured_default_market 短路为 None 后同一断言同样转红（HK 不等于 US），证明该路径本来就不读钩子；按字节回滚，product_production_ports_trade.rs 回滚前后 shasum 均为 bc1b4df58470fcbfaf2135622dfd298b5bedcc81d15255608dd7aafa9d2434d7。回归：在 jftrade-engine 把 default_market 引入账户解析（或如 Go 在解析层注入 query）后，补 funds 缺省 market 落自定义默认的用例再升级；业务逻辑不得进 API handler。"
         ],
-        "uncovered": [],
         "source": "legacy-conclusion"
       },
       "verification": {
@@ -287160,15 +287160,15 @@
       "risk": "normal",
       "owner": "trading_broker",
       "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "已覆盖：Go 断言 ReadQuery 显式 market 原样透传、缺省时用服务默认市场（HK）。Rust 的等价点在 product_production_ports_trade_requests.rs::resolve_account_with_environment：请求未带 market 时先按账户市场权限取首个市场（HK），无权限表时回退 \"HK\"，显式 market 必须出现在账户权限表中。新增测试用同一 fixture 账户（权限 [1,2]=HK/US）断言 `accountId=42` 无 market → summary.market=\"HK\"，`accountId=42&market=US` → summary.market=\"US\"。本行为既有实现，本批只补断言面（无生产改动，故无探针）。"
+      "coveredAssertions": [],
+      "uncoveredAssertions": [
+        "部分覆盖：Go 三簇断言中两簇命中——显式 market 原样透传、无 market 时回退 HK（同一 fixture 账户 accountId 等于 42：无 market 得 HK、market 等于 US 得 US，既有用例 broker_read_query_without_market_defaults_to_hk 锁定）。缺口：Go 第一簇 WithDefaultMarket 自定义默认（返回 US 时缺省 market 落 US）在 Rust 账户解析读路径上不成立——default_trade_market 钩子只被 market_label 与 max-trade 消费，funds 等走 resolve_account 的路径经 resolve_account_with_environment 取账户权限表首个市场、无表回退 HK，从不读钩子。实测：default_trade_market 为 Some(US) 的 funds 读返回 HK。探针：把 ProductionBrokerPort 的 configured_default_market 短路为 None 后同一断言同样转红（HK 不等于 US），证明该路径本来就不读钩子；按字节回滚，product_production_ports_trade.rs 回滚前后 shasum 均为 bc1b4df58470fcbfaf2135622dfd298b5bedcc81d15255608dd7aafa9d2434d7。回归：在 jftrade-engine 把 default_market 引入账户解析（或如 Go 在解析层注入 query）后，补 funds 缺省 market 落自定义默认的用例再升级；业务逻辑不得进 API handler。"
       ],
-      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/trading/service_test.go:24:TestServiceOrderUpdateDefaultsAreNoops": {

@@ -636,6 +636,7 @@ async fn reconciliation_worker_projects_inactive_source_connectivity_and_go_shap
     );
     assert_eq!(snapshot["brokers"][0]["brokerId"], "futu");
     assert_eq!(snapshot["brokers"][0]["connectivity"], "inactive");
+    assert_eq!(snapshot["brokers"].as_array().expect("brokers array").len(), 1, "snapshot = {snapshot}");
     let invalidations = snapshot["recentInvalidations"]
         .as_array()
         .expect("recentInvalidations array");

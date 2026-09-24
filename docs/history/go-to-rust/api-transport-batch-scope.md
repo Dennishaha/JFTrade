@@ -6180,3 +6180,38 @@ cargo fmt --check 与 git diff --check 干净；无 Rust 代码改动。
 下一片：130-09 切片四十二，trading 域 [x] 第 61–67 条（收尾 7 条：
 order_updates:414/:427、responses:12/:141、risk_shape:78、
 risk_status_broker:82、service:8）。
+## 第 130 批 09 切片四十二：trading 域 [x] 第 61–67 条收官，6 条维持、service:8 降为 partial（2026-09-24）
+
+范围：trading_broker 域 [x] 第 61–67 条（order_updates:414/:427、responses:12/:141、
+risk_shape:78、risk_status_broker:82、service:8）。trading 域至此 108 行全部有终值结论
+（[x] 66 + partial 42），[x] 全量 1473→1472。
+
+方法：Go 体全读；Rust 断言逐项比对；引用存在不等于断言等价；:414/:427 沿用探针结论并复跑；
+service:8 按补断言流程走了一遍先红（见下），因生产侧缺口落 partial。
+
+6 条维持 [x]（25 次失败扫描后 recentInvalidations 恰 20 条、kind 与末条等于 lastError；
+inactive 源 subscriptions 空数组、brokers 单条 futu/inactive、invalidations 含 Go 字段名，
+本批另补 brokers 长度为 1 断言；runtime fixture 按字节冻结 descriptor/session/accounts、
+globalState 与 lastError 显式 null；connected 读状态 lastError 显式 null 在 runtime/funds/
+positions 三条读路径各有键集合加 is_null 断言；负 price/负 stopPrice/event-contract units 三边界逐项拒收；
+12 项生命周期矩阵加 stored 乘 reconcile 乘 terminal 全复刻，均逐项命中）。
+
+1 处纠正（[x] 降为 partial，[x] 1473→1472）：
+
+- service_test:8：Go 三簇中显式透传与缺省回 HK 两簇命中，WithDefaultMarket 自定义默认一簇
+  在 Rust 账户解析读路径上不成立。default_trade_market 钩子只被 market_label 与 max-trade 消费；
+  funds 等走 resolve_account 的路径经 resolve_account_with_environment 取权限表首市场、无表回 HK，
+  从不读钩子。实测 default_trade_market 为 Some(US) 的 funds 读仍返回 HK；探针把
+  ProductionBrokerPort::configured_default_market 短路为 None 后同一断言同样转红，证明该路径
+  本来就不读钩子；按字节回滚，product_production_ports_trade.rs 回滚前后 shasum 均为
+  bc1b4df58470fcbfaf2135622dfd298b5bedcc81d15255608dd7aafa9d2434d7。回归：在 jftrade-engine
+  把 default_market 引入账户解析（或如 Go 在解析层注入 query）后，补 funds 缺省 market 落自定
+  义默认的用例再升级；业务逻辑不得进 API handler。本批新增的转红断言已回滚，未留红灯进树。
+  写入走 b83（dry-run 先行，diff 仅目标行加尾部 reuse 手术式更新）。
+
+验证：audit --write-report 过（1472 exact；dup 0）；anchor 过；定向 nextest（:414/:427 双用例、
+order_risk_compatibility 生命周期矩阵、pre-trade 风控矩阵、trade 读路径）全过；cargo fmt --check 与
+git diff --check 干净；生产改动为零（测试文件加 1 行 brokers 长度断言）。
+
+下一片：strategy 域首片（按提醒线程的旁观提示，strategy 15.5% 与 backtest 6.3% 合计 886 条、
+占关键域 46% 且连续多轮零移动，trading 收官后优先啃这两块；先从 strategy [x] 切片开始）。
