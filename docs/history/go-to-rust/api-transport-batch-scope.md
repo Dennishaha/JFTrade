@@ -6235,3 +6235,29 @@ matched 不拒绝加 detail 前缀；未知模式归一 off 并清空；持仓�
 pine_compatibility、strategy model）全过；cargo fmt --check 与 git diff --check 干净；无 Rust 代码改动。
 
 下一片：130-10 切片二，strategy 域 partial 首批 20 行（catalog activity/catalog 边界行为起，按文件加行号升序）。
+## 第 130 批 10 切片二：strategy 域 partial 首批 20 行，18 行维持、2 行结论修正（2026-09-24）
+
+范围：strategy 域 partial 第 1–20 行（catalog activity 降级、边界行为、实例生命周期、插件归一、
+仓库失败、运行对账，按文件加行号升序）。
+
+方法：Go 体按簇抽读；每个 partial 的缺口描述逐条验鲜（生产与测试现状对照）；引用存在不等于断言等价。
+
+18 行维持 partial（存储报错仍 500 STRATEGY_FAILED、无空页降级；无审计写失败注入断言；调用方深拷贝
+隔离无回归；空输入宽容无成组断言；删除需先停只有存储层实现、无 RUNNING 删除冲突断言；写路由错误分类
+无逐操作矩阵；刷新保留位置与关联分类无投影；刷新注入存储无调用断言；插件元数据排序、逐操作未找到、
+遗留快照迁移、兼容矩阵宿主说明均无同形断言；构造失败语义、保存失败回滚、转换计数断言均缺，均与账本缺口一致）。
+
+2 行结论修正（状态保持 partial，[x] 1472 不变，b83 dry-run 先行、entry_changed 等于 0）：
+
+- catalog_boundary:84：原结论说没有 definitionSync 状态对象，已过时——实例 wire 早有该对象
+  （5 键、无 BlockedReason，忙碌表达为 canApplyLatest 等于 false）。修正为缺六分类矩阵断言与忙碌原因
+  表达位置决议。
+- runtime_reconciliation:80：原结论把 RUNNING 一律重置当缺失断言，实际 Rust 是 resume 语义
+  （RUNNING 重建需求起 worker，不可恢复才收敛 STOPPED，由 catalog :52 用例锁定）。修正为保留 resume
+  映射，缺口收敛为 changed 计数与第二次幂等不落盘。
+
+验证：audit --write-report 过（1472 exact；dup 0）；anchor 过；定向 nextest（strategy_runtime 端口、
+strategies 读写兼容、store 合约、assembly、plugins、definitions 兼容）全过；cargo fmt --check 与
+git diff --check 干净；无 Rust 生产代码改动、无新增测试。
+
+下一片：130-10 切片三，strategy 域 partial 第 21–40 行。

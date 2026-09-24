@@ -246006,7 +246006,7 @@
     "internal/strategy/catalog/catalog_boundary_behavior_test.go:84:TestCatalogDefinitionSyncExplainsLatestRefreshableAndBusyStates": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_production_ports_strategy_tests.rs::strategy_definition_versions_report_unknown_ids_and_keep_deleted_history",
-      "conclusion": "partial：参考实现断言定义同步状态分类——未关联返回 nil、无版本或缺定义视为最新、过期且已停止可刷新、过期且运行中给出忙碌原因。Rust 的定义版本与删除历史由引用用例覆盖，实例与定义的联动在策略定义写端口；没有 definitionSync 状态对象（IsLatest/CanApplyLatest/BlockedReason）的同形断言。缺口（P1，产品语义）：定义同步状态需要回归。",
+      "conclusion": "partial：参考实现断言定义同步状态六分类——未关联返回空、无版本或缺定义视为最新、过期且已停止可刷新并带最新版本、过期且运行中给忙碌原因、已是最新。Rust 实例 wire 早已输出 definitionSync 对象（strategy_runtime_port.rs：definitionId、appliedVersion、latestVersion、isLatest、canApplyLatest；忙碌表达为 canApplyLatest 等于 false，无 BlockedReason 字段），但没有六分类矩阵的同形断言。缺口（P1，产品语义）：以 wire 为对象补未关联、缺定义、过期停止可刷新、过期运行忙碌、已是最新五态断言，并明确忙碌原因的表达位置后，再收敛 BlockedReason 是否需要独立字段。s02 复核修正先前结论中没有状态对象的过时表述。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
       "evidence_type": "partial",
       "source": {
@@ -246026,7 +246026,7 @@
       "assertionCoverage": {
         "covered": [],
         "uncovered": [
-          "partial：参考实现断言定义同步状态分类——未关联返回 nil、无版本或缺定义视为最新、过期且已停止可刷新、过期且运行中给出忙碌原因。Rust 的定义版本与删除历史由引用用例覆盖，实例与定义的联动在策略定义写端口；没有 definitionSync 状态对象（IsLatest/CanApplyLatest/BlockedReason）的同形断言。缺口（P1，产品语义）：定义同步状态需要回归。"
+          "partial：参考实现断言定义同步状态六分类——未关联返回空、无版本或缺定义视为最新、过期且已停止可刷新并带最新版本、过期且运行中给忙碌原因、已是最新。Rust 实例 wire 早已输出 definitionSync 对象（strategy_runtime_port.rs：definitionId、appliedVersion、latestVersion、isLatest、canApplyLatest；忙碌表达为 canApplyLatest 等于 false，无 BlockedReason 字段），但没有六分类矩阵的同形断言。缺口（P1，产品语义）：以 wire 为对象补未关联、缺定义、过期停止可刷新、过期运行忙碌、已是最新五态断言，并明确忙碌原因的表达位置后，再收敛 BlockedReason 是否需要独立字段。s02 复核修正先前结论中没有状态对象的过时表述。"
         ],
         "source": "legacy-conclusion"
       },
@@ -246061,7 +246061,7 @@
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
-        "partial：参考实现断言定义同步状态分类——未关联返回 nil、无版本或缺定义视为最新、过期且已停止可刷新、过期且运行中给出忙碌原因。Rust 的定义版本与删除历史由引用用例覆盖，实例与定义的联动在策略定义写端口；没有 definitionSync 状态对象（IsLatest/CanApplyLatest/BlockedReason）的同形断言。缺口（P1，产品语义）：定义同步状态需要回归。"
+        "partial：参考实现断言定义同步状态六分类——未关联返回空、无版本或缺定义视为最新、过期且已停止可刷新并带最新版本、过期且运行中给忙碌原因、已是最新。Rust 实例 wire 早已输出 definitionSync 对象（strategy_runtime_port.rs：definitionId、appliedVersion、latestVersion、isLatest、canApplyLatest；忙碌表达为 canApplyLatest 等于 false，无 BlockedReason 字段），但没有六分类矩阵的同形断言。缺口（P1，产品语义）：以 wire 为对象补未关联、缺定义、过期停止可刷新、过期运行忙碌、已是最新五态断言，并明确忙碌原因的表达位置后，再收敛 BlockedReason 是否需要独立字段。s02 复核修正先前结论中没有状态对象的过时表述。"
       ],
       "boundaryReason": null
     },
@@ -247077,7 +247077,7 @@
     "internal/strategy/catalog/runtime_reconciliation_business_test.go:80:TestCatalogStartupReconcileResetsStaleRunningAndPausedState": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/strategy_runtime_port.rs::startup_reconcile_resets_stale_paused_state_and_keeps_stopped_instances",
-      "conclusion": "partial：参考实现断言启动对账把 RUNNING 与 PAUSED 都重置为 STOPPED（changed=2、只落盘一次、各写一条 reconciled 审计），停止态不动，第二次调用 changed=0 且不再落盘。Rust 的引用用例断言 PAUSED → STOPPED（runtime_active 归零、RECONCILED 审计、warning 日志）且停止实例不被触碰；缺“RUNNING 也重置”与“changed 计数 + 第二次幂等不落盘”的断言。缺口（P1，恢复语义）：启动对账的幂等与计数需要回归。",
+      "conclusion": "partial：参考实现启动对账把 RUNNING 与 PAUSED 一律重置为 STOPPED（changed 等于 2、只落盘一次、各写一条 reconciled 审计），停止态不动，第二次调用 changed 等于 0 且不再落盘。Rust 在恢复语义上是 resume 而非 blanket-reset：restore_running_instances 对 RUNNING 行重建需求并起真实 worker，只有不可恢复才收敛为 STOPPED（该分支由 catalog :52 用例锁定）；PAUSED 行重置为 STOPPED 由引用用例锁定（RECONCILED 审计、warning 日志、停止实例不触碰）。缺口（P1，恢复语义）：缺 changed 计数与第二次幂等不落盘的断言；RUNNING 一律重置不是回归目标，需在结论中保留 resume 映射。s02 复核补架构映射注记。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
       "evidence_type": "partial",
       "source": {
@@ -247102,7 +247102,7 @@
       "assertionCoverage": {
         "covered": [],
         "uncovered": [
-          "partial：参考实现断言启动对账把 RUNNING 与 PAUSED 都重置为 STOPPED（changed=2、只落盘一次、各写一条 reconciled 审计），停止态不动，第二次调用 changed=0 且不再落盘。Rust 的引用用例断言 PAUSED → STOPPED（runtime_active 归零、RECONCILED 审计、warning 日志）且停止实例不被触碰；缺“RUNNING 也重置”与“changed 计数 + 第二次幂等不落盘”的断言。缺口（P1，恢复语义）：启动对账的幂等与计数需要回归。"
+          "partial：参考实现启动对账把 RUNNING 与 PAUSED 一律重置为 STOPPED（changed 等于 2、只落盘一次、各写一条 reconciled 审计），停止态不动，第二次调用 changed 等于 0 且不再落盘。Rust 在恢复语义上是 resume 而非 blanket-reset：restore_running_instances 对 RUNNING 行重建需求并起真实 worker，只有不可恢复才收敛为 STOPPED（该分支由 catalog :52 用例锁定）；PAUSED 行重置为 STOPPED 由引用用例锁定（RECONCILED 审计、warning 日志、停止实例不触碰）。缺口（P1，恢复语义）：缺 changed 计数与第二次幂等不落盘的断言；RUNNING 一律重置不是回归目标，需在结论中保留 resume 映射。s02 复核补架构映射注记。"
         ],
         "source": "legacy-conclusion"
       },
@@ -247137,7 +247137,7 @@
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
-        "partial：参考实现断言启动对账把 RUNNING 与 PAUSED 都重置为 STOPPED（changed=2、只落盘一次、各写一条 reconciled 审计），停止态不动，第二次调用 changed=0 且不再落盘。Rust 的引用用例断言 PAUSED → STOPPED（runtime_active 归零、RECONCILED 审计、warning 日志）且停止实例不被触碰；缺“RUNNING 也重置”与“changed 计数 + 第二次幂等不落盘”的断言。缺口（P1，恢复语义）：启动对账的幂等与计数需要回归。"
+        "partial：参考实现启动对账把 RUNNING 与 PAUSED 一律重置为 STOPPED（changed 等于 2、只落盘一次、各写一条 reconciled 审计），停止态不动，第二次调用 changed 等于 0 且不再落盘。Rust 在恢复语义上是 resume 而非 blanket-reset：restore_running_instances 对 RUNNING 行重建需求并起真实 worker，只有不可恢复才收敛为 STOPPED（该分支由 catalog :52 用例锁定）；PAUSED 行重置为 STOPPED 由引用用例锁定（RECONCILED 审计、warning 日志、停止实例不触碰）。缺口（P1，恢复语义）：缺 changed 计数与第二次幂等不落盘的断言；RUNNING 一律重置不是回归目标，需在结论中保留 resume 映射。s02 复核补架构映射注记。"
       ],
       "boundaryReason": null
     },
