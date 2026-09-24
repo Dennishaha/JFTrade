@@ -5215,3 +5215,44 @@ store `:792` 早已降为 partial，无重复 exact）；`parity_anchor_reconcil
 
 下一片：api_transport 余量继续按文件行号升序（middleware、origin、
 productfeatures、research、settings 等目录）。
+
+## 第 130 批 09 切片十四：middleware/origin/productfeatures/research 46 条 recon（2026-09-24）
+
+范围：`internal/api/middleware/`（18）+ `internal/api/origin/`（2）+
+`internal/api/productfeatures/`（24）+ `internal/api/research/`（2），
+共 46 条（初值 26 `[x]` + 18 partial + 2 boundary）。
+
+方法：Go 体逐段核对；26 个 `[x]` 引用存在性全过（组合条目按 `；` 切分、
+`::` 取末段，文件路径段与无文件简写段单独认定）；锚点三形全认之下
+25/26 有锚，仅 prediction_combo `:15` 无任何形式锚点（落入审计已知
+exact-without-anchor 警告，非失败）。结论：3 条过宽 `[x]` 降为 partial，
+1 条结论措辞修正，其余 42 条 verdict 成立。
+
+改判三则（已落库，`[x]` 1530）：一是 provider_research `:229`
+路由错误契约——引用的生命周期用例测的是 research 侧
+map_research_helper_error，而 news/actions 路由实际走
+map_news_actions_helper_error（直通归一），并非同一函数，另一引用主题是
+显式 broker 回绝而非错误契约，路由级从未驱动能力/预热/忙碌错误，降
+partial（缺口 owner 为 news_actions_route，回归要求路由级三段契约测试）。
+二是 research_screen `:185`——Go 载荷 version=2 但用 V1 形状（filters
+键、无 conditions），Rust 版本用例只覆盖 version=1 数字闸门，无用例
+feeding V1 形状，降 partial。三是 research_screen `:47`——生产虽有
+normalized_or_default 的大小写归一实现，但无用例 feeding 脏输入断言
+BrokerID 去空格小写与 Market 大写，降 partial。措辞修正一则：research
+`:18` 结论“重名 409”改“过期修订/并发 409”（Go 体是 expectedRevision
+过期 409，非重名）。
+
+其余抽查实据：`:335` 的 rankings 未映射操作 409 与生命周期 busy/warming
+组合属同一映射函数分层覆盖（与 `:229` 的跨函数引用不同，保留 `[x]`）；
+`:70` 的 2500ms→Retry-After 3 由单测与冻结语料双重固定；`:108`/origin
+`:8` 的桌面 scheme 差异（wails 对 tauri）为已登记边界；`:51` 的放行态
+200 对 204 系测试桩差异，认证三判定一致，保留 `[x]`。
+
+验证：`v2_writer.py --check` 过后落库；`audit_test_parity.py
+--write-report` exit 0（1530 exact 全引用存在；已知警告不变）；
+`parity_anchor_reconcile.py` 过（1695/0/0/46）；无 Rust 文件改动故免
+fmt 与 nextest；`check:ai-context`、`check:migration-manifest`、
+`check:zero-go` 过；`check:quick` 与 `git diff --check` 见收尾。
+
+下一片：api_transport 余量继续按文件行号升序（settings、strategy、
+system、trading、watchlist、backtest 等目录）。

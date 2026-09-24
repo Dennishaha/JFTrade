@@ -7,7 +7,7 @@
     "treeSha": "0ee26444be21c15d9760f358a34649f78402f0fb"
   },
   "generatorVersion": "v2_writer.py@slice23",
-  "generatedAt": "2026-09-24T02:51:26Z",
+  "generatedAt": "2026-09-24T03:07:25Z",
   "mappings": {
     "cmd/jftrade-api/main_test.go:13:TestValidateArgsAllowsNoArgs": {
       "status": "[~]",
@@ -14174,11 +14174,11 @@
       "boundaryReason": null
     },
     "internal/api/productfeatures/provider_research_routes_test.go:229:TestEmbeddedProviderRouteErrorsKeepHTTPContract": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_production_ports_research_tests.rs::embedded_capability_errors_keep_the_broker_code_and_lifecycle_sentinels; crates/jftrade-engine/src/product_production_ports_market_data_news_tests.rs::explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback",
-      "conclusion": "已覆盖（组合证据）：生命周期用例断言 capability → 409 + BROKER_CAPABILITY_UNAVAILABLE、warming → 503 + Retry-After 1、busy → 503 + Retry-After 2（对应 Go 的 news/actions 两条路由契约）；news 用例断言显式非活动 broker 拒绝对不回退。",
+      "conclusion": "partial：Go 断言 news 路由能力不支持→409、预热→503 + Retry-After 1，actions 路由忙碌→503 + Retry-After 2。引用其一是 research 侧 map_research_helper_error 的单测，数值映射虽同，但 news/actions 路由实际走 map_news_actions_helper_error（直通归一），并非同一函数，路由级从未驱动；引用其二主题是显式非活动 broker 回绝（409 MARKET_DATA_CAPABILITY_UNSUPPORTED 的另一触发），与错误契约无关。缺口 owner：crates/jftrade-engine product_production_ports_market_data_news_actions_route；回归要求：补经 news/actions 嵌入路由驱动能力/预热/忙碌错误的路由级契约测试。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-      "evidence_type": "function_exact",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/api/productfeatures/provider_research_routes_test.go",
         "line": 229,
@@ -14205,10 +14205,10 @@
         }
       ],
       "assertionCoverage": {
-        "covered": [
-          "已覆盖（组合证据）：生命周期用例断言 capability → 409 + BROKER_CAPABILITY_UNAVAILABLE、warming → 503 + Retry-After 1、busy → 503 + Retry-After 2（对应 Go 的 news/actions 两条路由契约）；news 用例断言显式非活动 broker 拒绝对不回退。"
+        "covered": [],
+        "uncovered": [
+          "partial：Go 断言 news 路由能力不支持→409、预热→503 + Retry-After 1，actions 路由忙碌→503 + Retry-After 2。引用其一是 research 侧 map_research_helper_error 的单测，数值映射虽同，但 news/actions 路由实际走 map_news_actions_helper_error（直通归一），并非同一函数，路由级从未驱动；引用其二主题是显式非活动 broker 回绝（409 MARKET_DATA_CAPABILITY_UNSUPPORTED 的另一触发），与错误契约无关。缺口 owner：crates/jftrade-engine product_production_ports_market_data_news_actions_route；回归要求：补经 news/actions 嵌入路由驱动能力/预热/忙碌错误的路由级契约测试。"
         ],
-        "uncovered": [],
         "source": "legacy-conclusion"
       },
       "verification": {
@@ -14236,15 +14236,15 @@
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "已覆盖（组合证据）：生命周期用例断言 capability → 409 + BROKER_CAPABILITY_UNAVAILABLE、warming → 503 + Retry-After 1、busy → 503 + Retry-After 2（对应 Go 的 news/actions 两条路由契约）；news 用例断言显式非活动 broker 拒绝对不回退。"
+      "coveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial：Go 断言 news 路由能力不支持→409、预热→503 + Retry-After 1，actions 路由忙碌→503 + Retry-After 2。引用其一是 research 侧 map_research_helper_error 的单测，数值映射虽同，但 news/actions 路由实际走 map_news_actions_helper_error（直通归一），并非同一函数，路由级从未驱动；引用其二主题是显式非活动 broker 回绝（409 MARKET_DATA_CAPABILITY_UNSUPPORTED 的另一触发），与错误契约无关。缺口 owner：crates/jftrade-engine product_production_ports_market_data_news_actions_route；回归要求：补经 news/actions 嵌入路由驱动能力/预热/忙碌错误的路由级契约测试。"
       ],
-      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/api/productfeatures/provider_research_routes_test.go:264:TestEmbeddedProviderRankingsAndIndustryRoutes": {
@@ -14740,11 +14740,11 @@
       "boundaryReason": null
     },
     "internal/api/productfeatures/research_screen_test.go:47:TestNormalizeResearchScreenQueryDefaultsAndRejectsNonV2Input": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_research_screen_write_port_tests.rs::screen_query_defaults_the_page_and_keeps_catalog_columns; crates/jftrade-engine/src/product_research_screen_write_port_tests.rs::screen_query_rejects_wrong_catalog_and_schema_versions",
-      "conclusion": "已覆盖（组合证据）：默认用例断言 page.limit 缺省为 50、offset 保留、catalog 列与 factorKey 回投；版本用例断言 catalogVersion 不匹配、querySchemaVersion=1、page.limit=101 全部 400 且不触达端口。",
+      "conclusion": "partial：Go 断言 BrokerID 去空格小写（\" FUTU \"→\"futu\"）、Market 大写（\"us\"→\"US\"）、Page.Limit 缺省 50 与 version=1 拒绝。默认用例与版本用例覆盖 limit 50、offset、列回投与 version=1 拒绝；生产虽有 normalized_or_default 的大小写归一实现，但无用例 feeding 脏输入断言 broker/market 归一结果。缺口 owner：crates/jftrade-engine product_research_screen_write_port；回归要求：补脏 broker/market 归一化断言。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-      "evidence_type": "function_exact",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/api/productfeatures/research_screen_test.go",
         "line": 47,
@@ -14776,10 +14776,10 @@
         }
       ],
       "assertionCoverage": {
-        "covered": [
-          "已覆盖（组合证据）：默认用例断言 page.limit 缺省为 50、offset 保留、catalog 列与 factorKey 回投；版本用例断言 catalogVersion 不匹配、querySchemaVersion=1、page.limit=101 全部 400 且不触达端口。"
+        "covered": [],
+        "uncovered": [
+          "partial：Go 断言 BrokerID 去空格小写（\" FUTU \"→\"futu\"）、Market 大写（\"us\"→\"US\"）、Page.Limit 缺省 50 与 version=1 拒绝。默认用例与版本用例覆盖 limit 50、offset、列回投与 version=1 拒绝；生产虽有 normalized_or_default 的大小写归一实现，但无用例 feeding 脏输入断言 broker/market 归一结果。缺口 owner：crates/jftrade-engine product_research_screen_write_port；回归要求：补脏 broker/market 归一化断言。"
         ],
-        "uncovered": [],
         "source": "legacy-conclusion"
       },
       "verification": {
@@ -14807,15 +14807,15 @@
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "已覆盖（组合证据）：默认用例断言 page.limit 缺省为 50、offset 保留、catalog 列与 factorKey 回投；版本用例断言 catalogVersion 不匹配、querySchemaVersion=1、page.limit=101 全部 400 且不触达端口。"
+      "coveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial：Go 断言 BrokerID 去空格小写（\" FUTU \"→\"futu\"）、Market 大写（\"us\"→\"US\"）、Page.Limit 缺省 50 与 version=1 拒绝。默认用例与版本用例覆盖 limit 50、offset、列回投与 version=1 拒绝；生产虽有 normalized_or_default 的大小写归一实现，但无用例 feeding 脏输入断言 broker/market 归一结果。缺口 owner：crates/jftrade-engine product_research_screen_write_port；回归要求：补脏 broker/market 归一化断言。"
       ],
-      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/api/productfeatures/research_screen_test.go:70:TestWriteResearchScreenErrorReturnsStructured429": {
@@ -15022,11 +15022,11 @@
       "boundaryReason": null
     },
     "internal/api/productfeatures/research_screen_test.go:185:TestResearchScreenPostRejectsV1Payload": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_research_screen_write_port_tests.rs::screen_query_rejects_wrong_catalog_and_schema_versions; crates/jftrade-engine/src/product_research_screen_write_port_tests.rs::route_and_page_validation_precede_provider_calls",
-      "conclusion": "已覆盖（组合证据）：版本用例对 querySchemaVersion=1 断言 400 且使用 UnreachablePort 证明不触达 provider；路由/分页用例断言 page.offset=-1 → 400 与错误方法 404 均先于端口调用。",
+      "conclusion": "partial：Go 载荷 querySchemaVersion=2 但用 V1 形状（filters 键、无 conditions），断言 400 且不触达 broker。版本用例只覆盖 querySchemaVersion=1 的数字闸门，路由/分页用例只覆盖 page.offset 与方法；无用例 feeding V1 形状（version=2 + filters、无 conditions）断言 400 + 不触达端口。缺口 owner：crates/jftrade-engine product_research_screen_write_port；回归要求：补 V1-shape body → 400 且 UnreachablePort 的用例。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-      "evidence_type": "function_exact",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/api/productfeatures/research_screen_test.go",
         "line": 185,
@@ -15058,10 +15058,10 @@
         }
       ],
       "assertionCoverage": {
-        "covered": [
-          "已覆盖（组合证据）：版本用例对 querySchemaVersion=1 断言 400 且使用 UnreachablePort 证明不触达 provider；路由/分页用例断言 page.offset=-1 → 400 与错误方法 404 均先于端口调用。"
+        "covered": [],
+        "uncovered": [
+          "partial：Go 载荷 querySchemaVersion=2 但用 V1 形状（filters 键、无 conditions），断言 400 且不触达 broker。版本用例只覆盖 querySchemaVersion=1 的数字闸门，路由/分页用例只覆盖 page.offset 与方法；无用例 feeding V1 形状（version=2 + filters、无 conditions）断言 400 + 不触达端口。缺口 owner：crates/jftrade-engine product_research_screen_write_port；回归要求：补 V1-shape body → 400 且 UnreachablePort 的用例。"
         ],
-        "uncovered": [],
         "source": "legacy-conclusion"
       },
       "verification": {
@@ -15089,15 +15089,15 @@
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "已覆盖（组合证据）：版本用例对 querySchemaVersion=1 断言 400 且使用 UnreachablePort 证明不触达 provider；路由/分页用例断言 page.offset=-1 → 400 与错误方法 404 均先于端口调用。"
+      "coveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial：Go 载荷 querySchemaVersion=2 但用 V1 形状（filters 键、无 conditions），断言 400 且不触达 broker。版本用例只覆盖 querySchemaVersion=1 的数字闸门，路由/分页用例只覆盖 page.offset 与方法；无用例 feeding V1 形状（version=2 + filters、无 conditions）断言 400 + 不触达端口。缺口 owner：crates/jftrade-engine product_research_screen_write_port；回归要求：补 V1-shape body → 400 且 UnreachablePort 的用例。"
       ],
-      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/api/productfeatures/research_screen_test.go:213:TestTypedResearchScreenResultOmitsUnknownTotal": {
@@ -15618,7 +15618,7 @@
     "internal/api/research/routes_test.go:18:TestScreenPresetRoutesCRUDAndConflict": {
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/tests/research_presets_write_compatibility.rs::research_preset_write_fixture_matches_go_owner_for_all_three_routes",
-      "conclusion": "function_exact：Go 断言预设创建/更新/删除与重名 409 冲突。Rust 该用例逐条回放 tests/fixtures/compatibility/api-transport/research-presets-write.json 的 22 个 Go owner 用例（三条写路由），断言状态码、信封、端口调用顺序与并发冲突（200 + 8×409 RESEARCH_PRESET_CONFLICT）；锚点 internal/api/research/routes_test.go:18。",
+      "conclusion": "function_exact：Go 断言预设创建/更新/删除、过期修订 PATCH → 409 与删后 GET → 404。Rust 该用例逐条回放 tests/fixtures/compatibility/api-transport/research-presets-write.json 的 22 个 Go owner 用例（三条写路由），断言状态码、信封、端口调用顺序与并发冲突（200 + 8×409 RESEARCH_PRESET_CONFLICT）；锚点 internal/api/research/routes_test.go:18。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(research_preset_write_fixture_matches_go_owner_for_all_three_routes)'",
       "evidence_type": "function_exact",
       "source": {
@@ -15642,7 +15642,7 @@
       ],
       "assertionCoverage": {
         "covered": [
-          "function_exact：Go 断言预设创建/更新/删除与重名 409 冲突。Rust 该用例逐条回放 tests/fixtures/compatibility/api-transport/research-presets-write.json 的 22 个 Go owner 用例（三条写路由），断言状态码、信封、端口调用顺序与并发冲突（200 + 8×409 RESEARCH_PRESET_CONFLICT）；锚点 internal/api/research/routes_test.go:18。"
+          "function_exact：Go 断言预设创建/更新/删除、过期修订 PATCH → 409 与删后 GET → 404。Rust 该用例逐条回放 tests/fixtures/compatibility/api-transport/research-presets-write.json 的 22 个 Go owner 用例（三条写路由），断言状态码、信封、端口调用顺序与并发冲突（200 + 8×409 RESEARCH_PRESET_CONFLICT）；锚点 internal/api/research/routes_test.go:18。"
         ],
         "uncovered": [],
         "source": "legacy-conclusion"
@@ -15679,7 +15679,7 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "function_exact：Go 断言预设创建/更新/删除与重名 409 冲突。Rust 该用例逐条回放 tests/fixtures/compatibility/api-transport/research-presets-write.json 的 22 个 Go owner 用例（三条写路由），断言状态码、信封、端口调用顺序与并发冲突（200 + 8×409 RESEARCH_PRESET_CONFLICT）；锚点 internal/api/research/routes_test.go:18。"
+        "function_exact：Go 断言预设创建/更新/删除、过期修订 PATCH → 409 与删后 GET → 404。Rust 该用例逐条回放 tests/fixtures/compatibility/api-transport/research-presets-write.json 的 22 个 Go owner 用例（三条写路由），断言状态码、信封、端口调用顺序与并发冲突（200 + 8×409 RESEARCH_PRESET_CONFLICT）；锚点 internal/api/research/routes_test.go:18。"
       ],
       "uncoveredAssertions": [],
       "boundaryReason": null
