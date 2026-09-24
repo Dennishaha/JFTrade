@@ -60727,11 +60727,11 @@
       "boundaryReason": null
     },
     "internal/app/apiserver/tradingapp/execution_gateway_lifecycle_test.go:250:TestExecutionGatewayPlaceComboBoundaries": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::combo_place_rejects_invalid_legs_accounts_and_hidden_transport_failures; crates/jftrade-engine/src/product_production_ports_execution_order_validation_tests.rs::combo_intent_rejects_missing_kind_legs_and_account",
-      "conclusion": "function_exact：Go 断言非组合 broker 报 “combo trading service is unavailable”，组合下单准备与通知路径按组合语义落库。Rust 的 combo_place_rejects_invalid_legs_accounts_and_hidden_transport_failures 断言组合下单的腿/账户校验与传输失败处理，覆盖同一组合下单边界契约；补充证据：combo_intent_rejects_missing_kind_legs_and_account。",
+      "conclusion": "partial：Rust 覆盖组合意图校验（非法腿方向、缺失账户、混合产品类、零比率，引用两用例）与端口层预览下单幂等重放撤销（option_combo_preview_place_and_cancel_keep_server_identity）。缺口：Go 的网关层题眼无对应断言——非组合 broker 的组合交易服务不可用错误文案、成功落库与通知、陈旧提交返回既有用例、准备失败与下单失败透传及未知标识记录。owner=crates/jftrade-engine 网关下单路径；回归要求：补网关层下单边界断言。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-      "evidence_type": "function_exact",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/tradingapp/execution_gateway_lifecycle_test.go",
         "line": 250,
@@ -60788,16 +60788,19 @@
       },
       "risk": "normal",
       "owner": "api_transport",
-      "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
+      "priority": "P1",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "function_exact：Go 断言非组合 broker 报 “combo trading service is unavailable”，组合下单准备与通知路径按组合语义落库。Rust 的 combo_place_rejects_invalid_legs_accounts_and_hidden_transport_failures 断言组合下单的腿/账户校验与传输失败处理，覆盖同一组合下单边界契约；补充证据：combo_intent_rejects_missing_kind_legs_and_account。"
+        "Rust 断言组合下单的腿与账户校验及传输失败处理",
+        "端口层组合预览下单幂等重放与撤销不断言网关分支"
       ],
-      "uncoveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial：Rust 覆盖组合意图校验（非法腿方向、缺失账户、混合产品类、零比率，引用两用例）与端口层预览下单幂等重放撤销（option_combo_preview_place_and_cancel_keep_server_identity）。缺口：Go 的网关层题眼无对应断言——非组合 broker 的组合交易服务不可用错误文案、成功落库与通知、陈旧提交返回既有用例、准备失败与下单失败透传及未知标识记录。owner=crates/jftrade-engine 网关下单路径；回归要求：补网关层下单边界断言。"
+      ],
       "boundaryReason": null
     },
     "internal/app/apiserver/tradingapp/execution_gateway_lifecycle_test.go:298:TestExecutionGatewayCancelComboBoundaries": {
@@ -60925,11 +60928,11 @@
       "boundaryReason": "boundary（结构差异）：Go 的 app 层小工具（firstNonEmptyString、derefString、组合数量模式、意图字符串归一化）在 Rust 没有同形对象：空值与首非空由 Option/`.or_else` 与组合解析直接表达，通知构造独立为通知投影（该用例覆盖游标幂等）。"
     },
     "internal/app/apiserver/tradingapp/notifications_lifecycle_test.go:10:TestOrderPlacedNotificationMapsBrokerLabelAndMessage": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "crates/jftrade-integration-futu/tests/futu_notifications_parity.rs::test_notification_labels_cover_every_supported_program_and_gateway_state; crates/jftrade-settings/src/notifications.rs::notification_modes_and_ordered_deduplication_match_go",
-      "conclusion": "function_exact：Go 断言下单通知使用 broker 标签与消息模板。Rust 的 test_notification_labels_cover_every_supported_program_and_gateway_state 断言全部受支持程序与网关状态的标签覆盖，等价于 broker/程序标签映射契约；补充证据：notification_modes_and_ordered_deduplication_match_go。",
+      "conclusion": "partial：Rust 的引用用例覆盖程序与网关状态标签全集、通知模式与有序去重。缺口：Go 的题眼是下单通知模板——券商标签标题、消息含环境与代码、未知券商回退；Rust 没有下单通知标题与消息模板断言。owner=订单通知呈现；回归要求：补下单通知模板断言。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked",
-      "evidence_type": "function_exact",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/tradingapp/notifications_lifecycle_test.go",
         "line": 10,
@@ -60987,23 +60990,26 @@
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "function_exact：Go 断言下单通知使用 broker 标签与消息模板。Rust 的 test_notification_labels_cover_every_supported_program_and_gateway_state 断言全部受支持程序与网关状态的标签覆盖，等价于 broker/程序标签映射契约；补充证据：notification_modes_and_ordered_deduplication_match_go。"
+        "程序与网关状态标签全集",
+        "通知模式与有序去重"
       ],
-      "uncoveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial：Rust 的引用用例覆盖程序与网关状态标签全集、通知模式与有序去重。缺口：Go 的题眼是下单通知模板——券商标签标题、消息含环境与代码、未知券商回退；Rust 没有下单通知标题与消息模板断言。owner=订单通知呈现；回归要求：补下单通知模板断言。"
+      ],
       "boundaryReason": null
     },
     "internal/app/apiserver/tradingapp/notifications_lifecycle_test.go:29:TestOrderLifecycleNotificationMapsSubmittedCancelledAndFilled": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "crates/jftrade-integration-futu/tests/futu_notifications_parity.rs::test_neutral_notification_builders_handle_nil_and_status_transitions; crates/jftrade-trading/src/notification.rs::shadow_notifications_are_deduplicated_and_never_dispatched",
-      "conclusion": "function_exact：Go 断言 SUBMITTED/CANCELLED/FILLED 生命周期通知映射。Rust 的 test_neutral_notification_builders_handle_nil_and_status_transitions 断言中性通知构造器对 nil 与状态迁移的处理，逐条覆盖生命周期状态通知；补充证据：shadow_notifications_are_deduplicated_and_never_dispatched。",
+      "conclusion": "partial：Rust 的引用用例覆盖中性构造器空值处理与连接程序网关状态迁移、影子通知去重。缺口：Go 的题眼是按订单状态的分类级别标题映射（提交撤销成交）与未知状态无通知；Rust 没有订单状态到通知映射的断言。owner=订单通知呈现；回归要求：补状态映射与未知状态过滤断言。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked",
-      "evidence_type": "function_exact",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/tradingapp/notifications_lifecycle_test.go",
         "line": 29,
@@ -61060,24 +61066,27 @@
       },
       "risk": "high",
       "owner": "api_transport",
-      "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
+      "priority": "P2",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "function_exact：Go 断言 SUBMITTED/CANCELLED/FILLED 生命周期通知映射。Rust 的 test_neutral_notification_builders_handle_nil_and_status_transitions 断言中性通知构造器对 nil 与状态迁移的处理，逐条覆盖生命周期状态通知；补充证据：shadow_notifications_are_deduplicated_and_never_dispatched。"
+        "中性构造器空值处理与状态迁移",
+        "影子通知去重"
       ],
-      "uncoveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial：Rust 的引用用例覆盖中性构造器空值处理与连接程序网关状态迁移、影子通知去重。缺口：Go 的题眼是按订单状态的分类级别标题映射（提交撤销成交）与未知状态无通知；Rust 没有订单状态到通知映射的断言。owner=订单通知呈现；回归要求：补状态映射与未知状态过滤断言。"
+      ],
       "boundaryReason": null
     },
     "internal/app/apiserver/tradingapp/notifications_lifecycle_test.go:62:TestExecutionOrderNotificationMessageOmitsBlankParts": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "crates/jftrade-integration-futu/tests/futu_notifications_parity.rs::test_notification_and_quote_right_labels_remain_stable; crates/jftrade-settings/src/notifications.rs::notification_modes_and_ordered_deduplication_match_go",
-      "conclusion": "function_exact：Go 断言订单通知消息省略空白片段（不产生多余分隔）。Rust 的 test_notification_and_quote_right_labels_remain_stable 断言标签稳定与拼接稳定性，覆盖同一“消息文本稳定不含空片段”的契约；补充证据：notification_modes_and_ordered_deduplication_match_go。",
+      "conclusion": "partial：Rust 的引用用例覆盖通知与行情权限标签稳定、通知模式与有序去重。缺口：Go 的题眼是订单通知消息组合省略空白片段且无多余分隔；Rust 没有消息组合层面的断言。owner=订单通知消息组合；回归要求：补空白省略与分隔断言。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked",
-      "evidence_type": "function_exact",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/tradingapp/notifications_lifecycle_test.go",
         "line": 62,
@@ -61135,23 +61144,26 @@
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "function_exact：Go 断言订单通知消息省略空白片段（不产生多余分隔）。Rust 的 test_notification_and_quote_right_labels_remain_stable 断言标签稳定与拼接稳定性，覆盖同一“消息文本稳定不含空片段”的契约；补充证据：notification_modes_and_ordered_deduplication_match_go。"
+        "通知与行情权限标签稳定",
+        "通知模式与有序去重"
       ],
-      "uncoveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial：Rust 的引用用例覆盖通知与行情权限标签稳定、通知模式与有序去重。缺口：Go 的题眼是订单通知消息组合省略空白片段且无多余分隔；Rust 没有消息组合层面的断言。owner=订单通知消息组合；回归要求：补空白省略与分隔断言。"
+      ],
       "boundaryReason": null
     },
     "internal/app/apiserver/tradingapp/notifications_test.go:10:TestOrderLifecycleNotificationHandlesUnrelatedAndPartialFillEvents": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "crates/jftrade-integration-futu/tests/futu_notifications_parity.rs::test_live_notification_from_response_routes_protocol_payloads_to_neutral_categories; crates/jftrade-trading/src/notification.rs::shadow_notifications_are_deduplicated_and_never_dispatched",
-      "conclusion": "function_exact：Go 断言无关事件与部分成交事件的生命周期通知处理。Rust 的 test_live_notification_from_response_routes_protocol_payloads_to_neutral_categories 断言协议载荷路由到中性类别（无关/部分事件不误报），对应同一过滤契约；补充证据：shadow_notifications_are_deduplicated_and_never_dispatched。",
+      "conclusion": "partial：Rust 的引用用例覆盖协议载荷路由到中性分类、影子通知去重。缺口：Go 的题眼是生命周期通知过滤——空事件与无关事件无通知、部分成交为提示级别成交分类、默认券商未知；Rust 没有该过滤语义的断言。owner=订单生命周期通知过滤；回归要求：补过滤语义断言。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked",
-      "evidence_type": "function_exact",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/tradingapp/notifications_test.go",
         "line": 10,
@@ -61209,15 +61221,18 @@
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "function_exact：Go 断言无关事件与部分成交事件的生命周期通知处理。Rust 的 test_live_notification_from_response_routes_protocol_payloads_to_neutral_categories 断言协议载荷路由到中性类别（无关/部分事件不误报），对应同一过滤契约；补充证据：shadow_notifications_are_deduplicated_and_never_dispatched。"
+        "协议载荷路由到中性分类",
+        "影子通知去重"
       ],
-      "uncoveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial：Rust 的引用用例覆盖协议载荷路由到中性分类、影子通知去重。缺口：Go 的题眼是生命周期通知过滤——空事件与无关事件无通知、部分成交为提示级别成交分类、默认券商未知；Rust 没有该过滤语义的断言。owner=订单生命周期通知过滤；回归要求：补过滤语义断言。"
+      ],
       "boundaryReason": null
     },
     "internal/app/apiserver/tradingapp/notifications_test.go:32:TestExecutionOrderNotificationMessageIncludesAvailableIdentifiers": {
@@ -61414,11 +61429,11 @@
       "boundaryReason": null
     },
     "internal/app/apiserver/tradingapp/order_update_source_test.go:88:TestProductLifecycleOrderUpdateSourceAggregatesBrokersAndFees": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_reconciliation_provider_tests.rs::helper_market_data_providers_reconcile_futu_account_order_fill_and_fee; crates/jftrade-engine/src/product_production_ports_execution_reconciliation_tests.rs::reconciliation_replays_history_fill_and_fee_once_after_restart",
-      "conclusion": "function_exact：Go 断言产品生命周期订单更新源聚合多 broker 的订单、成交与费用。Rust 的 helper_market_data_providers_reconcile_futu_account_order_fill_and_fee 断言账户/订单/成交/费用在一次对账中聚合且幂等，逐条对应聚合契约；补充证据：reconciliation_replays_history_fill_and_fee_once_after_restart。",
+      "conclusion": "partial：Rust 的引用用例覆盖单提供方账户订单成交费用一次对账聚合落库。缺口：Go 的题眼是多券商扇出源语义——失败券商发现跳过、当前与历史订单及费用扇出、读写失败透传、缺失券商空费用、全部失败错误文案；Rust 没有扇出与失败语义断言。owner=订单更新源聚合；回归要求：补扇出聚合与失败透传断言。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-      "evidence_type": "function_exact",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/tradingapp/order_update_source_test.go",
         "line": 88,
@@ -61475,24 +61490,26 @@
       },
       "risk": "normal",
       "owner": "api_transport",
-      "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
+      "priority": "P1",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "function_exact：Go 断言产品生命周期订单更新源聚合多 broker 的订单、成交与费用。Rust 的 helper_market_data_providers_reconcile_futu_account_order_fill_and_fee 断言账户/订单/成交/费用在一次对账中聚合且幂等，逐条对应聚合契约；补充证据：reconciliation_replays_history_fill_and_fee_once_after_restart。"
+        "单提供方订单成交费用聚合落库"
       ],
-      "uncoveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial：Rust 的引用用例覆盖单提供方账户订单成交费用一次对账聚合落库。缺口：Go 的题眼是多券商扇出源语义——失败券商发现跳过、当前与历史订单及费用扇出、读写失败透传、缺失券商空费用、全部失败错误文案；Rust 没有扇出与失败语义断言。owner=订单更新源聚合；回归要求：补扇出聚合与失败透传断言。"
+      ],
       "boundaryReason": null
     },
     "internal/app/apiserver/tradingapp/order_update_source_test.go:172:TestProductLifecycleOrderUpdateSourceSkipsFundOnlyAccounts": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_reconciliation_tests.rs::reconciliation_scope_accepts_only_stock_trade_markets",
-      "conclusion": "function_exact：Go 断言仅基金账户（OrderMarketAuthorities 为空）在发现账户时被跳过，普通与混合账户保留。Rust 用例断言 market_label 只接受股票市场，账户 trd_market_auth_list 含 [1,2,3] 之外的基金/期权等市场时只产生 3 个 scope，等价于基金账户不进入对账范围。",
+      "conclusion": "partial：Rust 的引用用例覆盖市场标签映射与非股票市场无作用域的机制。缺口：Go 的题眼是发现层行为——纯基金账户跳过且普通混合账户保留并裁剪权限、全基金注册表报非活跃错误；Rust 没有发现层的跳过裁剪与非活跃断言。owner=对账作用域与账户发现；回归要求：补发现层跳过与非活跃断言。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-      "evidence_type": "function_exact",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/tradingapp/order_update_source_test.go",
         "line": 172,
@@ -61542,16 +61559,19 @@
       },
       "risk": "normal",
       "owner": "api_transport",
-      "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
+      "priority": "P1",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "function_exact：Go 断言仅基金账户（OrderMarketAuthorities 为空）在发现账户时被跳过，普通与混合账户保留。Rust 用例断言 market_label 只接受股票市场，账户 trd_market_auth_list 含 [1,2,3] 之外的基金/期权等市场时只产生 3 个 scope，等价于基金账户不进入对账范围。"
+        "市场标签映射",
+        "非股票市场无作用域"
       ],
-      "uncoveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial：Rust 的引用用例覆盖市场标签映射与非股票市场无作用域的机制。缺口：Go 的题眼是发现层行为——纯基金账户跳过且普通混合账户保留并裁剪权限、全基金注册表报非活跃错误；Rust 没有发现层的跳过裁剪与非活跃断言。owner=对账作用域与账户发现；回归要求：补发现层跳过与非活跃断言。"
+      ],
       "boundaryReason": null
     },
     "internal/app/apiserver/tradingapp/order_updates_test.go:13:TestNewOrderUpdatesWorkerConstructsWorker": {
@@ -61617,11 +61637,11 @@
       "boundaryReason": "boundary（结构差异）：Go 构造 NewOrderUpdatesWorker（依赖装配 + 后台 worker）。Rust 没有 worker 构造对象（订单更新由对账端口周期执行，未知订单持久化幂等由该 entry 覆盖），构造语义不存在同形对象。"
     },
     "internal/app/apiserver/tradingapp/order_updates_test.go:20:TestBrokerOrderMappingsPreserveLifecycleFields": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_reconciliation_tests.rs::reconciliation_replays_history_fill_and_fee_once_after_restart",
-      "conclusion": "function_exact：Go 断言 broker 订单映射保留生命周期字段（扩展订单号、组合腿、金额、时间戳等）。Rust 的 reconciliation_replays_history_fill_and_fee_once_after_restart 断言重启后成交与费用只重放一次且生命周期字段完整落库，覆盖同一“映射不丢生命周期字段”的契约。",
+      "conclusion": "partial：Rust 的引用用例断言对账后状态、已成交数量、均价与费用落库及重启重放一次。缺口：Go 的题眼是内存映射双向保真——券商订单与交易订单互转保留扩展订单号、组合腿、金额、有效期、币种等字段，成交映射保留扩展成交号与赔付；Rust 没有映射层的字段级断言。owner=crates/jftrade-engine 对账快照字段投影；回归要求：补映射字段保真断言。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-      "evidence_type": "function_exact",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/tradingapp/order_updates_test.go",
         "line": 20,
@@ -61671,16 +61691,19 @@
       },
       "risk": "normal",
       "owner": "api_transport",
-      "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
+      "priority": "P1",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "function_exact：Go 断言 broker 订单映射保留生命周期字段（扩展订单号、组合腿、金额、时间戳等）。Rust 的 reconciliation_replays_history_fill_and_fee_once_after_restart 断言重启后成交与费用只重放一次且生命周期字段完整落库，覆盖同一“映射不丢生命周期字段”的契约。"
+        "对账后状态与成交数量均价费用落库",
+        "重启后重放一次"
       ],
-      "uncoveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial：Rust 的引用用例断言对账后状态、已成交数量、均价与费用落库及重启重放一次。缺口：Go 的题眼是内存映射双向保真——券商订单与交易订单互转保留扩展订单号、组合腿、金额、有效期、币种等字段，成交映射保留扩展成交号与赔付；Rust 没有映射层的字段级断言。owner=crates/jftrade-engine 对账快照字段投影；回归要求：补映射字段保真断言。"
+      ],
       "boundaryReason": null
     },
     "internal/app/apiserver/tradingapp/order_updates_test.go:70:TestBrokerOrderQueryTrimsRuntimeIdentifiers": {
@@ -61870,11 +61893,11 @@
       "boundaryReason": null
     },
     "internal/app/apiserver/tradingapp/order_updates_test.go:114:TestExecutionOrderUpdatesPersistBrokerLifecycleFields": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "crates/jftrade-store-sqlite/tests/execution_order_store_contracts.rs::execution_orders_lifecycle_events_and_restart_durability",
-      "conclusion": "function_exact：Go 断言订单与成交的扩展标识、金额、组合腿、时间戳等生命周期字段被持久化。Rust 的 execution_orders_lifecycle_events_and_restart_durability 断言执行订单生命周期事件与重启持久性（含扩展身份字段），逐条对应生命周期字段落库契约。",
+      "conclusion": "partial：Rust 的引用用例覆盖存储层订单与事件落库、写者租约与重启持久。缺口：Go 的题眼是应用器语义——重复订单推送只留一条记录、赔付写回父订单、成交事件计数；Rust 没有应用器层的去重与写回断言。owner=执行订单更新应用器；回归要求：补应用器去重与赔付写回断言。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked",
-      "evidence_type": "function_exact",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/tradingapp/order_updates_test.go",
         "line": 114,
@@ -61924,16 +61947,19 @@
       },
       "risk": "normal",
       "owner": "api_transport",
-      "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
+      "priority": "P1",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "function_exact：Go 断言订单与成交的扩展标识、金额、组合腿、时间戳等生命周期字段被持久化。Rust 的 execution_orders_lifecycle_events_and_restart_durability 断言执行订单生命周期事件与重启持久性（含扩展身份字段），逐条对应生命周期字段落库契约。"
+        "存储层订单与事件落库",
+        "写者租约与重启持久"
       ],
-      "uncoveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial：Rust 的引用用例覆盖存储层订单与事件落库、写者租约与重启持久。缺口：Go 的题眼是应用器语义——重复订单推送只留一条记录、赔付写回父订单、成交事件计数；Rust 没有应用器层的去重与写回断言。owner=执行订单更新应用器；回归要求：补应用器去重与赔付写回断言。"
+      ],
       "boundaryReason": null
     },
     "internal/app/apiserver/webaccess/auth_boundaries_test.go:43:TestWebAuthRemainingNilAndRequestHelpers": {

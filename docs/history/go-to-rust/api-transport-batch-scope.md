@@ -5583,3 +5583,48 @@ fmt 与 nextest；`check:ai-context`、`check:migration-manifest`、
 
 下一片：webaccess 清空（31/31）；之后 tradingapp 22、runtime/runtimes、
 backtestapp、futuapp、liveapp 等。
+
+## 第 130 批 09 切片二十五：tradingapp 执行网关与通知 22 条含 9 处纠正（2026-09-24）
+
+范围：`internal/app/apiserver/tradingapp/` execution_gateway_boundaries（2）+
+execution_gateway_lifecycle（5）+ notifications_lifecycle（3）+
+notifications（2）+ order_update_source_broker（2）+ order_update_source（2）+
+order_updates（6），共 22 条。
+
+方法：Go 体逐段核对并逐字比对 Rust 断言；具名引用 0 缺失、锚点齐全。
+但引用存在不等于断言等价，查出 9 处过宽 `[x]`，本片全部降为 partial。
+结论：22 条 verdict = 2 `[x]` + 20 partial（`[x]` 1530→1521）。
+无代码变更，本片为台账修正 + 报告与清单重生 + 文档。
+
+9 处纠正（均为跨主题引用，Rust 用例本身存在且锚点有效，但断言与题眼无关）：
+
+- `:250` 下单组合边界：引用两用例只覆盖意图校验，网关层不可用文案、
+  成功落库通知、陈旧去重、准备与下单失败透传均无断言（端口层成功重放
+  另有他测，未引用）。
+- `:20` 映射保真：引用为重启重放幂等（仅状态数量均价费用），双向映射的
+  扩展标识组合腿金额有效期等字段无映射层断言。
+- `:114` 落库语义：引用为存储层往返与租约重启，应用器去重、赔付写回父
+  订单、事件计数无断言。
+- `:10`/`:29`/`:62`（通知生命周期）与 notifications `:10`：引用的程序网关
+  标签、协议路由、模式去重与下单生命周期题眼无关——下单标题消息模板、
+  按状态分类映射、空白省略、空与无关事件过滤、部分成交分类均无断言。
+- `:88` 多源聚合：引用为单提供方聚合落库，多券商扇出、失败跳过透传、
+  缺失与全部失败分支无断言。
+- `:172` 基金账户跳过：引用覆盖市场标签机制，发现层跳过裁剪与全基金
+  非活跃错误无断言。
+
+保留的 2 `[x]` 为建模层等价且双向断言：`:10` 数量模式映射、
+`:19` 归一化绑定客户端标识。其余 11 partial 原结论诚实，维持不变。
+
+缺口 owner 与回归：执行网关下单路径、对账字段投影、更新应用器、订单
+通知呈现与组合、生命周期过滤、更新源聚合、作用域发现；回归要求均为
+补对应题眼断言（见各行 uncoveredAssertions）。
+
+验证：`audit_test_parity.py --write-report` exit 0（1521 exact 全引用
+存在；已知警告不变；inventory 随改判重生）；`parity_anchor_reconcile.py`
+过（1695/0/0/46）；无 Rust 文件改动故免 fmt 与 nextest；
+`check:ai-context`、`check:migration-manifest`、`check:zero-go` 过；
+`check:quick` 与 `git diff --check` 见收尾。
+
+下一片：tradingapp 清空（22/22）；之后 runtime/runtimes、backtestapp、
+futuapp、liveapp 等。
