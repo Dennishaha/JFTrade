@@ -1173,3 +1173,46 @@ git diff --check
 ```
 
 本片结论：20/20 均保持 `partial`；第 300 条 P1 动态 loop fallback 明确登记为待补 Rust 回归测试。下一片为 strategy_pine partial 第 301–320 行。
+
+## 第 130 批 12 切片三十二：strategy_pine 域 partial 第 301–320 行，20 行维持、零改判（2026-09-24）
+
+范围：strategy_pine 域 `evidence_type=partial` 的第 301–320 行（runtime/parser、security lowering、
+semantic helper、strategy/order、tuple/UDF、PineTS worker client/payload），按账本写入顺序逐条核对。
+本片没有 Rust 生产代码修改；跨 crate 引用分别执行了 strategy、integration-pine 和 engine 的精准测试。
+
+| 序号 | Go 测试 | Rust 证据 | 级别 | 结论 |
+| ---: | --- | --- | :---: | --- |
+| 301 | `runtime_and_parser_boundaries_test.go:62:TestNormalizationPreservesInvalidUserSyntaxAndErrors` | 无可解析 Rust 测试 | P2 | `partial`；object/collection normalization、no-arg/nested UDF history、stale AST fallback 与 empty lowered source 尚无 Rust 同形回归。 |
+| 302 | `runtime_and_parser_boundaries_test.go:94:TestMalformedTAExpressionsRemainVisibleForValidation` | 无可解析 Rust 测试 | P2 | `partial`；VWAP/anchored VWAP/extrema/stoch malformed call 原文保留没有 Rust 测试证据。 |
+| 303 | `runtime_and_parser_boundaries_test.go:134:TestControlFlowErrorsRemainActionableBeforeRuntime` | 无可解析 Rust 测试 | P2 | `partial`；dynamic for/collection/while state rollback、switch invalid source 和 empty if branch 的 parser 错误矩阵未映射。 |
+| 304 | `security_lowering_test.go:9:TestRequestSecurityLoweringHelperBusinessBoundaries` | `src/pine/mod.rs::advanced_indicator_requirement_tests::compile_supports_v13_migration_indicators` | P2 | `partial`；Rust advanced indicator success 不覆盖 malformed replacement、symbol/timeframe/merge rejection、tuple width 与 inner lowering 全量 helper 矩阵。 |
+| 305 | `security_lowering_test.go:92:TestRequestSecurityPurityAndMergeArgumentBoundaries` | `src/pine/mod.rs::advanced_indicator_requirement_tests::compile_supports_v13_indicators_in_static_intraday_security` | P2 | `partial`；Rust static security success 未覆盖 pure helper allowlist、collection/alert rejection、history/source whitelist 和 merge argument matrix。 |
+| 306 | `security_lowering_test.go:168:TestRequestSecurityAdvancedTALoweringBoundaries` | `src/pine/mod.rs::advanced_indicator_requirement_tests::compile_supports_v12_advanced_indicators_in_static_intraday_security` | P2 | `partial`；Rust 高级指标编译证据未覆盖 pivot/kc/tsi/correlation/percentile/swma 的 lowering 与错误 arity/timeframe 拒绝。 |
+| 307 | `semantic_helper_boundaries_test.go:99:TestSemanticHelpersReportMalformedScriptBoundaries` | `tests/pine_tuple_contracts.rs::tuple_assignments_keep_the_go_alias_and_width_contract` | P2 | `partial`；Rust tuple alias/width 子集未覆盖 semantic helper 的 malformed script、line/code projection 和 declaration/utility diagnostics。 |
+| 308 | `shared_structure_corpus_test.go:35:TestSharedPineStructureCorpusMatchesBackendIR` | `tests/pine_risk_and_block_parity.rs::shared_structure_corpus_projects_statement_kinds_and_branches` | P2 | `partial`；Rust corpus 只比较 statement kinds/branches 子集，未证明 Go corpus 全部 expression/order/risk/IR 字段。 |
+| 309 | `strategy_business_test.go:95:TestCompileCoversTrailPriceExitAndShortCloseBusinessSemantics` | `tests/pine_risk_and_block_parity.rs::compile_requires_trailing_offset_for_trailing_exits` | P2 | `partial`；Rust 只验证 trailing offset guard，未覆盖 trail_price、short close、quantity/方向和完整 ExitStmt 业务投影。 |
+| 310 | `strategy_call_bounds_test.go:11:TestParseStrategyCallCoversOrderLifecycleBusinessBoundaries` | `tests/pine_order_metadata_and_security_rejections.rs::compile_accepts_supported_order_positional_metadata` + `tests/pine_risk_and_block_parity.rs::compile_keeps_valid_risk_declarations_and_projects_their_limits` | P2 | `partial`；Rust 分散覆盖 success subset，未覆盖 Go 的 entry/order/close/exit/cancel 参数边界与 20+ invalid expression 矩阵。 |
+| 311 | `tuple_switch_reject_test.go:8:TestCompileRejectsMalformedSwitchAndTupleContracts` | `tests/pine_tuple_contracts.rs::malformed_tuple_and_switch_scripts_are_rejected` | P2 | `partial`；Rust 覆盖大部分 reject bodies，但 switch/tuple 诊断对象、行号和完整错误消息等价性仍未逐项证明。 |
+| 312 | `udf_expansion_contracts_test.go:8:TestUDFExpansionRejectsMalformedRecursiveAndDeepCalls` | 无可解析 Rust 测试 | P2 | `partial`；UDF unclosed/missing/extra args、recursive body、depth cap 和 member-call exclusion 无 Rust 同形测试。 |
+| 313 | `validation_semantics_boundaries_test.go:8:TestRequestSecurityValidationExplainsMalformedAndUnsafeExpressions` | `tests/pine_order_metadata_and_security_rejections.rs::request_security_rejects_impure_member_and_visual_side_effects` | P2 | `partial`；Rust compile pipeline 覆盖若干 side effects，未覆盖 Go helper 的 unclosed/missing expression、assignment mutation 和 code/line assertions。 |
+| 314 | `validation_semantics_boundaries_test.go:29:TestRequestSecurityExpressionTASubsetValidation` | 无可解析 Rust 测试 | P2 | `partial`；supported/unsupported TA-call scanner 的纯表达式子集与 malformed parenthesis 无 Rust 直接证据。 |
+| 315 | `validation_semantics_boundaries_test.go:57:TestRejectUnsupportedReturnsRuntimeAndCollectionBusinessErrors` | 无可解析 Rust 测试 | P2 | `partial`；runtime.error、unsupported collection 和 ordinary assignment 的 rejectUnsupported business errors 未映射。 |
+| 316 | `pineengine/pine_ts_client_test.go:20:TestPinetsWorkerClientEngineInfoAndRunIndicator` | `jftrade-integration-pine/src/execution/tests.rs::run_script_maps_binary_request_and_order_intent_response` | P2 | `partial`；Rust 映射 binary request/order response，但 Go 还验证真实 Node worker EngineInfo、license、plots/signals 和 30s lifecycle。 |
+| 317 | `pineengine/pine_ts_client_test.go:56:TestPinetsWorkerClientMapsRuntimeErrors` | `jftrade-integration-pine/src/execution/tests.rs::run_script_maps_remote_unavailable_timeout_and_cancellation` | P2 | `partial`；Rust 覆盖 remote unavailable/timeout/cancel mapping，未复现 Go 空 candles Node worker error 与 client Close 行为。 |
+| 318 | `pineengine/pine_ts_payload_test.go:18:TestExternalModeFromEnvAndDisabledShadowPayload` | `jftrade-engine/src/product_mcp_production_executor_tests.rs::pine_external_mode_parser_accepts_only_supported_values` + `jftrade-strategy/tests/pine_mcp_contract.rs::pine_spec_freezes_go_owner_sections_and_key_payload_fields` | P2 | `partial`；Rust 验证 mode parser/fixture owner，未覆盖 Go 的 disabled payload compliance map、trimmed env 与 difference summary。 |
+| 319 | `pineengine/pine_ts_payload_test.go:39:TestShadowPayloadReportsWorkerStartupFailure` | `jftrade-engine/src/product_mcp_production_executor_tests.rs::pine_shadow_error_payload_keeps_the_worker_failure_message` | P2 | `partial`；Rust 保留 worker failure message，但未逐项验证 Go 的 enabled/OK/status/repository/单诊断字段。 |
+| 320 | `pineengine/pine_ts_payload_test.go:55:TestShadowPayloadRunsConfiguredWorkerAndReturnsExternalResult` | `jftrade-engine/src/product_mcp_production_executor_tests.rs::pine_shadow_success_payload_projects_engine_metadata_and_counts` | P2 | `partial`；Rust 验证 metadata/count projection，未覆盖 Go 配置 worker、Node 执行、repository/mode/status 与 plots 差异全量行为。 |
+
+验证命令：
+
+```bash
+python3 scripts/compatibility/audit_test_parity.py --write-report
+python3 scripts/compatibility/parity_anchor_reconcile.py
+node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked --no-fail-fast
+node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine --all-targets --locked --no-fail-fast -E 'test(run_script_maps_binary_request_and_order_intent_response) | test(run_script_maps_remote_unavailable_timeout_and_cancellation)'
+node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'test(pine_external_mode_parser_accepts_only_supported_values) | test(pine_shadow_error_payload_keeps_the_worker_failure_message) | test(pine_shadow_success_payload_projects_engine_metadata_and_counts)'
+cargo fmt --check
+git diff --check
+```
+
+本片结论：20/20 均保持 `partial`；精准验证为 strategy `104/104`、integration-pine `2/2`、engine Pine payload `3/3`，均通过。下一片为 strategy_pine partial 第 321–340 行。
