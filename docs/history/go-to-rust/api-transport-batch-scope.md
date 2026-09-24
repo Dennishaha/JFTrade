@@ -6296,3 +6296,21 @@ streaming candles 门字符串、ApplyParams 层、nil 接收者）。
 market_rules、write 兼容）全过；cargo fmt --check 与 git diff --check 干净；账本与 Rust 代码零改动（纯复核片）。
 
 下一片：130-10 切片五，strategy 域 partial 第 61–80 行。
+## 第 130 批 10 切片五：strategy 域 partial 第 61–80 行，20 行维持、零修改（2026-09-24）
+
+范围：strategy 域 partial 第 61–80 行（liveruntime 订单风控、pineworker 在线边界、产品生命周期、
+运行时边界、风控证据、订阅租约，按文件加行号升序）。
+
+方法：Go 体按簇抽读；P1 缺口验到代码行（撤单路径、风控计数失败关闭、预留 fencing）；夜盘分歧以 Rust
+用例内注释为证；引用存在不等于断言等价。
+
+20 行维持（撤单失败跟踪一致性、夜盘交易日边界分歧、有状态会话复用、预热错误到实例状态、逐条 sizing、
+权益价格参数边界、会话失败、告警过滤、成交价量与币种回落、观测容错、失败事件加摘要排序、空白币种宽容、
+反射边界为 boundary、预留 fencing、前置逐项、桶合并滚动、格式化逐项、符号市场归一、刷新错误上报、计数失败
+关闭差异、租约回滚计数均无同形断言，均与账本缺口一致）。
+
+验证：audit --write-report 过（1472 exact；dup 0）；anchor 过；定向 nextest（execution 意图、pine 执行契约、
+simulate 闭环、account、lifecycle 有界、broker market_rules）全过；cargo fmt --check 与 git diff --check 干净；
+账本与 Rust 代码零改动（纯复核片）。
+
+下一片：130-10 切片六，strategy 域 partial 第 81–100 行。
