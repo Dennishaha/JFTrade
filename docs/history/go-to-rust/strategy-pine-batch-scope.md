@@ -1091,3 +1091,44 @@ git diff --check
 实测：jftrade-strategy nextest `104/104` 通过；audit/anchor、`cargo fmt --check` 与
 `git diff --check` 均通过。20/20 均保持 `partial`；不存在可安全升为 `[x]` 的条目，也没有发现
 应立即修复的 Rust 生产功能差异。下一片为 strategy_pine partial 第 261–280 行。
+
+## 第 130 批 12 切片三十：strategy_pine 域 partial 第 261–280 行，20 行维持、零改判（2026-09-24）
+
+范围：strategy_pine 域 `evidence_type=partial` 的第 261–280 行（parse_semantic、parse、
+parser/lowering recovery 的 TA/visual/order/UDF/loop/诊断边界），按账本写入顺序逐条核对。
+本片没有 Rust 生产代码修改；Rust 已有测试只在其实际断言范围内计证据，未把聚合/子集测试提升为 exact。
+
+| 序号 | Go 测试 | Rust 证据 | 级别 | 结论 |
+| ---: | --- | --- | :---: | --- |
+| 261 | `parse_semantic_test.go:287:TestAnalyzeScriptSupportsTrendAndStatefulTAFunctions` | `src/pine/mod.rs::framework_language_feature_tests::compile_supports_framework_language_features` | P1 | `partial`；Rust framework 用例未覆盖 supertrend/dmi/vwap/mfi、barssince/valuewhen 的完整 semantic/requirements 矩阵。 |
+| 262 | `parse_semantic_test.go:301:TestAnalyzeScriptSupportsSarBarstateSessionAndPineConstants` | 同上 | P1 | `partial`；SAR requirement、颜色/时间戳 lowering、barstate/session/dayofweek/month 条件结构无 Rust 同形断言。 |
+| 263 | `parse_semantic_test.go:340:TestCompileSupportsOrderQtyPercentStrategyOrderAndCloseAll` | 同上 | P2 | `partial`；Rust framework 未覆盖 qty_percent、net short/default quantity、close_all 五条 typed order projection。 |
+| 264 | `parse_semantic_test.go:401:TestAnalyzeScriptReturnsVisualMetadata` | `tests/pine_request_and_visual_contracts.rs::visual_metadata_lists_every_drawing_call` | P2 | `partial`；Rust 只断言 7 个 visual 的部分 kind/call/target，未覆盖 Go 的 title、named args、variable、semantic mirror 全量字段，且 qualified target 表示不同。 |
+| 265 | `parse_test.go:54:TestCompileRejectsPublicInternalHelperCalls` | `src/pine/mod.rs::public_helper_guard_tests::compile_rejects_public_internal_helper_calls` | P2 | `partial`；Rust 只覆盖 5 类 helper rejection，Go 还覆盖 barssince/valuewhen/history/ifelse 与 ta.adx 等完整 11 项矩阵。 |
+| 266 | `parse_test.go:126:TestCompileUsesStrategyDefaultQuantityForEntryWithoutQty` | `src/pine/mod.rs::parse_ir_tests::compile_uses_strategy_default_quantity_for_entry_without_qty` | P2 | `partial`；Rust 验证 metadata/default quantity，但未断言 Go 的 lowered `OrderStmt` quantity mode/expression。 |
+| 267 | `parse_test.go:167:TestCompilePreservesOrderNotificationMetadataAndImmediateClose` | `src/pine/mod.rs::order_subset_compile_tests::compile_preserves_order_notification_metadata_and_immediate_close` | P2 | `partial`；Rust 以 Action 参数字符串保留 metadata，未证明 Go typed order 字段及完整表达式类型。 |
+| 268 | `parse_test.go:286:TestCompileSupportsStrategyExitSubset` | `src/pine/mod.rs::order_subset_compile_tests::compile_accepts_strategy_order_subset_scripts` | P2 | `partial`；Rust 仅验证调用可编译且保留 strategy.* 名称，未逐项断言四类 ExitStmt 的方向、stop/limit/trailing 与数量字段。 |
+| 269 | `parse_test.go:317:TestCompileCapturesWhenExpressionsForWorkflowOrders` | 同上 | P2 | `partial`；Rust order subset 含 when 输入但未核对每个 entry/order/close/exit 的条件表达式 lowering。 |
+| 270 | `parse_test.go:348:TestCompileSupportsStrategyExitProfitLossTicks` | 同上 | P2 | `partial`；Rust 未断言 profit/loss/ticks 到 typed exit 字段的映射，只检查 strategy.* action 存在。 |
+| 271 | `parse_test.go:390:TestCompileSupportsPendingStopAndCancelOrders` | 同上 | P1 | `partial`；Rust 未逐项验证 stop/stop-limit、close stop/limit、cancel/cancel_all 的订单语义和参数保留。 |
+| 272 | `parse_test.go:432:TestCompileSupportsCloseAllPositionalMetadata` | 同上 | P2 | `partial`；Rust 只验证 close_all 调用保留，未断言四个 positional metadata 到 comment/alert/disable 字段。 |
+| 273 | `parse_test.go:448:TestCompileSupportsClosePositionalQty` | 同上 | P2 | `partial`；Rust 只保留 `strategy.close` call，未证明 positional quantity 的 shares projection。 |
+| 274 | `parse_test.go:790:TestCompileSupportsExpressionUDFAndStaticForUnroll` | `src/pine/mod.rs::udf_and_loop_boundary_tests::compile_accepts_expression_udf_and_static_for_unroll` | P1 | `partial`；Rust 明确保留 typed For/UDF 而不做 Go 的展开/inlining，未复现 4 条 history 语句、condition 与 requirement key。 |
+| 275 | `parse_test.go:838:TestValidateScriptReportsUnsupportedUDFAndStaticForCases` | `src/pine/mod.rs::udf_and_loop_boundary_tests::validate_script_reports_supported_udf_and_static_for_boundaries` | P1 | `partial`；Rust 仅覆盖 step=0、迭代上限，Go 还覆盖参数 mismatch、递归、只读 loop var、loop 内 call history。 |
+| 276 | `parse_test.go:903:TestAnalyzeScriptReportsV33AdvancedLanguageBoundaryDiagnostics` | 同上 | P2 | `partial`；Rust 没有 V33 recursive/nested/signature/readonly diagnostic code+line 全量矩阵。 |
+| 277 | `parse_test.go:977:TestCompileSupportsSwitchAndMultiStatementUDF` | `src/pine/mod.rs::framework_language_feature_tests::compile_supports_framework_language_features` | P2 | `partial`；Rust framework 测试无 switch、多语句 UDF、ifelse body 和 switch order/alert branch 结构。 |
+| 278 | `parse_test.go:1029:TestAnalyzeScriptPreservesOriginalLineNumbers` | `tests/pine_parse_diagnostics.rs::blank_lines_before_the_script_keep_later_diagnostic_lines` | P2 | `partial`；Rust 已验证 blank-line 行号，但仅覆盖 zero-step loop 三种偏移，未覆盖 Go 的所有 parser/semantic diagnostics。 |
+| 279 | `parser_and_lowering_recovery_test.go:8:TestIncompleteColorAndRequestCallsRemainRecoverable` | `tests/pine_mcp_contract.rs::parser_handles_strings_history_and_nested_calls_without_regex` | P1 | `partial`；Rust parser fixture 未断言 incomplete color call 原文保留和 request.security 未闭合参数返回值。 |
+| 280 | `parser_and_lowering_recovery_test.go:19:TestUDFExpansionRetainsWhitespaceAndUnwindsRejectedArguments` | `src/pine/mod.rs::udf_and_loop_boundary_tests::validate_script_reports_supported_udf_and_static_for_boundaries` | P1 | `partial`；Rust UDF compile/validation 不覆盖 whitespace-only zero-arg expansion、collection mutation 参数拒绝和 recursion stack 清理。 |
+
+验证命令：
+
+```bash
+python3 scripts/compatibility/audit_test_parity.py --write-report
+python3 scripts/compatibility/parity_anchor_reconcile.py
+node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked --no-fail-fast
+cargo fmt --check
+git diff --check
+```
+
+本片结论：20/20 均保持 `partial`；P1 缺口已明确 owner/回归方向，但本片没有足够证据升格或触发生产修复。下一片为 strategy_pine partial 第 281–300 行。
