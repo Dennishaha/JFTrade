@@ -788,3 +788,32 @@ bar 越界拒绝、同 bar 归一化、worker 错误传播、运行时数据不�
 cargo fmt --check 与 git diff --check 干净；无 Rust 生产代码改动、无新增测试。
 
 下一片：130-11 切片十二，backtest 域 partial 第 221–240 行。
+## 第 130 批 11 切片十二：backtest 域 partial 第 221–240 行，18 行维持、2 行结论收紧（2026-09-24）
+
+范围：backtest 域 partial 第 221–240 行（runner 边界 3、runner 失败边界 3、
+runner 主流程 7、sizer 边界 4、result 收集 3，按文件加行号升序）。
+
+方法：Go 体全读；缺口验到代码行与用例断言；引用存在不等于断言等价。
+
+18 行维持（来源与覆盖前置校验、报价货币默认表边界、缓存清理边界、非法配置两分支、
+完整性三分支、无效命令 fail-closed、端到端订单簿交易、warmup 继承与种子保留、
+quantity pct 数量基数、来源回退不拒单、worker 错误映射、sizer 非法输入与持仓维护
+与权益边界与精度矩阵、heikinashi 种子、交易统计、部分成交累计，均与账本缺口一致）。
+
+2 行结论收紧（verdict 仍为 partial，[x] 1472 不变，b83 dry-run 先行、entry_changed 等于 0）：
+
+- pineworker_runner:234：原结论称告警由运行时通知路径表达，含糊且未经证实
+  （Rust 只有 INTENT_SKIPPED 审计，无计数文案）；改写为忽略计数、告警文案、
+  空订单簿三者无对应断言。
+- pineworker_runner:293：原结论未提告警计数与文案缺口
+  （Rust 只断言约束合并语义）；补上告警计数、文案与空订单簿无对应断言。
+
+抽核要点：:234 的 Rust 审计断言逐行核实（INTENT_SKIPPED 加 no open position）；
+:293 的 Rust 用例逐行核实（仅约束合并，无告警无订单簿）；其余 runner/sizer/result
+引用逐项存在， verdict 均为诚实 partial/boundary。
+
+验证：audit --write-report 过（1472 exact；dup 0）；anchor 过（1742/1696/0/0/46）；
+定向 nextest（jftrade-backtest、integration-pine、engine 执行族、broker 市场规则）全过；
+cargo fmt --check 与 git diff --check 干净；无 Rust 生产代码改动、无新增测试。
+
+下一片：130-11 切片十三，backtest 域 partial 第 241–260 行。

@@ -131197,7 +131197,7 @@
     "pkg/backtest/pineworker_runner_test.go:234:TestRunWithPineWorkerWarnsAndIgnoresInitialCloseSignal": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/strategy_runtime_execution_tests.rs::test_execute_strategy_intents_parameterless_close_skips_when_no_position",
-      "conclusion": "partial：Go 断言初始无仓位时的 close 信号被忽略并告警。Rust 的参数less close 在无仓位时跳过（该用例），告警由运行时通知路径表达。",
+      "conclusion": "partial：Go 断言初始无仓位时的 close 信号被忽略并告警（忽略计数、告警文案、空订单簿）。Rust 仅断言无仓位时不下单并记 INTENT_SKIPPED 审计（该用例）；忽略计数、告警文案与空订单簿断言无对应。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
       "evidence_type": "partial",
       "source": {
@@ -131217,7 +131217,7 @@
       "assertionCoverage": {
         "covered": [],
         "uncovered": [
-          "partial：Go 断言初始无仓位时的 close 信号被忽略并告警。Rust 的参数less close 在无仓位时跳过（该用例），告警由运行时通知路径表达。"
+          "partial：Go 断言初始无仓位时的 close 信号被忽略并告警（忽略计数、告警文案、空订单簿）。Rust 仅断言无仓位时不下单并记 INTENT_SKIPPED 审计（该用例）；忽略计数、告警文案与空订单簿断言无对应。"
         ],
         "source": "legacy-conclusion"
       },
@@ -131252,14 +131252,14 @@
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
-        "partial：Go 断言初始无仓位时的 close 信号被忽略并告警。Rust 的参数less close 在无仓位时跳过（该用例），告警由运行时通知路径表达。"
+        "partial：Go 断言初始无仓位时的 close 信号被忽略并告警（忽略计数、告警文案、空订单簿）。Rust 仅断言无仓位时不下单并记 INTENT_SKIPPED 审计（该用例）；忽略计数、告警文案与空订单簿断言无对应。"
       ],
       "boundaryReason": null
     },
     "pkg/backtest/pineworker_runner_test.go:293:TestRunWithPineWorkerWarnsWhenHKLotSizeUnavailable": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-broker/tests/market_rules_snapshot_errors.rs::market_rules_ignore_missing_non_positive_and_non_finite_constraints",
-      "conclusion": "partial：Go 断言港股缺 lot size 时告警。Rust 的市场规则忽略缺失/非正约束（该用例），缺规则时的回退资格由 `snapshot_availability_kinds_control_fallback_eligibility` 判定。",
+      "conclusion": "partial：Go 断言港股缺 lot size 时忽略订单并告警（忽略计数、两条告警文案、空订单簿）。Rust 仅断言非法约束值被忽略且基线保持（该用例）；告警计数、告警文案与空订单簿断言无对应，回退资格由快照可用性类型判定。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-broker --all-targets --locked",
       "evidence_type": "partial",
       "source": {
@@ -131279,7 +131279,7 @@
       "assertionCoverage": {
         "covered": [],
         "uncovered": [
-          "partial：Go 断言港股缺 lot size 时告警。Rust 的市场规则忽略缺失/非正约束（该用例），缺规则时的回退资格由 `snapshot_availability_kinds_control_fallback_eligibility` 判定。"
+          "partial：Go 断言港股缺 lot size 时忽略订单并告警（忽略计数、两条告警文案、空订单簿）。Rust 仅断言非法约束值被忽略且基线保持（该用例）；告警计数、告警文案与空订单簿断言无对应，回退资格由快照可用性类型判定。"
         ],
         "source": "legacy-conclusion"
       },
@@ -131314,7 +131314,7 @@
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
-        "partial：Go 断言港股缺 lot size 时告警。Rust 的市场规则忽略缺失/非正约束（该用例），缺规则时的回退资格由 `snapshot_availability_kinds_control_fallback_eligibility` 判定。"
+        "partial：Go 断言港股缺 lot size 时忽略订单并告警（忽略计数、两条告警文案、空订单簿）。Rust 仅断言非法约束值被忽略且基线保持（该用例）；告警计数、告警文案与空订单簿断言无对应，回退资格由快照可用性类型判定。"
       ],
       "boundaryReason": null
     },
