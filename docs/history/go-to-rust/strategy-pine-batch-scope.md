@@ -1017,3 +1017,33 @@ benchmark scripts，缺口 owner 与回归要求均与账本一致）。
 cargo fmt --check 与 git diff --check 干净；无台账变更、无 Rust 生产代码改动。
 
 下一片：130-12 切片二十八，strategy_pine 域 partial 第 221–240 行。
+
+## 第 130 批 12 切片二十八：strategy_pine 域 partial 第 221–240 行，20 行维持、零改判（2026-09-25）
+
+范围：strategy_pine 域 partial 第 221–240 行（Pine collection/declaration 语义与执行边界、
+V21–V30 语言能力、对象/方法/循环/MTF、request.security 诊断，按文件加行号升序）。
+本域已核对 240/385。
+
+方法：Go 体全读；共享 Rust framework 能力引用、ticker/tuple/order/security 边界引用逐项
+rg 核查；对同一 Rust framework 测试覆盖的多条 Go 测试仍按断言粒度保持 partial。
+
+20 行维持（V20 collection 与 declaration AST/semantic、collection 签名诊断、method-style
+操作、typed collection、V21 可执行 collection core/alias/BBW/COG、V22 tuple/structured
+AST/dynamic loop、V23 UDT/method/request.security pure object、V24 collection expansion
+与 MTF stoch、V24 named method/runtime loop、V25 array/string/timeframe helpers、V26
+collection iteration/history/object fields、V27 collection/timeframe/MTF helpers、V28
+object history/method/export、V29 receiver/MTF history、V29/V32 request.security 诊断，
+缺口 owner 与回归要求均与账本一致）。
+
+抽核要点：Rust `framework_language_feature_tests::compile_supports_framework_language_features`
+存在但只提供聚合能力证据；`request_security_tickers_follow_the_go_whitelist`、
+`request_security_tuple_diagnostics_match_go_codes`、`compile_accepts_supported_order_positional_metadata`
+分别存在。Go 侧 collection/UDF/runtime loop 大量断言的执行性、声明字段和诊断矩阵不能由
+聚合测试替代；其中 UDF、多层循环、collection runtime 与部分 MTF TA 仍是已登记 P1/P2
+缺口。引用存在不等于断言等价，partial 共用引用不受 [x] 唯一性约束。
+
+验证：audit --write-report 过（1472 exact；dup 0）；anchor 过（1742/1696/0/0/46）；
+定向 nextest（jftrade-engine、jftrade-strategy 视触及范围）全过；cargo fmt --check
+与 git diff --check 干净；无台账变更、无 Rust 生产代码改动。
+
+下一片：130-12 切片二十九，strategy_pine 域 partial 第 241–260 行。
