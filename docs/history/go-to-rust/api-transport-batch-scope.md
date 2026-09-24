@@ -5751,3 +5751,54 @@ legacy GUI 服务、`:359` 缺桌面侧绑定失败端到端、`:518` 运行模�
 `check:quick` 与 `git diff --check` 见收尾。
 
 下一片：按队列出新域（strategy 与 backtest 停滞域优先，开片时确认）。
+## 第 130 批 09 切片三十：datamigration 38 条含 11 处纠正与 2 处补证（2026-09-24）
+
+范围：`internal/app/apiserver/datamigration` 38 条 `[x]`（failure_paths
+10、maintenance 6、retention 3、boundaries 5、manager 6、safety 7、
+research 1），s19 已深 recon，本片纠正式复核。
+
+方法：Go 体全读；38 个具名引用全仓核实存在（0 缺失）；逐字比对后，
+标题题眼无对应即 partial，辅助细节缺失则维持。
+
+11 处纠正（`[x]` 降为 partial，`[x]` 1501→1490）：
+
+- `:227`：执行路径 BusyReason 冲突类型化无对应（仅预览路径有）。
+- `:255`：执行/compact 路径四簇无对应（Warning、成功、未知库、错确认）。
+- `:502`：不兼容备份失败与缺失 compact 两簇无对应。
+- `:187`：marker 原子写五种失败模式无对应。
+- `:74`：CompletePending 半侧（空与缺失失败）无对应。
+- `:108`：版本号漂移分类簇无对应。
+- manager `:100`：文件级删除集与两阶段 marker 中间态无直接断言（与
+  server_test.go:472 同一回归项可共用）。
+- manager `:14`：single 模式确认/白名单/成功三簇无对应。
+- manager `:49`：全局 backupLock 维度与类型化 rebuild 错误无对应。
+- `:177`：selectRebuildIDs 选择三边界无对应。
+- research `:13`：apply 删除/重开/complete 三簇无对应。
+
+2 处补证（维持 `[x]`，只加注释锚点加台账证据，无生产改动）：
+
+- `:394`：补单元三阶段用例（prepare/enforce/transient 与 Go 同号码），
+  定向 2/2 通过。
+- `:358`：补 discovery 用例（zzzzzzzz 非 hex 逐名拒绝），定向 2/2 通过。
+
+其余 25 条维持 `[x]`（失败安全、配额、空路径、版本 pin、锁回滚等均逐项
+命中；`:225` 空路径校验为辅助探针，主簇完整故维持）。
+
+缺口 owner 与回归：执行冲突类型化、执行/compact 路径、原子写、complete
+阶段、版本漂移、single 调度、全局锁、选择边界、research 端到端、文件级
+重建中间态；回归要求见各行 uncoveredAssertions。
+
+验证：`audit_test_parity.py --write-report` exit 0（1490 exact 全引用
+存在；inventory 随改判重生；reuse 新增 1 项、引用扩展 1 项，元数据校验
+过）；`parity_anchor_reconcile.py` 过（1742 total、已记录 1696、
+unrecorded 0、stale 0、unknown 46）；新增锚点经 `cargo fmt --check`；
+受影响定向 nextest 2/2；`check:ai-context`、`check:migration-manifest`、
+`check:zero-go` 均过，`git diff --check` 干净；`check:quick` 首轮 1861/1862
+（`api_launcher_serves_on_the_configured_address` 在全量并行下偶发失败，
+与本片改动无关——本片仅改台账与两处注释锚点），隔离重跑 2/2 过，
+全量重跑 2147/2147 全过 EXIT=0。另确认提醒线程阻塞项已解：
+runner_chat:423 为 `[x]`、store:792 为 `[~]`，`[x]` 共享 rust_entry
+重复数为 0（审计 raise 项通过），`[x]`=1490。
+
+下一片：130-09 切片三十一，marketdataapp 60 条 `[x]`（最大余量目录，
+需拆片）。

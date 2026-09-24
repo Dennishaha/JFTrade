@@ -411,6 +411,7 @@ mod tests {
         );
     }
 
+    // Parity: go:452dea11:internal/app/apiserver/datamigration/maintenance_failure_paths_test.go:394 TestBackupRetentionNeverEvictsRebuildMarkerSnapshots
     #[test]
     fn backup_retention_never_evicts_snapshots_a_rebuild_marker_references() {
         let root = tempdir().expect("temporary directory");
@@ -483,6 +484,7 @@ mod tests {
     }
 
     // Parity: go:452dea11:internal/app/apiserver/datamigration/managed_backup_retention_test.go:61 TestManagedBackupFileDiscoveryAndFilenameBoundaries
+    // Parity: go:452dea11:internal/app/apiserver/datamigration/maintenance_failure_paths_test.go:358 TestBackupRetentionEvictsQuotaPressureAcrossDatabaseFiles
     #[test]
     fn managed_backup_discovery_parses_only_canonical_filenames() {
         let root = tempdir().expect("temporary directory");

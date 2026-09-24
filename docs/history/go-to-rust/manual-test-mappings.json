@@ -25522,7 +25522,7 @@
     "internal/app/apiserver/datamigration/maintenance_failure_paths_test.go:358:TestBackupRetentionEvictsQuotaPressureAcrossDatabaseFiles": {
       "status": "[x]",
       "rust_entry": "crates/jftrade-store-sqlite/src/maintenance_backup_retention.rs::tests::backup_retention_keeps_three_snapshots_and_reports_an_over_quota_snapshot",
-      "conclusion": "function_exact：enforce_backup_retention(quota=8) 先按每库 3 份清理，再为 quota-reserve 跨库淘汰无保护快照（adk 旧快照被删、current 保留、总量 ≤8）；current 自身大于 quota 时报 “backup is N bytes but quota is M bytes”；非 hex token 文件名由 managed_backup_discovery_parses_only_canonical_filenames 拒绝。",
+      "conclusion": "function_exact：配额两阶段与 Go 一致（跨库淘汰无保护快照、current 保留、总量约束、超 quota 报错）；非 hex token（含 zzzzzzzz）拒绝由 discovery 用例逐名断言，2/2 定向通过。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-datamanagement --all-targets --locked",
       "evidence_type": "function_exact",
       "source": {
@@ -25542,11 +25542,22 @@
             "rustFile": "crates/jftrade-store-sqlite/src/maintenance_backup_retention.rs",
             "rustLine": 367
           }
+        },
+        {
+          "file": "crates/jftrade-store-sqlite/src/maintenance_backup_retention.rs",
+          "test": "managed_backup_discovery_parses_only_canonical_filenames",
+          "crate": "jftrade-store-sqlite",
+          "anchor": {
+            "goFile": "internal/app/apiserver/datamigration/maintenance_failure_paths_test.go",
+            "goLine": 358,
+            "rustFile": "crates/jftrade-store-sqlite/src/maintenance_backup_retention.rs",
+            "rustLine": 487
+          }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "function_exact：enforce_backup_retention(quota=8) 先按每库 3 份清理，再为 quota-reserve 跨库淘汰无保护快照（adk 旧快照被删、current 保留、总量 ≤8）；current 自身大于 quota 时报 “backup is N bytes but quota is M bytes”；非 hex token 文件名由 managed_backup_discovery_parses_only_canonical_filenames 拒绝。"
+          "function_exact：配额两阶段与 Go 一致（跨库淘汰无保护快照、current 保留、总量约束、超 quota 报错）；非 hex token（含 zzzzzzzz）拒绝由 discovery 用例逐名断言，2/2 定向通过。"
         ],
         "uncovered": [],
         "source": "legacy-conclusion"
@@ -25564,7 +25575,8 @@
           "--locked"
         ],
         "testFilter": [
-          "backup_retention_keeps_three_snapshots_and_reports_an_over_quota_snapshot"
+          "backup_retention_keeps_three_snapshots_and_reports_an_over_quota_snapshot",
+          "managed_backup_discovery_parses_only_canonical_filenames"
         ],
         "runnerVersion": null,
         "toolchain": null,
@@ -25583,7 +25595,7 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "function_exact：enforce_backup_retention(quota=8) 先按每库 3 份清理，再为 quota-reserve 跨库淘汰无保护快照（adk 旧快照被删、current 保留、总量 ≤8）；current 自身大于 quota 时报 “backup is N bytes but quota is M bytes”；非 hex token 文件名由 managed_backup_discovery_parses_only_canonical_filenames 拒绝。"
+        "function_exact：配额两阶段与 Go 一致（跨库淘汰无保护快照、current 保留、总量约束、超 quota 报错）；非 hex token（含 zzzzzzzz）拒绝由 discovery 用例逐名断言，2/2 定向通过。"
       ],
       "uncoveredAssertions": [],
       "boundaryReason": null
@@ -25591,7 +25603,7 @@
     "internal/app/apiserver/datamigration/maintenance_failure_paths_test.go:394:TestBackupRetentionNeverEvictsRebuildMarkerSnapshots": {
       "status": "[x]",
       "rust_entry": "crates/jftrade-store-sqlite/tests/maintenance_backup_and_rebuild_contracts.rs::rebuild_marker_snapshots_survive_later_retention_pressure",
-      "conclusion": "function_exact：重建调度写入 marker 后连续 3 次 ad-hoc backup，同库快照数受保留策略约束但 marker 引用快照始终存在，且再次 rebuild 仍能通过校验（protected_backup_paths 从 marker 读取保护集）；单元层保护集语义另由 maintenance_backup_retention.rs::backup_retention_never_evicts_snapshots_a_rebuild_marker_references 固定。",
+      "conclusion": "function_exact：集成层断言调度后 3 次 ad-hoc backup 下 marker 快照存活、快照数受约束、rebuild 仍可校验；单元层 backup_retention_never_evicts_snapshots_a_rebuild_marker_references 逐阶段锁定 Go 三阶段（prepare 容量保护 marker 集、enforce 保留 current、transient 批快照保护，号码配额与 Go 一致），2/2 定向通过。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-datamanagement --all-targets --locked",
       "evidence_type": "function_exact",
       "source": {
@@ -25611,11 +25623,22 @@
             "rustFile": "crates/jftrade-store-sqlite/tests/maintenance_backup_and_rebuild_contracts.rs",
             "rustLine": 462
           }
+        },
+        {
+          "file": "crates/jftrade-store-sqlite/src/maintenance_backup_retention.rs",
+          "test": "backup_retention_never_evicts_snapshots_a_rebuild_marker_references",
+          "crate": "jftrade-store-sqlite",
+          "anchor": {
+            "goFile": "internal/app/apiserver/datamigration/maintenance_failure_paths_test.go",
+            "goLine": 394,
+            "rustFile": "crates/jftrade-store-sqlite/src/maintenance_backup_retention.rs",
+            "rustLine": 414
+          }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "function_exact：重建调度写入 marker 后连续 3 次 ad-hoc backup，同库快照数受保留策略约束但 marker 引用快照始终存在，且再次 rebuild 仍能通过校验（protected_backup_paths 从 marker 读取保护集）；单元层保护集语义另由 maintenance_backup_retention.rs::backup_retention_never_evicts_snapshots_a_rebuild_marker_references 固定。"
+          "function_exact：集成层断言调度后 3 次 ad-hoc backup 下 marker 快照存活、快照数受约束、rebuild 仍可校验；单元层 backup_retention_never_evicts_snapshots_a_rebuild_marker_references 逐阶段锁定 Go 三阶段（prepare 容量保护 marker 集、enforce 保留 current、transient 批快照保护，号码配额与 Go 一致），2/2 定向通过。"
         ],
         "uncovered": [],
         "source": "legacy-conclusion"
@@ -25633,7 +25656,8 @@
           "--locked"
         ],
         "testFilter": [
-          "rebuild_marker_snapshots_survive_later_retention_pressure"
+          "rebuild_marker_snapshots_survive_later_retention_pressure",
+          "backup_retention_never_evicts_snapshots_a_rebuild_marker_references"
         ],
         "runnerVersion": null,
         "toolchain": null,
@@ -25652,7 +25676,7 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "function_exact：重建调度写入 marker 后连续 3 次 ad-hoc backup，同库快照数受保留策略约束但 marker 引用快照始终存在，且再次 rebuild 仍能通过校验（protected_backup_paths 从 marker 读取保护集）；单元层保护集语义另由 maintenance_backup_retention.rs::backup_retention_never_evicts_snapshots_a_rebuild_marker_references 固定。"
+        "function_exact：集成层断言调度后 3 次 ad-hoc backup 下 marker 快照存活、快照数受约束、rebuild 仍可校验；单元层 backup_retention_never_evicts_snapshots_a_rebuild_marker_references 逐阶段锁定 Go 三阶段（prepare 容量保护 marker 集、enforce 保留 current、transient 批快照保护，号码配额与 Go 一致），2/2 定向通过。"
       ],
       "uncoveredAssertions": [],
       "boundaryReason": null
@@ -25727,11 +25751,11 @@
       "boundaryReason": null
     },
     "internal/app/apiserver/datamigration/maintenance_failure_paths_test.go:502:TestMaintenanceCompactionAndBackupFailClosedWhenPersistentStateBreaks": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "crates/jftrade-store-sqlite/tests/maintenance_backup_and_rebuild_contracts.rs::compaction_fails_closed_when_the_rebuild_marker_is_corrupt",
-      "conclusion": "function_exact：marker 损坏时 compact 以 “decode database rebuild marker” 失败、不创建快照、源库字节不变（compact 内部先取快照，快照路径同样受保护集校验，故与 backup 同源 fail-closed）。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-datamanagement --all-targets --locked",
-      "evidence_type": "function_exact",
+      "conclusion": "partial：Rust 仅断言 marker 损坏时 compact 以 decode 错误失败且源库不动；Go 同测的不兼容库备份失败、缺失库 compact 报 not ready 两簇无对应。回归要求：备份不兼容与 compact 缺失断言。",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/datamigration/maintenance_failure_paths_test.go",
         "line": 502,
@@ -25752,10 +25776,10 @@
         }
       ],
       "assertionCoverage": {
-        "covered": [
-          "function_exact：marker 损坏时 compact 以 “decode database rebuild marker” 失败、不创建快照、源库字节不变（compact 内部先取快照，快照路径同样受保护集校验，故与 backup 同源 fail-closed）。"
+        "covered": [],
+        "uncovered": [
+          "partial：Rust 仅断言 marker 损坏时 compact 以 decode 错误失败且源库不动；Go 同测的不兼容库备份失败、缺失库 compact 报 not ready 两簇无对应。回归要求：备份不兼容与 compact 缺失断言。"
         ],
-        "uncovered": [],
         "source": "legacy-conclusion"
       },
       "verification": {
@@ -25765,8 +25789,6 @@
           "run",
           "-p",
           "jftrade-store-sqlite",
-          "-p",
-          "jftrade-datamanagement",
           "--all-targets",
           "--locked"
         ],
@@ -25784,15 +25806,15 @@
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "function_exact：marker 损坏时 compact 以 “decode database rebuild marker” 失败、不创建快照、源库字节不变（compact 内部先取快照，快照路径同样受保护集校验，故与 backup 同源 fail-closed）。"
+      "coveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial：Rust 仅断言 marker 损坏时 compact 以 decode 错误失败且源库不动；Go 同测的不兼容库备份失败、缺失库 compact 报 not ready 两簇无对应。回归要求：备份不兼容与 compact 缺失断言。"
       ],
-      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/app/apiserver/datamigration/maintenance_failure_paths_test.go:529:TestNewPreviewIDSurfacesSecureRandomnessFailure": {
@@ -26379,11 +26401,11 @@
       "boundaryReason": null
     },
     "internal/app/apiserver/datamigration/maintenance_test.go:227:TestCleanupPreviewExpiresAndMaintenanceConflictIsTyped": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "crates/jftrade-datamanagement/src/cleanup.rs::tests::preview_normalizes_defaults_summarizes_and_expires_after_ten_minutes",
-      "conclusion": "function_exact：预览在 now+9min 可取回、now+10min 过期（PREVIEW_LIFETIME=10min），并归一化 kind/databaseId 空白与默认保留参数；BusyReason 冲突路径由 jftrade-datamanagement lib.rs::busy_owner_blocks_preview_and_execute_without_mutation 覆盖（预览/执行均无副作用）。",
+      "conclusion": "partial：Rust 断言预览归一化与 10 分钟过期；但 Go 同测的 BusyReason 执行冲突类型化（预览后置忙、执行返回 ErrMaintenanceConflict）无对应，Rust 仅覆盖预览路径忙拒绝。回归要求：预览后置忙再执行的冲突类型化测试。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-datamanagement --all-targets --locked",
-      "evidence_type": "function_exact",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/datamigration/maintenance_test.go",
         "line": 227,
@@ -26404,10 +26426,10 @@
         }
       ],
       "assertionCoverage": {
-        "covered": [
-          "function_exact：预览在 now+9min 可取回、now+10min 过期（PREVIEW_LIFETIME=10min），并归一化 kind/databaseId 空白与默认保留参数；BusyReason 冲突路径由 jftrade-datamanagement lib.rs::busy_owner_blocks_preview_and_execute_without_mutation 覆盖（预览/执行均无副作用）。"
+        "covered": [],
+        "uncovered": [
+          "partial：Rust 断言预览归一化与 10 分钟过期；但 Go 同测的 BusyReason 执行冲突类型化（预览后置忙、执行返回 ErrMaintenanceConflict）无对应，Rust 仅覆盖预览路径忙拒绝。回归要求：预览后置忙再执行的冲突类型化测试。"
         ],
-        "uncovered": [],
         "source": "legacy-conclusion"
       },
       "verification": {
@@ -26434,23 +26456,23 @@
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "function_exact：预览在 now+9min 可取回、now+10min 过期（PREVIEW_LIFETIME=10min），并归一化 kind/databaseId 空白与默认保留参数；BusyReason 冲突路径由 jftrade-datamanagement lib.rs::busy_owner_blocks_preview_and_execute_without_mutation 覆盖（预览/执行均无副作用）。"
+      "coveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial：Rust 断言预览归一化与 10 分钟过期；但 Go 同测的 BusyReason 执行冲突类型化（预览后置忙、执行返回 ErrMaintenanceConflict）无对应，Rust 仅覆盖预览路径忙拒绝。回归要求：预览后置忙再执行的冲突类型化测试。"
       ],
-      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/app/apiserver/datamigration/maintenance_test.go:255:TestOverviewCleanableCategoriesADKPreviewAndCompact": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "crates/jftrade-store-sqlite/tests/maintenance_overview_and_cleanup_contracts.rs::overview_lists_cleanable_categories_for_soft_deleted_and_history_rows",
-      "conclusion": "function_exact：strategy 1 条 soft-deleted、backtest-runs 25 条已结束回测、adk 3 个 cleanable 分类（agent/workflow=1，trigger 仅按 payload deletedAt 计数为 0，与 Go inspectCleanable 同源）；ADK soft-deleted 预览 candidateCount=3（触发器按已删工作流级联进入候选），confirmationText=\"CLEANUP adk 3\"。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-datamanagement --all-targets --locked",
-      "evidence_type": "function_exact",
+      "conclusion": "partial：Rust 断言 overview 三库 cleanable 计数与 ADK 预览 3 条加确认文本；但 Go 同测的执行路径（compact 钩子失败则 Warning 非空且 Compacted 为 false）、Compact 成功路径、未知库与错误确认拒绝均无对应。回归要求：执行与 compact 路径断言。",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/datamigration/maintenance_test.go",
         "line": 255,
@@ -26471,10 +26493,10 @@
         }
       ],
       "assertionCoverage": {
-        "covered": [
-          "function_exact：strategy 1 条 soft-deleted、backtest-runs 25 条已结束回测、adk 3 个 cleanable 分类（agent/workflow=1，trigger 仅按 payload deletedAt 计数为 0，与 Go inspectCleanable 同源）；ADK soft-deleted 预览 candidateCount=3（触发器按已删工作流级联进入候选），confirmationText=\"CLEANUP adk 3\"。"
+        "covered": [],
+        "uncovered": [
+          "partial：Rust 断言 overview 三库 cleanable 计数与 ADK 预览 3 条加确认文本；但 Go 同测的执行路径（compact 钩子失败则 Warning 非空且 Compacted 为 false）、Compact 成功路径、未知库与错误确认拒绝均无对应。回归要求：执行与 compact 路径断言。"
         ],
-        "uncovered": [],
         "source": "legacy-conclusion"
       },
       "verification": {
@@ -26484,8 +26506,6 @@
           "run",
           "-p",
           "jftrade-store-sqlite",
-          "-p",
-          "jftrade-datamanagement",
           "--all-targets",
           "--locked"
         ],
@@ -26503,15 +26523,15 @@
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "function_exact：strategy 1 条 soft-deleted、backtest-runs 25 条已结束回测、adk 3 个 cleanable 分类（agent/workflow=1，trigger 仅按 payload deletedAt 计数为 0，与 Go inspectCleanable 同源）；ADK soft-deleted 预览 candidateCount=3（触发器按已删工作流级联进入候选），confirmationText=\"CLEANUP adk 3\"。"
+      "coveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial：Rust 断言 overview 三库 cleanable 计数与 ADK 预览 3 条加确认文本；但 Go 同测的执行路径（compact 钩子失败则 Warning 非空且 Compacted 为 false）、Compact 成功路径、未知库与错误确认拒绝均无对应。回归要求：执行与 compact 路径断言。"
       ],
-      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/app/apiserver/datamigration/maintenance_test.go:315:TestCleanupAndCompactRejectInvalidOrUnavailableOperations": {
@@ -26947,11 +26967,11 @@
       "boundaryReason": null
     },
     "internal/app/apiserver/datamigration/manager_boundaries_test.go:74:TestManagerPendingLifecycleHandlesMissingCorruptAndUnknownMarkers": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_data_management_pending_rebuild_tests.rs::startup_reports_pending_markers_that_are_corrupt_or_unknown",
-      "conclusion": "function_exact：无 marker 时 apply_pending_rebuild 返回空集合（启动为 no-op）；marker 为 “{” 时以 “decode database rebuild marker” 失败；含未知库 id 时以 “unknown database id” 失败；两种情况 marker 都保留、源库不被删除。",
+      "conclusion": "partial：Rust 断言无 marker 时 apply 为空、损坏与未知库 marker 使组合启动失败且 marker 保留；但 Go 同测的 CompletePending 半侧（无 marker 时 complete 为空、缺失库 complete 失败）无对应。回归要求：complete 阶段空与失败断言。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-      "evidence_type": "function_exact",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/datamigration/manager_boundaries_test.go",
         "line": 74,
@@ -26972,10 +26992,10 @@
         }
       ],
       "assertionCoverage": {
-        "covered": [
-          "function_exact：无 marker 时 apply_pending_rebuild 返回空集合（启动为 no-op）；marker 为 “{” 时以 “decode database rebuild marker” 失败；含未知库 id 时以 “unknown database id” 失败；两种情况 marker 都保留、源库不被删除。"
+        "covered": [],
+        "uncovered": [
+          "partial：Rust 断言无 marker 时 apply 为空、损坏与未知库 marker 使组合启动失败且 marker 保留；但 Go 同测的 CompletePending 半侧（无 marker 时 complete 为空、缺失库 complete 失败）无对应。回归要求：complete 阶段空与失败断言。"
         ],
-        "uncovered": [],
         "source": "legacy-conclusion"
       },
       "verification": {
@@ -27002,23 +27022,23 @@
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "function_exact：无 marker 时 apply_pending_rebuild 返回空集合（启动为 no-op）；marker 为 “{” 时以 “decode database rebuild marker” 失败；含未知库 id 时以 “unknown database id” 失败；两种情况 marker 都保留、源库不被删除。"
+      "coveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial：Rust 断言无 marker 时 apply 为空、损坏与未知库 marker 使组合启动失败且 marker 保留；但 Go 同测的 CompletePending 半侧（无 marker 时 complete 为空、缺失库 complete 失败）无对应。回归要求：complete 阶段空与失败断言。"
       ],
-      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/app/apiserver/datamigration/manager_boundaries_test.go:108:TestInspectDatabaseClassifiesFilesystemAndSchemaStates": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "crates/jftrade-store-sqlite/tests/maintenance_overview_and_cleanup_contracts.rs::database_inspection_classifies_filesystem_and_schema_states",
-      "conclusion": "function_exact：缺失文件 → missing 且 currentVersion=None；路径是目录 → unavailable 且 error 含 “not a regular file”；只有 legacy 表 → incompatible 且 error 含 “schema metadata is missing”；正常库 → ready 且 currentVersion=descriptor.expectedVersion。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-datamanagement --all-targets --locked",
-      "evidence_type": "function_exact",
+      "conclusion": "partial：Rust 断言缺失/目录/纯 legacy/正常四态分类；但 Go 同测的版本号漂移簇（version+1 → incompatible、currentVersion 置位、版本不匹配错误）无对应。回归要求：版本漂移分类断言。",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/datamigration/manager_boundaries_test.go",
         "line": 108,
@@ -27039,10 +27059,10 @@
         }
       ],
       "assertionCoverage": {
-        "covered": [
-          "function_exact：缺失文件 → missing 且 currentVersion=None；路径是目录 → unavailable 且 error 含 “not a regular file”；只有 legacy 表 → incompatible 且 error 含 “schema metadata is missing”；正常库 → ready 且 currentVersion=descriptor.expectedVersion。"
+        "covered": [],
+        "uncovered": [
+          "partial：Rust 断言缺失/目录/纯 legacy/正常四态分类；但 Go 同测的版本号漂移簇（version+1 → incompatible、currentVersion 置位、版本不匹配错误）无对应。回归要求：版本漂移分类断言。"
         ],
-        "uncovered": [],
         "source": "legacy-conclusion"
       },
       "verification": {
@@ -27052,8 +27072,6 @@
           "run",
           "-p",
           "jftrade-store-sqlite",
-          "-p",
-          "jftrade-datamanagement",
           "--all-targets",
           "--locked"
         ],
@@ -27071,15 +27089,15 @@
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "function_exact：缺失文件 → missing 且 currentVersion=None；路径是目录 → unavailable 且 error 含 “not a regular file”；只有 legacy 表 → incompatible 且 error 含 “schema metadata is missing”；正常库 → ready 且 currentVersion=descriptor.expectedVersion。"
+      "coveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial：Rust 断言缺失/目录/纯 legacy/正常四态分类；但 Go 同测的版本号漂移簇（version+1 → incompatible、currentVersion 置位、版本不匹配错误）无对应。回归要求：版本漂移分类断言。"
       ],
-      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/app/apiserver/datamigration/manager_boundaries_test.go:163:TestInspectDatabaseRejectsManifestDrift": {
@@ -27152,11 +27170,11 @@
       "boundaryReason": null
     },
     "internal/app/apiserver/datamigration/manager_boundaries_test.go:187:TestManagerMarkerPersistenceNormalizesAndSurfacesFilesystemErrors": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "crates/jftrade-store-sqlite/tests/maintenance_overview_and_cleanup_contracts.rs::overview_normalizes_rebuild_marker_ids_and_fails_closed_when_it_is_unreadable",
-      "conclusion": "function_exact：marker {\"databaseIds\":[\" strategy \",\"\",\"adk\",\"strategy\"]} 被 trim/去重/排序后只标记 strategy、adk（restartRequired 同步为 true）；marker 变成目录后 scheduled_rebuilds 失败使整次 overview 以 OverviewError::RebuildMarker 失败（fail-closed）。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-datamanagement --all-targets --locked",
-      "evidence_type": "function_exact",
+      "conclusion": "partial：Rust 断言 marker id 归一化与目录化 marker 使 overview 整失败；但 Go 同测的原子写失败模式（blocked 父目录、symlink 临时文件、blocked 改名、write/close 故障注入）均无对应。回归要求：marker 原子写失败模式测试。",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/datamigration/manager_boundaries_test.go",
         "line": 187,
@@ -27177,10 +27195,10 @@
         }
       ],
       "assertionCoverage": {
-        "covered": [
-          "function_exact：marker {\"databaseIds\":[\" strategy \",\"\",\"adk\",\"strategy\"]} 被 trim/去重/排序后只标记 strategy、adk（restartRequired 同步为 true）；marker 变成目录后 scheduled_rebuilds 失败使整次 overview 以 OverviewError::RebuildMarker 失败（fail-closed）。"
+        "covered": [],
+        "uncovered": [
+          "partial：Rust 断言 marker id 归一化与目录化 marker 使 overview 整失败；但 Go 同测的原子写失败模式（blocked 父目录、symlink 临时文件、blocked 改名、write/close 故障注入）均无对应。回归要求：marker 原子写失败模式测试。"
         ],
-        "uncovered": [],
         "source": "legacy-conclusion"
       },
       "verification": {
@@ -27190,8 +27208,6 @@
           "run",
           "-p",
           "jftrade-store-sqlite",
-          "-p",
-          "jftrade-datamanagement",
           "--all-targets",
           "--locked"
         ],
@@ -27209,15 +27225,15 @@
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "function_exact：marker {\"databaseIds\":[\" strategy \",\"\",\"adk\",\"strategy\"]} 被 trim/去重/排序后只标记 strategy、adk（restartRequired 同步为 true）；marker 变成目录后 scheduled_rebuilds 失败使整次 overview 以 OverviewError::RebuildMarker 失败（fail-closed）。"
+      "coveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial：Rust 断言 marker id 归一化与目录化 marker 使 overview 整失败；但 Go 同测的原子写失败模式（blocked 父目录、symlink 临时文件、blocked 改名、write/close 故障注入）均无对应。回归要求：marker 原子写失败模式测试。"
       ],
-      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/app/apiserver/datamigration/manager_boundaries_test.go:280:TestManagerPropagatesUnreadableMarkerAndDatabaseStatErrors": {
@@ -27299,11 +27315,11 @@
       "boundaryReason": null
     },
     "internal/app/apiserver/datamigration/manager_test.go:14:TestManagerSchedulesSingleAndBatchRebuilds": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "crates/jftrade-store-sqlite/tests/maintenance_backup_and_rebuild_contracts.rs::batch_rebuild_schedules_every_incompatible_database",
-      "conclusion": "function_exact：两个 legacy 库在 mode=incompatible + 批确认文本下被同时调度，databaseIds 排序为 [adk, watchlist]，restartRequired/scheduled=true，marker 为每个被调度库保留一份已校验快照；single 模式的确认/白名单校验由 rebuild_selection_rejects_ambiguous_ids_and_an_empty_incompatible_batch 覆盖。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-datamanagement --all-targets --locked",
-      "evidence_type": "function_exact",
+      "conclusion": "partial：Rust 仅断言 incompatible 批量调度（库集合、排序、重启标记、快照）；Go 同测的 single 模式三簇（错误确认、未知 id 白名单、健康库调度成功且 RestartRequired）无对应。回归要求：single 模式确认/白名单/成功断言。",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/datamigration/manager_test.go",
         "line": 14,
@@ -27324,10 +27340,10 @@
         }
       ],
       "assertionCoverage": {
-        "covered": [
-          "function_exact：两个 legacy 库在 mode=incompatible + 批确认文本下被同时调度，databaseIds 排序为 [adk, watchlist]，restartRequired/scheduled=true，marker 为每个被调度库保留一份已校验快照；single 模式的确认/白名单校验由 rebuild_selection_rejects_ambiguous_ids_and_an_empty_incompatible_batch 覆盖。"
+        "covered": [],
+        "uncovered": [
+          "partial：Rust 仅断言 incompatible 批量调度（库集合、排序、重启标记、快照）；Go 同测的 single 模式三簇（错误确认、未知 id 白名单、健康库调度成功且 RestartRequired）无对应。回归要求：single 模式确认/白名单/成功断言。"
         ],
-        "uncovered": [],
         "source": "legacy-conclusion"
       },
       "verification": {
@@ -27337,8 +27353,6 @@
           "run",
           "-p",
           "jftrade-store-sqlite",
-          "-p",
-          "jftrade-datamanagement",
           "--all-targets",
           "--locked"
         ],
@@ -27356,23 +27370,23 @@
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "function_exact：两个 legacy 库在 mode=incompatible + 批确认文本下被同时调度，databaseIds 排序为 [adk, watchlist]，restartRequired/scheduled=true，marker 为每个被调度库保留一份已校验快照；single 模式的确认/白名单校验由 rebuild_selection_rejects_ambiguous_ids_and_an_empty_incompatible_batch 覆盖。"
+      "coveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial：Rust 仅断言 incompatible 批量调度（库集合、排序、重启标记、快照）；Go 同测的 single 模式三簇（错误确认、未知 id 白名单、健康库调度成功且 RestartRequired）无对应。回归要求：single 模式确认/白名单/成功断言。"
       ],
-      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/app/apiserver/datamigration/manager_test.go:49:TestManagerScheduleRebuildSharesMaintenanceLocks": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "crates/jftrade-store-sqlite/tests/maintenance_backup_and_rebuild_contracts.rs::a_held_writer_lease_rejects_maintenance_before_any_snapshot_is_written",
-      "conclusion": "function_exact：持有某库 WriterLease 时 backup 与 rebuild 均失败（租约错误），且不写快照、不写 marker、不改动源库；批量为多库时先拿到的锁在后续失败后回滚（a_held_lease_on_one_database_rolls_back_the_batch_rebuild_locks）。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-datamanagement --all-targets --locked",
-      "evidence_type": "function_exact",
+      "conclusion": "partial：Rust 断言持有 per-db WriterLease 时 backup 与 rebuild 均失败且无快照/marker/源改动；但 Go 同测的全局 backupLock 维度（备份进行中调度冲突）与 rebuild 冲突的类型化错误文本无对应。回归要求：全局备份互斥断言或显式边界声明。",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/datamigration/manager_test.go",
         "line": 49,
@@ -27393,10 +27407,10 @@
         }
       ],
       "assertionCoverage": {
-        "covered": [
-          "function_exact：持有某库 WriterLease 时 backup 与 rebuild 均失败（租约错误），且不写快照、不写 marker、不改动源库；批量为多库时先拿到的锁在后续失败后回滚（a_held_lease_on_one_database_rolls_back_the_batch_rebuild_locks）。"
+        "covered": [],
+        "uncovered": [
+          "partial：Rust 断言持有 per-db WriterLease 时 backup 与 rebuild 均失败且无快照/marker/源改动；但 Go 同测的全局 backupLock 维度（备份进行中调度冲突）与 rebuild 冲突的类型化错误文本无对应。回归要求：全局备份互斥断言或显式边界声明。"
         ],
-        "uncovered": [],
         "source": "legacy-conclusion"
       },
       "verification": {
@@ -27406,8 +27420,6 @@
           "run",
           "-p",
           "jftrade-store-sqlite",
-          "-p",
-          "jftrade-datamanagement",
           "--all-targets",
           "--locked"
         ],
@@ -27425,15 +27437,15 @@
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "function_exact：持有某库 WriterLease 时 backup 与 rebuild 均失败（租约错误），且不写快照、不写 marker、不改动源库；批量为多库时先拿到的锁在后续失败后回滚（a_held_lease_on_one_database_rolls_back_the_batch_rebuild_locks）。"
+      "coveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial：Rust 断言持有 per-db WriterLease 时 backup 与 rebuild 均失败且无快照/marker/源改动；但 Go 同测的全局 backupLock 维度（备份进行中调度冲突）与 rebuild 冲突的类型化错误文本无对应。回归要求：全局备份互斥断言或显式边界声明。"
       ],
-      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/app/apiserver/datamigration/manager_test.go:75:TestManagerDescriptorsMatchSchemaCatalog": {
@@ -27506,11 +27518,11 @@
       "boundaryReason": null
     },
     "internal/app/apiserver/datamigration/manager_test.go:100:TestManagerApplyPendingDeletesOnlySelectedDatabaseFiles": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_data_management_pending_rebuild_tests.rs::startup_applies_a_pending_rebuild_only_to_the_selected_databases",
-      "conclusion": "function_exact：调度 adk 重建后启动：adk 被删除并按新库重建（行数归零）、strategy 行保留、非选中文件不受影响、初始化成功后 marker 被清除；被删除库按“新文件”路径重建（existed 判定在 apply 后重算）。",
+      "conclusion": "partial：Rust 断言合并启动后选中库被清空重建、他库保留行、marker 清除；但 Go 同测的文件级契约（选中库 db/wal/shm 三文件删除、settings 等非库文件不动、apply 后 marker 保留至 CompletePending 后清除）无直接断言。回归要求：直调 apply 断言文件集与 marker 中间态（与 server_test.go:472 同一项可共用）。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-      "evidence_type": "function_exact",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/datamigration/manager_test.go",
         "line": 100,
@@ -27531,10 +27543,10 @@
         }
       ],
       "assertionCoverage": {
-        "covered": [
-          "function_exact：调度 adk 重建后启动：adk 被删除并按新库重建（行数归零）、strategy 行保留、非选中文件不受影响、初始化成功后 marker 被清除；被删除库按“新文件”路径重建（existed 判定在 apply 后重算）。"
+        "covered": [],
+        "uncovered": [
+          "partial：Rust 断言合并启动后选中库被清空重建、他库保留行、marker 清除；但 Go 同测的文件级契约（选中库 db/wal/shm 三文件删除、settings 等非库文件不动、apply 后 marker 保留至 CompletePending 后清除）无直接断言。回归要求：直调 apply 断言文件集与 marker 中间态（与 server_test.go:472 同一项可共用）。"
         ],
-        "uncovered": [],
         "source": "legacy-conclusion"
       },
       "verification": {
@@ -27561,15 +27573,15 @@
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "function_exact：调度 adk 重建后启动：adk 被删除并按新库重建（行数归零）、strategy 行保留、非选中文件不受影响、初始化成功后 marker 被清除；被删除库按“新文件”路径重建（existed 判定在 apply 后重算）。"
+      "coveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial：Rust 断言合并启动后选中库被清空重建、他库保留行、marker 清除；但 Go 同测的文件级契约（选中库 db/wal/shm 三文件删除、settings 等非库文件不动、apply 后 marker 保留至 CompletePending 后清除）无直接断言。回归要求：直调 apply 断言文件集与 marker 中间态（与 server_test.go:472 同一项可共用）。"
       ],
-      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/app/apiserver/datamigration/manager_test.go:145:TestManagerApplyPendingRejectsTamperedBackupBeforeDeletingAnySource": {
@@ -28050,11 +28062,11 @@
       "boundaryReason": null
     },
     "internal/app/apiserver/datamigration/rebuild_safety_test.go:177:TestRebuildSelectionAndLockRollbackBoundaries": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "crates/jftrade-store-sqlite/tests/maintenance_backup_and_rebuild_contracts.rs::a_held_lease_on_one_database_rolls_back_the_batch_rebuild_locks",
-      "conclusion": "function_exact：批量（incompatible）重建时，第二个库的租约被占用 → 整批失败、先前库的锁被回滚（随后对第一个库 backup 成功）、不写 marker、不写快照；选择和不可用边界由 rebuild_selection_rejects_ambiguous_ids_and_an_empty_incompatible_batch 覆盖。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-datamanagement --all-targets --locked",
-      "evidence_type": "function_exact",
+      "conclusion": "partial：Rust 断言批量重建中第二库租约被占时整批失败、先前锁回滚、无 marker 快照；但 Go 同测的 selectRebuildIDs 选择边界（unavailable、空 incompatible、缺失 status 条目）无对应。回归要求：选择边界三项断言。",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/datamigration/rebuild_safety_test.go",
         "line": 177,
@@ -28075,10 +28087,10 @@
         }
       ],
       "assertionCoverage": {
-        "covered": [
-          "function_exact：批量（incompatible）重建时，第二个库的租约被占用 → 整批失败、先前库的锁被回滚（随后对第一个库 backup 成功）、不写 marker、不写快照；选择和不可用边界由 rebuild_selection_rejects_ambiguous_ids_and_an_empty_incompatible_batch 覆盖。"
+        "covered": [],
+        "uncovered": [
+          "partial：Rust 断言批量重建中第二库租约被占时整批失败、先前锁回滚、无 marker 快照；但 Go 同测的 selectRebuildIDs 选择边界（unavailable、空 incompatible、缺失 status 条目）无对应。回归要求：选择边界三项断言。"
         ],
-        "uncovered": [],
         "source": "legacy-conclusion"
       },
       "verification": {
@@ -28088,8 +28100,6 @@
           "run",
           "-p",
           "jftrade-store-sqlite",
-          "-p",
-          "jftrade-datamanagement",
           "--all-targets",
           "--locked"
         ],
@@ -28107,15 +28117,15 @@
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "function_exact：批量（incompatible）重建时，第二个库的租约被占用 → 整批失败、先前库的锁被回滚（随后对第一个库 backup 成功）、不写 marker、不写快照；选择和不可用边界由 rebuild_selection_rejects_ambiguous_ids_and_an_empty_incompatible_batch 覆盖。"
+      "coveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial：Rust 断言批量重建中第二库租约被占时整批失败、先前锁回滚、无 marker 快照；但 Go 同测的 selectRebuildIDs 选择边界（unavailable、空 incompatible、缺失 status 条目）无对应。回归要求：选择边界三项断言。"
       ],
-      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/app/apiserver/datamigration/rebuild_safety_test.go:211:TestScheduleRebuildLockedPropagatesUnreadableMarker": {
@@ -28252,11 +28262,11 @@
       "boundaryReason": null
     },
     "internal/app/apiserver/datamigration/research_lifecycle_test.go:13:TestResearchDatabaseParticipatesInStatusBackupAndRebuild": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "crates/jftrade-store-sqlite/tests/maintenance_backup_and_rebuild_contracts.rs::research_database_participates_in_status_backup_and_rebuild",
-      "conclusion": "function_exact：research 是第 9 个受管库；初始化后 current_version=1（status ready 由 managed_descriptors_match_the_pinned_schema_catalog/overview 用例覆盖）；backup 返回 research 快照且文件存在；单库重建调度返回 [research] 且 marker 记录该库快照（启动阶段删除/重建由 pending_rebuild 用例覆盖）。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-datamanagement --all-targets --locked",
-      "evidence_type": "function_exact",
+      "conclusion": "partial：Rust 断言 research 受管（版本 1）、backup 返回快照文件、单库调度记录 marker；但 Go 同测的 apply 删除 research 库、重开成功、CompletePending 成功三簇无对应。回归要求：research 端到端 apply/重开/complete 断言。",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/datamigration/research_lifecycle_test.go",
         "line": 13,
@@ -28277,10 +28287,10 @@
         }
       ],
       "assertionCoverage": {
-        "covered": [
-          "function_exact：research 是第 9 个受管库；初始化后 current_version=1（status ready 由 managed_descriptors_match_the_pinned_schema_catalog/overview 用例覆盖）；backup 返回 research 快照且文件存在；单库重建调度返回 [research] 且 marker 记录该库快照（启动阶段删除/重建由 pending_rebuild 用例覆盖）。"
+        "covered": [],
+        "uncovered": [
+          "partial：Rust 断言 research 受管（版本 1）、backup 返回快照文件、单库调度记录 marker；但 Go 同测的 apply 删除 research 库、重开成功、CompletePending 成功三簇无对应。回归要求：research 端到端 apply/重开/complete 断言。"
         ],
-        "uncovered": [],
         "source": "legacy-conclusion"
       },
       "verification": {
@@ -28290,8 +28300,6 @@
           "run",
           "-p",
           "jftrade-store-sqlite",
-          "-p",
-          "jftrade-datamanagement",
           "--all-targets",
           "--locked"
         ],
@@ -28309,15 +28317,15 @@
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "function_exact：research 是第 9 个受管库；初始化后 current_version=1（status ready 由 managed_descriptors_match_the_pinned_schema_catalog/overview 用例覆盖）；backup 返回 research 快照且文件存在；单库重建调度返回 [research] 且 marker 记录该库快照（启动阶段删除/重建由 pending_rebuild 用例覆盖）。"
+      "coveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial：Rust 断言 research 受管（版本 1）、backup 返回快照文件、单库调度记录 marker；但 Go 同测的 apply 删除 research 库、重开成功、CompletePending 成功三簇无对应。回归要求：research 端到端 apply/重开/complete 断言。"
       ],
-      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/app/apiserver/desktop_api_startup_test.go:40:TestAPIServerHelperBoundaries": {
@@ -307921,10 +307929,11 @@
       "reviewStatus": "single"
     },
     "crates/jftrade-store-sqlite/src/maintenance_backup_retention.rs::managed_backup_discovery_parses_only_canonical_filenames": {
-      "referenceCount": 2,
+      "referenceCount": 3,
       "referenceKeys": [
         "internal/app/apiserver/datamigration/maintenance_failure_paths_test.go:109:TestMaintenanceDatabaseInspectionAndBackupRetentionFailuresStayLocal",
-        "internal/app/apiserver/datamigration/managed_backup_retention_test.go:61:TestManagedBackupFileDiscoveryAndFilenameBoundaries"
+        "internal/app/apiserver/datamigration/managed_backup_retention_test.go:61:TestManagedBackupFileDiscoveryAndFilenameBoundaries",
+        "internal/app/apiserver/datamigration/maintenance_failure_paths_test.go:358:TestBackupRetentionEvictsQuotaPressureAcrossDatabaseFiles"
       ],
       "allowed": false,
       "reviewStatus": "unreviewed"
@@ -310579,6 +310588,14 @@
       "referenceCount": 1,
       "referenceKeys": [
         "pkg/broker/catalog_test.go:141:TestCapabilityCatalogValidationAndOrderingBranches"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-store-sqlite/src/maintenance_backup_retention.rs::backup_retention_never_evicts_snapshots_a_rebuild_marker_references": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/app/apiserver/datamigration/maintenance_failure_paths_test.go:394:TestBackupRetentionNeverEvictsRebuildMarkerSnapshots"
       ],
       "allowed": true,
       "reviewStatus": "single"
