@@ -489,3 +489,33 @@ chartType 保留与未知值静默清空、审计明细文案、params 回退与
 `check:zero-go`、`check:quick`（单实例）、`git diff --check`。
 
 下一片：strategy_pine 余量按文件行号继续（pine_live_command/pine_live_executor/pineruntime 等）。
+
+## 第 130 批 06B 切片五：pine_live_command/pineruntime 23 条 recon（2026-09-24）
+
+范围：`internal/strategy/pine_live_command_test.go`（11：partial 9 + boundary 2）、
+`internal/strategy/pineruntime/recovery_contracts_test.go`（1：boundary 1）、
+`internal/strategy/pineruntime/runner_lifecycle_test.go`（4：partial 4）、
+`internal/strategy/pineruntime/runtime_failure_contracts_test.go`（7：partial 7）。
+
+方法：Go 体逐条核对结论；全部 Rust 引用测试逐一确认存在（rg 全命中 15 个去重条目）；
+boundary 核对结构 claim（引擎意图层确无 OCO 展开逻辑、nil 接收者归类型系统）；
+partial 高风险项（作用域退出数量保留、条件单类型、容量等待取消、关停排空、worker 上限映射）
+抽查 Go 体与 Rust 用例体，确认“引用存在但断言不等价”口径诚实。
+
+结论：23 条 verdict 全部成立，无判定变更、无代码变更——
+pine_live_command 9 partial 均诚实（方向归一/数量百分比/失败关闭落在执行结果而非命令 DTO、
+时间戳数值由 wire DTO 承担、缺省数量与条件触发无同形断言）；
+2 boundary 属实（OCO 展开与括号拒绝归 backtest 撮合 owner，引擎侧不再展开）；
+recovery boundary 属实（nil 接收者编译器排除）；
+runner_lifecycle 4 partial 相符（无 done channel/容量归还语义，池 pin + readiness monitor 组合承担）；
+runtime_failure 7 partial 相符（含 :30 worker 上限映射缺失 P1、:99 排队等待缺失 P1、
+:171 关停排空缺失 P1、:52/:76 回落与发布层缺失 P2）。
+抽查 Rust 用例体（quantity_pct/close_short/unknown_risk/wire 枚举/closed 布尔/pool CapacityExceeded
+即时拒绝）与结论描述一致，无夸大引用。
+附带核实审计提醒项：当前工作区 [x] Rust 条目重复组为 0（已解），审计通过后再跑生成器。
+
+验证：`audit_test_parity.py --write-report` exit 0；`parity_anchor_reconcile.py` 过；
+`cargo fmt -p jftrade-engine -- --check`、`check:ai-context`、`check:migration-manifest`、
+`check:zero-go`、`check:quick`（单实例）、`git diff --check`。
+
+下一片：strategy_pine 余量按文件行号继续（pine_live_executor 24 条 + pineruntime/runtime_test 13 条）。
