@@ -5932,3 +5932,38 @@ system 2、watchlist 1）；servercoretest 59 条至此全部复核完毕。
 `git diff --check` 干净；无 Rust 生产改动。
 
 下一片：130-09 切片三十三，servercore 50 条 `[x]`。
+## 第 130 批 09 切片三十三甲：servercore 前 25 条含 3 处纠正与 2 处补证（2026-09-24）
+
+范围：`internal/app/apiserver/servercore` 前 25 条 `[x]`（data_management 4、
+desktop_token 2、exec/trading 2、volume 3、depth/details/resolver/realtime 4、
+notifications 2、openapi 2、observability 2、runtime 观察轮询通知 3、risk 1）。
+
+方法：Go 体全读；31 个具名引用全存在（0 缺失）；逐字比对。
+
+3 处纠正（`[x]` 降为 partial，`[x]` 1486→1483）：
+
+- data_management `:191`：限流映射缺失为台账自认（批次 70 已登记 P2），
+  verdict 须诚实为 partial。
+- runtime_polling `:14`：Rust 仅断言重复轮询幂等，题眼“停滞后轮询推进”
+  （下单与观察时间戳）无对应。
+- market_details_ws `:11`：REST 快照半侧成立，但题眼 WS 订阅首帧经 socket
+  投递无 Rust 用例。
+
+2 处补证（维持 `[x]`，只加台账证据，reuse 同步 2 项）：
+
+- runtime_trading `:123`：加执行层拒单接线用例为第二证据（零下单、审计、
+  暂停）。
+- data_management `:124`：加路由层 stale 不变异用例为第三证据。
+
+其余 20 条维持 `[x]`（忙时拒绝、清理压缩实测字节、桌面受信与会话、成交量
+精度与拒绝、深度首帧 corpus、通知映射与投递、swagger 重定向与注册、观测
+注入与替换、崩溃收敛、notify-only、close_only 判定均逐项命中）。
+
+缺口 owner 与回归：限流 wire 映射、轮询推进端到端、WS 详情初始帧；
+回归要求见各行 uncoveredAssertions。
+
+验证：`audit_test_parity.py --write-report` exit 0（1483 exact；dup 0）；
+`parity_anchor_reconcile.py` 过（1742/1696/0/0/46）；受影响定向 nextest 31/31；
+`git diff --check` 干净；无 Rust 生产改动。
+
+下一片：130-09 切片三十三乙，servercore 后 25 条 `[x]`。

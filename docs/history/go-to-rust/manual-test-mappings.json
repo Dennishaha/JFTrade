@@ -43726,8 +43726,8 @@
     },
     "internal/app/apiserver/servercore/data_management_test.go:124:TestDataManagementAdaptersRejectBusyRuntimeAndMapStalePreview": {
       "status": "[x]",
-      "rust_entry": "crates/jftrade-datamanagement/src/lib.rs::busy_owner_blocks_preview_and_execute_without_mutation; crates/jftrade-store-sqlite/tests/maintenance_overview_and_cleanup_contracts.rs::cleanup_preview_requires_a_ready_database_with_the_purgeable_table",
-      "conclusion": "function_exact：Go 断言忙运行时拒绝清理且过期预览映射为 stale；Rust 断言 busy owner 阻断预览与执行且零改写，另断言预览要求数据库 ready 且含可清理表（过期预览由十分钟 TTL 测试覆盖）。",
+      "rust_entry": "crates/jftrade-datamanagement/src/lib.rs::busy_owner_blocks_preview_and_execute_without_mutation; crates/jftrade-store-sqlite/tests/maintenance_overview_and_cleanup_contracts.rs::cleanup_preview_requires_a_ready_database_with_the_purgeable_table; crates/jftrade-engine/src/product_tests.rs::cleanup_preview_route_returns_candidates_and_rejects_bad_payloads",
+      "conclusion": "function_exact：忙时拒绝由 busy owner 断言（零改写）；候选变更后执行变 stale 由路由层用例补证（CLEANUP_PREVIEW_STALE 且不变异）；预览就绪门由 ready 数据库断言。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-datamanagement -E 'test(busy_owner_blocks_preview_and_execute_without_mutation)'",
       "evidence_type": "function_exact",
       "source": {
@@ -43753,11 +43753,22 @@
           "test": "cleanup_preview_requires_a_ready_database_with_the_purgeable_table",
           "crate": "jftrade-store-sqlite",
           "anchor": null
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_tests.rs",
+          "test": "cleanup_preview_route_returns_candidates_and_rejects_bad_payloads",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/app/apiserver/servercore/data_management_test.go",
+            "goLine": 124,
+            "rustFile": "crates/jftrade-engine/src/product_tests.rs",
+            "rustLine": 1324
+          }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "function_exact：Go 断言忙运行时拒绝清理且过期预览映射为 stale；Rust 断言 busy owner 阻断预览与执行且零改写，另断言预览要求数据库 ready 且含可清理表（过期预览由十分钟 TTL 测试覆盖）。"
+          "function_exact：忙时拒绝、stale 不变异、预览就绪门。"
         ],
         "uncovered": [],
         "source": "legacy-conclusion"
@@ -43774,7 +43785,8 @@
         ],
         "testFilter": [
           "busy_owner_blocks_preview_and_execute_without_mutation",
-          "cleanup_preview_requires_a_ready_database_with_the_purgeable_table"
+          "cleanup_preview_requires_a_ready_database_with_the_purgeable_table",
+          "cleanup_preview_route_returns_candidates_and_rejects_bad_payloads"
         ],
         "runnerVersion": null,
         "toolchain": null,
@@ -43793,17 +43805,17 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "function_exact：Go 断言忙运行时拒绝清理且过期预览映射为 stale；Rust 断言 busy owner 阻断预览与执行且零改写，另断言预览要求数据库 ready 且含可清理表（过期预览由十分钟 TTL 测试覆盖）。"
+        "function_exact：忙时拒绝零改写；候选变更后 stale 且不变异；预览就绪门。"
       ],
       "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/app/apiserver/servercore/data_management_test.go:191:TestTranslateDataManagementErrors": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_tests.rs::cleanup_preview_route_returns_candidates_and_rejects_bad_payloads",
-      "conclusion": "function_exact：Go 断言 datamigration 错误翻译到 datamanagement 错误（冲突/预览缺失/过期/限流/配额）；Rust 路由测试断言 CLEANUP_PREVIEW_STALE 与 DATABASE_CLEANUP_PREVIEW_REJECTED 等 wire 错误码，维护冲突映射为 409 DATABASE_MAINTENANCE_CONFLICT（product_wire）。Go 的 ErrBackupRateLimited 限流在 Rust 仍缺失（P2，批次 70 已登记）。",
+      "conclusion": "partial：冲突/预览缺失/过期/配额映射与上下文取消透传成立；但 Go 表驱动第 5 行 ErrBackupRateLimited→ErrBackupRateLimited 限流映射在 Rust 缺失（台账自认，批次 70 已登记 P2）。回归要求：限流错误 wire 映射与其测试。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(cleanup_preview_route_returns_candidates_and_rejects_bad_payloads)'",
-      "evidence_type": "function_exact",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/servercore/data_management_test.go",
         "line": 191,
@@ -43824,10 +43836,10 @@
         }
       ],
       "assertionCoverage": {
-        "covered": [
-          "function_exact：Go 断言 datamigration 错误翻译到 datamanagement 错误（冲突/预览缺失/过期/限流/配额）；Rust 路由测试断言 CLEANUP_PREVIEW_STALE 与 DATABASE_CLEANUP_PREVIEW_REJECTED 等 wire 错误码，维护冲突映射为 409 DATABASE_MAINTENANCE_CONFLICT（product_wire）。Go 的 ErrBackupRateLimited 限流在 Rust 仍缺失（P2，批次 70 已登记）。"
+        "covered": [],
+        "uncovered": [
+          "partial：冲突/预览缺失/过期/配额映射与上下文取消透传成立；但 Go 表驱动第 5 行 ErrBackupRateLimited→ErrBackupRateLimited 限流映射在 Rust 缺失（台账自认，批次 70 已登记 P2）。回归要求：限流错误 wire 映射与其测试。"
         ],
-        "uncovered": [],
         "source": "legacy-conclusion"
       },
       "verification": {
@@ -43854,15 +43866,15 @@
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "function_exact：Go 断言 datamigration 错误翻译到 datamanagement 错误（冲突/预览缺失/过期/限流/配额）；Rust 路由测试断言 CLEANUP_PREVIEW_STALE 与 DATABASE_CLEANUP_PREVIEW_REJECTED 等 wire 错误码，维护冲突映射为 409 DATABASE_MAINTENANCE_CONFLICT（product_wire）。Go 的 ErrBackupRateLimited 限流在 Rust 仍缺失（P2，批次 70 已登记）。"
+      "coveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial：冲突/预览缺失/过期/配额映射与上下文取消透传成立；但 Go 表驱动第 5 行 ErrBackupRateLimited→ErrBackupRateLimited 限流映射在 Rust 缺失（台账自认，批次 70 已登记 P2）。回归要求：限流错误 wire 映射与其测试。"
       ],
-      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/app/apiserver/servercore/desktop_token_test.go:14:TestDesktopTokenMiddlewareProtectsHTTPAndWebSocket": {
@@ -45095,11 +45107,11 @@
       "boundaryReason": null
     },
     "internal/app/apiserver/servercore/market_details_ws_test.go:11:TestMarketSecurityDetailsWebSocketSendsInitialPayload": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::securities_route_queries_the_security_snapshot_once; crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::futu_securities_route_projects_broker_neutral_envelope_boundary",
-      "conclusion": "function_exact：Go 断言证券详情 WS 首帧只查询一次快照；Rust 断言 securities 路由只做一次快照查询且不暴露 cache 标记（wire 形状与 Go 对齐）。",
+      "conclusion": "partial：REST 快照一次查询与包络成立；但 Go 题眼为 WS 订阅首帧（market.security-details 事件类型/source/request/security 载荷经 socket 投递），Rust 无 WS 初始帧用例（仅有订阅归一与帧类型投影）。回归要求：WS 订阅→证券详情初始帧内容断言（或 corpus 用例）。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(securities_route_queries_the_security_snapshot_once)'",
-      "evidence_type": "function_exact",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/servercore/market_details_ws_test.go",
         "line": 11,
@@ -45131,10 +45143,10 @@
         }
       ],
       "assertionCoverage": {
-        "covered": [
-          "function_exact：Go 断言证券详情 WS 首帧只查询一次快照；Rust 断言 securities 路由只做一次快照查询且不暴露 cache 标记（wire 形状与 Go 对齐）。"
+        "covered": [],
+        "uncovered": [
+          "partial：REST 快照一次查询与包络成立；但 Go 题眼为 WS 订阅首帧（market.security-details 事件类型/source/request/security 载荷经 socket 投递），Rust 无 WS 初始帧用例（仅有订阅归一与帧类型投影）。回归要求：WS 订阅→证券详情初始帧内容断言（或 corpus 用例）。"
         ],
-        "uncovered": [],
         "source": "legacy-conclusion"
       },
       "verification": {
@@ -45162,15 +45174,15 @@
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "function_exact：Go 断言证券详情 WS 首帧只查询一次快照；Rust 断言 securities 路由只做一次快照查询且不暴露 cache 标记（wire 形状与 Go 对齐）。"
+      "coveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial：REST 快照一次查询与包络成立；但 Go 题眼为 WS 订阅首帧（market.security-details 事件类型/source/request/security 载荷经 socket 投递），Rust 无 WS 初始帧用例（仅有订阅归一与帧类型投影）。回归要求：WS 订阅→证券详情初始帧内容断言（或 corpus 用例）。"
       ],
-      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/app/apiserver/servercore/market_instrument_resolver_test.go:13:TestMarketInstrumentResolverEndpointUsesSearchWithoutQuoteSubscription": {
@@ -47294,11 +47306,11 @@
       "boundaryReason": null
     },
     "internal/app/apiserver/servercore/runtime_polling_test.go:14:TestStrategyRuntimePollsClosedKLinesWhenTradePushStalls": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "crates/jftrade-engine/tests/strategy_runtime_candle_lifecycle_tests.rs::test_duplicate_polls_on_same_closed_bar_are_idempotent",
-      "conclusion": "function_exact：Go 断言 trade push 停滞后轮询收口 K 线仍推进策略；Rust 断言同一收口 bar 的重复轮询幂等（不重复触发 Pine/下单），轮询是推进来源。",
+      "conclusion": "partial：Rust 仅断言同一收口 bar 重复轮询幂等（不重复触发）；Go 题眼“停滞后轮询推进策略”（3 笔下单与 observation 时间戳）无对应，多 bar 追赶用例亦只覆盖单元过滤逻辑。回归要求：轮询发现新收口 bar 即推进策略（下单/观察）的端到端断言。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(test_duplicate_polls_on_same_closed_bar_are_idempotent)'",
-      "evidence_type": "function_exact",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/servercore/runtime_polling_test.go",
         "line": 14,
@@ -47319,10 +47331,10 @@
         }
       ],
       "assertionCoverage": {
-        "covered": [
-          "function_exact：Go 断言 trade push 停滞后轮询收口 K 线仍推进策略；Rust 断言同一收口 bar 的重复轮询幂等（不重复触发 Pine/下单），轮询是推进来源。"
+        "covered": [],
+        "uncovered": [
+          "partial：Rust 仅断言同一收口 bar 重复轮询幂等（不重复触发）；Go 题眼“停滞后轮询推进策略”（3 笔下单与 observation 时间戳）无对应，多 bar 追赶用例亦只覆盖单元过滤逻辑。回归要求：轮询发现新收口 bar 即推进策略（下单/观察）的端到端断言。"
         ],
-        "uncovered": [],
         "source": "legacy-conclusion"
       },
       "verification": {
@@ -47349,15 +47361,15 @@
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "function_exact：Go 断言 trade push 停滞后轮询收口 K 线仍推进策略；Rust 断言同一收口 bar 的重复轮询幂等（不重复触发 Pine/下单），轮询是推进来源。"
+      "coveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial：Rust 仅断言同一收口 bar 重复轮询幂等（不重复触发）；Go 题眼“停滞后轮询推进策略”（3 笔下单与 observation 时间戳）无对应，多 bar 追赶用例亦只覆盖单元过滤逻辑。回归要求：轮询发现新收口 bar 即推进策略（下单/观察）的端到端断言。"
       ],
-      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/app/apiserver/servercore/runtime_test.go:16:TestStrategyRuntimeNotifyOnlyEmitsSignalNotification": {
@@ -47793,8 +47805,8 @@
     },
     "internal/app/apiserver/servercore/runtime_trading_test.go:123:TestStrategyRuntimeRiskCloseOnlyRejectsBuyOrder": {
       "status": "[x]",
-      "rust_entry": "crates/jftrade-trading/tests/risk_engine_tests.rs::runtime_risk_enforce_applies_close_only_quantity_notional_and_daily_limits",
-      "conclusion": "function_exact：Go 断言实例级运行时风控 closeOnly 拒绝 BUY 并写 risk_rejected(rule=close_only) 审计且不落单；Rust 断言 enforce+close_only 下 BUY 以 close_only 拒单、SELL 超出可卖以 close_only_insufficient_position 拒单。",
+      "rust_entry": "crates/jftrade-trading/tests/risk_engine_tests.rs::runtime_risk_enforce_applies_close_only_quantity_notional_and_daily_limits; crates/jftrade-engine/src/strategy_runtime_execution_tests.rs::test_execute_strategy_intents_risk_rejection_blocks_broker_order",
+      "conclusion": "function_exact：拒单判定由风控单元断言（enforce+close_only 下 BUY 以 close_only 拒单）；判定→无下单→审计→暂停的接线由执行层用例补证（risk 拒绝零 broker 变更、RUNTIME_RISK_REJECTED 审计、实例暂停），对应 Go 的不落单与 risk_rejected 审计。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-trading -E 'test(runtime_risk_enforce_applies_close_only_quantity_notional_and_daily_limits)'",
       "evidence_type": "function_exact",
       "source": {
@@ -47814,11 +47826,22 @@
             "rustFile": "crates/jftrade-trading/tests/risk_engine_tests.rs",
             "rustLine": 171
           }
+        },
+        {
+          "file": "crates/jftrade-engine/src/strategy_runtime_execution_tests.rs",
+          "test": "test_execute_strategy_intents_risk_rejection_blocks_broker_order",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/app/apiserver/servercore/runtime_trading_test.go",
+            "goLine": 123,
+            "rustFile": "crates/jftrade-engine/src/strategy_runtime_execution_tests.rs",
+            "rustLine": 115
+          }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "function_exact：Go 断言实例级运行时风控 closeOnly 拒绝 BUY 并写 risk_rejected(rule=close_only) 审计且不落单；Rust 断言 enforce+close_only 下 BUY 以 close_only 拒单、SELL 超出可卖以 close_only_insufficient_position 拒单。"
+          "function_exact：close_only 拒单判定与拒绝后接线。"
         ],
         "uncovered": [],
         "source": "legacy-conclusion"
@@ -47834,7 +47857,8 @@
           "test(runtime_risk_enforce_applies_close_only_quantity_notional_and_daily_limits)"
         ],
         "testFilter": [
-          "runtime_risk_enforce_applies_close_only_quantity_notional_and_daily_limits"
+          "runtime_risk_enforce_applies_close_only_quantity_notional_and_daily_limits",
+          "test_execute_strategy_intents_risk_rejection_blocks_broker_order"
         ],
         "runnerVersion": null,
         "toolchain": null,
@@ -47853,7 +47877,7 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "function_exact：Go 断言实例级运行时风控 closeOnly 拒绝 BUY 并写 risk_rejected(rule=close_only) 审计且不落单；Rust 断言 enforce+close_only 下 BUY 以 close_only 拒单、SELL 超出可卖以 close_only_insufficient_position 拒单。"
+        "function_exact：close_only 拒单判定；拒绝后零下单、审计与暂停接线。"
       ],
       "uncoveredAssertions": [],
       "boundaryReason": null
@@ -300785,12 +300809,13 @@
       "reviewStatus": "unreviewed"
     },
     "crates/jftrade-engine/src/product_tests.rs::cleanup_preview_route_returns_candidates_and_rejects_bad_payloads": {
-      "referenceCount": 4,
+      "referenceCount": 5,
       "referenceKeys": [
         "internal/api/settings/routes_accounts_validation_test.go:73:TestDataManagementRebuildRejectsMalformedAndRejectedRequests",
         "internal/api/settings/routes_test.go:754:TestDataManagementRoutesUseInjectedCallbacks",
         "internal/api/settings/routes_test.go:802:TestDataManagementRoutesUseTypedCallbacks",
-        "internal/app/apiserver/servercore/data_management_test.go:191:TestTranslateDataManagementErrors"
+        "internal/app/apiserver/servercore/data_management_test.go:191:TestTranslateDataManagementErrors",
+        "internal/app/apiserver/servercore/data_management_test.go:124:TestDataManagementAdaptersRejectBusyRuntimeAndMapStalePreview"
       ],
       "allowed": false,
       "reviewStatus": "unreviewed"
@@ -301648,11 +301673,12 @@
       "reviewStatus": "unreviewed"
     },
     "crates/jftrade-engine/src/strategy_runtime_execution_tests.rs::test_execute_strategy_intents_risk_rejection_blocks_broker_order": {
-      "referenceCount": 3,
+      "referenceCount": 4,
       "referenceKeys": [
         "internal/app/apiserver/servercore/runtime_trading_test.go:18:TestStrategyRuntimeOrderUsesSharedPreTradeRiskGateway",
         "internal/strategy/live_command_business_boundaries_test.go:127:TestExecuteBarCommandsPreflightsBeforeBrokerSideEffects",
-        "internal/strategy/liveruntime/runtime_risk_evidence_test.go:18:TestRuntimeRiskRejectionRecordsAuditAndPauseTransition"
+        "internal/strategy/liveruntime/runtime_risk_evidence_test.go:18:TestRuntimeRiskRejectionRecordsAuditAndPauseTransition",
+        "internal/app/apiserver/servercore/runtime_trading_test.go:123:TestStrategyRuntimeRiskCloseOnlyRejectsBuyOrder"
       ],
       "allowed": false,
       "reviewStatus": "unreviewed"
