@@ -673,3 +673,33 @@ aggregateDailyKLinesFromBase 等）在 Rust 无同形对象，行为仅由集成
 cargo fmt --check 与 git diff --check 干净；无 Rust 生产代码改动、无新增测试。
 
 下一片：130-11 切片八，backtest 域 partial 第 141–160 行。
+## 第 130 批 11 切片八：backtest 域 partial 第 141–160 行，18 行维持、2 行结论收紧（2026-09-24）
+
+范围：backtest 域 partial 第 141–160 行（store_query_aggregation 3、store_runtime 14、
+store_session_aggregation 3，按文件加行号升序）。
+
+方法：Go 体全读；缺口验到代码行与用例断言；引用存在不等于断言等价。
+
+18 行维持（1 分钟聚合 5 分钟、日线与周线合成、压缩四形态与租约互斥、表存在缓存边界、
+首表回退缺席、日历聚合助手分支、limit 归一化缺席、作用域隔离读、批量回滚缺专项断言、
+覆盖选择边界助手、边界助手窗口外分支、覆盖解析器关闭库分支、损坏基数据与不可用存储、
+不变量助手边界、空窗缺表坏表三态、部分批次缺口上报、港股跨时段缺席、美股扩展区间合成，
+均与账本缺口一致）。
+
+2 行结论收紧（verdict 仍为 partial，[x] 1472 不变，b83 dry-run 先行、entry_changed 等于 0）：
+
+- store_query_aggregation:12：原结论称往返矩阵按表维度展开，含糊且高估覆盖
+  （Rust 仅断言直接读取隔离与缺区间空结果）；改写为前向/后向/流式/通道形态
+  与覆盖确认语义无对应断言。
+- store_session_aggregation:11：原结论称 Rust 断言同样的稳定契约，与事实不符
+  （Rust 只覆盖表名生成与非法输入拒绝）；改写为列清单与区间数值往返矩阵无逐条断言。
+
+抽核要点：insert_candles 确为 Immediate 事务内建表加 upsert（backtest_market_data.rs），
+失败即整体回滚，:208 缺专项断言成立；HK 分段窗口在生产代码存在但语料只覆盖美股；
+:156 的缺表恢复与坏表 fail-closed 引用逐项存在。
+
+验证：audit --write-report 过（1472 exact；dup 0）；anchor 过（1742/1696/0/0/46）；
+定向 nextest（jftrade-store-sqlite 整轮 188/188、jftrade-backtest 57/57）全过；
+cargo fmt --check 与 git diff --check 干净；无 Rust 生产代码改动、无新增测试。
+
+下一片：130-11 切片九，backtest 域 partial 第 161–180 行。

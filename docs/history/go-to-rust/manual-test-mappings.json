@@ -125545,7 +125545,7 @@
     "pkg/backtest/internal/storage/store_query_aggregation_contracts_test.go:12:TestStoreRoundTripsScopedSeriesQueries": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-store-sqlite/tests/backtest_market_data_session_scope.rs::regular_and_extended_session_tables_keep_direct_reads_isolated",
-      "conclusion": "partial：Go 断言作用域序列查询往返。Rust 的作用域用例断言 regular/extended 直接读取互不越界（该用例），往返矩阵按表维度展开。",
+      "conclusion": "partial：Go 断言作用域序列查询往返（最新/最早、前向/后向、流式、通道、覆盖确认）。Rust 的作用域用例仅断言 regular/extended 直接读取互不越界与缺区间空结果（该用例）；前向/后向/流式/通道形态与覆盖确认语义无对应断言。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked",
       "evidence_type": "partial",
       "source": {
@@ -125565,7 +125565,7 @@
       "assertionCoverage": {
         "covered": [],
         "uncovered": [
-          "partial：Go 断言作用域序列查询往返。Rust 的作用域用例断言 regular/extended 直接读取互不越界（该用例），往返矩阵按表维度展开。"
+          "partial：Go 断言作用域序列查询往返（最新/最早、前向/后向、流式、通道、覆盖确认）。Rust 的作用域用例仅断言 regular/extended 直接读取互不越界与缺区间空结果（该用例）；前向/后向/流式/通道形态与覆盖确认语义无对应断言。"
         ],
         "source": "legacy-conclusion"
       },
@@ -125600,7 +125600,7 @@
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
-        "partial：Go 断言作用域序列查询往返。Rust 的作用域用例断言 regular/extended 直接读取互不越界（该用例），往返矩阵按表维度展开。"
+        "partial：Go 断言作用域序列查询往返（最新/最早、前向/后向、流式、通道、覆盖确认）。Rust 的作用域用例仅断言 regular/extended 直接读取互不越界与缺区间空结果（该用例）；前向/后向/流式/通道形态与覆盖确认语义无对应断言。"
       ],
       "boundaryReason": null
     },
@@ -126599,7 +126599,7 @@
     "pkg/backtest/internal/storage/store_session_aggregation_contracts_test.go:11:TestSchemaHelpersExposeStableStorageContracts": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-store-sqlite/tests/backtest_market_data_session_scope.rs::schema_kline_table_name_and_session_scope_validation_contracts",
-      "conclusion": "partial：Go 断言 schema 助手暴露稳定存储契约。Rust 的表名/作用域契约用例断言同样的稳定契约（该用例），助手清单不同。",
+      "conclusion": "partial：Go 断言 schema 助手暴露稳定存储契约（列清单、区间数值往返、表名与作用域归一）。Rust 的表名/作用域契约用例仅断言表名生成与非法输入拒绝（该用例）；列清单与区间数值往返矩阵无逐条断言。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked",
       "evidence_type": "partial",
       "source": {
@@ -126619,7 +126619,7 @@
       "assertionCoverage": {
         "covered": [],
         "uncovered": [
-          "partial：Go 断言 schema 助手暴露稳定存储契约。Rust 的表名/作用域契约用例断言同样的稳定契约（该用例），助手清单不同。"
+          "partial：Go 断言 schema 助手暴露稳定存储契约（列清单、区间数值往返、表名与作用域归一）。Rust 的表名/作用域契约用例仅断言表名生成与非法输入拒绝（该用例）；列清单与区间数值往返矩阵无逐条断言。"
         ],
         "source": "legacy-conclusion"
       },
@@ -126654,7 +126654,7 @@
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
-        "partial：Go 断言 schema 助手暴露稳定存储契约。Rust 的表名/作用域契约用例断言同样的稳定契约（该用例），助手清单不同。"
+        "partial：Go 断言 schema 助手暴露稳定存储契约（列清单、区间数值往返、表名与作用域归一）。Rust 的表名/作用域契约用例仅断言表名生成与非法输入拒绝（该用例）；列清单与区间数值往返矩阵无逐条断言。"
       ],
       "boundaryReason": null
     },
