@@ -5287,3 +5287,34 @@ fmt 与 nextest；`check:ai-context`、`check:migration-manifest`、
 
 下一片：api_transport 余量继续按文件行号升序（strategy、trading、
 watchlist、backtest 等目录）。
+
+## 第 130 批 09 切片十六：strategy 路由 30 条 recon（2026-09-24）
+
+范围：`internal/api/strategy/` 全目录 30 条
+（7 `[x]` + 21 partial + 2 boundary）。
+
+方法：Go 体逐段核对；7 个 `[x]` 引用存在且锚点齐全（逐一命中）。
+结论：30 条 verdict 全部成立，无判定变更、无命令变更、无代码变更，
+本片为纯 recon。
+
+抽查实据：`:148` 的 fixture 整份 data 相等断言含无 ast 键与
+sourceFormat=pine-v6；`:611` 的 Rust 用例以同一查询串复刻 limit=1/
+offset=0/level 去空格小写/毫秒时刻/边界包含，并含 bogus 双路径；
+`:114` 经真实 SQLite store 复刻默认 5m/覆盖 15m/symbol 保留/无效脚本
+warmup=0；`:16` 同路径同文案 400 先于端口；`:181` 的 fixture 三分支
+400 BAD_REQUEST 加端口校验优先级。partial 均为诚实缺口：pine 诊断码/
+行号/字段级独立断言缺失（fixture 整份相等代替）、v20 parse-only 无冻结
+case、分析失败 400 对 502 的 P1 差异（`:16`，owner 为 pine analyze
+port）、linked 删除守卫、写后读回、九例矩阵未逐条复刻等，各有 owner 与
+回归要求。boundary 两条属实：14 handler 空参 400 在模板路由下为 404
+（`:31`，P1 已登记）、nil 错误无响应在 Rust 错误枚举中不可表达
+（`:252`）。
+
+验证：`audit_test_parity.py --write-report` exit 0（1530 exact 全引用
+存在；已知警告不变；仅 report 基线号重生，inventory 无差）；
+`parity_anchor_reconcile.py` 过（1695/0/0/46）；无 Rust 文件改动故免
+fmt 与 nextest；`check:ai-context`、`check:migration-manifest`、
+`check:zero-go` 过；`check:quick` 与 `git diff --check` 见收尾。
+
+下一片：api_transport 余量继续按文件行号升序（trading、watchlist、
+backtest 等目录）。
