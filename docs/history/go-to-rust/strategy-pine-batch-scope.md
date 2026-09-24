@@ -547,3 +547,35 @@ partial 缺口与 Go 体一致（含 :556 未知 kind 落入 entry 分支、:36 
 `check:quick`（单实例）、`git diff --check`。
 
 下一片：strategy_pine 收尾 22 条（runtimecontrol 10 + service 10 + types 2），随后进 backtest_calendar。
+
+## 第 130 批 06B 切片七：strategy_pine 收尾 22 条 recon（2026-09-24）
+
+范围：`internal/strategy/runtimecontrol/`（10：[x] 5 + partial 5，含 boundary 2）、
+`internal/strategy/service_test.go`（10：[x] 1 + partial 9）、
+`internal/strategy/types_test.go`（2：partial 2）。
+本片关闭 strategy_pine 域（538 条全量 recon 完毕）。
+
+方法：Go 体逐条核对结论；6 [x] 确认 Rust 测试存在、Parity 锚点被识别、断言等价或超集；
+全部 22 条 Rust 引用逐一 rg 命中（:83 初查 NOTEST 系显示截断误报，实为双用例组合引用，
+两用例俱在）；[x] Rust 条目全文唯一性成立（含组合区分形式）；
+高风险项抽查 Rust 生产代码与用例体（market_day_start 日历委托、cancel_all 部分失败聚合、
+429 忙碌映射、payload 无 timeInForce/tag 字段）。
+
+结论：22 条 verdict 全部成立，无判定变更、无代码变更——
+6 [x]（off 模式零决策、原因码表、monitor 记录不拒绝、模式归一清零、持仓符号匹配、
+Pine 非法格式 400 且分析器零调用）断言等价，其中原因码表与 Pine 校验用例各带双锚点，
+分别被 order_risk:67 与路由行复用，账本以组合形式区分，无重复违反；
+:83 维持 partial（前期分片二十 [x] 过宽纠正成立：Rust 经 jftrade-calendar 取市场本地午夜，
+夜盘时刻与参考扩展时段边界差一交易日，DST 用例内注释已显式记录差值，P1 缺口与修复位置登记在案，
+manager_session 已建模 20:00 延续）；
+2 boundary 属实（Decimal 无负零、Rust 无限制列表对象）；
+service/types 10 partial 缺口与 Go 体一致（含 :236 启动后回滚 P1、:223 忙碌文案指引、
+:255/:278 刷新计数与顺序、:36 timeInForce 缺失）。
+本片为纯 recon。
+
+验证：`audit_test_parity.py --write-report` exit 0；`parity_anchor_reconcile.py` 过；
+`cargo fmt -p jftrade-engine -- --check`、`check:ai-context`、`check:migration-manifest`、
+`check:zero-go`、定向 nextest（trading risk/portfolio + engine strategy 位）、
+`check:quick`（单实例）、`git diff --check`。
+
+下一域：backtest_calendar（376 条），按文件行号分片推进。
