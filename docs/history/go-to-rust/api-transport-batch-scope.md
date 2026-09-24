@@ -6443,6 +6443,42 @@ git diff --check
 broker route envelope、交易取消持久化和日志分页均明确登记了未覆盖断言。第 35、38 条暂无可解析 Rust 证据，
 保留为待补测试；未发现足够证据升格 `[x]`，也没有单一可确认的 Rust 生产功能差异需要立即修复。下一片为
 api_transport P1 partial 第 61–72 行（末 12 条）。
+
+## 第 130 批 13 切片三：api_transport P1 partial 第 61–72 行，12 行维持、零改判（2026-09-25）
+
+范围：`api_transport` owner、`priority=P1`、`evidence_type=partial` 的末 12 条。至此 API/Transport
+P1 partial 队列 72/72 全部逐条核对；本片没有 Rust 生产代码修改。
+
+| 序号 | Go 测试 | Rust 证据 | 结论 |
+| ---: | --- | --- | --- |
+| 61 | `internal/app/apiserver/strategyapp/runtime_ports_test.go:145:TestTradeCommandsMapPlaceCancelAndDefensiveFailures` | `jftrade-engine/src/product_execution_write_product_tests.rs::execution_write_product_replays_browser_boundary_failure_recovery_and_restart` | `partial`；Rust 覆盖 execution write 浏览器边界/恢复，未覆盖 Go TradeCommands nil service、place/cancel forwarding、cancel error 和 missing internal id defensive checks。 |
+| 62 | `internal/app/apiserver/tradingapp/execution_gateway_lifecycle_test.go:202:TestExecutionGatewayCancelOrderBoundaries` | `jftrade-engine/src/product_production_ports_execution_preview_tests.rs::cancel_rejects_missing_terminal_and_unidentified_persisted_orders` | `partial`；Rust 覆盖 terminal/unidentified persisted rejection，未覆盖 Go missing store、broker id parse、symbol guard、broker failure 与 accepted persistence 全链。 |
+| 63 | `internal/app/apiserver/tradingapp/execution_gateway_lifecycle_test.go:250:TestExecutionGatewayPlaceComboBoundaries` | `jftrade-engine/src/product_production_ports_execution_preview_tests.rs::combo_place_rejects_invalid_legs_accounts_and_hidden_transport_failures` + `product_production_ports_execution_order_validation_tests.rs::combo_intent_rejects_missing_kind_legs_and_account` | `partial`；Rust 覆盖 combo validation/hidden transport，未覆盖 Go stale prepared order、prepare/place error、notification 和 stored COMBO projection。 |
+| 64 | `internal/app/apiserver/tradingapp/execution_gateway_lifecycle_test.go:298:TestExecutionGatewayCancelComboBoundaries` | `jftrade-engine/src/product_production_ports_execution_preview_tests.rs::option_combo_preview_place_and_cancel_keep_server_identity` | `partial`；Rust 覆盖 option combo place/cancel identity，未覆盖 Go missing store/order, non-combo broker, broker id, cancel failure 和 accepted cancel persistence。 |
+| 65 | `internal/app/apiserver/tradingapp/order_update_source_test.go:88:TestProductLifecycleOrderUpdateSourceAggregatesBrokersAndFees` | `jftrade-engine/src/product_production_ports_execution_reconciliation_provider_tests.rs::helper_market_data_providers_reconcile_futu_account_order_fill_and_fee` + `product_production_ports_execution_reconciliation_tests.rs::reconciliation_replays_history_fill_and_fee_once_after_restart` | `partial`；Rust 覆盖 Futu order/fill/fee reconciliation 与 restart dedupe，未覆盖 Go 多 broker aggregation、partial/all failure 和 missing broker fee semantics。 |
+| 66 | `internal/app/apiserver/tradingapp/order_update_source_test.go:172:TestProductLifecycleOrderUpdateSourceSkipsFundOnlyAccounts` | `jftrade-engine/src/product_production_ports_execution_reconciliation_tests.rs::reconciliation_scope_accepts_only_stock_trade_markets` | `partial`；Rust 覆盖 stock trade market scope，未覆盖 Go fund-only account 过滤、mixed authority 保留与账户排序。 |
+| 67 | `internal/app/apiserver/tradingapp/order_updates_test.go:20:TestBrokerOrderMappingsPreserveLifecycleFields` | `jftrade-engine/src/product_production_ports_execution_reconciliation_tests.rs::reconciliation_replays_history_fill_and_fee_once_after_restart` | `partial`；Rust 覆盖 history/fill/fee replay，未逐字段证明 Go broker order/fill lifecycle mapping、event-parlay legs、amount/payout 和 round-trip identity。 |
+| 68 | `internal/app/apiserver/tradingapp/order_updates_test.go:114:TestExecutionOrderUpdatesPersistBrokerLifecycleFields` | `jftrade-store-sqlite/tests/execution_order_store_contracts.rs::execution_orders_lifecycle_events_and_restart_durability` | `partial`；Rust 覆盖 lifecycle events/restart durability，未覆盖 Go duplicate broker push dedupe、fills/fees persistence 与全部 optional lifecycle fields。 |
+| 69 | `internal/app/apiserver/webaccess/auth_boundaries_test.go:195:TestPasswordChangeDuringLoginCannotCreateOldPasswordSession` | 无可解析 Rust 测试 | `partial`；Go 覆盖 login verification 与 Configure 并发时 generation conflict、HTTP 409 和不创建旧密码 session，当前无 Rust 同形测试。 |
+| 70 | `internal/app/apiserver/webaccess/auth_boundaries_test.go:235:TestWebAuthRemainingSessionAndPruningErrors` | `jftrade-engine/src/product_auth_session_manager.rs::auth_session_store_corruption_fails_closed_without_rewrite` | `partial`；Rust 覆盖 corrupt auth store fail-closed/no rewrite，未覆盖 Go entropy failures、session cap/pruning、login attempt pruning 和 random reader error。 |
+| 71 | `internal/app/apiserver/webaccess/auth_boundaries_test.go:319:TestWebAuthRemainingCanceledPasswordSlotAndStatus` | `jftrade-api/tests/transport_contracts.rs::auth_rejects_untrusted_origin_before_authentication` | `partial`；Rust 覆盖 untrusted origin before auth，未覆盖 Go canceled password slot、semaphore release、forbidden status 和 valid session status projection。 |
+| 72 | `internal/app/apiserver/webaccess/security_integration_test.go:210:TestSameHostHTTPSProxyUsesSecureSessionCookie` | `jftrade-engine/src/product_auth_session_manager.rs::auth_manager_login_validate_and_logout_flow` | `partial`；Rust 覆盖 login/validate/logout flow，未覆盖 Go forwarded HTTPS same-host detection、Secure/HttpOnly/SameSite cookie 与 no-store header。 |
+
+验证命令：
+
+```bash
+python3 scripts/compatibility/audit_test_parity.py --write-report
+python3 scripts/compatibility/parity_anchor_reconcile.py
+node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E '<本批 execution/reconciliation/auth 证据测试过滤器>'
+node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-api --all-targets --locked --no-fail-fast -E '<本批 store/transport auth 证据测试过滤器>'
+cargo fmt --check
+git diff --check
+```
+
+本片结论：12/12 均保持 `partial`；第 69 条 password-change/login generation race 暂无 Rust 同形测试，
+其余条目均有部分证据但仍缺 handler wire、并发、错误聚合或完整字段断言。API/Transport P1 partial 队列至此
+完成 72/72 核对，未发现足够证据升格 `[x]`，也没有单一可确认的 Rust 生产功能差异需要立即修复。下一域切换
+为 `assistant_workflow` P1 partial 队列第 1–30 条。
 ## 第 130 批 10 切片七：strategy 域 partial 第 101–120 行，20 行维持、零修改（2026-09-24）
 
 范围：strategy 域 partial 第 101–120 行（pine 执行器数量与平仓取消 15 行、pineruntime 恢复与会话 5 行，
