@@ -777,3 +777,28 @@ OCO 腿校验边界、方向别名、整 bar 预检、原子组形状、原子�
 cargo fmt --check 与 git diff --check 干净；无台账变更、无 Rust 生产代码改动。
 
 下一片：130-12 切片十九，strategy_pine 域 partial 第 41–60 行。
+
+## 第 130 批 12 切片十九：strategy_pine 域 partial 第 41–60 行，20 行维持、零改判（2026-09-24）
+
+范围：strategy_pine 域 partial 第 41–60 行（实时命令方向/告警/数量/取消 4、
+运行时管理边界 11、关闭聚合 3、nil 边界 2，按文件加行号升序）。
+本域已核对 60/459。
+
+方法：Go 体全读；缺口验到代码行与用例断言；引用存在不等于断言等价。
+
+20 行维持（方向感知平仓六分支、告警回退身份、数量最小与精度、取消别名去重与
+陈旧容忍、维护忙碌与轮询配置、兼容解析失败关闭、流式行情启动门、不健康拒绝与
+覆盖跳过、精确券商解析、live 绑定逐字段校验、仅通知免账户、依赖缺失点名、
+激活预留与未知成交、构建前置条件、回调事件记录、关闭错误聚合、等待中启动、
+后台同步顺序、nil 空状态边界、命令回调委托，缺口 owner 与回归要求均与账本一致）。
+
+抽核要点：20 条 Rust 引用逐项存在；第 41/44 行 Rust 行为字符串逐行核实
+（INTENT_SKIPPED/no open position to close、is not owned by instance 硬错误）；
+第 56 行 close session 日志形状已核实；第 43 行回测侧流动性告警引用存在；
+第 45/53/56 行共用 partial 引用不受 [x] 唯一性约束。
+
+验证：audit --write-report 过（1472 exact；dup 0）；anchor 过（1742/1696/0/0/46）；
+定向 nextest（jftrade-engine、jftrade-broker、jftrade-strategy 视触及范围）全过；
+cargo fmt --check 与 git diff --check 干净；无台账变更、无 Rust 生产代码改动。
+
+下一片：130-12 切片二十，strategy_pine 域 partial 第 61–80 行。
