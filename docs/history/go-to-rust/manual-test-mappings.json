@@ -41251,11 +41251,11 @@
       "boundaryReason": "boundary：Rust 没有可 nil 的 handle；可选运行时以 Option<Arc<dyn Port>> 表达，缺省即投影 unavailable/degraded（系统状态 fixture 断言 unavailable 形态），不存在“nil handle 暴露运行时”的风险面。"
     },
     "internal/app/apiserver/runtimes/handle_lifecycle_test.go:161:TestHandlePublishesRuntimeGroupsBeforeShutdown": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_production_assembly_tests.rs::production_registry_is_built_from_non_optional_adapters",
-      "conclusion": "function_exact：Go 断言关闭前所有运行时分组已发布且身份不变；Rust 断言生产注册表只由非可选适配器构建（每个声明能力都解析到可执行适配器），关闭后端口不可再用（shutdown 序列测试）。",
+      "conclusion": "partial：Rust 的引用用例断言生产注册表由非可选适配器构建且无悬空能力，是注册表构造面的保证。缺口：Go 的题眼是句柄发布面——注入的各运行时分组发布且身份保持、Pine worker 收养与 runner 隐藏、通知沉落投递一次；Rust 没有注入发布与身份保持的断言。owner=生产装配与运行时聚合；回归要求：补分组发布身份断言。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(production_registry_is_built_from_non_optional_adapters)'",
-      "evidence_type": "function_exact",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/runtimes/handle_lifecycle_test.go",
         "line": 161,
@@ -41306,15 +41306,17 @@
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "function_exact：Go 断言关闭前所有运行时分组已发布且身份不变；Rust 断言生产注册表只由非可选适配器构建（每个声明能力都解析到可执行适配器），关闭后端口不可再用（shutdown 序列测试）。"
+        "生产注册表无悬空能力面"
       ],
-      "uncoveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial：Rust 的引用用例断言生产注册表由非可选适配器构建且无悬空能力，是注册表构造面的保证。缺口：Go 的题眼是句柄发布面——注入的各运行时分组发布且身份保持、Pine worker 收养与 runner 隐藏、通知沉落投递一次；Rust 没有注入发布与身份保持的断言。owner=生产装配与运行时聚合；回归要求：补分组发布身份断言。"
+      ],
       "boundaryReason": null
     },
     "internal/app/apiserver/runtimes/handle_lifecycle_test.go:250:TestHandleRejectsConcreteResourcesAfterShutdown": {
@@ -41380,11 +41382,11 @@
       "boundaryReason": "boundary：Rust 关闭后无法注入资源（所有权在组合根）；等价保证是“缺失绑定时拒绝注册而不是发布半成品”，不存在 Go 的迟到发布拒绝分支。"
     },
     "internal/app/apiserver/runtimes/handle_lifecycle_test.go:331:TestHandleRestoresCalendarResolverOnShutdown": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_production_assembly_tests.rs::production_calendar_manager_restores_settings_and_snapshots",
-      "conclusion": "function_exact：Go 断言关闭时把全局日历解析器恢复为先前实现且支持重复关闭；Rust 断言生产日历管理器从设置与快照恢复并可重复关闭（生命周期由 Arc 所有权管理，不存在全局解析器替换）。",
+      "conclusion": "partial：Rust 的引用用例断言日历管理器从设置与快照恢复并单次关闭，建模差异是 Arc 所有权而非全局解析器替换。缺口：重复关闭、关闭后延迟注册拒绝并报资源已关闭、恢复先前解析器并验证模板；原结论称支持重复关闭，但引用用例只关闭一次。owner=日历管理器生命周期；回归要求：补重复关闭与关闭后拒绝断言。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(production_calendar_manager_restores_settings_and_snapshots)'",
-      "evidence_type": "function_exact",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/runtimes/handle_lifecycle_test.go",
         "line": 331,
@@ -41435,15 +41437,18 @@
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "function_exact：Go 断言关闭时把全局日历解析器恢复为先前实现且支持重复关闭；Rust 断言生产日历管理器从设置与快照恢复并可重复关闭（生命周期由 Arc 所有权管理，不存在全局解析器替换）。"
+        "设置与快照恢复",
+        "单次关闭"
       ],
-      "uncoveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial：Rust 的引用用例断言日历管理器从设置与快照恢复并单次关闭，建模差异是 Arc 所有权而非全局解析器替换。缺口：重复关闭、关闭后延迟注册拒绝并报资源已关闭、恢复先前解析器并验证模板；原结论称支持重复关闭，但引用用例只关闭一次。owner=日历管理器生命周期；回归要求：补重复关闭与关闭后拒绝断言。"
+      ],
       "boundaryReason": null
     },
     "internal/app/apiserver/runtimes/handle_lifecycle_test.go:370:TestHandleRefusesPublicationWhenResourceGroupAlreadyClosed": {
@@ -41509,11 +41514,11 @@
       "boundaryReason": "boundary：Rust 的分组关闭后不可再发布（类型化所有权）；对应保证是 shutdown 后端口全部释放且无法继续服务，属所有权模型差异。"
     },
     "internal/app/apiserver/runtimes/handle_lifecycle_test.go:417:TestHandleConcurrentCloseIsIdempotentAndAggregatesErrors": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "apps/desktop/src-tauri/src/native_tests.rs::stop_product_is_idempotent_across_concurrent_invocations",
-      "conclusion": "function_exact（幂等部分）：Go 断言 16 个并发 Close 只关闭各分组一次并按 consumer→provider 顺序；Rust 断言并发 stop 只执行一次关停，关闭顺序由组合根逆序测试覆盖；Go 的“聚合全部命名错误”部分对应 Rust 的首错+日志边界（见 application ResourcesCloseAggregatesEveryNamedFailure 行）。",
+      "conclusion": "partial：Rust 的引用用例只断言桌面 stop 双线程并发落空安全，没有各分组恰好关闭一次的计数、consumer 先于 provider 的顺序、16 路调用方各自拿到聚合错误的语义。顺序部分由组合根完整逆序事件序列测试覆盖（跨行证据，见有序关闭行）。缺口：并发关闭计数与错误聚合无断言；原结论引用的 ResourcesCloseAggregatesEveryNamedFailure 经核实不存在于工作区与台账，原引用有误，特此纠正。owner=运行时关停；回归要求：补并发关闭计数与错误聚合断言。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-desktop -E 'test(stop_product_is_idempotent_across_concurrent_invocations)'",
-      "evidence_type": "function_exact",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/runtimes/handle_lifecycle_test.go",
         "line": 417,
@@ -41563,16 +41568,19 @@
       },
       "risk": "normal",
       "owner": "api_transport",
-      "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
+      "priority": "P1",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "function_exact（幂等部分）：Go 断言 16 个并发 Close 只关闭各分组一次并按 consumer→provider 顺序；Rust 断言并发 stop 只执行一次关停，关闭顺序由组合根逆序测试覆盖；Go 的“聚合全部命名错误”部分对应 Rust 的首错+日志边界（见 application ResourcesCloseAggregatesEveryNamedFailure 行）。"
+        "桌面 stop 双线程并发落空安全",
+        "组合根完整逆序事件序列"
       ],
-      "uncoveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial：Rust 的引用用例只断言桌面 stop 双线程并发落空安全，没有各分组恰好关闭一次的计数、consumer 先于 provider 的顺序、16 路调用方各自拿到聚合错误的语义。顺序部分由组合根完整逆序事件序列测试覆盖（跨行证据，见有序关闭行）。缺口：并发关闭计数与错误聚合无断言；原结论引用的 ResourcesCloseAggregatesEveryNamedFailure 经核实不存在于工作区与台账，原引用有误，特此纠正。owner=运行时关停；回归要求：补并发关闭计数与错误聚合断言。"
+      ],
       "boundaryReason": null
     },
     "internal/app/apiserver/runtimes/handle_lifecycle_test.go:475:TestHandleClosesConsumersBeforeProvidersAndProvidersInReverseOrder": {

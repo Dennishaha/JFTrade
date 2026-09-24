@@ -5628,3 +5628,40 @@ order_updates（6），共 22 条。
 
 下一片：tradingapp 清空（22/22）；之后 runtime/runtimes、backtestapp、
 futuapp、liveapp 等。
+
+## 第 130 批 09 切片二十六：runtime/runtimes 33 条含 3 处纠正（2026-09-24）
+
+范围：`internal/app/apiserver/runtime/` dependencies（7）+
+environment_fallbacks（1）+ research_runtime（1）+ resources（3）+
+runtime（9）+ `runtimes/` handle_lifecycle（12），共 33 条。
+
+方法：Go 体逐段核对并逐字比对 Rust 断言；具名引用 0 缺失、锚点齐全。
+查出 3 处过宽 `[x]`，本片降为 partial。
+结论：33 条 verdict = 14 `[x]` + 19 partial（`[x]` 1521→1518）。
+无代码变更，本片为台账修正 + 报告与清单重生 + 文档。
+
+3 处纠正：
+
+- `:417` 并发关闭：引用仅断言双线程落空安全，无分组恰好一次计数、
+  顺序与 16 路聚合错误语义；原结论引用的聚合测试经核实不存在于
+  工作区与台账，原引用有误，特此纠正。
+- `:161` 分组发布：引用是注册表构造保证，与句柄注入发布身份保持、
+  Pine 收养、沉落投递计数题眼无关。
+- `:331` 日历恢复：引用只关闭一次，原结论称支持重复关闭属夸大；
+  重复关闭、关闭后延迟注册拒绝、恢复先前解析器验证模板均无断言。
+
+保留的 14 `[x]` 均为逐项断言：node 探针矩阵与候选顺序、资源 owners
+与不变量、路径覆盖与派生、桌面日志命名、有序关闭完整逆序序列等。
+其余 16 partial 与 boundary 原结论诚实（含 `:573`/`:592` 的历史纠正
+记录），维持不变。
+
+缺口 owner 与回归：运行时关停并发计数与错误聚合、分组发布身份、
+日历重复关闭与关闭后拒绝；回归要求见各行 uncoveredAssertions。
+
+验证：`audit_test_parity.py --write-report` exit 0（1518 exact 全引用
+存在；已知警告不变；inventory 随改判重生）；
+`parity_anchor_reconcile.py` 过（1695/0/0/46）；无 Rust 文件改动故免
+fmt 与 nextest；`check:ai-context`、`check:migration-manifest`、
+`check:zero-go` 过；`check:quick` 与 `git diff --check` 见收尾。
+
+下一片：runtime/runtimes 清空；之后 backtestapp、futuapp、liveapp 等。
