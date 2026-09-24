@@ -568,3 +568,31 @@ cargo fmt --check 与 git diff --check 干净；账本与 Rust 代码零改动�
 cargo fmt --check 与 git diff --check 干净；无 Rust 生产代码改动、无新增测试。
 
 下一片：130-11 切片四，backtest 域 partial 第 61–80 行。
+## 第 130 批 11 切片四：backtest 域 partial 第 61–80 行，19 行维持、1 行换引用改写（2026-09-24）
+
+范围：backtest 域 partial 第 61–80 行（exchangecalendar 6、conservative_bar_executor 14，
+按文件加行号升序）。
+
+方法：Go 体全读；缺口验到代码行与用例断言；引用存在不等于断言等价。
+
+19 行维持（nil 管理器安全、日历恢复路径 provider 校验扩展点、退避门调度语义、
+warmup 预算多源串行、告警计数去重、HK 年份推导、输入校验文案、12 个执行器场景
+的终态一致加 P2 观测面差异，均与账本缺口一致）。
+
+1 行换引用改写（verdict 仍为 partial，[x] 1472 不变，b83 dry-run 先行、
+entry_changed 等于 1，证据与复用键已按算法重建）：
+
+- conservative:21：原结论两处失实——Go 对未知模型名是精确报错而非回退；
+  归一行为已迁移到解析层 n_name（空缺省、裁剪加大小写折叠、未知名拒绝三簇
+  俱有测试），并非未迁移。引用换为 execution_model_defaults_and_normalizes_
+  ascii_case，残余缺口收敛为报错文案空白保留差异与助手单元改解析入口的层位差。
+
+抽核要点：:89 的 10@101、40@102、终态 4910/50 与仅终态订单行逐项核实；
+:21 的三簇断言与 n_name 回退分支逐行核实；6 个日历引用全部命中。
+
+验证：audit --write-report 过（1472 exact；dup 0）；anchor 过（1742/1696/0/0/46）；
+定向 nextest（jftrade-backtest 57/57、jftrade-calendar 89/89、
+engine execution_model 4/4）全过；cargo fmt --check 与 git diff --check 干净；
+无 Rust 生产代码改动、无新增测试。
+
+下一片：130-11 切片五，backtest 域 partial 第 81–100 行。

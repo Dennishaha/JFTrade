@@ -120876,9 +120876,9 @@
     },
     "pkg/backtest/conservative_bar_executor_test.go:21:TestNormalizeExecutionModelName": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-backtest/tests/conservative_bar_execution.rs::execution_model_metadata_and_corpus_version_contract",
-      "conclusion": "partial：Go 断言执行模型名归一化与未知名回退。Rust 在结果元数据里冻结执行模型与语料版本（该用例断言 execution model 元数据契约），同名助手函数不迁移。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-backtest --all-targets --locked",
+      "rust_entry": "crates/jftrade-engine/src/product_production_ports_backtest_strategy.rs::execution_model_defaults_and_normalizes_ascii_case",
+      "conclusion": "partial：归一行为已迁移到解析层 n_name：空缺省 conservative-bar-v1、裁剪加大小写折叠由本行引用用例锁定，未知名的拒绝由同文件 execution_model_rejects_unsupported_name_with_original_value 锁定；差异：Go 对未知名返回裁剪后的精确文案，Rust 保留输入空白，且 Go 是助手函数单元、Rust 是解析入口断言。结果元模型的冻结由语料契约用例另行锁定。",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'",
       "evidence_type": "partial",
       "source": {
         "file": "pkg/backtest/conservative_bar_executor_test.go",
@@ -120888,16 +120888,16 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-backtest/tests/conservative_bar_execution.rs",
-          "test": "execution_model_metadata_and_corpus_version_contract",
-          "crate": "jftrade-backtest",
+          "file": "crates/jftrade-engine/src/product_production_ports_backtest_strategy.rs",
+          "test": "execution_model_defaults_and_normalizes_ascii_case",
+          "crate": "jftrade-engine",
           "anchor": null
         }
       ],
       "assertionCoverage": {
         "covered": [],
         "uncovered": [
-          "partial：Go 断言执行模型名归一化与未知名回退。Rust 在结果元数据里冻结执行模型与语料版本（该用例断言 execution model 元数据契约），同名助手函数不迁移。"
+          "partial：归一行为已迁移到解析层 n_name：空缺省 conservative-bar-v1、裁剪加大小写折叠由本行引用用例锁定，未知名的拒绝由同文件 execution_model_rejects_unsupported_name_with_original_value 锁定；差异：Go 对未知名返回裁剪后的精确文案，Rust 保留输入空白，且 Go 是助手函数单元、Rust 是解析入口断言。结果元模型的冻结由语料契约用例另行锁定。"
         ],
         "source": "legacy-conclusion"
       },
@@ -120912,7 +120912,7 @@
           "--locked"
         ],
         "testFilter": [
-          "execution_model_metadata_and_corpus_version_contract"
+          "execution_model_defaults_and_normalizes_ascii_case"
         ],
         "runnerVersion": null,
         "toolchain": null,
@@ -120932,7 +120932,7 @@
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
-        "partial：Go 断言执行模型名归一化与未知名回退。Rust 在结果元数据里冻结执行模型与语料版本（该用例断言 execution model 元数据契约），同名助手函数不迁移。"
+        "partial：归一行为已迁移到解析层 n_name：空缺省 conservative-bar-v1、裁剪加大小写折叠由本行引用用例锁定，未知名的拒绝由同文件 execution_model_rejects_unsupported_name_with_original_value 锁定；差异：Go 对未知名返回裁剪后的精确文案，Rust 保留输入空白，且 Go 是助手函数单元、Rust 是解析入口断言。结果元模型的冻结由语料契约用例另行锁定。"
       ],
       "boundaryReason": null
     },
@@ -290515,14 +290515,6 @@
       "allowed": true,
       "reviewStatus": "single"
     },
-    "crates/jftrade-backtest/tests/conservative_bar_execution.rs::execution_model_metadata_and_corpus_version_contract": {
-      "referenceCount": 1,
-      "referenceKeys": [
-        "pkg/backtest/conservative_bar_executor_test.go:21:TestNormalizeExecutionModelName"
-      ],
-      "allowed": true,
-      "reviewStatus": "single"
-    },
     "crates/jftrade-backtest/tests/conservative_bar_execution.rs::explicit_cancel_orders_and_unmatched_target_handling": {
       "referenceCount": 1,
       "referenceKeys": [
@@ -296683,12 +296675,13 @@
       "reviewStatus": "single"
     },
     "crates/jftrade-engine/src/product_production_ports_backtest_strategy.rs::execution_model_defaults_and_normalizes_ascii_case": {
-      "referenceCount": 1,
+      "referenceCount": 2,
       "referenceKeys": [
-        "internal/strategy/instanceview/runtime_projection_test.go:9:TestInstanceViewHandlesUntypedRuntimeAndNilParams"
+        "internal/strategy/instanceview/runtime_projection_test.go:9:TestInstanceViewHandlesUntypedRuntimeAndNilParams",
+        "pkg/backtest/conservative_bar_executor_test.go:21:TestNormalizeExecutionModelName"
       ],
-      "allowed": true,
-      "reviewStatus": "single"
+      "allowed": false,
+      "reviewStatus": "unreviewed"
     },
     "crates/jftrade-engine/src/product_production_ports_backtest_strategy.rs::start_request_accepts_explicit_market_and_code_without_symbol": {
       "referenceCount": 3,
