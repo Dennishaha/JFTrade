@@ -517,3 +517,27 @@ partial 2251→2252）。**backtest_calendar 域 376 条全部 recon 完毕**；
 cargo fmt --check 与 git diff --check 干净；无 Rust 生产代码改动、无新增测试。
 
 下一片：130-11 切片二，backtest 域 partial 第 21–40 行。
+## 第 130 批 11 切片二：backtest 域 partial 第 21–40 行，20 行维持、零修改（2026-09-24）
+
+范围：backtest 域 partial 第 21–40 行（input_validation 余 1、recovery 2、
+result_view_aggregation 2、result_view 6、run_failure 3、service 4、
+service_pineworker 2，按文件加行号升序）。
+
+方法：Go 体全读；缺口验到代码行与用例断言；引用存在不等于断言等价。
+
+20 行维持（provider 单次解析固定、nil 结果与 panic 负载不区分归类、警告与序列
+组合过滤、损坏 K 线丢弃与成交量守恒、provider 与执行元数据逐字段矩阵、窗口游标
+分页、解析辅助非法输入、非法时间过滤、空运行形状 wire 断言、最新诊断选取、
+持久化失败后 Close 行为、低周期 warmup 拒绝矩阵、running 迁移失败注入终态保持、
+默认 runner 错误文本分类、PineTS 配置透传、启动完整请求矩阵、adk 前缀派生细节、
+coverage 调用参数边界、任务复用与同步参数，均与账本缺口一致）。
+
+抽核要点：reap 用例锁定非终态 worker 标 failed 加句柄清零，不区分 nil 与 panic；
+readiness 生命周期用例经工具分发覆盖，不计数 provider 解析次数；
+store 契约无写失败注入，终态保持缺口成立。
+
+验证：audit --write-report 过（1472 exact；dup 0）；anchor 过（1742/1696/0/0/46）；
+定向 nextest（engine backtest/result_view/research 族 73/73、store-sqlite backtest 8/8）全过；
+cargo fmt --check 与 git diff --check 干净；账本与 Rust 代码零改动（纯复核片）。
+
+下一片：130-11 切片三，backtest 域 partial 第 41–60 行。
