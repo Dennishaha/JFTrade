@@ -192,3 +192,31 @@ preflight 能力、向后分页与跨 provider 隔离、游标分页 nextCursor�
 `check:quick`（单实例）、`git diff --check`。
 
 下一片：backtest_calendar 按文件行号继续（service/service_pineworker/sync/time 等）。
+
+## 第 130 批 07 切片二：service/sync/time 32 条 recon（2026-09-24）
+
+范围：`internal/backtest/service_test.go`（15：[x] 1 + partial 14）、
+`internal/backtest/service_pineworker_test.go`（2：partial 2）、
+`internal/backtest/sync_test.go`（12：[x] 2 + partial 10）、
+`internal/backtest/time_test.go`（3：[x] 3），共 32 条（[x] 6 + partial 26）。
+
+方法：Go 体逐条核对结论；6 [x] 确认 Rust 测试存在、Parity 锚点在位、断言逐项等价
+（DST 23 小时与毫秒值、HK 日界、legacy 偏移归一化、区间规划四矩阵、会话作用域
+八值集合、图表类型三分支均与 Go 期望同值）；全部 32 条 Rust 引用逐一 rg 命中
+（0 缺失，组合引用逐段命中）；[x] 全文唯一性成立（会话作用域用例被路由行复用，
+账本以组合形式区分；历史源行 partial 复用允许）；高风险项抽查 Go 体
+（:652 关闭取消与关后拒绝、:628 错误文本透传、:680 投影粒度）确认缺口诚实。
+
+结论：32 条 verdict 全部成立，无判定变更、无代码变更——
+6 [x] 均为前期修复后新增的回归用例，断言与 Go 同值；
+service:680 正确维持 partial（被引测试已作他行 [x] 证据，唯一引用约束）；
+partial 缺口具体（含 :652 关后拒绝新 Start、:628 错误文本透传、:191 任务 ID 唯一性、
+:332 未知 rehab 回退、:16 启动矩阵、:138 定义派生细节）。
+本片为纯 recon。
+
+验证：`audit_test_parity.py --write-report` exit 0；`parity_anchor_reconcile.py` 过；
+`cargo fmt -p jftrade-engine -- --check`、`check:ai-context`、`check:migration-manifest`、
+`check:zero-go`、定向 nextest（engine backtest 起止/同步位）、
+`check:quick`（单实例）、`git diff --check`。
+
+下一片：backtest_calendar 按文件行号继续（run_failure_recovery/result_view 系 + pkg/backtest 执行器系）。
