@@ -5883,3 +5883,29 @@ Rust 无同形对象（endpoint 由配置派生，失败信号由 state=Failed �
 验证：定向 nextest 6/6；`git diff --check` 干净；台账无改动故免审计重跑。
 
 下一片：130-09 切片三十二，servercoretest 59 条 `[x]`（api_transport 次大余量）。
+## 第 130 批 09 切片三十二甲：servercoretest 前 30 条含 1 处补证（2026-09-24）
+
+范围：`internal/app/apiserver/servercoretest` 前 30 条 `[x]`（backtest 5、
+broker 6、contract 6、exec_validate 4、frontend/market_profiles/openapi 5、
+depth_routes 4）；后 29 条拆后片。
+
+方法：Go 体全读；36 个具名引用全存在（0 缺失）；逐字比对。
+
+1 处补证（维持 `[x]`，只加台账证据，reuse 同步计 5 引）：
+
+- backtest `:27`：成功同步证明装配之外，加解析层 2m 即判 400 用例为
+  第二证据，对应能力拒绝的 400 半侧（文案层差按既有口径）。
+
+其余 29 条维持 `[x]`（删除终端态守卫、轻量列表与详情投影、缺失目录自建、
+缺参 400 文案、funds 六键、残缺路径 404、价格精度与会话透传、裸 symbol 拒绝
+文案差但状态一致、路由 409 注册证明、方法精确匹配、fixture 全等回放、
+swagger 40 名与类型化 body 均逐项命中；`:127` 的 starting/running 代表元差异
+属同一守卫的非终端成员，主张一致故维持）。
+
+缺口 owner 与回归：无新增；回归要求见既有 uncoveredAssertions。
+
+验证：`audit_test_parity.py --write-report` exit 0（1486 exact；dup 0）；
+`parity_anchor_reconcile.py` 过（1742/1696/0/0/46）；受影响定向 nextest 11/11；
+`git diff --check` 干净；无 Rust 生产改动。
+
+下一片：130-09 切片三十二乙，servercoretest 后 29 条 `[x]`。
