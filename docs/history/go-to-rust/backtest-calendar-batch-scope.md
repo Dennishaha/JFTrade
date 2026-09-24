@@ -490,3 +490,30 @@ partial 2251→2252）。**backtest_calendar 域 376 条全部 recon 完毕**；
 验证：`audit_test_parity.py --write-report` exit 0（1476 exact，dup 0）；
 `parity_anchor_reconcile.py` 1742/1696/0/0/46；定向 nextest（jftrade-calendar
 89/89，backtest pine 9/9）；`git diff --check` 干净。
+## 第 130 批 11 切片一：backtest 域 partial 第 1–20 行，19 行维持、1 行措辞锐化（2026-09-24）
+
+范围：backtest 域 partial 第 1–20 行（business 2、historical_source 9、input_validation 9，
+按文件加行号升序）。审计口径 backtest_calendar 域 376 行 = 63 exact + 313 partial。
+
+方法：Go 体全读；缺口验到代码行与用例断言；引用存在不等于断言等价。
+
+19 行维持（nil store 安全降级改 fail-closed、覆盖与归一辅助函数边界、向后分页加跨源隔离、
+在途分页取消时序、瞬时重试加 preflight 能力、空结果 helper 层拒绝、可选校验器放行、
+生命周期拒绝路径、三场景分页、转换五字段加会话展开、重试耗尽加计时器取消、provider
+覆盖优先级、启动前队列状态、缺覆盖不持久化、adapter 构造失败、动态断言辅助、分辨率
+拒绝矩阵、就绪终态矩阵，均与账本缺口一致）。
+
+1 行措辞锐化（verdict 不变，[x] 1472 不变，b83 dry-run 先行、entry_changed 等于 0）：
+
+- input_validation:14：Rust 引用覆盖非法 since、非法周期、区间倒置三处 BadRequest，
+  原结论误写成两类；Go 7 命名加零填充与不可能日期矩阵的其余项仍无覆盖。
+
+抽核要点：sync_helpers 三用例逐行核实（空页拒绝、period 失配拒绝、合法单 candle 通过）；
+游标推进由 Futu 夹具两页 walk 覆盖，跨源隔离缺口成立；重试 helper 有实现但零用例驱动
+瞬时失败序列，preflight 能力校验缺口成立。
+
+验证：audit --write-report 过（1472 exact；dup 0）；anchor 过（1742/1696/0/0/46）；
+定向 nextest（engine backtest 族 66/66、jftrade-backtest 57/57）全过；
+cargo fmt --check 与 git diff --check 干净；无 Rust 生产代码改动、无新增测试。
+
+下一片：130-11 切片二，backtest 域 partial 第 21–40 行。

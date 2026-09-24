@@ -117372,7 +117372,7 @@
     "internal/backtest/input_and_readiness_validation_test.go:14:TestBacktestDateRangeRejectsIncompleteAndInvalidMarketInputs": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_backtest_sync_start_tests.rs::sync_request_rejects_invalid_ranges_and_intervals",
-      "conclusion": "partial：Rust 覆盖区间倒置与非法周期的 BadRequest；差异：Go 断言只有单侧日期、非零填充日期、不可能日期与非法 since/until 的完整拒绝矩阵，Rust 只覆盖其中两类。",
+      "conclusion": "partial：Rust 覆盖非法 since、非法周期与区间倒置三处 BadRequest；差异：Go 断言 7 个命名用例加非零填充、不可能日期与非法 since/until 的完整拒绝矩阵，Rust 未覆盖单侧日期、非零填充、不可能日期、非法 until 与不支持市场。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'",
       "evidence_type": "partial",
       "source": {
@@ -117392,7 +117392,7 @@
       "assertionCoverage": {
         "covered": [],
         "uncovered": [
-          "partial：Rust 覆盖区间倒置与非法周期的 BadRequest；差异：Go 断言只有单侧日期、非零填充日期、不可能日期与非法 since/until 的完整拒绝矩阵，Rust 只覆盖其中两类。"
+          "partial：Rust 覆盖非法 since、非法周期与区间倒置三处 BadRequest；差异：Go 断言 7 个命名用例加非零填充、不可能日期与非法 since/until 的完整拒绝矩阵，Rust 未覆盖单侧日期、非零填充、不可能日期、非法 until 与不支持市场。"
         ],
         "source": "legacy-conclusion"
       },
@@ -117427,7 +117427,7 @@
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
-        "partial：Rust 覆盖区间倒置与非法周期的 BadRequest；差异：Go 断言只有单侧日期、非零填充日期、不可能日期与非法 since/until 的完整拒绝矩阵，Rust 只覆盖其中两类。"
+        "partial：Rust 覆盖非法 since、非法周期与区间倒置三处 BadRequest；差异：Go 断言 7 个命名用例加非零填充、不可能日期与非法 since/until 的完整拒绝矩阵，Rust 未覆盖单侧日期、非零填充、不可能日期、非法 until 与不支持市场。"
       ],
       "boundaryReason": null
     },
