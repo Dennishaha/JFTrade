@@ -870,3 +870,34 @@ cargo fmt --check 与 git diff --check 干净；无 Rust 生产代码改动、�
 cargo fmt --check 与 git diff --check 干净；无 Rust 生产代码改动、无新增测试。
 
 下一片：130-11 切片十五，backtest 域 partial 第 281–300 行。
+
+## 第 130 批 11 切片十五：backtest 域 partial 第 281–300 行，19 行维持、1 行结论收紧（2026-09-24）
+
+范围：backtest 域 partial 第 281–300 行（store 紧凑往返/复权过滤/覆盖 Verify/分钟合成/
+周期存储值 8、同步进度快照 1、交易成本与回放边界 4、费用预设与费用引擎 7，
+按文件加行号升序）。
+
+方法：Go 体全读；缺口验到代码行与用例断言；引用存在不等于断言等价。
+
+19 行维持（紧凑行存储编码往返、复权过滤查询、重叠接受与缺失报告的 Verify、
+1m→5m 与 5m→15m 合成及 5m 源优先、周期存储值往返、快照别名隔离边界、
+成本助手归一化矩阵、费用原语与回放批处理边界、pump 失败契约、市场预设矩阵、
+报价币解析、自定义规则克隆归一、生效区间边界、港股/美股/按单最低费用语义，
+均与账本缺口一致；其中 298/299/300 的 Rust 用例与 Go 数值逐项对应，
+295 的报价币矩阵缺口已显式登记）。
+
+1 行结论收紧（verdict 不变，[x] 1472 不变，b83 dry-run 先行、entry_changed 等于 0）：
+
+- trading_cost_replay_boundaries:150：原结论“回放边界由请求校验与执行身份校验覆盖”
+  引用了条目之外的用例；按 Go 体重写，明确引用用例仅覆盖方向校验，
+  回放请求构建、参数隔离、数量归一、方向映射表无对应断言。
+
+抽核要点：20 条 Rust 引用逐项存在；298/299/300 与 285 的 Rust 数值断言逐行核实
+与 Go 一致；292 的 Rust 用例逐行核实仅覆盖非法方向拒绝。
+
+验证：audit --write-report 过（1472 exact；dup 0）；anchor 过（1742/1696/0/0/46）；
+定向 nextest（jftrade-backtest、jftrade-integration-pine、jftrade-store-sqlite
+视触及范围）全过；cargo fmt --check 与 git diff --check 干净；
+无 Rust 生产代码改动、无新增测试。
+
+下一片：130-11 切片十六，backtest 域 partial 第 301–313 行（末片）＋下一域开片。

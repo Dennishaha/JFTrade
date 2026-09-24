@@ -135041,7 +135041,7 @@
     "pkg/backtest/trading_cost_replay_boundaries_test.go:150:TestPineWorkerCommandAndReplayValidationEdges": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-integration-pine/src/backtest_tests.rs::pine_adapter_rejects_invalid_worker_intent",
-      "conclusion": "partial：Go 断言命令与回放校验边界。Rust 的适配器拒绝非法 worker 意图（该用例），回放边界由请求校验与执行身份校验覆盖。",
+      "conclusion": "partial：Go 断言命令执行器警告/平仓解析/数量归一/方向映射与回放请求构建校验（含参数表隔离）。Rust 引用用例仅断言适配器拒绝非法 worker 意图的方向校验；回放请求构建、参数隔离、数量归一、方向映射表无对应断言。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine --all-targets --locked",
       "evidence_type": "partial",
       "source": {
@@ -135061,7 +135061,7 @@
       "assertionCoverage": {
         "covered": [],
         "uncovered": [
-          "partial：Go 断言命令与回放校验边界。Rust 的适配器拒绝非法 worker 意图（该用例），回放边界由请求校验与执行身份校验覆盖。"
+          "partial：Go 断言命令执行器警告/平仓解析/数量归一/方向映射与回放请求构建校验（含参数表隔离）。Rust 引用用例仅断言适配器拒绝非法 worker 意图的方向校验；回放请求构建、参数隔离、数量归一、方向映射表无对应断言。"
         ],
         "source": "legacy-conclusion"
       },
@@ -135096,7 +135096,7 @@
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
-        "partial：Go 断言命令与回放校验边界。Rust 的适配器拒绝非法 worker 意图（该用例），回放边界由请求校验与执行身份校验覆盖。"
+        "partial：Go 断言命令执行器警告/平仓解析/数量归一/方向映射与回放请求构建校验（含参数表隔离）。Rust 引用用例仅断言适配器拒绝非法 worker 意图的方向校验；回放请求构建、参数隔离、数量归一、方向映射表无对应断言。"
       ],
       "boundaryReason": null
     },
