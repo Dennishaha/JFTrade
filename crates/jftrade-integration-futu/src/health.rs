@@ -493,6 +493,7 @@ mod tests {
     use crate::frame::HEADER_LEN;
     use crate::{Frame, OpenDSessionCloseReason, decode_frame, encode_frame};
 
+    // Parity: go:452dea11:internal/app/apiserver/futuapp/runtime_state_boundaries_test.go:51 TestFutuRuntimeHealthyProbeAndGlobalStateBoundaries
     #[test]
     fn tcp_probe_maps_login_global_state_and_market_readiness() {
         let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");

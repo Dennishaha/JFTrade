@@ -5665,3 +5665,48 @@ fmt 与 nextest；`check:ai-context`、`check:migration-manifest`、
 `check:zero-go` 过；`check:quick` 与 `git diff --check` 见收尾。
 
 下一片：runtime/runtimes 清空；之后 backtestapp、futuapp、liveapp 等。
+
+## 第 130 批 09 切片二十七：backtestapp/futuapp/liveapp/strategyapp/status/stores/databaseguard 41 条含 10 处纠正（2026-09-24）
+
+范围：`internal/app/apiserver/backtestapp/`（14）+ `futuapp/`（11）+
+`liveapp/`（4）+ `strategyapp/`（4）+ `status/`（4）+ `stores/`（2）+
+`databaseguard/`（2），共 41 条。
+
+方法：Go 体逐段核对并逐字比对 Rust 断言；首筛 1 条 MISS 是引用文件
+写错（测试本身存在），1 条 [x] 缺锚点。查出 10 处过宽 `[x]`，本片降为
+partial；补 1 行注释锚点；纠正 1 处引用文件路径并同步 reuse 元数据
+（审计 reuse 一致性校验拦截了一次不同步提交，修复后通过）。
+结论：41 条 verdict = 13 `[x]` + 28 partial（`[x]` 1518→1508）。
+生产与测试逻辑无改动（仅 1 行注释锚点），本片为台账修正 + 报告清单重生
++ 文档。
+
+10 处纠正：
+
+- futuapp `:39`：第二引用文件误写，纠正后仍降级——重试诊断字段、WS
+  计数、禁用市场健康错误无断言。
+- futuapp `:14`：引用发现的是订单而非账户，账户数量排序、版本投影、
+  健康已连接无断言。
+- futuapp `:58`：引用补入闭端诊断用例后仍缺市场健康错误断言。
+- futuapp probe `:10`：禁用空探针与设置上传递无断言。
+- backtestapp `:226`：查询透传与 provider 错误透传无断言。
+- backtestapp `:310`：同步器固定关闭与四种失败模式无断言。
+- strategyapp `:110`/`:137`/`:145`：描述符标志读取、正向健康投影、
+  无服务防御分支无断言。
+- stores `:10`：重复关闭不重跑无断言（工作区无双关用例）。
+
+保留的 13 `[x]` 均为逐项断言：四分支市场健康逐字文案、lookback 市场
+维度、冻结语料 wire 投影、启动回滚与租约、旧构建指引等。`:51` 补锚点
+后保留（mock 探针逐项断言连接版本与 4 市场）。其余 partial 与 boundary
+原结论诚实，维持不变。
+
+缺口 owner 与回归：OpenD 健康投影、协调器投影、探针、同步页校验与
+装配、能力与健康端口、执行写端口、运行时关停；回归要求见各行
+uncoveredAssertions。
+
+验证：`audit_test_parity.py --write-report` exit 0（1508 exact 全引用
+存在；已知警告不变；inventory 随改判重生；reuse 同步后元数据校验过）；
+`parity_anchor_reconcile.py` 过（1696/0/0/46，较上片 +1）；注释锚点经
+`cargo fmt --check`；`check:ai-context`、`check:migration-manifest`、
+`check:zero-go` 过；`check:quick` 与 `git diff --check` 见收尾。
+
+下一片：server_test.go 14 条与 api_transport 收尾盘点。

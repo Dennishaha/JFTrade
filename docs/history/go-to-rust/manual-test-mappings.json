@@ -24216,11 +24216,11 @@
       "boundaryReason": null
     },
     "internal/app/apiserver/backtestapp/historical_source_test.go:226:TestProviderHistoricalSourceFetchesAndParsesProviderPage": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_production_ports_backtest_sync_helpers.rs::test_historical_k_line_syncer_rejects_broken_pagination",
-      "conclusion": "function_exact：Go 断言 provider 历史页抓取并解析为 K 线（含分页）。Rust 的 test_historical_k_line_syncer_rejects_broken_pagination 断言同步器对分页游标的处理（断链分页被拒绝），配套 test_historical_k_line_syncer_rejects_empty_provider_result 覆盖空结果，等价于“按页抓取并校验分页”。",
+      "conclusion": "partial：Rust 覆盖有效页校验通过、断链分页与空结果拒绝。缺口：查询参数透传（复权类型、会话集合、limit）与 provider 错误透传无断言。owner=回测同步页校验；回归要求：补透传断言。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-      "evidence_type": "function_exact",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/backtestapp/historical_source_test.go",
         "line": 226,
@@ -24271,15 +24271,18 @@
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "function_exact：Go 断言 provider 历史页抓取并解析为 K 线（含分页）。Rust 的 test_historical_k_line_syncer_rejects_broken_pagination 断言同步器对分页游标的处理（断链分页被拒绝），配套 test_historical_k_line_syncer_rejects_empty_provider_result 覆盖空结果，等价于“按页抓取并校验分页”。"
+        "有效页校验通过",
+        "断链分页与空结果拒绝"
       ],
-      "uncoveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial：Rust 覆盖有效页校验通过、断链分页与空结果拒绝。缺口：查询参数透传（复权类型、会话集合、limit）与 provider 错误透传无断言。owner=回测同步页校验；回归要求：补透传断言。"
+      ],
       "boundaryReason": null
     },
     "internal/app/apiserver/backtestapp/historical_source_test.go:266:TestHistoricalPageParsingRejectsMalformedProviderValues": {
@@ -24412,11 +24415,11 @@
       "boundaryReason": null
     },
     "internal/app/apiserver/backtestapp/historical_source_test.go:310:TestBacktestProviderSyncerPinsFutuAndClosesOnFailures": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_production_ports_backtest_sync_helpers.rs::test_historical_k_line_syncer_rejects_empty_provider_result",
-      "conclusion": "function_exact：Go 断言同步器固定 futu、同步成功后 Close，并在缺历史能力、descriptor 错误、非法数据库路径、运行时已关闭时失败。Rust 的同步器测试断言空 provider 结果被拒绝（并覆盖分页破坏），提供者能力/失败关闭语义由同步入口与 store 契约覆盖，核心“固定 futu 并失败关闭”契约等价。",
+      "conclusion": "partial：Rust 覆盖空结果与断链分页拒绝。缺口：Go 的题眼是同步器固定 futu、成功后关闭、四种构造失败（无历史能力、描述符错误、非法库路径、已关闭运行时）；Rust 无同步器固定关闭与失败模式断言，结论原称由同步入口与 store 契约覆盖但未列入引用。owner=回测同步器装配；回归要求：补固定关闭与失败模式断言。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-      "evidence_type": "function_exact",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/backtestapp/historical_source_test.go",
         "line": 310,
@@ -24466,16 +24469,18 @@
       },
       "risk": "normal",
       "owner": "api_transport",
-      "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
+      "priority": "P1",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "function_exact：Go 断言同步器固定 futu、同步成功后 Close，并在缺历史能力、descriptor 错误、非法数据库路径、运行时已关闭时失败。Rust 的同步器测试断言空 provider 结果被拒绝（并覆盖分页破坏），提供者能力/失败关闭语义由同步入口与 store 契约覆盖，核心“固定 futu 并失败关闭”契约等价。"
+        "空结果与断链分页拒绝"
       ],
-      "uncoveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial：Rust 覆盖空结果与断链分页拒绝。缺口：Go 的题眼是同步器固定 futu、成功后关闭、四种构造失败（无历史能力、描述符错误、非法库路径、已关闭运行时）；Rust 无同步器固定关闭与失败模式断言，结论原称由同步入口与 store 契约覆盖但未列入引用。owner=回测同步器装配；回归要求：补固定关闭与失败模式断言。"
+      ],
       "boundaryReason": null
     },
     "internal/app/apiserver/backtestapp/historical_source_test.go:354:TestInstrumentSpecUsesProviderRulesAndConservativeFallbacks": {
@@ -28634,11 +28639,11 @@
       "boundaryReason": null
     },
     "internal/app/apiserver/futuapp/coordinator_test.go:39:TestCoordinatorDisabledProjectionsAndRetryDiagnostics": {
-      "status": "[x]",
-      "rust_entry": "crates/jftrade-engine/src/product_production_assembly_tests.rs::production_opend_health_diagnoses_enabled_but_unreachable_opend; crates/jftrade-engine/src/product_system_control_read_tests.rs::production_system_read_reports_unavailable_opend_without_fake_health",
-      "conclusion": "function_exact：Go 断言禁用/不可达 OpenD 时投影为不可用并给出手动重试诊断。Rust 的 production_opend_health_diagnoses_enabled_but_unreachable_opend 断言已启用但不可达的 OpenD 被诊断为不可用并给出可操作指引，逐条对应禁用/重试诊断契约；补充证据：production_system_read_reports_unavailable_opend_without_fake_health。",
+      "status": "[~]",
+      "rust_entry": "crates/jftrade-engine/src/product_production_assembly_tests.rs::production_opend_health_diagnoses_enabled_but_unreachable_opend; crates/jftrade-engine/src/product_production_assembly_tests.rs::production_system_read_reports_unavailable_opend_without_fake_health",
+      "conclusion": "partial：Rust 覆盖禁用与不可达投影不可用、诊断码与手动重试指引、不伪造健康键。缺口：Go 的重试诊断半支（liveQuoteBackoffActive 与 failureCount）、WS 客户端计数、禁用时 market 健康错误文案无断言；原第二引用文件路径误写为 product_system_control_read_tests，已纠正为 product_production_assembly_tests。owner=OpenD 健康投影；回归要求：补重试诊断与市场健康断言。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-      "evidence_type": "function_exact",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/futuapp/coordinator_test.go",
         "line": 39,
@@ -28658,7 +28663,7 @@
           }
         },
         {
-          "file": "crates/jftrade-engine/src/product_system_control_read_tests.rs",
+          "file": "crates/jftrade-engine/src/product_production_assembly_tests.rs",
           "test": "production_system_read_reports_unavailable_opend_without_fake_health",
           "crate": "jftrade-engine",
           "anchor": null
@@ -28696,15 +28701,19 @@
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "function_exact：Go 断言禁用/不可达 OpenD 时投影为不可用并给出手动重试诊断。Rust 的 production_opend_health_diagnoses_enabled_but_unreachable_opend 断言已启用但不可达的 OpenD 被诊断为不可用并给出可操作指引，逐条对应禁用/重试诊断契约；补充证据：production_system_read_reports_unavailable_opend_without_fake_health。"
+        "禁用与不可达投影不可用",
+        "诊断码与手动重试指引",
+        "不伪造健康键"
       ],
-      "uncoveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial：Rust 覆盖禁用与不可达投影不可用、诊断码与手动重试指引、不伪造健康键。缺口：Go 的重试诊断半支（liveQuoteBackoffActive 与 failureCount）、WS 客户端计数、禁用时 market 健康错误文案无断言；原第二引用文件路径误写为 product_system_control_read_tests，已纠正为 product_production_assembly_tests。owner=OpenD 健康投影；回归要求：补重试诊断与市场健康断言。"
+      ],
       "boundaryReason": null
     },
     "internal/app/apiserver/futuapp/coordinator_test.go:69:TestMarketDataHealthRequiresHealthyOpenDQuoteSession": {
@@ -28837,11 +28846,11 @@
       "boundaryReason": null
     },
     "internal/app/apiserver/futuapp/runtime_contracts_test.go:14:TestCoordinatorProjectsConnectedRuntimeAndDiscoveredAccounts": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_reconciliation_provider_tests.rs::helper_market_data_providers_reconcile_futu_account_order_fill_and_fee; crates/jftrade-engine/src/product_production_ports_execution_reconciliation_tests.rs::reconciliation_discovers_external_order_into_empty_ledger",
-      "conclusion": "function_exact：Go 断言协调器投影已连接运行时与发现的账户。Rust 的 helper_market_data_providers_reconcile_futu_account_order_fill_and_fee 断言 Futu 账户在就绪会话下被发现并完成订单/成交/费用对账，逐条对应 “连接运行时 + 账户发现” 契约；补充证据：reconciliation_discovers_external_order_into_empty_ledger。",
+      "conclusion": "partial：Rust 覆盖就绪会话下订单成交费用聚合落库与空账本外部订单发现。缺口：Go 的题眼是账户投影——发现数量与 REAL 优先排序、全局状态版本投影、健康已连接；Rust 发现的是订单而非账户，无账户投影断言。owner=协调器运行时投影；回归要求：补账户发现与版本投影断言。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-      "evidence_type": "function_exact",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/futuapp/runtime_contracts_test.go",
         "line": 14,
@@ -28898,16 +28907,19 @@
       },
       "risk": "normal",
       "owner": "api_transport",
-      "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
+      "priority": "P1",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "function_exact：Go 断言协调器投影已连接运行时与发现的账户。Rust 的 helper_market_data_providers_reconcile_futu_account_order_fill_and_fee 断言 Futu 账户在就绪会话下被发现并完成订单/成交/费用对账，逐条对应 “连接运行时 + 账户发现” 契约；补充证据：reconciliation_discovers_external_order_into_empty_ledger。"
+        "就绪会话下订单成交费用聚合",
+        "空账本外部订单发现"
       ],
-      "uncoveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial：Rust 覆盖就绪会话下订单成交费用聚合落库与空账本外部订单发现。缺口：Go 的题眼是账户投影——发现数量与 REAL 优先排序、全局状态版本投影、健康已连接；Rust 发现的是订单而非账户，无账户投影断言。owner=协调器运行时投影；回归要求：补账户发现与版本投影断言。"
+      ],
       "boundaryReason": null
     },
     "internal/app/apiserver/futuapp/runtime_contracts_test.go:44:TestCoordinatorConnectedProbeWithoutBrokerFailsClosed": {
@@ -28978,11 +28990,11 @@
       "boundaryReason": null
     },
     "internal/app/apiserver/futuapp/runtime_contracts_test.go:58:TestCoordinatorEnabledClosedPortReportsManualRetryDiagnosis": {
-      "status": "[x]",
-      "rust_entry": "crates/jftrade-engine/src/product_production_assembly_tests.rs::production_opend_health_rejects_old_build_and_guides_upgrade; crates/jftrade-engine/src/product_production_assembly_tests.rs::production_system_read_reports_unavailable_opend_without_fake_health",
-      "conclusion": "function_exact：Go 断言启用但端口关闭时给出人工重试诊断。Rust 的 production_opend_health_rejects_old_build_and_guides_upgrade 断言旧构建/不可用状态被拒绝并给出升级/修复指引，覆盖同一“可诊断的不可用”契约；补充证据：production_system_read_reports_unavailable_opend_without_fake_health。",
+      "status": "[~]",
+      "rust_entry": "crates/jftrade-engine/src/product_production_assembly_tests.rs::production_opend_health_rejects_old_build_and_guides_upgrade; crates/jftrade-engine/src/product_production_assembly_tests.rs::production_system_read_reports_unavailable_opend_without_fake_health; crates/jftrade-engine/src/product_production_assembly_tests.rs::production_opend_health_diagnoses_enabled_but_unreachable_opend",
+      "conclusion": "partial：Rust 覆盖旧构建拒绝与升级指引、不可用不伪造、闭端诊断码手动重试与断开。缺口：market 健康未连接与错误文案无专门断言。owner=OpenD 健康投影；回归要求：补市场健康断言。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-      "evidence_type": "function_exact",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/futuapp/runtime_contracts_test.go",
         "line": 58,
@@ -29011,6 +29023,12 @@
             "rustFile": "crates/jftrade-engine/src/product_production_assembly_tests.rs",
             "rustLine": 1521
           }
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_production_assembly_tests.rs",
+          "test": "production_opend_health_diagnoses_enabled_but_unreachable_opend",
+          "crate": "jftrade-engine",
+          "anchor": null
         }
       ],
       "assertionCoverage": {
@@ -29045,23 +29063,27 @@
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "function_exact：Go 断言启用但端口关闭时给出人工重试诊断。Rust 的 production_opend_health_rejects_old_build_and_guides_upgrade 断言旧构建/不可用状态被拒绝并给出升级/修复指引，覆盖同一“可诊断的不可用”契约；补充证据：production_system_read_reports_unavailable_opend_without_fake_health。"
+        "旧构建拒绝与升级指引",
+        "不可用不伪造",
+        "闭端诊断码手动重试与断开"
       ],
-      "uncoveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial：Rust 覆盖旧构建拒绝与升级指引、不可用不伪造、闭端诊断码手动重试与断开。缺口：market 健康未连接与错误文案无专门断言。owner=OpenD 健康投影；回归要求：补市场健康断言。"
+      ],
       "boundaryReason": null
     },
     "internal/app/apiserver/futuapp/runtime_probe_contracts_test.go:10:TestCoordinatorDisabledProbeAndSettingsBoundaries": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "crates/jftrade-integration-futu/src/probe.rs::probe_opend_reports_closed_port_as_disconnected; crates/jftrade-integration-futu/src/probe.rs::probe_from_global_state_enforces_minimum_version_and_maps_neutral_state",
-      "conclusion": "function_exact：Go 断言禁用探针与设置边界（禁用时不探测、设置错误向上传递）。Rust 的 probe_opend_reports_closed_port_as_disconnected 断言关闭端口被判定为断开（禁用/边界场景），同族 probe_from_global_state_enforces_minimum_version_and_maps_neutral_state 覆盖全局态映射；补充证据：probe_from_global_state_enforces_minimum_version_and_maps_neutral_state。",
+      "conclusion": "partial：Rust 覆盖关闭端口断开判定与全局态版本映射。缺口：Go 的题眼是禁用时返回空探针与设置错误上传递；Rust 无禁用探针与设置边界断言。owner=协调器探针；回归要求：补禁用探针断言。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked",
-      "evidence_type": "function_exact",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/futuapp/runtime_probe_contracts_test.go",
         "line": 10,
@@ -29123,16 +29145,19 @@
       },
       "risk": "normal",
       "owner": "api_transport",
-      "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
+      "priority": "P1",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "function_exact：Go 断言禁用探针与设置边界（禁用时不探测、设置错误向上传递）。Rust 的 probe_opend_reports_closed_port_as_disconnected 断言关闭端口被判定为断开（禁用/边界场景），同族 probe_from_global_state_enforces_minimum_version_and_maps_neutral_state 覆盖全局态映射；补充证据：probe_from_global_state_enforces_minimum_version_and_maps_neutral_state。"
+        "关闭端口断开判定",
+        "全局态版本映射"
       ],
-      "uncoveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial：Rust 覆盖关闭端口断开判定与全局态版本映射。缺口：Go 的题眼是禁用时返回空探针与设置错误上传递；Rust 无禁用探针与设置边界断言。owner=协调器探针；回归要求：补禁用探针断言。"
+      ],
       "boundaryReason": null
     },
     "internal/app/apiserver/futuapp/runtime_state_boundaries_test.go:26:TestFutuRuntimeRemainingDisconnectedAndResetPaths": {
@@ -60042,11 +60067,11 @@
       "boundaryReason": null
     },
     "internal/app/apiserver/stores/handle_test.go:10:TestHandleClosesStoresInReverseOpenOrder": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_runtime_tests.rs::test_product_runtime_ordered_shutdown_explicit; crates/jftrade-engine/src/product_data_management_batch_atomic_startup_tests.rs::startup_acquires_all_writer_leases_in_stable_order_before_migrating",
-      "conclusion": "function_exact：Go 断言按打开逆序关闭 store 且重复 Close 不重跑；Rust 启动按稳定顺序先取 9 个 lease 再迁移，关闭序列最后释放 sqlite lease，并以租约可重新获取证明释放。",
+      "conclusion": "partial：Rust 覆盖启动稳定顺序取租约再迁移、关闭逆序释放、租约可重新获取。缺口：Go 的重复关闭不重跑无断言，工作区无同一句柄关闭两次的用例。owner=运行时关停；回归要求：补重复关闭幂等断言。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(startup_acquires_all_writer_leases_in_stable_order_before_migrating)'",
-      "evidence_type": "function_exact",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/stores/handle_test.go",
         "line": 10,
@@ -60108,16 +60133,20 @@
       },
       "risk": "normal",
       "owner": "api_transport",
-      "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
+      "priority": "P1",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "function_exact：Go 断言按打开逆序关闭 store 且重复 Close 不重跑；Rust 启动按稳定顺序先取 9 个 lease 再迁移，关闭序列最后释放 sqlite lease，并以租约可重新获取证明释放。"
+        "稳定顺序取租约",
+        "关闭逆序释放",
+        "租约可重新获取"
       ],
-      "uncoveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial：Rust 覆盖启动稳定顺序取租约再迁移、关闭逆序释放、租约可重新获取。缺口：Go 的重复关闭不重跑无断言，工作区无同一句柄关闭两次的用例。owner=运行时关停；回归要求：补重复关闭幂等断言。"
+      ],
       "boundaryReason": null
     },
     "internal/app/apiserver/stores/handle_test.go:42:TestHandleRollsBackAndStopsAfterOpenFailure": {
@@ -60262,11 +60291,11 @@
       "boundaryReason": null
     },
     "internal/app/apiserver/strategyapp/runtime_ports_test.go:110:TestMarketDataCapabilitiesReadsRuntimeDescriptor": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::poll_only_read_routes_prioritize_capabilities_and_preserve_leases; crates/jftrade-engine/src/product_production_ports_market_data_quote_lease.rs::capability_unsupported_error",
-      "conclusion": "function_exact：Go 断言能力端口读取当前 provider 描述符（streamingCandles）；Rust 断言轮询读取路由按 provider 能力优先并保留租约，能力来自 provider 描述符。",
+      "conclusion": "partial：Rust 覆盖轮询路由按能力拒绝并保留租约、能力不支持错误构造。缺口：Go 的题眼是能力端口读取当前描述符并返回其 streamingCandles 标志；Rust 无描述符标志读取断言。owner=行情能力端口；回归要求：补能力读取断言。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(poll_only_read_routes_prioritize_capabilities_and_preserve_leases)'",
-      "evidence_type": "function_exact",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/strategyapp/runtime_ports_test.go",
         "line": 110,
@@ -60324,23 +60353,25 @@
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "function_exact：Go 断言能力端口读取当前 provider 描述符（streamingCandles）；Rust 断言轮询读取路由按 provider 能力优先并保留租约，能力来自 provider 描述符。"
+        "按能力拒绝与租约保留"
       ],
-      "uncoveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial：Rust 覆盖轮询路由按能力拒绝并保留租约、能力不支持错误构造。缺口：Go 的题眼是能力端口读取当前描述符并返回其 streamingCandles 标志；Rust 无描述符标志读取断言。owner=行情能力端口；回归要求：补能力读取断言。"
+      ],
       "boundaryReason": null
     },
     "internal/app/apiserver/strategyapp/runtime_ports_test.go:137:TestMarketDataHealthReturnsActiveProviderHealth": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_subscription_tests.rs::prediction_subscription_rejects_invalid_types_and_unready_provider",
-      "conclusion": "function_exact：Go 断言健康端口返回当前 provider 的 connected/readiness；Rust 断言依赖 provider readiness 的操作在 provider 未就绪时被拒绝（readiness 由 provider 描述符/健康状态驱动）。",
+      "conclusion": "partial：Rust 覆盖未就绪时拒绝。缺口：Go 的题眼是健康端口返回已连接与就绪状态的正向投影；Rust 无正向健康断言。owner=行情健康端口；回归要求：补正向健康断言。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(prediction_subscription_rejects_invalid_types_and_unready_provider)'",
-      "evidence_type": "function_exact",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/strategyapp/runtime_ports_test.go",
         "line": 137,
@@ -60391,23 +60422,25 @@
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "function_exact：Go 断言健康端口返回当前 provider 的 connected/readiness；Rust 断言依赖 provider readiness 的操作在 provider 未就绪时被拒绝（readiness 由 provider 描述符/健康状态驱动）。"
+        "未就绪拒绝"
       ],
-      "uncoveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial：Rust 覆盖未就绪时拒绝。缺口：Go 的题眼是健康端口返回已连接与就绪状态的正向投影；Rust 无正向健康断言。owner=行情健康端口；回归要求：补正向健康断言。"
+      ],
       "boundaryReason": null
     },
     "internal/app/apiserver/strategyapp/runtime_ports_test.go:145:TestTradeCommandsMapPlaceCancelAndDefensiveFailures": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_execution_write_product_tests.rs::execution_write_product_replays_browser_boundary_failure_recovery_and_restart",
-      "conclusion": "function_exact：Go 断言无服务时下单/撤单返回防御性错误、否则映射内部订单号；Rust 生产执行写测试断言下单/撤单路由的成功映射与边界/失败恢复（无端口时 fail-closed 不注册写路由）。",
+      "conclusion": "partial：Rust 覆盖下单撤单路由成功映射与失败恢复包络。缺口：Go 的无服务防御性错误分支在 Rust 以未注册写路由表达，无对应错误断言。owner=执行写端口；回归要求：补无服务分支说明或断言。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(execution_write_product_replays_browser_boundary_failure_recovery_and_restart)'",
-      "evidence_type": "function_exact",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/strategyapp/runtime_ports_test.go",
         "line": 145,
@@ -60458,15 +60491,17 @@
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "function_exact：Go 断言无服务时下单/撤单返回防御性错误、否则映射内部订单号；Rust 生产执行写测试断言下单/撤单路由的成功映射与边界/失败恢复（无端口时 fail-closed 不注册写路由）。"
+        "成功映射与失败恢复包络"
       ],
-      "uncoveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial：Rust 覆盖下单撤单路由成功映射与失败恢复包络。缺口：Go 的无服务防御性错误分支在 Rust 以未注册写路由表达，无对应错误断言。owner=执行写端口；回归要求：补无服务分支说明或断言。"
+      ],
       "boundaryReason": null
     },
     "internal/app/apiserver/tradingapp/execution_gateway_boundaries_test.go:10:TestComboOrderQuantityModeMapsEventParlaysToAmount": {
@@ -295693,13 +295728,14 @@
       "reviewStatus": "single"
     },
     "crates/jftrade-engine/src/product_production_assembly_tests.rs::production_opend_health_diagnoses_enabled_but_unreachable_opend": {
-      "referenceCount": 5,
+      "referenceCount": 6,
       "referenceKeys": [
         "internal/app/apiserver/application/assistant_test.go:45:TestAssistantPortsProjectSettingsAndHealth",
         "internal/app/apiserver/futuapp/coordinator_test.go:39:TestCoordinatorDisabledProjectionsAndRetryDiagnostics",
         "internal/app/apiserver/futuapp/runtime_state_boundaries_test.go:26:TestFutuRuntimeRemainingDisconnectedAndResetPaths",
         "internal/app/apiserver/servercore/settings_broker_futu_health_test.go:16:TestFutuRuntimeAndHealthDiagnoseEnabledButUnreachableOpenD",
-        "internal/system/service_test.go:309:TestFutuHealthAndResetDelegates"
+        "internal/system/service_test.go:309:TestFutuHealthAndResetDelegates",
+        "internal/app/apiserver/futuapp/runtime_contracts_test.go:58:TestCoordinatorEnabledClosedPortReportsManualRetryDiagnosis"
       ],
       "allowed": false,
       "reviewStatus": "unreviewed"
@@ -295779,11 +295815,12 @@
       "reviewStatus": "unreviewed"
     },
     "crates/jftrade-engine/src/product_production_assembly_tests.rs::production_system_read_reports_unavailable_opend_without_fake_health": {
-      "referenceCount": 3,
+      "referenceCount": 4,
       "referenceKeys": [
         "internal/app/apiserver/futuapp/runtime_contracts_test.go:44:TestCoordinatorConnectedProbeWithoutBrokerFailsClosed",
         "internal/app/apiserver/futuapp/runtime_contracts_test.go:58:TestCoordinatorEnabledClosedPortReportsManualRetryDiagnosis",
-        "internal/app/apiserver/servercore/server_option_callbacks_test.go:13:TestServerSystemAndSettingsOptionCallbacks"
+        "internal/app/apiserver/servercore/server_option_callbacks_test.go:13:TestServerSystemAndSettingsOptionCallbacks",
+        "internal/app/apiserver/futuapp/coordinator_test.go:39:TestCoordinatorDisabledProjectionsAndRetryDiagnostics"
       ],
       "allowed": false,
       "reviewStatus": "unreviewed"
@@ -300596,14 +300633,6 @@
       "referenceCount": 1,
       "referenceKeys": [
         "internal/app/apiserver/servercoretest/swagger_openapi_test.go:72:TestOpenAPISpecExposesCorePaths"
-      ],
-      "allowed": true,
-      "reviewStatus": "single"
-    },
-    "crates/jftrade-engine/src/product_system_control_read_tests.rs::production_system_read_reports_unavailable_opend_without_fake_health": {
-      "referenceCount": 1,
-      "referenceKeys": [
-        "internal/app/apiserver/futuapp/coordinator_test.go:39:TestCoordinatorDisabledProjectionsAndRetryDiagnostics"
       ],
       "allowed": true,
       "reviewStatus": "single"
