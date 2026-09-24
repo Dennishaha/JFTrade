@@ -195110,11 +195110,11 @@
       "boundaryReason": null
     },
     "internal/exchangecalendar/manager_boundaries_test.go:216:TestManagerValidateCachedSnapshotUsesRegisteredSourceValidator": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "crates/jftrade-calendar/tests/manager_boundaries.rs::registered_provider_snapshots_pass_domain_validation_before_caching",
-      "conclusion": "function_exact：Go 允许注册的 provider 通过 SnapshotValidator 注入额外校验并在缓存校验时透传错误（validatorCalled + errors.Is）。Rust 只有单一校验 owner，等价保证是 provider 返回的 schedules 必须先经领域校验才可缓存/服务。测试用注册的 nyse_official provider 走 refresh_market：合规快照被缓存并由 schedule 命中（source_id=nyse_official、reason=juneteenth），不合规（空 schedules）则被同一 owner 拒绝且不缓存（同文件 provider_snapshot_validation_has_a_single_domain_owner）。",
+      "conclusion": "partial（扩展点缺失）：Go 断言注册 provider 可经 SnapshotValidator 向缓存校验注入额外校验（validatorCalled + errors.Is 透传）。Rust 的 CalendarSourcePort 只有 descriptor/fetch/start/close，没有 validate 方法——provider 注入校验在领域内不存在；引用的 Rust 用例断言的是另一半（合规快照经领域单一 owner 校验后缓存服务），与注入语义不等价。fetch 路径的 ValidateFn（:119 已覆盖）不等同于缓存恢复路径的 provider 校验。缺口与回归要求：明确恢复路径是否需要 provider 校验扩展点——若按单一 owner 设计退役，需在结论中登记设计决策；若需要，在 jftrade-calendar 为 CalendarSourcePort 增加 validate 扩展并在 restore 路径调用后升级。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar",
-      "evidence_type": "function_exact",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/exchangecalendar/manager_boundaries_test.go",
         "line": 216,
@@ -195135,10 +195135,10 @@
         }
       ],
       "assertionCoverage": {
-        "covered": [
-          "function_exact：Go 允许注册的 provider 通过 SnapshotValidator 注入额外校验并在缓存校验时透传错误（validatorCalled + errors.Is）。Rust 只有单一校验 owner，等价保证是 provider 返回的 schedules 必须先经领域校验才可缓存/服务。测试用注册的 nyse_official provider 走 refresh_market：合规快照被缓存并由 schedule 命中（source_id=nyse_official、reason=juneteenth），不合规（空 schedules）则被同一 owner 拒绝且不缓存（同文件 provider_snapshot_validation_has_a_single_domain_owner）。"
+        "covered": [],
+        "uncovered": [
+          "partial（扩展点缺失）：Go 断言注册 provider 可经 SnapshotValidator 向缓存校验注入额外校验（validatorCalled + errors.Is 透传）。Rust 的 CalendarSourcePort 只有 descriptor/fetch/start/close，没有 validate 方法——provider 注入校验在领域内不存在；引用的 Rust 用例断言的是另一半（合规快照经领域单一 owner 校验后缓存服务），与注入语义不等价。fetch 路径的 ValidateFn（:119 已覆盖）不等同于缓存恢复路径的 provider 校验。缺口与回归要求：明确恢复路径是否需要 provider 校验扩展点——若按单一 owner 设计退役，需在结论中登记设计决策；若需要，在 jftrade-calendar 为 CalendarSourcePort 增加 validate 扩展并在 restore 路径调用后升级。"
         ],
-        "uncovered": [],
         "source": "legacy-conclusion"
       },
       "verification": {
@@ -195163,15 +195163,15 @@
       "risk": "high",
       "owner": "backtest_calendar",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
         "verification-receipt"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "function_exact：Go 允许注册的 provider 通过 SnapshotValidator 注入额外校验并在缓存校验时透传错误（validatorCalled + errors.Is）。Rust 只有单一校验 owner，等价保证是 provider 返回的 schedules 必须先经领域校验才可缓存/服务。测试用注册的 nyse_official provider 走 refresh_market：合规快照被缓存并由 schedule 命中（source_id=nyse_official、reason=juneteenth），不合规（空 schedules）则被同一 owner 拒绝且不缓存（同文件 provider_snapshot_validation_has_a_single_domain_owner）。"
+      "coveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial（扩展点缺失）：Go 断言注册 provider 可经 SnapshotValidator 向缓存校验注入额外校验（validatorCalled + errors.Is 透传）。Rust 的 CalendarSourcePort 只有 descriptor/fetch/start/close，没有 validate 方法——provider 注入校验在领域内不存在；引用的 Rust 用例断言的是另一半（合规快照经领域单一 owner 校验后缓存服务），与注入语义不等价。fetch 路径的 ValidateFn（:119 已覆盖）不等同于缓存恢复路径的 provider 校验。缺口与回归要求：明确恢复路径是否需要 provider 校验扩展点——若按单一 owner 设计退役，需在结论中登记设计决策；若需要，在 jftrade-calendar 为 CalendarSourcePort 增加 validate 扩展并在 restore 路径调用后升级。"
       ],
-      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/exchangecalendar/manager_boundaries_test.go:248:TestManagerCachedSnapshotMainlandFallbackAndFreshnessBoundaries": {

@@ -6035,3 +6035,30 @@ HK 跨日/legacy +08:00 精确毫秒与元数据、calendar 注册表四源与 1
 无 Rust 代码改动。
 
 下一片：130-09 切片三十四乙，backtest 域 `[x]` 第 23–44 条。
+## 第 130 批 09 切片三十四乙：backtest 第 23–44 条含 1 处纠正（2026-09-24）
+
+范围：backtest_calendar 域 64 条 `[x]` 的第 23–44 条（http_source 解析 5、
+manager_boundaries 9、probe 1、runtime 4、manager_test 3）。
+
+方法：Go 体全读；Rust 断言逐字比对；port 形状以源码为准。
+
+1 处纠正（`[x]` 降为 partial，`[x]` 1478→1477）：
+
+- manager_boundaries `:216`：Go 题眼是注册 provider 经 SnapshotValidator
+  向缓存校验注入额外校验；Rust CalendarSourcePort 只有
+  descriptor/fetch/start/close，无 validate 方法——该扩展点在领域内不
+  存在，引用的 refresh/body 用例与注入语义不等价。回归：明确恢复路径是否
+  需要该扩展点（退役则登记设计决策，否则加扩展点后升级）。
+
+其余 21 条维持 `[x]`（SSE 跨年/补假日、CN 中文行、窗口外丢弃、NYSE 表头
+(空,0) 下游以空守卫故等价、validator 输入转发与错误透传、nil 适配器为不可
+表达项已披露、probe 定向与预热、后台刷新启停、持久化失败内存服务、损坏恢
+复报路径、双 override 模式、builtin 回退与错误可见、快照摘要、手动重开均
+逐项命中）。
+
+验证：`audit_test_parity.py --write-report` exit 0（1477 exact；dup 0）；
+`parity_anchor_reconcile.py` 过（1742/1696/0/0/46）；定向 nextest 39/39
+（integration-calendar 23、calendar 16）；`git diff --check` 干净；无 Rust
+代码改动。
+
+下一片：130-09 切片三十四丙，backtest 域 `[x]` 第 45–64 条（收尾）。
