@@ -802,3 +802,29 @@ cargo fmt --check 与 git diff --check 干净；无台账变更、无 Rust 生�
 cargo fmt --check 与 git diff --check 干净；无台账变更、无 Rust 生产代码改动。
 
 下一片：130-12 切片二十，strategy_pine 域 partial 第 61–80 行。
+
+## 第 130 批 12 切片二十：strategy_pine 域 partial 第 61–80 行，20 行维持、零改判（2026-09-24）
+
+范围：strategy_pine 域 partial 第 61–80 行（pineworker 实盘 3、产品生命周期 4、
+运行时边界 5、风控证据 1、订阅生命周期 3、符号失败 2、pine 实盘命令 2，
+按文件加行号升序）。本域已核对 80/459。
+
+方法：Go 体全读；17 个去重 Rust 引用逐项 rg 存在性核查；引用存在不等于断言等价。
+
+20 行维持（权益价格参数边界、live 会话失败边界、可执行告警过滤、快照身份与
+账户helper、风控先行与观测容忍差异、网关失败透传与摘要排序、空白币种宽容、
+启动校验与预留、成交桶合并滚动与通知文案、显示格式化边界、符号市场归一与
+启动错误映射、刷新失败上报、风控审计与暂停迁移、租约失败回滚、panic 释租、
+订阅符号归一、零时成交建桶与乱序隔离、关停降级、K线转Candle逐字段、意图批量
+映射，缺口 owner 与回归要求均与账本一致）。
+
+抽核要点：第 76 行 Rust 引用实现逐行核实（只覆盖空白过滤，未覆盖小写转大写
+归一与 15m 周期映射，partial 成立）；第 65/73 行失败关闭与参考实现的容错差异
+已在账本结论中显式登记；partial 共用引用不受 [x] 唯一性约束。
+
+验证：audit --write-report 过（1472 exact；dup 0）；anchor 过（1742/1696/0/0/46）；
+定向 nextest（jftrade-engine、jftrade-trading、jftrade-broker、
+jftrade-integration-pine 视触及范围）全过；
+cargo fmt --check 与 git diff --check 干净；无台账变更、无 Rust 生产代码改动。
+
+下一片：130-12 切片二十一，strategy_pine 域 partial 第 81–100 行。
