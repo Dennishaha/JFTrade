@@ -6279,3 +6279,20 @@ backtest_strategy 解析、execution 意图、backtest 保守撮合、plugins、
 git diff --check 干净；账本与 Rust 代码零改动（纯复核片）。
 
 下一片：130-10 切片四，strategy 域 partial 第 41–60 行。
+## 第 130 批 10 切片四：strategy 域 partial 第 41–60 行，20 行维持、零修改（2026-09-24）
+
+范围：strategy 域 partial 第 41–60 行（live_command 平仓与取消 4 行、liveruntime manager 边界 11 行、
+manager 关停 3 行、nil 边界 2 行，按文件加行号升序）。
+
+方法：Go 体按簇抽读；缺口逐条验鲜到代码行；结构性结论以不存在确认（OCO 腿模型、warning sink、
+streaming candles 门字符串、ApplyParams 层、nil 接收者）。
+
+20 行维持（平仓方向校验、告警身份回退、最小数量精度、陈旧取消容忍均缺；轮询配置、维护忙碌、依赖逐项报错、
+流式能力门、健康覆盖零调用、精确券商解析调用、逐字段绑定校验、账户解析零调用、依赖点名报错、重复激活取消、
+构建前置逐项、空白回调忽略、关停聚合与一次上报、启动关停竞态回收、关停顺序均无同形断言；nil 边界无空指针
+接收者故为 boundary，均与账本缺口一致）。
+
+验证：audit --write-report 过（1472 exact；dup 0）；anchor 过；定向 nextest（execution 意图、lifecycle 有界、
+market_rules、write 兼容）全过；cargo fmt --check 与 git diff --check 干净；账本与 Rust 代码零改动（纯复核片）。
+
+下一片：130-10 切片五，strategy 域 partial 第 61–80 行。
