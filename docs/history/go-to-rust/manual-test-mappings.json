@@ -7,7 +7,7 @@
     "treeSha": "0ee26444be21c15d9760f358a34649f78402f0fb"
   },
   "generatorVersion": "v2_writer.py@slice23",
-  "generatedAt": "2026-09-24T01:42:16Z",
+  "generatedAt": "2026-09-24T01:43:56Z",
   "mappings": {
     "cmd/jftrade-api/main_test.go:13:TestValidateArgsAllowsNoArgs": {
       "status": "[~]",
@@ -240019,9 +240019,9 @@
     "internal/store/strategy/store_test.go:338:TestStrategyDesignStoreRollsBackDefinitionWhenSnapshotInsertFails": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-store-sqlite/tests/strategy_definition_store_contracts.rs::strategy_definition_lifecycle_versioning_and_restart_durability",
-      "conclusion": "boundary（结构差异）：Go 注入快照插入失败并断言定义回滚。Rust 的定义写入在单事务内完成（该用例断言版本化与重启持久化），失败注入无对应断言（已登记 P2）。",
+      "conclusion": "partial（boundary纠正为partial）：Go用触发器注入快照插入失败，断言定义保持0.1.0、描述不变、快照行仍为1。Rust的定义写入在单事务内完成（原子性由结构保证，该用例断言版本化与重启持久化），触发器注入的失败回滚无专项断言——行为有直接对应物，不属不迁移边界，故由boundary纠正为partial（已登记P2）。回归要求：补触发器/约束注入的定义写入失败回滚断言后再收窄缺口。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked",
-      "evidence_type": "boundary",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/store/strategy/store_test.go",
         "line": 338,
@@ -240039,7 +240039,7 @@
       "assertionCoverage": {
         "covered": [],
         "uncovered": [
-          "boundary（结构差异）：Go 注入快照插入失败并断言定义回滚。Rust 的定义写入在单事务内完成（该用例断言版本化与重启持久化），失败注入无对应断言（已登记 P2）。"
+          "partial（boundary纠正为partial）：Go用触发器注入快照插入失败，断言定义保持0.1.0、描述不变、快照行仍为1。Rust的定义写入在单事务内完成（原子性由结构保证，该用例断言版本化与重启持久化），触发器注入的失败回滚无专项断言——行为有直接对应物，不属不迁移边界，故由boundary纠正为partial（已登记P2）。回归要求：补触发器/约束注入的定义写入失败回滚断言后再收窄缺口。"
         ],
         "source": "legacy-conclusion"
       },
@@ -240074,9 +240074,9 @@
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
-        "boundary（结构差异）：Go 注入快照插入失败并断言定义回滚。Rust 的定义写入在单事务内完成（该用例断言版本化与重启持久化），失败注入无对应断言（已登记 P2）。"
+        "partial（boundary纠正为partial）：Go用触发器注入快照插入失败，断言定义保持0.1.0、描述不变、快照行仍为1。Rust的定义写入在单事务内完成（原子性由结构保证，该用例断言版本化与重启持久化），触发器注入的失败回滚无专项断言——行为有直接对应物，不属不迁移边界，故由boundary纠正为partial（已登记P2）。回归要求：补触发器/约束注入的定义写入失败回滚断言后再收窄缺口。"
       ],
-      "boundaryReason": "boundary（结构差异）：Go 注入快照插入失败并断言定义回滚。Rust 的定义写入在单事务内完成（该用例断言版本化与重启持久化），失败注入无对应断言（已登记 P2）。"
+      "boundaryReason": null
     },
     "internal/store/strategy/store_test.go:382:TestStrategyDesignStoreRejectsV1DatabaseWithoutMigration": {
       "status": "[~]",

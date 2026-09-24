@@ -101,3 +101,30 @@ exit 0；`parity_anchor_reconcile.py` 过（1693/0/0/46）；
 `git diff --check`。
 
 下一片：store 域按文件继续（strategy + research + backtest/store 余量约 42 条）。
+
+## 第 130 批 08 切片五：strategy/research/backtest-store 48 条 recon（2026-09-24）
+
+范围：`internal/store/strategy/`（21）+ `internal/store/research/`（6）+
+`internal/store/backtest/`（21），共 48 条（原 42 partial + 6 boundary，
+零 `[x]`）。
+
+方法：Go 体逐条核对结论；48 条 Rust 引用逐一 rg 命中（0 缺失）；
+42 partial 缺口陈述明确（快照只读、raw_broker_status 保持、加权均价、
+seen-fill 跨重启去重、维护 busy、观测投影等均有 owner 与回归要求）。
+1 处分类纠正 boundary→partial（verdict 仍为 `[~]`）：
+
+- `strategy/store:338` 定义快照插入失败回滚：Go 用触发器注入失败，
+  断言定义版本/描述/快照行不变；Rust 定义写入单事务原子（结构保证），
+  有直接对应行为，仅缺注入断言——不属不迁移边界，故纠正为 partial。
+
+结论：48 条 verdict = **43 partial + 5 boundary**（全量 `[x]` 1560 不变，
+partial 2253→2254，boundary 638→637）。本片仅台账修正 + 文档，无代码变更。
+
+验证：`v2_writer.py --check` 过后落库；`audit_test_parity.py --write-report`
+exit 0；`parity_anchor_reconcile.py` 过（1693/0/0/46）；
+`cargo fmt -p jftrade-engine -- --check`；定向 nextest
+（store-sqlite 整 crate + engine 策略相关）；`check:ai-context`、
+`check:migration-manifest`、`check:zero-go`、`check:quick`（单实例）、
+`git diff --check`。
+
+下一片：store 域收官（watchlist + exchangecalendar/store 约 47 条）。
