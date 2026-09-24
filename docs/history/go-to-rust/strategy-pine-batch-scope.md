@@ -988,3 +988,32 @@ planner_internal 与 planner 五组测试体均已读完；Rust 的
 cargo fmt --check 与 git diff --check 干净；无台账变更、无 Rust 生产代码改动。
 
 下一片：130-12 切片二十七，strategy_pine 域 partial 第 201–220 行。
+
+## 第 130 批 12 切片二十七：strategy_pine 域 partial 第 201–220 行，20 行维持、零改判（2026-09-25）
+
+范围：strategy_pine 域 partial 第 201–220 行（IR planner 高级/跨语句收集 2、
+Pine 编译与 security 诊断 4、tuple/control-flow/UDF 4、ticker 与语言执行边界 6、
+order/security metadata 3、benchmark corpus 1，按文件加行号升序）。本域已核对 220/385。
+
+方法：Go 体全读；15 个去重 Rust 引用逐项 rg 存在性核查；对无 rust_entry 的条目按
+账本结论复核 Rust 探针和功能缺口，不把“引用缺失”误记为覆盖。
+
+20 行维持（高级指标键、跨语句/元组表达式收集、planner 诊断行号、security 纯度与
+可选链、编辑器恢复/能力证据、unsupported security 文案、tuple helper arity、
+畸形 TA 原文保留、control-flow/UDF 拒绝、降序/条件循环、ticker whitelist、
+MTF TA 执行键、tuple 派生别名、PineV6 lexical helpers、UDF/runtime loop、
+TA 默认参数、security tuple diagnostics、tuple parser boundary、order metadata、
+benchmark scripts，缺口 owner 与回归要求均与账本一致）。
+
+抽核要点：第 201 行确认 Rust 只覆盖 10/12 高级指标族，`ta.cog` 与 `ta.bbw` 仍静默
+缺失；第 204/205/209/210/214/215 行没有 Rust 同形对象，继续保留 P1/P2 缺口；
+第 217 行 Rust tuple diagnostics 用例逐项确认 Go 码值映射，但 security 内 TA 白名单
+和高级参数校验仍有探针差异；第 216 行窗口族默认值新用例已逐字核实，TA 原文保留
+面仍为 partial；第 220 行 benchmark corpus 未迁移，且 udf_static_for 在 Rust 解析层
+仍拒绝。引用存在不等于断言等价，partial 共用引用不受 [x] 唯一性约束。
+
+验证：audit --write-report 过（1472 exact；dup 0）；anchor 过（1742/1696/0/0/46）；
+定向 nextest（jftrade-engine、jftrade-strategy、jftrade-backtest 视触及范围）全过；
+cargo fmt --check 与 git diff --check 干净；无台账变更、无 Rust 生产代码改动。
+
+下一片：130-12 切片二十八，strategy_pine 域 partial 第 221–240 行。
