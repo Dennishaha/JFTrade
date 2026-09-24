@@ -281305,9 +281305,9 @@
     },
     "internal/trading/control_plane_state_audit_test.go:190:TestControlPlaneKeepsStateWhenAtomicPersistenceCannotComplete": {
       "status": "[x]",
-      "rust_entry": "crates/jftrade-engine/src/product_execution_risk_coordinator_tests.rs::mutate_with_persist_failure_fails_closed_and_preserves_memory_state（本批升级）；对照组证见 failed_persistence_rolls_back_hard_stop_and_runtime_risk_changes",
-      "conclusion": "已覆盖：Go 用两种原子写失败（写阻断目录、rename 目标为目录）分别驱动 kill switch 与 hard stop 激活，并要求内存状态不被半更新。Rust 侧 mutating 先 clone → 持久化成功才替换内存：mutate_with_persist_failure_fails_closed_and_preserves_memory_state 把路径指向只读目录、释放 kill switch 失败后断言 snapshot 仍 kill_switch_active、control_plane_available 且后续 REAL 单仍被 403 REAL_TRADE_KILL_SWITCH_ACTIVE 拦截；hard stop 与 runtime-risk 的回滚（含释放失败保留 entries、disable 失败保留限额）由 failed_persistence_rolls_back_hard_stop_and_runtime_risk_changes 覆盖（该用例已是 execution_test.go:874 的 [x] 证据，故本行 entry 不重复登记）。Go 余下的 market/account scope 归一与两条 hard stop 释放一条的断言由 pre_trade_risk_hard_stop_scope_matrix_matches_market_symbol_account_and_broker 与本批 control_plane_hard_stops_block_until_every_entry_released 覆盖。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(mutate_with_persist_failure_fails_closed_and_preserves_memory_state)'",
+      "rust_entry": "crates/jftrade-engine/src/product_execution_risk_coordinator_tests.rs::mutate_with_persist_failure_fails_closed_and_preserves_memory_state（本批升级）+ crates/jftrade-engine/src/product_execution_risk_coordinator_tests.rs::control_plane_hard_stop_activation_normalizes_market_and_account_scopes（s39 新增）；对照组证见 failed_persistence_rolls_back_hard_stop_and_runtime_risk_changes",
+      "conclusion": "已覆盖：Go 用两种原子写失败（写阻断目录、rename 目标为目录）分别驱动 kill switch 与 hard stop 激活，并要求内存状态不被半更新。Rust 侧 mutating 先 clone → 持久化成功才替换内存：mutate_with_persist_failure_fails_closed_and_preserves_memory_state 把路径指向只读目录、释放 kill switch 失败后断言 snapshot 仍 kill_switch_active、control_plane_available 且后续 REAL 单仍被 403 REAL_TRADE_KILL_SWITCH_ACTIVE 拦截；hard stop 与 runtime-risk 的回滚（含释放失败保留 entries、disable 失败保留限额）由 failed_persistence_rolls_back_hard_stop_and_runtime_risk_changes 覆盖（该用例已是 execution_test.go:874 的 [x] 证据，故对照组不重复登记）。s39 复核发现原结论把 market/account scope 归一记在 pre_trade_risk_hard_stop_scope_matrix 名下过宽：该矩阵只锁匹配语义，从不断言落库归一字符串。已补直接证据 control_plane_hard_stop_activation_normalizes_market_and_account_scopes：market小写无账户激活→落库 account * 且 scope MARKET，显式 account scope 激活→scope ACCOUNT，释放 market 条目后仅剩 account 条目（生产侧 normalize_hard_stop_scope/normalize_account 早已实现，本批只补断言，未改生产）。探针把归一短路为固定 ACCOUNT 后新用例转红，按字节回滚，生产文件回滚前后 shasum 均为 a6b518375b766c8e125bf583c7ef216ceb573b88f1560e84fe43ac00d1d5c5d4。两条 hard stop 释放一条仍拦截由本批 control_plane_hard_stops_block_until_every_entry_released 覆盖。",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(mutate_with_persist_failure_fails_closed_and_preserves_memory_state) or test(control_plane_hard_stop_activation_normalizes_market_and_account_scopes)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/trading/control_plane_state_audit_test.go",
@@ -281324,13 +281324,24 @@
             "goFile": "internal/trading/control_plane_state_audit_test.go",
             "goLine": 190,
             "rustFile": "crates/jftrade-engine/src/product_execution_risk_coordinator_tests.rs",
-            "rustLine": 241
+            "rustLine": 242
+          }
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_execution_risk_coordinator_tests.rs",
+          "test": "control_plane_hard_stop_activation_normalizes_market_and_account_scopes",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/trading/control_plane_state_audit_test.go",
+            "goLine": 190,
+            "rustFile": "crates/jftrade-engine/src/product_execution_risk_coordinator_tests.rs",
+            "rustLine": 242
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "已覆盖：Go 用两种原子写失败（写阻断目录、rename 目标为目录）分别驱动 kill switch 与 hard stop 激活，并要求内存状态不被半更新。Rust 侧 mutating 先 clone → 持久化成功才替换内存：mutate_with_persist_failure_fails_closed_and_preserves_memory_state 把路径指向只读目录、释放 kill switch 失败后断言 snapshot 仍 kill_switch_active、control_plane_available 且后续 REAL 单仍被 403 REAL_TRADE_KILL_SWITCH_ACTIVE 拦截；hard stop 与 runtime-risk 的回滚（含释放失败保留 entries、disable 失败保留限额）由 failed_persistence_rolls_back_hard_stop_and_runtime_risk_changes 覆盖（该用例已是 execution_test.go:874 的 [x] 证据，故本行 entry 不重复登记）。Go 余下的 market/account scope 归一与两条 hard stop 释放一条的断言由 pre_trade_risk_hard_stop_scope_matrix_matches_market_symbol_account_and_broker 与本批 control_plane_hard_stops_block_until_every_entry_released 覆盖。"
+          "已覆盖：Go 用两种原子写失败（写阻断目录、rename 目标为目录）分别驱动 kill switch 与 hard stop 激活，并要求内存状态不被半更新。Rust 侧 mutating 先 clone → 持久化成功才替换内存：mutate_with_persist_failure_fails_closed_and_preserves_memory_state 把路径指向只读目录、释放 kill switch 失败后断言 snapshot 仍 kill_switch_active、control_plane_available 且后续 REAL 单仍被 403 REAL_TRADE_KILL_SWITCH_ACTIVE 拦截；hard stop 与 runtime-risk 的回滚（含释放失败保留 entries、disable 失败保留限额）由 failed_persistence_rolls_back_hard_stop_and_runtime_risk_changes 覆盖（该用例已是 execution_test.go:874 的 [x] 证据，故对照组不重复登记）。s39 复核发现原结论把 market/account scope 归一记在 pre_trade_risk_hard_stop_scope_matrix 名下过宽：该矩阵只锁匹配语义，从不断言落库归一字符串。已补直接证据 control_plane_hard_stop_activation_normalizes_market_and_account_scopes：market小写无账户激活→落库 account * 且 scope MARKET，显式 account scope 激活→scope ACCOUNT，释放 market 条目后仅剩 account 条目（生产侧 normalize_hard_stop_scope/normalize_account 早已实现，本批只补断言，未改生产）。探针把归一短路为固定 ACCOUNT 后新用例转红，按字节回滚，生产文件回滚前后 shasum 均为 a6b518375b766c8e125bf583c7ef216ceb573b88f1560e84fe43ac00d1d5c5d4。两条 hard stop 释放一条仍拦截由本批 control_plane_hard_stops_block_until_every_entry_released 覆盖。"
         ],
         "uncovered": [],
         "source": "legacy-conclusion"
@@ -281348,7 +281359,8 @@
           "test(mutate_with_persist_failure_fails_closed_and_preserves_memory_state)"
         ],
         "testFilter": [
-          "mutate_with_persist_failure_fails_closed_and_preserves_memory_state"
+          "mutate_with_persist_failure_fails_closed_and_preserves_memory_state",
+          "control_plane_hard_stop_activation_normalizes_market_and_account_scopes"
         ],
         "runnerVersion": null,
         "toolchain": null,
@@ -281367,7 +281379,7 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "已覆盖：Go 用两种原子写失败（写阻断目录、rename 目标为目录）分别驱动 kill switch 与 hard stop 激活，并要求内存状态不被半更新。Rust 侧 mutating 先 clone → 持久化成功才替换内存：mutate_with_persist_failure_fails_closed_and_preserves_memory_state 把路径指向只读目录、释放 kill switch 失败后断言 snapshot 仍 kill_switch_active、control_plane_available 且后续 REAL 单仍被 403 REAL_TRADE_KILL_SWITCH_ACTIVE 拦截；hard stop 与 runtime-risk 的回滚（含释放失败保留 entries、disable 失败保留限额）由 failed_persistence_rolls_back_hard_stop_and_runtime_risk_changes 覆盖（该用例已是 execution_test.go:874 的 [x] 证据，故本行 entry 不重复登记）。Go 余下的 market/account scope 归一与两条 hard stop 释放一条的断言由 pre_trade_risk_hard_stop_scope_matrix_matches_market_symbol_account_and_broker 与本批 control_plane_hard_stops_block_until_every_entry_released 覆盖。"
+        "已覆盖：Go 用两种原子写失败（写阻断目录、rename 目标为目录）分别驱动 kill switch 与 hard stop 激活，并要求内存状态不被半更新。Rust 侧 mutating 先 clone → 持久化成功才替换内存：mutate_with_persist_failure_fails_closed_and_preserves_memory_state 把路径指向只读目录、释放 kill switch 失败后断言 snapshot 仍 kill_switch_active、control_plane_available 且后续 REAL 单仍被 403 REAL_TRADE_KILL_SWITCH_ACTIVE 拦截；hard stop 与 runtime-risk 的回滚（含释放失败保留 entries、disable 失败保留限额）由 failed_persistence_rolls_back_hard_stop_and_runtime_risk_changes 覆盖（该用例已是 execution_test.go:874 的 [x] 证据，故对照组不重复登记）。s39 复核发现原结论把 market/account scope 归一记在 pre_trade_risk_hard_stop_scope_matrix 名下过宽：该矩阵只锁匹配语义，从不断言落库归一字符串。已补直接证据 control_plane_hard_stop_activation_normalizes_market_and_account_scopes：market小写无账户激活→落库 account * 且 scope MARKET，显式 account scope 激活→scope ACCOUNT，释放 market 条目后仅剩 account 条目（生产侧 normalize_hard_stop_scope/normalize_account 早已实现，本批只补断言，未改生产）。探针把归一短路为固定 ACCOUNT 后新用例转红，按字节回滚，生产文件回滚前后 shasum 均为 a6b518375b766c8e125bf583c7ef216ceb573b88f1560e84fe43ac00d1d5c5d4。两条 hard stop 释放一条仍拦截由本批 control_plane_hard_stops_block_until_every_entry_released 覆盖。"
       ],
       "uncoveredAssertions": [],
       "boundaryReason": null
@@ -310700,6 +310712,14 @@
       "referenceCount": 1,
       "referenceKeys": [
         "internal/app/apiserver/datamigration/maintenance_failure_paths_test.go:394:TestBackupRetentionNeverEvictsRebuildMarkerSnapshots"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_execution_risk_coordinator_tests.rs::control_plane_hard_stop_activation_normalizes_market_and_account_scopes": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/trading/control_plane_state_audit_test.go:190:TestControlPlaneKeepsStateWhenAtomicPersistenceCannotComplete"
       ],
       "allowed": true,
       "reviewStatus": "single"

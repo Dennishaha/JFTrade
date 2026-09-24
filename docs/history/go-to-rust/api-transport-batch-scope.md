@@ -6062,3 +6062,43 @@ manager_boundaries 9、probe 1、runtime 4、manager_test 3）。
 代码改动。
 
 下一片：130-09 切片三十四丙，backtest 域 `[x]` 第 45–64 条（收尾）。
+## 第 130 批 09 切片三十九：trading 域 [x] 前 20 条，19 条维持、:190 补 1 条归一证据（2026-09-24）
+
+范围：trading_broker 域 82 条 [x] 的前 20 条（funds:87、broker_boundaries:116、
+conformance:15、broker_test:648/:680/:711、control_plane_idempotency:12/:65/:99、
+control_plane_state_audit:13/:75/:99/:190/:250、
+execution_combo_lifecycle:15/:83/:110/:150/:172/:205）。
+
+方法：Go 体全读；Rust 断言逐项比对；引用存在不等于断言等价。
+
+19 条维持 [x]（下单三风控的显式/隐式 REAL 与无网关 fail-closed、kill-switch
+幂等与审计事件序、hard-stop 单次释放与累积拦截、模拟单放行无审计、空白与
+目录路径平面语义、6 种 mutation unavailable、限额校验文案、combo 预览下单
+取消 buying-power 全链、提交前风控重检与凭证单次语义、parlay amount 风控与
+RFQ 单次定价、caller 价格与 option amount 拒绝文案、option 形状矩阵 5 条文
+案、legacy buying-power 回填，均逐项命中；:648 组合串唯一，:680 单引同测
+不冲突）。
+
+1 处补强（不清零、只加证据，[x] 保持 1474）：
+
+- control_plane_state_audit:190：原结论把 market/account 落库归一记在
+  pre_trade_risk_hard_stop_scope_matrix 名下过宽——该矩阵只锁匹配语义，
+  从不断言落库归一字符串（AccountID *、scope MARKET/ACCOUNT、释放其一
+  仅剩其一）。生产侧 normalize_hard_stop_scope/normalize_account 早已
+  实现，本批只补断言：新增
+  control_plane_hard_stop_activation_normalizes_market_and_account_scopes
+ （market 小写无账户→account * 且 MARKET；显式 account→ACCOUNT；释放
+  market 条目后仅剩 account 条目），entry 追加为双测组合（全串唯一），
+  结论同步修正。探针把归一短路为固定 ACCOUNT 后新用例转红，按字节回滚，
+  生产文件回滚前后 shasum 均为 a6b518375b766c8e125bf583c7ef216ceb573b88f1560e84fe43ac00d1d5c5d4。
+  写入走 v2 兼容 writer（旧 b75/b82 已停用）：先在副本验证空载往返字节
+  一致，再落真实账本，本次账本 diff 仅 :190 本体 4 处加尾部 1 条 reuse
+  追加；另修 writer 的 reuse 全量重建改为手术式更新，避免千行级名单
+  重排噪声。
+
+验证：audit --write-report exit 0（1474 exact；dup 0；[x] 全 function_exact）；
+anchor 过（1742/1696/0/0/46）；新用例 1/1、control_plane_ 模块 11/11、
+:190 entry 命令双测 2/2；cargo fmt --all --check 过；git diff --check 干净。
+生产改动为零（仅新增 1 条测试，52 行）。
+
+下一片：130-09 切片四十，trading 域 [x] 第 21–40 条。

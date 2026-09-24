@@ -1214,6 +1214,58 @@ fn control_plane_hard_stops_block_until_every_entry_released() {
     );
 }
 
+/// Parity: go:452dea11:internal/trading/control_plane_state_audit_test.go:190
+/// `TestControlPlaneKeepsStateWhenAtomicPersistenceCannotComplete` (scope
+/// normalization). Go activates a market hard stop with a lowercase market
+/// and no account, then an account hard stop: the stored entries normalize to
+/// account "*" with MARKET scope and "ACC-1" with ACCOUNT scope, and releasing
+/// the market entry leaves exactly the account entry behind.
+#[test]
+fn control_plane_hard_stop_activation_normalizes_market_and_account_scopes() {
+    let dir = TempDir::new().unwrap();
+    let (coordinator, port) = control_plane_port(&dir);
+
+    let mut market = account_hard_stop_command("market halt");
+    market.account_id = String::new();
+    market.market = "us".to_owned();
+    market.symbol = String::new();
+    market.hard_stop_scope = String::new();
+    port.mutate(&hard_stop_input(
+        SystemWriteOperation::ActivateHardStop,
+        None,
+        market,
+    ))
+    .expect("activate market hard stop");
+    let entries = coordinator.snapshot().hard_stop_entries;
+    assert_eq!(entries.len(), 1, "{entries:?}");
+    assert_eq!(entries[0].account_id, "*");
+    assert_eq!(entries[0].hard_stop_scope, "MARKET");
+
+    let mut account = account_hard_stop_command("account halt");
+    account.account_id = "ACC-1".to_owned();
+    port.mutate(&hard_stop_input(
+        SystemWriteOperation::ActivateHardStop,
+        None,
+        account,
+    ))
+    .expect("activate account hard stop");
+    let entries = coordinator.snapshot().hard_stop_entries;
+    assert_eq!(entries.len(), 2, "{entries:?}");
+    assert_eq!(entries[1].hard_stop_scope, "ACCOUNT");
+
+    let market_id = entries[0].id.clone();
+    let account_id = entries[1].id.clone();
+    port.mutate(&hard_stop_input(
+        SystemWriteOperation::ReleaseHardStop,
+        Some(&market_id),
+        account_hard_stop_command("market resumed"),
+    ))
+    .expect("release market hard stop");
+    let remaining = coordinator.snapshot().hard_stop_entries;
+    assert_eq!(remaining.len(), 1, "{remaining:?}");
+    assert_eq!(remaining[0].id, account_id);
+}
+
 /// Parity: go:452dea11:internal/trading/control_plane_state_audit_test.go:13
 /// `TestControlPlaneRetainsActivationAndBoundsRepeatedAuditEvents`.
 ///
