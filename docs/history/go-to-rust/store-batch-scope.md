@@ -128,3 +128,32 @@ exit 0；`parity_anchor_reconcile.py` 过（1693/0/0/46）；
 `git diff --check`。
 
 下一片：store 域收官（watchlist + exchangecalendar/store 约 47 条）。
+
+## 第 130 批 08 切片六：watchlist/exchangecalendar-store 41 条 recon，store 域收官（2026-09-24）
+
+范围：`internal/store/watchlist/`（28）+
+`internal/store/exchangecalendar/`（13），共 41 条
+（原 13 `[x]` + 22 partial + 6 boundary）。
+
+方法：Go 体逐条核对结论；41 条 Rust 引用逐一 rg 命中（0 缺失），
+`[x]` 无重复、锚点齐全。4 处台账修正：
+
+- `:45`（空载入/删除幂等）：占位结论补实，保持 `[x]`（幂等逐项一致，
+  nil receiver 属不可表达项）。
+- `:95`（年份回退）：占位结论补实并收回 `[x]`→partial——Rust 缺空 root
+  拒绝、To 回退、schedule 回退三条断言。
+- watchlist `:10`（导入分阶段回滚）、`:292`（差量失败回滚）：
+  boundary→partial，与 `:338` 同口径（触发器注入缺失，但行为路径存在）。
+
+结论：41 条 verdict = **12 `[x]` + 25 partial + 4 boundary**
+（`[x]` 1560→1559，partial 2254→2257，boundary 637→634）。
+**store 域 228 条全部 recon 完毕**；本片仅台账修正 + 文档，无代码变更。
+
+验证：`v2_writer.py --check` 过后落库；`audit_test_parity.py --write-report`
+exit 0；`parity_anchor_reconcile.py` 过（1693/0/0/46）；
+`cargo fmt -p jftrade-engine -- --check`；定向 nextest
+（store-sqlite 整 crate + calendar 整 crate）；`check:ai-context`、
+`check:migration-manifest`、`check:zero-go`、`check:quick`（单实例）、
+`git diff --check`。
+
+下一域：按余量排序的下一块（待定，recon 口径延续）。

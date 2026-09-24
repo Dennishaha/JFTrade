@@ -7,7 +7,7 @@
     "treeSha": "0ee26444be21c15d9760f358a34649f78402f0fb"
   },
   "generatorVersion": "v2_writer.py@slice23",
-  "generatedAt": "2026-09-24T01:43:56Z",
+  "generatedAt": "2026-09-24T01:47:01Z",
   "mappings": {
     "cmd/jftrade-api/main_test.go:13:TestValidateArgsAllowsNoArgs": {
       "status": "[~]",
@@ -232409,7 +232409,7 @@
     "internal/store/exchangecalendar/store_boundaries_test.go:45:TestCalendarStoreEmptyLoadAndDeleteAreIdempotent": {
       "status": "[x]",
       "rust_entry": "crates/jftrade-calendar/src/snapshot.rs::test_calendar_store_empty_load_and_delete_are_idempotent",
-      "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+      "conclusion": "function_exact：Go断言空载入与删除幂等——nil store载入返回空、空root载入返回空、nil删除为nil、无年份删除为nil。Rust断言同一幂等语义：空库载入零快照零错误、不存在root载入为空、空root删除Ok、缺失文件删除Ok。差异：Go的nil receiver分支在Rust无对应表达（无nil receiver，属不可表达项）；无年份删除对应由delete静默Ok覆盖（见136行用例）。载入/删除幂等逐项一致。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar",
       "evidence_type": "function_exact",
       "source": {
@@ -232433,7 +232433,7 @@
       ],
       "assertionCoverage": {
         "covered": [
-          "已找到 Rust 源码中的对应 Parity 测试证据"
+          "function_exact：Go断言空载入与删除幂等——nil store载入返回空、空root载入返回空、nil删除为nil、无年份删除为nil。Rust断言同一幂等语义：空库载入零快照零错误、不存在root载入为空、空root删除Ok、缺失文件删除Ok。差异：Go的nil receiver分支在Rust无对应表达（无nil receiver，属不可表达项）；无年份删除对应由delete静默Ok覆盖（见136行用例）。载入/删除幂等逐项一致。"
         ],
         "uncovered": [],
         "source": "legacy-conclusion"
@@ -232466,7 +232466,7 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "已找到 Rust 源码中的对应 Parity 测试证据"
+        "function_exact：Go断言空载入与删除幂等——nil store载入返回空、空root载入返回空、nil删除为nil、无年份删除为nil。Rust断言同一幂等语义：空库载入零快照零错误、不存在root载入为空、空root删除Ok、缺失文件删除Ok。差异：Go的nil receiver分支在Rust无对应表达（无nil receiver，属不可表达项）；无年份删除对应由delete静默Ok覆盖（见136行用例）。载入/删除幂等逐项一致。"
       ],
       "uncoveredAssertions": [],
       "boundaryReason": null
@@ -232606,11 +232606,11 @@
       "boundaryReason": null
     },
     "internal/store/exchangecalendar/store_snapshot_failures_test.go:95:TestSaveSnapshotValidatesInputsAndResolvesYearFallbacks": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "crates/jftrade-calendar/src/snapshot.rs::test_save_snapshot_validates_inputs_and_resolves_year_fallbacks",
-      "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
+      "conclusion": "partial（占位结论补实并收回过宽exact）：Go断言4项——空market/source/year拒绝、空root拒绝、仅To快照按To年份落盘US/2027、仅schedule快照按日程日期落盘HK/2028。Rust仅覆盖两项：空market/source拒绝、有from/to快照按年份落盘US/2026；缺失空root拒绝断言与两条年份回退分支（To回退、schedule回退）断言。年份回退是本用例名的核心语义，无对应断言，故降为partial。回归要求：补空root拒绝、to-only年份回退、schedule-only年份回退三条断言后再升级。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar",
-      "evidence_type": "function_exact",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/store/exchangecalendar/store_snapshot_failures_test.go",
         "line": 95,
@@ -232631,10 +232631,10 @@
         }
       ],
       "assertionCoverage": {
-        "covered": [
-          "已找到 Rust 源码中的对应 Parity 测试证据"
+        "covered": [],
+        "uncovered": [
+          "partial（占位结论补实并收回过宽exact）：Go断言4项——空market/source/year拒绝、空root拒绝、仅To快照按To年份落盘US/2027、仅schedule快照按日程日期落盘HK/2028。Rust仅覆盖两项：空market/source拒绝、有from/to快照按年份落盘US/2026；缺失空root拒绝断言与两条年份回退分支（To回退、schedule回退）断言。年份回退是本用例名的核心语义，无对应断言，故降为partial。回归要求：补空root拒绝、to-only年份回退、schedule-only年份回退三条断言后再升级。"
         ],
-        "uncovered": [],
         "source": "legacy-conclusion"
       },
       "verification": {
@@ -232659,15 +232659,15 @@
       "risk": "high",
       "owner": "storage_sqlite",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "已找到 Rust 源码中的对应 Parity 测试证据"
+      "coveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial（占位结论补实并收回过宽exact）：Go断言4项——空market/source/year拒绝、空root拒绝、仅To快照按To年份落盘US/2027、仅schedule快照按日程日期落盘HK/2028。Rust仅覆盖两项：空market/source拒绝、有from/to快照按年份落盘US/2026；缺失空root拒绝断言与两条年份回退分支（To回退、schedule回退）断言。年份回退是本用例名的核心语义，无对应断言，故降为partial。回归要求：补空root拒绝、to-only年份回退、schedule-only年份回退三条断言后再升级。"
       ],
-      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/store/exchangecalendar/store_snapshot_failures_test.go:136:TestDeleteSnapshotIgnoresMissingFilesAndReturnsRealRemoveErrors": {
@@ -243926,9 +243926,9 @@
     "internal/store/watchlist/import_storage_faults_test.go:10:TestCommitImportRollsBackEachPersistenceStage": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-store-sqlite/tests/watchlist_store_contracts.rs::watchlist_membership_mutations_and_preview_commit_lifecycle",
-      "conclusion": "boundary（结构差异）：Go 逐阶段注入故障并断言导入提交在各阶段回滚。Rust 的成员/预览用例只覆盖成功路径与修订栅栏（该用例），无分阶段故障注入。",
+      "conclusion": "partial（boundary纠正为partial，与strategy:338同口径）：Go用触发器逐阶段注入导入提交失败（instrument/alias/membership upsert、远端/来源删除），断言各阶段回滚。Rust的成员/预览提交生命周期路径存在（该用例覆盖成功路径与修订栅栏），缺触发器注入的分阶段回滚断言——行为有直接对应物，不属不迁移边界。回归要求：补触发器注入的分阶段导入回滚断言后再收窄缺口。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked",
-      "evidence_type": "boundary",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/store/watchlist/import_storage_faults_test.go",
         "line": 10,
@@ -243946,7 +243946,7 @@
       "assertionCoverage": {
         "covered": [],
         "uncovered": [
-          "boundary（结构差异）：Go 逐阶段注入故障并断言导入提交在各阶段回滚。Rust 的成员/预览用例只覆盖成功路径与修订栅栏（该用例），无分阶段故障注入。"
+          "partial（boundary纠正为partial，与strategy:338同口径）：Go用触发器逐阶段注入导入提交失败（instrument/alias/membership upsert、远端/来源删除），断言各阶段回滚。Rust的成员/预览提交生命周期路径存在（该用例覆盖成功路径与修订栅栏），缺触发器注入的分阶段回滚断言——行为有直接对应物，不属不迁移边界。回归要求：补触发器注入的分阶段导入回滚断言后再收窄缺口。"
         ],
         "source": "legacy-conclusion"
       },
@@ -243981,9 +243981,9 @@
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
-        "boundary（结构差异）：Go 逐阶段注入故障并断言导入提交在各阶段回滚。Rust 的成员/预览用例只覆盖成功路径与修订栅栏（该用例），无分阶段故障注入。"
+        "partial（boundary纠正为partial，与strategy:338同口径）：Go用触发器逐阶段注入导入提交失败（instrument/alias/membership upsert、远端/来源删除），断言各阶段回滚。Rust的成员/预览提交生命周期路径存在（该用例覆盖成功路径与修订栅栏），缺触发器注入的分阶段回滚断言——行为有直接对应物，不属不迁移边界。回归要求：补触发器注入的分阶段导入回滚断言后再收窄缺口。"
       ],
-      "boundaryReason": "boundary（结构差异）：Go 逐阶段注入故障并断言导入提交在各阶段回滚。Rust 的成员/预览用例只覆盖成功路径与修订栅栏（该用例），无分阶段故障注入。"
+      "boundaryReason": null
     },
     "internal/store/watchlist/import_test.go:47:TestImportPreviewCommitRepeatAndStaleGuards": {
       "status": "[~]",
@@ -244670,9 +244670,9 @@
     "internal/store/watchlist/storage_failure_boundaries_test.go:292:TestMembershipDiffStorageFailuresRollback": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-store-sqlite/tests/watchlist_store_contracts.rs::watchlist_membership_mutations_and_preview_commit_lifecycle",
-      "conclusion": "boundary（结构差异）：Go 注入成员差量存储失败并断言回滚。Rust 的成员变更用例只覆盖成功路径 + 修订栅栏（该用例），差量失败回滚无对应断言。",
+      "conclusion": "partial（boundary纠正为partial，与strategy:338同口径）：Go用触发器注入差量存储失败（membership/origin删除、instrument修订更新），断言ReplaceMemberships失败。Rust的成员替换路径存在（修订号栅栏，该用例），缺触发器注入的差量失败回滚断言——行为有直接对应物，不属不迁移边界。回归要求：补触发器注入的差量失败回滚断言后再收窄缺口。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked",
-      "evidence_type": "boundary",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/store/watchlist/storage_failure_boundaries_test.go",
         "line": 292,
@@ -244690,7 +244690,7 @@
       "assertionCoverage": {
         "covered": [],
         "uncovered": [
-          "boundary（结构差异）：Go 注入成员差量存储失败并断言回滚。Rust 的成员变更用例只覆盖成功路径 + 修订栅栏（该用例），差量失败回滚无对应断言。"
+          "partial（boundary纠正为partial，与strategy:338同口径）：Go用触发器注入差量存储失败（membership/origin删除、instrument修订更新），断言ReplaceMemberships失败。Rust的成员替换路径存在（修订号栅栏，该用例），缺触发器注入的差量失败回滚断言——行为有直接对应物，不属不迁移边界。回归要求：补触发器注入的差量失败回滚断言后再收窄缺口。"
         ],
         "source": "legacy-conclusion"
       },
@@ -244725,9 +244725,9 @@
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
-        "boundary（结构差异）：Go 注入成员差量存储失败并断言回滚。Rust 的成员变更用例只覆盖成功路径 + 修订栅栏（该用例），差量失败回滚无对应断言。"
+        "partial（boundary纠正为partial，与strategy:338同口径）：Go用触发器注入差量存储失败（membership/origin删除、instrument修订更新），断言ReplaceMemberships失败。Rust的成员替换路径存在（修订号栅栏，该用例），缺触发器注入的差量失败回滚断言——行为有直接对应物，不属不迁移边界。回归要求：补触发器注入的差量失败回滚断言后再收窄缺口。"
       ],
-      "boundaryReason": "boundary（结构差异）：Go 注入成员差量存储失败并断言回滚。Rust 的成员变更用例只覆盖成功路径 + 修订栅栏（该用例），差量失败回滚无对应断言。"
+      "boundaryReason": null
     },
     "internal/store/watchlist/store_availability_and_filters_test.go:12:TestNilStoreOperationsReturnUnavailable": {
       "status": "[~]",
