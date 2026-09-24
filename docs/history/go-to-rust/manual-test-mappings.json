@@ -59309,7 +59309,7 @@
     },
     "internal/app/apiserver/servercoretest/swagger_openapi_test.go:14:TestSwaggerUIAvailable": {
       "status": "[x]",
-      "rust_entry": "crates/jftrade-api/tests/swagger_docs_contracts.rs::swagger_ui_is_available_offline_without_external_assets; crates/jftrade-api/src/swagger_docs.rs; crates/jftrade-engine/src/product_swagger_docs.rs; crates/jftrade-engine/src/product_server.rs",
+      "rust_entry": "crates/jftrade-api/tests/swagger_docs_contracts.rs::swagger_ui_is_available_offline_without_external_assets",
       "conclusion": "function_exact：本批修复真实缺口——此前 Rust 生产路由清单不含 /swagger 路由，请求落到 JSON 404（仓库文档却已把 http://127.0.0.1:3000/swagger/ 列为入口）。现在 /swagger/index.html 返回 200 text/html 且只引用同源资产（测试断言正文不含 cdn.jsdelivr.net、http://、https://），/swagger/docs.css 返回 200 text/css，/swagger/docs.js 返回 200 application/javascript 且包含 /swagger/doc.json，/swagger/doc.json 返回 200 application/json，HEAD 与 GET 同构。保留差异：Go 用 http-swagger 内嵌 swagger-ui 资产（index 引用 swagger-ui-bundle.js 与 swagger-ui.css，initializer 含 doc.json），Rust 用第一方离线查看器 docs.css/docs.js 渲染同一份冻结契约，URL 入口、重定向、离线保证与 doc.json 语义一致，资产名与查看器实现不同。面板与 /api/** 同受访问策略约束（见 swagger_surface_requires_access_and_keeps_the_json_envelope）。探针：把重定向目标改为 /swagger/doc.json（swagger_docs.rs 1f12c919…）、把 /swagger 移出 should_authenticate（router.rs 8a26898d…）、把 index 的脚本改回 CDN（同 1f12c919…）分别转红，均按字节回滚。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --all-targets --locked",
       "evidence_type": "function_exact",

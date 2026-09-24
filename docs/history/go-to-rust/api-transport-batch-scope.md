@@ -5909,3 +5909,26 @@ swagger 40 名与类型化 body 均逐项命中；`:127` 的 starting/running �
 `git diff --check` 干净；无 Rust 生产改动。
 
 下一片：130-09 切片三十二乙，servercoretest 后 29 条 `[x]`。
+## 第 130 批 09 切片三十二乙：servercoretest 后 29 条含 1 处错位修正（2026-09-24）
+
+范围：`internal/app/apiserver/servercoretest` 后 29 条 `[x]`（openapi 2、
+portfolio 3、research 2、definitions 3、settings 12、preview 2、swagger 2、
+system 2、watchlist 1）；servercoretest 59 条至此全部复核完毕。
+
+方法：Go 体全读；35 个具名引用全存在（0 缺失）；逐字比对。
+
+1 处错位修正（ verdict 不变，只修 entry，无 reuse 影响）：
+
+- swagger `:14`：rust_entry 混入 3 个生产文件（错位），裁剪为唯一的真实
+  测试引用；dup 校验仍过。
+
+其余 28 条维持 `[x]`（preset 初始化与 503、watchlist 默认组与文件落盘、
+组合金降级空态、下线路由 404、onboarding 重开与原因码、定义创建/拒绝/删
+失、preview 符号与扩展时段、settings 默认与归一、system 字段、request-id
+回显与替换、spec 快照与错误信封均逐项命中）。
+
+验证：`audit_test_parity.py --write-report` exit 0（1486 exact；dup 0）；
+`parity_anchor_reconcile.py` 过（1742/1696/0/0/46）；受影响定向 nextest 37/37；
+`git diff --check` 干净；无 Rust 生产改动。
+
+下一片：130-09 切片三十三，servercore 50 条 `[x]`。
