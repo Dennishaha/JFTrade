@@ -7,7 +7,7 @@
     "treeSha": "0ee26444be21c15d9760f358a34649f78402f0fb"
   },
   "generatorVersion": "v2_writer.py@slice23",
-  "generatedAt": "2026-09-24T01:59:03Z",
+  "generatedAt": "2026-09-24T02:07:02Z",
   "mappings": {
     "cmd/jftrade-api/main_test.go:13:TestValidateArgsAllowsNoArgs": {
       "status": "[~]",
@@ -32228,10 +32228,10 @@
       "boundaryReason": null
     },
     "internal/app/apiserver/marketdataapp/market_http_test.go:91:TestMarketCandlesResponseOmitsSessionMetadataForDailyCandles": {
-      "status": "[x]",
-      "evidence_type": "function_exact",
+      "status": "[~]",
+      "evidence_type": "partial",
       "rust_entry": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::candle_route_skips_session_classification_for_unannotated_requests",
-      "conclusion": "Go 对 1d 请求断言 candle 与 meta 都不含 session 字段、extendedHours=false。Rust 的 annotate_session 只在 US + intraday 时为真，daily 请求跳过分类且不写 session；测试对同一 out-of-session bar 用 period=1d 断言成功且 candle 无 session 键。原 candle_route_only_annotates_sessions_for_us_intraday_history 覆盖 US intraday/HK 两侧。",
+      "conclusion": "部分覆盖：Go 断言日线蜡烛在 candle 与 meta 中均省略 session 且 extendedHours==false。Rust 的 candle_route_skips_session_classification_for_unannotated_requests 仅断言日线免 session 分类、可正常返回且 candle 无 session 字段；差异是 meta.session 省略与 extendedHours==false 无测试断言（仅实现层 annotate_session 条件覆盖，未逐项断言）。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
       "source": {
         "file": "internal/app/apiserver/marketdataapp/market_http_test.go",
@@ -32253,10 +32253,10 @@
         }
       ],
       "assertionCoverage": {
-        "covered": [
-          "Go 对 1d 请求断言 candle 与 meta 都不含 session 字段、extendedHours=false。Rust 的 annotate_session 只在 US + intraday 时为真，daily 请求跳过分类且不写 session；测试对同一 out-of-session bar 用 period=1d 断言成功且 candle 无 session 键。原 candle_route_only_annotates_sessions_for_us_intraday_history 覆盖 US intraday/HK 两侧。"
+        "covered": [],
+        "uncovered": [
+          "部分覆盖：Go 断言日线蜡烛在 candle 与 meta 中均省略 session 且 extendedHours==false。Rust 的 candle_route_skips_session_classification_for_unannotated_requests 仅断言日线免 session 分类、可正常返回且 candle 无 session 字段；差异是 meta.session 省略与 extendedHours==false 无测试断言（仅实现层 annotate_session 条件覆盖，未逐项断言）。"
         ],
-        "uncovered": [],
         "source": "legacy-conclusion"
       },
       "verification": {
@@ -32283,15 +32283,15 @@
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "Go 对 1d 请求断言 candle 与 meta 都不含 session 字段、extendedHours=false。Rust 的 annotate_session 只在 US + intraday 时为真，daily 请求跳过分类且不写 session；测试对同一 out-of-session bar 用 period=1d 断言成功且 candle 无 session 键。原 candle_route_only_annotates_sessions_for_us_intraday_history 覆盖 US intraday/HK 两侧。"
+      "coveredAssertions": [],
+      "uncoveredAssertions": [
+        "部分覆盖：Go 断言日线蜡烛在 candle 与 meta 中均省略 session 且 extendedHours==false。Rust 的 candle_route_skips_session_classification_for_unannotated_requests 仅断言日线免 session 分类、可正常返回且 candle 无 session 字段；差异是 meta.session 省略与 extendedHours==false 无测试断言（仅实现层 annotate_session 条件覆盖，未逐项断言）。"
       ],
-      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/app/apiserver/marketdataapp/market_http_test.go:137:TestMarketCandlesResponseRejectsInvalidSessionsBeforeFutuAccess": {

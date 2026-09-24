@@ -4819,3 +4819,40 @@ marketdata 1，见日志）；`check:ai-context`、`check:migration-manifest`、
 
 下一片：api_transport marketdataapp 余量（data_plane_switch 系等）或
 servercore 余量，按文件行号升序。
+
+## 第 130 批 09 切片四：marketdataapp data_plane/heartbeat/depth/http 34 条 recon（2026-09-24）
+
+范围：`data_plane_switch_test.go`（8）+ `heartbeat_test.go`（3）+
+`market_depth_test.go`（5）+ `market_http_test.go`（18），共 34 条
+（原 18 `[x]` + 16 `[~]`）。
+
+方法：Go 体逐条核对结论；38 个 Rust 引用逐一命中（0 缺失，`::tests::`
+写法已归一处理）；18 `[x]` 锚点齐全（组合均为首元锚定）；
+Parity 归属逐项核对（`///` 文档注释距用例较远处以名搜确认）；
+组合第二元逐项拆验（真实测试 + 主题相干）。
+1 条收回过宽 `[x]`→partial：
+
+- `:91` 日线省略 session 元数据：Go 三项（candle.session、meta.session、
+  extendedHours==false），Rust 仅断言 candle 级免分类，
+  meta/extendedHours 无测试断言。
+
+保留 17 `[x]`：data_plane 四条（原子单提交、失败保缓存、watchlist 缺席
+放行、demand 回滚；组合第二元主题相干但缺 Parity 行，记可追溯性
+follow-up，不动 verdict）、depth 两条（clamp 矩阵逐项、空薄饼；
+`:143` 第二元主归属为 `pkg/futu` `:492`，主题相干）、http 十一条
+（session 拒绝/分类、日线除外其余逐项 wire 对等；`:442` 主归属为
+cache 域 `:337`，`:368` 另有 `:371` 同体分段）。
+
+结论：34 条 verdict = **17 `[x]` + 17 `[~]`**
+（`[x]` 1548→1547）。本片仅台账修正 + 报告/清单重生 + 文档，
+无代码变更。
+
+验证：`v2_writer.py --check` 过后落库；`audit_test_parity.py --write-report`
+exit 0（已知警告 0/2/2 不变）；`parity_anchor_reconcile.py` 过
+（1693/0/0/46）；`cargo fmt -p jftrade-engine -- --check` 过；定向 nextest
+3/3（`:91` 改判用例、clamp 矩阵、generation 提交）；`check:ai-context`、
+`check:migration-manifest`、`check:zero-go` 过；`check:quick` 工作树计划
+exit 0；`git diff --check` 过。
+
+下一片：api_transport marketdataapp 余量（provider/query/sidecar/heartbeat
+余量等，按文件行号升序）。
