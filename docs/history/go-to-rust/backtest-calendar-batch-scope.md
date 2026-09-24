@@ -644,3 +644,32 @@ cargo fmt --check 与 git diff --check 干净；账本与 Rust 代码零改动�
 cargo fmt --check 与 git diff --check 干净；无 Rust 生产代码改动、无新增测试。
 
 下一片：130-11 切片七，backtest 域 partial 第 121–140 行。
+## 第 130 批 11 切片七：backtest 域 partial 第 121–140 行，19 行维持、1 行结论纠正（2026-09-24）
+
+范围：backtest 域 partial 第 121–140 行（store_aggregation_boundaries 5、store_business_aggregation 6、
+store_connection 4、store_failure_boundaries 5，按文件加行号升序）。
+
+方法：Go 体全读；缺口验到代码行与用例断言；引用存在不等于断言等价。
+
+19 行维持（交易周期助手与周期间隔换算、基周期集合与扩展日线优先级、扩展时段基区间边界、
+纯聚合空未知越界、会话桶内合并、upsert 替换与确定性分页、缺失区间与开放窗口、周线前后向聚合、
+小时线聚合扩展日线、覆盖缺失消息与日线回退、无标签行跳过、8 并发读连接池边界、双写串行化、
+WAL 并行读后来写边界、读等写队列边界、关闭库错误矩阵、助手层穿透边界、紧凑 schema 拒旧表、
+作用域优先级表名，均与账本缺口一致）。
+
+1 行结论纠正（verdict 仍为 partial，[x] 1472 不变，b83 dry-run 先行、entry_changed 等于 0）：
+
+- store_failure_boundaries:207：原结论尾句称空符号列表由同步器层拒绝，与事实相反
+  （Go 断言空输入静默 no-op 成功；引用的同步器用例断言空结果页报错，语义相反）；
+  改写为空符号列表短路语义无对应断言（同步器层只拒绝空结果页，而非空输入）。
+
+抽核要点：纯 Go 助手（tradingPeriodUnit、aggregationBaseIntervals、dailyAggregationBaseRange、
+aggregateDailyKLinesFromBase 等）在 Rust 无同形对象，行为仅由集成用例侧写覆盖，缺口成立；
+连接池与 WAL 与写队列三行确为单连接互斥结构差异，引用仅作租约与目录证据；关闭后错误矩阵
+确无显式 closed 标记；:188 的未知作用域回退 regular 在 Rust 无 SetReadSessionScope 对应物。
+
+验证：audit --write-report 过（1472 exact；dup 0）；anchor 过（1742/1696/0/0/46）；
+定向 nextest（jftrade-store-sqlite 整轮 188/188、engine backtest 族）全过；
+cargo fmt --check 与 git diff --check 干净；无 Rust 生产代码改动、无新增测试。
+
+下一片：130-11 切片八，backtest 域 partial 第 141–160 行。

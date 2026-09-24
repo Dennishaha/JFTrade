@@ -125483,7 +125483,7 @@
     "pkg/backtest/internal/storage/store_failure_boundaries_test.go:207:TestStreamAndQueryShortCircuitEmptyInputs": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-store-sqlite/tests/backtest_market_data_failure_recovery.rs::empty_regular_and_extended_tables_return_empty_results",
-      "conclusion": "partial：Go 断言流式/查询 API 对空输入短路且不发错误。Rust 查询空表返回空结果（该用例）；Rust 无通道流式 API，空符号列表由同步器层拒绝（`test_historical_k_line_syncer_rejects_empty_provider_result`）。",
+      "conclusion": "partial：Go 断言流式/查询 API 对空输入短路且不发错误。Rust 查询空表返回空结果（该用例）；Rust 无通道流式 API，空符号列表的短路语义无对应断言（同步器层只拒绝空结果页，而非空输入）。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked",
       "evidence_type": "partial",
       "source": {
@@ -125503,7 +125503,7 @@
       "assertionCoverage": {
         "covered": [],
         "uncovered": [
-          "partial：Go 断言流式/查询 API 对空输入短路且不发错误。Rust 查询空表返回空结果（该用例）；Rust 无通道流式 API，空符号列表由同步器层拒绝（`test_historical_k_line_syncer_rejects_empty_provider_result`）。"
+          "partial：Go 断言流式/查询 API 对空输入短路且不发错误。Rust 查询空表返回空结果（该用例）；Rust 无通道流式 API，空符号列表的短路语义无对应断言（同步器层只拒绝空结果页，而非空输入）。"
         ],
         "source": "legacy-conclusion"
       },
@@ -125538,7 +125538,7 @@
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
-        "partial：Go 断言流式/查询 API 对空输入短路且不发错误。Rust 查询空表返回空结果（该用例）；Rust 无通道流式 API，空符号列表由同步器层拒绝（`test_historical_k_line_syncer_rejects_empty_provider_result`）。"
+        "partial：Go 断言流式/查询 API 对空输入短路且不发错误。Rust 查询空表返回空结果（该用例）；Rust 无通道流式 API，空符号列表的短路语义无对应断言（同步器层只拒绝空结果页，而非空输入）。"
       ],
       "boundaryReason": null
     },
