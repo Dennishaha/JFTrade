@@ -5406,3 +5406,31 @@ fmt 与 nextest；`check:ai-context`、`check:migration-manifest`、
 
 下一片：api_transport 余量继续推进（servercore/servercoretest 余量、
 webaccess、tradingapp、runtime 等目录）。
+
+## 第 130 批 09 切片二十：servercore 服务端装配 39 条 recon（2026-09-24）
+
+范围：`internal/app/apiserver/servercore/` server_*（33）+ security（1）+
+notifications_lifecycle（5），共 39 条（5 `[x]` + 28 partial + 6 boundary）。
+
+方法：Go 体逐段核对；5 个 `[x]` 引用存在且锚点齐全（逐一命中）。
+结论：39 条 verdict 全部成立，无判定变更、无命令变更、无代码变更，
+本片为纯 recon。
+
+抽查实据：`:58` 的通知 wire 形状由 ws-live 语料 notification-replay
+逐帧固定（id/type/level/title/message/source/category/brokerId/at 与
+Go 表一致）；`:92` 的投影器投递内容、游标推进与二次幂等逐项断言；
+`:222` 同路由畸形 JSON 400 且空 body 接受语义一致；`:11` 心跳与订阅
+计数由语料事件顺序覆盖；`:50` 环境变量覆盖由资源目录逐项断言。
+partial 均为诚实缺口：可空 Server 分支、Wails 注入缝/回调装配、sidecar
+JS 载体、bridge 转发层、实例视图 params 回填（P2）、Pine 资金回填等，
+各有 owner 与回归要求。boundary 六条属实（bbgo sink 注册表、panic
+捕获语义、nil setter、未装配 hook 等无同形对象）。
+
+验证：`audit_test_parity.py --write-report` exit 0（1530 exact 全引用
+存在；已知警告不变；仅 report 基线号重生，inventory 无差）；
+`parity_anchor_reconcile.py` 过（1695/0/0/46）；无 Rust 文件改动故免
+fmt 与 nextest；`check:ai-context`、`check:migration-manifest`、
+`check:zero-go` 过；`check:quick` 与 `git diff --check` 见收尾。
+
+下一片：servercore 余量 42 条（openapi/product/request/settings/
+strategy/system/trading/watchlist/ws 文件）。
