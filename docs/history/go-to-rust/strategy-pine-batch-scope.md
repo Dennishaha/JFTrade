@@ -646,3 +646,29 @@ policy:11/:53/:68/:120、service:198、warmup_internal:142、warmup_plan:12，
 验证：`audit_test_parity.py`（只读）无告警增量；定向 nextest（jftrade-strategy
 104/104、risk_engine 8/8、strategy_pine_compatibility 7/7、engine strategy
 25/25、trading portfolio 2/2）；`git diff --check` 干净。
+
+## 第 130 批 09 切片 s36：strategy [x] 第 21–40 条二次复核（2026-09-24）
+
+范围（台账顺序）：warmup_plan:40/:74/:98、warmup_script:14/:51/:67、
+ir/planner:100/:204、expression:5/:11/:21、extended_ticker:49、
+language_failure:239、order_command:11、parse_object:136、parse_request:82、
+parse_semantic:377、parse:10/:54/:84，共 20 条。Go 体全读，Rust 引用全部可解析。
+
+结论：19 条维持，1 条收回过宽 `[x]`→partial：
+
+- `parse_test:54` 公共 helper 拒绝：Go 用 11 个命名用例锁定，Rust 引用的 guard
+  用例只锁 5 个（ma/bollinger/cross_over/cross_under/notify）；history 与 ta.adx
+  由另行用例锁定；security_source、barssince、valuewhen、ifelse 四个 Go 命名
+  用例在 Rust 零测试锁定（生产 guard 表虽含替换建议但零断言即零证据）。回归
+  要求已记入 uncovered（guard 用例补四行，先红后绿；若某行通过则为行为分叉）。
+- 其余维持要点：warmup 跨市场/扩展日/无 floor 三值一致；script 与 plan 双入口
+  一致；position/legacy 键集与排除项一致；表达式三条与扩展 ticker 脚本一致；
+  订单元数据 20+ 诊断逐条一致；v29 七码一致；stdev 键一致；visual 4 警告一致；
+  parse:10 的 cross_over/ta.crossover 方向差（Rust 以 ta.crossover 为规范形，
+  运行时绑定一致）与 qty 断言形态差已在结论如实记录；parse:84 双诊断含行号一致。
+
+`[x]` 1476→1475。本片仅台账 + 报告/库存再生，无 Rust 代码变更。
+
+验证：`audit_test_parity.py --write-report` exit 0（1475 exact，dup 0）；
+`parity_anchor_reconcile.py` 1742/1696/0/0/46；jftrade-strategy 104/104；
+`git diff --check` 干净。
