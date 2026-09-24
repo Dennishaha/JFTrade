@@ -5376,3 +5376,33 @@ fmt 与 nextest；`check:ai-context`、`check:migration-manifest`、
 
 下一片：api_transport 余量继续推进（backtest 域已清，internal/api
 全目录 recon 完毕，余量为其他树）。
+
+## 第 130 批 09 切片十九：datamigration 维护 49 条 recon（2026-09-24）
+
+范围：`internal/app/apiserver/datamigration/` 全目录 49 条
+（38 `[x]` + 10 partial + 1 boundary）。
+
+方法：Go 体逐段核对；38 个 `[x]` 引用存在性全过；锚点四形全认
+（含 `//! Parity:` 文件头形，如 rebuild_safety `:12` 与 maintenance
+`:17` 的头注锚点）之下 38/38 有锚。结论：49 条 verdict 全部成立，
+无判定变更、无命令变更、无代码变更，本片为纯 recon。
+
+抽查实据：`:12` 的逐字段拒绝（目录外/未受管名/尺寸/digest/缺失/
+非 SQLite/symlink）在 Rust 逐条精确断言同文案；`:106` 的失败批无残留
+经两段调度证明（首批保留、次批失败后快照集合不变，结论已写明与 Go
+单批调用的结构差异）；`:49`/`:177` 的租约 fencing 与批量锁回滚；
+`:358`/`:394` 的保留配额与 marker 保护集；`:227` 的 10 分钟预览过期；
+`:552` 的磁盘实测回收字节。partial 均为诚实缺口：context 取消、
+BusyReason/vacuum 注入缝、Wails hook 未装配态、30 秒备份限流 P2、
+NUL 路径、单条生命周期串联等，各有 owner 与回归要求。boundary 一条
+属实（`:14` 可变 unavailable 状态表在直接 inspect 模型中不存在，
+投影字段另有覆盖）。
+
+验证：`audit_test_parity.py --write-report` exit 0（1530 exact 全引用
+存在；已知警告不变；仅 report 基线号重生，inventory 无差）；
+`parity_anchor_reconcile.py` 过（1695/0/0/46）；无 Rust 文件改动故免
+fmt 与 nextest；`check:ai-context`、`check:migration-manifest`、
+`check:zero-go` 过；`check:quick` 与 `git diff --check` 见收尾。
+
+下一片：api_transport 余量继续推进（servercore/servercoretest 余量、
+webaccess、tradingapp、runtime 等目录）。
