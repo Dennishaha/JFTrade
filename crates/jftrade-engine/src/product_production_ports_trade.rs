@@ -41,6 +41,8 @@ mod product_trade_runtime_projection;
 pub(crate) use product_trade_runtime_projection::{SharedTradeReadRuntime, canonical_candle_time};
 #[path = "product_production_ports_trade_requests.rs"]
 mod product_production_ports_trade_requests;
+#[path = "product_production_ports_trade_request_defaults.rs"]
+mod product_production_ports_trade_request_defaults;
 #[path = "product_trade_runtime_options.rs"]
 mod product_trade_runtime_options;
 #[path = "product_broker_capabilities_projection.rs"]
@@ -70,6 +72,15 @@ pub(crate) struct ProductionBrokerPort {
     pub(crate) trade_read_port: Option<Arc<dyn TradeReadPort>>,
     pub(crate) trade_logged_in: Option<bool>,
     pub(crate) trade_runtime: Option<Arc<SharedTradeReadRuntime>>,
+    /// Configured Futu default trade market (`tradeMarket`), applied when a
+    /// request omits `market`. Parity with Go `WithDefaultMarket`.
+    pub(crate) default_trade_market: Option<Arc<dyn Fn() -> String + Send + Sync>>,
+}
+
+impl ProductionBrokerPort {
+    fn configured_default_market(&self) -> Option<String> {
+        self.default_trade_market.as_ref().map(|getter| getter())
+    }
 }
 
 /// Trade connectivity is owned by the broker/OpenD session, not by the
@@ -110,7 +121,12 @@ impl BrokerReadSnapshotPort for ProductionBrokerPort {
             return product_broker_capabilities_projection::project(runtime, &provider, query)
                 .map_err(unavailable);
         }
-        let request = TradeRequest::parse(path, query).map_err(BrokerReadSnapshotError::Invalid)?;
+        let request = TradeRequest::parse_with_default_market(
+            path,
+            query,
+            self.configured_default_market().as_deref(),
+        )
+        .map_err(BrokerReadSnapshotError::Invalid)?;
         if !request
             .broker_id
             .eq_ignore_ascii_case(ACTIVE_TRADE_BROKER_ID)
@@ -406,6 +422,15 @@ pub(crate) struct ProductionPortfolioPort {
     pub(crate) trade_read_port: Option<Arc<dyn TradeReadPort>>,
     pub(crate) trade_logged_in: Option<bool>,
     pub(crate) trade_runtime: Option<Arc<SharedTradeReadRuntime>>,
+    /// Configured Futu default trade market (`tradeMarket`), applied when a
+    /// request omits `market`. Parity with Go `WithDefaultMarket`.
+    pub(crate) default_trade_market: Option<Arc<dyn Fn() -> String + Send + Sync>>,
+}
+
+impl ProductionPortfolioPort {
+    fn configured_default_market(&self) -> Option<String> {
+        self.default_trade_market.as_ref().map(|getter| getter())
+    }
 }
 
 impl std::fmt::Debug for ProductionPortfolioPort {
@@ -430,8 +455,13 @@ impl PortfolioSnapshotPort for ProductionPortfolioPort {
                 "invalid query encoding".to_owned(),
             ));
         }
-        let request = TradeRequest::parse_with_prefix(path, query, "/api/v1/portfolio/")
-            .map_err(PortfolioSnapshotError::Unavailable)?;
+        let request = TradeRequest::parse_with_prefix_and_default_market(
+            path,
+            query,
+            "/api/v1/portfolio/",
+            self.configured_default_market().as_deref(),
+        )
+        .map_err(PortfolioSnapshotError::Unavailable)?;
         if !request
             .broker_id
             .eq_ignore_ascii_case(ACTIVE_TRADE_BROKER_ID)

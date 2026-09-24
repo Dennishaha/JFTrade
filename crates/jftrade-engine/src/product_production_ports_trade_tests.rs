@@ -622,6 +622,7 @@ fn broker_read_fails_closed_without_trade_client() {
         trade_read_port: None,
         trade_logged_in: Some(true),
         trade_runtime: None,
+        default_trade_market: None,
     };
     let error = port
         .read("/api/v1/brokers/futu/funds", "accountId=42&market=US")
@@ -636,6 +637,7 @@ fn broker_read_projects_futu_funds_from_neutral_client() {
         trade_read_port: Some(Arc::new(FakeTradeRead)),
         trade_logged_in: Some(true),
         trade_runtime: None,
+        default_trade_market: None,
     };
     let value = port
         .read("/api/v1/brokers/futu/funds", "accountId=42&market=US")
@@ -654,6 +656,7 @@ fn funds_projection_preserves_full_margin_pdt_and_exposure_fields() {
         trade_read_port: Some(Arc::new(FullFundsRead)),
         trade_logged_in: Some(true),
         trade_runtime: None,
+        default_trade_market: None,
     };
     let value = port
         .read(
@@ -700,6 +703,7 @@ fn funds_projection_keeps_missing_margin_fields_absent() {
         trade_read_port: Some(Arc::new(FakeTradeRead)),
         trade_logged_in: Some(true),
         trade_runtime: None,
+        default_trade_market: None,
     };
     let value = port
         .read("/api/v1/brokers/futu/funds", "accountId=42&market=US")
@@ -723,6 +727,7 @@ fn funds_projection_preserves_currency_and_market_asset_arrays() {
         trade_read_port: Some(Arc::new(FullFundsRead)),
         trade_logged_in: Some(true),
         trade_runtime: None,
+        default_trade_market: None,
     };
     let value = port
         .read(
@@ -762,6 +767,7 @@ fn broker_funds_response_serializes_the_contract_keys_with_null_last_error() {
         trade_read_port: Some(Arc::new(FakeTradeRead)),
         trade_logged_in: Some(true),
         trade_runtime: None,
+        default_trade_market: None,
     };
     let value = port
         .read("/api/v1/brokers/futu/funds", "accountId=42&market=US")
@@ -804,6 +810,7 @@ fn broker_positions_response_serializes_the_contract_keys_with_null_last_error()
         trade_read_port: Some(Arc::new(PositionFixtureRead)),
         trade_logged_in: Some(true),
         trade_runtime: None,
+        default_trade_market: None,
     };
     let value = port
         .read("/api/v1/brokers/futu/positions", "accountId=42&market=HK")
@@ -841,6 +848,7 @@ fn broker_read_query_without_market_defaults_to_hk() {
         trade_read_port: Some(Arc::new(FakeTradeRead)),
         trade_logged_in: Some(true),
         trade_runtime: None,
+        default_trade_market: None,
     };
     let defaulted = port
         .read("/api/v1/brokers/futu/funds", "accountId=42")
@@ -1018,6 +1026,7 @@ fn position_projection_prefers_diluted_cost_and_account_pnl_with_legacy_fallback
         trade_read_port: Some(Arc::new(PositionFixtureRead)),
         trade_logged_in: Some(true),
         trade_runtime: None,
+        default_trade_market: None,
     };
     let value = port
         .read(
@@ -1193,6 +1202,7 @@ fn broker_account_analytics_project_fees_margin_cash_flow_and_buying_power() {
         trade_read_port: Some(Arc::new(AccountAnalyticsRead)),
         trade_logged_in: Some(true),
         trade_runtime: None,
+        default_trade_market: None,
     };
     let fees = broker
         .read(
@@ -1239,6 +1249,7 @@ fn helper_market_data_provider_keeps_futu_trade_reads_on_the_trade_session() {
         trade_read_port: None,
         trade_logged_in: None,
         trade_runtime: Some(runtime),
+        default_trade_market: None,
     };
     let value = port
         .read(
@@ -1259,6 +1270,7 @@ fn provider_switch_does_not_disconnect_an_existing_futu_trade_session() {
         trade_read_port: None,
         trade_logged_in: None,
         trade_runtime: Some(runtime),
+        default_trade_market: None,
     };
     state
         .activate(MarketDataProvider::Yfinance)
@@ -1280,6 +1292,7 @@ fn helper_market_data_provider_without_trade_session_fails_closed() {
         trade_read_port: None,
         trade_logged_in: None,
         trade_runtime: None,
+        default_trade_market: None,
     };
     let error = port
         .read(
@@ -1299,6 +1312,7 @@ fn helper_market_data_provider_keeps_futu_portfolio_reads_on_the_trade_session()
         trade_read_port: None,
         trade_logged_in: None,
         trade_runtime: Some(ready_trade_runtime()),
+        default_trade_market: None,
     };
     let value = port
         .read(
@@ -1322,6 +1336,7 @@ fn broker_current_orders_hide_terminal_statuses_while_history_keeps_them() {
         trade_read_port: Some(Arc::new(OrderFixtureRead)),
         trade_logged_in: Some(true),
         trade_runtime: None,
+        default_trade_market: None,
     };
     let current = port
         .read("/api/v1/brokers/futu/orders", "accountId=42&market=HK")
@@ -1460,6 +1475,7 @@ fn broker_working_orders_are_filtered_sorted_and_symbol_normalized_like_go() {
         trade_read_port: Some(Arc::new(WorkingOrderRead)),
         trade_logged_in: Some(true),
         trade_runtime: None,
+        default_trade_market: None,
     };
     let value = port
         .read(
@@ -1579,6 +1595,7 @@ fn margin_ratios_reuse_a_recent_success_within_the_ttl() {
         trade_read_port: None,
         trade_logged_in: None,
         trade_runtime: Some(runtime),
+        default_trade_market: None,
     };
     let query = "accountId=42&market=US&symbol=US.AAPL";
     let first = port
@@ -1601,6 +1618,7 @@ fn broker_read_projects_cash_flows_with_baseline_fields_and_sorting() {
         trade_read_port: Some(Arc::new(FakeTradeRead)),
         trade_logged_in: Some(true),
         trade_runtime: None,
+        default_trade_market: None,
     };
     let value = port
         .read(
@@ -1621,6 +1639,7 @@ fn cash_flows_require_clearing_date() {
         trade_read_port: Some(Arc::new(FakeTradeRead)),
         trade_logged_in: Some(true),
         trade_runtime: None,
+        default_trade_market: None,
     };
     let error = port
         .read("/api/v1/brokers/futu/cash-flows", "accountId=42&market=US")
@@ -1637,6 +1656,7 @@ fn broker_read_projects_order_fees_and_merges_order_id_queries() {
         trade_read_port: Some(Arc::new(FakeTradeRead)),
         trade_logged_in: Some(true),
         trade_runtime: None,
+        default_trade_market: None,
     };
     let value = port
         .read(
@@ -1657,6 +1677,7 @@ fn order_fees_require_at_least_one_non_empty_order_id() {
         trade_read_port: Some(Arc::new(FakeTradeRead)),
         trade_logged_in: Some(true),
         trade_runtime: None,
+        default_trade_market: None,
     };
     let error = port
         .read(
@@ -1676,6 +1697,7 @@ fn broker_read_projects_margin_ratios_with_real_environment_and_omits_absent_val
         trade_read_port: Some(Arc::new(FakeTradeRead)),
         trade_logged_in: Some(true),
         trade_runtime: None,
+        default_trade_market: None,
     };
     let value = port
         .read(
@@ -1697,6 +1719,7 @@ fn margin_ratios_returns_empty_in_simulated_environment() {
         trade_read_port: Some(Arc::new(FakeTradeRead)),
         trade_logged_in: Some(true),
         trade_runtime: None,
+        default_trade_market: None,
     };
     let value = port
         .read(
@@ -1926,6 +1949,7 @@ fn test_service_broker_read_operations_return_fallback_when_market_data_unavaila
         trade_read_port: Some(Arc::new(FakeTradeRead)),
         trade_logged_in: Some(true),
         trade_runtime: None,
+        default_trade_market: None,
     };
 
     // 1. Funds
@@ -1993,6 +2017,7 @@ fn margin_ratios_require_symbols() {
         trade_read_port: Some(Arc::new(FakeTradeRead)),
         trade_logged_in: Some(true),
         trade_runtime: None,
+        default_trade_market: None,
     };
     let error = port
         .read(
@@ -2012,6 +2037,7 @@ fn broker_read_projects_max_trade_quantity_snapshot() {
         trade_read_port: Some(Arc::new(FakeTradeRead)),
         trade_logged_in: Some(true),
         trade_runtime: None,
+        default_trade_market: None,
     };
     let value = port
         .read(
@@ -2032,6 +2058,7 @@ fn max_trade_quantity_rejects_invalid_inputs() {
         trade_read_port: Some(Arc::new(FakeTradeRead)),
         trade_logged_in: Some(true),
         trade_runtime: None,
+        default_trade_market: None,
     };
     for query in [
         "accountId=42&market=US&orderType=LIMIT&price=100",
@@ -2053,6 +2080,7 @@ fn margin_ratios_reject_symbol_with_conflicting_market() {
         trade_read_port: Some(Arc::new(FakeTradeRead)),
         trade_logged_in: Some(true),
         trade_runtime: None,
+        default_trade_market: None,
     };
     let error = port
         .read(
@@ -2074,6 +2102,7 @@ fn margin_ratios_use_recent_cache_only_for_rate_limit_errors() {
         trade_read_port: None,
         trade_logged_in: None,
         trade_runtime: Some(Arc::clone(&runtime)),
+        default_trade_market: None,
     };
     let query = "accountId=42&market=US&symbol=US.AAPL";
     let initial = port
@@ -2332,6 +2361,7 @@ fn margin_ratios_fall_back_to_recent_cache_only_for_rate_limit_errors() {
         trade_read_port: None,
         trade_logged_in: None,
         trade_runtime: Some(Arc::clone(&runtime)),
+        default_trade_market: None,
     };
     let query = "accountId=42&market=US&symbol=US.AAPL";
     port.read("/api/v1/brokers/futu/margin-ratios", query)
@@ -2380,6 +2410,7 @@ fn margin_ratios_surface_invalid_symbol_and_missing_account_input_failures() {
         trade_read_port: None,
         trade_logged_in: None,
         trade_runtime: Some(Arc::clone(&runtime)),
+        default_trade_market: None,
     };
 
     // An unsupported market must be rejected before any provider read. Go
@@ -2482,6 +2513,7 @@ fn margin_ratio_empty_requests_and_duplicate_symbols_match_go() {
         trade_read_port: None,
         trade_logged_in: None,
         trade_runtime: Some(Arc::clone(&runtime)),
+        default_trade_market: None,
     };
     port.read(
         "/api/v1/brokers/futu/margin-ratios",
@@ -2553,6 +2585,7 @@ fn broker_runtime_requires_real_projection_sources() {
         trade_read_port: None,
         trade_logged_in: None,
         trade_runtime: Some(runtime),
+        default_trade_market: None,
     };
     let error = port
         .read("/api/v1/brokers/futu/runtime", "")
@@ -2630,6 +2663,7 @@ fn runtime_account_discovery_deduplicates_sorts_and_falls_back_to_card_identity(
         trade_read_port: None,
         trade_logged_in: None,
         trade_runtime: Some(runtime),
+        default_trade_market: None,
     };
     let value = port
         .read("/api/v1/brokers/futu/runtime", "")
@@ -2674,6 +2708,7 @@ fn broker_runtime_route_keeps_descriptor_session_and_accounts_keys() {
         trade_read_port: None,
         trade_logged_in: None,
         trade_runtime: Some(runtime),
+        default_trade_market: None,
     };
     let value = port
         .read("/api/v1/brokers/futu/runtime", "")
@@ -2710,6 +2745,7 @@ fn broker_runtime_projects_configured_connection_and_live_hub() {
         trade_read_port: None,
         trade_logged_in: None,
         trade_runtime: Some(runtime),
+        default_trade_market: None,
     };
     let value = port
         .read("/api/v1/brokers/futu/runtime", "")
@@ -2769,6 +2805,7 @@ fn broker_securities_projects_real_futu_tick_cache() {
         trade_read_port: None,
         trade_logged_in: None,
         trade_runtime: Some(runtime),
+        default_trade_market: None,
     };
     let value = port
         .read(
@@ -2807,6 +2844,7 @@ fn broker_securities_returns_real_empty_result_when_cache_has_no_symbol() {
         trade_read_port: None,
         trade_logged_in: None,
         trade_runtime: Some(runtime),
+        default_trade_market: None,
     };
     let value = port
         .read("/api/v1/brokers/futu/securities", "symbol=US.MSFT")
@@ -2823,6 +2861,7 @@ fn broker_securities_fails_closed_without_market_data_router() {
         trade_read_port: None,
         trade_logged_in: None,
         trade_runtime: Some(runtime),
+        default_trade_market: None,
     };
     let error = port
         .read("/api/v1/brokers/futu/securities", "symbol=US.AAPL")
@@ -2844,6 +2883,7 @@ fn broker_securities_requires_symbol_query() {
         trade_read_port: None,
         trade_logged_in: None,
         trade_runtime: Some(runtime),
+        default_trade_market: None,
     };
     let error = port
         .read("/api/v1/brokers/futu/securities", "")
@@ -2907,6 +2947,7 @@ fn broker_quote_projects_real_futu_tick_cache_for_all_symbols() {
         trade_read_port: None,
         trade_logged_in: None,
         trade_runtime: Some(runtime),
+        default_trade_market: None,
     };
     let value = port
         .read(
@@ -2939,6 +2980,7 @@ fn broker_quote_requires_every_requested_symbol_in_real_cache() {
         trade_read_port: None,
         trade_logged_in: None,
         trade_runtime: Some(runtime),
+        default_trade_market: None,
     };
     let error = port
         .read(
@@ -2960,6 +3002,7 @@ fn broker_quote_fails_closed_without_market_data_runtime() {
         trade_read_port: None,
         trade_logged_in: None,
         trade_runtime: Some(runtime),
+        default_trade_market: None,
     };
     let error = port
         .read("/api/v1/brokers/futu/quote", "symbol=US.AAPL")
@@ -2978,6 +3021,7 @@ fn broker_capabilities_preserve_catalog_without_a_market_data_reader() {
         trade_read_port: None,
         trade_logged_in: None,
         trade_runtime: Some(runtime),
+        default_trade_market: None,
     };
     let value = port
         .read("/api/v1/brokers/capabilities", "")
@@ -3110,6 +3154,7 @@ fn broker_capabilities_microstructure_and_research_runtime_ready() {
         trade_read_port: None,
         trade_logged_in: None,
         trade_runtime: Some(runtime),
+        default_trade_market: None,
     };
     let value = port
         .read("/api/v1/brokers/capabilities", "")
@@ -3169,6 +3214,7 @@ fn broker_capabilities_keep_warrants_hk_only_and_futures_discoverable_in_hk_us()
         trade_read_port: None,
         trade_logged_in: None,
         trade_runtime: Some(runtime),
+        default_trade_market: None,
     };
     let value = port
         .read("/api/v1/brokers/capabilities", "")
@@ -3231,6 +3277,7 @@ fn broker_capabilities_login_gate_uses_the_opend_connect_status_push() {
         trade_read_port: None,
         trade_logged_in: None,
         trade_runtime: Some(Arc::clone(&runtime)),
+        default_trade_market: None,
     };
     let read = port
         .read("/api/v1/brokers/capabilities", "")
@@ -3287,6 +3334,7 @@ fn broker_capabilities_stay_degraded_until_a_generation_verifies_quote_rights() 
         trade_read_port: None,
         trade_logged_in: None,
         trade_runtime: Some(Arc::clone(&runtime)),
+        default_trade_market: None,
     };
     let value = port
         .read("/api/v1/brokers/capabilities", "")
@@ -3356,6 +3404,7 @@ fn broker_capabilities_quote_right_unverified_when_opend_disconnected() {
         trade_read_port: None,
         trade_logged_in: None,
         trade_runtime: Some(runtime),
+        default_trade_market: None,
     };
     let value = port
         .read("/api/v1/brokers/capabilities", "")
@@ -3609,6 +3658,7 @@ fn broker_quote_requires_symbol_query() {
         trade_read_port: None,
         trade_logged_in: None,
         trade_runtime: Some(runtime),
+        default_trade_market: None,
     };
     let error = port
         .read("/api/v1/brokers/futu/quote", "")
@@ -3627,6 +3677,7 @@ fn broker_klines_valid_request_fails_closed_without_historical_source() {
         trade_read_port: None,
         trade_logged_in: None,
         trade_runtime: Some(runtime),
+        default_trade_market: None,
     };
     let error = port
         .read(
@@ -3648,6 +3699,7 @@ fn broker_klines_rejects_invalid_period_and_time_combinations() {
         trade_read_port: None,
         trade_logged_in: None,
         trade_runtime: Some(runtime),
+        default_trade_market: None,
     };
     let invalid_period = port
         .read("/api/v1/brokers/futu/klines", "symbol=US.AAPL&period=2h")
@@ -3675,6 +3727,7 @@ fn broker_klines_requires_symbol_and_valid_before_timestamp() {
         trade_read_port: None,
         trade_logged_in: None,
         trade_runtime: Some(runtime),
+        default_trade_market: None,
     };
     let missing_symbol = port
         .read("/api/v1/brokers/futu/klines", "period=1d")
@@ -3845,6 +3898,7 @@ fn cleared_trade_runtime_cannot_fall_back_to_static_client() {
         trade_read_port: Some(Arc::new(FakeTradeRead)),
         trade_logged_in: Some(true),
         trade_runtime: Some(runtime),
+        default_trade_market: None,
     };
     let error = port
         .read("/api/v1/brokers/futu/funds", "accountId=42&market=US")
@@ -4091,6 +4145,7 @@ fn broker_adapter_forwards_unavailable_opend_errors_on_every_read_route() {
         trade_read_port: None,
         trade_logged_in: Some(false),
         trade_runtime: None,
+        default_trade_market: None,
     };
     for (path, query) in [
         ("/api/v1/brokers/futu/accounts", "accountId=42&market=US"),
@@ -4138,6 +4193,7 @@ fn test_service_broker_write_operations_propagate_upstream_failures() {
         trade_read_port: None,
         trade_logged_in: Some(false),
         trade_runtime: None,
+        default_trade_market: None,
     };
 
     // Place order fails closed and propagates provider error
@@ -4604,6 +4660,7 @@ fn max_trade_quantity_rejects_invalid_security_after_account_resolution() {
         trade_read_port: Some(Arc::new(FakeTradeRead)),
         trade_logged_in: Some(true),
         trade_runtime: None,
+        default_trade_market: None,
     };
     let error = port
         .read(
@@ -4741,6 +4798,7 @@ fn broker_read_routes_reject_a_broker_that_is_not_active() {
         trade_read_port: Some(client.clone()),
         trade_logged_in: Some(true),
         trade_runtime: None,
+        default_trade_market: None,
     };
     let portfolio_port = ProductionPortfolioPort {
         active_provider_state: ready_state(),
@@ -4748,6 +4806,7 @@ fn broker_read_routes_reject_a_broker_that_is_not_active() {
         trade_read_port: Some(client.clone()),
         trade_logged_in: Some(true),
         trade_runtime: None,
+        default_trade_market: None,
     };
     for path in [
         "/api/v1/brokers/other/runtime",
@@ -4893,6 +4952,7 @@ fn portfolio_views_return_fallback_keys_when_market_data_runtime_is_absent() {
         trade_read_port: Some(Arc::new(FakeTradeRead)),
         trade_logged_in: Some(true),
         trade_runtime: None,
+        default_trade_market: None,
     };
     let cash = port
         .read(
@@ -4925,6 +4985,7 @@ fn broker_read_routes_keep_upstream_failures_visible_with_backend_detail() {
         trade_read_port: Some(Arc::new(FailingTradeRead)),
         trade_logged_in: Some(true),
         trade_runtime: None,
+        default_trade_market: None,
     };
     for (path, query) in [
         ("/api/v1/brokers/futu/funds", "accountId=42&market=US"),
@@ -4973,6 +5034,7 @@ fn broker_read_routes_keep_upstream_failures_visible_with_backend_detail() {
         trade_read_port: Some(Arc::new(FailingTradeRead)),
         trade_logged_in: Some(true),
         trade_runtime: None,
+        default_trade_market: None,
     };
     for (path, query) in [
         (
@@ -5096,6 +5158,7 @@ fn history_orders_backfill_account_market_and_environment_from_the_query() {
         trade_read_port: Some(Arc::new(HistoryBackfillRead)),
         trade_logged_in: Some(true),
         trade_runtime: None,
+        default_trade_market: None,
     };
     let value = port
         .read(
@@ -5121,6 +5184,7 @@ fn portfolio_cash_balances_carry_created_at_alongside_updated_at() {
         trade_read_port: Some(Arc::new(FakeTradeRead)),
         trade_logged_in: Some(true),
         trade_runtime: None,
+        default_trade_market: None,
     };
     let value = port
         .read(
@@ -5232,6 +5296,7 @@ fn margin_ratios_prefix_a_bare_symbol_with_the_request_market() {
         trade_read_port: Some(reader.clone()),
         trade_logged_in: Some(true),
         trade_runtime: None,
+        default_trade_market: None,
     };
     port.read(
         "/api/v1/brokers/futu/margin-ratios",
@@ -5243,4 +5308,144 @@ fn margin_ratios_prefix_a_bare_symbol_with_the_request_market() {
         &[(11, "AAPL".to_owned())],
         "bare code must resolve against the request market"
     );
+}
+
+#[derive(Debug, Default)]
+struct MarketCaptureMarginRead {
+    seen: Mutex<Vec<TradeSecurity>>,
+}
+
+impl TradeReadPort for MarketCaptureMarginRead {
+    fn read_accounts(
+        &self,
+        user_id: u64,
+        category: Option<i32>,
+        general: Option<bool>,
+    ) -> Result<Vec<TradeAccountSnapshot>, TradeSessionError> {
+        FakeTradeRead.read_accounts(user_id, category, general)
+    }
+    fn read_funds(
+        &self,
+        header: TradeHeader,
+        refresh: Option<bool>,
+        currency: Option<i32>,
+        asset: Option<i32>,
+    ) -> Result<TradeFundsSnapshot, TradeSessionError> {
+        FakeTradeRead.read_funds(header, refresh, currency, asset)
+    }
+    fn read_cash_flows(
+        &self,
+        header: TradeHeader,
+        clearing_date: String,
+        direction: Option<i32>,
+    ) -> Result<Vec<TradeCashFlowSnapshot>, TradeSessionError> {
+        FakeTradeRead.read_cash_flows(header, clearing_date, direction)
+    }
+    fn read_order_fees(
+        &self,
+        header: TradeHeader,
+        order_ids: Vec<String>,
+    ) -> Result<Vec<TradeOrderFeeSnapshot>, TradeSessionError> {
+        FakeTradeRead.read_order_fees(header, order_ids)
+    }
+    fn read_margin_ratios(
+        &self,
+        _: TradeHeader,
+        securities: Vec<TradeSecurity>,
+    ) -> Result<Vec<TradeMarginRatioSnapshot>, TradeSessionError> {
+        *self.seen.lock().unwrap() = securities.clone();
+        Ok(securities
+            .iter()
+            .map(|security| {
+                margin_ratio_snapshot(&format!("{}.{}", security.market, security.code))
+            })
+            .collect())
+    }
+    fn read_max_trade_quantity(
+        &self,
+        request: TradeMaxTradeQuantityRequest,
+    ) -> Result<TradeMaxTradeQuantitySnapshot, TradeSessionError> {
+        FakeTradeRead.read_max_trade_quantity(request)
+    }
+    fn read_positions(
+        &self,
+        header: TradeHeader,
+        filter: Option<TradeFilter>,
+        min: Option<f64>,
+        max: Option<f64>,
+        refresh: Option<bool>,
+        asset: Option<i32>,
+        currency: Option<i32>,
+        option_view: Option<bool>,
+    ) -> Result<Vec<TradePositionSnapshot>, TradeSessionError> {
+        FakeTradeRead.read_positions(
+            header, filter, min, max, refresh, asset, currency, option_view,
+        )
+    }
+    fn read_orders(
+        &self,
+        header: TradeHeader,
+        filter: Option<TradeFilter>,
+        statuses: Vec<i32>,
+        refresh: Option<bool>,
+    ) -> Result<Vec<TradeOrderSnapshot>, TradeSessionError> {
+        FakeTradeRead.read_orders(header, filter, statuses, refresh)
+    }
+    fn read_fills(
+        &self,
+        header: TradeHeader,
+        filter: Option<TradeFilter>,
+        refresh: Option<bool>,
+    ) -> Result<Vec<TradeFillSnapshot>, TradeSessionError> {
+        FakeTradeRead.read_fills(header, filter, refresh)
+    }
+}
+
+#[test]
+fn broker_port_applies_configured_default_market_when_request_omits_it() {
+    // Parity: go:452dea11:internal/trading/broker_test.go:735 TestNormalizeSymbolsAndRuntimeDefaults
+    // An omitted market resolves from the configured default
+    // (`WithDefaultMarket("US")`). The port must hand
+    // its configured getter to request parsing so a bare code reaches OpenD
+    // qualified with the configured market instead of the HK fallback.
+    let runtime = Arc::new(SharedTradeReadRuntime::default());
+    let reader = Arc::new(MarketCaptureMarginRead::default());
+    runtime.set(Some(reader.clone()), Some(true));
+    let port = ProductionBrokerPort {
+        active_provider_state: ready_state(),
+        trade_read_port: None,
+        trade_logged_in: None,
+        trade_runtime: Some(Arc::clone(&runtime)),
+        default_trade_market: Some(Arc::new(|| "US".to_owned())),
+    };
+    port.read(
+        "/api/v1/brokers/futu/margin-ratios",
+        "accountId=42&symbol=AAPL",
+    )
+    .expect("omitted market resolves from configuration");
+    let seen = reader.seen.lock().unwrap().clone();
+    assert_eq!(seen.len(), 1);
+    assert_eq!(seen[0].market, 11, "bare AAPL must reach OpenD as US");
+    assert_eq!(seen[0].code, "AAPL");
+
+    // An explicit market keeps priority over the configured default.
+    let runtime = Arc::new(SharedTradeReadRuntime::default());
+    let reader = Arc::new(MarketCaptureMarginRead::default());
+    runtime.set(Some(reader.clone()), Some(true));
+    let port = ProductionBrokerPort {
+        active_provider_state: ready_state(),
+        trade_read_port: None,
+        trade_logged_in: None,
+        trade_runtime: Some(Arc::clone(&runtime)),
+        default_trade_market: Some(Arc::new(|| "US".to_owned())),
+    };
+    port.read(
+        "/api/v1/brokers/futu/margin-ratios",
+        "accountId=42&market=HK&symbol=00700",
+    )
+    .expect("explicit market wins");
+    let seen = reader.seen.lock().unwrap().clone();
+    assert_eq!(seen.len(), 1);
+    assert_eq!(seen[0].market, 1, "explicit HK must survive a US default");
+    assert_eq!(seen[0].code, "00700");
 }

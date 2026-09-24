@@ -124,6 +124,7 @@ fn projection_ports(
         trade_read_port: None,
         trade_logged_in: None,
         trade_runtime: Some(Arc::clone(&runtime)),
+        default_trade_market: None,
     };
     let portfolio = ProductionPortfolioPort {
         active_provider_state: state,
@@ -131,6 +132,7 @@ fn projection_ports(
         trade_read_port: None,
         trade_logged_in: None,
         trade_runtime: Some(runtime),
+        default_trade_market: None,
     };
     (broker, portfolio)
 }
@@ -175,6 +177,7 @@ fn helper_market_data_providers_fail_closed_without_futu_trade_session() {
             trade_read_port: None,
             trade_logged_in: None,
             trade_runtime: None,
+            default_trade_market: None,
         };
         let error = broker
             .read(
@@ -190,6 +193,7 @@ fn helper_market_data_providers_fail_closed_without_futu_trade_session() {
             trade_read_port: None,
             trade_logged_in: None,
             trade_runtime: None,
+            default_trade_market: None,
         };
         let error = portfolio
             .read(

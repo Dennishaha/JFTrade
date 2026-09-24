@@ -21,9 +21,16 @@ pub(crate) struct TradeRequest {
     pub(crate) broker_id: String,
     pub(crate) resource: String,
     pub(crate) query: QueryMap,
+    /// Configured Futu default trade market, applied by [`TradeRequest::market_label`]
+    /// when the request omits `market`. `None` keeps the historical `HK` fallback.
+    pub(crate) default_market: Option<String>,
 }
 
 impl TradeRequest {
+    // `parse` keeps the historical no-default entry point used by tests that
+    // pin the `HK` fallback; production broker/portfolio reads go through the
+    // `_with_default_market` variants below.
+    #[allow(dead_code)]
     pub(crate) fn parse(path: &str, raw_query: &str) -> Result<Self, String> {
         Self::parse_with_prefix(path, raw_query, "/api/v1/brokers/")
     }
@@ -45,6 +52,7 @@ impl TradeRequest {
             broker_id: broker_id.to_owned(),
             resource: resource.to_owned(),
             query,
+            default_market: None,
         })
     }
 
@@ -234,6 +242,8 @@ impl TradeRequest {
         self.query
             .get_first("market")
             .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .or(self.default_market.as_deref())
             .unwrap_or("HK")
             .to_owned()
     }
@@ -779,7 +789,6 @@ pub(crate) fn checked_at() -> String {
         .map(|d| d.as_millis().to_string())
         .unwrap_or_else(|_| "0".to_owned())
 }
-
 
 #[cfg(test)]
 #[path = "product_production_ports_trade_request_tests.rs"]

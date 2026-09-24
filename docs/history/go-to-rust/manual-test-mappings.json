@@ -7,7 +7,7 @@
     "treeSha": "0ee26444be21c15d9760f358a34649f78402f0fb"
   },
   "generatorVersion": "v2_writer.py@slice23",
-  "generatedAt": "2026-09-23T23:50:32Z",
+  "generatedAt": "2026-09-24T00:19:54Z",
   "mappings": {
     "cmd/jftrade-api/main_test.go:13:TestValidateArgsAllowsNoArgs": {
       "status": "[~]",
@@ -280667,9 +280667,9 @@
     },
     "internal/trading/broker_test.go:735:TestNormalizeSymbolsAndRuntimeDefaults": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::broker_runtime_projects_configured_connection_and_live_hub；crates/jftrade-engine/src/product_production_ports_trade_tests.rs::broker_runtime_requires_real_projection_sources；crates/jftrade-engine/src/product_production_ports_trade_tests.rs::trade_security_parsing_accepts_every_go_prefix_and_rejects_invalid_symbols；crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::buying_power_defaults_follow_settings_and_preserve_explicit_environment；crates/jftrade-engine/src/product_production_ports_trade_tests.rs::margin_ratios_prefix_a_bare_symbol_with_the_request_market",
-      "conclusion": "部分覆盖：Go 断言（1）ReadQuery(broker, env, account, market=\"\") 用 WithDefaultMarket 的配置值补齐 market；（2）NormalizeSymbols(\"US\", [\"AAPL\",\"MSFT\"]) 前缀化为 US.AAPL/US.MSFT，空符号报错；（3）无运行时投影的 broker 返回空 session/accounts（不报错）。Rust 证据：（2）由 trade_security_parsing_accepts_every_go_prefix_and_rejects_invalid_symbols 断言各市场前缀（含 US:AAPL 冒号形式）与非法前缀拒绝，裸代码在 TradeRequest::securities() 里用请求 market 标签前缀化并对全空输入返回 \"query parameter symbol is required\"；（3）由 broker_runtime_projects_configured_connection_and_live_hub 断言配置齐全时的会话/连接字段、broker_runtime_requires_real_projection_sources 断言缺投影源时 fail-closed（Rust 不以空 session 冒充可用，属保留差异而非报错差异）。功能差异（需修复）：（1）Rust 交易读请求不读配置默认市场——product_production_ports_trade_requests.rs::market_label()（第 233 行）在 query 缺 market 时硬编码回退 \"HK\"，而设置里存在对应字段 FutuIntegrationConfig.trade_market（crates/jftrade-settings/src/broker.rs:20，默认 \"HK\"）未被读路径使用；resolve_trade_request 则改从账户权限列表推导市场。复现：把 futu.tradeMarket 设为 US 后请求 /api/v1/brokers/futu/margin-ratios?accountId=...&symbol=AAPL（省略 market），Rust 仍按 HK 解析并以 400 拒绝（symbol 与 market 冲突），Go 会取配置默认市场 US。预期：省略 market 时取 futu.tradeMarket、显式 market 优先、空配置回退 HK。修复位置：组合根按 default_trading_environment 同法注入默认市场 getter，替换 market_label 的 HK 兜底；回归要求：省略 market → 取配置值、显式 market 优先、空配置回退 HK、裸代码与显式市场的冲突校验保持不变。缺口（需新增测试）：裸代码 + market 参数在交易读路由上的前缀化没有专门断言（现有用例以显式前缀为主）。【本批收口】裸符号前缀化已补：新增 margin_ratios_prefix_a_bare_symbol_with_the_request_market，以 SecurityCaptureRead 捕获 reader 收到的证券，断言 symbol=AAPL&market=US 解析为 code AAPL 配市场码 11（US）；探针把默认市场改坏为 HK 后转红，恢复后通过，生产按字节回滚。残留功能差异（1）配置默认市场注入仍需生产修复，复现与修复位置见上文。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(broker_runtime_projects_configured_connection_and_live_hub) or test(broker_runtime_requires_real_projection_sources) or test(trade_security_parsing_accepts_every_go_prefix_and_rejects_invalid_symbols) or test(buying_power_defaults_follow_settings_and_preserve_explicit_environment)' or test(margin_ratios_prefix_a_bare_symbol_with_the_request_market)",
+      "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::broker_runtime_projects_configured_connection_and_live_hub；crates/jftrade-engine/src/product_production_ports_trade_tests.rs::broker_runtime_requires_real_projection_sources；crates/jftrade-engine/src/product_production_ports_trade_tests.rs::trade_security_parsing_accepts_every_go_prefix_and_rejects_invalid_symbols；crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::buying_power_defaults_follow_settings_and_preserve_explicit_environment；crates/jftrade-engine/src/product_production_ports_trade_tests.rs::margin_ratios_prefix_a_bare_symbol_with_the_request_market；crates/jftrade-engine/src/product_production_ports_trade_request_tests.rs::trade_request_applies_configured_default_market_only_when_omitted；crates/jftrade-engine/src/product_production_ports_trade_tests.rs::broker_port_applies_configured_default_market_when_request_omits_it",
+      "conclusion": "部分覆盖：Go 断言（1）ReadQuery(broker, env, account, market=\"\") 用 WithDefaultMarket 的配置值补齐 market；（2）NormalizeSymbols(\"US\", [\"AAPL\",\"MSFT\"]) 前缀化为 US.AAPL/US.MSFT，空符号报错；（3）无运行时投影的 broker 返回空 session/accounts（不报错）。Rust 证据：（2）由 trade_security_parsing_accepts_every_go_prefix_and_rejects_invalid_symbols 断言各市场前缀（含 US:AAPL 冒号形式）与非法前缀拒绝，裸代码在 TradeRequest::securities() 里用请求 market 标签前缀化并对全空输入返回 \"query parameter symbol is required\"；（3）由 broker_runtime_projects_configured_connection_and_live_hub 断言配置齐全时的会话/连接字段、broker_runtime_requires_real_projection_sources 断言缺投影源时 fail-closed（Rust 不以空 session 冒充可用，属保留差异而非报错差异）。功能差异（需修复）：（1）Rust 交易读请求不读配置默认市场——product_production_ports_trade_requests.rs::market_label()（第 233 行）在 query 缺 market 时硬编码回退 \"HK\"，而设置里存在对应字段 FutuIntegrationConfig.trade_market（crates/jftrade-settings/src/broker.rs:20，默认 \"HK\"）未被读路径使用；resolve_trade_request 则改从账户权限列表推导市场。复现：把 futu.tradeMarket 设为 US 后请求 /api/v1/brokers/futu/margin-ratios?accountId=...&symbol=AAPL（省略 market），Rust 仍按 HK 解析并以 400 拒绝（symbol 与 market 冲突），Go 会取配置默认市场 US。预期：省略 market 时取 futu.tradeMarket、显式 market 优先、空配置回退 HK。修复位置：组合根按 default_trading_environment 同法注入默认市场 getter，替换 market_label 的 HK 兜底；回归要求：省略 market → 取配置值、显式 market 优先、空配置回退 HK、裸代码与显式市场的冲突校验保持不变。缺口（需新增测试）：裸代码 + market 参数在交易读路由上的前缀化没有专门断言（现有用例以显式前缀为主）。【本批收口】裸符号前缀化已补：新增 margin_ratios_prefix_a_bare_symbol_with_the_request_market，以 SecurityCaptureRead 捕获 reader 收到的证券，断言 symbol=AAPL&market=US 解析为 code AAPL 配市场码 11（US）；探针把默认市场改坏为 HK 后转红，恢复后通过，生产按字节回滚。残留功能差异（1）配置默认市场注入仍需生产修复，复现与修复位置见上文。【130-06A 配置默认市场注入生产修复】残留功能差异（1）已修复：TradeRequest 新增 default_market 字段，market_label() 在 query market 缺失/空白时取该字段、否则回退 HK（此前 query 空白 market 会返回空串）；ProductionBrokerPort/ProductionPortfolioPort 新增 default_trade_market getter 字段，read() 经 parse_with_default_market/parse_with_prefix_and_default_market 注入；组合根按 default_trading_environment 同法从 load_broker_settings_inputs().effective_config.trade_market 读值（trim+大写，空值回 HK）。红证据：临时探针断言省略 market 的 margin-ratios 裸 AAPL 解析为 US(11)，实际得 HK(1) 转红（left=1 right=11），探针已按字节回滚。绿证据：新增 trade_request_applies_configured_default_market_only_when_omitted（省略→US、显式HK优先、None/空/空白配置回HK、空query取默认、空白market取默认、无默认空白market回HK、显式冲突仍拒绝、坏编码仍400、portfolio前缀变体）与 broker_port_applies_configured_default_market_when_request_omits_it（MarketCaptureMarginRead 捕获 OpenD 入参：省market→(11,AAPL)、显式HK→(1,00700)）；jftrade-engine 全量 1929 通过。结论：Go 断言（1）四点回归要求全覆盖；（2）已覆盖；（3）Rust 缺投影源时 fail-closed、Go 返回空 session，属已确认的保留差异。故本条保持 partial，不升 [x]。",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(broker_runtime_projects_configured_connection_and_live_hub) or test(broker_runtime_requires_real_projection_sources) or test(trade_security_parsing_accepts_every_go_prefix_and_rejects_invalid_symbols) or test(buying_power_defaults_follow_settings_and_preserve_explicit_environment)' or test(margin_ratios_prefix_a_bare_symbol_with_the_request_market) or test(trade_request_applies_configured_default_market_only_when_omitted) or test(broker_port_applies_configured_default_market_when_request_omits_it)",
       "evidence_type": "partial",
       "source": {
         "file": "internal/trading/broker_test.go",
@@ -280686,7 +280686,7 @@
             "goFile": "internal/trading/broker_test.go",
             "goLine": 735,
             "rustFile": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs",
-            "rustLine": 5140
+            "rustLine": 5204
           }
         },
         {
@@ -280697,7 +280697,7 @@
             "goFile": "internal/trading/broker_test.go",
             "goLine": 735,
             "rustFile": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs",
-            "rustLine": 5140
+            "rustLine": 5204
           }
         },
         {
@@ -280708,7 +280708,7 @@
             "goFile": "internal/trading/broker_test.go",
             "goLine": 735,
             "rustFile": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs",
-            "rustLine": 5140
+            "rustLine": 5204
           }
         },
         {
@@ -280725,14 +280725,36 @@
             "goFile": "internal/trading/broker_test.go",
             "goLine": 735,
             "rustFile": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs",
-            "rustLine": 5140
+            "rustLine": 5204
+          }
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_production_ports_trade_request_tests.rs",
+          "test": "trade_request_applies_configured_default_market_only_when_omitted",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/trading/broker_test.go",
+            "goLine": 735,
+            "rustFile": "crates/jftrade-engine/src/product_production_ports_trade_request_tests.rs",
+            "rustLine": 127
+          }
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs",
+          "test": "broker_port_applies_configured_default_market_when_request_omits_it",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/trading/broker_test.go",
+            "goLine": 735,
+            "rustFile": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs",
+            "rustLine": 5204
           }
         }
       ],
       "assertionCoverage": {
         "covered": [],
         "uncovered": [
-          "部分覆盖：Go 断言（1）ReadQuery(broker, env, account, market=\"\") 用 WithDefaultMarket 的配置值补齐 market；（2）NormalizeSymbols(\"US\", [\"AAPL\",\"MSFT\"]) 前缀化为 US.AAPL/US.MSFT，空符号报错；（3）无运行时投影的 broker 返回空 session/accounts（不报错）。Rust 证据：（2）由 trade_security_parsing_accepts_every_go_prefix_and_rejects_invalid_symbols 断言各市场前缀（含 US:AAPL 冒号形式）与非法前缀拒绝，裸代码在 TradeRequest::securities() 里用请求 market 标签前缀化并对全空输入返回 \"query parameter symbol is required\"；（3）由 broker_runtime_projects_configured_connection_and_live_hub 断言配置齐全时的会话/连接字段、broker_runtime_requires_real_projection_sources 断言缺投影源时 fail-closed（Rust 不以空 session 冒充可用，属保留差异而非报错差异）。功能差异（需修复）：（1）Rust 交易读请求不读配置默认市场——product_production_ports_trade_requests.rs::market_label()（第 233 行）在 query 缺 market 时硬编码回退 \"HK\"，而设置里存在对应字段 FutuIntegrationConfig.trade_market（crates/jftrade-settings/src/broker.rs:20，默认 \"HK\"）未被读路径使用；resolve_trade_request 则改从账户权限列表推导市场。复现：把 futu.tradeMarket 设为 US 后请求 /api/v1/brokers/futu/margin-ratios?accountId=...&symbol=AAPL（省略 market），Rust 仍按 HK 解析并以 400 拒绝（symbol 与 market 冲突），Go 会取配置默认市场 US。预期：省略 market 时取 futu.tradeMarket、显式 market 优先、空配置回退 HK。修复位置：组合根按 default_trading_environment 同法注入默认市场 getter，替换 market_label 的 HK 兜底；回归要求：省略 market → 取配置值、显式 market 优先、空配置回退 HK、裸代码与显式市场的冲突校验保持不变。缺口（需新增测试）：裸代码 + market 参数在交易读路由上的前缀化没有专门断言（现有用例以显式前缀为主）。【本批收口】裸符号前缀化已补：新增 margin_ratios_prefix_a_bare_symbol_with_the_request_market，以 SecurityCaptureRead 捕获 reader 收到的证券，断言 symbol=AAPL&market=US 解析为 code AAPL 配市场码 11（US）；探针把默认市场改坏为 HK 后转红，恢复后通过，生产按字节回滚。残留功能差异（1）配置默认市场注入仍需生产修复，复现与修复位置见上文。"
+          "部分覆盖：Go 断言（1）ReadQuery(broker, env, account, market=\"\") 用 WithDefaultMarket 的配置值补齐 market；（2）NormalizeSymbols(\"US\", [\"AAPL\",\"MSFT\"]) 前缀化为 US.AAPL/US.MSFT，空符号报错；（3）无运行时投影的 broker 返回空 session/accounts（不报错）。Rust 证据：（2）由 trade_security_parsing_accepts_every_go_prefix_and_rejects_invalid_symbols 断言各市场前缀（含 US:AAPL 冒号形式）与非法前缀拒绝，裸代码在 TradeRequest::securities() 里用请求 market 标签前缀化并对全空输入返回 \"query parameter symbol is required\"；（3）由 broker_runtime_projects_configured_connection_and_live_hub 断言配置齐全时的会话/连接字段、broker_runtime_requires_real_projection_sources 断言缺投影源时 fail-closed（Rust 不以空 session 冒充可用，属保留差异而非报错差异）。功能差异（需修复）：（1）Rust 交易读请求不读配置默认市场——product_production_ports_trade_requests.rs::market_label()（第 233 行）在 query 缺 market 时硬编码回退 \"HK\"，而设置里存在对应字段 FutuIntegrationConfig.trade_market（crates/jftrade-settings/src/broker.rs:20，默认 \"HK\"）未被读路径使用；resolve_trade_request 则改从账户权限列表推导市场。复现：把 futu.tradeMarket 设为 US 后请求 /api/v1/brokers/futu/margin-ratios?accountId=...&symbol=AAPL（省略 market），Rust 仍按 HK 解析并以 400 拒绝（symbol 与 market 冲突），Go 会取配置默认市场 US。预期：省略 market 时取 futu.tradeMarket、显式 market 优先、空配置回退 HK。修复位置：组合根按 default_trading_environment 同法注入默认市场 getter，替换 market_label 的 HK 兜底；回归要求：省略 market → 取配置值、显式 market 优先、空配置回退 HK、裸代码与显式市场的冲突校验保持不变。缺口（需新增测试）：裸代码 + market 参数在交易读路由上的前缀化没有专门断言（现有用例以显式前缀为主）。【本批收口】裸符号前缀化已补：新增 margin_ratios_prefix_a_bare_symbol_with_the_request_market，以 SecurityCaptureRead 捕获 reader 收到的证券，断言 symbol=AAPL&market=US 解析为 code AAPL 配市场码 11（US）；探针把默认市场改坏为 HK 后转红，恢复后通过，生产按字节回滚。残留功能差异（1）配置默认市场注入仍需生产修复，复现与修复位置见上文。【130-06A 配置默认市场注入生产修复】残留功能差异（1）已修复：TradeRequest 新增 default_market 字段，market_label() 在 query market 缺失/空白时取该字段、否则回退 HK（此前 query 空白 market 会返回空串）；ProductionBrokerPort/ProductionPortfolioPort 新增 default_trade_market getter 字段，read() 经 parse_with_default_market/parse_with_prefix_and_default_market 注入；组合根按 default_trading_environment 同法从 load_broker_settings_inputs().effective_config.trade_market 读值（trim+大写，空值回 HK）。红证据：临时探针断言省略 market 的 margin-ratios 裸 AAPL 解析为 US(11)，实际得 HK(1) 转红（left=1 right=11），探针已按字节回滚。绿证据：新增 trade_request_applies_configured_default_market_only_when_omitted（省略→US、显式HK优先、None/空/空白配置回HK、空query取默认、空白market取默认、无默认空白market回HK、显式冲突仍拒绝、坏编码仍400、portfolio前缀变体）与 broker_port_applies_configured_default_market_when_request_omits_it（MarketCaptureMarginRead 捕获 OpenD 入参：省market→(11,AAPL)、显式HK→(1,00700)）；jftrade-engine 全量 1929 通过。结论：Go 断言（1）四点回归要求全覆盖；（2）已覆盖；（3）Rust 缺投影源时 fail-closed、Go 返回空 session，属已确认的保留差异。故本条保持 partial，不升 [x]。"
         ],
         "source": "legacy-conclusion"
       },
@@ -280748,14 +280770,20 @@
           "-E",
           "test(broker_runtime_projects_configured_connection_and_live_hub) or test(broker_runtime_requires_real_projection_sources) or test(trade_security_parsing_accepts_every_go_prefix_and_rejects_invalid_symbols) or test(buying_power_defaults_follow_settings_and_preserve_explicit_environment)",
           "or",
-          "test(margin_ratios_prefix_a_bare_symbol_with_the_request_market)"
+          "test(margin_ratios_prefix_a_bare_symbol_with_the_request_market)",
+          "or",
+          "test(trade_request_applies_configured_default_market_only_when_omitted)",
+          "or",
+          "test(broker_port_applies_configured_default_market_when_request_omits_it)"
         ],
         "testFilter": [
           "broker_runtime_projects_configured_connection_and_live_hub",
           "broker_runtime_requires_real_projection_sources",
           "trade_security_parsing_accepts_every_go_prefix_and_rejects_invalid_symbols",
           "buying_power_defaults_follow_settings_and_preserve_explicit_environment",
-          "margin_ratios_prefix_a_bare_symbol_with_the_request_market"
+          "margin_ratios_prefix_a_bare_symbol_with_the_request_market",
+          "trade_request_applies_configured_default_market_only_when_omitted",
+          "broker_port_applies_configured_default_market_when_request_omits_it"
         ],
         "runnerVersion": null,
         "toolchain": null,
@@ -280775,7 +280803,7 @@
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
-        "部分覆盖：Go 断言（1）ReadQuery(broker, env, account, market=\"\") 用 WithDefaultMarket 的配置值补齐 market；（2）NormalizeSymbols(\"US\", [\"AAPL\",\"MSFT\"]) 前缀化为 US.AAPL/US.MSFT，空符号报错；（3）无运行时投影的 broker 返回空 session/accounts（不报错）。Rust 证据：（2）由 trade_security_parsing_accepts_every_go_prefix_and_rejects_invalid_symbols 断言各市场前缀（含 US:AAPL 冒号形式）与非法前缀拒绝，裸代码在 TradeRequest::securities() 里用请求 market 标签前缀化并对全空输入返回 \"query parameter symbol is required\"；（3）由 broker_runtime_projects_configured_connection_and_live_hub 断言配置齐全时的会话/连接字段、broker_runtime_requires_real_projection_sources 断言缺投影源时 fail-closed（Rust 不以空 session 冒充可用，属保留差异而非报错差异）。功能差异（需修复）：（1）Rust 交易读请求不读配置默认市场——product_production_ports_trade_requests.rs::market_label()（第 233 行）在 query 缺 market 时硬编码回退 \"HK\"，而设置里存在对应字段 FutuIntegrationConfig.trade_market（crates/jftrade-settings/src/broker.rs:20，默认 \"HK\"）未被读路径使用；resolve_trade_request 则改从账户权限列表推导市场。复现：把 futu.tradeMarket 设为 US 后请求 /api/v1/brokers/futu/margin-ratios?accountId=...&symbol=AAPL（省略 market），Rust 仍按 HK 解析并以 400 拒绝（symbol 与 market 冲突），Go 会取配置默认市场 US。预期：省略 market 时取 futu.tradeMarket、显式 market 优先、空配置回退 HK。修复位置：组合根按 default_trading_environment 同法注入默认市场 getter，替换 market_label 的 HK 兜底；回归要求：省略 market → 取配置值、显式 market 优先、空配置回退 HK、裸代码与显式市场的冲突校验保持不变。缺口（需新增测试）：裸代码 + market 参数在交易读路由上的前缀化没有专门断言（现有用例以显式前缀为主）。【本批收口】裸符号前缀化已补：新增 margin_ratios_prefix_a_bare_symbol_with_the_request_market，以 SecurityCaptureRead 捕获 reader 收到的证券，断言 symbol=AAPL&market=US 解析为 code AAPL 配市场码 11（US）；探针把默认市场改坏为 HK 后转红，恢复后通过，生产按字节回滚。残留功能差异（1）配置默认市场注入仍需生产修复，复现与修复位置见上文。"
+        "部分覆盖：Go 断言（1）ReadQuery(broker, env, account, market=\"\") 用 WithDefaultMarket 的配置值补齐 market；（2）NormalizeSymbols(\"US\", [\"AAPL\",\"MSFT\"]) 前缀化为 US.AAPL/US.MSFT，空符号报错；（3）无运行时投影的 broker 返回空 session/accounts（不报错）。Rust 证据：（2）由 trade_security_parsing_accepts_every_go_prefix_and_rejects_invalid_symbols 断言各市场前缀（含 US:AAPL 冒号形式）与非法前缀拒绝，裸代码在 TradeRequest::securities() 里用请求 market 标签前缀化并对全空输入返回 \"query parameter symbol is required\"；（3）由 broker_runtime_projects_configured_connection_and_live_hub 断言配置齐全时的会话/连接字段、broker_runtime_requires_real_projection_sources 断言缺投影源时 fail-closed（Rust 不以空 session 冒充可用，属保留差异而非报错差异）。功能差异（需修复）：（1）Rust 交易读请求不读配置默认市场——product_production_ports_trade_requests.rs::market_label()（第 233 行）在 query 缺 market 时硬编码回退 \"HK\"，而设置里存在对应字段 FutuIntegrationConfig.trade_market（crates/jftrade-settings/src/broker.rs:20，默认 \"HK\"）未被读路径使用；resolve_trade_request 则改从账户权限列表推导市场。复现：把 futu.tradeMarket 设为 US 后请求 /api/v1/brokers/futu/margin-ratios?accountId=...&symbol=AAPL（省略 market），Rust 仍按 HK 解析并以 400 拒绝（symbol 与 market 冲突），Go 会取配置默认市场 US。预期：省略 market 时取 futu.tradeMarket、显式 market 优先、空配置回退 HK。修复位置：组合根按 default_trading_environment 同法注入默认市场 getter，替换 market_label 的 HK 兜底；回归要求：省略 market → 取配置值、显式 market 优先、空配置回退 HK、裸代码与显式市场的冲突校验保持不变。缺口（需新增测试）：裸代码 + market 参数在交易读路由上的前缀化没有专门断言（现有用例以显式前缀为主）。【本批收口】裸符号前缀化已补：新增 margin_ratios_prefix_a_bare_symbol_with_the_request_market，以 SecurityCaptureRead 捕获 reader 收到的证券，断言 symbol=AAPL&market=US 解析为 code AAPL 配市场码 11（US）；探针把默认市场改坏为 HK 后转红，恢复后通过，生产按字节回滚。残留功能差异（1）配置默认市场注入仍需生产修复，复现与修复位置见上文。【130-06A 配置默认市场注入生产修复】残留功能差异（1）已修复：TradeRequest 新增 default_market 字段，market_label() 在 query market 缺失/空白时取该字段、否则回退 HK（此前 query 空白 market 会返回空串）；ProductionBrokerPort/ProductionPortfolioPort 新增 default_trade_market getter 字段，read() 经 parse_with_default_market/parse_with_prefix_and_default_market 注入；组合根按 default_trading_environment 同法从 load_broker_settings_inputs().effective_config.trade_market 读值（trim+大写，空值回 HK）。红证据：临时探针断言省略 market 的 margin-ratios 裸 AAPL 解析为 US(11)，实际得 HK(1) 转红（left=1 right=11），探针已按字节回滚。绿证据：新增 trade_request_applies_configured_default_market_only_when_omitted（省略→US、显式HK优先、None/空/空白配置回HK、空query取默认、空白market取默认、无默认空白market回HK、显式冲突仍拒绝、坏编码仍400、portfolio前缀变体）与 broker_port_applies_configured_default_market_when_request_omits_it（MarketCaptureMarginRead 捕获 OpenD 入参：省market→(11,AAPL)、显式HK→(1,00700)）；jftrade-engine 全量 1929 通过。结论：Go 断言（1）四点回归要求全覆盖；（2）已覆盖；（3）Rust 缺投影源时 fail-closed、Go 返回空 session，属已确认的保留差异。故本条保持 partial，不升 [x]。"
       ],
       "boundaryReason": null
     },
@@ -299298,6 +299326,14 @@
       "allowed": true,
       "reviewStatus": "single"
     },
+    "crates/jftrade-engine/src/product_production_ports_trade_request_tests.rs::trade_request_applies_configured_default_market_only_when_omitted": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/trading/broker_test.go:735:TestNormalizeSymbolsAndRuntimeDefaults"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
     "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::broker_account_analytics_project_fees_margin_cash_flow_and_buying_power": {
       "referenceCount": 3,
       "referenceKeys": [
@@ -299384,6 +299420,14 @@
       "referenceCount": 1,
       "referenceKeys": [
         "pkg/futu/exchange_business_boundary_test.go:128:TestBrokerOrderMappingCoversOrderLifecycleEnums"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::broker_port_applies_configured_default_market_when_request_omits_it": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/trading/broker_test.go:735:TestNormalizeSymbolsAndRuntimeDefaults"
       ],
       "allowed": true,
       "reviewStatus": "single"

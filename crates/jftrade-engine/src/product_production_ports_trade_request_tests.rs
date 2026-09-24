@@ -122,3 +122,104 @@ fn trade_query_normalizes_scope_merges_aliases_and_treats_blank_optionals_as_abs
         "query parameter positionId is invalid"
     );
 }
+
+#[test]
+// Parity: go:452dea11:internal/trading/broker_test.go:735 TestNormalizeSymbolsAndRuntimeDefaults
+// An omitted market resolves from the configured Futu default trade market;
+// an explicit market always wins and a missing/blank default keeps HK.
+fn trade_request_applies_configured_default_market_only_when_omitted() {
+    let defaulted = TradeRequest::parse_with_default_market(
+        "/api/v1/brokers/futu/margin-ratios",
+        "accountId=42&symbol=AAPL",
+        Some("US"),
+    )
+    .expect("request");
+    assert_eq!(defaulted.market_label(), "US");
+    let securities = defaulted.securities().expect("securities");
+    assert_eq!(securities.len(), 1);
+    assert_eq!(securities[0].market, 11, "US quote market code");
+    assert_eq!(securities[0].code, "AAPL");
+
+    let explicit = TradeRequest::parse_with_default_market(
+        "/api/v1/brokers/futu/margin-ratios",
+        "accountId=42&market=HK&symbol=BAD",
+        Some("US"),
+    )
+    .expect("request");
+    assert_eq!(explicit.market_label(), "HK");
+    let securities = explicit.securities().expect("securities");
+    assert_eq!(securities[0].market, 1, "HK quote market code");
+
+    for default in [None, Some(""), Some("   ")] {
+        let fallback = TradeRequest::parse_with_default_market(
+            "/api/v1/brokers/futu/margin-ratios",
+            "accountId=42&symbol=AAPL",
+            default,
+        )
+        .expect("request");
+        assert_eq!(fallback.market_label(), "HK");
+        assert_eq!(fallback.securities().expect("securities")[0].market, 1);
+    }
+
+    let empty_query = TradeRequest::parse_with_default_market(
+        "/api/v1/brokers/futu/orders",
+        "",
+        Some("US"),
+    )
+    .expect("request");
+    assert_eq!(empty_query.market_label(), "US");
+
+    let blank_market = TradeRequest::parse_with_default_market(
+        "/api/v1/brokers/futu/margin-ratios",
+        "accountId=42&market=%20&symbol=AAPL",
+        Some("US"),
+    )
+    .expect("request");
+    assert_eq!(blank_market.securities().expect("securities")[0].market, 11);
+
+    // A blank query market counts as omitted everywhere: without a
+    // configured default it keeps the historical HK fallback instead of
+    // surfacing an empty market name.
+    let blank_no_default = TradeRequest::parse_with_default_market(
+        "/api/v1/brokers/futu/margin-ratios",
+        "accountId=42&market=%20&symbol=AAPL",
+        None,
+    )
+    .expect("request");
+    assert_eq!(blank_no_default.market_label(), "HK");
+    assert_eq!(
+        blank_no_default.securities().expect("securities")[0].market,
+        1
+    );
+
+    let conflict = TradeRequest::parse_with_default_market(
+        "/api/v1/brokers/futu/margin-ratios",
+        "accountId=42&market=HK&symbol=US.AAPL",
+        Some("US"),
+    )
+    .expect("request");
+    assert!(
+        conflict.securities().is_err(),
+        "a qualified symbol contradicting the explicit market stays rejected"
+    );
+
+    assert!(
+        TradeRequest::parse_with_default_market(
+            "/api/v1/brokers/futu/margin-ratios",
+            "accountId=%FF",
+            Some("US"),
+        )
+        .is_err(),
+        "malformed query encoding stays a client error"
+    );
+
+    let portfolio = TradeRequest::parse_with_prefix_and_default_market(
+        "/api/v1/portfolio/futu/summary",
+        "accountId=42",
+        "/api/v1/portfolio/",
+        Some("US"),
+    )
+    .expect("request");
+    assert_eq!(portfolio.broker_id, "futu");
+    assert_eq!(portfolio.market_label(), "US");
+}

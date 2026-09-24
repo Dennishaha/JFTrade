@@ -520,11 +520,32 @@ pub(crate) fn production_ports(
         active_provider_state: Arc::clone(&active_provider_state),
         trade_runtime: config.trade_runtime.clone(),
     });
+    // Parity: `go:452dea11:internal/trading/broker_test.go:735`
+    // `TestNormalizeSymbolsAndRuntimeDefaults` resolves an omitted request
+    // market from the configured Futu default trade market. The getter reads
+    // the same persisted settings document as the other production ports; a
+    // blank configured value keeps the historical `HK` fallback.
+    let broker_settings_store = Arc::clone(&market_data_settings);
+    let default_trade_market_getter: Arc<dyn Fn() -> String + Send + Sync> = Arc::new(move || {
+        broker_settings_store
+            .load_broker_settings_inputs()
+            .ok()
+            .map(|inputs| {
+                inputs
+                    .effective_config
+                    .trade_market
+                    .trim()
+                    .to_ascii_uppercase()
+            })
+            .filter(|market| !market.is_empty())
+            .unwrap_or_else(|| "HK".to_owned())
+    });
     let broker_port = Arc::new(ProductionBrokerPort {
         active_provider_state: Arc::clone(&active_provider_state),
         trade_read_port: config.trade_read_port.clone(),
         trade_logged_in: config.trade_logged_in,
         trade_runtime: config.trade_runtime.clone(),
+        default_trade_market: Some(Arc::clone(&default_trade_market_getter)),
     });
     let portfolio_port = Arc::new(ProductionPortfolioPort {
         active_provider_state: Arc::clone(&active_provider_state),
@@ -532,6 +553,7 @@ pub(crate) fn production_ports(
         trade_read_port: config.trade_read_port.clone(),
         trade_logged_in: config.trade_logged_in,
         trade_runtime: config.trade_runtime.clone(),
+        default_trade_market: Some(Arc::clone(&default_trade_market_getter)),
     });
     let research_port = Arc::new(ProductionResearchPort {
         active_provider_state: Arc::clone(&active_provider_state),
