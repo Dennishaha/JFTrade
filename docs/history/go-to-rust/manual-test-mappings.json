@@ -7,7 +7,7 @@
     "treeSha": "0ee26444be21c15d9760f358a34649f78402f0fb"
   },
   "generatorVersion": "v2_writer.py@slice23",
-  "generatedAt": "2026-09-24T02:10:26Z",
+  "generatedAt": "2026-09-24T02:23:24Z",
   "mappings": {
     "cmd/jftrade-api/main_test.go:13:TestValidateArgsAllowsNoArgs": {
       "status": "[~]",
@@ -38399,11 +38399,11 @@
       "boundaryReason": "边界保留：Go 断言 nil *Runtime、nil *ProviderLease 的确定失败行为以及 Runtime 延迟初始化 provider pool/leases。Rust 用 Option/Arc<dyn Trait> 表达缺失依赖，nil 语义不存在；缺失依赖 fail-closed 由 product_runtime_tests.rs::production_startup_fails_closed_* 与 unavailable 端口测试覆盖。"
     },
     "internal/app/apiserver/marketdataapp/sidecar_os_process_test.go:14:TestOSSidecarProcessValidatesLaunchesAndStopsRealChild": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "crates/jftrade-integration-marketdata-helper/src/process.rs::tests::start_rejects_a_second_launch_of_a_live_process",
-      "conclusion": "function_exact：Go 用真实子进程断言可启动、可运行、可停止并回收。Rust 的 start_rejects_a_second_launch_of_a_live_process 用真实 shell 子进程断言 start 后 state==Starting 且 pid 存在、is_alive()==true，重复 start 被 AlreadyRunning 拒绝（不会为同一 endpoint 拉起第二个 owner），stop 后 is_alive()==false，覆盖“真实子进程启动-存活-停止回收”。",
+      "conclusion": "部分覆盖：Go 断言空可执行文件/非法端口/非回环 host/缺失文件被拒绝、真实子进程带参启动且 Running、Close 停止、重复 Close 与 wait 错误透出。Rust 的 start_rejects_a_second_launch_of_a_live_process 仅覆盖真实子进程启动、运行中、重复启动拒绝、停止后回收；差异是配置校验矩阵、启动参数断言、wait 错误透出无引用覆盖。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper --all-targets --locked",
-      "evidence_type": "function_exact",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/marketdataapp/sidecar_os_process_test.go",
         "line": 14,
@@ -38419,10 +38419,10 @@
         }
       ],
       "assertionCoverage": {
-        "covered": [
-          "function_exact：Go 用真实子进程断言可启动、可运行、可停止并回收。Rust 的 start_rejects_a_second_launch_of_a_live_process 用真实 shell 子进程断言 start 后 state==Starting 且 pid 存在、is_alive()==true，重复 start 被 AlreadyRunning 拒绝（不会为同一 endpoint 拉起第二个 owner），stop 后 is_alive()==false，覆盖“真实子进程启动-存活-停止回收”。"
+        "covered": [],
+        "uncovered": [
+          "部分覆盖：Go 断言空可执行文件/非法端口/非回环 host/缺失文件被拒绝、真实子进程带参启动且 Running、Close 停止、重复 Close 与 wait 错误透出。Rust 的 start_rejects_a_second_launch_of_a_live_process 仅覆盖真实子进程启动、运行中、重复启动拒绝、停止后回收；差异是配置校验矩阵、启动参数断言、wait 错误透出无引用覆盖。"
         ],
-        "uncovered": [],
         "source": "legacy-conclusion"
       },
       "verification": {
@@ -38449,15 +38449,15 @@
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "function_exact：Go 用真实子进程断言可启动、可运行、可停止并回收。Rust 的 start_rejects_a_second_launch_of_a_live_process 用真实 shell 子进程断言 start 后 state==Starting 且 pid 存在、is_alive()==true，重复 start 被 AlreadyRunning 拒绝（不会为同一 endpoint 拉起第二个 owner），stop 后 is_alive()==false，覆盖“真实子进程启动-存活-停止回收”。"
+      "coveredAssertions": [],
+      "uncoveredAssertions": [
+        "部分覆盖：Go 断言空可执行文件/非法端口/非回环 host/缺失文件被拒绝、真实子进程带参启动且 Running、Close 停止、重复 Close 与 wait 错误透出。Rust 的 start_rejects_a_second_launch_of_a_live_process 仅覆盖真实子进程启动、运行中、重复启动拒绝、停止后回收；差异是配置校验矩阵、启动参数断言、wait 错误透出无引用覆盖。"
       ],
-      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/app/apiserver/marketdataapp/sidecar_os_process_test.go:78:TestOSSidecarProcessTreatsNaturalExitAsStoppedAndCloseable": {
@@ -38920,11 +38920,11 @@
       "boundaryReason": null
     },
     "internal/app/apiserver/marketdataapp/sidecar_process_test.go:128:TestSidecarManagerRetainsProcessUntilStopSucceeds": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "crates/jftrade-integration-marketdata-helper/src/process.rs::tests::stop_is_idempotent_and_bounds_graceful_shutdown_before_killing_the_child",
-      "conclusion": "function_exact：Go 断言 Stop 失败时 manager 仍保留 process/endpoint 以便重试，重试成功后状态清空。Rust 的 stop_is_idempotent_and_bounds_graceful_shutdown_before_killing_the_child 断言 stop 对空闲进程成功返回 Stopped、pid 为空、last_error 为空，且重复 stop 依然成功（幂等），对应“失败/重复停止不得破坏可重试状态”；进程终止的有界性由子进程 start_kill + timeout 实现（stop_timeout 配置）。",
+      "conclusion": "部分覆盖：Go 断言 Stop 失败时保留 process 与 endpoint（可重试），重试成功后清理。Rust 的 stop_is_idempotent_and_bounds_graceful_shutdown_before_killing_the_child 仅覆盖停止幂等、优雅期有界、成功后清理；差异是失败保留重试态的保持-重试循环无断言。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper --all-targets --locked",
-      "evidence_type": "function_exact",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/marketdataapp/sidecar_process_test.go",
         "line": 128,
@@ -38940,10 +38940,10 @@
         }
       ],
       "assertionCoverage": {
-        "covered": [
-          "function_exact：Go 断言 Stop 失败时 manager 仍保留 process/endpoint 以便重试，重试成功后状态清空。Rust 的 stop_is_idempotent_and_bounds_graceful_shutdown_before_killing_the_child 断言 stop 对空闲进程成功返回 Stopped、pid 为空、last_error 为空，且重复 stop 依然成功（幂等），对应“失败/重复停止不得破坏可重试状态”；进程终止的有界性由子进程 start_kill + timeout 实现（stop_timeout 配置）。"
+        "covered": [],
+        "uncovered": [
+          "部分覆盖：Go 断言 Stop 失败时保留 process 与 endpoint（可重试），重试成功后清理。Rust 的 stop_is_idempotent_and_bounds_graceful_shutdown_before_killing_the_child 仅覆盖停止幂等、优雅期有界、成功后清理；差异是失败保留重试态的保持-重试循环无断言。"
         ],
-        "uncovered": [],
         "source": "legacy-conclusion"
       },
       "verification": {
@@ -38970,15 +38970,15 @@
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "function_exact：Go 断言 Stop 失败时 manager 仍保留 process/endpoint 以便重试，重试成功后状态清空。Rust 的 stop_is_idempotent_and_bounds_graceful_shutdown_before_killing_the_child 断言 stop 对空闲进程成功返回 Stopped、pid 为空、last_error 为空，且重复 stop 依然成功（幂等），对应“失败/重复停止不得破坏可重试状态”；进程终止的有界性由子进程 start_kill + timeout 实现（stop_timeout 配置）。"
+      "coveredAssertions": [],
+      "uncoveredAssertions": [
+        "部分覆盖：Go 断言 Stop 失败时保留 process 与 endpoint（可重试），重试成功后清理。Rust 的 stop_is_idempotent_and_bounds_graceful_shutdown_before_killing_the_child 仅覆盖停止幂等、优雅期有界、成功后清理；差异是失败保留重试态的保持-重试循环无断言。"
       ],
-      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/app/apiserver/marketdataapp/sidecar_process_test.go:147:TestSidecarExecutableDevelopmentOverrideAndManagerBoundaries": {
@@ -39775,11 +39775,11 @@
       "boundaryReason": null
     },
     "internal/app/apiserver/marketdataapp/watchlist_source_test.go:175:TestWatchlistQuoteUsesPriorCloseForClosedRegularYahooQuote": {
-      "status": "[x]",
-      "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_quote_snapshot.rs::closed_us_session_reports_regular_close_as_previous_close; crates/jftrade-engine/src/product_production_ports_market_data_quote_snapshot_tests.rs::closed_us_session_reports_regular_close_as_previous_close",
-      "conclusion": "function_exact：Go 断言 closed 常规时段报价用 regular close 作为价格、prior close 作为前收（-4.77 / -1.41%），并保留盘后比较基准。Rust 的 closed_us_session_reports_regular_close_as_previous_close（同族 previous_close_condition_switches_on_session_type、previous_close_condition_does_not_rewrite_non_us_unknown_sessions）逐条断言同一规则：closed 会话把常规收盘价作为 previous close，非 US 未知会话不改写。",
+      "status": "[~]",
+      "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_quote_snapshot_tests.rs::closed_us_session_reports_regular_close_as_previous_close",
+      "conclusion": "部分覆盖：Go 断言 closed 会话用 regular close 做价格、prior close 做前收（-4.77/-1.41%），并保留盘后比较基准。Rust 的 closed_us_session_reports_regular_close_as_previous_close 覆盖 closed 会话 previousClosePrice 取常规收盘、lastClosePrice 保持原值、session 透出；差异是 watchlist 层 Price/Change/ChangePercent 算术与 Extended.After 透出无断言（原 entry 首元指向生产文件无此测试，已摘除）。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-      "evidence_type": "function_exact",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/marketdataapp/watchlist_source_test.go",
         "line": 175,
@@ -39800,10 +39800,10 @@
         }
       ],
       "assertionCoverage": {
-        "covered": [
-          "function_exact：Go 断言 closed 常规时段报价用 regular close 作为价格、prior close 作为前收（-4.77 / -1.41%），并保留盘后比较基准。Rust 的 closed_us_session_reports_regular_close_as_previous_close（同族 previous_close_condition_switches_on_session_type、previous_close_condition_does_not_rewrite_non_us_unknown_sessions）逐条断言同一规则：closed 会话把常规收盘价作为 previous close，非 US 未知会话不改写。"
+        "covered": [],
+        "uncovered": [
+          "部分覆盖：Go 断言 closed 会话用 regular close 做价格、prior close 做前收（-4.77/-1.41%），并保留盘后比较基准。Rust 的 closed_us_session_reports_regular_close_as_previous_close 覆盖 closed 会话 previousClosePrice 取常规收盘、lastClosePrice 保持原值、session 透出；差异是 watchlist 层 Price/Change/ChangePercent 算术与 Extended.After 透出无断言（原 entry 首元指向生产文件无此测试，已摘除）。"
         ],
-        "uncovered": [],
         "source": "legacy-conclusion"
       },
       "verification": {
@@ -39830,15 +39830,15 @@
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "function_exact：Go 断言 closed 常规时段报价用 regular close 作为价格、prior close 作为前收（-4.77 / -1.41%），并保留盘后比较基准。Rust 的 closed_us_session_reports_regular_close_as_previous_close（同族 previous_close_condition_switches_on_session_type、previous_close_condition_does_not_rewrite_non_us_unknown_sessions）逐条断言同一规则：closed 会话把常规收盘价作为 previous close，非 US 未知会话不改写。"
+      "coveredAssertions": [],
+      "uncoveredAssertions": [
+        "部分覆盖：Go 断言 closed 会话用 regular close 做价格、prior close 做前收（-4.77/-1.41%），并保留盘后比较基准。Rust 的 closed_us_session_reports_regular_close_as_previous_close 覆盖 closed 会话 previousClosePrice 取常规收盘、lastClosePrice 保持原值、session 透出；差异是 watchlist 层 Price/Change/ChangePercent 算术与 Extended.After 透出无断言（原 entry 首元指向生产文件无此测试，已摘除）。"
       ],
-      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/app/apiserver/runtime/dependencies_test.go:13:TestCheckNodeRuntimeDependencyOK": {

@@ -4899,3 +4899,45 @@ exit 0（已知警告 0/2/2 不变）；`parity_anchor_reconcile.py` 过
 
 下一片：api_transport marketdataapp 余量（provider/provider_boundaries/
 python_runtime/sidecar×3/unavailable/watchlist 共 35 条，按文件行号升序）。
+
+## 第 130 批 09 切片六：marketdataapp provider/sidecar/watchlist 35 条 recon（2026-09-24）
+
+范围：`provider_boundaries_test.go`（5）+ `provider_test.go`（3）+
+`python_runtime_test.go`（4）+ `sidecar_os_process_test.go`（4）+
+`sidecar_process_test.go`（8）+ `sidecar_signal_test.go`（2）+
+`unavailable_provider_test.go`（2）+ `watchlist_source_test.go`（5），
+共 35 条（原 11 `[x]` + 24 `[~]`）。本片关闭 marketdataapp 全目录
+（37+34+30+35=136/136）。
+
+方法：Go 体逐条核对结论；42 个 Rust 引用逐一命中（3 处解析术差异已
+逐条 triage，见下）；`[x]` 锚点 9/11，有 2 条无锚（`:14`、`:128`）
+落判改判；provider 目录组合逐项 wire 对等。
+3 条收回过宽 `[x]`→partial：
+
+- os `:14` 启动停止真实子进程：Go 为厨房水槽式（配置校验矩阵/启动
+  参数/重复 Close/wait 错误），Rust 引用用例（其 Parity 归属实为
+  process `:15`）仅覆盖启动/运行/重复启动拒绝/停止回收，降 partial。
+- process `:128` 失败保留重试态：Rust 引用用例（Parity 归属 os `:115`）
+  仅覆盖停止幂等与成功清理，保持-重试循环无断言，降 partial。
+- watchlist `:175` closed 前收：Rust 覆盖 closed 取常规收盘核心规则；
+  watchlist 层 Price/Change/ChangePercent 算术与 Extended.After 透出
+  无断言（与 `:91` 同口径），且原 entry 首元指向生产文件无此测试，
+  已摘除，降 partial。
+
+另 triage（不动 verdict）：`:147`/`:208` partial entry 指向生产函数
+（审计 2 条 partial 无可解测试警告的既有成员，结论已如实记缺口）；
+`:220` 首元为模块名（同上）；provider 三组合（`:271`/`:86`/`:107`）
+逐项 wire 对等，保留 `[x]`。
+
+结论：35 条 verdict = **8 `[x]` + 27 `[~]`**
+（`[x]` 1546→1543）。本片仅台账修正 + 报告/清单重生 + 文档，
+无代码变更。
+
+验证：`v2_writer.py --check` 过后落库；`audit_test_parity.py --write-report`
+exit 0（已知警告 0/2/2 不变）；`parity_anchor_reconcile.py` 过
+（1695/0/0/46）；`cargo fmt -p jftrade-engine -- --check` 过；定向 nextest
+3/3（helper 2 + engine 1）；`check:ai-context`、`check:migration-manifest`、
+`check:zero-go` 过；`check:quick` 工作树计划 exit 0（引擎全量证据沿用
+s5 两轮）；`git diff --check` 过。
+
+下一片：api_transport servercore 余量（或按域顺延），按文件行号升序。
