@@ -1776,3 +1776,19 @@ ADK/Assistant 功能差异，先补失败回归测试再修改领域 owner。
 验证：动态生成本批过滤器运行 `pnpm run test:rust -- --no-fail-fast -E`（底层 `node scripts/quality/cargo-nextest.mjs run --workspace --all-targets --locked`），25/25 通过。
 
 下一片：继续剩余 P2 Assistant/Workflow/ADK store、skill/provider 与 runtime 条目，再转 API transport、MarketData/Quote、Storage/SQLite、Settings/Watchlist 与 Backtest/Calendar；helper/type-only 条目、`optional_bool_strict`、P1 `session_context_snapshot` 及其他无独立 Rust 测试条目仍保持未验证结论。
+
+## 第 209 批：store ops/recovery、approval continuation 与 ADK tool gates（2026-09-26）
+
+| 复核 | Go 测试范围 | Rust 证据 | P | 结论 |
+| :---: | --- | --- | :---: | --- |
+| [x] | `store_ops_test.go:224,294,320,363,452,527,565,621,745,788` | URL skill document registration, agent soft-delete/list/restore, approval idempotence/duplicate suppression, restart recovery/orphan reconciliation and all-approvals gate | P2 | partial：Rust production/store/runtime owners cover durable state transitions and recovery; Go tests include local HTTP fixture, Google ADK facade and combined restart orchestration not reproduced as one Rust assertion. |
+| [x] | `store_ops_test.go:844,899,939,961,998` | task normalization, memory scope/validation, memory injection, agent tool scope and low-risk workflow approval policy | P2 | partial：Rust ADK task/memory/gate owners cover behavior; Go tool registry and runtime fixture wiring remain partial. |
+| [x] | `store_recover_test.go:9,66,111,127` | provider default repair, default-agent recovery, corrupt payload fail-closed and closed-database transaction errors | P2 | partial：Rust store contracts cover default/order, startup durability and malformed database behavior; Go recovery helper aggregation and exact error text remain partial. |
+| [x] | `store_test.go:59,75,127,198,254,295,373,385` | writer fencing, migration normalization/repair, legacy database refusal, concurrent approval winner, legacy message-table removal and secret projection | P2 | partial/boundary：Rust SQLite owner tests cover writer lease, schema rejection/migrations, idempotent staging and credential projection; Go GORM migration setup and legacy fixture construction remain structural differences. |
+| [x] | `store_test.go:471,538,670` | approval gating/tool-loop execution, stale embedded approval restaging and denial summary projection | P2 | partial：Rust gate/terminal/store owners cover approval lifecycle and summaries; Go end-to-end tool registry and handler response composition remain partial. |
+
+本批 30 条 P2 Go 映射对应 30 个去重后的 nextest 过滤器，Rust nextest 实际 **30/30** 通过（3443 skipped）。store ops/recovery、approval continuation、agent/memory/tool gates、writer/migration fencing 与 terminal denial projection 均有 owner 证据；Go HTTP/Google ADK facade、GORM migration fixture、handler aggregation 与 exact error text 保持 `partial`/`boundary`，未把聚合测试升级为 exact。未发现需要先红后修的真实 Rust 功能差异。
+
+验证：动态生成本批过滤器运行 `pnpm run test:rust -- --no-fail-fast -E`（底层 `node scripts/quality/cargo-nextest.mjs run --workspace --all-targets --locked`），30/30 通过。
+
+下一片：继续剩余 P2 Assistant/Workflow/ADK store、runtime、task/timeline 与 provider 条目，再转 API transport、MarketData/Quote、Storage/SQLite、Settings/Watchlist 与 Backtest/Calendar；helper/type-only 条目、`optional_bool_strict`、P1 `session_context_snapshot` 及其他无独立 Rust 测试条目仍保持未验证结论。

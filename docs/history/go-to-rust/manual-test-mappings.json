@@ -98545,20 +98545,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(skill_document_install_registers_the_parsed_document) or test(adk_agent_delete_soft_deletes_the_historical_row) or test(adk_agent_listing_excludes_soft_deleted_rows_but_keeps_history) or test(adk_agent_save_restores_a_soft_deleted_row) or test(adk_approval_resolution_missing_and_non_pending_rows_are_idempotent) or test(adk_duplicate_approval_resolution_is_a_noop) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(adk_multiple_approvals_continue_only_after_all_are_approved) or test(adk_task_normalization_and_validation_match_go) or test(adk_memory_filters_and_agent_validation_match_go) or test(chat_injects_memory_into_the_instruction_only_when_enabled) or test(agent_tool_scope_follows_the_go_access_mode_normalization) or test(low_risk_workflow_writes_skip_approval_in_approval_mode) or test(provider_list_normalizes_default_selection_and_orders_default_first) or test(provider_delete_promotes_the_replacement_and_keeps_one_default) or test(adk_store_lifecycle_and_restart_durability) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_transaction_boundaries_commit_roll_back_and_report_missing_tables) or test(adk_store_fences_a_second_writer_and_serializes_concurrent_access) or test(adk_store_rejects_a_legacy_database_without_rewriting_it) or test(adk_tool_call_staging_admits_one_confirmation_winner_under_concurrency) or test(adk_store_schema_has_no_legacy_message_tables) or test(saved_provider_hides_the_credential_from_the_row_and_projection) or test(gated_call_persists_the_go_approval_projection) or test(released_calls_are_executed_by_the_tool_loop) or test(adk_approval_approve_returns_the_running_resolution_envelope) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(denied_approval_summary_renders_the_go_denial_reply_text)"
         ],
         "testFilter": [
           "skill_document_install_registers_the_parsed_document"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "1c9e5e75",
+        "verifiedAt": "2026-09-25T18:25:37Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -98679,20 +98680,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(skill_document_install_registers_the_parsed_document) or test(adk_agent_delete_soft_deletes_the_historical_row) or test(adk_agent_listing_excludes_soft_deleted_rows_but_keeps_history) or test(adk_agent_save_restores_a_soft_deleted_row) or test(adk_approval_resolution_missing_and_non_pending_rows_are_idempotent) or test(adk_duplicate_approval_resolution_is_a_noop) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(adk_multiple_approvals_continue_only_after_all_are_approved) or test(adk_task_normalization_and_validation_match_go) or test(adk_memory_filters_and_agent_validation_match_go) or test(chat_injects_memory_into_the_instruction_only_when_enabled) or test(agent_tool_scope_follows_the_go_access_mode_normalization) or test(low_risk_workflow_writes_skip_approval_in_approval_mode) or test(provider_list_normalizes_default_selection_and_orders_default_first) or test(provider_delete_promotes_the_replacement_and_keeps_one_default) or test(adk_store_lifecycle_and_restart_durability) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_transaction_boundaries_commit_roll_back_and_report_missing_tables) or test(adk_store_fences_a_second_writer_and_serializes_concurrent_access) or test(adk_store_rejects_a_legacy_database_without_rewriting_it) or test(adk_tool_call_staging_admits_one_confirmation_winner_under_concurrency) or test(adk_store_schema_has_no_legacy_message_tables) or test(saved_provider_hides_the_credential_from_the_row_and_projection) or test(gated_call_persists_the_go_approval_projection) or test(released_calls_are_executed_by_the_tool_loop) or test(adk_approval_approve_returns_the_running_resolution_envelope) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(denied_approval_summary_renders_the_go_denial_reply_text)"
         ],
         "testFilter": [
           "adk_agent_delete_soft_deletes_the_historical_row"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "1c9e5e75",
+        "verifiedAt": "2026-09-25T18:25:37Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -98746,20 +98748,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(skill_document_install_registers_the_parsed_document) or test(adk_agent_delete_soft_deletes_the_historical_row) or test(adk_agent_listing_excludes_soft_deleted_rows_but_keeps_history) or test(adk_agent_save_restores_a_soft_deleted_row) or test(adk_approval_resolution_missing_and_non_pending_rows_are_idempotent) or test(adk_duplicate_approval_resolution_is_a_noop) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(adk_multiple_approvals_continue_only_after_all_are_approved) or test(adk_task_normalization_and_validation_match_go) or test(adk_memory_filters_and_agent_validation_match_go) or test(chat_injects_memory_into_the_instruction_only_when_enabled) or test(agent_tool_scope_follows_the_go_access_mode_normalization) or test(low_risk_workflow_writes_skip_approval_in_approval_mode) or test(provider_list_normalizes_default_selection_and_orders_default_first) or test(provider_delete_promotes_the_replacement_and_keeps_one_default) or test(adk_store_lifecycle_and_restart_durability) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_transaction_boundaries_commit_roll_back_and_report_missing_tables) or test(adk_store_fences_a_second_writer_and_serializes_concurrent_access) or test(adk_store_rejects_a_legacy_database_without_rewriting_it) or test(adk_tool_call_staging_admits_one_confirmation_winner_under_concurrency) or test(adk_store_schema_has_no_legacy_message_tables) or test(saved_provider_hides_the_credential_from_the_row_and_projection) or test(gated_call_persists_the_go_approval_projection) or test(released_calls_are_executed_by_the_tool_loop) or test(adk_approval_approve_returns_the_running_resolution_envelope) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(denied_approval_summary_renders_the_go_denial_reply_text)"
         ],
         "testFilter": [
           "adk_agent_listing_excludes_soft_deleted_rows_but_keeps_history"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "1c9e5e75",
+        "verifiedAt": "2026-09-25T18:25:37Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -98813,20 +98816,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(skill_document_install_registers_the_parsed_document) or test(adk_agent_delete_soft_deletes_the_historical_row) or test(adk_agent_listing_excludes_soft_deleted_rows_but_keeps_history) or test(adk_agent_save_restores_a_soft_deleted_row) or test(adk_approval_resolution_missing_and_non_pending_rows_are_idempotent) or test(adk_duplicate_approval_resolution_is_a_noop) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(adk_multiple_approvals_continue_only_after_all_are_approved) or test(adk_task_normalization_and_validation_match_go) or test(adk_memory_filters_and_agent_validation_match_go) or test(chat_injects_memory_into_the_instruction_only_when_enabled) or test(agent_tool_scope_follows_the_go_access_mode_normalization) or test(low_risk_workflow_writes_skip_approval_in_approval_mode) or test(provider_list_normalizes_default_selection_and_orders_default_first) or test(provider_delete_promotes_the_replacement_and_keeps_one_default) or test(adk_store_lifecycle_and_restart_durability) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_transaction_boundaries_commit_roll_back_and_report_missing_tables) or test(adk_store_fences_a_second_writer_and_serializes_concurrent_access) or test(adk_store_rejects_a_legacy_database_without_rewriting_it) or test(adk_tool_call_staging_admits_one_confirmation_winner_under_concurrency) or test(adk_store_schema_has_no_legacy_message_tables) or test(saved_provider_hides_the_credential_from_the_row_and_projection) or test(gated_call_persists_the_go_approval_projection) or test(released_calls_are_executed_by_the_tool_loop) or test(adk_approval_approve_returns_the_running_resolution_envelope) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(denied_approval_summary_renders_the_go_denial_reply_text)"
         ],
         "testFilter": [
           "adk_agent_save_restores_a_soft_deleted_row"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "1c9e5e75",
+        "verifiedAt": "2026-09-25T18:25:37Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -99081,20 +99085,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(skill_document_install_registers_the_parsed_document) or test(adk_agent_delete_soft_deletes_the_historical_row) or test(adk_agent_listing_excludes_soft_deleted_rows_but_keeps_history) or test(adk_agent_save_restores_a_soft_deleted_row) or test(adk_approval_resolution_missing_and_non_pending_rows_are_idempotent) or test(adk_duplicate_approval_resolution_is_a_noop) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(adk_multiple_approvals_continue_only_after_all_are_approved) or test(adk_task_normalization_and_validation_match_go) or test(adk_memory_filters_and_agent_validation_match_go) or test(chat_injects_memory_into_the_instruction_only_when_enabled) or test(agent_tool_scope_follows_the_go_access_mode_normalization) or test(low_risk_workflow_writes_skip_approval_in_approval_mode) or test(provider_list_normalizes_default_selection_and_orders_default_first) or test(provider_delete_promotes_the_replacement_and_keeps_one_default) or test(adk_store_lifecycle_and_restart_durability) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_transaction_boundaries_commit_roll_back_and_report_missing_tables) or test(adk_store_fences_a_second_writer_and_serializes_concurrent_access) or test(adk_store_rejects_a_legacy_database_without_rewriting_it) or test(adk_tool_call_staging_admits_one_confirmation_winner_under_concurrency) or test(adk_store_schema_has_no_legacy_message_tables) or test(saved_provider_hides_the_credential_from_the_row_and_projection) or test(gated_call_persists_the_go_approval_projection) or test(released_calls_are_executed_by_the_tool_loop) or test(adk_approval_approve_returns_the_running_resolution_envelope) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(denied_approval_summary_renders_the_go_denial_reply_text)"
         ],
         "testFilter": [
           "adk_approval_resolution_missing_and_non_pending_rows_are_idempotent"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "1c9e5e75",
+        "verifiedAt": "2026-09-25T18:25:37Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -99215,20 +99220,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(skill_document_install_registers_the_parsed_document) or test(adk_agent_delete_soft_deletes_the_historical_row) or test(adk_agent_listing_excludes_soft_deleted_rows_but_keeps_history) or test(adk_agent_save_restores_a_soft_deleted_row) or test(adk_approval_resolution_missing_and_non_pending_rows_are_idempotent) or test(adk_duplicate_approval_resolution_is_a_noop) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(adk_multiple_approvals_continue_only_after_all_are_approved) or test(adk_task_normalization_and_validation_match_go) or test(adk_memory_filters_and_agent_validation_match_go) or test(chat_injects_memory_into_the_instruction_only_when_enabled) or test(agent_tool_scope_follows_the_go_access_mode_normalization) or test(low_risk_workflow_writes_skip_approval_in_approval_mode) or test(provider_list_normalizes_default_selection_and_orders_default_first) or test(provider_delete_promotes_the_replacement_and_keeps_one_default) or test(adk_store_lifecycle_and_restart_durability) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_transaction_boundaries_commit_roll_back_and_report_missing_tables) or test(adk_store_fences_a_second_writer_and_serializes_concurrent_access) or test(adk_store_rejects_a_legacy_database_without_rewriting_it) or test(adk_tool_call_staging_admits_one_confirmation_winner_under_concurrency) or test(adk_store_schema_has_no_legacy_message_tables) or test(saved_provider_hides_the_credential_from_the_row_and_projection) or test(gated_call_persists_the_go_approval_projection) or test(released_calls_are_executed_by_the_tool_loop) or test(adk_approval_approve_returns_the_running_resolution_envelope) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(denied_approval_summary_renders_the_go_denial_reply_text)"
         ],
         "testFilter": [
           "adk_duplicate_approval_resolution_is_a_noop"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "1c9e5e75",
+        "verifiedAt": "2026-09-25T18:25:37Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -99288,10 +99294,11 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(skill_document_install_registers_the_parsed_document) or test(adk_agent_delete_soft_deletes_the_historical_row) or test(adk_agent_listing_excludes_soft_deleted_rows_but_keeps_history) or test(adk_agent_save_restores_a_soft_deleted_row) or test(adk_approval_resolution_missing_and_non_pending_rows_are_idempotent) or test(adk_duplicate_approval_resolution_is_a_noop) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(adk_multiple_approvals_continue_only_after_all_are_approved) or test(adk_task_normalization_and_validation_match_go) or test(adk_memory_filters_and_agent_validation_match_go) or test(chat_injects_memory_into_the_instruction_only_when_enabled) or test(agent_tool_scope_follows_the_go_access_mode_normalization) or test(low_risk_workflow_writes_skip_approval_in_approval_mode) or test(provider_list_normalizes_default_selection_and_orders_default_first) or test(provider_delete_promotes_the_replacement_and_keeps_one_default) or test(adk_store_lifecycle_and_restart_durability) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_transaction_boundaries_commit_roll_back_and_report_missing_tables) or test(adk_store_fences_a_second_writer_and_serializes_concurrent_access) or test(adk_store_rejects_a_legacy_database_without_rewriting_it) or test(adk_tool_call_staging_admits_one_confirmation_winner_under_concurrency) or test(adk_store_schema_has_no_legacy_message_tables) or test(saved_provider_hides_the_credential_from_the_row_and_projection) or test(gated_call_persists_the_go_approval_projection) or test(released_calls_are_executed_by_the_tool_loop) or test(adk_approval_approve_returns_the_running_resolution_envelope) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(denied_approval_summary_renders_the_go_denial_reply_text)"
         ],
         "testFilter": [
           "a_resumed_approval_run_completes_with_the_confirmation_resolved_state",
@@ -99299,10 +99306,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "1c9e5e75",
+        "verifiedAt": "2026-09-25T18:25:37Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -99356,20 +99363,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(skill_document_install_registers_the_parsed_document) or test(adk_agent_delete_soft_deletes_the_historical_row) or test(adk_agent_listing_excludes_soft_deleted_rows_but_keeps_history) or test(adk_agent_save_restores_a_soft_deleted_row) or test(adk_approval_resolution_missing_and_non_pending_rows_are_idempotent) or test(adk_duplicate_approval_resolution_is_a_noop) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(adk_multiple_approvals_continue_only_after_all_are_approved) or test(adk_task_normalization_and_validation_match_go) or test(adk_memory_filters_and_agent_validation_match_go) or test(chat_injects_memory_into_the_instruction_only_when_enabled) or test(agent_tool_scope_follows_the_go_access_mode_normalization) or test(low_risk_workflow_writes_skip_approval_in_approval_mode) or test(provider_list_normalizes_default_selection_and_orders_default_first) or test(provider_delete_promotes_the_replacement_and_keeps_one_default) or test(adk_store_lifecycle_and_restart_durability) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_transaction_boundaries_commit_roll_back_and_report_missing_tables) or test(adk_store_fences_a_second_writer_and_serializes_concurrent_access) or test(adk_store_rejects_a_legacy_database_without_rewriting_it) or test(adk_tool_call_staging_admits_one_confirmation_winner_under_concurrency) or test(adk_store_schema_has_no_legacy_message_tables) or test(saved_provider_hides_the_credential_from_the_row_and_projection) or test(gated_call_persists_the_go_approval_projection) or test(released_calls_are_executed_by_the_tool_loop) or test(adk_approval_approve_returns_the_running_resolution_envelope) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(denied_approval_summary_renders_the_go_denial_reply_text)"
         ],
         "testFilter": [
           "an_approval_resuming_run_is_recovered_after_a_runtime_restart"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "1c9e5e75",
+        "verifiedAt": "2026-09-25T18:25:37Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -99423,20 +99431,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(skill_document_install_registers_the_parsed_document) or test(adk_agent_delete_soft_deletes_the_historical_row) or test(adk_agent_listing_excludes_soft_deleted_rows_but_keeps_history) or test(adk_agent_save_restores_a_soft_deleted_row) or test(adk_approval_resolution_missing_and_non_pending_rows_are_idempotent) or test(adk_duplicate_approval_resolution_is_a_noop) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(adk_multiple_approvals_continue_only_after_all_are_approved) or test(adk_task_normalization_and_validation_match_go) or test(adk_memory_filters_and_agent_validation_match_go) or test(chat_injects_memory_into_the_instruction_only_when_enabled) or test(agent_tool_scope_follows_the_go_access_mode_normalization) or test(low_risk_workflow_writes_skip_approval_in_approval_mode) or test(provider_list_normalizes_default_selection_and_orders_default_first) or test(provider_delete_promotes_the_replacement_and_keeps_one_default) or test(adk_store_lifecycle_and_restart_durability) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_transaction_boundaries_commit_roll_back_and_report_missing_tables) or test(adk_store_fences_a_second_writer_and_serializes_concurrent_access) or test(adk_store_rejects_a_legacy_database_without_rewriting_it) or test(adk_tool_call_staging_admits_one_confirmation_winner_under_concurrency) or test(adk_store_schema_has_no_legacy_message_tables) or test(saved_provider_hides_the_credential_from_the_row_and_projection) or test(gated_call_persists_the_go_approval_projection) or test(released_calls_are_executed_by_the_tool_loop) or test(adk_approval_approve_returns_the_running_resolution_envelope) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(denied_approval_summary_renders_the_go_denial_reply_text)"
         ],
         "testFilter": [
           "orphaned_pending_approval_runs_are_failed_on_startup_reconcile"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "1c9e5e75",
+        "verifiedAt": "2026-09-25T18:25:37Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -99490,20 +99499,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(skill_document_install_registers_the_parsed_document) or test(adk_agent_delete_soft_deletes_the_historical_row) or test(adk_agent_listing_excludes_soft_deleted_rows_but_keeps_history) or test(adk_agent_save_restores_a_soft_deleted_row) or test(adk_approval_resolution_missing_and_non_pending_rows_are_idempotent) or test(adk_duplicate_approval_resolution_is_a_noop) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(adk_multiple_approvals_continue_only_after_all_are_approved) or test(adk_task_normalization_and_validation_match_go) or test(adk_memory_filters_and_agent_validation_match_go) or test(chat_injects_memory_into_the_instruction_only_when_enabled) or test(agent_tool_scope_follows_the_go_access_mode_normalization) or test(low_risk_workflow_writes_skip_approval_in_approval_mode) or test(provider_list_normalizes_default_selection_and_orders_default_first) or test(provider_delete_promotes_the_replacement_and_keeps_one_default) or test(adk_store_lifecycle_and_restart_durability) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_transaction_boundaries_commit_roll_back_and_report_missing_tables) or test(adk_store_fences_a_second_writer_and_serializes_concurrent_access) or test(adk_store_rejects_a_legacy_database_without_rewriting_it) or test(adk_tool_call_staging_admits_one_confirmation_winner_under_concurrency) or test(adk_store_schema_has_no_legacy_message_tables) or test(saved_provider_hides_the_credential_from_the_row_and_projection) or test(gated_call_persists_the_go_approval_projection) or test(released_calls_are_executed_by_the_tool_loop) or test(adk_approval_approve_returns_the_running_resolution_envelope) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(denied_approval_summary_renders_the_go_denial_reply_text)"
         ],
         "testFilter": [
           "adk_multiple_approvals_continue_only_after_all_are_approved"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "1c9e5e75",
+        "verifiedAt": "2026-09-25T18:25:37Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -99557,20 +99567,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(skill_document_install_registers_the_parsed_document) or test(adk_agent_delete_soft_deletes_the_historical_row) or test(adk_agent_listing_excludes_soft_deleted_rows_but_keeps_history) or test(adk_agent_save_restores_a_soft_deleted_row) or test(adk_approval_resolution_missing_and_non_pending_rows_are_idempotent) or test(adk_duplicate_approval_resolution_is_a_noop) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(adk_multiple_approvals_continue_only_after_all_are_approved) or test(adk_task_normalization_and_validation_match_go) or test(adk_memory_filters_and_agent_validation_match_go) or test(chat_injects_memory_into_the_instruction_only_when_enabled) or test(agent_tool_scope_follows_the_go_access_mode_normalization) or test(low_risk_workflow_writes_skip_approval_in_approval_mode) or test(provider_list_normalizes_default_selection_and_orders_default_first) or test(provider_delete_promotes_the_replacement_and_keeps_one_default) or test(adk_store_lifecycle_and_restart_durability) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_transaction_boundaries_commit_roll_back_and_report_missing_tables) or test(adk_store_fences_a_second_writer_and_serializes_concurrent_access) or test(adk_store_rejects_a_legacy_database_without_rewriting_it) or test(adk_tool_call_staging_admits_one_confirmation_winner_under_concurrency) or test(adk_store_schema_has_no_legacy_message_tables) or test(saved_provider_hides_the_credential_from_the_row_and_projection) or test(gated_call_persists_the_go_approval_projection) or test(released_calls_are_executed_by_the_tool_loop) or test(adk_approval_approve_returns_the_running_resolution_envelope) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(denied_approval_summary_renders_the_go_denial_reply_text)"
         ],
         "testFilter": [
           "adk_task_normalization_and_validation_match_go"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "1c9e5e75",
+        "verifiedAt": "2026-09-25T18:25:37Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -99624,20 +99635,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(skill_document_install_registers_the_parsed_document) or test(adk_agent_delete_soft_deletes_the_historical_row) or test(adk_agent_listing_excludes_soft_deleted_rows_but_keeps_history) or test(adk_agent_save_restores_a_soft_deleted_row) or test(adk_approval_resolution_missing_and_non_pending_rows_are_idempotent) or test(adk_duplicate_approval_resolution_is_a_noop) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(adk_multiple_approvals_continue_only_after_all_are_approved) or test(adk_task_normalization_and_validation_match_go) or test(adk_memory_filters_and_agent_validation_match_go) or test(chat_injects_memory_into_the_instruction_only_when_enabled) or test(agent_tool_scope_follows_the_go_access_mode_normalization) or test(low_risk_workflow_writes_skip_approval_in_approval_mode) or test(provider_list_normalizes_default_selection_and_orders_default_first) or test(provider_delete_promotes_the_replacement_and_keeps_one_default) or test(adk_store_lifecycle_and_restart_durability) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_transaction_boundaries_commit_roll_back_and_report_missing_tables) or test(adk_store_fences_a_second_writer_and_serializes_concurrent_access) or test(adk_store_rejects_a_legacy_database_without_rewriting_it) or test(adk_tool_call_staging_admits_one_confirmation_winner_under_concurrency) or test(adk_store_schema_has_no_legacy_message_tables) or test(saved_provider_hides_the_credential_from_the_row_and_projection) or test(gated_call_persists_the_go_approval_projection) or test(released_calls_are_executed_by_the_tool_loop) or test(adk_approval_approve_returns_the_running_resolution_envelope) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(denied_approval_summary_renders_the_go_denial_reply_text)"
         ],
         "testFilter": [
           "adk_memory_filters_and_agent_validation_match_go"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "1c9e5e75",
+        "verifiedAt": "2026-09-25T18:25:37Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -99691,20 +99703,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(skill_document_install_registers_the_parsed_document) or test(adk_agent_delete_soft_deletes_the_historical_row) or test(adk_agent_listing_excludes_soft_deleted_rows_but_keeps_history) or test(adk_agent_save_restores_a_soft_deleted_row) or test(adk_approval_resolution_missing_and_non_pending_rows_are_idempotent) or test(adk_duplicate_approval_resolution_is_a_noop) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(adk_multiple_approvals_continue_only_after_all_are_approved) or test(adk_task_normalization_and_validation_match_go) or test(adk_memory_filters_and_agent_validation_match_go) or test(chat_injects_memory_into_the_instruction_only_when_enabled) or test(agent_tool_scope_follows_the_go_access_mode_normalization) or test(low_risk_workflow_writes_skip_approval_in_approval_mode) or test(provider_list_normalizes_default_selection_and_orders_default_first) or test(provider_delete_promotes_the_replacement_and_keeps_one_default) or test(adk_store_lifecycle_and_restart_durability) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_transaction_boundaries_commit_roll_back_and_report_missing_tables) or test(adk_store_fences_a_second_writer_and_serializes_concurrent_access) or test(adk_store_rejects_a_legacy_database_without_rewriting_it) or test(adk_tool_call_staging_admits_one_confirmation_winner_under_concurrency) or test(adk_store_schema_has_no_legacy_message_tables) or test(saved_provider_hides_the_credential_from_the_row_and_projection) or test(gated_call_persists_the_go_approval_projection) or test(released_calls_are_executed_by_the_tool_loop) or test(adk_approval_approve_returns_the_running_resolution_envelope) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(denied_approval_summary_renders_the_go_denial_reply_text)"
         ],
         "testFilter": [
           "chat_injects_memory_into_the_instruction_only_when_enabled"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "1c9e5e75",
+        "verifiedAt": "2026-09-25T18:25:37Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -99753,20 +99766,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(skill_document_install_registers_the_parsed_document) or test(adk_agent_delete_soft_deletes_the_historical_row) or test(adk_agent_listing_excludes_soft_deleted_rows_but_keeps_history) or test(adk_agent_save_restores_a_soft_deleted_row) or test(adk_approval_resolution_missing_and_non_pending_rows_are_idempotent) or test(adk_duplicate_approval_resolution_is_a_noop) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(adk_multiple_approvals_continue_only_after_all_are_approved) or test(adk_task_normalization_and_validation_match_go) or test(adk_memory_filters_and_agent_validation_match_go) or test(chat_injects_memory_into_the_instruction_only_when_enabled) or test(agent_tool_scope_follows_the_go_access_mode_normalization) or test(low_risk_workflow_writes_skip_approval_in_approval_mode) or test(provider_list_normalizes_default_selection_and_orders_default_first) or test(provider_delete_promotes_the_replacement_and_keeps_one_default) or test(adk_store_lifecycle_and_restart_durability) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_transaction_boundaries_commit_roll_back_and_report_missing_tables) or test(adk_store_fences_a_second_writer_and_serializes_concurrent_access) or test(adk_store_rejects_a_legacy_database_without_rewriting_it) or test(adk_tool_call_staging_admits_one_confirmation_winner_under_concurrency) or test(adk_store_schema_has_no_legacy_message_tables) or test(saved_provider_hides_the_credential_from_the_row_and_projection) or test(gated_call_persists_the_go_approval_projection) or test(released_calls_are_executed_by_the_tool_loop) or test(adk_approval_approve_returns_the_running_resolution_envelope) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(denied_approval_summary_renders_the_go_denial_reply_text)"
         ],
         "testFilter": [
           "agent_tool_scope_follows_the_go_access_mode_normalization"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "1c9e5e75",
+        "verifiedAt": "2026-09-25T18:25:37Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -99820,20 +99834,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-assistant",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(skill_document_install_registers_the_parsed_document) or test(adk_agent_delete_soft_deletes_the_historical_row) or test(adk_agent_listing_excludes_soft_deleted_rows_but_keeps_history) or test(adk_agent_save_restores_a_soft_deleted_row) or test(adk_approval_resolution_missing_and_non_pending_rows_are_idempotent) or test(adk_duplicate_approval_resolution_is_a_noop) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(adk_multiple_approvals_continue_only_after_all_are_approved) or test(adk_task_normalization_and_validation_match_go) or test(adk_memory_filters_and_agent_validation_match_go) or test(chat_injects_memory_into_the_instruction_only_when_enabled) or test(agent_tool_scope_follows_the_go_access_mode_normalization) or test(low_risk_workflow_writes_skip_approval_in_approval_mode) or test(provider_list_normalizes_default_selection_and_orders_default_first) or test(provider_delete_promotes_the_replacement_and_keeps_one_default) or test(adk_store_lifecycle_and_restart_durability) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_transaction_boundaries_commit_roll_back_and_report_missing_tables) or test(adk_store_fences_a_second_writer_and_serializes_concurrent_access) or test(adk_store_rejects_a_legacy_database_without_rewriting_it) or test(adk_tool_call_staging_admits_one_confirmation_winner_under_concurrency) or test(adk_store_schema_has_no_legacy_message_tables) or test(saved_provider_hides_the_credential_from_the_row_and_projection) or test(gated_call_persists_the_go_approval_projection) or test(released_calls_are_executed_by_the_tool_loop) or test(adk_approval_approve_returns_the_running_resolution_envelope) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(denied_approval_summary_renders_the_go_denial_reply_text)"
         ],
         "testFilter": [
           "low_risk_workflow_writes_skip_approval_in_approval_mode"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "1c9e5e75",
+        "verifiedAt": "2026-09-25T18:25:37Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -99898,10 +99913,11 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(skill_document_install_registers_the_parsed_document) or test(adk_agent_delete_soft_deletes_the_historical_row) or test(adk_agent_listing_excludes_soft_deleted_rows_but_keeps_history) or test(adk_agent_save_restores_a_soft_deleted_row) or test(adk_approval_resolution_missing_and_non_pending_rows_are_idempotent) or test(adk_duplicate_approval_resolution_is_a_noop) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(adk_multiple_approvals_continue_only_after_all_are_approved) or test(adk_task_normalization_and_validation_match_go) or test(adk_memory_filters_and_agent_validation_match_go) or test(chat_injects_memory_into_the_instruction_only_when_enabled) or test(agent_tool_scope_follows_the_go_access_mode_normalization) or test(low_risk_workflow_writes_skip_approval_in_approval_mode) or test(provider_list_normalizes_default_selection_and_orders_default_first) or test(provider_delete_promotes_the_replacement_and_keeps_one_default) or test(adk_store_lifecycle_and_restart_durability) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_transaction_boundaries_commit_roll_back_and_report_missing_tables) or test(adk_store_fences_a_second_writer_and_serializes_concurrent_access) or test(adk_store_rejects_a_legacy_database_without_rewriting_it) or test(adk_tool_call_staging_admits_one_confirmation_winner_under_concurrency) or test(adk_store_schema_has_no_legacy_message_tables) or test(saved_provider_hides_the_credential_from_the_row_and_projection) or test(gated_call_persists_the_go_approval_projection) or test(released_calls_are_executed_by_the_tool_loop) or test(adk_approval_approve_returns_the_running_resolution_envelope) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(denied_approval_summary_renders_the_go_denial_reply_text)"
         ],
         "testFilter": [
           "provider_list_normalizes_default_selection_and_orders_default_first",
@@ -99909,10 +99925,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "1c9e5e75",
+        "verifiedAt": "2026-09-25T18:25:37Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -99961,20 +99977,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(skill_document_install_registers_the_parsed_document) or test(adk_agent_delete_soft_deletes_the_historical_row) or test(adk_agent_listing_excludes_soft_deleted_rows_but_keeps_history) or test(adk_agent_save_restores_a_soft_deleted_row) or test(adk_approval_resolution_missing_and_non_pending_rows_are_idempotent) or test(adk_duplicate_approval_resolution_is_a_noop) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(adk_multiple_approvals_continue_only_after_all_are_approved) or test(adk_task_normalization_and_validation_match_go) or test(adk_memory_filters_and_agent_validation_match_go) or test(chat_injects_memory_into_the_instruction_only_when_enabled) or test(agent_tool_scope_follows_the_go_access_mode_normalization) or test(low_risk_workflow_writes_skip_approval_in_approval_mode) or test(provider_list_normalizes_default_selection_and_orders_default_first) or test(provider_delete_promotes_the_replacement_and_keeps_one_default) or test(adk_store_lifecycle_and_restart_durability) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_transaction_boundaries_commit_roll_back_and_report_missing_tables) or test(adk_store_fences_a_second_writer_and_serializes_concurrent_access) or test(adk_store_rejects_a_legacy_database_without_rewriting_it) or test(adk_tool_call_staging_admits_one_confirmation_winner_under_concurrency) or test(adk_store_schema_has_no_legacy_message_tables) or test(saved_provider_hides_the_credential_from_the_row_and_projection) or test(gated_call_persists_the_go_approval_projection) or test(released_calls_are_executed_by_the_tool_loop) or test(adk_approval_approve_returns_the_running_resolution_envelope) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(denied_approval_summary_renders_the_go_denial_reply_text)"
         ],
         "testFilter": [
           "adk_store_lifecycle_and_restart_durability"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "1c9e5e75",
+        "verifiedAt": "2026-09-25T18:25:37Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -100023,20 +100040,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(skill_document_install_registers_the_parsed_document) or test(adk_agent_delete_soft_deletes_the_historical_row) or test(adk_agent_listing_excludes_soft_deleted_rows_but_keeps_history) or test(adk_agent_save_restores_a_soft_deleted_row) or test(adk_approval_resolution_missing_and_non_pending_rows_are_idempotent) or test(adk_duplicate_approval_resolution_is_a_noop) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(adk_multiple_approvals_continue_only_after_all_are_approved) or test(adk_task_normalization_and_validation_match_go) or test(adk_memory_filters_and_agent_validation_match_go) or test(chat_injects_memory_into_the_instruction_only_when_enabled) or test(agent_tool_scope_follows_the_go_access_mode_normalization) or test(low_risk_workflow_writes_skip_approval_in_approval_mode) or test(provider_list_normalizes_default_selection_and_orders_default_first) or test(provider_delete_promotes_the_replacement_and_keeps_one_default) or test(adk_store_lifecycle_and_restart_durability) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_transaction_boundaries_commit_roll_back_and_report_missing_tables) or test(adk_store_fences_a_second_writer_and_serializes_concurrent_access) or test(adk_store_rejects_a_legacy_database_without_rewriting_it) or test(adk_tool_call_staging_admits_one_confirmation_winner_under_concurrency) or test(adk_store_schema_has_no_legacy_message_tables) or test(saved_provider_hides_the_credential_from_the_row_and_projection) or test(gated_call_persists_the_go_approval_projection) or test(released_calls_are_executed_by_the_tool_loop) or test(adk_approval_approve_returns_the_running_resolution_envelope) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(denied_approval_summary_renders_the_go_denial_reply_text)"
         ],
         "testFilter": [
           "adk_store_rejects_missing_drifted_and_corrupted_go_databases"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "1c9e5e75",
+        "verifiedAt": "2026-09-25T18:25:37Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -100085,20 +100103,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(skill_document_install_registers_the_parsed_document) or test(adk_agent_delete_soft_deletes_the_historical_row) or test(adk_agent_listing_excludes_soft_deleted_rows_but_keeps_history) or test(adk_agent_save_restores_a_soft_deleted_row) or test(adk_approval_resolution_missing_and_non_pending_rows_are_idempotent) or test(adk_duplicate_approval_resolution_is_a_noop) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(adk_multiple_approvals_continue_only_after_all_are_approved) or test(adk_task_normalization_and_validation_match_go) or test(adk_memory_filters_and_agent_validation_match_go) or test(chat_injects_memory_into_the_instruction_only_when_enabled) or test(agent_tool_scope_follows_the_go_access_mode_normalization) or test(low_risk_workflow_writes_skip_approval_in_approval_mode) or test(provider_list_normalizes_default_selection_and_orders_default_first) or test(provider_delete_promotes_the_replacement_and_keeps_one_default) or test(adk_store_lifecycle_and_restart_durability) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_transaction_boundaries_commit_roll_back_and_report_missing_tables) or test(adk_store_fences_a_second_writer_and_serializes_concurrent_access) or test(adk_store_rejects_a_legacy_database_without_rewriting_it) or test(adk_tool_call_staging_admits_one_confirmation_winner_under_concurrency) or test(adk_store_schema_has_no_legacy_message_tables) or test(saved_provider_hides_the_credential_from_the_row_and_projection) or test(gated_call_persists_the_go_approval_projection) or test(released_calls_are_executed_by_the_tool_loop) or test(adk_approval_approve_returns_the_running_resolution_envelope) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(denied_approval_summary_renders_the_go_denial_reply_text)"
         ],
         "testFilter": [
           "adk_transaction_boundaries_commit_roll_back_and_report_missing_tables"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "1c9e5e75",
+        "verifiedAt": "2026-09-25T18:25:37Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -100152,21 +100171,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
-          "--test",
-          "adk_store_contracts",
-          "--locked"
+          "--workspace",
+          "--all-targets",
+          "--locked",
+          "-E",
+          "test(skill_document_install_registers_the_parsed_document) or test(adk_agent_delete_soft_deletes_the_historical_row) or test(adk_agent_listing_excludes_soft_deleted_rows_but_keeps_history) or test(adk_agent_save_restores_a_soft_deleted_row) or test(adk_approval_resolution_missing_and_non_pending_rows_are_idempotent) or test(adk_duplicate_approval_resolution_is_a_noop) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(adk_multiple_approvals_continue_only_after_all_are_approved) or test(adk_task_normalization_and_validation_match_go) or test(adk_memory_filters_and_agent_validation_match_go) or test(chat_injects_memory_into_the_instruction_only_when_enabled) or test(agent_tool_scope_follows_the_go_access_mode_normalization) or test(low_risk_workflow_writes_skip_approval_in_approval_mode) or test(provider_list_normalizes_default_selection_and_orders_default_first) or test(provider_delete_promotes_the_replacement_and_keeps_one_default) or test(adk_store_lifecycle_and_restart_durability) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_transaction_boundaries_commit_roll_back_and_report_missing_tables) or test(adk_store_fences_a_second_writer_and_serializes_concurrent_access) or test(adk_store_rejects_a_legacy_database_without_rewriting_it) or test(adk_tool_call_staging_admits_one_confirmation_winner_under_concurrency) or test(adk_store_schema_has_no_legacy_message_tables) or test(saved_provider_hides_the_credential_from_the_row_and_projection) or test(gated_call_persists_the_go_approval_projection) or test(released_calls_are_executed_by_the_tool_loop) or test(adk_approval_approve_returns_the_running_resolution_envelope) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(denied_approval_summary_renders_the_go_denial_reply_text)"
         ],
         "testFilter": [
           "adk_store_fences_a_second_writer_and_serializes_concurrent_access"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "1c9e5e75",
+        "verifiedAt": "2026-09-25T18:25:37Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -100215,21 +100234,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
-          "--test",
-          "adk_store_contracts",
-          "--locked"
+          "--workspace",
+          "--all-targets",
+          "--locked",
+          "-E",
+          "test(skill_document_install_registers_the_parsed_document) or test(adk_agent_delete_soft_deletes_the_historical_row) or test(adk_agent_listing_excludes_soft_deleted_rows_but_keeps_history) or test(adk_agent_save_restores_a_soft_deleted_row) or test(adk_approval_resolution_missing_and_non_pending_rows_are_idempotent) or test(adk_duplicate_approval_resolution_is_a_noop) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(adk_multiple_approvals_continue_only_after_all_are_approved) or test(adk_task_normalization_and_validation_match_go) or test(adk_memory_filters_and_agent_validation_match_go) or test(chat_injects_memory_into_the_instruction_only_when_enabled) or test(agent_tool_scope_follows_the_go_access_mode_normalization) or test(low_risk_workflow_writes_skip_approval_in_approval_mode) or test(provider_list_normalizes_default_selection_and_orders_default_first) or test(provider_delete_promotes_the_replacement_and_keeps_one_default) or test(adk_store_lifecycle_and_restart_durability) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_transaction_boundaries_commit_roll_back_and_report_missing_tables) or test(adk_store_fences_a_second_writer_and_serializes_concurrent_access) or test(adk_store_rejects_a_legacy_database_without_rewriting_it) or test(adk_tool_call_staging_admits_one_confirmation_winner_under_concurrency) or test(adk_store_schema_has_no_legacy_message_tables) or test(saved_provider_hides_the_credential_from_the_row_and_projection) or test(gated_call_persists_the_go_approval_projection) or test(released_calls_are_executed_by_the_tool_loop) or test(adk_approval_approve_returns_the_running_resolution_envelope) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(denied_approval_summary_renders_the_go_denial_reply_text)"
         ],
         "testFilter": [
           "adk_store_rejects_missing_drifted_and_corrupted_go_databases"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "1c9e5e75",
+        "verifiedAt": "2026-09-25T18:25:37Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -100278,21 +100297,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
-          "--test",
-          "adk_store_contracts",
-          "--locked"
+          "--workspace",
+          "--all-targets",
+          "--locked",
+          "-E",
+          "test(skill_document_install_registers_the_parsed_document) or test(adk_agent_delete_soft_deletes_the_historical_row) or test(adk_agent_listing_excludes_soft_deleted_rows_but_keeps_history) or test(adk_agent_save_restores_a_soft_deleted_row) or test(adk_approval_resolution_missing_and_non_pending_rows_are_idempotent) or test(adk_duplicate_approval_resolution_is_a_noop) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(adk_multiple_approvals_continue_only_after_all_are_approved) or test(adk_task_normalization_and_validation_match_go) or test(adk_memory_filters_and_agent_validation_match_go) or test(chat_injects_memory_into_the_instruction_only_when_enabled) or test(agent_tool_scope_follows_the_go_access_mode_normalization) or test(low_risk_workflow_writes_skip_approval_in_approval_mode) or test(provider_list_normalizes_default_selection_and_orders_default_first) or test(provider_delete_promotes_the_replacement_and_keeps_one_default) or test(adk_store_lifecycle_and_restart_durability) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_transaction_boundaries_commit_roll_back_and_report_missing_tables) or test(adk_store_fences_a_second_writer_and_serializes_concurrent_access) or test(adk_store_rejects_a_legacy_database_without_rewriting_it) or test(adk_tool_call_staging_admits_one_confirmation_winner_under_concurrency) or test(adk_store_schema_has_no_legacy_message_tables) or test(saved_provider_hides_the_credential_from_the_row_and_projection) or test(gated_call_persists_the_go_approval_projection) or test(released_calls_are_executed_by_the_tool_loop) or test(adk_approval_approve_returns_the_running_resolution_envelope) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(denied_approval_summary_renders_the_go_denial_reply_text)"
         ],
         "testFilter": [
           "adk_store_rejects_missing_drifted_and_corrupted_go_databases"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "1c9e5e75",
+        "verifiedAt": "2026-09-25T18:25:37Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -100341,21 +100360,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
-          "--test",
-          "adk_store_contracts",
-          "--locked"
+          "--workspace",
+          "--all-targets",
+          "--locked",
+          "-E",
+          "test(skill_document_install_registers_the_parsed_document) or test(adk_agent_delete_soft_deletes_the_historical_row) or test(adk_agent_listing_excludes_soft_deleted_rows_but_keeps_history) or test(adk_agent_save_restores_a_soft_deleted_row) or test(adk_approval_resolution_missing_and_non_pending_rows_are_idempotent) or test(adk_duplicate_approval_resolution_is_a_noop) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(adk_multiple_approvals_continue_only_after_all_are_approved) or test(adk_task_normalization_and_validation_match_go) or test(adk_memory_filters_and_agent_validation_match_go) or test(chat_injects_memory_into_the_instruction_only_when_enabled) or test(agent_tool_scope_follows_the_go_access_mode_normalization) or test(low_risk_workflow_writes_skip_approval_in_approval_mode) or test(provider_list_normalizes_default_selection_and_orders_default_first) or test(provider_delete_promotes_the_replacement_and_keeps_one_default) or test(adk_store_lifecycle_and_restart_durability) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_transaction_boundaries_commit_roll_back_and_report_missing_tables) or test(adk_store_fences_a_second_writer_and_serializes_concurrent_access) or test(adk_store_rejects_a_legacy_database_without_rewriting_it) or test(adk_tool_call_staging_admits_one_confirmation_winner_under_concurrency) or test(adk_store_schema_has_no_legacy_message_tables) or test(saved_provider_hides_the_credential_from_the_row_and_projection) or test(gated_call_persists_the_go_approval_projection) or test(released_calls_are_executed_by_the_tool_loop) or test(adk_approval_approve_returns_the_running_resolution_envelope) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(denied_approval_summary_renders_the_go_denial_reply_text)"
         ],
         "testFilter": [
           "adk_store_rejects_missing_drifted_and_corrupted_go_databases"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "1c9e5e75",
+        "verifiedAt": "2026-09-25T18:25:37Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -100409,21 +100428,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
-          "--test",
-          "adk_store_contracts",
-          "--locked"
+          "--workspace",
+          "--all-targets",
+          "--locked",
+          "-E",
+          "test(skill_document_install_registers_the_parsed_document) or test(adk_agent_delete_soft_deletes_the_historical_row) or test(adk_agent_listing_excludes_soft_deleted_rows_but_keeps_history) or test(adk_agent_save_restores_a_soft_deleted_row) or test(adk_approval_resolution_missing_and_non_pending_rows_are_idempotent) or test(adk_duplicate_approval_resolution_is_a_noop) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(adk_multiple_approvals_continue_only_after_all_are_approved) or test(adk_task_normalization_and_validation_match_go) or test(adk_memory_filters_and_agent_validation_match_go) or test(chat_injects_memory_into_the_instruction_only_when_enabled) or test(agent_tool_scope_follows_the_go_access_mode_normalization) or test(low_risk_workflow_writes_skip_approval_in_approval_mode) or test(provider_list_normalizes_default_selection_and_orders_default_first) or test(provider_delete_promotes_the_replacement_and_keeps_one_default) or test(adk_store_lifecycle_and_restart_durability) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_transaction_boundaries_commit_roll_back_and_report_missing_tables) or test(adk_store_fences_a_second_writer_and_serializes_concurrent_access) or test(adk_store_rejects_a_legacy_database_without_rewriting_it) or test(adk_tool_call_staging_admits_one_confirmation_winner_under_concurrency) or test(adk_store_schema_has_no_legacy_message_tables) or test(saved_provider_hides_the_credential_from_the_row_and_projection) or test(gated_call_persists_the_go_approval_projection) or test(released_calls_are_executed_by_the_tool_loop) or test(adk_approval_approve_returns_the_running_resolution_envelope) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(denied_approval_summary_renders_the_go_denial_reply_text)"
         ],
         "testFilter": [
           "adk_store_rejects_a_legacy_database_without_rewriting_it"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "1c9e5e75",
+        "verifiedAt": "2026-09-25T18:25:37Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -100477,21 +100496,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
-          "--test",
-          "adk_store_contracts",
-          "--locked"
+          "--workspace",
+          "--all-targets",
+          "--locked",
+          "-E",
+          "test(skill_document_install_registers_the_parsed_document) or test(adk_agent_delete_soft_deletes_the_historical_row) or test(adk_agent_listing_excludes_soft_deleted_rows_but_keeps_history) or test(adk_agent_save_restores_a_soft_deleted_row) or test(adk_approval_resolution_missing_and_non_pending_rows_are_idempotent) or test(adk_duplicate_approval_resolution_is_a_noop) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(adk_multiple_approvals_continue_only_after_all_are_approved) or test(adk_task_normalization_and_validation_match_go) or test(adk_memory_filters_and_agent_validation_match_go) or test(chat_injects_memory_into_the_instruction_only_when_enabled) or test(agent_tool_scope_follows_the_go_access_mode_normalization) or test(low_risk_workflow_writes_skip_approval_in_approval_mode) or test(provider_list_normalizes_default_selection_and_orders_default_first) or test(provider_delete_promotes_the_replacement_and_keeps_one_default) or test(adk_store_lifecycle_and_restart_durability) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_transaction_boundaries_commit_roll_back_and_report_missing_tables) or test(adk_store_fences_a_second_writer_and_serializes_concurrent_access) or test(adk_store_rejects_a_legacy_database_without_rewriting_it) or test(adk_tool_call_staging_admits_one_confirmation_winner_under_concurrency) or test(adk_store_schema_has_no_legacy_message_tables) or test(saved_provider_hides_the_credential_from_the_row_and_projection) or test(gated_call_persists_the_go_approval_projection) or test(released_calls_are_executed_by_the_tool_loop) or test(adk_approval_approve_returns_the_running_resolution_envelope) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(denied_approval_summary_renders_the_go_denial_reply_text)"
         ],
         "testFilter": [
           "adk_tool_call_staging_admits_one_confirmation_winner_under_concurrency"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "1c9e5e75",
+        "verifiedAt": "2026-09-25T18:25:37Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -100545,21 +100564,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
-          "--test",
-          "adk_store_contracts",
-          "--locked"
+          "--workspace",
+          "--all-targets",
+          "--locked",
+          "-E",
+          "test(skill_document_install_registers_the_parsed_document) or test(adk_agent_delete_soft_deletes_the_historical_row) or test(adk_agent_listing_excludes_soft_deleted_rows_but_keeps_history) or test(adk_agent_save_restores_a_soft_deleted_row) or test(adk_approval_resolution_missing_and_non_pending_rows_are_idempotent) or test(adk_duplicate_approval_resolution_is_a_noop) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(adk_multiple_approvals_continue_only_after_all_are_approved) or test(adk_task_normalization_and_validation_match_go) or test(adk_memory_filters_and_agent_validation_match_go) or test(chat_injects_memory_into_the_instruction_only_when_enabled) or test(agent_tool_scope_follows_the_go_access_mode_normalization) or test(low_risk_workflow_writes_skip_approval_in_approval_mode) or test(provider_list_normalizes_default_selection_and_orders_default_first) or test(provider_delete_promotes_the_replacement_and_keeps_one_default) or test(adk_store_lifecycle_and_restart_durability) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_transaction_boundaries_commit_roll_back_and_report_missing_tables) or test(adk_store_fences_a_second_writer_and_serializes_concurrent_access) or test(adk_store_rejects_a_legacy_database_without_rewriting_it) or test(adk_tool_call_staging_admits_one_confirmation_winner_under_concurrency) or test(adk_store_schema_has_no_legacy_message_tables) or test(saved_provider_hides_the_credential_from_the_row_and_projection) or test(gated_call_persists_the_go_approval_projection) or test(released_calls_are_executed_by_the_tool_loop) or test(adk_approval_approve_returns_the_running_resolution_envelope) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(denied_approval_summary_renders_the_go_denial_reply_text)"
         ],
         "testFilter": [
           "adk_store_schema_has_no_legacy_message_tables"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "1c9e5e75",
+        "verifiedAt": "2026-09-25T18:25:37Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -100613,20 +100632,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(skill_document_install_registers_the_parsed_document) or test(adk_agent_delete_soft_deletes_the_historical_row) or test(adk_agent_listing_excludes_soft_deleted_rows_but_keeps_history) or test(adk_agent_save_restores_a_soft_deleted_row) or test(adk_approval_resolution_missing_and_non_pending_rows_are_idempotent) or test(adk_duplicate_approval_resolution_is_a_noop) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(adk_multiple_approvals_continue_only_after_all_are_approved) or test(adk_task_normalization_and_validation_match_go) or test(adk_memory_filters_and_agent_validation_match_go) or test(chat_injects_memory_into_the_instruction_only_when_enabled) or test(agent_tool_scope_follows_the_go_access_mode_normalization) or test(low_risk_workflow_writes_skip_approval_in_approval_mode) or test(provider_list_normalizes_default_selection_and_orders_default_first) or test(provider_delete_promotes_the_replacement_and_keeps_one_default) or test(adk_store_lifecycle_and_restart_durability) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_transaction_boundaries_commit_roll_back_and_report_missing_tables) or test(adk_store_fences_a_second_writer_and_serializes_concurrent_access) or test(adk_store_rejects_a_legacy_database_without_rewriting_it) or test(adk_tool_call_staging_admits_one_confirmation_winner_under_concurrency) or test(adk_store_schema_has_no_legacy_message_tables) or test(saved_provider_hides_the_credential_from_the_row_and_projection) or test(gated_call_persists_the_go_approval_projection) or test(released_calls_are_executed_by_the_tool_loop) or test(adk_approval_approve_returns_the_running_resolution_envelope) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(denied_approval_summary_renders_the_go_denial_reply_text)"
         ],
         "testFilter": [
           "saved_provider_hides_the_credential_from_the_row_and_projection"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "1c9e5e75",
+        "verifiedAt": "2026-09-25T18:25:37Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -100775,10 +100795,11 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(skill_document_install_registers_the_parsed_document) or test(adk_agent_delete_soft_deletes_the_historical_row) or test(adk_agent_listing_excludes_soft_deleted_rows_but_keeps_history) or test(adk_agent_save_restores_a_soft_deleted_row) or test(adk_approval_resolution_missing_and_non_pending_rows_are_idempotent) or test(adk_duplicate_approval_resolution_is_a_noop) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(adk_multiple_approvals_continue_only_after_all_are_approved) or test(adk_task_normalization_and_validation_match_go) or test(adk_memory_filters_and_agent_validation_match_go) or test(chat_injects_memory_into_the_instruction_only_when_enabled) or test(agent_tool_scope_follows_the_go_access_mode_normalization) or test(low_risk_workflow_writes_skip_approval_in_approval_mode) or test(provider_list_normalizes_default_selection_and_orders_default_first) or test(provider_delete_promotes_the_replacement_and_keeps_one_default) or test(adk_store_lifecycle_and_restart_durability) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_transaction_boundaries_commit_roll_back_and_report_missing_tables) or test(adk_store_fences_a_second_writer_and_serializes_concurrent_access) or test(adk_store_rejects_a_legacy_database_without_rewriting_it) or test(adk_tool_call_staging_admits_one_confirmation_winner_under_concurrency) or test(adk_store_schema_has_no_legacy_message_tables) or test(saved_provider_hides_the_credential_from_the_row_and_projection) or test(gated_call_persists_the_go_approval_projection) or test(released_calls_are_executed_by_the_tool_loop) or test(adk_approval_approve_returns_the_running_resolution_envelope) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(denied_approval_summary_renders_the_go_denial_reply_text)"
         ],
         "testFilter": [
           "gated_call_persists_the_go_approval_projection",
@@ -100788,10 +100809,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "1c9e5e75",
+        "verifiedAt": "2026-09-25T18:25:37Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -100845,21 +100866,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
-          "--test",
-          "adk_store_contracts",
-          "--locked"
+          "--workspace",
+          "--all-targets",
+          "--locked",
+          "-E",
+          "test(skill_document_install_registers_the_parsed_document) or test(adk_agent_delete_soft_deletes_the_historical_row) or test(adk_agent_listing_excludes_soft_deleted_rows_but_keeps_history) or test(adk_agent_save_restores_a_soft_deleted_row) or test(adk_approval_resolution_missing_and_non_pending_rows_are_idempotent) or test(adk_duplicate_approval_resolution_is_a_noop) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(adk_multiple_approvals_continue_only_after_all_are_approved) or test(adk_task_normalization_and_validation_match_go) or test(adk_memory_filters_and_agent_validation_match_go) or test(chat_injects_memory_into_the_instruction_only_when_enabled) or test(agent_tool_scope_follows_the_go_access_mode_normalization) or test(low_risk_workflow_writes_skip_approval_in_approval_mode) or test(provider_list_normalizes_default_selection_and_orders_default_first) or test(provider_delete_promotes_the_replacement_and_keeps_one_default) or test(adk_store_lifecycle_and_restart_durability) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_transaction_boundaries_commit_roll_back_and_report_missing_tables) or test(adk_store_fences_a_second_writer_and_serializes_concurrent_access) or test(adk_store_rejects_a_legacy_database_without_rewriting_it) or test(adk_tool_call_staging_admits_one_confirmation_winner_under_concurrency) or test(adk_store_schema_has_no_legacy_message_tables) or test(saved_provider_hides_the_credential_from_the_row_and_projection) or test(gated_call_persists_the_go_approval_projection) or test(released_calls_are_executed_by_the_tool_loop) or test(adk_approval_approve_returns_the_running_resolution_envelope) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(denied_approval_summary_renders_the_go_denial_reply_text)"
         ],
         "testFilter": [
           "adk_approval_resolution_restages_a_stale_embedded_approval"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "1c9e5e75",
+        "verifiedAt": "2026-09-25T18:25:37Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -100975,20 +100996,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(skill_document_install_registers_the_parsed_document) or test(adk_agent_delete_soft_deletes_the_historical_row) or test(adk_agent_listing_excludes_soft_deleted_rows_but_keeps_history) or test(adk_agent_save_restores_a_soft_deleted_row) or test(adk_approval_resolution_missing_and_non_pending_rows_are_idempotent) or test(adk_duplicate_approval_resolution_is_a_noop) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(adk_multiple_approvals_continue_only_after_all_are_approved) or test(adk_task_normalization_and_validation_match_go) or test(adk_memory_filters_and_agent_validation_match_go) or test(chat_injects_memory_into_the_instruction_only_when_enabled) or test(agent_tool_scope_follows_the_go_access_mode_normalization) or test(low_risk_workflow_writes_skip_approval_in_approval_mode) or test(provider_list_normalizes_default_selection_and_orders_default_first) or test(provider_delete_promotes_the_replacement_and_keeps_one_default) or test(adk_store_lifecycle_and_restart_durability) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_transaction_boundaries_commit_roll_back_and_report_missing_tables) or test(adk_store_fences_a_second_writer_and_serializes_concurrent_access) or test(adk_store_rejects_a_legacy_database_without_rewriting_it) or test(adk_tool_call_staging_admits_one_confirmation_winner_under_concurrency) or test(adk_store_schema_has_no_legacy_message_tables) or test(saved_provider_hides_the_credential_from_the_row_and_projection) or test(gated_call_persists_the_go_approval_projection) or test(released_calls_are_executed_by_the_tool_loop) or test(adk_approval_approve_returns_the_running_resolution_envelope) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(denied_approval_summary_renders_the_go_denial_reply_text)"
         ],
         "testFilter": [
           "denied_approval_summary_renders_the_go_denial_reply_text"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "1c9e5e75",
+        "verifiedAt": "2026-09-25T18:25:37Z",
         "receiptDigest": null
       },
       "risk": "normal",
