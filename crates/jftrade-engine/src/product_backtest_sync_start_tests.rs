@@ -487,6 +487,131 @@ async fn production_futu_sync_uses_opend_reader_and_persists_candles() {
     panic!("Futu sync did not complete");
 }
 
+#[tokio::test]
+// Parity: go:452dea11:internal/app/apiserver/backtestapp/historical_source_test.go:226 TestProviderHistoricalSourceFetchesAndParsesProviderPage
+async fn production_helper_sync_forwards_page_query_and_persists_provider_values() {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("bind helper page fixture");
+    let helper_address = listener.local_addr().expect("helper page address");
+    let request_capture = std::sync::Arc::new(std::sync::Mutex::new(None));
+    let capture_for_server = std::sync::Arc::clone(&request_capture);
+    let helper_task = tokio::spawn(async move {
+        let (mut stream, _) = listener.accept().await.expect("helper page connection");
+        let mut request = Vec::new();
+        loop {
+            let mut chunk = [0_u8; 1024];
+            let read = tokio::io::AsyncReadExt::read(&mut stream, &mut chunk)
+                .await
+                .expect("read helper page request");
+            if read == 0 {
+                break;
+            }
+            request.extend_from_slice(&chunk[..read]);
+            if request.windows(4).any(|window| window == b"\r\n\r\n") {
+                break;
+            }
+        }
+        *capture_for_server.lock().expect("request capture") =
+            Some(String::from_utf8_lossy(&request).into_owned());
+        let body = serde_json::to_string(&json!({
+            "market": "US",
+            "symbol": "AAPL",
+            "instrumentId": "US.AAPL",
+            "period": "1m",
+            "extendedHours": false,
+            "candles": [{
+                "at": "2026-09-24T12:00:00Z",
+                "open": "100.25",
+                "high": 102.5,
+                "low": 99.5,
+                "close": 101.75,
+                "volume": 1200,
+                "session": "regular"
+            }],
+            "totalReturned": 1,
+            "hasMore": false,
+            "source": "yfinance",
+            "adjustment": "forward"
+        }))
+        .expect("serialize helper page");
+        let response = format!(
+            "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+            body.len()
+        );
+        tokio::io::AsyncWriteExt::write_all(&mut stream, response.as_bytes())
+            .await
+            .expect("write helper page response");
+    });
+
+    let (mut port, _directory) = production_port();
+    port.helper = Some(
+        jftrade_integration_marketdata_helper::HelperClient::new(
+            jftrade_integration_marketdata_helper::HelperClientConfig {
+                base_url: format!("http://{helper_address}"),
+                bearer_token: None,
+                request_timeout: std::time::Duration::from_secs(2),
+                max_attempts: 1,
+                retry_delay: std::time::Duration::ZERO,
+            },
+        )
+        .expect("helper client"),
+    );
+    let response = port
+        .mutate(&BacktestsWriteInput::Sync {
+            payload: json!({
+                "market": "US",
+                "code": "AAPL",
+                "intervals": ["1m"],
+                "since": "2026-09-24T00:00:00Z",
+                "until": "2026-09-25T00:00:00Z",
+                "rehabType": "forward",
+                "sessionScope": "regular",
+                "marketDataProvider": "yfinance"
+            }),
+        })
+        .expect("start helper sync");
+    let BacktestsWritePortResult::Data(data) = response else {
+        panic!("unexpected sync response");
+    };
+    let task_id = data["taskId"].as_str().expect("task id").to_owned();
+    for _ in 0..100 {
+        if let Some(task) = port.sync_tasks.get(&task_id).expect("task")
+            && matches!(task.status.as_str(), "completed" | "failed")
+        {
+            assert_eq!(task.status, "completed", "task error: {:?}", task.error);
+            let candles = port
+                ._market_data_store
+                .read_candles(
+                    "yfinance",
+                    "US.AAPL",
+                    "1m",
+                    "forward",
+                    "regular",
+                    0,
+                    i64::MAX,
+                )
+                .expect("read synced candles");
+            assert_eq!(candles.len(), 1);
+            assert_eq!(candles[0].close, "101.75");
+            assert_eq!(candles[0].volume, "1200");
+            helper_task.await.expect("helper page task");
+            let request = request_capture
+                .lock()
+                .expect("request capture")
+                .clone()
+                .expect("captured helper request");
+            assert!(request.contains("period=1m"), "request = {request}");
+            assert!(request.contains("adjustment=forward"), "request = {request}");
+            assert!(request.contains("limit=1000"), "request = {request}");
+            assert!(request.contains("sessions=regular"), "request = {request}");
+            return;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+    }
+    panic!("helper sync did not complete");
+}
+
 #[test]
 // Parity: go:452dea11:internal/api/backtest/routes_boundaries_test.go:53 TestBacktestSyncRouteReturnsTaskForValidRequest
 fn production_sync_read_projects_persisted_task() {

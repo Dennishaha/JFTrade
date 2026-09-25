@@ -24664,9 +24664,9 @@
     },
     "internal/app/apiserver/backtestapp/historical_source_test.go:226:TestProviderHistoricalSourceFetchesAndParsesProviderPage": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_production_ports_backtest_sync_helpers.rs::test_historical_k_line_syncer_rejects_broken_pagination",
-      "conclusion": "partial：Rust 覆盖有效页校验通过、断链分页与空结果拒绝。缺口：查询参数透传（复权类型、会话集合、limit）与 provider 错误透传无断言。owner=回测同步页校验；回归要求：补透传断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+      "rust_entry": "crates/jftrade-engine/src/product_backtest_sync_start_tests.rs::production_helper_sync_forwards_page_query_and_persists_provider_values; crates/jftrade-engine/src/product_production_ports_backtest_sync_helpers.rs::test_historical_k_line_syncer_rejects_broken_pagination; crates/jftrade-engine/src/product_production_ports_backtest_sync_helpers.rs::test_historical_candle_conversion_rejects_invalid_fields_and_defaults_volume",
+      "conclusion": "partial：Rust 生产同步回归覆盖 helper 历史页抓取、价格/成交量解析入库、period/adjustment/limit/sessions 查询透传，并保留断链分页与空结果拒绝。Go 还断言 provider fetch 错误原样透传，Rust 尚无同形 helper 错误注入 seam，保持 partial。",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(production_helper_sync_forwards_page_query_and_persists_provider_values) or test(test_historical_k_line_syncer_rejects_broken_pagination) or test(test_historical_candle_conversion_rejects_invalid_fields_and_defaults_volume)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/backtestapp/historical_source_test.go",
@@ -24675,6 +24675,12 @@
         "blobSha": "131baaff81b06b2081ccf1a0940a57edb463f921"
       },
       "rustEvidence": [
+        {
+          "file": "crates/jftrade-engine/src/product_backtest_sync_start_tests.rs",
+          "test": "production_helper_sync_forwards_page_query_and_persists_provider_values",
+          "crate": "jftrade-engine",
+          "anchor": null
+        },
         {
           "file": "crates/jftrade-engine/src/product_production_ports_backtest_sync_helpers.rs",
           "test": "test_historical_k_line_syncer_rejects_broken_pagination",
@@ -24685,14 +24691,22 @@
             "rustFile": "crates/jftrade-engine/src/product_production_ports_backtest_sync_helpers.rs",
             "rustLine": 71
           }
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_production_ports_backtest_sync_helpers.rs",
+          "test": "test_historical_candle_conversion_rejects_invalid_fields_and_defaults_volume",
+          "crate": "jftrade-engine",
+          "anchor": null
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "function_exact：Go 断言 provider 历史页抓取并解析为 K 线（含分页）。Rust 的 test_historical_k_line_syncer_rejects_broken_pagination 断言同步器对分页游标的处理（断链分页被拒绝），配套 test_historical_k_line_syncer_rejects_empty_provider_result 覆盖空结果，等价于“按页抓取并校验分页”。"
+          "Rust 生产同步回归验证 provider 页的价格/成交量解析与入库，以及 period、adjustment、limit、sessions 查询参数透传；helper 页校验覆盖有效身份、空页与断链分页。"
         ],
-        "uncovered": [],
-        "source": "legacy-conclusion"
+        "uncovered": [
+          "partial：Go provider fetch error 原样透传没有同形 Rust helper 错误注入断言。"
+        ],
+        "source": "behavioral-parity-review"
       },
       "verification": {
         "argv": [
@@ -24702,10 +24716,14 @@
           "-p",
           "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(production_helper_sync_forwards_page_query_and_persists_provider_values) or test(test_historical_k_line_syncer_rejects_broken_pagination) or test(test_historical_candle_conversion_rejects_invalid_fields_and_defaults_volume)"
         ],
         "testFilter": [
-          "test_historical_k_line_syncer_rejects_broken_pagination"
+          "production_helper_sync_forwards_page_query_and_persists_provider_values",
+          "test_historical_k_line_syncer_rejects_broken_pagination",
+          "test_historical_candle_conversion_rejects_invalid_fields_and_defaults_volume"
         ],
         "runnerVersion": null,
         "toolchain": null,
@@ -24724,11 +24742,12 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "有效页校验通过",
-        "断链分页与空结果拒绝"
+        "provider 页解析入库",
+        "period/adjustment/limit/sessions 查询透传",
+        "空结果与断链分页拒绝"
       ],
       "uncoveredAssertions": [
-        "partial：Rust 覆盖有效页校验通过、断链分页与空结果拒绝。缺口：查询参数透传（复权类型、会话集合、limit）与 provider 错误透传无断言。owner=回测同步页校验；回归要求：补透传断言。"
+        "partial：provider fetch error 原样透传没有同形 Rust helper 错误注入断言。"
       ],
       "boundaryReason": null
     },
@@ -297742,9 +297761,10 @@
       "reviewStatus": "single"
     },
     "crates/jftrade-engine/src/product_production_ports_backtest_sync_helpers.rs::test_historical_candle_conversion_rejects_invalid_fields_and_defaults_volume": {
-      "referenceCount": 4,
+      "referenceCount": 5,
       "referenceKeys": [
         "internal/app/apiserver/backtestapp/historical_source_test.go:266:TestHistoricalPageParsingRejectsMalformedProviderValues",
+        "internal/app/apiserver/backtestapp/historical_source_test.go:226:TestProviderHistoricalSourceFetchesAndParsesProviderPage",
         "internal/app/apiserver/backtestapp/historical_source_test.go:298:TestDecimalStringAcceptsProviderNumericRepresentations",
         "internal/backtest/historical_source_test.go:204:TestHistoricalKLineSyncerValidatesLifecycleAndTerminalProviderFailures",
         "internal/backtest/historical_source_test.go:309:TestHistoricalCandleConversionRejectsInvalidFieldsAndDefaultsVolume"
@@ -311897,6 +311917,14 @@
       ],
       "allowed": true,
       "reviewStatus": "reviewed"
+    },
+    "crates/jftrade-engine/src/product_backtest_sync_start_tests.rs::production_helper_sync_forwards_page_query_and_persists_provider_values": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/app/apiserver/backtestapp/historical_source_test.go:226:TestProviderHistoricalSourceFetchesAndParsesProviderPage"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
     }
   }
 }
