@@ -24371,9 +24371,9 @@
     },
     "internal/app/apiserver/backtestapp/historical_source_test.go:108:TestProviderHistoricalSourceValidatesAdjustmentAndLookback": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::candle_route_validates_adjustment_and_forwards_the_mapped_rehab_type",
-      "conclusion": "partial：Go 断言前复权（forward）被拒绝、超出 lookback 被拒绝、5m 不支持、1m+extended 不支持、1m+regular 通过。Rust 覆盖复权类型校验与映射（candle_route_validates_adjustment_and_forwards_the_mapped_rehab_type），lookback 窗口由 test_futu_kline_query_window_resets_invalid_begin_to_default_lookback 覆盖，但没有 provider 能力矩阵下的逐条组合断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+      "rust_entry": "crates/jftrade-engine/src/product_backtest_sync_start_tests.rs::sync_request_validates_provider_adjustment_and_lookback_capabilities; crates/jftrade-engine/src/product_backtest_sync_start_tests.rs::sync_request_rejects_extended_session_scope_outside_us_intraday",
+      "conclusion": "partial：Rust 现在在回测同步 owner 按静态 provider descriptor 校验复权、interval、lookback，并在 parse owner 拒绝非 US extended；新增回归覆盖 yfinance backward 复权、1m 七日 lookback、支持的 5m/forward 组合。Go 旧 source validator 注入任意 descriptor 的 5m 不支持与 1m+regular 通过组合没有同形 Rust seam，保持 partial。",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(sync_request_validates_provider_adjustment_and_lookback_capabilities) or test(sync_request_rejects_extended_session_scope_outside_us_intraday)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/backtestapp/historical_source_test.go",
@@ -24383,16 +24383,24 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs",
-          "test": "candle_route_validates_adjustment_and_forwards_the_mapped_rehab_type",
+          "file": "crates/jftrade-engine/src/product_backtest_sync_start_tests.rs",
+          "test": "sync_request_validates_provider_adjustment_and_lookback_capabilities",
+          "crate": "jftrade-engine",
+          "anchor": null
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_backtest_sync_start_tests.rs",
+          "test": "sync_request_rejects_extended_session_scope_outside_us_intraday",
           "crate": "jftrade-engine",
           "anchor": null
         }
       ],
       "assertionCoverage": {
-        "covered": [],
+        "covered": [
+          "Rust 按 yfinance descriptor 拒绝 backward 复权、超出 1m 七日窗口，并接受支持的 5m/forward regular 请求；公开 sync parse 继续拒绝非 US extended。"
+        ],
         "uncovered": [
-          "partial：Go 断言前复权（forward）被拒绝、超出 lookback 被拒绝、5m 不支持、1m+extended 不支持、1m+regular 通过。Rust 覆盖复权类型校验与映射（candle_route_validates_adjustment_and_forwards_the_mapped_rehab_type），lookback 窗口由 test_futu_kline_query_window_resets_invalid_begin_to_default_lookback 覆盖，但没有 provider 能力矩阵下的逐条组合断言。"
+          "partial：Go 注入的 yfinance descriptor 只支持 1m/none，Rust 使用静态生产 descriptor（支持 5m/forward），没有同形任意 descriptor validator；1m+regular 的正向组合未单独断言。"
         ],
         "source": "legacy-conclusion"
       },
@@ -24407,7 +24415,8 @@
           "--locked"
         ],
         "testFilter": [
-          "candle_route_validates_adjustment_and_forwards_the_mapped_rehab_type"
+          "sync_request_validates_provider_adjustment_and_lookback_capabilities",
+          "sync_request_rejects_extended_session_scope_outside_us_intraday"
         ],
         "runnerVersion": null,
         "toolchain": null,
@@ -24425,9 +24434,11 @@
         "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [],
+      "coveredAssertions": [
+        "Rust 按 yfinance descriptor 拒绝 backward 复权、超出 1m 七日窗口，并接受支持的 5m/forward regular 请求；公开 sync parse 继续拒绝非 US extended。"
+      ],
       "uncoveredAssertions": [
-        "partial：Go 断言前复权（forward）被拒绝、超出 lookback 被拒绝、5m 不支持、1m+extended 不支持、1m+regular 通过。Rust 覆盖复权类型校验与映射（candle_route_validates_adjustment_and_forwards_the_mapped_rehab_type），lookback 窗口由 test_futu_kline_query_window_resets_invalid_begin_to_default_lookback 覆盖，但没有 provider 能力矩阵下的逐条组合断言。"
+        "partial：Go 注入的 yfinance descriptor 只支持 1m/none，Rust 使用静态生产 descriptor（支持 5m/forward），没有同形任意 descriptor validator；1m+regular 的正向组合未单独断言。"
       ],
       "boundaryReason": null
     },
@@ -24499,11 +24510,11 @@
       "boundaryReason": null
     },
     "internal/app/apiserver/backtestapp/historical_source_test.go:162:TestProviderHistoricalSourceEnforcesProviderAdjustmentMatrix": {
-      "status": "[x]",
-      "rust_entry": "crates/jftrade-engine/src/product_trade_runtime_broker_routes.rs::candle_adjustment_maps_to_the_opend_rehab_enum",
-      "conclusion": "function_exact：Go 断言 yfinance/akshare 的复权能力矩阵（none/forward/backward 支持度）约束请求。Rust 的 candle_adjustment_maps_to_the_opend_rehab_enum 断言复权类型到 OpenD rehab 枚举的映射与拒绝边界，逐条对应 provider 复权矩阵的可见契约面。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-      "evidence_type": "function_exact",
+      "status": "[~]",
+      "rust_entry": "crates/jftrade-engine/src/product_backtest_sync_start_tests.rs::sync_request_validates_provider_adjustment_and_lookback_capabilities; crates/jftrade-engine/src/product_trade_runtime_broker_routes.rs::candle_adjustment_maps_to_the_opend_rehab_enum",
+      "conclusion": "partial：Rust 回测同步 owner 现在按 yfinance/AKShare 静态 descriptor 校验复权矩阵，并保留 OpenD rehab 枚举映射；新增用例覆盖 yfinance backward 拒绝与 forward 接受，但 Go 还断言 AKShare intraday backward 到 provider 的 capability unsupported 透传，Rust 没有同形 helper fetch seam。",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(sync_request_validates_provider_adjustment_and_lookback_capabilities) or test(candle_adjustment_maps_to_the_opend_rehab_enum)'",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/backtestapp/historical_source_test.go",
         "line": 162,
@@ -24511,6 +24522,12 @@
         "blobSha": "131baaff81b06b2081ccf1a0940a57edb463f921"
       },
       "rustEvidence": [
+        {
+          "file": "crates/jftrade-engine/src/product_backtest_sync_start_tests.rs",
+          "test": "sync_request_validates_provider_adjustment_and_lookback_capabilities",
+          "crate": "jftrade-engine",
+          "anchor": null
+        },
         {
           "file": "crates/jftrade-engine/src/product_trade_runtime_broker_routes.rs",
           "test": "candle_adjustment_maps_to_the_opend_rehab_enum",
@@ -24525,9 +24542,11 @@
       ],
       "assertionCoverage": {
         "covered": [
-          "function_exact：Go 断言 yfinance/akshare 的复权能力矩阵（none/forward/backward 支持度）约束请求。Rust 的 candle_adjustment_maps_to_the_opend_rehab_enum 断言复权类型到 OpenD rehab 枚举的映射与拒绝边界，逐条对应 provider 复权矩阵的可见契约面。"
+          "Rust 回测同步按 yfinance descriptor 拒绝 backward 并接受 forward，Futu route 保持 none/forward/backward 到 OpenD rehab enum 的映射。"
         ],
-        "uncovered": [],
+        "uncovered": [
+          "partial：Go AKShare 5m backward 在 provider fetch 阶段返回 ErrCapabilityUnsupported；Rust 仅覆盖静态同步预检与 Futu 映射，没有同形 sidecar/provider 错误透传断言。"
+        ],
         "source": "legacy-conclusion"
       },
       "verification": {
@@ -24541,6 +24560,7 @@
           "--locked"
         ],
         "testFilter": [
+          "sync_request_validates_provider_adjustment_and_lookback_capabilities",
           "candle_adjustment_maps_to_the_opend_rehab_enum"
         ],
         "runnerVersion": null,
@@ -24560,17 +24580,19 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "function_exact：Go 断言 yfinance/akshare 的复权能力矩阵（none/forward/backward 支持度）约束请求。Rust 的 candle_adjustment_maps_to_the_opend_rehab_enum 断言复权类型到 OpenD rehab 枚举的映射与拒绝边界，逐条对应 provider 复权矩阵的可见契约面。"
+        "Rust 回测同步按 yfinance descriptor 拒绝 backward 并接受 forward，Futu route 保持 none/forward/backward 到 OpenD rehab enum 的映射。"
       ],
-      "uncoveredAssertions": [],
+      "uncoveredAssertions": [
+        "partial：Go AKShare 5m backward 在 provider fetch 阶段返回 ErrCapabilityUnsupported；Rust 仅覆盖静态同步预检与 Futu 映射，没有同形 sidecar/provider 错误透传断言。"
+      ],
       "boundaryReason": null
     },
     "internal/app/apiserver/backtestapp/historical_source_test.go:206:TestKLineSyncPreflightRejectsStaticCapabilityMismatchAndUnknownProvider": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_backtest_sync_start_tests.rs::production_backtest_start_rejects_missing_history_without_queuing",
-      "conclusion": "partial：Go 断言 K 线同步预检在静态能力不匹配或未知 provider 时失败。Rust 的同步入口在缺历史数据时拒绝且不入队（production_backtest_start_rejects_missing_history_without_queuing），provider 能力预检由 provider/registry 层承担，无逐步断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-      "evidence_type": "partial",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-engine/src/product_backtest_sync_start_tests.rs::production_sync_rejects_provider_capability_before_queuing; crates/jftrade-engine/src/product_backtest_sync_start_tests.rs::akshare_sync_rejects_history_beyond_the_intraday_lookback_window",
+      "conclusion": "function_exact：Go 断言同步预检在静态能力不匹配或未知 provider 时失败且不进入 provider work。Rust 现在先检查 helper/runtime 可用性，再按静态 descriptor 拒绝 yfinance backward 复权并验证没有 durable task；requested_provider 对 unknown provider 在同一 owner fail closed，AKShare 超出 5m lookback 仍在入队前返回 400。",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(production_sync_rejects_provider_capability_before_queuing) or test(akshare_sync_rejects_history_beyond_the_intraday_lookback_window)'",
+      "evidence_type": "function_exact",
       "source": {
         "file": "internal/app/apiserver/backtestapp/historical_source_test.go",
         "line": 206,
@@ -24580,16 +24602,22 @@
       "rustEvidence": [
         {
           "file": "crates/jftrade-engine/src/product_backtest_sync_start_tests.rs",
-          "test": "production_backtest_start_rejects_missing_history_without_queuing",
+          "test": "production_sync_rejects_provider_capability_before_queuing",
+          "crate": "jftrade-engine",
+          "anchor": null
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_backtest_sync_start_tests.rs",
+          "test": "akshare_sync_rejects_history_beyond_the_intraday_lookback_window",
           "crate": "jftrade-engine",
           "anchor": null
         }
       ],
       "assertionCoverage": {
-        "covered": [],
-        "uncovered": [
-          "partial：Go 断言 K 线同步预检在静态能力不匹配或未知 provider 时失败。Rust 的同步入口在缺历史数据时拒绝且不入队（production_backtest_start_rejects_missing_history_without_queuing），provider 能力预检由 provider/registry 层承担，无逐步断言。"
+        "covered": [
+          "Rust 在 task create 前拒绝 yfinance backward 复权、unknown provider 与 AKShare US 5m 超过五日窗口。"
         ],
+        "uncovered": [],
         "source": "legacy-conclusion"
       },
       "verification": {
@@ -24603,7 +24631,8 @@
           "--locked"
         ],
         "testFilter": [
-          "production_backtest_start_rejects_missing_history_without_queuing"
+          "production_sync_rejects_provider_capability_before_queuing",
+          "akshare_sync_rejects_history_beyond_the_intraday_lookback_window"
         ],
         "runnerVersion": null,
         "toolchain": null,
@@ -24621,10 +24650,10 @@
         "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [],
-      "uncoveredAssertions": [
-        "partial：Go 断言 K 线同步预检在静态能力不匹配或未知 provider 时失败。Rust 的同步入口在缺历史数据时拒绝且不入队（production_backtest_start_rejects_missing_history_without_queuing），provider 能力预检由 provider/registry 层承担，无逐步断言。"
+      "coveredAssertions": [
+        "Rust 在 task create 前拒绝 yfinance backward 复权、unknown provider 与 AKShare US 5m 超过五日窗口。"
       ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/app/apiserver/backtestapp/historical_source_test.go:226:TestProviderHistoricalSourceFetchesAndParsesProviderPage": {
@@ -294249,12 +294278,30 @@
       "reviewStatus": "single"
     },
     "crates/jftrade-engine/src/product_backtest_sync_start_tests.rs::akshare_sync_rejects_history_beyond_the_intraday_lookback_window": {
+      "referenceCount": 2,
+      "referenceKeys": [
+        "internal/app/apiserver/servercoretest/backtest_provider_runtime_test.go:55:TestBacktestSyncRejectsActualAKShareOneYearUSFiveMinuteRange",
+        "internal/app/apiserver/backtestapp/historical_source_test.go:206:TestKLineSyncPreflightRejectsStaticCapabilityMismatchAndUnknownProvider"
+      ],
+      "allowed": false,
+      "reviewStatus": "unreviewed"
+    },
+    "crates/jftrade-engine/src/product_backtest_sync_start_tests.rs::production_sync_rejects_provider_capability_before_queuing": {
       "referenceCount": 1,
       "referenceKeys": [
-        "internal/app/apiserver/servercoretest/backtest_provider_runtime_test.go:55:TestBacktestSyncRejectsActualAKShareOneYearUSFiveMinuteRange"
+        "internal/app/apiserver/backtestapp/historical_source_test.go:206:TestKLineSyncPreflightRejectsStaticCapabilityMismatchAndUnknownProvider"
       ],
       "allowed": true,
       "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_backtest_sync_start_tests.rs::sync_request_validates_provider_adjustment_and_lookback_capabilities": {
+      "referenceCount": 2,
+      "referenceKeys": [
+        "internal/app/apiserver/backtestapp/historical_source_test.go:108:TestProviderHistoricalSourceValidatesAdjustmentAndLookback",
+        "internal/app/apiserver/backtestapp/historical_source_test.go:162:TestProviderHistoricalSourceEnforcesProviderAdjustmentMatrix"
+      ],
+      "allowed": false,
+      "reviewStatus": "unreviewed"
     },
     "crates/jftrade-engine/src/product_backtest_sync_start_tests.rs::production_backtest_cancel_reports_false_without_a_cancellable_run": {
       "referenceCount": 1,
@@ -294292,9 +294339,8 @@
       "reviewStatus": "unreviewed"
     },
     "crates/jftrade-engine/src/product_backtest_sync_start_tests.rs::production_backtest_start_rejects_missing_history_without_queuing": {
-      "referenceCount": 3,
+      "referenceCount": 2,
       "referenceKeys": [
-        "internal/app/apiserver/backtestapp/historical_source_test.go:206:TestKLineSyncPreflightRejectsStaticCapabilityMismatchAndUnknownProvider",
         "internal/app/apiserver/servercoretest/backtest_provider_runtime_test.go:55:TestBacktestSyncRejectsActualAKShareOneYearUSFiveMinuteRange",
         "internal/backtest/input_and_readiness_validation_test.go:137:TestBacktestStartRejectsMissingCoverageBeforePersistingRun"
       ],
@@ -294418,12 +294464,13 @@
       "reviewStatus": "unreviewed"
     },
     "crates/jftrade-engine/src/product_backtest_sync_start_tests.rs::sync_request_rejects_extended_session_scope_outside_us_intraday": {
-      "referenceCount": 1,
+      "referenceCount": 2,
       "referenceKeys": [
-        "internal/app/apiserver/backtestapp/historical_source_test.go:87:TestProviderHistoricalSourceRejectsExtendedSessionsOutsideUSIntraday"
+        "internal/app/apiserver/backtestapp/historical_source_test.go:87:TestProviderHistoricalSourceRejectsExtendedSessionsOutsideUSIntraday",
+        "internal/app/apiserver/backtestapp/historical_source_test.go:108:TestProviderHistoricalSourceValidatesAdjustmentAndLookback"
       ],
-      "allowed": true,
-      "reviewStatus": "single"
+      "allowed": false,
+      "reviewStatus": "unreviewed"
     },
     "crates/jftrade-engine/src/product_backtests_sync_tests.rs::backtests_sync_read_route_fails_closed_when_snapshot_port_is_unavailable": {
       "referenceCount": 1,
@@ -295123,9 +295170,8 @@
       "reviewStatus": "single"
     },
     "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::candle_route_validates_adjustment_and_forwards_the_mapped_rehab_type": {
-      "referenceCount": 5,
+      "referenceCount": 4,
       "referenceKeys": [
-        "internal/app/apiserver/backtestapp/historical_source_test.go:108:TestProviderHistoricalSourceValidatesAdjustmentAndLookback",
         "internal/assistant/assembly/application_adapter_test.go:164:TestApplicationAdapterRejectsAdvancedCandleInputsBeforeProviderCall",
         "internal/productfeatures/candle_query_options_test.go:18:TestNormalizeCandleOptionsRejectsUnsupportedValues",
         "internal/productfeatures/prediction_quote_candle_bridge_test.go:202:TestCoreCandleBridgeValidatesBoundariesAndProductSemantics",

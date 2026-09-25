@@ -1,4 +1,5 @@
 use super::product_backtest_sync_request::parse_sync_request;
+use super::product_backtest_sync_request::validate_sync_provider_capabilities;
 use super::product_backtest_sync_request::validate_sync_lookback_window;
 use super::*;
 use crate::product::product_backtest_execution::BacktestExecutionTaskRegistry;
@@ -279,6 +280,96 @@ fn sync_request_rejects_extended_session_scope_outside_us_intraday() {
     let error = parse_sync_request(&payload)
         .expect_err("HK extended session sync must be rejected before provider work");
     assert!(matches!(error, BacktestsWritePortError::BadRequest(message) if message.contains("US intraday")));
+}
+
+#[test]
+// Parity: go:452dea11:internal/app/apiserver/backtestapp/historical_source_test.go:108 TestProviderHistoricalSourceValidatesAdjustmentAndLookback
+// Parity: go:452dea11:internal/app/apiserver/backtestapp/historical_source_test.go:162 TestProviderHistoricalSourceEnforcesProviderAdjustmentMatrix
+fn sync_request_validates_provider_adjustment_and_lookback_capabilities() {
+    let backward = parse_sync_request(&json!({
+        "market": "US",
+        "code": "AAPL",
+        "intervals": ["1d"],
+        "since": "2026-09-24T00:00:00Z",
+        "until": "2026-09-25T00:00:00Z",
+        "rehabType": "backward",
+        "sessionScope": "regular",
+    }))
+    .expect("parse yfinance adjustment request");
+    let error = validate_sync_provider_capabilities("yfinance", &backward)
+        .expect_err("yfinance must reject backward adjustment");
+    assert!(matches!(error, BacktestsWritePortError::BadRequest(message) if message.contains("backward price adjustment")));
+
+    let beyond_lookback = parse_sync_request(&json!({
+        "market": "US",
+        "code": "AAPL",
+        "intervals": ["1m"],
+        "since": "2026-09-16T00:00:00Z",
+        "until": "2026-09-25T00:00:00Z",
+        "rehabType": "none",
+        "sessionScope": "regular",
+    }))
+    .expect("parse yfinance lookback request");
+    let error = validate_sync_provider_capabilities("yfinance", &beyond_lookback)
+        .expect_err("yfinance 1m history beyond seven days must be rejected");
+    assert!(matches!(error, BacktestsWritePortError::BadRequest(message) if message.contains("limits 1m history to 7 days")));
+
+    let supported = parse_sync_request(&json!({
+        "market": "US",
+        "code": "AAPL",
+        "intervals": ["5m"],
+        "since": "2026-09-24T00:00:00Z",
+        "until": "2026-09-25T00:00:00Z",
+        "rehabType": "forward",
+        "sessionScope": "regular",
+    }))
+    .expect("parse supported yfinance request");
+    validate_sync_provider_capabilities("yfinance", &supported)
+        .expect("yfinance forward 5m request is supported");
+}
+
+#[test]
+// Parity: go:452dea11:internal/app/apiserver/backtestapp/historical_source_test.go:206 TestKLineSyncPreflightRejectsStaticCapabilityMismatchAndUnknownProvider
+fn production_sync_rejects_provider_capability_before_queuing() {
+    let (mut port, _directory) = production_port();
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind helper probe");
+    let address = listener.local_addr().expect("helper probe address");
+    drop(listener);
+    port.helper = Some(
+        jftrade_integration_marketdata_helper::HelperClient::new(
+            jftrade_integration_marketdata_helper::HelperClientConfig {
+                base_url: format!("http://{address}"),
+                bearer_token: None,
+                request_timeout: std::time::Duration::from_secs(1),
+                max_attempts: 1,
+                retry_delay: std::time::Duration::ZERO,
+            },
+        )
+        .expect("helper client"),
+    );
+    let error = port
+        .mutate(&BacktestsWriteInput::Sync {
+            payload: json!({
+                "market": "US",
+                "code": "AAPL",
+                "intervals": ["1d"],
+                "since": "2026-09-24T00:00:00Z",
+                "until": "2026-09-25T00:00:00Z",
+                "rehabType": "backward",
+                "marketDataProvider": "yfinance",
+            }),
+        })
+        .expect_err("unsupported yfinance adjustment must fail before queueing");
+    assert!(matches!(error, BacktestsWritePortError::BadRequest(message) if message.contains("backward price adjustment")));
+    assert!(port.sync_tasks.list_active().expect("active sync tasks").is_empty());
+
+    let error = port
+        .mutate(&BacktestsWriteInput::Sync {
+            payload: json!({"marketDataProvider": "unknown"}),
+        })
+        .expect_err("unknown provider must fail before queueing");
+    assert!(matches!(error, BacktestsWritePortError::BadRequest(message) if message.contains("unsupported marketDataProvider")));
+    assert!(port.sync_tasks.list_active().expect("active sync tasks").is_empty());
 }
 
 fn production_port() -> (ProductionBacktestPort, tempfile::TempDir) {

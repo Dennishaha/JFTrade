@@ -21,7 +21,7 @@ use super::ProductionBacktestPort;
 use crate::product::product_production_ports::SharedTradeReadRuntime;
 use super::product_backtest_sync_request::{
     SyncRequest, format_timestamp, parse_sync_request, parse_timestamp,
-    validate_sync_lookback_window,
+    validate_sync_provider_capabilities,
 };
 use super::requested_provider;
 use crate::product::product_backtests_write_port::{
@@ -104,8 +104,8 @@ impl ProductionBacktestPort {
             }
             _ => {}
         }
-        // Window checks follow the resolved provider so unavailable runtimes keep 503.
-        validate_sync_lookback_window(provider_id, &request)?;
+        // Capability checks follow runtime availability so unavailable providers keep 503.
+        validate_sync_provider_capabilities(provider_id, &request)?;
         let now = time::OffsetDateTime::now_utc();
         let timestamp = now
             .format(&time::format_description::well_known::Rfc3339)
@@ -317,6 +317,7 @@ async fn sync_request_pages(
             };
             let query = [
                 ("period", interval.as_str()),
+                ("adjustment", request.rehab_type.as_str()),
                 ("limit", "1000"),
                 ("before", before_text.as_str()),
                 ("sessions", sessions),

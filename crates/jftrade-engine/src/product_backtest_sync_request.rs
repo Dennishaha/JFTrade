@@ -149,17 +149,56 @@ fn is_us_intraday_interval(interval: &str) -> bool {
     matches!(interval, "tick" | "1m" | "5m" | "15m" | "30m" | "1h")
 }
 
-/// Go's provider capability guard: the AKShare descriptor declares
-/// `HistoricalLookbackDays` for intraday candles (`1m` on every market and
-/// `5m/15m/30m/1h` on US), so a sync that reaches further back must be rejected
-/// before any provider work instead of failing halfway through the window.
+/// Validate the resolved provider's static historical-candle contract before
+/// creating a durable sync task. Go performs the same checks in
+/// `providerHistoricalSource.ValidateHistoricalCandleQuery`.
+pub(super) fn validate_sync_provider_capabilities(
+    provider_id: &str,
+    request: &SyncRequest,
+) -> Result<(), BacktestsWritePortError> {
+    let capabilities = provider_capabilities(provider_id).ok_or_else(|| {
+        BacktestsWritePortError::BadRequest(format!(
+            "unsupported market-data provider {provider_id:?}"
+        ))
+    })?;
+    for interval in &request.intervals {
+        if !capabilities
+            .candle_intervals
+            .iter()
+            .any(|supported| supported == interval)
+        {
+            return Err(BacktestsWritePortError::BadRequest(format!(
+                "provider {provider_id} does not support interval {interval}"
+            )));
+        }
+    }
+    if !capabilities
+        .price_adjustments
+        .iter()
+        .any(|supported| supported == &request.rehab_type)
+    {
+        return Err(BacktestsWritePortError::BadRequest(format!(
+            "provider {provider_id} does not support {} price adjustment",
+            request.rehab_type
+        )));
+    }
+    if request.session_scope == "extended" && !capabilities.extended_hours {
+        return Err(BacktestsWritePortError::BadRequest(format!(
+            "provider {provider_id} does not support extended sessions"
+        )));
+    }
+    validate_sync_lookback_window(provider_id, request)
+}
+
+/// Go's provider capability guard rejects a sync that reaches further back
+/// than the resolved provider's interval and market-specific window.
 pub(super) fn validate_sync_lookback_window(
     provider_id: &str,
     request: &SyncRequest,
 ) -> Result<(), BacktestsWritePortError> {
-    if provider_id != "akshare" {
+    let Some(capabilities) = provider_capabilities(provider_id) else {
         return Ok(());
-    }
+    };
     let market = request.market.trim().to_ascii_uppercase();
     let since = time::OffsetDateTime::parse(
         &request.since,
@@ -167,7 +206,13 @@ pub(super) fn validate_sync_lookback_window(
     )
     .map_err(|error| BacktestsWritePortError::BadRequest(format!("invalid since: {error}")))?;
     for interval in &request.intervals {
-        let days = ak_share_lookback_days(&market, interval);
+        let market_key = format!("{market}:{interval}");
+        let days = capabilities
+            .historical_lookback_days
+            .get(&market_key)
+            .or_else(|| capabilities.historical_lookback_days.get(interval))
+            .copied()
+            .unwrap_or(0);
         if days == 0 {
             continue;
         }
@@ -181,11 +226,14 @@ pub(super) fn validate_sync_lookback_window(
     Ok(())
 }
 
-fn ak_share_lookback_days(market: &str, interval: &str) -> u32 {
-    match (market, interval) {
-        ("US", "5m" | "15m" | "30m" | "1h") => 5,
-        (_, "1m") => 5,
-        _ => 0,
+fn provider_capabilities(
+    provider_id: &str,
+) -> Option<jftrade_marketdata::ProviderCapabilities> {
+    match provider_id {
+        "futu" => Some(jftrade_integration_futu::provider_descriptor().capabilities),
+        "yfinance" => Some(jftrade_integration_marketdata_helper::yfinance_descriptor().capabilities),
+        "akshare" => Some(jftrade_integration_marketdata_helper::akshare_descriptor().capabilities),
+        _ => None,
     }
 }
 
