@@ -288140,22 +288140,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
           "--locked",
           "-E",
-          "test(helper_market_data_providers_project_futu_broker_and_portfolio_routes)"
+          "test(helper_market_data_providers_project_futu_broker_and_portfolio_routes) or test(pre_trade_risk_hard_stop_scope_matrix_matches_market_symbol_account_and_broker) or test(hard_stop_environment_scope_trims_case_and_supports_wildcards) or test(preserves_broker_error_display_and_snapshot_fallback_rules) or test(position_projection_prefers_diluted_cost_and_account_pnl_with_legacy_fallback) or test(stored_status_and_terminal_classification_match_go_contract) or test(capabilities_filters_by_broker_market_and_feature_id) or test(provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update) or test(snapshot_rate_limits_preserve_retry_delay_and_context) or test(snapshot_availability_kinds_control_fallback_eligibility) or test(ui_surface_ids_and_operation_overrides_follow_the_catalog_route_table) or test(normalization_and_field_errors_match_the_go_owner_corpus)"
         ],
         "testFilter": [
           "helper_market_data_providers_project_futu_broker_and_portfolio_routes"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "90b11cf9fdf93c9459dd63b2a771cda895f9795f",
+        "verifiedAt": "2026-09-25T14:30:22Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -288387,12 +288385,10 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-trading",
           "--all-targets",
           "--locked",
           "-E",
-          "test(pre_trade_risk_hard_stop_scope_matrix_matches_market_symbol_account_and_broker) or test(hard_stop_environment_scope_trims_case_and_supports_wildcards)"
+          "test(helper_market_data_providers_project_futu_broker_and_portfolio_routes) or test(pre_trade_risk_hard_stop_scope_matrix_matches_market_symbol_account_and_broker) or test(hard_stop_environment_scope_trims_case_and_supports_wildcards) or test(preserves_broker_error_display_and_snapshot_fallback_rules) or test(position_projection_prefers_diluted_cost_and_account_pnl_with_legacy_fallback) or test(stored_status_and_terminal_classification_match_go_contract) or test(capabilities_filters_by_broker_market_and_feature_id) or test(provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update) or test(snapshot_rate_limits_preserve_retry_delay_and_context) or test(snapshot_availability_kinds_control_fallback_eligibility) or test(ui_surface_ids_and_operation_overrides_follow_the_catalog_route_table) or test(normalization_and_field_errors_match_the_go_owner_corpus)"
         ],
         "testFilter": [
           "pre_trade_risk_hard_stop_scope_matrix_matches_market_symbol_account_and_broker",
@@ -288400,10 +288396,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "90b11cf9fdf93c9459dd63b2a771cda895f9795f",
+        "verifiedAt": "2026-09-25T14:30:22Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -288609,12 +288605,10 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
           "--locked",
           "-E",
-          "test(position_projection_prefers_diluted_cost_and_account_pnl_with_legacy_fallback)"
+          "test(helper_market_data_providers_project_futu_broker_and_portfolio_routes) or test(pre_trade_risk_hard_stop_scope_matrix_matches_market_symbol_account_and_broker) or test(hard_stop_environment_scope_trims_case_and_supports_wildcards) or test(preserves_broker_error_display_and_snapshot_fallback_rules) or test(position_projection_prefers_diluted_cost_and_account_pnl_with_legacy_fallback) or test(stored_status_and_terminal_classification_match_go_contract) or test(capabilities_filters_by_broker_market_and_feature_id) or test(provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update) or test(snapshot_rate_limits_preserve_retry_delay_and_context) or test(snapshot_availability_kinds_control_fallback_eligibility) or test(ui_surface_ids_and_operation_overrides_follow_the_catalog_route_table) or test(normalization_and_field_errors_match_the_go_owner_corpus)"
         ],
         "testFilter": [
           "preserves_broker_error_display_and_snapshot_fallback_rules",
@@ -288623,10 +288617,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "90b11cf9fdf93c9459dd63b2a771cda895f9795f",
+        "verifiedAt": "2026-09-25T14:30:22Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -289738,22 +289732,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
           "--locked",
           "-E",
-          "test(capabilities_filters_by_broker_market_and_feature_id)"
+          "test(helper_market_data_providers_project_futu_broker_and_portfolio_routes) or test(pre_trade_risk_hard_stop_scope_matrix_matches_market_symbol_account_and_broker) or test(hard_stop_environment_scope_trims_case_and_supports_wildcards) or test(preserves_broker_error_display_and_snapshot_fallback_rules) or test(position_projection_prefers_diluted_cost_and_account_pnl_with_legacy_fallback) or test(stored_status_and_terminal_classification_match_go_contract) or test(capabilities_filters_by_broker_market_and_feature_id) or test(provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update) or test(snapshot_rate_limits_preserve_retry_delay_and_context) or test(snapshot_availability_kinds_control_fallback_eligibility) or test(ui_surface_ids_and_operation_overrides_follow_the_catalog_route_table) or test(normalization_and_field_errors_match_the_go_owner_corpus)"
         ],
         "testFilter": [
           "capabilities_filters_by_broker_market_and_feature_id"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "90b11cf9fdf93c9459dd63b2a771cda895f9795f",
+        "verifiedAt": "2026-09-25T14:30:22Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -289937,22 +289929,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-marketdata",
           "--all-targets",
           "--locked",
           "-E",
-          "test(provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update)"
+          "test(helper_market_data_providers_project_futu_broker_and_portfolio_routes) or test(pre_trade_risk_hard_stop_scope_matrix_matches_market_symbol_account_and_broker) or test(hard_stop_environment_scope_trims_case_and_supports_wildcards) or test(preserves_broker_error_display_and_snapshot_fallback_rules) or test(position_projection_prefers_diluted_cost_and_account_pnl_with_legacy_fallback) or test(stored_status_and_terminal_classification_match_go_contract) or test(capabilities_filters_by_broker_market_and_feature_id) or test(provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update) or test(snapshot_rate_limits_preserve_retry_delay_and_context) or test(snapshot_availability_kinds_control_fallback_eligibility) or test(ui_surface_ids_and_operation_overrides_follow_the_catalog_route_table) or test(normalization_and_field_errors_match_the_go_owner_corpus)"
         ],
         "testFilter": [
           "provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "90b11cf9fdf93c9459dd63b2a771cda895f9795f",
+        "verifiedAt": "2026-09-25T14:30:22Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -290213,22 +290203,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-broker",
           "--all-targets",
           "--locked",
           "-E",
-          "test(snapshot_rate_limits_preserve_retry_delay_and_context)"
+          "test(helper_market_data_providers_project_futu_broker_and_portfolio_routes) or test(pre_trade_risk_hard_stop_scope_matrix_matches_market_symbol_account_and_broker) or test(hard_stop_environment_scope_trims_case_and_supports_wildcards) or test(preserves_broker_error_display_and_snapshot_fallback_rules) or test(position_projection_prefers_diluted_cost_and_account_pnl_with_legacy_fallback) or test(stored_status_and_terminal_classification_match_go_contract) or test(capabilities_filters_by_broker_market_and_feature_id) or test(provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update) or test(snapshot_rate_limits_preserve_retry_delay_and_context) or test(snapshot_availability_kinds_control_fallback_eligibility) or test(ui_surface_ids_and_operation_overrides_follow_the_catalog_route_table) or test(normalization_and_field_errors_match_the_go_owner_corpus)"
         ],
         "testFilter": [
           "snapshot_rate_limits_preserve_retry_delay_and_context"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "90b11cf9fdf93c9459dd63b2a771cda895f9795f",
+        "verifiedAt": "2026-09-25T14:30:22Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -290282,22 +290270,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-broker",
           "--all-targets",
           "--locked",
           "-E",
-          "test(snapshot_availability_kinds_control_fallback_eligibility)"
+          "test(helper_market_data_providers_project_futu_broker_and_portfolio_routes) or test(pre_trade_risk_hard_stop_scope_matrix_matches_market_symbol_account_and_broker) or test(hard_stop_environment_scope_trims_case_and_supports_wildcards) or test(preserves_broker_error_display_and_snapshot_fallback_rules) or test(position_projection_prefers_diluted_cost_and_account_pnl_with_legacy_fallback) or test(stored_status_and_terminal_classification_match_go_contract) or test(capabilities_filters_by_broker_market_and_feature_id) or test(provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update) or test(snapshot_rate_limits_preserve_retry_delay_and_context) or test(snapshot_availability_kinds_control_fallback_eligibility) or test(ui_surface_ids_and_operation_overrides_follow_the_catalog_route_table) or test(normalization_and_field_errors_match_the_go_owner_corpus)"
         ],
         "testFilter": [
           "snapshot_availability_kinds_control_fallback_eligibility"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "90b11cf9fdf93c9459dd63b2a771cda895f9795f",
+        "verifiedAt": "2026-09-25T14:30:22Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -290418,22 +290404,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
           "--locked",
           "-E",
-          "test(ui_surface_ids_and_operation_overrides_follow_the_catalog_route_table)"
+          "test(helper_market_data_providers_project_futu_broker_and_portfolio_routes) or test(pre_trade_risk_hard_stop_scope_matrix_matches_market_symbol_account_and_broker) or test(hard_stop_environment_scope_trims_case_and_supports_wildcards) or test(preserves_broker_error_display_and_snapshot_fallback_rules) or test(position_projection_prefers_diluted_cost_and_account_pnl_with_legacy_fallback) or test(stored_status_and_terminal_classification_match_go_contract) or test(capabilities_filters_by_broker_market_and_feature_id) or test(provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update) or test(snapshot_rate_limits_preserve_retry_delay_and_context) or test(snapshot_availability_kinds_control_fallback_eligibility) or test(ui_surface_ids_and_operation_overrides_follow_the_catalog_route_table) or test(normalization_and_field_errors_match_the_go_owner_corpus)"
         ],
         "testFilter": [
           "ui_surface_ids_and_operation_overrides_follow_the_catalog_route_table"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "90b11cf9fdf93c9459dd63b2a771cda895f9795f",
+        "verifiedAt": "2026-09-25T14:30:22Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -290679,22 +290663,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-research",
           "--all-targets",
           "--locked",
           "-E",
-          "test(normalization_and_field_errors_match_the_go_owner_corpus)"
+          "test(helper_market_data_providers_project_futu_broker_and_portfolio_routes) or test(pre_trade_risk_hard_stop_scope_matrix_matches_market_symbol_account_and_broker) or test(hard_stop_environment_scope_trims_case_and_supports_wildcards) or test(preserves_broker_error_display_and_snapshot_fallback_rules) or test(position_projection_prefers_diluted_cost_and_account_pnl_with_legacy_fallback) or test(stored_status_and_terminal_classification_match_go_contract) or test(capabilities_filters_by_broker_market_and_feature_id) or test(provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update) or test(snapshot_rate_limits_preserve_retry_delay_and_context) or test(snapshot_availability_kinds_control_fallback_eligibility) or test(ui_surface_ids_and_operation_overrides_follow_the_catalog_route_table) or test(normalization_and_field_errors_match_the_go_owner_corpus)"
         ],
         "testFilter": [
           "normalization_and_field_errors_match_the_go_owner_corpus"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "90b11cf9fdf93c9459dd63b2a771cda895f9795f",
+        "verifiedAt": "2026-09-25T14:30:22Z",
         "receiptDigest": null
       },
       "risk": "high",
