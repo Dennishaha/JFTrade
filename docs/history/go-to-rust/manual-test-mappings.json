@@ -7,7 +7,7 @@
     "treeSha": "0ee26444be21c15d9760f358a34649f78402f0fb"
   },
   "generatorVersion": "v2_writer.py@slice24",
-  "generatedAt": "2026-09-25T02:31:11Z",
+  "generatedAt": "2026-09-25T05:11:18Z",
   "mappings": {
     "cmd/jftrade-api/main_test.go:13:TestValidateArgsAllowsNoArgs": {
       "status": "[~]",
@@ -3011,7 +3011,7 @@
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": "2026-09-25T03:30:00Z",
+        "verifiedAt": "2026-09-25T05:11:18Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -3399,9 +3399,9 @@
     },
     "internal/api/assistant/chat_helpers_test.go:260:TestAssistantRequestHelpersCoverInvalidAndBoundaryInputs": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_agent_write_reports_the_go_validation_messages（校验错误分类）；crates/jftrade-api/src/auth.rs::request_bearer_token（Bearer 解析，当前无断言）",
-      "conclusion": "partial：参考的 isADKAgentValidationError 白名单（provider not found、provider is disabled、provider API key is not configured、内置 agent 保护、unknown ADK tool、unknown ADK skill 均为 400，非校验错误不得归类）由 adk_agent_write_reports_the_go_validation_messages 逐条断言。缺口：参考的 bearerToken 边界表（空串、Basic token、小写 bearer、仅前缀加空白）在 Rust 无表驱动断言，且 crates/jftrade-api/src/auth.rs 的 request_bearer_token 只接受精确的 Bearer 前缀（区分大小写），与参考的大小写不敏感不一致。修复位置：crates/jftrade-api/src/auth.rs::request_bearer_token。回归要求：补表驱动用例覆盖上述边界，并先决定是否接受大小写变体。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --all-targets --locked -E 'test(bearer) or test(authorization)'",
+      "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_agent_write_reports_the_go_validation_messages（校验错误分类）；crates/jftrade-api/src/auth.rs::tests::request_bearer_token_accepts_case_insensitive_scheme_and_trims_token（Bearer 解析）",
+      "conclusion": "partial：isADKAgentValidationError 白名单（provider not found、provider is disabled、provider API key is not configured、内置 agent 保护、unknown ADK tool、unknown ADK skill）及非校验错误不误分类由 adk_agent_write_reports_the_go_validation_messages 逐条断言。已按 Go bearerToken 边界补表驱动 Rust 回归：空串与 Basic token 被拒绝，小写 bearer 被接受并裁剪 token，仅前缀加空白返回空值；红测先复现 request_bearer_token 对大小写 scheme 的缺口，随后在 crates/jftrade-api/src/auth.rs 修复为大小写不敏感 scheme。仍保持 partial：Go 返回空字符串而 Rust 返回 Option<&str>，且 Assistant helper 与 API auth / engine 校验分属不同 owner。",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -p jftrade-engine --all-targets --locked -E 'test(request_bearer_token_accepts_case_insensitive_scheme_and_trims_token) or test(adk_agent_write_reports_the_go_validation_messages)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/api/assistant/chat_helpers_test.go",
@@ -3418,17 +3418,28 @@
         },
         {
           "file": "crates/jftrade-api/src/auth.rs",
-          "test": "request_bearer_token",
+          "test": "request_bearer_token_accepts_case_insensitive_scheme_and_trims_token",
           "crate": "jftrade-api",
-          "anchor": null
+          "anchor": {
+            "goFile": "internal/api/assistant/chat_helpers_test.go",
+            "goLine": 260,
+            "rustFile": "crates/jftrade-api/src/auth.rs",
+            "rustLine": 308
+          }
         }
       ],
       "assertionCoverage": {
-        "covered": [],
-        "uncovered": [
-          "partial：参考的 isADKAgentValidationError 白名单（provider not found、provider is disabled、provider API key is not configured、内置 agent 保护、unknown ADK tool、unknown ADK skill 均为 400，非校验错误不得归类）由 adk_agent_write_reports_the_go_validation_messages 逐条断言。缺口：参考的 bearerToken 边界表（空串、Basic token、小写 bearer、仅前缀加空白）在 Rust 无表驱动断言，且 crates/jftrade-api/src/auth.rs 的 request_bearer_token 只接受精确的 Bearer 前缀（区分大小写），与参考的大小写不敏感不一致。修复位置：crates/jftrade-api/src/auth.rs::request_bearer_token。回归要求：补表驱动用例覆盖上述边界，并先决定是否接受大小写变体。"
+        "covered": [
+          "isADKAgentValidationError 白名单及非校验错误不误分类",
+          "bearerToken 拒绝空串与 Basic token",
+          "bearerToken 接受大小写不敏感的 Bearer scheme 并裁剪 token",
+          "Bearer 仅前缀加空白时返回空值"
         ],
-        "source": "legacy-conclusion"
+        "uncovered": [
+          "Go helper 返回空字符串，Rust auth helper 返回 Option<&str>，表示层不同",
+          "Go 的 Assistant helper 与 Rust API auth / engine 两个 owner 分离，无法声明单函数 exact 映射"
+        ],
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -3437,34 +3448,40 @@
           "run",
           "-p",
           "jftrade-api",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "-E",
-          "test(bearer) or test(authorization)"
+          "test(request_bearer_token_accepts_case_insensitive_scheme_and_trims_token) or test(adk_agent_write_reports_the_go_validation_messages)"
         ],
         "testFilter": [
           "adk_agent_write_reports_the_go_validation_messages",
-          "request_bearer_token"
+          "request_bearer_token_accepts_case_insensitive_scheme_and_trims_token"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
+        "status": "passed",
+        "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": null,
+        "verifiedAt": "2026-09-25T05:11:18Z",
         "receiptDigest": null
       },
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "retain_partial_and_continue_with_next_P1_helper_boundary",
+      "blockedBy": [],
       "waiverExpiresAt": null,
-      "coveredAssertions": [],
+      "coveredAssertions": [
+        "isADKAgentValidationError 白名单及非校验错误不误分类",
+        "bearerToken 拒绝空串与 Basic token",
+        "bearerToken 接受大小写不敏感的 Bearer scheme 并裁剪 token",
+        "Bearer 仅前缀加空白时返回空值"
+      ],
       "uncoveredAssertions": [
-        "partial：参考的 isADKAgentValidationError 白名单（provider not found、provider is disabled、provider API key is not configured、内置 agent 保护、unknown ADK tool、unknown ADK skill 均为 400，非校验错误不得归类）由 adk_agent_write_reports_the_go_validation_messages 逐条断言。缺口：参考的 bearerToken 边界表（空串、Basic token、小写 bearer、仅前缀加空白）在 Rust 无表驱动断言，且 crates/jftrade-api/src/auth.rs 的 request_bearer_token 只接受精确的 Bearer 前缀（区分大小写），与参考的大小写不敏感不一致。修复位置：crates/jftrade-api/src/auth.rs::request_bearer_token。回归要求：补表驱动用例覆盖上述边界，并先决定是否接受大小写变体。"
+        "Go helper 返回空字符串，Rust auth helper 返回 Option<&str>，表示层不同",
+        "Go 的 Assistant helper 与 Rust API auth / engine 两个 owner 分离，无法声明单函数 exact 映射"
       ],
       "boundaryReason": null
     },
@@ -290121,14 +290138,6 @@
       "allowed": false,
       "reviewStatus": "unreviewed"
     },
-    "crates/jftrade-api/src/auth.rs::request_bearer_token": {
-      "referenceCount": 1,
-      "referenceKeys": [
-        "internal/api/assistant/chat_helpers_test.go:260:TestAssistantRequestHelpersCoverInvalidAndBoundaryInputs"
-      ],
-      "allowed": true,
-      "reviewStatus": "single"
-    },
     "crates/jftrade-api/src/auth.rs::request_origin_uses_production_semantics_without_malformed_origin_fallback": {
       "referenceCount": 3,
       "referenceKeys": [
@@ -311427,6 +311436,14 @@
       "referenceCount": 1,
       "referenceKeys": [
         "internal/api/system/routes_test.go:316:TestRealTradeControlRoutesMapValidationAndControlFailures"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-api/src/auth.rs::request_bearer_token_accepts_case_insensitive_scheme_and_trims_token": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/api/assistant/chat_helpers_test.go:260:TestAssistantRequestHelpersCoverInvalidAndBoundaryInputs"
       ],
       "allowed": true,
       "reviewStatus": "single"

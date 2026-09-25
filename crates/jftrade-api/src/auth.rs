@@ -265,9 +265,15 @@ fn request_bearer_token(headers: &HeaderMap) -> Option<&str> {
     headers
         .get("authorization")
         .and_then(|value| value.to_str().ok())
-        .and_then(|value| value.trim().strip_prefix("Bearer "))
-        .filter(|value| !value.trim().is_empty())
-        .map(str::trim)
+        .and_then(|value| {
+            let value = value.trim();
+            let prefix_length = "Bearer ".len();
+            let prefix = value.get(..prefix_length)?;
+            prefix
+                .eq_ignore_ascii_case("Bearer ")
+                .then(|| value[prefix_length..].trim())
+        })
+        .filter(|value| !value.is_empty())
 }
 
 fn cookie_value<'a>(headers: &'a HeaderMap, name: &str) -> Option<&'a str> {
@@ -298,6 +304,27 @@ fn constant_time_equal(left: &str, right: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // Parity: go:452dea11:internal/api/assistant/chat_helpers_test.go:260 TestAssistantRequestHelpersCoverInvalidAndBoundaryInputs
+    #[test]
+    fn request_bearer_token_accepts_case_insensitive_scheme_and_trims_token() {
+        let cases = [
+            ("", None),
+            ("Basic token", None),
+            ("bearer secret", Some("secret")),
+            ("  Bearer   ", None),
+        ];
+        for (header, expected) in cases {
+            let mut headers = HeaderMap::new();
+            if !header.is_empty() {
+                headers.insert(
+                    "authorization",
+                    header.parse().expect("authorization header value"),
+                );
+            }
+            assert_eq!(request_bearer_token(&headers), expected, "{header:?}");
+        }
+    }
 
     // Parity: go:452dea11:internal/app/apiserver/server_test.go:280 TestStartDesktopAllowsWailsDevOrigin
     // Parity: go:452dea11:internal/app/apiserver/server_test.go:310 TestDesktopTrustedOriginsDeriveDevelopmentPort

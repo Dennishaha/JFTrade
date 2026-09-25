@@ -7,12 +7,12 @@
 | 项目 | 数值 | 解释 |
 | --- | ---: | --- |
 | Go 测试候选 | 4451 | 冻结基线 `go:452dea11` |
-| Rust 测试 | 3327 | 数量不代表行为等价 |
+| Rust 测试 | 3328 | 数量不代表行为等价 |
 | `function_exact` | 1473 | 有真实且唯一的 Rust 测试证据 |
 | `partial` | 2343 | 只覆盖部分断言，不能视为完成 |
 | `boundary` | 636 | 当前架构边界或没有同形对象 |
 | 重复映射 | 0 | 审计脚本结果 |
-| Parity 锚点 | 1754 / 1708 / 0 / 0 / 46 | unique / recorded / unrecorded / stale / unknown |
+| Parity 锚点 | 1756 / 1710 / 0 / 0 / 46 | unique / recorded / unrecorded / stale / unknown |
 
 ## 已完成的工作
 
@@ -46,6 +46,11 @@
 - 本批专用错误映射回归 2/2、系统读 envelope 证据 4/4 通过；完整 `check:rust` workspace nextest 3453 项完成且 compatibility replays 全通过。`check:quick` 在既有 `product_api_launcher_lifecycle::api_launcher_serves_on_the_configured_address_and_stops_on_termination_signal` 处失败，随后单测重跑仍复现 `status.code() = None`（非本批 system-write/system-read 变更）；保留失败证据，不记为 quick 通过。映射审计 0 重复 exact、0 nonexistent crate、0 unrecorded/stale anchor，锚点 1754/1708/0/0/46。
 - `internal/api/system/status_mapper_test.go:11:TestSystemStatusTransportMapperPreservesDomainJSON` 已逐项读取 Go mapper 与 Rust system status owner；保持 `partial`。Rust 锚定稳定字段和成功 envelope 回归；复核确认 Go 测试只把同一个 typed `Status` 分别编码后比较，未构造未知顶层字段，Rust 没有可拆出的第二层 mapper，未发现真实功能差异。
 - 本批状态 mapper 定向回归 2/2、`check:quick` 受影响 Rust/desktop 1969/1969 与完整 `check:rust` workspace 3453 项均通过；7 个 compatibility replays 与 Pine worker 98/98 全部通过。映射审计 0 重复 exact、0 nonexistent crate、0 unrecorded/stale anchor，锚点 1755/1709/0/0/46。
+- `internal/api/assistant/chat_helpers_test.go:13:TestTimelineStreamStateTracksSessionRunAndToolTiming` 已逐项读取 Go 的内存 timeline/hub 状态断言；保持 `boundary`。Rust 没有同形 `adkTimelineStreamState`，本批以 durable stream 重放和 production session→run→final 顺序验证外部事件契约，精准 nextest 2/2 通过。
+- `internal/api/assistant/chat_helpers_test.go:260:TestAssistantRequestHelpersCoverInvalidAndBoundaryInputs` 已逐项读取 Go 的 ADK validation 白名单与 bearerToken 边界。先写 Rust 表驱动回归并复现小写 `bearer` 返回空值的红测，再由 `crates/jftrade-api/src/auth.rs::request_bearer_token` 修复为大小写不敏感 scheme；修复后 API auth 与 ADK validation 精准 nextest 2/2 通过。映射保持 `partial`，记录 Go 空字符串与 Rust `Option<&str>` 及跨 owner 差异。
+- 本批映射审计更新为 Go 4451、Rust 3328；`function_exact` 1473、`partial` 2343、`boundary` 636，重复 exact 0。Parity 锚点为 1756/1710/0/0/46；报告与 inventory 已重生成。
+- 本批 `check:quick` 首次被已有 target 健康门禁拦截（`target/debug/deps` 中间 `.rcgu.o` 超过 50000）；确认无 Cargo 进程后清理 121048 个、约 32.5 GiB Rust 产物，重跑受影响 lane 2056/2056 通过，format、clippy、API transport compatibility 与 desktop checks 全部通过。
+- 本批完整 `check:rust` workspace nextest 3454/3454 通过（2 skipped）；storage、backtest、provider runtime、trading/strategy、assistant runtime、API transport、desktop runtime 七个 compatibility replay 全部通过。审计与锚点复核保持 0 重复 exact、0 nonexistent crate、0 unrecorded/stale anchor。
 - resolver limit 差异已在 `crates/jftrade-engine/src/product_production_ports_market_data_catalog_futu.rs` 修复：避免 provider 在 CN/SH/SZ 过滤前按公开 limit 截断候选；TTL/singleflight 仍保留为架构边界，不宣称等价。
 - 近期真正修改过 Rust 生产代码的批次包括：交易默认市场注入、下单前名义金额回退、市日边界、策略运行时及若干行情/路由边界；这些改动均配有回归测试或兼容性证据。
 - 最近的 strategy/API 批次主要是证据审查和文档落账，没有新增 Rust 生产代码，必须与“功能已完成”分开看待。
@@ -59,7 +64,7 @@
 
 ## 调度收敛规则
 
-- 当前只保留一个持续队列上下文；本批完成后下一片按 P1 处理 `internal/api/assistant/chat_helpers_test.go:13:TestTimelineStreamStateTracksSessionRunAndToolTiming`，继续核对 Assistant stream timeline 状态 owner 与工具计时断言。
+- 当前只保留一个持续队列上下文；本批完成后下一片按 P1 处理 `internal/api/assistant/chat_helpers_test.go:59:TestTimelineStreamStateEmptyAndCloneBoundaries`，继续核对 Assistant timeline clone、空 delta 与缺省 run ID 边界。
 - 不创建子任务、不创建第二个 heartbeat、不重复复核已经完成的切片。
 - 每批先读 Go 实现和 Rust owner；只有发现真实行为差异才先写失败回归测试并修改生产代码。
 - 仅证据不足时维持 `partial` 或 `boundary`，不得为了提高数字升级为 `function_exact`。
@@ -77,6 +82,7 @@
 - 当前批次：system real-trade control 写路由补真实产品状态读回序列，保持 partial，记录 Gin callback 与固定 hard-stop ID 差异。
 - 当前批次：system control 错误映射与 16 路由 envelope 逐项核对；新增错误码回归，系统读族保持 partial，记录 Gin 必填键表与 Rust 分散 owner 差异。
 - 当前批次：system status mapper typed JSON 投影逐项核对，补稳定字段/成功 envelope 锚点，保持 partial 并记录未知字段断言缺口。
+- 当前批次：Assistant chat helper timeline boundary 与 bearerToken 边界逐项核对；新增大小写不敏感 Bearer 回归并修复 API auth 生产 owner，保持 boundary/partial。
 - `00f89290`：marketdata façade 剩余 34 条逐项复核，补 helper provider polling mode owner 回归测试并修复状态投影。
 - `47bf7b1a`：注入配置的默认交易市场并补交易读取测试。
 - `917d1534`：API transport P1 partial 第 1–30 条核对。
