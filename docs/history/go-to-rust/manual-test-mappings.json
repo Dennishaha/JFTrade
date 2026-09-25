@@ -35052,7 +35052,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-integration-marketdata-helper/src/process.rs::managed_process_is_reused_until_an_explicit_stop_releases_it; crates/jftrade-engine/src/product_active_provider_state.rs::tests::helper_provider_switch_preserves_observed_opend_trade_readiness",
       "conclusion": "function_exact：Go 断言 yfinance→akshare→yfinance 复用同一个 sidecar（每次激活 ensure 一次、不 stop），切到 futu 时才停止。Rust 的 managed_process_is_reused_until_an_explicit_stop_releases_it 断言托管进程在显式停止前复用，helper_provider_switch_preserves_observed_opend_trade_readiness 断言 helper provider 切换不清理既有 OpenD 就绪态，对应 “Python provider 之间共享 sidecar”。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper -p jftrade-engine --all-targets --locked",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper -p jftrade-engine --all-targets --locked -E 'test(managed_process_is_reused_until_an_explicit_stop_releases_it) or test(helper_provider_switch_preserves_observed_opend_trade_readiness)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/app/apiserver/marketdataapp/runtime_akshare_test.go",
@@ -35096,7 +35096,9 @@
           "-p",
           "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(managed_process_is_reused_until_an_explicit_stop_releases_it) or test(helper_provider_switch_preserves_observed_opend_trade_readiness)"
         ],
         "testFilter": [
           "managed_process_is_reused_until_an_explicit_stop_releases_it",
@@ -35128,7 +35130,7 @@
       "status": "[~]",
       "rust_entry": "crates/jftrade-marketdata/tests/provider_activation_recovery.rs::provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update",
       "conclusion": "部分覆盖：Go 断言 AKShare 健康失败时切换报错且保持 yfinance。Rust 的 provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update 覆盖失败不改选择、不清旧代际缓存、恢复后可提交；差异是共享 sidecar 存活计数 ensure=2/stop=0/running 无 Rust 断言（Rust 路由激活本就不触达进程启停，该行为仅由架构空成立，无测试覆盖）。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --all-targets --locked",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --all-targets --locked -E 'test(provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/marketdataapp/runtime_akshare_test.go",
@@ -35164,7 +35166,9 @@
           "-p",
           "jftrade-marketdata",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update)"
         ],
         "testFilter": [
           "provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update"
@@ -35195,7 +35199,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-integration-marketdata-helper/src/process.rs::a_failed_launch_never_leaves_a_child_or_a_stale_endpoint",
       "conclusion": "function_exact：Go 断言初始 AKShare 激活失败会停止新启动的 sidecar（不留残留进程）。Rust 的 a_failed_launch_never_leaves_a_child_or_a_stale_endpoint 断言启动失败不会留下子进程或陈旧端点，逐条对应 “首次激活失败必须回收新 sidecar”。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper --all-targets --locked",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper --all-targets --locked -E 'test(a_failed_launch_never_leaves_a_child_or_a_stale_endpoint)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/app/apiserver/marketdataapp/runtime_akshare_test.go",
@@ -35231,7 +35235,9 @@
           "-p",
           "jftrade-integration-marketdata-helper",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(a_failed_launch_never_leaves_a_child_or_a_stale_endpoint)"
         ],
         "testFilter": [
           "a_failed_launch_never_leaves_a_child_or_a_stale_endpoint"
@@ -35262,7 +35268,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-marketdata/src/router.rs::recovery_after_a_failed_health_check_publishes_a_healthy_provider",
       "conclusion": "function_exact：Go 断言被标记不可用的 provider 在健康恢复后仍可重试激活。Rust 的 recovery_after_a_failed_health_check_publishes_a_healthy_provider 断言健康检查失败后再次健康即可发布该 provider，逐条对应 “不可用 provider 可重试”。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --all-targets --locked",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --all-targets --locked -E 'test(recovery_after_a_failed_health_check_publishes_a_healthy_provider)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/app/apiserver/marketdataapp/runtime_akshare_test.go",
@@ -35298,7 +35304,9 @@
           "-p",
           "jftrade-marketdata",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(recovery_after_a_failed_health_check_publishes_a_healthy_provider)"
         ],
         "testFilter": [
           "recovery_after_a_failed_health_check_publishes_a_healthy_provider"
@@ -35329,7 +35337,7 @@
       "status": "[~]",
       "rust_entry": "crates/jftrade-integration-marketdata-helper/src/asset.rs::verifies_and_materializes_content_addressed_asset",
       "conclusion": "partial：Go 断言 sidecar 缓存目录使用通用目录并在旧目录存在时回退兼容。Rust 改为内容寻址资产落地（校验和验证后 materialize），不存在 “通用缓存目录 + legacy 目录回退” 的路径选择逻辑，故记为部分覆盖/接口差异。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper --all-targets --locked",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper --all-targets --locked -E 'test(verifies_and_materializes_content_addressed_asset)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/marketdataapp/runtime_akshare_test.go",
@@ -35360,7 +35368,9 @@
           "-p",
           "jftrade-integration-marketdata-helper",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(verifies_and_materializes_content_addressed_asset)"
         ],
         "testFilter": [
           "verifies_and_materializes_content_addressed_asset"

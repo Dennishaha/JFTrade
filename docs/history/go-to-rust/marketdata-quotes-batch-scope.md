@@ -654,3 +654,20 @@ ADK/Assistant 功能差异，先补失败回归测试再修改领域 owner。
 `node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -p jftrade-integration-futu -p jftrade-integration-marketdata-helper --all-targets --locked -E 'test(explicit_activation_requires_ready_health_but_startup_restore_allows_warming) or test(explicit_activation_fails_closed_and_switch_clears_cache) or test(recovery_after_a_failed_health_check_publishes_a_healthy_provider) or test(failed_warmup_blocks_startup_restore_and_reports_last_error) or test(warming_provider_is_only_publishable_during_startup_restore) or test(unknown_provider_activation_is_rejected_without_touching_the_active_selection) or test(failed_unsubscribe_is_deferred_until_its_retry_window) or test(retries_transient_readiness_and_sends_optional_bearer)'`
 
 下一片：继续 `runtime_akshare_test.go` 与 `runtime_health_test.go` 相邻的 provider activation/recovery 条目。
+
+## 第 141 批：AKShare/YFinance sidecar activation 与缓存边界（2026-09-25）
+
+| 复核 | Go 测试 | Rust 证据 | P | 结论 |
+| :---: | --- | --- | :---: | --- |
+| [x] | `runtime_akshare_test.go:11:TestRuntimeReusesSharedSidecarAcrossPythonProviders` | `managed_process_is_reused_until_an_explicit_stop_releases_it`; `helper_provider_switch_preserves_observed_opend_trade_readiness` | P2 | exact：托管 helper 在显式 stop 前复用，Python provider 切换不清理既有 OpenD readiness；旧 runtime 的 ensure 次数由 sidecar owner 负责。 |
+| [x] | `runtime_akshare_test.go:48:TestRuntimeKeepsSharedSidecarOnCrossPythonActivationFailure` | `provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update` | P2 | partial：Rust 覆盖健康失败不发布、保留上一代并在恢复后提交；没有 Go ensure=2/stop=0/running 的共享 sidecar 计数。 |
+| [x] | `runtime_akshare_test.go:78:TestRuntimeStopsNewSidecarWhenInitialAKShareActivationFails` | `a_failed_launch_never_leaves_a_child_or_a_stale_endpoint` | P2 | exact：初次 helper 启动失败不遗留子进程或 stale endpoint，对应失败激活回收新 sidecar。 |
+| [x] | `runtime_akshare_test.go:97:TestRuntimeRetriesAProviderMarkedUnavailable` | `recovery_after_a_failed_health_check_publishes_a_healthy_provider` | P2 | exact：provider 健康失败后恢复即可再次激活并发布。 |
+| [x] | `runtime_akshare_test.go:126:TestRuntimeUsesGenericCacheDirectoryWithLegacyFallback` | `verifies_and_materializes_content_addressed_asset` | P1 | partial：Rust 覆盖内容寻址资产校验与 materialize；Go 通用缓存目录优先、legacy 目录回退的路径选择没有 Rust 同形逻辑。 |
+
+本批没有发现需要修改 Rust 生产 owner 的真实差异；精准 nextest 6/6 通过。sidecar ensure/stop 计数与 generic/legacy cache path 保留为边界或 partial。
+
+验证：
+`node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper -p jftrade-engine -p jftrade-marketdata --all-targets --locked -E 'test(managed_process_is_reused_until_an_explicit_stop_releases_it) or test(helper_provider_switch_preserves_observed_opend_trade_readiness) or test(provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update) or test(a_failed_launch_never_leaves_a_child_or_a_stale_endpoint) or test(recovery_after_a_failed_health_check_publishes_a_healthy_provider) or test(verifies_and_materializes_content_addressed_asset)'`
+
+下一片：继续 marketdata runtime/provider activation 后续 Go 测试，并优先清理 P1 partial。
