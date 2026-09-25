@@ -16567,8 +16567,8 @@
     },
     "internal/api/settings/routes_market_data_test.go:63:TestBacktestMarketDataSettingsRoutesExposeCatalogAndRollbackPreparationFailure": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_tests.rs::product_server_persists_ui_settings_and_reports_actual_port; crates/jftrade-engine/tests/market_data_production_compatibility.rs::provider_settings_writes_replay_frozen_compatibility_cases",
-      "conclusion": "partial：Go 断言 backtest provider 目录、失败切换后 stored 不变、成功切换后 stored 更新。Rust 断言目录顺序（futu/yfinance/akshare）与 PUT 后 activeProvider=futu；失败回滚的“stored 不变”由冻结语料回放（断言输入条数与 error 标记），未断言持久值。缺口 owner：crates/jftrade-engine provider 设置写端口；回归要求：补失败切换后 GET 回读仍为旧 provider 的断言。",
+      "rust_entry": "crates/jftrade-engine/src/product_tests.rs::product_server_persists_ui_settings_and_reports_actual_port; crates/jftrade-engine/tests/market_data_production_compatibility.rs::provider_settings_writes_replay_frozen_compatibility_cases; crates/jftrade-settings/src/market_data_provider.rs::backtest_provider_is_prepared_before_atomic_persistence",
+      "conclusion": "partial：Go 断言 backtest provider 目录、失败切换后 stored 不变、成功切换后 stored 更新。Rust product/settings owner 断言目录顺序（futu/yfinance/akshare）与 PUT 后 activeProvider=futu，并由 backtest_provider_is_prepared_before_atomic_persistence 直接断言 prepare 失败发生在 durable persistence 前且旧值保留；冻结语料回放补充输入与错误矩阵。缺口 owner：crates/jftrade-engine settings route 聚合；Go 的 yfinance capabilities、409/MARKET_DATA_PROVIDER_UPDATE_FAILED envelope 与同一 HTTP fixture 中的成功回读仍未由单一 Rust route 测试串联，保持 partial。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-settings --all-targets --locked -E test(product_server_persists_ui_settings_and_reports_actual_port) or test(provider_settings_writes_replay_frozen_compatibility_cases) or test(backtest_provider_is_prepared_before_atomic_persistence)",
       "evidence_type": "partial",
       "source": {
@@ -16588,6 +16588,12 @@
           "file": "crates/jftrade-engine/tests/market_data_production_compatibility.rs",
           "test": "provider_settings_writes_replay_frozen_compatibility_cases",
           "crate": "jftrade-engine",
+          "anchor": null
+        },
+        {
+          "file": "crates/jftrade-settings/src/market_data_provider.rs",
+          "test": "backtest_provider_is_prepared_before_atomic_persistence",
+          "crate": "jftrade-settings",
           "anchor": null
         }
       ],
@@ -16624,7 +16630,7 @@
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": "2026-09-25T04:40:00Z",
+        "verifiedAt": "2026-09-25T08:26:20Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -308421,12 +308427,13 @@
       "reviewStatus": "single"
     },
     "crates/jftrade-settings/src/market_data_provider.rs::backtest_provider_is_prepared_before_atomic_persistence": {
-      "referenceCount": 1,
+      "referenceCount": 2,
       "referenceKeys": [
+        "internal/api/settings/routes_market_data_test.go:63:TestBacktestMarketDataSettingsRoutesExposeCatalogAndRollbackPreparationFailure",
         "internal/settings/market_data_test.go:161:TestBacktestProviderIsPreparedBeforeAtomicPersistence"
       ],
-      "allowed": true,
-      "reviewStatus": "single"
+      "allowed": false,
+      "reviewStatus": "unreviewed"
     },
     "crates/jftrade-settings/src/market_data_provider.rs::blank_provider_selection_is_rejected_before_persistence": {
       "referenceCount": 1,
