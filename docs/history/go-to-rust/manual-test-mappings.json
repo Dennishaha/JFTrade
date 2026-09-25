@@ -36146,7 +36146,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-marketdata/src/router.rs::tests::explicit_activation_requires_ready_health_but_startup_restore_allows_warming; crates/jftrade-marketdata/src/router.rs::explicit_activation_fails_closed_and_switch_clears_cache",
       "conclusion": "function_exact：显式激活不健康不得发布由 explicit_activation_requires_ready_health_but_startup_restore_allows_warming 断言（warming 显式拒绝、仅 StartupRestore 发布）；健康路径的发布与旧缓存清理由 explicit_activation_fails_closed_and_switch_clears_cache 补证（健康激活 generation 递进、不健康切换 fail-closed 且清缓存，对应旧 Futu 订阅释放）；sidecar stub 计数属异构件探针，不在路由层断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --all-targets --locked",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --all-targets --locked -E 'test(explicit_activation_requires_ready_health_but_startup_restore_allows_warming) or test(explicit_activation_fails_closed_and_switch_clears_cache)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/app/apiserver/marketdataapp/runtime_health_test.go",
@@ -36193,7 +36193,9 @@
           "-p",
           "jftrade-marketdata",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(explicit_activation_requires_ready_health_but_startup_restore_allows_warming) or test(explicit_activation_fails_closed_and_switch_clears_cache)"
         ],
         "testFilter": [
           "explicit_activation_requires_ready_health_but_startup_restore_allows_warming",
@@ -36225,7 +36227,7 @@
       "status": "[~]",
       "rust_entry": "crates/jftrade-marketdata/src/router.rs::tests::recovery_after_a_failed_health_check_publishes_a_healthy_provider",
       "conclusion": "部分覆盖：Go 断言健康检查失败时 Activate 返回该错误且 active provider 仍是 Futu（Rust recovery_after_a_failed_health_check_publishes_a_healthy_provider 已覆盖失败不改选择、恢复后发布）。差异是 sidecar 回滚计数 ensure=1/stop=1 与健康通过前订阅不释放（desired 保留）无 Rust 断言；该 Rust 用例的断言主题与 akshare runtime_akshare_test.go:97（不可用 provider 恢复重试）相同，故本条降为 partial，[x] 归属保留给 :97。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --all-targets --locked",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --all-targets --locked -E 'test(recovery_after_a_failed_health_check_publishes_a_healthy_provider)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/marketdataapp/runtime_health_test.go",
@@ -36256,7 +36258,9 @@
           "-p",
           "jftrade-marketdata",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(recovery_after_a_failed_health_check_publishes_a_healthy_provider)"
         ],
         "testFilter": [
           "recovery_after_a_failed_health_check_publishes_a_healthy_provider"
@@ -36287,7 +36291,7 @@
       "status": "[~]",
       "rust_entry": "crates/jftrade-marketdata/src/router.rs::tests::failed_warmup_blocks_startup_restore_and_reports_last_error",
       "conclusion": "部分覆盖：Go 断言 health 失败与 sidecar restore 失败都被合并返回、provider 仍为 Futu。Rust 的 failed_warmup_blocks_startup_restore_and_reports_last_error 断言失败激活返回 ProviderUnavailable{provider_id,reason==provider 自己的 last_error} 且不改变 active provider，对应“失败原因必须透出且不发布”的一半；Rust 没有 sidecar restore 这一独立失败通道可合并（helper 进程由 HelperHealthMonitor/HelperProcess 拥有），故保留 partial。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --all-targets --locked",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --all-targets --locked -E 'test(failed_warmup_blocks_startup_restore_and_reports_last_error)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/marketdataapp/runtime_health_test.go",
@@ -36318,7 +36322,9 @@
           "-p",
           "jftrade-marketdata",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(failed_warmup_blocks_startup_restore_and_reports_last_error)"
         ],
         "testFilter": [
           "failed_warmup_blocks_startup_restore_and_reports_last_error"
@@ -36349,7 +36355,7 @@
       "status": "[~]",
       "rust_entry": "crates/jftrade-integration-futu/src/subscriptions_tests.rs::failed_unsubscribe_is_deferred_until_its_retry_window",
       "conclusion": "部分覆盖：Go 断言健康激活成功后 Futu 订阅释放失败只延迟处理，Activate 本身仍成功返回，之后可再单独 reconcile 拿到该错误。Rust 的 failed_unsubscribe_is_deferred_until_its_retry_window 覆盖“卸载失败被延后到重试窗口而不是立即失败或谎报成功”，但 Rust 没有把“激活成功 + 延迟 release 错误在后续调用暴露”串成一条断言，故保留 partial。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(failed_unsubscribe_is_deferred_until_its_retry_window)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/marketdataapp/runtime_health_test.go",
@@ -36380,7 +36386,9 @@
           "-p",
           "jftrade-integration-futu",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(failed_unsubscribe_is_deferred_until_its_retry_window)"
         ],
         "testFilter": [
           "failed_unsubscribe_is_deferred_until_its_retry_window"
@@ -36411,7 +36419,7 @@
       "status": "[~]",
       "rust_entry": "crates/jftrade-marketdata/src/router.rs::tests::explicit_activation_requires_ready_health_but_startup_restore_allows_warming",
       "conclusion": "部分覆盖：Go 断言启动恢复 yfinance 会做一次 health 检查、显式激活 Futu 不额外检查。Rust 覆盖了“StartupRestore 允许 warming、Explicit 要求 Ready”的模式差异，但没有断言 Go 那种按 provider 类型区分是否调用 healthCheck 的调用计数，故保留 partial。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --all-targets --locked",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --all-targets --locked -E 'test(explicit_activation_requires_ready_health_but_startup_restore_allows_warming)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/marketdataapp/runtime_health_test.go",
@@ -36442,7 +36450,9 @@
           "-p",
           "jftrade-marketdata",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(explicit_activation_requires_ready_health_but_startup_restore_allows_warming)"
         ],
         "testFilter": [
           "explicit_activation_requires_ready_health_but_startup_restore_allows_warming"
@@ -36556,7 +36566,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-marketdata/src/router.rs::tests::warming_provider_is_only_publishable_during_startup_restore",
       "conclusion": "function_exact：Go 断言 warming provider 只在启动恢复路径被接受、显式激活必须等到 Ready。Rust 的 warming_provider_is_only_publishable_during_startup_restore 用完全相同的 warming HealthStatus 分别走 StartupRestore（发布，runtime.readiness==Warming、connected、generation==1）与 Explicit（ProviderUnavailable 且 active_provider 仍为空，即从未发布），逐条对应“warming 只在启动恢复期允许发布”。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --all-targets --locked",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --all-targets --locked -E 'test(warming_provider_is_only_publishable_during_startup_restore)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/app/apiserver/marketdataapp/runtime_health_test.go",
@@ -36592,7 +36602,9 @@
           "-p",
           "jftrade-marketdata",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(warming_provider_is_only_publishable_during_startup_restore)"
         ],
         "testFilter": [
           "warming_provider_is_only_publishable_during_startup_restore"
@@ -36623,7 +36635,7 @@
       "status": "[~]",
       "rust_entry": "crates/jftrade-marketdata/src/router.rs::tests::failed_warmup_blocks_startup_restore_and_reports_last_error",
       "conclusion": "partial：Rust 断言失败原因透出 provider 自身 last_error 且不发布，成立；但题眼“立即停止”（单次探测、不重试，Go 断言 calls==1）无对应——Rust 在路由层是单发构造，等待层对 Failed readiness 是否不重试无断言。回归要求：等待层对 Failed 状态单次停止不断重试的断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --all-targets --locked",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --all-targets --locked -E 'test(failed_warmup_blocks_startup_restore_and_reports_last_error)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/marketdataapp/runtime_health_test.go",
@@ -36659,7 +36671,9 @@
           "-p",
           "jftrade-marketdata",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(failed_warmup_blocks_startup_restore_and_reports_last_error)"
         ],
         "testFilter": [
           "failed_warmup_blocks_startup_restore_and_reports_last_error"
@@ -36823,7 +36837,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-marketdata/src/router.rs::tests::unknown_provider_activation_is_rejected_without_touching_the_active_selection",
       "conclusion": "function_exact：Go 断言 nil provider 的 health 检查返回 unavailable 错误，默认 checkHealth 对健康 provider 成功。Rust 的 unknown_provider_activation_is_rejected_without_touching_the_active_selection 断言未注册的 provider（无 health checker）激活返回 ProviderNotFound 且不改变 active provider/connected，对应“没有可用 health checker 时 fail closed”；同一文件里 recovery_after_a_failed_health_check_publishes_a_healthy_provider 覆盖“默认检查成功即发布”的另一半。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --all-targets --locked",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --all-targets --locked -E 'test(unknown_provider_activation_is_rejected_without_touching_the_active_selection)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/app/apiserver/marketdataapp/runtime_health_test.go",
@@ -36859,7 +36873,9 @@
           "-p",
           "jftrade-marketdata",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(unknown_provider_activation_is_rejected_without_touching_the_active_selection)"
         ],
         "testFilter": [
           "unknown_provider_activation_is_rejected_without_touching_the_active_selection"

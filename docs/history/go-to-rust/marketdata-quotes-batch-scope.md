@@ -633,3 +633,24 @@ ADK/Assistant 功能差异，先补失败回归测试再修改领域 owner。
 `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-marketdata --all-targets --locked -E 'test(compute_helper_backoff_doubles_and_caps_at_max) or test(disconnected_provider_reports_its_reason_and_keeps_the_previous_selection)'`
 
 下一片：继续 `internal/app/apiserver/marketdataapp/runtime_health_test.go` 的 provider health/activation 条目。
+
+## 第 140 批：runtime health activation 与 subscription rollback 边界（2026-09-25）
+
+| 复核 | Go 测试 | Rust 证据 | P | 结论 |
+| :---: | --- | --- | :---: | --- |
+| [x] | `runtime_health_test.go:13:TestRuntimeExplicitYFinanceActivationRequiresHealthBeforePublishing` | `explicit_activation_requires_ready_health_but_startup_restore_allows_warming`; `explicit_activation_fails_closed_and_switch_clears_cache` | P2 | exact：显式激活要求 Ready、失败不发布，健康切换递进 generation 并清理旧运行态；sidecar stub 调用次数属旧 owner 边界。 |
+| [x] | `runtime_health_test.go:64:TestRuntimeFailedHealthCheckRestoresSidecarWithoutChangingProvider` | `recovery_after_a_failed_health_check_publishes_a_healthy_provider` | P2 | partial：Rust 覆盖失败保持旧 provider、恢复后发布；没有 Go sidecar ensure/stop 计数与订阅保持断言。 |
+| [x] | `runtime_health_test.go:94:TestRuntimeReportsBothHealthAndSidecarRestoreFailures` | `failed_warmup_blocks_startup_restore_and_reports_last_error` | P2 | partial：Rust 覆盖 provider last_error 透出且不发布；sidecar restore 独立错误合并属于 Go lifecycle owner。 |
+| [x] | `runtime_health_test.go:114:TestRuntimeDefersSubscriptionReleaseFailureAfterHealthyActivation` | `failed_unsubscribe_is_deferred_until_its_retry_window` | P2 | partial：Rust 覆盖卸载失败进入重试窗口；未串联激活成功后异步 reconcile 暴露原错误的整条流程。 |
+| [x] | `runtime_health_test.go:142:TestRuntimeChecksEmbeddedYFinanceOnStartupButNotFutu` | `explicit_activation_requires_ready_health_but_startup_restore_allows_warming` | P2 | partial：Rust 覆盖 StartupRestore 允许 warming、Explicit 要求 Ready；未覆盖按 provider 类型统计 healthCheck 次数。 |
+| [x] | `runtime_health_test.go:167:TestWaitForProviderHealthRetriesUntilConnected` | `retries_transient_readiness_and_sends_optional_bearer`; `recovery_after_a_failed_health_check_publishes_a_healthy_provider` | P2 | exact：Rust 覆盖第一次失败、第二次成功、请求重试次数与恢复发布；具体退避常量差异已在第139批单列。 |
+| [x] | `runtime_health_test.go:183:TestWaitForProviderHealthAllowsWarmingOnlyDuringStartupRestore` | `warming_provider_is_only_publishable_during_startup_restore` | P2 | exact：同一 warming 健康状态在 StartupRestore 发布，在 Explicit fail closed 且不改变 active。 |
+| [x] | `runtime_health_test.go:205:TestWaitForProviderHealthStopsOnFailedWarmup` | `failed_warmup_blocks_startup_restore_and_reports_last_error` | P2 | partial：Rust 覆盖 Failed readiness 的错误透出和不发布；没有 Go calls==1 的等待层单次探测断言。 |
+| [x] | `runtime_health_test.go:261:TestWaitForProviderHealthAndRuntimeDefaultCheckerBoundaries` | `unknown_provider_activation_is_rejected_without_touching_the_active_selection` | P2 | exact：未注册 provider fail closed 且保持 active；健康默认检查成功路径由同文件 recovery 用例补证。 |
+
+本批没有发现需要修改 Rust 生产 owner 的真实差异；逐条 nextest 8/8 通过，sidecar 计数、错误合并和 provider 类型调用计数保留为边界/partial。
+
+验证：
+`node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -p jftrade-integration-futu -p jftrade-integration-marketdata-helper --all-targets --locked -E 'test(explicit_activation_requires_ready_health_but_startup_restore_allows_warming) or test(explicit_activation_fails_closed_and_switch_clears_cache) or test(recovery_after_a_failed_health_check_publishes_a_healthy_provider) or test(failed_warmup_blocks_startup_restore_and_reports_last_error) or test(warming_provider_is_only_publishable_during_startup_restore) or test(unknown_provider_activation_is_rejected_without_touching_the_active_selection) or test(failed_unsubscribe_is_deferred_until_its_retry_window) or test(retries_transient_readiness_and_sends_optional_bearer)'`
+
+下一片：继续 `runtime_akshare_test.go` 与 `runtime_health_test.go` 相邻的 provider activation/recovery 条目。
