@@ -46,6 +46,19 @@ impl MarketDataProviderReadSnapshotPort for ProductionMarketDataProviderPort {
             )
         })?;
         let runtime = self.runtime_status.as_ref().map(|port| port.snapshot());
+        let demand = self
+            .router
+            .as_ref()
+            .map(|router| {
+                router
+                    .lock()
+                    .unwrap_or_else(|error| error.into_inner())
+                    .demand()
+            })
+            .unwrap_or_default();
+        let active_count = runtime
+            .as_ref()
+            .map_or_else(|| demand.active.len(), |state| state.active_count);
         let (connected, readiness, stream_mode, last_error) = match active_provider {
             MarketDataProvider::Futu => {
                 let connected =
@@ -81,19 +94,18 @@ impl MarketDataProviderReadSnapshotPort for ProductionMarketDataProviderPort {
                 let connected = snapshot.helper_ready;
                 let readiness = if connected { "ready" } else { "unavailable" };
                 let last_error = (!connected).then(|| "market-data helper is not ready".to_owned());
-                (connected, readiness, "idle", last_error)
+                let stream_mode = if connected {
+                    if demand.active.is_empty() {
+                        "idle"
+                    } else {
+                        "snapshot-poll-fallback"
+                    }
+                } else {
+                    "snapshot-poll-delayed"
+                };
+                (connected, readiness, stream_mode, last_error)
             }
         };
-        let demand = self
-            .router
-            .as_ref()
-            .map(|router| {
-                router
-                    .lock()
-                    .unwrap_or_else(|error| error.into_inner())
-                    .demand()
-            })
-            .unwrap_or_default();
         let physical = self
             .physical
             .as_ref()
@@ -116,7 +128,7 @@ impl MarketDataProviderReadSnapshotPort for ProductionMarketDataProviderPort {
                 "readiness": readiness,
                 "lastError": last_error,
                 "streamMode": stream_mode,
-                "activeCount": runtime.as_ref().map_or(0, |state| state.active_count),
+                "activeCount": active_count,
             },
             "runtime": runtime.as_ref().map(runtime_wire).unwrap_or_else(|| runtime_wire(&MarketDataRuntimeState::default())),
             "subscriptions": subscriptions,
@@ -156,4 +168,56 @@ pub(crate) fn provider_now_rfc3339() -> String {
     time::OffsetDateTime::now_utc()
         .format(&time::format_description::well_known::Rfc3339)
         .unwrap_or_else(|_| "1970-01-01T00:00:00Z".to_owned())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use jftrade_marketdata::InstrumentRef;
+
+    fn helper_port(helper_ready: bool, with_demand: bool) -> ProductionMarketDataProviderPort {
+        let active_provider_state = Arc::new(ActiveProviderState::new(Some(
+            MarketDataProvider::Akshare,
+        )));
+        active_provider_state.set_readiness(helper_ready, false, false);
+        let router = Arc::new(Mutex::new(ProviderRouter::new(4)));
+        if with_demand {
+            router
+                .lock()
+                .unwrap_or_else(|error| error.into_inner())
+                .acquire_demand(
+                    "chart",
+                    [InstrumentRef {
+                        channel: "SNAPSHOT".to_owned(),
+                        market: "US".to_owned(),
+                        symbol: "AAPL".to_owned(),
+                        interval: None,
+                    }],
+                    false,
+                    0,
+                )
+                .expect("helper demand");
+        }
+        ProductionMarketDataProviderPort {
+            active_provider_state,
+            runtime_status: None,
+            router: Some(router),
+            physical: None,
+        }
+    }
+
+    // Parity: go:452dea11:internal/marketdata/provider_switch_boundaries_test.go:81 TestPollOnlyProviderHealthUsesPollingModes
+    #[test]
+    fn provider_status_projects_helper_polling_modes_and_demand_count() {
+        let delayed = helper_port(false, false)
+            .read("/api/v1/market-data/provider", "")
+            .expect("delayed helper status");
+        assert_eq!(delayed["health"]["streamMode"], "snapshot-poll-delayed");
+
+        let fallback = helper_port(true, true)
+            .read("/api/v1/market-data/provider", "")
+            .expect("fallback helper status");
+        assert_eq!(fallback["health"]["streamMode"], "snapshot-poll-fallback");
+        assert_eq!(fallback["health"]["activeCount"], 1);
+    }
 }
