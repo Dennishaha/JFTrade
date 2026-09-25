@@ -1495,3 +1495,20 @@ ADK/Assistant 功能差异，先补失败回归测试再修改领域 owner。
 `node scripts/quality/cargo-nextest.mjs run --all-targets --locked`，筛选本批 37 个过滤器，51/51 通过；`optional_bool_strict` 未产生测试，不计入通过凭证。
 
 下一片：继续 P2 Strategy/Pine、Backtest/Calendar、API transport 与 Storage/SQLite 映射；helper/boundary 条目及 P1 `session_context_snapshot` 仍保持未验证结论。
+
+## 第 192 批：Backtest/bootstrap、Strategy runtime、Futu/OpenD 与 Web settings（2026-09-26）
+
+| 复核 | Go 测试范围 | Rust 证据 | P | 结论 |
+| :---: | --- | --- | :---: | --- |
+| [x] | `server_backtest_test.go:19,97`; `server_bootstrap_degraded_runtime_test.go:15,67,84` | backtest request market/code normalization and Pine metadata; degraded startup/database diagnostics; replay compatibility; execution/broker bridge | P2 | partial：Go backtest/bootstrap facade 与 Rust engine owner 分层不同；请求归一化、降级诊断、兼容 replay 和 broker bridge 有引用测试证据，落库快照及组合根注入仍保持 partial。 |
+| [x] | `server_business_test.go:25,42,77,92,263,329`; `server_calendar_boundaries_test.go:12` | Futu K-line window/default lookback, broker funds projection, observability envelope, binding normalization, ordered shutdown/worker cardinality, trade-session isolation and calendar fail-closed | P2 | partial：server business helper、calendar facade 与 Rust ports 不完全同形；窗口、资金投影、绑定校验、关闭顺序、交易会话隔离和 provider rejection 有 owner 测试，旧 facade 边界保留。 |
+| [x] | `server_lifecycle_test.go:16,222`; `server_market_test.go:11`; `server_option_callbacks_test.go:13,53` | native Pine compile/plan, malformed JSON rejection, WS/live corpus and trade/depth push, OpenD unavailable projection, exact strategy demand lifecycle | P2 | partial：Pine compiled plan、JSON rejection、WS replay、OpenD health 和 demand lease 有真实 Rust owner；Go callback/route 聚合及首帧组合语义保持 partial。 |
+| [x] | `server_runtime_side_effects_test.go:47,143`; `server_test.go:26,50,70` | kill-switch/hard-stop persistence and audit, runtime settings/resource propagation, read-only shadow, strategy DB override and close fencing | P2 | partial：控制面拒绝、重启持久化、resource owner、shadow store 与 shutdown fencing 有 owner 证据；Go server side-effect 聚合及环境注入细节保持 partial。 |
+| [x] | `settings_broker_futu_health_test.go:16,66`; `settings_market_data_test.go:11,32` | unreachable/old OpenD health diagnostics, provider defaults/persistence and rejected YFinance activation rollback | P2 | partial：OpenD 版本/连接诊断与 provider activation rollback 逐项有 Rust 测试；设置 facade 的持久化组合仍保持 partial。 |
+| [x] | `settings_security_test.go:14,37,86,116` | desktop-only defaults, password/public-access validation, cookie-bound durable sessions and listener shutdown | P2 | partial：安全设置、认证 session 与 listener fail-closed owner 测试通过；Go 桌面与 Web 双运行模式的组合边界保留 partial，未凭聚合测试升级为 exact。 |
+
+本批 30 条 Go 映射对应 Rust 过滤器去重后精准 nextest **42/42** 通过；所有通过凭证均写入 `manual-test-mappings.json`。本批没有发现需要先红后修的真实 Rust 功能差异；backtest/bootstrap、server facade、Strategy/Pine callback、OpenD/provider settings 与 desktop/Web security 组合均按 `partial` 记录，未将引用测试等同于逐断言 exact。
+
+验证：动态生成的 37 个 Rust 测试过滤器运行 `node scripts/quality/cargo-nextest.mjs run --all-targets --locked`，42/42 通过。
+
+下一片：继续 P2 Strategy/Pine、Backtest/Calendar、API transport、Storage/SQLite 与 Settings/Watchlist；helper/boundary 条目及 P1 `session_context_snapshot` 仍保持未验证结论。
