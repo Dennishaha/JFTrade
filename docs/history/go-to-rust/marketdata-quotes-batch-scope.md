@@ -794,6 +794,23 @@ ADK/Assistant 功能差异，先补失败回归测试再修改领域 owner。
 
 下一片：继续 P1 的 Assistant engine、workflow/ADK 与 API transport 映射。
 
+## 第 157 批：Assistant context、input continuation、claims 与 SQLite session persistence（2026-09-25）
+
+| 复核 | Go 测试范围 | Rust 证据 | P | 结论 |
+| :---: | --- | --- | :---: | --- |
+| [x] | `internal/assistant/engine/approval_state_guard_test.go:114`; `context_cache_test.go:61,116`; `event_projection_boundaries_test.go:14,72,87` | timeout restart, compacted context prefix/handoff, tool/session projection and missing-session read pressure | P1 | exact：timeout window、context compaction、projection ordering 与 missing-session pressure 均通过。 |
+| [x] | `internal/assistant/engine/exec_bounds_test.go:148`; `exec_state_bounds_test.go:9`; `execution_claims_test.go:265`; `execution_state_projection_contracts_test.go:175`; `handoff_notice_test.go:100` | cancellation join, run projection, claim fencing/takeover, recovery degradation and normalized notices | P1 | exact：cancellation、claims lease、recovery readiness 与 notice identity 逐项通过。 |
+| [x] | `internal/assistant/engine/input_continuation_failure_recovery_test.go:13,110,140`; `input_request_test.go:490`; `lifecycle_reconciliation_failures_test.go:9,102`; `normalize_test.go:62` | input failure/parent projection/crash recovery, late-answer rejection, stale-run reconcile and ADK task normalization | P1 | exact：input continuation、late answer、run reconcile 和 normalization 均有 durable owner 证据。 |
+| [x] | `internal/assistant/engine/persistence/composer_normalize_test.go:8`; `persistence/execution_claims_test.go:93`; `google_artifact_test.go:420`; `session_sqlite_boundaries_test.go:14`; `session_sqlite_schema_test.go:15,49,82,127`; `session_sqlite_test.go:30,58` | composer modes, serialized claims, artifact paths, SQLite session schema/migration/reopen/lifecycle | P1 | exact：SQLite schema health、migration preservation、artifact path、claim serialization 与 composer validation 均通过。 |
+| [x] | `internal/assistant/engine/persistence_failure_boundaries_test.go:162` | failed recovery scan degrades readiness until a later successful scan | P1 | exact：持久化恢复失败的可见性与恢复条件有明确测试。 |
+
+本批 30 条 Go 映射对应 Rust 精准 nextest 26/26 通过；没有发现需要先红后修的 Rust 生产差异。Go completion-review tool request helper 没有同名 Rust test，保持未验证并留待后续边界审查，不计入本批 30 条有效映射。
+
+验证：
+`node scripts/quality/cargo-nextest.mjs run --all-targets --locked -E 'test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(compacted_context_survives_restart_and_precedes_current_user_message) or test(context_compaction_shrinks_the_projected_session_view) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(session_context_read_reports_pressure_without_compacting) or test(chat_creates_the_session_once_and_reuses_its_stored_title) or test(a_cancelled_tool_call_reports_the_context_cancellation) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(stale_replay_safe_claim_takes_over_with_fencing) or test(expired_tool_invocation_takeover_fences_old_ticket_with_live_run_lease) or test(infrastructure_resume_error_degrades_until_a_successful_scan) or test(context_notices_are_best_effort_and_keep_one_identity_across_updates) or test(an_unrecoverable_input_continuation_fails_the_run_with_the_reference_resume_state) or test(input_response_payload_anchors_the_resumed_run_to_the_original_request) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(cancelling_a_pending_input_run_cancels_the_request_and_rejects_a_late_answer) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(adk_task_normalization_and_validation_match_go) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_store_fences_a_second_writer_and_serializes_concurrent_access) or test(paths_follow_go_environment_overrides_and_adk_artifact_lifecycle) or test(adk_session_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_v2_migration_rebuilds_runs_without_losing_payload) or test(adk_session_store_lifecycle_and_restart_durability) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success)'`
+
+下一片：继续 P1 的 Assistant engine persistence/recovery、workflow/ADK 与 API transport 映射。
+
 ## 第 151 批：Futu/OpenD session resolver、snapshot fallback 与 margin/trade 读取（2026-09-25）
 
 | 复核 | Go 测试范围 | Rust 证据 | P | 结论 |
