@@ -32820,20 +32820,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-integration-futu",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(depth_read_returns_empty_arrays_for_empty_s2c_lists) or test(switch_retires_the_previous_provider_before_publishing_the_next_one) or test(unsubscribe_retry_ladder_escalates_and_reacquire_clears_retry_state) or test(queued_transitions_observe_the_committed_provider_as_their_previous_owner) or test(start_rejects_a_second_launch_of_a_live_process) or test(stop_escalates_to_kill_when_the_child_outlives_the_grace_period) or test(managed_process_is_reused_until_an_explicit_stop_releases_it) or test(unknown_provider_activation_is_rejected_without_touching_the_active_selection) or test(activation_after_shutdown_is_rejected_and_leaves_the_snapshot_committed) or test(node_candidates_prefer_path_then_macos_common_installs) or test(runtime_dependencies_flag_unsatisfied_required_entries) or test(stop_product_is_idempotent_across_concurrent_invocations) or test(web_shutdown_does_not_hold_runtime_lock_while_joining_server) or test(auth_session_route_matches_go_fixture_in_cutover_only) or test(test_normalize_execution_order_preserves_broker_abstraction) or test(provider_switch_does_not_disconnect_an_existing_futu_trade_session) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(disabled_web_access_does_not_start_a_listener) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable) or test(test_product_runtime_ordered_shutdown_explicit) or test(production_startup_exposes_degraded_api_when_external_runtimes_are_unavailable) or test(earnings_calendar_route_maps_frontend_keys) or test(strategy_definition_preview_derives_warmup_bars_and_overrides_preview_parameters) or test(browser_authenticated_request_cannot_change_desktop_only_security_settings) or test(cached_projection_does_not_promote_stale_overnight_during_regular_hours) or test(startup_reconcile_resets_stale_paused_state_and_keeps_stopped_instances) or test(recovery_failure_converges_the_running_instance_to_stopped) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel) or test(broker_klines_valid_request_fails_closed_without_historical_source) or test(broker_securities_returns_real_empty_result_when_cache_has_no_symbol)"
         ],
         "testFilter": [
           "depth_read_returns_empty_arrays_for_empty_s2c_lists"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "0896c4ab",
+        "verifiedAt": "2026-09-25T13:35:20Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -38121,20 +38121,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(depth_read_returns_empty_arrays_for_empty_s2c_lists) or test(switch_retires_the_previous_provider_before_publishing_the_next_one) or test(unsubscribe_retry_ladder_escalates_and_reacquire_clears_retry_state) or test(queued_transitions_observe_the_committed_provider_as_their_previous_owner) or test(start_rejects_a_second_launch_of_a_live_process) or test(stop_escalates_to_kill_when_the_child_outlives_the_grace_period) or test(managed_process_is_reused_until_an_explicit_stop_releases_it) or test(unknown_provider_activation_is_rejected_without_touching_the_active_selection) or test(activation_after_shutdown_is_rejected_and_leaves_the_snapshot_committed) or test(node_candidates_prefer_path_then_macos_common_installs) or test(runtime_dependencies_flag_unsatisfied_required_entries) or test(stop_product_is_idempotent_across_concurrent_invocations) or test(web_shutdown_does_not_hold_runtime_lock_while_joining_server) or test(auth_session_route_matches_go_fixture_in_cutover_only) or test(test_normalize_execution_order_preserves_broker_abstraction) or test(provider_switch_does_not_disconnect_an_existing_futu_trade_session) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(disabled_web_access_does_not_start_a_listener) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable) or test(test_product_runtime_ordered_shutdown_explicit) or test(production_startup_exposes_degraded_api_when_external_runtimes_are_unavailable) or test(earnings_calendar_route_maps_frontend_keys) or test(strategy_definition_preview_derives_warmup_bars_and_overrides_preview_parameters) or test(browser_authenticated_request_cannot_change_desktop_only_security_settings) or test(cached_projection_does_not_promote_stale_overnight_during_regular_hours) or test(startup_reconcile_resets_stale_paused_state_and_keeps_stopped_instances) or test(recovery_failure_converges_the_running_instance_to_stopped) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel) or test(broker_klines_valid_request_fails_closed_without_historical_source) or test(broker_securities_returns_real_empty_result_when_cache_has_no_symbol)"
         ],
         "testFilter": [
           "switch_retires_the_previous_provider_before_publishing_the_next_one"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "0896c4ab",
+        "verifiedAt": "2026-09-25T13:35:20Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -38183,20 +38183,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-integration-futu",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(depth_read_returns_empty_arrays_for_empty_s2c_lists) or test(switch_retires_the_previous_provider_before_publishing_the_next_one) or test(unsubscribe_retry_ladder_escalates_and_reacquire_clears_retry_state) or test(queued_transitions_observe_the_committed_provider_as_their_previous_owner) or test(start_rejects_a_second_launch_of_a_live_process) or test(stop_escalates_to_kill_when_the_child_outlives_the_grace_period) or test(managed_process_is_reused_until_an_explicit_stop_releases_it) or test(unknown_provider_activation_is_rejected_without_touching_the_active_selection) or test(activation_after_shutdown_is_rejected_and_leaves_the_snapshot_committed) or test(node_candidates_prefer_path_then_macos_common_installs) or test(runtime_dependencies_flag_unsatisfied_required_entries) or test(stop_product_is_idempotent_across_concurrent_invocations) or test(web_shutdown_does_not_hold_runtime_lock_while_joining_server) or test(auth_session_route_matches_go_fixture_in_cutover_only) or test(test_normalize_execution_order_preserves_broker_abstraction) or test(provider_switch_does_not_disconnect_an_existing_futu_trade_session) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(disabled_web_access_does_not_start_a_listener) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable) or test(test_product_runtime_ordered_shutdown_explicit) or test(production_startup_exposes_degraded_api_when_external_runtimes_are_unavailable) or test(earnings_calendar_route_maps_frontend_keys) or test(strategy_definition_preview_derives_warmup_bars_and_overrides_preview_parameters) or test(browser_authenticated_request_cannot_change_desktop_only_security_settings) or test(cached_projection_does_not_promote_stale_overnight_during_regular_hours) or test(startup_reconcile_resets_stale_paused_state_and_keeps_stopped_instances) or test(recovery_failure_converges_the_running_instance_to_stopped) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel) or test(broker_klines_valid_request_fails_closed_without_historical_source) or test(broker_securities_returns_real_empty_result_when_cache_has_no_symbol)"
         ],
         "testFilter": [
           "unsubscribe_retry_ladder_escalates_and_reacquire_clears_retry_state"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "0896c4ab",
+        "verifiedAt": "2026-09-25T13:35:20Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -38690,20 +38690,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(depth_read_returns_empty_arrays_for_empty_s2c_lists) or test(switch_retires_the_previous_provider_before_publishing_the_next_one) or test(unsubscribe_retry_ladder_escalates_and_reacquire_clears_retry_state) or test(queued_transitions_observe_the_committed_provider_as_their_previous_owner) or test(start_rejects_a_second_launch_of_a_live_process) or test(stop_escalates_to_kill_when_the_child_outlives_the_grace_period) or test(managed_process_is_reused_until_an_explicit_stop_releases_it) or test(unknown_provider_activation_is_rejected_without_touching_the_active_selection) or test(activation_after_shutdown_is_rejected_and_leaves_the_snapshot_committed) or test(node_candidates_prefer_path_then_macos_common_installs) or test(runtime_dependencies_flag_unsatisfied_required_entries) or test(stop_product_is_idempotent_across_concurrent_invocations) or test(web_shutdown_does_not_hold_runtime_lock_while_joining_server) or test(auth_session_route_matches_go_fixture_in_cutover_only) or test(test_normalize_execution_order_preserves_broker_abstraction) or test(provider_switch_does_not_disconnect_an_existing_futu_trade_session) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(disabled_web_access_does_not_start_a_listener) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable) or test(test_product_runtime_ordered_shutdown_explicit) or test(production_startup_exposes_degraded_api_when_external_runtimes_are_unavailable) or test(earnings_calendar_route_maps_frontend_keys) or test(strategy_definition_preview_derives_warmup_bars_and_overrides_preview_parameters) or test(browser_authenticated_request_cannot_change_desktop_only_security_settings) or test(cached_projection_does_not_promote_stale_overnight_during_regular_hours) or test(startup_reconcile_resets_stale_paused_state_and_keeps_stopped_instances) or test(recovery_failure_converges_the_running_instance_to_stopped) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel) or test(broker_klines_valid_request_fails_closed_without_historical_source) or test(broker_securities_returns_real_empty_result_when_cache_has_no_symbol)"
         ],
         "testFilter": [
           "queued_transitions_observe_the_committed_provider_as_their_previous_owner"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "0896c4ab",
+        "verifiedAt": "2026-09-25T13:35:20Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -39208,20 +39208,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-integration-marketdata-helper",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(depth_read_returns_empty_arrays_for_empty_s2c_lists) or test(switch_retires_the_previous_provider_before_publishing_the_next_one) or test(unsubscribe_retry_ladder_escalates_and_reacquire_clears_retry_state) or test(queued_transitions_observe_the_committed_provider_as_their_previous_owner) or test(start_rejects_a_second_launch_of_a_live_process) or test(stop_escalates_to_kill_when_the_child_outlives_the_grace_period) or test(managed_process_is_reused_until_an_explicit_stop_releases_it) or test(unknown_provider_activation_is_rejected_without_touching_the_active_selection) or test(activation_after_shutdown_is_rejected_and_leaves_the_snapshot_committed) or test(node_candidates_prefer_path_then_macos_common_installs) or test(runtime_dependencies_flag_unsatisfied_required_entries) or test(stop_product_is_idempotent_across_concurrent_invocations) or test(web_shutdown_does_not_hold_runtime_lock_while_joining_server) or test(auth_session_route_matches_go_fixture_in_cutover_only) or test(test_normalize_execution_order_preserves_broker_abstraction) or test(provider_switch_does_not_disconnect_an_existing_futu_trade_session) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(disabled_web_access_does_not_start_a_listener) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable) or test(test_product_runtime_ordered_shutdown_explicit) or test(production_startup_exposes_degraded_api_when_external_runtimes_are_unavailable) or test(earnings_calendar_route_maps_frontend_keys) or test(strategy_definition_preview_derives_warmup_bars_and_overrides_preview_parameters) or test(browser_authenticated_request_cannot_change_desktop_only_security_settings) or test(cached_projection_does_not_promote_stale_overnight_during_regular_hours) or test(startup_reconcile_resets_stale_paused_state_and_keeps_stopped_instances) or test(recovery_failure_converges_the_running_instance_to_stopped) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel) or test(broker_klines_valid_request_fails_closed_without_historical_source) or test(broker_securities_returns_real_empty_result_when_cache_has_no_symbol)"
         ],
         "testFilter": [
           "start_rejects_a_second_launch_of_a_live_process"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "0896c4ab",
+        "verifiedAt": "2026-09-25T13:35:20Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -39342,20 +39342,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-integration-marketdata-helper",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(depth_read_returns_empty_arrays_for_empty_s2c_lists) or test(switch_retires_the_previous_provider_before_publishing_the_next_one) or test(unsubscribe_retry_ladder_escalates_and_reacquire_clears_retry_state) or test(queued_transitions_observe_the_committed_provider_as_their_previous_owner) or test(start_rejects_a_second_launch_of_a_live_process) or test(stop_escalates_to_kill_when_the_child_outlives_the_grace_period) or test(managed_process_is_reused_until_an_explicit_stop_releases_it) or test(unknown_provider_activation_is_rejected_without_touching_the_active_selection) or test(activation_after_shutdown_is_rejected_and_leaves_the_snapshot_committed) or test(node_candidates_prefer_path_then_macos_common_installs) or test(runtime_dependencies_flag_unsatisfied_required_entries) or test(stop_product_is_idempotent_across_concurrent_invocations) or test(web_shutdown_does_not_hold_runtime_lock_while_joining_server) or test(auth_session_route_matches_go_fixture_in_cutover_only) or test(test_normalize_execution_order_preserves_broker_abstraction) or test(provider_switch_does_not_disconnect_an_existing_futu_trade_session) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(disabled_web_access_does_not_start_a_listener) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable) or test(test_product_runtime_ordered_shutdown_explicit) or test(production_startup_exposes_degraded_api_when_external_runtimes_are_unavailable) or test(earnings_calendar_route_maps_frontend_keys) or test(strategy_definition_preview_derives_warmup_bars_and_overrides_preview_parameters) or test(browser_authenticated_request_cannot_change_desktop_only_security_settings) or test(cached_projection_does_not_promote_stale_overnight_during_regular_hours) or test(startup_reconcile_resets_stale_paused_state_and_keeps_stopped_instances) or test(recovery_failure_converges_the_running_instance_to_stopped) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel) or test(broker_klines_valid_request_fails_closed_without_historical_source) or test(broker_securities_returns_real_empty_result_when_cache_has_no_symbol)"
         ],
         "testFilter": [
           "stop_escalates_to_kill_when_the_child_outlives_the_grace_period"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "0896c4ab",
+        "verifiedAt": "2026-09-25T13:35:20Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -39404,20 +39404,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-integration-marketdata-helper",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(depth_read_returns_empty_arrays_for_empty_s2c_lists) or test(switch_retires_the_previous_provider_before_publishing_the_next_one) or test(unsubscribe_retry_ladder_escalates_and_reacquire_clears_retry_state) or test(queued_transitions_observe_the_committed_provider_as_their_previous_owner) or test(start_rejects_a_second_launch_of_a_live_process) or test(stop_escalates_to_kill_when_the_child_outlives_the_grace_period) or test(managed_process_is_reused_until_an_explicit_stop_releases_it) or test(unknown_provider_activation_is_rejected_without_touching_the_active_selection) or test(activation_after_shutdown_is_rejected_and_leaves_the_snapshot_committed) or test(node_candidates_prefer_path_then_macos_common_installs) or test(runtime_dependencies_flag_unsatisfied_required_entries) or test(stop_product_is_idempotent_across_concurrent_invocations) or test(web_shutdown_does_not_hold_runtime_lock_while_joining_server) or test(auth_session_route_matches_go_fixture_in_cutover_only) or test(test_normalize_execution_order_preserves_broker_abstraction) or test(provider_switch_does_not_disconnect_an_existing_futu_trade_session) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(disabled_web_access_does_not_start_a_listener) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable) or test(test_product_runtime_ordered_shutdown_explicit) or test(production_startup_exposes_degraded_api_when_external_runtimes_are_unavailable) or test(earnings_calendar_route_maps_frontend_keys) or test(strategy_definition_preview_derives_warmup_bars_and_overrides_preview_parameters) or test(browser_authenticated_request_cannot_change_desktop_only_security_settings) or test(cached_projection_does_not_promote_stale_overnight_during_regular_hours) or test(startup_reconcile_resets_stale_paused_state_and_keeps_stopped_instances) or test(recovery_failure_converges_the_running_instance_to_stopped) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel) or test(broker_klines_valid_request_fails_closed_without_historical_source) or test(broker_securities_returns_real_empty_result_when_cache_has_no_symbol)"
         ],
         "testFilter": [
           "stop_escalates_to_kill_when_the_child_outlives_the_grace_period"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "0896c4ab",
+        "verifiedAt": "2026-09-25T13:35:20Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -39538,20 +39538,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-integration-marketdata-helper",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(depth_read_returns_empty_arrays_for_empty_s2c_lists) or test(switch_retires_the_previous_provider_before_publishing_the_next_one) or test(unsubscribe_retry_ladder_escalates_and_reacquire_clears_retry_state) or test(queued_transitions_observe_the_committed_provider_as_their_previous_owner) or test(start_rejects_a_second_launch_of_a_live_process) or test(stop_escalates_to_kill_when_the_child_outlives_the_grace_period) or test(managed_process_is_reused_until_an_explicit_stop_releases_it) or test(unknown_provider_activation_is_rejected_without_touching_the_active_selection) or test(activation_after_shutdown_is_rejected_and_leaves_the_snapshot_committed) or test(node_candidates_prefer_path_then_macos_common_installs) or test(runtime_dependencies_flag_unsatisfied_required_entries) or test(stop_product_is_idempotent_across_concurrent_invocations) or test(web_shutdown_does_not_hold_runtime_lock_while_joining_server) or test(auth_session_route_matches_go_fixture_in_cutover_only) or test(test_normalize_execution_order_preserves_broker_abstraction) or test(provider_switch_does_not_disconnect_an_existing_futu_trade_session) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(disabled_web_access_does_not_start_a_listener) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable) or test(test_product_runtime_ordered_shutdown_explicit) or test(production_startup_exposes_degraded_api_when_external_runtimes_are_unavailable) or test(earnings_calendar_route_maps_frontend_keys) or test(strategy_definition_preview_derives_warmup_bars_and_overrides_preview_parameters) or test(browser_authenticated_request_cannot_change_desktop_only_security_settings) or test(cached_projection_does_not_promote_stale_overnight_during_regular_hours) or test(startup_reconcile_resets_stale_paused_state_and_keeps_stopped_instances) or test(recovery_failure_converges_the_running_instance_to_stopped) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel) or test(broker_klines_valid_request_fails_closed_without_historical_source) or test(broker_securities_returns_real_empty_result_when_cache_has_no_symbol)"
         ],
         "testFilter": [
           "managed_process_is_reused_until_an_explicit_stop_releases_it"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "0896c4ab",
+        "verifiedAt": "2026-09-25T13:35:20Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -40262,12 +40262,10 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-marketdata",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(depth_read_returns_empty_arrays_for_empty_s2c_lists) or test(switch_retires_the_previous_provider_before_publishing_the_next_one) or test(unsubscribe_retry_ladder_escalates_and_reacquire_clears_retry_state) or test(queued_transitions_observe_the_committed_provider_as_their_previous_owner) or test(start_rejects_a_second_launch_of_a_live_process) or test(stop_escalates_to_kill_when_the_child_outlives_the_grace_period) or test(managed_process_is_reused_until_an_explicit_stop_releases_it) or test(unknown_provider_activation_is_rejected_without_touching_the_active_selection) or test(activation_after_shutdown_is_rejected_and_leaves_the_snapshot_committed) or test(node_candidates_prefer_path_then_macos_common_installs) or test(runtime_dependencies_flag_unsatisfied_required_entries) or test(stop_product_is_idempotent_across_concurrent_invocations) or test(web_shutdown_does_not_hold_runtime_lock_while_joining_server) or test(auth_session_route_matches_go_fixture_in_cutover_only) or test(test_normalize_execution_order_preserves_broker_abstraction) or test(provider_switch_does_not_disconnect_an_existing_futu_trade_session) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(disabled_web_access_does_not_start_a_listener) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable) or test(test_product_runtime_ordered_shutdown_explicit) or test(production_startup_exposes_degraded_api_when_external_runtimes_are_unavailable) or test(earnings_calendar_route_maps_frontend_keys) or test(strategy_definition_preview_derives_warmup_bars_and_overrides_preview_parameters) or test(browser_authenticated_request_cannot_change_desktop_only_security_settings) or test(cached_projection_does_not_promote_stale_overnight_during_regular_hours) or test(startup_reconcile_resets_stale_paused_state_and_keeps_stopped_instances) or test(recovery_failure_converges_the_running_instance_to_stopped) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel) or test(broker_klines_valid_request_fails_closed_without_historical_source) or test(broker_securities_returns_real_empty_result_when_cache_has_no_symbol)"
         ],
         "testFilter": [
           "unknown_provider_activation_is_rejected_without_touching_the_active_selection",
@@ -40275,10 +40273,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "0896c4ab",
+        "verifiedAt": "2026-09-25T13:35:20Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -40802,20 +40800,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(node_candidates_prefer_path_then_macos_common_installs)"
+          "test(depth_read_returns_empty_arrays_for_empty_s2c_lists) or test(switch_retires_the_previous_provider_before_publishing_the_next_one) or test(unsubscribe_retry_ladder_escalates_and_reacquire_clears_retry_state) or test(queued_transitions_observe_the_committed_provider_as_their_previous_owner) or test(start_rejects_a_second_launch_of_a_live_process) or test(stop_escalates_to_kill_when_the_child_outlives_the_grace_period) or test(managed_process_is_reused_until_an_explicit_stop_releases_it) or test(unknown_provider_activation_is_rejected_without_touching_the_active_selection) or test(activation_after_shutdown_is_rejected_and_leaves_the_snapshot_committed) or test(node_candidates_prefer_path_then_macos_common_installs) or test(runtime_dependencies_flag_unsatisfied_required_entries) or test(stop_product_is_idempotent_across_concurrent_invocations) or test(web_shutdown_does_not_hold_runtime_lock_while_joining_server) or test(auth_session_route_matches_go_fixture_in_cutover_only) or test(test_normalize_execution_order_preserves_broker_abstraction) or test(provider_switch_does_not_disconnect_an_existing_futu_trade_session) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(disabled_web_access_does_not_start_a_listener) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable) or test(test_product_runtime_ordered_shutdown_explicit) or test(production_startup_exposes_degraded_api_when_external_runtimes_are_unavailable) or test(earnings_calendar_route_maps_frontend_keys) or test(strategy_definition_preview_derives_warmup_bars_and_overrides_preview_parameters) or test(browser_authenticated_request_cannot_change_desktop_only_security_settings) or test(cached_projection_does_not_promote_stale_overnight_during_regular_hours) or test(startup_reconcile_resets_stale_paused_state_and_keeps_stopped_instances) or test(recovery_failure_converges_the_running_instance_to_stopped) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel) or test(broker_klines_valid_request_fails_closed_without_historical_source) or test(broker_securities_returns_real_empty_result_when_cache_has_no_symbol)"
         ],
         "testFilter": [
           "node_candidates_prefer_path_then_macos_common_installs"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "0896c4ab",
+        "verifiedAt": "2026-09-25T13:35:20Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -41003,20 +41001,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(runtime_dependencies_flag_unsatisfied_required_entries)"
+          "test(depth_read_returns_empty_arrays_for_empty_s2c_lists) or test(switch_retires_the_previous_provider_before_publishing_the_next_one) or test(unsubscribe_retry_ladder_escalates_and_reacquire_clears_retry_state) or test(queued_transitions_observe_the_committed_provider_as_their_previous_owner) or test(start_rejects_a_second_launch_of_a_live_process) or test(stop_escalates_to_kill_when_the_child_outlives_the_grace_period) or test(managed_process_is_reused_until_an_explicit_stop_releases_it) or test(unknown_provider_activation_is_rejected_without_touching_the_active_selection) or test(activation_after_shutdown_is_rejected_and_leaves_the_snapshot_committed) or test(node_candidates_prefer_path_then_macos_common_installs) or test(runtime_dependencies_flag_unsatisfied_required_entries) or test(stop_product_is_idempotent_across_concurrent_invocations) or test(web_shutdown_does_not_hold_runtime_lock_while_joining_server) or test(auth_session_route_matches_go_fixture_in_cutover_only) or test(test_normalize_execution_order_preserves_broker_abstraction) or test(provider_switch_does_not_disconnect_an_existing_futu_trade_session) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(disabled_web_access_does_not_start_a_listener) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable) or test(test_product_runtime_ordered_shutdown_explicit) or test(production_startup_exposes_degraded_api_when_external_runtimes_are_unavailable) or test(earnings_calendar_route_maps_frontend_keys) or test(strategy_definition_preview_derives_warmup_bars_and_overrides_preview_parameters) or test(browser_authenticated_request_cannot_change_desktop_only_security_settings) or test(cached_projection_does_not_promote_stale_overnight_during_regular_hours) or test(startup_reconcile_resets_stale_paused_state_and_keeps_stopped_instances) or test(recovery_failure_converges_the_running_instance_to_stopped) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel) or test(broker_klines_valid_request_fails_closed_without_historical_source) or test(broker_securities_returns_real_empty_result_when_cache_has_no_symbol)"
         ],
         "testFilter": [
           "runtime_dependencies_flag_unsatisfied_required_entries"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "0896c4ab",
+        "verifiedAt": "2026-09-25T13:35:20Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -42363,20 +42361,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-desktop",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(stop_product_is_idempotent_across_concurrent_invocations)"
+          "test(depth_read_returns_empty_arrays_for_empty_s2c_lists) or test(switch_retires_the_previous_provider_before_publishing_the_next_one) or test(unsubscribe_retry_ladder_escalates_and_reacquire_clears_retry_state) or test(queued_transitions_observe_the_committed_provider_as_their_previous_owner) or test(start_rejects_a_second_launch_of_a_live_process) or test(stop_escalates_to_kill_when_the_child_outlives_the_grace_period) or test(managed_process_is_reused_until_an_explicit_stop_releases_it) or test(unknown_provider_activation_is_rejected_without_touching_the_active_selection) or test(activation_after_shutdown_is_rejected_and_leaves_the_snapshot_committed) or test(node_candidates_prefer_path_then_macos_common_installs) or test(runtime_dependencies_flag_unsatisfied_required_entries) or test(stop_product_is_idempotent_across_concurrent_invocations) or test(web_shutdown_does_not_hold_runtime_lock_while_joining_server) or test(auth_session_route_matches_go_fixture_in_cutover_only) or test(test_normalize_execution_order_preserves_broker_abstraction) or test(provider_switch_does_not_disconnect_an_existing_futu_trade_session) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(disabled_web_access_does_not_start_a_listener) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable) or test(test_product_runtime_ordered_shutdown_explicit) or test(production_startup_exposes_degraded_api_when_external_runtimes_are_unavailable) or test(earnings_calendar_route_maps_frontend_keys) or test(strategy_definition_preview_derives_warmup_bars_and_overrides_preview_parameters) or test(browser_authenticated_request_cannot_change_desktop_only_security_settings) or test(cached_projection_does_not_promote_stale_overnight_during_regular_hours) or test(startup_reconcile_resets_stale_paused_state_and_keeps_stopped_instances) or test(recovery_failure_converges_the_running_instance_to_stopped) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel) or test(broker_klines_valid_request_fails_closed_without_historical_source) or test(broker_securities_returns_real_empty_result_when_cache_has_no_symbol)"
         ],
         "testFilter": [
           "stop_product_is_idempotent_across_concurrent_invocations"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "0896c4ab",
+        "verifiedAt": "2026-09-25T13:35:20Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -43621,20 +43619,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(depth_read_returns_empty_arrays_for_empty_s2c_lists) or test(switch_retires_the_previous_provider_before_publishing_the_next_one) or test(unsubscribe_retry_ladder_escalates_and_reacquire_clears_retry_state) or test(queued_transitions_observe_the_committed_provider_as_their_previous_owner) or test(start_rejects_a_second_launch_of_a_live_process) or test(stop_escalates_to_kill_when_the_child_outlives_the_grace_period) or test(managed_process_is_reused_until_an_explicit_stop_releases_it) or test(unknown_provider_activation_is_rejected_without_touching_the_active_selection) or test(activation_after_shutdown_is_rejected_and_leaves_the_snapshot_committed) or test(node_candidates_prefer_path_then_macos_common_installs) or test(runtime_dependencies_flag_unsatisfied_required_entries) or test(stop_product_is_idempotent_across_concurrent_invocations) or test(web_shutdown_does_not_hold_runtime_lock_while_joining_server) or test(auth_session_route_matches_go_fixture_in_cutover_only) or test(test_normalize_execution_order_preserves_broker_abstraction) or test(provider_switch_does_not_disconnect_an_existing_futu_trade_session) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(disabled_web_access_does_not_start_a_listener) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable) or test(test_product_runtime_ordered_shutdown_explicit) or test(production_startup_exposes_degraded_api_when_external_runtimes_are_unavailable) or test(earnings_calendar_route_maps_frontend_keys) or test(strategy_definition_preview_derives_warmup_bars_and_overrides_preview_parameters) or test(browser_authenticated_request_cannot_change_desktop_only_security_settings) or test(cached_projection_does_not_promote_stale_overnight_during_regular_hours) or test(startup_reconcile_resets_stale_paused_state_and_keeps_stopped_instances) or test(recovery_failure_converges_the_running_instance_to_stopped) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel) or test(broker_klines_valid_request_fails_closed_without_historical_source) or test(broker_securities_returns_real_empty_result_when_cache_has_no_symbol)"
         ],
         "testFilter": [
           "web_shutdown_does_not_hold_runtime_lock_while_joining_server"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "0896c4ab",
+        "verifiedAt": "2026-09-25T13:35:20Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -44840,20 +44838,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(auth_session_route_matches_go_fixture_in_cutover_only)"
+          "test(depth_read_returns_empty_arrays_for_empty_s2c_lists) or test(switch_retires_the_previous_provider_before_publishing_the_next_one) or test(unsubscribe_retry_ladder_escalates_and_reacquire_clears_retry_state) or test(queued_transitions_observe_the_committed_provider_as_their_previous_owner) or test(start_rejects_a_second_launch_of_a_live_process) or test(stop_escalates_to_kill_when_the_child_outlives_the_grace_period) or test(managed_process_is_reused_until_an_explicit_stop_releases_it) or test(unknown_provider_activation_is_rejected_without_touching_the_active_selection) or test(activation_after_shutdown_is_rejected_and_leaves_the_snapshot_committed) or test(node_candidates_prefer_path_then_macos_common_installs) or test(runtime_dependencies_flag_unsatisfied_required_entries) or test(stop_product_is_idempotent_across_concurrent_invocations) or test(web_shutdown_does_not_hold_runtime_lock_while_joining_server) or test(auth_session_route_matches_go_fixture_in_cutover_only) or test(test_normalize_execution_order_preserves_broker_abstraction) or test(provider_switch_does_not_disconnect_an_existing_futu_trade_session) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(disabled_web_access_does_not_start_a_listener) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable) or test(test_product_runtime_ordered_shutdown_explicit) or test(production_startup_exposes_degraded_api_when_external_runtimes_are_unavailable) or test(earnings_calendar_route_maps_frontend_keys) or test(strategy_definition_preview_derives_warmup_bars_and_overrides_preview_parameters) or test(browser_authenticated_request_cannot_change_desktop_only_security_settings) or test(cached_projection_does_not_promote_stale_overnight_during_regular_hours) or test(startup_reconcile_resets_stale_paused_state_and_keeps_stopped_instances) or test(recovery_failure_converges_the_running_instance_to_stopped) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel) or test(broker_klines_valid_request_fails_closed_without_historical_source) or test(broker_securities_returns_real_empty_result_when_cache_has_no_symbol)"
         ],
         "testFilter": [
           "auth_session_route_matches_go_fixture_in_cutover_only"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "0896c4ab",
+        "verifiedAt": "2026-09-25T13:35:20Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -47333,20 +47331,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(depth_read_returns_empty_arrays_for_empty_s2c_lists) or test(switch_retires_the_previous_provider_before_publishing_the_next_one) or test(unsubscribe_retry_ladder_escalates_and_reacquire_clears_retry_state) or test(queued_transitions_observe_the_committed_provider_as_their_previous_owner) or test(start_rejects_a_second_launch_of_a_live_process) or test(stop_escalates_to_kill_when_the_child_outlives_the_grace_period) or test(managed_process_is_reused_until_an_explicit_stop_releases_it) or test(unknown_provider_activation_is_rejected_without_touching_the_active_selection) or test(activation_after_shutdown_is_rejected_and_leaves_the_snapshot_committed) or test(node_candidates_prefer_path_then_macos_common_installs) or test(runtime_dependencies_flag_unsatisfied_required_entries) or test(stop_product_is_idempotent_across_concurrent_invocations) or test(web_shutdown_does_not_hold_runtime_lock_while_joining_server) or test(auth_session_route_matches_go_fixture_in_cutover_only) or test(test_normalize_execution_order_preserves_broker_abstraction) or test(provider_switch_does_not_disconnect_an_existing_futu_trade_session) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(disabled_web_access_does_not_start_a_listener) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable) or test(test_product_runtime_ordered_shutdown_explicit) or test(production_startup_exposes_degraded_api_when_external_runtimes_are_unavailable) or test(earnings_calendar_route_maps_frontend_keys) or test(strategy_definition_preview_derives_warmup_bars_and_overrides_preview_parameters) or test(browser_authenticated_request_cannot_change_desktop_only_security_settings) or test(cached_projection_does_not_promote_stale_overnight_during_regular_hours) or test(startup_reconcile_resets_stale_paused_state_and_keeps_stopped_instances) or test(recovery_failure_converges_the_running_instance_to_stopped) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel) or test(broker_klines_valid_request_fails_closed_without_historical_source) or test(broker_securities_returns_real_empty_result_when_cache_has_no_symbol)"
         ],
         "testFilter": [
           "test_normalize_execution_order_preserves_broker_abstraction"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "0896c4ab",
+        "verifiedAt": "2026-09-25T13:35:20Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -47713,20 +47711,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(depth_read_returns_empty_arrays_for_empty_s2c_lists) or test(switch_retires_the_previous_provider_before_publishing_the_next_one) or test(unsubscribe_retry_ladder_escalates_and_reacquire_clears_retry_state) or test(queued_transitions_observe_the_committed_provider_as_their_previous_owner) or test(start_rejects_a_second_launch_of_a_live_process) or test(stop_escalates_to_kill_when_the_child_outlives_the_grace_period) or test(managed_process_is_reused_until_an_explicit_stop_releases_it) or test(unknown_provider_activation_is_rejected_without_touching_the_active_selection) or test(activation_after_shutdown_is_rejected_and_leaves_the_snapshot_committed) or test(node_candidates_prefer_path_then_macos_common_installs) or test(runtime_dependencies_flag_unsatisfied_required_entries) or test(stop_product_is_idempotent_across_concurrent_invocations) or test(web_shutdown_does_not_hold_runtime_lock_while_joining_server) or test(auth_session_route_matches_go_fixture_in_cutover_only) or test(test_normalize_execution_order_preserves_broker_abstraction) or test(provider_switch_does_not_disconnect_an_existing_futu_trade_session) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(disabled_web_access_does_not_start_a_listener) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable) or test(test_product_runtime_ordered_shutdown_explicit) or test(production_startup_exposes_degraded_api_when_external_runtimes_are_unavailable) or test(earnings_calendar_route_maps_frontend_keys) or test(strategy_definition_preview_derives_warmup_bars_and_overrides_preview_parameters) or test(browser_authenticated_request_cannot_change_desktop_only_security_settings) or test(cached_projection_does_not_promote_stale_overnight_during_regular_hours) or test(startup_reconcile_resets_stale_paused_state_and_keeps_stopped_instances) or test(recovery_failure_converges_the_running_instance_to_stopped) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel) or test(broker_klines_valid_request_fails_closed_without_historical_source) or test(broker_securities_returns_real_empty_result_when_cache_has_no_symbol)"
         ],
         "testFilter": [
           "provider_switch_does_not_disconnect_an_existing_futu_trade_session"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "0896c4ab",
+        "verifiedAt": "2026-09-25T13:35:20Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -48019,20 +48017,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log)"
+          "test(depth_read_returns_empty_arrays_for_empty_s2c_lists) or test(switch_retires_the_previous_provider_before_publishing_the_next_one) or test(unsubscribe_retry_ladder_escalates_and_reacquire_clears_retry_state) or test(queued_transitions_observe_the_committed_provider_as_their_previous_owner) or test(start_rejects_a_second_launch_of_a_live_process) or test(stop_escalates_to_kill_when_the_child_outlives_the_grace_period) or test(managed_process_is_reused_until_an_explicit_stop_releases_it) or test(unknown_provider_activation_is_rejected_without_touching_the_active_selection) or test(activation_after_shutdown_is_rejected_and_leaves_the_snapshot_committed) or test(node_candidates_prefer_path_then_macos_common_installs) or test(runtime_dependencies_flag_unsatisfied_required_entries) or test(stop_product_is_idempotent_across_concurrent_invocations) or test(web_shutdown_does_not_hold_runtime_lock_while_joining_server) or test(auth_session_route_matches_go_fixture_in_cutover_only) or test(test_normalize_execution_order_preserves_broker_abstraction) or test(provider_switch_does_not_disconnect_an_existing_futu_trade_session) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(disabled_web_access_does_not_start_a_listener) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable) or test(test_product_runtime_ordered_shutdown_explicit) or test(production_startup_exposes_degraded_api_when_external_runtimes_are_unavailable) or test(earnings_calendar_route_maps_frontend_keys) or test(strategy_definition_preview_derives_warmup_bars_and_overrides_preview_parameters) or test(browser_authenticated_request_cannot_change_desktop_only_security_settings) or test(cached_projection_does_not_promote_stale_overnight_during_regular_hours) or test(startup_reconcile_resets_stale_paused_state_and_keeps_stopped_instances) or test(recovery_failure_converges_the_running_instance_to_stopped) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel) or test(broker_klines_valid_request_fails_closed_without_historical_source) or test(broker_securities_returns_real_empty_result_when_cache_has_no_symbol)"
         ],
         "testFilter": [
           "runtime_exit_converges_to_stopped_with_audit_notification_and_error_log"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "0896c4ab",
+        "verifiedAt": "2026-09-25T13:35:20Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -49000,20 +48998,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(test_execute_strategy_intents_cancel_dispatches_order_cancel)"
+          "test(depth_read_returns_empty_arrays_for_empty_s2c_lists) or test(switch_retires_the_previous_provider_before_publishing_the_next_one) or test(unsubscribe_retry_ladder_escalates_and_reacquire_clears_retry_state) or test(queued_transitions_observe_the_committed_provider_as_their_previous_owner) or test(start_rejects_a_second_launch_of_a_live_process) or test(stop_escalates_to_kill_when_the_child_outlives_the_grace_period) or test(managed_process_is_reused_until_an_explicit_stop_releases_it) or test(unknown_provider_activation_is_rejected_without_touching_the_active_selection) or test(activation_after_shutdown_is_rejected_and_leaves_the_snapshot_committed) or test(node_candidates_prefer_path_then_macos_common_installs) or test(runtime_dependencies_flag_unsatisfied_required_entries) or test(stop_product_is_idempotent_across_concurrent_invocations) or test(web_shutdown_does_not_hold_runtime_lock_while_joining_server) or test(auth_session_route_matches_go_fixture_in_cutover_only) or test(test_normalize_execution_order_preserves_broker_abstraction) or test(provider_switch_does_not_disconnect_an_existing_futu_trade_session) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(disabled_web_access_does_not_start_a_listener) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable) or test(test_product_runtime_ordered_shutdown_explicit) or test(production_startup_exposes_degraded_api_when_external_runtimes_are_unavailable) or test(earnings_calendar_route_maps_frontend_keys) or test(strategy_definition_preview_derives_warmup_bars_and_overrides_preview_parameters) or test(browser_authenticated_request_cannot_change_desktop_only_security_settings) or test(cached_projection_does_not_promote_stale_overnight_during_regular_hours) or test(startup_reconcile_resets_stale_paused_state_and_keeps_stopped_instances) or test(recovery_failure_converges_the_running_instance_to_stopped) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel) or test(broker_klines_valid_request_fails_closed_without_historical_source) or test(broker_securities_returns_real_empty_result_when_cache_has_no_symbol)"
         ],
         "testFilter": [
           "test_execute_strategy_intents_cancel_dispatches_order_cancel"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "0896c4ab",
+        "verifiedAt": "2026-09-25T13:35:20Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -49315,10 +49313,10 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(depth_read_returns_empty_arrays_for_empty_s2c_lists) or test(switch_retires_the_previous_provider_before_publishing_the_next_one) or test(unsubscribe_retry_ladder_escalates_and_reacquire_clears_retry_state) or test(queued_transitions_observe_the_committed_provider_as_their_previous_owner) or test(start_rejects_a_second_launch_of_a_live_process) or test(stop_escalates_to_kill_when_the_child_outlives_the_grace_period) or test(managed_process_is_reused_until_an_explicit_stop_releases_it) or test(unknown_provider_activation_is_rejected_without_touching_the_active_selection) or test(activation_after_shutdown_is_rejected_and_leaves_the_snapshot_committed) or test(node_candidates_prefer_path_then_macos_common_installs) or test(runtime_dependencies_flag_unsatisfied_required_entries) or test(stop_product_is_idempotent_across_concurrent_invocations) or test(web_shutdown_does_not_hold_runtime_lock_while_joining_server) or test(auth_session_route_matches_go_fixture_in_cutover_only) or test(test_normalize_execution_order_preserves_broker_abstraction) or test(provider_switch_does_not_disconnect_an_existing_futu_trade_session) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(disabled_web_access_does_not_start_a_listener) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable) or test(test_product_runtime_ordered_shutdown_explicit) or test(production_startup_exposes_degraded_api_when_external_runtimes_are_unavailable) or test(earnings_calendar_route_maps_frontend_keys) or test(strategy_definition_preview_derives_warmup_bars_and_overrides_preview_parameters) or test(browser_authenticated_request_cannot_change_desktop_only_security_settings) or test(cached_projection_does_not_promote_stale_overnight_during_regular_hours) or test(startup_reconcile_resets_stale_paused_state_and_keeps_stopped_instances) or test(recovery_failure_converges_the_running_instance_to_stopped) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel) or test(broker_klines_valid_request_fails_closed_without_historical_source) or test(broker_securities_returns_real_empty_result_when_cache_has_no_symbol)"
         ],
         "testFilter": [
           "disabled_web_access_does_not_start_a_listener",
@@ -49326,10 +49324,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "0896c4ab",
+        "verifiedAt": "2026-09-25T13:35:20Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -49378,20 +49376,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(depth_read_returns_empty_arrays_for_empty_s2c_lists) or test(switch_retires_the_previous_provider_before_publishing_the_next_one) or test(unsubscribe_retry_ladder_escalates_and_reacquire_clears_retry_state) or test(queued_transitions_observe_the_committed_provider_as_their_previous_owner) or test(start_rejects_a_second_launch_of_a_live_process) or test(stop_escalates_to_kill_when_the_child_outlives_the_grace_period) or test(managed_process_is_reused_until_an_explicit_stop_releases_it) or test(unknown_provider_activation_is_rejected_without_touching_the_active_selection) or test(activation_after_shutdown_is_rejected_and_leaves_the_snapshot_committed) or test(node_candidates_prefer_path_then_macos_common_installs) or test(runtime_dependencies_flag_unsatisfied_required_entries) or test(stop_product_is_idempotent_across_concurrent_invocations) or test(web_shutdown_does_not_hold_runtime_lock_while_joining_server) or test(auth_session_route_matches_go_fixture_in_cutover_only) or test(test_normalize_execution_order_preserves_broker_abstraction) or test(provider_switch_does_not_disconnect_an_existing_futu_trade_session) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(disabled_web_access_does_not_start_a_listener) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable) or test(test_product_runtime_ordered_shutdown_explicit) or test(production_startup_exposes_degraded_api_when_external_runtimes_are_unavailable) or test(earnings_calendar_route_maps_frontend_keys) or test(strategy_definition_preview_derives_warmup_bars_and_overrides_preview_parameters) or test(browser_authenticated_request_cannot_change_desktop_only_security_settings) or test(cached_projection_does_not_promote_stale_overnight_during_regular_hours) or test(startup_reconcile_resets_stale_paused_state_and_keeps_stopped_instances) or test(recovery_failure_converges_the_running_instance_to_stopped) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel) or test(broker_klines_valid_request_fails_closed_without_historical_source) or test(broker_securities_returns_real_empty_result_when_cache_has_no_symbol)"
         ],
         "testFilter": [
           "test_product_runtime_ordered_shutdown_explicit"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "0896c4ab",
+        "verifiedAt": "2026-09-25T13:35:20Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -49704,20 +49702,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(depth_read_returns_empty_arrays_for_empty_s2c_lists) or test(switch_retires_the_previous_provider_before_publishing_the_next_one) or test(unsubscribe_retry_ladder_escalates_and_reacquire_clears_retry_state) or test(queued_transitions_observe_the_committed_provider_as_their_previous_owner) or test(start_rejects_a_second_launch_of_a_live_process) or test(stop_escalates_to_kill_when_the_child_outlives_the_grace_period) or test(managed_process_is_reused_until_an_explicit_stop_releases_it) or test(unknown_provider_activation_is_rejected_without_touching_the_active_selection) or test(activation_after_shutdown_is_rejected_and_leaves_the_snapshot_committed) or test(node_candidates_prefer_path_then_macos_common_installs) or test(runtime_dependencies_flag_unsatisfied_required_entries) or test(stop_product_is_idempotent_across_concurrent_invocations) or test(web_shutdown_does_not_hold_runtime_lock_while_joining_server) or test(auth_session_route_matches_go_fixture_in_cutover_only) or test(test_normalize_execution_order_preserves_broker_abstraction) or test(provider_switch_does_not_disconnect_an_existing_futu_trade_session) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(disabled_web_access_does_not_start_a_listener) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable) or test(test_product_runtime_ordered_shutdown_explicit) or test(production_startup_exposes_degraded_api_when_external_runtimes_are_unavailable) or test(earnings_calendar_route_maps_frontend_keys) or test(strategy_definition_preview_derives_warmup_bars_and_overrides_preview_parameters) or test(browser_authenticated_request_cannot_change_desktop_only_security_settings) or test(cached_projection_does_not_promote_stale_overnight_during_regular_hours) or test(startup_reconcile_resets_stale_paused_state_and_keeps_stopped_instances) or test(recovery_failure_converges_the_running_instance_to_stopped) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel) or test(broker_klines_valid_request_fails_closed_without_historical_source) or test(broker_securities_returns_real_empty_result_when_cache_has_no_symbol)"
         ],
         "testFilter": [
           "production_startup_exposes_degraded_api_when_external_runtimes_are_unavailable"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "0896c4ab",
+        "verifiedAt": "2026-09-25T13:35:20Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -51214,20 +51212,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(depth_read_returns_empty_arrays_for_empty_s2c_lists) or test(switch_retires_the_previous_provider_before_publishing_the_next_one) or test(unsubscribe_retry_ladder_escalates_and_reacquire_clears_retry_state) or test(queued_transitions_observe_the_committed_provider_as_their_previous_owner) or test(start_rejects_a_second_launch_of_a_live_process) or test(stop_escalates_to_kill_when_the_child_outlives_the_grace_period) or test(managed_process_is_reused_until_an_explicit_stop_releases_it) or test(unknown_provider_activation_is_rejected_without_touching_the_active_selection) or test(activation_after_shutdown_is_rejected_and_leaves_the_snapshot_committed) or test(node_candidates_prefer_path_then_macos_common_installs) or test(runtime_dependencies_flag_unsatisfied_required_entries) or test(stop_product_is_idempotent_across_concurrent_invocations) or test(web_shutdown_does_not_hold_runtime_lock_while_joining_server) or test(auth_session_route_matches_go_fixture_in_cutover_only) or test(test_normalize_execution_order_preserves_broker_abstraction) or test(provider_switch_does_not_disconnect_an_existing_futu_trade_session) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(disabled_web_access_does_not_start_a_listener) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable) or test(test_product_runtime_ordered_shutdown_explicit) or test(production_startup_exposes_degraded_api_when_external_runtimes_are_unavailable) or test(earnings_calendar_route_maps_frontend_keys) or test(strategy_definition_preview_derives_warmup_bars_and_overrides_preview_parameters) or test(browser_authenticated_request_cannot_change_desktop_only_security_settings) or test(cached_projection_does_not_promote_stale_overnight_during_regular_hours) or test(startup_reconcile_resets_stale_paused_state_and_keeps_stopped_instances) or test(recovery_failure_converges_the_running_instance_to_stopped) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel) or test(broker_klines_valid_request_fails_closed_without_historical_source) or test(broker_securities_returns_real_empty_result_when_cache_has_no_symbol)"
         ],
         "testFilter": [
           "earnings_calendar_route_maps_frontend_keys"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "0896c4ab",
+        "verifiedAt": "2026-09-25T13:35:20Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -51424,20 +51422,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(depth_read_returns_empty_arrays_for_empty_s2c_lists) or test(switch_retires_the_previous_provider_before_publishing_the_next_one) or test(unsubscribe_retry_ladder_escalates_and_reacquire_clears_retry_state) or test(queued_transitions_observe_the_committed_provider_as_their_previous_owner) or test(start_rejects_a_second_launch_of_a_live_process) or test(stop_escalates_to_kill_when_the_child_outlives_the_grace_period) or test(managed_process_is_reused_until_an_explicit_stop_releases_it) or test(unknown_provider_activation_is_rejected_without_touching_the_active_selection) or test(activation_after_shutdown_is_rejected_and_leaves_the_snapshot_committed) or test(node_candidates_prefer_path_then_macos_common_installs) or test(runtime_dependencies_flag_unsatisfied_required_entries) or test(stop_product_is_idempotent_across_concurrent_invocations) or test(web_shutdown_does_not_hold_runtime_lock_while_joining_server) or test(auth_session_route_matches_go_fixture_in_cutover_only) or test(test_normalize_execution_order_preserves_broker_abstraction) or test(provider_switch_does_not_disconnect_an_existing_futu_trade_session) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(disabled_web_access_does_not_start_a_listener) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable) or test(test_product_runtime_ordered_shutdown_explicit) or test(production_startup_exposes_degraded_api_when_external_runtimes_are_unavailable) or test(earnings_calendar_route_maps_frontend_keys) or test(strategy_definition_preview_derives_warmup_bars_and_overrides_preview_parameters) or test(browser_authenticated_request_cannot_change_desktop_only_security_settings) or test(cached_projection_does_not_promote_stale_overnight_during_regular_hours) or test(startup_reconcile_resets_stale_paused_state_and_keeps_stopped_instances) or test(recovery_failure_converges_the_running_instance_to_stopped) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel) or test(broker_klines_valid_request_fails_closed_without_historical_source) or test(broker_securities_returns_real_empty_result_when_cache_has_no_symbol)"
         ],
         "testFilter": [
           "strategy_definition_preview_derives_warmup_bars_and_overrides_preview_parameters"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "0896c4ab",
+        "verifiedAt": "2026-09-25T13:35:20Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -51969,20 +51967,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(browser_authenticated_request_cannot_change_desktop_only_security_settings)"
+          "test(depth_read_returns_empty_arrays_for_empty_s2c_lists) or test(switch_retires_the_previous_provider_before_publishing_the_next_one) or test(unsubscribe_retry_ladder_escalates_and_reacquire_clears_retry_state) or test(queued_transitions_observe_the_committed_provider_as_their_previous_owner) or test(start_rejects_a_second_launch_of_a_live_process) or test(stop_escalates_to_kill_when_the_child_outlives_the_grace_period) or test(managed_process_is_reused_until_an_explicit_stop_releases_it) or test(unknown_provider_activation_is_rejected_without_touching_the_active_selection) or test(activation_after_shutdown_is_rejected_and_leaves_the_snapshot_committed) or test(node_candidates_prefer_path_then_macos_common_installs) or test(runtime_dependencies_flag_unsatisfied_required_entries) or test(stop_product_is_idempotent_across_concurrent_invocations) or test(web_shutdown_does_not_hold_runtime_lock_while_joining_server) or test(auth_session_route_matches_go_fixture_in_cutover_only) or test(test_normalize_execution_order_preserves_broker_abstraction) or test(provider_switch_does_not_disconnect_an_existing_futu_trade_session) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(disabled_web_access_does_not_start_a_listener) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable) or test(test_product_runtime_ordered_shutdown_explicit) or test(production_startup_exposes_degraded_api_when_external_runtimes_are_unavailable) or test(earnings_calendar_route_maps_frontend_keys) or test(strategy_definition_preview_derives_warmup_bars_and_overrides_preview_parameters) or test(browser_authenticated_request_cannot_change_desktop_only_security_settings) or test(cached_projection_does_not_promote_stale_overnight_during_regular_hours) or test(startup_reconcile_resets_stale_paused_state_and_keeps_stopped_instances) or test(recovery_failure_converges_the_running_instance_to_stopped) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel) or test(broker_klines_valid_request_fails_closed_without_historical_source) or test(broker_securities_returns_real_empty_result_when_cache_has_no_symbol)"
         ],
         "testFilter": [
           "browser_authenticated_request_cannot_change_desktop_only_security_settings"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "0896c4ab",
+        "verifiedAt": "2026-09-25T13:35:20Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -52531,20 +52529,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(depth_read_returns_empty_arrays_for_empty_s2c_lists) or test(switch_retires_the_previous_provider_before_publishing_the_next_one) or test(unsubscribe_retry_ladder_escalates_and_reacquire_clears_retry_state) or test(queued_transitions_observe_the_committed_provider_as_their_previous_owner) or test(start_rejects_a_second_launch_of_a_live_process) or test(stop_escalates_to_kill_when_the_child_outlives_the_grace_period) or test(managed_process_is_reused_until_an_explicit_stop_releases_it) or test(unknown_provider_activation_is_rejected_without_touching_the_active_selection) or test(activation_after_shutdown_is_rejected_and_leaves_the_snapshot_committed) or test(node_candidates_prefer_path_then_macos_common_installs) or test(runtime_dependencies_flag_unsatisfied_required_entries) or test(stop_product_is_idempotent_across_concurrent_invocations) or test(web_shutdown_does_not_hold_runtime_lock_while_joining_server) or test(auth_session_route_matches_go_fixture_in_cutover_only) or test(test_normalize_execution_order_preserves_broker_abstraction) or test(provider_switch_does_not_disconnect_an_existing_futu_trade_session) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(disabled_web_access_does_not_start_a_listener) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable) or test(test_product_runtime_ordered_shutdown_explicit) or test(production_startup_exposes_degraded_api_when_external_runtimes_are_unavailable) or test(earnings_calendar_route_maps_frontend_keys) or test(strategy_definition_preview_derives_warmup_bars_and_overrides_preview_parameters) or test(browser_authenticated_request_cannot_change_desktop_only_security_settings) or test(cached_projection_does_not_promote_stale_overnight_during_regular_hours) or test(startup_reconcile_resets_stale_paused_state_and_keeps_stopped_instances) or test(recovery_failure_converges_the_running_instance_to_stopped) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel) or test(broker_klines_valid_request_fails_closed_without_historical_source) or test(broker_securities_returns_real_empty_result_when_cache_has_no_symbol)"
         ],
         "testFilter": [
           "cached_projection_does_not_promote_stale_overnight_during_regular_hours"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "0896c4ab",
+        "verifiedAt": "2026-09-25T13:35:20Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -52685,10 +52683,10 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(depth_read_returns_empty_arrays_for_empty_s2c_lists) or test(switch_retires_the_previous_provider_before_publishing_the_next_one) or test(unsubscribe_retry_ladder_escalates_and_reacquire_clears_retry_state) or test(queued_transitions_observe_the_committed_provider_as_their_previous_owner) or test(start_rejects_a_second_launch_of_a_live_process) or test(stop_escalates_to_kill_when_the_child_outlives_the_grace_period) or test(managed_process_is_reused_until_an_explicit_stop_releases_it) or test(unknown_provider_activation_is_rejected_without_touching_the_active_selection) or test(activation_after_shutdown_is_rejected_and_leaves_the_snapshot_committed) or test(node_candidates_prefer_path_then_macos_common_installs) or test(runtime_dependencies_flag_unsatisfied_required_entries) or test(stop_product_is_idempotent_across_concurrent_invocations) or test(web_shutdown_does_not_hold_runtime_lock_while_joining_server) or test(auth_session_route_matches_go_fixture_in_cutover_only) or test(test_normalize_execution_order_preserves_broker_abstraction) or test(provider_switch_does_not_disconnect_an_existing_futu_trade_session) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(disabled_web_access_does_not_start_a_listener) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable) or test(test_product_runtime_ordered_shutdown_explicit) or test(production_startup_exposes_degraded_api_when_external_runtimes_are_unavailable) or test(earnings_calendar_route_maps_frontend_keys) or test(strategy_definition_preview_derives_warmup_bars_and_overrides_preview_parameters) or test(browser_authenticated_request_cannot_change_desktop_only_security_settings) or test(cached_projection_does_not_promote_stale_overnight_during_regular_hours) or test(startup_reconcile_resets_stale_paused_state_and_keeps_stopped_instances) or test(recovery_failure_converges_the_running_instance_to_stopped) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel) or test(broker_klines_valid_request_fails_closed_without_historical_source) or test(broker_securities_returns_real_empty_result_when_cache_has_no_symbol)"
         ],
         "testFilter": [
           "startup_reconcile_resets_stale_paused_state_and_keeps_stopped_instances",
@@ -52696,10 +52694,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "0896c4ab",
+        "verifiedAt": "2026-09-25T13:35:20Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -52753,20 +52751,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(depth_read_returns_empty_arrays_for_empty_s2c_lists) or test(switch_retires_the_previous_provider_before_publishing_the_next_one) or test(unsubscribe_retry_ladder_escalates_and_reacquire_clears_retry_state) or test(queued_transitions_observe_the_committed_provider_as_their_previous_owner) or test(start_rejects_a_second_launch_of_a_live_process) or test(stop_escalates_to_kill_when_the_child_outlives_the_grace_period) or test(managed_process_is_reused_until_an_explicit_stop_releases_it) or test(unknown_provider_activation_is_rejected_without_touching_the_active_selection) or test(activation_after_shutdown_is_rejected_and_leaves_the_snapshot_committed) or test(node_candidates_prefer_path_then_macos_common_installs) or test(runtime_dependencies_flag_unsatisfied_required_entries) or test(stop_product_is_idempotent_across_concurrent_invocations) or test(web_shutdown_does_not_hold_runtime_lock_while_joining_server) or test(auth_session_route_matches_go_fixture_in_cutover_only) or test(test_normalize_execution_order_preserves_broker_abstraction) or test(provider_switch_does_not_disconnect_an_existing_futu_trade_session) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(disabled_web_access_does_not_start_a_listener) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable) or test(test_product_runtime_ordered_shutdown_explicit) or test(production_startup_exposes_degraded_api_when_external_runtimes_are_unavailable) or test(earnings_calendar_route_maps_frontend_keys) or test(strategy_definition_preview_derives_warmup_bars_and_overrides_preview_parameters) or test(browser_authenticated_request_cannot_change_desktop_only_security_settings) or test(cached_projection_does_not_promote_stale_overnight_during_regular_hours) or test(startup_reconcile_resets_stale_paused_state_and_keeps_stopped_instances) or test(recovery_failure_converges_the_running_instance_to_stopped) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel) or test(broker_klines_valid_request_fails_closed_without_historical_source) or test(broker_securities_returns_real_empty_result_when_cache_has_no_symbol)"
         ],
         "testFilter": [
           "cancel_rejects_missing_terminal_and_unidentified_persisted_orders"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "0896c4ab",
+        "verifiedAt": "2026-09-25T13:35:20Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -52820,20 +52818,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(depth_read_returns_empty_arrays_for_empty_s2c_lists) or test(switch_retires_the_previous_provider_before_publishing_the_next_one) or test(unsubscribe_retry_ladder_escalates_and_reacquire_clears_retry_state) or test(queued_transitions_observe_the_committed_provider_as_their_previous_owner) or test(start_rejects_a_second_launch_of_a_live_process) or test(stop_escalates_to_kill_when_the_child_outlives_the_grace_period) or test(managed_process_is_reused_until_an_explicit_stop_releases_it) or test(unknown_provider_activation_is_rejected_without_touching_the_active_selection) or test(activation_after_shutdown_is_rejected_and_leaves_the_snapshot_committed) or test(node_candidates_prefer_path_then_macos_common_installs) or test(runtime_dependencies_flag_unsatisfied_required_entries) or test(stop_product_is_idempotent_across_concurrent_invocations) or test(web_shutdown_does_not_hold_runtime_lock_while_joining_server) or test(auth_session_route_matches_go_fixture_in_cutover_only) or test(test_normalize_execution_order_preserves_broker_abstraction) or test(provider_switch_does_not_disconnect_an_existing_futu_trade_session) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(disabled_web_access_does_not_start_a_listener) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable) or test(test_product_runtime_ordered_shutdown_explicit) or test(production_startup_exposes_degraded_api_when_external_runtimes_are_unavailable) or test(earnings_calendar_route_maps_frontend_keys) or test(strategy_definition_preview_derives_warmup_bars_and_overrides_preview_parameters) or test(browser_authenticated_request_cannot_change_desktop_only_security_settings) or test(cached_projection_does_not_promote_stale_overnight_during_regular_hours) or test(startup_reconcile_resets_stale_paused_state_and_keeps_stopped_instances) or test(recovery_failure_converges_the_running_instance_to_stopped) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel) or test(broker_klines_valid_request_fails_closed_without_historical_source) or test(broker_securities_returns_real_empty_result_when_cache_has_no_symbol)"
         ],
         "testFilter": [
           "accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "0896c4ab",
+        "verifiedAt": "2026-09-25T13:35:20Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -54230,20 +54228,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(depth_read_returns_empty_arrays_for_empty_s2c_lists) or test(switch_retires_the_previous_provider_before_publishing_the_next_one) or test(unsubscribe_retry_ladder_escalates_and_reacquire_clears_retry_state) or test(queued_transitions_observe_the_committed_provider_as_their_previous_owner) or test(start_rejects_a_second_launch_of_a_live_process) or test(stop_escalates_to_kill_when_the_child_outlives_the_grace_period) or test(managed_process_is_reused_until_an_explicit_stop_releases_it) or test(unknown_provider_activation_is_rejected_without_touching_the_active_selection) or test(activation_after_shutdown_is_rejected_and_leaves_the_snapshot_committed) or test(node_candidates_prefer_path_then_macos_common_installs) or test(runtime_dependencies_flag_unsatisfied_required_entries) or test(stop_product_is_idempotent_across_concurrent_invocations) or test(web_shutdown_does_not_hold_runtime_lock_while_joining_server) or test(auth_session_route_matches_go_fixture_in_cutover_only) or test(test_normalize_execution_order_preserves_broker_abstraction) or test(provider_switch_does_not_disconnect_an_existing_futu_trade_session) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(disabled_web_access_does_not_start_a_listener) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable) or test(test_product_runtime_ordered_shutdown_explicit) or test(production_startup_exposes_degraded_api_when_external_runtimes_are_unavailable) or test(earnings_calendar_route_maps_frontend_keys) or test(strategy_definition_preview_derives_warmup_bars_and_overrides_preview_parameters) or test(browser_authenticated_request_cannot_change_desktop_only_security_settings) or test(cached_projection_does_not_promote_stale_overnight_during_regular_hours) or test(startup_reconcile_resets_stale_paused_state_and_keeps_stopped_instances) or test(recovery_failure_converges_the_running_instance_to_stopped) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel) or test(broker_klines_valid_request_fails_closed_without_historical_source) or test(broker_securities_returns_real_empty_result_when_cache_has_no_symbol)"
         ],
         "testFilter": [
           "broker_klines_valid_request_fails_closed_without_historical_source"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "0896c4ab",
+        "verifiedAt": "2026-09-25T13:35:20Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -54359,20 +54357,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(depth_read_returns_empty_arrays_for_empty_s2c_lists) or test(switch_retires_the_previous_provider_before_publishing_the_next_one) or test(unsubscribe_retry_ladder_escalates_and_reacquire_clears_retry_state) or test(queued_transitions_observe_the_committed_provider_as_their_previous_owner) or test(start_rejects_a_second_launch_of_a_live_process) or test(stop_escalates_to_kill_when_the_child_outlives_the_grace_period) or test(managed_process_is_reused_until_an_explicit_stop_releases_it) or test(unknown_provider_activation_is_rejected_without_touching_the_active_selection) or test(activation_after_shutdown_is_rejected_and_leaves_the_snapshot_committed) or test(node_candidates_prefer_path_then_macos_common_installs) or test(runtime_dependencies_flag_unsatisfied_required_entries) or test(stop_product_is_idempotent_across_concurrent_invocations) or test(web_shutdown_does_not_hold_runtime_lock_while_joining_server) or test(auth_session_route_matches_go_fixture_in_cutover_only) or test(test_normalize_execution_order_preserves_broker_abstraction) or test(provider_switch_does_not_disconnect_an_existing_futu_trade_session) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(disabled_web_access_does_not_start_a_listener) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable) or test(test_product_runtime_ordered_shutdown_explicit) or test(production_startup_exposes_degraded_api_when_external_runtimes_are_unavailable) or test(earnings_calendar_route_maps_frontend_keys) or test(strategy_definition_preview_derives_warmup_bars_and_overrides_preview_parameters) or test(browser_authenticated_request_cannot_change_desktop_only_security_settings) or test(cached_projection_does_not_promote_stale_overnight_during_regular_hours) or test(startup_reconcile_resets_stale_paused_state_and_keeps_stopped_instances) or test(recovery_failure_converges_the_running_instance_to_stopped) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel) or test(broker_klines_valid_request_fails_closed_without_historical_source) or test(broker_securities_returns_real_empty_result_when_cache_has_no_symbol)"
         ],
         "testFilter": [
           "broker_securities_returns_real_empty_result_when_cache_has_no_symbol"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "0896c4ab",
+        "verifiedAt": "2026-09-25T13:35:20Z",
         "receiptDigest": null
       },
       "risk": "high",
