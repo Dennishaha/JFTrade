@@ -11635,7 +11635,7 @@
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_news_tests.rs::explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback; crates/jftrade-engine/src/product_production_ports_market_data_news_tests.rs::news_route_serves_an_explicit_broker_id_for_the_active_provider",
       "conclusion": "partial：Go 断言显式 brokerId 走 broker reader（securities/snapshots/candles/depth 四路调用参数逐项）且绝不回退 legacy，无 reader 时四路 409。Rust 无 broker reader 列表（读取始终由 active provider owner 处理）：显式非活动 broker 一律 409 MARKET_DATA_CAPABILITY_UNSUPPORTED，显式活动 provider 走 helper（本批补锚点）。缺口：按路由的 reader 调用序列在 Rust 架构中不成立，记为边界差异（不伪装覆盖）。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib -E 'test(explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback) + test(news_route_serves_an_explicit_broker_id_for_the_active_provider)' --locked",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E test(explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback) or test(news_route_serves_an_explicit_broker_id_for_the_active_provider)",
       "evidence_type": "partial",
       "source": {
         "file": "internal/api/marketdata/routes_test.go",
@@ -11668,11 +11668,13 @@
         }
       ],
       "assertionCoverage": {
-        "covered": [],
-        "uncovered": [
-          "partial：Go 断言显式 brokerId 走 broker reader（securities/snapshots/candles/depth 四路调用参数逐项）且绝不回退 legacy，无 reader 时四路 409。Rust 无 broker reader 列表（读取始终由 active provider owner 处理）：显式非活动 broker 一律 409 MARKET_DATA_CAPABILITY_UNSUPPORTED，显式活动 provider 走 helper（本批补锚点）。缺口：按路由的 reader 调用序列在 Rust 架构中不成立，记为边界差异（不伪装覆盖）。"
+        "covered": [
+          "Rust 已验证显式非活动 broker 在触达 legacy/helper 前 fail closed，以及显式活动 provider 的 broker identity 路由保持归属。"
         ],
-        "source": "legacy-conclusion"
+        "uncovered": [
+          "Go 逐路断言 securities/snapshots/candles/depth 通过 broker reader 的调用序列、参数和无 reader 时四路 409；Rust 没有独立 broker reader 列表，读取 owner 是 active provider，无法建立同形调用序列。"
+        ],
+        "source": "manual-batch-review"
       },
       "verification": {
         "argv": [
@@ -11681,10 +11683,10 @@
           "run",
           "-p",
           "jftrade-engine",
-          "--lib",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback) + test(news_route_serves_an_explicit_broker_id_for_the_active_provider)",
-          "--locked"
+          "test(explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback) or test(news_route_serves_an_explicit_broker_id_for_the_active_provider)"
         ],
         "testFilter": [
           "explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback",
@@ -11692,10 +11694,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
+        "status": "passed",
+        "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": null,
+        "verifiedAt": "2026-09-25T04:25:00Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -11706,9 +11708,11 @@
         "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [],
+      "coveredAssertions": [
+        "Rust 已验证显式非活动 broker 在触达 legacy/helper 前 fail closed，以及显式活动 provider 的 broker identity 路由保持归属。"
+      ],
       "uncoveredAssertions": [
-        "partial：Go 断言显式 brokerId 走 broker reader（securities/snapshots/candles/depth 四路调用参数逐项）且绝不回退 legacy，无 reader 时四路 409。Rust 无 broker reader 列表（读取始终由 active provider owner 处理）：显式非活动 broker 一律 409 MARKET_DATA_CAPABILITY_UNSUPPORTED，显式活动 provider 走 helper（本批补锚点）。缺口：按路由的 reader 调用序列在 Rust 架构中不成立，记为边界差异（不伪装覆盖）。"
+        "Go 逐路断言 securities/snapshots/candles/depth 通过 broker reader 的调用序列、参数和无 reader 时四路 409；Rust 没有独立 broker reader 列表，读取 owner 是 active provider，无法建立同形调用序列。"
       ],
       "boundaryReason": null
     },
