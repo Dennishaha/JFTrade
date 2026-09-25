@@ -10466,7 +10466,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/product_query.rs::query_time_parses_rfc3339_datetime_and_date",
       "conclusion": "function_exact：Go 断言空白时间返回空值、非法时间返回错误。Rust 的 normalize_optional_query_time 单测断言 \"  \" -> None 与 \"not-a-time\" -> Err，并额外覆盖 RFC3339、空格分隔与纯日期三种合法格式，等价覆盖 Go 的两条边界断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(query_time_parses_rfc3339_datetime_and_date)'",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(query_time_parses_rfc3339_datetime_and_date)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/api/marketdata/routes_boundaries_test.go",
@@ -10496,6 +10496,8 @@
           "run",
           "-p",
           "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
           "test(query_time_parses_rfc3339_datetime_and_date)"
         ],
@@ -10579,7 +10581,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::snapshot_read_fences_provider_generation_switch_during_helper_query",
       "conclusion": "function_exact：Go 的 GetSnapshot 读取前记录 providerGeneration、返回后复核并在切换时返回 ErrProviderChanged（409 MARKET_DATA_PROVIDER_CHANGED）。Rust 原先没有该栅栏，快照会带着已退役 provider 的数据返回；本轮在 read_snapshots 的 helper 分支与 Futu fallback 分支补上 generation 复核。回归测试让 helper 在响应前 activate(Akshare)，断言 409 + MARKET_DATA_PROVIDER_CHANGED。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(snapshot_read_fences_provider_generation_switch_during_helper_query)'",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(snapshot_read_fences_provider_generation_switch_during_helper_query)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/api/marketdata/routes_boundaries_test.go",
@@ -10614,6 +10616,8 @@
           "run",
           "-p",
           "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
           "test(snapshot_read_fences_provider_generation_switch_during_helper_query)"
         ],
@@ -10646,7 +10650,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_projection.rs::tests::market_data_read_errors_expose_provider_warmup_retry_signal",
       "conclusion": "function_exact：Go 的 writeMarketDataReadError 对 ErrProviderWarming 返回 503 + Retry-After: 1 + MARKET_DATA_PROVIDER_WARMING。Rust 原先直接透传 helper 的 *_RUNTIME_WARMING 码；本轮在共享 helper 错误投影层按 Go 的 classifyRuntimeError 语义归类，覆盖 YFINANCE_RUNTIME_WARMING、AKSHARE_RUNTIME_WARMING、PROVIDER_RUNTIME_WARMING。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(market_data_read_errors_expose_provider_warmup_retry_signal)'",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(market_data_read_errors_expose_provider_warmup_retry_signal)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/api/marketdata/routes_boundaries_test.go",
@@ -10681,6 +10685,8 @@
           "run",
           "-p",
           "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
           "test(market_data_read_errors_expose_provider_warmup_retry_signal)"
         ],
@@ -10713,7 +10719,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_projection.rs::tests::market_data_read_errors_expose_provider_busy_retry_signal",
       "conclusion": "function_exact：Go 的 akshare 适配器把 AKSHARE_POOL_BUSY/AKSHARE_UPSTREAM_TIMEOUT 归为 ErrProviderBusy，路由返回 503 + Retry-After: 2 + MARKET_DATA_PROVIDER_BUSY。Rust 原先直接透传这两个码；本轮归类到共享投影，且 market_data_read_errors_preserve_unclassified_helper_failures 保证其他 helper 错误不被改写。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(market_data_read_errors_expose_provider_busy_retry_signal) or test(market_data_read_errors_preserve_unclassified_helper_failures)'",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(market_data_read_errors_expose_provider_busy_retry_signal)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/api/marketdata/routes_boundaries_test.go",
@@ -10748,8 +10754,10 @@
           "run",
           "-p",
           "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(market_data_read_errors_expose_provider_busy_retry_signal) or test(market_data_read_errors_preserve_unclassified_helper_failures)"
+          "test(market_data_read_errors_expose_provider_busy_retry_signal)"
         ],
         "testFilter": [
           "market_data_read_errors_expose_provider_busy_retry_signal"
@@ -10780,7 +10788,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/product_production_assembly_tests.rs::candles_and_search_validation_rules",
       "conclusion": "function_exact：Go 断言 ErrInvalidCandleSessions 映射为 400 MARKET_CANDLE_SESSIONS_INVALID。Rust 的 candles_and_search_validation_rules 对 sessions=all 与 sessions=（空）两条路径断言 400 + MARKET_CANDLE_SESSIONS_INVALID，并带 go:452dea11 parity 注释；另由 candle_route_rejects_invalid_sessions 覆盖路由前置拒绝，本条使用 assembly 级证据以保持入口唯一。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(candles_and_search_validation_rules)'",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(candles_and_search_validation_rules)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/api/marketdata/routes_boundaries_test.go",
@@ -10810,6 +10818,8 @@
           "run",
           "-p",
           "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
           "test(candles_and_search_validation_rules)"
         ],
@@ -11156,7 +11166,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/tests/market_data_subscription_mutation_compatibility.rs::subscription_mutations_map_canceled_context_to_failed",
       "conclusion": "function_exact：Go 对 get/acquire/release/clear/heartbeat 五条路由在 canceled service context 下统一返回 500 SUBSCRIPTION_FAILED。Rust 新增独立回归测试按 fixture 顺序回放 acquire/release/heartbeat/clear 四条 contextError=canceled 用例，逐条断言 500 + SUBSCRIPTION_FAILED + context canceled。GET 快照路径在 Rust 走只读端口（无 context 参数），属 owner 边界差异，已在结论中标注。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(subscription_mutations_map_canceled_context_to_failed)'",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(subscription_mutations_map_canceled_context_to_failed)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/api/marketdata/routes_boundaries_test.go",
@@ -11191,6 +11201,8 @@
           "run",
           "-p",
           "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
           "test(subscription_mutations_map_canceled_context_to_failed)"
         ],
@@ -11223,7 +11235,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_subscription_tests.rs::release_and_clear_map_snapshot_failure_after_logical_cleanup",
       "conclusion": "function_exact：Go 的 cancellingSubscriptionReconciler 在逻辑清理完成后取消 snapshot 协调器，release 与 clear 仍必须返回 500 SUBSCRIPTION_FAILED。Rust 用可切换失败的 PhysicalSubscriptionSnapshotPort 复现同一时序：acquire 成功后让物理快照读取失败，release 与 clear 均返回 500 SUBSCRIPTION_FAILED，同时在断言中证明逻辑 demand 已先被清空（logical_count 从 1 归零）。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(release_and_clear_map_snapshot_failure_after_logical_cleanup)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/api/marketdata/routes_boundaries_test.go",
@@ -11259,7 +11271,9 @@
           "-p",
           "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(release_and_clear_map_snapshot_failure_after_logical_cleanup)"
         ],
         "testFilter": [
           "release_and_clear_map_snapshot_failure_after_logical_cleanup"
@@ -11366,7 +11380,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_news_tests.rs::production_news_actions_port_forwards_yfinance_news_request; crates/jftrade-engine/src/product_production_ports_market_data_news_tests.rs::production_news_actions_port_maps_helper_failure_and_rejects_bad_limit",
       "conclusion": "function_exact（本批补齐 limit 三段）：Go 断言 limit=abc/0/51→400、limit=5→200 且服务收到 market/symbol/limit=5、载荷 instrumentId/source/entries。Rust 转发用例以真实本地 mock 断言上游请求路径含 ?limit=5 与投影字段（instrumentId、entries.publishedAt）；limit 校验用例本批扩展为 abc/0/51 三者均 400 BAD_REQUEST。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib -E 'test(production_news_actions_port_forwards_yfinance_news_request) + test(production_news_actions_port_maps_helper_failure_and_rejects_bad_limit)' --locked",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(production_news_actions_port_forwards_yfinance_news_request) or test(production_news_actions_port_maps_helper_failure_and_rejects_bad_limit)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/api/marketdata/routes_news_actions_test.go",
@@ -11412,10 +11426,10 @@
           "run",
           "-p",
           "jftrade-engine",
-          "--lib",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(production_news_actions_port_forwards_yfinance_news_request) + test(production_news_actions_port_maps_helper_failure_and_rejects_bad_limit)",
-          "--locked"
+          "test(production_news_actions_port_forwards_yfinance_news_request) or test(production_news_actions_port_maps_helper_failure_and_rejects_bad_limit)"
         ],
         "testFilter": [
           "production_news_actions_port_forwards_yfinance_news_request",
@@ -11447,7 +11461,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_news_tests.rs::production_news_actions_port_forwards_corporate_actions_window; crates/jftrade-engine/src/product_production_ports_market_data_news_tests.rs::corporate_actions_query_requires_rfc3339_and_ascending_range",
       "conclusion": "function_exact：Go 断言 from/to 非法或降序→400、合法窗口→200 且服务参数 from/to 精确、载荷 events[0].kind=dividend。Rust 转发用例断言上游 URL 携带 from/to（RFC3339 编码）并投影 kind；校验用例断言非法时间 400 与 from>to 400。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib -E 'test(production_news_actions_port_forwards_corporate_actions_window) + test(corporate_actions_query_requires_rfc3339_and_ascending_range)' --locked",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(production_news_actions_port_forwards_corporate_actions_window) or test(corporate_actions_query_requires_rfc3339_and_ascending_range)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/api/marketdata/routes_news_actions_test.go",
@@ -11493,10 +11507,10 @@
           "run",
           "-p",
           "jftrade-engine",
-          "--lib",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(production_news_actions_port_forwards_corporate_actions_window) + test(corporate_actions_query_requires_rfc3339_and_ascending_range)",
-          "--locked"
+          "test(production_news_actions_port_forwards_corporate_actions_window) or test(corporate_actions_query_requires_rfc3339_and_ascending_range)"
         ],
         "testFilter": [
           "production_news_actions_port_forwards_corporate_actions_window",
@@ -12019,7 +12033,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::candle_route_normalizes_repeated_sessions",
       "conclusion": "function_exact：Rust 接受 sessions=overnight,regular&sessions=extended&sessions=regular 的重复参数并完成渲染窗口解析，与 Go 的去重/稳定排序断言等价。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(candle_route_normalizes_repeated_sessions)'",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(candle_route_normalizes_repeated_sessions)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/api/marketdata/routes_test.go",
@@ -12054,6 +12068,8 @@
           "run",
           "-p",
           "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
           "test(candle_route_normalizes_repeated_sessions)"
         ],
@@ -12086,7 +12102,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::candle_route_rejects_invalid_sessions",
       "conclusion": "function_exact：Rust 对 sessions=（空）与 sessions=regular,invalid 均返回 400 且不调用 provider，覆盖 Go 的两个非法输入。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(candle_route_rejects_invalid_sessions)'",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(candle_route_rejects_invalid_sessions)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/api/marketdata/routes_test.go",
@@ -12121,6 +12137,8 @@
           "run",
           "-p",
           "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
           "test(candle_route_rejects_invalid_sessions)"
         ],
@@ -12354,7 +12372,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::tick_candles_use_fresh_cache_without_querying_the_provider + crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::candle_route_forwards_strict_before_window",
       "conclusion": "function_exact：Go 断言 period=tick 走缓存成功返回且 before 有值、to 为空时作为 provider 窗口 end。Rust 拆为两个 owner 测试：tick_candles_use_fresh_cache_without_querying_the_provider 断言新鲜 tick 缓存直接应答且不下发历史查询；candle_route_forwards_strict_before_window 断言 before=2026-07-18T13:40:00Z 被转换为美东会话时间 2026-07-18 09:40:00 作为窗口 end 且 to 为空。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(tick_candles_use_fresh_cache_without_querying_the_provider) | test(candle_route_forwards_strict_before_window)'",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(tick_candles_use_fresh_cache_without_querying_the_provider) or test(candle_route_forwards_strict_before_window)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/api/marketdata/routes_test.go",
@@ -12403,7 +12421,7 @@
           "--all-targets",
           "--locked",
           "-E",
-          "test(tick_candles_use_fresh_cache_without_querying_the_provider) | test(candle_route_forwards_strict_before_window)"
+          "test(tick_candles_use_fresh_cache_without_querying_the_provider) or test(candle_route_forwards_strict_before_window)"
         ],
         "testFilter": [
           "tick_candles_use_fresh_cache_without_querying_the_provider",
@@ -32732,7 +32750,7 @@
       "evidence_type": "function_exact",
       "rust_entry": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::us_intraday_futu_candles_carry_calendar_resolved_session_labels",
       "conclusion": "function_exact：无 sessions 参数时按 Go 的 US 日内默认 regular+extended+overnight 解析，逐根 K 线由交易所日历标注 pre/regular/after/overnight，meta.session=all、extendedHours=true。本轮修复读取 owner 的默认会话集合。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(us_intraday_futu_candles_carry_calendar_resolved_session_labels)'",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(us_intraday_futu_candles_carry_calendar_resolved_session_labels)'",
       "source": {
         "file": "internal/app/apiserver/marketdataapp/market_http_test.go",
         "line": 18,
@@ -32766,6 +32784,8 @@
           "run",
           "-p",
           "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
           "test(us_intraday_futu_candles_carry_calendar_resolved_session_labels)"
         ],
@@ -32799,7 +32819,7 @@
       "evidence_type": "partial",
       "rust_entry": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::candle_route_skips_session_classification_for_unannotated_requests",
       "conclusion": "部分覆盖：Go 断言日线蜡烛在 candle 与 meta 中均省略 session 且 extendedHours==false。Rust 的 candle_route_skips_session_classification_for_unannotated_requests 仅断言日线免 session 分类、可正常返回且 candle 无 session 字段；差异是 meta.session 省略与 extendedHours==false 无测试断言（仅实现层 annotate_session 条件覆盖，未逐项断言）。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(candle_route_skips_session_classification_for_unannotated_requests)'",
       "source": {
         "file": "internal/app/apiserver/marketdataapp/market_http_test.go",
         "line": 91,
@@ -32834,7 +32854,9 @@
           "-p",
           "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(candle_route_skips_session_classification_for_unannotated_requests)"
         ],
         "testFilter": [
           "candle_route_skips_session_classification_for_unannotated_requests"
@@ -32866,7 +32888,7 @@
       "evidence_type": "function_exact",
       "rust_entry": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::market_http_rejects_invalid_sessions_before_provider_access",
       "conclusion": "function_exact：sessions= 与 sessions=regular,invalid 都在 provider 访问前返回 400（reader.requests 为空），与 Go 的 “invalid sessions error != nil before Futu access” 等价。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(market_http_rejects_invalid_sessions_before_provider_access)'",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(market_http_rejects_invalid_sessions_before_provider_access)'",
       "source": {
         "file": "internal/app/apiserver/marketdataapp/market_http_test.go",
         "line": 137,
@@ -32900,6 +32922,8 @@
           "run",
           "-p",
           "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
           "test(market_http_rejects_invalid_sessions_before_provider_access)"
         ],
@@ -33002,7 +33026,7 @@
       "evidence_type": "function_exact",
       "rust_entry": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::snapshot_route_serves_a_fresh_cache_hit_without_provider_access",
       "conclusion": "Go 以 Service.Seed 注入 HK.00700 tick 后读快照，断言 meta.fromCache=true、source 为缓存样本来源、snapshot.at 等于样本 ObservedAt，并保留 turnover/volume 字符串。Rust 用同一 router 缓存 + SNAPSHOT lease 复现：断言 fromCache=true、price/bid/ask/previousClosePrice/turnover/volume 与 at 全部来自缓存样本。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(snapshot_route_serves_a_fresh_cache_hit_without_provider_access)'",
       "source": {
         "file": "internal/app/apiserver/marketdataapp/market_http_test.go",
         "line": 245,
@@ -33037,7 +33061,9 @@
           "-p",
           "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(snapshot_route_serves_a_fresh_cache_hit_without_provider_access)"
         ],
         "testFilter": [
           "snapshot_route_serves_a_fresh_cache_hit_without_provider_access"
@@ -33069,7 +33095,7 @@
       "evidence_type": "function_exact",
       "rust_entry": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::snapshot_route_queries_the_provider_once_on_cache_miss",
       "conclusion": "function_exact：无缓存样本时恰好调用一次 provider 快照（计数 fixture 断言 calls==1 且 instrument=HK.00700），返回 meta.fromCache=false 与实时价格/成交量。本轮同时修复快照缓存新鲜度：Go 只接受 TickFreshness(1.5s) 内的 Fresh，Rust 此前把 30s 内 Stale 也当命中，导致 cache miss 不查 provider。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(snapshot_route_queries_the_provider_once_on_cache_miss)'",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(snapshot_route_queries_the_provider_once_on_cache_miss)'",
       "source": {
         "file": "internal/app/apiserver/marketdataapp/market_http_test.go",
         "line": 306,
@@ -33103,6 +33129,8 @@
           "run",
           "-p",
           "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
           "test(snapshot_route_queries_the_provider_once_on_cache_miss)"
         ],
@@ -33136,7 +33164,7 @@
       "evidence_type": "function_exact",
       "rust_entry": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::snapshot_route_force_refresh_bypasses_the_cache",
       "conclusion": "Go 在缓存中 Seed 999.9 后请求 refresh=true，断言仍调用一次 GetBasicQot 并返回 provider 价 321.4（fromCache=false）。Rust 修复了真实差异：read_snapshots 之前忽略 refresh 直接命中缓存，现在 refresh=true 跳过 cache.Lookup；测试断言强制刷新不会泄漏缓存价 999.9，refresh=false 仍返回缓存样本。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(snapshot_route_force_refresh_bypasses_the_cache)'",
       "source": {
         "file": "internal/app/apiserver/marketdataapp/market_http_test.go",
         "line": 330,
@@ -33171,7 +33199,9 @@
           "-p",
           "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(snapshot_route_force_refresh_bypasses_the_cache)"
         ],
         "testFilter": [
           "snapshot_route_force_refresh_bypasses_the_cache"
@@ -33270,7 +33300,7 @@
       "evidence_type": "function_exact",
       "rust_entry": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::tick_candles_use_fresh_cache_without_querying_the_provider",
       "conclusion": "Go 的 period=tick 请求先读 cache.Latest(TickFreshness)，命中时不调用 provider 并以 fromCache=true 返回。Rust read_tick_candles 用同一 router 缓存的 Fresh 判定，测试断言 provider ticker 调用数为 0、meta.fromCache=true、candle.at 等于样本 ObservedAt、pagination.hasMore=false，且缓存样本未被重复写入。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(tick_candles_use_fresh_cache_without_querying_the_provider)'",
       "source": {
         "file": "internal/app/apiserver/marketdataapp/market_http_test.go",
         "line": 382,
@@ -33305,7 +33335,9 @@
           "-p",
           "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(tick_candles_use_fresh_cache_without_querying_the_provider)"
         ],
         "testFilter": [
           "tick_candles_use_fresh_cache_without_querying_the_provider"
@@ -33337,7 +33369,7 @@
       "evidence_type": "function_exact",
       "rust_entry": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::tick_candles_query_the_provider_once_on_cache_miss_and_ingest_the_sample",
       "conclusion": "Go 在 tick 缓存未命中时调用一次 QueryTicker 并 s.Ingest(*sample)。Rust 通过 OpenDTickerQuoteReader 执行一次 BasicQot 读，按 router recorder 代次写入共享缓存，测试断言调用数=1、meta.fromCache=false、样本被保留，且第二次读取直接命中缓存不再调用 provider。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(tick_candles_query_the_provider_once_on_cache_miss_and_ingest_the_sample)'",
       "source": {
         "file": "internal/app/apiserver/marketdataapp/market_http_test.go",
         "line": 418,
@@ -33372,7 +33404,9 @@
           "-p",
           "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(tick_candles_query_the_provider_once_on_cache_miss_and_ingest_the_sample)"
         ],
         "testFilter": [
           "tick_candles_query_the_provider_once_on_cache_miss_and_ingest_the_sample"
@@ -33404,7 +33438,7 @@
       "evidence_type": "function_exact",
       "rust_entry": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::tick_candles_fall_back_to_retained_cache_on_ticker_error",
       "conclusion": "Go 在 QueryTicker 失败且缓存仍有样本时返回缓存 candle 并置 fromCache=true，仅当无 candle 可产出时才返回错误。Rust 用同一分支：失败 + 保留样本 → 成功且 fromCache=true、at 等于保留样本时间；失败 + 空缓存 → Unavailable 失败关闭（由 tick_candles_surface_the_ticker_error_when_no_candle_is_retained 单独断言）。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(tick_candles_fall_back_to_retained_cache_on_ticker_error)'",
       "source": {
         "file": "internal/app/apiserver/marketdataapp/market_http_test.go",
         "line": 442,
@@ -33439,7 +33473,9 @@
           "-p",
           "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(tick_candles_fall_back_to_retained_cache_on_ticker_error)"
         ],
         "testFilter": [
           "tick_candles_fall_back_to_retained_cache_on_ticker_error"
@@ -34923,7 +34959,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/product_query.rs::candle_sessions_parse_dedup_order_and_reject_invalid",
       "conclusion": "function_exact：Go 断言 repeated sessions 值 \"overnight,regular\" 与 \"extended,regular\" 被解析、去重并稳定排序为 regular/extended/overnight。Rust 的 candle_sessions_parse_dedup_order_and_reject_invalid 传入 [\"overnight,regular\",\"extended\",\"regular\"]，断言解析结果为 [\"regular\",\"extended\",\"overnight\"]，并额外覆盖空值 Empty 与非法 token 拒绝、None 透传，逐条对应“重复/CSV 值解析、去重与稳定顺序”。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(candle_sessions_parse_dedup_order_and_reject_invalid)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/app/apiserver/marketdataapp/query_test.go",
@@ -34954,7 +34990,9 @@
           "-p",
           "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(candle_sessions_parse_dedup_order_and_reject_invalid)"
         ],
         "testFilter": [
           "candle_sessions_parse_dedup_order_and_reject_invalid"
@@ -37311,7 +37349,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/product_production_ports_research_market_tests.rs::industry_board_operations_map_to_provider_kinds_on_the_wire; crates/jftrade-engine/src/product_production_ports_research_market_tests.rs::industry_plate_members_read_the_board_from_the_instrument_id",
       "conclusion": "function_exact：Go 断言行业板块读按 operation 映射并转发（含 board kind 解析）。Rust 的 industry_board_operations_map_to_provider_kinds_on_the_wire 与 industry_plate_members_read_the_board_from_the_instrument_id 断言同一映射与板块解析；补充证据：industry_plate_members_read_the_board_from_the_instrument_id。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(industry_board_operations_map_to_provider_kinds_on_the_wire) or test(industry_plate_members_read_the_board_from_the_instrument_id)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/app/apiserver/marketdataapp/runtime_rankings_industry_forwarding_test.go",
@@ -37358,7 +37396,9 @@
           "-p",
           "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(industry_board_operations_map_to_provider_kinds_on_the_wire) or test(industry_plate_members_read_the_board_from_the_instrument_id)"
         ],
         "testFilter": [
           "industry_board_operations_map_to_provider_kinds_on_the_wire",
