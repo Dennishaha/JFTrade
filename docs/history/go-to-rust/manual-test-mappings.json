@@ -7955,7 +7955,7 @@
     "internal/api/httpserver/bindings_test.go:186:TestCandlePeriodAndPaginationNormalization": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_query.rs::candle_period_normalizes_aliases_and_rejects_unsupported; crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::candle_route_treats_blank_period_as_unset_and_rejects_unsupported",
-      "conclusion": "partial：周期半已逐项对齐（60m→1h、k_day→1d、2h 拒绝，本批补齐空白 period 语义）；分页半无同签名 helper——Go NormalizeBoundPage(limit, offset, default, max) 在 Rust 由各路由 clamp 表达（watchlist normalize_limit(0)=100、min(max)；candle 路由 limit<=0→200、>1000→1000，与 Go 服务端 clamp 一致），且 Go 的 limit=-3→1 与负 offset→0 在 Rust usize/入参校验下不可达，登记为结构边界。缺口 owner：crates/jftrade-engine product_query 与各读路由。",
+      "conclusion": "partial：周期半已逐项对齐（带空白的 60m→1h、k_day→1d、2h 拒绝，且 blank period 在 candle route 上按 unset 处理）；分页半无同签名 helper——Go NormalizeBoundPage(limit, offset, default, max) 在 Rust 由各路由 clamp 表达（candle route 的 blank/非整数 limit 与默认窗口已有独立回归），且 Go 的 limit=-3→1 与负 offset→0 在 Rust usize/入参校验下不可达，登记为结构边界。缺口 owner：crates/jftrade-engine product_query 与各读路由。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-api --all-targets --locked -E test(candle_period_normalizes_aliases_and_rejects_unsupported) or test(candle_route_treats_blank_period_as_unset_and_rejects_unsupported)",
       "evidence_type": "partial",
       "source": {
@@ -8015,7 +8015,7 @@
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": "2026-09-25T04:00:00Z",
+        "verifiedAt": "2026-09-25T07:57:47Z",
         "receiptDigest": null
       },
       "risk": "high",

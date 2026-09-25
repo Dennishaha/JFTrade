@@ -26,7 +26,7 @@
 - `lifecycle_boundaries_test.go` 余量 7 条已逐项读取 Go 断言并核对 Rust owner；7/7 保持 `partial`，精准 nextest 16/16 通过，没有新增生产修复。Cache、subscription、service、collector 与 resolver 的聚合 fixture 差异继续按 owner/架构边界记录。
 - Assistant chat stream helper/recovery 与断线重连 5 条已逐项读取 Go 断言并核对 Rust/SSE owner；5/5 保持 `boundary`/`partial`，精准 nextest 5/5 与 SSE/重连证据 4/4 通过。内存 hub clone、toolGroup、失败 writer 单写次数等旧 owner 行为按边界保留。
 - `internal/api/backtest/routes_progress_test.go:71` 已逐项读取 Go 断言并核对 Rust sync owner；保持 `partial`，精准 nextest 2/2 通过。Rust 已覆盖持久化 task 读回与 cancel 成功/缺失语义，HTTP progress 双态仍缺同形冻结路由语料。
-- HTTP bindings 的 `ParseQueryTime` fallback、`BindURI` escape/binding 和 candle period/pagination 三条 P1 已逐项核对；3/3 保持 `partial`，精准 nextest 5/5 通过。UTC/URI/candle 核心规则已有 Rust owner，caller fallback、Gin binding seam 与纯分页 helper 仍保留差异。
+- HTTP bindings 的 `ParseQueryTime` fallback、`BindURI` escape/binding 和 candle period/pagination 三条 P1 已逐项核对；3/3 保持 `partial`，精准 nextest 7/7 通过。UTC/URI/candle 核心规则已有 Rust owner，caller fallback、Gin binding seam 与纯分页 helper 仍保留差异；本批复核了带空白 period、blank limit、非整数 limit 和 route 默认窗口语义，负 limit/offset 的 Go helper 钳制在 Rust typed query 边界不可达。
 - `internal/api/live/dispatcher_boundaries_test.go:205:TestDispatcherEnvelopeDefaultsAndMapFallback` 已逐项核对；保持 `partial`，Rust SSE frame 证据 1/1 通过。dispatcher envelope 缺省字段与 mapString fallback 是 Go helper seam，未把 frame 形状聚合测试升级为 exact。
 - `internal/api/marketdata/routes_test.go:147:TestExplicitBrokerRoutesUseBrokerReaderAndNeverLegacyFallback` 已逐项核对；保持 `partial`，Rust 显式 broker 证据 2/2 通过。Rust active-provider owner 与 Go 独立 broker reader 调用列表不同，按架构边界保留四路序列差异。
 - `internal/api/settings/routes_market_data_test.go:63:TestBacktestMarketDataSettingsRoutesExposeCatalogAndRollbackPreparationFailure` 已逐项核对；保持 `partial`，Rust engine/settings 证据 3/3 通过。provider catalog、prepare-before-persist 与旧值保持已有 owner 断言，HTTP 409 envelope/GET 回读仍是跨 owner 聚合差异。
@@ -57,6 +57,7 @@
 - 本批最新门禁证据：`check:quick` 的受影响 Rust nextest 1978/1978 通过，format、clippy、7 个 compatibility replay、Pine worker 98/98 与桌面检查全部通过；此前一次 quick 因 target 中间 `.rcgu.o` 超过 50000 被拦截，确认无 Cargo 进程后清理 118712 个、约 29.1 GiB Rust 产物再重跑。随后全量 `check:rust` 在既有 `product_api_launcher_lifecycle::api_launcher_reports_startup_failure_when_the_configured_address_is_taken` 的 `None`/`Some(0)` 退出码断言处失败（2218/2219 已完成且通过）；该单测以 nextest `--retries 2` 复核 1/1 通过，完整门禁失败证据保留，不将该次全量运行记为通过。
 - 本批映射审计更新为 Go 4451、Rust 3337；`function_exact` 1479、`partial` 2338、`boundary` 636，重复 exact 0，0 nonexistent crate，2 个已记录 partial unresolved refs。Parity 锚点为 1764/1718/0/0/46；报告与 inventory 已重生成，anchor reconcile 无 unrecorded/stale。
 - 本批新增标准 reasoning.effort 请求矩阵回归：model default、low、medium、high、xhigh、max 六种请求逐项验证；精准 nextest 7/7、`check:quick` 受影响 Rust 1979/1979、完整 `check:rust` workspace 3464/3464（2 skipped）均通过，7 个 compatibility replay、format、clippy 与 Pine worker 98/98 全部通过。映射审计更新为 Rust 3338、`function_exact` 1480、`partial` 2337、`boundary` 636；重复 exact 0、nonexistent crate 0，Parity 锚点 1764/1718/0/0/46，报告与 inventory 已重生成，anchor reconcile 无 unrecorded/stale。
+- 本批 candle period/pagination 精准回归 2/2 通过；`check:quick` policy lane 通过，完整 `check:rust` 首次在既有 `product_api_launcher_lifecycle::api_launcher_reports_startup_failure_when_the_configured_address_is_taken` 的 `None`/`Some(0)` 生命周期断言处失败（2216/2217 已完成且通过），随后以 nextest `--retries 2` 单测复核 1/1 通过。该间歇性 launcher 失败与本批文档映射无关，完整门禁失败证据保留；审计仍为 Rust 3338、`function_exact` 1481、`partial` 2336、`boundary` 636，锚点 1764/1718/0/0/46。
 - 本批审计更新为 Go 4451、Rust 3330；`function_exact` 1473、`partial` 2343、`boundary` 636，重复 exact 0，0 nonexistent crate，2 个已记录 partial unresolved refs。Parity 锚点为 1757/1711/0/0/46；报告与 inventory 已重生成，anchor reconcile 无 unrecorded/stale。
 - 本批映射审计更新为 Go 4451、Rust 3328；`function_exact` 1473、`partial` 2343、`boundary` 636，重复 exact 0。Parity 锚点为 1756/1710/0/0/46；报告与 inventory 已重生成。
 - 本批 `check:quick` 首次被已有 target 健康门禁拦截（`target/debug/deps` 中间 `.rcgu.o` 超过 50000）；确认无 Cargo 进程后清理 121048 个、约 32.5 GiB Rust 产物，重跑受影响 lane 2056/2056 通过，format、clippy、API transport compatibility 与 desktop checks 全部通过。
@@ -75,7 +76,7 @@
 
 ## 调度收敛规则
 
-- 当前只保留一个持续队列上下文；本批完成后下一片按 P1 继续处理 `internal/api/httpserver/bindings_test.go:186:TestCandlePeriodAndPaginationNormalization`。
+- 当前只保留一个持续队列上下文；本批完成后下一片按 P1 继续处理 `internal/api/live/dispatcher_boundaries_test.go:205:TestDispatcherEnvelopeDefaultsAndMapFallback`。
 - 不创建子任务、不创建第二个 heartbeat、不重复复核已经完成的切片。
 - 每批先读 Go 实现和 Rust owner；只有发现真实行为差异才先写失败回归测试并修改生产代码。
 - 仅证据不足时维持 `partial` 或 `boundary`，不得为了提高数字升级为 `function_exact`。
