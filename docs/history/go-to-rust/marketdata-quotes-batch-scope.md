@@ -691,6 +691,24 @@ ADK/Assistant 功能差异，先补失败回归测试再修改领域 owner。
 
 下一片：继续 P1 的 MarketData/Quote provider forwarding 与 runtime boundary 映射。
 
+## 第 145 批：ProductFeatures market-data facade 与 Settings provider rollback（2026-09-25）
+
+| 复核 | Go 测试范围 | Rust 证据 | P | 结论 |
+| :---: | --- | --- | :---: | --- |
+| [x] | `internal/productfeatures/candle_query_options_test.go:8`; `market_data_reads_test.go:134,226,307,418,470` | candle query/adjustment/session parsing, workspace pagination, provider failure and snapshot extended-session projections | P1 | exact：query 归一化、分页元数据、provider failure 优先级、fallback projection、active extended session 与 fallback 字段均逐条覆盖。 |
+| [x] | `internal/productfeatures/prediction_quote_candle_bridge_test.go:137` | prediction push dedupe/expiry/key folding | P1 | exact：新鲜预测 push、重复 sequence 保留首样本、五秒过期与 broker/instrument/data-type key folding 一致。 |
+| [x] | `internal/productfeatures/provider_facade_company_test.go:148`; `provider_facade_rankings_test.go:278`; `provider_projection_test.go:14` | company financial forwarding, market default and nullable news projection | P1 | exact：参数转发、provider default market 和 nullable/as-of projection 均通过。 |
+| [x] | `internal/productfeatures/service_test.go:30,143` | explicit broker capability rejection, optional research facade, cache and batch snapshot routes | P1 | exact：显式 broker 不 fallback、允许 feature 集合、短缓存与 batch dedupe 均覆盖。 |
+| [~] | `internal/productfeatures/service_test.go:443:TestProductFeatureDirectAdapterCacheAndEligibilityBranches` | `prediction_eligibility_rejects_discovery_failure_nil_firm_and_wrong_authority` | P1 | partial：Rust 覆盖 eligibility 三类失败；Go 同测还包含多 adapter nil/fallback/cache helper 分支，属于聚合测试拆分。 |
+| [x] | `internal/settings/market_data_test.go:203,224,252` | active/backtest rollback, persistence/rollback error composition and read blocking window | P1 | exact/partial：Rust 三条测试覆盖 runtime rollback、持久化/回滚错误及读等待；Go 的 fake store 细节由 settings owner 内部实现。 |
+
+本批 16 条 Go 映射对应 Rust 精准 nextest 23/23 通过；未发现需先红后修的 Rust 生产差异，聚合 helper 分支保持 `partial`。
+
+验证：
+`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-settings --all-targets --locked -E 'test(candle_adjustment_normalizes_and_rejects_unsupported_labels) or test(candle_sessions_parse_dedup_order_and_reject_invalid) or test(workspace_candle_pagination_rejects_the_go_metadata_table) or test(candle_sessions_accept_padded_and_csv_query_shapes) or test(workspace_reads_surface_provider_failures_before_normalizing) or test(fallback_projection_preserves_observation_fallbacks) or test(workspace_snapshot_uses_active_extended_session_fields) or test(workspace_snapshot_extended_session_fallbacks_remain_stable) or test(fresh_prediction_push_serves_reads_and_duplicate_sequences_keep_the_first_sample) or test(prediction_push_samples_expire_after_the_five_second_window) or test(prediction_push_key_folds_broker_instrument_and_data_type) or test(company_financials_forwards_market_symbol_and_statement) or test(market_research_defaults_an_absent_market_per_provider) or test(projection_maps_nullable_fields_and_as_of) or test(explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback) or test(embedded_research_facade_serves_exactly_the_allowed_feature_set) or test(tick_candles_use_fresh_cache_without_querying_the_provider) or test(snapshot_route_serves_a_fresh_cache_hit_without_provider_access) or test(batch_snapshots_normalize_deduplicate_and_serve_the_short_lived_cache) or test(prediction_eligibility_rejects_discovery_failure_nil_firm_and_wrong_authority) or test(active_failure_rolls_back_but_backtest_failure_never_persists) or test(persistence_and_rollback_failures_are_reported) or test(reads_wait_for_the_runtime_rollback_window)'`
+
+下一片：继续 P1 的 MarketData assets、instrument resolver 和 subscription lifecycle 映射。
+
 ## 第 144 批：Futu marketdata tick、fallback 与 market-rule reader 边界（2026-09-25）
 
 | 复核 | Go 测试范围 | Rust 证据 | P | 结论 |
