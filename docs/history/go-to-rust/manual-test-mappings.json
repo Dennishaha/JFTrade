@@ -3086,7 +3086,7 @@
     "internal/api/assistant/chat_helpers_test.go:59:TestTimelineStreamStateEmptyAndCloneBoundaries": {
       "status": "[~]",
       "rust_entry": "不适用：Go 进程内 timeline clone 兜底",
-      "conclusion": "boundary：`appendReasoning/appendMessage/cloneTimelineEntry/defaultTimelineRunID` 都是 Go 内存 hub 的防御性拷贝与缺省值逻辑。Rust 的 timeline 条目在写入时即为 serde_json::Value 并从 SQLite 读回（timeline_value），不存在共享指针可变别名，也不需要 `defaultTimelineRunID(\"  \")==\"stream\"` 这类仅服务内存 hub 的缺省。空 delta 不产生条目由 durable 事件写入路径保证：emit_stream_event 只在有内容时写入 streamEvents。",
+      "conclusion": "boundary：`appendReasoning/appendMessage/cloneTimelineEntry/defaultTimelineRunID` 都是 Go 内存 hub 的防御性拷贝与缺省值逻辑。Rust 的 timeline 条目在写入时即为 serde_json::Value 并从 SQLite 读回（timeline_value），不存在共享指针可变别名，也不需要 `defaultTimelineRunID(\"  \")==\"stream\"` 这类仅服务内存 hub 的缺省。Rust 的 `production_live_chat_stream_emits_auto_compaction_frames_before_the_run` 与 `adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart` 已复核外部可观察的 durable frame/replay 行为；空 delta 不产生条目由 emit_stream_event 路径保证。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E test(production_live_chat_stream_emits_auto_compaction_frames_before_the_run) or test(adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart)",
       "evidence_type": "boundary",
       "source": {
@@ -3126,7 +3126,7 @@
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": "2026-09-25T03:30:00Z",
+      "verifiedAt": "2026-09-25T07:40:24Z",
         "receiptDigest": null
       },
       "risk": "high",
