@@ -252,6 +252,99 @@ fn system_write_leaf_fails_closed_after_shape_validation() {
     assert_eq!(response.body["error"]["code"], "BAD_REQUEST");
 }
 
+// Parity: go:452dea11:internal/api/system/routes_test.go:316 TestRealTradeControlRoutesMapValidationAndControlFailures
+#[test]
+fn system_write_control_routes_map_validation_and_control_failures() {
+    let empty_port = FixturePort {
+        responses: Mutex::new(VecDeque::new()),
+        calls: Mutex::new(Vec::new()),
+    };
+    for (method, path) in [
+        ("POST", "/api/v1/system/real-trade-kill-switch/activate"),
+        ("POST", "/api/v1/system/real-trade-hard-stops"),
+        ("PUT", "/api/v1/system/real-trade-risk-limits"),
+    ] {
+        let response = dispatch_system_write(
+            &SystemWriteRequest {
+                method: method.to_owned(),
+                path: path.to_owned(),
+                body: b"{".to_vec(),
+            },
+            Some(&empty_port),
+            FIXTURE_TIMESTAMP,
+        );
+        assert_eq!(response.status, 400, "{method} {path}");
+        assert_eq!(
+            response.body["error"]["code"], "BAD_REQUEST",
+            "{method} {path}"
+        );
+    }
+    let missing_runtime_limit = dispatch_system_write(
+        &SystemWriteRequest {
+            method: "PUT".to_owned(),
+            path: "/api/v1/system/real-trade-risk-limits".to_owned(),
+            body: br#"{"realTradingEnabled":true}"#.to_vec(),
+        },
+        Some(&empty_port),
+        FIXTURE_TIMESTAMP,
+    );
+    assert_eq!(missing_runtime_limit.status, 400);
+    assert_eq!(missing_runtime_limit.body["error"]["code"], "BAD_REQUEST");
+    assert!(
+        empty_port.calls().is_empty(),
+        "validation failures must not reach the system write port"
+    );
+
+    for (method, path, body) in [
+        (
+            "POST",
+            "/api/v1/system/real-trade-kill-switch/activate",
+            "{}",
+        ),
+        (
+            "POST",
+            "/api/v1/system/real-trade-kill-switch/release",
+            "{}",
+        ),
+        ("POST", "/api/v1/system/real-trade-hard-stops", "{}"),
+        (
+            "POST",
+            "/api/v1/system/real-trade-hard-stops/hs-1/release",
+            "{}",
+        ),
+        (
+            "PUT",
+            "/api/v1/system/real-trade-risk-limits",
+            r#"{"realTradingEnabled":true,"maxOrderQuantity":1}"#,
+        ),
+        ("DELETE", "/api/v1/system/real-trade-risk-limits", "{}"),
+    ] {
+        let port = FixturePort {
+            responses: Mutex::new(VecDeque::from([Err(SystemWritePortError::Failed {
+                status: 409,
+                code: "REAL_TRADE_CONTROL_FAILED".to_owned(),
+                message: "control persistence unavailable".to_owned(),
+            })])),
+            calls: Mutex::new(Vec::new()),
+        };
+        let response = dispatch_system_write(
+            &SystemWriteRequest {
+                method: method.to_owned(),
+                path: path.to_owned(),
+                body: body.as_bytes().to_vec(),
+            },
+            Some(&port),
+            FIXTURE_TIMESTAMP,
+        );
+        assert_eq!(response.status, 409, "{method} {path}");
+        assert_eq!(
+            response.body["error"]["code"], "REAL_TRADE_CONTROL_FAILED",
+            "{method} {path}"
+        );
+        assert_eq!(port.calls().len(), 1, "{method} {path}");
+    }
+}
+
 // Parity: go:452dea11:internal/api/system/routes_test.go:102 TestSystemRouteBoundaryValidatorsRejectMissingHardStopAndNonPositiveLimits
 #[test]
 fn system_write_validator_boundaries_keep_go_non_positive_rejection_and_missing_id_semantics() {

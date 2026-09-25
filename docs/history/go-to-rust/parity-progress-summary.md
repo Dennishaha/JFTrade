@@ -7,12 +7,12 @@
 | 项目 | 数值 | 解释 |
 | --- | ---: | --- |
 | Go 测试候选 | 4451 | 冻结基线 `go:452dea11` |
-| Rust 测试 | 3326 | 数量不代表行为等价 |
+| Rust 测试 | 3327 | 数量不代表行为等价 |
 | `function_exact` | 1473 | 有真实且唯一的 Rust 测试证据 |
 | `partial` | 2343 | 只覆盖部分断言，不能视为完成 |
 | `boundary` | 636 | 当前架构边界或没有同形对象 |
 | 重复映射 | 0 | 审计脚本结果 |
-| Parity 锚点 | 1753 / 1707 / 0 / 0 / 46 | unique / recorded / unrecorded / stale / unknown |
+| Parity 锚点 | 1754 / 1708 / 0 / 0 / 46 | unique / recorded / unrecorded / stale / unknown |
 
 ## 已完成的工作
 
@@ -41,6 +41,9 @@
 - `internal/api/system/routes_test.go:191:TestRealTradeControlRoutesDelegateStateChanges` 已逐项读取 Go 断言并补真实产品 HTTP 写入→GET 读回回归；保持 `partial`。Rust 复用生产 `ExecutionRiskCoordinator` 和控制文件 owner，覆盖风险限额、kill switch、hard stop 的写后状态读回；Go Gin callback spy、调用次数与固定 `hs-1` ID 没有同形 Rust 断言，继续记录为差异。
 - 本批专用回归与 wire 聚合回放 2/2、`check:quick` Rust/desktop 1968/1968、完整 `check:rust` workspace 3452/3452（2 skipped）均通过；compatibility replays、clippy、格式和 Pine worker 98/98 均通过。映射审计保持 0 重复 exact、0 stale/unrecorded anchor。
 - 本批门禁：受影响 `check:quick` 与完整 `check:rust` 均被既有 `product_api_launcher_lifecycle` sidecar 退出码 `None`/`Some(0)` 间歇性断言打断；两个失败用例随后以 nextest `--retries 2` 复核均通过。该 flaky 只涉及 launcher 生命周期，不涉及本批 system-write 变更。
+- `internal/api/system/routes_test.go:316:TestRealTradeControlRoutesMapValidationAndControlFailures` 已逐项读取 Go 断言并补 Rust 专用错误映射回归；保持 `partial`。Rust 逐条覆盖三条 malformed JSON、缺少正向 runtime limit 的 `400/BAD_REQUEST`，以及 kill-switch、hard-stop、runtime-risk enable/disable 六条 `409/REAL_TRADE_CONTROL_FAILED`，并断言校验失败不触发 port、控制失败各调用一次；Gin/service callback 委派形状继续按边界保留。
+- `internal/api/system/routes_test.go:19:TestSystemRoutesReturnEnvelopes` 已逐项核对 16 条系统读路由；保持 `partial`。既有 system-read fixture、control-read、product server 与 CalendarManager 回归共同覆盖 futu-opend、worker、status、runtime-dependencies、storage、calendar 及控制读族的成功 envelope；未合并为单一 Gin 必填键表，继续记录 owner/路由聚合差异。
+- 本批专用错误映射回归 2/2、系统读 envelope 证据 4/4 通过；完整 `check:rust` workspace nextest 3453 项完成且 compatibility replays 全通过。`check:quick` 在既有 `product_api_launcher_lifecycle::api_launcher_serves_on_the_configured_address_and_stops_on_termination_signal` 处失败，随后单测重跑仍复现 `status.code() = None`（非本批 system-write/system-read 变更）；保留失败证据，不记为 quick 通过。映射审计 0 重复 exact、0 nonexistent crate、0 unrecorded/stale anchor，锚点 1754/1708/0/0/46。
 - resolver limit 差异已在 `crates/jftrade-engine/src/product_production_ports_market_data_catalog_futu.rs` 修复：避免 provider 在 CN/SH/SZ 过滤前按公开 limit 截断候选；TTL/singleflight 仍保留为架构边界，不宣称等价。
 - 近期真正修改过 Rust 生产代码的批次包括：交易默认市场注入、下单前名义金额回退、市日边界、策略运行时及若干行情/路由边界；这些改动均配有回归测试或兼容性证据。
 - 最近的 strategy/API 批次主要是证据审查和文档落账，没有新增 Rust 生产代码，必须与“功能已完成”分开看待。
@@ -54,7 +57,7 @@
 
 ## 调度收敛规则
 
-- 当前只保留一个持续队列上下文；本批完成后下一片按 P1 处理 `internal/api/system/routes_test.go:316:TestRealTradeControlRoutesMapValidationAndControlFailures`，继续逐错误码核对控制路由的校验与控制失败映射。
+- 当前只保留一个持续队列上下文；本批完成后下一片按 P2 处理 `internal/api/system/status_mapper_test.go:11:TestSystemStatusTransportMapperPreservesDomainJSON`，继续核对系统状态 transport 原样透传与未知字段保留断言。
 - 不创建子任务、不创建第二个 heartbeat、不重复复核已经完成的切片。
 - 每批先读 Go 实现和 Rust owner；只有发现真实行为差异才先写失败回归测试并修改生产代码。
 - 仅证据不足时维持 `partial` 或 `boundary`，不得为了提高数字升级为 `function_exact`。
@@ -70,6 +73,7 @@
 - 当前批次：system release/disable 畸形载荷补三路由 no-port-call 回归，保持 partial，记录 Gin/service owner 形状边界。
 - 当前批次：system calendar probe 路由核对真实 manager 结果与 market 边界，保持 partial，记录 callback 参数/次数差异。
 - 当前批次：system real-trade control 写路由补真实产品状态读回序列，保持 partial，记录 Gin callback 与固定 hard-stop ID 差异。
+- 当前批次：system control 错误映射与 16 路由 envelope 逐项核对；新增错误码回归，系统读族保持 partial，记录 Gin 必填键表与 Rust 分散 owner 差异。
 - `00f89290`：marketdata façade 剩余 34 条逐项复核，补 helper provider polling mode owner 回归测试并修复状态投影。
 - `47bf7b1a`：注入配置的默认交易市场并补交易读取测试。
 - `917d1534`：API transport P1 partial 第 1–30 条核对。

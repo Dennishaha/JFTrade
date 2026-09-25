@@ -19467,9 +19467,9 @@
     },
     "internal/api/system/routes_test.go:19:TestSystemRoutesReturnEnvelopes": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_system_control_read_tests.rs::system_control_reads_are_authenticated_and_do_not_create_control_state; crates/jftrade-engine/src/product_system_read_tests.rs::system_read_routes_match_group_fixture_in_cutover_only",
-      "conclusion": "partial：Go 对 16 条系统读路由断言 200 + data 必填键（apiPort/autoRefreshEnabled/status/dependencies/pendingOutbox/blockedOperations 等）。Rust 引用用例覆盖认证与不创建状态（控制读族），读组语料只冻结 futu-opend 与 broker-order-updates 两条路径，未覆盖 16 条键集合。缺口 owner：crates/jftrade-engine 系统读投影 + system-read 语料；回归要求：扩充 system-read fixture 或补 16 路由键断言后升级。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+      "rust_entry": "crates/jftrade-engine/src/product_system_control_read_tests.rs::system_control_reads_are_authenticated_and_do_not_create_control_state; crates/jftrade-engine/src/product_system_read_tests.rs::system_read_routes_match_group_fixture_in_cutover_only; crates/jftrade-engine/src/product_tests.rs::product_server_persists_ui_settings_and_reports_actual_port; crates/jftrade-engine/src/product_tests.rs::calendar_control_plane_routes_share_the_real_manager_in_cutover_only",
+      "conclusion": "partial：Rust 现有产品回归已覆盖 Go 16 条系统读路由的成功 envelope 族：system read fixture 驱动 futu-opend 与 broker-order-updates，控制读回归覆盖 install-guide/approvals/hard-stop/kill/risk 路由，产品服务器回归覆盖 status/runtime-dependencies/storage，CalendarManager 回归覆盖 calendar sources/status/probe。保留 partial：Go 通过 Gin 注入 callback 一次性只断言每路由的 200 与必填键；Rust 证据分布在 cutover/production owner，部分路由断言具体字段或对象而非同一 16 路由表驱动的 key 集合，继续保留 envelope 聚合差异。",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(system_control_reads_are_authenticated_and_do_not_create_control_state) or test(system_read_routes_match_group_fixture_in_cutover_only) or test(product_server_persists_ui_settings_and_reports_actual_port) or test(calendar_control_plane_routes_share_the_real_manager_in_cutover_only)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/api/system/routes_test.go",
@@ -19489,14 +19489,31 @@
           "test": "system_read_routes_match_group_fixture_in_cutover_only",
           "crate": "jftrade-engine",
           "anchor": null
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_tests.rs",
+          "test": "product_server_persists_ui_settings_and_reports_actual_port",
+          "crate": "jftrade-engine",
+          "anchor": null
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_tests.rs",
+          "test": "calendar_control_plane_routes_share_the_real_manager_in_cutover_only",
+          "crate": "jftrade-engine",
+          "anchor": null
         }
       ],
       "assertionCoverage": {
-        "covered": [],
-        "uncovered": [
-          "partial：Go 对 16 条系统读路由断言 200 + data 必填键（apiPort/autoRefreshEnabled/status/dependencies/pendingOutbox/blockedOperations 等）。Rust 引用用例覆盖认证与不创建状态（控制读族），读组语料只冻结 futu-opend 与 broker-order-updates 两条路径，未覆盖 16 条键集合。缺口 owner：crates/jftrade-engine 系统读投影 + system-read 语料；回归要求：扩充 system-read fixture 或补 16 路由键断言后升级。"
+        "covered": [
+          "futu-opend and broker-order-updates return successful data envelopes",
+          "control read routes return successful object projections behind the configured product boundary",
+          "system status, runtime dependencies, and storage overview expose successful data projections",
+          "calendar sources, status, and probe return successful data envelopes"
         ],
-        "source": "legacy-conclusion"
+        "uncovered": [
+          "single Go Gin router table and exact per-route required-key assertions are not replayed by one Rust fixture"
+        ],
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -19510,14 +19527,16 @@
         ],
         "testFilter": [
           "system_control_reads_are_authenticated_and_do_not_create_control_state",
-          "system_read_routes_match_group_fixture_in_cutover_only"
+          "system_read_routes_match_group_fixture_in_cutover_only",
+          "product_server_persists_ui_settings_and_reports_actual_port",
+          "calendar_control_plane_routes_share_the_real_manager_in_cutover_only"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
+        "status": "passed",
+        "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": null,
+        "verifiedAt": "2026-09-25T06:22:00Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -19528,9 +19547,14 @@
         "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [],
+      "coveredAssertions": [
+        "futu-opend and broker-order-updates return successful data envelopes",
+        "control read routes return successful object projections behind the configured product boundary",
+        "system status, runtime dependencies, and storage overview expose successful data projections",
+        "calendar sources, status, and probe return successful data envelopes"
+      ],
       "uncoveredAssertions": [
-        "partial：Go 对 16 条系统读路由断言 200 + data 必填键（apiPort/autoRefreshEnabled/status/dependencies/pendingOutbox/blockedOperations 等）。Rust 引用用例覆盖认证与不创建状态（控制读族），读组语料只冻结 futu-opend 与 broker-order-updates 两条路径，未覆盖 16 条键集合。缺口 owner：crates/jftrade-engine 系统读投影 + system-read 语料；回归要求：扩充 system-read fixture 或补 16 路由键断言后升级。"
+        "single Go Gin router table and exact per-route required-key assertions are not replayed by one Rust fixture"
       ],
       "boundaryReason": null
     },
@@ -19999,9 +20023,9 @@
     },
     "internal/api/system/routes_test.go:316:TestRealTradeControlRoutesMapValidationAndControlFailures": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/tests/system_write_compatibility.rs::system_write_leaf_fails_closed_after_shape_validation",
-      "conclusion": "partial：Go 断言控制路由的校验与控制失败映射（逐错误码）。Rust 引用用例断言形状校验后 fail-closed；逐错误码映射由 system-write 语料（*-validation-errors/*-control-failure）承载，未逐条断言错误码细节。缺口 owner：crates/jftrade-engine system 写叶 + product_wire；回归要求：补校验错误与控制失败的逐错误码断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+      "rust_entry": "crates/jftrade-engine/tests/system_write_compatibility.rs::system_write_control_routes_map_validation_and_control_failures",
+      "conclusion": "partial：Rust 专用回归逐条断言三条控制路由的 malformed JSON、缺少正向 runtime limit 的 BAD_REQUEST，以及 kill/hard-stop/risk enable/risk disable 六条控制失败的 409/REAL_TRADE_CONTROL_FAILED 映射，并确认校验失败不调用 port。保留 partial：Go 通过 Gin/service callback owner 验证路由委派，Rust 直接复用 system-write dispatch/port 边界；Gin callback 身份与 service 层调用形状未声称等价。",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(system_write_control_routes_map_validation_and_control_failures) or test(system_write_leaf_fails_closed_after_shape_validation)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/api/system/routes_test.go",
@@ -20012,17 +20036,33 @@
       "rustEvidence": [
         {
           "file": "crates/jftrade-engine/tests/system_write_compatibility.rs",
+          "test": "system_write_control_routes_map_validation_and_control_failures",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/api/system/routes_test.go",
+            "goLine": 316,
+            "rustFile": "crates/jftrade-engine/tests/system_write_compatibility.rs",
+            "rustLine": 257
+          }
+        },
+        {
+          "file": "crates/jftrade-engine/tests/system_write_compatibility.rs",
           "test": "system_write_leaf_fails_closed_after_shape_validation",
           "crate": "jftrade-engine",
           "anchor": null
         }
       ],
       "assertionCoverage": {
-        "covered": [],
-        "uncovered": [
-          "partial：Go 断言控制路由的校验与控制失败映射（逐错误码）。Rust 引用用例断言形状校验后 fail-closed；逐错误码映射由 system-write 语料（*-validation-errors/*-control-failure）承载，未逐条断言错误码细节。缺口 owner：crates/jftrade-engine system 写叶 + product_wire；回归要求：补校验错误与控制失败的逐错误码断言。"
+        "covered": [
+          "malformed JSON on kill-switch activate, hard-stop activate, and runtime risk update maps to 400/BAD_REQUEST",
+          "enabling runtime risk without a positive limit maps to 400/BAD_REQUEST",
+          "kill-switch, hard-stop, runtime-risk enable, and runtime-risk disable control failures map to 409/REAL_TRADE_CONTROL_FAILED",
+          "validation failures do not call the system-write port; control failures call it once"
         ],
-        "source": "legacy-conclusion"
+        "uncovered": [
+          "Gin/service callback identity and service-layer delegation shape are not asserted by the Rust dispatch/port boundary test"
+        ],
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -20035,14 +20075,15 @@
           "--locked"
         ],
         "testFilter": [
+          "system_write_control_routes_map_validation_and_control_failures",
           "system_write_leaf_fails_closed_after_shape_validation"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
+        "status": "passed",
+        "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": null,
+        "verifiedAt": "2026-09-25T04:55:00Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -20053,9 +20094,14 @@
         "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [],
+      "coveredAssertions": [
+        "malformed JSON on kill-switch activate, hard-stop activate, and runtime risk update maps to 400/BAD_REQUEST",
+        "enabling runtime risk without a positive limit maps to 400/BAD_REQUEST",
+        "kill-switch, hard-stop, runtime-risk enable, and runtime-risk disable control failures map to 409/REAL_TRADE_CONTROL_FAILED",
+        "validation failures do not call the system-write port; control failures call it once"
+      ],
       "uncoveredAssertions": [
-        "partial：Go 断言控制路由的校验与控制失败映射（逐错误码）。Rust 引用用例断言形状校验后 fail-closed；逐错误码映射由 system-write 语料（*-validation-errors/*-control-failure）承载，未逐条断言错误码细节。缺口 owner：crates/jftrade-engine system 写叶 + product_wire；回归要求：补校验错误与控制失败的逐错误码断言。"
+        "Gin/service callback identity and service-layer delegation shape are not asserted by the Rust dispatch/port boundary test"
       ],
       "boundaryReason": null
     },
@@ -301420,8 +301466,9 @@
       "reviewStatus": "single"
     },
     "crates/jftrade-engine/src/product_tests.rs::calendar_control_plane_routes_share_the_real_manager_in_cutover_only": {
-      "referenceCount": 3,
+      "referenceCount": 4,
       "referenceKeys": [
+        "internal/api/system/routes_test.go:19:TestSystemRoutesReturnEnvelopes",
         "internal/api/system/routes_test.go:77:TestExchangeCalendarRefreshRouteCallsRefresh",
         "internal/api/system/routes_test.go:170:TestExchangeCalendarProbeRouteCallsProbe",
         "internal/system/service_status_defaults_test.go:61:TestExchangeCalendarDelegatesAndFallbacks"
@@ -301486,8 +301533,9 @@
       "reviewStatus": "unreviewed"
     },
     "crates/jftrade-engine/src/product_tests.rs::product_server_persists_ui_settings_and_reports_actual_port": {
-      "referenceCount": 19,
+      "referenceCount": 20,
       "referenceKeys": [
+        "internal/api/system/routes_test.go:19:TestSystemRoutesReturnEnvelopes",
         "internal/api/settings/adk_routes_contracts_test.go:18:TestADKRuntimeSettingsDefaultAndSave",
         "internal/api/settings/routes_failure_boundaries_test.go:84:TestSystemNotificationRoutesReadAndSaveSettings",
         "internal/api/settings/routes_failure_boundaries_test.go:125:TestOnboardingCanBeResetWithoutLosingLastBroker",
@@ -311359,6 +311407,14 @@
       "referenceCount": 1,
       "referenceKeys": [
         "internal/api/system/routes_test.go:191:TestRealTradeControlRoutesDelegateStateChanges"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/tests/system_write_compatibility.rs::system_write_control_routes_map_validation_and_control_failures": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/api/system/routes_test.go:316:TestRealTradeControlRoutesMapValidationAndControlFailures"
       ],
       "allowed": true,
       "reviewStatus": "single"
