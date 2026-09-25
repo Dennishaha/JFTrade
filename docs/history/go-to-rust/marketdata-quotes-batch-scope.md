@@ -1512,3 +1512,19 @@ ADK/Assistant 功能差异，先补失败回归测试再修改领域 owner。
 验证：动态生成的 37 个 Rust 测试过滤器运行 `node scripts/quality/cargo-nextest.mjs run --all-targets --locked`，42/42 通过。
 
 下一片：继续 P2 Strategy/Pine、Backtest/Calendar、API transport、Storage/SQLite 与 Settings/Watchlist；helper/boundary 条目及 P1 `session_context_snapshot` 仍保持未验证结论。
+
+## 第 193 批：Strategy lease、WebSocket live、Backtest runs 与 Broker routes（2026-09-26）
+
+| 复核 | Go 测试范围 | Rust 证据 | P | 结论 |
+| :---: | --- | --- | :---: | --- |
+| [x] | `strategy_definition_delete_guard_test.go:16`; `strategy_runtime_dependency_boundaries_test.go:47,59`; `strategy_runtime_live_semantics_test.go:12`; `strategy_subscription_lifecycle_test.go:12` | linked-definition delete/restart, strategy execution cancellation and sizing/audit, subscription readiness and exact K-line lease release | P2 | partial：Rust strategy catalog/runtime owner 测试覆盖 linked delete、execution、lease 与 shutdown；Go HTTP/server facade、disabled exchange 注入和 broker-executed 组合保持 partial。 |
+| [x] | `watchlist_runtime_boundaries_test.go:52,127` | watchlist read route registration/fail-closed behavior without snapshot port | P2 | partial/boundary：Go nil server、probe error 与 broker registry helper 属于旧 facade 组合；Rust route guard 有 owner 测试，helper 错误文本和注入形状保持边界。 |
+| [x] | `ws_events_test.go:20,45,112,152,215` | heartbeat-first/trusted-origin WebSocket, notification/replay corpus, stale market status, quote delta and auxiliary subscription failure isolation | P2 | partial：WS transport、heartbeat、notification、quote listener 与 provider isolation 有真实 Rust 证据；Go console refresh/首帧聚合不升级为 exact。 |
+| [x] | `backtest_provider_runtime_test.go:27,55`; `backtest_runs_test.go:34,127,206,279` | Futu/OpenD sync and interval validation, AkShare lookback guard, missing-history rejection, persisted run restart/delete/read and nested database layout | P2 | partial：backtest sync/store/production route owner 测试逐项通过；Go server reload、runtime directory facade 与 terminal-run组合仍保持 partial。 |
+| [x] | `broker_new_test.go:100,126,141,167,193,205,286,302,319,388,422,462` | funds/quote/lease contracts, missing-symbol/query validation, unlock payload forwarding, disconnected writes, order normalization, JSON content type and incomplete path rejection | P2 | partial：broker production assembly、trade/quote/execution ports 与 transport registry 均有 owner 证据；Go Gin handler facade、断连状态组合及 broker-neutral response 聚合保持 partial。 |
+
+本批 30 条 Go 映射提交了 41 个过滤器，Rust nextest 因跨 binary 重复运行 **46/46** 通过（3427 skipped）。`require_basic_subscription_lease` 与 `disconnecting_error` 是实现辅助符号而非独立测试，未将其扩大匹配结果伪装成额外证据；每条映射均有至少一个实际 Rust 测试过滤器通过。未发现需要先红后修的真实 Rust 功能差异，Strategy/WS/Backtest/Broker facade 与 handler 聚合按 `partial`/`boundary` 保留。
+
+验证：`node scripts/quality/cargo-nextest.mjs run --all-targets --locked -E` 动态生成本批 41 个过滤器，46/46 通过。
+
+下一片：继续 P2 Broker/API transport、MarketData/Quote、Storage/SQLite、Settings/Watchlist 与 Strategy/Pine；`optional_bool_strict` helper、P1 `session_context_snapshot` 及其他无独立 Rust 测试条目仍保持未验证结论。
