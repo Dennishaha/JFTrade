@@ -132552,20 +132552,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-backtest",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(short_covers_and_reversals_count_each_closing_order_once) or test(partial_closing_cancellation_finalizes_the_filled_segment) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(matching_and_pricing_helper_branches_behavior) or test(explicit_cancel_orders_by_generated_order_id) or test(test_tc_d4_02_and_03_dst_boundary_and_60m_session_anchored_aggregation) or test(test_tc_d4_01_regular_session_intraday_sub_hourly_aggregation) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(missing_daily_target_synthesizes_us_regular_day_from_minutes) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries) or test(weekly_daily_source_requires_every_open_trading_date) or test(test_market_sessions_for_candle_sessions) or test(mapper_rejects_partial_or_malformed_fill_fields) or test(test_tc_d5_01_sequential_partial_fills_and_fees_monotonic) or test(futu_securities_route_projects_broker_neutral_envelope_boundary) or test(resolve_market_session) or test(QuoteSessionResolver) or test(quote_session_label) or test(resolve_quote_session) or test(tick_candles_default_to_a_fifteen_minute_window_and_clamp_negative_volume) or test(infer_cn_prefix_supports_various_formats_and_preserves_explicit_prefixes) or test(tick_candles_use_fresh_cache_without_querying_the_provider) or test(test_board_kind_defaults_empty_to_industry) or test(builtin_hk_and_mainland_weekday_weekend_and_alias_boundaries_match_go) or test(validate_snapshot_accepts_mainland_alias_markets) or test(manual_override_status_and_session_window_boundaries_match_go) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go)"
         ],
         "testFilter": [
           "short_covers_and_reversals_count_each_closing_order_once"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "4b7b77f215c7499eaec49eda7b7782329a08f428",
+        "verifiedAt": "2026-09-25T14:13:44Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -133172,20 +133172,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-backtest",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(short_covers_and_reversals_count_each_closing_order_once) or test(partial_closing_cancellation_finalizes_the_filled_segment) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(matching_and_pricing_helper_branches_behavior) or test(explicit_cancel_orders_by_generated_order_id) or test(test_tc_d4_02_and_03_dst_boundary_and_60m_session_anchored_aggregation) or test(test_tc_d4_01_regular_session_intraday_sub_hourly_aggregation) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(missing_daily_target_synthesizes_us_regular_day_from_minutes) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries) or test(weekly_daily_source_requires_every_open_trading_date) or test(test_market_sessions_for_candle_sessions) or test(mapper_rejects_partial_or_malformed_fill_fields) or test(test_tc_d5_01_sequential_partial_fills_and_fees_monotonic) or test(futu_securities_route_projects_broker_neutral_envelope_boundary) or test(resolve_market_session) or test(QuoteSessionResolver) or test(quote_session_label) or test(resolve_quote_session) or test(tick_candles_default_to_a_fifteen_minute_window_and_clamp_negative_volume) or test(infer_cn_prefix_supports_various_formats_and_preserves_explicit_prefixes) or test(tick_candles_use_fresh_cache_without_querying_the_provider) or test(test_board_kind_defaults_empty_to_industry) or test(builtin_hk_and_mainland_weekday_weekend_and_alias_boundaries_match_go) or test(validate_snapshot_accepts_mainland_alias_markets) or test(manual_override_status_and_session_window_boundaries_match_go) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go)"
         ],
         "testFilter": [
           "partial_closing_cancellation_finalizes_the_filled_segment"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "4b7b77f215c7499eaec49eda7b7782329a08f428",
+        "verifiedAt": "2026-09-25T14:13:44Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -133606,20 +133606,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(short_covers_and_reversals_count_each_closing_order_once) or test(partial_closing_cancellation_finalizes_the_filled_segment) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(matching_and_pricing_helper_branches_behavior) or test(explicit_cancel_orders_by_generated_order_id) or test(test_tc_d4_02_and_03_dst_boundary_and_60m_session_anchored_aggregation) or test(test_tc_d4_01_regular_session_intraday_sub_hourly_aggregation) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(missing_daily_target_synthesizes_us_regular_day_from_minutes) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries) or test(weekly_daily_source_requires_every_open_trading_date) or test(test_market_sessions_for_candle_sessions) or test(mapper_rejects_partial_or_malformed_fill_fields) or test(test_tc_d5_01_sequential_partial_fills_and_fees_monotonic) or test(futu_securities_route_projects_broker_neutral_envelope_boundary) or test(resolve_market_session) or test(QuoteSessionResolver) or test(quote_session_label) or test(resolve_quote_session) or test(tick_candles_default_to_a_fifteen_minute_window_and_clamp_negative_volume) or test(infer_cn_prefix_supports_various_formats_and_preserves_explicit_prefixes) or test(tick_candles_use_fresh_cache_without_querying_the_provider) or test(test_board_kind_defaults_empty_to_industry) or test(builtin_hk_and_mainland_weekday_weekend_and_alias_boundaries_match_go) or test(validate_snapshot_accepts_mainland_alias_markets) or test(manual_override_status_and_session_window_boundaries_match_go) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go)"
         ],
         "testFilter": [
           "regular_and_extended_session_tables_keep_direct_reads_isolated"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "4b7b77f215c7499eaec49eda7b7782329a08f428",
+        "verifiedAt": "2026-09-25T14:13:44Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -133668,20 +133668,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(short_covers_and_reversals_count_each_closing_order_once) or test(partial_closing_cancellation_finalizes_the_filled_segment) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(matching_and_pricing_helper_branches_behavior) or test(explicit_cancel_orders_by_generated_order_id) or test(test_tc_d4_02_and_03_dst_boundary_and_60m_session_anchored_aggregation) or test(test_tc_d4_01_regular_session_intraday_sub_hourly_aggregation) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(missing_daily_target_synthesizes_us_regular_day_from_minutes) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries) or test(weekly_daily_source_requires_every_open_trading_date) or test(test_market_sessions_for_candle_sessions) or test(mapper_rejects_partial_or_malformed_fill_fields) or test(test_tc_d5_01_sequential_partial_fills_and_fees_monotonic) or test(futu_securities_route_projects_broker_neutral_envelope_boundary) or test(resolve_market_session) or test(QuoteSessionResolver) or test(quote_session_label) or test(resolve_quote_session) or test(tick_candles_default_to_a_fifteen_minute_window_and_clamp_negative_volume) or test(infer_cn_prefix_supports_various_formats_and_preserves_explicit_prefixes) or test(tick_candles_use_fresh_cache_without_querying_the_provider) or test(test_board_kind_defaults_empty_to_industry) or test(builtin_hk_and_mainland_weekday_weekend_and_alias_boundaries_match_go) or test(validate_snapshot_accepts_mainland_alias_markets) or test(manual_override_status_and_session_window_boundaries_match_go) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go)"
         ],
         "testFilter": [
           "regular_and_extended_session_tables_keep_direct_reads_isolated"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "4b7b77f215c7499eaec49eda7b7782329a08f428",
+        "verifiedAt": "2026-09-25T14:13:44Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -133730,20 +133730,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(short_covers_and_reversals_count_each_closing_order_once) or test(partial_closing_cancellation_finalizes_the_filled_segment) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(matching_and_pricing_helper_branches_behavior) or test(explicit_cancel_orders_by_generated_order_id) or test(test_tc_d4_02_and_03_dst_boundary_and_60m_session_anchored_aggregation) or test(test_tc_d4_01_regular_session_intraday_sub_hourly_aggregation) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(missing_daily_target_synthesizes_us_regular_day_from_minutes) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries) or test(weekly_daily_source_requires_every_open_trading_date) or test(test_market_sessions_for_candle_sessions) or test(mapper_rejects_partial_or_malformed_fill_fields) or test(test_tc_d5_01_sequential_partial_fills_and_fees_monotonic) or test(futu_securities_route_projects_broker_neutral_envelope_boundary) or test(resolve_market_session) or test(QuoteSessionResolver) or test(quote_session_label) or test(resolve_quote_session) or test(tick_candles_default_to_a_fifteen_minute_window_and_clamp_negative_volume) or test(infer_cn_prefix_supports_various_formats_and_preserves_explicit_prefixes) or test(tick_candles_use_fresh_cache_without_querying_the_provider) or test(test_board_kind_defaults_empty_to_industry) or test(builtin_hk_and_mainland_weekday_weekend_and_alias_boundaries_match_go) or test(validate_snapshot_accepts_mainland_alias_markets) or test(manual_override_status_and_session_window_boundaries_match_go) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go)"
         ],
         "testFilter": [
           "missing_empty_partial_and_corrupt_lower_coverage_fail_closed"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "4b7b77f215c7499eaec49eda7b7782329a08f428",
+        "verifiedAt": "2026-09-25T14:13:44Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -133792,20 +133792,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(short_covers_and_reversals_count_each_closing_order_once) or test(partial_closing_cancellation_finalizes_the_filled_segment) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(matching_and_pricing_helper_branches_behavior) or test(explicit_cancel_orders_by_generated_order_id) or test(test_tc_d4_02_and_03_dst_boundary_and_60m_session_anchored_aggregation) or test(test_tc_d4_01_regular_session_intraday_sub_hourly_aggregation) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(missing_daily_target_synthesizes_us_regular_day_from_minutes) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries) or test(weekly_daily_source_requires_every_open_trading_date) or test(test_market_sessions_for_candle_sessions) or test(mapper_rejects_partial_or_malformed_fill_fields) or test(test_tc_d5_01_sequential_partial_fills_and_fees_monotonic) or test(futu_securities_route_projects_broker_neutral_envelope_boundary) or test(resolve_market_session) or test(QuoteSessionResolver) or test(quote_session_label) or test(resolve_quote_session) or test(tick_candles_default_to_a_fifteen_minute_window_and_clamp_negative_volume) or test(infer_cn_prefix_supports_various_formats_and_preserves_explicit_prefixes) or test(tick_candles_use_fresh_cache_without_querying_the_provider) or test(test_board_kind_defaults_empty_to_industry) or test(builtin_hk_and_mainland_weekday_weekend_and_alias_boundaries_match_go) or test(validate_snapshot_accepts_mainland_alias_markets) or test(manual_override_status_and_session_window_boundaries_match_go) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go)"
         ],
         "testFilter": [
           "extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "4b7b77f215c7499eaec49eda7b7782329a08f428",
+        "verifiedAt": "2026-09-25T14:13:44Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -133978,20 +133978,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-backtest",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(short_covers_and_reversals_count_each_closing_order_once) or test(partial_closing_cancellation_finalizes_the_filled_segment) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(matching_and_pricing_helper_branches_behavior) or test(explicit_cancel_orders_by_generated_order_id) or test(test_tc_d4_02_and_03_dst_boundary_and_60m_session_anchored_aggregation) or test(test_tc_d4_01_regular_session_intraday_sub_hourly_aggregation) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(missing_daily_target_synthesizes_us_regular_day_from_minutes) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries) or test(weekly_daily_source_requires_every_open_trading_date) or test(test_market_sessions_for_candle_sessions) or test(mapper_rejects_partial_or_malformed_fill_fields) or test(test_tc_d5_01_sequential_partial_fills_and_fees_monotonic) or test(futu_securities_route_projects_broker_neutral_envelope_boundary) or test(resolve_market_session) or test(QuoteSessionResolver) or test(quote_session_label) or test(resolve_quote_session) or test(tick_candles_default_to_a_fifteen_minute_window_and_clamp_negative_volume) or test(infer_cn_prefix_supports_various_formats_and_preserves_explicit_prefixes) or test(tick_candles_use_fresh_cache_without_querying_the_provider) or test(test_board_kind_defaults_empty_to_industry) or test(builtin_hk_and_mainland_weekday_weekend_and_alias_boundaries_match_go) or test(validate_snapshot_accepts_mainland_alias_markets) or test(manual_override_status_and_session_window_boundaries_match_go) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go)"
         ],
         "testFilter": [
           "matching_and_pricing_helper_branches_behavior"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "4b7b77f215c7499eaec49eda7b7782329a08f428",
+        "verifiedAt": "2026-09-25T14:13:44Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -134102,20 +134102,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-backtest",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(short_covers_and_reversals_count_each_closing_order_once) or test(partial_closing_cancellation_finalizes_the_filled_segment) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(matching_and_pricing_helper_branches_behavior) or test(explicit_cancel_orders_by_generated_order_id) or test(test_tc_d4_02_and_03_dst_boundary_and_60m_session_anchored_aggregation) or test(test_tc_d4_01_regular_session_intraday_sub_hourly_aggregation) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(missing_daily_target_synthesizes_us_regular_day_from_minutes) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries) or test(weekly_daily_source_requires_every_open_trading_date) or test(test_market_sessions_for_candle_sessions) or test(mapper_rejects_partial_or_malformed_fill_fields) or test(test_tc_d5_01_sequential_partial_fills_and_fees_monotonic) or test(futu_securities_route_projects_broker_neutral_envelope_boundary) or test(resolve_market_session) or test(QuoteSessionResolver) or test(quote_session_label) or test(resolve_quote_session) or test(tick_candles_default_to_a_fifteen_minute_window_and_clamp_negative_volume) or test(infer_cn_prefix_supports_various_formats_and_preserves_explicit_prefixes) or test(tick_candles_use_fresh_cache_without_querying_the_provider) or test(test_board_kind_defaults_empty_to_industry) or test(builtin_hk_and_mainland_weekday_weekend_and_alias_boundaries_match_go) or test(validate_snapshot_accepts_mainland_alias_markets) or test(manual_override_status_and_session_window_boundaries_match_go) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go)"
         ],
         "testFilter": [
           "explicit_cancel_orders_by_generated_order_id"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "4b7b77f215c7499eaec49eda7b7782329a08f428",
+        "verifiedAt": "2026-09-25T14:13:44Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -134288,20 +134288,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(short_covers_and_reversals_count_each_closing_order_once) or test(partial_closing_cancellation_finalizes_the_filled_segment) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(matching_and_pricing_helper_branches_behavior) or test(explicit_cancel_orders_by_generated_order_id) or test(test_tc_d4_02_and_03_dst_boundary_and_60m_session_anchored_aggregation) or test(test_tc_d4_01_regular_session_intraday_sub_hourly_aggregation) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(missing_daily_target_synthesizes_us_regular_day_from_minutes) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries) or test(weekly_daily_source_requires_every_open_trading_date) or test(test_market_sessions_for_candle_sessions) or test(mapper_rejects_partial_or_malformed_fill_fields) or test(test_tc_d5_01_sequential_partial_fills_and_fees_monotonic) or test(futu_securities_route_projects_broker_neutral_envelope_boundary) or test(resolve_market_session) or test(QuoteSessionResolver) or test(quote_session_label) or test(resolve_quote_session) or test(tick_candles_default_to_a_fifteen_minute_window_and_clamp_negative_volume) or test(infer_cn_prefix_supports_various_formats_and_preserves_explicit_prefixes) or test(tick_candles_use_fresh_cache_without_querying_the_provider) or test(test_board_kind_defaults_empty_to_industry) or test(builtin_hk_and_mainland_weekday_weekend_and_alias_boundaries_match_go) or test(validate_snapshot_accepts_mainland_alias_markets) or test(manual_override_status_and_session_window_boundaries_match_go) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go)"
         ],
         "testFilter": [
           "test_tc_d4_02_and_03_dst_boundary_and_60m_session_anchored_aggregation"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "4b7b77f215c7499eaec49eda7b7782329a08f428",
+        "verifiedAt": "2026-09-25T14:13:44Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -134350,20 +134350,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(short_covers_and_reversals_count_each_closing_order_once) or test(partial_closing_cancellation_finalizes_the_filled_segment) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(matching_and_pricing_helper_branches_behavior) or test(explicit_cancel_orders_by_generated_order_id) or test(test_tc_d4_02_and_03_dst_boundary_and_60m_session_anchored_aggregation) or test(test_tc_d4_01_regular_session_intraday_sub_hourly_aggregation) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(missing_daily_target_synthesizes_us_regular_day_from_minutes) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries) or test(weekly_daily_source_requires_every_open_trading_date) or test(test_market_sessions_for_candle_sessions) or test(mapper_rejects_partial_or_malformed_fill_fields) or test(test_tc_d5_01_sequential_partial_fills_and_fees_monotonic) or test(futu_securities_route_projects_broker_neutral_envelope_boundary) or test(resolve_market_session) or test(QuoteSessionResolver) or test(quote_session_label) or test(resolve_quote_session) or test(tick_candles_default_to_a_fifteen_minute_window_and_clamp_negative_volume) or test(infer_cn_prefix_supports_various_formats_and_preserves_explicit_prefixes) or test(tick_candles_use_fresh_cache_without_querying_the_provider) or test(test_board_kind_defaults_empty_to_industry) or test(builtin_hk_and_mainland_weekday_weekend_and_alias_boundaries_match_go) or test(validate_snapshot_accepts_mainland_alias_markets) or test(manual_override_status_and_session_window_boundaries_match_go) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go)"
         ],
         "testFilter": [
           "test_tc_d4_01_regular_session_intraday_sub_hourly_aggregation"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "4b7b77f215c7499eaec49eda7b7782329a08f428",
+        "verifiedAt": "2026-09-25T14:13:44Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -134412,20 +134412,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(short_covers_and_reversals_count_each_closing_order_once) or test(partial_closing_cancellation_finalizes_the_filled_segment) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(matching_and_pricing_helper_branches_behavior) or test(explicit_cancel_orders_by_generated_order_id) or test(test_tc_d4_02_and_03_dst_boundary_and_60m_session_anchored_aggregation) or test(test_tc_d4_01_regular_session_intraday_sub_hourly_aggregation) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(missing_daily_target_synthesizes_us_regular_day_from_minutes) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries) or test(weekly_daily_source_requires_every_open_trading_date) or test(test_market_sessions_for_candle_sessions) or test(mapper_rejects_partial_or_malformed_fill_fields) or test(test_tc_d5_01_sequential_partial_fills_and_fees_monotonic) or test(futu_securities_route_projects_broker_neutral_envelope_boundary) or test(resolve_market_session) or test(QuoteSessionResolver) or test(quote_session_label) or test(resolve_quote_session) or test(tick_candles_default_to_a_fifteen_minute_window_and_clamp_negative_volume) or test(infer_cn_prefix_supports_various_formats_and_preserves_explicit_prefixes) or test(tick_candles_use_fresh_cache_without_querying_the_provider) or test(test_board_kind_defaults_empty_to_industry) or test(builtin_hk_and_mainland_weekday_weekend_and_alias_boundaries_match_go) or test(validate_snapshot_accepts_mainland_alias_markets) or test(manual_override_status_and_session_window_boundaries_match_go) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go)"
         ],
         "testFilter": [
           "test_tc_d4_02_and_03_dst_boundary_and_60m_session_anchored_aggregation"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "4b7b77f215c7499eaec49eda7b7782329a08f428",
+        "verifiedAt": "2026-09-25T14:13:44Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -134474,20 +134474,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(short_covers_and_reversals_count_each_closing_order_once) or test(partial_closing_cancellation_finalizes_the_filled_segment) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(matching_and_pricing_helper_branches_behavior) or test(explicit_cancel_orders_by_generated_order_id) or test(test_tc_d4_02_and_03_dst_boundary_and_60m_session_anchored_aggregation) or test(test_tc_d4_01_regular_session_intraday_sub_hourly_aggregation) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(missing_daily_target_synthesizes_us_regular_day_from_minutes) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries) or test(weekly_daily_source_requires_every_open_trading_date) or test(test_market_sessions_for_candle_sessions) or test(mapper_rejects_partial_or_malformed_fill_fields) or test(test_tc_d5_01_sequential_partial_fills_and_fees_monotonic) or test(futu_securities_route_projects_broker_neutral_envelope_boundary) or test(resolve_market_session) or test(QuoteSessionResolver) or test(quote_session_label) or test(resolve_quote_session) or test(tick_candles_default_to_a_fifteen_minute_window_and_clamp_negative_volume) or test(infer_cn_prefix_supports_various_formats_and_preserves_explicit_prefixes) or test(tick_candles_use_fresh_cache_without_querying_the_provider) or test(test_board_kind_defaults_empty_to_industry) or test(builtin_hk_and_mainland_weekday_weekend_and_alias_boundaries_match_go) or test(validate_snapshot_accepts_mainland_alias_markets) or test(manual_override_status_and_session_window_boundaries_match_go) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go)"
         ],
         "testFilter": [
           "direct_interval_rows_win_and_paging_is_deterministic"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "4b7b77f215c7499eaec49eda7b7782329a08f428",
+        "verifiedAt": "2026-09-25T14:13:44Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -134536,20 +134536,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(short_covers_and_reversals_count_each_closing_order_once) or test(partial_closing_cancellation_finalizes_the_filled_segment) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(matching_and_pricing_helper_branches_behavior) or test(explicit_cancel_orders_by_generated_order_id) or test(test_tc_d4_02_and_03_dst_boundary_and_60m_session_anchored_aggregation) or test(test_tc_d4_01_regular_session_intraday_sub_hourly_aggregation) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(missing_daily_target_synthesizes_us_regular_day_from_minutes) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries) or test(weekly_daily_source_requires_every_open_trading_date) or test(test_market_sessions_for_candle_sessions) or test(mapper_rejects_partial_or_malformed_fill_fields) or test(test_tc_d5_01_sequential_partial_fills_and_fees_monotonic) or test(futu_securities_route_projects_broker_neutral_envelope_boundary) or test(resolve_market_session) or test(QuoteSessionResolver) or test(quote_session_label) or test(resolve_quote_session) or test(tick_candles_default_to_a_fifteen_minute_window_and_clamp_negative_volume) or test(infer_cn_prefix_supports_various_formats_and_preserves_explicit_prefixes) or test(tick_candles_use_fresh_cache_without_querying_the_provider) or test(test_board_kind_defaults_empty_to_industry) or test(builtin_hk_and_mainland_weekday_weekend_and_alias_boundaries_match_go) or test(validate_snapshot_accepts_mainland_alias_markets) or test(manual_override_status_and_session_window_boundaries_match_go) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go)"
         ],
         "testFilter": [
           "missing_daily_target_synthesizes_us_regular_day_from_minutes"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "4b7b77f215c7499eaec49eda7b7782329a08f428",
+        "verifiedAt": "2026-09-25T14:13:44Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -134598,20 +134598,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(short_covers_and_reversals_count_each_closing_order_once) or test(partial_closing_cancellation_finalizes_the_filled_segment) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(matching_and_pricing_helper_branches_behavior) or test(explicit_cancel_orders_by_generated_order_id) or test(test_tc_d4_02_and_03_dst_boundary_and_60m_session_anchored_aggregation) or test(test_tc_d4_01_regular_session_intraday_sub_hourly_aggregation) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(missing_daily_target_synthesizes_us_regular_day_from_minutes) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries) or test(weekly_daily_source_requires_every_open_trading_date) or test(test_market_sessions_for_candle_sessions) or test(mapper_rejects_partial_or_malformed_fill_fields) or test(test_tc_d5_01_sequential_partial_fills_and_fees_monotonic) or test(futu_securities_route_projects_broker_neutral_envelope_boundary) or test(resolve_market_session) or test(QuoteSessionResolver) or test(quote_session_label) or test(resolve_quote_session) or test(tick_candles_default_to_a_fifteen_minute_window_and_clamp_negative_volume) or test(infer_cn_prefix_supports_various_formats_and_preserves_explicit_prefixes) or test(tick_candles_use_fresh_cache_without_querying_the_provider) or test(test_board_kind_defaults_empty_to_industry) or test(builtin_hk_and_mainland_weekday_weekend_and_alias_boundaries_match_go) or test(validate_snapshot_accepts_mainland_alias_markets) or test(manual_override_status_and_session_window_boundaries_match_go) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go)"
         ],
         "testFilter": [
           "weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "4b7b77f215c7499eaec49eda7b7782329a08f428",
+        "verifiedAt": "2026-09-25T14:13:44Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -134660,20 +134660,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(short_covers_and_reversals_count_each_closing_order_once) or test(partial_closing_cancellation_finalizes_the_filled_segment) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(matching_and_pricing_helper_branches_behavior) or test(explicit_cancel_orders_by_generated_order_id) or test(test_tc_d4_02_and_03_dst_boundary_and_60m_session_anchored_aggregation) or test(test_tc_d4_01_regular_session_intraday_sub_hourly_aggregation) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(missing_daily_target_synthesizes_us_regular_day_from_minutes) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries) or test(weekly_daily_source_requires_every_open_trading_date) or test(test_market_sessions_for_candle_sessions) or test(mapper_rejects_partial_or_malformed_fill_fields) or test(test_tc_d5_01_sequential_partial_fills_and_fees_monotonic) or test(futu_securities_route_projects_broker_neutral_envelope_boundary) or test(resolve_market_session) or test(QuoteSessionResolver) or test(quote_session_label) or test(resolve_quote_session) or test(tick_candles_default_to_a_fifteen_minute_window_and_clamp_negative_volume) or test(infer_cn_prefix_supports_various_formats_and_preserves_explicit_prefixes) or test(tick_candles_use_fresh_cache_without_querying_the_provider) or test(test_board_kind_defaults_empty_to_industry) or test(builtin_hk_and_mainland_weekday_weekend_and_alias_boundaries_match_go) or test(validate_snapshot_accepts_mainland_alias_markets) or test(manual_override_status_and_session_window_boundaries_match_go) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go)"
         ],
         "testFilter": [
           "weekly_daily_source_requires_every_open_trading_date"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "4b7b77f215c7499eaec49eda7b7782329a08f428",
+        "verifiedAt": "2026-09-25T14:13:44Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -134722,20 +134722,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(short_covers_and_reversals_count_each_closing_order_once) or test(partial_closing_cancellation_finalizes_the_filled_segment) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(matching_and_pricing_helper_branches_behavior) or test(explicit_cancel_orders_by_generated_order_id) or test(test_tc_d4_02_and_03_dst_boundary_and_60m_session_anchored_aggregation) or test(test_tc_d4_01_regular_session_intraday_sub_hourly_aggregation) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(missing_daily_target_synthesizes_us_regular_day_from_minutes) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries) or test(weekly_daily_source_requires_every_open_trading_date) or test(test_market_sessions_for_candle_sessions) or test(mapper_rejects_partial_or_malformed_fill_fields) or test(test_tc_d5_01_sequential_partial_fills_and_fees_monotonic) or test(futu_securities_route_projects_broker_neutral_envelope_boundary) or test(resolve_market_session) or test(QuoteSessionResolver) or test(quote_session_label) or test(resolve_quote_session) or test(tick_candles_default_to_a_fifteen_minute_window_and_clamp_negative_volume) or test(infer_cn_prefix_supports_various_formats_and_preserves_explicit_prefixes) or test(tick_candles_use_fresh_cache_without_querying_the_provider) or test(test_board_kind_defaults_empty_to_industry) or test(builtin_hk_and_mainland_weekday_weekend_and_alias_boundaries_match_go) or test(validate_snapshot_accepts_mainland_alias_markets) or test(manual_override_status_and_session_window_boundaries_match_go) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go)"
         ],
         "testFilter": [
           "weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "4b7b77f215c7499eaec49eda7b7782329a08f428",
+        "verifiedAt": "2026-09-25T14:13:44Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -135094,20 +135094,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(short_covers_and_reversals_count_each_closing_order_once) or test(partial_closing_cancellation_finalizes_the_filled_segment) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(matching_and_pricing_helper_branches_behavior) or test(explicit_cancel_orders_by_generated_order_id) or test(test_tc_d4_02_and_03_dst_boundary_and_60m_session_anchored_aggregation) or test(test_tc_d4_01_regular_session_intraday_sub_hourly_aggregation) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(missing_daily_target_synthesizes_us_regular_day_from_minutes) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries) or test(weekly_daily_source_requires_every_open_trading_date) or test(test_market_sessions_for_candle_sessions) or test(mapper_rejects_partial_or_malformed_fill_fields) or test(test_tc_d5_01_sequential_partial_fills_and_fees_monotonic) or test(futu_securities_route_projects_broker_neutral_envelope_boundary) or test(resolve_market_session) or test(QuoteSessionResolver) or test(quote_session_label) or test(resolve_quote_session) or test(tick_candles_default_to_a_fifteen_minute_window_and_clamp_negative_volume) or test(infer_cn_prefix_supports_various_formats_and_preserves_explicit_prefixes) or test(tick_candles_use_fresh_cache_without_querying_the_provider) or test(test_board_kind_defaults_empty_to_industry) or test(builtin_hk_and_mainland_weekday_weekend_and_alias_boundaries_match_go) or test(validate_snapshot_accepts_mainland_alias_markets) or test(manual_override_status_and_session_window_boundaries_match_go) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go)"
         ],
         "testFilter": [
           "missing_empty_partial_and_corrupt_lower_coverage_fail_closed"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "4b7b77f215c7499eaec49eda7b7782329a08f428",
+        "verifiedAt": "2026-09-25T14:13:44Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -136463,18 +136463,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-integration-futu"
+          "--all-targets",
+          "--locked",
+          "-E",
+          "test(short_covers_and_reversals_count_each_closing_order_once) or test(partial_closing_cancellation_finalizes_the_filled_segment) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(matching_and_pricing_helper_branches_behavior) or test(explicit_cancel_orders_by_generated_order_id) or test(test_tc_d4_02_and_03_dst_boundary_and_60m_session_anchored_aggregation) or test(test_tc_d4_01_regular_session_intraday_sub_hourly_aggregation) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(missing_daily_target_synthesizes_us_regular_day_from_minutes) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries) or test(weekly_daily_source_requires_every_open_trading_date) or test(test_market_sessions_for_candle_sessions) or test(mapper_rejects_partial_or_malformed_fill_fields) or test(test_tc_d5_01_sequential_partial_fills_and_fees_monotonic) or test(futu_securities_route_projects_broker_neutral_envelope_boundary) or test(resolve_market_session) or test(QuoteSessionResolver) or test(quote_session_label) or test(resolve_quote_session) or test(tick_candles_default_to_a_fifteen_minute_window_and_clamp_negative_volume) or test(infer_cn_prefix_supports_various_formats_and_preserves_explicit_prefixes) or test(tick_candles_use_fresh_cache_without_querying_the_provider) or test(test_board_kind_defaults_empty_to_industry) or test(builtin_hk_and_mainland_weekday_weekend_and_alias_boundaries_match_go) or test(validate_snapshot_accepts_mainland_alias_markets) or test(manual_override_status_and_session_window_boundaries_match_go) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go)"
         ],
         "testFilter": [
           "test_market_sessions_for_candle_sessions"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "4b7b77f215c7499eaec49eda7b7782329a08f428",
+        "verifiedAt": "2026-09-25T14:13:44Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -138127,10 +138129,10 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(test_tc_d5_01_sequential_partial_fills_and_fees_monotonic)"
+          "test(short_covers_and_reversals_count_each_closing_order_once) or test(partial_closing_cancellation_finalizes_the_filled_segment) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(matching_and_pricing_helper_branches_behavior) or test(explicit_cancel_orders_by_generated_order_id) or test(test_tc_d4_02_and_03_dst_boundary_and_60m_session_anchored_aggregation) or test(test_tc_d4_01_regular_session_intraday_sub_hourly_aggregation) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(missing_daily_target_synthesizes_us_regular_day_from_minutes) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries) or test(weekly_daily_source_requires_every_open_trading_date) or test(test_market_sessions_for_candle_sessions) or test(mapper_rejects_partial_or_malformed_fill_fields) or test(test_tc_d5_01_sequential_partial_fills_and_fees_monotonic) or test(futu_securities_route_projects_broker_neutral_envelope_boundary) or test(resolve_market_session) or test(QuoteSessionResolver) or test(quote_session_label) or test(resolve_quote_session) or test(tick_candles_default_to_a_fifteen_minute_window_and_clamp_negative_volume) or test(infer_cn_prefix_supports_various_formats_and_preserves_explicit_prefixes) or test(tick_candles_use_fresh_cache_without_querying_the_provider) or test(test_board_kind_defaults_empty_to_industry) or test(builtin_hk_and_mainland_weekday_weekend_and_alias_boundaries_match_go) or test(validate_snapshot_accepts_mainland_alias_markets) or test(manual_override_status_and_session_window_boundaries_match_go) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go)"
         ],
         "testFilter": [
           "mapper_rejects_partial_or_malformed_fill_fields",
@@ -138138,10 +138140,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "4b7b77f215c7499eaec49eda7b7782329a08f428",
+        "verifiedAt": "2026-09-25T14:13:44Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -138778,20 +138780,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(futu_securities_route_projects_broker_neutral_envelope_boundary)"
+          "test(short_covers_and_reversals_count_each_closing_order_once) or test(partial_closing_cancellation_finalizes_the_filled_segment) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(matching_and_pricing_helper_branches_behavior) or test(explicit_cancel_orders_by_generated_order_id) or test(test_tc_d4_02_and_03_dst_boundary_and_60m_session_anchored_aggregation) or test(test_tc_d4_01_regular_session_intraday_sub_hourly_aggregation) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(missing_daily_target_synthesizes_us_regular_day_from_minutes) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries) or test(weekly_daily_source_requires_every_open_trading_date) or test(test_market_sessions_for_candle_sessions) or test(mapper_rejects_partial_or_malformed_fill_fields) or test(test_tc_d5_01_sequential_partial_fills_and_fees_monotonic) or test(futu_securities_route_projects_broker_neutral_envelope_boundary) or test(resolve_market_session) or test(QuoteSessionResolver) or test(quote_session_label) or test(resolve_quote_session) or test(tick_candles_default_to_a_fifteen_minute_window_and_clamp_negative_volume) or test(infer_cn_prefix_supports_various_formats_and_preserves_explicit_prefixes) or test(tick_candles_use_fresh_cache_without_querying_the_provider) or test(test_board_kind_defaults_empty_to_industry) or test(builtin_hk_and_mainland_weekday_weekend_and_alias_boundaries_match_go) or test(validate_snapshot_accepts_mainland_alias_markets) or test(manual_override_status_and_session_window_boundaries_match_go) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go)"
         ],
         "testFilter": [
           "futu_securities_route_projects_broker_neutral_envelope_boundary"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "4b7b77f215c7499eaec49eda7b7782329a08f428",
+        "verifiedAt": "2026-09-25T14:13:44Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -150981,10 +150983,10 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-integration-futu",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(hk_lunch_snapshot_keeps_previous_close_and_does_not_mark_extended_hours)"
+          "test(short_covers_and_reversals_count_each_closing_order_once) or test(partial_closing_cancellation_finalizes_the_filled_segment) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(matching_and_pricing_helper_branches_behavior) or test(explicit_cancel_orders_by_generated_order_id) or test(test_tc_d4_02_and_03_dst_boundary_and_60m_session_anchored_aggregation) or test(test_tc_d4_01_regular_session_intraday_sub_hourly_aggregation) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(missing_daily_target_synthesizes_us_regular_day_from_minutes) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries) or test(weekly_daily_source_requires_every_open_trading_date) or test(test_market_sessions_for_candle_sessions) or test(mapper_rejects_partial_or_malformed_fill_fields) or test(test_tc_d5_01_sequential_partial_fills_and_fees_monotonic) or test(futu_securities_route_projects_broker_neutral_envelope_boundary) or test(resolve_market_session) or test(QuoteSessionResolver) or test(quote_session_label) or test(resolve_quote_session) or test(tick_candles_default_to_a_fifteen_minute_window_and_clamp_negative_volume) or test(infer_cn_prefix_supports_various_formats_and_preserves_explicit_prefixes) or test(tick_candles_use_fresh_cache_without_querying_the_provider) or test(test_board_kind_defaults_empty_to_industry) or test(builtin_hk_and_mainland_weekday_weekend_and_alias_boundaries_match_go) or test(validate_snapshot_accepts_mainland_alias_markets) or test(manual_override_status_and_session_window_boundaries_match_go) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go)"
         ],
         "testFilter": [
           "resolve_market_session",
@@ -150993,10 +150995,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "4b7b77f215c7499eaec49eda7b7782329a08f428",
+        "verifiedAt": "2026-09-25T14:13:44Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -151051,10 +151053,10 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-integration-futu",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(snapshot_projection_reclassifies_us_regular_boundary_and_clears_extended_hours)"
+          "test(short_covers_and_reversals_count_each_closing_order_once) or test(partial_closing_cancellation_finalizes_the_filled_segment) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(matching_and_pricing_helper_branches_behavior) or test(explicit_cancel_orders_by_generated_order_id) or test(test_tc_d4_02_and_03_dst_boundary_and_60m_session_anchored_aggregation) or test(test_tc_d4_01_regular_session_intraday_sub_hourly_aggregation) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(missing_daily_target_synthesizes_us_regular_day_from_minutes) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries) or test(weekly_daily_source_requires_every_open_trading_date) or test(test_market_sessions_for_candle_sessions) or test(mapper_rejects_partial_or_malformed_fill_fields) or test(test_tc_d5_01_sequential_partial_fills_and_fees_monotonic) or test(futu_securities_route_projects_broker_neutral_envelope_boundary) or test(resolve_market_session) or test(QuoteSessionResolver) or test(quote_session_label) or test(resolve_quote_session) or test(tick_candles_default_to_a_fifteen_minute_window_and_clamp_negative_volume) or test(infer_cn_prefix_supports_various_formats_and_preserves_explicit_prefixes) or test(tick_candles_use_fresh_cache_without_querying_the_provider) or test(test_board_kind_defaults_empty_to_industry) or test(builtin_hk_and_mainland_weekday_weekend_and_alias_boundaries_match_go) or test(validate_snapshot_accepts_mainland_alias_markets) or test(manual_override_status_and_session_window_boundaries_match_go) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go)"
         ],
         "testFilter": [
           "quote_session_label",
@@ -151062,10 +151064,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "4b7b77f215c7499eaec49eda7b7782329a08f428",
+        "verifiedAt": "2026-09-25T14:13:44Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -178018,12 +178020,10 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-marketdata",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(short_covers_and_reversals_count_each_closing_order_once) or test(partial_closing_cancellation_finalizes_the_filled_segment) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(matching_and_pricing_helper_branches_behavior) or test(explicit_cancel_orders_by_generated_order_id) or test(test_tc_d4_02_and_03_dst_boundary_and_60m_session_anchored_aggregation) or test(test_tc_d4_01_regular_session_intraday_sub_hourly_aggregation) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(missing_daily_target_synthesizes_us_regular_day_from_minutes) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries) or test(weekly_daily_source_requires_every_open_trading_date) or test(test_market_sessions_for_candle_sessions) or test(mapper_rejects_partial_or_malformed_fill_fields) or test(test_tc_d5_01_sequential_partial_fills_and_fees_monotonic) or test(futu_securities_route_projects_broker_neutral_envelope_boundary) or test(resolve_market_session) or test(QuoteSessionResolver) or test(quote_session_label) or test(resolve_quote_session) or test(tick_candles_default_to_a_fifteen_minute_window_and_clamp_negative_volume) or test(infer_cn_prefix_supports_various_formats_and_preserves_explicit_prefixes) or test(tick_candles_use_fresh_cache_without_querying_the_provider) or test(test_board_kind_defaults_empty_to_industry) or test(builtin_hk_and_mainland_weekday_weekend_and_alias_boundaries_match_go) or test(validate_snapshot_accepts_mainland_alias_markets) or test(manual_override_status_and_session_window_boundaries_match_go) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go)"
         ],
         "testFilter": [
           "tick_candles_default_to_a_fifteen_minute_window_and_clamp_negative_volume",
@@ -178032,10 +178032,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "4b7b77f215c7499eaec49eda7b7782329a08f428",
+        "verifiedAt": "2026-09-25T14:13:44Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -179210,20 +179210,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(short_covers_and_reversals_count_each_closing_order_once) or test(partial_closing_cancellation_finalizes_the_filled_segment) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(matching_and_pricing_helper_branches_behavior) or test(explicit_cancel_orders_by_generated_order_id) or test(test_tc_d4_02_and_03_dst_boundary_and_60m_session_anchored_aggregation) or test(test_tc_d4_01_regular_session_intraday_sub_hourly_aggregation) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(missing_daily_target_synthesizes_us_regular_day_from_minutes) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries) or test(weekly_daily_source_requires_every_open_trading_date) or test(test_market_sessions_for_candle_sessions) or test(mapper_rejects_partial_or_malformed_fill_fields) or test(test_tc_d5_01_sequential_partial_fills_and_fees_monotonic) or test(futu_securities_route_projects_broker_neutral_envelope_boundary) or test(resolve_market_session) or test(QuoteSessionResolver) or test(quote_session_label) or test(resolve_quote_session) or test(tick_candles_default_to_a_fifteen_minute_window_and_clamp_negative_volume) or test(infer_cn_prefix_supports_various_formats_and_preserves_explicit_prefixes) or test(tick_candles_use_fresh_cache_without_querying_the_provider) or test(test_board_kind_defaults_empty_to_industry) or test(builtin_hk_and_mainland_weekday_weekend_and_alias_boundaries_match_go) or test(validate_snapshot_accepts_mainland_alias_markets) or test(manual_override_status_and_session_window_boundaries_match_go) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go)"
         ],
         "testFilter": [
           "test_board_kind_defaults_empty_to_industry"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "4b7b77f215c7499eaec49eda7b7782329a08f428",
+        "verifiedAt": "2026-09-25T14:13:44Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -183610,20 +183610,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-calendar",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(short_covers_and_reversals_count_each_closing_order_once) or test(partial_closing_cancellation_finalizes_the_filled_segment) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(matching_and_pricing_helper_branches_behavior) or test(explicit_cancel_orders_by_generated_order_id) or test(test_tc_d4_02_and_03_dst_boundary_and_60m_session_anchored_aggregation) or test(test_tc_d4_01_regular_session_intraday_sub_hourly_aggregation) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(missing_daily_target_synthesizes_us_regular_day_from_minutes) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries) or test(weekly_daily_source_requires_every_open_trading_date) or test(test_market_sessions_for_candle_sessions) or test(mapper_rejects_partial_or_malformed_fill_fields) or test(test_tc_d5_01_sequential_partial_fills_and_fees_monotonic) or test(futu_securities_route_projects_broker_neutral_envelope_boundary) or test(resolve_market_session) or test(QuoteSessionResolver) or test(quote_session_label) or test(resolve_quote_session) or test(tick_candles_default_to_a_fifteen_minute_window_and_clamp_negative_volume) or test(infer_cn_prefix_supports_various_formats_and_preserves_explicit_prefixes) or test(tick_candles_use_fresh_cache_without_querying_the_provider) or test(test_board_kind_defaults_empty_to_industry) or test(builtin_hk_and_mainland_weekday_weekend_and_alias_boundaries_match_go) or test(validate_snapshot_accepts_mainland_alias_markets) or test(manual_override_status_and_session_window_boundaries_match_go) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go)"
         ],
         "testFilter": [
           "builtin_hk_and_mainland_weekday_weekend_and_alias_boundaries_match_go"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "4b7b77f215c7499eaec49eda7b7782329a08f428",
+        "verifiedAt": "2026-09-25T14:13:44Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -183672,20 +183672,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-calendar",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(short_covers_and_reversals_count_each_closing_order_once) or test(partial_closing_cancellation_finalizes_the_filled_segment) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(matching_and_pricing_helper_branches_behavior) or test(explicit_cancel_orders_by_generated_order_id) or test(test_tc_d4_02_and_03_dst_boundary_and_60m_session_anchored_aggregation) or test(test_tc_d4_01_regular_session_intraday_sub_hourly_aggregation) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(missing_daily_target_synthesizes_us_regular_day_from_minutes) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries) or test(weekly_daily_source_requires_every_open_trading_date) or test(test_market_sessions_for_candle_sessions) or test(mapper_rejects_partial_or_malformed_fill_fields) or test(test_tc_d5_01_sequential_partial_fills_and_fees_monotonic) or test(futu_securities_route_projects_broker_neutral_envelope_boundary) or test(resolve_market_session) or test(QuoteSessionResolver) or test(quote_session_label) or test(resolve_quote_session) or test(tick_candles_default_to_a_fifteen_minute_window_and_clamp_negative_volume) or test(infer_cn_prefix_supports_various_formats_and_preserves_explicit_prefixes) or test(tick_candles_use_fresh_cache_without_querying_the_provider) or test(test_board_kind_defaults_empty_to_industry) or test(builtin_hk_and_mainland_weekday_weekend_and_alias_boundaries_match_go) or test(validate_snapshot_accepts_mainland_alias_markets) or test(manual_override_status_and_session_window_boundaries_match_go) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go)"
         ],
         "testFilter": [
           "builtin_hk_and_mainland_weekday_weekend_and_alias_boundaries_match_go"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "4b7b77f215c7499eaec49eda7b7782329a08f428",
+        "verifiedAt": "2026-09-25T14:13:44Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -183734,20 +183734,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-calendar",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(short_covers_and_reversals_count_each_closing_order_once) or test(partial_closing_cancellation_finalizes_the_filled_segment) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(matching_and_pricing_helper_branches_behavior) or test(explicit_cancel_orders_by_generated_order_id) or test(test_tc_d4_02_and_03_dst_boundary_and_60m_session_anchored_aggregation) or test(test_tc_d4_01_regular_session_intraday_sub_hourly_aggregation) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(missing_daily_target_synthesizes_us_regular_day_from_minutes) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries) or test(weekly_daily_source_requires_every_open_trading_date) or test(test_market_sessions_for_candle_sessions) or test(mapper_rejects_partial_or_malformed_fill_fields) or test(test_tc_d5_01_sequential_partial_fills_and_fees_monotonic) or test(futu_securities_route_projects_broker_neutral_envelope_boundary) or test(resolve_market_session) or test(QuoteSessionResolver) or test(quote_session_label) or test(resolve_quote_session) or test(tick_candles_default_to_a_fifteen_minute_window_and_clamp_negative_volume) or test(infer_cn_prefix_supports_various_formats_and_preserves_explicit_prefixes) or test(tick_candles_use_fresh_cache_without_querying_the_provider) or test(test_board_kind_defaults_empty_to_industry) or test(builtin_hk_and_mainland_weekday_weekend_and_alias_boundaries_match_go) or test(validate_snapshot_accepts_mainland_alias_markets) or test(manual_override_status_and_session_window_boundaries_match_go) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go)"
         ],
         "testFilter": [
           "builtin_hk_and_mainland_weekday_weekend_and_alias_boundaries_match_go"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "4b7b77f215c7499eaec49eda7b7782329a08f428",
+        "verifiedAt": "2026-09-25T14:13:44Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -183796,20 +183796,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-calendar",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(short_covers_and_reversals_count_each_closing_order_once) or test(partial_closing_cancellation_finalizes_the_filled_segment) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(matching_and_pricing_helper_branches_behavior) or test(explicit_cancel_orders_by_generated_order_id) or test(test_tc_d4_02_and_03_dst_boundary_and_60m_session_anchored_aggregation) or test(test_tc_d4_01_regular_session_intraday_sub_hourly_aggregation) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(missing_daily_target_synthesizes_us_regular_day_from_minutes) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries) or test(weekly_daily_source_requires_every_open_trading_date) or test(test_market_sessions_for_candle_sessions) or test(mapper_rejects_partial_or_malformed_fill_fields) or test(test_tc_d5_01_sequential_partial_fills_and_fees_monotonic) or test(futu_securities_route_projects_broker_neutral_envelope_boundary) or test(resolve_market_session) or test(QuoteSessionResolver) or test(quote_session_label) or test(resolve_quote_session) or test(tick_candles_default_to_a_fifteen_minute_window_and_clamp_negative_volume) or test(infer_cn_prefix_supports_various_formats_and_preserves_explicit_prefixes) or test(tick_candles_use_fresh_cache_without_querying_the_provider) or test(test_board_kind_defaults_empty_to_industry) or test(builtin_hk_and_mainland_weekday_weekend_and_alias_boundaries_match_go) or test(validate_snapshot_accepts_mainland_alias_markets) or test(manual_override_status_and_session_window_boundaries_match_go) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go)"
         ],
         "testFilter": [
           "validate_snapshot_accepts_mainland_alias_markets"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "4b7b77f215c7499eaec49eda7b7782329a08f428",
+        "verifiedAt": "2026-09-25T14:13:44Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -184044,20 +184044,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-calendar",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(short_covers_and_reversals_count_each_closing_order_once) or test(partial_closing_cancellation_finalizes_the_filled_segment) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(matching_and_pricing_helper_branches_behavior) or test(explicit_cancel_orders_by_generated_order_id) or test(test_tc_d4_02_and_03_dst_boundary_and_60m_session_anchored_aggregation) or test(test_tc_d4_01_regular_session_intraday_sub_hourly_aggregation) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(missing_daily_target_synthesizes_us_regular_day_from_minutes) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries) or test(weekly_daily_source_requires_every_open_trading_date) or test(test_market_sessions_for_candle_sessions) or test(mapper_rejects_partial_or_malformed_fill_fields) or test(test_tc_d5_01_sequential_partial_fills_and_fees_monotonic) or test(futu_securities_route_projects_broker_neutral_envelope_boundary) or test(resolve_market_session) or test(QuoteSessionResolver) or test(quote_session_label) or test(resolve_quote_session) or test(tick_candles_default_to_a_fifteen_minute_window_and_clamp_negative_volume) or test(infer_cn_prefix_supports_various_formats_and_preserves_explicit_prefixes) or test(tick_candles_use_fresh_cache_without_querying_the_provider) or test(test_board_kind_defaults_empty_to_industry) or test(builtin_hk_and_mainland_weekday_weekend_and_alias_boundaries_match_go) or test(validate_snapshot_accepts_mainland_alias_markets) or test(manual_override_status_and_session_window_boundaries_match_go) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go)"
         ],
         "testFilter": [
           "manual_override_status_and_session_window_boundaries_match_go"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "4b7b77f215c7499eaec49eda7b7782329a08f428",
+        "verifiedAt": "2026-09-25T14:13:44Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -184168,20 +184168,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-calendar",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(short_covers_and_reversals_count_each_closing_order_once) or test(partial_closing_cancellation_finalizes_the_filled_segment) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(matching_and_pricing_helper_branches_behavior) or test(explicit_cancel_orders_by_generated_order_id) or test(test_tc_d4_02_and_03_dst_boundary_and_60m_session_anchored_aggregation) or test(test_tc_d4_01_regular_session_intraday_sub_hourly_aggregation) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(missing_daily_target_synthesizes_us_regular_day_from_minutes) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries) or test(weekly_daily_source_requires_every_open_trading_date) or test(test_market_sessions_for_candle_sessions) or test(mapper_rejects_partial_or_malformed_fill_fields) or test(test_tc_d5_01_sequential_partial_fills_and_fees_monotonic) or test(futu_securities_route_projects_broker_neutral_envelope_boundary) or test(resolve_market_session) or test(QuoteSessionResolver) or test(quote_session_label) or test(resolve_quote_session) or test(tick_candles_default_to_a_fifteen_minute_window_and_clamp_negative_volume) or test(infer_cn_prefix_supports_various_formats_and_preserves_explicit_prefixes) or test(tick_candles_use_fresh_cache_without_querying_the_provider) or test(test_board_kind_defaults_empty_to_industry) or test(builtin_hk_and_mainland_weekday_weekend_and_alias_boundaries_match_go) or test(validate_snapshot_accepts_mainland_alias_markets) or test(manual_override_status_and_session_window_boundaries_match_go) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go)"
         ],
         "testFilter": [
           "cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "4b7b77f215c7499eaec49eda7b7782329a08f428",
+        "verifiedAt": "2026-09-25T14:13:44Z",
         "receiptDigest": null
       },
       "risk": "high",
