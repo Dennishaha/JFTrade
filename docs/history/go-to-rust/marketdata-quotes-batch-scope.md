@@ -1629,6 +1629,22 @@ ADK/Assistant 功能差异，先补失败回归测试再修改领域 owner。
 
 下一片：继续 P2 Assistant/Workflow/ADK、API transport、MarketData/Quote、Storage/SQLite 与 Backtest/Calendar；`optional_bool_strict` helper、P1 `session_context_snapshot` 及其他无独立 Rust 测试条目仍保持未验证结论。
 
+## 第 207 批：Skill Registry、MCP schema、SQLite dialector 与 approval store（2026-09-26）
+
+| 复核 | Go 测试范围 | Rust 证据 | P | 结论 |
+| :---: | --- | --- | :---: | --- |
+| [x] | `skill_reg_fs_test.go:48,72,89,139,209`; `skill_reg_test.go:21,84,115,162,235,286,361`; `skill_registry_archives_test.go:45`; `skill_registry_http_sources_test.go:19,198`; `skillsruntime/install_boundary_test.go:14` | archive directory/resource installation, builtin skill projection, unsafe path/symlink rejection, exclusive install, durable projection, document registration, TLS client setup, HTTP redirect guard | P2 | partial：Rust skill owner tests cover archive safety, resource persistence, registration and duplicate fencing; Go nil registry, filesystem fault injection, filtered resource source, redirect/install matrix and malformed bundle helpers do not have one-to-one Rust assertions. |
+| [x] | `skillsruntime/schema_market_index_constituents_test.go:8,27`; `schema_market_news_test.go:8,49`; `schema_test.go:9,29` | strict reviewed MCP descriptors, market tool schema bundle attachment, canonical schema deep comparison and ADK task/tool normalization | P2 | partial：Rust tests cover the production MCP catalog and normalized schemas; Go skill-document text, builtin tool listing and metadata helper layers are represented by adjacent owners rather than an equivalent document parser. |
+| [x] | `sqlite_dialector_boundaries_test.go:14`; `sqlite_tools_test.go:35,79,145` | database reopen/schema durability, ADK store lifecycle and restart persistence, migration payload preservation and query-plan/index audit | P2 | boundary：Rust uses explicit rusqlite migrations and SQL, so GORM dialector initialization, clause builders, type mapping, quoting and version helpers are not production layers to migrate. |
+| [x] | `sqlite_tools_test.go:194,333` | strategy schema contract and legacy MCP argument normalization | P2 | partial：Rust owner tests verify the strategy optimize schema and alias normalization; the Go aggregate also checks many unrelated tool schemas and value helpers, so it remains partial. |
+| [x] | `store_approve_test.go:10,41` | missing/non-pending approval idempotence and staged continuation/denial CAS | P2 | partial：Rust store contracts cover idempotence and CAS transitions; Go combined run-plus-approval transaction and returned approved-record field shape are not asserted in one Rust test. |
+
+本批 30 条 P2 Go 映射对应 20 个去重后的 nextest 过滤器，Rust nextest 实际 **20/20** 通过（3453 skipped）。Skill archive/install、MCP schema/catalog、SQLite migration/store 与 approval CAS 均有 owner 证据；多条 Go 测试本身聚合 nil receiver、文件系统故障注入、技能文档文本或 GORM 专属 helper，因此保持 `partial`/`boundary`，没有把相邻 owner 测试升级为 exact。未发现需要先红后修的真实 Rust 功能差异。
+
+验证：动态生成本批过滤器运行 `pnpm run test:rust -- --no-fail-fast -E`（底层 `node scripts/quality/cargo-nextest.mjs run --workspace --all-targets --locked`），20/20 通过。
+
+下一片：继续剩余 P2 Assistant/Workflow/ADK skill/provider/runtime 条目，再转 API transport、MarketData/Quote、Storage/SQLite、Settings/Watchlist 与 Backtest/Calendar；helper/type-only 条目、`optional_bool_strict`、P1 `session_context_snapshot` 及其他无独立 Rust 测试条目仍保持未验证结论。
+
 ## 第 201 批：ADK store/tool edges、chat execution 与 durable claims（2026-09-26）
 
 | 复核 | Go 测试范围 | Rust 证据 | P | 结论 |

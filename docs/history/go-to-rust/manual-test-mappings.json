@@ -93817,20 +93817,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(skill_archive_install_preserves_resources_and_metadata) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(skill_archive_rejects_unsafe_paths_and_symlinks) or test(skill_install_is_exclusive_per_id) or test(skill_install_projection_is_durable) or test(skill_document_install_registers_the_parsed_document) or test(skill_download_client_installs_rustls_provider_before_build) or test(http_fetch_redirect_guard_blocks_unsafe_hosts) or test(reviewed_mcp_descriptors_expose_strict_per_tool_schemas) or test(adk_mcp_tool_executor_bundle_attachment_and_exact_schemas) or test(reviewed_mcp_schemas_match_canonical_go_fixture_deeply) or test(adk_task_normalization_and_validation_match_go) or test(test_reopen_database_preserves_existing_tables_and_pragmas) or test(adk_store_lifecycle_and_restart_durability) or test(adk_v2_migration_rebuilds_runs_without_losing_payload) or test(test_p1_05_adk_session_events_optimal_index_achieves_search_and_zero_temp_btree) or test(the_tool_schema_requires_the_candidate_list_and_execution_window) or test(normalize_legacy_mcp_arguments_normalizes_aliases) or test(adk_approval_resolution_missing_and_non_pending_rows_are_idempotent) or test(adk_approval_resolution_stages_continuation_and_denial_cas)"
         ],
         "testFilter": [
           "skill_archive_install_preserves_resources_and_metadata"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "fe030a19",
+        "verifiedAt": "2026-09-25T18:14:20Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -93879,20 +93880,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(skill_archive_install_preserves_resources_and_metadata) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(skill_archive_rejects_unsafe_paths_and_symlinks) or test(skill_install_is_exclusive_per_id) or test(skill_install_projection_is_durable) or test(skill_document_install_registers_the_parsed_document) or test(skill_download_client_installs_rustls_provider_before_build) or test(http_fetch_redirect_guard_blocks_unsafe_hosts) or test(reviewed_mcp_descriptors_expose_strict_per_tool_schemas) or test(adk_mcp_tool_executor_bundle_attachment_and_exact_schemas) or test(reviewed_mcp_schemas_match_canonical_go_fixture_deeply) or test(adk_task_normalization_and_validation_match_go) or test(test_reopen_database_preserves_existing_tables_and_pragmas) or test(adk_store_lifecycle_and_restart_durability) or test(adk_v2_migration_rebuilds_runs_without_losing_payload) or test(test_p1_05_adk_session_events_optimal_index_achieves_search_and_zero_temp_btree) or test(the_tool_schema_requires_the_candidate_list_and_execution_window) or test(normalize_legacy_mcp_arguments_normalizes_aliases) or test(adk_approval_resolution_missing_and_non_pending_rows_are_idempotent) or test(adk_approval_resolution_stages_continuation_and_denial_cas)"
         ],
         "testFilter": [
           "adk_builtin_strategy_skills_publish_the_curated_tool_split"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "fe030a19",
+        "verifiedAt": "2026-09-25T18:14:20Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -93941,20 +93943,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(skill_archive_install_preserves_resources_and_metadata) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(skill_archive_rejects_unsafe_paths_and_symlinks) or test(skill_install_is_exclusive_per_id) or test(skill_install_projection_is_durable) or test(skill_document_install_registers_the_parsed_document) or test(skill_download_client_installs_rustls_provider_before_build) or test(http_fetch_redirect_guard_blocks_unsafe_hosts) or test(reviewed_mcp_descriptors_expose_strict_per_tool_schemas) or test(adk_mcp_tool_executor_bundle_attachment_and_exact_schemas) or test(reviewed_mcp_schemas_match_canonical_go_fixture_deeply) or test(adk_task_normalization_and_validation_match_go) or test(test_reopen_database_preserves_existing_tables_and_pragmas) or test(adk_store_lifecycle_and_restart_durability) or test(adk_v2_migration_rebuilds_runs_without_losing_payload) or test(test_p1_05_adk_session_events_optimal_index_achieves_search_and_zero_temp_btree) or test(the_tool_schema_requires_the_candidate_list_and_execution_window) or test(normalize_legacy_mcp_arguments_normalizes_aliases) or test(adk_approval_resolution_missing_and_non_pending_rows_are_idempotent) or test(adk_approval_resolution_stages_continuation_and_denial_cas)"
         ],
         "testFilter": [
           "skill_archive_rejects_unsafe_paths_and_symlinks"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "fe030a19",
+        "verifiedAt": "2026-09-25T18:14:20Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -94003,20 +94006,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(skill_archive_install_preserves_resources_and_metadata) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(skill_archive_rejects_unsafe_paths_and_symlinks) or test(skill_install_is_exclusive_per_id) or test(skill_install_projection_is_durable) or test(skill_document_install_registers_the_parsed_document) or test(skill_download_client_installs_rustls_provider_before_build) or test(http_fetch_redirect_guard_blocks_unsafe_hosts) or test(reviewed_mcp_descriptors_expose_strict_per_tool_schemas) or test(adk_mcp_tool_executor_bundle_attachment_and_exact_schemas) or test(reviewed_mcp_schemas_match_canonical_go_fixture_deeply) or test(adk_task_normalization_and_validation_match_go) or test(test_reopen_database_preserves_existing_tables_and_pragmas) or test(adk_store_lifecycle_and_restart_durability) or test(adk_v2_migration_rebuilds_runs_without_losing_payload) or test(test_p1_05_adk_session_events_optimal_index_achieves_search_and_zero_temp_btree) or test(the_tool_schema_requires_the_candidate_list_and_execution_window) or test(normalize_legacy_mcp_arguments_normalizes_aliases) or test(adk_approval_resolution_missing_and_non_pending_rows_are_idempotent) or test(adk_approval_resolution_stages_continuation_and_denial_cas)"
         ],
         "testFilter": [
           "skill_install_is_exclusive_per_id"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "fe030a19",
+        "verifiedAt": "2026-09-25T18:14:20Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -94065,20 +94069,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(skill_archive_install_preserves_resources_and_metadata) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(skill_archive_rejects_unsafe_paths_and_symlinks) or test(skill_install_is_exclusive_per_id) or test(skill_install_projection_is_durable) or test(skill_document_install_registers_the_parsed_document) or test(skill_download_client_installs_rustls_provider_before_build) or test(http_fetch_redirect_guard_blocks_unsafe_hosts) or test(reviewed_mcp_descriptors_expose_strict_per_tool_schemas) or test(adk_mcp_tool_executor_bundle_attachment_and_exact_schemas) or test(reviewed_mcp_schemas_match_canonical_go_fixture_deeply) or test(adk_task_normalization_and_validation_match_go) or test(test_reopen_database_preserves_existing_tables_and_pragmas) or test(adk_store_lifecycle_and_restart_durability) or test(adk_v2_migration_rebuilds_runs_without_losing_payload) or test(test_p1_05_adk_session_events_optimal_index_achieves_search_and_zero_temp_btree) or test(the_tool_schema_requires_the_candidate_list_and_execution_window) or test(normalize_legacy_mcp_arguments_normalizes_aliases) or test(adk_approval_resolution_missing_and_non_pending_rows_are_idempotent) or test(adk_approval_resolution_stages_continuation_and_denial_cas)"
         ],
         "testFilter": [
           "skill_install_projection_is_durable"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "fe030a19",
+        "verifiedAt": "2026-09-25T18:14:20Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -94127,20 +94132,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(skill_archive_install_preserves_resources_and_metadata) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(skill_archive_rejects_unsafe_paths_and_symlinks) or test(skill_install_is_exclusive_per_id) or test(skill_install_projection_is_durable) or test(skill_document_install_registers_the_parsed_document) or test(skill_download_client_installs_rustls_provider_before_build) or test(http_fetch_redirect_guard_blocks_unsafe_hosts) or test(reviewed_mcp_descriptors_expose_strict_per_tool_schemas) or test(adk_mcp_tool_executor_bundle_attachment_and_exact_schemas) or test(reviewed_mcp_schemas_match_canonical_go_fixture_deeply) or test(adk_task_normalization_and_validation_match_go) or test(test_reopen_database_preserves_existing_tables_and_pragmas) or test(adk_store_lifecycle_and_restart_durability) or test(adk_v2_migration_rebuilds_runs_without_losing_payload) or test(test_p1_05_adk_session_events_optimal_index_achieves_search_and_zero_temp_btree) or test(the_tool_schema_requires_the_candidate_list_and_execution_window) or test(normalize_legacy_mcp_arguments_normalizes_aliases) or test(adk_approval_resolution_missing_and_non_pending_rows_are_idempotent) or test(adk_approval_resolution_stages_continuation_and_denial_cas)"
         ],
         "testFilter": [
           "skill_document_install_registers_the_parsed_document"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "fe030a19",
+        "verifiedAt": "2026-09-25T18:14:20Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -94189,20 +94195,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(skill_archive_install_preserves_resources_and_metadata) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(skill_archive_rejects_unsafe_paths_and_symlinks) or test(skill_install_is_exclusive_per_id) or test(skill_install_projection_is_durable) or test(skill_document_install_registers_the_parsed_document) or test(skill_download_client_installs_rustls_provider_before_build) or test(http_fetch_redirect_guard_blocks_unsafe_hosts) or test(reviewed_mcp_descriptors_expose_strict_per_tool_schemas) or test(adk_mcp_tool_executor_bundle_attachment_and_exact_schemas) or test(reviewed_mcp_schemas_match_canonical_go_fixture_deeply) or test(adk_task_normalization_and_validation_match_go) or test(test_reopen_database_preserves_existing_tables_and_pragmas) or test(adk_store_lifecycle_and_restart_durability) or test(adk_v2_migration_rebuilds_runs_without_losing_payload) or test(test_p1_05_adk_session_events_optimal_index_achieves_search_and_zero_temp_btree) or test(the_tool_schema_requires_the_candidate_list_and_execution_window) or test(normalize_legacy_mcp_arguments_normalizes_aliases) or test(adk_approval_resolution_missing_and_non_pending_rows_are_idempotent) or test(adk_approval_resolution_stages_continuation_and_denial_cas)"
         ],
         "testFilter": [
           "adk_builtin_strategy_skills_publish_the_curated_tool_split"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "fe030a19",
+        "verifiedAt": "2026-09-25T18:14:20Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -94251,20 +94258,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(skill_archive_install_preserves_resources_and_metadata) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(skill_archive_rejects_unsafe_paths_and_symlinks) or test(skill_install_is_exclusive_per_id) or test(skill_install_projection_is_durable) or test(skill_document_install_registers_the_parsed_document) or test(skill_download_client_installs_rustls_provider_before_build) or test(http_fetch_redirect_guard_blocks_unsafe_hosts) or test(reviewed_mcp_descriptors_expose_strict_per_tool_schemas) or test(adk_mcp_tool_executor_bundle_attachment_and_exact_schemas) or test(reviewed_mcp_schemas_match_canonical_go_fixture_deeply) or test(adk_task_normalization_and_validation_match_go) or test(test_reopen_database_preserves_existing_tables_and_pragmas) or test(adk_store_lifecycle_and_restart_durability) or test(adk_v2_migration_rebuilds_runs_without_losing_payload) or test(test_p1_05_adk_session_events_optimal_index_achieves_search_and_zero_temp_btree) or test(the_tool_schema_requires_the_candidate_list_and_execution_window) or test(normalize_legacy_mcp_arguments_normalizes_aliases) or test(adk_approval_resolution_missing_and_non_pending_rows_are_idempotent) or test(adk_approval_resolution_stages_continuation_and_denial_cas)"
         ],
         "testFilter": [
           "skill_archive_rejects_unsafe_paths_and_symlinks"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "fe030a19",
+        "verifiedAt": "2026-09-25T18:14:20Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -94313,20 +94321,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(skill_archive_install_preserves_resources_and_metadata) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(skill_archive_rejects_unsafe_paths_and_symlinks) or test(skill_install_is_exclusive_per_id) or test(skill_install_projection_is_durable) or test(skill_document_install_registers_the_parsed_document) or test(skill_download_client_installs_rustls_provider_before_build) or test(http_fetch_redirect_guard_blocks_unsafe_hosts) or test(reviewed_mcp_descriptors_expose_strict_per_tool_schemas) or test(adk_mcp_tool_executor_bundle_attachment_and_exact_schemas) or test(reviewed_mcp_schemas_match_canonical_go_fixture_deeply) or test(adk_task_normalization_and_validation_match_go) or test(test_reopen_database_preserves_existing_tables_and_pragmas) or test(adk_store_lifecycle_and_restart_durability) or test(adk_v2_migration_rebuilds_runs_without_losing_payload) or test(test_p1_05_adk_session_events_optimal_index_achieves_search_and_zero_temp_btree) or test(the_tool_schema_requires_the_candidate_list_and_execution_window) or test(normalize_legacy_mcp_arguments_normalizes_aliases) or test(adk_approval_resolution_missing_and_non_pending_rows_are_idempotent) or test(adk_approval_resolution_stages_continuation_and_denial_cas)"
         ],
         "testFilter": [
           "skill_download_client_installs_rustls_provider_before_build"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "fe030a19",
+        "verifiedAt": "2026-09-25T18:14:20Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -94375,20 +94384,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(skill_archive_install_preserves_resources_and_metadata) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(skill_archive_rejects_unsafe_paths_and_symlinks) or test(skill_install_is_exclusive_per_id) or test(skill_install_projection_is_durable) or test(skill_document_install_registers_the_parsed_document) or test(skill_download_client_installs_rustls_provider_before_build) or test(http_fetch_redirect_guard_blocks_unsafe_hosts) or test(reviewed_mcp_descriptors_expose_strict_per_tool_schemas) or test(adk_mcp_tool_executor_bundle_attachment_and_exact_schemas) or test(reviewed_mcp_schemas_match_canonical_go_fixture_deeply) or test(adk_task_normalization_and_validation_match_go) or test(test_reopen_database_preserves_existing_tables_and_pragmas) or test(adk_store_lifecycle_and_restart_durability) or test(adk_v2_migration_rebuilds_runs_without_losing_payload) or test(test_p1_05_adk_session_events_optimal_index_achieves_search_and_zero_temp_btree) or test(the_tool_schema_requires_the_candidate_list_and_execution_window) or test(normalize_legacy_mcp_arguments_normalizes_aliases) or test(adk_approval_resolution_missing_and_non_pending_rows_are_idempotent) or test(adk_approval_resolution_stages_continuation_and_denial_cas)"
         ],
         "testFilter": [
           "skill_document_install_registers_the_parsed_document"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "fe030a19",
+        "verifiedAt": "2026-09-25T18:14:20Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -94437,20 +94447,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(skill_archive_install_preserves_resources_and_metadata) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(skill_archive_rejects_unsafe_paths_and_symlinks) or test(skill_install_is_exclusive_per_id) or test(skill_install_projection_is_durable) or test(skill_document_install_registers_the_parsed_document) or test(skill_download_client_installs_rustls_provider_before_build) or test(http_fetch_redirect_guard_blocks_unsafe_hosts) or test(reviewed_mcp_descriptors_expose_strict_per_tool_schemas) or test(adk_mcp_tool_executor_bundle_attachment_and_exact_schemas) or test(reviewed_mcp_schemas_match_canonical_go_fixture_deeply) or test(adk_task_normalization_and_validation_match_go) or test(test_reopen_database_preserves_existing_tables_and_pragmas) or test(adk_store_lifecycle_and_restart_durability) or test(adk_v2_migration_rebuilds_runs_without_losing_payload) or test(test_p1_05_adk_session_events_optimal_index_achieves_search_and_zero_temp_btree) or test(the_tool_schema_requires_the_candidate_list_and_execution_window) or test(normalize_legacy_mcp_arguments_normalizes_aliases) or test(adk_approval_resolution_missing_and_non_pending_rows_are_idempotent) or test(adk_approval_resolution_stages_continuation_and_denial_cas)"
         ],
         "testFilter": [
           "skill_archive_install_preserves_resources_and_metadata"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "fe030a19",
+        "verifiedAt": "2026-09-25T18:14:20Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -94499,20 +94510,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(skill_archive_install_preserves_resources_and_metadata) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(skill_archive_rejects_unsafe_paths_and_symlinks) or test(skill_install_is_exclusive_per_id) or test(skill_install_projection_is_durable) or test(skill_document_install_registers_the_parsed_document) or test(skill_download_client_installs_rustls_provider_before_build) or test(http_fetch_redirect_guard_blocks_unsafe_hosts) or test(reviewed_mcp_descriptors_expose_strict_per_tool_schemas) or test(adk_mcp_tool_executor_bundle_attachment_and_exact_schemas) or test(reviewed_mcp_schemas_match_canonical_go_fixture_deeply) or test(adk_task_normalization_and_validation_match_go) or test(test_reopen_database_preserves_existing_tables_and_pragmas) or test(adk_store_lifecycle_and_restart_durability) or test(adk_v2_migration_rebuilds_runs_without_losing_payload) or test(test_p1_05_adk_session_events_optimal_index_achieves_search_and_zero_temp_btree) or test(the_tool_schema_requires_the_candidate_list_and_execution_window) or test(normalize_legacy_mcp_arguments_normalizes_aliases) or test(adk_approval_resolution_missing_and_non_pending_rows_are_idempotent) or test(adk_approval_resolution_stages_continuation_and_denial_cas)"
         ],
         "testFilter": [
           "skill_archive_rejects_unsafe_paths_and_symlinks"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "fe030a19",
+        "verifiedAt": "2026-09-25T18:14:20Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -94561,20 +94573,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(skill_archive_install_preserves_resources_and_metadata) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(skill_archive_rejects_unsafe_paths_and_symlinks) or test(skill_install_is_exclusive_per_id) or test(skill_install_projection_is_durable) or test(skill_document_install_registers_the_parsed_document) or test(skill_download_client_installs_rustls_provider_before_build) or test(http_fetch_redirect_guard_blocks_unsafe_hosts) or test(reviewed_mcp_descriptors_expose_strict_per_tool_schemas) or test(adk_mcp_tool_executor_bundle_attachment_and_exact_schemas) or test(reviewed_mcp_schemas_match_canonical_go_fixture_deeply) or test(adk_task_normalization_and_validation_match_go) or test(test_reopen_database_preserves_existing_tables_and_pragmas) or test(adk_store_lifecycle_and_restart_durability) or test(adk_v2_migration_rebuilds_runs_without_losing_payload) or test(test_p1_05_adk_session_events_optimal_index_achieves_search_and_zero_temp_btree) or test(the_tool_schema_requires_the_candidate_list_and_execution_window) or test(normalize_legacy_mcp_arguments_normalizes_aliases) or test(adk_approval_resolution_missing_and_non_pending_rows_are_idempotent) or test(adk_approval_resolution_stages_continuation_and_denial_cas)"
         ],
         "testFilter": [
           "skill_archive_rejects_unsafe_paths_and_symlinks"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "fe030a19",
+        "verifiedAt": "2026-09-25T18:14:20Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -94623,20 +94636,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(skill_archive_install_preserves_resources_and_metadata) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(skill_archive_rejects_unsafe_paths_and_symlinks) or test(skill_install_is_exclusive_per_id) or test(skill_install_projection_is_durable) or test(skill_document_install_registers_the_parsed_document) or test(skill_download_client_installs_rustls_provider_before_build) or test(http_fetch_redirect_guard_blocks_unsafe_hosts) or test(reviewed_mcp_descriptors_expose_strict_per_tool_schemas) or test(adk_mcp_tool_executor_bundle_attachment_and_exact_schemas) or test(reviewed_mcp_schemas_match_canonical_go_fixture_deeply) or test(adk_task_normalization_and_validation_match_go) or test(test_reopen_database_preserves_existing_tables_and_pragmas) or test(adk_store_lifecycle_and_restart_durability) or test(adk_v2_migration_rebuilds_runs_without_losing_payload) or test(test_p1_05_adk_session_events_optimal_index_achieves_search_and_zero_temp_btree) or test(the_tool_schema_requires_the_candidate_list_and_execution_window) or test(normalize_legacy_mcp_arguments_normalizes_aliases) or test(adk_approval_resolution_missing_and_non_pending_rows_are_idempotent) or test(adk_approval_resolution_stages_continuation_and_denial_cas)"
         ],
         "testFilter": [
           "http_fetch_redirect_guard_blocks_unsafe_hosts"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "fe030a19",
+        "verifiedAt": "2026-09-25T18:14:20Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -94685,20 +94699,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(skill_archive_install_preserves_resources_and_metadata) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(skill_archive_rejects_unsafe_paths_and_symlinks) or test(skill_install_is_exclusive_per_id) or test(skill_install_projection_is_durable) or test(skill_document_install_registers_the_parsed_document) or test(skill_download_client_installs_rustls_provider_before_build) or test(http_fetch_redirect_guard_blocks_unsafe_hosts) or test(reviewed_mcp_descriptors_expose_strict_per_tool_schemas) or test(adk_mcp_tool_executor_bundle_attachment_and_exact_schemas) or test(reviewed_mcp_schemas_match_canonical_go_fixture_deeply) or test(adk_task_normalization_and_validation_match_go) or test(test_reopen_database_preserves_existing_tables_and_pragmas) or test(adk_store_lifecycle_and_restart_durability) or test(adk_v2_migration_rebuilds_runs_without_losing_payload) or test(test_p1_05_adk_session_events_optimal_index_achieves_search_and_zero_temp_btree) or test(the_tool_schema_requires_the_candidate_list_and_execution_window) or test(normalize_legacy_mcp_arguments_normalizes_aliases) or test(adk_approval_resolution_missing_and_non_pending_rows_are_idempotent) or test(adk_approval_resolution_stages_continuation_and_denial_cas)"
         ],
         "testFilter": [
           "skill_install_is_exclusive_per_id"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "fe030a19",
+        "verifiedAt": "2026-09-25T18:14:20Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -94747,20 +94762,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(skill_archive_install_preserves_resources_and_metadata) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(skill_archive_rejects_unsafe_paths_and_symlinks) or test(skill_install_is_exclusive_per_id) or test(skill_install_projection_is_durable) or test(skill_document_install_registers_the_parsed_document) or test(skill_download_client_installs_rustls_provider_before_build) or test(http_fetch_redirect_guard_blocks_unsafe_hosts) or test(reviewed_mcp_descriptors_expose_strict_per_tool_schemas) or test(adk_mcp_tool_executor_bundle_attachment_and_exact_schemas) or test(reviewed_mcp_schemas_match_canonical_go_fixture_deeply) or test(adk_task_normalization_and_validation_match_go) or test(test_reopen_database_preserves_existing_tables_and_pragmas) or test(adk_store_lifecycle_and_restart_durability) or test(adk_v2_migration_rebuilds_runs_without_losing_payload) or test(test_p1_05_adk_session_events_optimal_index_achieves_search_and_zero_temp_btree) or test(the_tool_schema_requires_the_candidate_list_and_execution_window) or test(normalize_legacy_mcp_arguments_normalizes_aliases) or test(adk_approval_resolution_missing_and_non_pending_rows_are_idempotent) or test(adk_approval_resolution_stages_continuation_and_denial_cas)"
         ],
         "testFilter": [
           "skill_archive_rejects_unsafe_paths_and_symlinks"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "fe030a19",
+        "verifiedAt": "2026-09-25T18:14:20Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -94809,20 +94825,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(skill_archive_install_preserves_resources_and_metadata) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(skill_archive_rejects_unsafe_paths_and_symlinks) or test(skill_install_is_exclusive_per_id) or test(skill_install_projection_is_durable) or test(skill_document_install_registers_the_parsed_document) or test(skill_download_client_installs_rustls_provider_before_build) or test(http_fetch_redirect_guard_blocks_unsafe_hosts) or test(reviewed_mcp_descriptors_expose_strict_per_tool_schemas) or test(adk_mcp_tool_executor_bundle_attachment_and_exact_schemas) or test(reviewed_mcp_schemas_match_canonical_go_fixture_deeply) or test(adk_task_normalization_and_validation_match_go) or test(test_reopen_database_preserves_existing_tables_and_pragmas) or test(adk_store_lifecycle_and_restart_durability) or test(adk_v2_migration_rebuilds_runs_without_losing_payload) or test(test_p1_05_adk_session_events_optimal_index_achieves_search_and_zero_temp_btree) or test(the_tool_schema_requires_the_candidate_list_and_execution_window) or test(normalize_legacy_mcp_arguments_normalizes_aliases) or test(adk_approval_resolution_missing_and_non_pending_rows_are_idempotent) or test(adk_approval_resolution_stages_continuation_and_denial_cas)"
         ],
         "testFilter": [
           "reviewed_mcp_descriptors_expose_strict_per_tool_schemas"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "fe030a19",
+        "verifiedAt": "2026-09-25T18:14:20Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -94871,20 +94888,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(skill_archive_install_preserves_resources_and_metadata) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(skill_archive_rejects_unsafe_paths_and_symlinks) or test(skill_install_is_exclusive_per_id) or test(skill_install_projection_is_durable) or test(skill_document_install_registers_the_parsed_document) or test(skill_download_client_installs_rustls_provider_before_build) or test(http_fetch_redirect_guard_blocks_unsafe_hosts) or test(reviewed_mcp_descriptors_expose_strict_per_tool_schemas) or test(adk_mcp_tool_executor_bundle_attachment_and_exact_schemas) or test(reviewed_mcp_schemas_match_canonical_go_fixture_deeply) or test(adk_task_normalization_and_validation_match_go) or test(test_reopen_database_preserves_existing_tables_and_pragmas) or test(adk_store_lifecycle_and_restart_durability) or test(adk_v2_migration_rebuilds_runs_without_losing_payload) or test(test_p1_05_adk_session_events_optimal_index_achieves_search_and_zero_temp_btree) or test(the_tool_schema_requires_the_candidate_list_and_execution_window) or test(normalize_legacy_mcp_arguments_normalizes_aliases) or test(adk_approval_resolution_missing_and_non_pending_rows_are_idempotent) or test(adk_approval_resolution_stages_continuation_and_denial_cas)"
         ],
         "testFilter": [
           "adk_mcp_tool_executor_bundle_attachment_and_exact_schemas"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "fe030a19",
+        "verifiedAt": "2026-09-25T18:14:20Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -94933,20 +94951,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(skill_archive_install_preserves_resources_and_metadata) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(skill_archive_rejects_unsafe_paths_and_symlinks) or test(skill_install_is_exclusive_per_id) or test(skill_install_projection_is_durable) or test(skill_document_install_registers_the_parsed_document) or test(skill_download_client_installs_rustls_provider_before_build) or test(http_fetch_redirect_guard_blocks_unsafe_hosts) or test(reviewed_mcp_descriptors_expose_strict_per_tool_schemas) or test(adk_mcp_tool_executor_bundle_attachment_and_exact_schemas) or test(reviewed_mcp_schemas_match_canonical_go_fixture_deeply) or test(adk_task_normalization_and_validation_match_go) or test(test_reopen_database_preserves_existing_tables_and_pragmas) or test(adk_store_lifecycle_and_restart_durability) or test(adk_v2_migration_rebuilds_runs_without_losing_payload) or test(test_p1_05_adk_session_events_optimal_index_achieves_search_and_zero_temp_btree) or test(the_tool_schema_requires_the_candidate_list_and_execution_window) or test(normalize_legacy_mcp_arguments_normalizes_aliases) or test(adk_approval_resolution_missing_and_non_pending_rows_are_idempotent) or test(adk_approval_resolution_stages_continuation_and_denial_cas)"
         ],
         "testFilter": [
           "reviewed_mcp_descriptors_expose_strict_per_tool_schemas"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "fe030a19",
+        "verifiedAt": "2026-09-25T18:14:20Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -94995,20 +95014,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(skill_archive_install_preserves_resources_and_metadata) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(skill_archive_rejects_unsafe_paths_and_symlinks) or test(skill_install_is_exclusive_per_id) or test(skill_install_projection_is_durable) or test(skill_document_install_registers_the_parsed_document) or test(skill_download_client_installs_rustls_provider_before_build) or test(http_fetch_redirect_guard_blocks_unsafe_hosts) or test(reviewed_mcp_descriptors_expose_strict_per_tool_schemas) or test(adk_mcp_tool_executor_bundle_attachment_and_exact_schemas) or test(reviewed_mcp_schemas_match_canonical_go_fixture_deeply) or test(adk_task_normalization_and_validation_match_go) or test(test_reopen_database_preserves_existing_tables_and_pragmas) or test(adk_store_lifecycle_and_restart_durability) or test(adk_v2_migration_rebuilds_runs_without_losing_payload) or test(test_p1_05_adk_session_events_optimal_index_achieves_search_and_zero_temp_btree) or test(the_tool_schema_requires_the_candidate_list_and_execution_window) or test(normalize_legacy_mcp_arguments_normalizes_aliases) or test(adk_approval_resolution_missing_and_non_pending_rows_are_idempotent) or test(adk_approval_resolution_stages_continuation_and_denial_cas)"
         ],
         "testFilter": [
           "reviewed_mcp_schemas_match_canonical_go_fixture_deeply"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "fe030a19",
+        "verifiedAt": "2026-09-25T18:14:20Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -95057,20 +95077,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(skill_archive_install_preserves_resources_and_metadata) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(skill_archive_rejects_unsafe_paths_and_symlinks) or test(skill_install_is_exclusive_per_id) or test(skill_install_projection_is_durable) or test(skill_document_install_registers_the_parsed_document) or test(skill_download_client_installs_rustls_provider_before_build) or test(http_fetch_redirect_guard_blocks_unsafe_hosts) or test(reviewed_mcp_descriptors_expose_strict_per_tool_schemas) or test(adk_mcp_tool_executor_bundle_attachment_and_exact_schemas) or test(reviewed_mcp_schemas_match_canonical_go_fixture_deeply) or test(adk_task_normalization_and_validation_match_go) or test(test_reopen_database_preserves_existing_tables_and_pragmas) or test(adk_store_lifecycle_and_restart_durability) or test(adk_v2_migration_rebuilds_runs_without_losing_payload) or test(test_p1_05_adk_session_events_optimal_index_achieves_search_and_zero_temp_btree) or test(the_tool_schema_requires_the_candidate_list_and_execution_window) or test(normalize_legacy_mcp_arguments_normalizes_aliases) or test(adk_approval_resolution_missing_and_non_pending_rows_are_idempotent) or test(adk_approval_resolution_stages_continuation_and_denial_cas)"
         ],
         "testFilter": [
           "reviewed_mcp_descriptors_expose_strict_per_tool_schemas"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "fe030a19",
+        "verifiedAt": "2026-09-25T18:14:20Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -95119,20 +95140,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(skill_archive_install_preserves_resources_and_metadata) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(skill_archive_rejects_unsafe_paths_and_symlinks) or test(skill_install_is_exclusive_per_id) or test(skill_install_projection_is_durable) or test(skill_document_install_registers_the_parsed_document) or test(skill_download_client_installs_rustls_provider_before_build) or test(http_fetch_redirect_guard_blocks_unsafe_hosts) or test(reviewed_mcp_descriptors_expose_strict_per_tool_schemas) or test(adk_mcp_tool_executor_bundle_attachment_and_exact_schemas) or test(reviewed_mcp_schemas_match_canonical_go_fixture_deeply) or test(adk_task_normalization_and_validation_match_go) or test(test_reopen_database_preserves_existing_tables_and_pragmas) or test(adk_store_lifecycle_and_restart_durability) or test(adk_v2_migration_rebuilds_runs_without_losing_payload) or test(test_p1_05_adk_session_events_optimal_index_achieves_search_and_zero_temp_btree) or test(the_tool_schema_requires_the_candidate_list_and_execution_window) or test(normalize_legacy_mcp_arguments_normalizes_aliases) or test(adk_approval_resolution_missing_and_non_pending_rows_are_idempotent) or test(adk_approval_resolution_stages_continuation_and_denial_cas)"
         ],
         "testFilter": [
           "adk_task_normalization_and_validation_match_go"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "fe030a19",
+        "verifiedAt": "2026-09-25T18:14:20Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -95243,20 +95265,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(skill_archive_install_preserves_resources_and_metadata) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(skill_archive_rejects_unsafe_paths_and_symlinks) or test(skill_install_is_exclusive_per_id) or test(skill_install_projection_is_durable) or test(skill_document_install_registers_the_parsed_document) or test(skill_download_client_installs_rustls_provider_before_build) or test(http_fetch_redirect_guard_blocks_unsafe_hosts) or test(reviewed_mcp_descriptors_expose_strict_per_tool_schemas) or test(adk_mcp_tool_executor_bundle_attachment_and_exact_schemas) or test(reviewed_mcp_schemas_match_canonical_go_fixture_deeply) or test(adk_task_normalization_and_validation_match_go) or test(test_reopen_database_preserves_existing_tables_and_pragmas) or test(adk_store_lifecycle_and_restart_durability) or test(adk_v2_migration_rebuilds_runs_without_losing_payload) or test(test_p1_05_adk_session_events_optimal_index_achieves_search_and_zero_temp_btree) or test(the_tool_schema_requires_the_candidate_list_and_execution_window) or test(normalize_legacy_mcp_arguments_normalizes_aliases) or test(adk_approval_resolution_missing_and_non_pending_rows_are_idempotent) or test(adk_approval_resolution_stages_continuation_and_denial_cas)"
         ],
         "testFilter": [
           "test_reopen_database_preserves_existing_tables_and_pragmas"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "fe030a19",
+        "verifiedAt": "2026-09-25T18:14:20Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -95305,20 +95328,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(skill_archive_install_preserves_resources_and_metadata) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(skill_archive_rejects_unsafe_paths_and_symlinks) or test(skill_install_is_exclusive_per_id) or test(skill_install_projection_is_durable) or test(skill_document_install_registers_the_parsed_document) or test(skill_download_client_installs_rustls_provider_before_build) or test(http_fetch_redirect_guard_blocks_unsafe_hosts) or test(reviewed_mcp_descriptors_expose_strict_per_tool_schemas) or test(adk_mcp_tool_executor_bundle_attachment_and_exact_schemas) or test(reviewed_mcp_schemas_match_canonical_go_fixture_deeply) or test(adk_task_normalization_and_validation_match_go) or test(test_reopen_database_preserves_existing_tables_and_pragmas) or test(adk_store_lifecycle_and_restart_durability) or test(adk_v2_migration_rebuilds_runs_without_losing_payload) or test(test_p1_05_adk_session_events_optimal_index_achieves_search_and_zero_temp_btree) or test(the_tool_schema_requires_the_candidate_list_and_execution_window) or test(normalize_legacy_mcp_arguments_normalizes_aliases) or test(adk_approval_resolution_missing_and_non_pending_rows_are_idempotent) or test(adk_approval_resolution_stages_continuation_and_denial_cas)"
         ],
         "testFilter": [
           "adk_store_lifecycle_and_restart_durability"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "fe030a19",
+        "verifiedAt": "2026-09-25T18:14:20Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -95367,20 +95391,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(skill_archive_install_preserves_resources_and_metadata) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(skill_archive_rejects_unsafe_paths_and_symlinks) or test(skill_install_is_exclusive_per_id) or test(skill_install_projection_is_durable) or test(skill_document_install_registers_the_parsed_document) or test(skill_download_client_installs_rustls_provider_before_build) or test(http_fetch_redirect_guard_blocks_unsafe_hosts) or test(reviewed_mcp_descriptors_expose_strict_per_tool_schemas) or test(adk_mcp_tool_executor_bundle_attachment_and_exact_schemas) or test(reviewed_mcp_schemas_match_canonical_go_fixture_deeply) or test(adk_task_normalization_and_validation_match_go) or test(test_reopen_database_preserves_existing_tables_and_pragmas) or test(adk_store_lifecycle_and_restart_durability) or test(adk_v2_migration_rebuilds_runs_without_losing_payload) or test(test_p1_05_adk_session_events_optimal_index_achieves_search_and_zero_temp_btree) or test(the_tool_schema_requires_the_candidate_list_and_execution_window) or test(normalize_legacy_mcp_arguments_normalizes_aliases) or test(adk_approval_resolution_missing_and_non_pending_rows_are_idempotent) or test(adk_approval_resolution_stages_continuation_and_denial_cas)"
         ],
         "testFilter": [
           "adk_v2_migration_rebuilds_runs_without_losing_payload"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "fe030a19",
+        "verifiedAt": "2026-09-25T18:14:20Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -95429,20 +95454,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(skill_archive_install_preserves_resources_and_metadata) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(skill_archive_rejects_unsafe_paths_and_symlinks) or test(skill_install_is_exclusive_per_id) or test(skill_install_projection_is_durable) or test(skill_document_install_registers_the_parsed_document) or test(skill_download_client_installs_rustls_provider_before_build) or test(http_fetch_redirect_guard_blocks_unsafe_hosts) or test(reviewed_mcp_descriptors_expose_strict_per_tool_schemas) or test(adk_mcp_tool_executor_bundle_attachment_and_exact_schemas) or test(reviewed_mcp_schemas_match_canonical_go_fixture_deeply) or test(adk_task_normalization_and_validation_match_go) or test(test_reopen_database_preserves_existing_tables_and_pragmas) or test(adk_store_lifecycle_and_restart_durability) or test(adk_v2_migration_rebuilds_runs_without_losing_payload) or test(test_p1_05_adk_session_events_optimal_index_achieves_search_and_zero_temp_btree) or test(the_tool_schema_requires_the_candidate_list_and_execution_window) or test(normalize_legacy_mcp_arguments_normalizes_aliases) or test(adk_approval_resolution_missing_and_non_pending_rows_are_idempotent) or test(adk_approval_resolution_stages_continuation_and_denial_cas)"
         ],
         "testFilter": [
           "test_p1_05_adk_session_events_optimal_index_achieves_search_and_zero_temp_btree"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "fe030a19",
+        "verifiedAt": "2026-09-25T18:14:20Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -95491,20 +95517,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(the_tool_schema_requires_the_candidate_list_and_execution_window)"
+          "test(skill_archive_install_preserves_resources_and_metadata) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(skill_archive_rejects_unsafe_paths_and_symlinks) or test(skill_install_is_exclusive_per_id) or test(skill_install_projection_is_durable) or test(skill_document_install_registers_the_parsed_document) or test(skill_download_client_installs_rustls_provider_before_build) or test(http_fetch_redirect_guard_blocks_unsafe_hosts) or test(reviewed_mcp_descriptors_expose_strict_per_tool_schemas) or test(adk_mcp_tool_executor_bundle_attachment_and_exact_schemas) or test(reviewed_mcp_schemas_match_canonical_go_fixture_deeply) or test(adk_task_normalization_and_validation_match_go) or test(test_reopen_database_preserves_existing_tables_and_pragmas) or test(adk_store_lifecycle_and_restart_durability) or test(adk_v2_migration_rebuilds_runs_without_losing_payload) or test(test_p1_05_adk_session_events_optimal_index_achieves_search_and_zero_temp_btree) or test(the_tool_schema_requires_the_candidate_list_and_execution_window) or test(normalize_legacy_mcp_arguments_normalizes_aliases) or test(adk_approval_resolution_missing_and_non_pending_rows_are_idempotent) or test(adk_approval_resolution_stages_continuation_and_denial_cas)"
         ],
         "testFilter": [
           "the_tool_schema_requires_the_candidate_list_and_execution_window"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "fe030a19",
+        "verifiedAt": "2026-09-25T18:14:20Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -95553,20 +95580,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(skill_archive_install_preserves_resources_and_metadata) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(skill_archive_rejects_unsafe_paths_and_symlinks) or test(skill_install_is_exclusive_per_id) or test(skill_install_projection_is_durable) or test(skill_document_install_registers_the_parsed_document) or test(skill_download_client_installs_rustls_provider_before_build) or test(http_fetch_redirect_guard_blocks_unsafe_hosts) or test(reviewed_mcp_descriptors_expose_strict_per_tool_schemas) or test(adk_mcp_tool_executor_bundle_attachment_and_exact_schemas) or test(reviewed_mcp_schemas_match_canonical_go_fixture_deeply) or test(adk_task_normalization_and_validation_match_go) or test(test_reopen_database_preserves_existing_tables_and_pragmas) or test(adk_store_lifecycle_and_restart_durability) or test(adk_v2_migration_rebuilds_runs_without_losing_payload) or test(test_p1_05_adk_session_events_optimal_index_achieves_search_and_zero_temp_btree) or test(the_tool_schema_requires_the_candidate_list_and_execution_window) or test(normalize_legacy_mcp_arguments_normalizes_aliases) or test(adk_approval_resolution_missing_and_non_pending_rows_are_idempotent) or test(adk_approval_resolution_stages_continuation_and_denial_cas)"
         ],
         "testFilter": [
           "normalize_legacy_mcp_arguments_normalizes_aliases"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "fe030a19",
+        "verifiedAt": "2026-09-25T18:14:20Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -95615,20 +95643,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(skill_archive_install_preserves_resources_and_metadata) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(skill_archive_rejects_unsafe_paths_and_symlinks) or test(skill_install_is_exclusive_per_id) or test(skill_install_projection_is_durable) or test(skill_document_install_registers_the_parsed_document) or test(skill_download_client_installs_rustls_provider_before_build) or test(http_fetch_redirect_guard_blocks_unsafe_hosts) or test(reviewed_mcp_descriptors_expose_strict_per_tool_schemas) or test(adk_mcp_tool_executor_bundle_attachment_and_exact_schemas) or test(reviewed_mcp_schemas_match_canonical_go_fixture_deeply) or test(adk_task_normalization_and_validation_match_go) or test(test_reopen_database_preserves_existing_tables_and_pragmas) or test(adk_store_lifecycle_and_restart_durability) or test(adk_v2_migration_rebuilds_runs_without_losing_payload) or test(test_p1_05_adk_session_events_optimal_index_achieves_search_and_zero_temp_btree) or test(the_tool_schema_requires_the_candidate_list_and_execution_window) or test(normalize_legacy_mcp_arguments_normalizes_aliases) or test(adk_approval_resolution_missing_and_non_pending_rows_are_idempotent) or test(adk_approval_resolution_stages_continuation_and_denial_cas)"
         ],
         "testFilter": [
           "adk_approval_resolution_missing_and_non_pending_rows_are_idempotent"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "fe030a19",
+        "verifiedAt": "2026-09-25T18:14:20Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -95677,20 +95706,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(skill_archive_install_preserves_resources_and_metadata) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(skill_archive_rejects_unsafe_paths_and_symlinks) or test(skill_install_is_exclusive_per_id) or test(skill_install_projection_is_durable) or test(skill_document_install_registers_the_parsed_document) or test(skill_download_client_installs_rustls_provider_before_build) or test(http_fetch_redirect_guard_blocks_unsafe_hosts) or test(reviewed_mcp_descriptors_expose_strict_per_tool_schemas) or test(adk_mcp_tool_executor_bundle_attachment_and_exact_schemas) or test(reviewed_mcp_schemas_match_canonical_go_fixture_deeply) or test(adk_task_normalization_and_validation_match_go) or test(test_reopen_database_preserves_existing_tables_and_pragmas) or test(adk_store_lifecycle_and_restart_durability) or test(adk_v2_migration_rebuilds_runs_without_losing_payload) or test(test_p1_05_adk_session_events_optimal_index_achieves_search_and_zero_temp_btree) or test(the_tool_schema_requires_the_candidate_list_and_execution_window) or test(normalize_legacy_mcp_arguments_normalizes_aliases) or test(adk_approval_resolution_missing_and_non_pending_rows_are_idempotent) or test(adk_approval_resolution_stages_continuation_and_denial_cas)"
         ],
         "testFilter": [
           "adk_approval_resolution_stages_continuation_and_denial_cas"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "fe030a19",
+        "verifiedAt": "2026-09-25T18:14:20Z",
         "receiptDigest": null
       },
       "risk": "normal",
