@@ -580,3 +580,16 @@ ADK/Assistant 功能差异，先补失败回归测试再修改领域 owner。
 `node scripts/quality/cargo-nextest.mjs run -p jftrade-broker -p jftrade-integration-futu -p jftrade-marketdata --all-targets --locked -E 'test(broker_lot_size_initializes_minimum_and_step_quantity) or test(market_rules_match_trimmed_symbols_and_apply_overrides_in_order) or test(market_rules_use_security_info_lot_size_without_warnings) or test(market_rules_fall_back_to_security_snapshot_lot_size_and_report_the_primary_error) or test(market_rules_ssot_contains_all_core_markets_with_decimal_tick_sizes) or test(inferred_market_profiles_match_go_market_rules)'`
 
 下一片：`internal/app/apiserver/backtestapp/historical_source_test.go:385:TestInstrumentSpecRequiresReadyPythonProviders`，核对 Python provider readiness 白名单与 Rust provider activation owner 的边界。
+
+## 第 136 批：InstrumentSpec Python provider readiness（2026-09-25）
+
+| 复核 | Go 测试 | Rust 证据 | P | 结论 |
+| :---: | --- | --- | :---: | --- |
+| [x] | `historical_source_test.go:385:TestInstrumentSpecRequiresReadyPythonProviders` | `readiness_without_composed_runtimes_reports_all_false`；`news_actions_binding_requires_yfinance_helper_readiness`；`test_helper_health_failure_dynamically_downgrades_provider_readiness` | P2 | partial：Rust 覆盖未装配 runtime 时三路 readiness 均为 false、yfinance/akshare helper-backed 路由在 helper 未 ready 时不可用，以及 helper 健康失败后的动态降级/恢复；旧 backtestapp 对 yfinance、规范化 `YFINANCE`、akshare 与 Futu 的 `instrumentRulesRequireReady` 白名单和 InstrumentSpec resolver 没有同形逐 provider 断言。 |
+
+本批没有发现需要先红后修的 Rust 生产功能差异；三条 readiness 证据均为既有 engine owner。精准 nextest 3/3 通过。
+
+验证：
+`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(readiness_without_composed_runtimes_reports_all_false) or test(news_actions_binding_requires_yfinance_helper_readiness) or test(test_helper_health_failure_dynamically_downgrades_provider_readiness)'`
+
+下一片：`internal/app/apiserver/backtestapp/historical_source_test.go:401:TestProviderOptionsRequireMarketDataRuntime`，核对旧 ProviderOptions 构造器与 Rust composition/backtest startup 边界。

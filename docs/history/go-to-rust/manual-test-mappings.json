@@ -25095,9 +25095,9 @@
     },
     "internal/app/apiserver/backtestapp/historical_source_test.go:385:TestInstrumentSpecRequiresReadyPythonProviders": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_runtime_provider_activation.rs::readiness_without_composed_runtimes_reports_all_false",
-      "conclusion": "partial：Go 断言 yfinance/“ YFINANCE ”/akshare 需要 provider 就绪，Futu 不需要。Rust 的就绪门由动态 provider readiness（未装配 runtime 全部 false）与路由 readiness 门表达，但 “哪些 provider 需要 ready 才能解析 instrument rules” 的白名单在 Rust 由装配期组成，无逐步断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+      "rust_entry": "crates/jftrade-engine/src/product_runtime_provider_activation.rs::readiness_without_composed_runtimes_reports_all_false; crates/jftrade-engine/src/product_production_adapter_bindings_tests.rs::news_actions_binding_requires_yfinance_helper_readiness; crates/jftrade-engine/src/product_runtime_tests.rs::test_helper_health_failure_dynamically_downgrades_provider_readiness",
+      "conclusion": "partial：Go 明确规定 yfinance、带空白的大写 YFINANCE 和 akshare 的 InstrumentSpec 解析需要 Python provider ready，而 Futu 不需要。Rust 已覆盖未装配 runtime 时三路 readiness 均为 false、yfinance/akshare helper-backed route 在 helper 未 ready 时 external unavailable、以及 helper /healthz 失败后 readiness 降级并恢复；但没有旧 backtestapp 的 instrumentRulesRequireReady provider 白名单函数或 InstrumentSpec resolver 逐 provider 断言，故保持 partial。",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(readiness_without_composed_runtimes_reports_all_false) or test(news_actions_binding_requires_yfinance_helper_readiness) or test(test_helper_health_failure_dynamically_downgrades_provider_readiness)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/backtestapp/historical_source_test.go",
@@ -25111,12 +25111,28 @@
           "test": "readiness_without_composed_runtimes_reports_all_false",
           "crate": "jftrade-engine",
           "anchor": null
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_production_adapter_bindings_tests.rs",
+          "test": "news_actions_binding_requires_yfinance_helper_readiness",
+          "crate": "jftrade-engine",
+          "anchor": null
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_runtime_tests.rs",
+          "test": "test_helper_health_failure_dynamically_downgrades_provider_readiness",
+          "crate": "jftrade-engine",
+          "anchor": null
         }
       ],
       "assertionCoverage": {
-        "covered": [],
+        "covered": [
+          "未装配 runtime 时 helper/OpenD/router readiness 均为 false",
+          "yfinance 与 akshare helper-backed route 在 helper 不 ready 时不可用，Futu 走独立 OpenD readiness",
+          "helper /healthz 失败会动态降级 readiness，恢复后重新 ready"
+        ],
         "uncovered": [
-          "partial：Go 断言 yfinance/“ YFINANCE ”/akshare 需要 provider 就绪，Futu 不需要。Rust 的就绪门由动态 provider readiness（未装配 runtime 全部 false）与路由 readiness 门表达，但 “哪些 provider 需要 ready 才能解析 instrument rules” 的白名单在 Rust 由装配期组成，无逐步断言。"
+          "partial：Rust 没有旧 backtestapp instrumentRulesRequireReady 对 yfinance、规范化 YFINANCE、akshare 与 Futu 的白名单逐项断言，也没有把该判定接入同形 InstrumentSpec resolver。"
         ],
         "source": "legacy-conclusion"
       },
@@ -25128,10 +25144,14 @@
           "-p",
           "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(readiness_without_composed_runtimes_reports_all_false) or test(news_actions_binding_requires_yfinance_helper_readiness) or test(test_helper_health_failure_dynamically_downgrades_provider_readiness)"
         ],
         "testFilter": [
-          "readiness_without_composed_runtimes_reports_all_false"
+          "readiness_without_composed_runtimes_reports_all_false",
+          "news_actions_binding_requires_yfinance_helper_readiness",
+          "test_helper_health_failure_dynamically_downgrades_provider_readiness"
         ],
         "runnerVersion": null,
         "toolchain": null,
@@ -25149,9 +25169,13 @@
         "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [],
+      "coveredAssertions": [
+        "未装配 runtime 时 helper/OpenD/router readiness 均为 false",
+        "yfinance 与 akshare helper-backed route 在 helper 不 ready 时不可用，Futu 走独立 OpenD readiness",
+        "helper /healthz 失败会动态降级 readiness，恢复后重新 ready"
+      ],
       "uncoveredAssertions": [
-        "partial：Go 断言 yfinance/“ YFINANCE ”/akshare 需要 provider 就绪，Futu 不需要。Rust 的就绪门由动态 provider readiness（未装配 runtime 全部 false）与路由 readiness 门表达，但 “哪些 provider 需要 ready 才能解析 instrument rules” 的白名单在 Rust 由装配期组成，无逐步断言。"
+        "partial：Rust 没有旧 backtestapp instrumentRulesRequireReady 对 yfinance、规范化 YFINANCE、akshare 与 Futu 的白名单逐项断言，也没有把该判定接入同形 InstrumentSpec resolver。"
       ],
       "boundaryReason": null
     },
@@ -312025,6 +312049,22 @@
       "referenceCount": 1,
       "referenceKeys": [
         "internal/app/apiserver/backtestapp/historical_source_test.go:226:TestProviderHistoricalSourceFetchesAndParsesProviderPage"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_production_adapter_bindings_tests.rs::news_actions_binding_requires_yfinance_helper_readiness": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/app/apiserver/backtestapp/historical_source_test.go:385:TestInstrumentSpecRequiresReadyPythonProviders"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_runtime_tests.rs::test_helper_health_failure_dynamically_downgrades_provider_readiness": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/app/apiserver/backtestapp/historical_source_test.go:385:TestInstrumentSpecRequiresReadyPythonProviders"
       ],
       "allowed": true,
       "reviewStatus": "single"

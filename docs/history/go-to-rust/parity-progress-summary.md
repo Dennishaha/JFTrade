@@ -129,3 +129,5 @@
 - `15f3f2d1`：strategy/Pine partial 第 281–300 条核对并修复 Pine request/indicator 差异。
 
 `917d1534`、`952a8993`、`7fd577c7` 主要是 parity 清单和批次文档，不应被解读为新增 Rust 功能已经完成；`15f3f2d1` 则同时包含 Pine 生产修复与回归测试。
+
+- 当前批次：`internal/app/apiserver/backtestapp/historical_source_test.go:385:TestInstrumentSpecRequiresReadyPythonProviders` 逐项核对 yfinance、规范化 `YFINANCE`、akshare 的 Python readiness 白名单与 Futu 免 helper 规则；复用 `readiness_without_composed_runtimes_reports_all_false`、`news_actions_binding_requires_yfinance_helper_readiness` 和 `test_helper_health_failure_dynamically_downgrades_provider_readiness` 三条 Rust 证据，精准 nextest 3/3 通过。Rust 覆盖动态 readiness、helper-backed 路由门和健康降级恢复，但没有旧 backtestapp `instrumentRulesRequireReady`/InstrumentSpec resolver 的逐 provider 白名单断言，保持 `partial`；下一片为 `historical_source_test.go:401:TestProviderOptionsRequireMarketDataRuntime`。
