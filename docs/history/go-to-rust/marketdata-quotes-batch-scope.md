@@ -1544,3 +1544,20 @@ ADK/Assistant 功能差异，先补失败回归测试再修改领域 owner。
 验证：动态生成的 44 个过滤器运行 `node scripts/quality/cargo-nextest.mjs run --all-targets --locked`，44/44 通过。
 
 下一片：继续 P2 API transport、MarketData/Quote、Storage/SQLite、Settings/Watchlist、Backtest/Calendar 与 Strategy/Pine；`optional_bool_strict` helper、P1 `session_context_snapshot` 及其他无独立 Rust 测试条目仍保持未验证结论。
+
+## 第 195 批：Research runtime、Settings onboarding、Strategy definitions 与 Swagger status（2026-09-26）
+
+| 复核 | Go 测试范围 | Rust 证据 | P | 结论 |
+| :---: | --- | --- | :---: | --- |
+| [x] | `research_runtime_test.go:14,36`; `runtime_defaults_test.go:11,28,48` | research preset database/route startup and fail-closed reads; desktop build profile identity/data paths; wildcard bind origin normalization | P2 | partial：Rust research preset/runtime owner 与 desktop/origin tests 已通过；Go server startup facade、Wails launcher 注入和研究数据库路径组合保持 partial/boundary。 |
+| [x] | `server_definitions_test.go:17,236,291,316` | strategy-definition durable UUID creation, write fixture, retired/malformed payload handling, linked delete/version rollback and read route fixture | P2 | partial：catalog/store/route owner 测试逐项覆盖；Go HTTP handler、错误消息聚合与 strategy definition facade 保持 partial。 |
+| [x] | `settings_broker_test.go:18,95,162,281,403`; `settings_interfaces_test.go:14,58` | broker integration/env immutability, Futu defaults, neutral OpenD health, managed account writes, appearance unknown-field preservation and interface shadow read | P2 | partial：settings and settings-file owner tests cover persistence/defaults/neutral health; Go server callback、环境 fixture 与 UI settings 组合保持 partial。 |
+| [x] | `settings_normalization_test.go:10,40,69`; `settings_onboarding_test.go:18,61,149` | account/Futu/execution normalization, onboarding defaults/save/unknown-field replay and dependency-based readiness reopening | P2 | exact/partial：归一化与 onboarding typed owner 测试逐项通过；onboarding route 与 helper dependency injection facade 保持 partial。 |
+| [x] | `strategy_logs_test.go:15,120`; `strategy_preview_test.go:28,99`; `strategy_sync_test.go:17` | strategy instance/log read fixture, retired source rejection, symbol/session-aware Pine preview warmup and runtime write recovery | P2 | partial：strategy read/preview/runtime owner evidence 已通过；Go persisted log tail、server sync handler 和 preview response aggregation 保持 partial。 |
+| [x] | `swagger_openapi_test.go:14,72`; `system_routes_test.go:12` | offline Swagger UI/core paths/debug contract and stable system status/typed market-data port projection | P2 | partial：Rust API swagger/status contracts 有真实测试；Go route facade、system status aggregation 与 desktop serving boundary 不升级为 exact。 |
+
+本批 30 条 Go 映射对应 33 个过滤器，Rust nextest **33/33** 通过（3440 skipped）。Research/runtime、strategy definitions、settings normalization/onboarding、strategy preview/logs、Swagger 与 system status 均有可解析 owner 证据；未发现需要先红后修的真实 Rust 功能差异。Go/Wails startup、HTTP facade、dependency injection 与聚合响应继续按 `partial`/`boundary` 记录。
+
+验证：动态生成的 33 个过滤器运行 `node scripts/quality/cargo-nextest.mjs run --all-targets --locked`，33/33 通过。
+
+下一片：继续 P2 API transport、MarketData/Quote、Storage/SQLite、Settings/Watchlist、Backtest/Calendar 与 Strategy/Pine；`optional_bool_strict` helper、P1 `session_context_snapshot` 及其他无独立 Rust 测试条目仍保持未验证结论。
