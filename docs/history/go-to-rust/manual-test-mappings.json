@@ -112999,20 +112999,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_audit_route_filters_by_kind_and_subject_id) or test(a_chat_turn_autocompacts_the_session_before_the_provider_payload) or test(adk_session_page_filters_by_agent_and_title_and_paginates) or test(adk_read_dynamic_routes_validate_suffixes_and_identifiers) or test(assistant_runtime_defaults_bounds_and_round_trip_match_go) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(a_terminal_run_without_a_stream_final_frame_recovers_a_final_frame) or test(skill_document_install_registers_the_parsed_document) or test(optimization_task_negative_routes_match_the_reference_matrix) or test(optimization_task_cancel_route_preserves_go_operation_identity) or test(session_timeline_failure_keeps_the_legacy_messages_error_code) or test(next_schedule_run_calculation_with_timezone) or test(next_schedule_run_skips_weekend_for_weekday_cron) or test(parse_invalid_cron_expressions) or test(numeric_step_and_wildcard_day_rules_match_go) or test(workflow_and_trigger_lists_hide_deleted_rows_after_create_and_delete) or test(workflow_bridge_pages_lists_and_rejects_unknown_run_targets) or test(stop_blocks_new_dispatch_and_join_reports_active_owners) or test(test_workflow_scheduler_worker_start_stop_and_status) or test(workflow_mutation_routes_keep_the_go_not_found_codes) or test(failure_cas_loser_distinguishes_missing_durable_winner) or test(failure_cas_loser_returns_durable_failed_winner_without_overwriting_it) or test(test_context_interpolation_multi_node_pipeline_and_diamond_join) or test(test_canvas_no_executable_nodes) or test(test_canvas_workflow_error_skips_downstream_nodes) or test(cancellation_does_not_poison_a_recovered_run) or test(test_historical_k_line_syncer_rejects_empty_provider_result)"
         ],
         "testFilter": [
           "adk_audit_route_filters_by_kind_and_subject_id"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "bad764f0934bc19f066d5016ab13a64101f16025",
+        "verifiedAt": "2026-09-25T14:08:44Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -113185,20 +113185,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_audit_route_filters_by_kind_and_subject_id) or test(a_chat_turn_autocompacts_the_session_before_the_provider_payload) or test(adk_session_page_filters_by_agent_and_title_and_paginates) or test(adk_read_dynamic_routes_validate_suffixes_and_identifiers) or test(assistant_runtime_defaults_bounds_and_round_trip_match_go) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(a_terminal_run_without_a_stream_final_frame_recovers_a_final_frame) or test(skill_document_install_registers_the_parsed_document) or test(optimization_task_negative_routes_match_the_reference_matrix) or test(optimization_task_cancel_route_preserves_go_operation_identity) or test(session_timeline_failure_keeps_the_legacy_messages_error_code) or test(next_schedule_run_calculation_with_timezone) or test(next_schedule_run_skips_weekend_for_weekday_cron) or test(parse_invalid_cron_expressions) or test(numeric_step_and_wildcard_day_rules_match_go) or test(workflow_and_trigger_lists_hide_deleted_rows_after_create_and_delete) or test(workflow_bridge_pages_lists_and_rejects_unknown_run_targets) or test(stop_blocks_new_dispatch_and_join_reports_active_owners) or test(test_workflow_scheduler_worker_start_stop_and_status) or test(workflow_mutation_routes_keep_the_go_not_found_codes) or test(failure_cas_loser_distinguishes_missing_durable_winner) or test(failure_cas_loser_returns_durable_failed_winner_without_overwriting_it) or test(test_context_interpolation_multi_node_pipeline_and_diamond_join) or test(test_canvas_no_executable_nodes) or test(test_canvas_workflow_error_skips_downstream_nodes) or test(cancellation_does_not_poison_a_recovered_run) or test(test_historical_k_line_syncer_rejects_empty_provider_result)"
         ],
         "testFilter": [
           "a_chat_turn_autocompacts_the_session_before_the_provider_payload"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "bad764f0934bc19f066d5016ab13a64101f16025",
+        "verifiedAt": "2026-09-25T14:08:44Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -113452,20 +113452,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_audit_route_filters_by_kind_and_subject_id) or test(a_chat_turn_autocompacts_the_session_before_the_provider_payload) or test(adk_session_page_filters_by_agent_and_title_and_paginates) or test(adk_read_dynamic_routes_validate_suffixes_and_identifiers) or test(assistant_runtime_defaults_bounds_and_round_trip_match_go) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(a_terminal_run_without_a_stream_final_frame_recovers_a_final_frame) or test(skill_document_install_registers_the_parsed_document) or test(optimization_task_negative_routes_match_the_reference_matrix) or test(optimization_task_cancel_route_preserves_go_operation_identity) or test(session_timeline_failure_keeps_the_legacy_messages_error_code) or test(next_schedule_run_calculation_with_timezone) or test(next_schedule_run_skips_weekend_for_weekday_cron) or test(parse_invalid_cron_expressions) or test(numeric_step_and_wildcard_day_rules_match_go) or test(workflow_and_trigger_lists_hide_deleted_rows_after_create_and_delete) or test(workflow_bridge_pages_lists_and_rejects_unknown_run_targets) or test(stop_blocks_new_dispatch_and_join_reports_active_owners) or test(test_workflow_scheduler_worker_start_stop_and_status) or test(workflow_mutation_routes_keep_the_go_not_found_codes) or test(failure_cas_loser_distinguishes_missing_durable_winner) or test(failure_cas_loser_returns_durable_failed_winner_without_overwriting_it) or test(test_context_interpolation_multi_node_pipeline_and_diamond_join) or test(test_canvas_no_executable_nodes) or test(test_canvas_workflow_error_skips_downstream_nodes) or test(cancellation_does_not_poison_a_recovered_run) or test(test_historical_k_line_syncer_rejects_empty_provider_result)"
         ],
         "testFilter": [
           "adk_session_page_filters_by_agent_and_title_and_paginates"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "bad764f0934bc19f066d5016ab13a64101f16025",
+        "verifiedAt": "2026-09-25T14:08:44Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -113762,20 +113762,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_audit_route_filters_by_kind_and_subject_id) or test(a_chat_turn_autocompacts_the_session_before_the_provider_payload) or test(adk_session_page_filters_by_agent_and_title_and_paginates) or test(adk_read_dynamic_routes_validate_suffixes_and_identifiers) or test(assistant_runtime_defaults_bounds_and_round_trip_match_go) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(a_terminal_run_without_a_stream_final_frame_recovers_a_final_frame) or test(skill_document_install_registers_the_parsed_document) or test(optimization_task_negative_routes_match_the_reference_matrix) or test(optimization_task_cancel_route_preserves_go_operation_identity) or test(session_timeline_failure_keeps_the_legacy_messages_error_code) or test(next_schedule_run_calculation_with_timezone) or test(next_schedule_run_skips_weekend_for_weekday_cron) or test(parse_invalid_cron_expressions) or test(numeric_step_and_wildcard_day_rules_match_go) or test(workflow_and_trigger_lists_hide_deleted_rows_after_create_and_delete) or test(workflow_bridge_pages_lists_and_rejects_unknown_run_targets) or test(stop_blocks_new_dispatch_and_join_reports_active_owners) or test(test_workflow_scheduler_worker_start_stop_and_status) or test(workflow_mutation_routes_keep_the_go_not_found_codes) or test(failure_cas_loser_distinguishes_missing_durable_winner) or test(failure_cas_loser_returns_durable_failed_winner_without_overwriting_it) or test(test_context_interpolation_multi_node_pipeline_and_diamond_join) or test(test_canvas_no_executable_nodes) or test(test_canvas_workflow_error_skips_downstream_nodes) or test(cancellation_does_not_poison_a_recovered_run) or test(test_historical_k_line_syncer_rejects_empty_provider_result)"
         ],
         "testFilter": [
           "adk_read_dynamic_routes_validate_suffixes_and_identifiers"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "bad764f0934bc19f066d5016ab13a64101f16025",
+        "verifiedAt": "2026-09-25T14:08:44Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -113948,20 +113948,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_audit_route_filters_by_kind_and_subject_id) or test(a_chat_turn_autocompacts_the_session_before_the_provider_payload) or test(adk_session_page_filters_by_agent_and_title_and_paginates) or test(adk_read_dynamic_routes_validate_suffixes_and_identifiers) or test(assistant_runtime_defaults_bounds_and_round_trip_match_go) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(a_terminal_run_without_a_stream_final_frame_recovers_a_final_frame) or test(skill_document_install_registers_the_parsed_document) or test(optimization_task_negative_routes_match_the_reference_matrix) or test(optimization_task_cancel_route_preserves_go_operation_identity) or test(session_timeline_failure_keeps_the_legacy_messages_error_code) or test(next_schedule_run_calculation_with_timezone) or test(next_schedule_run_skips_weekend_for_weekday_cron) or test(parse_invalid_cron_expressions) or test(numeric_step_and_wildcard_day_rules_match_go) or test(workflow_and_trigger_lists_hide_deleted_rows_after_create_and_delete) or test(workflow_bridge_pages_lists_and_rejects_unknown_run_targets) or test(stop_blocks_new_dispatch_and_join_reports_active_owners) or test(test_workflow_scheduler_worker_start_stop_and_status) or test(workflow_mutation_routes_keep_the_go_not_found_codes) or test(failure_cas_loser_distinguishes_missing_durable_winner) or test(failure_cas_loser_returns_durable_failed_winner_without_overwriting_it) or test(test_context_interpolation_multi_node_pipeline_and_diamond_join) or test(test_canvas_no_executable_nodes) or test(test_canvas_workflow_error_skips_downstream_nodes) or test(cancellation_does_not_poison_a_recovered_run) or test(test_historical_k_line_syncer_rejects_empty_provider_result)"
         ],
         "testFilter": [
           "assistant_runtime_defaults_bounds_and_round_trip_match_go"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "bad764f0934bc19f066d5016ab13a64101f16025",
+        "verifiedAt": "2026-09-25T14:08:44Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -114072,20 +114072,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_audit_route_filters_by_kind_and_subject_id) or test(a_chat_turn_autocompacts_the_session_before_the_provider_payload) or test(adk_session_page_filters_by_agent_and_title_and_paginates) or test(adk_read_dynamic_routes_validate_suffixes_and_identifiers) or test(assistant_runtime_defaults_bounds_and_round_trip_match_go) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(a_terminal_run_without_a_stream_final_frame_recovers_a_final_frame) or test(skill_document_install_registers_the_parsed_document) or test(optimization_task_negative_routes_match_the_reference_matrix) or test(optimization_task_cancel_route_preserves_go_operation_identity) or test(session_timeline_failure_keeps_the_legacy_messages_error_code) or test(next_schedule_run_calculation_with_timezone) or test(next_schedule_run_skips_weekend_for_weekday_cron) or test(parse_invalid_cron_expressions) or test(numeric_step_and_wildcard_day_rules_match_go) or test(workflow_and_trigger_lists_hide_deleted_rows_after_create_and_delete) or test(workflow_bridge_pages_lists_and_rejects_unknown_run_targets) or test(stop_blocks_new_dispatch_and_join_reports_active_owners) or test(test_workflow_scheduler_worker_start_stop_and_status) or test(workflow_mutation_routes_keep_the_go_not_found_codes) or test(failure_cas_loser_distinguishes_missing_durable_winner) or test(failure_cas_loser_returns_durable_failed_winner_without_overwriting_it) or test(test_context_interpolation_multi_node_pipeline_and_diamond_join) or test(test_canvas_no_executable_nodes) or test(test_canvas_workflow_error_skips_downstream_nodes) or test(cancellation_does_not_poison_a_recovered_run) or test(test_historical_k_line_syncer_rejects_empty_provider_result)"
         ],
         "testFilter": [
           "adk_session_page_filters_by_agent_and_title_and_paginates"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "bad764f0934bc19f066d5016ab13a64101f16025",
+        "verifiedAt": "2026-09-25T14:08:44Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -114196,20 +114196,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_audit_route_filters_by_kind_and_subject_id) or test(a_chat_turn_autocompacts_the_session_before_the_provider_payload) or test(adk_session_page_filters_by_agent_and_title_and_paginates) or test(adk_read_dynamic_routes_validate_suffixes_and_identifiers) or test(assistant_runtime_defaults_bounds_and_round_trip_match_go) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(a_terminal_run_without_a_stream_final_frame_recovers_a_final_frame) or test(skill_document_install_registers_the_parsed_document) or test(optimization_task_negative_routes_match_the_reference_matrix) or test(optimization_task_cancel_route_preserves_go_operation_identity) or test(session_timeline_failure_keeps_the_legacy_messages_error_code) or test(next_schedule_run_calculation_with_timezone) or test(next_schedule_run_skips_weekend_for_weekday_cron) or test(parse_invalid_cron_expressions) or test(numeric_step_and_wildcard_day_rules_match_go) or test(workflow_and_trigger_lists_hide_deleted_rows_after_create_and_delete) or test(workflow_bridge_pages_lists_and_rejects_unknown_run_targets) or test(stop_blocks_new_dispatch_and_join_reports_active_owners) or test(test_workflow_scheduler_worker_start_stop_and_status) or test(workflow_mutation_routes_keep_the_go_not_found_codes) or test(failure_cas_loser_distinguishes_missing_durable_winner) or test(failure_cas_loser_returns_durable_failed_winner_without_overwriting_it) or test(test_context_interpolation_multi_node_pipeline_and_diamond_join) or test(test_canvas_no_executable_nodes) or test(test_canvas_workflow_error_skips_downstream_nodes) or test(cancellation_does_not_poison_a_recovered_run) or test(test_historical_k_line_syncer_rejects_empty_provider_result)"
         ],
         "testFilter": [
           "cancellation_registry_fans_out_and_unregisters_exact_token"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "bad764f0934bc19f066d5016ab13a64101f16025",
+        "verifiedAt": "2026-09-25T14:08:44Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -114506,20 +114506,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_audit_route_filters_by_kind_and_subject_id) or test(a_chat_turn_autocompacts_the_session_before_the_provider_payload) or test(adk_session_page_filters_by_agent_and_title_and_paginates) or test(adk_read_dynamic_routes_validate_suffixes_and_identifiers) or test(assistant_runtime_defaults_bounds_and_round_trip_match_go) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(a_terminal_run_without_a_stream_final_frame_recovers_a_final_frame) or test(skill_document_install_registers_the_parsed_document) or test(optimization_task_negative_routes_match_the_reference_matrix) or test(optimization_task_cancel_route_preserves_go_operation_identity) or test(session_timeline_failure_keeps_the_legacy_messages_error_code) or test(next_schedule_run_calculation_with_timezone) or test(next_schedule_run_skips_weekend_for_weekday_cron) or test(parse_invalid_cron_expressions) or test(numeric_step_and_wildcard_day_rules_match_go) or test(workflow_and_trigger_lists_hide_deleted_rows_after_create_and_delete) or test(workflow_bridge_pages_lists_and_rejects_unknown_run_targets) or test(stop_blocks_new_dispatch_and_join_reports_active_owners) or test(test_workflow_scheduler_worker_start_stop_and_status) or test(workflow_mutation_routes_keep_the_go_not_found_codes) or test(failure_cas_loser_distinguishes_missing_durable_winner) or test(failure_cas_loser_returns_durable_failed_winner_without_overwriting_it) or test(test_context_interpolation_multi_node_pipeline_and_diamond_join) or test(test_canvas_no_executable_nodes) or test(test_canvas_workflow_error_skips_downstream_nodes) or test(cancellation_does_not_poison_a_recovered_run) or test(test_historical_k_line_syncer_rejects_empty_provider_result)"
         ],
         "testFilter": [
           "a_terminal_run_without_a_stream_final_frame_recovers_a_final_frame"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "bad764f0934bc19f066d5016ab13a64101f16025",
+        "verifiedAt": "2026-09-25T14:08:44Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -114568,20 +114568,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_audit_route_filters_by_kind_and_subject_id) or test(a_chat_turn_autocompacts_the_session_before_the_provider_payload) or test(adk_session_page_filters_by_agent_and_title_and_paginates) or test(adk_read_dynamic_routes_validate_suffixes_and_identifiers) or test(assistant_runtime_defaults_bounds_and_round_trip_match_go) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(a_terminal_run_without_a_stream_final_frame_recovers_a_final_frame) or test(skill_document_install_registers_the_parsed_document) or test(optimization_task_negative_routes_match_the_reference_matrix) or test(optimization_task_cancel_route_preserves_go_operation_identity) or test(session_timeline_failure_keeps_the_legacy_messages_error_code) or test(next_schedule_run_calculation_with_timezone) or test(next_schedule_run_skips_weekend_for_weekday_cron) or test(parse_invalid_cron_expressions) or test(numeric_step_and_wildcard_day_rules_match_go) or test(workflow_and_trigger_lists_hide_deleted_rows_after_create_and_delete) or test(workflow_bridge_pages_lists_and_rejects_unknown_run_targets) or test(stop_blocks_new_dispatch_and_join_reports_active_owners) or test(test_workflow_scheduler_worker_start_stop_and_status) or test(workflow_mutation_routes_keep_the_go_not_found_codes) or test(failure_cas_loser_distinguishes_missing_durable_winner) or test(failure_cas_loser_returns_durable_failed_winner_without_overwriting_it) or test(test_context_interpolation_multi_node_pipeline_and_diamond_join) or test(test_canvas_no_executable_nodes) or test(test_canvas_workflow_error_skips_downstream_nodes) or test(cancellation_does_not_poison_a_recovered_run) or test(test_historical_k_line_syncer_rejects_empty_provider_result)"
         ],
         "testFilter": [
           "skill_document_install_registers_the_parsed_document"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "bad764f0934bc19f066d5016ab13a64101f16025",
+        "verifiedAt": "2026-09-25T14:08:44Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -114630,20 +114630,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_audit_route_filters_by_kind_and_subject_id) or test(a_chat_turn_autocompacts_the_session_before_the_provider_payload) or test(adk_session_page_filters_by_agent_and_title_and_paginates) or test(adk_read_dynamic_routes_validate_suffixes_and_identifiers) or test(assistant_runtime_defaults_bounds_and_round_trip_match_go) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(a_terminal_run_without_a_stream_final_frame_recovers_a_final_frame) or test(skill_document_install_registers_the_parsed_document) or test(optimization_task_negative_routes_match_the_reference_matrix) or test(optimization_task_cancel_route_preserves_go_operation_identity) or test(session_timeline_failure_keeps_the_legacy_messages_error_code) or test(next_schedule_run_calculation_with_timezone) or test(next_schedule_run_skips_weekend_for_weekday_cron) or test(parse_invalid_cron_expressions) or test(numeric_step_and_wildcard_day_rules_match_go) or test(workflow_and_trigger_lists_hide_deleted_rows_after_create_and_delete) or test(workflow_bridge_pages_lists_and_rejects_unknown_run_targets) or test(stop_blocks_new_dispatch_and_join_reports_active_owners) or test(test_workflow_scheduler_worker_start_stop_and_status) or test(workflow_mutation_routes_keep_the_go_not_found_codes) or test(failure_cas_loser_distinguishes_missing_durable_winner) or test(failure_cas_loser_returns_durable_failed_winner_without_overwriting_it) or test(test_context_interpolation_multi_node_pipeline_and_diamond_join) or test(test_canvas_no_executable_nodes) or test(test_canvas_workflow_error_skips_downstream_nodes) or test(cancellation_does_not_poison_a_recovered_run) or test(test_historical_k_line_syncer_rejects_empty_provider_result)"
         ],
         "testFilter": [
           "optimization_task_negative_routes_match_the_reference_matrix"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "bad764f0934bc19f066d5016ab13a64101f16025",
+        "verifiedAt": "2026-09-25T14:08:44Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -114692,20 +114692,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_audit_route_filters_by_kind_and_subject_id) or test(a_chat_turn_autocompacts_the_session_before_the_provider_payload) or test(adk_session_page_filters_by_agent_and_title_and_paginates) or test(adk_read_dynamic_routes_validate_suffixes_and_identifiers) or test(assistant_runtime_defaults_bounds_and_round_trip_match_go) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(a_terminal_run_without_a_stream_final_frame_recovers_a_final_frame) or test(skill_document_install_registers_the_parsed_document) or test(optimization_task_negative_routes_match_the_reference_matrix) or test(optimization_task_cancel_route_preserves_go_operation_identity) or test(session_timeline_failure_keeps_the_legacy_messages_error_code) or test(next_schedule_run_calculation_with_timezone) or test(next_schedule_run_skips_weekend_for_weekday_cron) or test(parse_invalid_cron_expressions) or test(numeric_step_and_wildcard_day_rules_match_go) or test(workflow_and_trigger_lists_hide_deleted_rows_after_create_and_delete) or test(workflow_bridge_pages_lists_and_rejects_unknown_run_targets) or test(stop_blocks_new_dispatch_and_join_reports_active_owners) or test(test_workflow_scheduler_worker_start_stop_and_status) or test(workflow_mutation_routes_keep_the_go_not_found_codes) or test(failure_cas_loser_distinguishes_missing_durable_winner) or test(failure_cas_loser_returns_durable_failed_winner_without_overwriting_it) or test(test_context_interpolation_multi_node_pipeline_and_diamond_join) or test(test_canvas_no_executable_nodes) or test(test_canvas_workflow_error_skips_downstream_nodes) or test(cancellation_does_not_poison_a_recovered_run) or test(test_historical_k_line_syncer_rejects_empty_provider_result)"
         ],
         "testFilter": [
           "optimization_task_cancel_route_preserves_go_operation_identity"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "bad764f0934bc19f066d5016ab13a64101f16025",
+        "verifiedAt": "2026-09-25T14:08:44Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -114754,22 +114754,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
           "--locked",
           "-E",
-          "test(session_timeline_failure_keeps_the_legacy_messages_error_code)"
+          "test(adk_audit_route_filters_by_kind_and_subject_id) or test(a_chat_turn_autocompacts_the_session_before_the_provider_payload) or test(adk_session_page_filters_by_agent_and_title_and_paginates) or test(adk_read_dynamic_routes_validate_suffixes_and_identifiers) or test(assistant_runtime_defaults_bounds_and_round_trip_match_go) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(a_terminal_run_without_a_stream_final_frame_recovers_a_final_frame) or test(skill_document_install_registers_the_parsed_document) or test(optimization_task_negative_routes_match_the_reference_matrix) or test(optimization_task_cancel_route_preserves_go_operation_identity) or test(session_timeline_failure_keeps_the_legacy_messages_error_code) or test(next_schedule_run_calculation_with_timezone) or test(next_schedule_run_skips_weekend_for_weekday_cron) or test(parse_invalid_cron_expressions) or test(numeric_step_and_wildcard_day_rules_match_go) or test(workflow_and_trigger_lists_hide_deleted_rows_after_create_and_delete) or test(workflow_bridge_pages_lists_and_rejects_unknown_run_targets) or test(stop_blocks_new_dispatch_and_join_reports_active_owners) or test(test_workflow_scheduler_worker_start_stop_and_status) or test(workflow_mutation_routes_keep_the_go_not_found_codes) or test(failure_cas_loser_distinguishes_missing_durable_winner) or test(failure_cas_loser_returns_durable_failed_winner_without_overwriting_it) or test(test_context_interpolation_multi_node_pipeline_and_diamond_join) or test(test_canvas_no_executable_nodes) or test(test_canvas_workflow_error_skips_downstream_nodes) or test(cancellation_does_not_poison_a_recovered_run) or test(test_historical_k_line_syncer_rejects_empty_provider_result)"
         ],
         "testFilter": [
           "session_timeline_failure_keeps_the_legacy_messages_error_code"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "bad764f0934bc19f066d5016ab13a64101f16025",
+        "verifiedAt": "2026-09-25T14:08:44Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -115031,12 +115029,10 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
-          "--lib",
+          "--all-targets",
           "--locked",
           "-E",
-          "test(next_schedule_run_skips_weekend_for_weekday_cron) or test(parse_invalid_cron_expressions) or test(next_schedule_run_calculation_with_timezone)"
+          "test(adk_audit_route_filters_by_kind_and_subject_id) or test(a_chat_turn_autocompacts_the_session_before_the_provider_payload) or test(adk_session_page_filters_by_agent_and_title_and_paginates) or test(adk_read_dynamic_routes_validate_suffixes_and_identifiers) or test(assistant_runtime_defaults_bounds_and_round_trip_match_go) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(a_terminal_run_without_a_stream_final_frame_recovers_a_final_frame) or test(skill_document_install_registers_the_parsed_document) or test(optimization_task_negative_routes_match_the_reference_matrix) or test(optimization_task_cancel_route_preserves_go_operation_identity) or test(session_timeline_failure_keeps_the_legacy_messages_error_code) or test(next_schedule_run_calculation_with_timezone) or test(next_schedule_run_skips_weekend_for_weekday_cron) or test(parse_invalid_cron_expressions) or test(numeric_step_and_wildcard_day_rules_match_go) or test(workflow_and_trigger_lists_hide_deleted_rows_after_create_and_delete) or test(workflow_bridge_pages_lists_and_rejects_unknown_run_targets) or test(stop_blocks_new_dispatch_and_join_reports_active_owners) or test(test_workflow_scheduler_worker_start_stop_and_status) or test(workflow_mutation_routes_keep_the_go_not_found_codes) or test(failure_cas_loser_distinguishes_missing_durable_winner) or test(failure_cas_loser_returns_durable_failed_winner_without_overwriting_it) or test(test_context_interpolation_multi_node_pipeline_and_diamond_join) or test(test_canvas_no_executable_nodes) or test(test_canvas_workflow_error_skips_downstream_nodes) or test(cancellation_does_not_poison_a_recovered_run) or test(test_historical_k_line_syncer_rejects_empty_provider_result)"
         ],
         "testFilter": [
           "next_schedule_run_calculation_with_timezone",
@@ -115045,10 +115041,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "bad764f0934bc19f066d5016ab13a64101f16025",
+        "verifiedAt": "2026-09-25T14:08:44Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -115302,20 +115298,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_audit_route_filters_by_kind_and_subject_id) or test(a_chat_turn_autocompacts_the_session_before_the_provider_payload) or test(adk_session_page_filters_by_agent_and_title_and_paginates) or test(adk_read_dynamic_routes_validate_suffixes_and_identifiers) or test(assistant_runtime_defaults_bounds_and_round_trip_match_go) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(a_terminal_run_without_a_stream_final_frame_recovers_a_final_frame) or test(skill_document_install_registers_the_parsed_document) or test(optimization_task_negative_routes_match_the_reference_matrix) or test(optimization_task_cancel_route_preserves_go_operation_identity) or test(session_timeline_failure_keeps_the_legacy_messages_error_code) or test(next_schedule_run_calculation_with_timezone) or test(next_schedule_run_skips_weekend_for_weekday_cron) or test(parse_invalid_cron_expressions) or test(numeric_step_and_wildcard_day_rules_match_go) or test(workflow_and_trigger_lists_hide_deleted_rows_after_create_and_delete) or test(workflow_bridge_pages_lists_and_rejects_unknown_run_targets) or test(stop_blocks_new_dispatch_and_join_reports_active_owners) or test(test_workflow_scheduler_worker_start_stop_and_status) or test(workflow_mutation_routes_keep_the_go_not_found_codes) or test(failure_cas_loser_distinguishes_missing_durable_winner) or test(failure_cas_loser_returns_durable_failed_winner_without_overwriting_it) or test(test_context_interpolation_multi_node_pipeline_and_diamond_join) or test(test_canvas_no_executable_nodes) or test(test_canvas_workflow_error_skips_downstream_nodes) or test(cancellation_does_not_poison_a_recovered_run) or test(test_historical_k_line_syncer_rejects_empty_provider_result)"
         ],
         "testFilter": [
           "numeric_step_and_wildcard_day_rules_match_go"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "bad764f0934bc19f066d5016ab13a64101f16025",
+        "verifiedAt": "2026-09-25T14:08:44Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -115550,20 +115546,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_audit_route_filters_by_kind_and_subject_id) or test(a_chat_turn_autocompacts_the_session_before_the_provider_payload) or test(adk_session_page_filters_by_agent_and_title_and_paginates) or test(adk_read_dynamic_routes_validate_suffixes_and_identifiers) or test(assistant_runtime_defaults_bounds_and_round_trip_match_go) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(a_terminal_run_without_a_stream_final_frame_recovers_a_final_frame) or test(skill_document_install_registers_the_parsed_document) or test(optimization_task_negative_routes_match_the_reference_matrix) or test(optimization_task_cancel_route_preserves_go_operation_identity) or test(session_timeline_failure_keeps_the_legacy_messages_error_code) or test(next_schedule_run_calculation_with_timezone) or test(next_schedule_run_skips_weekend_for_weekday_cron) or test(parse_invalid_cron_expressions) or test(numeric_step_and_wildcard_day_rules_match_go) or test(workflow_and_trigger_lists_hide_deleted_rows_after_create_and_delete) or test(workflow_bridge_pages_lists_and_rejects_unknown_run_targets) or test(stop_blocks_new_dispatch_and_join_reports_active_owners) or test(test_workflow_scheduler_worker_start_stop_and_status) or test(workflow_mutation_routes_keep_the_go_not_found_codes) or test(failure_cas_loser_distinguishes_missing_durable_winner) or test(failure_cas_loser_returns_durable_failed_winner_without_overwriting_it) or test(test_context_interpolation_multi_node_pipeline_and_diamond_join) or test(test_canvas_no_executable_nodes) or test(test_canvas_workflow_error_skips_downstream_nodes) or test(cancellation_does_not_poison_a_recovered_run) or test(test_historical_k_line_syncer_rejects_empty_provider_result)"
         ],
         "testFilter": [
           "workflow_and_trigger_lists_hide_deleted_rows_after_create_and_delete"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "bad764f0934bc19f066d5016ab13a64101f16025",
+        "verifiedAt": "2026-09-25T14:08:44Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -115798,20 +115794,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_audit_route_filters_by_kind_and_subject_id) or test(a_chat_turn_autocompacts_the_session_before_the_provider_payload) or test(adk_session_page_filters_by_agent_and_title_and_paginates) or test(adk_read_dynamic_routes_validate_suffixes_and_identifiers) or test(assistant_runtime_defaults_bounds_and_round_trip_match_go) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(a_terminal_run_without_a_stream_final_frame_recovers_a_final_frame) or test(skill_document_install_registers_the_parsed_document) or test(optimization_task_negative_routes_match_the_reference_matrix) or test(optimization_task_cancel_route_preserves_go_operation_identity) or test(session_timeline_failure_keeps_the_legacy_messages_error_code) or test(next_schedule_run_calculation_with_timezone) or test(next_schedule_run_skips_weekend_for_weekday_cron) or test(parse_invalid_cron_expressions) or test(numeric_step_and_wildcard_day_rules_match_go) or test(workflow_and_trigger_lists_hide_deleted_rows_after_create_and_delete) or test(workflow_bridge_pages_lists_and_rejects_unknown_run_targets) or test(stop_blocks_new_dispatch_and_join_reports_active_owners) or test(test_workflow_scheduler_worker_start_stop_and_status) or test(workflow_mutation_routes_keep_the_go_not_found_codes) or test(failure_cas_loser_distinguishes_missing_durable_winner) or test(failure_cas_loser_returns_durable_failed_winner_without_overwriting_it) or test(test_context_interpolation_multi_node_pipeline_and_diamond_join) or test(test_canvas_no_executable_nodes) or test(test_canvas_workflow_error_skips_downstream_nodes) or test(cancellation_does_not_poison_a_recovered_run) or test(test_historical_k_line_syncer_rejects_empty_provider_result)"
         ],
         "testFilter": [
           "workflow_bridge_pages_lists_and_rejects_unknown_run_targets"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "bad764f0934bc19f066d5016ab13a64101f16025",
+        "verifiedAt": "2026-09-25T14:08:44Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -116170,20 +116166,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_audit_route_filters_by_kind_and_subject_id) or test(a_chat_turn_autocompacts_the_session_before_the_provider_payload) or test(adk_session_page_filters_by_agent_and_title_and_paginates) or test(adk_read_dynamic_routes_validate_suffixes_and_identifiers) or test(assistant_runtime_defaults_bounds_and_round_trip_match_go) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(a_terminal_run_without_a_stream_final_frame_recovers_a_final_frame) or test(skill_document_install_registers_the_parsed_document) or test(optimization_task_negative_routes_match_the_reference_matrix) or test(optimization_task_cancel_route_preserves_go_operation_identity) or test(session_timeline_failure_keeps_the_legacy_messages_error_code) or test(next_schedule_run_calculation_with_timezone) or test(next_schedule_run_skips_weekend_for_weekday_cron) or test(parse_invalid_cron_expressions) or test(numeric_step_and_wildcard_day_rules_match_go) or test(workflow_and_trigger_lists_hide_deleted_rows_after_create_and_delete) or test(workflow_bridge_pages_lists_and_rejects_unknown_run_targets) or test(stop_blocks_new_dispatch_and_join_reports_active_owners) or test(test_workflow_scheduler_worker_start_stop_and_status) or test(workflow_mutation_routes_keep_the_go_not_found_codes) or test(failure_cas_loser_distinguishes_missing_durable_winner) or test(failure_cas_loser_returns_durable_failed_winner_without_overwriting_it) or test(test_context_interpolation_multi_node_pipeline_and_diamond_join) or test(test_canvas_no_executable_nodes) or test(test_canvas_workflow_error_skips_downstream_nodes) or test(cancellation_does_not_poison_a_recovered_run) or test(test_historical_k_line_syncer_rejects_empty_provider_result)"
         ],
         "testFilter": [
           "stop_blocks_new_dispatch_and_join_reports_active_owners"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "bad764f0934bc19f066d5016ab13a64101f16025",
+        "verifiedAt": "2026-09-25T14:08:44Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -116294,20 +116290,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_audit_route_filters_by_kind_and_subject_id) or test(a_chat_turn_autocompacts_the_session_before_the_provider_payload) or test(adk_session_page_filters_by_agent_and_title_and_paginates) or test(adk_read_dynamic_routes_validate_suffixes_and_identifiers) or test(assistant_runtime_defaults_bounds_and_round_trip_match_go) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(a_terminal_run_without_a_stream_final_frame_recovers_a_final_frame) or test(skill_document_install_registers_the_parsed_document) or test(optimization_task_negative_routes_match_the_reference_matrix) or test(optimization_task_cancel_route_preserves_go_operation_identity) or test(session_timeline_failure_keeps_the_legacy_messages_error_code) or test(next_schedule_run_calculation_with_timezone) or test(next_schedule_run_skips_weekend_for_weekday_cron) or test(parse_invalid_cron_expressions) or test(numeric_step_and_wildcard_day_rules_match_go) or test(workflow_and_trigger_lists_hide_deleted_rows_after_create_and_delete) or test(workflow_bridge_pages_lists_and_rejects_unknown_run_targets) or test(stop_blocks_new_dispatch_and_join_reports_active_owners) or test(test_workflow_scheduler_worker_start_stop_and_status) or test(workflow_mutation_routes_keep_the_go_not_found_codes) or test(failure_cas_loser_distinguishes_missing_durable_winner) or test(failure_cas_loser_returns_durable_failed_winner_without_overwriting_it) or test(test_context_interpolation_multi_node_pipeline_and_diamond_join) or test(test_canvas_no_executable_nodes) or test(test_canvas_workflow_error_skips_downstream_nodes) or test(cancellation_does_not_poison_a_recovered_run) or test(test_historical_k_line_syncer_rejects_empty_provider_result)"
         ],
         "testFilter": [
           "test_workflow_scheduler_worker_start_stop_and_status"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "bad764f0934bc19f066d5016ab13a64101f16025",
+        "verifiedAt": "2026-09-25T14:08:44Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -116356,20 +116352,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_audit_route_filters_by_kind_and_subject_id) or test(a_chat_turn_autocompacts_the_session_before_the_provider_payload) or test(adk_session_page_filters_by_agent_and_title_and_paginates) or test(adk_read_dynamic_routes_validate_suffixes_and_identifiers) or test(assistant_runtime_defaults_bounds_and_round_trip_match_go) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(a_terminal_run_without_a_stream_final_frame_recovers_a_final_frame) or test(skill_document_install_registers_the_parsed_document) or test(optimization_task_negative_routes_match_the_reference_matrix) or test(optimization_task_cancel_route_preserves_go_operation_identity) or test(session_timeline_failure_keeps_the_legacy_messages_error_code) or test(next_schedule_run_calculation_with_timezone) or test(next_schedule_run_skips_weekend_for_weekday_cron) or test(parse_invalid_cron_expressions) or test(numeric_step_and_wildcard_day_rules_match_go) or test(workflow_and_trigger_lists_hide_deleted_rows_after_create_and_delete) or test(workflow_bridge_pages_lists_and_rejects_unknown_run_targets) or test(stop_blocks_new_dispatch_and_join_reports_active_owners) or test(test_workflow_scheduler_worker_start_stop_and_status) or test(workflow_mutation_routes_keep_the_go_not_found_codes) or test(failure_cas_loser_distinguishes_missing_durable_winner) or test(failure_cas_loser_returns_durable_failed_winner_without_overwriting_it) or test(test_context_interpolation_multi_node_pipeline_and_diamond_join) or test(test_canvas_no_executable_nodes) or test(test_canvas_workflow_error_skips_downstream_nodes) or test(cancellation_does_not_poison_a_recovered_run) or test(test_historical_k_line_syncer_rejects_empty_provider_result)"
         ],
         "testFilter": [
           "workflow_mutation_routes_keep_the_go_not_found_codes"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "bad764f0934bc19f066d5016ab13a64101f16025",
+        "verifiedAt": "2026-09-25T14:08:44Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -116666,20 +116662,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_audit_route_filters_by_kind_and_subject_id) or test(a_chat_turn_autocompacts_the_session_before_the_provider_payload) or test(adk_session_page_filters_by_agent_and_title_and_paginates) or test(adk_read_dynamic_routes_validate_suffixes_and_identifiers) or test(assistant_runtime_defaults_bounds_and_round_trip_match_go) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(a_terminal_run_without_a_stream_final_frame_recovers_a_final_frame) or test(skill_document_install_registers_the_parsed_document) or test(optimization_task_negative_routes_match_the_reference_matrix) or test(optimization_task_cancel_route_preserves_go_operation_identity) or test(session_timeline_failure_keeps_the_legacy_messages_error_code) or test(next_schedule_run_calculation_with_timezone) or test(next_schedule_run_skips_weekend_for_weekday_cron) or test(parse_invalid_cron_expressions) or test(numeric_step_and_wildcard_day_rules_match_go) or test(workflow_and_trigger_lists_hide_deleted_rows_after_create_and_delete) or test(workflow_bridge_pages_lists_and_rejects_unknown_run_targets) or test(stop_blocks_new_dispatch_and_join_reports_active_owners) or test(test_workflow_scheduler_worker_start_stop_and_status) or test(workflow_mutation_routes_keep_the_go_not_found_codes) or test(failure_cas_loser_distinguishes_missing_durable_winner) or test(failure_cas_loser_returns_durable_failed_winner_without_overwriting_it) or test(test_context_interpolation_multi_node_pipeline_and_diamond_join) or test(test_canvas_no_executable_nodes) or test(test_canvas_workflow_error_skips_downstream_nodes) or test(cancellation_does_not_poison_a_recovered_run) or test(test_historical_k_line_syncer_rejects_empty_provider_result)"
         ],
         "testFilter": [
           "failure_cas_loser_distinguishes_missing_durable_winner"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "bad764f0934bc19f066d5016ab13a64101f16025",
+        "verifiedAt": "2026-09-25T14:08:44Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -116790,20 +116786,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_audit_route_filters_by_kind_and_subject_id) or test(a_chat_turn_autocompacts_the_session_before_the_provider_payload) or test(adk_session_page_filters_by_agent_and_title_and_paginates) or test(adk_read_dynamic_routes_validate_suffixes_and_identifiers) or test(assistant_runtime_defaults_bounds_and_round_trip_match_go) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(a_terminal_run_without_a_stream_final_frame_recovers_a_final_frame) or test(skill_document_install_registers_the_parsed_document) or test(optimization_task_negative_routes_match_the_reference_matrix) or test(optimization_task_cancel_route_preserves_go_operation_identity) or test(session_timeline_failure_keeps_the_legacy_messages_error_code) or test(next_schedule_run_calculation_with_timezone) or test(next_schedule_run_skips_weekend_for_weekday_cron) or test(parse_invalid_cron_expressions) or test(numeric_step_and_wildcard_day_rules_match_go) or test(workflow_and_trigger_lists_hide_deleted_rows_after_create_and_delete) or test(workflow_bridge_pages_lists_and_rejects_unknown_run_targets) or test(stop_blocks_new_dispatch_and_join_reports_active_owners) or test(test_workflow_scheduler_worker_start_stop_and_status) or test(workflow_mutation_routes_keep_the_go_not_found_codes) or test(failure_cas_loser_distinguishes_missing_durable_winner) or test(failure_cas_loser_returns_durable_failed_winner_without_overwriting_it) or test(test_context_interpolation_multi_node_pipeline_and_diamond_join) or test(test_canvas_no_executable_nodes) or test(test_canvas_workflow_error_skips_downstream_nodes) or test(cancellation_does_not_poison_a_recovered_run) or test(test_historical_k_line_syncer_rejects_empty_provider_result)"
         ],
         "testFilter": [
           "workflow_mutation_routes_keep_the_go_not_found_codes"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "bad764f0934bc19f066d5016ab13a64101f16025",
+        "verifiedAt": "2026-09-25T14:08:44Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -116852,20 +116848,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_audit_route_filters_by_kind_and_subject_id) or test(a_chat_turn_autocompacts_the_session_before_the_provider_payload) or test(adk_session_page_filters_by_agent_and_title_and_paginates) or test(adk_read_dynamic_routes_validate_suffixes_and_identifiers) or test(assistant_runtime_defaults_bounds_and_round_trip_match_go) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(a_terminal_run_without_a_stream_final_frame_recovers_a_final_frame) or test(skill_document_install_registers_the_parsed_document) or test(optimization_task_negative_routes_match_the_reference_matrix) or test(optimization_task_cancel_route_preserves_go_operation_identity) or test(session_timeline_failure_keeps_the_legacy_messages_error_code) or test(next_schedule_run_calculation_with_timezone) or test(next_schedule_run_skips_weekend_for_weekday_cron) or test(parse_invalid_cron_expressions) or test(numeric_step_and_wildcard_day_rules_match_go) or test(workflow_and_trigger_lists_hide_deleted_rows_after_create_and_delete) or test(workflow_bridge_pages_lists_and_rejects_unknown_run_targets) or test(stop_blocks_new_dispatch_and_join_reports_active_owners) or test(test_workflow_scheduler_worker_start_stop_and_status) or test(workflow_mutation_routes_keep_the_go_not_found_codes) or test(failure_cas_loser_distinguishes_missing_durable_winner) or test(failure_cas_loser_returns_durable_failed_winner_without_overwriting_it) or test(test_context_interpolation_multi_node_pipeline_and_diamond_join) or test(test_canvas_no_executable_nodes) or test(test_canvas_workflow_error_skips_downstream_nodes) or test(cancellation_does_not_poison_a_recovered_run) or test(test_historical_k_line_syncer_rejects_empty_provider_result)"
         ],
         "testFilter": [
           "failure_cas_loser_distinguishes_missing_durable_winner"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "bad764f0934bc19f066d5016ab13a64101f16025",
+        "verifiedAt": "2026-09-25T14:08:44Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -116914,20 +116910,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_audit_route_filters_by_kind_and_subject_id) or test(a_chat_turn_autocompacts_the_session_before_the_provider_payload) or test(adk_session_page_filters_by_agent_and_title_and_paginates) or test(adk_read_dynamic_routes_validate_suffixes_and_identifiers) or test(assistant_runtime_defaults_bounds_and_round_trip_match_go) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(a_terminal_run_without_a_stream_final_frame_recovers_a_final_frame) or test(skill_document_install_registers_the_parsed_document) or test(optimization_task_negative_routes_match_the_reference_matrix) or test(optimization_task_cancel_route_preserves_go_operation_identity) or test(session_timeline_failure_keeps_the_legacy_messages_error_code) or test(next_schedule_run_calculation_with_timezone) or test(next_schedule_run_skips_weekend_for_weekday_cron) or test(parse_invalid_cron_expressions) or test(numeric_step_and_wildcard_day_rules_match_go) or test(workflow_and_trigger_lists_hide_deleted_rows_after_create_and_delete) or test(workflow_bridge_pages_lists_and_rejects_unknown_run_targets) or test(stop_blocks_new_dispatch_and_join_reports_active_owners) or test(test_workflow_scheduler_worker_start_stop_and_status) or test(workflow_mutation_routes_keep_the_go_not_found_codes) or test(failure_cas_loser_distinguishes_missing_durable_winner) or test(failure_cas_loser_returns_durable_failed_winner_without_overwriting_it) or test(test_context_interpolation_multi_node_pipeline_and_diamond_join) or test(test_canvas_no_executable_nodes) or test(test_canvas_workflow_error_skips_downstream_nodes) or test(cancellation_does_not_poison_a_recovered_run) or test(test_historical_k_line_syncer_rejects_empty_provider_result)"
         ],
         "testFilter": [
           "failure_cas_loser_returns_durable_failed_winner_without_overwriting_it"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "bad764f0934bc19f066d5016ab13a64101f16025",
+        "verifiedAt": "2026-09-25T14:08:44Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -117003,12 +116999,10 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
-          "--lib",
+          "--all-targets",
           "--locked",
           "-E",
-          "test(next_schedule_run_skips_weekend_for_weekday_cron) or test(parse_invalid_cron_expressions) or test(next_schedule_run_calculation_with_timezone)"
+          "test(adk_audit_route_filters_by_kind_and_subject_id) or test(a_chat_turn_autocompacts_the_session_before_the_provider_payload) or test(adk_session_page_filters_by_agent_and_title_and_paginates) or test(adk_read_dynamic_routes_validate_suffixes_and_identifiers) or test(assistant_runtime_defaults_bounds_and_round_trip_match_go) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(a_terminal_run_without_a_stream_final_frame_recovers_a_final_frame) or test(skill_document_install_registers_the_parsed_document) or test(optimization_task_negative_routes_match_the_reference_matrix) or test(optimization_task_cancel_route_preserves_go_operation_identity) or test(session_timeline_failure_keeps_the_legacy_messages_error_code) or test(next_schedule_run_calculation_with_timezone) or test(next_schedule_run_skips_weekend_for_weekday_cron) or test(parse_invalid_cron_expressions) or test(numeric_step_and_wildcard_day_rules_match_go) or test(workflow_and_trigger_lists_hide_deleted_rows_after_create_and_delete) or test(workflow_bridge_pages_lists_and_rejects_unknown_run_targets) or test(stop_blocks_new_dispatch_and_join_reports_active_owners) or test(test_workflow_scheduler_worker_start_stop_and_status) or test(workflow_mutation_routes_keep_the_go_not_found_codes) or test(failure_cas_loser_distinguishes_missing_durable_winner) or test(failure_cas_loser_returns_durable_failed_winner_without_overwriting_it) or test(test_context_interpolation_multi_node_pipeline_and_diamond_join) or test(test_canvas_no_executable_nodes) or test(test_canvas_workflow_error_skips_downstream_nodes) or test(cancellation_does_not_poison_a_recovered_run) or test(test_historical_k_line_syncer_rejects_empty_provider_result)"
         ],
         "testFilter": [
           "next_schedule_run_skips_weekend_for_weekday_cron",
@@ -117017,10 +117011,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "bad764f0934bc19f066d5016ab13a64101f16025",
+        "verifiedAt": "2026-09-25T14:08:44Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -117305,20 +117299,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_audit_route_filters_by_kind_and_subject_id) or test(a_chat_turn_autocompacts_the_session_before_the_provider_payload) or test(adk_session_page_filters_by_agent_and_title_and_paginates) or test(adk_read_dynamic_routes_validate_suffixes_and_identifiers) or test(assistant_runtime_defaults_bounds_and_round_trip_match_go) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(a_terminal_run_without_a_stream_final_frame_recovers_a_final_frame) or test(skill_document_install_registers_the_parsed_document) or test(optimization_task_negative_routes_match_the_reference_matrix) or test(optimization_task_cancel_route_preserves_go_operation_identity) or test(session_timeline_failure_keeps_the_legacy_messages_error_code) or test(next_schedule_run_calculation_with_timezone) or test(next_schedule_run_skips_weekend_for_weekday_cron) or test(parse_invalid_cron_expressions) or test(numeric_step_and_wildcard_day_rules_match_go) or test(workflow_and_trigger_lists_hide_deleted_rows_after_create_and_delete) or test(workflow_bridge_pages_lists_and_rejects_unknown_run_targets) or test(stop_blocks_new_dispatch_and_join_reports_active_owners) or test(test_workflow_scheduler_worker_start_stop_and_status) or test(workflow_mutation_routes_keep_the_go_not_found_codes) or test(failure_cas_loser_distinguishes_missing_durable_winner) or test(failure_cas_loser_returns_durable_failed_winner_without_overwriting_it) or test(test_context_interpolation_multi_node_pipeline_and_diamond_join) or test(test_canvas_no_executable_nodes) or test(test_canvas_workflow_error_skips_downstream_nodes) or test(cancellation_does_not_poison_a_recovered_run) or test(test_historical_k_line_syncer_rejects_empty_provider_result)"
         ],
         "testFilter": [
           "test_context_interpolation_multi_node_pipeline_and_diamond_join"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "bad764f0934bc19f066d5016ab13a64101f16025",
+        "verifiedAt": "2026-09-25T14:08:44Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -117367,20 +117361,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-assistant",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_audit_route_filters_by_kind_and_subject_id) or test(a_chat_turn_autocompacts_the_session_before_the_provider_payload) or test(adk_session_page_filters_by_agent_and_title_and_paginates) or test(adk_read_dynamic_routes_validate_suffixes_and_identifiers) or test(assistant_runtime_defaults_bounds_and_round_trip_match_go) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(a_terminal_run_without_a_stream_final_frame_recovers_a_final_frame) or test(skill_document_install_registers_the_parsed_document) or test(optimization_task_negative_routes_match_the_reference_matrix) or test(optimization_task_cancel_route_preserves_go_operation_identity) or test(session_timeline_failure_keeps_the_legacy_messages_error_code) or test(next_schedule_run_calculation_with_timezone) or test(next_schedule_run_skips_weekend_for_weekday_cron) or test(parse_invalid_cron_expressions) or test(numeric_step_and_wildcard_day_rules_match_go) or test(workflow_and_trigger_lists_hide_deleted_rows_after_create_and_delete) or test(workflow_bridge_pages_lists_and_rejects_unknown_run_targets) or test(stop_blocks_new_dispatch_and_join_reports_active_owners) or test(test_workflow_scheduler_worker_start_stop_and_status) or test(workflow_mutation_routes_keep_the_go_not_found_codes) or test(failure_cas_loser_distinguishes_missing_durable_winner) or test(failure_cas_loser_returns_durable_failed_winner_without_overwriting_it) or test(test_context_interpolation_multi_node_pipeline_and_diamond_join) or test(test_canvas_no_executable_nodes) or test(test_canvas_workflow_error_skips_downstream_nodes) or test(cancellation_does_not_poison_a_recovered_run) or test(test_historical_k_line_syncer_rejects_empty_provider_result)"
         ],
         "testFilter": [
           "test_canvas_no_executable_nodes"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "bad764f0934bc19f066d5016ab13a64101f16025",
+        "verifiedAt": "2026-09-25T14:08:44Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -117429,20 +117423,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_audit_route_filters_by_kind_and_subject_id) or test(a_chat_turn_autocompacts_the_session_before_the_provider_payload) or test(adk_session_page_filters_by_agent_and_title_and_paginates) or test(adk_read_dynamic_routes_validate_suffixes_and_identifiers) or test(assistant_runtime_defaults_bounds_and_round_trip_match_go) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(a_terminal_run_without_a_stream_final_frame_recovers_a_final_frame) or test(skill_document_install_registers_the_parsed_document) or test(optimization_task_negative_routes_match_the_reference_matrix) or test(optimization_task_cancel_route_preserves_go_operation_identity) or test(session_timeline_failure_keeps_the_legacy_messages_error_code) or test(next_schedule_run_calculation_with_timezone) or test(next_schedule_run_skips_weekend_for_weekday_cron) or test(parse_invalid_cron_expressions) or test(numeric_step_and_wildcard_day_rules_match_go) or test(workflow_and_trigger_lists_hide_deleted_rows_after_create_and_delete) or test(workflow_bridge_pages_lists_and_rejects_unknown_run_targets) or test(stop_blocks_new_dispatch_and_join_reports_active_owners) or test(test_workflow_scheduler_worker_start_stop_and_status) or test(workflow_mutation_routes_keep_the_go_not_found_codes) or test(failure_cas_loser_distinguishes_missing_durable_winner) or test(failure_cas_loser_returns_durable_failed_winner_without_overwriting_it) or test(test_context_interpolation_multi_node_pipeline_and_diamond_join) or test(test_canvas_no_executable_nodes) or test(test_canvas_workflow_error_skips_downstream_nodes) or test(cancellation_does_not_poison_a_recovered_run) or test(test_historical_k_line_syncer_rejects_empty_provider_result)"
         ],
         "testFilter": [
           "test_canvas_workflow_error_skips_downstream_nodes"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "bad764f0934bc19f066d5016ab13a64101f16025",
+        "verifiedAt": "2026-09-25T14:08:44Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -117677,20 +117671,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-backtest",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_audit_route_filters_by_kind_and_subject_id) or test(a_chat_turn_autocompacts_the_session_before_the_provider_payload) or test(adk_session_page_filters_by_agent_and_title_and_paginates) or test(adk_read_dynamic_routes_validate_suffixes_and_identifiers) or test(assistant_runtime_defaults_bounds_and_round_trip_match_go) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(a_terminal_run_without_a_stream_final_frame_recovers_a_final_frame) or test(skill_document_install_registers_the_parsed_document) or test(optimization_task_negative_routes_match_the_reference_matrix) or test(optimization_task_cancel_route_preserves_go_operation_identity) or test(session_timeline_failure_keeps_the_legacy_messages_error_code) or test(next_schedule_run_calculation_with_timezone) or test(next_schedule_run_skips_weekend_for_weekday_cron) or test(parse_invalid_cron_expressions) or test(numeric_step_and_wildcard_day_rules_match_go) or test(workflow_and_trigger_lists_hide_deleted_rows_after_create_and_delete) or test(workflow_bridge_pages_lists_and_rejects_unknown_run_targets) or test(stop_blocks_new_dispatch_and_join_reports_active_owners) or test(test_workflow_scheduler_worker_start_stop_and_status) or test(workflow_mutation_routes_keep_the_go_not_found_codes) or test(failure_cas_loser_distinguishes_missing_durable_winner) or test(failure_cas_loser_returns_durable_failed_winner_without_overwriting_it) or test(test_context_interpolation_multi_node_pipeline_and_diamond_join) or test(test_canvas_no_executable_nodes) or test(test_canvas_workflow_error_skips_downstream_nodes) or test(cancellation_does_not_poison_a_recovered_run) or test(test_historical_k_line_syncer_rejects_empty_provider_result)"
         ],
         "testFilter": [
           "cancellation_does_not_poison_a_recovered_run"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "bad764f0934bc19f066d5016ab13a64101f16025",
+        "verifiedAt": "2026-09-25T14:08:44Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -117739,20 +117733,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(backtest)"
+          "test(adk_audit_route_filters_by_kind_and_subject_id) or test(a_chat_turn_autocompacts_the_session_before_the_provider_payload) or test(adk_session_page_filters_by_agent_and_title_and_paginates) or test(adk_read_dynamic_routes_validate_suffixes_and_identifiers) or test(assistant_runtime_defaults_bounds_and_round_trip_match_go) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(a_terminal_run_without_a_stream_final_frame_recovers_a_final_frame) or test(skill_document_install_registers_the_parsed_document) or test(optimization_task_negative_routes_match_the_reference_matrix) or test(optimization_task_cancel_route_preserves_go_operation_identity) or test(session_timeline_failure_keeps_the_legacy_messages_error_code) or test(next_schedule_run_calculation_with_timezone) or test(next_schedule_run_skips_weekend_for_weekday_cron) or test(parse_invalid_cron_expressions) or test(numeric_step_and_wildcard_day_rules_match_go) or test(workflow_and_trigger_lists_hide_deleted_rows_after_create_and_delete) or test(workflow_bridge_pages_lists_and_rejects_unknown_run_targets) or test(stop_blocks_new_dispatch_and_join_reports_active_owners) or test(test_workflow_scheduler_worker_start_stop_and_status) or test(workflow_mutation_routes_keep_the_go_not_found_codes) or test(failure_cas_loser_distinguishes_missing_durable_winner) or test(failure_cas_loser_returns_durable_failed_winner_without_overwriting_it) or test(test_context_interpolation_multi_node_pipeline_and_diamond_join) or test(test_canvas_no_executable_nodes) or test(test_canvas_workflow_error_skips_downstream_nodes) or test(cancellation_does_not_poison_a_recovered_run) or test(test_historical_k_line_syncer_rejects_empty_provider_result)"
         ],
         "testFilter": [
           "test_historical_k_line_syncer_rejects_empty_provider_result"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "bad764f0934bc19f066d5016ab13a64101f16025",
+        "verifiedAt": "2026-09-25T14:08:44Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -117801,20 +117795,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(test_historical_k_line_syncer_rejects_empty_provider_result)"
+          "test(adk_audit_route_filters_by_kind_and_subject_id) or test(a_chat_turn_autocompacts_the_session_before_the_provider_payload) or test(adk_session_page_filters_by_agent_and_title_and_paginates) or test(adk_read_dynamic_routes_validate_suffixes_and_identifiers) or test(assistant_runtime_defaults_bounds_and_round_trip_match_go) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(a_terminal_run_without_a_stream_final_frame_recovers_a_final_frame) or test(skill_document_install_registers_the_parsed_document) or test(optimization_task_negative_routes_match_the_reference_matrix) or test(optimization_task_cancel_route_preserves_go_operation_identity) or test(session_timeline_failure_keeps_the_legacy_messages_error_code) or test(next_schedule_run_calculation_with_timezone) or test(next_schedule_run_skips_weekend_for_weekday_cron) or test(parse_invalid_cron_expressions) or test(numeric_step_and_wildcard_day_rules_match_go) or test(workflow_and_trigger_lists_hide_deleted_rows_after_create_and_delete) or test(workflow_bridge_pages_lists_and_rejects_unknown_run_targets) or test(stop_blocks_new_dispatch_and_join_reports_active_owners) or test(test_workflow_scheduler_worker_start_stop_and_status) or test(workflow_mutation_routes_keep_the_go_not_found_codes) or test(failure_cas_loser_distinguishes_missing_durable_winner) or test(failure_cas_loser_returns_durable_failed_winner_without_overwriting_it) or test(test_context_interpolation_multi_node_pipeline_and_diamond_join) or test(test_canvas_no_executable_nodes) or test(test_canvas_workflow_error_skips_downstream_nodes) or test(cancellation_does_not_poison_a_recovered_run) or test(test_historical_k_line_syncer_rejects_empty_provider_result)"
         ],
         "testFilter": [
           "test_historical_k_line_syncer_rejects_empty_provider_result"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "bad764f0934bc19f066d5016ab13a64101f16025",
+        "verifiedAt": "2026-09-25T14:08:44Z",
         "receiptDigest": null
       },
       "risk": "high",
