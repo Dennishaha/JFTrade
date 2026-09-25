@@ -12,7 +12,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_env_filter(EnvFilter::from_default_env())
         .with_writer(io::stderr)
         .init();
-    let handle = ProductRuntimeBuilder::from_process_env()?.start().await?;
+    // Register the supervisor signal before binding the API listener.  The
+    // launcher contract permits a stop immediately after the port accepts a
+    // probe, so installing the handler only after `start()` leaves a small
+    // window where SIGTERM uses the process-default termination action.
+    let stop_signal = tokio::spawn(wait_for_stop_request());
+    let handle = match ProductRuntimeBuilder::from_process_env()?.start().await {
+        Ok(handle) => handle,
+        Err(error) => {
+            stop_signal.abort();
+            return Err(error.into());
+        }
+    };
     let startup_json = serde_json::to_string(handle.startup_record())?;
     {
         let stdout = io::stdout();
@@ -21,7 +32,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         output.flush()?;
     }
     info!(address = %handle.startup_record().address, "Rust product API slice is ready");
-    wait_for_stop_request().await?;
+    stop_signal.await??;
     handle.shutdown().await?;
     Ok(())
 }
