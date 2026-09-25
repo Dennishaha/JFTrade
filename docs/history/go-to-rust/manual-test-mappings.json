@@ -117981,20 +117981,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(test_historical_k_line_syncer_rejects_broken_pagination)"
+          "test(test_historical_k_line_syncer_rejects_broken_pagination) or test(production_futu_sync_uses_opend_reader_and_persists_candles) or test(reap_finished_marks_nonterminal_worker_failed) or test(test_start_script_rejects_blank_research_script) or test(test_result_view_contract_alignment_and_edge_cases) or test(production_backtest_start_without_worker_fails_before_persisting_run) or test(definition_resolution_rejects_missing_definition_and_version_conflict) or test(backtest_runs_lifecycle_and_restart_durability) or test(shutdown_persists_cancelled_state_before_joining_workers) or test(production_sync_read_projects_persisted_task) or test(reap_finished_removes_completed_join_handles) or test(sync_request_session_scope_parity_with_go) or test(backtest_start_resolves_market_dates_with_dst) or test(parent_bracket_runs_atomically_with_stop_first_protection) or test(canceling_parent_order_cancels_all_protective_children) or test(reduce_only_order_without_position_is_canceled) or test(explicit_cancel_orders_and_unmatched_target_handling) or test(sell_market_order_applies_downward_slippage) or test(cancel_skips_unmatched_pending_orders_without_side_effects) or test(provided_fee_rules_apply_and_empty_rules_charge_nothing) or test(aggregate_reads_use_only_the_requested_session_scope) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(test_tc_d4_04_extended_session_pre_market_does_not_pollute_regular_open) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(missing_symbol_table_reports_storage_error_then_recovers_after_insert)"
         ],
         "testFilter": [
           "test_historical_k_line_syncer_rejects_broken_pagination"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "b9b2b48870a813e5f6411439bef617195b866b0e",
+        "verifiedAt": "2026-09-25T14:10:34Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -118105,20 +118105,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(backtest)"
+          "test(test_historical_k_line_syncer_rejects_broken_pagination) or test(production_futu_sync_uses_opend_reader_and_persists_candles) or test(reap_finished_marks_nonterminal_worker_failed) or test(test_start_script_rejects_blank_research_script) or test(test_result_view_contract_alignment_and_edge_cases) or test(production_backtest_start_without_worker_fails_before_persisting_run) or test(definition_resolution_rejects_missing_definition_and_version_conflict) or test(backtest_runs_lifecycle_and_restart_durability) or test(shutdown_persists_cancelled_state_before_joining_workers) or test(production_sync_read_projects_persisted_task) or test(reap_finished_removes_completed_join_handles) or test(sync_request_session_scope_parity_with_go) or test(backtest_start_resolves_market_dates_with_dst) or test(parent_bracket_runs_atomically_with_stop_first_protection) or test(canceling_parent_order_cancels_all_protective_children) or test(reduce_only_order_without_position_is_canceled) or test(explicit_cancel_orders_and_unmatched_target_handling) or test(sell_market_order_applies_downward_slippage) or test(cancel_skips_unmatched_pending_orders_without_side_effects) or test(provided_fee_rules_apply_and_empty_rules_charge_nothing) or test(aggregate_reads_use_only_the_requested_session_scope) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(test_tc_d4_04_extended_session_pre_market_does_not_pollute_regular_open) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(missing_symbol_table_reports_storage_error_then_recovers_after_insert)"
         ],
         "testFilter": [
           "production_futu_sync_uses_opend_reader_and_persists_candles"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "b9b2b48870a813e5f6411439bef617195b866b0e",
+        "verifiedAt": "2026-09-25T14:10:34Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -118787,20 +118787,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(backtest)"
+          "test(test_historical_k_line_syncer_rejects_broken_pagination) or test(production_futu_sync_uses_opend_reader_and_persists_candles) or test(reap_finished_marks_nonterminal_worker_failed) or test(test_start_script_rejects_blank_research_script) or test(test_result_view_contract_alignment_and_edge_cases) or test(production_backtest_start_without_worker_fails_before_persisting_run) or test(definition_resolution_rejects_missing_definition_and_version_conflict) or test(backtest_runs_lifecycle_and_restart_durability) or test(shutdown_persists_cancelled_state_before_joining_workers) or test(production_sync_read_projects_persisted_task) or test(reap_finished_removes_completed_join_handles) or test(sync_request_session_scope_parity_with_go) or test(backtest_start_resolves_market_dates_with_dst) or test(parent_bracket_runs_atomically_with_stop_first_protection) or test(canceling_parent_order_cancels_all_protective_children) or test(reduce_only_order_without_position_is_canceled) or test(explicit_cancel_orders_and_unmatched_target_handling) or test(sell_market_order_applies_downward_slippage) or test(cancel_skips_unmatched_pending_orders_without_side_effects) or test(provided_fee_rules_apply_and_empty_rules_charge_nothing) or test(aggregate_reads_use_only_the_requested_session_scope) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(test_tc_d4_04_extended_session_pre_market_does_not_pollute_regular_open) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(missing_symbol_table_reports_storage_error_then_recovers_after_insert)"
         ],
         "testFilter": [
           "reap_finished_marks_nonterminal_worker_failed"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "b9b2b48870a813e5f6411439bef617195b866b0e",
+        "verifiedAt": "2026-09-25T14:10:34Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -118849,20 +118849,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(backtest)"
+          "test(test_historical_k_line_syncer_rejects_broken_pagination) or test(production_futu_sync_uses_opend_reader_and_persists_candles) or test(reap_finished_marks_nonterminal_worker_failed) or test(test_start_script_rejects_blank_research_script) or test(test_result_view_contract_alignment_and_edge_cases) or test(production_backtest_start_without_worker_fails_before_persisting_run) or test(definition_resolution_rejects_missing_definition_and_version_conflict) or test(backtest_runs_lifecycle_and_restart_durability) or test(shutdown_persists_cancelled_state_before_joining_workers) or test(production_sync_read_projects_persisted_task) or test(reap_finished_removes_completed_join_handles) or test(sync_request_session_scope_parity_with_go) or test(backtest_start_resolves_market_dates_with_dst) or test(parent_bracket_runs_atomically_with_stop_first_protection) or test(canceling_parent_order_cancels_all_protective_children) or test(reduce_only_order_without_position_is_canceled) or test(explicit_cancel_orders_and_unmatched_target_handling) or test(sell_market_order_applies_downward_slippage) or test(cancel_skips_unmatched_pending_orders_without_side_effects) or test(provided_fee_rules_apply_and_empty_rules_charge_nothing) or test(aggregate_reads_use_only_the_requested_session_scope) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(test_tc_d4_04_extended_session_pre_market_does_not_pollute_regular_open) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(missing_symbol_table_reports_storage_error_then_recovers_after_insert)"
         ],
         "testFilter": [
           "reap_finished_marks_nonterminal_worker_failed"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "b9b2b48870a813e5f6411439bef617195b866b0e",
+        "verifiedAt": "2026-09-25T14:10:34Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -118916,18 +118916,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine"
+          "--all-targets",
+          "--locked",
+          "-E",
+          "test(test_historical_k_line_syncer_rejects_broken_pagination) or test(production_futu_sync_uses_opend_reader_and_persists_candles) or test(reap_finished_marks_nonterminal_worker_failed) or test(test_start_script_rejects_blank_research_script) or test(test_result_view_contract_alignment_and_edge_cases) or test(production_backtest_start_without_worker_fails_before_persisting_run) or test(definition_resolution_rejects_missing_definition_and_version_conflict) or test(backtest_runs_lifecycle_and_restart_durability) or test(shutdown_persists_cancelled_state_before_joining_workers) or test(production_sync_read_projects_persisted_task) or test(reap_finished_removes_completed_join_handles) or test(sync_request_session_scope_parity_with_go) or test(backtest_start_resolves_market_dates_with_dst) or test(parent_bracket_runs_atomically_with_stop_first_protection) or test(canceling_parent_order_cancels_all_protective_children) or test(reduce_only_order_without_position_is_canceled) or test(explicit_cancel_orders_and_unmatched_target_handling) or test(sell_market_order_applies_downward_slippage) or test(cancel_skips_unmatched_pending_orders_without_side_effects) or test(provided_fee_rules_apply_and_empty_rules_charge_nothing) or test(aggregate_reads_use_only_the_requested_session_scope) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(test_tc_d4_04_extended_session_pre_market_does_not_pollute_regular_open) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(missing_symbol_table_reports_storage_error_then_recovers_after_insert)"
         ],
         "testFilter": [
           "test_start_script_rejects_blank_research_script"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "b9b2b48870a813e5f6411439bef617195b866b0e",
+        "verifiedAt": "2026-09-25T14:10:34Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -119348,20 +119350,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(backtest)"
+          "test(test_historical_k_line_syncer_rejects_broken_pagination) or test(production_futu_sync_uses_opend_reader_and_persists_candles) or test(reap_finished_marks_nonterminal_worker_failed) or test(test_start_script_rejects_blank_research_script) or test(test_result_view_contract_alignment_and_edge_cases) or test(production_backtest_start_without_worker_fails_before_persisting_run) or test(definition_resolution_rejects_missing_definition_and_version_conflict) or test(backtest_runs_lifecycle_and_restart_durability) or test(shutdown_persists_cancelled_state_before_joining_workers) or test(production_sync_read_projects_persisted_task) or test(reap_finished_removes_completed_join_handles) or test(sync_request_session_scope_parity_with_go) or test(backtest_start_resolves_market_dates_with_dst) or test(parent_bracket_runs_atomically_with_stop_first_protection) or test(canceling_parent_order_cancels_all_protective_children) or test(reduce_only_order_without_position_is_canceled) or test(explicit_cancel_orders_and_unmatched_target_handling) or test(sell_market_order_applies_downward_slippage) or test(cancel_skips_unmatched_pending_orders_without_side_effects) or test(provided_fee_rules_apply_and_empty_rules_charge_nothing) or test(aggregate_reads_use_only_the_requested_session_scope) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(test_tc_d4_04_extended_session_pre_market_does_not_pollute_regular_open) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(missing_symbol_table_reports_storage_error_then_recovers_after_insert)"
         ],
         "testFilter": [
           "test_result_view_contract_alignment_and_edge_cases"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "b9b2b48870a813e5f6411439bef617195b866b0e",
+        "verifiedAt": "2026-09-25T14:10:34Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -119472,20 +119474,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(backtest)"
+          "test(test_historical_k_line_syncer_rejects_broken_pagination) or test(production_futu_sync_uses_opend_reader_and_persists_candles) or test(reap_finished_marks_nonterminal_worker_failed) or test(test_start_script_rejects_blank_research_script) or test(test_result_view_contract_alignment_and_edge_cases) or test(production_backtest_start_without_worker_fails_before_persisting_run) or test(definition_resolution_rejects_missing_definition_and_version_conflict) or test(backtest_runs_lifecycle_and_restart_durability) or test(shutdown_persists_cancelled_state_before_joining_workers) or test(production_sync_read_projects_persisted_task) or test(reap_finished_removes_completed_join_handles) or test(sync_request_session_scope_parity_with_go) or test(backtest_start_resolves_market_dates_with_dst) or test(parent_bracket_runs_atomically_with_stop_first_protection) or test(canceling_parent_order_cancels_all_protective_children) or test(reduce_only_order_without_position_is_canceled) or test(explicit_cancel_orders_and_unmatched_target_handling) or test(sell_market_order_applies_downward_slippage) or test(cancel_skips_unmatched_pending_orders_without_side_effects) or test(provided_fee_rules_apply_and_empty_rules_charge_nothing) or test(aggregate_reads_use_only_the_requested_session_scope) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(test_tc_d4_04_extended_session_pre_market_does_not_pollute_regular_open) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(missing_symbol_table_reports_storage_error_then_recovers_after_insert)"
         ],
         "testFilter": [
           "production_backtest_start_without_worker_fails_before_persisting_run"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "b9b2b48870a813e5f6411439bef617195b866b0e",
+        "verifiedAt": "2026-09-25T14:10:34Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -119534,20 +119536,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(backtest)"
+          "test(test_historical_k_line_syncer_rejects_broken_pagination) or test(production_futu_sync_uses_opend_reader_and_persists_candles) or test(reap_finished_marks_nonterminal_worker_failed) or test(test_start_script_rejects_blank_research_script) or test(test_result_view_contract_alignment_and_edge_cases) or test(production_backtest_start_without_worker_fails_before_persisting_run) or test(definition_resolution_rejects_missing_definition_and_version_conflict) or test(backtest_runs_lifecycle_and_restart_durability) or test(shutdown_persists_cancelled_state_before_joining_workers) or test(production_sync_read_projects_persisted_task) or test(reap_finished_removes_completed_join_handles) or test(sync_request_session_scope_parity_with_go) or test(backtest_start_resolves_market_dates_with_dst) or test(parent_bracket_runs_atomically_with_stop_first_protection) or test(canceling_parent_order_cancels_all_protective_children) or test(reduce_only_order_without_position_is_canceled) or test(explicit_cancel_orders_and_unmatched_target_handling) or test(sell_market_order_applies_downward_slippage) or test(cancel_skips_unmatched_pending_orders_without_side_effects) or test(provided_fee_rules_apply_and_empty_rules_charge_nothing) or test(aggregate_reads_use_only_the_requested_session_scope) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(test_tc_d4_04_extended_session_pre_market_does_not_pollute_regular_open) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(missing_symbol_table_reports_storage_error_then_recovers_after_insert)"
         ],
         "testFilter": [
           "definition_resolution_rejects_missing_definition_and_version_conflict"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "b9b2b48870a813e5f6411439bef617195b866b0e",
+        "verifiedAt": "2026-09-25T14:10:34Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -119596,20 +119598,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(backtest)"
+          "test(test_historical_k_line_syncer_rejects_broken_pagination) or test(production_futu_sync_uses_opend_reader_and_persists_candles) or test(reap_finished_marks_nonterminal_worker_failed) or test(test_start_script_rejects_blank_research_script) or test(test_result_view_contract_alignment_and_edge_cases) or test(production_backtest_start_without_worker_fails_before_persisting_run) or test(definition_resolution_rejects_missing_definition_and_version_conflict) or test(backtest_runs_lifecycle_and_restart_durability) or test(shutdown_persists_cancelled_state_before_joining_workers) or test(production_sync_read_projects_persisted_task) or test(reap_finished_removes_completed_join_handles) or test(sync_request_session_scope_parity_with_go) or test(backtest_start_resolves_market_dates_with_dst) or test(parent_bracket_runs_atomically_with_stop_first_protection) or test(canceling_parent_order_cancels_all_protective_children) or test(reduce_only_order_without_position_is_canceled) or test(explicit_cancel_orders_and_unmatched_target_handling) or test(sell_market_order_applies_downward_slippage) or test(cancel_skips_unmatched_pending_orders_without_side_effects) or test(provided_fee_rules_apply_and_empty_rules_charge_nothing) or test(aggregate_reads_use_only_the_requested_session_scope) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(test_tc_d4_04_extended_session_pre_market_does_not_pollute_regular_open) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(missing_symbol_table_reports_storage_error_then_recovers_after_insert)"
         ],
         "testFilter": [
           "backtest_runs_lifecycle_and_restart_durability"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "b9b2b48870a813e5f6411439bef617195b866b0e",
+        "verifiedAt": "2026-09-25T14:10:34Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -120531,20 +120533,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(backtest)"
+          "test(test_historical_k_line_syncer_rejects_broken_pagination) or test(production_futu_sync_uses_opend_reader_and_persists_candles) or test(reap_finished_marks_nonterminal_worker_failed) or test(test_start_script_rejects_blank_research_script) or test(test_result_view_contract_alignment_and_edge_cases) or test(production_backtest_start_without_worker_fails_before_persisting_run) or test(definition_resolution_rejects_missing_definition_and_version_conflict) or test(backtest_runs_lifecycle_and_restart_durability) or test(shutdown_persists_cancelled_state_before_joining_workers) or test(production_sync_read_projects_persisted_task) or test(reap_finished_removes_completed_join_handles) or test(sync_request_session_scope_parity_with_go) or test(backtest_start_resolves_market_dates_with_dst) or test(parent_bracket_runs_atomically_with_stop_first_protection) or test(canceling_parent_order_cancels_all_protective_children) or test(reduce_only_order_without_position_is_canceled) or test(explicit_cancel_orders_and_unmatched_target_handling) or test(sell_market_order_applies_downward_slippage) or test(cancel_skips_unmatched_pending_orders_without_side_effects) or test(provided_fee_rules_apply_and_empty_rules_charge_nothing) or test(aggregate_reads_use_only_the_requested_session_scope) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(test_tc_d4_04_extended_session_pre_market_does_not_pollute_regular_open) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(missing_symbol_table_reports_storage_error_then_recovers_after_insert)"
         ],
         "testFilter": [
           "shutdown_persists_cancelled_state_before_joining_workers"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "b9b2b48870a813e5f6411439bef617195b866b0e",
+        "verifiedAt": "2026-09-25T14:10:34Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -120717,20 +120719,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(backtest)"
+          "test(test_historical_k_line_syncer_rejects_broken_pagination) or test(production_futu_sync_uses_opend_reader_and_persists_candles) or test(reap_finished_marks_nonterminal_worker_failed) or test(test_start_script_rejects_blank_research_script) or test(test_result_view_contract_alignment_and_edge_cases) or test(production_backtest_start_without_worker_fails_before_persisting_run) or test(definition_resolution_rejects_missing_definition_and_version_conflict) or test(backtest_runs_lifecycle_and_restart_durability) or test(shutdown_persists_cancelled_state_before_joining_workers) or test(production_sync_read_projects_persisted_task) or test(reap_finished_removes_completed_join_handles) or test(sync_request_session_scope_parity_with_go) or test(backtest_start_resolves_market_dates_with_dst) or test(parent_bracket_runs_atomically_with_stop_first_protection) or test(canceling_parent_order_cancels_all_protective_children) or test(reduce_only_order_without_position_is_canceled) or test(explicit_cancel_orders_and_unmatched_target_handling) or test(sell_market_order_applies_downward_slippage) or test(cancel_skips_unmatched_pending_orders_without_side_effects) or test(provided_fee_rules_apply_and_empty_rules_charge_nothing) or test(aggregate_reads_use_only_the_requested_session_scope) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(test_tc_d4_04_extended_session_pre_market_does_not_pollute_regular_open) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(missing_symbol_table_reports_storage_error_then_recovers_after_insert)"
         ],
         "testFilter": [
           "production_sync_read_projects_persisted_task"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "b9b2b48870a813e5f6411439bef617195b866b0e",
+        "verifiedAt": "2026-09-25T14:10:34Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -120903,20 +120905,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(backtest)"
+          "test(test_historical_k_line_syncer_rejects_broken_pagination) or test(production_futu_sync_uses_opend_reader_and_persists_candles) or test(reap_finished_marks_nonterminal_worker_failed) or test(test_start_script_rejects_blank_research_script) or test(test_result_view_contract_alignment_and_edge_cases) or test(production_backtest_start_without_worker_fails_before_persisting_run) or test(definition_resolution_rejects_missing_definition_and_version_conflict) or test(backtest_runs_lifecycle_and_restart_durability) or test(shutdown_persists_cancelled_state_before_joining_workers) or test(production_sync_read_projects_persisted_task) or test(reap_finished_removes_completed_join_handles) or test(sync_request_session_scope_parity_with_go) or test(backtest_start_resolves_market_dates_with_dst) or test(parent_bracket_runs_atomically_with_stop_first_protection) or test(canceling_parent_order_cancels_all_protective_children) or test(reduce_only_order_without_position_is_canceled) or test(explicit_cancel_orders_and_unmatched_target_handling) or test(sell_market_order_applies_downward_slippage) or test(cancel_skips_unmatched_pending_orders_without_side_effects) or test(provided_fee_rules_apply_and_empty_rules_charge_nothing) or test(aggregate_reads_use_only_the_requested_session_scope) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(test_tc_d4_04_extended_session_pre_market_does_not_pollute_regular_open) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(missing_symbol_table_reports_storage_error_then_recovers_after_insert)"
         ],
         "testFilter": [
           "reap_finished_removes_completed_join_handles"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "b9b2b48870a813e5f6411439bef617195b866b0e",
+        "verifiedAt": "2026-09-25T14:10:34Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -121409,20 +121411,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(backtest)"
+          "test(test_historical_k_line_syncer_rejects_broken_pagination) or test(production_futu_sync_uses_opend_reader_and_persists_candles) or test(reap_finished_marks_nonterminal_worker_failed) or test(test_start_script_rejects_blank_research_script) or test(test_result_view_contract_alignment_and_edge_cases) or test(production_backtest_start_without_worker_fails_before_persisting_run) or test(definition_resolution_rejects_missing_definition_and_version_conflict) or test(backtest_runs_lifecycle_and_restart_durability) or test(shutdown_persists_cancelled_state_before_joining_workers) or test(production_sync_read_projects_persisted_task) or test(reap_finished_removes_completed_join_handles) or test(sync_request_session_scope_parity_with_go) or test(backtest_start_resolves_market_dates_with_dst) or test(parent_bracket_runs_atomically_with_stop_first_protection) or test(canceling_parent_order_cancels_all_protective_children) or test(reduce_only_order_without_position_is_canceled) or test(explicit_cancel_orders_and_unmatched_target_handling) or test(sell_market_order_applies_downward_slippage) or test(cancel_skips_unmatched_pending_orders_without_side_effects) or test(provided_fee_rules_apply_and_empty_rules_charge_nothing) or test(aggregate_reads_use_only_the_requested_session_scope) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(test_tc_d4_04_extended_session_pre_market_does_not_pollute_regular_open) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(missing_symbol_table_reports_storage_error_then_recovers_after_insert)"
         ],
         "testFilter": [
           "sync_request_session_scope_parity_with_go"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "b9b2b48870a813e5f6411439bef617195b866b0e",
+        "verifiedAt": "2026-09-25T14:10:34Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -121476,20 +121478,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(backtest)"
+          "test(test_historical_k_line_syncer_rejects_broken_pagination) or test(production_futu_sync_uses_opend_reader_and_persists_candles) or test(reap_finished_marks_nonterminal_worker_failed) or test(test_start_script_rejects_blank_research_script) or test(test_result_view_contract_alignment_and_edge_cases) or test(production_backtest_start_without_worker_fails_before_persisting_run) or test(definition_resolution_rejects_missing_definition_and_version_conflict) or test(backtest_runs_lifecycle_and_restart_durability) or test(shutdown_persists_cancelled_state_before_joining_workers) or test(production_sync_read_projects_persisted_task) or test(reap_finished_removes_completed_join_handles) or test(sync_request_session_scope_parity_with_go) or test(backtest_start_resolves_market_dates_with_dst) or test(parent_bracket_runs_atomically_with_stop_first_protection) or test(canceling_parent_order_cancels_all_protective_children) or test(reduce_only_order_without_position_is_canceled) or test(explicit_cancel_orders_and_unmatched_target_handling) or test(sell_market_order_applies_downward_slippage) or test(cancel_skips_unmatched_pending_orders_without_side_effects) or test(provided_fee_rules_apply_and_empty_rules_charge_nothing) or test(aggregate_reads_use_only_the_requested_session_scope) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(test_tc_d4_04_extended_session_pre_market_does_not_pollute_regular_open) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(missing_symbol_table_reports_storage_error_then_recovers_after_insert)"
         ],
         "testFilter": [
           "backtest_start_resolves_market_dates_with_dst"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "b9b2b48870a813e5f6411439bef617195b866b0e",
+        "verifiedAt": "2026-09-25T14:10:34Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -121868,20 +121870,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-backtest",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(test_historical_k_line_syncer_rejects_broken_pagination) or test(production_futu_sync_uses_opend_reader_and_persists_candles) or test(reap_finished_marks_nonterminal_worker_failed) or test(test_start_script_rejects_blank_research_script) or test(test_result_view_contract_alignment_and_edge_cases) or test(production_backtest_start_without_worker_fails_before_persisting_run) or test(definition_resolution_rejects_missing_definition_and_version_conflict) or test(backtest_runs_lifecycle_and_restart_durability) or test(shutdown_persists_cancelled_state_before_joining_workers) or test(production_sync_read_projects_persisted_task) or test(reap_finished_removes_completed_join_handles) or test(sync_request_session_scope_parity_with_go) or test(backtest_start_resolves_market_dates_with_dst) or test(parent_bracket_runs_atomically_with_stop_first_protection) or test(canceling_parent_order_cancels_all_protective_children) or test(reduce_only_order_without_position_is_canceled) or test(explicit_cancel_orders_and_unmatched_target_handling) or test(sell_market_order_applies_downward_slippage) or test(cancel_skips_unmatched_pending_orders_without_side_effects) or test(provided_fee_rules_apply_and_empty_rules_charge_nothing) or test(aggregate_reads_use_only_the_requested_session_scope) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(test_tc_d4_04_extended_session_pre_market_does_not_pollute_regular_open) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(missing_symbol_table_reports_storage_error_then_recovers_after_insert)"
         ],
         "testFilter": [
           "parent_bracket_runs_atomically_with_stop_first_protection"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "b9b2b48870a813e5f6411439bef617195b866b0e",
+        "verifiedAt": "2026-09-25T14:10:34Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -122069,20 +122071,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-backtest",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(test_historical_k_line_syncer_rejects_broken_pagination) or test(production_futu_sync_uses_opend_reader_and_persists_candles) or test(reap_finished_marks_nonterminal_worker_failed) or test(test_start_script_rejects_blank_research_script) or test(test_result_view_contract_alignment_and_edge_cases) or test(production_backtest_start_without_worker_fails_before_persisting_run) or test(definition_resolution_rejects_missing_definition_and_version_conflict) or test(backtest_runs_lifecycle_and_restart_durability) or test(shutdown_persists_cancelled_state_before_joining_workers) or test(production_sync_read_projects_persisted_task) or test(reap_finished_removes_completed_join_handles) or test(sync_request_session_scope_parity_with_go) or test(backtest_start_resolves_market_dates_with_dst) or test(parent_bracket_runs_atomically_with_stop_first_protection) or test(canceling_parent_order_cancels_all_protective_children) or test(reduce_only_order_without_position_is_canceled) or test(explicit_cancel_orders_and_unmatched_target_handling) or test(sell_market_order_applies_downward_slippage) or test(cancel_skips_unmatched_pending_orders_without_side_effects) or test(provided_fee_rules_apply_and_empty_rules_charge_nothing) or test(aggregate_reads_use_only_the_requested_session_scope) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(test_tc_d4_04_extended_session_pre_market_does_not_pollute_regular_open) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(missing_symbol_table_reports_storage_error_then_recovers_after_insert)"
         ],
         "testFilter": [
           "canceling_parent_order_cancels_all_protective_children"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "b9b2b48870a813e5f6411439bef617195b866b0e",
+        "verifiedAt": "2026-09-25T14:10:34Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -122136,20 +122138,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-backtest",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(test_historical_k_line_syncer_rejects_broken_pagination) or test(production_futu_sync_uses_opend_reader_and_persists_candles) or test(reap_finished_marks_nonterminal_worker_failed) or test(test_start_script_rejects_blank_research_script) or test(test_result_view_contract_alignment_and_edge_cases) or test(production_backtest_start_without_worker_fails_before_persisting_run) or test(definition_resolution_rejects_missing_definition_and_version_conflict) or test(backtest_runs_lifecycle_and_restart_durability) or test(shutdown_persists_cancelled_state_before_joining_workers) or test(production_sync_read_projects_persisted_task) or test(reap_finished_removes_completed_join_handles) or test(sync_request_session_scope_parity_with_go) or test(backtest_start_resolves_market_dates_with_dst) or test(parent_bracket_runs_atomically_with_stop_first_protection) or test(canceling_parent_order_cancels_all_protective_children) or test(reduce_only_order_without_position_is_canceled) or test(explicit_cancel_orders_and_unmatched_target_handling) or test(sell_market_order_applies_downward_slippage) or test(cancel_skips_unmatched_pending_orders_without_side_effects) or test(provided_fee_rules_apply_and_empty_rules_charge_nothing) or test(aggregate_reads_use_only_the_requested_session_scope) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(test_tc_d4_04_extended_session_pre_market_does_not_pollute_regular_open) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(missing_symbol_table_reports_storage_error_then_recovers_after_insert)"
         ],
         "testFilter": [
           "reduce_only_order_without_position_is_canceled"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "b9b2b48870a813e5f6411439bef617195b866b0e",
+        "verifiedAt": "2026-09-25T14:10:34Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -122270,20 +122272,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-backtest",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(test_historical_k_line_syncer_rejects_broken_pagination) or test(production_futu_sync_uses_opend_reader_and_persists_candles) or test(reap_finished_marks_nonterminal_worker_failed) or test(test_start_script_rejects_blank_research_script) or test(test_result_view_contract_alignment_and_edge_cases) or test(production_backtest_start_without_worker_fails_before_persisting_run) or test(definition_resolution_rejects_missing_definition_and_version_conflict) or test(backtest_runs_lifecycle_and_restart_durability) or test(shutdown_persists_cancelled_state_before_joining_workers) or test(production_sync_read_projects_persisted_task) or test(reap_finished_removes_completed_join_handles) or test(sync_request_session_scope_parity_with_go) or test(backtest_start_resolves_market_dates_with_dst) or test(parent_bracket_runs_atomically_with_stop_first_protection) or test(canceling_parent_order_cancels_all_protective_children) or test(reduce_only_order_without_position_is_canceled) or test(explicit_cancel_orders_and_unmatched_target_handling) or test(sell_market_order_applies_downward_slippage) or test(cancel_skips_unmatched_pending_orders_without_side_effects) or test(provided_fee_rules_apply_and_empty_rules_charge_nothing) or test(aggregate_reads_use_only_the_requested_session_scope) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(test_tc_d4_04_extended_session_pre_market_does_not_pollute_regular_open) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(missing_symbol_table_reports_storage_error_then_recovers_after_insert)"
         ],
         "testFilter": [
           "explicit_cancel_orders_and_unmatched_target_handling"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "b9b2b48870a813e5f6411439bef617195b866b0e",
+        "verifiedAt": "2026-09-25T14:10:34Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -122404,20 +122406,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-backtest",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(test_historical_k_line_syncer_rejects_broken_pagination) or test(production_futu_sync_uses_opend_reader_and_persists_candles) or test(reap_finished_marks_nonterminal_worker_failed) or test(test_start_script_rejects_blank_research_script) or test(test_result_view_contract_alignment_and_edge_cases) or test(production_backtest_start_without_worker_fails_before_persisting_run) or test(definition_resolution_rejects_missing_definition_and_version_conflict) or test(backtest_runs_lifecycle_and_restart_durability) or test(shutdown_persists_cancelled_state_before_joining_workers) or test(production_sync_read_projects_persisted_task) or test(reap_finished_removes_completed_join_handles) or test(sync_request_session_scope_parity_with_go) or test(backtest_start_resolves_market_dates_with_dst) or test(parent_bracket_runs_atomically_with_stop_first_protection) or test(canceling_parent_order_cancels_all_protective_children) or test(reduce_only_order_without_position_is_canceled) or test(explicit_cancel_orders_and_unmatched_target_handling) or test(sell_market_order_applies_downward_slippage) or test(cancel_skips_unmatched_pending_orders_without_side_effects) or test(provided_fee_rules_apply_and_empty_rules_charge_nothing) or test(aggregate_reads_use_only_the_requested_session_scope) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(test_tc_d4_04_extended_session_pre_market_does_not_pollute_regular_open) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(missing_symbol_table_reports_storage_error_then_recovers_after_insert)"
         ],
         "testFilter": [
           "sell_market_order_applies_downward_slippage"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "b9b2b48870a813e5f6411439bef617195b866b0e",
+        "verifiedAt": "2026-09-25T14:10:34Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -122868,20 +122870,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-backtest",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(test_historical_k_line_syncer_rejects_broken_pagination) or test(production_futu_sync_uses_opend_reader_and_persists_candles) or test(reap_finished_marks_nonterminal_worker_failed) or test(test_start_script_rejects_blank_research_script) or test(test_result_view_contract_alignment_and_edge_cases) or test(production_backtest_start_without_worker_fails_before_persisting_run) or test(definition_resolution_rejects_missing_definition_and_version_conflict) or test(backtest_runs_lifecycle_and_restart_durability) or test(shutdown_persists_cancelled_state_before_joining_workers) or test(production_sync_read_projects_persisted_task) or test(reap_finished_removes_completed_join_handles) or test(sync_request_session_scope_parity_with_go) or test(backtest_start_resolves_market_dates_with_dst) or test(parent_bracket_runs_atomically_with_stop_first_protection) or test(canceling_parent_order_cancels_all_protective_children) or test(reduce_only_order_without_position_is_canceled) or test(explicit_cancel_orders_and_unmatched_target_handling) or test(sell_market_order_applies_downward_slippage) or test(cancel_skips_unmatched_pending_orders_without_side_effects) or test(provided_fee_rules_apply_and_empty_rules_charge_nothing) or test(aggregate_reads_use_only_the_requested_session_scope) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(test_tc_d4_04_extended_session_pre_market_does_not_pollute_regular_open) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(missing_symbol_table_reports_storage_error_then_recovers_after_insert)"
         ],
         "testFilter": [
           "cancel_skips_unmatched_pending_orders_without_side_effects"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "b9b2b48870a813e5f6411439bef617195b866b0e",
+        "verifiedAt": "2026-09-25T14:10:34Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -122930,20 +122932,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-backtest",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(test_historical_k_line_syncer_rejects_broken_pagination) or test(production_futu_sync_uses_opend_reader_and_persists_candles) or test(reap_finished_marks_nonterminal_worker_failed) or test(test_start_script_rejects_blank_research_script) or test(test_result_view_contract_alignment_and_edge_cases) or test(production_backtest_start_without_worker_fails_before_persisting_run) or test(definition_resolution_rejects_missing_definition_and_version_conflict) or test(backtest_runs_lifecycle_and_restart_durability) or test(shutdown_persists_cancelled_state_before_joining_workers) or test(production_sync_read_projects_persisted_task) or test(reap_finished_removes_completed_join_handles) or test(sync_request_session_scope_parity_with_go) or test(backtest_start_resolves_market_dates_with_dst) or test(parent_bracket_runs_atomically_with_stop_first_protection) or test(canceling_parent_order_cancels_all_protective_children) or test(reduce_only_order_without_position_is_canceled) or test(explicit_cancel_orders_and_unmatched_target_handling) or test(sell_market_order_applies_downward_slippage) or test(cancel_skips_unmatched_pending_orders_without_side_effects) or test(provided_fee_rules_apply_and_empty_rules_charge_nothing) or test(aggregate_reads_use_only_the_requested_session_scope) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(test_tc_d4_04_extended_session_pre_market_does_not_pollute_regular_open) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(missing_symbol_table_reports_storage_error_then_recovers_after_insert)"
         ],
         "testFilter": [
           "provided_fee_rules_apply_and_empty_rules_charge_nothing"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "b9b2b48870a813e5f6411439bef617195b866b0e",
+        "verifiedAt": "2026-09-25T14:10:34Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -123178,20 +123180,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(test_historical_k_line_syncer_rejects_broken_pagination) or test(production_futu_sync_uses_opend_reader_and_persists_candles) or test(reap_finished_marks_nonterminal_worker_failed) or test(test_start_script_rejects_blank_research_script) or test(test_result_view_contract_alignment_and_edge_cases) or test(production_backtest_start_without_worker_fails_before_persisting_run) or test(definition_resolution_rejects_missing_definition_and_version_conflict) or test(backtest_runs_lifecycle_and_restart_durability) or test(shutdown_persists_cancelled_state_before_joining_workers) or test(production_sync_read_projects_persisted_task) or test(reap_finished_removes_completed_join_handles) or test(sync_request_session_scope_parity_with_go) or test(backtest_start_resolves_market_dates_with_dst) or test(parent_bracket_runs_atomically_with_stop_first_protection) or test(canceling_parent_order_cancels_all_protective_children) or test(reduce_only_order_without_position_is_canceled) or test(explicit_cancel_orders_and_unmatched_target_handling) or test(sell_market_order_applies_downward_slippage) or test(cancel_skips_unmatched_pending_orders_without_side_effects) or test(provided_fee_rules_apply_and_empty_rules_charge_nothing) or test(aggregate_reads_use_only_the_requested_session_scope) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(test_tc_d4_04_extended_session_pre_market_does_not_pollute_regular_open) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(missing_symbol_table_reports_storage_error_then_recovers_after_insert)"
         ],
         "testFilter": [
           "aggregate_reads_use_only_the_requested_session_scope"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "b9b2b48870a813e5f6411439bef617195b866b0e",
+        "verifiedAt": "2026-09-25T14:10:34Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -123240,20 +123242,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(test_historical_k_line_syncer_rejects_broken_pagination) or test(production_futu_sync_uses_opend_reader_and_persists_candles) or test(reap_finished_marks_nonterminal_worker_failed) or test(test_start_script_rejects_blank_research_script) or test(test_result_view_contract_alignment_and_edge_cases) or test(production_backtest_start_without_worker_fails_before_persisting_run) or test(definition_resolution_rejects_missing_definition_and_version_conflict) or test(backtest_runs_lifecycle_and_restart_durability) or test(shutdown_persists_cancelled_state_before_joining_workers) or test(production_sync_read_projects_persisted_task) or test(reap_finished_removes_completed_join_handles) or test(sync_request_session_scope_parity_with_go) or test(backtest_start_resolves_market_dates_with_dst) or test(parent_bracket_runs_atomically_with_stop_first_protection) or test(canceling_parent_order_cancels_all_protective_children) or test(reduce_only_order_without_position_is_canceled) or test(explicit_cancel_orders_and_unmatched_target_handling) or test(sell_market_order_applies_downward_slippage) or test(cancel_skips_unmatched_pending_orders_without_side_effects) or test(provided_fee_rules_apply_and_empty_rules_charge_nothing) or test(aggregate_reads_use_only_the_requested_session_scope) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(test_tc_d4_04_extended_session_pre_market_does_not_pollute_regular_open) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(missing_symbol_table_reports_storage_error_then_recovers_after_insert)"
         ],
         "testFilter": [
           "regular_and_extended_session_tables_keep_direct_reads_isolated"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "b9b2b48870a813e5f6411439bef617195b866b0e",
+        "verifiedAt": "2026-09-25T14:10:34Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -123302,20 +123304,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(test_historical_k_line_syncer_rejects_broken_pagination) or test(production_futu_sync_uses_opend_reader_and_persists_candles) or test(reap_finished_marks_nonterminal_worker_failed) or test(test_start_script_rejects_blank_research_script) or test(test_result_view_contract_alignment_and_edge_cases) or test(production_backtest_start_without_worker_fails_before_persisting_run) or test(definition_resolution_rejects_missing_definition_and_version_conflict) or test(backtest_runs_lifecycle_and_restart_durability) or test(shutdown_persists_cancelled_state_before_joining_workers) or test(production_sync_read_projects_persisted_task) or test(reap_finished_removes_completed_join_handles) or test(sync_request_session_scope_parity_with_go) or test(backtest_start_resolves_market_dates_with_dst) or test(parent_bracket_runs_atomically_with_stop_first_protection) or test(canceling_parent_order_cancels_all_protective_children) or test(reduce_only_order_without_position_is_canceled) or test(explicit_cancel_orders_and_unmatched_target_handling) or test(sell_market_order_applies_downward_slippage) or test(cancel_skips_unmatched_pending_orders_without_side_effects) or test(provided_fee_rules_apply_and_empty_rules_charge_nothing) or test(aggregate_reads_use_only_the_requested_session_scope) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(test_tc_d4_04_extended_session_pre_market_does_not_pollute_regular_open) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(missing_symbol_table_reports_storage_error_then_recovers_after_insert)"
         ],
         "testFilter": [
           "regular_and_extended_session_tables_keep_direct_reads_isolated"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "b9b2b48870a813e5f6411439bef617195b866b0e",
+        "verifiedAt": "2026-09-25T14:10:34Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -123364,20 +123366,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(test_historical_k_line_syncer_rejects_broken_pagination) or test(production_futu_sync_uses_opend_reader_and_persists_candles) or test(reap_finished_marks_nonterminal_worker_failed) or test(test_start_script_rejects_blank_research_script) or test(test_result_view_contract_alignment_and_edge_cases) or test(production_backtest_start_without_worker_fails_before_persisting_run) or test(definition_resolution_rejects_missing_definition_and_version_conflict) or test(backtest_runs_lifecycle_and_restart_durability) or test(shutdown_persists_cancelled_state_before_joining_workers) or test(production_sync_read_projects_persisted_task) or test(reap_finished_removes_completed_join_handles) or test(sync_request_session_scope_parity_with_go) or test(backtest_start_resolves_market_dates_with_dst) or test(parent_bracket_runs_atomically_with_stop_first_protection) or test(canceling_parent_order_cancels_all_protective_children) or test(reduce_only_order_without_position_is_canceled) or test(explicit_cancel_orders_and_unmatched_target_handling) or test(sell_market_order_applies_downward_slippage) or test(cancel_skips_unmatched_pending_orders_without_side_effects) or test(provided_fee_rules_apply_and_empty_rules_charge_nothing) or test(aggregate_reads_use_only_the_requested_session_scope) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(test_tc_d4_04_extended_session_pre_market_does_not_pollute_regular_open) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(missing_symbol_table_reports_storage_error_then_recovers_after_insert)"
         ],
         "testFilter": [
           "test_tc_d4_04_extended_session_pre_market_does_not_pollute_regular_open"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "b9b2b48870a813e5f6411439bef617195b866b0e",
+        "verifiedAt": "2026-09-25T14:10:34Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -123426,20 +123428,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(test_historical_k_line_syncer_rejects_broken_pagination) or test(production_futu_sync_uses_opend_reader_and_persists_candles) or test(reap_finished_marks_nonterminal_worker_failed) or test(test_start_script_rejects_blank_research_script) or test(test_result_view_contract_alignment_and_edge_cases) or test(production_backtest_start_without_worker_fails_before_persisting_run) or test(definition_resolution_rejects_missing_definition_and_version_conflict) or test(backtest_runs_lifecycle_and_restart_durability) or test(shutdown_persists_cancelled_state_before_joining_workers) or test(production_sync_read_projects_persisted_task) or test(reap_finished_removes_completed_join_handles) or test(sync_request_session_scope_parity_with_go) or test(backtest_start_resolves_market_dates_with_dst) or test(parent_bracket_runs_atomically_with_stop_first_protection) or test(canceling_parent_order_cancels_all_protective_children) or test(reduce_only_order_without_position_is_canceled) or test(explicit_cancel_orders_and_unmatched_target_handling) or test(sell_market_order_applies_downward_slippage) or test(cancel_skips_unmatched_pending_orders_without_side_effects) or test(provided_fee_rules_apply_and_empty_rules_charge_nothing) or test(aggregate_reads_use_only_the_requested_session_scope) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(test_tc_d4_04_extended_session_pre_market_does_not_pollute_regular_open) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(missing_symbol_table_reports_storage_error_then_recovers_after_insert)"
         ],
         "testFilter": [
           "direct_interval_rows_win_and_paging_is_deterministic"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "b9b2b48870a813e5f6411439bef617195b866b0e",
+        "verifiedAt": "2026-09-25T14:10:34Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -123488,20 +123490,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(test_historical_k_line_syncer_rejects_broken_pagination) or test(production_futu_sync_uses_opend_reader_and_persists_candles) or test(reap_finished_marks_nonterminal_worker_failed) or test(test_start_script_rejects_blank_research_script) or test(test_result_view_contract_alignment_and_edge_cases) or test(production_backtest_start_without_worker_fails_before_persisting_run) or test(definition_resolution_rejects_missing_definition_and_version_conflict) or test(backtest_runs_lifecycle_and_restart_durability) or test(shutdown_persists_cancelled_state_before_joining_workers) or test(production_sync_read_projects_persisted_task) or test(reap_finished_removes_completed_join_handles) or test(sync_request_session_scope_parity_with_go) or test(backtest_start_resolves_market_dates_with_dst) or test(parent_bracket_runs_atomically_with_stop_first_protection) or test(canceling_parent_order_cancels_all_protective_children) or test(reduce_only_order_without_position_is_canceled) or test(explicit_cancel_orders_and_unmatched_target_handling) or test(sell_market_order_applies_downward_slippage) or test(cancel_skips_unmatched_pending_orders_without_side_effects) or test(provided_fee_rules_apply_and_empty_rules_charge_nothing) or test(aggregate_reads_use_only_the_requested_session_scope) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(test_tc_d4_04_extended_session_pre_market_does_not_pollute_regular_open) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(missing_symbol_table_reports_storage_error_then_recovers_after_insert)"
         ],
         "testFilter": [
           "test_tc_d4_04_extended_session_pre_market_does_not_pollute_regular_open"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "b9b2b48870a813e5f6411439bef617195b866b0e",
+        "verifiedAt": "2026-09-25T14:10:34Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -123550,20 +123552,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(test_historical_k_line_syncer_rejects_broken_pagination) or test(production_futu_sync_uses_opend_reader_and_persists_candles) or test(reap_finished_marks_nonterminal_worker_failed) or test(test_start_script_rejects_blank_research_script) or test(test_result_view_contract_alignment_and_edge_cases) or test(production_backtest_start_without_worker_fails_before_persisting_run) or test(definition_resolution_rejects_missing_definition_and_version_conflict) or test(backtest_runs_lifecycle_and_restart_durability) or test(shutdown_persists_cancelled_state_before_joining_workers) or test(production_sync_read_projects_persisted_task) or test(reap_finished_removes_completed_join_handles) or test(sync_request_session_scope_parity_with_go) or test(backtest_start_resolves_market_dates_with_dst) or test(parent_bracket_runs_atomically_with_stop_first_protection) or test(canceling_parent_order_cancels_all_protective_children) or test(reduce_only_order_without_position_is_canceled) or test(explicit_cancel_orders_and_unmatched_target_handling) or test(sell_market_order_applies_downward_slippage) or test(cancel_skips_unmatched_pending_orders_without_side_effects) or test(provided_fee_rules_apply_and_empty_rules_charge_nothing) or test(aggregate_reads_use_only_the_requested_session_scope) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(test_tc_d4_04_extended_session_pre_market_does_not_pollute_regular_open) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(missing_symbol_table_reports_storage_error_then_recovers_after_insert)"
         ],
         "testFilter": [
           "aggregate_reads_use_only_the_requested_session_scope"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "b9b2b48870a813e5f6411439bef617195b866b0e",
+        "verifiedAt": "2026-09-25T14:10:34Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -123612,20 +123614,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(test_historical_k_line_syncer_rejects_broken_pagination) or test(production_futu_sync_uses_opend_reader_and_persists_candles) or test(reap_finished_marks_nonterminal_worker_failed) or test(test_start_script_rejects_blank_research_script) or test(test_result_view_contract_alignment_and_edge_cases) or test(production_backtest_start_without_worker_fails_before_persisting_run) or test(definition_resolution_rejects_missing_definition_and_version_conflict) or test(backtest_runs_lifecycle_and_restart_durability) or test(shutdown_persists_cancelled_state_before_joining_workers) or test(production_sync_read_projects_persisted_task) or test(reap_finished_removes_completed_join_handles) or test(sync_request_session_scope_parity_with_go) or test(backtest_start_resolves_market_dates_with_dst) or test(parent_bracket_runs_atomically_with_stop_first_protection) or test(canceling_parent_order_cancels_all_protective_children) or test(reduce_only_order_without_position_is_canceled) or test(explicit_cancel_orders_and_unmatched_target_handling) or test(sell_market_order_applies_downward_slippage) or test(cancel_skips_unmatched_pending_orders_without_side_effects) or test(provided_fee_rules_apply_and_empty_rules_charge_nothing) or test(aggregate_reads_use_only_the_requested_session_scope) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(test_tc_d4_04_extended_session_pre_market_does_not_pollute_regular_open) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(missing_symbol_table_reports_storage_error_then_recovers_after_insert)"
         ],
         "testFilter": [
           "missing_symbol_table_reports_storage_error_then_recovers_after_insert"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "b9b2b48870a813e5f6411439bef617195b866b0e",
+        "verifiedAt": "2026-09-25T14:10:34Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -123674,20 +123676,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(test_historical_k_line_syncer_rejects_broken_pagination) or test(production_futu_sync_uses_opend_reader_and_persists_candles) or test(reap_finished_marks_nonterminal_worker_failed) or test(test_start_script_rejects_blank_research_script) or test(test_result_view_contract_alignment_and_edge_cases) or test(production_backtest_start_without_worker_fails_before_persisting_run) or test(definition_resolution_rejects_missing_definition_and_version_conflict) or test(backtest_runs_lifecycle_and_restart_durability) or test(shutdown_persists_cancelled_state_before_joining_workers) or test(production_sync_read_projects_persisted_task) or test(reap_finished_removes_completed_join_handles) or test(sync_request_session_scope_parity_with_go) or test(backtest_start_resolves_market_dates_with_dst) or test(parent_bracket_runs_atomically_with_stop_first_protection) or test(canceling_parent_order_cancels_all_protective_children) or test(reduce_only_order_without_position_is_canceled) or test(explicit_cancel_orders_and_unmatched_target_handling) or test(sell_market_order_applies_downward_slippage) or test(cancel_skips_unmatched_pending_orders_without_side_effects) or test(provided_fee_rules_apply_and_empty_rules_charge_nothing) or test(aggregate_reads_use_only_the_requested_session_scope) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(test_tc_d4_04_extended_session_pre_market_does_not_pollute_regular_open) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(missing_symbol_table_reports_storage_error_then_recovers_after_insert)"
         ],
         "testFilter": [
           "direct_interval_rows_win_and_paging_is_deterministic"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "b9b2b48870a813e5f6411439bef617195b866b0e",
+        "verifiedAt": "2026-09-25T14:10:34Z",
         "receiptDigest": null
       },
       "risk": "high",
