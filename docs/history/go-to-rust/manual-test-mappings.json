@@ -159803,11 +159803,11 @@
       "boundaryReason": null
     },
     "pkg/futu/opend/market_read_boundaries_test.go:212:TestGetKLReturnsEmptyResultWhenOpenDOmitsS2C": {
-      "status": "[x]",
-      "rust_entry": "crates/jftrade-integration-futu/tests/market_read_boundaries.rs::get_kl_returns_empty_result_when_opend_omits_s2c",
-      "conclusion": "function_exact：socket 级验证 Qot_GetKL retType=0 且缺 S2C 时 reader 返回空结果、不伪造 klines/name，且确实发出 3006 请求；与 new_methods_test.go:768 的纯解码回归分属不同入口，避免审计重复引用。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(get_kl_returns_empty_result_when_opend_omits_s2c)'",
-      "evidence_type": "function_exact",
+      "status": "[~]",
+      "rust_entry": "crates/jftrade-integration-futu/src/kline_query.rs::tests::get_kl_missing_s2c_returns_an_empty_result",
+      "conclusion": "partial：Go 的空 S2C current-KL 断言由 Rust kline_query::tests::get_kl_missing_s2c_returns_an_empty_result 覆盖；该测试与既有 Go new_methods_test.go:768 共用同一 Rust owner，因此不能把两个 Go 行引用升级为两个 exact 映射，保持 partial 以避免重复 exact。",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(get_kl_missing_s2c_returns_an_empty_result)'",
+      "evidence_type": "partial",
       "source": {
         "file": "pkg/futu/opend/market_read_boundaries_test.go",
         "line": 212,
@@ -159816,20 +159816,15 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-integration-futu/tests/market_read_boundaries.rs",
-          "test": "get_kl_returns_empty_result_when_opend_omits_s2c",
+          "file": "crates/jftrade-integration-futu/src/kline_query.rs",
+          "test": "get_kl_missing_s2c_returns_an_empty_result",
           "crate": "jftrade-integration-futu",
-          "anchor": {
-            "goFile": "pkg/futu/opend/market_read_boundaries_test.go",
-            "goLine": 212,
-            "rustFile": "crates/jftrade-integration-futu/tests/market_read_boundaries.rs",
-            "rustLine": 812
-          }
+          "anchor": null
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "function_exact：socket 级验证 Qot_GetKL retType=0 且缺 S2C 时 reader 返回空结果、不伪造 klines/name，且确实发出 3006 请求；与 new_methods_test.go:768 的纯解码回归分属不同入口，避免审计重复引用。"
+          "partial：Go 的空 S2C current-KL 断言由 Rust kline_query::tests::get_kl_missing_s2c_returns_an_empty_result 覆盖；该测试与既有 Go new_methods_test.go:768 共用同一 Rust owner，因此不能把两个 Go 行引用升级为两个 exact 映射，保持 partial 以避免重复 exact。"
         ],
         "uncovered": [],
         "source": "legacy-conclusion"
@@ -159841,11 +159836,13 @@
           "run",
           "-p",
           "jftrade-integration-futu",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(get_kl_returns_empty_result_when_opend_omits_s2c)"
+          "test(get_kl_missing_s2c_returns_an_empty_result)"
         ],
         "testFilter": [
-          "get_kl_returns_empty_result_when_opend_omits_s2c"
+          "get_kl_missing_s2c_returns_an_empty_result"
         ],
         "runnerVersion": null,
         "toolchain": null,
@@ -159864,7 +159861,7 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "function_exact：socket 级验证 Qot_GetKL retType=0 且缺 S2C 时 reader 返回空结果、不伪造 klines/name，且确实发出 3006 请求；与 new_methods_test.go:768 的纯解码回归分属不同入口，避免审计重复引用。"
+        "partial：Go 的空 S2C current-KL 断言由 Rust kline_query::tests::get_kl_missing_s2c_returns_an_empty_result 覆盖；该测试与既有 Go new_methods_test.go:768 共用同一 Rust owner，因此不能把两个 Go 行引用升级为两个 exact 映射，保持 partial 以避免重复 exact。"
       ],
       "uncoveredAssertions": [],
       "boundaryReason": null
@@ -304930,14 +304927,6 @@
       "allowed": true,
       "reviewStatus": "single"
     },
-    "crates/jftrade-integration-futu/src/kline_query.rs::get_kl_missing_s2c_returns_an_empty_result": {
-      "referenceCount": 1,
-      "referenceKeys": [
-        "pkg/futu/opend/new_methods_test.go:768:TestGetKLNullS2C"
-      ],
-      "allowed": true,
-      "reviewStatus": "single"
-    },
     "crates/jftrade-integration-futu/src/kline_query.rs::period_to_kl_type_matches_go_interval_aliases": {
       "referenceCount": 3,
       "referenceKeys": [
@@ -307248,14 +307237,6 @@
       ],
       "allowed": false,
       "reviewStatus": "unreviewed"
-    },
-    "crates/jftrade-integration-futu/tests/market_read_boundaries.rs::get_kl_returns_empty_result_when_opend_omits_s2c": {
-      "referenceCount": 1,
-      "referenceKeys": [
-        "pkg/futu/opend/market_read_boundaries_test.go:212:TestGetKLReturnsEmptyResultWhenOpenDOmitsS2C"
-      ],
-      "allowed": true,
-      "reviewStatus": "single"
     },
     "crates/jftrade-integration-futu/tests/market_read_boundaries.rs::history_optional_fields_round_trip_and_missing_s2c_is_an_empty_result": {
       "referenceCount": 1,
@@ -312324,6 +312305,15 @@
       ],
       "allowed": true,
       "reviewStatus": "single"
+    },
+    "crates/jftrade-integration-futu/src/kline_query.rs::get_kl_missing_s2c_returns_an_empty_result": {
+      "referenceCount": 2,
+      "referenceKeys": [
+        "pkg/futu/opend/new_methods_test.go:768:TestGetKLNullS2C",
+        "pkg/futu/opend/market_read_boundaries_test.go:212:TestGetKLReturnsEmptyResultWhenOpenDOmitsS2C"
+      ],
+      "allowed": true,
+      "reviewStatus": "reviewed"
     }
   }
 }

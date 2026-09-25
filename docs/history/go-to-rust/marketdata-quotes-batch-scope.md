@@ -691,6 +691,22 @@ ADK/Assistant 功能差异，先补失败回归测试再修改领域 owner。
 
 下一片：继续 P1 的 MarketData/Quote provider forwarding 与 runtime boundary 映射。
 
+## 第 148 批：Futu/OpenD connection recovery、market/trading reads 与 user security（2026-09-25）
+
+| 复核 | Go 测试范围 | Rust 证据 | P | 结论 |
+| :---: | --- | --- | :---: | --- |
+| [x] | `pkg/futu/client_exchange_recovery_boundaries_test.go:19,56,107,198,249,260,282` | recoverable replay policy、closed session replacement、notification/reconnect fencing、trade push account normalization、minimum-version and typed transport failures | P1 | exact/partial：replay-safe/read-only policy、reconnect fencing、version and typed failure paths are covered; Go factory environment fallback and callback binding remain partial. |
+| [x] | `pkg/futu/opend/market_read_boundaries_test.go:21,77,129,192,212,232,284` | quote/history request encoding, business errors, empty ACK projections, disconnected guards and malformed push filtering | P1 | exact/partial：optional wire fields, OpenD error details, empty collection/result normalization, closed-session rejection and push filtering pass; line 212 shares the existing kline query test and stays partial to avoid duplicate exact evidence. |
+| [x] | `pkg/futu/opend/trading_error_boundaries_test.go:26,102,138`; `trading_methods_test.go:64,83,182,244,334` | trade read errors/closed guards, history filters, authenticated order writes, account push request/rejection | P1 | exact：trade read/write prerequisites, history filters, account push decoding and typed business errors are asserted. `ModifyOrder` error aggregation remains partial where Rust splits protocol and fill validation. |
+| [x] | `pkg/futu/opend/trading_write_boundaries_test.go:17,58,82`; `user_security_test.go:15,51,93,103` | trade write guards/rejection/empty result and user-security group/member protocol tests | P1 | exact：write prerequisites, business rejection, stable empty results, group/member encoding, input validation and empty payloads are covered. |
+
+本批 30 条 Go 映射对应 Rust 精准 nextest 32/32 通过；没有发现需要先红后修的 Rust 生产差异。旧 BBGO factory/env、callback binding、current-KL duplicate evidence 与 Rust typed error 拆分继续保持 partial，不把聚合测试提升为 exact。
+
+验证：
+`node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(recoverable_error_policy_gates_replay_safe_reads) or test(recoverable_errors_match_go_is_recoverable_opend_err) or test(closed_ready_session_is_replaced_on_peer_close) or test(reconnect_completes_while_a_notification_listener_reads_coordinator_state) or test(trade_push_subscription_forwards_the_requested_accounts) or test(below_minimum_version_fails_session_initialization) or test(init_response_and_session_transport_failures_stay_typed) or test(trade_push_subscription_failure_surfaces_a_transport_error) or test(quote_subscribe_encodes_advanced_market_data_options_on_the_wire) or test(history_optional_fields_round_trip_and_missing_s2c_is_an_empty_result) or test(market_read_business_errors_keep_opend_return_details) or test(security_info_methods_return_empty_collections_for_a_payload_less_ack) or test(get_kl_missing_s2c_returns_an_empty_result) or test(market_read_methods_reject_a_disconnected_session) or test(stale_or_malformed_push_updates_never_reach_the_lifecycle) or test(trading_reads_propagate_opend_business_errors) or test(trading_reads_reject_a_disconnected_session) or test(history_trading_reads_return_stable_empty_collections) or test(place_order_requires_an_authenticated_conn_id) or test(place_order_encodes_packet_conn_id_and_projects_server_order_identity) or test(modify_order_encodes_packet_conn_id_and_returns_server_identity) or test(fill_validation_rejects_missing_identity_and_bad_time) or test(history_order_call_uses_history_protocol_and_forwards_filters) or test(subscribe_trade_accounts_forwards_every_account_id) or test(subscribe_trade_accounts_propagates_opend_rejection) or test(trade_write_methods_enforce_prerequisites_and_disconnected_state) or test(place_order_propagates_opend_business_rejection) or test(modify_order_returns_stable_identity_for_an_empty_success_payload) or test(groups_encode_group_type_all_and_project_custom_and_system) or test(members_encode_a_trimmed_group_name_and_project_static_info) or test(a_blank_group_name_is_rejected_before_any_rpc) or test(a_rejected_group_query_surfaces_the_opend_message)'`
+
+下一片：继续 P1 的 Futu/OpenD protocol、trading/broker 与 API transport 映射。
+
 ## 第 145 批：ProductFeatures market-data facade 与 Settings provider rollback（2026-09-25）
 
 | 复核 | Go 测试范围 | Rust 证据 | P | 结论 |
