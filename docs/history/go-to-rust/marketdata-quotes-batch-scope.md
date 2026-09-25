@@ -1528,3 +1528,19 @@ ADK/Assistant 功能差异，先补失败回归测试再修改领域 owner。
 验证：`node scripts/quality/cargo-nextest.mjs run --all-targets --locked -E` 动态生成本批 41 个过滤器，46/46 通过。
 
 下一片：继续 P2 Broker/API transport、MarketData/Quote、Storage/SQLite、Settings/Watchlist 与 Strategy/Pine；`optional_bool_strict` helper、P1 `session_context_snapshot` 及其他无独立 Rust 测试条目仍保持未验证结论。
+
+## 第 194 批：Broker read/API contracts、OpenAPI、frontend fallback 与插件（2026-09-26）
+
+| 复核 | Go 测试范围 | Rust 证据 | P | 结论 |
+| :---: | --- | --- | :---: | --- |
+| [x] | `broker_read_test.go:72`; `broker_routes_test.go:61`; `contract_test.go:13,90,123,165,205,240` | broker analytics/funds/positions projections, runtime descriptor, system/settings/market/strategy/backtest contract fixtures | P2 | partial：Rust trade/read ports、runtime descriptor 与 route fixture 有 owner 测试；Go server facade 与 exchange-backed test server 组合保持 partial，未把 fixture 聚合升级为 exact。 |
+| [x] | `exec_validate_test.go:18,153,211`; `execution_routes_test.go:53,110,155` | US price tick/market-code normalization, Futu security parsing/order identity, request/upstream error separation, order scope/environment defaults and reconciliation worker shutdown | P2 | partial：执行校验、Futu wire、read scope、settings default 与 reconciliation owner 测试逐项通过；HTTP handler 与 broker fixture 注入形状保持 partial。 |
+| [x] | `frontend_test.go:96,137,157,246`; `market_depth_routes_test.go:31,54,72,92` | SPA fallback/static asset guards, runtime resource derivation, UI settings/API bind, logical subscription leases and exact route method/path resolution | P2 | partial/boundary：Rust API router、resource owner、settings-file lease 与 market-data read guards 覆盖行为；Wails/desktop proxy helper 和 server startup 组合仍为边界。 |
+| [x] | `market_profiles_test.go:15,79`; `openapi_schema_compatibility_test.go:14`; `openapi_snapshot_test.go:20,89,136,204` | market precision/session metadata, US/HK/CN instrument normalization, legacy Swagger names, checked-in snapshot, error envelopes, writable request bodies and typed broker runtime response | P2 | partial：Rust catalog/API generated contract tests 与 route schema 已逐项通过；Go Swagger generation facade 与 OpenAPI document source ownership 保持 partial。 |
+| [x] | `plugin_lifecycle_test.go:16` | plugin read fail-closed, artifact atomic/restart safety and uninstall guidance fixture | P2 | partial：plugin port/production artifact owner 测试通过；Go catalog lifecycle 的 store wiring 和 handler aggregation 保持 partial。 |
+
+本批 30 条 Go 映射对应 44 个去重过滤器，Rust nextest **44/44** 通过（3429 skipped）。Broker projections、execution normalization、API/SPA routing、market catalog、OpenAPI schema 与 plugin lifecycle 均有可解析 Rust owner 证据；未发现需要先红后修的真实 Rust 功能差异。Go handler、Wails/desktop、fixture 注入和聚合 contract 均按 `partial`/`boundary` 记录，未凭过滤器数量宣称 exact。
+
+验证：动态生成的 44 个过滤器运行 `node scripts/quality/cargo-nextest.mjs run --all-targets --locked`，44/44 通过。
+
+下一片：继续 P2 API transport、MarketData/Quote、Storage/SQLite、Settings/Watchlist、Backtest/Calendar 与 Strategy/Pine；`optional_bool_strict` helper、P1 `session_context_snapshot` 及其他无独立 Rust 测试条目仍保持未验证结论。
