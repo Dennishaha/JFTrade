@@ -1190,6 +1190,171 @@ fn test_broker_k_line_candles_response_rejects_invalid_provider_rows() {
     assert!(validate_candle_positive_decimal("close", "100.5").is_ok());
 }
 
+/// Parity: go:452dea11:internal/app/apiserver/backtestapp/historical_source_test.go:266 TestHistoricalPageParsingRejectsMalformedProviderValues
+///
+/// The backtest source rejects malformed page envelopes, timestamps, every
+/// OHLC field, negative volume, impossible OHLC bounds, and invalid cursors.
+/// Exercise the typed helper response and the production converter together so
+/// a valid DTO cannot hide a malformed provider value at the persistence edge.
+#[test]
+fn helper_candle_conversion_rejects_malformed_provider_values() {
+    use crate::product::product_candle_converter::{
+        HelperCandleConversionParams, convert_helper_candles_response,
+    };
+    use jftrade_integration_marketdata_helper::{
+        HelperCandle, HelperCandlesResponse, HelperPriceValue,
+    };
+
+    fn candle(
+        at: &str,
+        open: &str,
+        high: &str,
+        low: &str,
+        close: &str,
+        volume: Option<&str>,
+    ) -> HelperCandle {
+        HelperCandle {
+            at: at.to_owned(),
+            open: HelperPriceValue(open.to_owned()),
+            high: HelperPriceValue(high.to_owned()),
+            low: HelperPriceValue(low.to_owned()),
+            close: HelperPriceValue(close.to_owned()),
+            volume: volume.map(|value| HelperPriceValue(value.to_owned())),
+            session: Some("regular".to_owned()),
+        }
+    }
+
+    fn page(
+        candles: Vec<HelperCandle>,
+        has_more: bool,
+        next_before: Option<&str>,
+    ) -> HelperCandlesResponse {
+        HelperCandlesResponse {
+            market: "US".to_owned(),
+            symbol: "AAPL".to_owned(),
+            instrument_id: "US.AAPL".to_owned(),
+            period: "1m".to_owned(),
+            extended_hours: false,
+            total_returned: candles.len(),
+            candles,
+            has_more,
+            next_before: next_before.map(str::to_owned),
+            source: "fixture".to_owned(),
+            adjustment: "none".to_owned(),
+        }
+    }
+
+    fn parse(
+        response: HelperCandlesResponse,
+    ) -> Result<serde_json::Value, crate::product::MarketDataQuoteReadSnapshotError> {
+        convert_helper_candles_response(
+            response,
+            HelperCandleConversionParams {
+                market: "US",
+                symbol: "AAPL",
+                period: "1m",
+                limit: 10,
+                from_time: None,
+                to_time: None,
+                before: None,
+                sessions: &["regular"],
+                is_yfinance: false,
+                is_akshare: false,
+                calendar: None,
+            },
+        )
+    }
+
+    let valid_at = "2026-07-15T14:30:00Z";
+    let malformed = [
+        (
+            "timestamp",
+            page(
+                vec![candle("bad", "1", "2", "1", "2", Some("10"))],
+                false,
+                None,
+            ),
+        ),
+        (
+            "open",
+            page(
+                vec![candle(valid_at, "bad", "2", "1", "2", Some("10"))],
+                false,
+                None,
+            ),
+        ),
+        (
+            "high",
+            page(
+                vec![candle(valid_at, "1", "0", "1", "2", Some("10"))],
+                false,
+                None,
+            ),
+        ),
+        (
+            "low",
+            page(
+                vec![candle(valid_at, "1", "2", "-1", "2", Some("10"))],
+                false,
+                None,
+            ),
+        ),
+        (
+            "close",
+            page(
+                vec![candle(valid_at, "1", "2", "1", "NaN", Some("10"))],
+                false,
+                None,
+            ),
+        ),
+        (
+            "volume",
+            page(
+                vec![candle(valid_at, "1", "2", "1", "2", Some("-1"))],
+                false,
+                None,
+            ),
+        ),
+        (
+            "ohlc bounds",
+            page(
+                vec![candle(valid_at, "2", "1", "1", "2", Some("10"))],
+                false,
+                None,
+            ),
+        ),
+        (
+            "cursor",
+            page(
+                vec![candle(valid_at, "1", "2", "1", "2", Some("10"))],
+                true,
+                Some("bad"),
+            ),
+        ),
+    ];
+    for (name, response) in malformed {
+        assert!(
+            parse(response).is_err(),
+            "malformed {name} must be rejected"
+        );
+    }
+
+    assert!(
+        serde_json::from_value::<HelperCandlesResponse>(serde_json::json!({
+            "market": "US",
+            "symbol": "AAPL",
+            "instrumentId": "US.AAPL",
+            "period": "1m",
+            "candles": "bad",
+            "totalReturned": 1,
+            "hasMore": false,
+            "source": "fixture",
+        }))
+        .is_err(),
+        "a non-array candles field must be rejected before conversion"
+    );
+}
+
 #[tokio::test]
 async fn candle_route_preserves_legacy_query_parsing() {
     // Parity: internal/api/marketdata/routes_test.go:267 TestCandlesRoutePreservesLegacyQueryParsing

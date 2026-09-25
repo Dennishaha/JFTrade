@@ -24761,8 +24761,8 @@
     },
     "internal/app/apiserver/backtestapp/historical_source_test.go:266:TestHistoricalPageParsingRejectsMalformedProviderValues": {
       "status": "[x]",
-      "rust_entry": "crates/jftrade-engine/src/product_production_ports_backtest_sync_helpers.rs::test_historical_candle_conversion_rejects_invalid_fields_and_defaults_volume",
-      "conclusion": "function_exact：Go 表驱动断言 provider 页中各非法字段（价格/时间/成交量）被拒绝。Rust 的 test_historical_candle_conversion_rejects_invalid_fields_and_defaults_volume 断言历史 K 线转换拒绝非法字段并给出默认成交量，覆盖同一解析拒绝边界。",
+      "rust_entry": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::helper_candle_conversion_rejects_malformed_provider_values",
+      "conclusion": "function_exact：Go 表驱动断言 provider 页中 candles envelope、时间戳、价格、成交量和分页 cursor 的非法值被拒绝。Rust 的 helper_candle_conversion_rejects_malformed_provider_values 通过 typed helper DTO 与生产 converter 逐项拒绝同一组 malformed provider values，并额外锁定 OHLC bounds。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
       "evidence_type": "function_exact",
       "source": {
@@ -24773,20 +24773,20 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_production_ports_backtest_sync_helpers.rs",
-          "test": "test_historical_candle_conversion_rejects_invalid_fields_and_defaults_volume",
+          "file": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs",
+          "test": "helper_candle_conversion_rejects_malformed_provider_values",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/app/apiserver/backtestapp/historical_source_test.go",
             "goLine": 266,
-            "rustFile": "crates/jftrade-engine/src/product_production_ports_backtest_sync_helpers.rs",
-            "rustLine": 91
+            "rustFile": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs",
+            "rustLine": 1200
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "function_exact：Go 表驱动断言 provider 页中各非法字段（价格/时间/成交量）被拒绝。Rust 的 test_historical_candle_conversion_rejects_invalid_fields_and_defaults_volume 断言历史 K 线转换拒绝非法字段并给出默认成交量，覆盖同一解析拒绝边界。"
+          "function_exact：Go 表驱动断言 provider 页中 candles envelope、时间戳、价格、成交量和分页 cursor 的非法值被拒绝。Rust 的 helper_candle_conversion_rejects_malformed_provider_values 通过 typed helper DTO 与生产 converter 逐项拒绝同一组 malformed provider values，并额外锁定 OHLC bounds。"
         ],
         "uncovered": [],
         "source": "legacy-conclusion"
@@ -24802,7 +24802,7 @@
           "--locked"
         ],
         "testFilter": [
-          "test_historical_candle_conversion_rejects_invalid_fields_and_defaults_volume"
+          "helper_candle_conversion_rejects_malformed_provider_values"
         ],
         "runnerVersion": null,
         "toolchain": null,
@@ -24821,7 +24821,7 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "function_exact：Go 表驱动断言 provider 页中各非法字段（价格/时间/成交量）被拒绝。Rust 的 test_historical_candle_conversion_rejects_invalid_fields_and_defaults_volume 断言历史 K 线转换拒绝非法字段并给出默认成交量，覆盖同一解析拒绝边界。"
+        "function_exact：Go 表驱动断言 provider 页中 candles envelope、时间戳、价格、成交量和分页 cursor 的非法值被拒绝。Rust 的 helper_candle_conversion_rejects_malformed_provider_values 通过 typed helper DTO 与生产 converter 逐项拒绝同一组 malformed provider values，并额外锁定 OHLC bounds。"
       ],
       "uncoveredAssertions": [],
       "boundaryReason": null

@@ -23,6 +23,17 @@ Parity 函数”当作覆盖完成。
 `jftrade-marketdata` 与 `jftrade-engine` 的 nextest wrapper。后续补测应先补齐
 缺失断言，再将对应条目从 `partial` 升级为 `function_exact`/`[x]`。
 
+## 第 133 批：backtest provider malformed page（2026-09-25）
+
+本批收尾 `internal/app/apiserver/backtestapp/historical_source_test.go:266:TestHistoricalPageParsingRejectsMalformedProviderValues`。旧 Rust helper 测试只构造成功页，不能证明 Go 表驱动的非法 `candles`、时间戳、OHLC、成交量与 cursor 均被拒绝；新增 `jftrade-engine::product::tests::market_data_quote_read_tests::candle_pagination_tests::helper_candle_conversion_rejects_malformed_provider_values`，直接调用生产 `convert_helper_candles_response`，并先通过 typed `HelperCandlesResponse` 拒绝非数组 envelope。
+
+| Go 测试 | Rust 证据 | 结论 |
+| --- | --- | --- |
+| `historical_source_test.go:266:TestHistoricalPageParsingRejectsMalformedProviderValues` | `product_market_data_candle_pagination_tests::helper_candle_conversion_rejects_malformed_provider_values` | `function_exact`：Go 的各非法字段均有逐项失败断言；Rust 还锁定 impossible OHLC bounds。 |
+| `historical_source_test.go:298:TestDecimalStringAcceptsProviderNumericRepresentations` | `product_production_ports_backtest_sync_helpers::test_historical_candle_conversion_rejects_invalid_fields_and_defaults_volume` 与 helper DTO 解析测试 | `partial`：Rust typed JSON 支持字符串/JSON 数字并拒绝非法值，但没有 Go `decimalString` 对 `decimal.Decimal`、`float32`、`int64` 等动态类型的同形逐类型入口。 |
+
+定向验证：`helper_candle_conversion_rejects_malformed_provider_values` 1/1 通过；完整 `check:quick` 与 `check:rust` 必须在本批提交后重跑。下一批继续 `historical_source_test.go:310`，核对固定 Futu、成功后 Close 与四种构造失败，不把空页测试聚合升级为 exact。
+
 ## 第二批：runtime / sidecar / health + Futu candle session 标注
 
 批次范围：`internal/app/apiserver/marketdataapp/` 的 `runtime_test.go`（22）、
