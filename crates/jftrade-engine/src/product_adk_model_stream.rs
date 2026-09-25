@@ -8,7 +8,7 @@ use tokio_stream::StreamExt;
 
 use super::{
     MAX_RESPONSE_BYTES, ModelRequest, ModelResponse, extract_text, extract_tool_calls, model_input,
-    unavailable, upstream_error,
+    set_json_path, unavailable, upstream_error,
 };
 use crate::product::product_adk_chat_stream_port::AdkChatPortError;
 
@@ -39,6 +39,9 @@ where
         let mut body = json!({"model":request.model,"input":input,"stream":true});
         if !request.tools.is_empty() {
             body["tools"] = Value::Array(request.tools.clone());
+        }
+        if let Some((field, value)) = request.reasoning.as_ref() {
+            set_json_path(&mut body, field, Value::String(value.clone()));
         }
         let response = client
             .post(request.endpoint)

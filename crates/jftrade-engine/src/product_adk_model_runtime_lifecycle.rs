@@ -345,14 +345,76 @@ fn validate_work_mode_override(
 /// `high`, `xhigh` or `max`, compared case-insensitively after trimming.
 fn validate_reasoning_effort_override(
     request: &serde_json::Map<String, Value>,
-) -> Result<(), AdkChatPortError> {
+) -> Result<Option<String>, AdkChatPortError> {
     let Some(raw) = text_field(request, "reasoningEffortOverride") else {
-        return Ok(());
+        return Ok(None);
     };
     match raw.trim().to_ascii_lowercase().as_str() {
-        "" | "low" | "medium" | "high" | "xhigh" | "max" => Ok(()),
+        "" => Ok(None),
+        "low" | "medium" | "high" | "xhigh" | "max" => {
+            Ok(Some(raw.trim().to_ascii_lowercase()))
+        }
         _ => Err(chat_failed(format!("invalid reasoning effort {raw:?}"))),
     }
+}
+
+/// Resolve the agent's effective reasoning effort through the provider's
+/// explicit mapping, matching Go's `ResolveProviderReasoning`. Empty effort is
+/// deliberately a no-op; configured efforts must have a validated mapping.
+type ProviderReasoningResolution = (Option<String>, Option<(String, String)>);
+
+fn resolve_provider_reasoning(
+    provider: &Value,
+    raw_effort: Option<&str>,
+) -> Result<ProviderReasoningResolution, AdkChatPortError> {
+    let Some(raw_effort) = raw_effort.map(str::trim).filter(|effort| !effort.is_empty()) else {
+        return Ok((None, None));
+    };
+    let effort = raw_effort.to_ascii_lowercase();
+    if !matches!(effort.as_str(), "low" | "medium" | "high" | "xhigh" | "max") {
+        return Err(chat_failed(format!("invalid reasoning effort {raw_effort:?}")));
+    }
+    // Legacy provider rows created before reasoningConfig existed are allowed
+    // to keep serving chat without silently inventing a mapping. New writes
+    // persist the normalized empty config, which correctly reports an
+    // explicitly requested but unsupported effort below.
+    if provider.get("reasoningConfig").is_none() {
+        return Ok((Some(effort), None));
+    }
+    let mut config = provider
+        .get("reasoningConfig")
+        .cloned()
+        .unwrap_or(Value::Null);
+    crate::product::product_production_ports::product_production_ports_adk::projection::normalize_provider_reasoning_config(&mut config);
+    crate::product::product_production_ports::product_production_ports_adk::projection::validate_provider_reasoning_config(&config)
+        .map_err(chat_failed)?;
+    let field = config
+        .get("requestField")
+        .and_then(Value::as_str)
+        .unwrap_or("reasoning.effort")
+        .to_owned();
+    let value = config
+        .get("mappings")
+        .and_then(Value::as_array)
+        .and_then(|mappings| {
+            mappings.iter().find_map(|mapping| {
+                let mapping_effort = mapping
+                    .get("effort")
+                    .and_then(Value::as_str)
+                    .map(|value| value.trim().to_ascii_lowercase())?;
+                (mapping_effort == effort).then(|| {
+                    mapping
+                        .get("value")
+                        .and_then(Value::as_str)
+                        .unwrap_or_default()
+                        .trim()
+                        .to_owned()
+                })
+            })
+        })
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| chat_failed(format!("provider reasoning unsupported: {effort}")))?;
+    Ok((Some(effort), Some((field, value))))
 }
 
 fn run_cancelled() -> AdkChatPortError {
@@ -477,6 +539,16 @@ impl ProductionAdkChatRuntime {
         // the request by `prepare_chat`, which performs that validation.
         let permission_mode = text_field(request, PERMISSION_MODE_OVERRIDE_FIELD)
             .unwrap_or_else(|| Self::agent_permission_mode(&agent_payload));
+        let requested_effort = text_field(request, "reasoningEffortOverride").or_else(|| {
+            agent_payload
+                .get("reasoningEffort")
+                .and_then(Value::as_str)
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+                .map(str::to_owned)
+        });
+        let (reasoning_effort, reasoning) =
+            resolve_provider_reasoning(value, requested_effort.as_deref())?;
         Ok(ResolvedProvider {
             id: selected.id.clone(),
             name: value
@@ -504,6 +576,8 @@ impl ProductionAdkChatRuntime {
             permission_mode,
             instruction,
             timeout: Duration::from_millis(timeout_ms),
+            reasoning,
+            reasoning_effort,
         })
     }
 

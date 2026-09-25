@@ -287,6 +287,7 @@ fn compacted_context_survives_restart_and_precedes_current_user_message() {
         tool_context: Vec::new(),
         timeout: Duration::from_secs(1),
         tools: Vec::new(),
+        reasoning: None,
     };
 
     let input = model_input(&request);
@@ -555,6 +556,7 @@ fn a_hanging_provider_is_bounded_by_the_request_timeout() {
             tool_context: Vec::new(),
             timeout: Duration::from_millis(150),
             tools: Vec::new(),
+            reasoning: None,
         },
         Arc::new(std::sync::atomic::AtomicBool::new(false)),
     )
@@ -629,6 +631,205 @@ fn spawn_loopback_json_provider(text: &'static str) -> (String, std::thread::Joi
         format!("http://{}:{}/v1/responses", address.ip(), address.port()),
         handle,
     )
+}
+
+/// Parity: go:452dea11:internal/assistant/engine/providers/reasoning_effort_transport_test.go:64
+/// Parity: go:452dea11:internal/assistant/engine/providers/reasoning_effort_transport_test.go:14
+/// TestResponsesCustomReasoningMappingInjectsNestedField.
+///
+/// Provider mappings are written into the nested Responses request path before
+/// transport. The production adapter previously ignored the resolved mapping,
+/// so the loopback endpoint saw no `provider.reasoning.level` field.
+#[test]
+fn responses_request_injects_provider_reasoning_mapping() {
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind reasoning provider");
+    let address = listener.local_addr().expect("reasoning provider address");
+    let (captured_sender, captured_receiver) = std::sync::mpsc::channel();
+    let server = std::thread::spawn(move || {
+        let (mut stream, _) = listener.accept().expect("accept reasoning request");
+        let mut request = Vec::new();
+        let mut chunk = [0_u8; 4096];
+        let mut expected = None;
+        loop {
+            let count = std::io::Read::read(&mut stream, &mut chunk).expect("read reasoning request");
+            if count == 0 {
+                break;
+            }
+            request.extend_from_slice(&chunk[..count]);
+            if expected.is_none()
+                && let Some(headers_end) = request.windows(4).position(|window| window == b"\r\n\r\n")
+            {
+                let headers_end = headers_end + 4;
+                let headers = String::from_utf8_lossy(&request[..headers_end]).to_ascii_lowercase();
+                let length = headers
+                    .lines()
+                    .find_map(|line| line.strip_prefix("content-length:"))
+                    .and_then(|value| value.trim().parse::<usize>().ok())
+                    .unwrap_or_default();
+                expected = Some(headers_end + length);
+            }
+            if expected.is_some_and(|length| request.len() >= length) {
+                break;
+            }
+        }
+        let headers_end = request
+            .windows(4)
+            .position(|window| window == b"\r\n\r\n")
+            .map(|index| index + 4)
+            .expect("reasoning request headers");
+        let body: Value = serde_json::from_slice(&request[headers_end..]).expect("reasoning body");
+        captured_sender.send(body).expect("send captured reasoning body");
+        let response = b"{\"output_text\":\"ok\"}";
+        let header = format!(
+            "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+            response.len()
+        );
+        std::io::Write::write_all(&mut stream, header.as_bytes()).expect("write reasoning headers");
+        std::io::Write::write_all(&mut stream, response).expect("write reasoning response");
+    });
+
+    let result = execute_model(
+        ModelRequest {
+            endpoint: Url::parse(&format!("http://{}:{}/v1/responses", address.ip(), address.port()))
+                .expect("reasoning endpoint"),
+            api_key: "sk-fixture".to_owned(),
+            model: "fixture-model".to_owned(),
+            instruction: None,
+            message: "hello".to_owned(),
+            durable_context: Vec::new(),
+            tool_context: Vec::new(),
+            timeout: Duration::from_secs(2),
+            tools: Vec::new(),
+            reasoning: Some((
+                "provider.reasoning.level".to_owned(),
+                "BALANCED".to_owned(),
+            )),
+        },
+        Arc::new(AtomicBool::new(false)),
+    )
+    .expect("reasoning request succeeds");
+    assert_eq!(result.text, "ok");
+    let body = captured_receiver.recv().expect("captured request body");
+    assert_eq!(body.pointer("/provider/reasoning/level"), Some(&json!("BALANCED")));
+    server.join().expect("join reasoning provider");
+}
+
+/// Parity: go:452dea11:internal/assistant/model/provider_reasoning_config_test.go:8
+/// Parity: go:452dea11:internal/assistant/model/provider_reasoning_config_test.go:27
+/// Parity: go:452dea11:internal/assistant/model/provider_reasoning_config_test.go:65
+/// TestOptionalReasoningEffortRejectsDefault.
+#[test]
+fn provider_reasoning_resolution_matches_mapping_and_unsupported_effort_contract() {
+    let provider = json!({
+        "reasoningConfig": {
+            "requestField": "provider.reasoning.level",
+            "mappings": [
+                {"effort": " high ", "value": " BALANCED "},
+                {"effort": "low", "value": "FAST"}
+            ]
+        }
+    });
+    let (effort, resolved) =
+        resolve_provider_reasoning(&provider, Some(" HIGH ")).expect("custom mapping");
+    assert_eq!(effort.as_deref(), Some("high"));
+    assert_eq!(
+        resolved,
+        Some((
+            "provider.reasoning.level".to_owned(),
+            "BALANCED".to_owned()
+        ))
+    );
+
+    let empty = json!({"reasoningConfig": {"requestField": "reasoning.effort", "mappings": []}});
+    let error = resolve_provider_reasoning(&empty, Some("high")).expect_err("unsupported effort");
+    assert!(format_adk_error(&error).contains("unsupported"));
+    assert_eq!(resolve_provider_reasoning(&provider, None).expect("blank effort"), (None, None));
+    assert!(resolve_provider_reasoning(&provider, Some("default")).is_err());
+}
+
+#[test]
+fn resolve_provider_freezes_agent_reasoning_mapping_and_request_override() {
+    let (directory, store, session_store) = initialized_stores();
+    let secrets = directory.path().join("secrets");
+    std::fs::create_dir_all(&secrets).expect("create secrets directory");
+    std::fs::write(
+        secrets.join("adk-secrets.json"),
+        r#"{"provider-reasoning-fixture":"sk-fixture"}"#,
+    )
+    .expect("write provider secret");
+    let settings_path = directory.path().join("settings.json");
+    std::fs::write(&settings_path, "{}").expect("write settings");
+    store
+        .upsert_provider(
+            "provider-reasoning-fixture",
+            &json!({
+                "displayName": "Reasoning fixture",
+                "baseUrl": "https://reasoning.example/v1",
+                "model": "fixture-model",
+                "enabled": true,
+                "reasoningConfig": {
+                    "requestField": "provider.reasoning.level",
+                    "mappings": [
+                        {"effort": "low", "value": "FAST"},
+                        {"effort": "high", "value": "BALANCED"}
+                    ]
+                }
+            })
+            .to_string(),
+        )
+        .expect("persist provider");
+    store
+        .upsert_agent(
+            "agent-reasoning-fixture",
+            &json!({
+                "id": "agent-reasoning-fixture",
+                "providerId": "provider-reasoning-fixture",
+                "reasoningEffort": "high",
+                "status": "ENABLED"
+            })
+            .to_string(),
+        )
+        .expect("persist agent");
+    let runtime = ProductionAdkChatRuntime::new(
+        store,
+        session_store,
+        &settings_path,
+        Arc::new(RunCancellationRegistry::default()),
+        Arc::new(crate::product::product_production_ports::ProductionToolCatalog::empty_for_test()),
+    );
+    let request = serde_json::Map::from_iter([(
+        "agentId".to_owned(),
+        Value::String("agent-reasoning-fixture".to_owned()),
+    )]);
+    let resolved = runtime.resolve_provider(&request).expect("resolve agent mapping");
+    assert_eq!(resolved.reasoning_effort.as_deref(), Some("high"));
+    assert_eq!(
+        resolved.reasoning,
+        Some((
+            "provider.reasoning.level".to_owned(),
+            "BALANCED".to_owned()
+        ))
+    );
+
+    let override_request = serde_json::Map::from_iter([
+        (
+            "agentId".to_owned(),
+            Value::String("agent-reasoning-fixture".to_owned()),
+        ),
+        (
+            "reasoningEffortOverride".to_owned(),
+            Value::String("low".to_owned()),
+        ),
+    ]);
+    let overridden = runtime
+        .resolve_provider(&override_request)
+        .expect("resolve request override");
+    assert_eq!(overridden.reasoning_effort.as_deref(), Some("low"));
+    assert_eq!(
+        overridden.reasoning,
+        Some(("provider.reasoning.level".to_owned(), "FAST".to_owned()))
+    );
+    runtime.shutdown();
 }
 
 /// Parity: go:452dea11:internal/assistant/engine/store_ops_test.go:621

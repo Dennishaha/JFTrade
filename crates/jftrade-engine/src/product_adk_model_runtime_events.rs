@@ -158,7 +158,7 @@ impl ProductionAdkChatRuntime {
         // not resolve.  The message strings are the reference wording.
         let permission_override = validate_permission_mode_override(object)?;
         validate_work_mode_override(object)?;
-        validate_reasoning_effort_override(object)?;
+        let reasoning_override = validate_reasoning_effort_override(object)?;
         let fingerprint = fingerprint(&input.body);
         if let Some(existing) = self
             .store
@@ -183,6 +183,14 @@ impl ProductionAdkChatRuntime {
             );
         } else {
             request_object.remove(PERMISSION_MODE_OVERRIDE_FIELD);
+        }
+        if let Some(reasoning_override) = reasoning_override {
+            request_object.insert(
+                "reasoningEffortOverride".to_owned(),
+                Value::String(reasoning_override),
+            );
+        } else {
+            request_object.remove("reasoningEffortOverride");
         }
         let provider = self.resolve_provider(&request_object)?;
         let agent_id = provider.agent_id.clone();
@@ -293,6 +301,17 @@ impl ProductionAdkChatRuntime {
             "providerName": provider.name.clone(),
             "model": model.clone(),
             "permissionMode": provider.permission_mode.clone(),
+            "reasoningEffort": provider.reasoning_effort.clone().unwrap_or_default(),
+            "reasoningEffortField": provider
+                .reasoning
+                .as_ref()
+                .map(|(field, _)| field.clone())
+                .unwrap_or_default(),
+            "reasoningEffortValue": provider
+                .reasoning
+                .as_ref()
+                .map(|(_, value)| value.clone())
+                .unwrap_or_default(),
             "route": match route { AdkChatRoute::Chat => "chat", AdkChatRoute::Stream => "stream" },
             "toolResults": [],
         });
@@ -376,6 +395,7 @@ impl ProductionAdkChatRuntime {
                     tool_context: Vec::new(),
                     timeout: provider.timeout,
                     tools,
+                    reasoning: provider.reasoning.clone(),
                 },
             },
             run_lease,

@@ -130,6 +130,39 @@ fn validate_agent_provider(
             "provider API keys is not configured",
         ));
     }
+    if let Some(effort) = payload
+        .get("reasoningEffort")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
+        let mut normalized_provider = stored.clone();
+        super::super::projection::normalize_provider_reasoning_config(&mut normalized_provider);
+        let config = normalized_provider
+            .get("reasoningConfig")
+            .unwrap_or(&Value::Null);
+        super::super::projection::validate_provider_reasoning_config(config)
+            .map_err(|error| invalid_mutation_input(&error))?;
+        let normalized_effort = effort.to_ascii_lowercase();
+        let supported = config
+            .get("mappings")
+            .and_then(Value::as_array)
+            .is_some_and(|mappings| {
+                mappings.iter().any(|mapping| {
+                    mapping
+                        .get("effort")
+                        .and_then(Value::as_str)
+                        .is_some_and(|candidate| {
+                            candidate.trim().eq_ignore_ascii_case(&normalized_effort)
+                        })
+                })
+            });
+        if !supported {
+            return Err(invalid_mutation_input(&format!(
+                "provider does not support reasoning effort: {normalized_effort}"
+            )));
+        }
+    }
     Ok(())
 }
 

@@ -28,7 +28,7 @@ mod mcp;
 #[path = "product_production_ports_adk_mutation.rs"]
 pub(crate) mod mutation;
 #[path = "product_production_ports_adk_projection.rs"]
-mod projection;
+pub(crate) mod projection;
 #[path = "product_production_ports_adk_support.rs"]
 mod support;
 

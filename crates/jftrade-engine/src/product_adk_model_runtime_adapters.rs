@@ -130,6 +130,8 @@ struct ResolvedProvider {
     permission_mode: String,
     instruction: Option<String>,
     timeout: Duration,
+    reasoning: Option<(String, String)>,
+    reasoning_effort: Option<String>,
 }
 
 fn parse_agent_payload(raw: &str) -> Result<Value, AdkChatPortError> {
@@ -313,6 +315,9 @@ struct ModelRequest {
     tool_context: Vec<Value>,
     timeout: Duration,
     tools: Vec<Value>,
+    /// Provider-specific Responses JSON field and value resolved from the
+    /// agent's reasoning effort.  Empty effort leaves the request untouched.
+    reasoning: Option<(String, String)>,
 }
 
 /// Build a Responses API input in conversation order. System instructions
@@ -386,6 +391,9 @@ fn execute_model(
         if !request.tools.is_empty() {
             body["tools"] = Value::Array(request.tools.clone());
         }
+        if let Some((field, value)) = request.reasoning.as_ref() {
+            set_json_path(&mut body, field, Value::String(value.clone()));
+        }
         let send = client
             .post(request.endpoint)
             .bearer_auth(request.api_key)
@@ -456,6 +464,28 @@ fn execute_model(
         }
         Ok(ModelResponse { text, tool_calls })
     })
+}
+
+/// Apply a validated dot path to a JSON request object, matching Go's
+/// `option.WithJSONSet`.  Provider configuration validation guarantees the
+/// path is safe and non-empty before it reaches this adapter.
+pub(super) fn set_json_path(root: &mut Value, path: &str, value: Value) {
+    let mut current = root;
+    let mut segments = path.split('.').peekable();
+    while let Some(segment) = segments.next() {
+        if segments.peek().is_none() {
+            if let Some(object) = current.as_object_mut() {
+                object.insert(segment.to_owned(), value);
+            }
+            return;
+        }
+        let Some(object) = current.as_object_mut() else {
+            return;
+        };
+        current = object
+            .entry(segment.to_owned())
+            .or_insert_with(|| Value::Object(serde_json::Map::new()));
+    }
 }
 
 fn extract_text(value: &Value) -> String {

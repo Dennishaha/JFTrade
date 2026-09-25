@@ -290,6 +290,7 @@ fn seed_run(store: &AdkStore, run_id: &str, agent_id: &str, tool_names: &[&str])
             tool_context: Vec::new(),
             timeout: Duration::from_secs(2),
             tools: Vec::new(),
+            reasoning: None,
         },
     )
 }

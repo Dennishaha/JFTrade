@@ -202,6 +202,7 @@ fn chat_for(run_id: &str, endpoint: &str) -> ChatExecution {
             tool_context: Vec::new(),
             timeout: Duration::from_secs(5),
             tools: vec![json!({"type": "function", "name": "strategy.optimize"})],
+            reasoning: None,
         },
     )
 }

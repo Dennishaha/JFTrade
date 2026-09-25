@@ -611,6 +611,7 @@ fn persist_success_marks_a_run_degraded_from_its_failed_tool_calls() {
             tool_context: Vec::new(),
             timeout: Duration::from_secs(1),
             tools: Vec::new(),
+            reasoning: None,
         },
     };
     let response = runtime
@@ -815,6 +816,7 @@ fn a_resumed_approval_run_completes_with_the_confirmation_resolved_state() {
             tool_context: Vec::new(),
             timeout: Duration::from_secs(1),
             tools: Vec::new(),
+            reasoning: None,
         },
     };
     let run_lease =
@@ -1113,6 +1115,7 @@ fn seed_tool_loop_run(store: &AdkStore, run_id: &str, tool_names: &[&str]) -> Ch
             tool_context: Vec::new(),
             timeout: Duration::from_secs(2),
             tools: Vec::new(),
+            reasoning: None,
         },
     )
 }

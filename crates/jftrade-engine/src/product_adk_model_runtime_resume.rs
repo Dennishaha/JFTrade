@@ -178,7 +178,21 @@ impl ProductionAdkChatRuntime {
         if let Some(model) = object.get("model").and_then(Value::as_str) {
             request.insert("model".to_owned(), Value::String(model.to_owned()));
         }
-        let provider = self.resolve_provider(&request)?;
+        if let Some(effort) = object.get("reasoningEffort").and_then(Value::as_str) {
+            request.insert(
+                "reasoningEffortOverride".to_owned(),
+                Value::String(effort.to_owned()),
+            );
+        }
+        let mut provider = self.resolve_provider(&request)?;
+        if let (Some(field), Some(value)) = (
+            object.get("reasoningEffortField").and_then(Value::as_str),
+            object.get("reasoningEffortValue").and_then(Value::as_str),
+        ) && !field.trim().is_empty()
+            && !value.trim().is_empty()
+        {
+            provider.reasoning = Some((field.trim().to_owned(), value.trim().to_owned()));
+        }
         let model = object
             .get("model")
             .and_then(Value::as_str)
@@ -239,6 +253,7 @@ impl ProductionAdkChatRuntime {
                 tool_context: tool_context_from_payload(object),
                 timeout: provider.timeout,
                 tools,
+                reasoning: provider.reasoning.clone(),
             },
         };
         let store = Arc::clone(&self.store);

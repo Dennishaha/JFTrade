@@ -32,6 +32,7 @@ pub struct ModelRequest {
     pub tool_context: Vec<Value>,
     pub timeout: Duration,
     pub tools: Vec<Value>,
+    pub reasoning: Option<(String, String)>,
 }
 
 #[derive(Debug)]
@@ -61,6 +62,25 @@ pub fn extract_tool_calls(_response: &Value) -> Result<Vec<ModelToolCall>, AdkCh
 
 pub fn model_input(_request: &ModelRequest) -> Vec<Value> {
     vec![json!({"role": "user", "content": "hello"})]
+}
+
+pub fn set_json_path(root: &mut Value, path: &str, value: Value) {
+    let mut current = root;
+    let mut segments = path.split('.').peekable();
+    while let Some(segment) = segments.next() {
+        if segments.peek().is_none() {
+            if let Some(object) = current.as_object_mut() {
+                object.insert(segment.to_owned(), value);
+            }
+            return;
+        }
+        let Some(object) = current.as_object_mut() else {
+            return;
+        };
+        current = object
+            .entry(segment.to_owned())
+            .or_insert_with(|| Value::Object(serde_json::Map::new()));
+    }
 }
 
 pub fn unavailable(message: impl Into<String>) -> AdkChatPortError {
@@ -138,6 +158,7 @@ fn test_client_disconnect_returns_499_within_250ms() {
         tool_context: Vec::new(),
         timeout: Duration::from_secs(5),
         tools: Vec::new(),
+        reasoning: None,
     };
 
     let start_wait = Instant::now();
@@ -197,6 +218,7 @@ fn test_immediate_cancellation_returns_instantly() {
         tool_context: Vec::new(),
         timeout: Duration::from_secs(5),
         tools: Vec::new(),
+        reasoning: None,
     };
 
     let start = Instant::now();
@@ -244,6 +266,7 @@ fn test_stream_without_response_completed_fails_closed() {
         tool_context: Vec::new(),
         timeout: Duration::from_secs(5),
         tools: Vec::new(),
+        reasoning: None,
     };
 
     let result = execute_model_stream(request, |_| Ok(()), || false);
@@ -285,6 +308,7 @@ fn test_complete_stream_with_response_completed_succeeds() {
         tool_context: Vec::new(),
         timeout: Duration::from_secs(5),
         tools: Vec::new(),
+        reasoning: None,
     };
 
     let mut events_seen = Vec::new();

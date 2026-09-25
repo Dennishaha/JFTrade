@@ -5424,6 +5424,81 @@ fn provider_reasoning_config_normalizes_custom_mappings_and_rejects_duplicates()
     }
 }
 
+/// Parity: go:452dea11:internal/assistant/engine/persistence/provider_reasoning_test.go:10
+/// TestProviderReasoningPersistenceAllowsMappingChanges.
+#[test]
+fn provider_reasoning_mapping_changes_persist_and_gate_new_agent_efforts() {
+    let (port, _directory) = agent_validation_port();
+    port.store
+        .upsert_provider(
+            "provider-enabled",
+            &json!({
+                "displayName": "Enabled Provider",
+                "baseUrl": "https://api.example.test/v1",
+                "model": "fixture-model",
+                "enabled": true,
+                "reasoningConfig": {
+                    "requestField": "reasoning.level",
+                    "mappings": [
+                        {"effort": "low", "value": "LOW"},
+                        {"effort": "high", "value": "HIGH"}
+                    ]
+                }
+            })
+            .to_string(),
+        )
+        .expect("persist reasoning provider");
+    port.mutate(&AdkMutationInput {
+        operation: AdkMutationOperation::CreateAgent,
+        identifiers: BTreeMap::new(),
+        body: json!({
+            "id": "agent-reasoning-existing",
+            "name": "Existing reasoning agent",
+            "providerId": "provider-enabled",
+            "reasoningEffort": "high",
+            "status": "ENABLED"
+        }),
+        webhook_secret: None,
+    })
+    .expect("create agent with supported effort");
+
+    let updated = port
+        .mutate(&AdkMutationInput {
+            operation: AdkMutationOperation::UpdateProvider,
+            identifiers: BTreeMap::from([(
+                "providerId".to_owned(),
+                "provider-enabled".to_owned(),
+            )]),
+            body: json!({
+                "reasoningConfig": {
+                    "requestField": "reasoning.level",
+                    "mappings": [{"effort": "low", "value": "FAST"}]
+                }
+            }),
+            webhook_secret: None,
+        })
+        .expect("update provider reasoning mappings");
+    assert_eq!(updated["reasoningConfig"]["mappings"], json!([
+        {"effort": "low", "value": "FAST"}
+    ]));
+
+    let error = port
+        .mutate(&AdkMutationInput {
+            operation: AdkMutationOperation::CreateAgent,
+            identifiers: BTreeMap::new(),
+            body: json!({
+                "id": "agent-reasoning-unsupported",
+                "name": "Unsupported reasoning agent",
+                "providerId": "provider-enabled",
+                "reasoningEffort": "high",
+                "status": "ENABLED"
+            }),
+            webhook_secret: None,
+        })
+        .expect_err("unsupported effort must be rejected");
+    assert_bad_request(error, "provider does not support reasoning effort: high");
+}
+
 /// Parity: go:452dea11:internal/api/assistant/adk_routes_test.go:787 TestADKSessionNegativeRoutes
 /// TestADKSessionNegativeRoutes.
 ///

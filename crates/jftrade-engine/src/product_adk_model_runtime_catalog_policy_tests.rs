@@ -152,6 +152,7 @@ fn seed_run(run_id: &str, permission_mode: &str, tool_name: &str) -> ChatExecuti
             tool_context: Vec::new(),
             timeout: Duration::from_secs(5),
             tools: vec![json!({"type": "function", "name": tool_name})],
+            reasoning: None,
         },
     )
 }

@@ -138,6 +138,7 @@ fn chat_for(run_id: &str) -> ChatExecution {
             tool_context: Vec::new(),
             timeout: Duration::from_secs(2),
             tools: Vec::new(),
+            reasoning: None,
         },
     )
 }

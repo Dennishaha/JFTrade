@@ -369,6 +369,7 @@ pub(super) const GO_RUN_PROJECTION_FIELDS: &[&str] = &[
     "preToolReasoning",
     "providerId",
     "providerName",
+    "reasoningEffort",
     "resumeState",
     "sessionId",
     "startedAt",
