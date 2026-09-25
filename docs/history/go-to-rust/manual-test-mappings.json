@@ -24763,7 +24763,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::helper_candle_conversion_rejects_malformed_provider_values",
       "conclusion": "function_exact：Go 表驱动断言 provider 页中 candles envelope、时间戳、价格、成交量和分页 cursor 的非法值被拒绝。Rust 的 helper_candle_conversion_rejects_malformed_provider_values 通过 typed helper DTO 与生产 converter 逐项拒绝同一组 malformed provider values，并额外锁定 OHLC bounds。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(helper_candle_conversion_rejects_malformed_provider_values)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/app/apiserver/backtestapp/historical_source_test.go",
@@ -24806,10 +24806,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "b40aeafb",
+        "verifiedAt": "2026-09-25T10:53:01Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -297769,9 +297769,8 @@
       "reviewStatus": "single"
     },
     "crates/jftrade-engine/src/product_production_ports_backtest_sync_helpers.rs::test_historical_candle_conversion_rejects_invalid_fields_and_defaults_volume": {
-      "referenceCount": 5,
+      "referenceCount": 4,
       "referenceKeys": [
-        "internal/app/apiserver/backtestapp/historical_source_test.go:266:TestHistoricalPageParsingRejectsMalformedProviderValues",
         "internal/app/apiserver/backtestapp/historical_source_test.go:226:TestProviderHistoricalSourceFetchesAndParsesProviderPage",
         "internal/app/apiserver/backtestapp/historical_source_test.go:298:TestDecimalStringAcceptsProviderNumericRepresentations",
         "internal/backtest/historical_source_test.go:204:TestHistoricalKLineSyncerValidatesLifecycleAndTerminalProviderFailures",
@@ -297779,6 +297778,14 @@
       ],
       "allowed": false,
       "reviewStatus": "unreviewed"
+    },
+    "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::helper_candle_conversion_rejects_malformed_provider_values": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/app/apiserver/backtestapp/historical_source_test.go:266:TestHistoricalPageParsingRejectsMalformedProviderValues"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
     },
     "crates/jftrade-engine/src/product_production_ports_backtest_sync_helpers.rs::test_historical_k_line_syncer_rejects_broken_pagination": {
       "referenceCount": 3,

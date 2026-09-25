@@ -7,12 +7,12 @@
 | 项目 | 数值 | 解释 |
 | --- | ---: | --- |
 | Go 测试候选 | 4451 | 冻结基线 `go:452dea11` |
-| Rust 测试 | 3338 | 数量不代表行为等价 |
+| Rust 测试 | 3343 | 数量不代表行为等价 |
 | `function_exact` | 1481 | 有真实且唯一的 Rust 测试证据 |
 | `partial` | 2336 | 只覆盖部分断言，不能视为完成 |
 | `boundary` | 636 | 当前架构边界或没有同形对象 |
 | 重复映射 | 0 | 审计脚本结果 |
-| Parity 锚点 | 1764 / 1718 / 0 / 0 / 46 | unique / recorded / unrecorded / stale / unknown |
+| Parity 锚点 | 1767 / 1721 / 0 / 0 / 46 | unique / recorded / unrecorded / stale / unknown |
 
 ## 已完成的工作
 
@@ -115,7 +115,7 @@
 - 本批验证补充：`check:quick` 首次仅因 target health 中间文件累积失败；确认无编译进程后按仓库命令清理 31.4 GiB 并重跑通过。随后完整 `check:rust` workspace 3465/3465（2 skipped）与 7 个 compatibility replay 全部通过；mapping audit/anchor reconcile 无新增失败、重复 exact 或 stale anchor。
 - 当前批次：`historical_source_test.go:108`/`:162`/`:206` 能力预检逐项复核；先红回归确认同步 owner 缺少 provider capability validator，随后按 yfinance/AKShare/Futu descriptor 校验 interval、复权、市场级 lookback，并在 helper candles query 透传 `adjustment`。新增 yfinance backward/7 日 lookback/forward 5m、入队前拒绝与 unknown provider 回归，定向 nextest 6/6 通过；`:108` 与 `:162` 保持 partial（旧 source 注入任意 descriptor、AKShare provider fetch 错误无同形 seam），`:206` 升级 function_exact。`check:quick` 通过；完整 `check:rust` workspace 3467/3467（2 skipped）与 7 个 compatibility replay 全部通过。下一未收尾 P1 为 `internal/app/apiserver/backtestapp/historical_source_test.go:226:TestProviderHistoricalSourceFetchesAndParsesProviderPage`。
 - 当前批次续做 `historical_source_test.go:226`：先以临时去除 `adjustment` 查询参数的红测确认 helper 请求缺字段会失败，再恢复实现；新增 loopback helper 生产同步回归，验证页解析、价格/成交量入库以及 `period`、`adjustment`、`limit`、`sessions` 透传，连同空页/断链分页校验定向 nextest 3/3 通过。因 Go 的 provider fetch error 原样透传尚无同形 Rust helper 错误注入 seam，`226` 保持 partial；下一未收尾 P1 继续检查 `historical_source_test.go:266:TestHistoricalPageParsingRejectsMalformedProviderValues` 的边界聚合覆盖。
-- 当前批次收尾 `historical_source_test.go:266:TestHistoricalPageParsingRejectsMalformedProviderValues`：复核确认旧 `test_historical_candle_conversion_rejects_invalid_fields_and_defaults_volume` 只构造 valid page，不能单独证明 Go 的 malformed table；新增 `helper_candle_conversion_rejects_malformed_provider_values`，通过 typed helper DTO 与生产 converter 逐项拒绝 candles envelope、时间戳、OHLC、成交量、OHLC bounds 和 cursor，定向 nextest 1/1 通过。映射保持 `function_exact`，line 298 的 decimalString 仍因 Go 宽类型逐类型 seam 与 Rust typed DTO 差异保持 partial；下一未收尾 P1 为 `internal/app/apiserver/backtestapp/historical_source_test.go:310:TestBacktestProviderSyncerPinsFutuAndClosesOnFailures` 的固定 provider/关闭失败矩阵。
+- 当前批次收尾 `historical_source_test.go:266:TestHistoricalPageParsingRejectsMalformedProviderValues`：复核确认旧 `test_historical_candle_conversion_rejects_invalid_fields_and_defaults_volume` 只构造 valid page，不能单独证明 Go 的 malformed table；新增 `helper_candle_conversion_rejects_malformed_provider_values`，通过 typed helper DTO 与生产 converter 逐项拒绝 candles envelope、时间戳、OHLC、成交量、OHLC bounds 和 cursor，定向 nextest 1/1、受影响 quick 1984/1984、完整 `check:rust` 3469/3469（2 skipped）及 7 个 compatibility replay 全部通过。映射保持 `function_exact`，line 298 的 decimalString 仍因 Go 宽类型逐类型 seam 与 Rust typed DTO 差异保持 partial；下一未收尾 P1 为 `internal/app/apiserver/backtestapp/historical_source_test.go:310:TestBacktestProviderSyncerPinsFutuAndClosesOnFailures` 的固定 provider/关闭失败矩阵。
 - 本批门禁中复现既有 launcher 退出竞态：`api_launcher_serves_on_the_configured_address_and_stops_on_termination_signal` 在 TCP ready 后立即发 TERM 时出现 `None`/`Some(0)`；将停止信号监听任务提前到 runtime start 前注册，消除端口可连但 handler 尚未安装的窗口。修改后 `product_api_launcher_lifecycle` 定向 2/2 通过；此前完整 `check:rust` 的失败证据保留，需在本修复后重跑全量门禁。
 - 当前批次：`internal/api/httpserver/bindings_boundaries_test.go:61` 的 caller fallback 逐项复核；Rust UTC/日期/空值归一精准回归 1/1 通过，非法时间仍由 market-data route fail closed 为 400，保持 `partial` 并记录为有意 owner 语义差异。
 - 当前批次：`internal/api/httpserver/bindings_boundaries_test.go:70` 的 required path、合法 `%20` 与 malformed escape 三分支逐项复核；API route 与 query escape 精准回归 2/2 通过，Gin helper 缺失参数错误与 Rust 404 route 形状差异保持 `partial`。
