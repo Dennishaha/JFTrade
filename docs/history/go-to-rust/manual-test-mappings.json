@@ -24982,9 +24982,9 @@
     },
     "internal/app/apiserver/backtestapp/historical_source_test.go:354:TestInstrumentSpecUsesProviderRulesAndConservativeFallbacks": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-broker/tests/market_rules_snapshot_errors.rs::broker_lot_size_initializes_minimum_and_step_quantity; crates/jftrade-broker/tests/market_rules_snapshot_errors.rs::market_rules_match_trimmed_symbols_and_apply_overrides_in_order",
-      "conclusion": "partial：Go 断言 InstrumentSpec 从 provider 规则取 quoteCurrency/lotSize/priceSpread，失败时退回保守值（HK 500/0.2，A 股 100，US 1/0.01）并标注缺失关键规则。Rust 的 broker 市场规则测试断言手数→最小/步长推导与规则覆写顺序，保守回退的逐市场常量断言未见，故为部分覆盖。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-broker --all-targets --locked",
+      "rust_entry": "crates/jftrade-broker/tests/market_rules_snapshot_errors.rs::broker_lot_size_initializes_minimum_and_step_quantity; crates/jftrade-broker/tests/market_rules_snapshot_errors.rs::market_rules_match_trimmed_symbols_and_apply_overrides_in_order; crates/jftrade-integration-futu/src/market_rules_query_tests.rs::market_rules_use_security_info_lot_size_without_warnings; crates/jftrade-integration-futu/src/market_rules_query_tests.rs::market_rules_fall_back_to_security_snapshot_lot_size_and_report_the_primary_error; crates/jftrade-marketdata/src/catalog_tests.rs::market_rules_ssot_contains_all_core_markets_with_decimal_tick_sizes; crates/jftrade-marketdata/src/catalog_tests.rs::inferred_market_profiles_match_go_market_rules",
+      "conclusion": "partial：Rust 现在覆盖 Futu SecurityInfo lot size 成功路径、snapshot lot size fallback 与 warning、broker lot→最小/步长推导、规则覆写顺序，以及 HK/US/CN/SH/SZ 的 quote currency/tick static market profiles。Go 的 InstrumentSpec 动态 priceSpread、HK 500/0.2 与 A 股 100 的 conservative fallback、MissingCriticalRules/warnings、10 秒 details deadline 和 ProviderOptions 六项仍没有 Rust 同形 resolver；Rust backtest 仅从 payload 或 symbol 推导 quoteCurrency，不装配旧 backtestapp 的 InstrumentSpec owner，保持 partial。",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-broker -p jftrade-integration-futu -p jftrade-marketdata --all-targets --locked -E 'test(broker_lot_size_initializes_minimum_and_step_quantity) or test(market_rules_match_trimmed_symbols_and_apply_overrides_in_order) or test(market_rules_use_security_info_lot_size_without_warnings) or test(market_rules_fall_back_to_security_snapshot_lot_size_and_report_the_primary_error) or test(market_rules_ssot_contains_all_core_markets_with_decimal_tick_sizes) or test(inferred_market_profiles_match_go_market_rules)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/backtestapp/historical_source_test.go",
@@ -25004,12 +25004,41 @@
           "test": "market_rules_match_trimmed_symbols_and_apply_overrides_in_order",
           "crate": "jftrade-broker",
           "anchor": null
+        },
+        {
+          "file": "crates/jftrade-integration-futu/src/market_rules_query_tests.rs",
+          "test": "market_rules_use_security_info_lot_size_without_warnings",
+          "crate": "jftrade-integration-futu",
+          "anchor": null
+        },
+        {
+          "file": "crates/jftrade-integration-futu/src/market_rules_query_tests.rs",
+          "test": "market_rules_fall_back_to_security_snapshot_lot_size_and_report_the_primary_error",
+          "crate": "jftrade-integration-futu",
+          "anchor": null
+        },
+        {
+          "file": "crates/jftrade-marketdata/src/catalog_tests.rs",
+          "test": "market_rules_ssot_contains_all_core_markets_with_decimal_tick_sizes",
+          "crate": "jftrade-marketdata",
+          "anchor": null
+        },
+        {
+          "file": "crates/jftrade-marketdata/src/catalog_tests.rs",
+          "test": "inferred_market_profiles_match_go_market_rules",
+          "crate": "jftrade-marketdata",
+          "anchor": null
         }
       ],
       "assertionCoverage": {
-        "covered": [],
+        "covered": [
+          "Futu SecurityInfo lot size 成功路径与无 warning",
+          "Futu snapshot lot size fallback、primary error warning 与 lot size 保留",
+          "lot size→最小/步长数量推导与 provider 规则覆写顺序",
+          "HK/US/CN/SH/SZ static market profile 的 quote currency、tick size 与 symbol normalization"
+        ],
         "uncovered": [
-          "partial：Go 断言 InstrumentSpec 从 provider 规则取 quoteCurrency/lotSize/priceSpread，失败时退回保守值（HK 500/0.2，A 股 100，US 1/0.01）并标注缺失关键规则。Rust 的 broker 市场规则测试断言手数→最小/步长推导与规则覆写顺序，保守回退的逐市场常量断言未见，故为部分覆盖。"
+          "partial：Rust 缺少旧 backtestapp InstrumentSpec resolver 的动态 priceSpread、HK 500/0.2 与 A 股 100 conservative fallback、MissingCriticalRules/warnings、details deadline 和 ProviderOptions 六项；backtest 只从 payload 或 symbol 推导 quoteCurrency。"
         ],
         "source": "legacy-conclusion"
       },
@@ -25020,12 +25049,22 @@
           "run",
           "-p",
           "jftrade-broker",
+          "-p",
+          "jftrade-integration-futu",
+          "-p",
+          "jftrade-marketdata",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(broker_lot_size_initializes_minimum_and_step_quantity) or test(market_rules_match_trimmed_symbols_and_apply_overrides_in_order) or test(market_rules_use_security_info_lot_size_without_warnings) or test(market_rules_fall_back_to_security_snapshot_lot_size_and_report_the_primary_error) or test(market_rules_ssot_contains_all_core_markets_with_decimal_tick_sizes) or test(inferred_market_profiles_match_go_market_rules)"
         ],
         "testFilter": [
           "broker_lot_size_initializes_minimum_and_step_quantity",
-          "market_rules_match_trimmed_symbols_and_apply_overrides_in_order"
+          "market_rules_match_trimmed_symbols_and_apply_overrides_in_order",
+          "market_rules_use_security_info_lot_size_without_warnings",
+          "market_rules_fall_back_to_security_snapshot_lot_size_and_report_the_primary_error",
+          "market_rules_ssot_contains_all_core_markets_with_decimal_tick_sizes",
+          "inferred_market_profiles_match_go_market_rules"
         ],
         "runnerVersion": null,
         "toolchain": null,
@@ -25043,9 +25082,14 @@
         "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [],
+      "coveredAssertions": [
+        "Futu SecurityInfo lot size 成功路径与无 warning",
+        "Futu snapshot lot size fallback、primary error warning 与 lot size 保留",
+        "lot size→最小/步长数量推导与 provider 规则覆写顺序",
+        "HK/US/CN/SH/SZ static market profile 的 quote currency、tick size 与 symbol normalization"
+      ],
       "uncoveredAssertions": [
-        "partial：Go 断言 InstrumentSpec 从 provider 规则取 quoteCurrency/lotSize/priceSpread，失败时退回保守值（HK 500/0.2，A 股 100，US 1/0.01）并标注缺失关键规则。Rust 的 broker 市场规则测试断言手数→最小/步长推导与规则覆写顺序，保守回退的逐市场常量断言未见，故为部分覆盖。"
+        "partial：Rust 缺少旧 backtestapp InstrumentSpec resolver 的动态 priceSpread、HK 500/0.2 与 A 股 100 conservative fallback、MissingCriticalRules/warnings、details deadline 和 ProviderOptions 六项；backtest 只从 payload 或 symbol 推导 quoteCurrency。"
       ],
       "boundaryReason": null
     },
@@ -304924,12 +304968,13 @@
       "reviewStatus": "single"
     },
     "crates/jftrade-integration-futu/src/market_rules_query_tests.rs::market_rules_fall_back_to_security_snapshot_lot_size_and_report_the_primary_error": {
-      "referenceCount": 4,
+      "referenceCount": 5,
       "referenceKeys": [
         "pkg/futu/adapter_bridge_test.go:155:TestBrokerAdapterQueryMarketRulesFallsBackToSecuritySnapshotLotSize",
         "pkg/futu/exchange_quote_request_boundaries_test.go:16:TestExchangeAccountPushMarketWarningAndEmptySymbolBoundaries",
         "pkg/futu/exchange_test.go:89:TestEnsureMarketWithContextFallsBackToSecuritySnapshotLotSize",
-        "pkg/futu/marketdata_reader_boundaries_test.go:153:TestMarketRuleFallbacksExplainTheirSourceAndFailures"
+        "pkg/futu/marketdata_reader_boundaries_test.go:153:TestMarketRuleFallbacksExplainTheirSourceAndFailures",
+        "internal/app/apiserver/backtestapp/historical_source_test.go:354:TestInstrumentSpecUsesProviderRulesAndConservativeFallbacks"
       ],
       "allowed": false,
       "reviewStatus": "unreviewed"
@@ -304983,12 +305028,13 @@
       "reviewStatus": "single"
     },
     "crates/jftrade-integration-futu/src/market_rules_query_tests.rs::market_rules_use_security_info_lot_size_without_warnings": {
-      "referenceCount": 1,
+      "referenceCount": 2,
       "referenceKeys": [
-        "pkg/futu/adapter_bridge_test.go:124:TestBrokerAdapterQueryMarketRulesUsesSecurityInfoLotSize"
+        "pkg/futu/adapter_bridge_test.go:124:TestBrokerAdapterQueryMarketRulesUsesSecurityInfoLotSize",
+        "internal/app/apiserver/backtestapp/historical_source_test.go:354:TestInstrumentSpecUsesProviderRulesAndConservativeFallbacks"
       ],
-      "allowed": true,
-      "reviewStatus": "single"
+      "allowed": false,
+      "reviewStatus": "unreviewed"
     },
     "crates/jftrade-integration-futu/src/open_d_quote_rights_tests.rs::entitlement_failure_is_cached_and_refreshed_after_reconnect": {
       "referenceCount": 2,
@@ -307940,10 +307986,11 @@
       "reviewStatus": "unreviewed"
     },
     "crates/jftrade-marketdata/src/catalog_tests.rs::inferred_market_profiles_match_go_market_rules": {
-      "referenceCount": 2,
+      "referenceCount": 3,
       "referenceKeys": [
         "pkg/futu/exchange_test.go:125:TestInferMarketUsesMarketProfiles",
-        "pkg/futu/market_mapping_order_quantity_test.go:14:TestFutuMarketMappingsCoverEverySupportedQuotePrefix"
+        "pkg/futu/market_mapping_order_quantity_test.go:14:TestFutuMarketMappingsCoverEverySupportedQuotePrefix",
+        "internal/app/apiserver/backtestapp/historical_source_test.go:354:TestInstrumentSpecUsesProviderRulesAndConservativeFallbacks"
       ],
       "allowed": false,
       "reviewStatus": "unreviewed"
@@ -307957,7 +308004,7 @@
       "reviewStatus": "single"
     },
     "crates/jftrade-marketdata/src/catalog_tests.rs::market_rules_ssot_contains_all_core_markets_with_decimal_tick_sizes": {
-      "referenceCount": 7,
+      "referenceCount": 8,
       "referenceKeys": [
         "pkg/futu/market_mapping_order_quantity_test.go:14:TestFutuMarketMappingsCoverEverySupportedQuotePrefix",
         "pkg/market/hk/hk_test.go:8:TestHKProfileUsesHongKongTimezoneAndSplitSessions",
@@ -307965,7 +308012,8 @@
         "pkg/market/sh/sh_test.go:8:TestSHProfileUsesChinaMarketAndTimezone",
         "pkg/market/sz/sz_test.go:8:TestSZProfileUsesChinaMarketAndTimezone",
         "pkg/market/us/us_test.go:8:TestUSProfileUsesNewYorkTimezoneAndRegularSession",
-        "pkg/bbgo/types/market_test.go:106:Test_FormatPrice"
+        "pkg/bbgo/types/market_test.go:106:Test_FormatPrice",
+        "internal/app/apiserver/backtestapp/historical_source_test.go:354:TestInstrumentSpecUsesProviderRulesAndConservativeFallbacks"
       ],
       "allowed": false,
       "reviewStatus": "unreviewed"

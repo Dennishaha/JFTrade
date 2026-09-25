@@ -567,3 +567,16 @@ ADK/Assistant 功能差异，先补失败回归测试再修改领域 owner。
 `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(test_historical_k_line_syncer_rejects_empty_provider_result) or test(shutdown_persists_cancellation_before_joining_sync_workers) or test(terminate_persists_cancellation_and_aborts_sync_workers) or test(production_sync_restart_recovery_marks_orphaned_task_failed)'`
 
 下一片：`internal/app/apiserver/backtestapp/historical_source_test.go:354:TestInstrumentSpecUsesProviderRulesAndConservativeFallbacks`，优先核对 provider 规则与保守 fallback 的 owner 及逐市场断言。
+
+## 第 135 批：InstrumentSpec provider rules 与 conservative fallback（2026-09-25）
+
+| 复核 | Go 测试 | Rust 证据 | P | 结论 |
+| :---: | --- | --- | :---: | --- |
+| [x] | `historical_source_test.go:354:TestInstrumentSpecUsesProviderRulesAndConservativeFallbacks` | `broker_lot_size_initializes_minimum_and_step_quantity`；`market_rules_match_trimmed_symbols_and_apply_overrides_in_order`；`market_rules_use_security_info_lot_size_without_warnings`；`market_rules_fall_back_to_security_snapshot_lot_size_and_report_the_primary_error`；`market_rules_ssot_contains_all_core_markets_with_decimal_tick_sizes`；`inferred_market_profiles_match_go_market_rules` | P1 | partial：Rust 覆盖 Futu lot size 成功与 snapshot fallback/warning、lot→最小/步长、规则覆写及 HK/US/CN/SH/SZ quote/tick static profiles；旧 backtestapp InstrumentSpec 的动态 priceSpread、HK 500/0.2、A 股 100 conservative fallback、缺失规则告警、details deadline 与 ProviderOptions 没有同形 resolver。 |
+
+本批未发现需要先红后修的 Rust 生产差异；缺口属于旧 backtestapp 私有 resolver 与 Rust composition/backtest payload owner 的架构边界。精准 nextest 6/6 通过。
+
+验证：
+`node scripts/quality/cargo-nextest.mjs run -p jftrade-broker -p jftrade-integration-futu -p jftrade-marketdata --all-targets --locked -E 'test(broker_lot_size_initializes_minimum_and_step_quantity) or test(market_rules_match_trimmed_symbols_and_apply_overrides_in_order) or test(market_rules_use_security_info_lot_size_without_warnings) or test(market_rules_fall_back_to_security_snapshot_lot_size_and_report_the_primary_error) or test(market_rules_ssot_contains_all_core_markets_with_decimal_tick_sizes) or test(inferred_market_profiles_match_go_market_rules)'`
+
+下一片：`internal/app/apiserver/backtestapp/historical_source_test.go:385:TestInstrumentSpecRequiresReadyPythonProviders`，核对 Python provider readiness 白名单与 Rust provider activation owner 的边界。
