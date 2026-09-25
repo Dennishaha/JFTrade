@@ -285,6 +285,39 @@ fn system_write_validator_boundaries_keep_go_non_positive_rejection_and_missing_
     assert_eq!(missing_hard_stop_id.body["error"]["code"], "NOT_FOUND");
 }
 
+// Parity: go:452dea11:internal/api/system/routes_test.go:121 TestRealTradeReleaseRoutesRejectMalformedOptionalPayloadBeforeStateChange
+#[test]
+fn system_write_release_routes_reject_malformed_optional_payload_before_port() {
+    let port = FixturePort {
+        responses: Mutex::new(VecDeque::new()),
+        calls: Mutex::new(Vec::new()),
+    };
+    for (method, path) in [
+        ("POST", "/api/v1/system/real-trade-hard-stops/hs-1/release"),
+        ("POST", "/api/v1/system/real-trade-kill-switch/release"),
+        ("DELETE", "/api/v1/system/real-trade-risk-limits"),
+    ] {
+        let response = dispatch_system_write(
+            &SystemWriteRequest {
+                method: method.to_owned(),
+                path: path.to_owned(),
+                body: b"{".to_vec(),
+            },
+            Some(&port),
+            FIXTURE_TIMESTAMP,
+        );
+        assert_eq!(response.status, 400, "{method} {path}");
+        assert_eq!(
+            response.body["error"]["code"], "BAD_REQUEST",
+            "{method} {path}"
+        );
+    }
+    assert!(
+        port.calls().is_empty(),
+        "malformed release payloads must not reach the system write port"
+    );
+}
+
 #[test]
 fn system_write_port_unavailable_maps_to_fail_closed_503() {
     let request = SystemWriteRequest {

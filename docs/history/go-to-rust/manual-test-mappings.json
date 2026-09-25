@@ -19555,7 +19555,7 @@
             "goFile": "internal/api/system/routes_test.go",
             "goLine": 61,
             "rustFile": "crates/jftrade-engine/tests/system_write_compatibility.rs",
-            "rustLine": 303
+            "rustLine": 335
           }
         }
       ],
@@ -19759,9 +19759,9 @@
     },
     "internal/api/system/routes_test.go:121:TestRealTradeReleaseRoutesRejectMalformedOptionalPayloadBeforeStateChange": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/tests/system_write_compatibility.rs::system_write_leaf_fails_closed_after_shape_validation",
-      "conclusion": "partial：Go 断言释放路由在畸形可选载荷下先拒绝、不改变状态。Rust 引用用例断言形状校验先于端口调用（state change）；按路由的畸形可选载荷分支由 system-write 语料覆盖（*-malformed-before-port），未单列释放路由断言。缺口 owner：crates/jftrade-engine system 写叶；回归要求：补“畸形释放载荷 → 400 且状态不变”断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+      "rust_entry": "crates/jftrade-engine/tests/system_write_compatibility.rs::system_write_release_routes_reject_malformed_optional_payload_before_port",
+      "conclusion": "partial：Rust 专用回归逐一发送 hard-stop release、kill-switch release、risk disable 的畸形可选载荷，均返回 400/BAD_REQUEST 且 FixturePort 调用列表保持为空；Go 通过 Gin routes 与 service callback actions=0 证明状态 owner 未触发。Rust 仍以 leaf/port boundary 断言，没有 Gin registration/service callback 形状，保持 partial。",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(system_write_release_routes_reject_malformed_optional_payload_before_port) or test(system_write_fixture_replays_go_wire_for_all_seven_routes) or test(system_write_leaf_fails_closed_after_shape_validation)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/api/system/routes_test.go",
@@ -19772,17 +19772,25 @@
       "rustEvidence": [
         {
           "file": "crates/jftrade-engine/tests/system_write_compatibility.rs",
-          "test": "system_write_leaf_fails_closed_after_shape_validation",
+          "test": "system_write_release_routes_reject_malformed_optional_payload_before_port",
           "crate": "jftrade-engine",
-          "anchor": null
+          "anchor": {
+            "goFile": "internal/api/system/routes_test.go",
+            "goLine": 121,
+            "rustFile": "crates/jftrade-engine/tests/system_write_compatibility.rs",
+            "rustLine": 290
+          }
         }
       ],
       "assertionCoverage": {
-        "covered": [],
-        "uncovered": [
-          "partial：Go 断言释放路由在畸形可选载荷下先拒绝、不改变状态。Rust 引用用例断言形状校验先于端口调用（state change）；按路由的畸形可选载荷分支由 system-write 语料覆盖（*-malformed-before-port），未单列释放路由断言。缺口 owner：crates/jftrade-engine system 写叶；回归要求：补“畸形释放载荷 → 400 且状态不变”断言。"
+        "covered": [
+          "partial：hard-stop release、kill-switch release、risk disable 三条 Go 路由的畸形载荷均返回 400/BAD_REQUEST。",
+          "partial：三条路由均在调用 SystemWritePort 前拒绝，port calls 保持为空，等价于 Go actions=0。"
         ],
-        "source": "legacy-conclusion"
+        "uncovered": [
+          "partial：Go 通过 Gin router 注册和 service callback actions 观测状态 owner；Rust 证据停留在 system-write leaf/port 边界，未复现 Gin registration 或 service callback 对象。"
+        ],
+        "source": "manual-batch-review"
       },
       "verification": {
         "argv": [
@@ -19792,30 +19800,37 @@
           "-p",
           "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(system_write_release_routes_reject_malformed_optional_payload_before_port) or test(system_write_fixture_replays_go_wire_for_all_seven_routes) or test(system_write_leaf_fails_closed_after_shape_validation)"
         ],
         "testFilter": [
+          "system_write_release_routes_reject_malformed_optional_payload_before_port",
+          "system_write_fixture_replays_go_wire_for_all_seven_routes",
           "system_write_leaf_fails_closed_after_shape_validation"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
+        "status": "passed",
+        "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": null,
+        "verifiedAt": "2026-09-25T04:09:17Z",
         "receiptDigest": null
       },
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
+      "nextAction": "preserve_partial_and_track_http_router_boundary",
       "blockedBy": [
         "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [],
+      "coveredAssertions": [
+        "partial：三条 release/disable 路由的畸形载荷均返回 400/BAD_REQUEST。",
+        "partial：畸形载荷在到达 SystemWritePort 前被拒绝，未发生 port call。"
+      ],
       "uncoveredAssertions": [
-        "partial：Go 断言释放路由在畸形可选载荷下先拒绝、不改变状态。Rust 引用用例断言形状校验先于端口调用（state change）；按路由的畸形可选载荷分支由 system-write 语料覆盖（*-malformed-before-port），未单列释放路由断言。缺口 owner：crates/jftrade-engine system 写叶；回归要求：补“畸形释放载荷 → 400 且状态不变”断言。"
+        "partial：Go Gin/service callback actions=0 的注册与 owner 形状未在 Rust 中同形复现，继续保持 partial。"
       ],
       "boundaryReason": null
     },
@@ -303101,13 +303116,12 @@
       "reviewStatus": "single"
     },
     "crates/jftrade-engine/tests/system_write_compatibility.rs::system_write_leaf_fails_closed_after_shape_validation": {
-      "referenceCount": 2,
+      "referenceCount": 1,
       "referenceKeys": [
-        "internal/api/system/routes_test.go:121:TestRealTradeReleaseRoutesRejectMalformedOptionalPayloadBeforeStateChange",
         "internal/api/system/routes_test.go:316:TestRealTradeControlRoutesMapValidationAndControlFailures"
       ],
       "allowed": false,
-      "reviewStatus": "unreviewed"
+      "reviewStatus": "single"
     },
     "crates/jftrade-engine/tests/system_write_compatibility.rs::system_write_manual_retry_invokes_port_once": {
       "referenceCount": 1,
@@ -311290,6 +311304,14 @@
       "referenceCount": 1,
       "referenceKeys": [
         "internal/api/system/routes_test.go:102:TestSystemRouteBoundaryValidatorsRejectMissingHardStopAndNonPositiveLimits"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/tests/system_write_compatibility.rs::system_write_release_routes_reject_malformed_optional_payload_before_port": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/api/system/routes_test.go:121:TestRealTradeReleaseRoutesRejectMalformedOptionalPayloadBeforeStateChange"
       ],
       "allowed": true,
       "reviewStatus": "single"
