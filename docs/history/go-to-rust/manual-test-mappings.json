@@ -139993,8 +139993,12 @@
           "run",
           "-p",
           "jftrade-integration-futu",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(fills_projection_sorts_filled_at_desc_with_id_tiebreak) or test(history_fill_read_projects_fill_identity) or test(advanced_feature_defaults_build_strict_opend_requests) or test(advanced_page_size_respects_protocol_limits) or test(high_dividend_state_is_hk_only) or test(product_states_match_go_quote_right_table) or test(entitlement_failure_is_cached_and_refreshed_after_reconnect) or test(fallback_requires_the_same_route_and_an_unsupported_marker) or test(test_adjust_kline_time_semantics) or test(helper_boundaries_return_the_input_unchanged) or test(broker_adapter_forwards_unavailable_opend_errors_on_every_read_route) or test(candle_period_catalog_rejects_missing_and_unmappable_intervals) or test(combo_rfq_creates_the_quote_once_and_never_replays_after_a_transport_failure) or test(prediction_push_handlers_install_once_and_fail_closed_on_invalid_demand) or test(prediction_catalog_pagination_and_identity_follow_the_go_rules) or test(catalog_operations_build_strict_opend_requests_like_go) or test(local_pagination_never_leaks_into_the_opend_request) or test(local_pagination_walks_plate_and_catalog_windows) or test(economic_calendar_pagination_honors_explicit_has_more_and_empty_rows) or test(payload_envelope_picks_the_first_sorted_entry_list_like_go) or test(futu_securities_route_projects_broker_neutral_envelope_boundary) or test(portfolio_cash_balances_prefer_currency_rows_over_summary_fallback) or test(public_coordinator_polls_basic_quotes_into_a_generation_fenced_cache) or test(subscribe_trade_accounts_propagates_opend_rejection) or test(executor_rejects_invalid_instrument_and_unsupported_interval) or test(market_rules_fall_back_to_security_snapshot_lot_size_and_report_the_primary_error) or test(basic_quote_query_requires_subscription_and_maps_success_rejection_and_empty) or test(maps_normalized_requested_rows_and_keeps_the_last_duplicate) or test(basic_quote_query_returns_an_empty_list_when_the_success_s2c_is_absent) or test(snapshot_reader_rejects_a_present_s2c_with_no_mappable_rows) or test(snapshot_reader_keeps_mappable_rows_and_drops_invalid_ones) or test(snapshot_reader_rejects_invalid_symbols_before_any_opend_call) or test(snapshot_reader_keeps_a_payload_less_ack_as_an_empty_collection) or test(cached_projection_does_not_promote_stale_overnight_during_regular_hours) or test(holiday_snapshot_stays_closed_with_stale_extended_blocks) or test(margin_ratios_reuse_a_recent_success_within_the_ttl) or test(cancel_order_uses_modify_order_cancel_operation) or test(subscribe_trade_accounts_forwards_every_account_id) or test(mainland_trade_market_falls_back_to_the_shanghai_request_location) or test(stale_or_malformed_push_updates_never_reach_the_lifecycle) or test(kline_adds_basic_and_minimum_age_delays_unsubscribe) or test(executor_sends_us_intraday_kline_session_all_on_the_wire)"
         ],
         "testFilter": [
           "fills_projection_sorts_filled_at_desc_with_id_tiebreak",
@@ -140002,10 +140006,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "78e36bd3",
+        "verifiedAt": "2026-09-25T13:08:40Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -140542,18 +140546,22 @@
           "run",
           "-p",
           "jftrade-integration-futu",
+          "-p",
+          "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(advanced_feature_defaults_build_strict_opend_requests)"
+          "test(fills_projection_sorts_filled_at_desc_with_id_tiebreak) or test(history_fill_read_projects_fill_identity) or test(advanced_feature_defaults_build_strict_opend_requests) or test(advanced_page_size_respects_protocol_limits) or test(high_dividend_state_is_hk_only) or test(product_states_match_go_quote_right_table) or test(entitlement_failure_is_cached_and_refreshed_after_reconnect) or test(fallback_requires_the_same_route_and_an_unsupported_marker) or test(test_adjust_kline_time_semantics) or test(helper_boundaries_return_the_input_unchanged) or test(broker_adapter_forwards_unavailable_opend_errors_on_every_read_route) or test(candle_period_catalog_rejects_missing_and_unmappable_intervals) or test(combo_rfq_creates_the_quote_once_and_never_replays_after_a_transport_failure) or test(prediction_push_handlers_install_once_and_fail_closed_on_invalid_demand) or test(prediction_catalog_pagination_and_identity_follow_the_go_rules) or test(catalog_operations_build_strict_opend_requests_like_go) or test(local_pagination_never_leaks_into_the_opend_request) or test(local_pagination_walks_plate_and_catalog_windows) or test(economic_calendar_pagination_honors_explicit_has_more_and_empty_rows) or test(payload_envelope_picks_the_first_sorted_entry_list_like_go) or test(futu_securities_route_projects_broker_neutral_envelope_boundary) or test(portfolio_cash_balances_prefer_currency_rows_over_summary_fallback) or test(public_coordinator_polls_basic_quotes_into_a_generation_fenced_cache) or test(subscribe_trade_accounts_propagates_opend_rejection) or test(executor_rejects_invalid_instrument_and_unsupported_interval) or test(market_rules_fall_back_to_security_snapshot_lot_size_and_report_the_primary_error) or test(basic_quote_query_requires_subscription_and_maps_success_rejection_and_empty) or test(maps_normalized_requested_rows_and_keeps_the_last_duplicate) or test(basic_quote_query_returns_an_empty_list_when_the_success_s2c_is_absent) or test(snapshot_reader_rejects_a_present_s2c_with_no_mappable_rows) or test(snapshot_reader_keeps_mappable_rows_and_drops_invalid_ones) or test(snapshot_reader_rejects_invalid_symbols_before_any_opend_call) or test(snapshot_reader_keeps_a_payload_less_ack_as_an_empty_collection) or test(cached_projection_does_not_promote_stale_overnight_during_regular_hours) or test(holiday_snapshot_stays_closed_with_stale_extended_blocks) or test(margin_ratios_reuse_a_recent_success_within_the_ttl) or test(cancel_order_uses_modify_order_cancel_operation) or test(subscribe_trade_accounts_forwards_every_account_id) or test(mainland_trade_market_falls_back_to_the_shanghai_request_location) or test(stale_or_malformed_push_updates_never_reach_the_lifecycle) or test(kline_adds_basic_and_minimum_age_delays_unsubscribe) or test(executor_sends_us_intraday_kline_session_all_on_the_wire)"
         ],
         "testFilter": [
           "advanced_feature_defaults_build_strict_opend_requests"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "78e36bd3",
+        "verifiedAt": "2026-09-25T13:08:40Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -140609,18 +140617,22 @@
           "run",
           "-p",
           "jftrade-integration-futu",
+          "-p",
+          "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(advanced_page_size_respects_protocol_limits)"
+          "test(fills_projection_sorts_filled_at_desc_with_id_tiebreak) or test(history_fill_read_projects_fill_identity) or test(advanced_feature_defaults_build_strict_opend_requests) or test(advanced_page_size_respects_protocol_limits) or test(high_dividend_state_is_hk_only) or test(product_states_match_go_quote_right_table) or test(entitlement_failure_is_cached_and_refreshed_after_reconnect) or test(fallback_requires_the_same_route_and_an_unsupported_marker) or test(test_adjust_kline_time_semantics) or test(helper_boundaries_return_the_input_unchanged) or test(broker_adapter_forwards_unavailable_opend_errors_on_every_read_route) or test(candle_period_catalog_rejects_missing_and_unmappable_intervals) or test(combo_rfq_creates_the_quote_once_and_never_replays_after_a_transport_failure) or test(prediction_push_handlers_install_once_and_fail_closed_on_invalid_demand) or test(prediction_catalog_pagination_and_identity_follow_the_go_rules) or test(catalog_operations_build_strict_opend_requests_like_go) or test(local_pagination_never_leaks_into_the_opend_request) or test(local_pagination_walks_plate_and_catalog_windows) or test(economic_calendar_pagination_honors_explicit_has_more_and_empty_rows) or test(payload_envelope_picks_the_first_sorted_entry_list_like_go) or test(futu_securities_route_projects_broker_neutral_envelope_boundary) or test(portfolio_cash_balances_prefer_currency_rows_over_summary_fallback) or test(public_coordinator_polls_basic_quotes_into_a_generation_fenced_cache) or test(subscribe_trade_accounts_propagates_opend_rejection) or test(executor_rejects_invalid_instrument_and_unsupported_interval) or test(market_rules_fall_back_to_security_snapshot_lot_size_and_report_the_primary_error) or test(basic_quote_query_requires_subscription_and_maps_success_rejection_and_empty) or test(maps_normalized_requested_rows_and_keeps_the_last_duplicate) or test(basic_quote_query_returns_an_empty_list_when_the_success_s2c_is_absent) or test(snapshot_reader_rejects_a_present_s2c_with_no_mappable_rows) or test(snapshot_reader_keeps_mappable_rows_and_drops_invalid_ones) or test(snapshot_reader_rejects_invalid_symbols_before_any_opend_call) or test(snapshot_reader_keeps_a_payload_less_ack_as_an_empty_collection) or test(cached_projection_does_not_promote_stale_overnight_during_regular_hours) or test(holiday_snapshot_stays_closed_with_stale_extended_blocks) or test(margin_ratios_reuse_a_recent_success_within_the_ttl) or test(cancel_order_uses_modify_order_cancel_operation) or test(subscribe_trade_accounts_forwards_every_account_id) or test(mainland_trade_market_falls_back_to_the_shanghai_request_location) or test(stale_or_malformed_push_updates_never_reach_the_lifecycle) or test(kline_adds_basic_and_minimum_age_delays_unsubscribe) or test(executor_sends_us_intraday_kline_session_all_on_the_wire)"
         ],
         "testFilter": [
           "advanced_page_size_respects_protocol_limits"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "78e36bd3",
+        "verifiedAt": "2026-09-25T13:08:40Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -140874,18 +140886,22 @@
           "run",
           "-p",
           "jftrade-integration-futu",
+          "-p",
+          "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(high_dividend_state_is_hk_only)"
+          "test(fills_projection_sorts_filled_at_desc_with_id_tiebreak) or test(history_fill_read_projects_fill_identity) or test(advanced_feature_defaults_build_strict_opend_requests) or test(advanced_page_size_respects_protocol_limits) or test(high_dividend_state_is_hk_only) or test(product_states_match_go_quote_right_table) or test(entitlement_failure_is_cached_and_refreshed_after_reconnect) or test(fallback_requires_the_same_route_and_an_unsupported_marker) or test(test_adjust_kline_time_semantics) or test(helper_boundaries_return_the_input_unchanged) or test(broker_adapter_forwards_unavailable_opend_errors_on_every_read_route) or test(candle_period_catalog_rejects_missing_and_unmappable_intervals) or test(combo_rfq_creates_the_quote_once_and_never_replays_after_a_transport_failure) or test(prediction_push_handlers_install_once_and_fail_closed_on_invalid_demand) or test(prediction_catalog_pagination_and_identity_follow_the_go_rules) or test(catalog_operations_build_strict_opend_requests_like_go) or test(local_pagination_never_leaks_into_the_opend_request) or test(local_pagination_walks_plate_and_catalog_windows) or test(economic_calendar_pagination_honors_explicit_has_more_and_empty_rows) or test(payload_envelope_picks_the_first_sorted_entry_list_like_go) or test(futu_securities_route_projects_broker_neutral_envelope_boundary) or test(portfolio_cash_balances_prefer_currency_rows_over_summary_fallback) or test(public_coordinator_polls_basic_quotes_into_a_generation_fenced_cache) or test(subscribe_trade_accounts_propagates_opend_rejection) or test(executor_rejects_invalid_instrument_and_unsupported_interval) or test(market_rules_fall_back_to_security_snapshot_lot_size_and_report_the_primary_error) or test(basic_quote_query_requires_subscription_and_maps_success_rejection_and_empty) or test(maps_normalized_requested_rows_and_keeps_the_last_duplicate) or test(basic_quote_query_returns_an_empty_list_when_the_success_s2c_is_absent) or test(snapshot_reader_rejects_a_present_s2c_with_no_mappable_rows) or test(snapshot_reader_keeps_mappable_rows_and_drops_invalid_ones) or test(snapshot_reader_rejects_invalid_symbols_before_any_opend_call) or test(snapshot_reader_keeps_a_payload_less_ack_as_an_empty_collection) or test(cached_projection_does_not_promote_stale_overnight_during_regular_hours) or test(holiday_snapshot_stays_closed_with_stale_extended_blocks) or test(margin_ratios_reuse_a_recent_success_within_the_ttl) or test(cancel_order_uses_modify_order_cancel_operation) or test(subscribe_trade_accounts_forwards_every_account_id) or test(mainland_trade_market_falls_back_to_the_shanghai_request_location) or test(stale_or_malformed_push_updates_never_reach_the_lifecycle) or test(kline_adds_basic_and_minimum_age_delays_unsubscribe) or test(executor_sends_us_intraday_kline_session_all_on_the_wire)"
         ],
         "testFilter": [
           "high_dividend_state_is_hk_only"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "78e36bd3",
+        "verifiedAt": "2026-09-25T13:08:40Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -141629,17 +141645,18 @@
           "jftrade-engine",
           "--all-targets",
           "--locked",
-          "--no-fail-fast"
+          "-E",
+          "test(fills_projection_sorts_filled_at_desc_with_id_tiebreak) or test(history_fill_read_projects_fill_identity) or test(advanced_feature_defaults_build_strict_opend_requests) or test(advanced_page_size_respects_protocol_limits) or test(high_dividend_state_is_hk_only) or test(product_states_match_go_quote_right_table) or test(entitlement_failure_is_cached_and_refreshed_after_reconnect) or test(fallback_requires_the_same_route_and_an_unsupported_marker) or test(test_adjust_kline_time_semantics) or test(helper_boundaries_return_the_input_unchanged) or test(broker_adapter_forwards_unavailable_opend_errors_on_every_read_route) or test(candle_period_catalog_rejects_missing_and_unmappable_intervals) or test(combo_rfq_creates_the_quote_once_and_never_replays_after_a_transport_failure) or test(prediction_push_handlers_install_once_and_fail_closed_on_invalid_demand) or test(prediction_catalog_pagination_and_identity_follow_the_go_rules) or test(catalog_operations_build_strict_opend_requests_like_go) or test(local_pagination_never_leaks_into_the_opend_request) or test(local_pagination_walks_plate_and_catalog_windows) or test(economic_calendar_pagination_honors_explicit_has_more_and_empty_rows) or test(payload_envelope_picks_the_first_sorted_entry_list_like_go) or test(futu_securities_route_projects_broker_neutral_envelope_boundary) or test(portfolio_cash_balances_prefer_currency_rows_over_summary_fallback) or test(public_coordinator_polls_basic_quotes_into_a_generation_fenced_cache) or test(subscribe_trade_accounts_propagates_opend_rejection) or test(executor_rejects_invalid_instrument_and_unsupported_interval) or test(market_rules_fall_back_to_security_snapshot_lot_size_and_report_the_primary_error) or test(basic_quote_query_requires_subscription_and_maps_success_rejection_and_empty) or test(maps_normalized_requested_rows_and_keeps_the_last_duplicate) or test(basic_quote_query_returns_an_empty_list_when_the_success_s2c_is_absent) or test(snapshot_reader_rejects_a_present_s2c_with_no_mappable_rows) or test(snapshot_reader_keeps_mappable_rows_and_drops_invalid_ones) or test(snapshot_reader_rejects_invalid_symbols_before_any_opend_call) or test(snapshot_reader_keeps_a_payload_less_ack_as_an_empty_collection) or test(cached_projection_does_not_promote_stale_overnight_during_regular_hours) or test(holiday_snapshot_stays_closed_with_stale_extended_blocks) or test(margin_ratios_reuse_a_recent_success_within_the_ttl) or test(cancel_order_uses_modify_order_cancel_operation) or test(subscribe_trade_accounts_forwards_every_account_id) or test(mainland_trade_market_falls_back_to_the_shanghai_request_location) or test(stale_or_malformed_push_updates_never_reach_the_lifecycle) or test(kline_adds_basic_and_minimum_age_delays_unsubscribe) or test(executor_sends_us_intraday_kline_session_all_on_the_wire)"
         ],
         "testFilter": [
           "product_states_match_go_quote_right_table"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "78e36bd3",
+        "verifiedAt": "2026-09-25T13:08:40Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -141769,17 +141786,18 @@
           "jftrade-engine",
           "--all-targets",
           "--locked",
-          "--no-fail-fast"
+          "-E",
+          "test(fills_projection_sorts_filled_at_desc_with_id_tiebreak) or test(history_fill_read_projects_fill_identity) or test(advanced_feature_defaults_build_strict_opend_requests) or test(advanced_page_size_respects_protocol_limits) or test(high_dividend_state_is_hk_only) or test(product_states_match_go_quote_right_table) or test(entitlement_failure_is_cached_and_refreshed_after_reconnect) or test(fallback_requires_the_same_route_and_an_unsupported_marker) or test(test_adjust_kline_time_semantics) or test(helper_boundaries_return_the_input_unchanged) or test(broker_adapter_forwards_unavailable_opend_errors_on_every_read_route) or test(candle_period_catalog_rejects_missing_and_unmappable_intervals) or test(combo_rfq_creates_the_quote_once_and_never_replays_after_a_transport_failure) or test(prediction_push_handlers_install_once_and_fail_closed_on_invalid_demand) or test(prediction_catalog_pagination_and_identity_follow_the_go_rules) or test(catalog_operations_build_strict_opend_requests_like_go) or test(local_pagination_never_leaks_into_the_opend_request) or test(local_pagination_walks_plate_and_catalog_windows) or test(economic_calendar_pagination_honors_explicit_has_more_and_empty_rows) or test(payload_envelope_picks_the_first_sorted_entry_list_like_go) or test(futu_securities_route_projects_broker_neutral_envelope_boundary) or test(portfolio_cash_balances_prefer_currency_rows_over_summary_fallback) or test(public_coordinator_polls_basic_quotes_into_a_generation_fenced_cache) or test(subscribe_trade_accounts_propagates_opend_rejection) or test(executor_rejects_invalid_instrument_and_unsupported_interval) or test(market_rules_fall_back_to_security_snapshot_lot_size_and_report_the_primary_error) or test(basic_quote_query_requires_subscription_and_maps_success_rejection_and_empty) or test(maps_normalized_requested_rows_and_keeps_the_last_duplicate) or test(basic_quote_query_returns_an_empty_list_when_the_success_s2c_is_absent) or test(snapshot_reader_rejects_a_present_s2c_with_no_mappable_rows) or test(snapshot_reader_keeps_mappable_rows_and_drops_invalid_ones) or test(snapshot_reader_rejects_invalid_symbols_before_any_opend_call) or test(snapshot_reader_keeps_a_payload_less_ack_as_an_empty_collection) or test(cached_projection_does_not_promote_stale_overnight_during_regular_hours) or test(holiday_snapshot_stays_closed_with_stale_extended_blocks) or test(margin_ratios_reuse_a_recent_success_within_the_ttl) or test(cancel_order_uses_modify_order_cancel_operation) or test(subscribe_trade_accounts_forwards_every_account_id) or test(mainland_trade_market_falls_back_to_the_shanghai_request_location) or test(stale_or_malformed_push_updates_never_reach_the_lifecycle) or test(kline_adds_basic_and_minimum_age_delays_unsubscribe) or test(executor_sends_us_intraday_kline_session_all_on_the_wire)"
         ],
         "testFilter": [
           "entitlement_failure_is_cached_and_refreshed_after_reconnect"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "78e36bd3",
+        "verifiedAt": "2026-09-25T13:08:40Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -143226,10 +143244,12 @@
           "run",
           "-p",
           "jftrade-integration-futu",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "-E",
-          "test(fallback_requires_the_same_route_and_an_unsupported_marker) | test(test_adjust_kline_time_semantics) | test(helper_boundaries_return_the_input_unchanged)"
+          "test(fills_projection_sorts_filled_at_desc_with_id_tiebreak) or test(history_fill_read_projects_fill_identity) or test(advanced_feature_defaults_build_strict_opend_requests) or test(advanced_page_size_respects_protocol_limits) or test(high_dividend_state_is_hk_only) or test(product_states_match_go_quote_right_table) or test(entitlement_failure_is_cached_and_refreshed_after_reconnect) or test(fallback_requires_the_same_route_and_an_unsupported_marker) or test(test_adjust_kline_time_semantics) or test(helper_boundaries_return_the_input_unchanged) or test(broker_adapter_forwards_unavailable_opend_errors_on_every_read_route) or test(candle_period_catalog_rejects_missing_and_unmappable_intervals) or test(combo_rfq_creates_the_quote_once_and_never_replays_after_a_transport_failure) or test(prediction_push_handlers_install_once_and_fail_closed_on_invalid_demand) or test(prediction_catalog_pagination_and_identity_follow_the_go_rules) or test(catalog_operations_build_strict_opend_requests_like_go) or test(local_pagination_never_leaks_into_the_opend_request) or test(local_pagination_walks_plate_and_catalog_windows) or test(economic_calendar_pagination_honors_explicit_has_more_and_empty_rows) or test(payload_envelope_picks_the_first_sorted_entry_list_like_go) or test(futu_securities_route_projects_broker_neutral_envelope_boundary) or test(portfolio_cash_balances_prefer_currency_rows_over_summary_fallback) or test(public_coordinator_polls_basic_quotes_into_a_generation_fenced_cache) or test(subscribe_trade_accounts_propagates_opend_rejection) or test(executor_rejects_invalid_instrument_and_unsupported_interval) or test(market_rules_fall_back_to_security_snapshot_lot_size_and_report_the_primary_error) or test(basic_quote_query_requires_subscription_and_maps_success_rejection_and_empty) or test(maps_normalized_requested_rows_and_keeps_the_last_duplicate) or test(basic_quote_query_returns_an_empty_list_when_the_success_s2c_is_absent) or test(snapshot_reader_rejects_a_present_s2c_with_no_mappable_rows) or test(snapshot_reader_keeps_mappable_rows_and_drops_invalid_ones) or test(snapshot_reader_rejects_invalid_symbols_before_any_opend_call) or test(snapshot_reader_keeps_a_payload_less_ack_as_an_empty_collection) or test(cached_projection_does_not_promote_stale_overnight_during_regular_hours) or test(holiday_snapshot_stays_closed_with_stale_extended_blocks) or test(margin_ratios_reuse_a_recent_success_within_the_ttl) or test(cancel_order_uses_modify_order_cancel_operation) or test(subscribe_trade_accounts_forwards_every_account_id) or test(mainland_trade_market_falls_back_to_the_shanghai_request_location) or test(stale_or_malformed_push_updates_never_reach_the_lifecycle) or test(kline_adds_basic_and_minimum_age_delays_unsubscribe) or test(executor_sends_us_intraday_kline_session_all_on_the_wire)"
         ],
         "testFilter": [
           "fallback_requires_the_same_route_and_an_unsupported_marker",
@@ -143238,10 +143258,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "78e36bd3",
+        "verifiedAt": "2026-09-25T13:08:40Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -143291,21 +143311,23 @@
           "scripts/quality/cargo-nextest.mjs",
           "run",
           "-p",
+          "jftrade-integration-futu",
+          "-p",
           "jftrade-engine",
           "--all-targets",
           "--locked",
           "-E",
-          "test(broker_adapter_forwards_unavailable_opend_errors_on_every_read_route)"
+          "test(fills_projection_sorts_filled_at_desc_with_id_tiebreak) or test(history_fill_read_projects_fill_identity) or test(advanced_feature_defaults_build_strict_opend_requests) or test(advanced_page_size_respects_protocol_limits) or test(high_dividend_state_is_hk_only) or test(product_states_match_go_quote_right_table) or test(entitlement_failure_is_cached_and_refreshed_after_reconnect) or test(fallback_requires_the_same_route_and_an_unsupported_marker) or test(test_adjust_kline_time_semantics) or test(helper_boundaries_return_the_input_unchanged) or test(broker_adapter_forwards_unavailable_opend_errors_on_every_read_route) or test(candle_period_catalog_rejects_missing_and_unmappable_intervals) or test(combo_rfq_creates_the_quote_once_and_never_replays_after_a_transport_failure) or test(prediction_push_handlers_install_once_and_fail_closed_on_invalid_demand) or test(prediction_catalog_pagination_and_identity_follow_the_go_rules) or test(catalog_operations_build_strict_opend_requests_like_go) or test(local_pagination_never_leaks_into_the_opend_request) or test(local_pagination_walks_plate_and_catalog_windows) or test(economic_calendar_pagination_honors_explicit_has_more_and_empty_rows) or test(payload_envelope_picks_the_first_sorted_entry_list_like_go) or test(futu_securities_route_projects_broker_neutral_envelope_boundary) or test(portfolio_cash_balances_prefer_currency_rows_over_summary_fallback) or test(public_coordinator_polls_basic_quotes_into_a_generation_fenced_cache) or test(subscribe_trade_accounts_propagates_opend_rejection) or test(executor_rejects_invalid_instrument_and_unsupported_interval) or test(market_rules_fall_back_to_security_snapshot_lot_size_and_report_the_primary_error) or test(basic_quote_query_requires_subscription_and_maps_success_rejection_and_empty) or test(maps_normalized_requested_rows_and_keeps_the_last_duplicate) or test(basic_quote_query_returns_an_empty_list_when_the_success_s2c_is_absent) or test(snapshot_reader_rejects_a_present_s2c_with_no_mappable_rows) or test(snapshot_reader_keeps_mappable_rows_and_drops_invalid_ones) or test(snapshot_reader_rejects_invalid_symbols_before_any_opend_call) or test(snapshot_reader_keeps_a_payload_less_ack_as_an_empty_collection) or test(cached_projection_does_not_promote_stale_overnight_during_regular_hours) or test(holiday_snapshot_stays_closed_with_stale_extended_blocks) or test(margin_ratios_reuse_a_recent_success_within_the_ttl) or test(cancel_order_uses_modify_order_cancel_operation) or test(subscribe_trade_accounts_forwards_every_account_id) or test(mainland_trade_market_falls_back_to_the_shanghai_request_location) or test(stale_or_malformed_push_updates_never_reach_the_lifecycle) or test(kline_adds_basic_and_minimum_age_delays_unsubscribe) or test(executor_sends_us_intraday_kline_session_all_on_the_wire)"
         ],
         "testFilter": [
           "broker_adapter_forwards_unavailable_opend_errors_on_every_read_route"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "78e36bd3",
+        "verifiedAt": "2026-09-25T13:08:40Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -143916,17 +143938,19 @@
           "-p",
           "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(fills_projection_sorts_filled_at_desc_with_id_tiebreak) or test(history_fill_read_projects_fill_identity) or test(advanced_feature_defaults_build_strict_opend_requests) or test(advanced_page_size_respects_protocol_limits) or test(high_dividend_state_is_hk_only) or test(product_states_match_go_quote_right_table) or test(entitlement_failure_is_cached_and_refreshed_after_reconnect) or test(fallback_requires_the_same_route_and_an_unsupported_marker) or test(test_adjust_kline_time_semantics) or test(helper_boundaries_return_the_input_unchanged) or test(broker_adapter_forwards_unavailable_opend_errors_on_every_read_route) or test(candle_period_catalog_rejects_missing_and_unmappable_intervals) or test(combo_rfq_creates_the_quote_once_and_never_replays_after_a_transport_failure) or test(prediction_push_handlers_install_once_and_fail_closed_on_invalid_demand) or test(prediction_catalog_pagination_and_identity_follow_the_go_rules) or test(catalog_operations_build_strict_opend_requests_like_go) or test(local_pagination_never_leaks_into_the_opend_request) or test(local_pagination_walks_plate_and_catalog_windows) or test(economic_calendar_pagination_honors_explicit_has_more_and_empty_rows) or test(payload_envelope_picks_the_first_sorted_entry_list_like_go) or test(futu_securities_route_projects_broker_neutral_envelope_boundary) or test(portfolio_cash_balances_prefer_currency_rows_over_summary_fallback) or test(public_coordinator_polls_basic_quotes_into_a_generation_fenced_cache) or test(subscribe_trade_accounts_propagates_opend_rejection) or test(executor_rejects_invalid_instrument_and_unsupported_interval) or test(market_rules_fall_back_to_security_snapshot_lot_size_and_report_the_primary_error) or test(basic_quote_query_requires_subscription_and_maps_success_rejection_and_empty) or test(maps_normalized_requested_rows_and_keeps_the_last_duplicate) or test(basic_quote_query_returns_an_empty_list_when_the_success_s2c_is_absent) or test(snapshot_reader_rejects_a_present_s2c_with_no_mappable_rows) or test(snapshot_reader_keeps_mappable_rows_and_drops_invalid_ones) or test(snapshot_reader_rejects_invalid_symbols_before_any_opend_call) or test(snapshot_reader_keeps_a_payload_less_ack_as_an_empty_collection) or test(cached_projection_does_not_promote_stale_overnight_during_regular_hours) or test(holiday_snapshot_stays_closed_with_stale_extended_blocks) or test(margin_ratios_reuse_a_recent_success_within_the_ttl) or test(cancel_order_uses_modify_order_cancel_operation) or test(subscribe_trade_accounts_forwards_every_account_id) or test(mainland_trade_market_falls_back_to_the_shanghai_request_location) or test(stale_or_malformed_push_updates_never_reach_the_lifecycle) or test(kline_adds_basic_and_minimum_age_delays_unsubscribe) or test(executor_sends_us_intraday_kline_session_all_on_the_wire)"
         ],
         "testFilter": [
           "candle_period_catalog_rejects_missing_and_unmappable_intervals"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "78e36bd3",
+        "verifiedAt": "2026-09-25T13:08:40Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -146365,8 +146389,12 @@
           "run",
           "-p",
           "jftrade-integration-futu",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(fills_projection_sorts_filled_at_desc_with_id_tiebreak) or test(history_fill_read_projects_fill_identity) or test(advanced_feature_defaults_build_strict_opend_requests) or test(advanced_page_size_respects_protocol_limits) or test(high_dividend_state_is_hk_only) or test(product_states_match_go_quote_right_table) or test(entitlement_failure_is_cached_and_refreshed_after_reconnect) or test(fallback_requires_the_same_route_and_an_unsupported_marker) or test(test_adjust_kline_time_semantics) or test(helper_boundaries_return_the_input_unchanged) or test(broker_adapter_forwards_unavailable_opend_errors_on_every_read_route) or test(candle_period_catalog_rejects_missing_and_unmappable_intervals) or test(combo_rfq_creates_the_quote_once_and_never_replays_after_a_transport_failure) or test(prediction_push_handlers_install_once_and_fail_closed_on_invalid_demand) or test(prediction_catalog_pagination_and_identity_follow_the_go_rules) or test(catalog_operations_build_strict_opend_requests_like_go) or test(local_pagination_never_leaks_into_the_opend_request) or test(local_pagination_walks_plate_and_catalog_windows) or test(economic_calendar_pagination_honors_explicit_has_more_and_empty_rows) or test(payload_envelope_picks_the_first_sorted_entry_list_like_go) or test(futu_securities_route_projects_broker_neutral_envelope_boundary) or test(portfolio_cash_balances_prefer_currency_rows_over_summary_fallback) or test(public_coordinator_polls_basic_quotes_into_a_generation_fenced_cache) or test(subscribe_trade_accounts_propagates_opend_rejection) or test(executor_rejects_invalid_instrument_and_unsupported_interval) or test(market_rules_fall_back_to_security_snapshot_lot_size_and_report_the_primary_error) or test(basic_quote_query_requires_subscription_and_maps_success_rejection_and_empty) or test(maps_normalized_requested_rows_and_keeps_the_last_duplicate) or test(basic_quote_query_returns_an_empty_list_when_the_success_s2c_is_absent) or test(snapshot_reader_rejects_a_present_s2c_with_no_mappable_rows) or test(snapshot_reader_keeps_mappable_rows_and_drops_invalid_ones) or test(snapshot_reader_rejects_invalid_symbols_before_any_opend_call) or test(snapshot_reader_keeps_a_payload_less_ack_as_an_empty_collection) or test(cached_projection_does_not_promote_stale_overnight_during_regular_hours) or test(holiday_snapshot_stays_closed_with_stale_extended_blocks) or test(margin_ratios_reuse_a_recent_success_within_the_ttl) or test(cancel_order_uses_modify_order_cancel_operation) or test(subscribe_trade_accounts_forwards_every_account_id) or test(mainland_trade_market_falls_back_to_the_shanghai_request_location) or test(stale_or_malformed_push_updates_never_reach_the_lifecycle) or test(kline_adds_basic_and_minimum_age_delays_unsubscribe) or test(executor_sends_us_intraday_kline_session_all_on_the_wire)"
         ],
         "testFilter": [
           "combo_rfq_creates_the_quote_once_and_never_replays_after_a_transport_failure",
@@ -146374,10 +146402,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "78e36bd3",
+        "verifiedAt": "2026-09-25T13:08:40Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -146847,20 +146875,22 @@
           "run",
           "-p",
           "jftrade-integration-futu",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "-E",
-          "test(prediction_catalog_pagination_and_identity_follow_the_go_rules)"
+          "test(fills_projection_sorts_filled_at_desc_with_id_tiebreak) or test(history_fill_read_projects_fill_identity) or test(advanced_feature_defaults_build_strict_opend_requests) or test(advanced_page_size_respects_protocol_limits) or test(high_dividend_state_is_hk_only) or test(product_states_match_go_quote_right_table) or test(entitlement_failure_is_cached_and_refreshed_after_reconnect) or test(fallback_requires_the_same_route_and_an_unsupported_marker) or test(test_adjust_kline_time_semantics) or test(helper_boundaries_return_the_input_unchanged) or test(broker_adapter_forwards_unavailable_opend_errors_on_every_read_route) or test(candle_period_catalog_rejects_missing_and_unmappable_intervals) or test(combo_rfq_creates_the_quote_once_and_never_replays_after_a_transport_failure) or test(prediction_push_handlers_install_once_and_fail_closed_on_invalid_demand) or test(prediction_catalog_pagination_and_identity_follow_the_go_rules) or test(catalog_operations_build_strict_opend_requests_like_go) or test(local_pagination_never_leaks_into_the_opend_request) or test(local_pagination_walks_plate_and_catalog_windows) or test(economic_calendar_pagination_honors_explicit_has_more_and_empty_rows) or test(payload_envelope_picks_the_first_sorted_entry_list_like_go) or test(futu_securities_route_projects_broker_neutral_envelope_boundary) or test(portfolio_cash_balances_prefer_currency_rows_over_summary_fallback) or test(public_coordinator_polls_basic_quotes_into_a_generation_fenced_cache) or test(subscribe_trade_accounts_propagates_opend_rejection) or test(executor_rejects_invalid_instrument_and_unsupported_interval) or test(market_rules_fall_back_to_security_snapshot_lot_size_and_report_the_primary_error) or test(basic_quote_query_requires_subscription_and_maps_success_rejection_and_empty) or test(maps_normalized_requested_rows_and_keeps_the_last_duplicate) or test(basic_quote_query_returns_an_empty_list_when_the_success_s2c_is_absent) or test(snapshot_reader_rejects_a_present_s2c_with_no_mappable_rows) or test(snapshot_reader_keeps_mappable_rows_and_drops_invalid_ones) or test(snapshot_reader_rejects_invalid_symbols_before_any_opend_call) or test(snapshot_reader_keeps_a_payload_less_ack_as_an_empty_collection) or test(cached_projection_does_not_promote_stale_overnight_during_regular_hours) or test(holiday_snapshot_stays_closed_with_stale_extended_blocks) or test(margin_ratios_reuse_a_recent_success_within_the_ttl) or test(cancel_order_uses_modify_order_cancel_operation) or test(subscribe_trade_accounts_forwards_every_account_id) or test(mainland_trade_market_falls_back_to_the_shanghai_request_location) or test(stale_or_malformed_push_updates_never_reach_the_lifecycle) or test(kline_adds_basic_and_minimum_age_delays_unsubscribe) or test(executor_sends_us_intraday_kline_session_all_on_the_wire)"
         ],
         "testFilter": [
           "prediction_catalog_pagination_and_identity_follow_the_go_rules"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "78e36bd3",
+        "verifiedAt": "2026-09-25T13:08:40Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -146985,20 +147015,22 @@
           "run",
           "-p",
           "jftrade-integration-futu",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "-E",
-          "test(catalog_operations_build_strict_opend_requests_like_go)"
+          "test(fills_projection_sorts_filled_at_desc_with_id_tiebreak) or test(history_fill_read_projects_fill_identity) or test(advanced_feature_defaults_build_strict_opend_requests) or test(advanced_page_size_respects_protocol_limits) or test(high_dividend_state_is_hk_only) or test(product_states_match_go_quote_right_table) or test(entitlement_failure_is_cached_and_refreshed_after_reconnect) or test(fallback_requires_the_same_route_and_an_unsupported_marker) or test(test_adjust_kline_time_semantics) or test(helper_boundaries_return_the_input_unchanged) or test(broker_adapter_forwards_unavailable_opend_errors_on_every_read_route) or test(candle_period_catalog_rejects_missing_and_unmappable_intervals) or test(combo_rfq_creates_the_quote_once_and_never_replays_after_a_transport_failure) or test(prediction_push_handlers_install_once_and_fail_closed_on_invalid_demand) or test(prediction_catalog_pagination_and_identity_follow_the_go_rules) or test(catalog_operations_build_strict_opend_requests_like_go) or test(local_pagination_never_leaks_into_the_opend_request) or test(local_pagination_walks_plate_and_catalog_windows) or test(economic_calendar_pagination_honors_explicit_has_more_and_empty_rows) or test(payload_envelope_picks_the_first_sorted_entry_list_like_go) or test(futu_securities_route_projects_broker_neutral_envelope_boundary) or test(portfolio_cash_balances_prefer_currency_rows_over_summary_fallback) or test(public_coordinator_polls_basic_quotes_into_a_generation_fenced_cache) or test(subscribe_trade_accounts_propagates_opend_rejection) or test(executor_rejects_invalid_instrument_and_unsupported_interval) or test(market_rules_fall_back_to_security_snapshot_lot_size_and_report_the_primary_error) or test(basic_quote_query_requires_subscription_and_maps_success_rejection_and_empty) or test(maps_normalized_requested_rows_and_keeps_the_last_duplicate) or test(basic_quote_query_returns_an_empty_list_when_the_success_s2c_is_absent) or test(snapshot_reader_rejects_a_present_s2c_with_no_mappable_rows) or test(snapshot_reader_keeps_mappable_rows_and_drops_invalid_ones) or test(snapshot_reader_rejects_invalid_symbols_before_any_opend_call) or test(snapshot_reader_keeps_a_payload_less_ack_as_an_empty_collection) or test(cached_projection_does_not_promote_stale_overnight_during_regular_hours) or test(holiday_snapshot_stays_closed_with_stale_extended_blocks) or test(margin_ratios_reuse_a_recent_success_within_the_ttl) or test(cancel_order_uses_modify_order_cancel_operation) or test(subscribe_trade_accounts_forwards_every_account_id) or test(mainland_trade_market_falls_back_to_the_shanghai_request_location) or test(stale_or_malformed_push_updates_never_reach_the_lifecycle) or test(kline_adds_basic_and_minimum_age_delays_unsubscribe) or test(executor_sends_us_intraday_kline_session_all_on_the_wire)"
         ],
         "testFilter": [
           "catalog_operations_build_strict_opend_requests_like_go"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "78e36bd3",
+        "verifiedAt": "2026-09-25T13:08:40Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -147234,10 +147266,12 @@
           "run",
           "-p",
           "jftrade-integration-futu",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "-E",
-          "test(local_pagination_never_leaks_into_the_opend_request) | test(local_pagination_walks_plate_and_catalog_windows)"
+          "test(fills_projection_sorts_filled_at_desc_with_id_tiebreak) or test(history_fill_read_projects_fill_identity) or test(advanced_feature_defaults_build_strict_opend_requests) or test(advanced_page_size_respects_protocol_limits) or test(high_dividend_state_is_hk_only) or test(product_states_match_go_quote_right_table) or test(entitlement_failure_is_cached_and_refreshed_after_reconnect) or test(fallback_requires_the_same_route_and_an_unsupported_marker) or test(test_adjust_kline_time_semantics) or test(helper_boundaries_return_the_input_unchanged) or test(broker_adapter_forwards_unavailable_opend_errors_on_every_read_route) or test(candle_period_catalog_rejects_missing_and_unmappable_intervals) or test(combo_rfq_creates_the_quote_once_and_never_replays_after_a_transport_failure) or test(prediction_push_handlers_install_once_and_fail_closed_on_invalid_demand) or test(prediction_catalog_pagination_and_identity_follow_the_go_rules) or test(catalog_operations_build_strict_opend_requests_like_go) or test(local_pagination_never_leaks_into_the_opend_request) or test(local_pagination_walks_plate_and_catalog_windows) or test(economic_calendar_pagination_honors_explicit_has_more_and_empty_rows) or test(payload_envelope_picks_the_first_sorted_entry_list_like_go) or test(futu_securities_route_projects_broker_neutral_envelope_boundary) or test(portfolio_cash_balances_prefer_currency_rows_over_summary_fallback) or test(public_coordinator_polls_basic_quotes_into_a_generation_fenced_cache) or test(subscribe_trade_accounts_propagates_opend_rejection) or test(executor_rejects_invalid_instrument_and_unsupported_interval) or test(market_rules_fall_back_to_security_snapshot_lot_size_and_report_the_primary_error) or test(basic_quote_query_requires_subscription_and_maps_success_rejection_and_empty) or test(maps_normalized_requested_rows_and_keeps_the_last_duplicate) or test(basic_quote_query_returns_an_empty_list_when_the_success_s2c_is_absent) or test(snapshot_reader_rejects_a_present_s2c_with_no_mappable_rows) or test(snapshot_reader_keeps_mappable_rows_and_drops_invalid_ones) or test(snapshot_reader_rejects_invalid_symbols_before_any_opend_call) or test(snapshot_reader_keeps_a_payload_less_ack_as_an_empty_collection) or test(cached_projection_does_not_promote_stale_overnight_during_regular_hours) or test(holiday_snapshot_stays_closed_with_stale_extended_blocks) or test(margin_ratios_reuse_a_recent_success_within_the_ttl) or test(cancel_order_uses_modify_order_cancel_operation) or test(subscribe_trade_accounts_forwards_every_account_id) or test(mainland_trade_market_falls_back_to_the_shanghai_request_location) or test(stale_or_malformed_push_updates_never_reach_the_lifecycle) or test(kline_adds_basic_and_minimum_age_delays_unsubscribe) or test(executor_sends_us_intraday_kline_session_all_on_the_wire)"
         ],
         "testFilter": [
           "local_pagination_never_leaks_into_the_opend_request",
@@ -147245,10 +147279,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "78e36bd3",
+        "verifiedAt": "2026-09-25T13:08:40Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -147315,10 +147349,12 @@
           "run",
           "-p",
           "jftrade-integration-futu",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "-E",
-          "test(economic_calendar_pagination_honors_explicit_has_more) | test(payload_envelope_picks_the_first_sorted_entry_list)"
+          "test(fills_projection_sorts_filled_at_desc_with_id_tiebreak) or test(history_fill_read_projects_fill_identity) or test(advanced_feature_defaults_build_strict_opend_requests) or test(advanced_page_size_respects_protocol_limits) or test(high_dividend_state_is_hk_only) or test(product_states_match_go_quote_right_table) or test(entitlement_failure_is_cached_and_refreshed_after_reconnect) or test(fallback_requires_the_same_route_and_an_unsupported_marker) or test(test_adjust_kline_time_semantics) or test(helper_boundaries_return_the_input_unchanged) or test(broker_adapter_forwards_unavailable_opend_errors_on_every_read_route) or test(candle_period_catalog_rejects_missing_and_unmappable_intervals) or test(combo_rfq_creates_the_quote_once_and_never_replays_after_a_transport_failure) or test(prediction_push_handlers_install_once_and_fail_closed_on_invalid_demand) or test(prediction_catalog_pagination_and_identity_follow_the_go_rules) or test(catalog_operations_build_strict_opend_requests_like_go) or test(local_pagination_never_leaks_into_the_opend_request) or test(local_pagination_walks_plate_and_catalog_windows) or test(economic_calendar_pagination_honors_explicit_has_more_and_empty_rows) or test(payload_envelope_picks_the_first_sorted_entry_list_like_go) or test(futu_securities_route_projects_broker_neutral_envelope_boundary) or test(portfolio_cash_balances_prefer_currency_rows_over_summary_fallback) or test(public_coordinator_polls_basic_quotes_into_a_generation_fenced_cache) or test(subscribe_trade_accounts_propagates_opend_rejection) or test(executor_rejects_invalid_instrument_and_unsupported_interval) or test(market_rules_fall_back_to_security_snapshot_lot_size_and_report_the_primary_error) or test(basic_quote_query_requires_subscription_and_maps_success_rejection_and_empty) or test(maps_normalized_requested_rows_and_keeps_the_last_duplicate) or test(basic_quote_query_returns_an_empty_list_when_the_success_s2c_is_absent) or test(snapshot_reader_rejects_a_present_s2c_with_no_mappable_rows) or test(snapshot_reader_keeps_mappable_rows_and_drops_invalid_ones) or test(snapshot_reader_rejects_invalid_symbols_before_any_opend_call) or test(snapshot_reader_keeps_a_payload_less_ack_as_an_empty_collection) or test(cached_projection_does_not_promote_stale_overnight_during_regular_hours) or test(holiday_snapshot_stays_closed_with_stale_extended_blocks) or test(margin_ratios_reuse_a_recent_success_within_the_ttl) or test(cancel_order_uses_modify_order_cancel_operation) or test(subscribe_trade_accounts_forwards_every_account_id) or test(mainland_trade_market_falls_back_to_the_shanghai_request_location) or test(stale_or_malformed_push_updates_never_reach_the_lifecycle) or test(kline_adds_basic_and_minimum_age_delays_unsubscribe) or test(executor_sends_us_intraday_kline_session_all_on_the_wire)"
         ],
         "testFilter": [
           "economic_calendar_pagination_honors_explicit_has_more_and_empty_rows",
@@ -147326,10 +147362,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "78e36bd3",
+        "verifiedAt": "2026-09-25T13:08:40Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -149049,19 +149085,23 @@
           "scripts/quality/cargo-nextest.mjs",
           "run",
           "-p",
+          "jftrade-integration-futu",
+          "-p",
           "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(futu_securities_route_projects_broker_neutral_envelope_boundary)"
+          "test(fills_projection_sorts_filled_at_desc_with_id_tiebreak) or test(history_fill_read_projects_fill_identity) or test(advanced_feature_defaults_build_strict_opend_requests) or test(advanced_page_size_respects_protocol_limits) or test(high_dividend_state_is_hk_only) or test(product_states_match_go_quote_right_table) or test(entitlement_failure_is_cached_and_refreshed_after_reconnect) or test(fallback_requires_the_same_route_and_an_unsupported_marker) or test(test_adjust_kline_time_semantics) or test(helper_boundaries_return_the_input_unchanged) or test(broker_adapter_forwards_unavailable_opend_errors_on_every_read_route) or test(candle_period_catalog_rejects_missing_and_unmappable_intervals) or test(combo_rfq_creates_the_quote_once_and_never_replays_after_a_transport_failure) or test(prediction_push_handlers_install_once_and_fail_closed_on_invalid_demand) or test(prediction_catalog_pagination_and_identity_follow_the_go_rules) or test(catalog_operations_build_strict_opend_requests_like_go) or test(local_pagination_never_leaks_into_the_opend_request) or test(local_pagination_walks_plate_and_catalog_windows) or test(economic_calendar_pagination_honors_explicit_has_more_and_empty_rows) or test(payload_envelope_picks_the_first_sorted_entry_list_like_go) or test(futu_securities_route_projects_broker_neutral_envelope_boundary) or test(portfolio_cash_balances_prefer_currency_rows_over_summary_fallback) or test(public_coordinator_polls_basic_quotes_into_a_generation_fenced_cache) or test(subscribe_trade_accounts_propagates_opend_rejection) or test(executor_rejects_invalid_instrument_and_unsupported_interval) or test(market_rules_fall_back_to_security_snapshot_lot_size_and_report_the_primary_error) or test(basic_quote_query_requires_subscription_and_maps_success_rejection_and_empty) or test(maps_normalized_requested_rows_and_keeps_the_last_duplicate) or test(basic_quote_query_returns_an_empty_list_when_the_success_s2c_is_absent) or test(snapshot_reader_rejects_a_present_s2c_with_no_mappable_rows) or test(snapshot_reader_keeps_mappable_rows_and_drops_invalid_ones) or test(snapshot_reader_rejects_invalid_symbols_before_any_opend_call) or test(snapshot_reader_keeps_a_payload_less_ack_as_an_empty_collection) or test(cached_projection_does_not_promote_stale_overnight_during_regular_hours) or test(holiday_snapshot_stays_closed_with_stale_extended_blocks) or test(margin_ratios_reuse_a_recent_success_within_the_ttl) or test(cancel_order_uses_modify_order_cancel_operation) or test(subscribe_trade_accounts_forwards_every_account_id) or test(mainland_trade_market_falls_back_to_the_shanghai_request_location) or test(stale_or_malformed_push_updates_never_reach_the_lifecycle) or test(kline_adds_basic_and_minimum_age_delays_unsubscribe) or test(executor_sends_us_intraday_kline_session_all_on_the_wire)"
         ],
         "testFilter": [
           "futu_securities_route_projects_broker_neutral_envelope_boundary"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "78e36bd3",
+        "verifiedAt": "2026-09-25T13:08:40Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -150321,19 +150361,23 @@
           "scripts/quality/cargo-nextest.mjs",
           "run",
           "-p",
+          "jftrade-integration-futu",
+          "-p",
           "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(portfolio_cash_balances_prefer_currency_rows_over_summary_fallback)"
+          "test(fills_projection_sorts_filled_at_desc_with_id_tiebreak) or test(history_fill_read_projects_fill_identity) or test(advanced_feature_defaults_build_strict_opend_requests) or test(advanced_page_size_respects_protocol_limits) or test(high_dividend_state_is_hk_only) or test(product_states_match_go_quote_right_table) or test(entitlement_failure_is_cached_and_refreshed_after_reconnect) or test(fallback_requires_the_same_route_and_an_unsupported_marker) or test(test_adjust_kline_time_semantics) or test(helper_boundaries_return_the_input_unchanged) or test(broker_adapter_forwards_unavailable_opend_errors_on_every_read_route) or test(candle_period_catalog_rejects_missing_and_unmappable_intervals) or test(combo_rfq_creates_the_quote_once_and_never_replays_after_a_transport_failure) or test(prediction_push_handlers_install_once_and_fail_closed_on_invalid_demand) or test(prediction_catalog_pagination_and_identity_follow_the_go_rules) or test(catalog_operations_build_strict_opend_requests_like_go) or test(local_pagination_never_leaks_into_the_opend_request) or test(local_pagination_walks_plate_and_catalog_windows) or test(economic_calendar_pagination_honors_explicit_has_more_and_empty_rows) or test(payload_envelope_picks_the_first_sorted_entry_list_like_go) or test(futu_securities_route_projects_broker_neutral_envelope_boundary) or test(portfolio_cash_balances_prefer_currency_rows_over_summary_fallback) or test(public_coordinator_polls_basic_quotes_into_a_generation_fenced_cache) or test(subscribe_trade_accounts_propagates_opend_rejection) or test(executor_rejects_invalid_instrument_and_unsupported_interval) or test(market_rules_fall_back_to_security_snapshot_lot_size_and_report_the_primary_error) or test(basic_quote_query_requires_subscription_and_maps_success_rejection_and_empty) or test(maps_normalized_requested_rows_and_keeps_the_last_duplicate) or test(basic_quote_query_returns_an_empty_list_when_the_success_s2c_is_absent) or test(snapshot_reader_rejects_a_present_s2c_with_no_mappable_rows) or test(snapshot_reader_keeps_mappable_rows_and_drops_invalid_ones) or test(snapshot_reader_rejects_invalid_symbols_before_any_opend_call) or test(snapshot_reader_keeps_a_payload_less_ack_as_an_empty_collection) or test(cached_projection_does_not_promote_stale_overnight_during_regular_hours) or test(holiday_snapshot_stays_closed_with_stale_extended_blocks) or test(margin_ratios_reuse_a_recent_success_within_the_ttl) or test(cancel_order_uses_modify_order_cancel_operation) or test(subscribe_trade_accounts_forwards_every_account_id) or test(mainland_trade_market_falls_back_to_the_shanghai_request_location) or test(stale_or_malformed_push_updates_never_reach_the_lifecycle) or test(kline_adds_basic_and_minimum_age_delays_unsubscribe) or test(executor_sends_us_intraday_kline_session_all_on_the_wire)"
         ],
         "testFilter": [
           "portfolio_cash_balances_prefer_currency_rows_over_summary_fallback"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "78e36bd3",
+        "verifiedAt": "2026-09-25T13:08:40Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -152126,18 +152170,22 @@
           "run",
           "-p",
           "jftrade-integration-futu",
+          "-p",
+          "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(reconnect_replay_contains_only_subscriptions_and_resets_retry_state)"
+          "test(fills_projection_sorts_filled_at_desc_with_id_tiebreak) or test(history_fill_read_projects_fill_identity) or test(advanced_feature_defaults_build_strict_opend_requests) or test(advanced_page_size_respects_protocol_limits) or test(high_dividend_state_is_hk_only) or test(product_states_match_go_quote_right_table) or test(entitlement_failure_is_cached_and_refreshed_after_reconnect) or test(fallback_requires_the_same_route_and_an_unsupported_marker) or test(test_adjust_kline_time_semantics) or test(helper_boundaries_return_the_input_unchanged) or test(broker_adapter_forwards_unavailable_opend_errors_on_every_read_route) or test(candle_period_catalog_rejects_missing_and_unmappable_intervals) or test(combo_rfq_creates_the_quote_once_and_never_replays_after_a_transport_failure) or test(prediction_push_handlers_install_once_and_fail_closed_on_invalid_demand) or test(prediction_catalog_pagination_and_identity_follow_the_go_rules) or test(catalog_operations_build_strict_opend_requests_like_go) or test(local_pagination_never_leaks_into_the_opend_request) or test(local_pagination_walks_plate_and_catalog_windows) or test(economic_calendar_pagination_honors_explicit_has_more_and_empty_rows) or test(payload_envelope_picks_the_first_sorted_entry_list_like_go) or test(futu_securities_route_projects_broker_neutral_envelope_boundary) or test(portfolio_cash_balances_prefer_currency_rows_over_summary_fallback) or test(public_coordinator_polls_basic_quotes_into_a_generation_fenced_cache) or test(subscribe_trade_accounts_propagates_opend_rejection) or test(executor_rejects_invalid_instrument_and_unsupported_interval) or test(market_rules_fall_back_to_security_snapshot_lot_size_and_report_the_primary_error) or test(basic_quote_query_requires_subscription_and_maps_success_rejection_and_empty) or test(maps_normalized_requested_rows_and_keeps_the_last_duplicate) or test(basic_quote_query_returns_an_empty_list_when_the_success_s2c_is_absent) or test(snapshot_reader_rejects_a_present_s2c_with_no_mappable_rows) or test(snapshot_reader_keeps_mappable_rows_and_drops_invalid_ones) or test(snapshot_reader_rejects_invalid_symbols_before_any_opend_call) or test(snapshot_reader_keeps_a_payload_less_ack_as_an_empty_collection) or test(cached_projection_does_not_promote_stale_overnight_during_regular_hours) or test(holiday_snapshot_stays_closed_with_stale_extended_blocks) or test(margin_ratios_reuse_a_recent_success_within_the_ttl) or test(cancel_order_uses_modify_order_cancel_operation) or test(subscribe_trade_accounts_forwards_every_account_id) or test(mainland_trade_market_falls_back_to_the_shanghai_request_location) or test(stale_or_malformed_push_updates_never_reach_the_lifecycle) or test(kline_adds_basic_and_minimum_age_delays_unsubscribe) or test(executor_sends_us_intraday_kline_session_all_on_the_wire)"
         ],
         "testFilter": [
           "public_coordinator_polls_basic_quotes_into_a_generation_fenced_cache"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "78e36bd3",
+        "verifiedAt": "2026-09-25T13:08:40Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -152322,18 +152370,22 @@
           "run",
           "-p",
           "jftrade-integration-futu",
+          "-p",
+          "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(fallback_requires_the_same_route_and_an_unsupported_marker)"
+          "test(fills_projection_sorts_filled_at_desc_with_id_tiebreak) or test(history_fill_read_projects_fill_identity) or test(advanced_feature_defaults_build_strict_opend_requests) or test(advanced_page_size_respects_protocol_limits) or test(high_dividend_state_is_hk_only) or test(product_states_match_go_quote_right_table) or test(entitlement_failure_is_cached_and_refreshed_after_reconnect) or test(fallback_requires_the_same_route_and_an_unsupported_marker) or test(test_adjust_kline_time_semantics) or test(helper_boundaries_return_the_input_unchanged) or test(broker_adapter_forwards_unavailable_opend_errors_on_every_read_route) or test(candle_period_catalog_rejects_missing_and_unmappable_intervals) or test(combo_rfq_creates_the_quote_once_and_never_replays_after_a_transport_failure) or test(prediction_push_handlers_install_once_and_fail_closed_on_invalid_demand) or test(prediction_catalog_pagination_and_identity_follow_the_go_rules) or test(catalog_operations_build_strict_opend_requests_like_go) or test(local_pagination_never_leaks_into_the_opend_request) or test(local_pagination_walks_plate_and_catalog_windows) or test(economic_calendar_pagination_honors_explicit_has_more_and_empty_rows) or test(payload_envelope_picks_the_first_sorted_entry_list_like_go) or test(futu_securities_route_projects_broker_neutral_envelope_boundary) or test(portfolio_cash_balances_prefer_currency_rows_over_summary_fallback) or test(public_coordinator_polls_basic_quotes_into_a_generation_fenced_cache) or test(subscribe_trade_accounts_propagates_opend_rejection) or test(executor_rejects_invalid_instrument_and_unsupported_interval) or test(market_rules_fall_back_to_security_snapshot_lot_size_and_report_the_primary_error) or test(basic_quote_query_requires_subscription_and_maps_success_rejection_and_empty) or test(maps_normalized_requested_rows_and_keeps_the_last_duplicate) or test(basic_quote_query_returns_an_empty_list_when_the_success_s2c_is_absent) or test(snapshot_reader_rejects_a_present_s2c_with_no_mappable_rows) or test(snapshot_reader_keeps_mappable_rows_and_drops_invalid_ones) or test(snapshot_reader_rejects_invalid_symbols_before_any_opend_call) or test(snapshot_reader_keeps_a_payload_less_ack_as_an_empty_collection) or test(cached_projection_does_not_promote_stale_overnight_during_regular_hours) or test(holiday_snapshot_stays_closed_with_stale_extended_blocks) or test(margin_ratios_reuse_a_recent_success_within_the_ttl) or test(cancel_order_uses_modify_order_cancel_operation) or test(subscribe_trade_accounts_forwards_every_account_id) or test(mainland_trade_market_falls_back_to_the_shanghai_request_location) or test(stale_or_malformed_push_updates_never_reach_the_lifecycle) or test(kline_adds_basic_and_minimum_age_delays_unsubscribe) or test(executor_sends_us_intraday_kline_session_all_on_the_wire)"
         ],
         "testFilter": [
           "fallback_requires_the_same_route_and_an_unsupported_marker"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "78e36bd3",
+        "verifiedAt": "2026-09-25T13:08:40Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -153371,10 +153423,12 @@
           "run",
           "-p",
           "jftrade-integration-futu",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "-E",
-          "test(subscribe_trade_accounts_propagates_opend_rejection) | test(executor_rejects_invalid_instrument_and_unsupported_interval) | test(market_rules_fall_back_to_security_snapshot_lot_size_and_report_the_primary_error)"
+          "test(fills_projection_sorts_filled_at_desc_with_id_tiebreak) or test(history_fill_read_projects_fill_identity) or test(advanced_feature_defaults_build_strict_opend_requests) or test(advanced_page_size_respects_protocol_limits) or test(high_dividend_state_is_hk_only) or test(product_states_match_go_quote_right_table) or test(entitlement_failure_is_cached_and_refreshed_after_reconnect) or test(fallback_requires_the_same_route_and_an_unsupported_marker) or test(test_adjust_kline_time_semantics) or test(helper_boundaries_return_the_input_unchanged) or test(broker_adapter_forwards_unavailable_opend_errors_on_every_read_route) or test(candle_period_catalog_rejects_missing_and_unmappable_intervals) or test(combo_rfq_creates_the_quote_once_and_never_replays_after_a_transport_failure) or test(prediction_push_handlers_install_once_and_fail_closed_on_invalid_demand) or test(prediction_catalog_pagination_and_identity_follow_the_go_rules) or test(catalog_operations_build_strict_opend_requests_like_go) or test(local_pagination_never_leaks_into_the_opend_request) or test(local_pagination_walks_plate_and_catalog_windows) or test(economic_calendar_pagination_honors_explicit_has_more_and_empty_rows) or test(payload_envelope_picks_the_first_sorted_entry_list_like_go) or test(futu_securities_route_projects_broker_neutral_envelope_boundary) or test(portfolio_cash_balances_prefer_currency_rows_over_summary_fallback) or test(public_coordinator_polls_basic_quotes_into_a_generation_fenced_cache) or test(subscribe_trade_accounts_propagates_opend_rejection) or test(executor_rejects_invalid_instrument_and_unsupported_interval) or test(market_rules_fall_back_to_security_snapshot_lot_size_and_report_the_primary_error) or test(basic_quote_query_requires_subscription_and_maps_success_rejection_and_empty) or test(maps_normalized_requested_rows_and_keeps_the_last_duplicate) or test(basic_quote_query_returns_an_empty_list_when_the_success_s2c_is_absent) or test(snapshot_reader_rejects_a_present_s2c_with_no_mappable_rows) or test(snapshot_reader_keeps_mappable_rows_and_drops_invalid_ones) or test(snapshot_reader_rejects_invalid_symbols_before_any_opend_call) or test(snapshot_reader_keeps_a_payload_less_ack_as_an_empty_collection) or test(cached_projection_does_not_promote_stale_overnight_during_regular_hours) or test(holiday_snapshot_stays_closed_with_stale_extended_blocks) or test(margin_ratios_reuse_a_recent_success_within_the_ttl) or test(cancel_order_uses_modify_order_cancel_operation) or test(subscribe_trade_accounts_forwards_every_account_id) or test(mainland_trade_market_falls_back_to_the_shanghai_request_location) or test(stale_or_malformed_push_updates_never_reach_the_lifecycle) or test(kline_adds_basic_and_minimum_age_delays_unsubscribe) or test(executor_sends_us_intraday_kline_session_all_on_the_wire)"
         ],
         "testFilter": [
           "subscribe_trade_accounts_propagates_opend_rejection",
@@ -153383,10 +153437,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "78e36bd3",
+        "verifiedAt": "2026-09-25T13:08:40Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -153518,10 +153572,12 @@
           "run",
           "-p",
           "jftrade-integration-futu",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "-E",
-          "test(basic_quote_query_requires_subscription_and_maps_success_rejection_and_empty) | test(maps_normalized_requested_rows_and_keeps_the_last_duplicate) | test(basic_quote_query_returns_an_empty_list_when_the_success_s2c_is_absent)"
+          "test(fills_projection_sorts_filled_at_desc_with_id_tiebreak) or test(history_fill_read_projects_fill_identity) or test(advanced_feature_defaults_build_strict_opend_requests) or test(advanced_page_size_respects_protocol_limits) or test(high_dividend_state_is_hk_only) or test(product_states_match_go_quote_right_table) or test(entitlement_failure_is_cached_and_refreshed_after_reconnect) or test(fallback_requires_the_same_route_and_an_unsupported_marker) or test(test_adjust_kline_time_semantics) or test(helper_boundaries_return_the_input_unchanged) or test(broker_adapter_forwards_unavailable_opend_errors_on_every_read_route) or test(candle_period_catalog_rejects_missing_and_unmappable_intervals) or test(combo_rfq_creates_the_quote_once_and_never_replays_after_a_transport_failure) or test(prediction_push_handlers_install_once_and_fail_closed_on_invalid_demand) or test(prediction_catalog_pagination_and_identity_follow_the_go_rules) or test(catalog_operations_build_strict_opend_requests_like_go) or test(local_pagination_never_leaks_into_the_opend_request) or test(local_pagination_walks_plate_and_catalog_windows) or test(economic_calendar_pagination_honors_explicit_has_more_and_empty_rows) or test(payload_envelope_picks_the_first_sorted_entry_list_like_go) or test(futu_securities_route_projects_broker_neutral_envelope_boundary) or test(portfolio_cash_balances_prefer_currency_rows_over_summary_fallback) or test(public_coordinator_polls_basic_quotes_into_a_generation_fenced_cache) or test(subscribe_trade_accounts_propagates_opend_rejection) or test(executor_rejects_invalid_instrument_and_unsupported_interval) or test(market_rules_fall_back_to_security_snapshot_lot_size_and_report_the_primary_error) or test(basic_quote_query_requires_subscription_and_maps_success_rejection_and_empty) or test(maps_normalized_requested_rows_and_keeps_the_last_duplicate) or test(basic_quote_query_returns_an_empty_list_when_the_success_s2c_is_absent) or test(snapshot_reader_rejects_a_present_s2c_with_no_mappable_rows) or test(snapshot_reader_keeps_mappable_rows_and_drops_invalid_ones) or test(snapshot_reader_rejects_invalid_symbols_before_any_opend_call) or test(snapshot_reader_keeps_a_payload_less_ack_as_an_empty_collection) or test(cached_projection_does_not_promote_stale_overnight_during_regular_hours) or test(holiday_snapshot_stays_closed_with_stale_extended_blocks) or test(margin_ratios_reuse_a_recent_success_within_the_ttl) or test(cancel_order_uses_modify_order_cancel_operation) or test(subscribe_trade_accounts_forwards_every_account_id) or test(mainland_trade_market_falls_back_to_the_shanghai_request_location) or test(stale_or_malformed_push_updates_never_reach_the_lifecycle) or test(kline_adds_basic_and_minimum_age_delays_unsubscribe) or test(executor_sends_us_intraday_kline_session_all_on_the_wire)"
         ],
         "testFilter": [
           "basic_quote_query_requires_subscription_and_maps_success_rejection_and_empty",
@@ -153530,10 +153586,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "78e36bd3",
+        "verifiedAt": "2026-09-25T13:08:40Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -153715,10 +153771,12 @@
           "run",
           "-p",
           "jftrade-integration-futu",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "-E",
-          "test(snapshot_reader_rejects_a_present_s2c_with_no_mappable_rows) | test(snapshot_reader_keeps_mappable_rows_and_drops_invalid_ones) | test(snapshot_reader_rejects_invalid_symbols_before_any_opend_call) | test(snapshot_reader_keeps_a_payload_less_ack_as_an_empty_collection)"
+          "test(fills_projection_sorts_filled_at_desc_with_id_tiebreak) or test(history_fill_read_projects_fill_identity) or test(advanced_feature_defaults_build_strict_opend_requests) or test(advanced_page_size_respects_protocol_limits) or test(high_dividend_state_is_hk_only) or test(product_states_match_go_quote_right_table) or test(entitlement_failure_is_cached_and_refreshed_after_reconnect) or test(fallback_requires_the_same_route_and_an_unsupported_marker) or test(test_adjust_kline_time_semantics) or test(helper_boundaries_return_the_input_unchanged) or test(broker_adapter_forwards_unavailable_opend_errors_on_every_read_route) or test(candle_period_catalog_rejects_missing_and_unmappable_intervals) or test(combo_rfq_creates_the_quote_once_and_never_replays_after_a_transport_failure) or test(prediction_push_handlers_install_once_and_fail_closed_on_invalid_demand) or test(prediction_catalog_pagination_and_identity_follow_the_go_rules) or test(catalog_operations_build_strict_opend_requests_like_go) or test(local_pagination_never_leaks_into_the_opend_request) or test(local_pagination_walks_plate_and_catalog_windows) or test(economic_calendar_pagination_honors_explicit_has_more_and_empty_rows) or test(payload_envelope_picks_the_first_sorted_entry_list_like_go) or test(futu_securities_route_projects_broker_neutral_envelope_boundary) or test(portfolio_cash_balances_prefer_currency_rows_over_summary_fallback) or test(public_coordinator_polls_basic_quotes_into_a_generation_fenced_cache) or test(subscribe_trade_accounts_propagates_opend_rejection) or test(executor_rejects_invalid_instrument_and_unsupported_interval) or test(market_rules_fall_back_to_security_snapshot_lot_size_and_report_the_primary_error) or test(basic_quote_query_requires_subscription_and_maps_success_rejection_and_empty) or test(maps_normalized_requested_rows_and_keeps_the_last_duplicate) or test(basic_quote_query_returns_an_empty_list_when_the_success_s2c_is_absent) or test(snapshot_reader_rejects_a_present_s2c_with_no_mappable_rows) or test(snapshot_reader_keeps_mappable_rows_and_drops_invalid_ones) or test(snapshot_reader_rejects_invalid_symbols_before_any_opend_call) or test(snapshot_reader_keeps_a_payload_less_ack_as_an_empty_collection) or test(cached_projection_does_not_promote_stale_overnight_during_regular_hours) or test(holiday_snapshot_stays_closed_with_stale_extended_blocks) or test(margin_ratios_reuse_a_recent_success_within_the_ttl) or test(cancel_order_uses_modify_order_cancel_operation) or test(subscribe_trade_accounts_forwards_every_account_id) or test(mainland_trade_market_falls_back_to_the_shanghai_request_location) or test(stale_or_malformed_push_updates_never_reach_the_lifecycle) or test(kline_adds_basic_and_minimum_age_delays_unsubscribe) or test(executor_sends_us_intraday_kline_session_all_on_the_wire)"
         ],
         "testFilter": [
           "snapshot_reader_rejects_a_present_s2c_with_no_mappable_rows",
@@ -153728,10 +153786,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "78e36bd3",
+        "verifiedAt": "2026-09-25T13:08:40Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -153996,9 +154054,13 @@
           "scripts/quality/cargo-nextest.mjs",
           "run",
           "-p",
+          "jftrade-integration-futu",
+          "-p",
           "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(fills_projection_sorts_filled_at_desc_with_id_tiebreak) or test(history_fill_read_projects_fill_identity) or test(advanced_feature_defaults_build_strict_opend_requests) or test(advanced_page_size_respects_protocol_limits) or test(high_dividend_state_is_hk_only) or test(product_states_match_go_quote_right_table) or test(entitlement_failure_is_cached_and_refreshed_after_reconnect) or test(fallback_requires_the_same_route_and_an_unsupported_marker) or test(test_adjust_kline_time_semantics) or test(helper_boundaries_return_the_input_unchanged) or test(broker_adapter_forwards_unavailable_opend_errors_on_every_read_route) or test(candle_period_catalog_rejects_missing_and_unmappable_intervals) or test(combo_rfq_creates_the_quote_once_and_never_replays_after_a_transport_failure) or test(prediction_push_handlers_install_once_and_fail_closed_on_invalid_demand) or test(prediction_catalog_pagination_and_identity_follow_the_go_rules) or test(catalog_operations_build_strict_opend_requests_like_go) or test(local_pagination_never_leaks_into_the_opend_request) or test(local_pagination_walks_plate_and_catalog_windows) or test(economic_calendar_pagination_honors_explicit_has_more_and_empty_rows) or test(payload_envelope_picks_the_first_sorted_entry_list_like_go) or test(futu_securities_route_projects_broker_neutral_envelope_boundary) or test(portfolio_cash_balances_prefer_currency_rows_over_summary_fallback) or test(public_coordinator_polls_basic_quotes_into_a_generation_fenced_cache) or test(subscribe_trade_accounts_propagates_opend_rejection) or test(executor_rejects_invalid_instrument_and_unsupported_interval) or test(market_rules_fall_back_to_security_snapshot_lot_size_and_report_the_primary_error) or test(basic_quote_query_requires_subscription_and_maps_success_rejection_and_empty) or test(maps_normalized_requested_rows_and_keeps_the_last_duplicate) or test(basic_quote_query_returns_an_empty_list_when_the_success_s2c_is_absent) or test(snapshot_reader_rejects_a_present_s2c_with_no_mappable_rows) or test(snapshot_reader_keeps_mappable_rows_and_drops_invalid_ones) or test(snapshot_reader_rejects_invalid_symbols_before_any_opend_call) or test(snapshot_reader_keeps_a_payload_less_ack_as_an_empty_collection) or test(cached_projection_does_not_promote_stale_overnight_during_regular_hours) or test(holiday_snapshot_stays_closed_with_stale_extended_blocks) or test(margin_ratios_reuse_a_recent_success_within_the_ttl) or test(cancel_order_uses_modify_order_cancel_operation) or test(subscribe_trade_accounts_forwards_every_account_id) or test(mainland_trade_market_falls_back_to_the_shanghai_request_location) or test(stale_or_malformed_push_updates_never_reach_the_lifecycle) or test(kline_adds_basic_and_minimum_age_delays_unsubscribe) or test(executor_sends_us_intraday_kline_session_all_on_the_wire)"
         ],
         "testFilter": [
           "cached_projection_does_not_promote_stale_overnight_during_regular_hours",
@@ -154006,10 +154068,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "78e36bd3",
+        "verifiedAt": "2026-09-25T13:08:40Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -155389,19 +155451,23 @@
           "scripts/quality/cargo-nextest.mjs",
           "run",
           "-p",
+          "jftrade-integration-futu",
+          "-p",
           "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(margin_ratios_reuse_a_recent_success_within_the_ttl)"
+          "test(fills_projection_sorts_filled_at_desc_with_id_tiebreak) or test(history_fill_read_projects_fill_identity) or test(advanced_feature_defaults_build_strict_opend_requests) or test(advanced_page_size_respects_protocol_limits) or test(high_dividend_state_is_hk_only) or test(product_states_match_go_quote_right_table) or test(entitlement_failure_is_cached_and_refreshed_after_reconnect) or test(fallback_requires_the_same_route_and_an_unsupported_marker) or test(test_adjust_kline_time_semantics) or test(helper_boundaries_return_the_input_unchanged) or test(broker_adapter_forwards_unavailable_opend_errors_on_every_read_route) or test(candle_period_catalog_rejects_missing_and_unmappable_intervals) or test(combo_rfq_creates_the_quote_once_and_never_replays_after_a_transport_failure) or test(prediction_push_handlers_install_once_and_fail_closed_on_invalid_demand) or test(prediction_catalog_pagination_and_identity_follow_the_go_rules) or test(catalog_operations_build_strict_opend_requests_like_go) or test(local_pagination_never_leaks_into_the_opend_request) or test(local_pagination_walks_plate_and_catalog_windows) or test(economic_calendar_pagination_honors_explicit_has_more_and_empty_rows) or test(payload_envelope_picks_the_first_sorted_entry_list_like_go) or test(futu_securities_route_projects_broker_neutral_envelope_boundary) or test(portfolio_cash_balances_prefer_currency_rows_over_summary_fallback) or test(public_coordinator_polls_basic_quotes_into_a_generation_fenced_cache) or test(subscribe_trade_accounts_propagates_opend_rejection) or test(executor_rejects_invalid_instrument_and_unsupported_interval) or test(market_rules_fall_back_to_security_snapshot_lot_size_and_report_the_primary_error) or test(basic_quote_query_requires_subscription_and_maps_success_rejection_and_empty) or test(maps_normalized_requested_rows_and_keeps_the_last_duplicate) or test(basic_quote_query_returns_an_empty_list_when_the_success_s2c_is_absent) or test(snapshot_reader_rejects_a_present_s2c_with_no_mappable_rows) or test(snapshot_reader_keeps_mappable_rows_and_drops_invalid_ones) or test(snapshot_reader_rejects_invalid_symbols_before_any_opend_call) or test(snapshot_reader_keeps_a_payload_less_ack_as_an_empty_collection) or test(cached_projection_does_not_promote_stale_overnight_during_regular_hours) or test(holiday_snapshot_stays_closed_with_stale_extended_blocks) or test(margin_ratios_reuse_a_recent_success_within_the_ttl) or test(cancel_order_uses_modify_order_cancel_operation) or test(subscribe_trade_accounts_forwards_every_account_id) or test(mainland_trade_market_falls_back_to_the_shanghai_request_location) or test(stale_or_malformed_push_updates_never_reach_the_lifecycle) or test(kline_adds_basic_and_minimum_age_delays_unsubscribe) or test(executor_sends_us_intraday_kline_session_all_on_the_wire)"
         ],
         "testFilter": [
           "margin_ratios_reuse_a_recent_success_within_the_ttl"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "78e36bd3",
+        "verifiedAt": "2026-09-25T13:08:40Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -155652,19 +155718,23 @@
           "scripts/quality/cargo-nextest.mjs",
           "run",
           "-p",
+          "jftrade-integration-futu",
+          "-p",
           "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(cancel_order_uses_modify_order_cancel_operation)"
+          "test(fills_projection_sorts_filled_at_desc_with_id_tiebreak) or test(history_fill_read_projects_fill_identity) or test(advanced_feature_defaults_build_strict_opend_requests) or test(advanced_page_size_respects_protocol_limits) or test(high_dividend_state_is_hk_only) or test(product_states_match_go_quote_right_table) or test(entitlement_failure_is_cached_and_refreshed_after_reconnect) or test(fallback_requires_the_same_route_and_an_unsupported_marker) or test(test_adjust_kline_time_semantics) or test(helper_boundaries_return_the_input_unchanged) or test(broker_adapter_forwards_unavailable_opend_errors_on_every_read_route) or test(candle_period_catalog_rejects_missing_and_unmappable_intervals) or test(combo_rfq_creates_the_quote_once_and_never_replays_after_a_transport_failure) or test(prediction_push_handlers_install_once_and_fail_closed_on_invalid_demand) or test(prediction_catalog_pagination_and_identity_follow_the_go_rules) or test(catalog_operations_build_strict_opend_requests_like_go) or test(local_pagination_never_leaks_into_the_opend_request) or test(local_pagination_walks_plate_and_catalog_windows) or test(economic_calendar_pagination_honors_explicit_has_more_and_empty_rows) or test(payload_envelope_picks_the_first_sorted_entry_list_like_go) or test(futu_securities_route_projects_broker_neutral_envelope_boundary) or test(portfolio_cash_balances_prefer_currency_rows_over_summary_fallback) or test(public_coordinator_polls_basic_quotes_into_a_generation_fenced_cache) or test(subscribe_trade_accounts_propagates_opend_rejection) or test(executor_rejects_invalid_instrument_and_unsupported_interval) or test(market_rules_fall_back_to_security_snapshot_lot_size_and_report_the_primary_error) or test(basic_quote_query_requires_subscription_and_maps_success_rejection_and_empty) or test(maps_normalized_requested_rows_and_keeps_the_last_duplicate) or test(basic_quote_query_returns_an_empty_list_when_the_success_s2c_is_absent) or test(snapshot_reader_rejects_a_present_s2c_with_no_mappable_rows) or test(snapshot_reader_keeps_mappable_rows_and_drops_invalid_ones) or test(snapshot_reader_rejects_invalid_symbols_before_any_opend_call) or test(snapshot_reader_keeps_a_payload_less_ack_as_an_empty_collection) or test(cached_projection_does_not_promote_stale_overnight_during_regular_hours) or test(holiday_snapshot_stays_closed_with_stale_extended_blocks) or test(margin_ratios_reuse_a_recent_success_within_the_ttl) or test(cancel_order_uses_modify_order_cancel_operation) or test(subscribe_trade_accounts_forwards_every_account_id) or test(mainland_trade_market_falls_back_to_the_shanghai_request_location) or test(stale_or_malformed_push_updates_never_reach_the_lifecycle) or test(kline_adds_basic_and_minimum_age_delays_unsubscribe) or test(executor_sends_us_intraday_kline_session_all_on_the_wire)"
         ],
         "testFilter": [
           "cancel_order_uses_modify_order_cancel_operation"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "78e36bd3",
+        "verifiedAt": "2026-09-25T13:08:40Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -155779,20 +155849,22 @@
           "run",
           "-p",
           "jftrade-integration-futu",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "-E",
-          "test(subscribe_trade_accounts_forwards_every_account_id)"
+          "test(fills_projection_sorts_filled_at_desc_with_id_tiebreak) or test(history_fill_read_projects_fill_identity) or test(advanced_feature_defaults_build_strict_opend_requests) or test(advanced_page_size_respects_protocol_limits) or test(high_dividend_state_is_hk_only) or test(product_states_match_go_quote_right_table) or test(entitlement_failure_is_cached_and_refreshed_after_reconnect) or test(fallback_requires_the_same_route_and_an_unsupported_marker) or test(test_adjust_kline_time_semantics) or test(helper_boundaries_return_the_input_unchanged) or test(broker_adapter_forwards_unavailable_opend_errors_on_every_read_route) or test(candle_period_catalog_rejects_missing_and_unmappable_intervals) or test(combo_rfq_creates_the_quote_once_and_never_replays_after_a_transport_failure) or test(prediction_push_handlers_install_once_and_fail_closed_on_invalid_demand) or test(prediction_catalog_pagination_and_identity_follow_the_go_rules) or test(catalog_operations_build_strict_opend_requests_like_go) or test(local_pagination_never_leaks_into_the_opend_request) or test(local_pagination_walks_plate_and_catalog_windows) or test(economic_calendar_pagination_honors_explicit_has_more_and_empty_rows) or test(payload_envelope_picks_the_first_sorted_entry_list_like_go) or test(futu_securities_route_projects_broker_neutral_envelope_boundary) or test(portfolio_cash_balances_prefer_currency_rows_over_summary_fallback) or test(public_coordinator_polls_basic_quotes_into_a_generation_fenced_cache) or test(subscribe_trade_accounts_propagates_opend_rejection) or test(executor_rejects_invalid_instrument_and_unsupported_interval) or test(market_rules_fall_back_to_security_snapshot_lot_size_and_report_the_primary_error) or test(basic_quote_query_requires_subscription_and_maps_success_rejection_and_empty) or test(maps_normalized_requested_rows_and_keeps_the_last_duplicate) or test(basic_quote_query_returns_an_empty_list_when_the_success_s2c_is_absent) or test(snapshot_reader_rejects_a_present_s2c_with_no_mappable_rows) or test(snapshot_reader_keeps_mappable_rows_and_drops_invalid_ones) or test(snapshot_reader_rejects_invalid_symbols_before_any_opend_call) or test(snapshot_reader_keeps_a_payload_less_ack_as_an_empty_collection) or test(cached_projection_does_not_promote_stale_overnight_during_regular_hours) or test(holiday_snapshot_stays_closed_with_stale_extended_blocks) or test(margin_ratios_reuse_a_recent_success_within_the_ttl) or test(cancel_order_uses_modify_order_cancel_operation) or test(subscribe_trade_accounts_forwards_every_account_id) or test(mainland_trade_market_falls_back_to_the_shanghai_request_location) or test(stale_or_malformed_push_updates_never_reach_the_lifecycle) or test(kline_adds_basic_and_minimum_age_delays_unsubscribe) or test(executor_sends_us_intraday_kline_session_all_on_the_wire)"
         ],
         "testFilter": [
           "subscribe_trade_accounts_forwards_every_account_id"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "78e36bd3",
+        "verifiedAt": "2026-09-25T13:08:40Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -155847,19 +155919,23 @@
           "scripts/quality/cargo-nextest.mjs",
           "run",
           "-p",
+          "jftrade-integration-futu",
+          "-p",
           "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(mainland_trade_market_falls_back_to_the_shanghai_request_location)"
+          "test(fills_projection_sorts_filled_at_desc_with_id_tiebreak) or test(history_fill_read_projects_fill_identity) or test(advanced_feature_defaults_build_strict_opend_requests) or test(advanced_page_size_respects_protocol_limits) or test(high_dividend_state_is_hk_only) or test(product_states_match_go_quote_right_table) or test(entitlement_failure_is_cached_and_refreshed_after_reconnect) or test(fallback_requires_the_same_route_and_an_unsupported_marker) or test(test_adjust_kline_time_semantics) or test(helper_boundaries_return_the_input_unchanged) or test(broker_adapter_forwards_unavailable_opend_errors_on_every_read_route) or test(candle_period_catalog_rejects_missing_and_unmappable_intervals) or test(combo_rfq_creates_the_quote_once_and_never_replays_after_a_transport_failure) or test(prediction_push_handlers_install_once_and_fail_closed_on_invalid_demand) or test(prediction_catalog_pagination_and_identity_follow_the_go_rules) or test(catalog_operations_build_strict_opend_requests_like_go) or test(local_pagination_never_leaks_into_the_opend_request) or test(local_pagination_walks_plate_and_catalog_windows) or test(economic_calendar_pagination_honors_explicit_has_more_and_empty_rows) or test(payload_envelope_picks_the_first_sorted_entry_list_like_go) or test(futu_securities_route_projects_broker_neutral_envelope_boundary) or test(portfolio_cash_balances_prefer_currency_rows_over_summary_fallback) or test(public_coordinator_polls_basic_quotes_into_a_generation_fenced_cache) or test(subscribe_trade_accounts_propagates_opend_rejection) or test(executor_rejects_invalid_instrument_and_unsupported_interval) or test(market_rules_fall_back_to_security_snapshot_lot_size_and_report_the_primary_error) or test(basic_quote_query_requires_subscription_and_maps_success_rejection_and_empty) or test(maps_normalized_requested_rows_and_keeps_the_last_duplicate) or test(basic_quote_query_returns_an_empty_list_when_the_success_s2c_is_absent) or test(snapshot_reader_rejects_a_present_s2c_with_no_mappable_rows) or test(snapshot_reader_keeps_mappable_rows_and_drops_invalid_ones) or test(snapshot_reader_rejects_invalid_symbols_before_any_opend_call) or test(snapshot_reader_keeps_a_payload_less_ack_as_an_empty_collection) or test(cached_projection_does_not_promote_stale_overnight_during_regular_hours) or test(holiday_snapshot_stays_closed_with_stale_extended_blocks) or test(margin_ratios_reuse_a_recent_success_within_the_ttl) or test(cancel_order_uses_modify_order_cancel_operation) or test(subscribe_trade_accounts_forwards_every_account_id) or test(mainland_trade_market_falls_back_to_the_shanghai_request_location) or test(stale_or_malformed_push_updates_never_reach_the_lifecycle) or test(kline_adds_basic_and_minimum_age_delays_unsubscribe) or test(executor_sends_us_intraday_kline_session_all_on_the_wire)"
         ],
         "testFilter": [
           "mainland_trade_market_falls_back_to_the_shanghai_request_location"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "78e36bd3",
+        "verifiedAt": "2026-09-25T13:08:40Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -156245,8 +156321,12 @@
           "run",
           "-p",
           "jftrade-integration-futu",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(fills_projection_sorts_filled_at_desc_with_id_tiebreak) or test(history_fill_read_projects_fill_identity) or test(advanced_feature_defaults_build_strict_opend_requests) or test(advanced_page_size_respects_protocol_limits) or test(high_dividend_state_is_hk_only) or test(product_states_match_go_quote_right_table) or test(entitlement_failure_is_cached_and_refreshed_after_reconnect) or test(fallback_requires_the_same_route_and_an_unsupported_marker) or test(test_adjust_kline_time_semantics) or test(helper_boundaries_return_the_input_unchanged) or test(broker_adapter_forwards_unavailable_opend_errors_on_every_read_route) or test(candle_period_catalog_rejects_missing_and_unmappable_intervals) or test(combo_rfq_creates_the_quote_once_and_never_replays_after_a_transport_failure) or test(prediction_push_handlers_install_once_and_fail_closed_on_invalid_demand) or test(prediction_catalog_pagination_and_identity_follow_the_go_rules) or test(catalog_operations_build_strict_opend_requests_like_go) or test(local_pagination_never_leaks_into_the_opend_request) or test(local_pagination_walks_plate_and_catalog_windows) or test(economic_calendar_pagination_honors_explicit_has_more_and_empty_rows) or test(payload_envelope_picks_the_first_sorted_entry_list_like_go) or test(futu_securities_route_projects_broker_neutral_envelope_boundary) or test(portfolio_cash_balances_prefer_currency_rows_over_summary_fallback) or test(public_coordinator_polls_basic_quotes_into_a_generation_fenced_cache) or test(subscribe_trade_accounts_propagates_opend_rejection) or test(executor_rejects_invalid_instrument_and_unsupported_interval) or test(market_rules_fall_back_to_security_snapshot_lot_size_and_report_the_primary_error) or test(basic_quote_query_requires_subscription_and_maps_success_rejection_and_empty) or test(maps_normalized_requested_rows_and_keeps_the_last_duplicate) or test(basic_quote_query_returns_an_empty_list_when_the_success_s2c_is_absent) or test(snapshot_reader_rejects_a_present_s2c_with_no_mappable_rows) or test(snapshot_reader_keeps_mappable_rows_and_drops_invalid_ones) or test(snapshot_reader_rejects_invalid_symbols_before_any_opend_call) or test(snapshot_reader_keeps_a_payload_less_ack_as_an_empty_collection) or test(cached_projection_does_not_promote_stale_overnight_during_regular_hours) or test(holiday_snapshot_stays_closed_with_stale_extended_blocks) or test(margin_ratios_reuse_a_recent_success_within_the_ttl) or test(cancel_order_uses_modify_order_cancel_operation) or test(subscribe_trade_accounts_forwards_every_account_id) or test(mainland_trade_market_falls_back_to_the_shanghai_request_location) or test(stale_or_malformed_push_updates_never_reach_the_lifecycle) or test(kline_adds_basic_and_minimum_age_delays_unsubscribe) or test(executor_sends_us_intraday_kline_session_all_on_the_wire)"
         ],
         "testFilter": [
           "candle_period_catalog_rejects_missing_and_unmappable_intervals",
@@ -156254,10 +156334,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "78e36bd3",
+        "verifiedAt": "2026-09-25T13:08:40Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -156314,8 +156394,12 @@
           "run",
           "-p",
           "jftrade-integration-futu",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(fills_projection_sorts_filled_at_desc_with_id_tiebreak) or test(history_fill_read_projects_fill_identity) or test(advanced_feature_defaults_build_strict_opend_requests) or test(advanced_page_size_respects_protocol_limits) or test(high_dividend_state_is_hk_only) or test(product_states_match_go_quote_right_table) or test(entitlement_failure_is_cached_and_refreshed_after_reconnect) or test(fallback_requires_the_same_route_and_an_unsupported_marker) or test(test_adjust_kline_time_semantics) or test(helper_boundaries_return_the_input_unchanged) or test(broker_adapter_forwards_unavailable_opend_errors_on_every_read_route) or test(candle_period_catalog_rejects_missing_and_unmappable_intervals) or test(combo_rfq_creates_the_quote_once_and_never_replays_after_a_transport_failure) or test(prediction_push_handlers_install_once_and_fail_closed_on_invalid_demand) or test(prediction_catalog_pagination_and_identity_follow_the_go_rules) or test(catalog_operations_build_strict_opend_requests_like_go) or test(local_pagination_never_leaks_into_the_opend_request) or test(local_pagination_walks_plate_and_catalog_windows) or test(economic_calendar_pagination_honors_explicit_has_more_and_empty_rows) or test(payload_envelope_picks_the_first_sorted_entry_list_like_go) or test(futu_securities_route_projects_broker_neutral_envelope_boundary) or test(portfolio_cash_balances_prefer_currency_rows_over_summary_fallback) or test(public_coordinator_polls_basic_quotes_into_a_generation_fenced_cache) or test(subscribe_trade_accounts_propagates_opend_rejection) or test(executor_rejects_invalid_instrument_and_unsupported_interval) or test(market_rules_fall_back_to_security_snapshot_lot_size_and_report_the_primary_error) or test(basic_quote_query_requires_subscription_and_maps_success_rejection_and_empty) or test(maps_normalized_requested_rows_and_keeps_the_last_duplicate) or test(basic_quote_query_returns_an_empty_list_when_the_success_s2c_is_absent) or test(snapshot_reader_rejects_a_present_s2c_with_no_mappable_rows) or test(snapshot_reader_keeps_mappable_rows_and_drops_invalid_ones) or test(snapshot_reader_rejects_invalid_symbols_before_any_opend_call) or test(snapshot_reader_keeps_a_payload_less_ack_as_an_empty_collection) or test(cached_projection_does_not_promote_stale_overnight_during_regular_hours) or test(holiday_snapshot_stays_closed_with_stale_extended_blocks) or test(margin_ratios_reuse_a_recent_success_within_the_ttl) or test(cancel_order_uses_modify_order_cancel_operation) or test(subscribe_trade_accounts_forwards_every_account_id) or test(mainland_trade_market_falls_back_to_the_shanghai_request_location) or test(stale_or_malformed_push_updates_never_reach_the_lifecycle) or test(kline_adds_basic_and_minimum_age_delays_unsubscribe) or test(executor_sends_us_intraday_kline_session_all_on_the_wire)"
         ],
         "testFilter": [
           "kline_adds_basic_and_minimum_age_delays_unsubscribe",
@@ -156323,10 +156407,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "78e36bd3",
+        "verifiedAt": "2026-09-25T13:08:40Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -156655,18 +156739,22 @@
           "run",
           "-p",
           "jftrade-integration-futu",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(delayed_snapshot_fallback_reads_static_info_and_pages_stock_screen_without_subscribing) or test(closed_us_session_reports_regular_close_as_previous_close)"
         ],
         "testFilter": [
           "delayed_snapshot_fallback_reads_static_info_and_pages_stock_screen_without_subscribing"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "78e36bd3",
+        "verifiedAt": "2026-09-25T13:08:40Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -165137,17 +165225,19 @@
           "-p",
           "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(delayed_snapshot_fallback_reads_static_info_and_pages_stock_screen_without_subscribing) or test(closed_us_session_reports_regular_close_as_previous_close)"
         ],
         "testFilter": [
           "closed_us_session_reports_regular_close_as_previous_close"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "78e36bd3",
+        "verifiedAt": "2026-09-25T13:08:40Z",
         "receiptDigest": null
       },
       "risk": "high",
