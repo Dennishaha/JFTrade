@@ -488,3 +488,33 @@ ActiveProviderState、quote read port 与 subscription owner；引用聚合测�
 下一片：`internal/marketdata/subscriptions_test.go` 4 条与 `internal/marketdata/quote_availability_test.go` 2 条，再进入 `lifecycle_boundaries_test.go` 余量；如发现真实 P1 差异，先写失败回归测试并修复所属 owner。
 
 验证：`node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -p jftrade-engine --all-targets --locked --no-fail-fast`（1993 passed，0 skipped，receipt `sha256:84c5b407dddaa20033c7dbea771fda2abd895f0871d9a6fb43291700162b9566`）；随后执行 mapping 审计、锚点复核、`pnpm run check:quick`、`pnpm run check:rust` 与 `git diff --check`。
+
+## 第 131 批：subscriptions 与 quote availability（2026-09-25）
+
+本片覆盖 `internal/marketdata/subscriptions_test.go` 的 4 条测试和
+`internal/marketdata/quote_availability_test.go` 的 2 条测试，共 6 条 Go
+测试。逐条读取 Go 断言并核对 DemandBook、订阅 mutation port、live hub、runtime
+status 与 quote snapshot projection owner；6/6 保持 `[~]`/`partial`，没有把跨 owner
+聚合测试升级为 `function_exact`。
+
+| 复核 | Go 测试 | Rust 证据 | P | 结论 |
+| :---: | --- | --- | :---: | --- |
+| [x] | `subscriptions_test.go:10:TestSubscriptionRegistryContract` | `demand_is_deduplicated_and_managed_leases_do_not_expire`；`heartbeat_updates_consumer_and_entry_timestamps`；`partial_release_and_clear_operations` | P2 | partial：覆盖规范化、managed lease、心跳、部分释放和最终清理；Go 的 RFC3339 时间、quota envelope 与 refCount 递增未由同一 wire 测试锁定。 |
+| [x] | `subscriptions_test.go:51:TestSubscriptionRegistrySeparatesChannelAndInterval` | `channel_and_interval_validation_rules`；`demand_is_deduplicated_and_managed_leases_do_not_expire` | P2 | partial：覆盖 channel/interval 分键和 interval 规范化；Go 的 active instrument 去重、计数和定点 release 聚合断言分散在不同 owner。 |
+| [x] | `subscriptions_test.go:82:TestSubscriptionRegistryClearAllAndActiveInstruments` | `partial_release_and_clear_operations`；`active_instruments_are_normalized_unioned_replaced_and_released` | P2 | partial：覆盖 unmanaged clear 与 WS active instrument 归一/并集/替换/释放；没有同一 registry 快照的完整串联。 |
+| [x] | `subscriptions_test.go:100:TestServiceOwnsSubscriptionsAndHealthMode` | `subscription_routes_preserve_instrument_request_contract_through_acquire_release_and_clear`；`live_hub_demand_listener_tracks_subscriptions_and_disconnect`；`market_data_runtime_projection_matches_go_status_corpus` | P2 | partial：订阅 ownership、disconnect 和 runtime wire 有证据；Go 的 idle/fallback/push/delayed 四态 Health 矩阵未在同一 Service fixture 重现。 |
+| [x] | `quote_availability_test.go:9:TestSnapshotSerializationPreservesAuthoritativeMissingQuoteFields` | `authoritative_snapshot_keeps_missing_quote_fields_null`；`futu_snapshot_route_projects_cached_extended_quote_contract` | P2 | partial：authoritative quote 的 snapshot 缺失字段已断言为 null；Go 的 LiveTickJSON/LatestTicksJSON 可空字段和 brokerId 断言没有 Rust 同形入口。 |
+| [x] | `quote_availability_test.go:35:TestSnapshotSerializationKeepsLegacyZeroValuesAvailable` | `legacy_tick_without_snapshot_keeps_zero_quote_fields_available`；`futu_snapshot_route_projects_cached_extended_quote_contract` | P2 | partial：legacy Tick 的 bid/ask/volume/turnover 均保持字符串 0；Go 针对 SnapshotJSON helper 的公共 wire 断言尚无同名 Rust 测试。 |
+
+本片发现并保留了工作树中已有的 quote availability owner 修复：typed Futu quote
+标记 authoritative，缺失 volume 不再被 tick 累积值填充；projection 对 authoritative
+缺失 quote 输出 null，同时继续保持无 snapshot legacy tick 的零值兼容。新增回归测试
+已精准运行并通过，未发现需要继续修复的 P1 生产差异；Live/Latest 两个旧 helper
+入口属于 Rust 架构边界，记录为 partial。
+
+下一片：`internal/marketdata/lifecycle_boundaries_test.go` 的余量，优先处理
+`TestCacheRemainingLifecycleBoundaries`、`TestSubscriptionRegistryRemainingLifecycleBoundaries`
+和 `TestServiceRemainingLifecycleBoundaries`，若发现真实差异先补失败回归测试再修改 owner。
+
+验证：`cargo fmt --all -- --check`；精准回归
+`node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -p jftrade-engine -p jftrade-api -p jftrade-integration-futu --all-targets --locked -E 'test(demand_is_deduplicated_and_managed_leases_do_not_expire) or test(partial_release_and_clear_operations) or test(heartbeat_updates_consumer_and_entry_timestamps) or test(channel_and_interval_validation_rules) or test(subscription_routes_preserve_instrument_request_contract_through_acquire_release_and_clear) or test(active_instruments_are_normalized_unioned_replaced_and_released) or test(live_hub_demand_listener_tracks_subscriptions_and_disconnect) or test(market_data_runtime_projection_matches_go_status_corpus) or test(authoritative_snapshot_keeps_missing_quote_fields_null) or test(legacy_tick_without_snapshot_keeps_zero_quote_fields_available) or test(futu_snapshot_route_projects_cached_extended_quote_contract)'`（11/11 通过）。随后执行 mapping 审计、锚点复核、`check:quick`、`check:rust` 与 `git diff --check`。

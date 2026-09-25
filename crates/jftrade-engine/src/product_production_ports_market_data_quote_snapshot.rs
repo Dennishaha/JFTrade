@@ -16,6 +16,7 @@ use serde_json::{Map, Value, json};
 /// Projects one cached broker-neutral tick onto the public workspace snapshot.
 pub(super) fn project_cached_snapshot(tick: &Tick, market: &str, observed_at: &str) -> Value {
     let snapshot = tick.snapshot.as_ref();
+    let authoritative = snapshot.is_some_and(|value| value.authoritative);
     let session = normalized_session(snapshot.and_then(|value| value.session.as_deref()));
     let active = snapshot.and_then(|value| active_extended(value, &session));
     let active_price = active.and_then(|value| value.price);
@@ -54,14 +55,21 @@ pub(super) fn project_cached_snapshot(tick: &Tick, market: &str, observed_at: &s
             snapshot
                 .and_then(|value| value.volume.as_ref())
                 .map(|value| decimal_text_value(Some(value)))
-                .unwrap_or_else(|| decimal_text_value(Some(&tick.volume)))
+                .or_else(|| (!authoritative).then(|| decimal_text_value(Some(&tick.volume))))
+                .unwrap_or(Value::Null)
         });
     let turnover = active
         .filter(|_| use_active)
         .and_then(|value| value.turnover.as_ref())
         .filter(|value| is_non_negative(value))
         .map(|value| decimal_text_value(Some(value)))
-        .unwrap_or_else(|| decimal_text_value(snapshot.and_then(|value| value.turnover.as_ref())));
+        .unwrap_or_else(|| {
+            snapshot
+                .and_then(|value| value.turnover.as_ref())
+                .map(|value| decimal_text_value(Some(value)))
+                .or_else(|| (!authoritative).then(|| decimal_text_value(Some(&zero_decimal_text()))))
+                .unwrap_or(Value::Null)
+        });
     let previous_close_price = if uses_regular_close_as_previous_close(market, &session, last_price)
     {
         decimal_value(Some(last_price))
@@ -70,9 +78,9 @@ pub(super) fn project_cached_snapshot(tick: &Tick, market: &str, observed_at: &s
     };
 
     json!({
-        "ask": decimal_value(snapshot.and_then(|value| value.ask_price)),
+        "ask": quote_field_value(snapshot.and_then(|value| value.ask_price), snapshot.is_none()),
         "at": observed_at,
-        "bid": decimal_value(snapshot.and_then(|value| value.bid_price)),
+        "bid": quote_field_value(snapshot.and_then(|value| value.bid_price), snapshot.is_none()),
         "extended": {
             "afterMarket": extended_value(snapshot.and_then(|value| value.after_market.as_ref())),
             "overnight": extended_value(snapshot.and_then(|value| value.overnight.as_ref())),
@@ -90,6 +98,22 @@ pub(super) fn project_cached_snapshot(tick: &Tick, market: &str, observed_at: &s
         "turnover": turnover,
         "volume": volume,
     })
+}
+
+fn quote_field_value(value: Option<Decimal>, legacy_zero: bool) -> Value {
+    value
+        .map(|value| decimal_value(Some(value)))
+        .unwrap_or_else(|| {
+            if legacy_zero {
+                decimal_value(Some(Decimal::ZERO))
+            } else {
+                Value::Null
+            }
+        })
+}
+
+fn zero_decimal_text() -> DecimalText {
+    DecimalText::from_str("0").expect("zero is valid decimal text")
 }
 
 /// Projects a security-snapshot value returned by the trade runtime.  The

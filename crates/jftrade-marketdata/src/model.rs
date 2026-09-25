@@ -212,6 +212,11 @@ pub struct Tick {
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TradeQuoteSnapshot {
+    /// Whether the provider asserted that absent quote fields are authoritative
+    /// missing values.  This stays internal to the projection boundary; legacy
+    /// snapshots leave it false so zero-value compatibility remains intact.
+    #[serde(skip)]
+    pub authoritative: bool,
     pub symbol: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,

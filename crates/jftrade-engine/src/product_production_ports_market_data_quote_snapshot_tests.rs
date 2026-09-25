@@ -21,6 +21,47 @@
         }
     }
 
+    // Parity: go:452dea11:internal/marketdata/quote_availability_test.go:9
+    // TestSnapshotSerializationPreservesAuthoritativeMissingQuoteFields.
+    #[test]
+    fn authoritative_snapshot_keeps_missing_quote_fields_null() {
+        let value = project_cached_snapshot(
+            &tick(TradeQuoteSnapshot {
+                authoritative: true,
+                ..Default::default()
+            }),
+            "US",
+            "2026-09-25T02:00:00Z",
+        );
+
+        for field in ["bid", "ask", "volume", "turnover"] {
+            assert!(value[field].is_null(), "authoritative {field} = {value}");
+        }
+    }
+
+    // Parity: go:452dea11:internal/marketdata/quote_availability_test.go:35
+    // TestSnapshotSerializationKeepsLegacyZeroValuesAvailable.
+    #[test]
+    fn legacy_tick_without_snapshot_keeps_zero_quote_fields_available() {
+        let value = project_cached_snapshot(
+            &Tick {
+                instrument_id: "US.AAPL".to_owned(),
+                price: decimal("100"),
+                volume: decimal_text("0"),
+                volume_delta: None,
+                snapshot: None,
+                observed_at_ms: 1_750_000_000_000,
+                provider_generation: 1,
+            },
+            "US",
+            "2026-09-25T02:00:00Z",
+        );
+
+        for field in ["bid", "ask", "volume", "turnover"] {
+            assert_eq!(value[field], "0", "legacy {field} = {value}");
+        }
+    }
+
     #[test]
     fn cached_projection_uses_active_after_quote_and_separates_closes() {
         let snapshot = TradeQuoteSnapshot {

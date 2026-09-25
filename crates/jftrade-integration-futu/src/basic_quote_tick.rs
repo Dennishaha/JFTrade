@@ -76,11 +76,12 @@ pub fn basic_quote_ticks_with_resolver(
                 // `VolumeDelta` at its zero value for the same reason.
                 volume_delta: None,
                 snapshot: Some(TradeQuoteSnapshot {
+                    authoritative: true,
                     symbol: Some(instrument_id.clone()),
                     name: quote.name,
                     is_suspended: quote.is_suspended,
                     last_price: Some(price),
-                    volume: Some(volume.clone()),
+                    volume: quote.volume.map(|_| volume.clone()),
                     open_price: optional_price(quote.open_price),
                     high_price: optional_price(quote.high_price),
                     low_price: optional_price(quote.low_price),
