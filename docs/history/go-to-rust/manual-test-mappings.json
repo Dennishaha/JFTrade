@@ -238373,20 +238373,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-owner-lock",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(exclusive_lock_conflicts_and_file_survives_release) or test(payload_and_session_event_commit_or_rollback_together) or test(test_p1_06_downgrade_strictly_rejected_at_all_layers) or test(catalog_activity_paging_and_filters_match_go_boundaries) or test(reconciliation_discovers_external_order_into_empty_ledger) or test(conformance_partial_full_fill_average_and_out_of_order_updates_hold) or test(reconciliation_snapshot_coverage_prevents_duplicate_fill_quantity) or test(reconciliation_snapshot_coverage_caps_partial_and_exhausted_credit) or test(reconciliation_rejects_terminal_and_partial_status_regressions) or test(reconciliation_cancel_submitted_resolves_fill_and_cancel_confirmation) or test(execution_order_concurrent_writes_and_reads_survive_reopen) or test(reconciliation_older_snapshot_fill_progress_is_accepted_with_monotonic_updated_at) or test(reconciliation_duplicate_terminal_snapshot_is_idempotent) or test(watchlist_group_mutations_are_revision_fenced_and_survive_restart) or test(watchlist_membership_mutations_and_preview_commit_lifecycle) or test(watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog) or test(watchlist_store_rejects_missing_drifted_and_corrupted_go_databases) or test(test_select_from_fs_treats_missing_and_empty_bundles_as_unavailable) or test(test_catalog_activity_returns_empty_pages_when_activity_store_is_unavailable) or test(binding_normalization_validates_execution_enums_and_nested_account) or test(sqlite_test_cutover_preserves_repeated_transitions_rollback_and_restart) or test(recovery_failure_converges_the_running_instance_to_stopped) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log) or test(startup_reconcile_resets_stale_paused_state_and_keeps_stopped_instances) or test(test_classified_strategy_errors_match_sentinel_kinds)"
         ],
         "testFilter": [
           "exclusive_lock_conflicts_and_file_survives_release"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "ddefc0d6ab16dd454c8c12810aab6554386db9d7",
+        "verifiedAt": "2026-09-25T14:22:50Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -238683,20 +238683,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(exclusive_lock_conflicts_and_file_survives_release) or test(payload_and_session_event_commit_or_rollback_together) or test(test_p1_06_downgrade_strictly_rejected_at_all_layers) or test(catalog_activity_paging_and_filters_match_go_boundaries) or test(reconciliation_discovers_external_order_into_empty_ledger) or test(conformance_partial_full_fill_average_and_out_of_order_updates_hold) or test(reconciliation_snapshot_coverage_prevents_duplicate_fill_quantity) or test(reconciliation_snapshot_coverage_caps_partial_and_exhausted_credit) or test(reconciliation_rejects_terminal_and_partial_status_regressions) or test(reconciliation_cancel_submitted_resolves_fill_and_cancel_confirmation) or test(execution_order_concurrent_writes_and_reads_survive_reopen) or test(reconciliation_older_snapshot_fill_progress_is_accepted_with_monotonic_updated_at) or test(reconciliation_duplicate_terminal_snapshot_is_idempotent) or test(watchlist_group_mutations_are_revision_fenced_and_survive_restart) or test(watchlist_membership_mutations_and_preview_commit_lifecycle) or test(watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog) or test(watchlist_store_rejects_missing_drifted_and_corrupted_go_databases) or test(test_select_from_fs_treats_missing_and_empty_bundles_as_unavailable) or test(test_catalog_activity_returns_empty_pages_when_activity_store_is_unavailable) or test(binding_normalization_validates_execution_enums_and_nested_account) or test(sqlite_test_cutover_preserves_repeated_transitions_rollback_and_restart) or test(recovery_failure_converges_the_running_instance_to_stopped) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log) or test(startup_reconcile_resets_stale_paused_state_and_keeps_stopped_instances) or test(test_classified_strategy_errors_match_sentinel_kinds)"
         ],
         "testFilter": [
           "payload_and_session_event_commit_or_rollback_together"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "ddefc0d6ab16dd454c8c12810aab6554386db9d7",
+        "verifiedAt": "2026-09-25T14:22:50Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -239055,20 +239055,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-owner-lock",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(exclusive_lock_conflicts_and_file_survives_release) or test(payload_and_session_event_commit_or_rollback_together) or test(test_p1_06_downgrade_strictly_rejected_at_all_layers) or test(catalog_activity_paging_and_filters_match_go_boundaries) or test(reconciliation_discovers_external_order_into_empty_ledger) or test(conformance_partial_full_fill_average_and_out_of_order_updates_hold) or test(reconciliation_snapshot_coverage_prevents_duplicate_fill_quantity) or test(reconciliation_snapshot_coverage_caps_partial_and_exhausted_credit) or test(reconciliation_rejects_terminal_and_partial_status_regressions) or test(reconciliation_cancel_submitted_resolves_fill_and_cancel_confirmation) or test(execution_order_concurrent_writes_and_reads_survive_reopen) or test(reconciliation_older_snapshot_fill_progress_is_accepted_with_monotonic_updated_at) or test(reconciliation_duplicate_terminal_snapshot_is_idempotent) or test(watchlist_group_mutations_are_revision_fenced_and_survive_restart) or test(watchlist_membership_mutations_and_preview_commit_lifecycle) or test(watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog) or test(watchlist_store_rejects_missing_drifted_and_corrupted_go_databases) or test(test_select_from_fs_treats_missing_and_empty_bundles_as_unavailable) or test(test_catalog_activity_returns_empty_pages_when_activity_store_is_unavailable) or test(binding_normalization_validates_execution_enums_and_nested_account) or test(sqlite_test_cutover_preserves_repeated_transitions_rollback_and_restart) or test(recovery_failure_converges_the_running_instance_to_stopped) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log) or test(startup_reconcile_resets_stale_paused_state_and_keeps_stopped_instances) or test(test_classified_strategy_errors_match_sentinel_kinds)"
         ],
         "testFilter": [
           "exclusive_lock_conflicts_and_file_survives_release"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "ddefc0d6ab16dd454c8c12810aab6554386db9d7",
+        "verifiedAt": "2026-09-25T14:22:50Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -240233,20 +240233,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(exclusive_lock_conflicts_and_file_survives_release) or test(payload_and_session_event_commit_or_rollback_together) or test(test_p1_06_downgrade_strictly_rejected_at_all_layers) or test(catalog_activity_paging_and_filters_match_go_boundaries) or test(reconciliation_discovers_external_order_into_empty_ledger) or test(conformance_partial_full_fill_average_and_out_of_order_updates_hold) or test(reconciliation_snapshot_coverage_prevents_duplicate_fill_quantity) or test(reconciliation_snapshot_coverage_caps_partial_and_exhausted_credit) or test(reconciliation_rejects_terminal_and_partial_status_regressions) or test(reconciliation_cancel_submitted_resolves_fill_and_cancel_confirmation) or test(execution_order_concurrent_writes_and_reads_survive_reopen) or test(reconciliation_older_snapshot_fill_progress_is_accepted_with_monotonic_updated_at) or test(reconciliation_duplicate_terminal_snapshot_is_idempotent) or test(watchlist_group_mutations_are_revision_fenced_and_survive_restart) or test(watchlist_membership_mutations_and_preview_commit_lifecycle) or test(watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog) or test(watchlist_store_rejects_missing_drifted_and_corrupted_go_databases) or test(test_select_from_fs_treats_missing_and_empty_bundles_as_unavailable) or test(test_catalog_activity_returns_empty_pages_when_activity_store_is_unavailable) or test(binding_normalization_validates_execution_enums_and_nested_account) or test(sqlite_test_cutover_preserves_repeated_transitions_rollback_and_restart) or test(recovery_failure_converges_the_running_instance_to_stopped) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log) or test(startup_reconcile_resets_stale_paused_state_and_keeps_stopped_instances) or test(test_classified_strategy_errors_match_sentinel_kinds)"
         ],
         "testFilter": [
           "test_p1_06_downgrade_strictly_rejected_at_all_layers"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "ddefc0d6ab16dd454c8c12810aab6554386db9d7",
+        "verifiedAt": "2026-09-25T14:22:50Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -241473,20 +241473,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(exclusive_lock_conflicts_and_file_survives_release) or test(payload_and_session_event_commit_or_rollback_together) or test(test_p1_06_downgrade_strictly_rejected_at_all_layers) or test(catalog_activity_paging_and_filters_match_go_boundaries) or test(reconciliation_discovers_external_order_into_empty_ledger) or test(conformance_partial_full_fill_average_and_out_of_order_updates_hold) or test(reconciliation_snapshot_coverage_prevents_duplicate_fill_quantity) or test(reconciliation_snapshot_coverage_caps_partial_and_exhausted_credit) or test(reconciliation_rejects_terminal_and_partial_status_regressions) or test(reconciliation_cancel_submitted_resolves_fill_and_cancel_confirmation) or test(execution_order_concurrent_writes_and_reads_survive_reopen) or test(reconciliation_older_snapshot_fill_progress_is_accepted_with_monotonic_updated_at) or test(reconciliation_duplicate_terminal_snapshot_is_idempotent) or test(watchlist_group_mutations_are_revision_fenced_and_survive_restart) or test(watchlist_membership_mutations_and_preview_commit_lifecycle) or test(watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog) or test(watchlist_store_rejects_missing_drifted_and_corrupted_go_databases) or test(test_select_from_fs_treats_missing_and_empty_bundles_as_unavailable) or test(test_catalog_activity_returns_empty_pages_when_activity_store_is_unavailable) or test(binding_normalization_validates_execution_enums_and_nested_account) or test(sqlite_test_cutover_preserves_repeated_transitions_rollback_and_restart) or test(recovery_failure_converges_the_running_instance_to_stopped) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log) or test(startup_reconcile_resets_stale_paused_state_and_keeps_stopped_instances) or test(test_classified_strategy_errors_match_sentinel_kinds)"
         ],
         "testFilter": [
           "catalog_activity_paging_and_filters_match_go_boundaries"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "ddefc0d6ab16dd454c8c12810aab6554386db9d7",
+        "verifiedAt": "2026-09-25T14:22:50Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -242347,10 +242347,10 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(exclusive_lock_conflicts_and_file_survives_release) or test(payload_and_session_event_commit_or_rollback_together) or test(test_p1_06_downgrade_strictly_rejected_at_all_layers) or test(catalog_activity_paging_and_filters_match_go_boundaries) or test(reconciliation_discovers_external_order_into_empty_ledger) or test(conformance_partial_full_fill_average_and_out_of_order_updates_hold) or test(reconciliation_snapshot_coverage_prevents_duplicate_fill_quantity) or test(reconciliation_snapshot_coverage_caps_partial_and_exhausted_credit) or test(reconciliation_rejects_terminal_and_partial_status_regressions) or test(reconciliation_cancel_submitted_resolves_fill_and_cancel_confirmation) or test(execution_order_concurrent_writes_and_reads_survive_reopen) or test(reconciliation_older_snapshot_fill_progress_is_accepted_with_monotonic_updated_at) or test(reconciliation_duplicate_terminal_snapshot_is_idempotent) or test(watchlist_group_mutations_are_revision_fenced_and_survive_restart) or test(watchlist_membership_mutations_and_preview_commit_lifecycle) or test(watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog) or test(watchlist_store_rejects_missing_drifted_and_corrupted_go_databases) or test(test_select_from_fs_treats_missing_and_empty_bundles_as_unavailable) or test(test_catalog_activity_returns_empty_pages_when_activity_store_is_unavailable) or test(binding_normalization_validates_execution_enums_and_nested_account) or test(sqlite_test_cutover_preserves_repeated_transitions_rollback_and_restart) or test(recovery_failure_converges_the_running_instance_to_stopped) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log) or test(startup_reconcile_resets_stale_paused_state_and_keeps_stopped_instances) or test(test_classified_strategy_errors_match_sentinel_kinds)"
         ],
         "testFilter": [
           "reconciliation_discovers_external_order_into_empty_ledger",
@@ -242358,10 +242358,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "ddefc0d6ab16dd454c8c12810aab6554386db9d7",
+        "verifiedAt": "2026-09-25T14:22:50Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -242416,10 +242416,10 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(exclusive_lock_conflicts_and_file_survives_release) or test(payload_and_session_event_commit_or_rollback_together) or test(test_p1_06_downgrade_strictly_rejected_at_all_layers) or test(catalog_activity_paging_and_filters_match_go_boundaries) or test(reconciliation_discovers_external_order_into_empty_ledger) or test(conformance_partial_full_fill_average_and_out_of_order_updates_hold) or test(reconciliation_snapshot_coverage_prevents_duplicate_fill_quantity) or test(reconciliation_snapshot_coverage_caps_partial_and_exhausted_credit) or test(reconciliation_rejects_terminal_and_partial_status_regressions) or test(reconciliation_cancel_submitted_resolves_fill_and_cancel_confirmation) or test(execution_order_concurrent_writes_and_reads_survive_reopen) or test(reconciliation_older_snapshot_fill_progress_is_accepted_with_monotonic_updated_at) or test(reconciliation_duplicate_terminal_snapshot_is_idempotent) or test(watchlist_group_mutations_are_revision_fenced_and_survive_restart) or test(watchlist_membership_mutations_and_preview_commit_lifecycle) or test(watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog) or test(watchlist_store_rejects_missing_drifted_and_corrupted_go_databases) or test(test_select_from_fs_treats_missing_and_empty_bundles_as_unavailable) or test(test_catalog_activity_returns_empty_pages_when_activity_store_is_unavailable) or test(binding_normalization_validates_execution_enums_and_nested_account) or test(sqlite_test_cutover_preserves_repeated_transitions_rollback_and_restart) or test(recovery_failure_converges_the_running_instance_to_stopped) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log) or test(startup_reconcile_resets_stale_paused_state_and_keeps_stopped_instances) or test(test_classified_strategy_errors_match_sentinel_kinds)"
         ],
         "testFilter": [
           "reconciliation_snapshot_coverage_prevents_duplicate_fill_quantity",
@@ -242427,10 +242427,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "ddefc0d6ab16dd454c8c12810aab6554386db9d7",
+        "verifiedAt": "2026-09-25T14:22:50Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -242485,10 +242485,10 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(exclusive_lock_conflicts_and_file_survives_release) or test(payload_and_session_event_commit_or_rollback_together) or test(test_p1_06_downgrade_strictly_rejected_at_all_layers) or test(catalog_activity_paging_and_filters_match_go_boundaries) or test(reconciliation_discovers_external_order_into_empty_ledger) or test(conformance_partial_full_fill_average_and_out_of_order_updates_hold) or test(reconciliation_snapshot_coverage_prevents_duplicate_fill_quantity) or test(reconciliation_snapshot_coverage_caps_partial_and_exhausted_credit) or test(reconciliation_rejects_terminal_and_partial_status_regressions) or test(reconciliation_cancel_submitted_resolves_fill_and_cancel_confirmation) or test(execution_order_concurrent_writes_and_reads_survive_reopen) or test(reconciliation_older_snapshot_fill_progress_is_accepted_with_monotonic_updated_at) or test(reconciliation_duplicate_terminal_snapshot_is_idempotent) or test(watchlist_group_mutations_are_revision_fenced_and_survive_restart) or test(watchlist_membership_mutations_and_preview_commit_lifecycle) or test(watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog) or test(watchlist_store_rejects_missing_drifted_and_corrupted_go_databases) or test(test_select_from_fs_treats_missing_and_empty_bundles_as_unavailable) or test(test_catalog_activity_returns_empty_pages_when_activity_store_is_unavailable) or test(binding_normalization_validates_execution_enums_and_nested_account) or test(sqlite_test_cutover_preserves_repeated_transitions_rollback_and_restart) or test(recovery_failure_converges_the_running_instance_to_stopped) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log) or test(startup_reconcile_resets_stale_paused_state_and_keeps_stopped_instances) or test(test_classified_strategy_errors_match_sentinel_kinds)"
         ],
         "testFilter": [
           "reconciliation_rejects_terminal_and_partial_status_regressions",
@@ -242496,10 +242496,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "ddefc0d6ab16dd454c8c12810aab6554386db9d7",
+        "verifiedAt": "2026-09-25T14:22:50Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -242941,20 +242941,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(exclusive_lock_conflicts_and_file_survives_release) or test(payload_and_session_event_commit_or_rollback_together) or test(test_p1_06_downgrade_strictly_rejected_at_all_layers) or test(catalog_activity_paging_and_filters_match_go_boundaries) or test(reconciliation_discovers_external_order_into_empty_ledger) or test(conformance_partial_full_fill_average_and_out_of_order_updates_hold) or test(reconciliation_snapshot_coverage_prevents_duplicate_fill_quantity) or test(reconciliation_snapshot_coverage_caps_partial_and_exhausted_credit) or test(reconciliation_rejects_terminal_and_partial_status_regressions) or test(reconciliation_cancel_submitted_resolves_fill_and_cancel_confirmation) or test(execution_order_concurrent_writes_and_reads_survive_reopen) or test(reconciliation_older_snapshot_fill_progress_is_accepted_with_monotonic_updated_at) or test(reconciliation_duplicate_terminal_snapshot_is_idempotent) or test(watchlist_group_mutations_are_revision_fenced_and_survive_restart) or test(watchlist_membership_mutations_and_preview_commit_lifecycle) or test(watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog) or test(watchlist_store_rejects_missing_drifted_and_corrupted_go_databases) or test(test_select_from_fs_treats_missing_and_empty_bundles_as_unavailable) or test(test_catalog_activity_returns_empty_pages_when_activity_store_is_unavailable) or test(binding_normalization_validates_execution_enums_and_nested_account) or test(sqlite_test_cutover_preserves_repeated_transitions_rollback_and_restart) or test(recovery_failure_converges_the_running_instance_to_stopped) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log) or test(startup_reconcile_resets_stale_paused_state_and_keeps_stopped_instances) or test(test_classified_strategy_errors_match_sentinel_kinds)"
         ],
         "testFilter": [
           "reconciliation_cancel_submitted_resolves_fill_and_cancel_confirmation"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "ddefc0d6ab16dd454c8c12810aab6554386db9d7",
+        "verifiedAt": "2026-09-25T14:22:50Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -243571,20 +243571,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(exclusive_lock_conflicts_and_file_survives_release) or test(payload_and_session_event_commit_or_rollback_together) or test(test_p1_06_downgrade_strictly_rejected_at_all_layers) or test(catalog_activity_paging_and_filters_match_go_boundaries) or test(reconciliation_discovers_external_order_into_empty_ledger) or test(conformance_partial_full_fill_average_and_out_of_order_updates_hold) or test(reconciliation_snapshot_coverage_prevents_duplicate_fill_quantity) or test(reconciliation_snapshot_coverage_caps_partial_and_exhausted_credit) or test(reconciliation_rejects_terminal_and_partial_status_regressions) or test(reconciliation_cancel_submitted_resolves_fill_and_cancel_confirmation) or test(execution_order_concurrent_writes_and_reads_survive_reopen) or test(reconciliation_older_snapshot_fill_progress_is_accepted_with_monotonic_updated_at) or test(reconciliation_duplicate_terminal_snapshot_is_idempotent) or test(watchlist_group_mutations_are_revision_fenced_and_survive_restart) or test(watchlist_membership_mutations_and_preview_commit_lifecycle) or test(watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog) or test(watchlist_store_rejects_missing_drifted_and_corrupted_go_databases) or test(test_select_from_fs_treats_missing_and_empty_bundles_as_unavailable) or test(test_catalog_activity_returns_empty_pages_when_activity_store_is_unavailable) or test(binding_normalization_validates_execution_enums_and_nested_account) or test(sqlite_test_cutover_preserves_repeated_transitions_rollback_and_restart) or test(recovery_failure_converges_the_running_instance_to_stopped) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log) or test(startup_reconcile_resets_stale_paused_state_and_keeps_stopped_instances) or test(test_classified_strategy_errors_match_sentinel_kinds)"
         ],
         "testFilter": [
           "execution_order_concurrent_writes_and_reads_survive_reopen"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "ddefc0d6ab16dd454c8c12810aab6554386db9d7",
+        "verifiedAt": "2026-09-25T14:22:50Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -243892,22 +243892,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--all-targets",
           "--locked",
-          "--lib",
           "-E",
-          "test(reconciliation_rejects_terminal_and_partial_status_regressions)"
+          "test(exclusive_lock_conflicts_and_file_survives_release) or test(payload_and_session_event_commit_or_rollback_together) or test(test_p1_06_downgrade_strictly_rejected_at_all_layers) or test(catalog_activity_paging_and_filters_match_go_boundaries) or test(reconciliation_discovers_external_order_into_empty_ledger) or test(conformance_partial_full_fill_average_and_out_of_order_updates_hold) or test(reconciliation_snapshot_coverage_prevents_duplicate_fill_quantity) or test(reconciliation_snapshot_coverage_caps_partial_and_exhausted_credit) or test(reconciliation_rejects_terminal_and_partial_status_regressions) or test(reconciliation_cancel_submitted_resolves_fill_and_cancel_confirmation) or test(execution_order_concurrent_writes_and_reads_survive_reopen) or test(reconciliation_older_snapshot_fill_progress_is_accepted_with_monotonic_updated_at) or test(reconciliation_duplicate_terminal_snapshot_is_idempotent) or test(watchlist_group_mutations_are_revision_fenced_and_survive_restart) or test(watchlist_membership_mutations_and_preview_commit_lifecycle) or test(watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog) or test(watchlist_store_rejects_missing_drifted_and_corrupted_go_databases) or test(test_select_from_fs_treats_missing_and_empty_bundles_as_unavailable) or test(test_catalog_activity_returns_empty_pages_when_activity_store_is_unavailable) or test(binding_normalization_validates_execution_enums_and_nested_account) or test(sqlite_test_cutover_preserves_repeated_transitions_rollback_and_restart) or test(recovery_failure_converges_the_running_instance_to_stopped) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log) or test(startup_reconcile_resets_stale_paused_state_and_keeps_stopped_instances) or test(test_classified_strategy_errors_match_sentinel_kinds)"
         ],
         "testFilter": [
           "reconciliation_rejects_terminal_and_partial_status_regressions"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "ddefc0d6ab16dd454c8c12810aab6554386db9d7",
+        "verifiedAt": "2026-09-25T14:22:50Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -243961,22 +243959,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--all-targets",
           "--locked",
-          "--lib",
           "-E",
-          "test(reconciliation_older_snapshot_fill_progress_is_accepted_with_monotonic_updated_at)"
+          "test(exclusive_lock_conflicts_and_file_survives_release) or test(payload_and_session_event_commit_or_rollback_together) or test(test_p1_06_downgrade_strictly_rejected_at_all_layers) or test(catalog_activity_paging_and_filters_match_go_boundaries) or test(reconciliation_discovers_external_order_into_empty_ledger) or test(conformance_partial_full_fill_average_and_out_of_order_updates_hold) or test(reconciliation_snapshot_coverage_prevents_duplicate_fill_quantity) or test(reconciliation_snapshot_coverage_caps_partial_and_exhausted_credit) or test(reconciliation_rejects_terminal_and_partial_status_regressions) or test(reconciliation_cancel_submitted_resolves_fill_and_cancel_confirmation) or test(execution_order_concurrent_writes_and_reads_survive_reopen) or test(reconciliation_older_snapshot_fill_progress_is_accepted_with_monotonic_updated_at) or test(reconciliation_duplicate_terminal_snapshot_is_idempotent) or test(watchlist_group_mutations_are_revision_fenced_and_survive_restart) or test(watchlist_membership_mutations_and_preview_commit_lifecycle) or test(watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog) or test(watchlist_store_rejects_missing_drifted_and_corrupted_go_databases) or test(test_select_from_fs_treats_missing_and_empty_bundles_as_unavailable) or test(test_catalog_activity_returns_empty_pages_when_activity_store_is_unavailable) or test(binding_normalization_validates_execution_enums_and_nested_account) or test(sqlite_test_cutover_preserves_repeated_transitions_rollback_and_restart) or test(recovery_failure_converges_the_running_instance_to_stopped) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log) or test(startup_reconcile_resets_stale_paused_state_and_keeps_stopped_instances) or test(test_classified_strategy_errors_match_sentinel_kinds)"
         ],
         "testFilter": [
           "reconciliation_older_snapshot_fill_progress_is_accepted_with_monotonic_updated_at"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "ddefc0d6ab16dd454c8c12810aab6554386db9d7",
+        "verifiedAt": "2026-09-25T14:22:50Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -244031,10 +244027,10 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(exclusive_lock_conflicts_and_file_survives_release) or test(payload_and_session_event_commit_or_rollback_together) or test(test_p1_06_downgrade_strictly_rejected_at_all_layers) or test(catalog_activity_paging_and_filters_match_go_boundaries) or test(reconciliation_discovers_external_order_into_empty_ledger) or test(conformance_partial_full_fill_average_and_out_of_order_updates_hold) or test(reconciliation_snapshot_coverage_prevents_duplicate_fill_quantity) or test(reconciliation_snapshot_coverage_caps_partial_and_exhausted_credit) or test(reconciliation_rejects_terminal_and_partial_status_regressions) or test(reconciliation_cancel_submitted_resolves_fill_and_cancel_confirmation) or test(execution_order_concurrent_writes_and_reads_survive_reopen) or test(reconciliation_older_snapshot_fill_progress_is_accepted_with_monotonic_updated_at) or test(reconciliation_duplicate_terminal_snapshot_is_idempotent) or test(watchlist_group_mutations_are_revision_fenced_and_survive_restart) or test(watchlist_membership_mutations_and_preview_commit_lifecycle) or test(watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog) or test(watchlist_store_rejects_missing_drifted_and_corrupted_go_databases) or test(test_select_from_fs_treats_missing_and_empty_bundles_as_unavailable) or test(test_catalog_activity_returns_empty_pages_when_activity_store_is_unavailable) or test(binding_normalization_validates_execution_enums_and_nested_account) or test(sqlite_test_cutover_preserves_repeated_transitions_rollback_and_restart) or test(recovery_failure_converges_the_running_instance_to_stopped) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log) or test(startup_reconcile_resets_stale_paused_state_and_keeps_stopped_instances) or test(test_classified_strategy_errors_match_sentinel_kinds)"
         ],
         "testFilter": [
           "reconciliation_snapshot_coverage_caps_partial_and_exhausted_credit",
@@ -244042,10 +244038,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "ddefc0d6ab16dd454c8c12810aab6554386db9d7",
+        "verifiedAt": "2026-09-25T14:22:50Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -244099,22 +244095,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--all-targets",
           "--locked",
-          "--lib",
           "-E",
-          "test(reconciliation_cancel_submitted_resolves_fill_and_cancel_confirmation)"
+          "test(exclusive_lock_conflicts_and_file_survives_release) or test(payload_and_session_event_commit_or_rollback_together) or test(test_p1_06_downgrade_strictly_rejected_at_all_layers) or test(catalog_activity_paging_and_filters_match_go_boundaries) or test(reconciliation_discovers_external_order_into_empty_ledger) or test(conformance_partial_full_fill_average_and_out_of_order_updates_hold) or test(reconciliation_snapshot_coverage_prevents_duplicate_fill_quantity) or test(reconciliation_snapshot_coverage_caps_partial_and_exhausted_credit) or test(reconciliation_rejects_terminal_and_partial_status_regressions) or test(reconciliation_cancel_submitted_resolves_fill_and_cancel_confirmation) or test(execution_order_concurrent_writes_and_reads_survive_reopen) or test(reconciliation_older_snapshot_fill_progress_is_accepted_with_monotonic_updated_at) or test(reconciliation_duplicate_terminal_snapshot_is_idempotent) or test(watchlist_group_mutations_are_revision_fenced_and_survive_restart) or test(watchlist_membership_mutations_and_preview_commit_lifecycle) or test(watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog) or test(watchlist_store_rejects_missing_drifted_and_corrupted_go_databases) or test(test_select_from_fs_treats_missing_and_empty_bundles_as_unavailable) or test(test_catalog_activity_returns_empty_pages_when_activity_store_is_unavailable) or test(binding_normalization_validates_execution_enums_and_nested_account) or test(sqlite_test_cutover_preserves_repeated_transitions_rollback_and_restart) or test(recovery_failure_converges_the_running_instance_to_stopped) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log) or test(startup_reconcile_resets_stale_paused_state_and_keeps_stopped_instances) or test(test_classified_strategy_errors_match_sentinel_kinds)"
         ],
         "testFilter": [
           "reconciliation_cancel_submitted_resolves_fill_and_cancel_confirmation"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "ddefc0d6ab16dd454c8c12810aab6554386db9d7",
+        "verifiedAt": "2026-09-25T14:22:50Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -244168,22 +244162,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--all-targets",
           "--locked",
-          "--lib",
           "-E",
-          "test(reconciliation_duplicate_terminal_snapshot_is_idempotent)"
+          "test(exclusive_lock_conflicts_and_file_survives_release) or test(payload_and_session_event_commit_or_rollback_together) or test(test_p1_06_downgrade_strictly_rejected_at_all_layers) or test(catalog_activity_paging_and_filters_match_go_boundaries) or test(reconciliation_discovers_external_order_into_empty_ledger) or test(conformance_partial_full_fill_average_and_out_of_order_updates_hold) or test(reconciliation_snapshot_coverage_prevents_duplicate_fill_quantity) or test(reconciliation_snapshot_coverage_caps_partial_and_exhausted_credit) or test(reconciliation_rejects_terminal_and_partial_status_regressions) or test(reconciliation_cancel_submitted_resolves_fill_and_cancel_confirmation) or test(execution_order_concurrent_writes_and_reads_survive_reopen) or test(reconciliation_older_snapshot_fill_progress_is_accepted_with_monotonic_updated_at) or test(reconciliation_duplicate_terminal_snapshot_is_idempotent) or test(watchlist_group_mutations_are_revision_fenced_and_survive_restart) or test(watchlist_membership_mutations_and_preview_commit_lifecycle) or test(watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog) or test(watchlist_store_rejects_missing_drifted_and_corrupted_go_databases) or test(test_select_from_fs_treats_missing_and_empty_bundles_as_unavailable) or test(test_catalog_activity_returns_empty_pages_when_activity_store_is_unavailable) or test(binding_normalization_validates_execution_enums_and_nested_account) or test(sqlite_test_cutover_preserves_repeated_transitions_rollback_and_restart) or test(recovery_failure_converges_the_running_instance_to_stopped) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log) or test(startup_reconcile_resets_stale_paused_state_and_keeps_stopped_instances) or test(test_classified_strategy_errors_match_sentinel_kinds)"
         ],
         "testFilter": [
           "reconciliation_duplicate_terminal_snapshot_is_idempotent"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "ddefc0d6ab16dd454c8c12810aab6554386db9d7",
+        "verifiedAt": "2026-09-25T14:22:50Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -245318,20 +245310,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(exclusive_lock_conflicts_and_file_survives_release) or test(payload_and_session_event_commit_or_rollback_together) or test(test_p1_06_downgrade_strictly_rejected_at_all_layers) or test(catalog_activity_paging_and_filters_match_go_boundaries) or test(reconciliation_discovers_external_order_into_empty_ledger) or test(conformance_partial_full_fill_average_and_out_of_order_updates_hold) or test(reconciliation_snapshot_coverage_prevents_duplicate_fill_quantity) or test(reconciliation_snapshot_coverage_caps_partial_and_exhausted_credit) or test(reconciliation_rejects_terminal_and_partial_status_regressions) or test(reconciliation_cancel_submitted_resolves_fill_and_cancel_confirmation) or test(execution_order_concurrent_writes_and_reads_survive_reopen) or test(reconciliation_older_snapshot_fill_progress_is_accepted_with_monotonic_updated_at) or test(reconciliation_duplicate_terminal_snapshot_is_idempotent) or test(watchlist_group_mutations_are_revision_fenced_and_survive_restart) or test(watchlist_membership_mutations_and_preview_commit_lifecycle) or test(watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog) or test(watchlist_store_rejects_missing_drifted_and_corrupted_go_databases) or test(test_select_from_fs_treats_missing_and_empty_bundles_as_unavailable) or test(test_catalog_activity_returns_empty_pages_when_activity_store_is_unavailable) or test(binding_normalization_validates_execution_enums_and_nested_account) or test(sqlite_test_cutover_preserves_repeated_transitions_rollback_and_restart) or test(recovery_failure_converges_the_running_instance_to_stopped) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log) or test(startup_reconcile_resets_stale_paused_state_and_keeps_stopped_instances) or test(test_classified_strategy_errors_match_sentinel_kinds)"
         ],
         "testFilter": [
           "watchlist_group_mutations_are_revision_fenced_and_survive_restart"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "ddefc0d6ab16dd454c8c12810aab6554386db9d7",
+        "verifiedAt": "2026-09-25T14:22:50Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -245380,20 +245372,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(exclusive_lock_conflicts_and_file_survives_release) or test(payload_and_session_event_commit_or_rollback_together) or test(test_p1_06_downgrade_strictly_rejected_at_all_layers) or test(catalog_activity_paging_and_filters_match_go_boundaries) or test(reconciliation_discovers_external_order_into_empty_ledger) or test(conformance_partial_full_fill_average_and_out_of_order_updates_hold) or test(reconciliation_snapshot_coverage_prevents_duplicate_fill_quantity) or test(reconciliation_snapshot_coverage_caps_partial_and_exhausted_credit) or test(reconciliation_rejects_terminal_and_partial_status_regressions) or test(reconciliation_cancel_submitted_resolves_fill_and_cancel_confirmation) or test(execution_order_concurrent_writes_and_reads_survive_reopen) or test(reconciliation_older_snapshot_fill_progress_is_accepted_with_monotonic_updated_at) or test(reconciliation_duplicate_terminal_snapshot_is_idempotent) or test(watchlist_group_mutations_are_revision_fenced_and_survive_restart) or test(watchlist_membership_mutations_and_preview_commit_lifecycle) or test(watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog) or test(watchlist_store_rejects_missing_drifted_and_corrupted_go_databases) or test(test_select_from_fs_treats_missing_and_empty_bundles_as_unavailable) or test(test_catalog_activity_returns_empty_pages_when_activity_store_is_unavailable) or test(binding_normalization_validates_execution_enums_and_nested_account) or test(sqlite_test_cutover_preserves_repeated_transitions_rollback_and_restart) or test(recovery_failure_converges_the_running_instance_to_stopped) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log) or test(startup_reconcile_resets_stale_paused_state_and_keeps_stopped_instances) or test(test_classified_strategy_errors_match_sentinel_kinds)"
         ],
         "testFilter": [
           "watchlist_membership_mutations_and_preview_commit_lifecycle"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "ddefc0d6ab16dd454c8c12810aab6554386db9d7",
+        "verifiedAt": "2026-09-25T14:22:50Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -245690,20 +245682,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(exclusive_lock_conflicts_and_file_survives_release) or test(payload_and_session_event_commit_or_rollback_together) or test(test_p1_06_downgrade_strictly_rejected_at_all_layers) or test(catalog_activity_paging_and_filters_match_go_boundaries) or test(reconciliation_discovers_external_order_into_empty_ledger) or test(conformance_partial_full_fill_average_and_out_of_order_updates_hold) or test(reconciliation_snapshot_coverage_prevents_duplicate_fill_quantity) or test(reconciliation_snapshot_coverage_caps_partial_and_exhausted_credit) or test(reconciliation_rejects_terminal_and_partial_status_regressions) or test(reconciliation_cancel_submitted_resolves_fill_and_cancel_confirmation) or test(execution_order_concurrent_writes_and_reads_survive_reopen) or test(reconciliation_older_snapshot_fill_progress_is_accepted_with_monotonic_updated_at) or test(reconciliation_duplicate_terminal_snapshot_is_idempotent) or test(watchlist_group_mutations_are_revision_fenced_and_survive_restart) or test(watchlist_membership_mutations_and_preview_commit_lifecycle) or test(watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog) or test(watchlist_store_rejects_missing_drifted_and_corrupted_go_databases) or test(test_select_from_fs_treats_missing_and_empty_bundles_as_unavailable) or test(test_catalog_activity_returns_empty_pages_when_activity_store_is_unavailable) or test(binding_normalization_validates_execution_enums_and_nested_account) or test(sqlite_test_cutover_preserves_repeated_transitions_rollback_and_restart) or test(recovery_failure_converges_the_running_instance_to_stopped) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log) or test(startup_reconcile_resets_stale_paused_state_and_keeps_stopped_instances) or test(test_classified_strategy_errors_match_sentinel_kinds)"
         ],
         "testFilter": [
           "watchlist_membership_mutations_and_preview_commit_lifecycle"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "ddefc0d6ab16dd454c8c12810aab6554386db9d7",
+        "verifiedAt": "2026-09-25T14:22:50Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -245938,20 +245930,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(exclusive_lock_conflicts_and_file_survives_release) or test(payload_and_session_event_commit_or_rollback_together) or test(test_p1_06_downgrade_strictly_rejected_at_all_layers) or test(catalog_activity_paging_and_filters_match_go_boundaries) or test(reconciliation_discovers_external_order_into_empty_ledger) or test(conformance_partial_full_fill_average_and_out_of_order_updates_hold) or test(reconciliation_snapshot_coverage_prevents_duplicate_fill_quantity) or test(reconciliation_snapshot_coverage_caps_partial_and_exhausted_credit) or test(reconciliation_rejects_terminal_and_partial_status_regressions) or test(reconciliation_cancel_submitted_resolves_fill_and_cancel_confirmation) or test(execution_order_concurrent_writes_and_reads_survive_reopen) or test(reconciliation_older_snapshot_fill_progress_is_accepted_with_monotonic_updated_at) or test(reconciliation_duplicate_terminal_snapshot_is_idempotent) or test(watchlist_group_mutations_are_revision_fenced_and_survive_restart) or test(watchlist_membership_mutations_and_preview_commit_lifecycle) or test(watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog) or test(watchlist_store_rejects_missing_drifted_and_corrupted_go_databases) or test(test_select_from_fs_treats_missing_and_empty_bundles_as_unavailable) or test(test_catalog_activity_returns_empty_pages_when_activity_store_is_unavailable) or test(binding_normalization_validates_execution_enums_and_nested_account) or test(sqlite_test_cutover_preserves_repeated_transitions_rollback_and_restart) or test(recovery_failure_converges_the_running_instance_to_stopped) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log) or test(startup_reconcile_resets_stale_paused_state_and_keeps_stopped_instances) or test(test_classified_strategy_errors_match_sentinel_kinds)"
         ],
         "testFilter": [
           "watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "ddefc0d6ab16dd454c8c12810aab6554386db9d7",
+        "verifiedAt": "2026-09-25T14:22:50Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -246372,20 +246364,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(exclusive_lock_conflicts_and_file_survives_release) or test(payload_and_session_event_commit_or_rollback_together) or test(test_p1_06_downgrade_strictly_rejected_at_all_layers) or test(catalog_activity_paging_and_filters_match_go_boundaries) or test(reconciliation_discovers_external_order_into_empty_ledger) or test(conformance_partial_full_fill_average_and_out_of_order_updates_hold) or test(reconciliation_snapshot_coverage_prevents_duplicate_fill_quantity) or test(reconciliation_snapshot_coverage_caps_partial_and_exhausted_credit) or test(reconciliation_rejects_terminal_and_partial_status_regressions) or test(reconciliation_cancel_submitted_resolves_fill_and_cancel_confirmation) or test(execution_order_concurrent_writes_and_reads_survive_reopen) or test(reconciliation_older_snapshot_fill_progress_is_accepted_with_monotonic_updated_at) or test(reconciliation_duplicate_terminal_snapshot_is_idempotent) or test(watchlist_group_mutations_are_revision_fenced_and_survive_restart) or test(watchlist_membership_mutations_and_preview_commit_lifecycle) or test(watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog) or test(watchlist_store_rejects_missing_drifted_and_corrupted_go_databases) or test(test_select_from_fs_treats_missing_and_empty_bundles_as_unavailable) or test(test_catalog_activity_returns_empty_pages_when_activity_store_is_unavailable) or test(binding_normalization_validates_execution_enums_and_nested_account) or test(sqlite_test_cutover_preserves_repeated_transitions_rollback_and_restart) or test(recovery_failure_converges_the_running_instance_to_stopped) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log) or test(startup_reconcile_resets_stale_paused_state_and_keeps_stopped_instances) or test(test_classified_strategy_errors_match_sentinel_kinds)"
         ],
         "testFilter": [
           "watchlist_membership_mutations_and_preview_commit_lifecycle"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "ddefc0d6ab16dd454c8c12810aab6554386db9d7",
+        "verifiedAt": "2026-09-25T14:22:50Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -246496,20 +246488,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(exclusive_lock_conflicts_and_file_survives_release) or test(payload_and_session_event_commit_or_rollback_together) or test(test_p1_06_downgrade_strictly_rejected_at_all_layers) or test(catalog_activity_paging_and_filters_match_go_boundaries) or test(reconciliation_discovers_external_order_into_empty_ledger) or test(conformance_partial_full_fill_average_and_out_of_order_updates_hold) or test(reconciliation_snapshot_coverage_prevents_duplicate_fill_quantity) or test(reconciliation_snapshot_coverage_caps_partial_and_exhausted_credit) or test(reconciliation_rejects_terminal_and_partial_status_regressions) or test(reconciliation_cancel_submitted_resolves_fill_and_cancel_confirmation) or test(execution_order_concurrent_writes_and_reads_survive_reopen) or test(reconciliation_older_snapshot_fill_progress_is_accepted_with_monotonic_updated_at) or test(reconciliation_duplicate_terminal_snapshot_is_idempotent) or test(watchlist_group_mutations_are_revision_fenced_and_survive_restart) or test(watchlist_membership_mutations_and_preview_commit_lifecycle) or test(watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog) or test(watchlist_store_rejects_missing_drifted_and_corrupted_go_databases) or test(test_select_from_fs_treats_missing_and_empty_bundles_as_unavailable) or test(test_catalog_activity_returns_empty_pages_when_activity_store_is_unavailable) or test(binding_normalization_validates_execution_enums_and_nested_account) or test(sqlite_test_cutover_preserves_repeated_transitions_rollback_and_restart) or test(recovery_failure_converges_the_running_instance_to_stopped) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log) or test(startup_reconcile_resets_stale_paused_state_and_keeps_stopped_instances) or test(test_classified_strategy_errors_match_sentinel_kinds)"
         ],
         "testFilter": [
           "watchlist_store_rejects_missing_drifted_and_corrupted_go_databases"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "ddefc0d6ab16dd454c8c12810aab6554386db9d7",
+        "verifiedAt": "2026-09-25T14:22:50Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -247116,20 +247108,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-integration-pine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(exclusive_lock_conflicts_and_file_survives_release) or test(payload_and_session_event_commit_or_rollback_together) or test(test_p1_06_downgrade_strictly_rejected_at_all_layers) or test(catalog_activity_paging_and_filters_match_go_boundaries) or test(reconciliation_discovers_external_order_into_empty_ledger) or test(conformance_partial_full_fill_average_and_out_of_order_updates_hold) or test(reconciliation_snapshot_coverage_prevents_duplicate_fill_quantity) or test(reconciliation_snapshot_coverage_caps_partial_and_exhausted_credit) or test(reconciliation_rejects_terminal_and_partial_status_regressions) or test(reconciliation_cancel_submitted_resolves_fill_and_cancel_confirmation) or test(execution_order_concurrent_writes_and_reads_survive_reopen) or test(reconciliation_older_snapshot_fill_progress_is_accepted_with_monotonic_updated_at) or test(reconciliation_duplicate_terminal_snapshot_is_idempotent) or test(watchlist_group_mutations_are_revision_fenced_and_survive_restart) or test(watchlist_membership_mutations_and_preview_commit_lifecycle) or test(watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog) or test(watchlist_store_rejects_missing_drifted_and_corrupted_go_databases) or test(test_select_from_fs_treats_missing_and_empty_bundles_as_unavailable) or test(test_catalog_activity_returns_empty_pages_when_activity_store_is_unavailable) or test(binding_normalization_validates_execution_enums_and_nested_account) or test(sqlite_test_cutover_preserves_repeated_transitions_rollback_and_restart) or test(recovery_failure_converges_the_running_instance_to_stopped) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log) or test(startup_reconcile_resets_stale_paused_state_and_keeps_stopped_instances) or test(test_classified_strategy_errors_match_sentinel_kinds)"
         ],
         "testFilter": [
           "test_select_from_fs_treats_missing_and_empty_bundles_as_unavailable"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "ddefc0d6ab16dd454c8c12810aab6554386db9d7",
+        "verifiedAt": "2026-09-25T14:22:50Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -247488,20 +247480,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(exclusive_lock_conflicts_and_file_survives_release) or test(payload_and_session_event_commit_or_rollback_together) or test(test_p1_06_downgrade_strictly_rejected_at_all_layers) or test(catalog_activity_paging_and_filters_match_go_boundaries) or test(reconciliation_discovers_external_order_into_empty_ledger) or test(conformance_partial_full_fill_average_and_out_of_order_updates_hold) or test(reconciliation_snapshot_coverage_prevents_duplicate_fill_quantity) or test(reconciliation_snapshot_coverage_caps_partial_and_exhausted_credit) or test(reconciliation_rejects_terminal_and_partial_status_regressions) or test(reconciliation_cancel_submitted_resolves_fill_and_cancel_confirmation) or test(execution_order_concurrent_writes_and_reads_survive_reopen) or test(reconciliation_older_snapshot_fill_progress_is_accepted_with_monotonic_updated_at) or test(reconciliation_duplicate_terminal_snapshot_is_idempotent) or test(watchlist_group_mutations_are_revision_fenced_and_survive_restart) or test(watchlist_membership_mutations_and_preview_commit_lifecycle) or test(watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog) or test(watchlist_store_rejects_missing_drifted_and_corrupted_go_databases) or test(test_select_from_fs_treats_missing_and_empty_bundles_as_unavailable) or test(test_catalog_activity_returns_empty_pages_when_activity_store_is_unavailable) or test(binding_normalization_validates_execution_enums_and_nested_account) or test(sqlite_test_cutover_preserves_repeated_transitions_rollback_and_restart) or test(recovery_failure_converges_the_running_instance_to_stopped) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log) or test(startup_reconcile_resets_stale_paused_state_and_keeps_stopped_instances) or test(test_classified_strategy_errors_match_sentinel_kinds)"
         ],
         "testFilter": [
           "test_catalog_activity_returns_empty_pages_when_activity_store_is_unavailable"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "ddefc0d6ab16dd454c8c12810aab6554386db9d7",
+        "verifiedAt": "2026-09-25T14:22:50Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -247550,20 +247542,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(exclusive_lock_conflicts_and_file_survives_release) or test(payload_and_session_event_commit_or_rollback_together) or test(test_p1_06_downgrade_strictly_rejected_at_all_layers) or test(catalog_activity_paging_and_filters_match_go_boundaries) or test(reconciliation_discovers_external_order_into_empty_ledger) or test(conformance_partial_full_fill_average_and_out_of_order_updates_hold) or test(reconciliation_snapshot_coverage_prevents_duplicate_fill_quantity) or test(reconciliation_snapshot_coverage_caps_partial_and_exhausted_credit) or test(reconciliation_rejects_terminal_and_partial_status_regressions) or test(reconciliation_cancel_submitted_resolves_fill_and_cancel_confirmation) or test(execution_order_concurrent_writes_and_reads_survive_reopen) or test(reconciliation_older_snapshot_fill_progress_is_accepted_with_monotonic_updated_at) or test(reconciliation_duplicate_terminal_snapshot_is_idempotent) or test(watchlist_group_mutations_are_revision_fenced_and_survive_restart) or test(watchlist_membership_mutations_and_preview_commit_lifecycle) or test(watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog) or test(watchlist_store_rejects_missing_drifted_and_corrupted_go_databases) or test(test_select_from_fs_treats_missing_and_empty_bundles_as_unavailable) or test(test_catalog_activity_returns_empty_pages_when_activity_store_is_unavailable) or test(binding_normalization_validates_execution_enums_and_nested_account) or test(sqlite_test_cutover_preserves_repeated_transitions_rollback_and_restart) or test(recovery_failure_converges_the_running_instance_to_stopped) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log) or test(startup_reconcile_resets_stale_paused_state_and_keeps_stopped_instances) or test(test_classified_strategy_errors_match_sentinel_kinds)"
         ],
         "testFilter": [
           "test_catalog_activity_returns_empty_pages_when_activity_store_is_unavailable"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "ddefc0d6ab16dd454c8c12810aab6554386db9d7",
+        "verifiedAt": "2026-09-25T14:22:50Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -247798,20 +247790,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(exclusive_lock_conflicts_and_file_survives_release) or test(payload_and_session_event_commit_or_rollback_together) or test(test_p1_06_downgrade_strictly_rejected_at_all_layers) or test(catalog_activity_paging_and_filters_match_go_boundaries) or test(reconciliation_discovers_external_order_into_empty_ledger) or test(conformance_partial_full_fill_average_and_out_of_order_updates_hold) or test(reconciliation_snapshot_coverage_prevents_duplicate_fill_quantity) or test(reconciliation_snapshot_coverage_caps_partial_and_exhausted_credit) or test(reconciliation_rejects_terminal_and_partial_status_regressions) or test(reconciliation_cancel_submitted_resolves_fill_and_cancel_confirmation) or test(execution_order_concurrent_writes_and_reads_survive_reopen) or test(reconciliation_older_snapshot_fill_progress_is_accepted_with_monotonic_updated_at) or test(reconciliation_duplicate_terminal_snapshot_is_idempotent) or test(watchlist_group_mutations_are_revision_fenced_and_survive_restart) or test(watchlist_membership_mutations_and_preview_commit_lifecycle) or test(watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog) or test(watchlist_store_rejects_missing_drifted_and_corrupted_go_databases) or test(test_select_from_fs_treats_missing_and_empty_bundles_as_unavailable) or test(test_catalog_activity_returns_empty_pages_when_activity_store_is_unavailable) or test(binding_normalization_validates_execution_enums_and_nested_account) or test(sqlite_test_cutover_preserves_repeated_transitions_rollback_and_restart) or test(recovery_failure_converges_the_running_instance_to_stopped) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log) or test(startup_reconcile_resets_stale_paused_state_and_keeps_stopped_instances) or test(test_classified_strategy_errors_match_sentinel_kinds)"
         ],
         "testFilter": [
           "binding_normalization_validates_execution_enums_and_nested_account"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "ddefc0d6ab16dd454c8c12810aab6554386db9d7",
+        "verifiedAt": "2026-09-25T14:22:50Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -248604,20 +248596,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(exclusive_lock_conflicts_and_file_survives_release) or test(payload_and_session_event_commit_or_rollback_together) or test(test_p1_06_downgrade_strictly_rejected_at_all_layers) or test(catalog_activity_paging_and_filters_match_go_boundaries) or test(reconciliation_discovers_external_order_into_empty_ledger) or test(conformance_partial_full_fill_average_and_out_of_order_updates_hold) or test(reconciliation_snapshot_coverage_prevents_duplicate_fill_quantity) or test(reconciliation_snapshot_coverage_caps_partial_and_exhausted_credit) or test(reconciliation_rejects_terminal_and_partial_status_regressions) or test(reconciliation_cancel_submitted_resolves_fill_and_cancel_confirmation) or test(execution_order_concurrent_writes_and_reads_survive_reopen) or test(reconciliation_older_snapshot_fill_progress_is_accepted_with_monotonic_updated_at) or test(reconciliation_duplicate_terminal_snapshot_is_idempotent) or test(watchlist_group_mutations_are_revision_fenced_and_survive_restart) or test(watchlist_membership_mutations_and_preview_commit_lifecycle) or test(watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog) or test(watchlist_store_rejects_missing_drifted_and_corrupted_go_databases) or test(test_select_from_fs_treats_missing_and_empty_bundles_as_unavailable) or test(test_catalog_activity_returns_empty_pages_when_activity_store_is_unavailable) or test(binding_normalization_validates_execution_enums_and_nested_account) or test(sqlite_test_cutover_preserves_repeated_transitions_rollback_and_restart) or test(recovery_failure_converges_the_running_instance_to_stopped) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log) or test(startup_reconcile_resets_stale_paused_state_and_keeps_stopped_instances) or test(test_classified_strategy_errors_match_sentinel_kinds)"
         ],
         "testFilter": [
           "sqlite_test_cutover_preserves_repeated_transitions_rollback_and_restart"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "ddefc0d6ab16dd454c8c12810aab6554386db9d7",
+        "verifiedAt": "2026-09-25T14:22:50Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -248682,10 +248674,10 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(exclusive_lock_conflicts_and_file_survives_release) or test(payload_and_session_event_commit_or_rollback_together) or test(test_p1_06_downgrade_strictly_rejected_at_all_layers) or test(catalog_activity_paging_and_filters_match_go_boundaries) or test(reconciliation_discovers_external_order_into_empty_ledger) or test(conformance_partial_full_fill_average_and_out_of_order_updates_hold) or test(reconciliation_snapshot_coverage_prevents_duplicate_fill_quantity) or test(reconciliation_snapshot_coverage_caps_partial_and_exhausted_credit) or test(reconciliation_rejects_terminal_and_partial_status_regressions) or test(reconciliation_cancel_submitted_resolves_fill_and_cancel_confirmation) or test(execution_order_concurrent_writes_and_reads_survive_reopen) or test(reconciliation_older_snapshot_fill_progress_is_accepted_with_monotonic_updated_at) or test(reconciliation_duplicate_terminal_snapshot_is_idempotent) or test(watchlist_group_mutations_are_revision_fenced_and_survive_restart) or test(watchlist_membership_mutations_and_preview_commit_lifecycle) or test(watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog) or test(watchlist_store_rejects_missing_drifted_and_corrupted_go_databases) or test(test_select_from_fs_treats_missing_and_empty_bundles_as_unavailable) or test(test_catalog_activity_returns_empty_pages_when_activity_store_is_unavailable) or test(binding_normalization_validates_execution_enums_and_nested_account) or test(sqlite_test_cutover_preserves_repeated_transitions_rollback_and_restart) or test(recovery_failure_converges_the_running_instance_to_stopped) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log) or test(startup_reconcile_resets_stale_paused_state_and_keeps_stopped_instances) or test(test_classified_strategy_errors_match_sentinel_kinds)"
         ],
         "testFilter": [
           "recovery_failure_converges_the_running_instance_to_stopped",
@@ -248693,10 +248685,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "ddefc0d6ab16dd454c8c12810aab6554386db9d7",
+        "verifiedAt": "2026-09-25T14:22:50Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -248750,20 +248742,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(exclusive_lock_conflicts_and_file_survives_release) or test(payload_and_session_event_commit_or_rollback_together) or test(test_p1_06_downgrade_strictly_rejected_at_all_layers) or test(catalog_activity_paging_and_filters_match_go_boundaries) or test(reconciliation_discovers_external_order_into_empty_ledger) or test(conformance_partial_full_fill_average_and_out_of_order_updates_hold) or test(reconciliation_snapshot_coverage_prevents_duplicate_fill_quantity) or test(reconciliation_snapshot_coverage_caps_partial_and_exhausted_credit) or test(reconciliation_rejects_terminal_and_partial_status_regressions) or test(reconciliation_cancel_submitted_resolves_fill_and_cancel_confirmation) or test(execution_order_concurrent_writes_and_reads_survive_reopen) or test(reconciliation_older_snapshot_fill_progress_is_accepted_with_monotonic_updated_at) or test(reconciliation_duplicate_terminal_snapshot_is_idempotent) or test(watchlist_group_mutations_are_revision_fenced_and_survive_restart) or test(watchlist_membership_mutations_and_preview_commit_lifecycle) or test(watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog) or test(watchlist_store_rejects_missing_drifted_and_corrupted_go_databases) or test(test_select_from_fs_treats_missing_and_empty_bundles_as_unavailable) or test(test_catalog_activity_returns_empty_pages_when_activity_store_is_unavailable) or test(binding_normalization_validates_execution_enums_and_nested_account) or test(sqlite_test_cutover_preserves_repeated_transitions_rollback_and_restart) or test(recovery_failure_converges_the_running_instance_to_stopped) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log) or test(startup_reconcile_resets_stale_paused_state_and_keeps_stopped_instances) or test(test_classified_strategy_errors_match_sentinel_kinds)"
         ],
         "testFilter": [
           "startup_reconcile_resets_stale_paused_state_and_keeps_stopped_instances"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "ddefc0d6ab16dd454c8c12810aab6554386db9d7",
+        "verifiedAt": "2026-09-25T14:22:50Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -248817,20 +248809,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(exclusive_lock_conflicts_and_file_survives_release) or test(payload_and_session_event_commit_or_rollback_together) or test(test_p1_06_downgrade_strictly_rejected_at_all_layers) or test(catalog_activity_paging_and_filters_match_go_boundaries) or test(reconciliation_discovers_external_order_into_empty_ledger) or test(conformance_partial_full_fill_average_and_out_of_order_updates_hold) or test(reconciliation_snapshot_coverage_prevents_duplicate_fill_quantity) or test(reconciliation_snapshot_coverage_caps_partial_and_exhausted_credit) or test(reconciliation_rejects_terminal_and_partial_status_regressions) or test(reconciliation_cancel_submitted_resolves_fill_and_cancel_confirmation) or test(execution_order_concurrent_writes_and_reads_survive_reopen) or test(reconciliation_older_snapshot_fill_progress_is_accepted_with_monotonic_updated_at) or test(reconciliation_duplicate_terminal_snapshot_is_idempotent) or test(watchlist_group_mutations_are_revision_fenced_and_survive_restart) or test(watchlist_membership_mutations_and_preview_commit_lifecycle) or test(watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog) or test(watchlist_store_rejects_missing_drifted_and_corrupted_go_databases) or test(test_select_from_fs_treats_missing_and_empty_bundles_as_unavailable) or test(test_catalog_activity_returns_empty_pages_when_activity_store_is_unavailable) or test(binding_normalization_validates_execution_enums_and_nested_account) or test(sqlite_test_cutover_preserves_repeated_transitions_rollback_and_restart) or test(recovery_failure_converges_the_running_instance_to_stopped) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log) or test(startup_reconcile_resets_stale_paused_state_and_keeps_stopped_instances) or test(test_classified_strategy_errors_match_sentinel_kinds)"
         ],
         "testFilter": [
           "catalog_activity_paging_and_filters_match_go_boundaries"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "ddefc0d6ab16dd454c8c12810aab6554386db9d7",
+        "verifiedAt": "2026-09-25T14:22:50Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -248884,20 +248876,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(exclusive_lock_conflicts_and_file_survives_release) or test(payload_and_session_event_commit_or_rollback_together) or test(test_p1_06_downgrade_strictly_rejected_at_all_layers) or test(catalog_activity_paging_and_filters_match_go_boundaries) or test(reconciliation_discovers_external_order_into_empty_ledger) or test(conformance_partial_full_fill_average_and_out_of_order_updates_hold) or test(reconciliation_snapshot_coverage_prevents_duplicate_fill_quantity) or test(reconciliation_snapshot_coverage_caps_partial_and_exhausted_credit) or test(reconciliation_rejects_terminal_and_partial_status_regressions) or test(reconciliation_cancel_submitted_resolves_fill_and_cancel_confirmation) or test(execution_order_concurrent_writes_and_reads_survive_reopen) or test(reconciliation_older_snapshot_fill_progress_is_accepted_with_monotonic_updated_at) or test(reconciliation_duplicate_terminal_snapshot_is_idempotent) or test(watchlist_group_mutations_are_revision_fenced_and_survive_restart) or test(watchlist_membership_mutations_and_preview_commit_lifecycle) or test(watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog) or test(watchlist_store_rejects_missing_drifted_and_corrupted_go_databases) or test(test_select_from_fs_treats_missing_and_empty_bundles_as_unavailable) or test(test_catalog_activity_returns_empty_pages_when_activity_store_is_unavailable) or test(binding_normalization_validates_execution_enums_and_nested_account) or test(sqlite_test_cutover_preserves_repeated_transitions_rollback_and_restart) or test(recovery_failure_converges_the_running_instance_to_stopped) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log) or test(startup_reconcile_resets_stale_paused_state_and_keeps_stopped_instances) or test(test_classified_strategy_errors_match_sentinel_kinds)"
         ],
         "testFilter": [
           "test_classified_strategy_errors_match_sentinel_kinds"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "ddefc0d6ab16dd454c8c12810aab6554386db9d7",
+        "verifiedAt": "2026-09-25T14:22:50Z",
         "receiptDigest": null
       },
       "risk": "high",
