@@ -1761,3 +1761,18 @@ ADK/Assistant 功能差异，先补失败回归测试再修改领域 owner。
 验证：动态生成的 33 个过滤器运行 `node scripts/quality/cargo-nextest.mjs run --all-targets --locked`，33/33 通过。
 
 下一片：继续 P2 API transport、MarketData/Quote、Storage/SQLite、Settings/Watchlist、Backtest/Calendar 与 Strategy/Pine；`optional_bool_strict` helper、P1 `session_context_snapshot` 及其他无独立 Rust 测试条目仍保持未验证结论。
+
+## 第 208 批：ADK store approval、provider lifecycle、run CAS 与 maintenance（2026-09-26）
+
+| 复核 | Go 测试范围 | Rust 证据 | P | 结论 |
+| :---: | --- | --- | :---: | --- |
+| [x] | `store_async_test.go:10`; `store_business_test.go:22,275,412,563`; `store_entity_lifecycle_edges_test.go:10`; `store_failure_normalization_boundaries_test.go:10`; `store_identity_test.go:10,47` | approval denial/retry, provider/default/secrets lifecycle, store transaction rollback, provider ordering, ADK restart durability, corrupted/drifted database rejection and optimization task ordering | P2 | partial：Rust store contracts cover durable lifecycle, approval staging, provider/default invariants, transaction boundaries and fail-closed database validation; Go business-store aggregate includes additional session/task/memory helpers and exact error text not asserted by one Rust test. |
+| [x] | `store_lifecycle_test.go:17,45,146,250,281,328,609,641,701,711,735,765,792` | provider reference/delete/default promotion, run terminal/reopen/pause CAS, optimization ordering, canonical tool execution, unsafe host rejection, builtin/external skill uninstall and agent skill validation | P2 | partial：Rust engine/store owners cover each durable transition and security guard; Go lifecycle file combines many facade operations, helper metadata and tool execution details, so the mapping remains partial. |
+| [x] | `store_maintenance_handoff_test.go:10,93`; `store_maintenance_test.go:8` | approved soft-delete purge candidate fencing, handoff revision filtering and purge cascade/history retention | P2 | partial：Rust maintenance and session-context owners cover candidate fencing, revision semantics and historical retention; Go trigger/query failure injection and manager facade remain partial. |
+| [x] | `store_ops_test.go:21,36,128,147,184` | builtin skill catalog/metadata, builtin agent template protection, external skill preservation and archive resource installation | P2 | partial：Rust catalog/assembly/skill owners cover builtin projection, template lifecycle and archive resources; Go bundle registry metadata and test-runtime filesystem setup remain structural differences. |
+
+本批 30 条 P2 Go 映射对应 25 个去重后的 nextest 过滤器，Rust nextest 实际 **25/25** 通过（3448 skipped）。approval/provider/store transaction、run lifecycle CAS、skill/agent catalog、maintenance purge/handoff 与 archive installation 均有 owner 证据；Go store aggregate、fixture 注入、错误文本、文件系统和管理器 facade 保持 `partial`，没有把跨领域聚合测试升级为 exact。未发现需要先红后修的真实 Rust 功能差异。
+
+验证：动态生成本批过滤器运行 `pnpm run test:rust -- --no-fail-fast -E`（底层 `node scripts/quality/cargo-nextest.mjs run --workspace --all-targets --locked`），25/25 通过。
+
+下一片：继续剩余 P2 Assistant/Workflow/ADK store、skill/provider 与 runtime 条目，再转 API transport、MarketData/Quote、Storage/SQLite、Settings/Watchlist 与 Backtest/Calendar；helper/type-only 条目、`optional_bool_strict`、P1 `session_context_snapshot` 及其他无独立 Rust 测试条目仍保持未验证结论。

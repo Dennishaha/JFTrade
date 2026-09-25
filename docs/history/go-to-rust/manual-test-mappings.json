@@ -95831,20 +95831,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(adk_provider_delete_is_idempotent_and_matches_the_go_success_envelope) or test(adk_store_lifecycle_and_restart_durability) or test(adk_transaction_boundaries_commit_roll_back_and_report_missing_tables) or test(provider_list_normalizes_default_selection_and_orders_default_first) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_optimization_task_page_orders_by_latest_update) or test(adk_provider_delete_reports_the_in_use_agent_and_keeps_the_go_projection) or test(provider_delete_promotes_the_replacement_and_keeps_one_default) or test(provider_default_contract_orders_the_default_first_and_keeps_the_route_code) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(completed_run_reopens_only_for_a_fresh_durable_approval) or test(paused_workflow_run_keeps_accepting_progress_and_terminal_updates) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(adk_mcp_tool_executor_bundle_attachment_and_exact_schemas) or test(reject_unsafe_host_blocks_the_reference_host_table) or test(builtin_skill_uninstall_is_refused_and_the_projection_keeps_it) or test(adk_skill_uninstall_removes_external_installs_and_reports_missing_files) or test(adk_agent_write_requires_registered_skills_and_keeps_declared_tools) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(adk_soft_deleted_configs_purge_only_for_the_approved_candidate_set) or test(session_context_ignores_handoff_segments_without_a_revision) or test(builtin_skill_catalog_stays_registered_alongside_external_installs) or test(production_adk_catalog_templates_and_delete_agent_contracts_hold) or test(skill_archive_install_preserves_resources_and_metadata)"
         ],
         "testFilter": [
           "adk_approval_resolution_restages_a_stale_embedded_approval"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "7a2ab5eb",
+        "verifiedAt": "2026-09-25T18:20:14Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -96017,20 +96018,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(adk_provider_delete_is_idempotent_and_matches_the_go_success_envelope) or test(adk_store_lifecycle_and_restart_durability) or test(adk_transaction_boundaries_commit_roll_back_and_report_missing_tables) or test(provider_list_normalizes_default_selection_and_orders_default_first) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_optimization_task_page_orders_by_latest_update) or test(adk_provider_delete_reports_the_in_use_agent_and_keeps_the_go_projection) or test(provider_delete_promotes_the_replacement_and_keeps_one_default) or test(provider_default_contract_orders_the_default_first_and_keeps_the_route_code) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(completed_run_reopens_only_for_a_fresh_durable_approval) or test(paused_workflow_run_keeps_accepting_progress_and_terminal_updates) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(adk_mcp_tool_executor_bundle_attachment_and_exact_schemas) or test(reject_unsafe_host_blocks_the_reference_host_table) or test(builtin_skill_uninstall_is_refused_and_the_projection_keeps_it) or test(adk_skill_uninstall_removes_external_installs_and_reports_missing_files) or test(adk_agent_write_requires_registered_skills_and_keeps_declared_tools) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(adk_soft_deleted_configs_purge_only_for_the_approved_candidate_set) or test(session_context_ignores_handoff_segments_without_a_revision) or test(builtin_skill_catalog_stays_registered_alongside_external_installs) or test(production_adk_catalog_templates_and_delete_agent_contracts_hold) or test(skill_archive_install_preserves_resources_and_metadata)"
         ],
         "testFilter": [
           "adk_provider_delete_is_idempotent_and_matches_the_go_success_envelope"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "7a2ab5eb",
+        "verifiedAt": "2026-09-25T18:20:14Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -96141,20 +96143,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(adk_provider_delete_is_idempotent_and_matches_the_go_success_envelope) or test(adk_store_lifecycle_and_restart_durability) or test(adk_transaction_boundaries_commit_roll_back_and_report_missing_tables) or test(provider_list_normalizes_default_selection_and_orders_default_first) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_optimization_task_page_orders_by_latest_update) or test(adk_provider_delete_reports_the_in_use_agent_and_keeps_the_go_projection) or test(provider_delete_promotes_the_replacement_and_keeps_one_default) or test(provider_default_contract_orders_the_default_first_and_keeps_the_route_code) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(completed_run_reopens_only_for_a_fresh_durable_approval) or test(paused_workflow_run_keeps_accepting_progress_and_terminal_updates) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(adk_mcp_tool_executor_bundle_attachment_and_exact_schemas) or test(reject_unsafe_host_blocks_the_reference_host_table) or test(builtin_skill_uninstall_is_refused_and_the_projection_keeps_it) or test(adk_skill_uninstall_removes_external_installs_and_reports_missing_files) or test(adk_agent_write_requires_registered_skills_and_keeps_declared_tools) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(adk_soft_deleted_configs_purge_only_for_the_approved_candidate_set) or test(session_context_ignores_handoff_segments_without_a_revision) or test(builtin_skill_catalog_stays_registered_alongside_external_installs) or test(production_adk_catalog_templates_and_delete_agent_contracts_hold) or test(skill_archive_install_preserves_resources_and_metadata)"
         ],
         "testFilter": [
           "adk_store_lifecycle_and_restart_durability"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "7a2ab5eb",
+        "verifiedAt": "2026-09-25T18:20:14Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -96203,20 +96206,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(adk_provider_delete_is_idempotent_and_matches_the_go_success_envelope) or test(adk_store_lifecycle_and_restart_durability) or test(adk_transaction_boundaries_commit_roll_back_and_report_missing_tables) or test(provider_list_normalizes_default_selection_and_orders_default_first) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_optimization_task_page_orders_by_latest_update) or test(adk_provider_delete_reports_the_in_use_agent_and_keeps_the_go_projection) or test(provider_delete_promotes_the_replacement_and_keeps_one_default) or test(provider_default_contract_orders_the_default_first_and_keeps_the_route_code) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(completed_run_reopens_only_for_a_fresh_durable_approval) or test(paused_workflow_run_keeps_accepting_progress_and_terminal_updates) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(adk_mcp_tool_executor_bundle_attachment_and_exact_schemas) or test(reject_unsafe_host_blocks_the_reference_host_table) or test(builtin_skill_uninstall_is_refused_and_the_projection_keeps_it) or test(adk_skill_uninstall_removes_external_installs_and_reports_missing_files) or test(adk_agent_write_requires_registered_skills_and_keeps_declared_tools) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(adk_soft_deleted_configs_purge_only_for_the_approved_candidate_set) or test(session_context_ignores_handoff_segments_without_a_revision) or test(builtin_skill_catalog_stays_registered_alongside_external_installs) or test(production_adk_catalog_templates_and_delete_agent_contracts_hold) or test(skill_archive_install_preserves_resources_and_metadata)"
         ],
         "testFilter": [
           "adk_transaction_boundaries_commit_roll_back_and_report_missing_tables"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "7a2ab5eb",
+        "verifiedAt": "2026-09-25T18:20:14Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -96265,20 +96269,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(adk_provider_delete_is_idempotent_and_matches_the_go_success_envelope) or test(adk_store_lifecycle_and_restart_durability) or test(adk_transaction_boundaries_commit_roll_back_and_report_missing_tables) or test(provider_list_normalizes_default_selection_and_orders_default_first) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_optimization_task_page_orders_by_latest_update) or test(adk_provider_delete_reports_the_in_use_agent_and_keeps_the_go_projection) or test(provider_delete_promotes_the_replacement_and_keeps_one_default) or test(provider_default_contract_orders_the_default_first_and_keeps_the_route_code) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(completed_run_reopens_only_for_a_fresh_durable_approval) or test(paused_workflow_run_keeps_accepting_progress_and_terminal_updates) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(adk_mcp_tool_executor_bundle_attachment_and_exact_schemas) or test(reject_unsafe_host_blocks_the_reference_host_table) or test(builtin_skill_uninstall_is_refused_and_the_projection_keeps_it) or test(adk_skill_uninstall_removes_external_installs_and_reports_missing_files) or test(adk_agent_write_requires_registered_skills_and_keeps_declared_tools) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(adk_soft_deleted_configs_purge_only_for_the_approved_candidate_set) or test(session_context_ignores_handoff_segments_without_a_revision) or test(builtin_skill_catalog_stays_registered_alongside_external_installs) or test(production_adk_catalog_templates_and_delete_agent_contracts_hold) or test(skill_archive_install_preserves_resources_and_metadata)"
         ],
         "testFilter": [
           "provider_list_normalizes_default_selection_and_orders_default_first"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "7a2ab5eb",
+        "verifiedAt": "2026-09-25T18:20:14Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -96327,20 +96332,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(adk_provider_delete_is_idempotent_and_matches_the_go_success_envelope) or test(adk_store_lifecycle_and_restart_durability) or test(adk_transaction_boundaries_commit_roll_back_and_report_missing_tables) or test(provider_list_normalizes_default_selection_and_orders_default_first) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_optimization_task_page_orders_by_latest_update) or test(adk_provider_delete_reports_the_in_use_agent_and_keeps_the_go_projection) or test(provider_delete_promotes_the_replacement_and_keeps_one_default) or test(provider_default_contract_orders_the_default_first_and_keeps_the_route_code) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(completed_run_reopens_only_for_a_fresh_durable_approval) or test(paused_workflow_run_keeps_accepting_progress_and_terminal_updates) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(adk_mcp_tool_executor_bundle_attachment_and_exact_schemas) or test(reject_unsafe_host_blocks_the_reference_host_table) or test(builtin_skill_uninstall_is_refused_and_the_projection_keeps_it) or test(adk_skill_uninstall_removes_external_installs_and_reports_missing_files) or test(adk_agent_write_requires_registered_skills_and_keeps_declared_tools) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(adk_soft_deleted_configs_purge_only_for_the_approved_candidate_set) or test(session_context_ignores_handoff_segments_without_a_revision) or test(builtin_skill_catalog_stays_registered_alongside_external_installs) or test(production_adk_catalog_templates_and_delete_agent_contracts_hold) or test(skill_archive_install_preserves_resources_and_metadata)"
         ],
         "testFilter": [
           "adk_store_lifecycle_and_restart_durability"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "7a2ab5eb",
+        "verifiedAt": "2026-09-25T18:20:14Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -96389,20 +96395,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(adk_provider_delete_is_idempotent_and_matches_the_go_success_envelope) or test(adk_store_lifecycle_and_restart_durability) or test(adk_transaction_boundaries_commit_roll_back_and_report_missing_tables) or test(provider_list_normalizes_default_selection_and_orders_default_first) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_optimization_task_page_orders_by_latest_update) or test(adk_provider_delete_reports_the_in_use_agent_and_keeps_the_go_projection) or test(provider_delete_promotes_the_replacement_and_keeps_one_default) or test(provider_default_contract_orders_the_default_first_and_keeps_the_route_code) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(completed_run_reopens_only_for_a_fresh_durable_approval) or test(paused_workflow_run_keeps_accepting_progress_and_terminal_updates) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(adk_mcp_tool_executor_bundle_attachment_and_exact_schemas) or test(reject_unsafe_host_blocks_the_reference_host_table) or test(builtin_skill_uninstall_is_refused_and_the_projection_keeps_it) or test(adk_skill_uninstall_removes_external_installs_and_reports_missing_files) or test(adk_agent_write_requires_registered_skills_and_keeps_declared_tools) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(adk_soft_deleted_configs_purge_only_for_the_approved_candidate_set) or test(session_context_ignores_handoff_segments_without_a_revision) or test(builtin_skill_catalog_stays_registered_alongside_external_installs) or test(production_adk_catalog_templates_and_delete_agent_contracts_hold) or test(skill_archive_install_preserves_resources_and_metadata)"
         ],
         "testFilter": [
           "adk_store_rejects_missing_drifted_and_corrupted_go_databases"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "7a2ab5eb",
+        "verifiedAt": "2026-09-25T18:20:14Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -96513,20 +96520,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(adk_provider_delete_is_idempotent_and_matches_the_go_success_envelope) or test(adk_store_lifecycle_and_restart_durability) or test(adk_transaction_boundaries_commit_roll_back_and_report_missing_tables) or test(provider_list_normalizes_default_selection_and_orders_default_first) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_optimization_task_page_orders_by_latest_update) or test(adk_provider_delete_reports_the_in_use_agent_and_keeps_the_go_projection) or test(provider_delete_promotes_the_replacement_and_keeps_one_default) or test(provider_default_contract_orders_the_default_first_and_keeps_the_route_code) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(completed_run_reopens_only_for_a_fresh_durable_approval) or test(paused_workflow_run_keeps_accepting_progress_and_terminal_updates) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(adk_mcp_tool_executor_bundle_attachment_and_exact_schemas) or test(reject_unsafe_host_blocks_the_reference_host_table) or test(builtin_skill_uninstall_is_refused_and_the_projection_keeps_it) or test(adk_skill_uninstall_removes_external_installs_and_reports_missing_files) or test(adk_agent_write_requires_registered_skills_and_keeps_declared_tools) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(adk_soft_deleted_configs_purge_only_for_the_approved_candidate_set) or test(session_context_ignores_handoff_segments_without_a_revision) or test(builtin_skill_catalog_stays_registered_alongside_external_installs) or test(production_adk_catalog_templates_and_delete_agent_contracts_hold) or test(skill_archive_install_preserves_resources_and_metadata)"
         ],
         "testFilter": [
           "provider_list_normalizes_default_selection_and_orders_default_first"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "7a2ab5eb",
+        "verifiedAt": "2026-09-25T18:20:14Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -96575,20 +96583,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(adk_provider_delete_is_idempotent_and_matches_the_go_success_envelope) or test(adk_store_lifecycle_and_restart_durability) or test(adk_transaction_boundaries_commit_roll_back_and_report_missing_tables) or test(provider_list_normalizes_default_selection_and_orders_default_first) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_optimization_task_page_orders_by_latest_update) or test(adk_provider_delete_reports_the_in_use_agent_and_keeps_the_go_projection) or test(provider_delete_promotes_the_replacement_and_keeps_one_default) or test(provider_default_contract_orders_the_default_first_and_keeps_the_route_code) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(completed_run_reopens_only_for_a_fresh_durable_approval) or test(paused_workflow_run_keeps_accepting_progress_and_terminal_updates) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(adk_mcp_tool_executor_bundle_attachment_and_exact_schemas) or test(reject_unsafe_host_blocks_the_reference_host_table) or test(builtin_skill_uninstall_is_refused_and_the_projection_keeps_it) or test(adk_skill_uninstall_removes_external_installs_and_reports_missing_files) or test(adk_agent_write_requires_registered_skills_and_keeps_declared_tools) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(adk_soft_deleted_configs_purge_only_for_the_approved_candidate_set) or test(session_context_ignores_handoff_segments_without_a_revision) or test(builtin_skill_catalog_stays_registered_alongside_external_installs) or test(production_adk_catalog_templates_and_delete_agent_contracts_hold) or test(skill_archive_install_preserves_resources_and_metadata)"
         ],
         "testFilter": [
           "adk_optimization_task_page_orders_by_latest_update"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "7a2ab5eb",
+        "verifiedAt": "2026-09-25T18:20:14Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -96704,20 +96713,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(adk_provider_delete_is_idempotent_and_matches_the_go_success_envelope) or test(adk_store_lifecycle_and_restart_durability) or test(adk_transaction_boundaries_commit_roll_back_and_report_missing_tables) or test(provider_list_normalizes_default_selection_and_orders_default_first) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_optimization_task_page_orders_by_latest_update) or test(adk_provider_delete_reports_the_in_use_agent_and_keeps_the_go_projection) or test(provider_delete_promotes_the_replacement_and_keeps_one_default) or test(provider_default_contract_orders_the_default_first_and_keeps_the_route_code) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(completed_run_reopens_only_for_a_fresh_durable_approval) or test(paused_workflow_run_keeps_accepting_progress_and_terminal_updates) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(adk_mcp_tool_executor_bundle_attachment_and_exact_schemas) or test(reject_unsafe_host_blocks_the_reference_host_table) or test(builtin_skill_uninstall_is_refused_and_the_projection_keeps_it) or test(adk_skill_uninstall_removes_external_installs_and_reports_missing_files) or test(adk_agent_write_requires_registered_skills_and_keeps_declared_tools) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(adk_soft_deleted_configs_purge_only_for_the_approved_candidate_set) or test(session_context_ignores_handoff_segments_without_a_revision) or test(builtin_skill_catalog_stays_registered_alongside_external_installs) or test(production_adk_catalog_templates_and_delete_agent_contracts_hold) or test(skill_archive_install_preserves_resources_and_metadata)"
         ],
         "testFilter": [
           "adk_provider_delete_reports_the_in_use_agent_and_keeps_the_go_projection"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "7a2ab5eb",
+        "verifiedAt": "2026-09-25T18:20:14Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -96777,10 +96787,11 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(adk_provider_delete_is_idempotent_and_matches_the_go_success_envelope) or test(adk_store_lifecycle_and_restart_durability) or test(adk_transaction_boundaries_commit_roll_back_and_report_missing_tables) or test(provider_list_normalizes_default_selection_and_orders_default_first) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_optimization_task_page_orders_by_latest_update) or test(adk_provider_delete_reports_the_in_use_agent_and_keeps_the_go_projection) or test(provider_delete_promotes_the_replacement_and_keeps_one_default) or test(provider_default_contract_orders_the_default_first_and_keeps_the_route_code) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(completed_run_reopens_only_for_a_fresh_durable_approval) or test(paused_workflow_run_keeps_accepting_progress_and_terminal_updates) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(adk_mcp_tool_executor_bundle_attachment_and_exact_schemas) or test(reject_unsafe_host_blocks_the_reference_host_table) or test(builtin_skill_uninstall_is_refused_and_the_projection_keeps_it) or test(adk_skill_uninstall_removes_external_installs_and_reports_missing_files) or test(adk_agent_write_requires_registered_skills_and_keeps_declared_tools) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(adk_soft_deleted_configs_purge_only_for_the_approved_candidate_set) or test(session_context_ignores_handoff_segments_without_a_revision) or test(builtin_skill_catalog_stays_registered_alongside_external_installs) or test(production_adk_catalog_templates_and_delete_agent_contracts_hold) or test(skill_archive_install_preserves_resources_and_metadata)"
         ],
         "testFilter": [
           "provider_delete_promotes_the_replacement_and_keeps_one_default",
@@ -96788,10 +96799,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "7a2ab5eb",
+        "verifiedAt": "2026-09-25T18:20:14Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -96907,20 +96918,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
+          "--workspace",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot)"
+          "test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(adk_provider_delete_is_idempotent_and_matches_the_go_success_envelope) or test(adk_store_lifecycle_and_restart_durability) or test(adk_transaction_boundaries_commit_roll_back_and_report_missing_tables) or test(provider_list_normalizes_default_selection_and_orders_default_first) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_optimization_task_page_orders_by_latest_update) or test(adk_provider_delete_reports_the_in_use_agent_and_keeps_the_go_projection) or test(provider_delete_promotes_the_replacement_and_keeps_one_default) or test(provider_default_contract_orders_the_default_first_and_keeps_the_route_code) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(completed_run_reopens_only_for_a_fresh_durable_approval) or test(paused_workflow_run_keeps_accepting_progress_and_terminal_updates) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(adk_mcp_tool_executor_bundle_attachment_and_exact_schemas) or test(reject_unsafe_host_blocks_the_reference_host_table) or test(builtin_skill_uninstall_is_refused_and_the_projection_keeps_it) or test(adk_skill_uninstall_removes_external_installs_and_reports_missing_files) or test(adk_agent_write_requires_registered_skills_and_keeps_declared_tools) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(adk_soft_deleted_configs_purge_only_for_the_approved_candidate_set) or test(session_context_ignores_handoff_segments_without_a_revision) or test(builtin_skill_catalog_stays_registered_alongside_external_installs) or test(production_adk_catalog_templates_and_delete_agent_contracts_hold) or test(skill_archive_install_preserves_resources_and_metadata)"
         ],
         "testFilter": [
           "run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "7a2ab5eb",
+        "verifiedAt": "2026-09-25T18:20:14Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -96969,20 +96981,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
+          "--workspace",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(completed_run_reopens_only_for_a_fresh_durable_approval)"
+          "test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(adk_provider_delete_is_idempotent_and_matches_the_go_success_envelope) or test(adk_store_lifecycle_and_restart_durability) or test(adk_transaction_boundaries_commit_roll_back_and_report_missing_tables) or test(provider_list_normalizes_default_selection_and_orders_default_first) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_optimization_task_page_orders_by_latest_update) or test(adk_provider_delete_reports_the_in_use_agent_and_keeps_the_go_projection) or test(provider_delete_promotes_the_replacement_and_keeps_one_default) or test(provider_default_contract_orders_the_default_first_and_keeps_the_route_code) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(completed_run_reopens_only_for_a_fresh_durable_approval) or test(paused_workflow_run_keeps_accepting_progress_and_terminal_updates) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(adk_mcp_tool_executor_bundle_attachment_and_exact_schemas) or test(reject_unsafe_host_blocks_the_reference_host_table) or test(builtin_skill_uninstall_is_refused_and_the_projection_keeps_it) or test(adk_skill_uninstall_removes_external_installs_and_reports_missing_files) or test(adk_agent_write_requires_registered_skills_and_keeps_declared_tools) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(adk_soft_deleted_configs_purge_only_for_the_approved_candidate_set) or test(session_context_ignores_handoff_segments_without_a_revision) or test(builtin_skill_catalog_stays_registered_alongside_external_installs) or test(production_adk_catalog_templates_and_delete_agent_contracts_hold) or test(skill_archive_install_preserves_resources_and_metadata)"
         ],
         "testFilter": [
           "completed_run_reopens_only_for_a_fresh_durable_approval"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "7a2ab5eb",
+        "verifiedAt": "2026-09-25T18:20:14Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -97031,20 +97044,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
+          "--workspace",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(paused_workflow_run_keeps_accepting_progress_and_terminal_updates)"
+          "test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(adk_provider_delete_is_idempotent_and_matches_the_go_success_envelope) or test(adk_store_lifecycle_and_restart_durability) or test(adk_transaction_boundaries_commit_roll_back_and_report_missing_tables) or test(provider_list_normalizes_default_selection_and_orders_default_first) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_optimization_task_page_orders_by_latest_update) or test(adk_provider_delete_reports_the_in_use_agent_and_keeps_the_go_projection) or test(provider_delete_promotes_the_replacement_and_keeps_one_default) or test(provider_default_contract_orders_the_default_first_and_keeps_the_route_code) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(completed_run_reopens_only_for_a_fresh_durable_approval) or test(paused_workflow_run_keeps_accepting_progress_and_terminal_updates) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(adk_mcp_tool_executor_bundle_attachment_and_exact_schemas) or test(reject_unsafe_host_blocks_the_reference_host_table) or test(builtin_skill_uninstall_is_refused_and_the_projection_keeps_it) or test(adk_skill_uninstall_removes_external_installs_and_reports_missing_files) or test(adk_agent_write_requires_registered_skills_and_keeps_declared_tools) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(adk_soft_deleted_configs_purge_only_for_the_approved_candidate_set) or test(session_context_ignores_handoff_segments_without_a_revision) or test(builtin_skill_catalog_stays_registered_alongside_external_installs) or test(production_adk_catalog_templates_and_delete_agent_contracts_hold) or test(skill_archive_install_preserves_resources_and_metadata)"
         ],
         "testFilter": [
           "paused_workflow_run_keeps_accepting_progress_and_terminal_updates"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "7a2ab5eb",
+        "verifiedAt": "2026-09-25T18:20:14Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -97093,20 +97107,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
+          "--workspace",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume)"
+          "test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(adk_provider_delete_is_idempotent_and_matches_the_go_success_envelope) or test(adk_store_lifecycle_and_restart_durability) or test(adk_transaction_boundaries_commit_roll_back_and_report_missing_tables) or test(provider_list_normalizes_default_selection_and_orders_default_first) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_optimization_task_page_orders_by_latest_update) or test(adk_provider_delete_reports_the_in_use_agent_and_keeps_the_go_projection) or test(provider_delete_promotes_the_replacement_and_keeps_one_default) or test(provider_default_contract_orders_the_default_first_and_keeps_the_route_code) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(completed_run_reopens_only_for_a_fresh_durable_approval) or test(paused_workflow_run_keeps_accepting_progress_and_terminal_updates) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(adk_mcp_tool_executor_bundle_attachment_and_exact_schemas) or test(reject_unsafe_host_blocks_the_reference_host_table) or test(builtin_skill_uninstall_is_refused_and_the_projection_keeps_it) or test(adk_skill_uninstall_removes_external_installs_and_reports_missing_files) or test(adk_agent_write_requires_registered_skills_and_keeps_declared_tools) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(adk_soft_deleted_configs_purge_only_for_the_approved_candidate_set) or test(session_context_ignores_handoff_segments_without_a_revision) or test(builtin_skill_catalog_stays_registered_alongside_external_installs) or test(production_adk_catalog_templates_and_delete_agent_contracts_hold) or test(skill_archive_install_preserves_resources_and_metadata)"
         ],
         "testFilter": [
           "user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "7a2ab5eb",
+        "verifiedAt": "2026-09-25T18:20:14Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -97435,20 +97450,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(adk_optimization_task_page_orders_by_latest_update)"
+          "test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(adk_provider_delete_is_idempotent_and_matches_the_go_success_envelope) or test(adk_store_lifecycle_and_restart_durability) or test(adk_transaction_boundaries_commit_roll_back_and_report_missing_tables) or test(provider_list_normalizes_default_selection_and_orders_default_first) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_optimization_task_page_orders_by_latest_update) or test(adk_provider_delete_reports_the_in_use_agent_and_keeps_the_go_projection) or test(provider_delete_promotes_the_replacement_and_keeps_one_default) or test(provider_default_contract_orders_the_default_first_and_keeps_the_route_code) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(completed_run_reopens_only_for_a_fresh_durable_approval) or test(paused_workflow_run_keeps_accepting_progress_and_terminal_updates) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(adk_mcp_tool_executor_bundle_attachment_and_exact_schemas) or test(reject_unsafe_host_blocks_the_reference_host_table) or test(builtin_skill_uninstall_is_refused_and_the_projection_keeps_it) or test(adk_skill_uninstall_removes_external_installs_and_reports_missing_files) or test(adk_agent_write_requires_registered_skills_and_keeps_declared_tools) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(adk_soft_deleted_configs_purge_only_for_the_approved_candidate_set) or test(session_context_ignores_handoff_segments_without_a_revision) or test(builtin_skill_catalog_stays_registered_alongside_external_installs) or test(production_adk_catalog_templates_and_delete_agent_contracts_hold) or test(skill_archive_install_preserves_resources_and_metadata)"
         ],
         "testFilter": [
           "adk_optimization_task_page_orders_by_latest_update"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "7a2ab5eb",
+        "verifiedAt": "2026-09-25T18:20:14Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -97497,20 +97513,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(adk_provider_delete_is_idempotent_and_matches_the_go_success_envelope) or test(adk_store_lifecycle_and_restart_durability) or test(adk_transaction_boundaries_commit_roll_back_and_report_missing_tables) or test(provider_list_normalizes_default_selection_and_orders_default_first) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_optimization_task_page_orders_by_latest_update) or test(adk_provider_delete_reports_the_in_use_agent_and_keeps_the_go_projection) or test(provider_delete_promotes_the_replacement_and_keeps_one_default) or test(provider_default_contract_orders_the_default_first_and_keeps_the_route_code) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(completed_run_reopens_only_for_a_fresh_durable_approval) or test(paused_workflow_run_keeps_accepting_progress_and_terminal_updates) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(adk_mcp_tool_executor_bundle_attachment_and_exact_schemas) or test(reject_unsafe_host_blocks_the_reference_host_table) or test(builtin_skill_uninstall_is_refused_and_the_projection_keeps_it) or test(adk_skill_uninstall_removes_external_installs_and_reports_missing_files) or test(adk_agent_write_requires_registered_skills_and_keeps_declared_tools) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(adk_soft_deleted_configs_purge_only_for_the_approved_candidate_set) or test(session_context_ignores_handoff_segments_without_a_revision) or test(builtin_skill_catalog_stays_registered_alongside_external_installs) or test(production_adk_catalog_templates_and_delete_agent_contracts_hold) or test(skill_archive_install_preserves_resources_and_metadata)"
         ],
         "testFilter": [
           "adk_mcp_tool_executor_bundle_attachment_and_exact_schemas"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "7a2ab5eb",
+        "verifiedAt": "2026-09-25T18:20:14Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -97564,20 +97581,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(reject_unsafe_host_blocks_the_reference_host_table)"
+          "test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(adk_provider_delete_is_idempotent_and_matches_the_go_success_envelope) or test(adk_store_lifecycle_and_restart_durability) or test(adk_transaction_boundaries_commit_roll_back_and_report_missing_tables) or test(provider_list_normalizes_default_selection_and_orders_default_first) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_optimization_task_page_orders_by_latest_update) or test(adk_provider_delete_reports_the_in_use_agent_and_keeps_the_go_projection) or test(provider_delete_promotes_the_replacement_and_keeps_one_default) or test(provider_default_contract_orders_the_default_first_and_keeps_the_route_code) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(completed_run_reopens_only_for_a_fresh_durable_approval) or test(paused_workflow_run_keeps_accepting_progress_and_terminal_updates) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(adk_mcp_tool_executor_bundle_attachment_and_exact_schemas) or test(reject_unsafe_host_blocks_the_reference_host_table) or test(builtin_skill_uninstall_is_refused_and_the_projection_keeps_it) or test(adk_skill_uninstall_removes_external_installs_and_reports_missing_files) or test(adk_agent_write_requires_registered_skills_and_keeps_declared_tools) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(adk_soft_deleted_configs_purge_only_for_the_approved_candidate_set) or test(session_context_ignores_handoff_segments_without_a_revision) or test(builtin_skill_catalog_stays_registered_alongside_external_installs) or test(production_adk_catalog_templates_and_delete_agent_contracts_hold) or test(skill_archive_install_preserves_resources_and_metadata)"
         ],
         "testFilter": [
           "reject_unsafe_host_blocks_the_reference_host_table"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "7a2ab5eb",
+        "verifiedAt": "2026-09-25T18:20:14Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -97631,20 +97649,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(builtin_skill_uninstall_is_refused_and_the_projection_keeps_it)"
+          "test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(adk_provider_delete_is_idempotent_and_matches_the_go_success_envelope) or test(adk_store_lifecycle_and_restart_durability) or test(adk_transaction_boundaries_commit_roll_back_and_report_missing_tables) or test(provider_list_normalizes_default_selection_and_orders_default_first) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_optimization_task_page_orders_by_latest_update) or test(adk_provider_delete_reports_the_in_use_agent_and_keeps_the_go_projection) or test(provider_delete_promotes_the_replacement_and_keeps_one_default) or test(provider_default_contract_orders_the_default_first_and_keeps_the_route_code) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(completed_run_reopens_only_for_a_fresh_durable_approval) or test(paused_workflow_run_keeps_accepting_progress_and_terminal_updates) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(adk_mcp_tool_executor_bundle_attachment_and_exact_schemas) or test(reject_unsafe_host_blocks_the_reference_host_table) or test(builtin_skill_uninstall_is_refused_and_the_projection_keeps_it) or test(adk_skill_uninstall_removes_external_installs_and_reports_missing_files) or test(adk_agent_write_requires_registered_skills_and_keeps_declared_tools) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(adk_soft_deleted_configs_purge_only_for_the_approved_candidate_set) or test(session_context_ignores_handoff_segments_without_a_revision) or test(builtin_skill_catalog_stays_registered_alongside_external_installs) or test(production_adk_catalog_templates_and_delete_agent_contracts_hold) or test(skill_archive_install_preserves_resources_and_metadata)"
         ],
         "testFilter": [
           "builtin_skill_uninstall_is_refused_and_the_projection_keeps_it"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "7a2ab5eb",
+        "verifiedAt": "2026-09-25T18:20:14Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -97698,20 +97717,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(adk_skill_uninstall_removes_external_installs_and_reports_missing_files)"
+          "test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(adk_provider_delete_is_idempotent_and_matches_the_go_success_envelope) or test(adk_store_lifecycle_and_restart_durability) or test(adk_transaction_boundaries_commit_roll_back_and_report_missing_tables) or test(provider_list_normalizes_default_selection_and_orders_default_first) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_optimization_task_page_orders_by_latest_update) or test(adk_provider_delete_reports_the_in_use_agent_and_keeps_the_go_projection) or test(provider_delete_promotes_the_replacement_and_keeps_one_default) or test(provider_default_contract_orders_the_default_first_and_keeps_the_route_code) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(completed_run_reopens_only_for_a_fresh_durable_approval) or test(paused_workflow_run_keeps_accepting_progress_and_terminal_updates) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(adk_mcp_tool_executor_bundle_attachment_and_exact_schemas) or test(reject_unsafe_host_blocks_the_reference_host_table) or test(builtin_skill_uninstall_is_refused_and_the_projection_keeps_it) or test(adk_skill_uninstall_removes_external_installs_and_reports_missing_files) or test(adk_agent_write_requires_registered_skills_and_keeps_declared_tools) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(adk_soft_deleted_configs_purge_only_for_the_approved_candidate_set) or test(session_context_ignores_handoff_segments_without_a_revision) or test(builtin_skill_catalog_stays_registered_alongside_external_installs) or test(production_adk_catalog_templates_and_delete_agent_contracts_hold) or test(skill_archive_install_preserves_resources_and_metadata)"
         ],
         "testFilter": [
           "adk_skill_uninstall_removes_external_installs_and_reports_missing_files"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "7a2ab5eb",
+        "verifiedAt": "2026-09-25T18:20:14Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -97765,20 +97785,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(adk_agent_write_requires_registered_skills_and_keeps_declared_tools)"
+          "test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(adk_provider_delete_is_idempotent_and_matches_the_go_success_envelope) or test(adk_store_lifecycle_and_restart_durability) or test(adk_transaction_boundaries_commit_roll_back_and_report_missing_tables) or test(provider_list_normalizes_default_selection_and_orders_default_first) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_optimization_task_page_orders_by_latest_update) or test(adk_provider_delete_reports_the_in_use_agent_and_keeps_the_go_projection) or test(provider_delete_promotes_the_replacement_and_keeps_one_default) or test(provider_default_contract_orders_the_default_first_and_keeps_the_route_code) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(completed_run_reopens_only_for_a_fresh_durable_approval) or test(paused_workflow_run_keeps_accepting_progress_and_terminal_updates) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(adk_mcp_tool_executor_bundle_attachment_and_exact_schemas) or test(reject_unsafe_host_blocks_the_reference_host_table) or test(builtin_skill_uninstall_is_refused_and_the_projection_keeps_it) or test(adk_skill_uninstall_removes_external_installs_and_reports_missing_files) or test(adk_agent_write_requires_registered_skills_and_keeps_declared_tools) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(adk_soft_deleted_configs_purge_only_for_the_approved_candidate_set) or test(session_context_ignores_handoff_segments_without_a_revision) or test(builtin_skill_catalog_stays_registered_alongside_external_installs) or test(production_adk_catalog_templates_and_delete_agent_contracts_hold) or test(skill_archive_install_preserves_resources_and_metadata)"
         ],
         "testFilter": [
           "adk_agent_write_requires_registered_skills_and_keeps_declared_tools"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "7a2ab5eb",
+        "verifiedAt": "2026-09-25T18:20:14Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -97832,20 +97853,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(adk_builtin_strategy_skills_publish_the_curated_tool_split)"
+          "test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(adk_provider_delete_is_idempotent_and_matches_the_go_success_envelope) or test(adk_store_lifecycle_and_restart_durability) or test(adk_transaction_boundaries_commit_roll_back_and_report_missing_tables) or test(provider_list_normalizes_default_selection_and_orders_default_first) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_optimization_task_page_orders_by_latest_update) or test(adk_provider_delete_reports_the_in_use_agent_and_keeps_the_go_projection) or test(provider_delete_promotes_the_replacement_and_keeps_one_default) or test(provider_default_contract_orders_the_default_first_and_keeps_the_route_code) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(completed_run_reopens_only_for_a_fresh_durable_approval) or test(paused_workflow_run_keeps_accepting_progress_and_terminal_updates) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(adk_mcp_tool_executor_bundle_attachment_and_exact_schemas) or test(reject_unsafe_host_blocks_the_reference_host_table) or test(builtin_skill_uninstall_is_refused_and_the_projection_keeps_it) or test(adk_skill_uninstall_removes_external_installs_and_reports_missing_files) or test(adk_agent_write_requires_registered_skills_and_keeps_declared_tools) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(adk_soft_deleted_configs_purge_only_for_the_approved_candidate_set) or test(session_context_ignores_handoff_segments_without_a_revision) or test(builtin_skill_catalog_stays_registered_alongside_external_installs) or test(production_adk_catalog_templates_and_delete_agent_contracts_hold) or test(skill_archive_install_preserves_resources_and_metadata)"
         ],
         "testFilter": [
           "adk_builtin_strategy_skills_publish_the_curated_tool_split"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "7a2ab5eb",
+        "verifiedAt": "2026-09-25T18:20:14Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -97894,20 +97916,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(adk_provider_delete_is_idempotent_and_matches_the_go_success_envelope) or test(adk_store_lifecycle_and_restart_durability) or test(adk_transaction_boundaries_commit_roll_back_and_report_missing_tables) or test(provider_list_normalizes_default_selection_and_orders_default_first) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_optimization_task_page_orders_by_latest_update) or test(adk_provider_delete_reports_the_in_use_agent_and_keeps_the_go_projection) or test(provider_delete_promotes_the_replacement_and_keeps_one_default) or test(provider_default_contract_orders_the_default_first_and_keeps_the_route_code) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(completed_run_reopens_only_for_a_fresh_durable_approval) or test(paused_workflow_run_keeps_accepting_progress_and_terminal_updates) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(adk_mcp_tool_executor_bundle_attachment_and_exact_schemas) or test(reject_unsafe_host_blocks_the_reference_host_table) or test(builtin_skill_uninstall_is_refused_and_the_projection_keeps_it) or test(adk_skill_uninstall_removes_external_installs_and_reports_missing_files) or test(adk_agent_write_requires_registered_skills_and_keeps_declared_tools) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(adk_soft_deleted_configs_purge_only_for_the_approved_candidate_set) or test(session_context_ignores_handoff_segments_without_a_revision) or test(builtin_skill_catalog_stays_registered_alongside_external_installs) or test(production_adk_catalog_templates_and_delete_agent_contracts_hold) or test(skill_archive_install_preserves_resources_and_metadata)"
         ],
         "testFilter": [
           "adk_soft_deleted_configs_purge_only_for_the_approved_candidate_set"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "7a2ab5eb",
+        "verifiedAt": "2026-09-25T18:20:14Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -97956,20 +97979,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(adk_provider_delete_is_idempotent_and_matches_the_go_success_envelope) or test(adk_store_lifecycle_and_restart_durability) or test(adk_transaction_boundaries_commit_roll_back_and_report_missing_tables) or test(provider_list_normalizes_default_selection_and_orders_default_first) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_optimization_task_page_orders_by_latest_update) or test(adk_provider_delete_reports_the_in_use_agent_and_keeps_the_go_projection) or test(provider_delete_promotes_the_replacement_and_keeps_one_default) or test(provider_default_contract_orders_the_default_first_and_keeps_the_route_code) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(completed_run_reopens_only_for_a_fresh_durable_approval) or test(paused_workflow_run_keeps_accepting_progress_and_terminal_updates) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(adk_mcp_tool_executor_bundle_attachment_and_exact_schemas) or test(reject_unsafe_host_blocks_the_reference_host_table) or test(builtin_skill_uninstall_is_refused_and_the_projection_keeps_it) or test(adk_skill_uninstall_removes_external_installs_and_reports_missing_files) or test(adk_agent_write_requires_registered_skills_and_keeps_declared_tools) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(adk_soft_deleted_configs_purge_only_for_the_approved_candidate_set) or test(session_context_ignores_handoff_segments_without_a_revision) or test(builtin_skill_catalog_stays_registered_alongside_external_installs) or test(production_adk_catalog_templates_and_delete_agent_contracts_hold) or test(skill_archive_install_preserves_resources_and_metadata)"
         ],
         "testFilter": [
           "session_context_ignores_handoff_segments_without_a_revision"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "7a2ab5eb",
+        "verifiedAt": "2026-09-25T18:20:14Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -98018,20 +98042,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(adk_provider_delete_is_idempotent_and_matches_the_go_success_envelope) or test(adk_store_lifecycle_and_restart_durability) or test(adk_transaction_boundaries_commit_roll_back_and_report_missing_tables) or test(provider_list_normalizes_default_selection_and_orders_default_first) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_optimization_task_page_orders_by_latest_update) or test(adk_provider_delete_reports_the_in_use_agent_and_keeps_the_go_projection) or test(provider_delete_promotes_the_replacement_and_keeps_one_default) or test(provider_default_contract_orders_the_default_first_and_keeps_the_route_code) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(completed_run_reopens_only_for_a_fresh_durable_approval) or test(paused_workflow_run_keeps_accepting_progress_and_terminal_updates) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(adk_mcp_tool_executor_bundle_attachment_and_exact_schemas) or test(reject_unsafe_host_blocks_the_reference_host_table) or test(builtin_skill_uninstall_is_refused_and_the_projection_keeps_it) or test(adk_skill_uninstall_removes_external_installs_and_reports_missing_files) or test(adk_agent_write_requires_registered_skills_and_keeps_declared_tools) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(adk_soft_deleted_configs_purge_only_for_the_approved_candidate_set) or test(session_context_ignores_handoff_segments_without_a_revision) or test(builtin_skill_catalog_stays_registered_alongside_external_installs) or test(production_adk_catalog_templates_and_delete_agent_contracts_hold) or test(skill_archive_install_preserves_resources_and_metadata)"
         ],
         "testFilter": [
           "adk_soft_deleted_configs_purge_only_for_the_approved_candidate_set"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "7a2ab5eb",
+        "verifiedAt": "2026-09-25T18:20:14Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -98147,20 +98172,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(adk_provider_delete_is_idempotent_and_matches_the_go_success_envelope) or test(adk_store_lifecycle_and_restart_durability) or test(adk_transaction_boundaries_commit_roll_back_and_report_missing_tables) or test(provider_list_normalizes_default_selection_and_orders_default_first) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_optimization_task_page_orders_by_latest_update) or test(adk_provider_delete_reports_the_in_use_agent_and_keeps_the_go_projection) or test(provider_delete_promotes_the_replacement_and_keeps_one_default) or test(provider_default_contract_orders_the_default_first_and_keeps_the_route_code) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(completed_run_reopens_only_for_a_fresh_durable_approval) or test(paused_workflow_run_keeps_accepting_progress_and_terminal_updates) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(adk_mcp_tool_executor_bundle_attachment_and_exact_schemas) or test(reject_unsafe_host_blocks_the_reference_host_table) or test(builtin_skill_uninstall_is_refused_and_the_projection_keeps_it) or test(adk_skill_uninstall_removes_external_installs_and_reports_missing_files) or test(adk_agent_write_requires_registered_skills_and_keeps_declared_tools) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(adk_soft_deleted_configs_purge_only_for_the_approved_candidate_set) or test(session_context_ignores_handoff_segments_without_a_revision) or test(builtin_skill_catalog_stays_registered_alongside_external_installs) or test(production_adk_catalog_templates_and_delete_agent_contracts_hold) or test(skill_archive_install_preserves_resources_and_metadata)"
         ],
         "testFilter": [
           "builtin_skill_catalog_stays_registered_alongside_external_installs"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "7a2ab5eb",
+        "verifiedAt": "2026-09-25T18:20:14Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -98209,20 +98235,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(adk_provider_delete_is_idempotent_and_matches_the_go_success_envelope) or test(adk_store_lifecycle_and_restart_durability) or test(adk_transaction_boundaries_commit_roll_back_and_report_missing_tables) or test(provider_list_normalizes_default_selection_and_orders_default_first) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_optimization_task_page_orders_by_latest_update) or test(adk_provider_delete_reports_the_in_use_agent_and_keeps_the_go_projection) or test(provider_delete_promotes_the_replacement_and_keeps_one_default) or test(provider_default_contract_orders_the_default_first_and_keeps_the_route_code) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(completed_run_reopens_only_for_a_fresh_durable_approval) or test(paused_workflow_run_keeps_accepting_progress_and_terminal_updates) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(adk_mcp_tool_executor_bundle_attachment_and_exact_schemas) or test(reject_unsafe_host_blocks_the_reference_host_table) or test(builtin_skill_uninstall_is_refused_and_the_projection_keeps_it) or test(adk_skill_uninstall_removes_external_installs_and_reports_missing_files) or test(adk_agent_write_requires_registered_skills_and_keeps_declared_tools) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(adk_soft_deleted_configs_purge_only_for_the_approved_candidate_set) or test(session_context_ignores_handoff_segments_without_a_revision) or test(builtin_skill_catalog_stays_registered_alongside_external_installs) or test(production_adk_catalog_templates_and_delete_agent_contracts_hold) or test(skill_archive_install_preserves_resources_and_metadata)"
         ],
         "testFilter": [
           "builtin_skill_catalog_stays_registered_alongside_external_installs"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "7a2ab5eb",
+        "verifiedAt": "2026-09-25T18:20:14Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -98324,20 +98351,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(adk_provider_delete_is_idempotent_and_matches_the_go_success_envelope) or test(adk_store_lifecycle_and_restart_durability) or test(adk_transaction_boundaries_commit_roll_back_and_report_missing_tables) or test(provider_list_normalizes_default_selection_and_orders_default_first) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_optimization_task_page_orders_by_latest_update) or test(adk_provider_delete_reports_the_in_use_agent_and_keeps_the_go_projection) or test(provider_delete_promotes_the_replacement_and_keeps_one_default) or test(provider_default_contract_orders_the_default_first_and_keeps_the_route_code) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(completed_run_reopens_only_for_a_fresh_durable_approval) or test(paused_workflow_run_keeps_accepting_progress_and_terminal_updates) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(adk_mcp_tool_executor_bundle_attachment_and_exact_schemas) or test(reject_unsafe_host_blocks_the_reference_host_table) or test(builtin_skill_uninstall_is_refused_and_the_projection_keeps_it) or test(adk_skill_uninstall_removes_external_installs_and_reports_missing_files) or test(adk_agent_write_requires_registered_skills_and_keeps_declared_tools) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(adk_soft_deleted_configs_purge_only_for_the_approved_candidate_set) or test(session_context_ignores_handoff_segments_without_a_revision) or test(builtin_skill_catalog_stays_registered_alongside_external_installs) or test(production_adk_catalog_templates_and_delete_agent_contracts_hold) or test(skill_archive_install_preserves_resources_and_metadata)"
         ],
         "testFilter": [
           "production_adk_catalog_templates_and_delete_agent_contracts_hold"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "7a2ab5eb",
+        "verifiedAt": "2026-09-25T18:20:14Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -98386,20 +98414,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(adk_provider_delete_is_idempotent_and_matches_the_go_success_envelope) or test(adk_store_lifecycle_and_restart_durability) or test(adk_transaction_boundaries_commit_roll_back_and_report_missing_tables) or test(provider_list_normalizes_default_selection_and_orders_default_first) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_optimization_task_page_orders_by_latest_update) or test(adk_provider_delete_reports_the_in_use_agent_and_keeps_the_go_projection) or test(provider_delete_promotes_the_replacement_and_keeps_one_default) or test(provider_default_contract_orders_the_default_first_and_keeps_the_route_code) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(completed_run_reopens_only_for_a_fresh_durable_approval) or test(paused_workflow_run_keeps_accepting_progress_and_terminal_updates) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(adk_mcp_tool_executor_bundle_attachment_and_exact_schemas) or test(reject_unsafe_host_blocks_the_reference_host_table) or test(builtin_skill_uninstall_is_refused_and_the_projection_keeps_it) or test(adk_skill_uninstall_removes_external_installs_and_reports_missing_files) or test(adk_agent_write_requires_registered_skills_and_keeps_declared_tools) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(adk_soft_deleted_configs_purge_only_for_the_approved_candidate_set) or test(session_context_ignores_handoff_segments_without_a_revision) or test(builtin_skill_catalog_stays_registered_alongside_external_installs) or test(production_adk_catalog_templates_and_delete_agent_contracts_hold) or test(skill_archive_install_preserves_resources_and_metadata)"
         ],
         "testFilter": [
           "builtin_skill_catalog_stays_registered_alongside_external_installs"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "7a2ab5eb",
+        "verifiedAt": "2026-09-25T18:20:14Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -98453,20 +98482,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(adk_provider_delete_is_idempotent_and_matches_the_go_success_envelope) or test(adk_store_lifecycle_and_restart_durability) or test(adk_transaction_boundaries_commit_roll_back_and_report_missing_tables) or test(provider_list_normalizes_default_selection_and_orders_default_first) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_optimization_task_page_orders_by_latest_update) or test(adk_provider_delete_reports_the_in_use_agent_and_keeps_the_go_projection) or test(provider_delete_promotes_the_replacement_and_keeps_one_default) or test(provider_default_contract_orders_the_default_first_and_keeps_the_route_code) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(completed_run_reopens_only_for_a_fresh_durable_approval) or test(paused_workflow_run_keeps_accepting_progress_and_terminal_updates) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(adk_mcp_tool_executor_bundle_attachment_and_exact_schemas) or test(reject_unsafe_host_blocks_the_reference_host_table) or test(builtin_skill_uninstall_is_refused_and_the_projection_keeps_it) or test(adk_skill_uninstall_removes_external_installs_and_reports_missing_files) or test(adk_agent_write_requires_registered_skills_and_keeps_declared_tools) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(adk_soft_deleted_configs_purge_only_for_the_approved_candidate_set) or test(session_context_ignores_handoff_segments_without_a_revision) or test(builtin_skill_catalog_stays_registered_alongside_external_installs) or test(production_adk_catalog_templates_and_delete_agent_contracts_hold) or test(skill_archive_install_preserves_resources_and_metadata)"
         ],
         "testFilter": [
           "skill_archive_install_preserves_resources_and_metadata"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "7a2ab5eb",
+        "verifiedAt": "2026-09-25T18:20:14Z",
         "receiptDigest": null
       },
       "risk": "normal",
