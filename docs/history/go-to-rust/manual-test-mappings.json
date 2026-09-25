@@ -83611,20 +83611,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_approval_resolution_stages_continuation_and_denial_cas) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(cascade_deletion_fences_stale_writer_and_session_recovery) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(terminal_failure_mapping_matches_the_reference_table) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(adk_read_routes_reject_blank_decoded_identifiers) or test(challenge_continuation_supervisor_cancellation_signal_propagates) or test(running_stream_payload_replays_all_nonterminal_events) or test(production_approval_resume_after_the_stream_closed_completes_without_late_frames) or test(chat_creates_the_session_once_and_reuses_its_stored_title) or test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(a_continuation_for_a_missing_run_is_a_silent_no_op) or test(challenge_continuation_supervisor_rejects_new_work_once_stopping) or test(the_run_read_routes_reconcile_expired_runs_before_serving) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(non_resumable_running_run_does_not_make_runtime_unready) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(graph_exposes_one_deterministic_ready_task) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success) or test(challenge_continuation_supervisor_concurrent_spawn_shutdown_race) or test(challenge_continuation_supervisor_claims_are_exclusive_and_released) or test(production_adk_updates_do_not_create_missing_agents_or_providers) or test(snapshot_and_provider_test_boundaries_fail_closed) or test(adk_session_delete_missing_is_reported_with_the_session_error_code) or test(a_second_compaction_is_rejected_while_the_session_gate_is_held)"
         ],
         "testFilter": [
           "adk_approval_resolution_stages_continuation_and_denial_cas"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "f6a6c5f6",
+        "verifiedAt": "2026-09-25T14:00:05Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -83673,20 +83673,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_approval_resolution_stages_continuation_and_denial_cas) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(cascade_deletion_fences_stale_writer_and_session_recovery) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(terminal_failure_mapping_matches_the_reference_table) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(adk_read_routes_reject_blank_decoded_identifiers) or test(challenge_continuation_supervisor_cancellation_signal_propagates) or test(running_stream_payload_replays_all_nonterminal_events) or test(production_approval_resume_after_the_stream_closed_completes_without_late_frames) or test(chat_creates_the_session_once_and_reuses_its_stored_title) or test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(a_continuation_for_a_missing_run_is_a_silent_no_op) or test(challenge_continuation_supervisor_rejects_new_work_once_stopping) or test(the_run_read_routes_reconcile_expired_runs_before_serving) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(non_resumable_running_run_does_not_make_runtime_unready) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(graph_exposes_one_deterministic_ready_task) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success) or test(challenge_continuation_supervisor_concurrent_spawn_shutdown_race) or test(challenge_continuation_supervisor_claims_are_exclusive_and_released) or test(production_adk_updates_do_not_create_missing_agents_or_providers) or test(snapshot_and_provider_test_boundaries_fail_closed) or test(adk_session_delete_missing_is_reported_with_the_session_error_code) or test(a_second_compaction_is_rejected_while_the_session_gate_is_held)"
         ],
         "testFilter": [
           "adk_approval_resolution_restages_a_stale_embedded_approval"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "f6a6c5f6",
+        "verifiedAt": "2026-09-25T14:00:05Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -83735,20 +83735,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-assistant",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_approval_resolution_stages_continuation_and_denial_cas) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(cascade_deletion_fences_stale_writer_and_session_recovery) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(terminal_failure_mapping_matches_the_reference_table) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(adk_read_routes_reject_blank_decoded_identifiers) or test(challenge_continuation_supervisor_cancellation_signal_propagates) or test(running_stream_payload_replays_all_nonterminal_events) or test(production_approval_resume_after_the_stream_closed_completes_without_late_frames) or test(chat_creates_the_session_once_and_reuses_its_stored_title) or test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(a_continuation_for_a_missing_run_is_a_silent_no_op) or test(challenge_continuation_supervisor_rejects_new_work_once_stopping) or test(the_run_read_routes_reconcile_expired_runs_before_serving) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(non_resumable_running_run_does_not_make_runtime_unready) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(graph_exposes_one_deterministic_ready_task) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success) or test(challenge_continuation_supervisor_concurrent_spawn_shutdown_race) or test(challenge_continuation_supervisor_claims_are_exclusive_and_released) or test(production_adk_updates_do_not_create_missing_agents_or_providers) or test(snapshot_and_provider_test_boundaries_fail_closed) or test(adk_session_delete_missing_is_reported_with_the_session_error_code) or test(a_second_compaction_is_rejected_while_the_session_gate_is_held)"
         ],
         "testFilter": [
           "cascade_deletion_fences_stale_writer_and_session_recovery"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "f6a6c5f6",
+        "verifiedAt": "2026-09-25T14:00:05Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -84227,20 +84227,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_approval_resolution_stages_continuation_and_denial_cas) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(cascade_deletion_fences_stale_writer_and_session_recovery) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(terminal_failure_mapping_matches_the_reference_table) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(adk_read_routes_reject_blank_decoded_identifiers) or test(challenge_continuation_supervisor_cancellation_signal_propagates) or test(running_stream_payload_replays_all_nonterminal_events) or test(production_approval_resume_after_the_stream_closed_completes_without_late_frames) or test(chat_creates_the_session_once_and_reuses_its_stored_title) or test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(a_continuation_for_a_missing_run_is_a_silent_no_op) or test(challenge_continuation_supervisor_rejects_new_work_once_stopping) or test(the_run_read_routes_reconcile_expired_runs_before_serving) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(non_resumable_running_run_does_not_make_runtime_unready) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(graph_exposes_one_deterministic_ready_task) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success) or test(challenge_continuation_supervisor_concurrent_spawn_shutdown_race) or test(challenge_continuation_supervisor_claims_are_exclusive_and_released) or test(production_adk_updates_do_not_create_missing_agents_or_providers) or test(snapshot_and_provider_test_boundaries_fail_closed) or test(adk_session_delete_missing_is_reported_with_the_session_error_code) or test(a_second_compaction_is_rejected_while_the_session_gate_is_held)"
         ],
         "testFilter": [
           "a_tool_round_projects_the_pre_tool_reply_and_session_timeline"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "f6a6c5f6",
+        "verifiedAt": "2026-09-25T14:00:05Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -85188,20 +85188,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_approval_resolution_stages_continuation_and_denial_cas) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(cascade_deletion_fences_stale_writer_and_session_recovery) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(terminal_failure_mapping_matches_the_reference_table) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(adk_read_routes_reject_blank_decoded_identifiers) or test(challenge_continuation_supervisor_cancellation_signal_propagates) or test(running_stream_payload_replays_all_nonterminal_events) or test(production_approval_resume_after_the_stream_closed_completes_without_late_frames) or test(chat_creates_the_session_once_and_reuses_its_stored_title) or test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(a_continuation_for_a_missing_run_is_a_silent_no_op) or test(challenge_continuation_supervisor_rejects_new_work_once_stopping) or test(the_run_read_routes_reconcile_expired_runs_before_serving) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(non_resumable_running_run_does_not_make_runtime_unready) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(graph_exposes_one_deterministic_ready_task) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success) or test(challenge_continuation_supervisor_concurrent_spawn_shutdown_race) or test(challenge_continuation_supervisor_claims_are_exclusive_and_released) or test(production_adk_updates_do_not_create_missing_agents_or_providers) or test(snapshot_and_provider_test_boundaries_fail_closed) or test(adk_session_delete_missing_is_reported_with_the_session_error_code) or test(a_second_compaction_is_rejected_while_the_session_gate_is_held)"
         ],
         "testFilter": [
           "terminal_failure_mapping_matches_the_reference_table"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "f6a6c5f6",
+        "verifiedAt": "2026-09-25T14:00:05Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -85666,20 +85666,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_approval_resolution_stages_continuation_and_denial_cas) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(cascade_deletion_fences_stale_writer_and_session_recovery) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(terminal_failure_mapping_matches_the_reference_table) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(adk_read_routes_reject_blank_decoded_identifiers) or test(challenge_continuation_supervisor_cancellation_signal_propagates) or test(running_stream_payload_replays_all_nonterminal_events) or test(production_approval_resume_after_the_stream_closed_completes_without_late_frames) or test(chat_creates_the_session_once_and_reuses_its_stored_title) or test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(a_continuation_for_a_missing_run_is_a_silent_no_op) or test(challenge_continuation_supervisor_rejects_new_work_once_stopping) or test(the_run_read_routes_reconcile_expired_runs_before_serving) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(non_resumable_running_run_does_not_make_runtime_unready) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(graph_exposes_one_deterministic_ready_task) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success) or test(challenge_continuation_supervisor_concurrent_spawn_shutdown_race) or test(challenge_continuation_supervisor_claims_are_exclusive_and_released) or test(production_adk_updates_do_not_create_missing_agents_or_providers) or test(snapshot_and_provider_test_boundaries_fail_closed) or test(adk_session_delete_missing_is_reported_with_the_session_error_code) or test(a_second_compaction_is_rejected_while_the_session_gate_is_held)"
         ],
         "testFilter": [
           "a_resumed_approval_run_completes_with_the_confirmation_resolved_state"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "f6a6c5f6",
+        "verifiedAt": "2026-09-25T14:00:05Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -85728,20 +85728,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_approval_resolution_stages_continuation_and_denial_cas) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(cascade_deletion_fences_stale_writer_and_session_recovery) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(terminal_failure_mapping_matches_the_reference_table) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(adk_read_routes_reject_blank_decoded_identifiers) or test(challenge_continuation_supervisor_cancellation_signal_propagates) or test(running_stream_payload_replays_all_nonterminal_events) or test(production_approval_resume_after_the_stream_closed_completes_without_late_frames) or test(chat_creates_the_session_once_and_reuses_its_stored_title) or test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(a_continuation_for_a_missing_run_is_a_silent_no_op) or test(challenge_continuation_supervisor_rejects_new_work_once_stopping) or test(the_run_read_routes_reconcile_expired_runs_before_serving) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(non_resumable_running_run_does_not_make_runtime_unready) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(graph_exposes_one_deterministic_ready_task) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success) or test(challenge_continuation_supervisor_concurrent_spawn_shutdown_race) or test(challenge_continuation_supervisor_claims_are_exclusive_and_released) or test(production_adk_updates_do_not_create_missing_agents_or_providers) or test(snapshot_and_provider_test_boundaries_fail_closed) or test(adk_session_delete_missing_is_reported_with_the_session_error_code) or test(a_second_compaction_is_rejected_while_the_session_gate_is_held)"
         ],
         "testFilter": [
           "an_approval_resuming_run_is_recovered_after_a_runtime_restart"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "f6a6c5f6",
+        "verifiedAt": "2026-09-25T14:00:05Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -85790,20 +85790,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_approval_resolution_stages_continuation_and_denial_cas) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(cascade_deletion_fences_stale_writer_and_session_recovery) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(terminal_failure_mapping_matches_the_reference_table) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(adk_read_routes_reject_blank_decoded_identifiers) or test(challenge_continuation_supervisor_cancellation_signal_propagates) or test(running_stream_payload_replays_all_nonterminal_events) or test(production_approval_resume_after_the_stream_closed_completes_without_late_frames) or test(chat_creates_the_session_once_and_reuses_its_stored_title) or test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(a_continuation_for_a_missing_run_is_a_silent_no_op) or test(challenge_continuation_supervisor_rejects_new_work_once_stopping) or test(the_run_read_routes_reconcile_expired_runs_before_serving) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(non_resumable_running_run_does_not_make_runtime_unready) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(graph_exposes_one_deterministic_ready_task) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success) or test(challenge_continuation_supervisor_concurrent_spawn_shutdown_race) or test(challenge_continuation_supervisor_claims_are_exclusive_and_released) or test(production_adk_updates_do_not_create_missing_agents_or_providers) or test(snapshot_and_provider_test_boundaries_fail_closed) or test(adk_session_delete_missing_is_reported_with_the_session_error_code) or test(a_second_compaction_is_rejected_while_the_session_gate_is_held)"
         ],
         "testFilter": [
           "an_approval_resuming_run_is_recovered_after_a_runtime_restart"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "f6a6c5f6",
+        "verifiedAt": "2026-09-25T14:00:05Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -85852,20 +85852,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_approval_resolution_stages_continuation_and_denial_cas) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(cascade_deletion_fences_stale_writer_and_session_recovery) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(terminal_failure_mapping_matches_the_reference_table) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(adk_read_routes_reject_blank_decoded_identifiers) or test(challenge_continuation_supervisor_cancellation_signal_propagates) or test(running_stream_payload_replays_all_nonterminal_events) or test(production_approval_resume_after_the_stream_closed_completes_without_late_frames) or test(chat_creates_the_session_once_and_reuses_its_stored_title) or test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(a_continuation_for_a_missing_run_is_a_silent_no_op) or test(challenge_continuation_supervisor_rejects_new_work_once_stopping) or test(the_run_read_routes_reconcile_expired_runs_before_serving) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(non_resumable_running_run_does_not_make_runtime_unready) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(graph_exposes_one_deterministic_ready_task) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success) or test(challenge_continuation_supervisor_concurrent_spawn_shutdown_race) or test(challenge_continuation_supervisor_claims_are_exclusive_and_released) or test(production_adk_updates_do_not_create_missing_agents_or_providers) or test(snapshot_and_provider_test_boundaries_fail_closed) or test(adk_session_delete_missing_is_reported_with_the_session_error_code) or test(a_second_compaction_is_rejected_while_the_session_gate_is_held)"
         ],
         "testFilter": [
           "adk_read_routes_reject_blank_decoded_identifiers"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "f6a6c5f6",
+        "verifiedAt": "2026-09-25T14:00:05Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -86189,20 +86189,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_approval_resolution_stages_continuation_and_denial_cas) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(cascade_deletion_fences_stale_writer_and_session_recovery) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(terminal_failure_mapping_matches_the_reference_table) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(adk_read_routes_reject_blank_decoded_identifiers) or test(challenge_continuation_supervisor_cancellation_signal_propagates) or test(running_stream_payload_replays_all_nonterminal_events) or test(production_approval_resume_after_the_stream_closed_completes_without_late_frames) or test(chat_creates_the_session_once_and_reuses_its_stored_title) or test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(a_continuation_for_a_missing_run_is_a_silent_no_op) or test(challenge_continuation_supervisor_rejects_new_work_once_stopping) or test(the_run_read_routes_reconcile_expired_runs_before_serving) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(non_resumable_running_run_does_not_make_runtime_unready) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(graph_exposes_one_deterministic_ready_task) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success) or test(challenge_continuation_supervisor_concurrent_spawn_shutdown_race) or test(challenge_continuation_supervisor_claims_are_exclusive_and_released) or test(production_adk_updates_do_not_create_missing_agents_or_providers) or test(snapshot_and_provider_test_boundaries_fail_closed) or test(adk_session_delete_missing_is_reported_with_the_session_error_code) or test(a_second_compaction_is_rejected_while_the_session_gate_is_held)"
         ],
         "testFilter": [
           "challenge_continuation_supervisor_cancellation_signal_propagates"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "f6a6c5f6",
+        "verifiedAt": "2026-09-25T14:00:05Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -86437,20 +86437,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_approval_resolution_stages_continuation_and_denial_cas) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(cascade_deletion_fences_stale_writer_and_session_recovery) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(terminal_failure_mapping_matches_the_reference_table) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(adk_read_routes_reject_blank_decoded_identifiers) or test(challenge_continuation_supervisor_cancellation_signal_propagates) or test(running_stream_payload_replays_all_nonterminal_events) or test(production_approval_resume_after_the_stream_closed_completes_without_late_frames) or test(chat_creates_the_session_once_and_reuses_its_stored_title) or test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(a_continuation_for_a_missing_run_is_a_silent_no_op) or test(challenge_continuation_supervisor_rejects_new_work_once_stopping) or test(the_run_read_routes_reconcile_expired_runs_before_serving) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(non_resumable_running_run_does_not_make_runtime_unready) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(graph_exposes_one_deterministic_ready_task) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success) or test(challenge_continuation_supervisor_concurrent_spawn_shutdown_race) or test(challenge_continuation_supervisor_claims_are_exclusive_and_released) or test(production_adk_updates_do_not_create_missing_agents_or_providers) or test(snapshot_and_provider_test_boundaries_fail_closed) or test(adk_session_delete_missing_is_reported_with_the_session_error_code) or test(a_second_compaction_is_rejected_while_the_session_gate_is_held)"
         ],
         "testFilter": [
           "running_stream_payload_replays_all_nonterminal_events"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "f6a6c5f6",
+        "verifiedAt": "2026-09-25T14:00:05Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -88025,20 +88025,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(production_approval_resume_after_the_stream_closed_completes_without_late_frames)"
+          "test(adk_approval_resolution_stages_continuation_and_denial_cas) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(cascade_deletion_fences_stale_writer_and_session_recovery) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(terminal_failure_mapping_matches_the_reference_table) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(adk_read_routes_reject_blank_decoded_identifiers) or test(challenge_continuation_supervisor_cancellation_signal_propagates) or test(running_stream_payload_replays_all_nonterminal_events) or test(production_approval_resume_after_the_stream_closed_completes_without_late_frames) or test(chat_creates_the_session_once_and_reuses_its_stored_title) or test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(a_continuation_for_a_missing_run_is_a_silent_no_op) or test(challenge_continuation_supervisor_rejects_new_work_once_stopping) or test(the_run_read_routes_reconcile_expired_runs_before_serving) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(non_resumable_running_run_does_not_make_runtime_unready) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(graph_exposes_one_deterministic_ready_task) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success) or test(challenge_continuation_supervisor_concurrent_spawn_shutdown_race) or test(challenge_continuation_supervisor_claims_are_exclusive_and_released) or test(production_adk_updates_do_not_create_missing_agents_or_providers) or test(snapshot_and_provider_test_boundaries_fail_closed) or test(adk_session_delete_missing_is_reported_with_the_session_error_code) or test(a_second_compaction_is_rejected_while_the_session_gate_is_held)"
         ],
         "testFilter": [
           "production_approval_resume_after_the_stream_closed_completes_without_late_frames"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "f6a6c5f6",
+        "verifiedAt": "2026-09-25T14:00:05Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -88166,20 +88166,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(chat_creates_the_session_once_and_reuses_its_stored_title)"
+          "test(adk_approval_resolution_stages_continuation_and_denial_cas) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(cascade_deletion_fences_stale_writer_and_session_recovery) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(terminal_failure_mapping_matches_the_reference_table) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(adk_read_routes_reject_blank_decoded_identifiers) or test(challenge_continuation_supervisor_cancellation_signal_propagates) or test(running_stream_payload_replays_all_nonterminal_events) or test(production_approval_resume_after_the_stream_closed_completes_without_late_frames) or test(chat_creates_the_session_once_and_reuses_its_stored_title) or test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(a_continuation_for_a_missing_run_is_a_silent_no_op) or test(challenge_continuation_supervisor_rejects_new_work_once_stopping) or test(the_run_read_routes_reconcile_expired_runs_before_serving) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(non_resumable_running_run_does_not_make_runtime_unready) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(graph_exposes_one_deterministic_ready_task) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success) or test(challenge_continuation_supervisor_concurrent_spawn_shutdown_race) or test(challenge_continuation_supervisor_claims_are_exclusive_and_released) or test(production_adk_updates_do_not_create_missing_agents_or_providers) or test(snapshot_and_provider_test_boundaries_fail_closed) or test(adk_session_delete_missing_is_reported_with_the_session_error_code) or test(a_second_compaction_is_rejected_while_the_session_gate_is_held)"
         ],
         "testFilter": [
           "chat_creates_the_session_once_and_reuses_its_stored_title"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "f6a6c5f6",
+        "verifiedAt": "2026-09-25T14:00:05Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -88300,20 +88300,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_approval_resolution_stages_continuation_and_denial_cas) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(cascade_deletion_fences_stale_writer_and_session_recovery) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(terminal_failure_mapping_matches_the_reference_table) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(adk_read_routes_reject_blank_decoded_identifiers) or test(challenge_continuation_supervisor_cancellation_signal_propagates) or test(running_stream_payload_replays_all_nonterminal_events) or test(production_approval_resume_after_the_stream_closed_completes_without_late_frames) or test(chat_creates_the_session_once_and_reuses_its_stored_title) or test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(a_continuation_for_a_missing_run_is_a_silent_no_op) or test(challenge_continuation_supervisor_rejects_new_work_once_stopping) or test(the_run_read_routes_reconcile_expired_runs_before_serving) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(non_resumable_running_run_does_not_make_runtime_unready) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(graph_exposes_one_deterministic_ready_task) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success) or test(challenge_continuation_supervisor_concurrent_spawn_shutdown_race) or test(challenge_continuation_supervisor_claims_are_exclusive_and_released) or test(production_adk_updates_do_not_create_missing_agents_or_providers) or test(snapshot_and_provider_test_boundaries_fail_closed) or test(adk_session_delete_missing_is_reported_with_the_session_error_code) or test(a_second_compaction_is_rejected_while_the_session_gate_is_held)"
         ],
         "testFilter": [
           "a_cancelled_run_audits_run_cancelled_and_terminates_once"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "f6a6c5f6",
+        "verifiedAt": "2026-09-25T14:00:05Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -88501,20 +88501,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_approval_resolution_stages_continuation_and_denial_cas) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(cascade_deletion_fences_stale_writer_and_session_recovery) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(terminal_failure_mapping_matches_the_reference_table) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(adk_read_routes_reject_blank_decoded_identifiers) or test(challenge_continuation_supervisor_cancellation_signal_propagates) or test(running_stream_payload_replays_all_nonterminal_events) or test(production_approval_resume_after_the_stream_closed_completes_without_late_frames) or test(chat_creates_the_session_once_and_reuses_its_stored_title) or test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(a_continuation_for_a_missing_run_is_a_silent_no_op) or test(challenge_continuation_supervisor_rejects_new_work_once_stopping) or test(the_run_read_routes_reconcile_expired_runs_before_serving) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(non_resumable_running_run_does_not_make_runtime_unready) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(graph_exposes_one_deterministic_ready_task) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success) or test(challenge_continuation_supervisor_concurrent_spawn_shutdown_race) or test(challenge_continuation_supervisor_claims_are_exclusive_and_released) or test(production_adk_updates_do_not_create_missing_agents_or_providers) or test(snapshot_and_provider_test_boundaries_fail_closed) or test(adk_session_delete_missing_is_reported_with_the_session_error_code) or test(a_second_compaction_is_rejected_while_the_session_gate_is_held)"
         ],
         "testFilter": [
           "a_continuation_for_a_missing_run_is_a_silent_no_op"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "f6a6c5f6",
+        "verifiedAt": "2026-09-25T14:00:05Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -89034,20 +89034,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_approval_resolution_stages_continuation_and_denial_cas) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(cascade_deletion_fences_stale_writer_and_session_recovery) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(terminal_failure_mapping_matches_the_reference_table) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(adk_read_routes_reject_blank_decoded_identifiers) or test(challenge_continuation_supervisor_cancellation_signal_propagates) or test(running_stream_payload_replays_all_nonterminal_events) or test(production_approval_resume_after_the_stream_closed_completes_without_late_frames) or test(chat_creates_the_session_once_and_reuses_its_stored_title) or test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(a_continuation_for_a_missing_run_is_a_silent_no_op) or test(challenge_continuation_supervisor_rejects_new_work_once_stopping) or test(the_run_read_routes_reconcile_expired_runs_before_serving) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(non_resumable_running_run_does_not_make_runtime_unready) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(graph_exposes_one_deterministic_ready_task) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success) or test(challenge_continuation_supervisor_concurrent_spawn_shutdown_race) or test(challenge_continuation_supervisor_claims_are_exclusive_and_released) or test(production_adk_updates_do_not_create_missing_agents_or_providers) or test(snapshot_and_provider_test_boundaries_fail_closed) or test(adk_session_delete_missing_is_reported_with_the_session_error_code) or test(a_second_compaction_is_rejected_while_the_session_gate_is_held)"
         ],
         "testFilter": [
           "challenge_continuation_supervisor_rejects_new_work_once_stopping"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "f6a6c5f6",
+        "verifiedAt": "2026-09-25T14:00:05Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -89282,20 +89282,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_approval_resolution_stages_continuation_and_denial_cas) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(cascade_deletion_fences_stale_writer_and_session_recovery) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(terminal_failure_mapping_matches_the_reference_table) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(adk_read_routes_reject_blank_decoded_identifiers) or test(challenge_continuation_supervisor_cancellation_signal_propagates) or test(running_stream_payload_replays_all_nonterminal_events) or test(production_approval_resume_after_the_stream_closed_completes_without_late_frames) or test(chat_creates_the_session_once_and_reuses_its_stored_title) or test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(a_continuation_for_a_missing_run_is_a_silent_no_op) or test(challenge_continuation_supervisor_rejects_new_work_once_stopping) or test(the_run_read_routes_reconcile_expired_runs_before_serving) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(non_resumable_running_run_does_not_make_runtime_unready) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(graph_exposes_one_deterministic_ready_task) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success) or test(challenge_continuation_supervisor_concurrent_spawn_shutdown_race) or test(challenge_continuation_supervisor_claims_are_exclusive_and_released) or test(production_adk_updates_do_not_create_missing_agents_or_providers) or test(snapshot_and_provider_test_boundaries_fail_closed) or test(adk_session_delete_missing_is_reported_with_the_session_error_code) or test(a_second_compaction_is_rejected_while_the_session_gate_is_held)"
         ],
         "testFilter": [
           "the_run_read_routes_reconcile_expired_runs_before_serving"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "f6a6c5f6",
+        "verifiedAt": "2026-09-25T14:00:05Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -89344,20 +89344,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_approval_resolution_stages_continuation_and_denial_cas) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(cascade_deletion_fences_stale_writer_and_session_recovery) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(terminal_failure_mapping_matches_the_reference_table) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(adk_read_routes_reject_blank_decoded_identifiers) or test(challenge_continuation_supervisor_cancellation_signal_propagates) or test(running_stream_payload_replays_all_nonterminal_events) or test(production_approval_resume_after_the_stream_closed_completes_without_late_frames) or test(chat_creates_the_session_once_and_reuses_its_stored_title) or test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(a_continuation_for_a_missing_run_is_a_silent_no_op) or test(challenge_continuation_supervisor_rejects_new_work_once_stopping) or test(the_run_read_routes_reconcile_expired_runs_before_serving) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(non_resumable_running_run_does_not_make_runtime_unready) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(graph_exposes_one_deterministic_ready_task) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success) or test(challenge_continuation_supervisor_concurrent_spawn_shutdown_race) or test(challenge_continuation_supervisor_claims_are_exclusive_and_released) or test(production_adk_updates_do_not_create_missing_agents_or_providers) or test(snapshot_and_provider_test_boundaries_fail_closed) or test(adk_session_delete_missing_is_reported_with_the_session_error_code) or test(a_second_compaction_is_rejected_while_the_session_gate_is_held)"
         ],
         "testFilter": [
           "cancellation_registry_fans_out_and_unregisters_exact_token"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "f6a6c5f6",
+        "verifiedAt": "2026-09-25T14:00:05Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -89530,20 +89530,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_approval_resolution_stages_continuation_and_denial_cas) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(cascade_deletion_fences_stale_writer_and_session_recovery) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(terminal_failure_mapping_matches_the_reference_table) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(adk_read_routes_reject_blank_decoded_identifiers) or test(challenge_continuation_supervisor_cancellation_signal_propagates) or test(running_stream_payload_replays_all_nonterminal_events) or test(production_approval_resume_after_the_stream_closed_completes_without_late_frames) or test(chat_creates_the_session_once_and_reuses_its_stored_title) or test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(a_continuation_for_a_missing_run_is_a_silent_no_op) or test(challenge_continuation_supervisor_rejects_new_work_once_stopping) or test(the_run_read_routes_reconcile_expired_runs_before_serving) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(non_resumable_running_run_does_not_make_runtime_unready) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(graph_exposes_one_deterministic_ready_task) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success) or test(challenge_continuation_supervisor_concurrent_spawn_shutdown_race) or test(challenge_continuation_supervisor_claims_are_exclusive_and_released) or test(production_adk_updates_do_not_create_missing_agents_or_providers) or test(snapshot_and_provider_test_boundaries_fail_closed) or test(adk_session_delete_missing_is_reported_with_the_session_error_code) or test(a_second_compaction_is_rejected_while_the_session_gate_is_held)"
         ],
         "testFilter": [
           "non_resumable_running_run_does_not_make_runtime_unready"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "f6a6c5f6",
+        "verifiedAt": "2026-09-25T14:00:05Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -89592,20 +89592,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_approval_resolution_stages_continuation_and_denial_cas) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(cascade_deletion_fences_stale_writer_and_session_recovery) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(terminal_failure_mapping_matches_the_reference_table) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(adk_read_routes_reject_blank_decoded_identifiers) or test(challenge_continuation_supervisor_cancellation_signal_propagates) or test(running_stream_payload_replays_all_nonterminal_events) or test(production_approval_resume_after_the_stream_closed_completes_without_late_frames) or test(chat_creates_the_session_once_and_reuses_its_stored_title) or test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(a_continuation_for_a_missing_run_is_a_silent_no_op) or test(challenge_continuation_supervisor_rejects_new_work_once_stopping) or test(the_run_read_routes_reconcile_expired_runs_before_serving) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(non_resumable_running_run_does_not_make_runtime_unready) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(graph_exposes_one_deterministic_ready_task) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success) or test(challenge_continuation_supervisor_concurrent_spawn_shutdown_race) or test(challenge_continuation_supervisor_claims_are_exclusive_and_released) or test(production_adk_updates_do_not_create_missing_agents_or_providers) or test(snapshot_and_provider_test_boundaries_fail_closed) or test(adk_session_delete_missing_is_reported_with_the_session_error_code) or test(a_second_compaction_is_rejected_while_the_session_gate_is_held)"
         ],
         "testFilter": [
           "orphaned_pending_approval_runs_are_failed_on_startup_reconcile"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "f6a6c5f6",
+        "verifiedAt": "2026-09-25T14:00:05Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -89654,20 +89654,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_approval_resolution_stages_continuation_and_denial_cas) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(cascade_deletion_fences_stale_writer_and_session_recovery) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(terminal_failure_mapping_matches_the_reference_table) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(adk_read_routes_reject_blank_decoded_identifiers) or test(challenge_continuation_supervisor_cancellation_signal_propagates) or test(running_stream_payload_replays_all_nonterminal_events) or test(production_approval_resume_after_the_stream_closed_completes_without_late_frames) or test(chat_creates_the_session_once_and_reuses_its_stored_title) or test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(a_continuation_for_a_missing_run_is_a_silent_no_op) or test(challenge_continuation_supervisor_rejects_new_work_once_stopping) or test(the_run_read_routes_reconcile_expired_runs_before_serving) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(non_resumable_running_run_does_not_make_runtime_unready) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(graph_exposes_one_deterministic_ready_task) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success) or test(challenge_continuation_supervisor_concurrent_spawn_shutdown_race) or test(challenge_continuation_supervisor_claims_are_exclusive_and_released) or test(production_adk_updates_do_not_create_missing_agents_or_providers) or test(snapshot_and_provider_test_boundaries_fail_closed) or test(adk_session_delete_missing_is_reported_with_the_session_error_code) or test(a_second_compaction_is_rejected_while_the_session_gate_is_held)"
         ],
         "testFilter": [
           "user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "f6a6c5f6",
+        "verifiedAt": "2026-09-25T14:00:05Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -89716,20 +89716,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-assistant",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_approval_resolution_stages_continuation_and_denial_cas) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(cascade_deletion_fences_stale_writer_and_session_recovery) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(terminal_failure_mapping_matches_the_reference_table) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(adk_read_routes_reject_blank_decoded_identifiers) or test(challenge_continuation_supervisor_cancellation_signal_propagates) or test(running_stream_payload_replays_all_nonterminal_events) or test(production_approval_resume_after_the_stream_closed_completes_without_late_frames) or test(chat_creates_the_session_once_and_reuses_its_stored_title) or test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(a_continuation_for_a_missing_run_is_a_silent_no_op) or test(challenge_continuation_supervisor_rejects_new_work_once_stopping) or test(the_run_read_routes_reconcile_expired_runs_before_serving) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(non_resumable_running_run_does_not_make_runtime_unready) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(graph_exposes_one_deterministic_ready_task) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success) or test(challenge_continuation_supervisor_concurrent_spawn_shutdown_race) or test(challenge_continuation_supervisor_claims_are_exclusive_and_released) or test(production_adk_updates_do_not_create_missing_agents_or_providers) or test(snapshot_and_provider_test_boundaries_fail_closed) or test(adk_session_delete_missing_is_reported_with_the_session_error_code) or test(a_second_compaction_is_rejected_while_the_session_gate_is_held)"
         ],
         "testFilter": [
           "graph_exposes_one_deterministic_ready_task"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "f6a6c5f6",
+        "verifiedAt": "2026-09-25T14:00:05Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -89778,20 +89778,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_approval_resolution_stages_continuation_and_denial_cas) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(cascade_deletion_fences_stale_writer_and_session_recovery) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(terminal_failure_mapping_matches_the_reference_table) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(adk_read_routes_reject_blank_decoded_identifiers) or test(challenge_continuation_supervisor_cancellation_signal_propagates) or test(running_stream_payload_replays_all_nonterminal_events) or test(production_approval_resume_after_the_stream_closed_completes_without_late_frames) or test(chat_creates_the_session_once_and_reuses_its_stored_title) or test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(a_continuation_for_a_missing_run_is_a_silent_no_op) or test(challenge_continuation_supervisor_rejects_new_work_once_stopping) or test(the_run_read_routes_reconcile_expired_runs_before_serving) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(non_resumable_running_run_does_not_make_runtime_unready) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(graph_exposes_one_deterministic_ready_task) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success) or test(challenge_continuation_supervisor_concurrent_spawn_shutdown_race) or test(challenge_continuation_supervisor_claims_are_exclusive_and_released) or test(production_adk_updates_do_not_create_missing_agents_or_providers) or test(snapshot_and_provider_test_boundaries_fail_closed) or test(adk_session_delete_missing_is_reported_with_the_session_error_code) or test(a_second_compaction_is_rejected_while_the_session_gate_is_held)"
         ],
         "testFilter": [
           "failed_recovery_scan_marks_readiness_degraded_until_next_success"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "f6a6c5f6",
+        "verifiedAt": "2026-09-25T14:00:05Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -90026,20 +90026,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_approval_resolution_stages_continuation_and_denial_cas) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(cascade_deletion_fences_stale_writer_and_session_recovery) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(terminal_failure_mapping_matches_the_reference_table) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(adk_read_routes_reject_blank_decoded_identifiers) or test(challenge_continuation_supervisor_cancellation_signal_propagates) or test(running_stream_payload_replays_all_nonterminal_events) or test(production_approval_resume_after_the_stream_closed_completes_without_late_frames) or test(chat_creates_the_session_once_and_reuses_its_stored_title) or test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(a_continuation_for_a_missing_run_is_a_silent_no_op) or test(challenge_continuation_supervisor_rejects_new_work_once_stopping) or test(the_run_read_routes_reconcile_expired_runs_before_serving) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(non_resumable_running_run_does_not_make_runtime_unready) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(graph_exposes_one_deterministic_ready_task) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success) or test(challenge_continuation_supervisor_concurrent_spawn_shutdown_race) or test(challenge_continuation_supervisor_claims_are_exclusive_and_released) or test(production_adk_updates_do_not_create_missing_agents_or_providers) or test(snapshot_and_provider_test_boundaries_fail_closed) or test(adk_session_delete_missing_is_reported_with_the_session_error_code) or test(a_second_compaction_is_rejected_while_the_session_gate_is_held)"
         ],
         "testFilter": [
           "a_cancelled_run_audits_run_cancelled_and_terminates_once"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "f6a6c5f6",
+        "verifiedAt": "2026-09-25T14:00:05Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -90301,10 +90301,10 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_approval_resolution_stages_continuation_and_denial_cas) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(cascade_deletion_fences_stale_writer_and_session_recovery) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(terminal_failure_mapping_matches_the_reference_table) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(adk_read_routes_reject_blank_decoded_identifiers) or test(challenge_continuation_supervisor_cancellation_signal_propagates) or test(running_stream_payload_replays_all_nonterminal_events) or test(production_approval_resume_after_the_stream_closed_completes_without_late_frames) or test(chat_creates_the_session_once_and_reuses_its_stored_title) or test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(a_continuation_for_a_missing_run_is_a_silent_no_op) or test(challenge_continuation_supervisor_rejects_new_work_once_stopping) or test(the_run_read_routes_reconcile_expired_runs_before_serving) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(non_resumable_running_run_does_not_make_runtime_unready) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(graph_exposes_one_deterministic_ready_task) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success) or test(challenge_continuation_supervisor_concurrent_spawn_shutdown_race) or test(challenge_continuation_supervisor_claims_are_exclusive_and_released) or test(production_adk_updates_do_not_create_missing_agents_or_providers) or test(snapshot_and_provider_test_boundaries_fail_closed) or test(adk_session_delete_missing_is_reported_with_the_session_error_code) or test(a_second_compaction_is_rejected_while_the_session_gate_is_held)"
         ],
         "testFilter": [
           "challenge_continuation_supervisor_concurrent_spawn_shutdown_race",
@@ -90313,10 +90313,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "f6a6c5f6",
+        "verifiedAt": "2026-09-25T14:00:05Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -90427,20 +90427,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_approval_resolution_stages_continuation_and_denial_cas) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(cascade_deletion_fences_stale_writer_and_session_recovery) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(terminal_failure_mapping_matches_the_reference_table) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(adk_read_routes_reject_blank_decoded_identifiers) or test(challenge_continuation_supervisor_cancellation_signal_propagates) or test(running_stream_payload_replays_all_nonterminal_events) or test(production_approval_resume_after_the_stream_closed_completes_without_late_frames) or test(chat_creates_the_session_once_and_reuses_its_stored_title) or test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(a_continuation_for_a_missing_run_is_a_silent_no_op) or test(challenge_continuation_supervisor_rejects_new_work_once_stopping) or test(the_run_read_routes_reconcile_expired_runs_before_serving) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(non_resumable_running_run_does_not_make_runtime_unready) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(graph_exposes_one_deterministic_ready_task) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success) or test(challenge_continuation_supervisor_concurrent_spawn_shutdown_race) or test(challenge_continuation_supervisor_claims_are_exclusive_and_released) or test(production_adk_updates_do_not_create_missing_agents_or_providers) or test(snapshot_and_provider_test_boundaries_fail_closed) or test(adk_session_delete_missing_is_reported_with_the_session_error_code) or test(a_second_compaction_is_rejected_while_the_session_gate_is_held)"
         ],
         "testFilter": [
           "production_adk_updates_do_not_create_missing_agents_or_providers"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "f6a6c5f6",
+        "verifiedAt": "2026-09-25T14:00:05Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -90675,20 +90675,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_approval_resolution_stages_continuation_and_denial_cas) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(cascade_deletion_fences_stale_writer_and_session_recovery) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(terminal_failure_mapping_matches_the_reference_table) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(adk_read_routes_reject_blank_decoded_identifiers) or test(challenge_continuation_supervisor_cancellation_signal_propagates) or test(running_stream_payload_replays_all_nonterminal_events) or test(production_approval_resume_after_the_stream_closed_completes_without_late_frames) or test(chat_creates_the_session_once_and_reuses_its_stored_title) or test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(a_continuation_for_a_missing_run_is_a_silent_no_op) or test(challenge_continuation_supervisor_rejects_new_work_once_stopping) or test(the_run_read_routes_reconcile_expired_runs_before_serving) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(non_resumable_running_run_does_not_make_runtime_unready) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(graph_exposes_one_deterministic_ready_task) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success) or test(challenge_continuation_supervisor_concurrent_spawn_shutdown_race) or test(challenge_continuation_supervisor_claims_are_exclusive_and_released) or test(production_adk_updates_do_not_create_missing_agents_or_providers) or test(snapshot_and_provider_test_boundaries_fail_closed) or test(adk_session_delete_missing_is_reported_with_the_session_error_code) or test(a_second_compaction_is_rejected_while_the_session_gate_is_held)"
         ],
         "testFilter": [
           "snapshot_and_provider_test_boundaries_fail_closed"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "f6a6c5f6",
+        "verifiedAt": "2026-09-25T14:00:05Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -90799,20 +90799,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_approval_resolution_stages_continuation_and_denial_cas) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(cascade_deletion_fences_stale_writer_and_session_recovery) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(terminal_failure_mapping_matches_the_reference_table) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(adk_read_routes_reject_blank_decoded_identifiers) or test(challenge_continuation_supervisor_cancellation_signal_propagates) or test(running_stream_payload_replays_all_nonterminal_events) or test(production_approval_resume_after_the_stream_closed_completes_without_late_frames) or test(chat_creates_the_session_once_and_reuses_its_stored_title) or test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(a_continuation_for_a_missing_run_is_a_silent_no_op) or test(challenge_continuation_supervisor_rejects_new_work_once_stopping) or test(the_run_read_routes_reconcile_expired_runs_before_serving) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(non_resumable_running_run_does_not_make_runtime_unready) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(graph_exposes_one_deterministic_ready_task) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success) or test(challenge_continuation_supervisor_concurrent_spawn_shutdown_race) or test(challenge_continuation_supervisor_claims_are_exclusive_and_released) or test(production_adk_updates_do_not_create_missing_agents_or_providers) or test(snapshot_and_provider_test_boundaries_fail_closed) or test(adk_session_delete_missing_is_reported_with_the_session_error_code) or test(a_second_compaction_is_rejected_while_the_session_gate_is_held)"
         ],
         "testFilter": [
           "adk_session_delete_missing_is_reported_with_the_session_error_code"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "f6a6c5f6",
+        "verifiedAt": "2026-09-25T14:00:05Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -91047,20 +91047,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_approval_resolution_stages_continuation_and_denial_cas) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(cascade_deletion_fences_stale_writer_and_session_recovery) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(terminal_failure_mapping_matches_the_reference_table) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(adk_read_routes_reject_blank_decoded_identifiers) or test(challenge_continuation_supervisor_cancellation_signal_propagates) or test(running_stream_payload_replays_all_nonterminal_events) or test(production_approval_resume_after_the_stream_closed_completes_without_late_frames) or test(chat_creates_the_session_once_and_reuses_its_stored_title) or test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(a_continuation_for_a_missing_run_is_a_silent_no_op) or test(challenge_continuation_supervisor_rejects_new_work_once_stopping) or test(the_run_read_routes_reconcile_expired_runs_before_serving) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(non_resumable_running_run_does_not_make_runtime_unready) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(graph_exposes_one_deterministic_ready_task) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success) or test(challenge_continuation_supervisor_concurrent_spawn_shutdown_race) or test(challenge_continuation_supervisor_claims_are_exclusive_and_released) or test(production_adk_updates_do_not_create_missing_agents_or_providers) or test(snapshot_and_provider_test_boundaries_fail_closed) or test(adk_session_delete_missing_is_reported_with_the_session_error_code) or test(a_second_compaction_is_rejected_while_the_session_gate_is_held)"
         ],
         "testFilter": [
           "a_second_compaction_is_rejected_while_the_session_gate_is_held"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "f6a6c5f6",
+        "verifiedAt": "2026-09-25T14:00:05Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -91109,20 +91109,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_approval_resolution_stages_continuation_and_denial_cas) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(cascade_deletion_fences_stale_writer_and_session_recovery) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(terminal_failure_mapping_matches_the_reference_table) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(adk_read_routes_reject_blank_decoded_identifiers) or test(challenge_continuation_supervisor_cancellation_signal_propagates) or test(running_stream_payload_replays_all_nonterminal_events) or test(production_approval_resume_after_the_stream_closed_completes_without_late_frames) or test(chat_creates_the_session_once_and_reuses_its_stored_title) or test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(a_continuation_for_a_missing_run_is_a_silent_no_op) or test(challenge_continuation_supervisor_rejects_new_work_once_stopping) or test(the_run_read_routes_reconcile_expired_runs_before_serving) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(non_resumable_running_run_does_not_make_runtime_unready) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(graph_exposes_one_deterministic_ready_task) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success) or test(challenge_continuation_supervisor_concurrent_spawn_shutdown_race) or test(challenge_continuation_supervisor_claims_are_exclusive_and_released) or test(production_adk_updates_do_not_create_missing_agents_or_providers) or test(snapshot_and_provider_test_boundaries_fail_closed) or test(adk_session_delete_missing_is_reported_with_the_session_error_code) or test(a_second_compaction_is_rejected_while_the_session_gate_is_held)"
         ],
         "testFilter": [
           "a_second_compaction_is_rejected_while_the_session_gate_is_held"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "f6a6c5f6",
+        "verifiedAt": "2026-09-25T14:00:05Z",
         "receiptDigest": null
       },
       "risk": "high",
