@@ -11724,7 +11724,7 @@
     "internal/api/marketdata/routes_test.go:147:TestExplicitBrokerRoutesUseBrokerReaderAndNeverLegacyFallback": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_news_tests.rs::explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback; crates/jftrade-engine/src/product_production_ports_market_data_news_tests.rs::news_route_serves_an_explicit_broker_id_for_the_active_provider",
-      "conclusion": "partial：Go 断言显式 brokerId 走 broker reader（securities/snapshots/candles/depth 四路调用参数逐项）且绝不回退 legacy，无 reader 时四路 409。Rust 无 broker reader 列表（读取始终由 active provider owner 处理）：显式非活动 broker 一律 409 MARKET_DATA_CAPABILITY_UNSUPPORTED，显式活动 provider 走 helper（本批补锚点）。缺口：按路由的 reader 调用序列在 Rust 架构中不成立，记为边界差异（不伪装覆盖）。",
+      "conclusion": "partial：本批复核 Go 显式 brokerId 的 securities/snapshots/candles/depth 四路 reader 调用序列、legacy 禁止回退和无 reader 时四路 409。Rust 通过 active-provider owner 验证显式非活动 broker 在 helper/OpenD 读取前返回 409 MARKET_DATA_CAPABILITY_UNSUPPORTED，并验证显式活动 provider 进入其 helper；Rust 没有 Go 同形的独立 broker reader 列表，按路由调用参数序列保留为架构边界，不伪装为 exact。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E test(explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback) or test(news_route_serves_an_explicit_broker_id_for_the_active_provider)",
       "evidence_type": "partial",
       "source": {
@@ -11753,7 +11753,7 @@
             "goFile": "internal/api/marketdata/routes_test.go",
             "goLine": 147,
             "rustFile": "crates/jftrade-engine/src/product_production_ports_market_data_news_tests.rs",
-            "rustLine": 322
+            "rustLine": 150
           }
         }
       ],
@@ -11787,7 +11787,7 @@
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": "2026-09-25T04:25:00Z",
+        "verifiedAt": "2026-09-25T08:18:39Z",
         "receiptDigest": null
       },
       "risk": "high",
