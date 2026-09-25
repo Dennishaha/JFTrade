@@ -5085,20 +5085,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_missing_mutation_targets_keep_the_go_classification) or test(adk_session_run_and_optimization_route_contracts_match_go) or test(adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed) or test(replayed_stream_payloads_carry_the_go_replay_marker) or test(catalog_session_run_and_observability_routes_answer_ok) or test(session_timeline_failure_keeps_the_legacy_messages_error_code) or test(sync_request_session_scope_parity_with_go) or test(backtests_write_fixture_replays_all_four_go_owned_mutations) or test(backtests_read_routes_match_group_fixture_in_cutover_only) or test(candle_route_treats_blank_period_as_unset_and_rejects_unsupported) or test(candle_period_normalizes_aliases_and_rejects_unsupported) or test(auth_requires_origin_and_csrf_for_session_writes) or test(auth_treats_patch_as_session_write_requiring_csrf) or test(managed_account_write_routes_map_missing_records_to_not_found) or test(broker_settings_writes_replay_frozen_compatibility_cases) or test(catalog_activity_paging_and_filters_match_go_boundaries) or test(strategy_instance_read_routes_match_group_fixture_in_cutover_only) or test(execution_write_fixture_replays_all_seven_go_owned_mutations) or test(execution_write_product_replays_browser_boundary_failure_recovery_and_restart) or test(production_http_broker_reads_serialize_empty_collections_as_arrays) or test(watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog) or test(watchlist_write_fixture_matches_go_owner_for_all_eight_routes) or test(malformed_membership_and_commit_bodies_are_rejected) or test(watchlist_read_routes_match_group_fixture_in_cutover_only) or test(test_product_runtime_startup_failure_rollback) or test(readiness_failure_reclaims_every_started_process_without_starting_dependents) or test(startup_failure_restores_previously_migrated_descriptor_files) or test(backup_snapshot_rejects_an_unusable_backup_directory_and_an_empty_source_path) or test(cleanup_and_compaction_report_the_reclaimed_bytes_measured_on_disk) or test(a_held_lease_on_one_database_rolls_back_the_batch_rebuild_locks) or test(runtime_readiness_allows_external_degradation_but_rejects_incomplete_startup) or test(production_opend_health_diagnoses_enabled_but_unreachable_opend) or test(production_system_read_reports_unavailable_opend_without_fake_health) or test(market_data_health_requires_a_known_logged_in_quote_session) or test(helper_market_data_providers_reconcile_futu_account_order_fill_and_fee) or test(reconciliation_discovers_external_order_into_empty_ledger) or test(production_opend_health_rejects_old_build_and_guides_upgrade) or test(probe_opend_reports_closed_port_as_disconnected) or test(probe_from_global_state_enforces_minimum_version_and_maps_neutral_state) or test(disconnected_probe_keeps_its_transport_error_for_manual_retry) or test(web_shutdown_does_not_hold_runtime_lock_while_joining_server) or test(provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update) or test(cache_rejects_stale_generation_and_classifies_freshness)"
         ],
         "testFilter": [
           "adk_missing_mutation_targets_keep_the_go_classification"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "f632beb7",
+        "verifiedAt": "2026-09-25T13:29:58Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -5424,20 +5424,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_missing_mutation_targets_keep_the_go_classification) or test(adk_session_run_and_optimization_route_contracts_match_go) or test(adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed) or test(replayed_stream_payloads_carry_the_go_replay_marker) or test(catalog_session_run_and_observability_routes_answer_ok) or test(session_timeline_failure_keeps_the_legacy_messages_error_code) or test(sync_request_session_scope_parity_with_go) or test(backtests_write_fixture_replays_all_four_go_owned_mutations) or test(backtests_read_routes_match_group_fixture_in_cutover_only) or test(candle_route_treats_blank_period_as_unset_and_rejects_unsupported) or test(candle_period_normalizes_aliases_and_rejects_unsupported) or test(auth_requires_origin_and_csrf_for_session_writes) or test(auth_treats_patch_as_session_write_requiring_csrf) or test(managed_account_write_routes_map_missing_records_to_not_found) or test(broker_settings_writes_replay_frozen_compatibility_cases) or test(catalog_activity_paging_and_filters_match_go_boundaries) or test(strategy_instance_read_routes_match_group_fixture_in_cutover_only) or test(execution_write_fixture_replays_all_seven_go_owned_mutations) or test(execution_write_product_replays_browser_boundary_failure_recovery_and_restart) or test(production_http_broker_reads_serialize_empty_collections_as_arrays) or test(watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog) or test(watchlist_write_fixture_matches_go_owner_for_all_eight_routes) or test(malformed_membership_and_commit_bodies_are_rejected) or test(watchlist_read_routes_match_group_fixture_in_cutover_only) or test(test_product_runtime_startup_failure_rollback) or test(readiness_failure_reclaims_every_started_process_without_starting_dependents) or test(startup_failure_restores_previously_migrated_descriptor_files) or test(backup_snapshot_rejects_an_unusable_backup_directory_and_an_empty_source_path) or test(cleanup_and_compaction_report_the_reclaimed_bytes_measured_on_disk) or test(a_held_lease_on_one_database_rolls_back_the_batch_rebuild_locks) or test(runtime_readiness_allows_external_degradation_but_rejects_incomplete_startup) or test(production_opend_health_diagnoses_enabled_but_unreachable_opend) or test(production_system_read_reports_unavailable_opend_without_fake_health) or test(market_data_health_requires_a_known_logged_in_quote_session) or test(helper_market_data_providers_reconcile_futu_account_order_fill_and_fee) or test(reconciliation_discovers_external_order_into_empty_ledger) or test(production_opend_health_rejects_old_build_and_guides_upgrade) or test(probe_opend_reports_closed_port_as_disconnected) or test(probe_from_global_state_enforces_minimum_version_and_maps_neutral_state) or test(disconnected_probe_keeps_its_transport_error_for_manual_retry) or test(web_shutdown_does_not_hold_runtime_lock_while_joining_server) or test(provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update) or test(cache_rejects_stale_generation_and_classifies_freshness)"
         ],
         "testFilter": [
           "adk_session_run_and_optimization_route_contracts_match_go"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "f632beb7",
+        "verifiedAt": "2026-09-25T13:29:58Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -5502,10 +5502,10 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(adk)"
+          "test(adk_missing_mutation_targets_keep_the_go_classification) or test(adk_session_run_and_optimization_route_contracts_match_go) or test(adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed) or test(replayed_stream_payloads_carry_the_go_replay_marker) or test(catalog_session_run_and_observability_routes_answer_ok) or test(session_timeline_failure_keeps_the_legacy_messages_error_code) or test(sync_request_session_scope_parity_with_go) or test(backtests_write_fixture_replays_all_four_go_owned_mutations) or test(backtests_read_routes_match_group_fixture_in_cutover_only) or test(candle_route_treats_blank_period_as_unset_and_rejects_unsupported) or test(candle_period_normalizes_aliases_and_rejects_unsupported) or test(auth_requires_origin_and_csrf_for_session_writes) or test(auth_treats_patch_as_session_write_requiring_csrf) or test(managed_account_write_routes_map_missing_records_to_not_found) or test(broker_settings_writes_replay_frozen_compatibility_cases) or test(catalog_activity_paging_and_filters_match_go_boundaries) or test(strategy_instance_read_routes_match_group_fixture_in_cutover_only) or test(execution_write_fixture_replays_all_seven_go_owned_mutations) or test(execution_write_product_replays_browser_boundary_failure_recovery_and_restart) or test(production_http_broker_reads_serialize_empty_collections_as_arrays) or test(watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog) or test(watchlist_write_fixture_matches_go_owner_for_all_eight_routes) or test(malformed_membership_and_commit_bodies_are_rejected) or test(watchlist_read_routes_match_group_fixture_in_cutover_only) or test(test_product_runtime_startup_failure_rollback) or test(readiness_failure_reclaims_every_started_process_without_starting_dependents) or test(startup_failure_restores_previously_migrated_descriptor_files) or test(backup_snapshot_rejects_an_unusable_backup_directory_and_an_empty_source_path) or test(cleanup_and_compaction_report_the_reclaimed_bytes_measured_on_disk) or test(a_held_lease_on_one_database_rolls_back_the_batch_rebuild_locks) or test(runtime_readiness_allows_external_degradation_but_rejects_incomplete_startup) or test(production_opend_health_diagnoses_enabled_but_unreachable_opend) or test(production_system_read_reports_unavailable_opend_without_fake_health) or test(market_data_health_requires_a_known_logged_in_quote_session) or test(helper_market_data_providers_reconcile_futu_account_order_fill_and_fee) or test(reconciliation_discovers_external_order_into_empty_ledger) or test(production_opend_health_rejects_old_build_and_guides_upgrade) or test(probe_opend_reports_closed_port_as_disconnected) or test(probe_from_global_state_enforces_minimum_version_and_maps_neutral_state) or test(disconnected_probe_keeps_its_transport_error_for_manual_retry) or test(web_shutdown_does_not_hold_runtime_lock_while_joining_server) or test(provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update) or test(cache_rejects_stale_generation_and_classifies_freshness)"
         ],
         "testFilter": [
           "adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed",
@@ -5513,10 +5513,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "f632beb7",
+        "verifiedAt": "2026-09-25T13:29:58Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -5570,20 +5570,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(adk)"
+          "test(adk_missing_mutation_targets_keep_the_go_classification) or test(adk_session_run_and_optimization_route_contracts_match_go) or test(adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed) or test(replayed_stream_payloads_carry_the_go_replay_marker) or test(catalog_session_run_and_observability_routes_answer_ok) or test(session_timeline_failure_keeps_the_legacy_messages_error_code) or test(sync_request_session_scope_parity_with_go) or test(backtests_write_fixture_replays_all_four_go_owned_mutations) or test(backtests_read_routes_match_group_fixture_in_cutover_only) or test(candle_route_treats_blank_period_as_unset_and_rejects_unsupported) or test(candle_period_normalizes_aliases_and_rejects_unsupported) or test(auth_requires_origin_and_csrf_for_session_writes) or test(auth_treats_patch_as_session_write_requiring_csrf) or test(managed_account_write_routes_map_missing_records_to_not_found) or test(broker_settings_writes_replay_frozen_compatibility_cases) or test(catalog_activity_paging_and_filters_match_go_boundaries) or test(strategy_instance_read_routes_match_group_fixture_in_cutover_only) or test(execution_write_fixture_replays_all_seven_go_owned_mutations) or test(execution_write_product_replays_browser_boundary_failure_recovery_and_restart) or test(production_http_broker_reads_serialize_empty_collections_as_arrays) or test(watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog) or test(watchlist_write_fixture_matches_go_owner_for_all_eight_routes) or test(malformed_membership_and_commit_bodies_are_rejected) or test(watchlist_read_routes_match_group_fixture_in_cutover_only) or test(test_product_runtime_startup_failure_rollback) or test(readiness_failure_reclaims_every_started_process_without_starting_dependents) or test(startup_failure_restores_previously_migrated_descriptor_files) or test(backup_snapshot_rejects_an_unusable_backup_directory_and_an_empty_source_path) or test(cleanup_and_compaction_report_the_reclaimed_bytes_measured_on_disk) or test(a_held_lease_on_one_database_rolls_back_the_batch_rebuild_locks) or test(runtime_readiness_allows_external_degradation_but_rejects_incomplete_startup) or test(production_opend_health_diagnoses_enabled_but_unreachable_opend) or test(production_system_read_reports_unavailable_opend_without_fake_health) or test(market_data_health_requires_a_known_logged_in_quote_session) or test(helper_market_data_providers_reconcile_futu_account_order_fill_and_fee) or test(reconciliation_discovers_external_order_into_empty_ledger) or test(production_opend_health_rejects_old_build_and_guides_upgrade) or test(probe_opend_reports_closed_port_as_disconnected) or test(probe_from_global_state_enforces_minimum_version_and_maps_neutral_state) or test(disconnected_probe_keeps_its_transport_error_for_manual_retry) or test(web_shutdown_does_not_hold_runtime_lock_while_joining_server) or test(provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update) or test(cache_rejects_stale_generation_and_classifies_freshness)"
         ],
         "testFilter": [
           "catalog_session_run_and_observability_routes_answer_ok"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "f632beb7",
+        "verifiedAt": "2026-09-25T13:29:58Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -5845,20 +5845,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(adk)"
+          "test(adk_missing_mutation_targets_keep_the_go_classification) or test(adk_session_run_and_optimization_route_contracts_match_go) or test(adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed) or test(replayed_stream_payloads_carry_the_go_replay_marker) or test(catalog_session_run_and_observability_routes_answer_ok) or test(session_timeline_failure_keeps_the_legacy_messages_error_code) or test(sync_request_session_scope_parity_with_go) or test(backtests_write_fixture_replays_all_four_go_owned_mutations) or test(backtests_read_routes_match_group_fixture_in_cutover_only) or test(candle_route_treats_blank_period_as_unset_and_rejects_unsupported) or test(candle_period_normalizes_aliases_and_rejects_unsupported) or test(auth_requires_origin_and_csrf_for_session_writes) or test(auth_treats_patch_as_session_write_requiring_csrf) or test(managed_account_write_routes_map_missing_records_to_not_found) or test(broker_settings_writes_replay_frozen_compatibility_cases) or test(catalog_activity_paging_and_filters_match_go_boundaries) or test(strategy_instance_read_routes_match_group_fixture_in_cutover_only) or test(execution_write_fixture_replays_all_seven_go_owned_mutations) or test(execution_write_product_replays_browser_boundary_failure_recovery_and_restart) or test(production_http_broker_reads_serialize_empty_collections_as_arrays) or test(watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog) or test(watchlist_write_fixture_matches_go_owner_for_all_eight_routes) or test(malformed_membership_and_commit_bodies_are_rejected) or test(watchlist_read_routes_match_group_fixture_in_cutover_only) or test(test_product_runtime_startup_failure_rollback) or test(readiness_failure_reclaims_every_started_process_without_starting_dependents) or test(startup_failure_restores_previously_migrated_descriptor_files) or test(backup_snapshot_rejects_an_unusable_backup_directory_and_an_empty_source_path) or test(cleanup_and_compaction_report_the_reclaimed_bytes_measured_on_disk) or test(a_held_lease_on_one_database_rolls_back_the_batch_rebuild_locks) or test(runtime_readiness_allows_external_degradation_but_rejects_incomplete_startup) or test(production_opend_health_diagnoses_enabled_but_unreachable_opend) or test(production_system_read_reports_unavailable_opend_without_fake_health) or test(market_data_health_requires_a_known_logged_in_quote_session) or test(helper_market_data_providers_reconcile_futu_account_order_fill_and_fee) or test(reconciliation_discovers_external_order_into_empty_ledger) or test(production_opend_health_rejects_old_build_and_guides_upgrade) or test(probe_opend_reports_closed_port_as_disconnected) or test(probe_from_global_state_enforces_minimum_version_and_maps_neutral_state) or test(disconnected_probe_keeps_its_transport_error_for_manual_retry) or test(web_shutdown_does_not_hold_runtime_lock_while_joining_server) or test(provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update) or test(cache_rejects_stale_generation_and_classifies_freshness)"
         ],
         "testFilter": [
           "session_timeline_failure_keeps_the_legacy_messages_error_code"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "f632beb7",
+        "verifiedAt": "2026-09-25T13:29:58Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -6569,11 +6569,10 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--all-targets",
           "--locked",
           "-E",
-          "test(sync_request_session_scope_parity_with_go) | test(backtests_write_fixture_replays_all_four_go_owned_mutations)"
+          "test(adk_missing_mutation_targets_keep_the_go_classification) or test(adk_session_run_and_optimization_route_contracts_match_go) or test(adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed) or test(replayed_stream_payloads_carry_the_go_replay_marker) or test(catalog_session_run_and_observability_routes_answer_ok) or test(session_timeline_failure_keeps_the_legacy_messages_error_code) or test(sync_request_session_scope_parity_with_go) or test(backtests_write_fixture_replays_all_four_go_owned_mutations) or test(backtests_read_routes_match_group_fixture_in_cutover_only) or test(candle_route_treats_blank_period_as_unset_and_rejects_unsupported) or test(candle_period_normalizes_aliases_and_rejects_unsupported) or test(auth_requires_origin_and_csrf_for_session_writes) or test(auth_treats_patch_as_session_write_requiring_csrf) or test(managed_account_write_routes_map_missing_records_to_not_found) or test(broker_settings_writes_replay_frozen_compatibility_cases) or test(catalog_activity_paging_and_filters_match_go_boundaries) or test(strategy_instance_read_routes_match_group_fixture_in_cutover_only) or test(execution_write_fixture_replays_all_seven_go_owned_mutations) or test(execution_write_product_replays_browser_boundary_failure_recovery_and_restart) or test(production_http_broker_reads_serialize_empty_collections_as_arrays) or test(watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog) or test(watchlist_write_fixture_matches_go_owner_for_all_eight_routes) or test(malformed_membership_and_commit_bodies_are_rejected) or test(watchlist_read_routes_match_group_fixture_in_cutover_only) or test(test_product_runtime_startup_failure_rollback) or test(readiness_failure_reclaims_every_started_process_without_starting_dependents) or test(startup_failure_restores_previously_migrated_descriptor_files) or test(backup_snapshot_rejects_an_unusable_backup_directory_and_an_empty_source_path) or test(cleanup_and_compaction_report_the_reclaimed_bytes_measured_on_disk) or test(a_held_lease_on_one_database_rolls_back_the_batch_rebuild_locks) or test(runtime_readiness_allows_external_degradation_but_rejects_incomplete_startup) or test(production_opend_health_diagnoses_enabled_but_unreachable_opend) or test(production_system_read_reports_unavailable_opend_without_fake_health) or test(market_data_health_requires_a_known_logged_in_quote_session) or test(helper_market_data_providers_reconcile_futu_account_order_fill_and_fee) or test(reconciliation_discovers_external_order_into_empty_ledger) or test(production_opend_health_rejects_old_build_and_guides_upgrade) or test(probe_opend_reports_closed_port_as_disconnected) or test(probe_from_global_state_enforces_minimum_version_and_maps_neutral_state) or test(disconnected_probe_keeps_its_transport_error_for_manual_retry) or test(web_shutdown_does_not_hold_runtime_lock_while_joining_server) or test(provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update) or test(cache_rejects_stale_generation_and_classifies_freshness)"
         ],
         "testFilter": [
           "sync_request_session_scope_parity_with_go",
@@ -6581,10 +6580,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "f632beb7",
+        "verifiedAt": "2026-09-25T13:29:58Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -6810,11 +6809,10 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--all-targets",
           "--locked",
           "-E",
-          "test(backtests_read_routes_match_group_fixture_in_cutover_only) | test(backtests_write_fixture_replays_all_four_go_owned_mutations)"
+          "test(adk_missing_mutation_targets_keep_the_go_classification) or test(adk_session_run_and_optimization_route_contracts_match_go) or test(adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed) or test(replayed_stream_payloads_carry_the_go_replay_marker) or test(catalog_session_run_and_observability_routes_answer_ok) or test(session_timeline_failure_keeps_the_legacy_messages_error_code) or test(sync_request_session_scope_parity_with_go) or test(backtests_write_fixture_replays_all_four_go_owned_mutations) or test(backtests_read_routes_match_group_fixture_in_cutover_only) or test(candle_route_treats_blank_period_as_unset_and_rejects_unsupported) or test(candle_period_normalizes_aliases_and_rejects_unsupported) or test(auth_requires_origin_and_csrf_for_session_writes) or test(auth_treats_patch_as_session_write_requiring_csrf) or test(managed_account_write_routes_map_missing_records_to_not_found) or test(broker_settings_writes_replay_frozen_compatibility_cases) or test(catalog_activity_paging_and_filters_match_go_boundaries) or test(strategy_instance_read_routes_match_group_fixture_in_cutover_only) or test(execution_write_fixture_replays_all_seven_go_owned_mutations) or test(execution_write_product_replays_browser_boundary_failure_recovery_and_restart) or test(production_http_broker_reads_serialize_empty_collections_as_arrays) or test(watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog) or test(watchlist_write_fixture_matches_go_owner_for_all_eight_routes) or test(malformed_membership_and_commit_bodies_are_rejected) or test(watchlist_read_routes_match_group_fixture_in_cutover_only) or test(test_product_runtime_startup_failure_rollback) or test(readiness_failure_reclaims_every_started_process_without_starting_dependents) or test(startup_failure_restores_previously_migrated_descriptor_files) or test(backup_snapshot_rejects_an_unusable_backup_directory_and_an_empty_source_path) or test(cleanup_and_compaction_report_the_reclaimed_bytes_measured_on_disk) or test(a_held_lease_on_one_database_rolls_back_the_batch_rebuild_locks) or test(runtime_readiness_allows_external_degradation_but_rejects_incomplete_startup) or test(production_opend_health_diagnoses_enabled_but_unreachable_opend) or test(production_system_read_reports_unavailable_opend_without_fake_health) or test(market_data_health_requires_a_known_logged_in_quote_session) or test(helper_market_data_providers_reconcile_futu_account_order_fill_and_fee) or test(reconciliation_discovers_external_order_into_empty_ledger) or test(production_opend_health_rejects_old_build_and_guides_upgrade) or test(probe_opend_reports_closed_port_as_disconnected) or test(probe_from_global_state_enforces_minimum_version_and_maps_neutral_state) or test(disconnected_probe_keeps_its_transport_error_for_manual_retry) or test(web_shutdown_does_not_hold_runtime_lock_while_joining_server) or test(provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update) or test(cache_rejects_stale_generation_and_classifies_freshness)"
         ],
         "testFilter": [
           "backtests_read_routes_match_group_fixture_in_cutover_only",
@@ -6822,10 +6820,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "f632beb7",
+        "verifiedAt": "2026-09-25T13:29:58Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -7476,10 +7474,10 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_missing_mutation_targets_keep_the_go_classification) or test(adk_session_run_and_optimization_route_contracts_match_go) or test(adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed) or test(replayed_stream_payloads_carry_the_go_replay_marker) or test(catalog_session_run_and_observability_routes_answer_ok) or test(session_timeline_failure_keeps_the_legacy_messages_error_code) or test(sync_request_session_scope_parity_with_go) or test(backtests_write_fixture_replays_all_four_go_owned_mutations) or test(backtests_read_routes_match_group_fixture_in_cutover_only) or test(candle_route_treats_blank_period_as_unset_and_rejects_unsupported) or test(candle_period_normalizes_aliases_and_rejects_unsupported) or test(auth_requires_origin_and_csrf_for_session_writes) or test(auth_treats_patch_as_session_write_requiring_csrf) or test(managed_account_write_routes_map_missing_records_to_not_found) or test(broker_settings_writes_replay_frozen_compatibility_cases) or test(catalog_activity_paging_and_filters_match_go_boundaries) or test(strategy_instance_read_routes_match_group_fixture_in_cutover_only) or test(execution_write_fixture_replays_all_seven_go_owned_mutations) or test(execution_write_product_replays_browser_boundary_failure_recovery_and_restart) or test(production_http_broker_reads_serialize_empty_collections_as_arrays) or test(watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog) or test(watchlist_write_fixture_matches_go_owner_for_all_eight_routes) or test(malformed_membership_and_commit_bodies_are_rejected) or test(watchlist_read_routes_match_group_fixture_in_cutover_only) or test(test_product_runtime_startup_failure_rollback) or test(readiness_failure_reclaims_every_started_process_without_starting_dependents) or test(startup_failure_restores_previously_migrated_descriptor_files) or test(backup_snapshot_rejects_an_unusable_backup_directory_and_an_empty_source_path) or test(cleanup_and_compaction_report_the_reclaimed_bytes_measured_on_disk) or test(a_held_lease_on_one_database_rolls_back_the_batch_rebuild_locks) or test(runtime_readiness_allows_external_degradation_but_rejects_incomplete_startup) or test(production_opend_health_diagnoses_enabled_but_unreachable_opend) or test(production_system_read_reports_unavailable_opend_without_fake_health) or test(market_data_health_requires_a_known_logged_in_quote_session) or test(helper_market_data_providers_reconcile_futu_account_order_fill_and_fee) or test(reconciliation_discovers_external_order_into_empty_ledger) or test(production_opend_health_rejects_old_build_and_guides_upgrade) or test(probe_opend_reports_closed_port_as_disconnected) or test(probe_from_global_state_enforces_minimum_version_and_maps_neutral_state) or test(disconnected_probe_keeps_its_transport_error_for_manual_retry) or test(web_shutdown_does_not_hold_runtime_lock_while_joining_server) or test(provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update) or test(cache_rejects_stale_generation_and_classifies_freshness)"
         ],
         "testFilter": [
           "candle_route_treats_blank_period_as_unset_and_rejects_unsupported",
@@ -7487,10 +7485,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "f632beb7",
+        "verifiedAt": "2026-09-25T13:29:58Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -13636,20 +13634,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-api",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(auth_requires_origin_and_csrf_for_session_writes)"
+          "test(adk_missing_mutation_targets_keep_the_go_classification) or test(adk_session_run_and_optimization_route_contracts_match_go) or test(adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed) or test(replayed_stream_payloads_carry_the_go_replay_marker) or test(catalog_session_run_and_observability_routes_answer_ok) or test(session_timeline_failure_keeps_the_legacy_messages_error_code) or test(sync_request_session_scope_parity_with_go) or test(backtests_write_fixture_replays_all_four_go_owned_mutations) or test(backtests_read_routes_match_group_fixture_in_cutover_only) or test(candle_route_treats_blank_period_as_unset_and_rejects_unsupported) or test(candle_period_normalizes_aliases_and_rejects_unsupported) or test(auth_requires_origin_and_csrf_for_session_writes) or test(auth_treats_patch_as_session_write_requiring_csrf) or test(managed_account_write_routes_map_missing_records_to_not_found) or test(broker_settings_writes_replay_frozen_compatibility_cases) or test(catalog_activity_paging_and_filters_match_go_boundaries) or test(strategy_instance_read_routes_match_group_fixture_in_cutover_only) or test(execution_write_fixture_replays_all_seven_go_owned_mutations) or test(execution_write_product_replays_browser_boundary_failure_recovery_and_restart) or test(production_http_broker_reads_serialize_empty_collections_as_arrays) or test(watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog) or test(watchlist_write_fixture_matches_go_owner_for_all_eight_routes) or test(malformed_membership_and_commit_bodies_are_rejected) or test(watchlist_read_routes_match_group_fixture_in_cutover_only) or test(test_product_runtime_startup_failure_rollback) or test(readiness_failure_reclaims_every_started_process_without_starting_dependents) or test(startup_failure_restores_previously_migrated_descriptor_files) or test(backup_snapshot_rejects_an_unusable_backup_directory_and_an_empty_source_path) or test(cleanup_and_compaction_report_the_reclaimed_bytes_measured_on_disk) or test(a_held_lease_on_one_database_rolls_back_the_batch_rebuild_locks) or test(runtime_readiness_allows_external_degradation_but_rejects_incomplete_startup) or test(production_opend_health_diagnoses_enabled_but_unreachable_opend) or test(production_system_read_reports_unavailable_opend_without_fake_health) or test(market_data_health_requires_a_known_logged_in_quote_session) or test(helper_market_data_providers_reconcile_futu_account_order_fill_and_fee) or test(reconciliation_discovers_external_order_into_empty_ledger) or test(production_opend_health_rejects_old_build_and_guides_upgrade) or test(probe_opend_reports_closed_port_as_disconnected) or test(probe_from_global_state_enforces_minimum_version_and_maps_neutral_state) or test(disconnected_probe_keeps_its_transport_error_for_manual_retry) or test(web_shutdown_does_not_hold_runtime_lock_while_joining_server) or test(provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update) or test(cache_rejects_stale_generation_and_classifies_freshness)"
         ],
         "testFilter": [
           "auth_requires_origin_and_csrf_for_session_writes"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "f632beb7",
+        "verifiedAt": "2026-09-25T13:29:58Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -13703,20 +13701,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-api",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(auth_treats_patch_as_session_write_requiring_csrf)"
+          "test(adk_missing_mutation_targets_keep_the_go_classification) or test(adk_session_run_and_optimization_route_contracts_match_go) or test(adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed) or test(replayed_stream_payloads_carry_the_go_replay_marker) or test(catalog_session_run_and_observability_routes_answer_ok) or test(session_timeline_failure_keeps_the_legacy_messages_error_code) or test(sync_request_session_scope_parity_with_go) or test(backtests_write_fixture_replays_all_four_go_owned_mutations) or test(backtests_read_routes_match_group_fixture_in_cutover_only) or test(candle_route_treats_blank_period_as_unset_and_rejects_unsupported) or test(candle_period_normalizes_aliases_and_rejects_unsupported) or test(auth_requires_origin_and_csrf_for_session_writes) or test(auth_treats_patch_as_session_write_requiring_csrf) or test(managed_account_write_routes_map_missing_records_to_not_found) or test(broker_settings_writes_replay_frozen_compatibility_cases) or test(catalog_activity_paging_and_filters_match_go_boundaries) or test(strategy_instance_read_routes_match_group_fixture_in_cutover_only) or test(execution_write_fixture_replays_all_seven_go_owned_mutations) or test(execution_write_product_replays_browser_boundary_failure_recovery_and_restart) or test(production_http_broker_reads_serialize_empty_collections_as_arrays) or test(watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog) or test(watchlist_write_fixture_matches_go_owner_for_all_eight_routes) or test(malformed_membership_and_commit_bodies_are_rejected) or test(watchlist_read_routes_match_group_fixture_in_cutover_only) or test(test_product_runtime_startup_failure_rollback) or test(readiness_failure_reclaims_every_started_process_without_starting_dependents) or test(startup_failure_restores_previously_migrated_descriptor_files) or test(backup_snapshot_rejects_an_unusable_backup_directory_and_an_empty_source_path) or test(cleanup_and_compaction_report_the_reclaimed_bytes_measured_on_disk) or test(a_held_lease_on_one_database_rolls_back_the_batch_rebuild_locks) or test(runtime_readiness_allows_external_degradation_but_rejects_incomplete_startup) or test(production_opend_health_diagnoses_enabled_but_unreachable_opend) or test(production_system_read_reports_unavailable_opend_without_fake_health) or test(market_data_health_requires_a_known_logged_in_quote_session) or test(helper_market_data_providers_reconcile_futu_account_order_fill_and_fee) or test(reconciliation_discovers_external_order_into_empty_ledger) or test(production_opend_health_rejects_old_build_and_guides_upgrade) or test(probe_opend_reports_closed_port_as_disconnected) or test(probe_from_global_state_enforces_minimum_version_and_maps_neutral_state) or test(disconnected_probe_keeps_its_transport_error_for_manual_retry) or test(web_shutdown_does_not_hold_runtime_lock_while_joining_server) or test(provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update) or test(cache_rejects_stale_generation_and_classifies_freshness)"
         ],
         "testFilter": [
           "auth_treats_patch_as_session_write_requiring_csrf"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "f632beb7",
+        "verifiedAt": "2026-09-25T13:29:58Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -17115,10 +17113,10 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_missing_mutation_targets_keep_the_go_classification) or test(adk_session_run_and_optimization_route_contracts_match_go) or test(adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed) or test(replayed_stream_payloads_carry_the_go_replay_marker) or test(catalog_session_run_and_observability_routes_answer_ok) or test(session_timeline_failure_keeps_the_legacy_messages_error_code) or test(sync_request_session_scope_parity_with_go) or test(backtests_write_fixture_replays_all_four_go_owned_mutations) or test(backtests_read_routes_match_group_fixture_in_cutover_only) or test(candle_route_treats_blank_period_as_unset_and_rejects_unsupported) or test(candle_period_normalizes_aliases_and_rejects_unsupported) or test(auth_requires_origin_and_csrf_for_session_writes) or test(auth_treats_patch_as_session_write_requiring_csrf) or test(managed_account_write_routes_map_missing_records_to_not_found) or test(broker_settings_writes_replay_frozen_compatibility_cases) or test(catalog_activity_paging_and_filters_match_go_boundaries) or test(strategy_instance_read_routes_match_group_fixture_in_cutover_only) or test(execution_write_fixture_replays_all_seven_go_owned_mutations) or test(execution_write_product_replays_browser_boundary_failure_recovery_and_restart) or test(production_http_broker_reads_serialize_empty_collections_as_arrays) or test(watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog) or test(watchlist_write_fixture_matches_go_owner_for_all_eight_routes) or test(malformed_membership_and_commit_bodies_are_rejected) or test(watchlist_read_routes_match_group_fixture_in_cutover_only) or test(test_product_runtime_startup_failure_rollback) or test(readiness_failure_reclaims_every_started_process_without_starting_dependents) or test(startup_failure_restores_previously_migrated_descriptor_files) or test(backup_snapshot_rejects_an_unusable_backup_directory_and_an_empty_source_path) or test(cleanup_and_compaction_report_the_reclaimed_bytes_measured_on_disk) or test(a_held_lease_on_one_database_rolls_back_the_batch_rebuild_locks) or test(runtime_readiness_allows_external_degradation_but_rejects_incomplete_startup) or test(production_opend_health_diagnoses_enabled_but_unreachable_opend) or test(production_system_read_reports_unavailable_opend_without_fake_health) or test(market_data_health_requires_a_known_logged_in_quote_session) or test(helper_market_data_providers_reconcile_futu_account_order_fill_and_fee) or test(reconciliation_discovers_external_order_into_empty_ledger) or test(production_opend_health_rejects_old_build_and_guides_upgrade) or test(probe_opend_reports_closed_port_as_disconnected) or test(probe_from_global_state_enforces_minimum_version_and_maps_neutral_state) or test(disconnected_probe_keeps_its_transport_error_for_manual_retry) or test(web_shutdown_does_not_hold_runtime_lock_while_joining_server) or test(provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update) or test(cache_rejects_stale_generation_and_classifies_freshness)"
         ],
         "testFilter": [
           "managed_account_write_routes_map_missing_records_to_not_found",
@@ -17126,10 +17124,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "f632beb7",
+        "verifiedAt": "2026-09-25T13:29:58Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -18540,11 +18538,10 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--all-targets",
           "--locked",
           "-E",
-          "test(catalog_activity_paging_and_filters_match_go_boundaries) | test(strategy_instance_read_routes_match_group_fixture_in_cutover_only)"
+          "test(adk_missing_mutation_targets_keep_the_go_classification) or test(adk_session_run_and_optimization_route_contracts_match_go) or test(adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed) or test(replayed_stream_payloads_carry_the_go_replay_marker) or test(catalog_session_run_and_observability_routes_answer_ok) or test(session_timeline_failure_keeps_the_legacy_messages_error_code) or test(sync_request_session_scope_parity_with_go) or test(backtests_write_fixture_replays_all_four_go_owned_mutations) or test(backtests_read_routes_match_group_fixture_in_cutover_only) or test(candle_route_treats_blank_period_as_unset_and_rejects_unsupported) or test(candle_period_normalizes_aliases_and_rejects_unsupported) or test(auth_requires_origin_and_csrf_for_session_writes) or test(auth_treats_patch_as_session_write_requiring_csrf) or test(managed_account_write_routes_map_missing_records_to_not_found) or test(broker_settings_writes_replay_frozen_compatibility_cases) or test(catalog_activity_paging_and_filters_match_go_boundaries) or test(strategy_instance_read_routes_match_group_fixture_in_cutover_only) or test(execution_write_fixture_replays_all_seven_go_owned_mutations) or test(execution_write_product_replays_browser_boundary_failure_recovery_and_restart) or test(production_http_broker_reads_serialize_empty_collections_as_arrays) or test(watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog) or test(watchlist_write_fixture_matches_go_owner_for_all_eight_routes) or test(malformed_membership_and_commit_bodies_are_rejected) or test(watchlist_read_routes_match_group_fixture_in_cutover_only) or test(test_product_runtime_startup_failure_rollback) or test(readiness_failure_reclaims_every_started_process_without_starting_dependents) or test(startup_failure_restores_previously_migrated_descriptor_files) or test(backup_snapshot_rejects_an_unusable_backup_directory_and_an_empty_source_path) or test(cleanup_and_compaction_report_the_reclaimed_bytes_measured_on_disk) or test(a_held_lease_on_one_database_rolls_back_the_batch_rebuild_locks) or test(runtime_readiness_allows_external_degradation_but_rejects_incomplete_startup) or test(production_opend_health_diagnoses_enabled_but_unreachable_opend) or test(production_system_read_reports_unavailable_opend_without_fake_health) or test(market_data_health_requires_a_known_logged_in_quote_session) or test(helper_market_data_providers_reconcile_futu_account_order_fill_and_fee) or test(reconciliation_discovers_external_order_into_empty_ledger) or test(production_opend_health_rejects_old_build_and_guides_upgrade) or test(probe_opend_reports_closed_port_as_disconnected) or test(probe_from_global_state_enforces_minimum_version_and_maps_neutral_state) or test(disconnected_probe_keeps_its_transport_error_for_manual_retry) or test(web_shutdown_does_not_hold_runtime_lock_while_joining_server) or test(provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update) or test(cache_rejects_stale_generation_and_classifies_freshness)"
         ],
         "testFilter": [
           "catalog_activity_paging_and_filters_match_go_boundaries",
@@ -18552,10 +18549,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "f632beb7",
+        "verifiedAt": "2026-09-25T13:29:58Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -19295,21 +19292,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--all-targets",
           "--locked",
           "-E",
-          "test(catalog_activity_paging_and_filters_match_go_boundaries)"
+          "test(adk_missing_mutation_targets_keep_the_go_classification) or test(adk_session_run_and_optimization_route_contracts_match_go) or test(adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed) or test(replayed_stream_payloads_carry_the_go_replay_marker) or test(catalog_session_run_and_observability_routes_answer_ok) or test(session_timeline_failure_keeps_the_legacy_messages_error_code) or test(sync_request_session_scope_parity_with_go) or test(backtests_write_fixture_replays_all_four_go_owned_mutations) or test(backtests_read_routes_match_group_fixture_in_cutover_only) or test(candle_route_treats_blank_period_as_unset_and_rejects_unsupported) or test(candle_period_normalizes_aliases_and_rejects_unsupported) or test(auth_requires_origin_and_csrf_for_session_writes) or test(auth_treats_patch_as_session_write_requiring_csrf) or test(managed_account_write_routes_map_missing_records_to_not_found) or test(broker_settings_writes_replay_frozen_compatibility_cases) or test(catalog_activity_paging_and_filters_match_go_boundaries) or test(strategy_instance_read_routes_match_group_fixture_in_cutover_only) or test(execution_write_fixture_replays_all_seven_go_owned_mutations) or test(execution_write_product_replays_browser_boundary_failure_recovery_and_restart) or test(production_http_broker_reads_serialize_empty_collections_as_arrays) or test(watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog) or test(watchlist_write_fixture_matches_go_owner_for_all_eight_routes) or test(malformed_membership_and_commit_bodies_are_rejected) or test(watchlist_read_routes_match_group_fixture_in_cutover_only) or test(test_product_runtime_startup_failure_rollback) or test(readiness_failure_reclaims_every_started_process_without_starting_dependents) or test(startup_failure_restores_previously_migrated_descriptor_files) or test(backup_snapshot_rejects_an_unusable_backup_directory_and_an_empty_source_path) or test(cleanup_and_compaction_report_the_reclaimed_bytes_measured_on_disk) or test(a_held_lease_on_one_database_rolls_back_the_batch_rebuild_locks) or test(runtime_readiness_allows_external_degradation_but_rejects_incomplete_startup) or test(production_opend_health_diagnoses_enabled_but_unreachable_opend) or test(production_system_read_reports_unavailable_opend_without_fake_health) or test(market_data_health_requires_a_known_logged_in_quote_session) or test(helper_market_data_providers_reconcile_futu_account_order_fill_and_fee) or test(reconciliation_discovers_external_order_into_empty_ledger) or test(production_opend_health_rejects_old_build_and_guides_upgrade) or test(probe_opend_reports_closed_port_as_disconnected) or test(probe_from_global_state_enforces_minimum_version_and_maps_neutral_state) or test(disconnected_probe_keeps_its_transport_error_for_manual_retry) or test(web_shutdown_does_not_hold_runtime_lock_while_joining_server) or test(provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update) or test(cache_rejects_stale_generation_and_classifies_freshness)"
         ],
         "testFilter": [
           "catalog_activity_paging_and_filters_match_go_boundaries"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "f632beb7",
+        "verifiedAt": "2026-09-25T13:29:58Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -20956,11 +20952,10 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--all-targets",
           "--locked",
           "-E",
-          "test(execution_write_fixture_replays_all_seven_go_owned_mutations) | test(execution_write_product_replays_browser_boundary_failure_recovery_and_restart)"
+          "test(adk_missing_mutation_targets_keep_the_go_classification) or test(adk_session_run_and_optimization_route_contracts_match_go) or test(adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed) or test(replayed_stream_payloads_carry_the_go_replay_marker) or test(catalog_session_run_and_observability_routes_answer_ok) or test(session_timeline_failure_keeps_the_legacy_messages_error_code) or test(sync_request_session_scope_parity_with_go) or test(backtests_write_fixture_replays_all_four_go_owned_mutations) or test(backtests_read_routes_match_group_fixture_in_cutover_only) or test(candle_route_treats_blank_period_as_unset_and_rejects_unsupported) or test(candle_period_normalizes_aliases_and_rejects_unsupported) or test(auth_requires_origin_and_csrf_for_session_writes) or test(auth_treats_patch_as_session_write_requiring_csrf) or test(managed_account_write_routes_map_missing_records_to_not_found) or test(broker_settings_writes_replay_frozen_compatibility_cases) or test(catalog_activity_paging_and_filters_match_go_boundaries) or test(strategy_instance_read_routes_match_group_fixture_in_cutover_only) or test(execution_write_fixture_replays_all_seven_go_owned_mutations) or test(execution_write_product_replays_browser_boundary_failure_recovery_and_restart) or test(production_http_broker_reads_serialize_empty_collections_as_arrays) or test(watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog) or test(watchlist_write_fixture_matches_go_owner_for_all_eight_routes) or test(malformed_membership_and_commit_bodies_are_rejected) or test(watchlist_read_routes_match_group_fixture_in_cutover_only) or test(test_product_runtime_startup_failure_rollback) or test(readiness_failure_reclaims_every_started_process_without_starting_dependents) or test(startup_failure_restores_previously_migrated_descriptor_files) or test(backup_snapshot_rejects_an_unusable_backup_directory_and_an_empty_source_path) or test(cleanup_and_compaction_report_the_reclaimed_bytes_measured_on_disk) or test(a_held_lease_on_one_database_rolls_back_the_batch_rebuild_locks) or test(runtime_readiness_allows_external_degradation_but_rejects_incomplete_startup) or test(production_opend_health_diagnoses_enabled_but_unreachable_opend) or test(production_system_read_reports_unavailable_opend_without_fake_health) or test(market_data_health_requires_a_known_logged_in_quote_session) or test(helper_market_data_providers_reconcile_futu_account_order_fill_and_fee) or test(reconciliation_discovers_external_order_into_empty_ledger) or test(production_opend_health_rejects_old_build_and_guides_upgrade) or test(probe_opend_reports_closed_port_as_disconnected) or test(probe_from_global_state_enforces_minimum_version_and_maps_neutral_state) or test(disconnected_probe_keeps_its_transport_error_for_manual_retry) or test(web_shutdown_does_not_hold_runtime_lock_while_joining_server) or test(provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update) or test(cache_rejects_stale_generation_and_classifies_freshness)"
         ],
         "testFilter": [
           "execution_write_fixture_replays_all_seven_go_owned_mutations",
@@ -20968,10 +20963,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "f632beb7",
+        "verifiedAt": "2026-09-25T13:29:58Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -22053,22 +22048,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--all-targets",
           "--locked",
-          "--lib",
           "-E",
-          "test(production_http_broker_reads_serialize_empty_collections_as_arrays)"
+          "test(adk_missing_mutation_targets_keep_the_go_classification) or test(adk_session_run_and_optimization_route_contracts_match_go) or test(adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed) or test(replayed_stream_payloads_carry_the_go_replay_marker) or test(catalog_session_run_and_observability_routes_answer_ok) or test(session_timeline_failure_keeps_the_legacy_messages_error_code) or test(sync_request_session_scope_parity_with_go) or test(backtests_write_fixture_replays_all_four_go_owned_mutations) or test(backtests_read_routes_match_group_fixture_in_cutover_only) or test(candle_route_treats_blank_period_as_unset_and_rejects_unsupported) or test(candle_period_normalizes_aliases_and_rejects_unsupported) or test(auth_requires_origin_and_csrf_for_session_writes) or test(auth_treats_patch_as_session_write_requiring_csrf) or test(managed_account_write_routes_map_missing_records_to_not_found) or test(broker_settings_writes_replay_frozen_compatibility_cases) or test(catalog_activity_paging_and_filters_match_go_boundaries) or test(strategy_instance_read_routes_match_group_fixture_in_cutover_only) or test(execution_write_fixture_replays_all_seven_go_owned_mutations) or test(execution_write_product_replays_browser_boundary_failure_recovery_and_restart) or test(production_http_broker_reads_serialize_empty_collections_as_arrays) or test(watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog) or test(watchlist_write_fixture_matches_go_owner_for_all_eight_routes) or test(malformed_membership_and_commit_bodies_are_rejected) or test(watchlist_read_routes_match_group_fixture_in_cutover_only) or test(test_product_runtime_startup_failure_rollback) or test(readiness_failure_reclaims_every_started_process_without_starting_dependents) or test(startup_failure_restores_previously_migrated_descriptor_files) or test(backup_snapshot_rejects_an_unusable_backup_directory_and_an_empty_source_path) or test(cleanup_and_compaction_report_the_reclaimed_bytes_measured_on_disk) or test(a_held_lease_on_one_database_rolls_back_the_batch_rebuild_locks) or test(runtime_readiness_allows_external_degradation_but_rejects_incomplete_startup) or test(production_opend_health_diagnoses_enabled_but_unreachable_opend) or test(production_system_read_reports_unavailable_opend_without_fake_health) or test(market_data_health_requires_a_known_logged_in_quote_session) or test(helper_market_data_providers_reconcile_futu_account_order_fill_and_fee) or test(reconciliation_discovers_external_order_into_empty_ledger) or test(production_opend_health_rejects_old_build_and_guides_upgrade) or test(probe_opend_reports_closed_port_as_disconnected) or test(probe_from_global_state_enforces_minimum_version_and_maps_neutral_state) or test(disconnected_probe_keeps_its_transport_error_for_manual_retry) or test(web_shutdown_does_not_hold_runtime_lock_while_joining_server) or test(provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update) or test(cache_rejects_stale_generation_and_classifies_freshness)"
         ],
         "testFilter": [
           "production_http_broker_reads_serialize_empty_collections_as_arrays"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "f632beb7",
+        "verifiedAt": "2026-09-25T13:29:58Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -22698,19 +22691,10 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
           "--all-targets",
           "--locked",
-          "&&",
-          "node",
-          "scripts/quality/cargo-nextest.mjs",
-          "run",
-          "-p",
-          "jftrade-engine",
-          "--test",
-          "watchlist_write_compatibility",
-          "--locked"
+          "-E",
+          "test(adk_missing_mutation_targets_keep_the_go_classification) or test(adk_session_run_and_optimization_route_contracts_match_go) or test(adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed) or test(replayed_stream_payloads_carry_the_go_replay_marker) or test(catalog_session_run_and_observability_routes_answer_ok) or test(session_timeline_failure_keeps_the_legacy_messages_error_code) or test(sync_request_session_scope_parity_with_go) or test(backtests_write_fixture_replays_all_four_go_owned_mutations) or test(backtests_read_routes_match_group_fixture_in_cutover_only) or test(candle_route_treats_blank_period_as_unset_and_rejects_unsupported) or test(candle_period_normalizes_aliases_and_rejects_unsupported) or test(auth_requires_origin_and_csrf_for_session_writes) or test(auth_treats_patch_as_session_write_requiring_csrf) or test(managed_account_write_routes_map_missing_records_to_not_found) or test(broker_settings_writes_replay_frozen_compatibility_cases) or test(catalog_activity_paging_and_filters_match_go_boundaries) or test(strategy_instance_read_routes_match_group_fixture_in_cutover_only) or test(execution_write_fixture_replays_all_seven_go_owned_mutations) or test(execution_write_product_replays_browser_boundary_failure_recovery_and_restart) or test(production_http_broker_reads_serialize_empty_collections_as_arrays) or test(watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog) or test(watchlist_write_fixture_matches_go_owner_for_all_eight_routes) or test(malformed_membership_and_commit_bodies_are_rejected) or test(watchlist_read_routes_match_group_fixture_in_cutover_only) or test(test_product_runtime_startup_failure_rollback) or test(readiness_failure_reclaims_every_started_process_without_starting_dependents) or test(startup_failure_restores_previously_migrated_descriptor_files) or test(backup_snapshot_rejects_an_unusable_backup_directory_and_an_empty_source_path) or test(cleanup_and_compaction_report_the_reclaimed_bytes_measured_on_disk) or test(a_held_lease_on_one_database_rolls_back_the_batch_rebuild_locks) or test(runtime_readiness_allows_external_degradation_but_rejects_incomplete_startup) or test(production_opend_health_diagnoses_enabled_but_unreachable_opend) or test(production_system_read_reports_unavailable_opend_without_fake_health) or test(market_data_health_requires_a_known_logged_in_quote_session) or test(helper_market_data_providers_reconcile_futu_account_order_fill_and_fee) or test(reconciliation_discovers_external_order_into_empty_ledger) or test(production_opend_health_rejects_old_build_and_guides_upgrade) or test(probe_opend_reports_closed_port_as_disconnected) or test(probe_from_global_state_enforces_minimum_version_and_maps_neutral_state) or test(disconnected_probe_keeps_its_transport_error_for_manual_retry) or test(web_shutdown_does_not_hold_runtime_lock_while_joining_server) or test(provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update) or test(cache_rejects_stale_generation_and_classifies_freshness)"
         ],
         "testFilter": [
           "watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog",
@@ -22718,10 +22702,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "f632beb7",
+        "verifiedAt": "2026-09-25T13:29:58Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -22952,21 +22936,10 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
-          "--lib",
-          "-E",
-          "test(malformed_membership_and_commit_bodies_are_rejected)",
+          "--all-targets",
           "--locked",
-          "&&",
-          "node",
-          "scripts/quality/cargo-nextest.mjs",
-          "run",
-          "-p",
-          "jftrade-engine",
-          "--test",
-          "watchlist_write_compatibility",
-          "--locked"
+          "-E",
+          "test(adk_missing_mutation_targets_keep_the_go_classification) or test(adk_session_run_and_optimization_route_contracts_match_go) or test(adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed) or test(replayed_stream_payloads_carry_the_go_replay_marker) or test(catalog_session_run_and_observability_routes_answer_ok) or test(session_timeline_failure_keeps_the_legacy_messages_error_code) or test(sync_request_session_scope_parity_with_go) or test(backtests_write_fixture_replays_all_four_go_owned_mutations) or test(backtests_read_routes_match_group_fixture_in_cutover_only) or test(candle_route_treats_blank_period_as_unset_and_rejects_unsupported) or test(candle_period_normalizes_aliases_and_rejects_unsupported) or test(auth_requires_origin_and_csrf_for_session_writes) or test(auth_treats_patch_as_session_write_requiring_csrf) or test(managed_account_write_routes_map_missing_records_to_not_found) or test(broker_settings_writes_replay_frozen_compatibility_cases) or test(catalog_activity_paging_and_filters_match_go_boundaries) or test(strategy_instance_read_routes_match_group_fixture_in_cutover_only) or test(execution_write_fixture_replays_all_seven_go_owned_mutations) or test(execution_write_product_replays_browser_boundary_failure_recovery_and_restart) or test(production_http_broker_reads_serialize_empty_collections_as_arrays) or test(watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog) or test(watchlist_write_fixture_matches_go_owner_for_all_eight_routes) or test(malformed_membership_and_commit_bodies_are_rejected) or test(watchlist_read_routes_match_group_fixture_in_cutover_only) or test(test_product_runtime_startup_failure_rollback) or test(readiness_failure_reclaims_every_started_process_without_starting_dependents) or test(startup_failure_restores_previously_migrated_descriptor_files) or test(backup_snapshot_rejects_an_unusable_backup_directory_and_an_empty_source_path) or test(cleanup_and_compaction_report_the_reclaimed_bytes_measured_on_disk) or test(a_held_lease_on_one_database_rolls_back_the_batch_rebuild_locks) or test(runtime_readiness_allows_external_degradation_but_rejects_incomplete_startup) or test(production_opend_health_diagnoses_enabled_but_unreachable_opend) or test(production_system_read_reports_unavailable_opend_without_fake_health) or test(market_data_health_requires_a_known_logged_in_quote_session) or test(helper_market_data_providers_reconcile_futu_account_order_fill_and_fee) or test(reconciliation_discovers_external_order_into_empty_ledger) or test(production_opend_health_rejects_old_build_and_guides_upgrade) or test(probe_opend_reports_closed_port_as_disconnected) or test(probe_from_global_state_enforces_minimum_version_and_maps_neutral_state) or test(disconnected_probe_keeps_its_transport_error_for_manual_retry) or test(web_shutdown_does_not_hold_runtime_lock_while_joining_server) or test(provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update) or test(cache_rejects_stale_generation_and_classifies_freshness)"
         ],
         "testFilter": [
           "malformed_membership_and_commit_bodies_are_rejected",
@@ -22975,10 +22948,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "f632beb7",
+        "verifiedAt": "2026-09-25T13:29:58Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -23726,10 +23699,10 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(test_product_runtime_startup_failure_rollback)"
+          "test(adk_missing_mutation_targets_keep_the_go_classification) or test(adk_session_run_and_optimization_route_contracts_match_go) or test(adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed) or test(replayed_stream_payloads_carry_the_go_replay_marker) or test(catalog_session_run_and_observability_routes_answer_ok) or test(session_timeline_failure_keeps_the_legacy_messages_error_code) or test(sync_request_session_scope_parity_with_go) or test(backtests_write_fixture_replays_all_four_go_owned_mutations) or test(backtests_read_routes_match_group_fixture_in_cutover_only) or test(candle_route_treats_blank_period_as_unset_and_rejects_unsupported) or test(candle_period_normalizes_aliases_and_rejects_unsupported) or test(auth_requires_origin_and_csrf_for_session_writes) or test(auth_treats_patch_as_session_write_requiring_csrf) or test(managed_account_write_routes_map_missing_records_to_not_found) or test(broker_settings_writes_replay_frozen_compatibility_cases) or test(catalog_activity_paging_and_filters_match_go_boundaries) or test(strategy_instance_read_routes_match_group_fixture_in_cutover_only) or test(execution_write_fixture_replays_all_seven_go_owned_mutations) or test(execution_write_product_replays_browser_boundary_failure_recovery_and_restart) or test(production_http_broker_reads_serialize_empty_collections_as_arrays) or test(watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog) or test(watchlist_write_fixture_matches_go_owner_for_all_eight_routes) or test(malformed_membership_and_commit_bodies_are_rejected) or test(watchlist_read_routes_match_group_fixture_in_cutover_only) or test(test_product_runtime_startup_failure_rollback) or test(readiness_failure_reclaims_every_started_process_without_starting_dependents) or test(startup_failure_restores_previously_migrated_descriptor_files) or test(backup_snapshot_rejects_an_unusable_backup_directory_and_an_empty_source_path) or test(cleanup_and_compaction_report_the_reclaimed_bytes_measured_on_disk) or test(a_held_lease_on_one_database_rolls_back_the_batch_rebuild_locks) or test(runtime_readiness_allows_external_degradation_but_rejects_incomplete_startup) or test(production_opend_health_diagnoses_enabled_but_unreachable_opend) or test(production_system_read_reports_unavailable_opend_without_fake_health) or test(market_data_health_requires_a_known_logged_in_quote_session) or test(helper_market_data_providers_reconcile_futu_account_order_fill_and_fee) or test(reconciliation_discovers_external_order_into_empty_ledger) or test(production_opend_health_rejects_old_build_and_guides_upgrade) or test(probe_opend_reports_closed_port_as_disconnected) or test(probe_from_global_state_enforces_minimum_version_and_maps_neutral_state) or test(disconnected_probe_keeps_its_transport_error_for_manual_retry) or test(web_shutdown_does_not_hold_runtime_lock_while_joining_server) or test(provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update) or test(cache_rejects_stale_generation_and_classifies_freshness)"
         ],
         "testFilter": [
           "test_product_runtime_startup_failure_rollback",
@@ -23738,10 +23711,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "f632beb7",
+        "verifiedAt": "2026-09-25T13:29:58Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -26218,22 +26191,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
-          "-p",
-          "jftrade-datamanagement",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_missing_mutation_targets_keep_the_go_classification) or test(adk_session_run_and_optimization_route_contracts_match_go) or test(adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed) or test(replayed_stream_payloads_carry_the_go_replay_marker) or test(catalog_session_run_and_observability_routes_answer_ok) or test(session_timeline_failure_keeps_the_legacy_messages_error_code) or test(sync_request_session_scope_parity_with_go) or test(backtests_write_fixture_replays_all_four_go_owned_mutations) or test(backtests_read_routes_match_group_fixture_in_cutover_only) or test(candle_route_treats_blank_period_as_unset_and_rejects_unsupported) or test(candle_period_normalizes_aliases_and_rejects_unsupported) or test(auth_requires_origin_and_csrf_for_session_writes) or test(auth_treats_patch_as_session_write_requiring_csrf) or test(managed_account_write_routes_map_missing_records_to_not_found) or test(broker_settings_writes_replay_frozen_compatibility_cases) or test(catalog_activity_paging_and_filters_match_go_boundaries) or test(strategy_instance_read_routes_match_group_fixture_in_cutover_only) or test(execution_write_fixture_replays_all_seven_go_owned_mutations) or test(execution_write_product_replays_browser_boundary_failure_recovery_and_restart) or test(production_http_broker_reads_serialize_empty_collections_as_arrays) or test(watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog) or test(watchlist_write_fixture_matches_go_owner_for_all_eight_routes) or test(malformed_membership_and_commit_bodies_are_rejected) or test(watchlist_read_routes_match_group_fixture_in_cutover_only) or test(test_product_runtime_startup_failure_rollback) or test(readiness_failure_reclaims_every_started_process_without_starting_dependents) or test(startup_failure_restores_previously_migrated_descriptor_files) or test(backup_snapshot_rejects_an_unusable_backup_directory_and_an_empty_source_path) or test(cleanup_and_compaction_report_the_reclaimed_bytes_measured_on_disk) or test(a_held_lease_on_one_database_rolls_back_the_batch_rebuild_locks) or test(runtime_readiness_allows_external_degradation_but_rejects_incomplete_startup) or test(production_opend_health_diagnoses_enabled_but_unreachable_opend) or test(production_system_read_reports_unavailable_opend_without_fake_health) or test(market_data_health_requires_a_known_logged_in_quote_session) or test(helper_market_data_providers_reconcile_futu_account_order_fill_and_fee) or test(reconciliation_discovers_external_order_into_empty_ledger) or test(production_opend_health_rejects_old_build_and_guides_upgrade) or test(probe_opend_reports_closed_port_as_disconnected) or test(probe_from_global_state_enforces_minimum_version_and_maps_neutral_state) or test(disconnected_probe_keeps_its_transport_error_for_manual_retry) or test(web_shutdown_does_not_hold_runtime_lock_while_joining_server) or test(provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update) or test(cache_rejects_stale_generation_and_classifies_freshness)"
         ],
         "testFilter": [
           "backup_snapshot_rejects_an_unusable_backup_directory_and_an_empty_source_path"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "f632beb7",
+        "verifiedAt": "2026-09-25T13:29:58Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -26723,22 +26694,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
-          "-p",
-          "jftrade-datamanagement",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_missing_mutation_targets_keep_the_go_classification) or test(adk_session_run_and_optimization_route_contracts_match_go) or test(adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed) or test(replayed_stream_payloads_carry_the_go_replay_marker) or test(catalog_session_run_and_observability_routes_answer_ok) or test(session_timeline_failure_keeps_the_legacy_messages_error_code) or test(sync_request_session_scope_parity_with_go) or test(backtests_write_fixture_replays_all_four_go_owned_mutations) or test(backtests_read_routes_match_group_fixture_in_cutover_only) or test(candle_route_treats_blank_period_as_unset_and_rejects_unsupported) or test(candle_period_normalizes_aliases_and_rejects_unsupported) or test(auth_requires_origin_and_csrf_for_session_writes) or test(auth_treats_patch_as_session_write_requiring_csrf) or test(managed_account_write_routes_map_missing_records_to_not_found) or test(broker_settings_writes_replay_frozen_compatibility_cases) or test(catalog_activity_paging_and_filters_match_go_boundaries) or test(strategy_instance_read_routes_match_group_fixture_in_cutover_only) or test(execution_write_fixture_replays_all_seven_go_owned_mutations) or test(execution_write_product_replays_browser_boundary_failure_recovery_and_restart) or test(production_http_broker_reads_serialize_empty_collections_as_arrays) or test(watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog) or test(watchlist_write_fixture_matches_go_owner_for_all_eight_routes) or test(malformed_membership_and_commit_bodies_are_rejected) or test(watchlist_read_routes_match_group_fixture_in_cutover_only) or test(test_product_runtime_startup_failure_rollback) or test(readiness_failure_reclaims_every_started_process_without_starting_dependents) or test(startup_failure_restores_previously_migrated_descriptor_files) or test(backup_snapshot_rejects_an_unusable_backup_directory_and_an_empty_source_path) or test(cleanup_and_compaction_report_the_reclaimed_bytes_measured_on_disk) or test(a_held_lease_on_one_database_rolls_back_the_batch_rebuild_locks) or test(runtime_readiness_allows_external_degradation_but_rejects_incomplete_startup) or test(production_opend_health_diagnoses_enabled_but_unreachable_opend) or test(production_system_read_reports_unavailable_opend_without_fake_health) or test(market_data_health_requires_a_known_logged_in_quote_session) or test(helper_market_data_providers_reconcile_futu_account_order_fill_and_fee) or test(reconciliation_discovers_external_order_into_empty_ledger) or test(production_opend_health_rejects_old_build_and_guides_upgrade) or test(probe_opend_reports_closed_port_as_disconnected) or test(probe_from_global_state_enforces_minimum_version_and_maps_neutral_state) or test(disconnected_probe_keeps_its_transport_error_for_manual_retry) or test(web_shutdown_does_not_hold_runtime_lock_while_joining_server) or test(provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update) or test(cache_rejects_stale_generation_and_classifies_freshness)"
         ],
         "testFilter": [
           "cleanup_and_compaction_report_the_reclaimed_bytes_measured_on_disk"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "f632beb7",
+        "verifiedAt": "2026-09-25T13:29:58Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -28829,20 +28798,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_missing_mutation_targets_keep_the_go_classification) or test(adk_session_run_and_optimization_route_contracts_match_go) or test(adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed) or test(replayed_stream_payloads_carry_the_go_replay_marker) or test(catalog_session_run_and_observability_routes_answer_ok) or test(session_timeline_failure_keeps_the_legacy_messages_error_code) or test(sync_request_session_scope_parity_with_go) or test(backtests_write_fixture_replays_all_four_go_owned_mutations) or test(backtests_read_routes_match_group_fixture_in_cutover_only) or test(candle_route_treats_blank_period_as_unset_and_rejects_unsupported) or test(candle_period_normalizes_aliases_and_rejects_unsupported) or test(auth_requires_origin_and_csrf_for_session_writes) or test(auth_treats_patch_as_session_write_requiring_csrf) or test(managed_account_write_routes_map_missing_records_to_not_found) or test(broker_settings_writes_replay_frozen_compatibility_cases) or test(catalog_activity_paging_and_filters_match_go_boundaries) or test(strategy_instance_read_routes_match_group_fixture_in_cutover_only) or test(execution_write_fixture_replays_all_seven_go_owned_mutations) or test(execution_write_product_replays_browser_boundary_failure_recovery_and_restart) or test(production_http_broker_reads_serialize_empty_collections_as_arrays) or test(watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog) or test(watchlist_write_fixture_matches_go_owner_for_all_eight_routes) or test(malformed_membership_and_commit_bodies_are_rejected) or test(watchlist_read_routes_match_group_fixture_in_cutover_only) or test(test_product_runtime_startup_failure_rollback) or test(readiness_failure_reclaims_every_started_process_without_starting_dependents) or test(startup_failure_restores_previously_migrated_descriptor_files) or test(backup_snapshot_rejects_an_unusable_backup_directory_and_an_empty_source_path) or test(cleanup_and_compaction_report_the_reclaimed_bytes_measured_on_disk) or test(a_held_lease_on_one_database_rolls_back_the_batch_rebuild_locks) or test(runtime_readiness_allows_external_degradation_but_rejects_incomplete_startup) or test(production_opend_health_diagnoses_enabled_but_unreachable_opend) or test(production_system_read_reports_unavailable_opend_without_fake_health) or test(market_data_health_requires_a_known_logged_in_quote_session) or test(helper_market_data_providers_reconcile_futu_account_order_fill_and_fee) or test(reconciliation_discovers_external_order_into_empty_ledger) or test(production_opend_health_rejects_old_build_and_guides_upgrade) or test(probe_opend_reports_closed_port_as_disconnected) or test(probe_from_global_state_enforces_minimum_version_and_maps_neutral_state) or test(disconnected_probe_keeps_its_transport_error_for_manual_retry) or test(web_shutdown_does_not_hold_runtime_lock_while_joining_server) or test(provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update) or test(cache_rejects_stale_generation_and_classifies_freshness)"
         ],
         "testFilter": [
           "a_held_lease_on_one_database_rolls_back_the_batch_rebuild_locks"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "f632beb7",
+        "verifiedAt": "2026-09-25T13:29:58Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -29211,20 +29180,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-desktop",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_missing_mutation_targets_keep_the_go_classification) or test(adk_session_run_and_optimization_route_contracts_match_go) or test(adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed) or test(replayed_stream_payloads_carry_the_go_replay_marker) or test(catalog_session_run_and_observability_routes_answer_ok) or test(session_timeline_failure_keeps_the_legacy_messages_error_code) or test(sync_request_session_scope_parity_with_go) or test(backtests_write_fixture_replays_all_four_go_owned_mutations) or test(backtests_read_routes_match_group_fixture_in_cutover_only) or test(candle_route_treats_blank_period_as_unset_and_rejects_unsupported) or test(candle_period_normalizes_aliases_and_rejects_unsupported) or test(auth_requires_origin_and_csrf_for_session_writes) or test(auth_treats_patch_as_session_write_requiring_csrf) or test(managed_account_write_routes_map_missing_records_to_not_found) or test(broker_settings_writes_replay_frozen_compatibility_cases) or test(catalog_activity_paging_and_filters_match_go_boundaries) or test(strategy_instance_read_routes_match_group_fixture_in_cutover_only) or test(execution_write_fixture_replays_all_seven_go_owned_mutations) or test(execution_write_product_replays_browser_boundary_failure_recovery_and_restart) or test(production_http_broker_reads_serialize_empty_collections_as_arrays) or test(watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog) or test(watchlist_write_fixture_matches_go_owner_for_all_eight_routes) or test(malformed_membership_and_commit_bodies_are_rejected) or test(watchlist_read_routes_match_group_fixture_in_cutover_only) or test(test_product_runtime_startup_failure_rollback) or test(readiness_failure_reclaims_every_started_process_without_starting_dependents) or test(startup_failure_restores_previously_migrated_descriptor_files) or test(backup_snapshot_rejects_an_unusable_backup_directory_and_an_empty_source_path) or test(cleanup_and_compaction_report_the_reclaimed_bytes_measured_on_disk) or test(a_held_lease_on_one_database_rolls_back_the_batch_rebuild_locks) or test(runtime_readiness_allows_external_degradation_but_rejects_incomplete_startup) or test(production_opend_health_diagnoses_enabled_but_unreachable_opend) or test(production_system_read_reports_unavailable_opend_without_fake_health) or test(market_data_health_requires_a_known_logged_in_quote_session) or test(helper_market_data_providers_reconcile_futu_account_order_fill_and_fee) or test(reconciliation_discovers_external_order_into_empty_ledger) or test(production_opend_health_rejects_old_build_and_guides_upgrade) or test(probe_opend_reports_closed_port_as_disconnected) or test(probe_from_global_state_enforces_minimum_version_and_maps_neutral_state) or test(disconnected_probe_keeps_its_transport_error_for_manual_retry) or test(web_shutdown_does_not_hold_runtime_lock_while_joining_server) or test(provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update) or test(cache_rejects_stale_generation_and_classifies_freshness)"
         ],
         "testFilter": [
           "runtime_readiness_allows_external_degradation_but_rejects_incomplete_startup"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "f632beb7",
+        "verifiedAt": "2026-09-25T13:29:58Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -29420,10 +29389,10 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_missing_mutation_targets_keep_the_go_classification) or test(adk_session_run_and_optimization_route_contracts_match_go) or test(adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed) or test(replayed_stream_payloads_carry_the_go_replay_marker) or test(catalog_session_run_and_observability_routes_answer_ok) or test(session_timeline_failure_keeps_the_legacy_messages_error_code) or test(sync_request_session_scope_parity_with_go) or test(backtests_write_fixture_replays_all_four_go_owned_mutations) or test(backtests_read_routes_match_group_fixture_in_cutover_only) or test(candle_route_treats_blank_period_as_unset_and_rejects_unsupported) or test(candle_period_normalizes_aliases_and_rejects_unsupported) or test(auth_requires_origin_and_csrf_for_session_writes) or test(auth_treats_patch_as_session_write_requiring_csrf) or test(managed_account_write_routes_map_missing_records_to_not_found) or test(broker_settings_writes_replay_frozen_compatibility_cases) or test(catalog_activity_paging_and_filters_match_go_boundaries) or test(strategy_instance_read_routes_match_group_fixture_in_cutover_only) or test(execution_write_fixture_replays_all_seven_go_owned_mutations) or test(execution_write_product_replays_browser_boundary_failure_recovery_and_restart) or test(production_http_broker_reads_serialize_empty_collections_as_arrays) or test(watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog) or test(watchlist_write_fixture_matches_go_owner_for_all_eight_routes) or test(malformed_membership_and_commit_bodies_are_rejected) or test(watchlist_read_routes_match_group_fixture_in_cutover_only) or test(test_product_runtime_startup_failure_rollback) or test(readiness_failure_reclaims_every_started_process_without_starting_dependents) or test(startup_failure_restores_previously_migrated_descriptor_files) or test(backup_snapshot_rejects_an_unusable_backup_directory_and_an_empty_source_path) or test(cleanup_and_compaction_report_the_reclaimed_bytes_measured_on_disk) or test(a_held_lease_on_one_database_rolls_back_the_batch_rebuild_locks) or test(runtime_readiness_allows_external_degradation_but_rejects_incomplete_startup) or test(production_opend_health_diagnoses_enabled_but_unreachable_opend) or test(production_system_read_reports_unavailable_opend_without_fake_health) or test(market_data_health_requires_a_known_logged_in_quote_session) or test(helper_market_data_providers_reconcile_futu_account_order_fill_and_fee) or test(reconciliation_discovers_external_order_into_empty_ledger) or test(production_opend_health_rejects_old_build_and_guides_upgrade) or test(probe_opend_reports_closed_port_as_disconnected) or test(probe_from_global_state_enforces_minimum_version_and_maps_neutral_state) or test(disconnected_probe_keeps_its_transport_error_for_manual_retry) or test(web_shutdown_does_not_hold_runtime_lock_while_joining_server) or test(provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update) or test(cache_rejects_stale_generation_and_classifies_freshness)"
         ],
         "testFilter": [
           "production_opend_health_diagnoses_enabled_but_unreachable_opend",
@@ -29431,10 +29400,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "f632beb7",
+        "verifiedAt": "2026-09-25T13:29:58Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -29492,20 +29461,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-integration-futu",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_missing_mutation_targets_keep_the_go_classification) or test(adk_session_run_and_optimization_route_contracts_match_go) or test(adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed) or test(replayed_stream_payloads_carry_the_go_replay_marker) or test(catalog_session_run_and_observability_routes_answer_ok) or test(session_timeline_failure_keeps_the_legacy_messages_error_code) or test(sync_request_session_scope_parity_with_go) or test(backtests_write_fixture_replays_all_four_go_owned_mutations) or test(backtests_read_routes_match_group_fixture_in_cutover_only) or test(candle_route_treats_blank_period_as_unset_and_rejects_unsupported) or test(candle_period_normalizes_aliases_and_rejects_unsupported) or test(auth_requires_origin_and_csrf_for_session_writes) or test(auth_treats_patch_as_session_write_requiring_csrf) or test(managed_account_write_routes_map_missing_records_to_not_found) or test(broker_settings_writes_replay_frozen_compatibility_cases) or test(catalog_activity_paging_and_filters_match_go_boundaries) or test(strategy_instance_read_routes_match_group_fixture_in_cutover_only) or test(execution_write_fixture_replays_all_seven_go_owned_mutations) or test(execution_write_product_replays_browser_boundary_failure_recovery_and_restart) or test(production_http_broker_reads_serialize_empty_collections_as_arrays) or test(watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog) or test(watchlist_write_fixture_matches_go_owner_for_all_eight_routes) or test(malformed_membership_and_commit_bodies_are_rejected) or test(watchlist_read_routes_match_group_fixture_in_cutover_only) or test(test_product_runtime_startup_failure_rollback) or test(readiness_failure_reclaims_every_started_process_without_starting_dependents) or test(startup_failure_restores_previously_migrated_descriptor_files) or test(backup_snapshot_rejects_an_unusable_backup_directory_and_an_empty_source_path) or test(cleanup_and_compaction_report_the_reclaimed_bytes_measured_on_disk) or test(a_held_lease_on_one_database_rolls_back_the_batch_rebuild_locks) or test(runtime_readiness_allows_external_degradation_but_rejects_incomplete_startup) or test(production_opend_health_diagnoses_enabled_but_unreachable_opend) or test(production_system_read_reports_unavailable_opend_without_fake_health) or test(market_data_health_requires_a_known_logged_in_quote_session) or test(helper_market_data_providers_reconcile_futu_account_order_fill_and_fee) or test(reconciliation_discovers_external_order_into_empty_ledger) or test(production_opend_health_rejects_old_build_and_guides_upgrade) or test(probe_opend_reports_closed_port_as_disconnected) or test(probe_from_global_state_enforces_minimum_version_and_maps_neutral_state) or test(disconnected_probe_keeps_its_transport_error_for_manual_retry) or test(web_shutdown_does_not_hold_runtime_lock_while_joining_server) or test(provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update) or test(cache_rejects_stale_generation_and_classifies_freshness)"
         ],
         "testFilter": [
           "market_data_health_requires_a_known_logged_in_quote_session"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "f632beb7",
+        "verifiedAt": "2026-09-25T13:29:58Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -29627,10 +29596,10 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_missing_mutation_targets_keep_the_go_classification) or test(adk_session_run_and_optimization_route_contracts_match_go) or test(adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed) or test(replayed_stream_payloads_carry_the_go_replay_marker) or test(catalog_session_run_and_observability_routes_answer_ok) or test(session_timeline_failure_keeps_the_legacy_messages_error_code) or test(sync_request_session_scope_parity_with_go) or test(backtests_write_fixture_replays_all_four_go_owned_mutations) or test(backtests_read_routes_match_group_fixture_in_cutover_only) or test(candle_route_treats_blank_period_as_unset_and_rejects_unsupported) or test(candle_period_normalizes_aliases_and_rejects_unsupported) or test(auth_requires_origin_and_csrf_for_session_writes) or test(auth_treats_patch_as_session_write_requiring_csrf) or test(managed_account_write_routes_map_missing_records_to_not_found) or test(broker_settings_writes_replay_frozen_compatibility_cases) or test(catalog_activity_paging_and_filters_match_go_boundaries) or test(strategy_instance_read_routes_match_group_fixture_in_cutover_only) or test(execution_write_fixture_replays_all_seven_go_owned_mutations) or test(execution_write_product_replays_browser_boundary_failure_recovery_and_restart) or test(production_http_broker_reads_serialize_empty_collections_as_arrays) or test(watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog) or test(watchlist_write_fixture_matches_go_owner_for_all_eight_routes) or test(malformed_membership_and_commit_bodies_are_rejected) or test(watchlist_read_routes_match_group_fixture_in_cutover_only) or test(test_product_runtime_startup_failure_rollback) or test(readiness_failure_reclaims_every_started_process_without_starting_dependents) or test(startup_failure_restores_previously_migrated_descriptor_files) or test(backup_snapshot_rejects_an_unusable_backup_directory_and_an_empty_source_path) or test(cleanup_and_compaction_report_the_reclaimed_bytes_measured_on_disk) or test(a_held_lease_on_one_database_rolls_back_the_batch_rebuild_locks) or test(runtime_readiness_allows_external_degradation_but_rejects_incomplete_startup) or test(production_opend_health_diagnoses_enabled_but_unreachable_opend) or test(production_system_read_reports_unavailable_opend_without_fake_health) or test(market_data_health_requires_a_known_logged_in_quote_session) or test(helper_market_data_providers_reconcile_futu_account_order_fill_and_fee) or test(reconciliation_discovers_external_order_into_empty_ledger) or test(production_opend_health_rejects_old_build_and_guides_upgrade) or test(probe_opend_reports_closed_port_as_disconnected) or test(probe_from_global_state_enforces_minimum_version_and_maps_neutral_state) or test(disconnected_probe_keeps_its_transport_error_for_manual_retry) or test(web_shutdown_does_not_hold_runtime_lock_while_joining_server) or test(provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update) or test(cache_rejects_stale_generation_and_classifies_freshness)"
         ],
         "testFilter": [
           "helper_market_data_providers_reconcile_futu_account_order_fill_and_fee",
@@ -29638,10 +29607,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "f632beb7",
+        "verifiedAt": "2026-09-25T13:29:58Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -29782,10 +29751,10 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_missing_mutation_targets_keep_the_go_classification) or test(adk_session_run_and_optimization_route_contracts_match_go) or test(adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed) or test(replayed_stream_payloads_carry_the_go_replay_marker) or test(catalog_session_run_and_observability_routes_answer_ok) or test(session_timeline_failure_keeps_the_legacy_messages_error_code) or test(sync_request_session_scope_parity_with_go) or test(backtests_write_fixture_replays_all_four_go_owned_mutations) or test(backtests_read_routes_match_group_fixture_in_cutover_only) or test(candle_route_treats_blank_period_as_unset_and_rejects_unsupported) or test(candle_period_normalizes_aliases_and_rejects_unsupported) or test(auth_requires_origin_and_csrf_for_session_writes) or test(auth_treats_patch_as_session_write_requiring_csrf) or test(managed_account_write_routes_map_missing_records_to_not_found) or test(broker_settings_writes_replay_frozen_compatibility_cases) or test(catalog_activity_paging_and_filters_match_go_boundaries) or test(strategy_instance_read_routes_match_group_fixture_in_cutover_only) or test(execution_write_fixture_replays_all_seven_go_owned_mutations) or test(execution_write_product_replays_browser_boundary_failure_recovery_and_restart) or test(production_http_broker_reads_serialize_empty_collections_as_arrays) or test(watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog) or test(watchlist_write_fixture_matches_go_owner_for_all_eight_routes) or test(malformed_membership_and_commit_bodies_are_rejected) or test(watchlist_read_routes_match_group_fixture_in_cutover_only) or test(test_product_runtime_startup_failure_rollback) or test(readiness_failure_reclaims_every_started_process_without_starting_dependents) or test(startup_failure_restores_previously_migrated_descriptor_files) or test(backup_snapshot_rejects_an_unusable_backup_directory_and_an_empty_source_path) or test(cleanup_and_compaction_report_the_reclaimed_bytes_measured_on_disk) or test(a_held_lease_on_one_database_rolls_back_the_batch_rebuild_locks) or test(runtime_readiness_allows_external_degradation_but_rejects_incomplete_startup) or test(production_opend_health_diagnoses_enabled_but_unreachable_opend) or test(production_system_read_reports_unavailable_opend_without_fake_health) or test(market_data_health_requires_a_known_logged_in_quote_session) or test(helper_market_data_providers_reconcile_futu_account_order_fill_and_fee) or test(reconciliation_discovers_external_order_into_empty_ledger) or test(production_opend_health_rejects_old_build_and_guides_upgrade) or test(probe_opend_reports_closed_port_as_disconnected) or test(probe_from_global_state_enforces_minimum_version_and_maps_neutral_state) or test(disconnected_probe_keeps_its_transport_error_for_manual_retry) or test(web_shutdown_does_not_hold_runtime_lock_while_joining_server) or test(provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update) or test(cache_rejects_stale_generation_and_classifies_freshness)"
         ],
         "testFilter": [
           "production_opend_health_rejects_old_build_and_guides_upgrade",
@@ -29793,10 +29762,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "f632beb7",
+        "verifiedAt": "2026-09-25T13:29:58Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -29865,10 +29834,10 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-integration-futu",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_missing_mutation_targets_keep_the_go_classification) or test(adk_session_run_and_optimization_route_contracts_match_go) or test(adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed) or test(replayed_stream_payloads_carry_the_go_replay_marker) or test(catalog_session_run_and_observability_routes_answer_ok) or test(session_timeline_failure_keeps_the_legacy_messages_error_code) or test(sync_request_session_scope_parity_with_go) or test(backtests_write_fixture_replays_all_four_go_owned_mutations) or test(backtests_read_routes_match_group_fixture_in_cutover_only) or test(candle_route_treats_blank_period_as_unset_and_rejects_unsupported) or test(candle_period_normalizes_aliases_and_rejects_unsupported) or test(auth_requires_origin_and_csrf_for_session_writes) or test(auth_treats_patch_as_session_write_requiring_csrf) or test(managed_account_write_routes_map_missing_records_to_not_found) or test(broker_settings_writes_replay_frozen_compatibility_cases) or test(catalog_activity_paging_and_filters_match_go_boundaries) or test(strategy_instance_read_routes_match_group_fixture_in_cutover_only) or test(execution_write_fixture_replays_all_seven_go_owned_mutations) or test(execution_write_product_replays_browser_boundary_failure_recovery_and_restart) or test(production_http_broker_reads_serialize_empty_collections_as_arrays) or test(watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog) or test(watchlist_write_fixture_matches_go_owner_for_all_eight_routes) or test(malformed_membership_and_commit_bodies_are_rejected) or test(watchlist_read_routes_match_group_fixture_in_cutover_only) or test(test_product_runtime_startup_failure_rollback) or test(readiness_failure_reclaims_every_started_process_without_starting_dependents) or test(startup_failure_restores_previously_migrated_descriptor_files) or test(backup_snapshot_rejects_an_unusable_backup_directory_and_an_empty_source_path) or test(cleanup_and_compaction_report_the_reclaimed_bytes_measured_on_disk) or test(a_held_lease_on_one_database_rolls_back_the_batch_rebuild_locks) or test(runtime_readiness_allows_external_degradation_but_rejects_incomplete_startup) or test(production_opend_health_diagnoses_enabled_but_unreachable_opend) or test(production_system_read_reports_unavailable_opend_without_fake_health) or test(market_data_health_requires_a_known_logged_in_quote_session) or test(helper_market_data_providers_reconcile_futu_account_order_fill_and_fee) or test(reconciliation_discovers_external_order_into_empty_ledger) or test(production_opend_health_rejects_old_build_and_guides_upgrade) or test(probe_opend_reports_closed_port_as_disconnected) or test(probe_from_global_state_enforces_minimum_version_and_maps_neutral_state) or test(disconnected_probe_keeps_its_transport_error_for_manual_retry) or test(web_shutdown_does_not_hold_runtime_lock_while_joining_server) or test(provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update) or test(cache_rejects_stale_generation_and_classifies_freshness)"
         ],
         "testFilter": [
           "probe_opend_reports_closed_port_as_disconnected",
@@ -29876,10 +29845,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "f632beb7",
+        "verifiedAt": "2026-09-25T13:29:58Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -29948,18 +29917,10 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-integration-futu",
           "--all-targets",
           "--locked",
-          "与",
-          "node",
-          "scripts/quality/cargo-nextest.mjs",
-          "run",
-          "-p",
-          "jftrade-engine",
-          "--all-targets",
-          "--locked"
+          "-E",
+          "test(adk_missing_mutation_targets_keep_the_go_classification) or test(adk_session_run_and_optimization_route_contracts_match_go) or test(adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed) or test(replayed_stream_payloads_carry_the_go_replay_marker) or test(catalog_session_run_and_observability_routes_answer_ok) or test(session_timeline_failure_keeps_the_legacy_messages_error_code) or test(sync_request_session_scope_parity_with_go) or test(backtests_write_fixture_replays_all_four_go_owned_mutations) or test(backtests_read_routes_match_group_fixture_in_cutover_only) or test(candle_route_treats_blank_period_as_unset_and_rejects_unsupported) or test(candle_period_normalizes_aliases_and_rejects_unsupported) or test(auth_requires_origin_and_csrf_for_session_writes) or test(auth_treats_patch_as_session_write_requiring_csrf) or test(managed_account_write_routes_map_missing_records_to_not_found) or test(broker_settings_writes_replay_frozen_compatibility_cases) or test(catalog_activity_paging_and_filters_match_go_boundaries) or test(strategy_instance_read_routes_match_group_fixture_in_cutover_only) or test(execution_write_fixture_replays_all_seven_go_owned_mutations) or test(execution_write_product_replays_browser_boundary_failure_recovery_and_restart) or test(production_http_broker_reads_serialize_empty_collections_as_arrays) or test(watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog) or test(watchlist_write_fixture_matches_go_owner_for_all_eight_routes) or test(malformed_membership_and_commit_bodies_are_rejected) or test(watchlist_read_routes_match_group_fixture_in_cutover_only) or test(test_product_runtime_startup_failure_rollback) or test(readiness_failure_reclaims_every_started_process_without_starting_dependents) or test(startup_failure_restores_previously_migrated_descriptor_files) or test(backup_snapshot_rejects_an_unusable_backup_directory_and_an_empty_source_path) or test(cleanup_and_compaction_report_the_reclaimed_bytes_measured_on_disk) or test(a_held_lease_on_one_database_rolls_back_the_batch_rebuild_locks) or test(runtime_readiness_allows_external_degradation_but_rejects_incomplete_startup) or test(production_opend_health_diagnoses_enabled_but_unreachable_opend) or test(production_system_read_reports_unavailable_opend_without_fake_health) or test(market_data_health_requires_a_known_logged_in_quote_session) or test(helper_market_data_providers_reconcile_futu_account_order_fill_and_fee) or test(reconciliation_discovers_external_order_into_empty_ledger) or test(production_opend_health_rejects_old_build_and_guides_upgrade) or test(probe_opend_reports_closed_port_as_disconnected) or test(probe_from_global_state_enforces_minimum_version_and_maps_neutral_state) or test(disconnected_probe_keeps_its_transport_error_for_manual_retry) or test(web_shutdown_does_not_hold_runtime_lock_while_joining_server) or test(provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update) or test(cache_rejects_stale_generation_and_classifies_freshness)"
         ],
         "testFilter": [
           "probe_opend_reports_closed_port_as_disconnected",
@@ -29968,10 +29929,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "f632beb7",
+        "verifiedAt": "2026-09-25T13:29:58Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -31162,20 +31123,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_missing_mutation_targets_keep_the_go_classification) or test(adk_session_run_and_optimization_route_contracts_match_go) or test(adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed) or test(replayed_stream_payloads_carry_the_go_replay_marker) or test(catalog_session_run_and_observability_routes_answer_ok) or test(session_timeline_failure_keeps_the_legacy_messages_error_code) or test(sync_request_session_scope_parity_with_go) or test(backtests_write_fixture_replays_all_four_go_owned_mutations) or test(backtests_read_routes_match_group_fixture_in_cutover_only) or test(candle_route_treats_blank_period_as_unset_and_rejects_unsupported) or test(candle_period_normalizes_aliases_and_rejects_unsupported) or test(auth_requires_origin_and_csrf_for_session_writes) or test(auth_treats_patch_as_session_write_requiring_csrf) or test(managed_account_write_routes_map_missing_records_to_not_found) or test(broker_settings_writes_replay_frozen_compatibility_cases) or test(catalog_activity_paging_and_filters_match_go_boundaries) or test(strategy_instance_read_routes_match_group_fixture_in_cutover_only) or test(execution_write_fixture_replays_all_seven_go_owned_mutations) or test(execution_write_product_replays_browser_boundary_failure_recovery_and_restart) or test(production_http_broker_reads_serialize_empty_collections_as_arrays) or test(watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog) or test(watchlist_write_fixture_matches_go_owner_for_all_eight_routes) or test(malformed_membership_and_commit_bodies_are_rejected) or test(watchlist_read_routes_match_group_fixture_in_cutover_only) or test(test_product_runtime_startup_failure_rollback) or test(readiness_failure_reclaims_every_started_process_without_starting_dependents) or test(startup_failure_restores_previously_migrated_descriptor_files) or test(backup_snapshot_rejects_an_unusable_backup_directory_and_an_empty_source_path) or test(cleanup_and_compaction_report_the_reclaimed_bytes_measured_on_disk) or test(a_held_lease_on_one_database_rolls_back_the_batch_rebuild_locks) or test(runtime_readiness_allows_external_degradation_but_rejects_incomplete_startup) or test(production_opend_health_diagnoses_enabled_but_unreachable_opend) or test(production_system_read_reports_unavailable_opend_without_fake_health) or test(market_data_health_requires_a_known_logged_in_quote_session) or test(helper_market_data_providers_reconcile_futu_account_order_fill_and_fee) or test(reconciliation_discovers_external_order_into_empty_ledger) or test(production_opend_health_rejects_old_build_and_guides_upgrade) or test(probe_opend_reports_closed_port_as_disconnected) or test(probe_from_global_state_enforces_minimum_version_and_maps_neutral_state) or test(disconnected_probe_keeps_its_transport_error_for_manual_retry) or test(web_shutdown_does_not_hold_runtime_lock_while_joining_server) or test(provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update) or test(cache_rejects_stale_generation_and_classifies_freshness)"
         ],
         "testFilter": [
           "web_shutdown_does_not_hold_runtime_lock_while_joining_server"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "f632beb7",
+        "verifiedAt": "2026-09-25T13:29:58Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -31884,10 +31845,10 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-marketdata",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_missing_mutation_targets_keep_the_go_classification) or test(adk_session_run_and_optimization_route_contracts_match_go) or test(adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed) or test(replayed_stream_payloads_carry_the_go_replay_marker) or test(catalog_session_run_and_observability_routes_answer_ok) or test(session_timeline_failure_keeps_the_legacy_messages_error_code) or test(sync_request_session_scope_parity_with_go) or test(backtests_write_fixture_replays_all_four_go_owned_mutations) or test(backtests_read_routes_match_group_fixture_in_cutover_only) or test(candle_route_treats_blank_period_as_unset_and_rejects_unsupported) or test(candle_period_normalizes_aliases_and_rejects_unsupported) or test(auth_requires_origin_and_csrf_for_session_writes) or test(auth_treats_patch_as_session_write_requiring_csrf) or test(managed_account_write_routes_map_missing_records_to_not_found) or test(broker_settings_writes_replay_frozen_compatibility_cases) or test(catalog_activity_paging_and_filters_match_go_boundaries) or test(strategy_instance_read_routes_match_group_fixture_in_cutover_only) or test(execution_write_fixture_replays_all_seven_go_owned_mutations) or test(execution_write_product_replays_browser_boundary_failure_recovery_and_restart) or test(production_http_broker_reads_serialize_empty_collections_as_arrays) or test(watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog) or test(watchlist_write_fixture_matches_go_owner_for_all_eight_routes) or test(malformed_membership_and_commit_bodies_are_rejected) or test(watchlist_read_routes_match_group_fixture_in_cutover_only) or test(test_product_runtime_startup_failure_rollback) or test(readiness_failure_reclaims_every_started_process_without_starting_dependents) or test(startup_failure_restores_previously_migrated_descriptor_files) or test(backup_snapshot_rejects_an_unusable_backup_directory_and_an_empty_source_path) or test(cleanup_and_compaction_report_the_reclaimed_bytes_measured_on_disk) or test(a_held_lease_on_one_database_rolls_back_the_batch_rebuild_locks) or test(runtime_readiness_allows_external_degradation_but_rejects_incomplete_startup) or test(production_opend_health_diagnoses_enabled_but_unreachable_opend) or test(production_system_read_reports_unavailable_opend_without_fake_health) or test(market_data_health_requires_a_known_logged_in_quote_session) or test(helper_market_data_providers_reconcile_futu_account_order_fill_and_fee) or test(reconciliation_discovers_external_order_into_empty_ledger) or test(production_opend_health_rejects_old_build_and_guides_upgrade) or test(probe_opend_reports_closed_port_as_disconnected) or test(probe_from_global_state_enforces_minimum_version_and_maps_neutral_state) or test(disconnected_probe_keeps_its_transport_error_for_manual_retry) or test(web_shutdown_does_not_hold_runtime_lock_while_joining_server) or test(provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update) or test(cache_rejects_stale_generation_and_classifies_freshness)"
         ],
         "testFilter": [
           "provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update",
@@ -31895,10 +31856,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "f632beb7",
+        "verifiedAt": "2026-09-25T13:29:58Z",
         "receiptDigest": null
       },
       "risk": "high",
