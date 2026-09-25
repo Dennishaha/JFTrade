@@ -1579,6 +1579,22 @@ ADK/Assistant 功能差异，先补失败回归测试再修改领域 owner。
 
 下一片：继续 P2 Assistant/Workflow/ADK、API transport、MarketData/Quote、Storage/SQLite 与 Backtest/Calendar；`optional_bool_strict`、`complete`、`CanvasCompiler`、`synthetic_assistant_message_id` 及 P1 `session_context_snapshot` 等无独立 Rust 测试条目仍保持未验证结论。
 
+## 第 202 批：ADK claims、execution projection 与 input request continuation（2026-09-26）
+
+| 复核 | Go 测试范围 | Rust 证据 | P | 结论 |
+| :---: | --- | --- | :---: | --- |
+| [x] | `execution_claim_failure_boundaries_test.go:83,173,203`; `execution_claims_test.go:54,108,167,214,294,343` | keyed claim takeover、stale completion fencing、store writer fencing、closed-database errors、durable invocation replay、expired invocation/lease heartbeat and save fencing | P2 | partial：Rust assistant claims/SQLite owners cover fencing and replay semantics；Go claim helper facade and runtime orchestration remain partial. |
+| [x] | `execution_state_projection_contracts_test.go:44,103,234`; `goal_state_boundaries_test.go:9`; `google_exec_concurrency_test.go:12`; `google_execution_replay_guards_test.go:13` | pre-tool text/run projection、final assistant timeline、paused workflow terminal updates、concurrent takeover and stale approval replay | P2 | partial：Rust projection/CAS/runtime tests cover durable state and event ordering；Google ADK execution facade remains boundary evidence. |
+| [x] | `google_memory_test.go:10,77`; `google_runner_failure_diagnostics_test.go:8,35`; `handoff_notice_test.go:10` | memory prompt scoping、agent/memory CRUD、provider recovery diagnostics、missing agent/provider errors and handoff revision filtering | P2 | partial：Rust runtime gate/recovery/session-context owners pass；Go provider/test-double and handoff assembly remain partial. |
+| [x] | `input_continuation_idempotency_test.go:14,87`; `input_request_test.go:16,72,114,225,305,413,449` | idempotent input resolution/requeue、question/default projection、correctable invalid calls、argument validation、store error mapping、conflict parking and unrecoverable continuation | P2 | partial：Rust input parity and claims tests cover validation, idempotence and durable failure; Go request-user facade and continuation handler aggregation remain partial. |
+| [x] | `input_request_test.go:556` | request-user long-running declaration and two/three-option budget | P2 | partial：Rust input-response parity test covers declaration budget; Go long-running tool and UI prompt assembly remain partial. |
+
+本批 30 条 Go 映射对应 30 个真实过滤器，Rust nextest **30/30** 通过（3443 skipped）。claims fencing/replay、execution projection/timeline、memory/recovery/handoff 与 input request/continuation 条目均写入通过凭证；Go Google ADK facade、test doubles、continuation handler aggregation 与 UI prompt composition继续保持 `partial`/`boundary`，未发现需要先红后修的真实 Rust 功能差异，也未把 helper/type-only 条目升级为 exact。
+
+验证：动态生成本批过滤器运行 `node scripts/quality/cargo-nextest.mjs run --all-targets --locked -E`，30/30 通过。
+
+下一片：继续 P2 Assistant/Workflow/ADK 的 input request 后半段、MCP reviewed tools、persistence claims/artifacts，再进入 API transport、MarketData/Quote、Storage/SQLite 与 Backtest/Calendar；前序 helper-only 条目及 P1 `session_context_snapshot` 仍保持未验证结论。
+
 ## 第 200 批：Workflow bridge/tools、ADK runtime edges 与 typed capabilities（2026-09-26）
 
 | 复核 | Go 测试范围 | Rust 证据 | P | 结论 |
