@@ -21255,9 +21255,9 @@
     },
     "internal/api/trading/execution_validation_contracts_test.go:238:TestExecutionOrderDetailsRouteMapsMissingAndStoreFailures": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_execution_read_tests.rs::execution_read_routes_preserve_the_port_failure_code_and_message",
-      "conclusion": "partial：Go 断言订单详情缺失→404 ORDER_NOT_FOUND、store 失败→500 GET_ORDER_FAILED、缺 id→400。Rust 读语料断言 order-missing→404 ORDER_NOT_FOUND 与 order-details-failed→500 GET_ORDER_FAILED，失败码透传用例断言端口码原文保留；缺口：缺 id 的 400 分支（Rust 走 404 模板不匹配）已登记。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --locked -E 'test(execution_read_routes_preserve_the_port_failure_code_and_message)'",
+      "rust_entry": "crates/jftrade-engine/src/product_execution_read_tests.rs::execution_read_routes_match_group_fixture_in_cutover_only；crates/jftrade-engine/src/product_execution_read_tests.rs::execution_read_routes_preserve_the_port_failure_code_and_message",
+      "conclusion": "partial：Go 断言订单详情缺失→404 ORDER_NOT_FOUND、store 失败→500 GET_ORDER_FAILED、缺 id→400。Rust execution-read 冻结语料逐条断言 order-missing→404 ORDER_NOT_FOUND 与 order-details-failed→500 GET_ORDER_FAILED，端口失败回归再断言上游 code/message 原样透传；缺口：缺 id 的 400 分支（Rust typed route 在空 segment 时以 404 路由不匹配结束）是路由形状边界，已登记。",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(execution_read_routes_match_group_fixture_in_cutover_only) or test(execution_read_routes_preserve_the_port_failure_code_and_message)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/api/trading/execution_validation_contracts_test.go",
@@ -21268,6 +21268,12 @@
       "rustEvidence": [
         {
           "file": "crates/jftrade-engine/src/product_execution_read_tests.rs",
+          "test": "execution_read_routes_match_group_fixture_in_cutover_only",
+          "crate": "jftrade-engine",
+          "anchor": null
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_execution_read_tests.rs",
           "test": "execution_read_routes_preserve_the_port_failure_code_and_message",
           "crate": "jftrade-engine",
           "anchor": null
@@ -21276,7 +21282,7 @@
       "assertionCoverage": {
         "covered": [],
         "uncovered": [
-          "partial：Go 断言订单详情缺失→404 ORDER_NOT_FOUND、store 失败→500 GET_ORDER_FAILED、缺 id→400。Rust 读语料断言 order-missing→404 ORDER_NOT_FOUND 与 order-details-failed→500 GET_ORDER_FAILED，失败码透传用例断言端口码原文保留；缺口：缺 id 的 400 分支（Rust 走 404 模板不匹配）已登记。"
+          "partial：Go 断言订单详情缺失→404 ORDER_NOT_FOUND、store 失败→500 GET_ORDER_FAILED、缺 id→400。Rust execution-read 冻结语料逐条断言 order-missing→404 ORDER_NOT_FOUND 与 order-details-failed→500 GET_ORDER_FAILED，端口失败回归再断言上游 code/message 原样透传；缺口：缺 id 的 400 分支（Rust typed route 在空 segment 时以 404 路由不匹配结束）是路由形状边界，已登记。"
         ],
         "source": "legacy-conclusion"
       },
@@ -21287,19 +21293,21 @@
           "run",
           "-p",
           "jftrade-engine",
+          "--all-targets",
           "--locked",
           "-E",
-          "test(execution_read_routes_preserve_the_port_failure_code_and_message)"
+          "test(execution_read_routes_match_group_fixture_in_cutover_only) or test(execution_read_routes_preserve_the_port_failure_code_and_message)"
         ],
         "testFilter": [
+          "execution_read_routes_match_group_fixture_in_cutover_only",
           "execution_read_routes_preserve_the_port_failure_code_and_message"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "68cc0eee",
+        "verifiedAt": "2026-09-25T08:36:03Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -21312,7 +21320,7 @@
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
-        "partial：Go 断言订单详情缺失→404 ORDER_NOT_FOUND、store 失败→500 GET_ORDER_FAILED、缺 id→400。Rust 读语料断言 order-missing→404 ORDER_NOT_FOUND 与 order-details-failed→500 GET_ORDER_FAILED，失败码透传用例断言端口码原文保留；缺口：缺 id 的 400 分支（Rust 走 404 模板不匹配）已登记。"
+        "partial：Go 断言订单详情缺失→404 ORDER_NOT_FOUND、store 失败→500 GET_ORDER_FAILED、缺 id→400。Rust execution-read 冻结语料逐条断言 order-missing→404 ORDER_NOT_FOUND 与 order-details-failed→500 GET_ORDER_FAILED，端口失败回归再断言上游 code/message 原样透传；缺口：缺 id 的 400 分支（Rust typed route 在空 segment 时以 404 路由不匹配结束）是路由形状边界，已登记。"
       ],
       "boundaryReason": null
     },
@@ -294662,12 +294670,13 @@
       "reviewStatus": "unreviewed"
     },
     "crates/jftrade-engine/src/product_execution_read_tests.rs::execution_read_routes_match_group_fixture_in_cutover_only": {
-      "referenceCount": 5,
+      "referenceCount": 6,
       "referenceKeys": [
         "internal/api/trading/execution_test.go:110:TestHandleExecutionOrdersNormalizesScopeAndFilter",
         "internal/api/trading/execution_test.go:205:TestExecutionPlacePreviewAndEventsRoutes",
         "internal/api/trading/execution_test.go:249:TestHandleExecutionOrderDetailsReturnsCanonicalReceiptAndNotFound",
         "internal/api/trading/execution_validation_contracts_test.go:52:TestExecutionRoutesValidatePayloadsAndMapHandlerErrors",
+        "internal/api/trading/execution_validation_contracts_test.go:238:TestExecutionOrderDetailsRouteMapsMissingAndStoreFailures",
         "internal/app/apiserver/servercoretest/execution_routes_test.go:53:TestExecutionOrdersEndpointFiltersByTradingEnvironmentAndScope"
       ],
       "allowed": false,
