@@ -7,12 +7,12 @@
 | 项目 | 数值 | 解释 |
 | --- | ---: | --- |
 | Go 测试候选 | 4451 | 冻结基线 `go:452dea11` |
-| Rust 测试 | 3330 | 数量不代表行为等价 |
-| `function_exact` | 1473 | 有真实且唯一的 Rust 测试证据 |
+| Rust 测试 | 3333 | 数量不代表行为等价 |
+| `function_exact` | 1474 | 有真实且唯一的 Rust 测试证据 |
 | `partial` | 2343 | 只覆盖部分断言，不能视为完成 |
 | `boundary` | 636 | 当前架构边界或没有同形对象 |
 | 重复映射 | 0 | 审计脚本结果 |
-| Parity 锚点 | 1757 / 1711 / 0 / 0 / 46 | unique / recorded / unrecorded / stale / unknown |
+| Parity 锚点 | 1759 / 1713 / 0 / 0 / 46 | unique / recorded / unrecorded / stale / unknown |
 
 ## 已完成的工作
 
@@ -50,6 +50,10 @@
 - `internal/api/assistant/chat_helpers_test.go:260:TestAssistantRequestHelpersCoverInvalidAndBoundaryInputs` 已逐项读取 Go 的 ADK validation 白名单与 bearerToken 边界。先写 Rust 表驱动回归并复现小写 `bearer` 返回空值的红测，再由 `crates/jftrade-api/src/auth.rs::request_bearer_token` 修复为大小写不敏感 scheme；修复后 API auth 与 ADK validation 精准 nextest 2/2 通过。映射保持 `partial`，记录 Go 空字符串与 Rust `Option<&str>` 及跨 owner 差异。
 - `internal/api/assistant/chat_helpers_test.go:167:TestChatStreamExecutionPublishesDeltaAndFinalVariants` 已逐项读取 Go 的 delta 分类与 `publishFinal` 断言；先红后修确认 Rust Stream 终帧错误暴露完整 tool output，随后在 `product_adk_model_runtime_stream_success.rs` 只对 Stream terminal response 移除 `toolCalls[].output`，保留 durable run activity。终帧裁剪、终态恢复、重连 replay 与 live session/run/final 精准 nextest 4/4 通过；Hub 内存 delta 分类仍保持 partial。
 - `internal/api/assistant/chat_helpers_test.go:216:TestExecuteADKChatStreamPublishesTerminalErrorForInvalidRequest` 已逐项读取 Go 的非法请求、有效 preview 与未知 agent preview 断言；新增真实 product Stream 回归，确认未知 agent fail-closed 且不产生 session/run 预览帧，非法 JSON 与有效 session→run 顺序证据一并复核，精准 nextest 3/3 通过。Go `sessionSent` 进程内布尔状态继续作为 transport owner 边界记录。
+- `internal/api/assistant/chat_stream_recovery_contracts_test.go:41:TestChatStreamExecutionReusesKnownContextAndRecoversTerminalRun` 已补真实生产流回归；已有 session 请求只发布一帧 session preview，随后进入 run，持久化终态恢复仍只出 final。精准 nextest 3/3 通过；Go `contextSent` 内存 execution seam 继续保持 partial。
+- `internal/assistant/model/provider_reasoning_config_test.go:8` 与 `internal/assistant/engine/persistence/provider_reasoning_test.go:47` 已发现真实 provider 归一差异：Rust 先红测确认缺省 provider 没有 reasoningConfig，随后在 provider projection/mutation owner 补 `reasoning.effort` 默认字段、显式空 mappings、trim/排序和重复/保留字/未知档位/空值校验。精准 nextest 2/2 通过；provider 级 ResolveProviderReasoning 尚未接入模型请求，相关映射保持 partial。
+- 本批完整门禁已复核通过：受影响精准 nextest 3/3、`check:quick` 全流程通过；完整 `check:rust` workspace nextest 3459/3459 通过（2 skipped），7 个 compatibility replay、clippy、format 与 Pine worker 98/98 全部通过。此前 quick 首次被 target 中间产物健康阈值拦截，清理 Rust 产物后重跑通过。
+- 本批映射审计更新为 Go 4451、Rust 3333；`function_exact` 1474、`partial` 2343、`boundary` 636，重复 exact 0，0 nonexistent crate，2 个已记录 partial unresolved refs。Parity 锚点为 1759/1713/0/0/46；报告与 inventory 已重生成，anchor reconcile 无 unrecorded/stale。
 - 本批审计更新为 Go 4451、Rust 3330；`function_exact` 1473、`partial` 2343、`boundary` 636，重复 exact 0，0 nonexistent crate，2 个已记录 partial unresolved refs。Parity 锚点为 1757/1711/0/0/46；报告与 inventory 已重生成，anchor reconcile 无 unrecorded/stale。
 - 本批映射审计更新为 Go 4451、Rust 3328；`function_exact` 1473、`partial` 2343、`boundary` 636，重复 exact 0。Parity 锚点为 1756/1710/0/0/46；报告与 inventory 已重生成。
 - 本批 `check:quick` 首次被已有 target 健康门禁拦截（`target/debug/deps` 中间 `.rcgu.o` 超过 50000）；确认无 Cargo 进程后清理 121048 个、约 32.5 GiB Rust 产物，重跑受影响 lane 2056/2056 通过，format、clippy、API transport compatibility 与 desktop checks 全部通过。
@@ -68,7 +72,7 @@
 
 ## 调度收敛规则
 
-- 当前只保留一个持续队列上下文；本批完成后下一片按 P1 处理 `internal/api/assistant/chat_helpers_test.go:59:TestTimelineStreamStateEmptyAndCloneBoundaries`，继续核对 Assistant timeline clone、空 delta 与缺省 run ID 边界。
+- 当前只保留一个持续队列上下文；本批完成后下一片按 P1 继续处理 `internal/assistant/model/provider_reasoning_config_test.go:8:TestProviderReasoningPresetsAndExplicitEmptyMappings` 的 provider 级 ResolveProviderReasoning 缺口，随后再回到 `internal/api/assistant/chat_helpers_test.go:59:TestTimelineStreamStateEmptyAndCloneBoundaries`。
 - 不创建子任务、不创建第二个 heartbeat、不重复复核已经完成的切片。
 - 每批先读 Go 实现和 Rust owner；只有发现真实行为差异才先写失败回归测试并修改生产代码。
 - 仅证据不足时维持 `partial` 或 `boundary`，不得为了提高数字升级为 `function_exact`。
@@ -88,6 +92,7 @@
 - 当前批次：system status mapper typed JSON 投影逐项核对，补稳定字段/成功 envelope 锚点，保持 partial 并记录未知字段断言缺口。
 - 当前批次：Assistant chat helper timeline boundary 与 bearerToken 边界逐项核对；新增大小写不敏感 Bearer 回归并修复 API auth 生产 owner，保持 boundary/partial。
 - 当前批次：Assistant chat stream final tool output 裁剪与 missing-agent preview 边界逐项核对；新增先红后修的 Stream terminal projection 回归与 fail-closed preview 回归，保持 partial。
+- 当前批次：Assistant 已知 session preview 与 provider reasoningConfig 默认/校验逐项核对；新增已有 session 单 preview 生产回归与 reasoning 配置先红后修，provider 解析注入仍保持 partial。
 - `00f89290`：marketdata façade 剩余 34 条逐项复核，补 helper provider polling mode owner 回归测试并修复状态投影。
 - `47bf7b1a`：注入配置的默认交易市场并补交易读取测试。
 - `917d1534`：API transport P1 partial 第 1–30 条核对。

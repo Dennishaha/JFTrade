@@ -5269,6 +5269,161 @@ fn provider_default_contract_orders_the_default_first_and_keeps_the_route_code()
     }
 }
 
+/// Parity: go:452dea11:internal/assistant/engine/persistence/provider_reasoning_test.go:47 TestProviderReasoningPersistenceDefaultsToEmptyMappings
+/// Providers always expose the normalized Responses reasoning configuration,
+/// even when the caller omits it from the write payload.
+#[test]
+fn provider_reasoning_config_defaults_to_the_responses_field_and_empty_mappings() {
+    let (port, _directory) = agent_validation_port();
+    let saved = port
+        .mutate(&AdkMutationInput {
+            operation: AdkMutationOperation::CreateProvider,
+            identifiers: BTreeMap::new(),
+            body: json!({
+                "id": "provider-reasoning-default",
+                "displayName": "Reasoning Default",
+                "baseUrl": "https://example.test/v1",
+                "model": "fixture-model",
+                "enabled": true,
+            }),
+            webhook_secret: None,
+        })
+        .expect("create provider");
+    assert_eq!(
+        saved["reasoningConfig"]["requestField"],
+        "reasoning.effort",
+        "provider writes use Go's default reasoning request field"
+    );
+    assert_eq!(
+        saved["reasoningConfig"]["mappings"],
+        json!([]),
+        "missing reasoning mappings normalize to an explicit empty array"
+    );
+
+    let explicit_empty = port
+        .mutate(&AdkMutationInput {
+            operation: AdkMutationOperation::CreateProvider,
+            identifiers: BTreeMap::new(),
+            body: json!({
+                "id": "provider-reasoning-empty",
+                "displayName": "Reasoning Empty",
+                "baseUrl": "https://example.test/v1",
+                "model": "fixture-model",
+                "enabled": true,
+                "reasoningConfig": {"requestField": "provider.reasoning", "mappings": []}
+            }),
+            webhook_secret: None,
+        })
+        .expect("create provider with explicit empty mappings");
+    assert_eq!(
+        explicit_empty["reasoningConfig"],
+        json!({"requestField": "provider.reasoning", "mappings": []})
+    );
+}
+
+/// Parity: go:452dea11:internal/assistant/model/provider_reasoning_config_test.go:8 TestProviderReasoningPresetsAndExplicitEmptyMappings
+/// Custom mappings are trimmed, normalized to stable effort names and sorted;
+/// malformed provider reasoning configurations fail before persistence.
+#[test]
+fn provider_reasoning_config_normalizes_custom_mappings_and_rejects_duplicates() {
+    let (port, _directory) = agent_validation_port();
+    let saved = port
+        .mutate(&AdkMutationInput {
+            operation: AdkMutationOperation::CreateProvider,
+            identifiers: BTreeMap::new(),
+            body: json!({
+                "id": "provider-reasoning-custom",
+                "displayName": "Reasoning Custom",
+                "baseUrl": "https://example.test/v1",
+                "model": "fixture-model",
+                "enabled": true,
+                "reasoningConfig": {
+                    "requestField": " reasoning.level ",
+                    "mappings": [
+                        {"effort": " HIGH ", "value": " balanced "},
+                        {"effort": "low", "value": " LOW "}
+                    ]
+                }
+            }),
+            webhook_secret: None,
+        })
+        .expect("create provider with custom reasoning mappings");
+    assert_eq!(saved["reasoningConfig"]["requestField"], "reasoning.level");
+    assert_eq!(saved["reasoningConfig"]["mappings"][0]["effort"], "low");
+    assert_eq!(saved["reasoningConfig"]["mappings"][0]["value"], "LOW");
+    assert_eq!(saved["reasoningConfig"]["mappings"][1]["effort"], "high");
+    assert_eq!(saved["reasoningConfig"]["mappings"][1]["value"], "balanced");
+
+    let duplicate = port
+        .mutate(&AdkMutationInput {
+            operation: AdkMutationOperation::CreateProvider,
+            identifiers: BTreeMap::new(),
+            body: json!({
+                "id": "provider-reasoning-duplicate",
+                "displayName": "Reasoning Duplicate",
+                "baseUrl": "https://example.test/v1",
+                "model": "fixture-model",
+                "enabled": true,
+                "reasoningConfig": {
+                    "requestField": "reasoning.level",
+                    "mappings": [
+                        {"effort": "low", "value": "LOW"},
+                        {"effort": "LOW", "value": "FAST"}
+                    ]
+                }
+            }),
+            webhook_secret: None,
+        })
+        .expect_err("duplicate reasoning efforts must be rejected");
+    match duplicate {
+        AdkMutationPortError::Failed {
+            status,
+            code,
+            message,
+        } => {
+            assert_eq!(status, 400);
+            assert_eq!(code, "BAD_REQUEST");
+            assert!(message.contains("duplicate provider reasoning effort"));
+        }
+        other => panic!("expected invalid provider reasoning error, got {other:?}"),
+    }
+
+    for (id, field, mappings) in [
+        (
+            "provider-reasoning-reserved",
+            "model.reasoning",
+            json!([{"effort": "low", "value": "LOW"}]),
+        ),
+        (
+            "provider-reasoning-effort",
+            "reasoning.level",
+            json!([{"effort": "default", "value": "DEFAULT"}]),
+        ),
+        (
+            "provider-reasoning-value",
+            "reasoning.level",
+            json!([{"effort": "low", "value": "  "}]),
+        ),
+    ] {
+        let error = port
+            .mutate(&AdkMutationInput {
+                operation: AdkMutationOperation::CreateProvider,
+                identifiers: BTreeMap::new(),
+                body: json!({
+                    "id": id,
+                    "displayName": id,
+                    "baseUrl": "https://example.test/v1",
+                    "model": "fixture-model",
+                    "enabled": true,
+                    "reasoningConfig": {"requestField": field, "mappings": mappings}
+                }),
+                webhook_secret: None,
+            })
+            .expect_err("invalid reasoning mapping must be rejected");
+        assert!(matches!(error, AdkMutationPortError::Failed { status: 400, .. }));
+    }
+}
+
 /// Parity: go:452dea11:internal/api/assistant/adk_routes_test.go:787 TestADKSessionNegativeRoutes
 /// TestADKSessionNegativeRoutes.
 ///

@@ -98,24 +98,42 @@ pub(super) fn provider_payload(
         .map(|row| decode_mutation_payload(&row.payload_json, "provider"))
         .transpose()?
         .unwrap_or_else(|| Value::Object(Map::new()));
+    super::super::projection::normalize_provider_reasoning_config(&mut payload);
+    {
+        let object = payload
+            .as_object_mut()
+            .ok_or_else(|| invalid_mutation_input("invalid provider payload"))?;
+        for key in [
+            "displayName",
+            "baseUrl",
+            "model",
+            "reasoningConfig",
+            "contextWindowTokens",
+            "requestTimeoutMs",
+            "defaultHeaders",
+            "enabled",
+            "default",
+        ] {
+            if let Some(value) = body.get(key) {
+                object.insert(key.to_owned(), value.clone());
+            }
+        }
+    }
+    super::super::projection::normalize_provider_reasoning_config(&mut payload);
+    if body.get("reasoningConfig").is_some()
+        && let Err(error) = super::super::projection::validate_provider_reasoning_config(
+            payload
+                .get("reasoningConfig")
+                .unwrap_or(&Value::Null),
+        )
+    {
+        return Err(invalid_mutation_input(&format!(
+            "invalid provider reasoning configuration: {error}"
+        )));
+    }
     let object = payload
         .as_object_mut()
         .ok_or_else(|| invalid_mutation_input("invalid provider payload"))?;
-    for key in [
-        "displayName",
-        "baseUrl",
-        "model",
-        "reasoningConfig",
-        "contextWindowTokens",
-        "requestTimeoutMs",
-        "defaultHeaders",
-        "enabled",
-        "default",
-    ] {
-        if let Some(value) = body.get(key) {
-            object.insert(key.to_owned(), value.clone());
-        }
-    }
     // Go's `StoreCore.SaveProvider` persists the normalized timeout, so a
     // provider saved without one reports the shared 180s default and a
     // hand-written value is clamped to the supported range instead of being

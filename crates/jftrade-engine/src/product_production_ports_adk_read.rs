@@ -131,6 +131,9 @@ impl ProductionAdkPort {
                 let mut value: Value = serde_json::from_str(&row.payload_json)
                     .map_err(|error| invalid_payload(kind, error))?;
                 if kind == "provider" {
+                    super::projection::normalize_provider_reasoning_config(&mut value);
+                }
+                if kind == "provider" {
                     sanitize_provider(&mut value, &row.id, &self.settings_path)?;
                 }
                 put_string(&mut value, "id", row.id);

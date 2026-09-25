@@ -1643,6 +1643,74 @@ async fn production_live_chat_stream_emits_session_before_run_and_terminal_frame
     handle.shutdown().await.expect("shutdown product");
 }
 
+/// Go's `ensureSessionAndContext` marks an already previewed session as sent
+/// and must not publish a duplicate preview when the request already names a
+/// durable session.  The production route is exercised with a seeded session
+/// and a closed provider so the assertion remains independent of model output.
+/// Parity: go:452dea11:internal/api/assistant/chat_stream_recovery_contracts_test.go:41 TestChatStreamExecutionReusesKnownContextAndRecoversTerminalRun
+#[tokio::test]
+async fn production_live_chat_stream_reuses_existing_session_preview_once() {
+    let endpoint = closed_model_endpoint();
+    let session_id = "session-reuse-preview-11111111-1111-4111-8111-111111111111";
+    let (_directory, handle) =
+        start_adk_product_with_loopback_provider_seeded(&endpoint, 0, |store, session_store| {
+            store
+                .upsert_session(
+                    session_id,
+                    "agent-live",
+                    &json!({
+                        "id": session_id,
+                        "agentId": "agent-live",
+                        "title": "reused preview"
+                    })
+                    .to_string(),
+                )
+                .expect("seed session");
+            session_store
+                .upsert_session("jftrade", "local", session_id, "{}")
+                .expect("seed transcript row");
+        })
+        .await;
+    let address = handle.startup_record().address;
+    let body = format!(
+        r#"{{"clientRequestId":"33333333-3333-4333-8333-333333333333","agentId":"agent-live","sessionId":"{session_id}","message":"continue"}}"#
+    );
+
+    let text = request_sse_until(
+        address,
+        "POST",
+        ADK_CHAT_STREAM_PATH,
+        body.as_bytes(),
+        |text| text.contains("\"type\":\"final\"") || text.contains("\"type\":\"error\""),
+    )
+    .await;
+    let types = text
+        .split("data: ")
+        .filter_map(|rest| rest.split('\n').next())
+        .filter_map(|data| serde_json::from_str::<Value>(data).ok())
+        .filter_map(|value| value["type"].as_str().map(str::to_owned))
+        .collect::<Vec<_>>();
+    assert_eq!(
+        types
+            .iter()
+            .filter(|kind| kind.as_str() == "session")
+            .count(),
+        1,
+        "an existing session gets exactly one preview frame: {text}"
+    );
+    assert_eq!(
+        types.first().map(String::as_str),
+        Some("session"),
+        "preview order: {types:?}"
+    );
+    assert!(
+        types.iter().any(|kind| kind == "run"),
+        "run frame: {types:?}"
+    );
+
+    handle.shutdown().await.expect("shutdown product");
+}
+
 /// Go's `previewSession()` suppresses the preview frame when the requested
 /// agent cannot be resolved.  The Rust stream transport fails closed before
 /// creating a run, so it must not leak a synthetic session or run frame.

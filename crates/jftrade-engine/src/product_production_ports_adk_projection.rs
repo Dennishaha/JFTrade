@@ -65,6 +65,161 @@ pub(super) fn session_entity_value(
     )
 }
 
+/// Go's provider projection always carries a normalized reasoning config.
+/// Older Rust rows may omit the field, so reads and writes repair the same
+/// default in one projection owner.
+pub(crate) fn normalize_provider_reasoning_config(value: &mut Value) {
+    let Some(object) = value.as_object_mut() else {
+        return;
+    };
+    let default = || {
+        json!({
+            "requestField": "reasoning.effort",
+            "mappings": [],
+        })
+    };
+    let Some(config) = object.get_mut("reasoningConfig") else {
+        object.insert("reasoningConfig".to_owned(), default());
+        return;
+    };
+    let Some(config_object) = config.as_object_mut() else {
+        *config = default();
+        return;
+    };
+    let request_field = config_object
+        .get("requestField")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|field| !field.is_empty())
+        .unwrap_or("reasoning.effort")
+        .to_owned();
+    config_object.insert("requestField".to_owned(), Value::String(request_field));
+    if !config_object
+        .get("mappings")
+        .is_some_and(Value::is_array)
+    {
+        config_object.insert("mappings".to_owned(), Value::Array(Vec::new()));
+    } else if let Some(mappings) = config_object.get_mut("mappings").and_then(Value::as_array_mut)
+    {
+        for mapping in mappings.iter_mut() {
+            if let Some(mapping) = mapping.as_object_mut() {
+                if let Some(effort) = mapping
+                    .get("effort")
+                    .and_then(Value::as_str)
+                    .map(|effort| effort.trim().to_ascii_lowercase())
+                {
+                    mapping.insert("effort".to_owned(), Value::String(effort));
+                }
+                if let Some(value) = mapping
+                    .get("value")
+                    .and_then(Value::as_str)
+                    .map(|value| value.trim().to_owned())
+                {
+                    mapping.insert("value".to_owned(), Value::String(value));
+                }
+            }
+        }
+        let rank = |value: &Value| match value
+            .get("effort")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+        {
+            "low" => 0,
+            "medium" => 1,
+            "high" => 2,
+            "xhigh" => 3,
+            "max" => 4,
+            _ => 5,
+        };
+        mappings.sort_by_key(rank);
+    }
+}
+
+/// Validates the provider reasoning mapping shape before it is persisted.
+/// The model layer's supported effort names are deliberately explicit so an
+/// unknown value cannot silently fall back to a provider default.
+pub(crate) fn validate_provider_reasoning_config(value: &Value) -> Result<(), String> {
+    let object = value
+        .as_object()
+        .ok_or_else(|| "reasoningConfig must be an object".to_owned())?;
+    let field = object
+        .get("requestField")
+        .and_then(Value::as_str)
+        .ok_or_else(|| "provider reasoning request field is required".to_owned())?
+        .trim();
+    if field.is_empty() {
+        return Err("provider reasoning request field is required".to_owned());
+    }
+    if field.chars().count() > 128 {
+        return Err("provider reasoning request field is too long".to_owned());
+    }
+    let reserved = [
+        "model",
+        "messages",
+        "input",
+        "stream",
+        "tools",
+        "tool_choice",
+        "temperature",
+    ];
+    for (index, segment) in field.split('.').enumerate() {
+        if segment.is_empty() {
+            return Err("provider reasoning request field contains an empty segment".to_owned());
+        }
+        if index == 0 && reserved.contains(&segment) {
+            return Err(format!(
+                "provider reasoning request field {field:?} conflicts with request field {segment:?}"
+            ));
+        }
+        if !segment.chars().enumerate().all(|(position, character)| {
+            character == '_'
+                || character.is_ascii_alphabetic()
+                || (position > 0 && character.is_ascii_digit())
+        }) {
+            return Err(format!(
+                "provider reasoning request field {field:?} is not a dot path"
+            ));
+        }
+    }
+    let mappings = object
+        .get("mappings")
+        .and_then(Value::as_array)
+        .ok_or_else(|| "provider reasoning mappings must be an array".to_owned())?;
+    let mut seen = std::collections::BTreeSet::new();
+    for mapping in mappings {
+        let mapping = mapping
+            .as_object()
+            .ok_or_else(|| "provider reasoning mapping must be an object".to_owned())?;
+        let effort = mapping
+            .get("effort")
+            .and_then(Value::as_str)
+            .ok_or_else(|| "provider reasoning effort is required".to_owned())?
+            .trim()
+            .to_ascii_lowercase();
+        if !matches!(effort.as_str(), "low" | "medium" | "high" | "xhigh" | "max") {
+            return Err(format!("invalid provider reasoning effort {effort:?}"));
+        }
+        if !seen.insert(effort.clone()) {
+            return Err(format!("duplicate provider reasoning effort {effort:?}"));
+        }
+        let value = mapping
+            .get("value")
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .ok_or_else(|| format!("provider reasoning value for {effort:?} is required"))?;
+        if value.chars().count() > 128 {
+            return Err(format!("provider reasoning value for {effort:?} is too long"));
+        }
+        if value.chars().any(char::is_control) {
+            return Err(format!(
+                "provider reasoning value for {effort:?} contains a control character"
+            ));
+        }
+    }
+    Ok(())
+}
+
 pub(super) fn timeline_value(
     event: jftrade_store_sqlite::StoredAdkEvent,
     sequence: usize,
