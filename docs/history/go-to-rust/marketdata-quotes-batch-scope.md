@@ -1562,6 +1562,23 @@ ADK/Assistant 功能差异，先补失败回归测试再修改领域 owner。
 
 下一片：继续 P2 Assistant/Workflow/ADK、API transport、MarketData/Quote、Storage/SQLite 与 Backtest/Calendar；`optional_bool_strict` helper、P1 `session_context_snapshot` 及其他无独立 Rust 测试条目仍保持未验证结论。
 
+## 第 198 批：ADK application adapters、market research tools 与 MCP lifecycle（2026-09-26）
+
+| 复核 | Go 测试范围 | Rust 证据 | P | 结论 |
+| :---: | --- | --- | :---: | --- |
+| [x] | `adk_strategy_test.go:449,699,774`; `adk_summary_contracts_test.go:9,33`; `adk_tool_failure_contracts_test.go:19` | unavailable/successful ADK views、provider override isolation、strategy/backtest summaries and readiness-boundary errors | P2 | partial：Rust ADK executor/strategy optimization tests cover view projection, provider override and readiness stop；Go assembly facade、concurrent queue wiring and raw-series hiding aggregation remain partial. |
+| [x] | `application_adapter_boundaries_test.go:20,71,128`; `application_adapter_test.go:16,58,81,123,138,164` | unwired/catalog/runtime projections、timeout/audit/status、broker/execution normalization、compact/advanced candles and validation | P2 | partial/boundary：Rust application ports and MCP executors have direct owner tests；Go adapter nil-port behavior, cross-domain handler composition and provider-call sequencing remain structural boundaries. |
+| [x] | `application_adapter_test.go:185,278,308`; `application_strategy_lifecycle_test.go:84,122,141` | provider/runtime port readiness, backtest sync/read projections, malformed instrument rejection, strategy activity/runtime write and normalized binding persistence | P2 | partial：Rust market-data/backtest/strategy owners cover validation and durable outcomes；Go workflow snapshot and application adapter wiring remain partial, especially where one Go test aggregates several ports. |
+| [x] | `maintenance_test.go:12,77`; `market_index_constituents_tools_test.go:14,60,69` | ADK purge candidate fencing, writer-lease compaction, index constituent normalization/descriptor, missing owner/AKShare readiness and provider capability messages | P2 | partial：SQLite maintenance and market-index owner tests pass; Go maintenance facade and helper-provider lifecycle composition remain boundary-specific. |
+| [x] | `market_news_tools_test.go:15,93,104` | market/news/corporate-action normalization, default limits, UTC/RFC3339 range checks, missing-port fail-closed and foreign-broker capability codes | P2 | partial：Rust market-news/search owners cover normalized inputs and capability classes；Go tool facade and response-message aggregation remain partial. |
+| [x] | `mcp_server_lifecycle_authorization_test.go:27` | MCP token/lifecycle idempotence, disabled/closed runtime, listener conflict and reset rebind | P2 | partial/boundary：Rust MCP lifecycle owner tests cover listener ownership and generation safety；Go manager facade and handler replacement aggregation remain partial. |
+
+本批 30 条 Go 映射对应表达式中的 53 个过滤器，Rust nextest 实际 **54/54** 通过（3419 skipped）。`candidate_payload_keeps_the_requested_provider_override`、`strategy_instance_activity_tool_normalizes_kind_and_paging_before_the_read_port`、`instantiate_accepts_empty_body_but_rejects_malformed_json` 等过滤器在多个 binary 中实际运行，按 nextest 结果计数；本批没有仅由 helper 符号命中的过滤器。ADK application adapter、maintenance、market research 与 MCP lifecycle 证据均写入凭证，Go assembly/handler/queue facade 和跨域聚合继续保持 `partial`/`boundary`，未凭聚合测试升级为 exact；未发现需要先红后修的真实 Rust 功能差异。
+
+验证：动态生成本批过滤器运行 `node scripts/quality/cargo-nextest.mjs run --all-targets --locked -E`，54/54 通过。
+
+下一片：继续 P2 Assistant/Workflow/ADK、API transport、MarketData/Quote、Storage/SQLite 与 Backtest/Calendar；`optional_bool_strict` helper、P1 `session_context_snapshot` 及其他无独立 Rust 测试条目仍保持未验证结论。
+
 ## 第 196 批：系统状态、执行通知、订单对账与 Web 鉴权（2026-09-26）
 
 | 复核 | Go 测试范围 | Rust 证据 | P | 结论 |
