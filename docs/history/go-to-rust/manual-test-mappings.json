@@ -21980,9 +21980,9 @@
     },
     "internal/api/trading/routes_test.go:32:TestBrokerRoutesPreserveFallbackSemanticsAndRequestValidation": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_reconciliation_provider_tests.rs::helper_market_data_providers_project_futu_broker_and_portfolio_routes",
-      "conclusion": "partial：Go 断言无活动 broker 时 /brokers/futu/funds 200 degraded+lastError、/portfolio/futu/cash-balances 200、order-fees 与 cash-flows 缺参→400、写单→503、/brokers/ib/runtime 200 空态。Rust 用例覆盖 futu broker/portfolio 投影（runtime/funds/orders/fills/fees）；缺口：降级 200（与 routes_failure_boundaries_test.go:17 同一差异）、缺参 400、写单 503 与 ib 空态的逐项断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --locked -E 'test(helper_market_data_providers_project_futu_broker_and_portfolio_routes)'",
+      "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_reconciliation_provider_tests.rs::helper_market_data_providers_project_futu_broker_and_portfolio_routes；crates/jftrade-engine/src/product_production_assembly_tests.rs::production_http_broker_reads_reject_missing_and_invalid_optional_inputs；crates/jftrade-engine/src/product_production_assembly_tests.rs::production_http_broker_reads_serialize_empty_collections_as_arrays；crates/jftrade-engine/src/product_production_assembly_tests.rs::canonical_278_routes_table_driven_reachability_and_auth_matrix；crates/jftrade-engine/src/product_production_ports_trade_tests.rs::broker_runtime_requires_real_projection_sources",
+      "conclusion": "partial：Go 断言无活动 broker 时 /brokers/futu/funds 与 /portfolio/futu/cash-balances 返回 200（degraded/空态）、order-fees 与 cash-flows 缺参→400、写单→503、/brokers/ib/runtime 返回 200 typed 空态。Rust 直接 owner 测试覆盖 futu runtime/funds/orders/fills/fees 与 portfolio cash 投影；HTTP 生产测试覆盖缺失/非法可选参数的 400、带参数的 fees/cash-flows 空数组、canonical route matrix 的 brokers write 503，以及无真实 runtime projection source 时 fail-closed。缺口：Go 的 no-active-broker 200 degraded fallback 与 ib 空态成功响应在 Rust external-unavailable owner 中分别是 503/Unavailable；Go order-fees/cash-flows 缺参的同形逐项 400 也未冻结，保持 partial，owner = 生产 broker/portfolio transport 边界。",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(helper_market_data_providers_project_futu_broker_and_portfolio_routes) or test(production_http_broker_reads_reject_missing_and_invalid_optional_inputs) or test(production_http_broker_reads_serialize_empty_collections_as_arrays) or test(canonical_278_routes_table_driven_reachability_and_auth_matrix) or test(broker_runtime_requires_real_projection_sources)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/api/trading/routes_test.go",
@@ -21996,12 +21996,36 @@
           "test": "helper_market_data_providers_project_futu_broker_and_portfolio_routes",
           "crate": "jftrade-engine",
           "anchor": null
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_production_assembly_tests.rs",
+          "test": "production_http_broker_reads_reject_missing_and_invalid_optional_inputs",
+          "crate": "jftrade-engine",
+          "anchor": null
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_production_assembly_tests.rs",
+          "test": "production_http_broker_reads_serialize_empty_collections_as_arrays",
+          "crate": "jftrade-engine",
+          "anchor": null
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_production_assembly_tests.rs",
+          "test": "canonical_278_routes_table_driven_reachability_and_auth_matrix",
+          "crate": "jftrade-engine",
+          "anchor": null
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs",
+          "test": "broker_runtime_requires_real_projection_sources",
+          "crate": "jftrade-engine",
+          "anchor": null
         }
       ],
       "assertionCoverage": {
         "covered": [],
         "uncovered": [
-          "partial：Go 断言无活动 broker 时 /brokers/futu/funds 200 degraded+lastError、/portfolio/futu/cash-balances 200、order-fees 与 cash-flows 缺参→400、写单→503、/brokers/ib/runtime 200 空态。Rust 用例覆盖 futu broker/portfolio 投影（runtime/funds/orders/fills/fees）；缺口：降级 200（与 routes_failure_boundaries_test.go:17 同一差异）、缺参 400、写单 503 与 ib 空态的逐项断言。"
+          "partial：Go 断言无活动 broker 时 /brokers/futu/funds 与 /portfolio/futu/cash-balances 返回 200（degraded/空态）、order-fees 与 cash-flows 缺参→400、写单→503、/brokers/ib/runtime 返回 200 typed 空态。Rust 直接 owner 测试覆盖 futu runtime/funds/orders/fills/fees 与 portfolio cash 投影；HTTP 生产测试覆盖缺失/非法可选参数的 400、带参数的 fees/cash-flows 空数组、canonical route matrix 的 brokers write 503，以及无真实 runtime projection source 时 fail-closed。缺口：Go 的 no-active-broker 200 degraded fallback 与 ib 空态成功响应在 Rust external-unavailable owner 中分别是 503/Unavailable；Go order-fees/cash-flows 缺参的同形逐项 400 也未冻结，保持 partial，owner = 生产 broker/portfolio transport 边界。"
         ],
         "source": "legacy-conclusion"
       },
@@ -22012,19 +22036,24 @@
           "run",
           "-p",
           "jftrade-engine",
+          "--all-targets",
           "--locked",
           "-E",
-          "test(helper_market_data_providers_project_futu_broker_and_portfolio_routes)"
+          "test(helper_market_data_providers_project_futu_broker_and_portfolio_routes) or test(production_http_broker_reads_reject_missing_and_invalid_optional_inputs) or test(production_http_broker_reads_serialize_empty_collections_as_arrays) or test(canonical_278_routes_table_driven_reachability_and_auth_matrix) or test(broker_runtime_requires_real_projection_sources)"
         ],
         "testFilter": [
-          "helper_market_data_providers_project_futu_broker_and_portfolio_routes"
+          "helper_market_data_providers_project_futu_broker_and_portfolio_routes",
+          "production_http_broker_reads_reject_missing_and_invalid_optional_inputs",
+          "production_http_broker_reads_serialize_empty_collections_as_arrays",
+          "canonical_278_routes_table_driven_reachability_and_auth_matrix",
+          "broker_runtime_requires_real_projection_sources"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "06e4d9df",
+        "verifiedAt": "2026-09-25T08:48:22Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -22037,7 +22066,7 @@
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
-        "partial：Go 断言无活动 broker 时 /brokers/futu/funds 200 degraded+lastError、/portfolio/futu/cash-balances 200、order-fees 与 cash-flows 缺参→400、写单→503、/brokers/ib/runtime 200 空态。Rust 用例覆盖 futu broker/portfolio 投影（runtime/funds/orders/fills/fees）；缺口：降级 200（与 routes_failure_boundaries_test.go:17 同一差异）、缺参 400、写单 503 与 ib 空态的逐项断言。"
+        "partial：Go 断言无活动 broker 时 /brokers/futu/funds 与 /portfolio/futu/cash-balances 返回 200（degraded/空态）、order-fees 与 cash-flows 缺参→400、写单→503、/brokers/ib/runtime 返回 200 typed 空态。Rust 直接 owner 测试覆盖 futu runtime/funds/orders/fills/fees 与 portfolio cash 投影；HTTP 生产测试覆盖缺失/非法可选参数的 400、带参数的 fees/cash-flows 空数组、canonical route matrix 的 brokers write 503，以及无真实 runtime projection source 时 fail-closed。缺口：Go 的 no-active-broker 200 degraded fallback 与 ib 空态成功响应在 Rust external-unavailable owner 中分别是 503/Unavailable；Go order-fees/cash-flows 缺参的同形逐项 400 也未冻结，保持 partial，owner = 生产 broker/portfolio transport 边界。"
       ],
       "boundaryReason": null
     },
@@ -296591,12 +296620,13 @@
       "reviewStatus": "single"
     },
     "crates/jftrade-engine/src/product_production_assembly_tests.rs::production_http_broker_reads_reject_missing_and_invalid_optional_inputs": {
-      "referenceCount": 1,
+      "referenceCount": 2,
       "referenceKeys": [
-        "internal/api/trading/routes_failure_boundaries_test.go:58:TestBrokerReadRoutesRejectMissingAndInvalidOptionalInputs"
+        "internal/api/trading/routes_failure_boundaries_test.go:58:TestBrokerReadRoutesRejectMissingAndInvalidOptionalInputs",
+        "internal/api/trading/routes_test.go:32:TestBrokerRoutesPreserveFallbackSemanticsAndRequestValidation"
       ],
-      "allowed": true,
-      "reviewStatus": "single"
+      "allowed": false,
+      "reviewStatus": "unreviewed"
     },
     "crates/jftrade-engine/src/product_production_assembly_tests.rs::production_http_broker_reads_reject_missing_uri_broker_and_unknown_resource": {
       "referenceCount": 1,
@@ -296607,12 +296637,13 @@
       "reviewStatus": "single"
     },
     "crates/jftrade-engine/src/product_production_assembly_tests.rs::production_http_broker_reads_serialize_empty_collections_as_arrays": {
-      "referenceCount": 1,
+      "referenceCount": 2,
       "referenceKeys": [
-        "internal/api/trading/routes_read_handlers_test.go:18:TestBrokerReadHandlersSerializeEmptyCollectionsAsArrays"
+        "internal/api/trading/routes_read_handlers_test.go:18:TestBrokerReadHandlersSerializeEmptyCollectionsAsArrays",
+        "internal/api/trading/routes_test.go:32:TestBrokerRoutesPreserveFallbackSemanticsAndRequestValidation"
       ],
-      "allowed": true,
-      "reviewStatus": "single"
+      "allowed": false,
+      "reviewStatus": "unreviewed"
     },
     "crates/jftrade-engine/src/product_production_assembly_tests.rs::production_http_broker_reads_serve_orders_fills_quotes_klines_and_securities": {
       "referenceCount": 1,
@@ -298358,6 +298389,14 @@
       ],
       "allowed": false,
       "reviewStatus": "unreviewed"
+    },
+    "crates/jftrade-engine/src/product_production_assembly_tests.rs::canonical_278_routes_table_driven_reachability_and_auth_matrix": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/api/trading/routes_test.go:32:TestBrokerRoutesPreserveFallbackSemanticsAndRequestValidation"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
     },
     "crates/jftrade-engine/src/product_production_ports_execution_reconciliation_provider_tests.rs::helper_market_data_providers_reconcile_futu_account_order_fill_and_fee": {
       "referenceCount": 2,
@@ -300409,12 +300448,13 @@
       "reviewStatus": "unreviewed"
     },
     "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::broker_runtime_requires_real_projection_sources": {
-      "referenceCount": 1,
+      "referenceCount": 2,
       "referenceKeys": [
-        "internal/trading/broker_test.go:735:TestNormalizeSymbolsAndRuntimeDefaults"
+        "internal/trading/broker_test.go:735:TestNormalizeSymbolsAndRuntimeDefaults",
+        "internal/api/trading/routes_test.go:32:TestBrokerRoutesPreserveFallbackSemanticsAndRequestValidation"
       ],
-      "allowed": true,
-      "reviewStatus": "single"
+      "allowed": false,
+      "reviewStatus": "unreviewed"
     },
     "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::broker_runtime_route_keeps_descriptor_session_and_accounts_keys": {
       "referenceCount": 2,
