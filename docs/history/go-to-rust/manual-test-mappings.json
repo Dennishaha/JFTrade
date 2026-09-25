@@ -19607,8 +19607,8 @@
     "internal/api/system/routes_test.go:77:TestExchangeCalendarRefreshRouteCallsRefresh": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_tests.rs::calendar_control_plane_routes_share_the_real_manager_in_cutover_only",
-      "conclusion": "partial：Go 断言 refresh 路由（含按市场）调用刷新。Rust 引用用例断言日历控制面路由共享真实管理器；刷新副作用（按市场参数与调用次数）以管理器用例表达，未在路由断言。缺口 owner：crates/jftrade-engine 日历控制面；回归要求：补“refresh/{market} → 管理器收到该市场”断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+      "conclusion": "partial：Go 断言 refresh/US 与 refresh 两条路由均 200，并由注入回调分别收到 US 与空 market。Rust 已补产品回归，断言两条 refresh 路由均 accepted=true/updated=1，真实 CalendarManager 写入结果可由 status checksum 读回；callback 参数/次数 seam 仍与 Go 不同，保持 partial。",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-calendar --all-targets --locked -E test(calendar_control_plane_routes_share_the_real_manager_in_cutover_only) or test(calendar_control_plane_routes_fail_closed_without_a_manager) or test(calendar_unknown_market_control_requests_keep_the_go_noop_wire)",
       "evidence_type": "partial",
       "source": {
         "file": "internal/api/system/routes_test.go",
@@ -19621,15 +19621,22 @@
           "file": "crates/jftrade-engine/src/product_tests.rs",
           "test": "calendar_control_plane_routes_share_the_real_manager_in_cutover_only",
           "crate": "jftrade-engine",
-          "anchor": null
+          "anchor": {
+            "goFile": "internal/api/system/routes_test.go",
+            "goLine": 77,
+            "rustFile": "crates/jftrade-engine/src/product_tests.rs",
+            "rustLine": 1696
+          }
         }
       ],
       "assertionCoverage": {
-        "covered": [],
-        "uncovered": [
-          "partial：Go 断言 refresh 路由（含按市场）调用刷新。Rust 引用用例断言日历控制面路由共享真实管理器；刷新副作用（按市场参数与调用次数）以管理器用例表达，未在路由断言。缺口 owner：crates/jftrade-engine 日历控制面；回归要求：补“refresh/{market} → 管理器收到该市场”断言。"
+        "covered": [
+          "partial：Rust 产品回归现在覆盖按市场 refresh/US 与无 market refresh 两条路由均返回 accepted=true、updated=1，并通过 manager 状态 checksum 与 fixture source 观察刷新结果；无 manager 与未知 market 的相邻边界也在同批定向测试通过。"
         ],
-        "source": "legacy-conclusion"
+        "uncovered": [
+          "partial：Go 注入 refresh 回调直接断言 US 参数透传、global 调用传空 market 与调用时序；Rust 路由通过真实 CalendarManager owner 观察结果，未提供同形 callback spy 或独立调用次数断言，继续保持 partial。"
+        ],
+        "source": "manual-batch-review"
       },
       "verification": {
         "argv": [
@@ -19638,18 +19645,24 @@
           "run",
           "-p",
           "jftrade-engine",
+          "-p",
+          "jftrade-calendar",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(calendar_control_plane_routes_share_the_real_manager_in_cutover_only) or test(calendar_control_plane_routes_fail_closed_without_a_manager) or test(calendar_unknown_market_control_requests_keep_the_go_noop_wire)"
         ],
         "testFilter": [
-          "calendar_control_plane_routes_share_the_real_manager_in_cutover_only"
+          "calendar_control_plane_routes_share_the_real_manager_in_cutover_only",
+          "calendar_control_plane_routes_fail_closed_without_a_manager",
+          "calendar_unknown_market_control_requests_keep_the_go_noop_wire"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
+        "status": "passed",
+        "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": null,
+        "verifiedAt": "2026-09-25T03:55:00Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -19660,9 +19673,11 @@
         "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [],
+      "coveredAssertions": [
+        "partial：Rust 产品回归现在覆盖按市场 refresh/US 与无 market refresh 两条路由均返回 accepted=true、updated=1，并通过 manager 状态 checksum 与 fixture source 观察刷新结果；无 manager 与未知 market 的相邻边界也在同批定向测试通过。"
+      ],
       "uncoveredAssertions": [
-        "partial：Go 断言 refresh 路由（含按市场）调用刷新。Rust 引用用例断言日历控制面路由共享真实管理器；刷新副作用（按市场参数与调用次数）以管理器用例表达，未在路由断言。缺口 owner：crates/jftrade-engine 日历控制面；回归要求：补“refresh/{market} → 管理器收到该市场”断言。"
+        "partial：Go 注入 refresh 回调直接断言 US 参数透传、global 调用传空 market 与调用时序；Rust 路由通过真实 CalendarManager owner 观察结果，未提供同形 callback spy 或独立调用次数断言，继续保持 partial。"
       ],
       "boundaryReason": null
     },

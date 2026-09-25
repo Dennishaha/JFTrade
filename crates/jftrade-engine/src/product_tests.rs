@@ -1693,6 +1693,8 @@ async fn research_screen_catalog_route_matches_go_fixture_for_all_variants() {
     handle.shutdown().await.expect("shutdown product");
 }
 
+// Parity: go:452dea11:internal/api/system/routes_test.go:77 TestExchangeCalendarRefreshRouteCallsRefresh
+// Parity: go:452dea11:internal/api/system/routes_test.go:170 TestExchangeCalendarProbeRouteCallsProbe
 #[tokio::test]
 async fn calendar_control_plane_routes_share_the_real_manager_in_cutover_only() {
     let directory = tempdir().expect("temporary directory");
@@ -1700,6 +1702,7 @@ async fn calendar_control_plane_routes_share_the_real_manager_in_cutover_only() 
     let manager = fixture_calendar_manager([
         Ok(fixture_calendar_snapshot("refresh-checksum")),
         Ok(fixture_calendar_snapshot("probe-checksum")),
+        Ok(fixture_calendar_snapshot("refresh-all-checksum")),
     ]);
     let config =
         ProductConfig::test_cutover("127.0.0.1:0".parse().expect("address"), &settings_path)
@@ -1753,6 +1756,15 @@ async fn calendar_control_plane_routes_share_the_real_manager_in_cutover_only() 
     assert_eq!(probe["data"]["accepted"], true);
     assert_eq!(probe["data"]["healthy"], 1);
     assert_eq!(probe["data"]["results"][0]["checksum"], "probe-checksum");
+    let refresh_all = request_json(
+        handle.startup_record().address,
+        "POST",
+        "/api/v1/system/exchange-calendars/refresh",
+        None,
+    )
+    .await;
+    assert_eq!(refresh_all["data"]["accepted"], true);
+    assert_eq!(refresh_all["data"]["updated"], 1);
     handle.shutdown().await.expect("shutdown product");
 }
 
