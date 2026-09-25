@@ -54559,10 +54559,10 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(broker_securities_returns_real_empty_result_when_cache_has_no_symbol) or test(broker_quote_projects_real_futu_tick_cache_for_all_symbols) or test(trade_write_methods_propagate_write_disconnects) or test(broker_unlock_route_forwards_password_md5_and_unlock_flag_to_opend) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(funds_projection_keeps_missing_margin_fields_absent) or test(broker_read_fails_closed_without_trade_client) or test(execution_write_fixture_replays_all_seven_go_owned_mutations) or test(accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel) or test(us_limit_route_orders_keep_price_session_and_explicit_market_code) or test(test_normalize_execution_order_supports_extended_us_limit_sessions) or test(place_order_rounds_us_prices_to_the_venue_tick_before_encoding) or test(unknown_api_is_json_but_frontend_uses_spa_fallback) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(enabled_web_access_binds_and_shutdown_releases_port) or test(production_startup_fails_closed_when_database_is_corrupted) or test(production_startup_exposes_degraded_api_when_external_runtimes_are_unavailable) or test(portfolio_cash_balances_fall_back_to_summary_currency_when_breakdown_is_empty) or test(unknown_portfolio_reconciliation_route_returns_json_not_found) or test(portfolio_read_routes_match_group_fixture_in_cutover_only) or test(unsaved_broker_settings_expose_null_integration_and_go_defaults) or test(strategy_instance_read_routes_match_group_fixture_in_cutover_only) or test(runtime_status_wire_drops_absent_and_blank_values_and_normalizes_utc) or test(test_product_runtime_ordered_shutdown_explicit) or test(startup_acquires_all_writer_leases_in_stable_order_before_migrating) or test(startup_failure_restores_previously_migrated_descriptor_files) or test(test_product_runtime_startup_failure_rollback) or test(execution_write_product_replays_browser_boundary_failure_recovery_and_restart) or test(combo_place_rejects_invalid_legs_accounts_and_hidden_transport_failures) or test(combo_intent_rejects_missing_kind_legs_and_account) or test(option_combo_preview_place_and_cancel_keep_server_identity) or test(helper_market_data_providers_reconcile_futu_account_order_fill_and_fee) or test(reconciliation_replays_history_fill_and_fee_once_after_restart) or test(reconciliation_scope_accepts_only_stock_trade_markets) or test(execution_orders_lifecycle_events_and_restart_durability) or test(auth_session_store_corruption_fails_closed_without_rewrite) or test(auth_rejects_untrusted_origin_before_authentication) or test(desktop_missing_static_assets_do_not_use_spa_fallback)"
         ],
         "testFilter": [
           "broker_securities_returns_real_empty_result_when_cache_has_no_symbol",
@@ -54570,10 +54570,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "538d15d0",
+        "verifiedAt": "2026-09-25T13:41:05Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -54628,10 +54628,10 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(broker_securities_returns_real_empty_result_when_cache_has_no_symbol) or test(broker_quote_projects_real_futu_tick_cache_for_all_symbols) or test(trade_write_methods_propagate_write_disconnects) or test(broker_unlock_route_forwards_password_md5_and_unlock_flag_to_opend) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(funds_projection_keeps_missing_margin_fields_absent) or test(broker_read_fails_closed_without_trade_client) or test(execution_write_fixture_replays_all_seven_go_owned_mutations) or test(accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel) or test(us_limit_route_orders_keep_price_session_and_explicit_market_code) or test(test_normalize_execution_order_supports_extended_us_limit_sessions) or test(place_order_rounds_us_prices_to_the_venue_tick_before_encoding) or test(unknown_api_is_json_but_frontend_uses_spa_fallback) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(enabled_web_access_binds_and_shutdown_releases_port) or test(production_startup_fails_closed_when_database_is_corrupted) or test(production_startup_exposes_degraded_api_when_external_runtimes_are_unavailable) or test(portfolio_cash_balances_fall_back_to_summary_currency_when_breakdown_is_empty) or test(unknown_portfolio_reconciliation_route_returns_json_not_found) or test(portfolio_read_routes_match_group_fixture_in_cutover_only) or test(unsaved_broker_settings_expose_null_integration_and_go_defaults) or test(strategy_instance_read_routes_match_group_fixture_in_cutover_only) or test(runtime_status_wire_drops_absent_and_blank_values_and_normalizes_utc) or test(test_product_runtime_ordered_shutdown_explicit) or test(startup_acquires_all_writer_leases_in_stable_order_before_migrating) or test(startup_failure_restores_previously_migrated_descriptor_files) or test(test_product_runtime_startup_failure_rollback) or test(execution_write_product_replays_browser_boundary_failure_recovery_and_restart) or test(combo_place_rejects_invalid_legs_accounts_and_hidden_transport_failures) or test(combo_intent_rejects_missing_kind_legs_and_account) or test(option_combo_preview_place_and_cancel_keep_server_identity) or test(helper_market_data_providers_reconcile_futu_account_order_fill_and_fee) or test(reconciliation_replays_history_fill_and_fee_once_after_restart) or test(reconciliation_scope_accepts_only_stock_trade_markets) or test(execution_orders_lifecycle_events_and_restart_durability) or test(auth_session_store_corruption_fails_closed_without_rewrite) or test(auth_rejects_untrusted_origin_before_authentication) or test(desktop_missing_static_assets_do_not_use_spa_fallback)"
         ],
         "testFilter": [
           "trade_write_methods_propagate_write_disconnects",
@@ -54639,10 +54639,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "538d15d0",
+        "verifiedAt": "2026-09-25T13:41:05Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -54897,10 +54897,10 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(broker_securities_returns_real_empty_result_when_cache_has_no_symbol) or test(broker_quote_projects_real_futu_tick_cache_for_all_symbols) or test(trade_write_methods_propagate_write_disconnects) or test(broker_unlock_route_forwards_password_md5_and_unlock_flag_to_opend) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(funds_projection_keeps_missing_margin_fields_absent) or test(broker_read_fails_closed_without_trade_client) or test(execution_write_fixture_replays_all_seven_go_owned_mutations) or test(accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel) or test(us_limit_route_orders_keep_price_session_and_explicit_market_code) or test(test_normalize_execution_order_supports_extended_us_limit_sessions) or test(place_order_rounds_us_prices_to_the_venue_tick_before_encoding) or test(unknown_api_is_json_but_frontend_uses_spa_fallback) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(enabled_web_access_binds_and_shutdown_releases_port) or test(production_startup_fails_closed_when_database_is_corrupted) or test(production_startup_exposes_degraded_api_when_external_runtimes_are_unavailable) or test(portfolio_cash_balances_fall_back_to_summary_currency_when_breakdown_is_empty) or test(unknown_portfolio_reconciliation_route_returns_json_not_found) or test(portfolio_read_routes_match_group_fixture_in_cutover_only) or test(unsaved_broker_settings_expose_null_integration_and_go_defaults) or test(strategy_instance_read_routes_match_group_fixture_in_cutover_only) or test(runtime_status_wire_drops_absent_and_blank_values_and_normalizes_utc) or test(test_product_runtime_ordered_shutdown_explicit) or test(startup_acquires_all_writer_leases_in_stable_order_before_migrating) or test(startup_failure_restores_previously_migrated_descriptor_files) or test(test_product_runtime_startup_failure_rollback) or test(execution_write_product_replays_browser_boundary_failure_recovery_and_restart) or test(combo_place_rejects_invalid_legs_accounts_and_hidden_transport_failures) or test(combo_intent_rejects_missing_kind_legs_and_account) or test(option_combo_preview_place_and_cancel_keep_server_identity) or test(helper_market_data_providers_reconcile_futu_account_order_fill_and_fee) or test(reconciliation_replays_history_fill_and_fee_once_after_restart) or test(reconciliation_scope_accepts_only_stock_trade_markets) or test(execution_orders_lifecycle_events_and_restart_durability) or test(auth_session_store_corruption_fails_closed_without_rewrite) or test(auth_rejects_untrusted_origin_before_authentication) or test(desktop_missing_static_assets_do_not_use_spa_fallback)"
         ],
         "testFilter": [
           "cancel_rejects_missing_terminal_and_unidentified_persisted_orders",
@@ -54908,10 +54908,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "538d15d0",
+        "verifiedAt": "2026-09-25T13:41:05Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -54960,20 +54960,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(broker_securities_returns_real_empty_result_when_cache_has_no_symbol) or test(broker_quote_projects_real_futu_tick_cache_for_all_symbols) or test(trade_write_methods_propagate_write_disconnects) or test(broker_unlock_route_forwards_password_md5_and_unlock_flag_to_opend) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(funds_projection_keeps_missing_margin_fields_absent) or test(broker_read_fails_closed_without_trade_client) or test(execution_write_fixture_replays_all_seven_go_owned_mutations) or test(accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel) or test(us_limit_route_orders_keep_price_session_and_explicit_market_code) or test(test_normalize_execution_order_supports_extended_us_limit_sessions) or test(place_order_rounds_us_prices_to_the_venue_tick_before_encoding) or test(unknown_api_is_json_but_frontend_uses_spa_fallback) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(enabled_web_access_binds_and_shutdown_releases_port) or test(production_startup_fails_closed_when_database_is_corrupted) or test(production_startup_exposes_degraded_api_when_external_runtimes_are_unavailable) or test(portfolio_cash_balances_fall_back_to_summary_currency_when_breakdown_is_empty) or test(unknown_portfolio_reconciliation_route_returns_json_not_found) or test(portfolio_read_routes_match_group_fixture_in_cutover_only) or test(unsaved_broker_settings_expose_null_integration_and_go_defaults) or test(strategy_instance_read_routes_match_group_fixture_in_cutover_only) or test(runtime_status_wire_drops_absent_and_blank_values_and_normalizes_utc) or test(test_product_runtime_ordered_shutdown_explicit) or test(startup_acquires_all_writer_leases_in_stable_order_before_migrating) or test(startup_failure_restores_previously_migrated_descriptor_files) or test(test_product_runtime_startup_failure_rollback) or test(execution_write_product_replays_browser_boundary_failure_recovery_and_restart) or test(combo_place_rejects_invalid_legs_accounts_and_hidden_transport_failures) or test(combo_intent_rejects_missing_kind_legs_and_account) or test(option_combo_preview_place_and_cancel_keep_server_identity) or test(helper_market_data_providers_reconcile_futu_account_order_fill_and_fee) or test(reconciliation_replays_history_fill_and_fee_once_after_restart) or test(reconciliation_scope_accepts_only_stock_trade_markets) or test(execution_orders_lifecycle_events_and_restart_durability) or test(auth_session_store_corruption_fails_closed_without_rewrite) or test(auth_rejects_untrusted_origin_before_authentication) or test(desktop_missing_static_assets_do_not_use_spa_fallback)"
         ],
         "testFilter": [
           "cancel_rejects_missing_terminal_and_unidentified_persisted_orders"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "538d15d0",
+        "verifiedAt": "2026-09-25T13:41:05Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -55309,10 +55309,10 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(broker_securities_returns_real_empty_result_when_cache_has_no_symbol) or test(broker_quote_projects_real_futu_tick_cache_for_all_symbols) or test(trade_write_methods_propagate_write_disconnects) or test(broker_unlock_route_forwards_password_md5_and_unlock_flag_to_opend) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(funds_projection_keeps_missing_margin_fields_absent) or test(broker_read_fails_closed_without_trade_client) or test(execution_write_fixture_replays_all_seven_go_owned_mutations) or test(accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel) or test(us_limit_route_orders_keep_price_session_and_explicit_market_code) or test(test_normalize_execution_order_supports_extended_us_limit_sessions) or test(place_order_rounds_us_prices_to_the_venue_tick_before_encoding) or test(unknown_api_is_json_but_frontend_uses_spa_fallback) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(enabled_web_access_binds_and_shutdown_releases_port) or test(production_startup_fails_closed_when_database_is_corrupted) or test(production_startup_exposes_degraded_api_when_external_runtimes_are_unavailable) or test(portfolio_cash_balances_fall_back_to_summary_currency_when_breakdown_is_empty) or test(unknown_portfolio_reconciliation_route_returns_json_not_found) or test(portfolio_read_routes_match_group_fixture_in_cutover_only) or test(unsaved_broker_settings_expose_null_integration_and_go_defaults) or test(strategy_instance_read_routes_match_group_fixture_in_cutover_only) or test(runtime_status_wire_drops_absent_and_blank_values_and_normalizes_utc) or test(test_product_runtime_ordered_shutdown_explicit) or test(startup_acquires_all_writer_leases_in_stable_order_before_migrating) or test(startup_failure_restores_previously_migrated_descriptor_files) or test(test_product_runtime_startup_failure_rollback) or test(execution_write_product_replays_browser_boundary_failure_recovery_and_restart) or test(combo_place_rejects_invalid_legs_accounts_and_hidden_transport_failures) or test(combo_intent_rejects_missing_kind_legs_and_account) or test(option_combo_preview_place_and_cancel_keep_server_identity) or test(helper_market_data_providers_reconcile_futu_account_order_fill_and_fee) or test(reconciliation_replays_history_fill_and_fee_once_after_restart) or test(reconciliation_scope_accepts_only_stock_trade_markets) or test(execution_orders_lifecycle_events_and_restart_durability) or test(auth_session_store_corruption_fails_closed_without_rewrite) or test(auth_rejects_untrusted_origin_before_authentication) or test(desktop_missing_static_assets_do_not_use_spa_fallback)"
         ],
         "testFilter": [
           "funds_projection_keeps_missing_margin_fields_absent",
@@ -55320,10 +55320,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "538d15d0",
+        "verifiedAt": "2026-09-25T13:41:05Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -55861,10 +55861,10 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(execution_write_fixture_replays_all_seven_go_owned_mutations)"
+          "test(broker_securities_returns_real_empty_result_when_cache_has_no_symbol) or test(broker_quote_projects_real_futu_tick_cache_for_all_symbols) or test(trade_write_methods_propagate_write_disconnects) or test(broker_unlock_route_forwards_password_md5_and_unlock_flag_to_opend) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(funds_projection_keeps_missing_margin_fields_absent) or test(broker_read_fails_closed_without_trade_client) or test(execution_write_fixture_replays_all_seven_go_owned_mutations) or test(accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel) or test(us_limit_route_orders_keep_price_session_and_explicit_market_code) or test(test_normalize_execution_order_supports_extended_us_limit_sessions) or test(place_order_rounds_us_prices_to_the_venue_tick_before_encoding) or test(unknown_api_is_json_but_frontend_uses_spa_fallback) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(enabled_web_access_binds_and_shutdown_releases_port) or test(production_startup_fails_closed_when_database_is_corrupted) or test(production_startup_exposes_degraded_api_when_external_runtimes_are_unavailable) or test(portfolio_cash_balances_fall_back_to_summary_currency_when_breakdown_is_empty) or test(unknown_portfolio_reconciliation_route_returns_json_not_found) or test(portfolio_read_routes_match_group_fixture_in_cutover_only) or test(unsaved_broker_settings_expose_null_integration_and_go_defaults) or test(strategy_instance_read_routes_match_group_fixture_in_cutover_only) or test(runtime_status_wire_drops_absent_and_blank_values_and_normalizes_utc) or test(test_product_runtime_ordered_shutdown_explicit) or test(startup_acquires_all_writer_leases_in_stable_order_before_migrating) or test(startup_failure_restores_previously_migrated_descriptor_files) or test(test_product_runtime_startup_failure_rollback) or test(execution_write_product_replays_browser_boundary_failure_recovery_and_restart) or test(combo_place_rejects_invalid_legs_accounts_and_hidden_transport_failures) or test(combo_intent_rejects_missing_kind_legs_and_account) or test(option_combo_preview_place_and_cancel_keep_server_identity) or test(helper_market_data_providers_reconcile_futu_account_order_fill_and_fee) or test(reconciliation_replays_history_fill_and_fee_once_after_restart) or test(reconciliation_scope_accepts_only_stock_trade_markets) or test(execution_orders_lifecycle_events_and_restart_durability) or test(auth_session_store_corruption_fails_closed_without_rewrite) or test(auth_rejects_untrusted_origin_before_authentication) or test(desktop_missing_static_assets_do_not_use_spa_fallback)"
         ],
         "testFilter": [
           "execution_write_fixture_replays_all_seven_go_owned_mutations",
@@ -55872,10 +55872,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "538d15d0",
+        "verifiedAt": "2026-09-25T13:41:05Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -56039,17 +56039,10 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked;",
-          "node",
-          "scripts/quality/cargo-nextest.mjs",
-          "run",
-          "-p",
-          "jftrade-integration-futu",
-          "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(broker_securities_returns_real_empty_result_when_cache_has_no_symbol) or test(broker_quote_projects_real_futu_tick_cache_for_all_symbols) or test(trade_write_methods_propagate_write_disconnects) or test(broker_unlock_route_forwards_password_md5_and_unlock_flag_to_opend) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(funds_projection_keeps_missing_margin_fields_absent) or test(broker_read_fails_closed_without_trade_client) or test(execution_write_fixture_replays_all_seven_go_owned_mutations) or test(accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel) or test(us_limit_route_orders_keep_price_session_and_explicit_market_code) or test(test_normalize_execution_order_supports_extended_us_limit_sessions) or test(place_order_rounds_us_prices_to_the_venue_tick_before_encoding) or test(unknown_api_is_json_but_frontend_uses_spa_fallback) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(enabled_web_access_binds_and_shutdown_releases_port) or test(production_startup_fails_closed_when_database_is_corrupted) or test(production_startup_exposes_degraded_api_when_external_runtimes_are_unavailable) or test(portfolio_cash_balances_fall_back_to_summary_currency_when_breakdown_is_empty) or test(unknown_portfolio_reconciliation_route_returns_json_not_found) or test(portfolio_read_routes_match_group_fixture_in_cutover_only) or test(unsaved_broker_settings_expose_null_integration_and_go_defaults) or test(strategy_instance_read_routes_match_group_fixture_in_cutover_only) or test(runtime_status_wire_drops_absent_and_blank_values_and_normalizes_utc) or test(test_product_runtime_ordered_shutdown_explicit) or test(startup_acquires_all_writer_leases_in_stable_order_before_migrating) or test(startup_failure_restores_previously_migrated_descriptor_files) or test(test_product_runtime_startup_failure_rollback) or test(execution_write_product_replays_browser_boundary_failure_recovery_and_restart) or test(combo_place_rejects_invalid_legs_accounts_and_hidden_transport_failures) or test(combo_intent_rejects_missing_kind_legs_and_account) or test(option_combo_preview_place_and_cancel_keep_server_identity) or test(helper_market_data_providers_reconcile_futu_account_order_fill_and_fee) or test(reconciliation_replays_history_fill_and_fee_once_after_restart) or test(reconciliation_scope_accepts_only_stock_trade_markets) or test(execution_orders_lifecycle_events_and_restart_durability) or test(auth_session_store_corruption_fails_closed_without_rewrite) or test(auth_rejects_untrusted_origin_before_authentication) or test(desktop_missing_static_assets_do_not_use_spa_fallback)"
         ],
         "testFilter": [
           "us_limit_route_orders_keep_price_session_and_explicit_market_code",
@@ -56058,10 +56051,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "538d15d0",
+        "verifiedAt": "2026-09-25T13:41:05Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -56482,20 +56475,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-api",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(unknown_api_is_json_but_frontend_uses_spa_fallback)"
+          "test(broker_securities_returns_real_empty_result_when_cache_has_no_symbol) or test(broker_quote_projects_real_futu_tick_cache_for_all_symbols) or test(trade_write_methods_propagate_write_disconnects) or test(broker_unlock_route_forwards_password_md5_and_unlock_flag_to_opend) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(funds_projection_keeps_missing_margin_fields_absent) or test(broker_read_fails_closed_without_trade_client) or test(execution_write_fixture_replays_all_seven_go_owned_mutations) or test(accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel) or test(us_limit_route_orders_keep_price_session_and_explicit_market_code) or test(test_normalize_execution_order_supports_extended_us_limit_sessions) or test(place_order_rounds_us_prices_to_the_venue_tick_before_encoding) or test(unknown_api_is_json_but_frontend_uses_spa_fallback) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(enabled_web_access_binds_and_shutdown_releases_port) or test(production_startup_fails_closed_when_database_is_corrupted) or test(production_startup_exposes_degraded_api_when_external_runtimes_are_unavailable) or test(portfolio_cash_balances_fall_back_to_summary_currency_when_breakdown_is_empty) or test(unknown_portfolio_reconciliation_route_returns_json_not_found) or test(portfolio_read_routes_match_group_fixture_in_cutover_only) or test(unsaved_broker_settings_expose_null_integration_and_go_defaults) or test(strategy_instance_read_routes_match_group_fixture_in_cutover_only) or test(runtime_status_wire_drops_absent_and_blank_values_and_normalizes_utc) or test(test_product_runtime_ordered_shutdown_explicit) or test(startup_acquires_all_writer_leases_in_stable_order_before_migrating) or test(startup_failure_restores_previously_migrated_descriptor_files) or test(test_product_runtime_startup_failure_rollback) or test(execution_write_product_replays_browser_boundary_failure_recovery_and_restart) or test(combo_place_rejects_invalid_legs_accounts_and_hidden_transport_failures) or test(combo_intent_rejects_missing_kind_legs_and_account) or test(option_combo_preview_place_and_cancel_keep_server_identity) or test(helper_market_data_providers_reconcile_futu_account_order_fill_and_fee) or test(reconciliation_replays_history_fill_and_fee_once_after_restart) or test(reconciliation_scope_accepts_only_stock_trade_markets) or test(execution_orders_lifecycle_events_and_restart_durability) or test(auth_session_store_corruption_fails_closed_without_rewrite) or test(auth_rejects_untrusted_origin_before_authentication) or test(desktop_missing_static_assets_do_not_use_spa_fallback)"
         ],
         "testFilter": [
           "unknown_api_is_json_but_frontend_uses_spa_fallback"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "538d15d0",
+        "verifiedAt": "2026-09-25T13:41:05Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -56764,12 +56757,10 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
           "--locked",
           "-E",
-          "test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) | test(enabled_web_access_binds_and_shutdown_releases_port)"
+          "test(broker_securities_returns_real_empty_result_when_cache_has_no_symbol) or test(broker_quote_projects_real_futu_tick_cache_for_all_symbols) or test(trade_write_methods_propagate_write_disconnects) or test(broker_unlock_route_forwards_password_md5_and_unlock_flag_to_opend) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(funds_projection_keeps_missing_margin_fields_absent) or test(broker_read_fails_closed_without_trade_client) or test(execution_write_fixture_replays_all_seven_go_owned_mutations) or test(accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel) or test(us_limit_route_orders_keep_price_session_and_explicit_market_code) or test(test_normalize_execution_order_supports_extended_us_limit_sessions) or test(place_order_rounds_us_prices_to_the_venue_tick_before_encoding) or test(unknown_api_is_json_but_frontend_uses_spa_fallback) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(enabled_web_access_binds_and_shutdown_releases_port) or test(production_startup_fails_closed_when_database_is_corrupted) or test(production_startup_exposes_degraded_api_when_external_runtimes_are_unavailable) or test(portfolio_cash_balances_fall_back_to_summary_currency_when_breakdown_is_empty) or test(unknown_portfolio_reconciliation_route_returns_json_not_found) or test(portfolio_read_routes_match_group_fixture_in_cutover_only) or test(unsaved_broker_settings_expose_null_integration_and_go_defaults) or test(strategy_instance_read_routes_match_group_fixture_in_cutover_only) or test(runtime_status_wire_drops_absent_and_blank_values_and_normalizes_utc) or test(test_product_runtime_ordered_shutdown_explicit) or test(startup_acquires_all_writer_leases_in_stable_order_before_migrating) or test(startup_failure_restores_previously_migrated_descriptor_files) or test(test_product_runtime_startup_failure_rollback) or test(execution_write_product_replays_browser_boundary_failure_recovery_and_restart) or test(combo_place_rejects_invalid_legs_accounts_and_hidden_transport_failures) or test(combo_intent_rejects_missing_kind_legs_and_account) or test(option_combo_preview_place_and_cancel_keep_server_identity) or test(helper_market_data_providers_reconcile_futu_account_order_fill_and_fee) or test(reconciliation_replays_history_fill_and_fee_once_after_restart) or test(reconciliation_scope_accepts_only_stock_trade_markets) or test(execution_orders_lifecycle_events_and_restart_durability) or test(auth_session_store_corruption_fails_closed_without_rewrite) or test(auth_rejects_untrusted_origin_before_authentication) or test(desktop_missing_static_assets_do_not_use_spa_fallback)"
         ],
         "testFilter": [
           "direct_product_shutdown_stops_reconciliation_before_releasing_leases",
@@ -56777,10 +56768,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "538d15d0",
+        "verifiedAt": "2026-09-25T13:41:05Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -56906,10 +56897,10 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(broker_securities_returns_real_empty_result_when_cache_has_no_symbol) or test(broker_quote_projects_real_futu_tick_cache_for_all_symbols) or test(trade_write_methods_propagate_write_disconnects) or test(broker_unlock_route_forwards_password_md5_and_unlock_flag_to_opend) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(funds_projection_keeps_missing_margin_fields_absent) or test(broker_read_fails_closed_without_trade_client) or test(execution_write_fixture_replays_all_seven_go_owned_mutations) or test(accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel) or test(us_limit_route_orders_keep_price_session_and_explicit_market_code) or test(test_normalize_execution_order_supports_extended_us_limit_sessions) or test(place_order_rounds_us_prices_to_the_venue_tick_before_encoding) or test(unknown_api_is_json_but_frontend_uses_spa_fallback) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(enabled_web_access_binds_and_shutdown_releases_port) or test(production_startup_fails_closed_when_database_is_corrupted) or test(production_startup_exposes_degraded_api_when_external_runtimes_are_unavailable) or test(portfolio_cash_balances_fall_back_to_summary_currency_when_breakdown_is_empty) or test(unknown_portfolio_reconciliation_route_returns_json_not_found) or test(portfolio_read_routes_match_group_fixture_in_cutover_only) or test(unsaved_broker_settings_expose_null_integration_and_go_defaults) or test(strategy_instance_read_routes_match_group_fixture_in_cutover_only) or test(runtime_status_wire_drops_absent_and_blank_values_and_normalizes_utc) or test(test_product_runtime_ordered_shutdown_explicit) or test(startup_acquires_all_writer_leases_in_stable_order_before_migrating) or test(startup_failure_restores_previously_migrated_descriptor_files) or test(test_product_runtime_startup_failure_rollback) or test(execution_write_product_replays_browser_boundary_failure_recovery_and_restart) or test(combo_place_rejects_invalid_legs_accounts_and_hidden_transport_failures) or test(combo_intent_rejects_missing_kind_legs_and_account) or test(option_combo_preview_place_and_cancel_keep_server_identity) or test(helper_market_data_providers_reconcile_futu_account_order_fill_and_fee) or test(reconciliation_replays_history_fill_and_fee_once_after_restart) or test(reconciliation_scope_accepts_only_stock_trade_markets) or test(execution_orders_lifecycle_events_and_restart_durability) or test(auth_session_store_corruption_fails_closed_without_rewrite) or test(auth_rejects_untrusted_origin_before_authentication) or test(desktop_missing_static_assets_do_not_use_spa_fallback)"
         ],
         "testFilter": [
           "production_startup_fails_closed_when_database_is_corrupted",
@@ -56917,10 +56908,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "538d15d0",
+        "verifiedAt": "2026-09-25T13:41:05Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -57830,20 +57821,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(portfolio_cash_balances_fall_back_to_summary_currency_when_breakdown_is_empty)"
+          "test(broker_securities_returns_real_empty_result_when_cache_has_no_symbol) or test(broker_quote_projects_real_futu_tick_cache_for_all_symbols) or test(trade_write_methods_propagate_write_disconnects) or test(broker_unlock_route_forwards_password_md5_and_unlock_flag_to_opend) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(funds_projection_keeps_missing_margin_fields_absent) or test(broker_read_fails_closed_without_trade_client) or test(execution_write_fixture_replays_all_seven_go_owned_mutations) or test(accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel) or test(us_limit_route_orders_keep_price_session_and_explicit_market_code) or test(test_normalize_execution_order_supports_extended_us_limit_sessions) or test(place_order_rounds_us_prices_to_the_venue_tick_before_encoding) or test(unknown_api_is_json_but_frontend_uses_spa_fallback) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(enabled_web_access_binds_and_shutdown_releases_port) or test(production_startup_fails_closed_when_database_is_corrupted) or test(production_startup_exposes_degraded_api_when_external_runtimes_are_unavailable) or test(portfolio_cash_balances_fall_back_to_summary_currency_when_breakdown_is_empty) or test(unknown_portfolio_reconciliation_route_returns_json_not_found) or test(portfolio_read_routes_match_group_fixture_in_cutover_only) or test(unsaved_broker_settings_expose_null_integration_and_go_defaults) or test(strategy_instance_read_routes_match_group_fixture_in_cutover_only) or test(runtime_status_wire_drops_absent_and_blank_values_and_normalizes_utc) or test(test_product_runtime_ordered_shutdown_explicit) or test(startup_acquires_all_writer_leases_in_stable_order_before_migrating) or test(startup_failure_restores_previously_migrated_descriptor_files) or test(test_product_runtime_startup_failure_rollback) or test(execution_write_product_replays_browser_boundary_failure_recovery_and_restart) or test(combo_place_rejects_invalid_legs_accounts_and_hidden_transport_failures) or test(combo_intent_rejects_missing_kind_legs_and_account) or test(option_combo_preview_place_and_cancel_keep_server_identity) or test(helper_market_data_providers_reconcile_futu_account_order_fill_and_fee) or test(reconciliation_replays_history_fill_and_fee_once_after_restart) or test(reconciliation_scope_accepts_only_stock_trade_markets) or test(execution_orders_lifecycle_events_and_restart_durability) or test(auth_session_store_corruption_fails_closed_without_rewrite) or test(auth_rejects_untrusted_origin_before_authentication) or test(desktop_missing_static_assets_do_not_use_spa_fallback)"
         ],
         "testFilter": [
           "portfolio_cash_balances_fall_back_to_summary_currency_when_breakdown_is_empty"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "538d15d0",
+        "verifiedAt": "2026-09-25T13:41:05Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -57897,20 +57888,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-api",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(unknown_portfolio_reconciliation_route_returns_json_not_found)"
+          "test(broker_securities_returns_real_empty_result_when_cache_has_no_symbol) or test(broker_quote_projects_real_futu_tick_cache_for_all_symbols) or test(trade_write_methods_propagate_write_disconnects) or test(broker_unlock_route_forwards_password_md5_and_unlock_flag_to_opend) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(funds_projection_keeps_missing_margin_fields_absent) or test(broker_read_fails_closed_without_trade_client) or test(execution_write_fixture_replays_all_seven_go_owned_mutations) or test(accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel) or test(us_limit_route_orders_keep_price_session_and_explicit_market_code) or test(test_normalize_execution_order_supports_extended_us_limit_sessions) or test(place_order_rounds_us_prices_to_the_venue_tick_before_encoding) or test(unknown_api_is_json_but_frontend_uses_spa_fallback) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(enabled_web_access_binds_and_shutdown_releases_port) or test(production_startup_fails_closed_when_database_is_corrupted) or test(production_startup_exposes_degraded_api_when_external_runtimes_are_unavailable) or test(portfolio_cash_balances_fall_back_to_summary_currency_when_breakdown_is_empty) or test(unknown_portfolio_reconciliation_route_returns_json_not_found) or test(portfolio_read_routes_match_group_fixture_in_cutover_only) or test(unsaved_broker_settings_expose_null_integration_and_go_defaults) or test(strategy_instance_read_routes_match_group_fixture_in_cutover_only) or test(runtime_status_wire_drops_absent_and_blank_values_and_normalizes_utc) or test(test_product_runtime_ordered_shutdown_explicit) or test(startup_acquires_all_writer_leases_in_stable_order_before_migrating) or test(startup_failure_restores_previously_migrated_descriptor_files) or test(test_product_runtime_startup_failure_rollback) or test(execution_write_product_replays_browser_boundary_failure_recovery_and_restart) or test(combo_place_rejects_invalid_legs_accounts_and_hidden_transport_failures) or test(combo_intent_rejects_missing_kind_legs_and_account) or test(option_combo_preview_place_and_cancel_keep_server_identity) or test(helper_market_data_providers_reconcile_futu_account_order_fill_and_fee) or test(reconciliation_replays_history_fill_and_fee_once_after_restart) or test(reconciliation_scope_accepts_only_stock_trade_markets) or test(execution_orders_lifecycle_events_and_restart_durability) or test(auth_session_store_corruption_fails_closed_without_rewrite) or test(auth_rejects_untrusted_origin_before_authentication) or test(desktop_missing_static_assets_do_not_use_spa_fallback)"
         ],
         "testFilter": [
           "unknown_portfolio_reconciliation_route_returns_json_not_found"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "538d15d0",
+        "verifiedAt": "2026-09-25T13:41:05Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -57964,20 +57955,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(broker_securities_returns_real_empty_result_when_cache_has_no_symbol) or test(broker_quote_projects_real_futu_tick_cache_for_all_symbols) or test(trade_write_methods_propagate_write_disconnects) or test(broker_unlock_route_forwards_password_md5_and_unlock_flag_to_opend) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(funds_projection_keeps_missing_margin_fields_absent) or test(broker_read_fails_closed_without_trade_client) or test(execution_write_fixture_replays_all_seven_go_owned_mutations) or test(accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel) or test(us_limit_route_orders_keep_price_session_and_explicit_market_code) or test(test_normalize_execution_order_supports_extended_us_limit_sessions) or test(place_order_rounds_us_prices_to_the_venue_tick_before_encoding) or test(unknown_api_is_json_but_frontend_uses_spa_fallback) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(enabled_web_access_binds_and_shutdown_releases_port) or test(production_startup_fails_closed_when_database_is_corrupted) or test(production_startup_exposes_degraded_api_when_external_runtimes_are_unavailable) or test(portfolio_cash_balances_fall_back_to_summary_currency_when_breakdown_is_empty) or test(unknown_portfolio_reconciliation_route_returns_json_not_found) or test(portfolio_read_routes_match_group_fixture_in_cutover_only) or test(unsaved_broker_settings_expose_null_integration_and_go_defaults) or test(strategy_instance_read_routes_match_group_fixture_in_cutover_only) or test(runtime_status_wire_drops_absent_and_blank_values_and_normalizes_utc) or test(test_product_runtime_ordered_shutdown_explicit) or test(startup_acquires_all_writer_leases_in_stable_order_before_migrating) or test(startup_failure_restores_previously_migrated_descriptor_files) or test(test_product_runtime_startup_failure_rollback) or test(execution_write_product_replays_browser_boundary_failure_recovery_and_restart) or test(combo_place_rejects_invalid_legs_accounts_and_hidden_transport_failures) or test(combo_intent_rejects_missing_kind_legs_and_account) or test(option_combo_preview_place_and_cancel_keep_server_identity) or test(helper_market_data_providers_reconcile_futu_account_order_fill_and_fee) or test(reconciliation_replays_history_fill_and_fee_once_after_restart) or test(reconciliation_scope_accepts_only_stock_trade_markets) or test(execution_orders_lifecycle_events_and_restart_durability) or test(auth_session_store_corruption_fails_closed_without_rewrite) or test(auth_rejects_untrusted_origin_before_authentication) or test(desktop_missing_static_assets_do_not_use_spa_fallback)"
         ],
         "testFilter": [
           "portfolio_read_routes_match_group_fixture_in_cutover_only"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "538d15d0",
+        "verifiedAt": "2026-09-25T13:41:05Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -58923,20 +58914,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-settings-file",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(unsaved_broker_settings_expose_null_integration_and_go_defaults)"
+          "test(broker_securities_returns_real_empty_result_when_cache_has_no_symbol) or test(broker_quote_projects_real_futu_tick_cache_for_all_symbols) or test(trade_write_methods_propagate_write_disconnects) or test(broker_unlock_route_forwards_password_md5_and_unlock_flag_to_opend) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(funds_projection_keeps_missing_margin_fields_absent) or test(broker_read_fails_closed_without_trade_client) or test(execution_write_fixture_replays_all_seven_go_owned_mutations) or test(accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel) or test(us_limit_route_orders_keep_price_session_and_explicit_market_code) or test(test_normalize_execution_order_supports_extended_us_limit_sessions) or test(place_order_rounds_us_prices_to_the_venue_tick_before_encoding) or test(unknown_api_is_json_but_frontend_uses_spa_fallback) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(enabled_web_access_binds_and_shutdown_releases_port) or test(production_startup_fails_closed_when_database_is_corrupted) or test(production_startup_exposes_degraded_api_when_external_runtimes_are_unavailable) or test(portfolio_cash_balances_fall_back_to_summary_currency_when_breakdown_is_empty) or test(unknown_portfolio_reconciliation_route_returns_json_not_found) or test(portfolio_read_routes_match_group_fixture_in_cutover_only) or test(unsaved_broker_settings_expose_null_integration_and_go_defaults) or test(strategy_instance_read_routes_match_group_fixture_in_cutover_only) or test(runtime_status_wire_drops_absent_and_blank_values_and_normalizes_utc) or test(test_product_runtime_ordered_shutdown_explicit) or test(startup_acquires_all_writer_leases_in_stable_order_before_migrating) or test(startup_failure_restores_previously_migrated_descriptor_files) or test(test_product_runtime_startup_failure_rollback) or test(execution_write_product_replays_browser_boundary_failure_recovery_and_restart) or test(combo_place_rejects_invalid_legs_accounts_and_hidden_transport_failures) or test(combo_intent_rejects_missing_kind_legs_and_account) or test(option_combo_preview_place_and_cancel_keep_server_identity) or test(helper_market_data_providers_reconcile_futu_account_order_fill_and_fee) or test(reconciliation_replays_history_fill_and_fee_once_after_restart) or test(reconciliation_scope_accepts_only_stock_trade_markets) or test(execution_orders_lifecycle_events_and_restart_durability) or test(auth_session_store_corruption_fails_closed_without_rewrite) or test(auth_rejects_untrusted_origin_before_authentication) or test(desktop_missing_static_assets_do_not_use_spa_fallback)"
         ],
         "testFilter": [
           "unsaved_broker_settings_expose_null_integration_and_go_defaults"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "538d15d0",
+        "verifiedAt": "2026-09-25T13:41:05Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -59845,20 +59836,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(broker_securities_returns_real_empty_result_when_cache_has_no_symbol) or test(broker_quote_projects_real_futu_tick_cache_for_all_symbols) or test(trade_write_methods_propagate_write_disconnects) or test(broker_unlock_route_forwards_password_md5_and_unlock_flag_to_opend) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(funds_projection_keeps_missing_margin_fields_absent) or test(broker_read_fails_closed_without_trade_client) or test(execution_write_fixture_replays_all_seven_go_owned_mutations) or test(accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel) or test(us_limit_route_orders_keep_price_session_and_explicit_market_code) or test(test_normalize_execution_order_supports_extended_us_limit_sessions) or test(place_order_rounds_us_prices_to_the_venue_tick_before_encoding) or test(unknown_api_is_json_but_frontend_uses_spa_fallback) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(enabled_web_access_binds_and_shutdown_releases_port) or test(production_startup_fails_closed_when_database_is_corrupted) or test(production_startup_exposes_degraded_api_when_external_runtimes_are_unavailable) or test(portfolio_cash_balances_fall_back_to_summary_currency_when_breakdown_is_empty) or test(unknown_portfolio_reconciliation_route_returns_json_not_found) or test(portfolio_read_routes_match_group_fixture_in_cutover_only) or test(unsaved_broker_settings_expose_null_integration_and_go_defaults) or test(strategy_instance_read_routes_match_group_fixture_in_cutover_only) or test(runtime_status_wire_drops_absent_and_blank_values_and_normalizes_utc) or test(test_product_runtime_ordered_shutdown_explicit) or test(startup_acquires_all_writer_leases_in_stable_order_before_migrating) or test(startup_failure_restores_previously_migrated_descriptor_files) or test(test_product_runtime_startup_failure_rollback) or test(execution_write_product_replays_browser_boundary_failure_recovery_and_restart) or test(combo_place_rejects_invalid_legs_accounts_and_hidden_transport_failures) or test(combo_intent_rejects_missing_kind_legs_and_account) or test(option_combo_preview_place_and_cancel_keep_server_identity) or test(helper_market_data_providers_reconcile_futu_account_order_fill_and_fee) or test(reconciliation_replays_history_fill_and_fee_once_after_restart) or test(reconciliation_scope_accepts_only_stock_trade_markets) or test(execution_orders_lifecycle_events_and_restart_durability) or test(auth_session_store_corruption_fails_closed_without_rewrite) or test(auth_rejects_untrusted_origin_before_authentication) or test(desktop_missing_static_assets_do_not_use_spa_fallback)"
         ],
         "testFilter": [
           "strategy_instance_read_routes_match_group_fixture_in_cutover_only"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "538d15d0",
+        "verifiedAt": "2026-09-25T13:41:05Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -60834,20 +60825,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(broker_securities_returns_real_empty_result_when_cache_has_no_symbol) or test(broker_quote_projects_real_futu_tick_cache_for_all_symbols) or test(trade_write_methods_propagate_write_disconnects) or test(broker_unlock_route_forwards_password_md5_and_unlock_flag_to_opend) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(funds_projection_keeps_missing_margin_fields_absent) or test(broker_read_fails_closed_without_trade_client) or test(execution_write_fixture_replays_all_seven_go_owned_mutations) or test(accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel) or test(us_limit_route_orders_keep_price_session_and_explicit_market_code) or test(test_normalize_execution_order_supports_extended_us_limit_sessions) or test(place_order_rounds_us_prices_to_the_venue_tick_before_encoding) or test(unknown_api_is_json_but_frontend_uses_spa_fallback) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(enabled_web_access_binds_and_shutdown_releases_port) or test(production_startup_fails_closed_when_database_is_corrupted) or test(production_startup_exposes_degraded_api_when_external_runtimes_are_unavailable) or test(portfolio_cash_balances_fall_back_to_summary_currency_when_breakdown_is_empty) or test(unknown_portfolio_reconciliation_route_returns_json_not_found) or test(portfolio_read_routes_match_group_fixture_in_cutover_only) or test(unsaved_broker_settings_expose_null_integration_and_go_defaults) or test(strategy_instance_read_routes_match_group_fixture_in_cutover_only) or test(runtime_status_wire_drops_absent_and_blank_values_and_normalizes_utc) or test(test_product_runtime_ordered_shutdown_explicit) or test(startup_acquires_all_writer_leases_in_stable_order_before_migrating) or test(startup_failure_restores_previously_migrated_descriptor_files) or test(test_product_runtime_startup_failure_rollback) or test(execution_write_product_replays_browser_boundary_failure_recovery_and_restart) or test(combo_place_rejects_invalid_legs_accounts_and_hidden_transport_failures) or test(combo_intent_rejects_missing_kind_legs_and_account) or test(option_combo_preview_place_and_cancel_keep_server_identity) or test(helper_market_data_providers_reconcile_futu_account_order_fill_and_fee) or test(reconciliation_replays_history_fill_and_fee_once_after_restart) or test(reconciliation_scope_accepts_only_stock_trade_markets) or test(execution_orders_lifecycle_events_and_restart_durability) or test(auth_session_store_corruption_fails_closed_without_rewrite) or test(auth_rejects_untrusted_origin_before_authentication) or test(desktop_missing_static_assets_do_not_use_spa_fallback)"
         ],
         "testFilter": [
           "runtime_status_wire_drops_absent_and_blank_values_and_normalizes_utc"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "538d15d0",
+        "verifiedAt": "2026-09-25T13:41:05Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -60912,10 +60903,10 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(startup_acquires_all_writer_leases_in_stable_order_before_migrating)"
+          "test(broker_securities_returns_real_empty_result_when_cache_has_no_symbol) or test(broker_quote_projects_real_futu_tick_cache_for_all_symbols) or test(trade_write_methods_propagate_write_disconnects) or test(broker_unlock_route_forwards_password_md5_and_unlock_flag_to_opend) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(funds_projection_keeps_missing_margin_fields_absent) or test(broker_read_fails_closed_without_trade_client) or test(execution_write_fixture_replays_all_seven_go_owned_mutations) or test(accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel) or test(us_limit_route_orders_keep_price_session_and_explicit_market_code) or test(test_normalize_execution_order_supports_extended_us_limit_sessions) or test(place_order_rounds_us_prices_to_the_venue_tick_before_encoding) or test(unknown_api_is_json_but_frontend_uses_spa_fallback) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(enabled_web_access_binds_and_shutdown_releases_port) or test(production_startup_fails_closed_when_database_is_corrupted) or test(production_startup_exposes_degraded_api_when_external_runtimes_are_unavailable) or test(portfolio_cash_balances_fall_back_to_summary_currency_when_breakdown_is_empty) or test(unknown_portfolio_reconciliation_route_returns_json_not_found) or test(portfolio_read_routes_match_group_fixture_in_cutover_only) or test(unsaved_broker_settings_expose_null_integration_and_go_defaults) or test(strategy_instance_read_routes_match_group_fixture_in_cutover_only) or test(runtime_status_wire_drops_absent_and_blank_values_and_normalizes_utc) or test(test_product_runtime_ordered_shutdown_explicit) or test(startup_acquires_all_writer_leases_in_stable_order_before_migrating) or test(startup_failure_restores_previously_migrated_descriptor_files) or test(test_product_runtime_startup_failure_rollback) or test(execution_write_product_replays_browser_boundary_failure_recovery_and_restart) or test(combo_place_rejects_invalid_legs_accounts_and_hidden_transport_failures) or test(combo_intent_rejects_missing_kind_legs_and_account) or test(option_combo_preview_place_and_cancel_keep_server_identity) or test(helper_market_data_providers_reconcile_futu_account_order_fill_and_fee) or test(reconciliation_replays_history_fill_and_fee_once_after_restart) or test(reconciliation_scope_accepts_only_stock_trade_markets) or test(execution_orders_lifecycle_events_and_restart_durability) or test(auth_session_store_corruption_fails_closed_without_rewrite) or test(auth_rejects_untrusted_origin_before_authentication) or test(desktop_missing_static_assets_do_not_use_spa_fallback)"
         ],
         "testFilter": [
           "test_product_runtime_ordered_shutdown_explicit",
@@ -60923,10 +60914,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "538d15d0",
+        "verifiedAt": "2026-09-25T13:41:05Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -60995,10 +60986,10 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(startup_failure_restores_previously_migrated_descriptor_files)"
+          "test(broker_securities_returns_real_empty_result_when_cache_has_no_symbol) or test(broker_quote_projects_real_futu_tick_cache_for_all_symbols) or test(trade_write_methods_propagate_write_disconnects) or test(broker_unlock_route_forwards_password_md5_and_unlock_flag_to_opend) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(funds_projection_keeps_missing_margin_fields_absent) or test(broker_read_fails_closed_without_trade_client) or test(execution_write_fixture_replays_all_seven_go_owned_mutations) or test(accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel) or test(us_limit_route_orders_keep_price_session_and_explicit_market_code) or test(test_normalize_execution_order_supports_extended_us_limit_sessions) or test(place_order_rounds_us_prices_to_the_venue_tick_before_encoding) or test(unknown_api_is_json_but_frontend_uses_spa_fallback) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(enabled_web_access_binds_and_shutdown_releases_port) or test(production_startup_fails_closed_when_database_is_corrupted) or test(production_startup_exposes_degraded_api_when_external_runtimes_are_unavailable) or test(portfolio_cash_balances_fall_back_to_summary_currency_when_breakdown_is_empty) or test(unknown_portfolio_reconciliation_route_returns_json_not_found) or test(portfolio_read_routes_match_group_fixture_in_cutover_only) or test(unsaved_broker_settings_expose_null_integration_and_go_defaults) or test(strategy_instance_read_routes_match_group_fixture_in_cutover_only) or test(runtime_status_wire_drops_absent_and_blank_values_and_normalizes_utc) or test(test_product_runtime_ordered_shutdown_explicit) or test(startup_acquires_all_writer_leases_in_stable_order_before_migrating) or test(startup_failure_restores_previously_migrated_descriptor_files) or test(test_product_runtime_startup_failure_rollback) or test(execution_write_product_replays_browser_boundary_failure_recovery_and_restart) or test(combo_place_rejects_invalid_legs_accounts_and_hidden_transport_failures) or test(combo_intent_rejects_missing_kind_legs_and_account) or test(option_combo_preview_place_and_cancel_keep_server_identity) or test(helper_market_data_providers_reconcile_futu_account_order_fill_and_fee) or test(reconciliation_replays_history_fill_and_fee_once_after_restart) or test(reconciliation_scope_accepts_only_stock_trade_markets) or test(execution_orders_lifecycle_events_and_restart_durability) or test(auth_session_store_corruption_fails_closed_without_rewrite) or test(auth_rejects_untrusted_origin_before_authentication) or test(desktop_missing_static_assets_do_not_use_spa_fallback)"
         ],
         "testFilter": [
           "startup_failure_restores_previously_migrated_descriptor_files",
@@ -61006,10 +60997,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "538d15d0",
+        "verifiedAt": "2026-09-25T13:41:05Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -61270,20 +61261,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(execution_write_product_replays_browser_boundary_failure_recovery_and_restart)"
+          "test(broker_securities_returns_real_empty_result_when_cache_has_no_symbol) or test(broker_quote_projects_real_futu_tick_cache_for_all_symbols) or test(trade_write_methods_propagate_write_disconnects) or test(broker_unlock_route_forwards_password_md5_and_unlock_flag_to_opend) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(funds_projection_keeps_missing_margin_fields_absent) or test(broker_read_fails_closed_without_trade_client) or test(execution_write_fixture_replays_all_seven_go_owned_mutations) or test(accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel) or test(us_limit_route_orders_keep_price_session_and_explicit_market_code) or test(test_normalize_execution_order_supports_extended_us_limit_sessions) or test(place_order_rounds_us_prices_to_the_venue_tick_before_encoding) or test(unknown_api_is_json_but_frontend_uses_spa_fallback) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(enabled_web_access_binds_and_shutdown_releases_port) or test(production_startup_fails_closed_when_database_is_corrupted) or test(production_startup_exposes_degraded_api_when_external_runtimes_are_unavailable) or test(portfolio_cash_balances_fall_back_to_summary_currency_when_breakdown_is_empty) or test(unknown_portfolio_reconciliation_route_returns_json_not_found) or test(portfolio_read_routes_match_group_fixture_in_cutover_only) or test(unsaved_broker_settings_expose_null_integration_and_go_defaults) or test(strategy_instance_read_routes_match_group_fixture_in_cutover_only) or test(runtime_status_wire_drops_absent_and_blank_values_and_normalizes_utc) or test(test_product_runtime_ordered_shutdown_explicit) or test(startup_acquires_all_writer_leases_in_stable_order_before_migrating) or test(startup_failure_restores_previously_migrated_descriptor_files) or test(test_product_runtime_startup_failure_rollback) or test(execution_write_product_replays_browser_boundary_failure_recovery_and_restart) or test(combo_place_rejects_invalid_legs_accounts_and_hidden_transport_failures) or test(combo_intent_rejects_missing_kind_legs_and_account) or test(option_combo_preview_place_and_cancel_keep_server_identity) or test(helper_market_data_providers_reconcile_futu_account_order_fill_and_fee) or test(reconciliation_replays_history_fill_and_fee_once_after_restart) or test(reconciliation_scope_accepts_only_stock_trade_markets) or test(execution_orders_lifecycle_events_and_restart_durability) or test(auth_session_store_corruption_fails_closed_without_rewrite) or test(auth_rejects_untrusted_origin_before_authentication) or test(desktop_missing_static_assets_do_not_use_spa_fallback)"
         ],
         "testFilter": [
           "execution_write_product_replays_browser_boundary_failure_recovery_and_restart"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "538d15d0",
+        "verifiedAt": "2026-09-25T13:41:05Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -61537,20 +61528,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(broker_securities_returns_real_empty_result_when_cache_has_no_symbol) or test(broker_quote_projects_real_futu_tick_cache_for_all_symbols) or test(trade_write_methods_propagate_write_disconnects) or test(broker_unlock_route_forwards_password_md5_and_unlock_flag_to_opend) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(funds_projection_keeps_missing_margin_fields_absent) or test(broker_read_fails_closed_without_trade_client) or test(execution_write_fixture_replays_all_seven_go_owned_mutations) or test(accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel) or test(us_limit_route_orders_keep_price_session_and_explicit_market_code) or test(test_normalize_execution_order_supports_extended_us_limit_sessions) or test(place_order_rounds_us_prices_to_the_venue_tick_before_encoding) or test(unknown_api_is_json_but_frontend_uses_spa_fallback) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(enabled_web_access_binds_and_shutdown_releases_port) or test(production_startup_fails_closed_when_database_is_corrupted) or test(production_startup_exposes_degraded_api_when_external_runtimes_are_unavailable) or test(portfolio_cash_balances_fall_back_to_summary_currency_when_breakdown_is_empty) or test(unknown_portfolio_reconciliation_route_returns_json_not_found) or test(portfolio_read_routes_match_group_fixture_in_cutover_only) or test(unsaved_broker_settings_expose_null_integration_and_go_defaults) or test(strategy_instance_read_routes_match_group_fixture_in_cutover_only) or test(runtime_status_wire_drops_absent_and_blank_values_and_normalizes_utc) or test(test_product_runtime_ordered_shutdown_explicit) or test(startup_acquires_all_writer_leases_in_stable_order_before_migrating) or test(startup_failure_restores_previously_migrated_descriptor_files) or test(test_product_runtime_startup_failure_rollback) or test(execution_write_product_replays_browser_boundary_failure_recovery_and_restart) or test(combo_place_rejects_invalid_legs_accounts_and_hidden_transport_failures) or test(combo_intent_rejects_missing_kind_legs_and_account) or test(option_combo_preview_place_and_cancel_keep_server_identity) or test(helper_market_data_providers_reconcile_futu_account_order_fill_and_fee) or test(reconciliation_replays_history_fill_and_fee_once_after_restart) or test(reconciliation_scope_accepts_only_stock_trade_markets) or test(execution_orders_lifecycle_events_and_restart_durability) or test(auth_session_store_corruption_fails_closed_without_rewrite) or test(auth_rejects_untrusted_origin_before_authentication) or test(desktop_missing_static_assets_do_not_use_spa_fallback)"
         ],
         "testFilter": [
           "cancel_rejects_missing_terminal_and_unidentified_persisted_orders"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "538d15d0",
+        "verifiedAt": "2026-09-25T13:41:05Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -61610,10 +61601,10 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(broker_securities_returns_real_empty_result_when_cache_has_no_symbol) or test(broker_quote_projects_real_futu_tick_cache_for_all_symbols) or test(trade_write_methods_propagate_write_disconnects) or test(broker_unlock_route_forwards_password_md5_and_unlock_flag_to_opend) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(funds_projection_keeps_missing_margin_fields_absent) or test(broker_read_fails_closed_without_trade_client) or test(execution_write_fixture_replays_all_seven_go_owned_mutations) or test(accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel) or test(us_limit_route_orders_keep_price_session_and_explicit_market_code) or test(test_normalize_execution_order_supports_extended_us_limit_sessions) or test(place_order_rounds_us_prices_to_the_venue_tick_before_encoding) or test(unknown_api_is_json_but_frontend_uses_spa_fallback) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(enabled_web_access_binds_and_shutdown_releases_port) or test(production_startup_fails_closed_when_database_is_corrupted) or test(production_startup_exposes_degraded_api_when_external_runtimes_are_unavailable) or test(portfolio_cash_balances_fall_back_to_summary_currency_when_breakdown_is_empty) or test(unknown_portfolio_reconciliation_route_returns_json_not_found) or test(portfolio_read_routes_match_group_fixture_in_cutover_only) or test(unsaved_broker_settings_expose_null_integration_and_go_defaults) or test(strategy_instance_read_routes_match_group_fixture_in_cutover_only) or test(runtime_status_wire_drops_absent_and_blank_values_and_normalizes_utc) or test(test_product_runtime_ordered_shutdown_explicit) or test(startup_acquires_all_writer_leases_in_stable_order_before_migrating) or test(startup_failure_restores_previously_migrated_descriptor_files) or test(test_product_runtime_startup_failure_rollback) or test(execution_write_product_replays_browser_boundary_failure_recovery_and_restart) or test(combo_place_rejects_invalid_legs_accounts_and_hidden_transport_failures) or test(combo_intent_rejects_missing_kind_legs_and_account) or test(option_combo_preview_place_and_cancel_keep_server_identity) or test(helper_market_data_providers_reconcile_futu_account_order_fill_and_fee) or test(reconciliation_replays_history_fill_and_fee_once_after_restart) or test(reconciliation_scope_accepts_only_stock_trade_markets) or test(execution_orders_lifecycle_events_and_restart_durability) or test(auth_session_store_corruption_fails_closed_without_rewrite) or test(auth_rejects_untrusted_origin_before_authentication) or test(desktop_missing_static_assets_do_not_use_spa_fallback)"
         ],
         "testFilter": [
           "combo_place_rejects_invalid_legs_accounts_and_hidden_transport_failures",
@@ -61621,10 +61612,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "538d15d0",
+        "verifiedAt": "2026-09-25T13:41:05Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -61676,20 +61667,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(broker_securities_returns_real_empty_result_when_cache_has_no_symbol) or test(broker_quote_projects_real_futu_tick_cache_for_all_symbols) or test(trade_write_methods_propagate_write_disconnects) or test(broker_unlock_route_forwards_password_md5_and_unlock_flag_to_opend) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(funds_projection_keeps_missing_margin_fields_absent) or test(broker_read_fails_closed_without_trade_client) or test(execution_write_fixture_replays_all_seven_go_owned_mutations) or test(accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel) or test(us_limit_route_orders_keep_price_session_and_explicit_market_code) or test(test_normalize_execution_order_supports_extended_us_limit_sessions) or test(place_order_rounds_us_prices_to_the_venue_tick_before_encoding) or test(unknown_api_is_json_but_frontend_uses_spa_fallback) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(enabled_web_access_binds_and_shutdown_releases_port) or test(production_startup_fails_closed_when_database_is_corrupted) or test(production_startup_exposes_degraded_api_when_external_runtimes_are_unavailable) or test(portfolio_cash_balances_fall_back_to_summary_currency_when_breakdown_is_empty) or test(unknown_portfolio_reconciliation_route_returns_json_not_found) or test(portfolio_read_routes_match_group_fixture_in_cutover_only) or test(unsaved_broker_settings_expose_null_integration_and_go_defaults) or test(strategy_instance_read_routes_match_group_fixture_in_cutover_only) or test(runtime_status_wire_drops_absent_and_blank_values_and_normalizes_utc) or test(test_product_runtime_ordered_shutdown_explicit) or test(startup_acquires_all_writer_leases_in_stable_order_before_migrating) or test(startup_failure_restores_previously_migrated_descriptor_files) or test(test_product_runtime_startup_failure_rollback) or test(execution_write_product_replays_browser_boundary_failure_recovery_and_restart) or test(combo_place_rejects_invalid_legs_accounts_and_hidden_transport_failures) or test(combo_intent_rejects_missing_kind_legs_and_account) or test(option_combo_preview_place_and_cancel_keep_server_identity) or test(helper_market_data_providers_reconcile_futu_account_order_fill_and_fee) or test(reconciliation_replays_history_fill_and_fee_once_after_restart) or test(reconciliation_scope_accepts_only_stock_trade_markets) or test(execution_orders_lifecycle_events_and_restart_durability) or test(auth_session_store_corruption_fails_closed_without_rewrite) or test(auth_rejects_untrusted_origin_before_authentication) or test(desktop_missing_static_assets_do_not_use_spa_fallback)"
         ],
         "testFilter": [
           "option_combo_preview_place_and_cancel_keep_server_identity"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "538d15d0",
+        "verifiedAt": "2026-09-25T13:41:05Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -62312,10 +62303,10 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(broker_securities_returns_real_empty_result_when_cache_has_no_symbol) or test(broker_quote_projects_real_futu_tick_cache_for_all_symbols) or test(trade_write_methods_propagate_write_disconnects) or test(broker_unlock_route_forwards_password_md5_and_unlock_flag_to_opend) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(funds_projection_keeps_missing_margin_fields_absent) or test(broker_read_fails_closed_without_trade_client) or test(execution_write_fixture_replays_all_seven_go_owned_mutations) or test(accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel) or test(us_limit_route_orders_keep_price_session_and_explicit_market_code) or test(test_normalize_execution_order_supports_extended_us_limit_sessions) or test(place_order_rounds_us_prices_to_the_venue_tick_before_encoding) or test(unknown_api_is_json_but_frontend_uses_spa_fallback) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(enabled_web_access_binds_and_shutdown_releases_port) or test(production_startup_fails_closed_when_database_is_corrupted) or test(production_startup_exposes_degraded_api_when_external_runtimes_are_unavailable) or test(portfolio_cash_balances_fall_back_to_summary_currency_when_breakdown_is_empty) or test(unknown_portfolio_reconciliation_route_returns_json_not_found) or test(portfolio_read_routes_match_group_fixture_in_cutover_only) or test(unsaved_broker_settings_expose_null_integration_and_go_defaults) or test(strategy_instance_read_routes_match_group_fixture_in_cutover_only) or test(runtime_status_wire_drops_absent_and_blank_values_and_normalizes_utc) or test(test_product_runtime_ordered_shutdown_explicit) or test(startup_acquires_all_writer_leases_in_stable_order_before_migrating) or test(startup_failure_restores_previously_migrated_descriptor_files) or test(test_product_runtime_startup_failure_rollback) or test(execution_write_product_replays_browser_boundary_failure_recovery_and_restart) or test(combo_place_rejects_invalid_legs_accounts_and_hidden_transport_failures) or test(combo_intent_rejects_missing_kind_legs_and_account) or test(option_combo_preview_place_and_cancel_keep_server_identity) or test(helper_market_data_providers_reconcile_futu_account_order_fill_and_fee) or test(reconciliation_replays_history_fill_and_fee_once_after_restart) or test(reconciliation_scope_accepts_only_stock_trade_markets) or test(execution_orders_lifecycle_events_and_restart_durability) or test(auth_session_store_corruption_fails_closed_without_rewrite) or test(auth_rejects_untrusted_origin_before_authentication) or test(desktop_missing_static_assets_do_not_use_spa_fallback)"
         ],
         "testFilter": [
           "helper_market_data_providers_reconcile_futu_account_order_fill_and_fee",
@@ -62323,10 +62314,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "538d15d0",
+        "verifiedAt": "2026-09-25T13:41:05Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -62382,20 +62373,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(broker_securities_returns_real_empty_result_when_cache_has_no_symbol) or test(broker_quote_projects_real_futu_tick_cache_for_all_symbols) or test(trade_write_methods_propagate_write_disconnects) or test(broker_unlock_route_forwards_password_md5_and_unlock_flag_to_opend) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(funds_projection_keeps_missing_margin_fields_absent) or test(broker_read_fails_closed_without_trade_client) or test(execution_write_fixture_replays_all_seven_go_owned_mutations) or test(accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel) or test(us_limit_route_orders_keep_price_session_and_explicit_market_code) or test(test_normalize_execution_order_supports_extended_us_limit_sessions) or test(place_order_rounds_us_prices_to_the_venue_tick_before_encoding) or test(unknown_api_is_json_but_frontend_uses_spa_fallback) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(enabled_web_access_binds_and_shutdown_releases_port) or test(production_startup_fails_closed_when_database_is_corrupted) or test(production_startup_exposes_degraded_api_when_external_runtimes_are_unavailable) or test(portfolio_cash_balances_fall_back_to_summary_currency_when_breakdown_is_empty) or test(unknown_portfolio_reconciliation_route_returns_json_not_found) or test(portfolio_read_routes_match_group_fixture_in_cutover_only) or test(unsaved_broker_settings_expose_null_integration_and_go_defaults) or test(strategy_instance_read_routes_match_group_fixture_in_cutover_only) or test(runtime_status_wire_drops_absent_and_blank_values_and_normalizes_utc) or test(test_product_runtime_ordered_shutdown_explicit) or test(startup_acquires_all_writer_leases_in_stable_order_before_migrating) or test(startup_failure_restores_previously_migrated_descriptor_files) or test(test_product_runtime_startup_failure_rollback) or test(execution_write_product_replays_browser_boundary_failure_recovery_and_restart) or test(combo_place_rejects_invalid_legs_accounts_and_hidden_transport_failures) or test(combo_intent_rejects_missing_kind_legs_and_account) or test(option_combo_preview_place_and_cancel_keep_server_identity) or test(helper_market_data_providers_reconcile_futu_account_order_fill_and_fee) or test(reconciliation_replays_history_fill_and_fee_once_after_restart) or test(reconciliation_scope_accepts_only_stock_trade_markets) or test(execution_orders_lifecycle_events_and_restart_durability) or test(auth_session_store_corruption_fails_closed_without_rewrite) or test(auth_rejects_untrusted_origin_before_authentication) or test(desktop_missing_static_assets_do_not_use_spa_fallback)"
         ],
         "testFilter": [
           "reconciliation_scope_accepts_only_stock_trade_markets"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "538d15d0",
+        "verifiedAt": "2026-09-25T13:41:05Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -62514,20 +62505,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(broker_securities_returns_real_empty_result_when_cache_has_no_symbol) or test(broker_quote_projects_real_futu_tick_cache_for_all_symbols) or test(trade_write_methods_propagate_write_disconnects) or test(broker_unlock_route_forwards_password_md5_and_unlock_flag_to_opend) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(funds_projection_keeps_missing_margin_fields_absent) or test(broker_read_fails_closed_without_trade_client) or test(execution_write_fixture_replays_all_seven_go_owned_mutations) or test(accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel) or test(us_limit_route_orders_keep_price_session_and_explicit_market_code) or test(test_normalize_execution_order_supports_extended_us_limit_sessions) or test(place_order_rounds_us_prices_to_the_venue_tick_before_encoding) or test(unknown_api_is_json_but_frontend_uses_spa_fallback) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(enabled_web_access_binds_and_shutdown_releases_port) or test(production_startup_fails_closed_when_database_is_corrupted) or test(production_startup_exposes_degraded_api_when_external_runtimes_are_unavailable) or test(portfolio_cash_balances_fall_back_to_summary_currency_when_breakdown_is_empty) or test(unknown_portfolio_reconciliation_route_returns_json_not_found) or test(portfolio_read_routes_match_group_fixture_in_cutover_only) or test(unsaved_broker_settings_expose_null_integration_and_go_defaults) or test(strategy_instance_read_routes_match_group_fixture_in_cutover_only) or test(runtime_status_wire_drops_absent_and_blank_values_and_normalizes_utc) or test(test_product_runtime_ordered_shutdown_explicit) or test(startup_acquires_all_writer_leases_in_stable_order_before_migrating) or test(startup_failure_restores_previously_migrated_descriptor_files) or test(test_product_runtime_startup_failure_rollback) or test(execution_write_product_replays_browser_boundary_failure_recovery_and_restart) or test(combo_place_rejects_invalid_legs_accounts_and_hidden_transport_failures) or test(combo_intent_rejects_missing_kind_legs_and_account) or test(option_combo_preview_place_and_cancel_keep_server_identity) or test(helper_market_data_providers_reconcile_futu_account_order_fill_and_fee) or test(reconciliation_replays_history_fill_and_fee_once_after_restart) or test(reconciliation_scope_accepts_only_stock_trade_markets) or test(execution_orders_lifecycle_events_and_restart_durability) or test(auth_session_store_corruption_fails_closed_without_rewrite) or test(auth_rejects_untrusted_origin_before_authentication) or test(desktop_missing_static_assets_do_not_use_spa_fallback)"
         ],
         "testFilter": [
           "reconciliation_replays_history_fill_and_fee_once_after_restart"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "538d15d0",
+        "verifiedAt": "2026-09-25T13:41:05Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -62770,20 +62761,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(broker_securities_returns_real_empty_result_when_cache_has_no_symbol) or test(broker_quote_projects_real_futu_tick_cache_for_all_symbols) or test(trade_write_methods_propagate_write_disconnects) or test(broker_unlock_route_forwards_password_md5_and_unlock_flag_to_opend) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(funds_projection_keeps_missing_margin_fields_absent) or test(broker_read_fails_closed_without_trade_client) or test(execution_write_fixture_replays_all_seven_go_owned_mutations) or test(accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel) or test(us_limit_route_orders_keep_price_session_and_explicit_market_code) or test(test_normalize_execution_order_supports_extended_us_limit_sessions) or test(place_order_rounds_us_prices_to_the_venue_tick_before_encoding) or test(unknown_api_is_json_but_frontend_uses_spa_fallback) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(enabled_web_access_binds_and_shutdown_releases_port) or test(production_startup_fails_closed_when_database_is_corrupted) or test(production_startup_exposes_degraded_api_when_external_runtimes_are_unavailable) or test(portfolio_cash_balances_fall_back_to_summary_currency_when_breakdown_is_empty) or test(unknown_portfolio_reconciliation_route_returns_json_not_found) or test(portfolio_read_routes_match_group_fixture_in_cutover_only) or test(unsaved_broker_settings_expose_null_integration_and_go_defaults) or test(strategy_instance_read_routes_match_group_fixture_in_cutover_only) or test(runtime_status_wire_drops_absent_and_blank_values_and_normalizes_utc) or test(test_product_runtime_ordered_shutdown_explicit) or test(startup_acquires_all_writer_leases_in_stable_order_before_migrating) or test(startup_failure_restores_previously_migrated_descriptor_files) or test(test_product_runtime_startup_failure_rollback) or test(execution_write_product_replays_browser_boundary_failure_recovery_and_restart) or test(combo_place_rejects_invalid_legs_accounts_and_hidden_transport_failures) or test(combo_intent_rejects_missing_kind_legs_and_account) or test(option_combo_preview_place_and_cancel_keep_server_identity) or test(helper_market_data_providers_reconcile_futu_account_order_fill_and_fee) or test(reconciliation_replays_history_fill_and_fee_once_after_restart) or test(reconciliation_scope_accepts_only_stock_trade_markets) or test(execution_orders_lifecycle_events_and_restart_durability) or test(auth_session_store_corruption_fails_closed_without_rewrite) or test(auth_rejects_untrusted_origin_before_authentication) or test(desktop_missing_static_assets_do_not_use_spa_fallback)"
         ],
         "testFilter": [
           "execution_orders_lifecycle_events_and_restart_durability"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "538d15d0",
+        "verifiedAt": "2026-09-25T13:41:05Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -63024,15 +63015,7 @@
         "source": "legacy-conclusion"
       },
       "verification": {
-        "argv": [
-          "node",
-          "scripts/quality/cargo-nextest.mjs",
-          "run",
-          "-p",
-          "jftrade-engine",
-          "--all-targets",
-          "--locked"
-        ],
+        "argv": [],
         "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
@@ -63088,20 +63071,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(auth_session_store_corruption_fails_closed_without_rewrite)"
+          "test(broker_securities_returns_real_empty_result_when_cache_has_no_symbol) or test(broker_quote_projects_real_futu_tick_cache_for_all_symbols) or test(trade_write_methods_propagate_write_disconnects) or test(broker_unlock_route_forwards_password_md5_and_unlock_flag_to_opend) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(funds_projection_keeps_missing_margin_fields_absent) or test(broker_read_fails_closed_without_trade_client) or test(execution_write_fixture_replays_all_seven_go_owned_mutations) or test(accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel) or test(us_limit_route_orders_keep_price_session_and_explicit_market_code) or test(test_normalize_execution_order_supports_extended_us_limit_sessions) or test(place_order_rounds_us_prices_to_the_venue_tick_before_encoding) or test(unknown_api_is_json_but_frontend_uses_spa_fallback) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(enabled_web_access_binds_and_shutdown_releases_port) or test(production_startup_fails_closed_when_database_is_corrupted) or test(production_startup_exposes_degraded_api_when_external_runtimes_are_unavailable) or test(portfolio_cash_balances_fall_back_to_summary_currency_when_breakdown_is_empty) or test(unknown_portfolio_reconciliation_route_returns_json_not_found) or test(portfolio_read_routes_match_group_fixture_in_cutover_only) or test(unsaved_broker_settings_expose_null_integration_and_go_defaults) or test(strategy_instance_read_routes_match_group_fixture_in_cutover_only) or test(runtime_status_wire_drops_absent_and_blank_values_and_normalizes_utc) or test(test_product_runtime_ordered_shutdown_explicit) or test(startup_acquires_all_writer_leases_in_stable_order_before_migrating) or test(startup_failure_restores_previously_migrated_descriptor_files) or test(test_product_runtime_startup_failure_rollback) or test(execution_write_product_replays_browser_boundary_failure_recovery_and_restart) or test(combo_place_rejects_invalid_legs_accounts_and_hidden_transport_failures) or test(combo_intent_rejects_missing_kind_legs_and_account) or test(option_combo_preview_place_and_cancel_keep_server_identity) or test(helper_market_data_providers_reconcile_futu_account_order_fill_and_fee) or test(reconciliation_replays_history_fill_and_fee_once_after_restart) or test(reconciliation_scope_accepts_only_stock_trade_markets) or test(execution_orders_lifecycle_events_and_restart_durability) or test(auth_session_store_corruption_fails_closed_without_rewrite) or test(auth_rejects_untrusted_origin_before_authentication) or test(desktop_missing_static_assets_do_not_use_spa_fallback)"
         ],
         "testFilter": [
           "auth_session_store_corruption_fails_closed_without_rewrite"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "538d15d0",
+        "verifiedAt": "2026-09-25T13:41:05Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -63279,20 +63262,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-api",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(auth_rejects_untrusted_origin_before_authentication)"
+          "test(broker_securities_returns_real_empty_result_when_cache_has_no_symbol) or test(broker_quote_projects_real_futu_tick_cache_for_all_symbols) or test(trade_write_methods_propagate_write_disconnects) or test(broker_unlock_route_forwards_password_md5_and_unlock_flag_to_opend) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(funds_projection_keeps_missing_margin_fields_absent) or test(broker_read_fails_closed_without_trade_client) or test(execution_write_fixture_replays_all_seven_go_owned_mutations) or test(accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel) or test(us_limit_route_orders_keep_price_session_and_explicit_market_code) or test(test_normalize_execution_order_supports_extended_us_limit_sessions) or test(place_order_rounds_us_prices_to_the_venue_tick_before_encoding) or test(unknown_api_is_json_but_frontend_uses_spa_fallback) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(enabled_web_access_binds_and_shutdown_releases_port) or test(production_startup_fails_closed_when_database_is_corrupted) or test(production_startup_exposes_degraded_api_when_external_runtimes_are_unavailable) or test(portfolio_cash_balances_fall_back_to_summary_currency_when_breakdown_is_empty) or test(unknown_portfolio_reconciliation_route_returns_json_not_found) or test(portfolio_read_routes_match_group_fixture_in_cutover_only) or test(unsaved_broker_settings_expose_null_integration_and_go_defaults) or test(strategy_instance_read_routes_match_group_fixture_in_cutover_only) or test(runtime_status_wire_drops_absent_and_blank_values_and_normalizes_utc) or test(test_product_runtime_ordered_shutdown_explicit) or test(startup_acquires_all_writer_leases_in_stable_order_before_migrating) or test(startup_failure_restores_previously_migrated_descriptor_files) or test(test_product_runtime_startup_failure_rollback) or test(execution_write_product_replays_browser_boundary_failure_recovery_and_restart) or test(combo_place_rejects_invalid_legs_accounts_and_hidden_transport_failures) or test(combo_intent_rejects_missing_kind_legs_and_account) or test(option_combo_preview_place_and_cancel_keep_server_identity) or test(helper_market_data_providers_reconcile_futu_account_order_fill_and_fee) or test(reconciliation_replays_history_fill_and_fee_once_after_restart) or test(reconciliation_scope_accepts_only_stock_trade_markets) or test(execution_orders_lifecycle_events_and_restart_durability) or test(auth_session_store_corruption_fails_closed_without_rewrite) or test(auth_rejects_untrusted_origin_before_authentication) or test(desktop_missing_static_assets_do_not_use_spa_fallback)"
         ],
         "testFilter": [
           "auth_rejects_untrusted_origin_before_authentication"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "538d15d0",
+        "verifiedAt": "2026-09-25T13:41:05Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -63357,10 +63340,10 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-api",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(unknown_api_is_json_but_frontend_uses_spa_fallback)"
+          "test(broker_securities_returns_real_empty_result_when_cache_has_no_symbol) or test(broker_quote_projects_real_futu_tick_cache_for_all_symbols) or test(trade_write_methods_propagate_write_disconnects) or test(broker_unlock_route_forwards_password_md5_and_unlock_flag_to_opend) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(funds_projection_keeps_missing_margin_fields_absent) or test(broker_read_fails_closed_without_trade_client) or test(execution_write_fixture_replays_all_seven_go_owned_mutations) or test(accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel) or test(us_limit_route_orders_keep_price_session_and_explicit_market_code) or test(test_normalize_execution_order_supports_extended_us_limit_sessions) or test(place_order_rounds_us_prices_to_the_venue_tick_before_encoding) or test(unknown_api_is_json_but_frontend_uses_spa_fallback) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(enabled_web_access_binds_and_shutdown_releases_port) or test(production_startup_fails_closed_when_database_is_corrupted) or test(production_startup_exposes_degraded_api_when_external_runtimes_are_unavailable) or test(portfolio_cash_balances_fall_back_to_summary_currency_when_breakdown_is_empty) or test(unknown_portfolio_reconciliation_route_returns_json_not_found) or test(portfolio_read_routes_match_group_fixture_in_cutover_only) or test(unsaved_broker_settings_expose_null_integration_and_go_defaults) or test(strategy_instance_read_routes_match_group_fixture_in_cutover_only) or test(runtime_status_wire_drops_absent_and_blank_values_and_normalizes_utc) or test(test_product_runtime_ordered_shutdown_explicit) or test(startup_acquires_all_writer_leases_in_stable_order_before_migrating) or test(startup_failure_restores_previously_migrated_descriptor_files) or test(test_product_runtime_startup_failure_rollback) or test(execution_write_product_replays_browser_boundary_failure_recovery_and_restart) or test(combo_place_rejects_invalid_legs_accounts_and_hidden_transport_failures) or test(combo_intent_rejects_missing_kind_legs_and_account) or test(option_combo_preview_place_and_cancel_keep_server_identity) or test(helper_market_data_providers_reconcile_futu_account_order_fill_and_fee) or test(reconciliation_replays_history_fill_and_fee_once_after_restart) or test(reconciliation_scope_accepts_only_stock_trade_markets) or test(execution_orders_lifecycle_events_and_restart_durability) or test(auth_session_store_corruption_fails_closed_without_rewrite) or test(auth_rejects_untrusted_origin_before_authentication) or test(desktop_missing_static_assets_do_not_use_spa_fallback)"
         ],
         "testFilter": [
           "unknown_api_is_json_but_frontend_uses_spa_fallback",
@@ -63368,10 +63351,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "538d15d0",
+        "verifiedAt": "2026-09-25T13:41:05Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -63793,10 +63776,10 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-api",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(browser_navigation_gets_the_friendly_disabled_page_while_web_access_is_off) or test(web_runtime_reports_browser_access_state_for_the_desktop_listener)"
         ],
         "testFilter": [
           "browser_navigation_gets_the_friendly_disabled_page_while_web_access_is_off",
@@ -63804,10 +63787,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "538d15d0",
+        "verifiedAt": "2026-09-25T13:41:05Z",
         "receiptDigest": null
       },
       "risk": "high",
