@@ -75,7 +75,7 @@
 
 ## 调度收敛规则
 
-- 当前只保留一个持续队列上下文；本批完成后下一片按 P1 继续处理 `internal/api/assistant/chat_transport_disconnect_test.go:110:TestChatStreamReconnectAndReplayRespectClientDisconnect`。
+- 当前只保留一个持续队列上下文；本批完成后下一片按 P1 继续处理 `internal/api/backtest/routes_progress_test.go:71:TestSyncProgressAndCancelRoutesHandleSuccessAndNotFound`。
 - 不创建子任务、不创建第二个 heartbeat、不重复复核已经完成的切片。
 - 每批先读 Go 实现和 Rust owner；只有发现真实行为差异才先写失败回归测试并修改生产代码。
 - 仅证据不足时维持 `partial` 或 `boundary`，不得为了提高数字升级为 `function_exact`。
@@ -101,6 +101,7 @@
 - 当前批次：`internal/api/assistant/chat_helpers_test.go:13` 的 session/run/tool timing 与 reasoning/message 拼接逐项复核；确认属于 Go 进程内 timeline state machine 边界，Rust durable session→run→final 与 replay 证据 2/2 通过，无生产功能差异。
 - 当前批次：`internal/api/assistant/chat_stream_recovery_contracts_test.go:12` 的不可序列化 transient tool clone fallback、timeline-only delta 与 final recovery 逐项复核；确认 Go JSON clone 兜底属于旧内存 hub 边界，Rust durable replay/live/final recovery 三条证据 3/3 通过，无生产功能差异。
 - 当前批次：`internal/api/assistant/chat_stream_recovery_contracts_test.go:41` 的已知 session preview 与持久化终态 final recovery 逐项核对；Rust 真实生产 preview、终态恢复三条证据 3/3 通过，contextSent 内存 seam 未强行升级，保持 partial。
+- 当前批次：`internal/api/assistant/chat_transport_disconnect_test.go:110` 的 stream/run reconnect、after 游标重放与失败 writer 退出逐项核对；engine/API 精准回归 4/4 通过，Rust 一次性 SSE 物化没有 Go 单写次数 seam，保持 partial。
 - `00f89290`：marketdata façade 剩余 34 条逐项复核，补 helper provider polling mode owner 回归测试并修复状态投影。
 - `47bf7b1a`：注入配置的默认交易市场并补交易读取测试。
 - `917d1534`：API transport P1 partial 第 1–30 条核对。
