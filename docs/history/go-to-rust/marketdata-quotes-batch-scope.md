@@ -518,3 +518,28 @@ status 与 quote snapshot projection owner；6/6 保持 `[~]`/`partial`，没有
 
 验证：`cargo fmt --all -- --check`；精准回归
 `node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -p jftrade-engine -p jftrade-api -p jftrade-integration-futu --all-targets --locked -E 'test(demand_is_deduplicated_and_managed_leases_do_not_expire) or test(partial_release_and_clear_operations) or test(heartbeat_updates_consumer_and_entry_timestamps) or test(channel_and_interval_validation_rules) or test(subscription_routes_preserve_instrument_request_contract_through_acquire_release_and_clear) or test(active_instruments_are_normalized_unioned_replaced_and_released) or test(live_hub_demand_listener_tracks_subscriptions_and_disconnect) or test(market_data_runtime_projection_matches_go_status_corpus) or test(authoritative_snapshot_keeps_missing_quote_fields_null) or test(legacy_tick_without_snapshot_keeps_zero_quote_fields_available) or test(futu_snapshot_route_projects_cached_extended_quote_contract)'`（11/11 通过）。随后执行 mapping 审计、锚点复核、`check:quick`、`check:rust` 与 `git diff --check`。
+
+## 第 132 批：lifecycle boundaries 余量（2026-09-25）
+
+本片覆盖 `internal/marketdata/lifecycle_boundaries_test.go` 中尚未逐项复核的 7 条测试；`TestNormalizeInstrumentIDRejectsIncompleteValues` 已有 exact 证据，未重复修改。7/7 继续保持 `[~]`/`partial`，没有把拆分到多个 owner 的聚合测试升级为 `function_exact`。
+
+| 复核 | Go 测试 | Rust 证据 | P | 结论 |
+| :---: | --- | --- | :---: | --- |
+| [x] | `lifecycle_boundaries_test.go:13:TestCacheRemainingLifecycleBoundaries` | `cache_rejects_stale_generation_and_classifies_freshness`；`cache_rejects_empty_generation_and_backwards_timestamp_inputs`；`a_new_trading_day_or_session_resets_the_cumulative_baseline` | P1 | partial：无效 tick、stale freshness 与交易日基线已验证；Go 的 zero-age/空集合/clear/clone nil/零时间戳和周末 fallback 未同形断言。 |
+| [x] | `lifecycle_boundaries_test.go:60:TestSubscriptionRegistryRemainingLifecycleBoundaries` | `demand_is_deduplicated_and_managed_leases_do_not_expire`；`partial_release_and_clear_operations`；`active_instruments_are_normalized_unioned_replaced_and_released` | P2 | partial：demand 与 active instrument 生命周期已验证；TTL=0、blank consumer 归一和同一 registry 快照串联保留差异。 |
+| [x] | `lifecycle_boundaries_test.go:101:TestServiceRemainingLifecycleBoundaries` | `market_data_quote_read_routes_fail_closed_when_snapshot_is_unavailable`；`snapshot_rejects_malformed_refresh_before_provider_access`；`empty_invalid_closed_and_inactive_demand_never_calls_provider` | P2 | partial：取消/畸形 refresh 与无需求/关闭 fail-closed 已验证；nil Service、ProviderStatus、默认周期和 subscription context 仍跨 owner。 |
+| [x] | `lifecycle_boundaries_test.go:233:TestServiceFinalSubscriptionCleanupAlwaysHasDeadline` | `close_shuts_down_the_transport_before_joining_the_reader`；`direct_product_shutdown_stops_reconciliation_before_releasing_leases` | P2 | partial：Rust 关闭顺序与 bounded shutdown 已验证；Go 的最终 ReconcileSubscriptions deadline 参数没有同形断言。 |
+| [x] | `lifecycle_boundaries_test.go:271:TestCollectorAdvancesInactiveSubscriptionCleanupAfterActiveDemand` | `router_drives_runtime_recorder_from_provider_and_demand_state`；`reconcile_preserves_demand_and_clears_previous_runtime_state` | P2 | partial：需求同步和 runtime 清理已验证；inactive cleanup 计数/重试及 Close fence 没有同形字段。 |
+| [x] | `lifecycle_boundaries_test.go:302:TestCollectorRemainingLifecycleBoundaries` | `empty_invalid_closed_and_inactive_demand_never_calls_provider`；`recorder_matches_generation_retry_recovery_and_close_rules`；`basic_quote_query_uses_the_collector_900ms_deadline_boundary` | P2 | partial：collector provider gate、generation/retry/close 和 900ms deadline 已验证；nil source、detached stream、负 retry clamp 等分支仍是结构差异。 |
+| [x] | `lifecycle_boundaries_test.go:416:TestInstrumentResolverRemainingLifecycleBoundaries` | `futu_search_rejects_invalid_queries_before_reaching_opend`；`provider_aware_methods_prefix_providers_and_validate_provider_names` | P2 | partial：Futu 输入拒绝和 provider 前缀校验已验证；MarketSubset resolver 的 peer cache、单飞取消、alias 纯函数由 Python/helper 边界承担。 |
+
+本片没有发现需要先红后修的 Rust 生产差异；所有引用 owner 均为现有实现，差异集中在 Go 聚合 fixture、nil/function helper 与 Rust typed/sidecar 架构边界。精准 nextest 16/16 通过。
+
+下一片：按 P1 优先处理 `internal/api/assistant/chat_helpers_test.go` 的
+`TestTimelineStreamStateTracksSessionRunAndToolTiming`、
+`TestTimelineStreamStateEmptyAndCloneBoundaries`，以及
+`internal/api/assistant/chat_stream_recovery_contracts_test.go` 的前 3 条；若出现真实
+ADK/Assistant 功能差异，先补失败回归测试再修改领域 owner。
+
+验证：
+`node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -p jftrade-engine -p jftrade-api -p jftrade-integration-futu -p jftrade-integration-marketdata-helper --all-targets --locked -E 'test(cache_rejects_stale_generation_and_classifies_freshness) or test(cache_rejects_empty_generation_and_backwards_timestamp_inputs) or test(a_new_trading_day_or_session_resets_the_cumulative_baseline) or test(demand_is_deduplicated_and_managed_leases_do_not_expire) or test(partial_release_and_clear_operations) or test(active_instruments_are_normalized_unioned_replaced_and_released) or test(market_data_quote_read_routes_fail_closed_when_snapshot_is_unavailable) or test(snapshot_rejects_malformed_refresh_before_provider_access) or test(empty_invalid_closed_and_inactive_demand_never_calls_provider) or test(close_shuts_down_the_transport_before_joining_the_reader) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(router_drives_runtime_recorder_from_provider_and_demand_state) or test(reconcile_preserves_demand_and_clears_previous_runtime_state) or test(recorder_matches_generation_retry_recovery_and_close_rules) or test(basic_quote_query_uses_the_collector_900ms_deadline_boundary) or test(futu_search_rejects_invalid_queries_before_reaching_opend) or test(provider_aware_methods_prefix_providers_and_validate_provider_names)'`（16/16 通过）。

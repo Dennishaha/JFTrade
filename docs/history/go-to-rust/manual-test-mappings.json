@@ -175524,7 +175524,7 @@
       "status": "[~]",
       "rust_entry": "crates/jftrade-marketdata/src/cache.rs::cache_rejects_stale_generation_and_classifies_freshness；crates/jftrade-marketdata/tests/cache_boundaries.rs::cache_rejects_empty_generation_and_backwards_timestamp_inputs；crates/jftrade-marketdata/src/trade_volume.rs::a_new_trading_day_or_session_resets_the_cumulative_baseline",
       "conclusion": "partial：Rust 覆盖无效 tick 拒绝（空 generation、回退时间戳）、stale 判定与 trading-day 基线重置；差异：Go 的 Latest(maxAge=0)/LatestMany 空集合、Clear 保留 provider 样本、cloneTick(nil)、0 时间戳与周末/未知市场的交易日分类在 Rust 没有同形断言（交易日分类由 jftrade-calendar 权威调度承担）。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --all-targets --locked",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -p jftrade-engine -p jftrade-api -p jftrade-integration-futu -p jftrade-integration-marketdata-helper --all-targets --locked -E test(cache_rejects_stale_generation_and_classifies_freshness) or test(cache_rejects_empty_generation_and_backwards_timestamp_inputs) or test(a_new_trading_day_or_session_resets_the_cumulative_baseline)",
       "evidence_type": "partial",
       "source": {
         "file": "internal/marketdata/lifecycle_boundaries_test.go",
@@ -175553,11 +175553,13 @@
         }
       ],
       "assertionCoverage": {
-        "covered": [],
-        "uncovered": [
-          "partial：Rust 覆盖无效 tick 拒绝（空 generation、回退时间戳）、stale 判定与 trading-day 基线重置；差异：Go 的 Latest(maxAge=0)/LatestMany 空集合、Clear 保留 provider 样本、cloneTick(nil)、0 时间戳与周末/未知市场的交易日分类在 Rust 没有同形断言（交易日分类由 jftrade-calendar 权威调度承担）。"
+        "covered": [
+          "Rust 已验证无效 tick 拒绝、stale freshness 分类与交易日/交易时段切换时的累计基线重置。"
         ],
-        "source": "legacy-conclusion"
+        "uncovered": [
+          "Go 的 Latest(maxAge=0)、LatestMany 空集合、Clear 后 provider 样本计数、cloneTick(nil)、零时间戳及周末/未知市场交易日 fallback 未由同一 Rust cache API 逐项断言；交易日分类由 jftrade-calendar owner 承担。"
+        ],
+        "source": "manual-batch-review"
       },
       "verification": {
         "argv": [
@@ -175566,8 +175568,18 @@
           "run",
           "-p",
           "jftrade-marketdata",
+          "-p",
+          "jftrade-engine",
+          "-p",
+          "jftrade-api",
+          "-p",
+          "jftrade-integration-futu",
+          "-p",
+          "jftrade-integration-marketdata-helper",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(cache_rejects_stale_generation_and_classifies_freshness) or test(cache_rejects_empty_generation_and_backwards_timestamp_inputs) or test(a_new_trading_day_or_session_resets_the_cumulative_baseline)"
         ],
         "testFilter": [
           "cache_rejects_stale_generation_and_classifies_freshness",
@@ -175576,10 +175588,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
+        "status": "passed",
+        "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": null,
+        "verifiedAt": "2026-09-25T03:15:00Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -175590,9 +175602,11 @@
         "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [],
+      "coveredAssertions": [
+        "Rust 已验证无效 tick 拒绝、stale freshness 分类与交易日/交易时段切换时的累计基线重置。"
+      ],
       "uncoveredAssertions": [
-        "partial：Rust 覆盖无效 tick 拒绝（空 generation、回退时间戳）、stale 判定与 trading-day 基线重置；差异：Go 的 Latest(maxAge=0)/LatestMany 空集合、Clear 保留 provider 样本、cloneTick(nil)、0 时间戳与周末/未知市场的交易日分类在 Rust 没有同形断言（交易日分类由 jftrade-calendar 权威调度承担）。"
+        "Go 的 Latest(maxAge=0)、LatestMany 空集合、Clear 后 provider 样本计数、cloneTick(nil)、零时间戳及周末/未知市场交易日 fallback 未由同一 Rust cache API 逐项断言；交易日分类由 jftrade-calendar owner 承担。"
       ],
       "boundaryReason": null
     },
@@ -175600,7 +175614,7 @@
       "status": "[~]",
       "rust_entry": "crates/jftrade-marketdata/src/demand.rs::demand_is_deduplicated_and_managed_leases_do_not_expire；crates/jftrade-marketdata/src/demand.rs::partial_release_and_clear_operations；crates/jftrade-api/src/websocket.rs::active_instruments_are_normalized_unioned_replaced_and_released",
       "conclusion": "partial：Rust 覆盖去重后的 active 标的集合、空白消费者规范化（trim 后空 consumer 拒绝）、过期 web 条目清理；差异：Go 的“禁用过期（TTL=0）快照”与 blank consumer 归一为 web 的分支在 Rust 由 expire(now, ttl) 的 ttl<0 保护与 MissingConsumer 错误表达，无同形断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --all-targets --locked",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -p jftrade-engine -p jftrade-api -p jftrade-integration-futu -p jftrade-integration-marketdata-helper --all-targets --locked -E test(demand_is_deduplicated_and_managed_leases_do_not_expire) or test(partial_release_and_clear_operations) or test(active_instruments_are_normalized_unioned_replaced_and_released)",
       "evidence_type": "partial",
       "source": {
         "file": "internal/marketdata/lifecycle_boundaries_test.go",
@@ -175629,11 +175643,13 @@
         }
       ],
       "assertionCoverage": {
-        "covered": [],
-        "uncovered": [
-          "partial：Rust 覆盖去重后的 active 标的集合、空白消费者规范化（trim 后空 consumer 拒绝）、过期 web 条目清理；差异：Go 的“禁用过期（TTL=0）快照”与 blank consumer 归一为 web 的分支在 Rust 由 expire(now, ttl) 的 ttl<0 保护与 MissingConsumer 错误表达，无同形断言。"
+        "covered": [
+          "Rust 已验证 demand 去重、managed lease 不过期、部分释放/清理以及 active instrument 归一、并集、替换和释放。"
         ],
-        "source": "legacy-conclusion"
+        "uncovered": [
+          "Go 的 TTL=0 禁用过期快照、blank consumer 归一为 web、BROKEN consumer 清理和同一 registry 快照串联未由同形 Rust registry API 逐项断言；Rust 以 ttl 保护和 MissingConsumer 错误表达。"
+        ],
+        "source": "manual-batch-review"
       },
       "verification": {
         "argv": [
@@ -175642,8 +175658,18 @@
           "run",
           "-p",
           "jftrade-marketdata",
+          "-p",
+          "jftrade-engine",
+          "-p",
+          "jftrade-api",
+          "-p",
+          "jftrade-integration-futu",
+          "-p",
+          "jftrade-integration-marketdata-helper",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(demand_is_deduplicated_and_managed_leases_do_not_expire) or test(partial_release_and_clear_operations) or test(active_instruments_are_normalized_unioned_replaced_and_released)"
         ],
         "testFilter": [
           "demand_is_deduplicated_and_managed_leases_do_not_expire",
@@ -175652,10 +175678,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
+        "status": "passed",
+        "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": null,
+        "verifiedAt": "2026-09-25T03:15:00Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -175666,9 +175692,11 @@
         "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [],
+      "coveredAssertions": [
+        "Rust 已验证 demand 去重、managed lease 不过期、部分释放/清理以及 active instrument 归一、并集、替换和释放。"
+      ],
       "uncoveredAssertions": [
-        "partial：Rust 覆盖去重后的 active 标的集合、空白消费者规范化（trim 后空 consumer 拒绝）、过期 web 条目清理；差异：Go 的“禁用过期（TTL=0）快照”与 blank consumer 归一为 web 的分支在 Rust 由 expire(now, ttl) 的 ttl<0 保护与 MissingConsumer 错误表达，无同形断言。"
+        "Go 的 TTL=0 禁用过期快照、blank consumer 归一为 web、BROKEN consumer 清理和同一 registry 快照串联未由同形 Rust registry API 逐项断言；Rust 以 ttl 保护和 MissingConsumer 错误表达。"
       ],
       "boundaryReason": null
     },
@@ -175743,7 +175771,7 @@
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::market_data_quote_read_routes_fail_closed_when_snapshot_is_unavailable；crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::snapshot_rejects_malformed_refresh_before_provider_access；crates/jftrade-marketdata/src/snapshot_poll.rs::empty_invalid_closed_and_inactive_demand_never_calls_provider",
       "conclusion": "partial：Rust 覆盖取消/畸形输入在 provider 访问前失败、关闭/无需求时 poll 不调用 provider；差异：Go 的 nil ResolveInstrument、nil reconcileDesired、ProviderStatus degraded/canceled、默认周期等组合分支在 Rust 拆到不同端口（读端口/路由层），没有单条聚合断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -p jftrade-engine --all-targets --locked",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -p jftrade-engine -p jftrade-api -p jftrade-integration-futu -p jftrade-integration-marketdata-helper --all-targets --locked -E test(market_data_quote_read_routes_fail_closed_when_snapshot_is_unavailable) or test(snapshot_rejects_malformed_refresh_before_provider_access) or test(empty_invalid_closed_and_inactive_demand_never_calls_provider)",
       "evidence_type": "partial",
       "source": {
         "file": "internal/marketdata/lifecycle_boundaries_test.go",
@@ -175772,11 +175800,13 @@
         }
       ],
       "assertionCoverage": {
-        "covered": [],
-        "uncovered": [
-          "partial：Rust 覆盖取消/畸形输入在 provider 访问前失败、关闭/无需求时 poll 不调用 provider；差异：Go 的 nil ResolveInstrument、nil reconcileDesired、ProviderStatus degraded/canceled、默认周期等组合分支在 Rust 拆到不同端口（读端口/路由层），没有单条聚合断言。"
+        "covered": [
+          "Rust 已验证取消/畸形 refresh 在 provider 访问前 fail closed，以及 empty、invalid、closed、inactive demand 不调用 provider。"
         ],
-        "source": "legacy-conclusion"
+        "uncovered": [
+          "Go 的 nil Service/ResolveInstrument、nil reconcileDesired、ProviderStatus degraded/canceled、默认 candle period 与 subscription context 组合仍分散在不同 Rust port/route owner，未由同一 Service fixture 聚合断言。"
+        ],
+        "source": "manual-batch-review"
       },
       "verification": {
         "argv": [
@@ -175787,8 +175817,16 @@
           "jftrade-marketdata",
           "-p",
           "jftrade-engine",
+          "-p",
+          "jftrade-api",
+          "-p",
+          "jftrade-integration-futu",
+          "-p",
+          "jftrade-integration-marketdata-helper",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(market_data_quote_read_routes_fail_closed_when_snapshot_is_unavailable) or test(snapshot_rejects_malformed_refresh_before_provider_access) or test(empty_invalid_closed_and_inactive_demand_never_calls_provider)"
         ],
         "testFilter": [
           "market_data_quote_read_routes_fail_closed_when_snapshot_is_unavailable",
@@ -175797,10 +175835,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
+        "status": "passed",
+        "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": null,
+        "verifiedAt": "2026-09-25T03:15:00Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -175811,9 +175849,11 @@
         "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [],
+      "coveredAssertions": [
+        "Rust 已验证取消/畸形 refresh 在 provider 访问前 fail closed，以及 empty、invalid、closed、inactive demand 不调用 provider。"
+      ],
       "uncoveredAssertions": [
-        "partial：Rust 覆盖取消/畸形输入在 provider 访问前失败、关闭/无需求时 poll 不调用 provider；差异：Go 的 nil ResolveInstrument、nil reconcileDesired、ProviderStatus degraded/canceled、默认周期等组合分支在 Rust 拆到不同端口（读端口/路由层），没有单条聚合断言。"
+        "Go 的 nil Service/ResolveInstrument、nil reconcileDesired、ProviderStatus degraded/canceled、默认 candle period 与 subscription context 组合仍分散在不同 Rust port/route owner，未由同一 Service fixture 聚合断言。"
       ],
       "boundaryReason": null
     },
@@ -175821,7 +175861,7 @@
       "status": "[~]",
       "rust_entry": "crates/jftrade-integration-futu/src/managed_session_tests.rs::close_shuts_down_the_transport_before_joining_the_reader；crates/jftrade-engine/src/product_production_assembly_tests.rs::direct_product_shutdown_stops_reconciliation_before_releasing_leases",
       "conclusion": "partial：Rust 关闭路径均为有界操作（先关 transport 再 join reader，产品关停先停协调再释放租约）；差异：Go 断言最后一次订阅清理使用带 deadline 的 context，Rust 以异步超时与 RAII 释放表达，无 deadline 参数断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -p jftrade-engine --all-targets --locked",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -p jftrade-engine -p jftrade-api -p jftrade-integration-futu -p jftrade-integration-marketdata-helper --all-targets --locked -E test(close_shuts_down_the_transport_before_joining_the_reader) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases)",
       "evidence_type": "partial",
       "source": {
         "file": "internal/marketdata/lifecycle_boundaries_test.go",
@@ -175844,11 +175884,13 @@
         }
       ],
       "assertionCoverage": {
-        "covered": [],
-        "uncovered": [
-          "partial：Rust 关闭路径均为有界操作（先关 transport 再 join reader，产品关停先停协调再释放租约）；差异：Go 断言最后一次订阅清理使用带 deadline 的 context，Rust 以异步超时与 RAII 释放表达，无 deadline 参数断言。"
+        "covered": [
+          "Rust 已验证关闭 transport 后再 join reader，以及产品关停先停止 reconciliation 再释放 leases。"
         ],
-        "source": "legacy-conclusion"
+        "uncovered": [
+          "Go 直接检查最终 ReconcileSubscriptions context 带 deadline；Rust 通过异步关闭边界和 RAII/超时顺序表达，没有同形 deadline 参数断言。"
+        ],
+        "source": "manual-batch-review"
       },
       "verification": {
         "argv": [
@@ -175859,8 +175901,16 @@
           "jftrade-marketdata",
           "-p",
           "jftrade-engine",
+          "-p",
+          "jftrade-api",
+          "-p",
+          "jftrade-integration-futu",
+          "-p",
+          "jftrade-integration-marketdata-helper",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(close_shuts_down_the_transport_before_joining_the_reader) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases)"
         ],
         "testFilter": [
           "close_shuts_down_the_transport_before_joining_the_reader",
@@ -175868,10 +175918,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
+        "status": "passed",
+        "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": null,
+        "verifiedAt": "2026-09-25T03:15:00Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -175882,9 +175932,11 @@
         "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [],
+      "coveredAssertions": [
+        "Rust 已验证关闭 transport 后再 join reader，以及产品关停先停止 reconciliation 再释放 leases。"
+      ],
       "uncoveredAssertions": [
-        "partial：Rust 关闭路径均为有界操作（先关 transport 再 join reader，产品关停先停协调再释放租约）；差异：Go 断言最后一次订阅清理使用带 deadline 的 context，Rust 以异步超时与 RAII 释放表达，无 deadline 参数断言。"
+        "Go 直接检查最终 ReconcileSubscriptions context 带 deadline；Rust 通过异步关闭边界和 RAII/超时顺序表达，没有同形 deadline 参数断言。"
       ],
       "boundaryReason": null
     },
@@ -175892,7 +175944,7 @@
       "status": "[~]",
       "rust_entry": "crates/jftrade-marketdata/src/router.rs::router_drives_runtime_recorder_from_provider_and_demand_state；crates/jftrade-marketdata/src/runtime.rs::reconcile_preserves_demand_and_clears_previous_runtime_state",
       "conclusion": "partial：Rust 由 router 把需求同步到 runtime recorder（active_count/logical_count 跟随需求变化）；差异：Go 断言“活跃需求会推进非活跃清理计数、Close 后停止推进”，Rust 没有非活跃清理计数字段与对应断言，属实现结构差异（关闭后由 closed fence 拒绝写入）。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --all-targets --locked",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -p jftrade-engine -p jftrade-api -p jftrade-integration-futu -p jftrade-integration-marketdata-helper --all-targets --locked -E test(router_drives_runtime_recorder_from_provider_and_demand_state) or test(reconcile_preserves_demand_and_clears_previous_runtime_state)",
       "evidence_type": "partial",
       "source": {
         "file": "internal/marketdata/lifecycle_boundaries_test.go",
@@ -175915,11 +175967,13 @@
         }
       ],
       "assertionCoverage": {
-        "covered": [],
-        "uncovered": [
-          "partial：Rust 由 router 把需求同步到 runtime recorder（active_count/logical_count 跟随需求变化）；差异：Go 断言“活跃需求会推进非活跃清理计数、Close 后停止推进”，Rust 没有非活跃清理计数字段与对应断言，属实现结构差异（关闭后由 closed fence 拒绝写入）。"
+        "covered": [
+          "Rust 已验证 router 将 provider/demand 状态同步到 runtime recorder，reconcile 保留 demand 并清除旧 runtime state。"
         ],
-        "source": "legacy-conclusion"
+        "uncovered": [
+          "Go 的 active demand 推进 inactive cleanup 次数、清理错误重试以及 Close 后停止推进没有 Rust inactive-cleanup 计数字段或同形断言；Rust 由 closed fence 拒绝后续写入。"
+        ],
+        "source": "manual-batch-review"
       },
       "verification": {
         "argv": [
@@ -175928,8 +175982,18 @@
           "run",
           "-p",
           "jftrade-marketdata",
+          "-p",
+          "jftrade-engine",
+          "-p",
+          "jftrade-api",
+          "-p",
+          "jftrade-integration-futu",
+          "-p",
+          "jftrade-integration-marketdata-helper",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(router_drives_runtime_recorder_from_provider_and_demand_state) or test(reconcile_preserves_demand_and_clears_previous_runtime_state)"
         ],
         "testFilter": [
           "router_drives_runtime_recorder_from_provider_and_demand_state",
@@ -175937,10 +176001,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
+        "status": "passed",
+        "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": null,
+        "verifiedAt": "2026-09-25T03:15:00Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -175951,9 +176015,11 @@
         "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [],
+      "coveredAssertions": [
+        "Rust 已验证 router 将 provider/demand 状态同步到 runtime recorder，reconcile 保留 demand 并清除旧 runtime state。"
+      ],
       "uncoveredAssertions": [
-        "partial：Rust 由 router 把需求同步到 runtime recorder（active_count/logical_count 跟随需求变化）；差异：Go 断言“活跃需求会推进非活跃清理计数、Close 后停止推进”，Rust 没有非活跃清理计数字段与对应断言，属实现结构差异（关闭后由 closed fence 拒绝写入）。"
+        "Go 的 active demand 推进 inactive cleanup 次数、清理错误重试以及 Close 后停止推进没有 Rust inactive-cleanup 计数字段或同形断言；Rust 由 closed fence 拒绝后续写入。"
       ],
       "boundaryReason": null
     },
@@ -175961,7 +176027,7 @@
       "status": "[~]",
       "rust_entry": "crates/jftrade-marketdata/src/snapshot_poll.rs::empty_invalid_closed_and_inactive_demand_never_calls_provider；crates/jftrade-marketdata/src/runtime.rs::recorder_matches_generation_retry_recovery_and_close_rules；crates/jftrade-integration-futu/src/basic_quote_query.rs::basic_quote_query_uses_the_collector_900ms_deadline_boundary",
       "conclusion": "partial：Rust 覆盖无需求/关闭/失效 generation 不调用 provider、关闭状态幂等、重试窗口上限与 collector 900ms 截止边界；差异：Go 的 nil demand source、detached stream 取消、负重试延迟钳制等分支在 Rust 由类型系统与 retry_at 的 min 索引覆盖，无同形断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -p jftrade-integration-futu --all-targets --locked",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -p jftrade-engine -p jftrade-api -p jftrade-integration-futu -p jftrade-integration-marketdata-helper --all-targets --locked -E test(empty_invalid_closed_and_inactive_demand_never_calls_provider) or test(recorder_matches_generation_retry_recovery_and_close_rules) or test(basic_quote_query_uses_the_collector_900ms_deadline_boundary)",
       "evidence_type": "partial",
       "source": {
         "file": "internal/marketdata/lifecycle_boundaries_test.go",
@@ -175990,11 +176056,13 @@
         }
       ],
       "assertionCoverage": {
-        "covered": [],
-        "uncovered": [
-          "partial：Rust 覆盖无需求/关闭/失效 generation 不调用 provider、关闭状态幂等、重试窗口上限与 collector 900ms 截止边界；差异：Go 的 nil demand source、detached stream 取消、负重试延迟钳制等分支在 Rust 由类型系统与 retry_at 的 min 索引覆盖，无同形断言。"
+        "covered": [
+          "Rust 已验证无需求/关闭/失效 generation 不调用 provider、retry/recovery/close 状态规则，以及 collector 900ms deadline boundary。"
         ],
-        "source": "legacy-conclusion"
+        "uncovered": [
+          "Go 的 nil demand source、Wake/Reset/Resume nil collector、detached stream cancel、负 retry delay clamp 和主动 push generation fence 未由同一 Rust Collector fixture 逐项断言；Rust 主要靠类型与 retry_at 状态索引表达。"
+        ],
+        "source": "manual-batch-review"
       },
       "verification": {
         "argv": [
@@ -176004,9 +176072,17 @@
           "-p",
           "jftrade-marketdata",
           "-p",
+          "jftrade-engine",
+          "-p",
+          "jftrade-api",
+          "-p",
           "jftrade-integration-futu",
+          "-p",
+          "jftrade-integration-marketdata-helper",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(empty_invalid_closed_and_inactive_demand_never_calls_provider) or test(recorder_matches_generation_retry_recovery_and_close_rules) or test(basic_quote_query_uses_the_collector_900ms_deadline_boundary)"
         ],
         "testFilter": [
           "empty_invalid_closed_and_inactive_demand_never_calls_provider",
@@ -176015,10 +176091,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
+        "status": "passed",
+        "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": null,
+        "verifiedAt": "2026-09-25T03:15:00Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -176029,9 +176105,11 @@
         "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [],
+      "coveredAssertions": [
+        "Rust 已验证无需求/关闭/失效 generation 不调用 provider、retry/recovery/close 状态规则，以及 collector 900ms deadline boundary。"
+      ],
       "uncoveredAssertions": [
-        "partial：Rust 覆盖无需求/关闭/失效 generation 不调用 provider、关闭状态幂等、重试窗口上限与 collector 900ms 截止边界；差异：Go 的 nil demand source、detached stream 取消、负重试延迟钳制等分支在 Rust 由类型系统与 retry_at 的 min 索引覆盖，无同形断言。"
+        "Go 的 nil demand source、Wake/Reset/Resume nil collector、detached stream cancel、负 retry delay clamp 和主动 push generation fence 未由同一 Rust Collector fixture 逐项断言；Rust 主要靠类型与 retry_at 状态索引表达。"
       ],
       "boundaryReason": null
     },
@@ -176039,7 +176117,7 @@
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_catalog_tests.rs::futu_search_rejects_invalid_queries_before_reaching_opend；crates/jftrade-integration-marketdata-helper/src/client.rs::provider_aware_methods_prefix_providers_and_validate_provider_names",
       "conclusion": "partial（保留差异）：helper 侧 MarketSubsetInstrumentResolver（含 peer cache 缓存/单飞/失效、code fallback 归一、nil resolver 边界）在 Rust 没有同形实现——provider 搜索由 Python sidecar（workers/marketdata-sidecar akshare_search.py 及其 pytest）承担，Rust 只做 provider 前缀规范化与参数校验；Go 的 stale peer cache 清除与 post-response 取消断言无对应物。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -p jftrade-engine --all-targets --locked",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -p jftrade-engine -p jftrade-api -p jftrade-integration-futu -p jftrade-integration-marketdata-helper --all-targets --locked -E test(futu_search_rejects_invalid_queries_before_reaching_opend) or test(provider_aware_methods_prefix_providers_and_validate_provider_names)",
       "evidence_type": "partial",
       "source": {
         "file": "internal/marketdata/lifecycle_boundaries_test.go",
@@ -176062,11 +176140,13 @@
         }
       ],
       "assertionCoverage": {
-        "covered": [],
-        "uncovered": [
-          "partial（保留差异）：helper 侧 MarketSubsetInstrumentResolver（含 peer cache 缓存/单飞/失效、code fallback 归一、nil resolver 边界）在 Rust 没有同形实现——provider 搜索由 Python sidecar（workers/marketdata-sidecar akshare_search.py 及其 pytest）承担，Rust 只做 provider 前缀规范化与参数校验；Go 的 stale peer cache 清除与 post-response 取消断言无对应物。"
+        "covered": [
+          "Rust 已验证 Futu search 对非法查询在 OpenD 前 fail closed，以及 provider-aware client 的 provider 前缀和 provider 名校验。"
         ],
-        "source": "legacy-conclusion"
+        "uncovered": [
+          "Go 的 MarketSubsetInstrumentResolver peer-cache stale 清除、lookup 单飞/取消、code fallback、nil resolver 和 market alias 纯函数由 Python sidecar/helper 架构承担，Rust 没有同形 resolver。"
+        ],
+        "source": "manual-batch-review"
       },
       "verification": {
         "argv": [
@@ -176077,8 +176157,16 @@
           "jftrade-marketdata",
           "-p",
           "jftrade-engine",
+          "-p",
+          "jftrade-api",
+          "-p",
+          "jftrade-integration-futu",
+          "-p",
+          "jftrade-integration-marketdata-helper",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(futu_search_rejects_invalid_queries_before_reaching_opend) or test(provider_aware_methods_prefix_providers_and_validate_provider_names)"
         ],
         "testFilter": [
           "futu_search_rejects_invalid_queries_before_reaching_opend",
@@ -176086,10 +176174,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
+        "status": "passed",
+        "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": null,
+        "verifiedAt": "2026-09-25T03:15:00Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -176100,9 +176188,11 @@
         "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [],
+      "coveredAssertions": [
+        "Rust 已验证 Futu search 对非法查询在 OpenD 前 fail closed，以及 provider-aware client 的 provider 前缀和 provider 名校验。"
+      ],
       "uncoveredAssertions": [
-        "partial（保留差异）：helper 侧 MarketSubsetInstrumentResolver（含 peer cache 缓存/单飞/失效、code fallback 归一、nil resolver 边界）在 Rust 没有同形实现——provider 搜索由 Python sidecar（workers/marketdata-sidecar akshare_search.py 及其 pytest）承担，Rust 只做 provider 前缀规范化与参数校验；Go 的 stale peer cache 清除与 post-response 取消断言无对应物。"
+        "Go 的 MarketSubsetInstrumentResolver peer-cache stale 清除、lookup 单飞/取消、code fallback、nil resolver 和 market alias 纯函数由 Python sidecar/helper 架构承担，Rust 没有同形 resolver。"
       ],
       "boundaryReason": null
     },
