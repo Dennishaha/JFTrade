@@ -204426,20 +204426,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(calendar_and_macro_propagate_capability_and_busy_errors) or test(retries_transient_readiness_and_sends_optional_bearer) or test(snapshot_route_queries_the_provider_once_on_cache_miss) or test(resolver_projects_us_early_close_extended_window_with_timezone) or test(candle_route_excludes_before_boundary_and_can_continue_loading_older_pages) or test(candle_route_forwards_strict_before_window) or test(candle_route_skips_session_classification_for_unannotated_requests) or test(candle_route_classifies_unknown_us_session_as_a_data_error) or test(company_financials_forwards_market_symbol_and_statement) or test(provider_company_profile_projection_maps_frontend_keys) or test(provider_financial_statements_projection_maps_frontend_keys) or test(recoverable_errors_match_go_is_recoverable_opend_err) or test(runtime_task_backoff_replays_after_a_failed_reconnect_attempt) or test(test_exponential_backoff_progression_and_upper_bound_capping) or test(basic_quote_query_replays_once_after_recoverable_session_timeout) or test(basic_quote_query_returns_non_recoverable_rejection_without_replaying) or test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(margin_ratio_server_throttling_maps_to_the_typed_rate_limit) or test(calendar_control_plane_routes_share_the_real_manager_in_cutover_only) or test(calendar_control_plane_routes_fail_closed_without_a_manager) or test(order_book_levels_project_price_volume_count_and_details) or test(frame_size_guards_cover_encode_and_decode) or test(lifecycle_accepts_active_push_preserves_recorder_failures_and_rejects_stale_push) or test(closed_session_rejects_connect_like_rpcs_before_touching_the_transport) or test(start_keep_alive_ignores_non_positive_intervals) or test(close_is_idempotent_and_joins_the_single_reader) or test(request_observability_snapshot_serializes_empty_collections_as_arrays) or test(rollback_and_disabled_fallbacks_preserve_the_stored_projection) or test(writes_validate_password_port_and_public_access_like_go) or test(default_onboarding_inputs_and_settings_return_empty_values) or test(empty_store_projects_an_empty_broker_surface) or test(watchlist_group_conversion_marks_every_normalized_duplicate_ambiguous)"
         ],
         "testFilter": [
           "calendar_and_macro_propagate_capability_and_busy_errors"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "139b4209a45727353d237d9596313c128a32b8d2",
+        "verifiedAt": "2026-09-25T14:19:12Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -204488,20 +204488,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-integration-marketdata-helper",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(calendar_and_macro_propagate_capability_and_busy_errors) or test(retries_transient_readiness_and_sends_optional_bearer) or test(snapshot_route_queries_the_provider_once_on_cache_miss) or test(resolver_projects_us_early_close_extended_window_with_timezone) or test(candle_route_excludes_before_boundary_and_can_continue_loading_older_pages) or test(candle_route_forwards_strict_before_window) or test(candle_route_skips_session_classification_for_unannotated_requests) or test(candle_route_classifies_unknown_us_session_as_a_data_error) or test(company_financials_forwards_market_symbol_and_statement) or test(provider_company_profile_projection_maps_frontend_keys) or test(provider_financial_statements_projection_maps_frontend_keys) or test(recoverable_errors_match_go_is_recoverable_opend_err) or test(runtime_task_backoff_replays_after_a_failed_reconnect_attempt) or test(test_exponential_backoff_progression_and_upper_bound_capping) or test(basic_quote_query_replays_once_after_recoverable_session_timeout) or test(basic_quote_query_returns_non_recoverable_rejection_without_replaying) or test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(margin_ratio_server_throttling_maps_to_the_typed_rate_limit) or test(calendar_control_plane_routes_share_the_real_manager_in_cutover_only) or test(calendar_control_plane_routes_fail_closed_without_a_manager) or test(order_book_levels_project_price_volume_count_and_details) or test(frame_size_guards_cover_encode_and_decode) or test(lifecycle_accepts_active_push_preserves_recorder_failures_and_rejects_stale_push) or test(closed_session_rejects_connect_like_rpcs_before_touching_the_transport) or test(start_keep_alive_ignores_non_positive_intervals) or test(close_is_idempotent_and_joins_the_single_reader) or test(request_observability_snapshot_serializes_empty_collections_as_arrays) or test(rollback_and_disabled_fallbacks_preserve_the_stored_projection) or test(writes_validate_password_port_and_public_access_like_go) or test(default_onboarding_inputs_and_settings_return_empty_values) or test(empty_store_projects_an_empty_broker_surface) or test(watchlist_group_conversion_marks_every_normalized_duplicate_ambiguous)"
         ],
         "testFilter": [
           "retries_transient_readiness_and_sends_optional_bearer"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "139b4209a45727353d237d9596313c128a32b8d2",
+        "verifiedAt": "2026-09-25T14:19:12Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -204860,20 +204860,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(calendar_and_macro_propagate_capability_and_busy_errors) or test(retries_transient_readiness_and_sends_optional_bearer) or test(snapshot_route_queries_the_provider_once_on_cache_miss) or test(resolver_projects_us_early_close_extended_window_with_timezone) or test(candle_route_excludes_before_boundary_and_can_continue_loading_older_pages) or test(candle_route_forwards_strict_before_window) or test(candle_route_skips_session_classification_for_unannotated_requests) or test(candle_route_classifies_unknown_us_session_as_a_data_error) or test(company_financials_forwards_market_symbol_and_statement) or test(provider_company_profile_projection_maps_frontend_keys) or test(provider_financial_statements_projection_maps_frontend_keys) or test(recoverable_errors_match_go_is_recoverable_opend_err) or test(runtime_task_backoff_replays_after_a_failed_reconnect_attempt) or test(test_exponential_backoff_progression_and_upper_bound_capping) or test(basic_quote_query_replays_once_after_recoverable_session_timeout) or test(basic_quote_query_returns_non_recoverable_rejection_without_replaying) or test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(margin_ratio_server_throttling_maps_to_the_typed_rate_limit) or test(calendar_control_plane_routes_share_the_real_manager_in_cutover_only) or test(calendar_control_plane_routes_fail_closed_without_a_manager) or test(order_book_levels_project_price_volume_count_and_details) or test(frame_size_guards_cover_encode_and_decode) or test(lifecycle_accepts_active_push_preserves_recorder_failures_and_rejects_stale_push) or test(closed_session_rejects_connect_like_rpcs_before_touching_the_transport) or test(start_keep_alive_ignores_non_positive_intervals) or test(close_is_idempotent_and_joins_the_single_reader) or test(request_observability_snapshot_serializes_empty_collections_as_arrays) or test(rollback_and_disabled_fallbacks_preserve_the_stored_projection) or test(writes_validate_password_port_and_public_access_like_go) or test(default_onboarding_inputs_and_settings_return_empty_values) or test(empty_store_projects_an_empty_broker_surface) or test(watchlist_group_conversion_marks_every_normalized_duplicate_ambiguous)"
         ],
         "testFilter": [
           "snapshot_route_queries_the_provider_once_on_cache_miss"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "139b4209a45727353d237d9596313c128a32b8d2",
+        "verifiedAt": "2026-09-25T14:19:12Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -205046,20 +205046,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-integration-futu",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(calendar_and_macro_propagate_capability_and_busy_errors) or test(retries_transient_readiness_and_sends_optional_bearer) or test(snapshot_route_queries_the_provider_once_on_cache_miss) or test(resolver_projects_us_early_close_extended_window_with_timezone) or test(candle_route_excludes_before_boundary_and_can_continue_loading_older_pages) or test(candle_route_forwards_strict_before_window) or test(candle_route_skips_session_classification_for_unannotated_requests) or test(candle_route_classifies_unknown_us_session_as_a_data_error) or test(company_financials_forwards_market_symbol_and_statement) or test(provider_company_profile_projection_maps_frontend_keys) or test(provider_financial_statements_projection_maps_frontend_keys) or test(recoverable_errors_match_go_is_recoverable_opend_err) or test(runtime_task_backoff_replays_after_a_failed_reconnect_attempt) or test(test_exponential_backoff_progression_and_upper_bound_capping) or test(basic_quote_query_replays_once_after_recoverable_session_timeout) or test(basic_quote_query_returns_non_recoverable_rejection_without_replaying) or test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(margin_ratio_server_throttling_maps_to_the_typed_rate_limit) or test(calendar_control_plane_routes_share_the_real_manager_in_cutover_only) or test(calendar_control_plane_routes_fail_closed_without_a_manager) or test(order_book_levels_project_price_volume_count_and_details) or test(frame_size_guards_cover_encode_and_decode) or test(lifecycle_accepts_active_push_preserves_recorder_failures_and_rejects_stale_push) or test(closed_session_rejects_connect_like_rpcs_before_touching_the_transport) or test(start_keep_alive_ignores_non_positive_intervals) or test(close_is_idempotent_and_joins_the_single_reader) or test(request_observability_snapshot_serializes_empty_collections_as_arrays) or test(rollback_and_disabled_fallbacks_preserve_the_stored_projection) or test(writes_validate_password_port_and_public_access_like_go) or test(default_onboarding_inputs_and_settings_return_empty_values) or test(empty_store_projects_an_empty_broker_surface) or test(watchlist_group_conversion_marks_every_normalized_duplicate_ambiguous)"
         ],
         "testFilter": [
           "resolver_projects_us_early_close_extended_window_with_timezone"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "139b4209a45727353d237d9596313c128a32b8d2",
+        "verifiedAt": "2026-09-25T14:19:12Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -205232,20 +205232,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(calendar_and_macro_propagate_capability_and_busy_errors) or test(retries_transient_readiness_and_sends_optional_bearer) or test(snapshot_route_queries_the_provider_once_on_cache_miss) or test(resolver_projects_us_early_close_extended_window_with_timezone) or test(candle_route_excludes_before_boundary_and_can_continue_loading_older_pages) or test(candle_route_forwards_strict_before_window) or test(candle_route_skips_session_classification_for_unannotated_requests) or test(candle_route_classifies_unknown_us_session_as_a_data_error) or test(company_financials_forwards_market_symbol_and_statement) or test(provider_company_profile_projection_maps_frontend_keys) or test(provider_financial_statements_projection_maps_frontend_keys) or test(recoverable_errors_match_go_is_recoverable_opend_err) or test(runtime_task_backoff_replays_after_a_failed_reconnect_attempt) or test(test_exponential_backoff_progression_and_upper_bound_capping) or test(basic_quote_query_replays_once_after_recoverable_session_timeout) or test(basic_quote_query_returns_non_recoverable_rejection_without_replaying) or test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(margin_ratio_server_throttling_maps_to_the_typed_rate_limit) or test(calendar_control_plane_routes_share_the_real_manager_in_cutover_only) or test(calendar_control_plane_routes_fail_closed_without_a_manager) or test(order_book_levels_project_price_volume_count_and_details) or test(frame_size_guards_cover_encode_and_decode) or test(lifecycle_accepts_active_push_preserves_recorder_failures_and_rejects_stale_push) or test(closed_session_rejects_connect_like_rpcs_before_touching_the_transport) or test(start_keep_alive_ignores_non_positive_intervals) or test(close_is_idempotent_and_joins_the_single_reader) or test(request_observability_snapshot_serializes_empty_collections_as_arrays) or test(rollback_and_disabled_fallbacks_preserve_the_stored_projection) or test(writes_validate_password_port_and_public_access_like_go) or test(default_onboarding_inputs_and_settings_return_empty_values) or test(empty_store_projects_an_empty_broker_surface) or test(watchlist_group_conversion_marks_every_normalized_duplicate_ambiguous)"
         ],
         "testFilter": [
           "candle_route_excludes_before_boundary_and_can_continue_loading_older_pages"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "139b4209a45727353d237d9596313c128a32b8d2",
+        "verifiedAt": "2026-09-25T14:19:12Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -205294,20 +205294,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(calendar_and_macro_propagate_capability_and_busy_errors) or test(retries_transient_readiness_and_sends_optional_bearer) or test(snapshot_route_queries_the_provider_once_on_cache_miss) or test(resolver_projects_us_early_close_extended_window_with_timezone) or test(candle_route_excludes_before_boundary_and_can_continue_loading_older_pages) or test(candle_route_forwards_strict_before_window) or test(candle_route_skips_session_classification_for_unannotated_requests) or test(candle_route_classifies_unknown_us_session_as_a_data_error) or test(company_financials_forwards_market_symbol_and_statement) or test(provider_company_profile_projection_maps_frontend_keys) or test(provider_financial_statements_projection_maps_frontend_keys) or test(recoverable_errors_match_go_is_recoverable_opend_err) or test(runtime_task_backoff_replays_after_a_failed_reconnect_attempt) or test(test_exponential_backoff_progression_and_upper_bound_capping) or test(basic_quote_query_replays_once_after_recoverable_session_timeout) or test(basic_quote_query_returns_non_recoverable_rejection_without_replaying) or test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(margin_ratio_server_throttling_maps_to_the_typed_rate_limit) or test(calendar_control_plane_routes_share_the_real_manager_in_cutover_only) or test(calendar_control_plane_routes_fail_closed_without_a_manager) or test(order_book_levels_project_price_volume_count_and_details) or test(frame_size_guards_cover_encode_and_decode) or test(lifecycle_accepts_active_push_preserves_recorder_failures_and_rejects_stale_push) or test(closed_session_rejects_connect_like_rpcs_before_touching_the_transport) or test(start_keep_alive_ignores_non_positive_intervals) or test(close_is_idempotent_and_joins_the_single_reader) or test(request_observability_snapshot_serializes_empty_collections_as_arrays) or test(rollback_and_disabled_fallbacks_preserve_the_stored_projection) or test(writes_validate_password_port_and_public_access_like_go) or test(default_onboarding_inputs_and_settings_return_empty_values) or test(empty_store_projects_an_empty_broker_surface) or test(watchlist_group_conversion_marks_every_normalized_duplicate_ambiguous)"
         ],
         "testFilter": [
           "candle_route_forwards_strict_before_window"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "139b4209a45727353d237d9596313c128a32b8d2",
+        "verifiedAt": "2026-09-25T14:19:12Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -205480,20 +205480,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(calendar_and_macro_propagate_capability_and_busy_errors) or test(retries_transient_readiness_and_sends_optional_bearer) or test(snapshot_route_queries_the_provider_once_on_cache_miss) or test(resolver_projects_us_early_close_extended_window_with_timezone) or test(candle_route_excludes_before_boundary_and_can_continue_loading_older_pages) or test(candle_route_forwards_strict_before_window) or test(candle_route_skips_session_classification_for_unannotated_requests) or test(candle_route_classifies_unknown_us_session_as_a_data_error) or test(company_financials_forwards_market_symbol_and_statement) or test(provider_company_profile_projection_maps_frontend_keys) or test(provider_financial_statements_projection_maps_frontend_keys) or test(recoverable_errors_match_go_is_recoverable_opend_err) or test(runtime_task_backoff_replays_after_a_failed_reconnect_attempt) or test(test_exponential_backoff_progression_and_upper_bound_capping) or test(basic_quote_query_replays_once_after_recoverable_session_timeout) or test(basic_quote_query_returns_non_recoverable_rejection_without_replaying) or test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(margin_ratio_server_throttling_maps_to_the_typed_rate_limit) or test(calendar_control_plane_routes_share_the_real_manager_in_cutover_only) or test(calendar_control_plane_routes_fail_closed_without_a_manager) or test(order_book_levels_project_price_volume_count_and_details) or test(frame_size_guards_cover_encode_and_decode) or test(lifecycle_accepts_active_push_preserves_recorder_failures_and_rejects_stale_push) or test(closed_session_rejects_connect_like_rpcs_before_touching_the_transport) or test(start_keep_alive_ignores_non_positive_intervals) or test(close_is_idempotent_and_joins_the_single_reader) or test(request_observability_snapshot_serializes_empty_collections_as_arrays) or test(rollback_and_disabled_fallbacks_preserve_the_stored_projection) or test(writes_validate_password_port_and_public_access_like_go) or test(default_onboarding_inputs_and_settings_return_empty_values) or test(empty_store_projects_an_empty_broker_surface) or test(watchlist_group_conversion_marks_every_normalized_duplicate_ambiguous)"
         ],
         "testFilter": [
           "candle_route_skips_session_classification_for_unannotated_requests"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "139b4209a45727353d237d9596313c128a32b8d2",
+        "verifiedAt": "2026-09-25T14:19:12Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -205542,20 +205542,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(calendar_and_macro_propagate_capability_and_busy_errors) or test(retries_transient_readiness_and_sends_optional_bearer) or test(snapshot_route_queries_the_provider_once_on_cache_miss) or test(resolver_projects_us_early_close_extended_window_with_timezone) or test(candle_route_excludes_before_boundary_and_can_continue_loading_older_pages) or test(candle_route_forwards_strict_before_window) or test(candle_route_skips_session_classification_for_unannotated_requests) or test(candle_route_classifies_unknown_us_session_as_a_data_error) or test(company_financials_forwards_market_symbol_and_statement) or test(provider_company_profile_projection_maps_frontend_keys) or test(provider_financial_statements_projection_maps_frontend_keys) or test(recoverable_errors_match_go_is_recoverable_opend_err) or test(runtime_task_backoff_replays_after_a_failed_reconnect_attempt) or test(test_exponential_backoff_progression_and_upper_bound_capping) or test(basic_quote_query_replays_once_after_recoverable_session_timeout) or test(basic_quote_query_returns_non_recoverable_rejection_without_replaying) or test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(margin_ratio_server_throttling_maps_to_the_typed_rate_limit) or test(calendar_control_plane_routes_share_the_real_manager_in_cutover_only) or test(calendar_control_plane_routes_fail_closed_without_a_manager) or test(order_book_levels_project_price_volume_count_and_details) or test(frame_size_guards_cover_encode_and_decode) or test(lifecycle_accepts_active_push_preserves_recorder_failures_and_rejects_stale_push) or test(closed_session_rejects_connect_like_rpcs_before_touching_the_transport) or test(start_keep_alive_ignores_non_positive_intervals) or test(close_is_idempotent_and_joins_the_single_reader) or test(request_observability_snapshot_serializes_empty_collections_as_arrays) or test(rollback_and_disabled_fallbacks_preserve_the_stored_projection) or test(writes_validate_password_port_and_public_access_like_go) or test(default_onboarding_inputs_and_settings_return_empty_values) or test(empty_store_projects_an_empty_broker_surface) or test(watchlist_group_conversion_marks_every_normalized_duplicate_ambiguous)"
         ],
         "testFilter": [
           "candle_route_classifies_unknown_us_session_as_a_data_error"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "139b4209a45727353d237d9596313c128a32b8d2",
+        "verifiedAt": "2026-09-25T14:19:12Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -205790,20 +205790,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(calendar_and_macro_propagate_capability_and_busy_errors) or test(retries_transient_readiness_and_sends_optional_bearer) or test(snapshot_route_queries_the_provider_once_on_cache_miss) or test(resolver_projects_us_early_close_extended_window_with_timezone) or test(candle_route_excludes_before_boundary_and_can_continue_loading_older_pages) or test(candle_route_forwards_strict_before_window) or test(candle_route_skips_session_classification_for_unannotated_requests) or test(candle_route_classifies_unknown_us_session_as_a_data_error) or test(company_financials_forwards_market_symbol_and_statement) or test(provider_company_profile_projection_maps_frontend_keys) or test(provider_financial_statements_projection_maps_frontend_keys) or test(recoverable_errors_match_go_is_recoverable_opend_err) or test(runtime_task_backoff_replays_after_a_failed_reconnect_attempt) or test(test_exponential_backoff_progression_and_upper_bound_capping) or test(basic_quote_query_replays_once_after_recoverable_session_timeout) or test(basic_quote_query_returns_non_recoverable_rejection_without_replaying) or test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(margin_ratio_server_throttling_maps_to_the_typed_rate_limit) or test(calendar_control_plane_routes_share_the_real_manager_in_cutover_only) or test(calendar_control_plane_routes_fail_closed_without_a_manager) or test(order_book_levels_project_price_volume_count_and_details) or test(frame_size_guards_cover_encode_and_decode) or test(lifecycle_accepts_active_push_preserves_recorder_failures_and_rejects_stale_push) or test(closed_session_rejects_connect_like_rpcs_before_touching_the_transport) or test(start_keep_alive_ignores_non_positive_intervals) or test(close_is_idempotent_and_joins_the_single_reader) or test(request_observability_snapshot_serializes_empty_collections_as_arrays) or test(rollback_and_disabled_fallbacks_preserve_the_stored_projection) or test(writes_validate_password_port_and_public_access_like_go) or test(default_onboarding_inputs_and_settings_return_empty_values) or test(empty_store_projects_an_empty_broker_surface) or test(watchlist_group_conversion_marks_every_normalized_duplicate_ambiguous)"
         ],
         "testFilter": [
           "company_financials_forwards_market_symbol_and_statement"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "139b4209a45727353d237d9596313c128a32b8d2",
+        "verifiedAt": "2026-09-25T14:19:12Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -205852,20 +205852,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(calendar_and_macro_propagate_capability_and_busy_errors) or test(retries_transient_readiness_and_sends_optional_bearer) or test(snapshot_route_queries_the_provider_once_on_cache_miss) or test(resolver_projects_us_early_close_extended_window_with_timezone) or test(candle_route_excludes_before_boundary_and_can_continue_loading_older_pages) or test(candle_route_forwards_strict_before_window) or test(candle_route_skips_session_classification_for_unannotated_requests) or test(candle_route_classifies_unknown_us_session_as_a_data_error) or test(company_financials_forwards_market_symbol_and_statement) or test(provider_company_profile_projection_maps_frontend_keys) or test(provider_financial_statements_projection_maps_frontend_keys) or test(recoverable_errors_match_go_is_recoverable_opend_err) or test(runtime_task_backoff_replays_after_a_failed_reconnect_attempt) or test(test_exponential_backoff_progression_and_upper_bound_capping) or test(basic_quote_query_replays_once_after_recoverable_session_timeout) or test(basic_quote_query_returns_non_recoverable_rejection_without_replaying) or test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(margin_ratio_server_throttling_maps_to_the_typed_rate_limit) or test(calendar_control_plane_routes_share_the_real_manager_in_cutover_only) or test(calendar_control_plane_routes_fail_closed_without_a_manager) or test(order_book_levels_project_price_volume_count_and_details) or test(frame_size_guards_cover_encode_and_decode) or test(lifecycle_accepts_active_push_preserves_recorder_failures_and_rejects_stale_push) or test(closed_session_rejects_connect_like_rpcs_before_touching_the_transport) or test(start_keep_alive_ignores_non_positive_intervals) or test(close_is_idempotent_and_joins_the_single_reader) or test(request_observability_snapshot_serializes_empty_collections_as_arrays) or test(rollback_and_disabled_fallbacks_preserve_the_stored_projection) or test(writes_validate_password_port_and_public_access_like_go) or test(default_onboarding_inputs_and_settings_return_empty_values) or test(empty_store_projects_an_empty_broker_surface) or test(watchlist_group_conversion_marks_every_normalized_duplicate_ambiguous)"
         ],
         "testFilter": [
           "provider_company_profile_projection_maps_frontend_keys"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "139b4209a45727353d237d9596313c128a32b8d2",
+        "verifiedAt": "2026-09-25T14:19:12Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -205914,20 +205914,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(calendar_and_macro_propagate_capability_and_busy_errors) or test(retries_transient_readiness_and_sends_optional_bearer) or test(snapshot_route_queries_the_provider_once_on_cache_miss) or test(resolver_projects_us_early_close_extended_window_with_timezone) or test(candle_route_excludes_before_boundary_and_can_continue_loading_older_pages) or test(candle_route_forwards_strict_before_window) or test(candle_route_skips_session_classification_for_unannotated_requests) or test(candle_route_classifies_unknown_us_session_as_a_data_error) or test(company_financials_forwards_market_symbol_and_statement) or test(provider_company_profile_projection_maps_frontend_keys) or test(provider_financial_statements_projection_maps_frontend_keys) or test(recoverable_errors_match_go_is_recoverable_opend_err) or test(runtime_task_backoff_replays_after_a_failed_reconnect_attempt) or test(test_exponential_backoff_progression_and_upper_bound_capping) or test(basic_quote_query_replays_once_after_recoverable_session_timeout) or test(basic_quote_query_returns_non_recoverable_rejection_without_replaying) or test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(margin_ratio_server_throttling_maps_to_the_typed_rate_limit) or test(calendar_control_plane_routes_share_the_real_manager_in_cutover_only) or test(calendar_control_plane_routes_fail_closed_without_a_manager) or test(order_book_levels_project_price_volume_count_and_details) or test(frame_size_guards_cover_encode_and_decode) or test(lifecycle_accepts_active_push_preserves_recorder_failures_and_rejects_stale_push) or test(closed_session_rejects_connect_like_rpcs_before_touching_the_transport) or test(start_keep_alive_ignores_non_positive_intervals) or test(close_is_idempotent_and_joins_the_single_reader) or test(request_observability_snapshot_serializes_empty_collections_as_arrays) or test(rollback_and_disabled_fallbacks_preserve_the_stored_projection) or test(writes_validate_password_port_and_public_access_like_go) or test(default_onboarding_inputs_and_settings_return_empty_values) or test(empty_store_projects_an_empty_broker_surface) or test(watchlist_group_conversion_marks_every_normalized_duplicate_ambiguous)"
         ],
         "testFilter": [
           "provider_financial_statements_projection_maps_frontend_keys"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "139b4209a45727353d237d9596313c128a32b8d2",
+        "verifiedAt": "2026-09-25T14:19:12Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -207526,20 +207526,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(calendar_and_macro_propagate_capability_and_busy_errors) or test(retries_transient_readiness_and_sends_optional_bearer) or test(snapshot_route_queries_the_provider_once_on_cache_miss) or test(resolver_projects_us_early_close_extended_window_with_timezone) or test(candle_route_excludes_before_boundary_and_can_continue_loading_older_pages) or test(candle_route_forwards_strict_before_window) or test(candle_route_skips_session_classification_for_unannotated_requests) or test(candle_route_classifies_unknown_us_session_as_a_data_error) or test(company_financials_forwards_market_symbol_and_statement) or test(provider_company_profile_projection_maps_frontend_keys) or test(provider_financial_statements_projection_maps_frontend_keys) or test(recoverable_errors_match_go_is_recoverable_opend_err) or test(runtime_task_backoff_replays_after_a_failed_reconnect_attempt) or test(test_exponential_backoff_progression_and_upper_bound_capping) or test(basic_quote_query_replays_once_after_recoverable_session_timeout) or test(basic_quote_query_returns_non_recoverable_rejection_without_replaying) or test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(margin_ratio_server_throttling_maps_to_the_typed_rate_limit) or test(calendar_control_plane_routes_share_the_real_manager_in_cutover_only) or test(calendar_control_plane_routes_fail_closed_without_a_manager) or test(order_book_levels_project_price_volume_count_and_details) or test(frame_size_guards_cover_encode_and_decode) or test(lifecycle_accepts_active_push_preserves_recorder_failures_and_rejects_stale_push) or test(closed_session_rejects_connect_like_rpcs_before_touching_the_transport) or test(start_keep_alive_ignores_non_positive_intervals) or test(close_is_idempotent_and_joins_the_single_reader) or test(request_observability_snapshot_serializes_empty_collections_as_arrays) or test(rollback_and_disabled_fallbacks_preserve_the_stored_projection) or test(writes_validate_password_port_and_public_access_like_go) or test(default_onboarding_inputs_and_settings_return_empty_values) or test(empty_store_projects_an_empty_broker_surface) or test(watchlist_group_conversion_marks_every_normalized_duplicate_ambiguous)"
         ],
         "testFilter": [
           "candle_route_classifies_unknown_us_session_as_a_data_error"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "139b4209a45727353d237d9596313c128a32b8d2",
+        "verifiedAt": "2026-09-25T14:19:12Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -215549,20 +215549,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-integration-futu",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(calendar_and_macro_propagate_capability_and_busy_errors) or test(retries_transient_readiness_and_sends_optional_bearer) or test(snapshot_route_queries_the_provider_once_on_cache_miss) or test(resolver_projects_us_early_close_extended_window_with_timezone) or test(candle_route_excludes_before_boundary_and_can_continue_loading_older_pages) or test(candle_route_forwards_strict_before_window) or test(candle_route_skips_session_classification_for_unannotated_requests) or test(candle_route_classifies_unknown_us_session_as_a_data_error) or test(company_financials_forwards_market_symbol_and_statement) or test(provider_company_profile_projection_maps_frontend_keys) or test(provider_financial_statements_projection_maps_frontend_keys) or test(recoverable_errors_match_go_is_recoverable_opend_err) or test(runtime_task_backoff_replays_after_a_failed_reconnect_attempt) or test(test_exponential_backoff_progression_and_upper_bound_capping) or test(basic_quote_query_replays_once_after_recoverable_session_timeout) or test(basic_quote_query_returns_non_recoverable_rejection_without_replaying) or test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(margin_ratio_server_throttling_maps_to_the_typed_rate_limit) or test(calendar_control_plane_routes_share_the_real_manager_in_cutover_only) or test(calendar_control_plane_routes_fail_closed_without_a_manager) or test(order_book_levels_project_price_volume_count_and_details) or test(frame_size_guards_cover_encode_and_decode) or test(lifecycle_accepts_active_push_preserves_recorder_failures_and_rejects_stale_push) or test(closed_session_rejects_connect_like_rpcs_before_touching_the_transport) or test(start_keep_alive_ignores_non_positive_intervals) or test(close_is_idempotent_and_joins_the_single_reader) or test(request_observability_snapshot_serializes_empty_collections_as_arrays) or test(rollback_and_disabled_fallbacks_preserve_the_stored_projection) or test(writes_validate_password_port_and_public_access_like_go) or test(default_onboarding_inputs_and_settings_return_empty_values) or test(empty_store_projects_an_empty_broker_surface) or test(watchlist_group_conversion_marks_every_normalized_duplicate_ambiguous)"
         ],
         "testFilter": [
           "recoverable_errors_match_go_is_recoverable_opend_err"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "139b4209a45727353d237d9596313c128a32b8d2",
+        "verifiedAt": "2026-09-25T14:19:12Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -215616,20 +215616,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-integration-futu",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(calendar_and_macro_propagate_capability_and_busy_errors) or test(retries_transient_readiness_and_sends_optional_bearer) or test(snapshot_route_queries_the_provider_once_on_cache_miss) or test(resolver_projects_us_early_close_extended_window_with_timezone) or test(candle_route_excludes_before_boundary_and_can_continue_loading_older_pages) or test(candle_route_forwards_strict_before_window) or test(candle_route_skips_session_classification_for_unannotated_requests) or test(candle_route_classifies_unknown_us_session_as_a_data_error) or test(company_financials_forwards_market_symbol_and_statement) or test(provider_company_profile_projection_maps_frontend_keys) or test(provider_financial_statements_projection_maps_frontend_keys) or test(recoverable_errors_match_go_is_recoverable_opend_err) or test(runtime_task_backoff_replays_after_a_failed_reconnect_attempt) or test(test_exponential_backoff_progression_and_upper_bound_capping) or test(basic_quote_query_replays_once_after_recoverable_session_timeout) or test(basic_quote_query_returns_non_recoverable_rejection_without_replaying) or test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(margin_ratio_server_throttling_maps_to_the_typed_rate_limit) or test(calendar_control_plane_routes_share_the_real_manager_in_cutover_only) or test(calendar_control_plane_routes_fail_closed_without_a_manager) or test(order_book_levels_project_price_volume_count_and_details) or test(frame_size_guards_cover_encode_and_decode) or test(lifecycle_accepts_active_push_preserves_recorder_failures_and_rejects_stale_push) or test(closed_session_rejects_connect_like_rpcs_before_touching_the_transport) or test(start_keep_alive_ignores_non_positive_intervals) or test(close_is_idempotent_and_joins_the_single_reader) or test(request_observability_snapshot_serializes_empty_collections_as_arrays) or test(rollback_and_disabled_fallbacks_preserve_the_stored_projection) or test(writes_validate_password_port_and_public_access_like_go) or test(default_onboarding_inputs_and_settings_return_empty_values) or test(empty_store_projects_an_empty_broker_surface) or test(watchlist_group_conversion_marks_every_normalized_duplicate_ambiguous)"
         ],
         "testFilter": [
           "runtime_task_backoff_replays_after_a_failed_reconnect_attempt"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "139b4209a45727353d237d9596313c128a32b8d2",
+        "verifiedAt": "2026-09-25T14:19:12Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -215683,22 +215683,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
-          "-p",
-          "jftrade-integration-futu",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(calendar_and_macro_propagate_capability_and_busy_errors) or test(retries_transient_readiness_and_sends_optional_bearer) or test(snapshot_route_queries_the_provider_once_on_cache_miss) or test(resolver_projects_us_early_close_extended_window_with_timezone) or test(candle_route_excludes_before_boundary_and_can_continue_loading_older_pages) or test(candle_route_forwards_strict_before_window) or test(candle_route_skips_session_classification_for_unannotated_requests) or test(candle_route_classifies_unknown_us_session_as_a_data_error) or test(company_financials_forwards_market_symbol_and_statement) or test(provider_company_profile_projection_maps_frontend_keys) or test(provider_financial_statements_projection_maps_frontend_keys) or test(recoverable_errors_match_go_is_recoverable_opend_err) or test(runtime_task_backoff_replays_after_a_failed_reconnect_attempt) or test(test_exponential_backoff_progression_and_upper_bound_capping) or test(basic_quote_query_replays_once_after_recoverable_session_timeout) or test(basic_quote_query_returns_non_recoverable_rejection_without_replaying) or test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(margin_ratio_server_throttling_maps_to_the_typed_rate_limit) or test(calendar_control_plane_routes_share_the_real_manager_in_cutover_only) or test(calendar_control_plane_routes_fail_closed_without_a_manager) or test(order_book_levels_project_price_volume_count_and_details) or test(frame_size_guards_cover_encode_and_decode) or test(lifecycle_accepts_active_push_preserves_recorder_failures_and_rejects_stale_push) or test(closed_session_rejects_connect_like_rpcs_before_touching_the_transport) or test(start_keep_alive_ignores_non_positive_intervals) or test(close_is_idempotent_and_joins_the_single_reader) or test(request_observability_snapshot_serializes_empty_collections_as_arrays) or test(rollback_and_disabled_fallbacks_preserve_the_stored_projection) or test(writes_validate_password_port_and_public_access_like_go) or test(default_onboarding_inputs_and_settings_return_empty_values) or test(empty_store_projects_an_empty_broker_surface) or test(watchlist_group_conversion_marks_every_normalized_duplicate_ambiguous)"
         ],
         "testFilter": [
           "test_exponential_backoff_progression_and_upper_bound_capping"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "139b4209a45727353d237d9596313c128a32b8d2",
+        "verifiedAt": "2026-09-25T14:19:12Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -215752,20 +215750,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-integration-futu",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(calendar_and_macro_propagate_capability_and_busy_errors) or test(retries_transient_readiness_and_sends_optional_bearer) or test(snapshot_route_queries_the_provider_once_on_cache_miss) or test(resolver_projects_us_early_close_extended_window_with_timezone) or test(candle_route_excludes_before_boundary_and_can_continue_loading_older_pages) or test(candle_route_forwards_strict_before_window) or test(candle_route_skips_session_classification_for_unannotated_requests) or test(candle_route_classifies_unknown_us_session_as_a_data_error) or test(company_financials_forwards_market_symbol_and_statement) or test(provider_company_profile_projection_maps_frontend_keys) or test(provider_financial_statements_projection_maps_frontend_keys) or test(recoverable_errors_match_go_is_recoverable_opend_err) or test(runtime_task_backoff_replays_after_a_failed_reconnect_attempt) or test(test_exponential_backoff_progression_and_upper_bound_capping) or test(basic_quote_query_replays_once_after_recoverable_session_timeout) or test(basic_quote_query_returns_non_recoverable_rejection_without_replaying) or test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(margin_ratio_server_throttling_maps_to_the_typed_rate_limit) or test(calendar_control_plane_routes_share_the_real_manager_in_cutover_only) or test(calendar_control_plane_routes_fail_closed_without_a_manager) or test(order_book_levels_project_price_volume_count_and_details) or test(frame_size_guards_cover_encode_and_decode) or test(lifecycle_accepts_active_push_preserves_recorder_failures_and_rejects_stale_push) or test(closed_session_rejects_connect_like_rpcs_before_touching_the_transport) or test(start_keep_alive_ignores_non_positive_intervals) or test(close_is_idempotent_and_joins_the_single_reader) or test(request_observability_snapshot_serializes_empty_collections_as_arrays) or test(rollback_and_disabled_fallbacks_preserve_the_stored_projection) or test(writes_validate_password_port_and_public_access_like_go) or test(default_onboarding_inputs_and_settings_return_empty_values) or test(empty_store_projects_an_empty_broker_surface) or test(watchlist_group_conversion_marks_every_normalized_duplicate_ambiguous)"
         ],
         "testFilter": [
           "basic_quote_query_replays_once_after_recoverable_session_timeout"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "139b4209a45727353d237d9596313c128a32b8d2",
+        "verifiedAt": "2026-09-25T14:19:12Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -215819,20 +215817,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-integration-futu",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(calendar_and_macro_propagate_capability_and_busy_errors) or test(retries_transient_readiness_and_sends_optional_bearer) or test(snapshot_route_queries_the_provider_once_on_cache_miss) or test(resolver_projects_us_early_close_extended_window_with_timezone) or test(candle_route_excludes_before_boundary_and_can_continue_loading_older_pages) or test(candle_route_forwards_strict_before_window) or test(candle_route_skips_session_classification_for_unannotated_requests) or test(candle_route_classifies_unknown_us_session_as_a_data_error) or test(company_financials_forwards_market_symbol_and_statement) or test(provider_company_profile_projection_maps_frontend_keys) or test(provider_financial_statements_projection_maps_frontend_keys) or test(recoverable_errors_match_go_is_recoverable_opend_err) or test(runtime_task_backoff_replays_after_a_failed_reconnect_attempt) or test(test_exponential_backoff_progression_and_upper_bound_capping) or test(basic_quote_query_replays_once_after_recoverable_session_timeout) or test(basic_quote_query_returns_non_recoverable_rejection_without_replaying) or test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(margin_ratio_server_throttling_maps_to_the_typed_rate_limit) or test(calendar_control_plane_routes_share_the_real_manager_in_cutover_only) or test(calendar_control_plane_routes_fail_closed_without_a_manager) or test(order_book_levels_project_price_volume_count_and_details) or test(frame_size_guards_cover_encode_and_decode) or test(lifecycle_accepts_active_push_preserves_recorder_failures_and_rejects_stale_push) or test(closed_session_rejects_connect_like_rpcs_before_touching_the_transport) or test(start_keep_alive_ignores_non_positive_intervals) or test(close_is_idempotent_and_joins_the_single_reader) or test(request_observability_snapshot_serializes_empty_collections_as_arrays) or test(rollback_and_disabled_fallbacks_preserve_the_stored_projection) or test(writes_validate_password_port_and_public_access_like_go) or test(default_onboarding_inputs_and_settings_return_empty_values) or test(empty_store_projects_an_empty_broker_surface) or test(watchlist_group_conversion_marks_every_normalized_duplicate_ambiguous)"
         ],
         "testFilter": [
           "basic_quote_query_returns_non_recoverable_rejection_without_replaying"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "139b4209a45727353d237d9596313c128a32b8d2",
+        "verifiedAt": "2026-09-25T14:19:12Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -215887,10 +215885,10 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-integration-futu",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(calendar_and_macro_propagate_capability_and_busy_errors) or test(retries_transient_readiness_and_sends_optional_bearer) or test(snapshot_route_queries_the_provider_once_on_cache_miss) or test(resolver_projects_us_early_close_extended_window_with_timezone) or test(candle_route_excludes_before_boundary_and_can_continue_loading_older_pages) or test(candle_route_forwards_strict_before_window) or test(candle_route_skips_session_classification_for_unannotated_requests) or test(candle_route_classifies_unknown_us_session_as_a_data_error) or test(company_financials_forwards_market_symbol_and_statement) or test(provider_company_profile_projection_maps_frontend_keys) or test(provider_financial_statements_projection_maps_frontend_keys) or test(recoverable_errors_match_go_is_recoverable_opend_err) or test(runtime_task_backoff_replays_after_a_failed_reconnect_attempt) or test(test_exponential_backoff_progression_and_upper_bound_capping) or test(basic_quote_query_replays_once_after_recoverable_session_timeout) or test(basic_quote_query_returns_non_recoverable_rejection_without_replaying) or test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(margin_ratio_server_throttling_maps_to_the_typed_rate_limit) or test(calendar_control_plane_routes_share_the_real_manager_in_cutover_only) or test(calendar_control_plane_routes_fail_closed_without_a_manager) or test(order_book_levels_project_price_volume_count_and_details) or test(frame_size_guards_cover_encode_and_decode) or test(lifecycle_accepts_active_push_preserves_recorder_failures_and_rejects_stale_push) or test(closed_session_rejects_connect_like_rpcs_before_touching_the_transport) or test(start_keep_alive_ignores_non_positive_intervals) or test(close_is_idempotent_and_joins_the_single_reader) or test(request_observability_snapshot_serializes_empty_collections_as_arrays) or test(rollback_and_disabled_fallbacks_preserve_the_stored_projection) or test(writes_validate_password_port_and_public_access_like_go) or test(default_onboarding_inputs_and_settings_return_empty_values) or test(empty_store_projects_an_empty_broker_surface) or test(watchlist_group_conversion_marks_every_normalized_duplicate_ambiguous)"
         ],
         "testFilter": [
           "security_snapshot_coordinator_classifies_remote_rate_limit",
@@ -215898,10 +215896,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "139b4209a45727353d237d9596313c128a32b8d2",
+        "verifiedAt": "2026-09-25T14:19:12Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -216301,12 +216299,10 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
           "--locked",
           "-E",
-          "test(calendar_control_plane_routes_share_the_real_manager_in_cutover_only)"
+          "test(calendar_and_macro_propagate_capability_and_busy_errors) or test(retries_transient_readiness_and_sends_optional_bearer) or test(snapshot_route_queries_the_provider_once_on_cache_miss) or test(resolver_projects_us_early_close_extended_window_with_timezone) or test(candle_route_excludes_before_boundary_and_can_continue_loading_older_pages) or test(candle_route_forwards_strict_before_window) or test(candle_route_skips_session_classification_for_unannotated_requests) or test(candle_route_classifies_unknown_us_session_as_a_data_error) or test(company_financials_forwards_market_symbol_and_statement) or test(provider_company_profile_projection_maps_frontend_keys) or test(provider_financial_statements_projection_maps_frontend_keys) or test(recoverable_errors_match_go_is_recoverable_opend_err) or test(runtime_task_backoff_replays_after_a_failed_reconnect_attempt) or test(test_exponential_backoff_progression_and_upper_bound_capping) or test(basic_quote_query_replays_once_after_recoverable_session_timeout) or test(basic_quote_query_returns_non_recoverable_rejection_without_replaying) or test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(margin_ratio_server_throttling_maps_to_the_typed_rate_limit) or test(calendar_control_plane_routes_share_the_real_manager_in_cutover_only) or test(calendar_control_plane_routes_fail_closed_without_a_manager) or test(order_book_levels_project_price_volume_count_and_details) or test(frame_size_guards_cover_encode_and_decode) or test(lifecycle_accepts_active_push_preserves_recorder_failures_and_rejects_stale_push) or test(closed_session_rejects_connect_like_rpcs_before_touching_the_transport) or test(start_keep_alive_ignores_non_positive_intervals) or test(close_is_idempotent_and_joins_the_single_reader) or test(request_observability_snapshot_serializes_empty_collections_as_arrays) or test(rollback_and_disabled_fallbacks_preserve_the_stored_projection) or test(writes_validate_password_port_and_public_access_like_go) or test(default_onboarding_inputs_and_settings_return_empty_values) or test(empty_store_projects_an_empty_broker_surface) or test(watchlist_group_conversion_marks_every_normalized_duplicate_ambiguous)"
         ],
         "testFilter": [
           "calendar_control_plane_routes_share_the_real_manager_in_cutover_only",
@@ -216314,10 +216310,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "139b4209a45727353d237d9596313c128a32b8d2",
+        "verifiedAt": "2026-09-25T14:19:12Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -222675,20 +222671,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-integration-futu",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(calendar_and_macro_propagate_capability_and_busy_errors) or test(retries_transient_readiness_and_sends_optional_bearer) or test(snapshot_route_queries_the_provider_once_on_cache_miss) or test(resolver_projects_us_early_close_extended_window_with_timezone) or test(candle_route_excludes_before_boundary_and_can_continue_loading_older_pages) or test(candle_route_forwards_strict_before_window) or test(candle_route_skips_session_classification_for_unannotated_requests) or test(candle_route_classifies_unknown_us_session_as_a_data_error) or test(company_financials_forwards_market_symbol_and_statement) or test(provider_company_profile_projection_maps_frontend_keys) or test(provider_financial_statements_projection_maps_frontend_keys) or test(recoverable_errors_match_go_is_recoverable_opend_err) or test(runtime_task_backoff_replays_after_a_failed_reconnect_attempt) or test(test_exponential_backoff_progression_and_upper_bound_capping) or test(basic_quote_query_replays_once_after_recoverable_session_timeout) or test(basic_quote_query_returns_non_recoverable_rejection_without_replaying) or test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(margin_ratio_server_throttling_maps_to_the_typed_rate_limit) or test(calendar_control_plane_routes_share_the_real_manager_in_cutover_only) or test(calendar_control_plane_routes_fail_closed_without_a_manager) or test(order_book_levels_project_price_volume_count_and_details) or test(frame_size_guards_cover_encode_and_decode) or test(lifecycle_accepts_active_push_preserves_recorder_failures_and_rejects_stale_push) or test(closed_session_rejects_connect_like_rpcs_before_touching_the_transport) or test(start_keep_alive_ignores_non_positive_intervals) or test(close_is_idempotent_and_joins_the_single_reader) or test(request_observability_snapshot_serializes_empty_collections_as_arrays) or test(rollback_and_disabled_fallbacks_preserve_the_stored_projection) or test(writes_validate_password_port_and_public_access_like_go) or test(default_onboarding_inputs_and_settings_return_empty_values) or test(empty_store_projects_an_empty_broker_surface) or test(watchlist_group_conversion_marks_every_normalized_duplicate_ambiguous)"
         ],
         "testFilter": [
           "order_book_levels_project_price_volume_count_and_details"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "139b4209a45727353d237d9596313c128a32b8d2",
+        "verifiedAt": "2026-09-25T14:19:12Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -223789,20 +223785,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-integration-futu",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(calendar_and_macro_propagate_capability_and_busy_errors) or test(retries_transient_readiness_and_sends_optional_bearer) or test(snapshot_route_queries_the_provider_once_on_cache_miss) or test(resolver_projects_us_early_close_extended_window_with_timezone) or test(candle_route_excludes_before_boundary_and_can_continue_loading_older_pages) or test(candle_route_forwards_strict_before_window) or test(candle_route_skips_session_classification_for_unannotated_requests) or test(candle_route_classifies_unknown_us_session_as_a_data_error) or test(company_financials_forwards_market_symbol_and_statement) or test(provider_company_profile_projection_maps_frontend_keys) or test(provider_financial_statements_projection_maps_frontend_keys) or test(recoverable_errors_match_go_is_recoverable_opend_err) or test(runtime_task_backoff_replays_after_a_failed_reconnect_attempt) or test(test_exponential_backoff_progression_and_upper_bound_capping) or test(basic_quote_query_replays_once_after_recoverable_session_timeout) or test(basic_quote_query_returns_non_recoverable_rejection_without_replaying) or test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(margin_ratio_server_throttling_maps_to_the_typed_rate_limit) or test(calendar_control_plane_routes_share_the_real_manager_in_cutover_only) or test(calendar_control_plane_routes_fail_closed_without_a_manager) or test(order_book_levels_project_price_volume_count_and_details) or test(frame_size_guards_cover_encode_and_decode) or test(lifecycle_accepts_active_push_preserves_recorder_failures_and_rejects_stale_push) or test(closed_session_rejects_connect_like_rpcs_before_touching_the_transport) or test(start_keep_alive_ignores_non_positive_intervals) or test(close_is_idempotent_and_joins_the_single_reader) or test(request_observability_snapshot_serializes_empty_collections_as_arrays) or test(rollback_and_disabled_fallbacks_preserve_the_stored_projection) or test(writes_validate_password_port_and_public_access_like_go) or test(default_onboarding_inputs_and_settings_return_empty_values) or test(empty_store_projects_an_empty_broker_surface) or test(watchlist_group_conversion_marks_every_normalized_duplicate_ambiguous)"
         ],
         "testFilter": [
           "frame_size_guards_cover_encode_and_decode"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "139b4209a45727353d237d9596313c128a32b8d2",
+        "verifiedAt": "2026-09-25T14:19:12Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -223851,20 +223847,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-integration-futu",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(calendar_and_macro_propagate_capability_and_busy_errors) or test(retries_transient_readiness_and_sends_optional_bearer) or test(snapshot_route_queries_the_provider_once_on_cache_miss) or test(resolver_projects_us_early_close_extended_window_with_timezone) or test(candle_route_excludes_before_boundary_and_can_continue_loading_older_pages) or test(candle_route_forwards_strict_before_window) or test(candle_route_skips_session_classification_for_unannotated_requests) or test(candle_route_classifies_unknown_us_session_as_a_data_error) or test(company_financials_forwards_market_symbol_and_statement) or test(provider_company_profile_projection_maps_frontend_keys) or test(provider_financial_statements_projection_maps_frontend_keys) or test(recoverable_errors_match_go_is_recoverable_opend_err) or test(runtime_task_backoff_replays_after_a_failed_reconnect_attempt) or test(test_exponential_backoff_progression_and_upper_bound_capping) or test(basic_quote_query_replays_once_after_recoverable_session_timeout) or test(basic_quote_query_returns_non_recoverable_rejection_without_replaying) or test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(margin_ratio_server_throttling_maps_to_the_typed_rate_limit) or test(calendar_control_plane_routes_share_the_real_manager_in_cutover_only) or test(calendar_control_plane_routes_fail_closed_without_a_manager) or test(order_book_levels_project_price_volume_count_and_details) or test(frame_size_guards_cover_encode_and_decode) or test(lifecycle_accepts_active_push_preserves_recorder_failures_and_rejects_stale_push) or test(closed_session_rejects_connect_like_rpcs_before_touching_the_transport) or test(start_keep_alive_ignores_non_positive_intervals) or test(close_is_idempotent_and_joins_the_single_reader) or test(request_observability_snapshot_serializes_empty_collections_as_arrays) or test(rollback_and_disabled_fallbacks_preserve_the_stored_projection) or test(writes_validate_password_port_and_public_access_like_go) or test(default_onboarding_inputs_and_settings_return_empty_values) or test(empty_store_projects_an_empty_broker_surface) or test(watchlist_group_conversion_marks_every_normalized_duplicate_ambiguous)"
         ],
         "testFilter": [
           "lifecycle_accepts_active_push_preserves_recorder_failures_and_rejects_stale_push"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "139b4209a45727353d237d9596313c128a32b8d2",
+        "verifiedAt": "2026-09-25T14:19:12Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -223913,20 +223909,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-integration-futu",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(calendar_and_macro_propagate_capability_and_busy_errors) or test(retries_transient_readiness_and_sends_optional_bearer) or test(snapshot_route_queries_the_provider_once_on_cache_miss) or test(resolver_projects_us_early_close_extended_window_with_timezone) or test(candle_route_excludes_before_boundary_and_can_continue_loading_older_pages) or test(candle_route_forwards_strict_before_window) or test(candle_route_skips_session_classification_for_unannotated_requests) or test(candle_route_classifies_unknown_us_session_as_a_data_error) or test(company_financials_forwards_market_symbol_and_statement) or test(provider_company_profile_projection_maps_frontend_keys) or test(provider_financial_statements_projection_maps_frontend_keys) or test(recoverable_errors_match_go_is_recoverable_opend_err) or test(runtime_task_backoff_replays_after_a_failed_reconnect_attempt) or test(test_exponential_backoff_progression_and_upper_bound_capping) or test(basic_quote_query_replays_once_after_recoverable_session_timeout) or test(basic_quote_query_returns_non_recoverable_rejection_without_replaying) or test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(margin_ratio_server_throttling_maps_to_the_typed_rate_limit) or test(calendar_control_plane_routes_share_the_real_manager_in_cutover_only) or test(calendar_control_plane_routes_fail_closed_without_a_manager) or test(order_book_levels_project_price_volume_count_and_details) or test(frame_size_guards_cover_encode_and_decode) or test(lifecycle_accepts_active_push_preserves_recorder_failures_and_rejects_stale_push) or test(closed_session_rejects_connect_like_rpcs_before_touching_the_transport) or test(start_keep_alive_ignores_non_positive_intervals) or test(close_is_idempotent_and_joins_the_single_reader) or test(request_observability_snapshot_serializes_empty_collections_as_arrays) or test(rollback_and_disabled_fallbacks_preserve_the_stored_projection) or test(writes_validate_password_port_and_public_access_like_go) or test(default_onboarding_inputs_and_settings_return_empty_values) or test(empty_store_projects_an_empty_broker_surface) or test(watchlist_group_conversion_marks_every_normalized_duplicate_ambiguous)"
         ],
         "testFilter": [
           "closed_session_rejects_connect_like_rpcs_before_touching_the_transport"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "139b4209a45727353d237d9596313c128a32b8d2",
+        "verifiedAt": "2026-09-25T14:19:12Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -223975,20 +223971,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-integration-futu",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(calendar_and_macro_propagate_capability_and_busy_errors) or test(retries_transient_readiness_and_sends_optional_bearer) or test(snapshot_route_queries_the_provider_once_on_cache_miss) or test(resolver_projects_us_early_close_extended_window_with_timezone) or test(candle_route_excludes_before_boundary_and_can_continue_loading_older_pages) or test(candle_route_forwards_strict_before_window) or test(candle_route_skips_session_classification_for_unannotated_requests) or test(candle_route_classifies_unknown_us_session_as_a_data_error) or test(company_financials_forwards_market_symbol_and_statement) or test(provider_company_profile_projection_maps_frontend_keys) or test(provider_financial_statements_projection_maps_frontend_keys) or test(recoverable_errors_match_go_is_recoverable_opend_err) or test(runtime_task_backoff_replays_after_a_failed_reconnect_attempt) or test(test_exponential_backoff_progression_and_upper_bound_capping) or test(basic_quote_query_replays_once_after_recoverable_session_timeout) or test(basic_quote_query_returns_non_recoverable_rejection_without_replaying) or test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(margin_ratio_server_throttling_maps_to_the_typed_rate_limit) or test(calendar_control_plane_routes_share_the_real_manager_in_cutover_only) or test(calendar_control_plane_routes_fail_closed_without_a_manager) or test(order_book_levels_project_price_volume_count_and_details) or test(frame_size_guards_cover_encode_and_decode) or test(lifecycle_accepts_active_push_preserves_recorder_failures_and_rejects_stale_push) or test(closed_session_rejects_connect_like_rpcs_before_touching_the_transport) or test(start_keep_alive_ignores_non_positive_intervals) or test(close_is_idempotent_and_joins_the_single_reader) or test(request_observability_snapshot_serializes_empty_collections_as_arrays) or test(rollback_and_disabled_fallbacks_preserve_the_stored_projection) or test(writes_validate_password_port_and_public_access_like_go) or test(default_onboarding_inputs_and_settings_return_empty_values) or test(empty_store_projects_an_empty_broker_surface) or test(watchlist_group_conversion_marks_every_normalized_duplicate_ambiguous)"
         ],
         "testFilter": [
           "start_keep_alive_ignores_non_positive_intervals"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "139b4209a45727353d237d9596313c128a32b8d2",
+        "verifiedAt": "2026-09-25T14:19:12Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -224037,20 +224033,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-integration-futu",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(calendar_and_macro_propagate_capability_and_busy_errors) or test(retries_transient_readiness_and_sends_optional_bearer) or test(snapshot_route_queries_the_provider_once_on_cache_miss) or test(resolver_projects_us_early_close_extended_window_with_timezone) or test(candle_route_excludes_before_boundary_and_can_continue_loading_older_pages) or test(candle_route_forwards_strict_before_window) or test(candle_route_skips_session_classification_for_unannotated_requests) or test(candle_route_classifies_unknown_us_session_as_a_data_error) or test(company_financials_forwards_market_symbol_and_statement) or test(provider_company_profile_projection_maps_frontend_keys) or test(provider_financial_statements_projection_maps_frontend_keys) or test(recoverable_errors_match_go_is_recoverable_opend_err) or test(runtime_task_backoff_replays_after_a_failed_reconnect_attempt) or test(test_exponential_backoff_progression_and_upper_bound_capping) or test(basic_quote_query_replays_once_after_recoverable_session_timeout) or test(basic_quote_query_returns_non_recoverable_rejection_without_replaying) or test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(margin_ratio_server_throttling_maps_to_the_typed_rate_limit) or test(calendar_control_plane_routes_share_the_real_manager_in_cutover_only) or test(calendar_control_plane_routes_fail_closed_without_a_manager) or test(order_book_levels_project_price_volume_count_and_details) or test(frame_size_guards_cover_encode_and_decode) or test(lifecycle_accepts_active_push_preserves_recorder_failures_and_rejects_stale_push) or test(closed_session_rejects_connect_like_rpcs_before_touching_the_transport) or test(start_keep_alive_ignores_non_positive_intervals) or test(close_is_idempotent_and_joins_the_single_reader) or test(request_observability_snapshot_serializes_empty_collections_as_arrays) or test(rollback_and_disabled_fallbacks_preserve_the_stored_projection) or test(writes_validate_password_port_and_public_access_like_go) or test(default_onboarding_inputs_and_settings_return_empty_values) or test(empty_store_projects_an_empty_broker_surface) or test(watchlist_group_conversion_marks_every_normalized_duplicate_ambiguous)"
         ],
         "testFilter": [
           "basic_quote_query_replays_once_after_recoverable_session_timeout"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "139b4209a45727353d237d9596313c128a32b8d2",
+        "verifiedAt": "2026-09-25T14:19:12Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -224099,20 +224095,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-integration-futu",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(calendar_and_macro_propagate_capability_and_busy_errors) or test(retries_transient_readiness_and_sends_optional_bearer) or test(snapshot_route_queries_the_provider_once_on_cache_miss) or test(resolver_projects_us_early_close_extended_window_with_timezone) or test(candle_route_excludes_before_boundary_and_can_continue_loading_older_pages) or test(candle_route_forwards_strict_before_window) or test(candle_route_skips_session_classification_for_unannotated_requests) or test(candle_route_classifies_unknown_us_session_as_a_data_error) or test(company_financials_forwards_market_symbol_and_statement) or test(provider_company_profile_projection_maps_frontend_keys) or test(provider_financial_statements_projection_maps_frontend_keys) or test(recoverable_errors_match_go_is_recoverable_opend_err) or test(runtime_task_backoff_replays_after_a_failed_reconnect_attempt) or test(test_exponential_backoff_progression_and_upper_bound_capping) or test(basic_quote_query_replays_once_after_recoverable_session_timeout) or test(basic_quote_query_returns_non_recoverable_rejection_without_replaying) or test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(margin_ratio_server_throttling_maps_to_the_typed_rate_limit) or test(calendar_control_plane_routes_share_the_real_manager_in_cutover_only) or test(calendar_control_plane_routes_fail_closed_without_a_manager) or test(order_book_levels_project_price_volume_count_and_details) or test(frame_size_guards_cover_encode_and_decode) or test(lifecycle_accepts_active_push_preserves_recorder_failures_and_rejects_stale_push) or test(closed_session_rejects_connect_like_rpcs_before_touching_the_transport) or test(start_keep_alive_ignores_non_positive_intervals) or test(close_is_idempotent_and_joins_the_single_reader) or test(request_observability_snapshot_serializes_empty_collections_as_arrays) or test(rollback_and_disabled_fallbacks_preserve_the_stored_projection) or test(writes_validate_password_port_and_public_access_like_go) or test(default_onboarding_inputs_and_settings_return_empty_values) or test(empty_store_projects_an_empty_broker_surface) or test(watchlist_group_conversion_marks_every_normalized_duplicate_ambiguous)"
         ],
         "testFilter": [
           "close_is_idempotent_and_joins_the_single_reader"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "139b4209a45727353d237d9596313c128a32b8d2",
+        "verifiedAt": "2026-09-25T14:19:12Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -225828,20 +225824,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-api",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(calendar_and_macro_propagate_capability_and_busy_errors) or test(retries_transient_readiness_and_sends_optional_bearer) or test(snapshot_route_queries_the_provider_once_on_cache_miss) or test(resolver_projects_us_early_close_extended_window_with_timezone) or test(candle_route_excludes_before_boundary_and_can_continue_loading_older_pages) or test(candle_route_forwards_strict_before_window) or test(candle_route_skips_session_classification_for_unannotated_requests) or test(candle_route_classifies_unknown_us_session_as_a_data_error) or test(company_financials_forwards_market_symbol_and_statement) or test(provider_company_profile_projection_maps_frontend_keys) or test(provider_financial_statements_projection_maps_frontend_keys) or test(recoverable_errors_match_go_is_recoverable_opend_err) or test(runtime_task_backoff_replays_after_a_failed_reconnect_attempt) or test(test_exponential_backoff_progression_and_upper_bound_capping) or test(basic_quote_query_replays_once_after_recoverable_session_timeout) or test(basic_quote_query_returns_non_recoverable_rejection_without_replaying) or test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(margin_ratio_server_throttling_maps_to_the_typed_rate_limit) or test(calendar_control_plane_routes_share_the_real_manager_in_cutover_only) or test(calendar_control_plane_routes_fail_closed_without_a_manager) or test(order_book_levels_project_price_volume_count_and_details) or test(frame_size_guards_cover_encode_and_decode) or test(lifecycle_accepts_active_push_preserves_recorder_failures_and_rejects_stale_push) or test(closed_session_rejects_connect_like_rpcs_before_touching_the_transport) or test(start_keep_alive_ignores_non_positive_intervals) or test(close_is_idempotent_and_joins_the_single_reader) or test(request_observability_snapshot_serializes_empty_collections_as_arrays) or test(rollback_and_disabled_fallbacks_preserve_the_stored_projection) or test(writes_validate_password_port_and_public_access_like_go) or test(default_onboarding_inputs_and_settings_return_empty_values) or test(empty_store_projects_an_empty_broker_surface) or test(watchlist_group_conversion_marks_every_normalized_duplicate_ambiguous)"
         ],
         "testFilter": [
           "request_observability_snapshot_serializes_empty_collections_as_arrays"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "139b4209a45727353d237d9596313c128a32b8d2",
+        "verifiedAt": "2026-09-25T14:19:12Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -229031,12 +229027,10 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-settings",
           "--all-targets",
           "--locked",
           "-E",
-          "test(rollback_and_disabled_fallbacks_preserve_the_stored_projection)"
+          "test(calendar_and_macro_propagate_capability_and_busy_errors) or test(retries_transient_readiness_and_sends_optional_bearer) or test(snapshot_route_queries_the_provider_once_on_cache_miss) or test(resolver_projects_us_early_close_extended_window_with_timezone) or test(candle_route_excludes_before_boundary_and_can_continue_loading_older_pages) or test(candle_route_forwards_strict_before_window) or test(candle_route_skips_session_classification_for_unannotated_requests) or test(candle_route_classifies_unknown_us_session_as_a_data_error) or test(company_financials_forwards_market_symbol_and_statement) or test(provider_company_profile_projection_maps_frontend_keys) or test(provider_financial_statements_projection_maps_frontend_keys) or test(recoverable_errors_match_go_is_recoverable_opend_err) or test(runtime_task_backoff_replays_after_a_failed_reconnect_attempt) or test(test_exponential_backoff_progression_and_upper_bound_capping) or test(basic_quote_query_replays_once_after_recoverable_session_timeout) or test(basic_quote_query_returns_non_recoverable_rejection_without_replaying) or test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(margin_ratio_server_throttling_maps_to_the_typed_rate_limit) or test(calendar_control_plane_routes_share_the_real_manager_in_cutover_only) or test(calendar_control_plane_routes_fail_closed_without_a_manager) or test(order_book_levels_project_price_volume_count_and_details) or test(frame_size_guards_cover_encode_and_decode) or test(lifecycle_accepts_active_push_preserves_recorder_failures_and_rejects_stale_push) or test(closed_session_rejects_connect_like_rpcs_before_touching_the_transport) or test(start_keep_alive_ignores_non_positive_intervals) or test(close_is_idempotent_and_joins_the_single_reader) or test(request_observability_snapshot_serializes_empty_collections_as_arrays) or test(rollback_and_disabled_fallbacks_preserve_the_stored_projection) or test(writes_validate_password_port_and_public_access_like_go) or test(default_onboarding_inputs_and_settings_return_empty_values) or test(empty_store_projects_an_empty_broker_surface) or test(watchlist_group_conversion_marks_every_normalized_duplicate_ambiguous)"
         ],
         "testFilter": [
           "rollback_and_disabled_fallbacks_preserve_the_stored_projection",
@@ -229044,10 +229038,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "139b4209a45727353d237d9596313c128a32b8d2",
+        "verifiedAt": "2026-09-25T14:19:12Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -230106,12 +230100,10 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-settings",
           "--all-targets",
           "--locked",
           "-E",
-          "test(empty_store_projects_an_empty_broker_surface)"
+          "test(calendar_and_macro_propagate_capability_and_busy_errors) or test(retries_transient_readiness_and_sends_optional_bearer) or test(snapshot_route_queries_the_provider_once_on_cache_miss) or test(resolver_projects_us_early_close_extended_window_with_timezone) or test(candle_route_excludes_before_boundary_and_can_continue_loading_older_pages) or test(candle_route_forwards_strict_before_window) or test(candle_route_skips_session_classification_for_unannotated_requests) or test(candle_route_classifies_unknown_us_session_as_a_data_error) or test(company_financials_forwards_market_symbol_and_statement) or test(provider_company_profile_projection_maps_frontend_keys) or test(provider_financial_statements_projection_maps_frontend_keys) or test(recoverable_errors_match_go_is_recoverable_opend_err) or test(runtime_task_backoff_replays_after_a_failed_reconnect_attempt) or test(test_exponential_backoff_progression_and_upper_bound_capping) or test(basic_quote_query_replays_once_after_recoverable_session_timeout) or test(basic_quote_query_returns_non_recoverable_rejection_without_replaying) or test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(margin_ratio_server_throttling_maps_to_the_typed_rate_limit) or test(calendar_control_plane_routes_share_the_real_manager_in_cutover_only) or test(calendar_control_plane_routes_fail_closed_without_a_manager) or test(order_book_levels_project_price_volume_count_and_details) or test(frame_size_guards_cover_encode_and_decode) or test(lifecycle_accepts_active_push_preserves_recorder_failures_and_rejects_stale_push) or test(closed_session_rejects_connect_like_rpcs_before_touching_the_transport) or test(start_keep_alive_ignores_non_positive_intervals) or test(close_is_idempotent_and_joins_the_single_reader) or test(request_observability_snapshot_serializes_empty_collections_as_arrays) or test(rollback_and_disabled_fallbacks_preserve_the_stored_projection) or test(writes_validate_password_port_and_public_access_like_go) or test(default_onboarding_inputs_and_settings_return_empty_values) or test(empty_store_projects_an_empty_broker_surface) or test(watchlist_group_conversion_marks_every_normalized_duplicate_ambiguous)"
         ],
         "testFilter": [
           "default_onboarding_inputs_and_settings_return_empty_values",
@@ -230119,10 +230111,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "139b4209a45727353d237d9596313c128a32b8d2",
+        "verifiedAt": "2026-09-25T14:19:12Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -230651,20 +230643,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-integration-futu",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(calendar_and_macro_propagate_capability_and_busy_errors) or test(retries_transient_readiness_and_sends_optional_bearer) or test(snapshot_route_queries_the_provider_once_on_cache_miss) or test(resolver_projects_us_early_close_extended_window_with_timezone) or test(candle_route_excludes_before_boundary_and_can_continue_loading_older_pages) or test(candle_route_forwards_strict_before_window) or test(candle_route_skips_session_classification_for_unannotated_requests) or test(candle_route_classifies_unknown_us_session_as_a_data_error) or test(company_financials_forwards_market_symbol_and_statement) or test(provider_company_profile_projection_maps_frontend_keys) or test(provider_financial_statements_projection_maps_frontend_keys) or test(recoverable_errors_match_go_is_recoverable_opend_err) or test(runtime_task_backoff_replays_after_a_failed_reconnect_attempt) or test(test_exponential_backoff_progression_and_upper_bound_capping) or test(basic_quote_query_replays_once_after_recoverable_session_timeout) or test(basic_quote_query_returns_non_recoverable_rejection_without_replaying) or test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(margin_ratio_server_throttling_maps_to_the_typed_rate_limit) or test(calendar_control_plane_routes_share_the_real_manager_in_cutover_only) or test(calendar_control_plane_routes_fail_closed_without_a_manager) or test(order_book_levels_project_price_volume_count_and_details) or test(frame_size_guards_cover_encode_and_decode) or test(lifecycle_accepts_active_push_preserves_recorder_failures_and_rejects_stale_push) or test(closed_session_rejects_connect_like_rpcs_before_touching_the_transport) or test(start_keep_alive_ignores_non_positive_intervals) or test(close_is_idempotent_and_joins_the_single_reader) or test(request_observability_snapshot_serializes_empty_collections_as_arrays) or test(rollback_and_disabled_fallbacks_preserve_the_stored_projection) or test(writes_validate_password_port_and_public_access_like_go) or test(default_onboarding_inputs_and_settings_return_empty_values) or test(empty_store_projects_an_empty_broker_surface) or test(watchlist_group_conversion_marks_every_normalized_duplicate_ambiguous)"
         ],
         "testFilter": [
           "watchlist_group_conversion_marks_every_normalized_duplicate_ambiguous"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "139b4209a45727353d237d9596313c128a32b8d2",
+        "verifiedAt": "2026-09-25T14:19:12Z",
         "receiptDigest": null
       },
       "risk": "high",
