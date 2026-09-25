@@ -727,6 +727,23 @@ ADK/Assistant 功能差异，先补失败回归测试再修改领域 owner。
 
 下一片：继续 P1 的 Futu/OpenD protocol、trading/broker 与 API transport 映射。
 
+## 第 147 批：Futu/OpenD notifications、probe 与 subscription reconciler（2026-09-25）
+
+| 复核 | Go 测试范围 | Rust 证据 | P | 结论 |
+| :---: | --- | --- | :---: | --- |
+| [x] | `internal/integration/futu/notifications_test.go:13,98,135,207` | `futu_notifications_parity.rs` 的 response 路由、空载荷/状态转换、程序与网关标签、权限标签测试 | P1 | exact：通知分类、nil 边界、12 个程序状态、网关/行情权限文案逐项断言。 |
+| [x] | `internal/integration/futu/probe_test.go:22,96,114,137,173` | `health.rs` 协议失败/健康 fixture、`probe.rs` closed-port/version/global-state、`program_status` 测试 | P1 | 4 条 exact；协议错误承载从 Go 字符串变为 Rust typed error 的 1 条保持 partial。 |
+| [x] | `internal/integration/futu/subscription_reconciler_test.go:88,160,191,287,346,394,459,499,587,623,676,697,713` | `subscriptions_tests.rs` 的物理订阅共享、并发幂等、代际快照、退订 retry、fallback、provider switch、ack 时间、清理、规范化与 viewer 能力测试；`fake_framed_opend_runtime_tests.rs` 覆盖配额拒绝 fallback | P1 | exact：订阅 ownership、最小保留期、退订阶梯、代际 fence、延迟 fallback 与请求规范化逐项通过。 |
+| [~] | `subscription_reconciler_test.go:236` | `closed_session_generation_invalidates_its_subscriptions_and_requires_replay` | P1 | boundary：Rust 以新连接代际 replay/fence 取代 Go 单次 reconcile 内联重试，不复现 Go 异常文本和重试次数。 |
+| [~] | `subscription_reconciler_test.go:548` | `session_coordinator.rs::refresh_quota_uses_the_authenticated_opend_protocol_and_preserves_last_success` | P1 | partial：认证配额协议、成功快照保留有 Rust 证据；Go 的 ack+1 分钟节流与固定间隔刷新在 Rust 中不存在。 |
+
+本批 24 条 Go 映射对应 Rust 精准 nextest 24/24 通过；未发现需要先红后修的生产差异。连接代际与配额刷新两处机制差异继续保持 partial/boundary，不把聚合证据升级为 exact。
+
+验证：
+`node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(test_live_notification_from_response_routes_protocol_payloads_to_neutral_categories) or test(test_neutral_notification_builders_handle_nil_and_status_transitions) or test(test_notification_labels_cover_every_supported_program_and_gateway_state) or test(test_notification_and_quote_right_labels_remain_stable) or test(tcp_probe_reports_protocol_outcomes_without_a_real_opend) or test(tcp_probe_maps_login_global_state_and_market_readiness) or test(probe_opend_reports_closed_port_as_disconnected) or test(probe_from_global_state_enforces_minimum_version_and_maps_neutral_state) or test(program_status_handles_missing_plain_and_described_status) or test(exact_physical_subscriptions_are_shared_and_final_release_is_deferred) or test(concurrent_reconcile_passes_are_idempotent_for_subscribe_and_release) or test(stale_observed_generation_reports_pending_reconnect_instead_of_active) or test(closed_session_generation_invalidates_its_subscriptions_and_requires_replay) or test(unsubscribe_retry_ladder_escalates_and_reacquire_clears_retry_state) or test(test_basic_quote_availability_rejection_enters_delayed_fallback_and_reconcile_succeeds) or test(provider_switch_defers_physical_release_until_opend_eligible) or test(retention_is_measured_from_the_opend_acknowledgement) or test(retry_is_measured_from_the_opend_failure_acknowledgement) or test(refresh_quota_uses_the_authenticated_opend_protocol_and_preserves_last_success) or test(pending_provider_cleanup_drops_closed_connection_ownership) or test(connection_replacement_clears_quota_ownership_and_reset_is_idempotent) or test(released_never_established_records_are_dropped_without_fallback_leakage) or test(desired_physical_subscriptions_reject_incomplete_refs_and_normalize_symbols) or test(viewers_share_capabilities_and_only_the_stale_order_book_is_released)'`
+
+下一片：继续 P1 的 Futu/OpenD protocol、trading/broker 与 API transport 映射。
+
 ## 第 144 批：Futu marketdata tick、fallback 与 market-rule reader 边界（2026-09-25）
 
 | 复核 | Go 测试范围 | Rust 证据 | P | 结论 |

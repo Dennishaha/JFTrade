@@ -137810,7 +137810,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-integration-futu/tests/futu_notifications_parity.rs::test_live_notification_from_response_routes_protocol_payloads_to_neutral_categories",
       "conclusion": "完整覆盖：Rust 测试严格按 Go 测试用例结构对各协议载荷（委托更新、持仓更新、系统通知）路由到中立分类进行断言，完全等价",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(test_live_notification_from_response_routes_protocol_payloads_to_neutral_categories)'",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(test_live_notification_from_response_routes_protocol_payloads_to_neutral_categories)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/integration/futu/notifications_test.go",
@@ -137840,6 +137840,8 @@
           "run",
           "-p",
           "jftrade-integration-futu",
+          "--all-targets",
+          "--locked",
           "-E",
           "test(test_live_notification_from_response_routes_protocol_payloads_to_neutral_categories)"
         ],
@@ -137872,7 +137874,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-integration-futu/tests/futu_notifications_parity.rs::test_neutral_notification_builders_handle_nil_and_status_transitions",
       "conclusion": "完整覆盖：Rust 测试严格对空载荷与各状态流转组合进行断言测试，与 Go 测试逻辑完全一致",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(test_neutral_notification_builders_handle_nil_and_status_transitions)'",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(test_neutral_notification_builders_handle_nil_and_status_transitions)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/integration/futu/notifications_test.go",
@@ -137902,6 +137904,8 @@
           "run",
           "-p",
           "jftrade-integration-futu",
+          "--all-targets",
+          "--locked",
           "-E",
           "test(test_neutral_notification_builders_handle_nil_and_status_transitions)"
         ],
@@ -137934,7 +137938,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-integration-futu/tests/futu_notifications_parity.rs::test_notification_labels_cover_every_supported_program_and_gateway_state",
       "conclusion": "function_exact：FutuProgramStatus enum 的 Loaded/Loging/NeedPicVerifyCode/NeedPhoneVerifyCode/LoginFailed/ForceUpdate/NessaryDataPreparing/NessaryDataMissing/UnAgreeDisclaimer/Ready/ForceLogout/DisclaimerPullFailed 全 12 个状态逐项断言 level/title/label，并覆盖未知状态回退到 info + \"OpenD 程序状态更新\"，与 Go 表格逐行（含 unknown fallback）一致。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(test_notification_labels_cover_every_supported_program_and_gateway_state)'",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(test_notification_labels_cover_every_supported_program_and_gateway_state)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/integration/futu/notifications_test.go",
@@ -137969,6 +137973,8 @@
           "run",
           "-p",
           "jftrade-integration-futu",
+          "--all-targets",
+          "--locked",
           "-E",
           "test(test_notification_labels_cover_every_supported_program_and_gateway_state)"
         ],
@@ -138001,7 +138007,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-integration-futu/tests/futu_notifications_parity.rs::test_notification_and_quote_right_labels_remain_stable",
       "conclusion": "function_exact：网关推送（Trd_UpdateOrder/Trd_UpdateOrderFill/Trd_Notify）与行情权限（Qot_UpdateBasicQot/Qot_Sub/Qot_Sub 权限失败/Unexpected）标签稳定断言，覆盖 Go 在此测试冻结的 title/label/level 与 severity 文案，不改写错误文本。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(test_notification_and_quote_right_labels_remain_stable)'",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(test_notification_and_quote_right_labels_remain_stable)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/integration/futu/notifications_test.go",
@@ -138036,6 +138042,8 @@
           "run",
           "-p",
           "jftrade-integration-futu",
+          "--all-targets",
+          "--locked",
           "-E",
           "test(test_notification_and_quote_right_labels_remain_stable)"
         ],
@@ -138323,7 +138331,7 @@
       "status": "[~]",
       "rust_entry": "crates/jftrade-integration-futu/src/health.rs::tcp_probe_reports_protocol_outcomes_without_a_real_opend",
       "conclusion": "partial（类型化差异）：Go 的 Probe 把这些协议结果折叠成 degraded + LastError 字符串（\"client closed\" / \"InitConnect failed: retType=%d\"），Rust 的 OpenDTcpProbe::probe 返回类型化 OpenDTcpProbeError（Session(Closed(PeerClosed)) / Rejected{operation,ret_type,message}），engine 再映射成诊断码。已补齐四个分支的协议结果断言（InitConnect 对端关闭、InitConnect 无消息拒绝、GetGlobalState 对端关闭、GetGlobalState 无消息拒绝），但错误承载类型不同，故不标 function_exact。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(tcp_probe_reports_protocol_outcomes_without_a_real_opend)'",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(tcp_probe_reports_protocol_outcomes_without_a_real_opend)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/integration/futu/probe_test.go",
@@ -138358,6 +138366,8 @@
           "run",
           "-p",
           "jftrade-integration-futu",
+          "--all-targets",
+          "--locked",
           "-E",
           "test(tcp_probe_reports_protocol_outcomes_without_a_real_opend)"
         ],
@@ -138390,7 +138400,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-integration-futu/src/health.rs::tcp_probe_maps_login_global_state_and_market_readiness",
       "conclusion": "function_exact：健康协议 fixture 断言 connectivity=connected、status=healthy、serverVersion=10.9.7000、markets==4、quoteLoggedIn=true、marketDataReady=true、programStatus=\"ProgramStatusType_Ready\"（Go 同字段）。本批修正了 Rust 早先只返回短标签 \"Ready\" 的行为差异，并同步该断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(tcp_probe_maps_login_global_state_and_market_readiness)'",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(tcp_probe_maps_login_global_state_and_market_readiness)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/integration/futu/probe_test.go",
@@ -138420,6 +138430,8 @@
           "run",
           "-p",
           "jftrade-integration-futu",
+          "--all-targets",
+          "--locked",
           "-E",
           "test(tcp_probe_maps_login_global_state_and_market_readiness)"
         ],
@@ -138452,7 +138464,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-integration-futu/src/probe.rs::probe_opend_reports_closed_port_as_disconnected",
       "conclusion": "function_exact：closed port 语义由 OpenDProbe::disconnected 冻结为 status=offline、connectivity=disconnected、lastError 存在且 market_data_ready=false；Go 在同一文件断言 status/connectivity/lastError 三项，Rust 覆盖相同行为并额外断言 readiness 失败。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(probe_opend_reports_closed_port_as_disconnected)'",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(probe_opend_reports_closed_port_as_disconnected)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/integration/futu/probe_test.go",
@@ -138487,6 +138499,8 @@
           "run",
           "-p",
           "jftrade-integration-futu",
+          "--all-targets",
+          "--locked",
           "-E",
           "test(probe_opend_reports_closed_port_as_disconnected)"
         ],
@@ -138519,7 +138533,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-integration-futu/src/probe.rs::probe_from_global_state_enforces_minimum_version_and_maps_neutral_state",
       "conclusion": "function_exact：覆盖 Go 三段断言：nil state→degraded+lastError；1008.6708→OPEND_VERSION_UNSUPPORTED+degraded+serverVersion=10.8.6708；健康状态→healthy/connected、quoteLoggedIn=true、tradeLoggedIn=false、programStatus=\"ProgramStatusType_Ready: all services ready\"、market_data_ready=true。markets 长度 4 由同 crate 的 framed fixture 测试 tcp_probe_maps_login_global_state_and_market_readiness 断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(probe_from_global_state_enforces_minimum_version_and_maps_neutral_state)'",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(probe_from_global_state_enforces_minimum_version_and_maps_neutral_state)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/integration/futu/probe_test.go",
@@ -138554,6 +138568,8 @@
           "run",
           "-p",
           "jftrade-integration-futu",
+          "--all-targets",
+          "--locked",
           "-E",
           "test(probe_from_global_state_enforces_minimum_version_and_maps_neutral_state)"
         ],
@@ -138586,7 +138602,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-integration-futu/src/health.rs::program_status_handles_missing_plain_and_described_status",
       "conclusion": "function_exact：Rust program_status 逐项验证 nil→\"Unavailable\"、enum-only→\"ProgramStatusType_Loging\"、带描述→\"ProgramStatusType_Loging: <desc>\"，与 Go ProgramStatusString 完全等价；同测试还覆盖未知枚举值→Unavailable。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(program_status_handles_missing_plain_and_described_status)'",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(program_status_handles_missing_plain_and_described_status)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/integration/futu/probe_test.go",
@@ -138621,6 +138637,8 @@
           "run",
           "-p",
           "jftrade-integration-futu",
+          "--all-targets",
+          "--locked",
           "-E",
           "test(program_status_handles_missing_plain_and_described_status)"
         ],
@@ -138839,7 +138857,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-integration-futu/src/subscriptions_tests.rs::exact_physical_subscriptions_are_shared_and_final_release_is_deferred",
       "conclusion": "完整覆盖：desired_subscriptions 把 KLINE/hk/HK.00700/1m 与 KLINE/HK/HK.00700/1M 归并为一个逻辑能力（logical_count=3），物理键为 BASIC:HK.00700、KLINE:HK.00700:1m、KLINE:HK.00700:5m；最小保留期内释放只标记 pending（pending_release_count=3）且不产生 RPC；重新 desired 单个能力时不重新订阅（pending_release_count=1）；超过最小年龄只释放不再 desired 的 KLINE:HK.00700:5m；最终释放剩余两条并回到 own_active_count=0、pending_release_count=0、entries 为空。与 Go ReconcileSubscriptions 的时机差异说明：Rust 把 unsubscribe 计划与提交分开（actions 产出计划、record_success 提交），物理结果等价",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(exact_physical_subscriptions_are_shared_and_final_release_is_deferred)'",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(exact_physical_subscriptions_are_shared_and_final_release_is_deferred)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/integration/futu/subscription_reconciler_test.go",
@@ -138874,6 +138892,8 @@
           "run",
           "-p",
           "jftrade-integration-futu",
+          "--all-targets",
+          "--locked",
           "-E",
           "test(exact_physical_subscriptions_are_shared_and_final_release_is_deferred)"
         ],
@@ -138906,7 +138926,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-integration-futu/src/subscriptions_tests.rs::concurrent_reconcile_passes_are_idempotent_for_subscribe_and_release",
       "conclusion": "完整覆盖（并发幂等）：以真实共享 owner（Arc<Mutex<SubscriptionReconciler>>）跑 64 个并发 reconcile pass。首个 pass 规划并提交 2 条物理订阅，其余 63 个 pass 观察到已提交状态、规划数恒为 0；释放阶段同样 64 并发只规划 2 条 unsubscribe，结束后 desiredCount/ownActiveCount/pendingReleaseCount 全为 0 且 entries 为空。唯一写入所有权由 &mut self + Mutex 保证（Go 用 reconcileMu）",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(concurrent_reconcile_passes_are_idempotent_for_subscribe_and_release)'",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(concurrent_reconcile_passes_are_idempotent_for_subscribe_and_release)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/integration/futu/subscription_reconciler_test.go",
@@ -138941,6 +138961,8 @@
           "run",
           "-p",
           "jftrade-integration-futu",
+          "--all-targets",
+          "--locked",
           "-E",
           "test(concurrent_reconcile_passes_are_idempotent_for_subscribe_and_release)"
         ],
@@ -138973,7 +138995,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-integration-futu/src/subscriptions_tests.rs::stale_observed_generation_reports_pending_reconnect_instead_of_active",
       "conclusion": "完整覆盖：观察到的连接代际与本地不一致时（observed=3、local=2），Rust 现在报告 connectionGeneration=2、observedConnectionGeneration=3、ownActiveCount=0、pendingReleaseCount=0，且每条 entry 的 brokerState 为 pending_reconnect——与 Go connectionChangedLocked 一致；一致时仍报告 active 并计数。修复点：physical_snapshot 过去忽略 observed_generation，把过期代际的订阅继续算作 active（唯一写入所有权/并发 fencing 风险）。代际变化后的重放编排另见 provider_runtime_recovery::latest_demand_replaces_stale_replay_while_reconnect_is_pending",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(stale_observed_generation_reports_pending_reconnect_instead_of_active)'",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(stale_observed_generation_reports_pending_reconnect_instead_of_active)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/integration/futu/subscription_reconciler_test.go",
@@ -139008,6 +139030,8 @@
           "run",
           "-p",
           "jftrade-integration-futu",
+          "--all-targets",
+          "--locked",
           "-E",
           "test(stale_observed_generation_reports_pending_reconnect_instead_of_active)"
         ],
@@ -139038,9 +139062,9 @@
     },
     "internal/integration/futu/subscription_reconciler_test.go:236:TestSubscriptionReconcilerFailsWhenConnectionKeepsChanging": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-integration-futu/src/subscriptions_tests.rs::generation_churn_fences_actions_without_stranding_subscriptions",
-      "conclusion": "边界保留（机制不同、保证等价）：Go 在单次 reconcile 内联重试到 maxGenerationReconcileRuns=3 并以 \"connection changed during 3 consecutive ... attempts\" 报错；Rust 不做内联重试，而是让执行层把旧代际的代际不匹配动作 fence 掉（execute_action 返回 Ok(false) 且不触达 OpenD），下一次 reconcile pass 重新规划同一物理订阅。新增测试断言该收敛性：代际 1 计划未提交 → 代际 2 重规划同一 key 并提交为 active、代际 1 永不 active；代际 3 replay 恰好 1 条且提交前不计 active。因此「连接反复变化不丢需求」这一 Go 断言成立，但 Rust 不上抛 Go 那条例外错误消息，故不算 function_exact",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(generation_churn_fences_actions_without_stranding_subscriptions)'",
+      "rust_entry": "crates/jftrade-integration-futu/src/subscriptions_tests.rs::closed_session_generation_invalidates_its_subscriptions_and_requires_replay",
+      "conclusion": "边界保留（机制不同、保证等价）：Go 在单次 reconcile 内联重试到 maxGenerationReconcileRuns=3 并以连接代际变化错误返回；Rust 不做同形内联重试，而是把旧连接代际的订阅置为非活动并要求新代际 replay，旧代际确认会被拒绝。Rust 现有 closed_session_generation_invalidates_its_subscriptions_and_requires_replay 覆盖“连接反复变化不丢需求”的收敛保证，但不复现 Go 的异常文本和单次 reconcile 重试次数，故不算 function_exact。",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(closed_session_generation_invalidates_its_subscriptions_and_requires_replay)'",
       "evidence_type": "boundary",
       "source": {
         "file": "internal/integration/futu/subscription_reconciler_test.go",
@@ -139051,7 +139075,7 @@
       "rustEvidence": [
         {
           "file": "crates/jftrade-integration-futu/src/subscriptions_tests.rs",
-          "test": "generation_churn_fences_actions_without_stranding_subscriptions",
+          "test": "closed_session_generation_invalidates_its_subscriptions_and_requires_replay",
           "crate": "jftrade-integration-futu",
           "anchor": null
         }
@@ -139059,7 +139083,7 @@
       "assertionCoverage": {
         "covered": [],
         "uncovered": [
-          "边界保留（机制不同、保证等价）：Go 在单次 reconcile 内联重试到 maxGenerationReconcileRuns=3 并以 \"connection changed during 3 consecutive ... attempts\" 报错；Rust 不做内联重试，而是让执行层把旧代际的代际不匹配动作 fence 掉（execute_action 返回 Ok(false) 且不触达 OpenD），下一次 reconcile pass 重新规划同一物理订阅。新增测试断言该收敛性：代际 1 计划未提交 → 代际 2 重规划同一 key 并提交为 active、代际 1 永不 active；代际 3 replay 恰好 1 条且提交前不计 active。因此「连接反复变化不丢需求」这一 Go 断言成立，但 Rust 不上抛 Go 那条例外错误消息，故不算 function_exact"
+          "边界保留（机制不同、保证等价）：Go 在单次 reconcile 内联重试到 maxGenerationReconcileRuns=3 并以连接代际变化错误返回；Rust 不做同形内联重试，而是把旧连接代际的订阅置为非活动并要求新代际 replay，旧代际确认会被拒绝。Rust 现有 closed_session_generation_invalidates_its_subscriptions_and_requires_replay 覆盖“连接反复变化不丢需求”的收敛保证，但不复现 Go 的异常文本和单次 reconcile 重试次数，故不算 function_exact。"
         ],
         "source": "legacy-conclusion"
       },
@@ -139070,11 +139094,13 @@
           "run",
           "-p",
           "jftrade-integration-futu",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(generation_churn_fences_actions_without_stranding_subscriptions)"
+          "test(closed_session_generation_invalidates_its_subscriptions_and_requires_replay)"
         ],
         "testFilter": [
-          "generation_churn_fences_actions_without_stranding_subscriptions"
+          "closed_session_generation_invalidates_its_subscriptions_and_requires_replay"
         ],
         "runnerVersion": null,
         "toolchain": null,
@@ -139094,15 +139120,15 @@
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
-        "边界保留（机制不同、保证等价）：Go 在单次 reconcile 内联重试到 maxGenerationReconcileRuns=3 并以 \"connection changed during 3 consecutive ... attempts\" 报错；Rust 不做内联重试，而是让执行层把旧代际的代际不匹配动作 fence 掉（execute_action 返回 Ok(false) 且不触达 OpenD），下一次 reconcile pass 重新规划同一物理订阅。新增测试断言该收敛性：代际 1 计划未提交 → 代际 2 重规划同一 key 并提交为 active、代际 1 永不 active；代际 3 replay 恰好 1 条且提交前不计 active。因此「连接反复变化不丢需求」这一 Go 断言成立，但 Rust 不上抛 Go 那条例外错误消息，故不算 function_exact"
+        "边界保留（机制不同、保证等价）：Go 在单次 reconcile 内联重试到 maxGenerationReconcileRuns=3 并以连接代际变化错误返回；Rust 不做同形内联重试，而是把旧连接代际的订阅置为非活动并要求新代际 replay，旧代际确认会被拒绝。Rust 现有 closed_session_generation_invalidates_its_subscriptions_and_requires_replay 覆盖“连接反复变化不丢需求”的收敛保证，但不复现 Go 的异常文本和单次 reconcile 重试次数，故不算 function_exact。"
       ],
-      "boundaryReason": "边界保留（机制不同、保证等价）：Go 在单次 reconcile 内联重试到 maxGenerationReconcileRuns=3 并以 \"connection changed during 3 consecutive ... attempts\" 报错；Rust 不做内联重试，而是让执行层把旧代际的代际不匹配动作 fence 掉（execute_action 返回 Ok(false) 且不触达 OpenD），下一次 reconcile pass 重新规划同一物理订阅。新增测试断言该收敛性：代际 1 计划未提交 → 代际 2 重规划同一 key 并提交为 active、代际 1 永不 active；代际 3 replay 恰好 1 条且提交前不计 active。因此「连接反复变化不丢需求」这一 Go 断言成立，但 Rust 不上抛 Go 那条例外错误消息，故不算 function_exact"
+      "boundaryReason": "边界保留（机制不同、保证等价）：Go 在单次 reconcile 内联重试到 maxGenerationReconcileRuns=3 并以连接代际变化错误返回；Rust 不做同形内联重试，而是把旧连接代际的订阅置为非活动并要求新代际 replay，旧代际确认会被拒绝。Rust 现有 closed_session_generation_invalidates_its_subscriptions_and_requires_replay 覆盖“连接反复变化不丢需求”的收敛保证，但不复现 Go 的异常文本和单次 reconcile 重试次数，故不算 function_exact。"
     },
     "internal/integration/futu/subscription_reconciler_test.go:287:TestSubscriptionReconcilerRetriesFailuresAndCancelsRetryOnReacquire": {
       "status": "[x]",
       "rust_entry": "crates/jftrade-integration-futu/src/subscriptions_tests.rs::unsubscribe_retry_ladder_escalates_and_reacquire_clears_retry_state",
       "conclusion": "完整覆盖：Rust 断言 unsubscribe 失败的完整退避阶梯 5s/10s/20s/30s/30s（每级窗口内 reconcile 被推迟）、retry_delay_ms 边界（0 钳到 5s、99 饱和到 30s），以及 reacquire 在不发起 RPC 的情况下取消待定 unsubscribe 重试（failures/retryAt/lastError 归零、状态回到 active、下一次失败从 5s 重新起梯）。修复点：actions() 过去不会在记录重新被 desired 且仍 active 时清理 retry 状态，导致 reacquire 后阶梯与 lastError 残留",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(unsubscribe_retry_ladder_escalates_and_reacquire_clears_retry_state)'",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(unsubscribe_retry_ladder_escalates_and_reacquire_clears_retry_state)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/integration/futu/subscription_reconciler_test.go",
@@ -139137,6 +139163,8 @@
           "run",
           "-p",
           "jftrade-integration-futu",
+          "--all-targets",
+          "--locked",
           "-E",
           "test(unsubscribe_retry_ladder_escalates_and_reacquire_clears_retry_state)"
         ],
@@ -139169,7 +139197,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-integration-futu/tests/fake_framed_opend_runtime_tests.rs::test_basic_quote_availability_rejection_enters_delayed_fallback_and_reconcile_succeeds",
       "conclusion": "完整覆盖：真实帧协议会话下 BasicQot 配额拒绝进入 delayed fallback（fallbackCount=1、ownActiveCount=0、brokerState=fallback、lastError 保留），15s 窗口内延迟重试，窗口到点后恢复 active 且 fallbackCount=0；reconciler 级快照与恢复断言另见 subscriptions::tests::basic_quote_availability_failure_enters_delayed_fallback_and_recovers",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(test_basic_quote_availability_rejection_enters_delayed_fallback_and_reconcile_succeeds)'",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(test_basic_quote_availability_rejection_enters_delayed_fallback_and_reconcile_succeeds)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/integration/futu/subscription_reconciler_test.go",
@@ -139204,6 +139232,8 @@
           "run",
           "-p",
           "jftrade-integration-futu",
+          "--all-targets",
+          "--locked",
           "-E",
           "test(test_basic_quote_availability_rejection_enters_delayed_fallback_and_reconcile_succeeds)"
         ],
@@ -139236,7 +139266,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-integration-futu/src/subscriptions_tests.rs::provider_switch_defers_physical_release_until_opend_eligible",
       "conclusion": "完整覆盖（含两处生产修复）：停用 Futu（desired→空）在最小保留期内不释放物理订阅，ownActiveCount=3、pendingReleaseCount=3、每条 entry 的 brokerState 为 pending_unsubscribe；窗口内重新激活复用 pending 且不重复订阅；再次停用并超过最小年龄后释放三条订阅并回到计数全 0。修复点一：ownActiveCount 过去把 pending 释放的订阅排除，而 Go 只把「已建立」作为 active 条件并额外计数 pending——该字段经 /api/v1 投影为 ownActiveCount，少算会让 UI 误判订阅已释放。修复点二：brokerState 过去输出 pending_release，而 Go 与 apps/web/src/composables/market-data/marketDataContract.ts 只承认 pending_unsubscribe，未知取值会被前端丢弃，故改为 Go 拼写",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(provider_switch_defers_physical_release_until_opend_eligible)'",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(provider_switch_defers_physical_release_until_opend_eligible)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/integration/futu/subscription_reconciler_test.go",
@@ -139271,6 +139301,8 @@
           "run",
           "-p",
           "jftrade-integration-futu",
+          "--all-targets",
+          "--locked",
           "-E",
           "test(provider_switch_defers_physical_release_until_opend_eligible)"
         ],
@@ -139303,7 +139335,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-integration-futu/src/subscriptions_tests.rs::retention_is_measured_from_the_opend_acknowledgement",
       "conclusion": "完整覆盖：record_success 的 now_ms 即 OpenD 确认时刻，subscribedAt 与 unsubscribeEligibleAt 由该时刻派生（ack=10s → subscribedAt=00:00:10Z、eligibleAt=00:01:10Z）；在 pass 起点+minimum_age（60s）释放不被允许，只有 ack+minimum_age（70s）才产出 unsubscribe。与 Go 以 post-RPC 时间戳打标一致，避免慢 reconcile pass 提前释放订阅",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(retention_is_measured_from_the_opend_acknowledgement)'",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(retention_is_measured_from_the_opend_acknowledgement)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/integration/futu/subscription_reconciler_test.go",
@@ -139338,6 +139370,8 @@
           "run",
           "-p",
           "jftrade-integration-futu",
+          "--all-targets",
+          "--locked",
           "-E",
           "test(retention_is_measured_from_the_opend_acknowledgement)"
         ],
@@ -139370,7 +139404,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-integration-futu/src/subscriptions_tests.rs::retry_is_measured_from_the_opend_failure_acknowledgement",
       "conclusion": "完整覆盖：record_unsubscribe_failure 的 now_ms 即失败确认时刻，5s 重试窗口从 70s 起算（74_999 推迟、75_000 刚好重试），而不是从 reconcile pass 起点 60s 起算。与 Go recordSubscriptionFailure 以失败确认时间计算 retryAt 一致",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(retry_is_measured_from_the_opend_failure_acknowledgement)'",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(retry_is_measured_from_the_opend_failure_acknowledgement)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/integration/futu/subscription_reconciler_test.go",
@@ -139405,6 +139439,8 @@
           "run",
           "-p",
           "jftrade-integration-futu",
+          "--all-targets",
+          "--locked",
           "-E",
           "test(retry_is_measured_from_the_opend_failure_acknowledgement)"
         ],
@@ -139435,9 +139471,9 @@
     },
     "internal/integration/futu/subscription_reconciler_test.go:548:TestSubscriptionReconcilerMeasuresQuotaRefreshFromOpenDAcknowledgement": {
       "status": "[~]",
-      "rust_entry": "",
+      "rust_entry": "crates/jftrade-integration-futu/src/session_coordinator.rs::refresh_quota_uses_the_authenticated_opend_protocol_and_preserves_last_success",
       "conclusion": "边界保留：Go 的 refreshQuota 以 OpenD 配额响应时刻（而非 pass 起点）作为 quotaCheckedAt，并按 subscriptionQuotaRefresh=1 分钟节流（ack+59.999s 不刷新、ack+60s 刷新）。Rust 的配额路径由 runtime poll loop 的 quota_refresh_pending 标志驱动——每次拓扑变更/重连后刷新一次并立即清除标志，检查时刻取本次循环的 now（post-RPC），但没有 1 分钟时间节流，因此「同一分钟内重复 reconcile 不重复查询」这一 Go 断言在 Rust 中不成立。当前 Rust 也不会以固定间隔自动刷新配额。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(refresh_quota_uses_the_authenticated_opend_protocol_and_preserves_last_success)'",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(refresh_quota_uses_the_authenticated_opend_protocol_and_preserves_last_success)'",
       "evidence_type": "boundary",
       "source": {
         "file": "internal/integration/futu/subscription_reconciler_test.go",
@@ -139445,9 +139481,18 @@
         "test": "TestSubscriptionReconcilerMeasuresQuotaRefreshFromOpenDAcknowledgement",
         "blobSha": "41b9fefa632b2bffbf27f0d9b029066405312e00"
       },
-      "rustEvidence": [],
+      "rustEvidence": [
+        {
+          "file": "crates/jftrade-integration-futu/src/session_coordinator.rs",
+          "test": "refresh_quota_uses_the_authenticated_opend_protocol_and_preserves_last_success",
+          "crate": "jftrade-integration-futu",
+          "anchor": null
+        }
+      ],
       "assertionCoverage": {
-        "covered": [],
+        "covered": [
+          "Rust 现有 refresh_quota_uses_the_authenticated_opend_protocol_and_preserves_last_success 覆盖认证 OpenD 配额协议、成功快照保留与失败不覆盖 last success；Go 的 ack+1 分钟节流和固定间隔自动刷新仍无同形实现。"
+        ],
         "uncovered": [
           "边界保留：Go 的 refreshQuota 以 OpenD 配额响应时刻（而非 pass 起点）作为 quotaCheckedAt，并按 subscriptionQuotaRefresh=1 分钟节流（ack+59.999s 不刷新、ack+60s 刷新）。Rust 的配额路径由 runtime poll loop 的 quota_refresh_pending 标志驱动——每次拓扑变更/重连后刷新一次并立即清除标志，检查时刻取本次循环的 now（post-RPC），但没有 1 分钟时间节流，因此「同一分钟内重复 reconcile 不重复查询」这一 Go 断言在 Rust 中不成立。当前 Rust 也不会以固定间隔自动刷新配额。"
         ],
@@ -139460,10 +139505,14 @@
           "run",
           "-p",
           "jftrade-integration-futu",
+          "--all-targets",
+          "--locked",
           "-E",
           "test(refresh_quota_uses_the_authenticated_opend_protocol_and_preserves_last_success)"
         ],
-        "testFilter": [],
+        "testFilter": [
+          "refresh_quota_uses_the_authenticated_opend_protocol_and_preserves_last_success"
+        ],
         "runnerVersion": null,
         "toolchain": null,
         "status": "unverified",
@@ -139480,7 +139529,9 @@
         "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [],
+      "coveredAssertions": [
+        "Rust 现有 refresh_quota_uses_the_authenticated_opend_protocol_and_preserves_last_success 覆盖认证 OpenD 配额协议、成功快照保留与失败不覆盖 last success；Go 的 ack+1 分钟节流和固定间隔自动刷新仍无同形实现。"
+      ],
       "uncoveredAssertions": [
         "边界保留：Go 的 refreshQuota 以 OpenD 配额响应时刻（而非 pass 起点）作为 quotaCheckedAt，并按 subscriptionQuotaRefresh=1 分钟节流（ack+59.999s 不刷新、ack+60s 刷新）。Rust 的配额路径由 runtime poll loop 的 quota_refresh_pending 标志驱动——每次拓扑变更/重连后刷新一次并立即清除标志，检查时刻取本次循环的 now（post-RPC），但没有 1 分钟时间节流，因此「同一分钟内重复 reconcile 不重复查询」这一 Go 断言在 Rust 中不成立。当前 Rust 也不会以固定间隔自动刷新配额。"
       ],
@@ -139490,7 +139541,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-integration-futu/src/subscriptions_tests.rs::pending_provider_cleanup_drops_closed_connection_ownership",
       "conclusion": "完整覆盖：provider 清理待定时（demand 归零但仍在最小保留期内）pendingReleaseCount=3；连接被替换为代际 2 时，代际 1 建立的订阅所有权随连接一起丢弃——replay 为空、ownActiveCount=0、pendingReleaseCount=0、entries 为空，且在保留期到点后也不会通过新连接发出 unsubscribe（不会误退订本连接从未建立的订阅）。与 Go resetConnectionStateLocked 语义一致",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(pending_provider_cleanup_drops_closed_connection_ownership)'",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(pending_provider_cleanup_drops_closed_connection_ownership)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/integration/futu/subscription_reconciler_test.go",
@@ -139525,6 +139576,8 @@
           "run",
           "-p",
           "jftrade-integration-futu",
+          "--all-targets",
+          "--locked",
           "-E",
           "test(pending_provider_cleanup_drops_closed_connection_ownership)"
         ],
@@ -139557,7 +139610,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-integration-futu/src/subscriptions_tests.rs::connection_replacement_clears_quota_ownership_and_reset_is_idempotent",
       "conclusion": "完整覆盖：连接替换时清空上一连接的配额诊断（totalUsed/remain/ownUsed/checkedAt/lastError 全部归 None），demand 重放非空且 ownActiveCount 归 0；配额失败仅作为诊断记录（lastError 与 checkedAt 生效、不上抛 reconcile 错误）；close 幂等且关闭后 reconcile 为空、快照计数归 0。修复点：replay_actions 过去保留旧连接的配额总数与检查时间，会把已断开的连接配额继续投射到 UI（对应 Go resetConnectionStateLocked 清空 quota/quotaCheckedAt/quotaLastError）。Go 针对 nil exchange/裸指针边界的断言在 Rust 由所有权与 Option 表达，不适用",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(connection_replacement_clears_quota_ownership_and_reset_is_idempotent)'",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(connection_replacement_clears_quota_ownership_and_reset_is_idempotent)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/integration/futu/subscription_reconciler_test.go",
@@ -139592,6 +139645,8 @@
           "run",
           "-p",
           "jftrade-integration-futu",
+          "--all-targets",
+          "--locked",
           "-E",
           "test(connection_replacement_clears_quota_ownership_and_reset_is_idempotent)"
         ],
@@ -139624,7 +139679,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-integration-futu/src/subscriptions_tests.rs::released_never_established_records_are_dropped_without_fallback_leakage",
       "conclusion": "完整覆盖：订阅被拒后释放需求会立即删除从未建立的记录（无物理订阅可释放、无 retry 状态残留），fallback 记录同样被删除并同步回退 fallback_count；与 Go subscribeDesiredLocked/unsubscribeUndesiredLocked 语义一致",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(released_never_established_records_are_dropped_without_fallback_leakage)'",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(released_never_established_records_are_dropped_without_fallback_leakage)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/integration/futu/subscription_reconciler_test.go",
@@ -139659,6 +139714,8 @@
           "run",
           "-p",
           "jftrade-integration-futu",
+          "--all-targets",
+          "--locked",
           "-E",
           "test(released_never_established_records_are_dropped_without_fallback_leakage)"
         ],
@@ -139691,7 +139748,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-integration-futu/src/subscriptions_tests.rs::desired_physical_subscriptions_reject_incomplete_refs_and_normalize_symbols",
       "conclusion": "完整覆盖：空引用、KLINE 缺 interval、NEWS 等未支持 channel 全部被丢弃；限定符号 us.nvda 补齐 market 并规范化为 US.NVDA；logicalCount=2、物理键为 BASIC:US.NVDA 与 ORDER_BOOK:US.NVDA（ORDER_BOOK 不带 interval）；无法限定（market 为空且 symbol 非限定）时 normalize 失败且不产出物理订阅——与 Go normalizedInstrument/switch channel 的拒绝语义一致",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(desired_physical_subscriptions_reject_incomplete_refs_and_normalize_symbols)'",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(desired_physical_subscriptions_reject_incomplete_refs_and_normalize_symbols)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/integration/futu/subscription_reconciler_test.go",
@@ -139726,6 +139783,8 @@
           "run",
           "-p",
           "jftrade-integration-futu",
+          "--all-targets",
+          "--locked",
           "-E",
           "test(desired_physical_subscriptions_reject_incomplete_refs_and_normalize_symbols)"
         ],
@@ -139758,7 +139817,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-integration-futu/src/subscriptions_tests.rs::viewers_share_capabilities_and_only_the_stale_order_book_is_released",
       "conclusion": "完整覆盖：viewer A（AAPL 1m K-line + AAPL order book）先订阅三条物理能力；切换到 strategy-A+viewer-B 时只订阅 MSFT 的三条能力，旧 AAPL order book 保持 pending（pending_release_count=1）因策略仍在看 AAPL 1m；切换回 A 之前复用 pending 不产生 RPC（A 视图 pending=3），再切到 B 同样复用；超过最小年龄仅释放 ORDER_BOOK:US.AAPL，策略的 KLINE:US.AAPL:1m 保留",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(viewers_share_capabilities_and_only_the_stale_order_book_is_released)'",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(viewers_share_capabilities_and_only_the_stale_order_book_is_released)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/integration/futu/subscription_reconciler_test.go",
@@ -139793,6 +139852,8 @@
           "run",
           "-p",
           "jftrade-integration-futu",
+          "--all-targets",
+          "--locked",
           "-E",
           "test(viewers_share_capabilities_and_only_the_stale_order_book_is_released)"
         ],
@@ -306204,12 +306265,13 @@
       "reviewStatus": "single"
     },
     "crates/jftrade-integration-futu/src/subscriptions_tests.rs::closed_session_generation_invalidates_its_subscriptions_and_requires_replay": {
-      "referenceCount": 1,
+      "referenceCount": 2,
       "referenceKeys": [
-        "pkg/futu/subscription_lifecycle_test.go:162:TestConnectionGenerationInvalidatesClosedSessionAndItsSubscriptions"
+        "pkg/futu/subscription_lifecycle_test.go:162:TestConnectionGenerationInvalidatesClosedSessionAndItsSubscriptions",
+        "internal/integration/futu/subscription_reconciler_test.go:236:TestSubscriptionReconcilerFailsWhenConnectionKeepsChanging"
       ],
       "allowed": true,
-      "reviewStatus": "single"
+      "reviewStatus": "reviewed"
     },
     "crates/jftrade-integration-futu/src/subscriptions_tests.rs::concurrent_reconcile_passes_are_idempotent_for_subscribe_and_release": {
       "referenceCount": 3,
@@ -306278,14 +306340,6 @@
       "referenceCount": 1,
       "referenceKeys": [
         "internal/integration/futu/marketdata_runtime_test.go:613:TestMarketDataRuntimeFiltersFallbackInstrumentsFromPushStream"
-      ],
-      "allowed": true,
-      "reviewStatus": "single"
-    },
-    "crates/jftrade-integration-futu/src/subscriptions_tests.rs::generation_churn_fences_actions_without_stranding_subscriptions": {
-      "referenceCount": 1,
-      "referenceKeys": [
-        "internal/integration/futu/subscription_reconciler_test.go:236:TestSubscriptionReconcilerFailsWhenConnectionKeepsChanging"
       ],
       "allowed": true,
       "reviewStatus": "single"
@@ -312259,6 +312313,14 @@
       "referenceCount": 1,
       "referenceKeys": [
         "internal/app/apiserver/backtestapp/historical_source_test.go:385:TestInstrumentSpecRequiresReadyPythonProviders"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-integration-futu/src/session_coordinator.rs::refresh_quota_uses_the_authenticated_opend_protocol_and_preserves_last_success": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/integration/futu/subscription_reconciler_test.go:548:TestSubscriptionReconcilerMeasuresQuotaRefreshFromOpenDAcknowledgement"
       ],
       "allowed": true,
       "reviewStatus": "single"
