@@ -6513,11 +6513,11 @@
       "boundaryReason": null
     },
     "internal/api/backtest/routes_progress_test.go:71:TestSyncProgressAndCancelRoutesHandleSuccessAndNotFound": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_backtest_sync_start_tests.rs::production_sync_cancel_matches_not_found_for_terminal_task; crates/jftrade-engine/src/product_backtest_sync_start_tests.rs::production_sync_read_projects_persisted_task",
-      "conclusion": "partial：Go 断言 sync progress 200、cancel 200、缺失 progress/cancel→404 NOT_FOUND。Rust 写语料覆盖 cancel-success/cancel-missing（200/404）与端口级取消缺失语义，读投影用例覆盖已持久化任务读回；缺口：sync progress 的 HTTP 200/404 双态无冻结语料与路由级断言，owner = 回测读路由投影。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E test(production_sync_cancel_matches_not_found_for_terminal_task) or test(production_sync_read_projects_persisted_task)",
-      "evidence_type": "partial",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-engine/src/product_backtests_sync_tests.rs::backtests_sync_read_route_matches_group_fixture_in_cutover_only；crates/jftrade-engine/src/product_backtests_write_product_tests.rs::backtests_sqlite_test_cutover_replays_transport_and_restart；crates/jftrade-engine/src/product_production_assembly_tests.rs::production_backtest_sync_endpoints_project_missing_tasks_and_unavailable_start；crates/jftrade-engine/src/product_backtest_sync_start_tests.rs::production_sync_cancel_matches_not_found_for_terminal_task；crates/jftrade-engine/src/product_backtest_sync_start_tests.rs::production_sync_read_projects_persisted_task",
+      "conclusion": "function_exact：Rust route fixture 逐项覆盖 sync progress 成功/缺失的 HTTP 200/404 与 NOT_FOUND envelope；SQLite test-cutover 覆盖 cancel 成功 200，production assembly 覆盖 cancel 缺失 404，production sync owner 测试补充持久化读回与 terminal cancel 语义。五条证据合并覆盖 Go 测试的四个 route assertions，未保留未覆盖断言。",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E test(backtests_sync_read_route_matches_group_fixture_in_cutover_only) or test(backtests_sqlite_test_cutover_replays_transport_and_restart) or test(production_backtest_sync_endpoints_project_missing_tasks_and_unavailable_start) or test(production_sync_cancel_matches_not_found_for_terminal_task) or test(production_sync_read_projects_persisted_task)",
+      "evidence_type": "function_exact",
       "source": {
         "file": "internal/api/backtest/routes_progress_test.go",
         "line": 71,
@@ -6525,6 +6525,24 @@
         "blobSha": "c45b02d94b039e8c2132adc47a6060f5931dcf32"
       },
       "rustEvidence": [
+        {
+          "file": "crates/jftrade-engine/src/product_backtests_sync_tests.rs",
+          "test": "backtests_sync_read_route_matches_group_fixture_in_cutover_only",
+          "crate": "jftrade-engine",
+          "anchor": null
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_backtests_write_product_tests.rs",
+          "test": "backtests_sqlite_test_cutover_replays_transport_and_restart",
+          "crate": "jftrade-engine",
+          "anchor": null
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_production_assembly_tests.rs",
+          "test": "production_backtest_sync_endpoints_project_missing_tasks_and_unavailable_start",
+          "crate": "jftrade-engine",
+          "anchor": null
+        },
         {
           "file": "crates/jftrade-engine/src/product_backtest_sync_start_tests.rs",
           "test": "production_sync_cancel_matches_not_found_for_terminal_task",
@@ -6540,11 +6558,12 @@
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust 已验证 sync cancel 的成功/缺失语义与持久化 task 读回投影，覆盖 cancel 200/404 和 progress 数据来源。"
+          "Sync progress succeeds with HTTP 200 for a stored task.",
+          "Sync progress returns HTTP 404 with NOT_FOUND for a missing task.",
+          "Sync cancel succeeds with HTTP 200 for an active task.",
+          "Sync cancel returns HTTP 404 with NOT_FOUND for a missing task."
         ],
-        "uncovered": [
-          "Go 还在 HTTP router fixture 中同时断言 progress 200、progress missing 404、cancel 200/cancel missing 404 及 NOT_FOUND envelope；Rust 没有同一冻结 HTTP 路由双态语料，仍保留 partial。"
-        ],
+        "uncovered": [],
         "source": "manual-batch-review"
       },
       "verification": {
@@ -6560,6 +6579,9 @@
           "test(production_sync_cancel_matches_not_found_for_terminal_task) or test(production_sync_read_projects_persisted_task)"
         ],
         "testFilter": [
+          "backtests_sync_read_route_matches_group_fixture_in_cutover_only",
+          "backtests_sqlite_test_cutover_replays_transport_and_restart",
+          "production_backtest_sync_endpoints_project_missing_tasks_and_unavailable_start",
           "production_sync_cancel_matches_not_found_for_terminal_task",
           "production_sync_read_projects_persisted_task"
         ],
@@ -6568,23 +6590,24 @@
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": "2026-09-25T03:50:00Z",
+        "verifiedAt": "2026-09-25T07:44:57Z",
         "receiptDigest": null
       },
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
+      "nextAction": "record_receipt_and_review_assertions",
       "blockedBy": [
         "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust 已验证 sync cancel 的成功/缺失语义与持久化 task 读回投影，覆盖 cancel 200/404 和 progress 数据来源。"
+        "Sync progress succeeds with HTTP 200 for a stored task.",
+        "Sync progress returns HTTP 404 with NOT_FOUND for a missing task.",
+        "Sync cancel succeeds with HTTP 200 for an active task.",
+        "Sync cancel returns HTTP 404 with NOT_FOUND for a missing task."
       ],
-      "uncoveredAssertions": [
-        "Go 还在 HTTP router fixture 中同时断言 progress 200、progress missing 404、cancel 200/cancel missing 404 及 NOT_FOUND envelope；Rust 没有同一冻结 HTTP 路由双态语料，仍保留 partial。"
-      ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/api/backtest/routes_progress_test.go:97:TestStatusResultAndDeleteRoutesCoverTerminalAndStoreFailures": {
@@ -294220,6 +294243,30 @@
       ],
       "allowed": false,
       "reviewStatus": "unreviewed"
+    },
+    "crates/jftrade-engine/src/product_backtests_sync_tests.rs::backtests_sync_read_route_matches_group_fixture_in_cutover_only": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/api/backtest/routes_progress_test.go:71:TestSyncProgressAndCancelRoutesHandleSuccessAndNotFound"
+      ],
+      "allowed": false,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_backtests_write_product_tests.rs::backtests_sqlite_test_cutover_replays_transport_and_restart": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/api/backtest/routes_progress_test.go:71:TestSyncProgressAndCancelRoutesHandleSuccessAndNotFound"
+      ],
+      "allowed": false,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_production_assembly_tests.rs::production_backtest_sync_endpoints_project_missing_tasks_and_unavailable_start": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/api/backtest/routes_progress_test.go:71:TestSyncProgressAndCancelRoutesHandleSuccessAndNotFound"
+      ],
+      "allowed": false,
+      "reviewStatus": "single"
     },
     "crates/jftrade-engine/src/product_backtest_sync_start_tests.rs::production_sync_cancel_matches_not_found_for_terminal_task": {
       "referenceCount": 1,

@@ -8,8 +8,8 @@
 | --- | ---: | --- |
 | Go 测试候选 | 4451 | 冻结基线 `go:452dea11` |
 | Rust 测试 | 3338 | 数量不代表行为等价 |
-| `function_exact` | 1480 | 有真实且唯一的 Rust 测试证据 |
-| `partial` | 2337 | 只覆盖部分断言，不能视为完成 |
+| `function_exact` | 1481 | 有真实且唯一的 Rust 测试证据 |
+| `partial` | 2336 | 只覆盖部分断言，不能视为完成 |
 | `boundary` | 636 | 当前架构边界或没有同形对象 |
 | 重复映射 | 0 | 审计脚本结果 |
 | Parity 锚点 | 1764 / 1718 / 0 / 0 / 46 | unique / recorded / unrecorded / stale / unknown |
@@ -75,7 +75,7 @@
 
 ## 调度收敛规则
 
-- 当前只保留一个持续队列上下文；本批完成后下一片按 P1 继续处理 `internal/api/backtest/routes_progress_test.go:71:TestSyncProgressAndCancelRoutesHandleSuccessAndNotFound`。
+- 当前只保留一个持续队列上下文；本批完成后下一片按 P1 继续处理 `internal/api/httpserver/bindings_boundaries_test.go:61:TestParseQueryTimeReturnsCallerFallback`。
 - 不创建子任务、不创建第二个 heartbeat、不重复复核已经完成的切片。
 - 每批先读 Go 实现和 Rust owner；只有发现真实行为差异才先写失败回归测试并修改生产代码。
 - 仅证据不足时维持 `partial` 或 `boundary`，不得为了提高数字升级为 `function_exact`。
@@ -102,6 +102,8 @@
 - 当前批次：`internal/api/assistant/chat_stream_recovery_contracts_test.go:12` 的不可序列化 transient tool clone fallback、timeline-only delta 与 final recovery 逐项复核；确认 Go JSON clone 兜底属于旧内存 hub 边界，Rust durable replay/live/final recovery 三条证据 3/3 通过，无生产功能差异。
 - 当前批次：`internal/api/assistant/chat_stream_recovery_contracts_test.go:41` 的已知 session preview 与持久化终态 final recovery 逐项核对；Rust 真实生产 preview、终态恢复三条证据 3/3 通过，contextSent 内存 seam 未强行升级，保持 partial。
 - 当前批次：`internal/api/assistant/chat_transport_disconnect_test.go:110` 的 stream/run reconnect、after 游标重放与失败 writer 退出逐项核对；engine/API 精准回归 4/4 通过，Rust 一次性 SSE 物化没有 Go 单写次数 seam，保持 partial。
+- 当前批次：`internal/api/backtest/routes_progress_test.go:71` 的 sync progress/cancel 成功与缺失路由逐项闭环；GET fixture、SQLite cancel 成功、production cancel 缺失及 sync owner 五条 Rust 证据 5/5 通过，映射升级为 `function_exact`。
+- 本批门禁：`check:quick` 按清单/文档变更落到 policy lane，zero-go、架构/生产策略、AI context、脚本兼容性与 actionlint 全部通过；完整 `check:rust` workspace 3464/3464（2 skipped）与 7 个 compatibility replay 全部通过。映射审计更新为 Rust 3338、`function_exact` 1481、`partial` 2336、`boundary` 636；重复 exact 0、nonexistent crate 0，Parity 锚点 1764/1718/0/0/46。
 - `00f89290`：marketdata façade 剩余 34 条逐项复核，补 helper provider polling mode owner 回归测试并修复状态投影。
 - `47bf7b1a`：注入配置的默认交易市场并补交易读取测试。
 - `917d1534`：API transport P1 partial 第 1–30 条核对。
