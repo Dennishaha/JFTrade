@@ -103539,20 +103539,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(explicit_access_modes_project_their_declared_tool_sets) or test(a_failed_tool_result_is_persisted_on_the_call_not_the_run) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(account_orders_stream_completes) or test(composition_recovers_transient_provider_failure_without_losing_stream_or_usage) or test(a_completed_run_with_a_failed_tool_replays_as_a_stream_final_frame) or test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(graph_exposes_one_deterministic_ready_task) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(test_cycle_detection_and_invalid_graph_permutations_reject_with_clean_400) or test(approval_resolution_is_idempotent_and_conflict_safe) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(first_tool_call_failure_matches_the_go_selection_rules) or test(stale_tool_completion_is_rejected_after_keyed_takeover) or test(input_answers_are_canonicalized_by_question_order_and_invalid_answers_are_rejected) or test(simultaneous_input_request_calls_fail_the_run_instead_of_parking) or test(test_canvas_unreachable_agent) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(test_canvas_workflow_multi_node_execution_and_context_propagation) or test(test_canvas_diamond_graph_deterministic_tie_breaking) or test(test_canvas_workflow_cycle_detection_rejects_with_400) or test(test_canvas_workflow_self_loop_and_invalid_edges_rejected) or test(test_canvas_no_executable_nodes) or test(test_canvas_invalid_node_and_edge_inputs) or test(test_canvas_empty_graph_has_no_executable_nodes) or test(approval_and_running_nodes_suspend_then_resume_the_same_durable_request) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(test_canvas_workflow_error_skips_downstream_nodes) or test(test_schedule_trigger_disabled_parent_workflow_safely_advances) or test(test_canvas_linear_chain)"
         ],
         "testFilter": [
           "explicit_access_modes_project_their_declared_tool_sets"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "7a1765c2",
+        "verifiedAt": "2026-09-25T18:39:36Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -103617,13 +103618,11 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
           "--locked",
-          "--no-fail-fast",
           "-E",
-          "test(tool_failure) | test(first_tool_call_failure) | test(persist_success_marks) | test(a_failed_tool_result)"
+          "test(explicit_access_modes_project_their_declared_tool_sets) or test(a_failed_tool_result_is_persisted_on_the_call_not_the_run) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(account_orders_stream_completes) or test(composition_recovers_transient_provider_failure_without_losing_stream_or_usage) or test(a_completed_run_with_a_failed_tool_replays_as_a_stream_final_frame) or test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(graph_exposes_one_deterministic_ready_task) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(test_cycle_detection_and_invalid_graph_permutations_reject_with_clean_400) or test(approval_resolution_is_idempotent_and_conflict_safe) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(first_tool_call_failure_matches_the_go_selection_rules) or test(stale_tool_completion_is_rejected_after_keyed_takeover) or test(input_answers_are_canonicalized_by_question_order_and_invalid_answers_are_rejected) or test(simultaneous_input_request_calls_fail_the_run_instead_of_parking) or test(test_canvas_unreachable_agent) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(test_canvas_workflow_multi_node_execution_and_context_propagation) or test(test_canvas_diamond_graph_deterministic_tie_breaking) or test(test_canvas_workflow_cycle_detection_rejects_with_400) or test(test_canvas_workflow_self_loop_and_invalid_edges_rejected) or test(test_canvas_no_executable_nodes) or test(test_canvas_invalid_node_and_edge_inputs) or test(test_canvas_empty_graph_has_no_executable_nodes) or test(approval_and_running_nodes_suspend_then_resume_the_same_durable_request) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(test_canvas_workflow_error_skips_downstream_nodes) or test(test_schedule_trigger_disabled_parent_workflow_safely_advances) or test(test_canvas_linear_chain)"
         ],
         "testFilter": [
           "a_failed_tool_result_is_persisted_on_the_call_not_the_run",
@@ -103631,10 +103630,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "7a1765c2",
+        "verifiedAt": "2026-09-25T18:39:36Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -103688,23 +103687,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
           "--locked",
-          "--no-fail-fast",
           "-E",
-          "test(tool_deadline)"
+          "test(explicit_access_modes_project_their_declared_tool_sets) or test(a_failed_tool_result_is_persisted_on_the_call_not_the_run) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(account_orders_stream_completes) or test(composition_recovers_transient_provider_failure_without_losing_stream_or_usage) or test(a_completed_run_with_a_failed_tool_replays_as_a_stream_final_frame) or test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(graph_exposes_one_deterministic_ready_task) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(test_cycle_detection_and_invalid_graph_permutations_reject_with_clean_400) or test(approval_resolution_is_idempotent_and_conflict_safe) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(first_tool_call_failure_matches_the_go_selection_rules) or test(stale_tool_completion_is_rejected_after_keyed_takeover) or test(input_answers_are_canonicalized_by_question_order_and_invalid_answers_are_rejected) or test(simultaneous_input_request_calls_fail_the_run_instead_of_parking) or test(test_canvas_unreachable_agent) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(test_canvas_workflow_multi_node_execution_and_context_propagation) or test(test_canvas_diamond_graph_deterministic_tie_breaking) or test(test_canvas_workflow_cycle_detection_rejects_with_400) or test(test_canvas_workflow_self_loop_and_invalid_edges_rejected) or test(test_canvas_no_executable_nodes) or test(test_canvas_invalid_node_and_edge_inputs) or test(test_canvas_empty_graph_has_no_executable_nodes) or test(approval_and_running_nodes_suspend_then_resume_the_same_durable_request) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(test_canvas_workflow_error_skips_downstream_nodes) or test(test_schedule_trigger_disabled_parent_workflow_safely_advances) or test(test_canvas_linear_chain)"
         ],
         "testFilter": [
           "account_orders_stream_completes"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "7a1765c2",
+        "verifiedAt": "2026-09-25T18:39:36Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -103753,20 +103750,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(explicit_access_modes_project_their_declared_tool_sets) or test(a_failed_tool_result_is_persisted_on_the_call_not_the_run) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(account_orders_stream_completes) or test(composition_recovers_transient_provider_failure_without_losing_stream_or_usage) or test(a_completed_run_with_a_failed_tool_replays_as_a_stream_final_frame) or test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(graph_exposes_one_deterministic_ready_task) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(test_cycle_detection_and_invalid_graph_permutations_reject_with_clean_400) or test(approval_resolution_is_idempotent_and_conflict_safe) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(first_tool_call_failure_matches_the_go_selection_rules) or test(stale_tool_completion_is_rejected_after_keyed_takeover) or test(input_answers_are_canonicalized_by_question_order_and_invalid_answers_are_rejected) or test(simultaneous_input_request_calls_fail_the_run_instead_of_parking) or test(test_canvas_unreachable_agent) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(test_canvas_workflow_multi_node_execution_and_context_propagation) or test(test_canvas_diamond_graph_deterministic_tie_breaking) or test(test_canvas_workflow_cycle_detection_rejects_with_400) or test(test_canvas_workflow_self_loop_and_invalid_edges_rejected) or test(test_canvas_no_executable_nodes) or test(test_canvas_invalid_node_and_edge_inputs) or test(test_canvas_empty_graph_has_no_executable_nodes) or test(approval_and_running_nodes_suspend_then_resume_the_same_durable_request) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(test_canvas_workflow_error_skips_downstream_nodes) or test(test_schedule_trigger_disabled_parent_workflow_safely_advances) or test(test_canvas_linear_chain)"
         ],
         "testFilter": [
           "composition_recovers_transient_provider_failure_without_losing_stream_or_usage"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "7a1765c2",
+        "verifiedAt": "2026-09-25T18:39:36Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -103815,20 +103813,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(explicit_access_modes_project_their_declared_tool_sets) or test(a_failed_tool_result_is_persisted_on_the_call_not_the_run) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(account_orders_stream_completes) or test(composition_recovers_transient_provider_failure_without_losing_stream_or_usage) or test(a_completed_run_with_a_failed_tool_replays_as_a_stream_final_frame) or test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(graph_exposes_one_deterministic_ready_task) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(test_cycle_detection_and_invalid_graph_permutations_reject_with_clean_400) or test(approval_resolution_is_idempotent_and_conflict_safe) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(first_tool_call_failure_matches_the_go_selection_rules) or test(stale_tool_completion_is_rejected_after_keyed_takeover) or test(input_answers_are_canonicalized_by_question_order_and_invalid_answers_are_rejected) or test(simultaneous_input_request_calls_fail_the_run_instead_of_parking) or test(test_canvas_unreachable_agent) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(test_canvas_workflow_multi_node_execution_and_context_propagation) or test(test_canvas_diamond_graph_deterministic_tie_breaking) or test(test_canvas_workflow_cycle_detection_rejects_with_400) or test(test_canvas_workflow_self_loop_and_invalid_edges_rejected) or test(test_canvas_no_executable_nodes) or test(test_canvas_invalid_node_and_edge_inputs) or test(test_canvas_empty_graph_has_no_executable_nodes) or test(approval_and_running_nodes_suspend_then_resume_the_same_durable_request) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(test_canvas_workflow_error_skips_downstream_nodes) or test(test_schedule_trigger_disabled_parent_workflow_safely_advances) or test(test_canvas_linear_chain)"
         ],
         "testFilter": [
           "composition_recovers_transient_provider_failure_without_losing_stream_or_usage"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "7a1765c2",
+        "verifiedAt": "2026-09-25T18:39:36Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -103877,20 +103876,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(explicit_access_modes_project_their_declared_tool_sets) or test(a_failed_tool_result_is_persisted_on_the_call_not_the_run) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(account_orders_stream_completes) or test(composition_recovers_transient_provider_failure_without_losing_stream_or_usage) or test(a_completed_run_with_a_failed_tool_replays_as_a_stream_final_frame) or test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(graph_exposes_one_deterministic_ready_task) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(test_cycle_detection_and_invalid_graph_permutations_reject_with_clean_400) or test(approval_resolution_is_idempotent_and_conflict_safe) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(first_tool_call_failure_matches_the_go_selection_rules) or test(stale_tool_completion_is_rejected_after_keyed_takeover) or test(input_answers_are_canonicalized_by_question_order_and_invalid_answers_are_rejected) or test(simultaneous_input_request_calls_fail_the_run_instead_of_parking) or test(test_canvas_unreachable_agent) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(test_canvas_workflow_multi_node_execution_and_context_propagation) or test(test_canvas_diamond_graph_deterministic_tie_breaking) or test(test_canvas_workflow_cycle_detection_rejects_with_400) or test(test_canvas_workflow_self_loop_and_invalid_edges_rejected) or test(test_canvas_no_executable_nodes) or test(test_canvas_invalid_node_and_edge_inputs) or test(test_canvas_empty_graph_has_no_executable_nodes) or test(approval_and_running_nodes_suspend_then_resume_the_same_durable_request) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(test_canvas_workflow_error_skips_downstream_nodes) or test(test_schedule_trigger_disabled_parent_workflow_safely_advances) or test(test_canvas_linear_chain)"
         ],
         "testFilter": [
           "composition_recovers_transient_provider_failure_without_losing_stream_or_usage"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "7a1765c2",
+        "verifiedAt": "2026-09-25T18:39:36Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -103939,20 +103939,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(explicit_access_modes_project_their_declared_tool_sets) or test(a_failed_tool_result_is_persisted_on_the_call_not_the_run) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(account_orders_stream_completes) or test(composition_recovers_transient_provider_failure_without_losing_stream_or_usage) or test(a_completed_run_with_a_failed_tool_replays_as_a_stream_final_frame) or test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(graph_exposes_one_deterministic_ready_task) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(test_cycle_detection_and_invalid_graph_permutations_reject_with_clean_400) or test(approval_resolution_is_idempotent_and_conflict_safe) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(first_tool_call_failure_matches_the_go_selection_rules) or test(stale_tool_completion_is_rejected_after_keyed_takeover) or test(input_answers_are_canonicalized_by_question_order_and_invalid_answers_are_rejected) or test(simultaneous_input_request_calls_fail_the_run_instead_of_parking) or test(test_canvas_unreachable_agent) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(test_canvas_workflow_multi_node_execution_and_context_propagation) or test(test_canvas_diamond_graph_deterministic_tie_breaking) or test(test_canvas_workflow_cycle_detection_rejects_with_400) or test(test_canvas_workflow_self_loop_and_invalid_edges_rejected) or test(test_canvas_no_executable_nodes) or test(test_canvas_invalid_node_and_edge_inputs) or test(test_canvas_empty_graph_has_no_executable_nodes) or test(approval_and_running_nodes_suspend_then_resume_the_same_durable_request) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(test_canvas_workflow_error_skips_downstream_nodes) or test(test_schedule_trigger_disabled_parent_workflow_safely_advances) or test(test_canvas_linear_chain)"
         ],
         "testFilter": [
           "a_completed_run_with_a_failed_tool_replays_as_a_stream_final_frame"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "7a1765c2",
+        "verifiedAt": "2026-09-25T18:39:36Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -104001,20 +104002,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(explicit_access_modes_project_their_declared_tool_sets) or test(a_failed_tool_result_is_persisted_on_the_call_not_the_run) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(account_orders_stream_completes) or test(composition_recovers_transient_provider_failure_without_losing_stream_or_usage) or test(a_completed_run_with_a_failed_tool_replays_as_a_stream_final_frame) or test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(graph_exposes_one_deterministic_ready_task) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(test_cycle_detection_and_invalid_graph_permutations_reject_with_clean_400) or test(approval_resolution_is_idempotent_and_conflict_safe) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(first_tool_call_failure_matches_the_go_selection_rules) or test(stale_tool_completion_is_rejected_after_keyed_takeover) or test(input_answers_are_canonicalized_by_question_order_and_invalid_answers_are_rejected) or test(simultaneous_input_request_calls_fail_the_run_instead_of_parking) or test(test_canvas_unreachable_agent) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(test_canvas_workflow_multi_node_execution_and_context_propagation) or test(test_canvas_diamond_graph_deterministic_tie_breaking) or test(test_canvas_workflow_cycle_detection_rejects_with_400) or test(test_canvas_workflow_self_loop_and_invalid_edges_rejected) or test(test_canvas_no_executable_nodes) or test(test_canvas_invalid_node_and_edge_inputs) or test(test_canvas_empty_graph_has_no_executable_nodes) or test(approval_and_running_nodes_suspend_then_resume_the_same_durable_request) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(test_canvas_workflow_error_skips_downstream_nodes) or test(test_schedule_trigger_disabled_parent_workflow_safely_advances) or test(test_canvas_linear_chain)"
         ],
         "testFilter": [
           "a_cancelled_run_audits_run_cancelled_and_terminates_once"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "7a1765c2",
+        "verifiedAt": "2026-09-25T18:39:36Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -104063,20 +104065,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-assistant",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(explicit_access_modes_project_their_declared_tool_sets) or test(a_failed_tool_result_is_persisted_on_the_call_not_the_run) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(account_orders_stream_completes) or test(composition_recovers_transient_provider_failure_without_losing_stream_or_usage) or test(a_completed_run_with_a_failed_tool_replays_as_a_stream_final_frame) or test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(graph_exposes_one_deterministic_ready_task) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(test_cycle_detection_and_invalid_graph_permutations_reject_with_clean_400) or test(approval_resolution_is_idempotent_and_conflict_safe) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(first_tool_call_failure_matches_the_go_selection_rules) or test(stale_tool_completion_is_rejected_after_keyed_takeover) or test(input_answers_are_canonicalized_by_question_order_and_invalid_answers_are_rejected) or test(simultaneous_input_request_calls_fail_the_run_instead_of_parking) or test(test_canvas_unreachable_agent) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(test_canvas_workflow_multi_node_execution_and_context_propagation) or test(test_canvas_diamond_graph_deterministic_tie_breaking) or test(test_canvas_workflow_cycle_detection_rejects_with_400) or test(test_canvas_workflow_self_loop_and_invalid_edges_rejected) or test(test_canvas_no_executable_nodes) or test(test_canvas_invalid_node_and_edge_inputs) or test(test_canvas_empty_graph_has_no_executable_nodes) or test(approval_and_running_nodes_suspend_then_resume_the_same_durable_request) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(test_canvas_workflow_error_skips_downstream_nodes) or test(test_schedule_trigger_disabled_parent_workflow_safely_advances) or test(test_canvas_linear_chain)"
         ],
         "testFilter": [
           "graph_exposes_one_deterministic_ready_task"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "7a1765c2",
+        "verifiedAt": "2026-09-25T18:39:36Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -104125,20 +104128,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(explicit_access_modes_project_their_declared_tool_sets) or test(a_failed_tool_result_is_persisted_on_the_call_not_the_run) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(account_orders_stream_completes) or test(composition_recovers_transient_provider_failure_without_losing_stream_or_usage) or test(a_completed_run_with_a_failed_tool_replays_as_a_stream_final_frame) or test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(graph_exposes_one_deterministic_ready_task) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(test_cycle_detection_and_invalid_graph_permutations_reject_with_clean_400) or test(approval_resolution_is_idempotent_and_conflict_safe) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(first_tool_call_failure_matches_the_go_selection_rules) or test(stale_tool_completion_is_rejected_after_keyed_takeover) or test(input_answers_are_canonicalized_by_question_order_and_invalid_answers_are_rejected) or test(simultaneous_input_request_calls_fail_the_run_instead_of_parking) or test(test_canvas_unreachable_agent) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(test_canvas_workflow_multi_node_execution_and_context_propagation) or test(test_canvas_diamond_graph_deterministic_tie_breaking) or test(test_canvas_workflow_cycle_detection_rejects_with_400) or test(test_canvas_workflow_self_loop_and_invalid_edges_rejected) or test(test_canvas_no_executable_nodes) or test(test_canvas_invalid_node_and_edge_inputs) or test(test_canvas_empty_graph_has_no_executable_nodes) or test(approval_and_running_nodes_suspend_then_resume_the_same_durable_request) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(test_canvas_workflow_error_skips_downstream_nodes) or test(test_schedule_trigger_disabled_parent_workflow_safely_advances) or test(test_canvas_linear_chain)"
         ],
         "testFilter": [
           "a_restarted_runtime_resumes_a_pending_input_run"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "7a1765c2",
+        "verifiedAt": "2026-09-25T18:39:36Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -104187,20 +104191,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(explicit_access_modes_project_their_declared_tool_sets) or test(a_failed_tool_result_is_persisted_on_the_call_not_the_run) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(account_orders_stream_completes) or test(composition_recovers_transient_provider_failure_without_losing_stream_or_usage) or test(a_completed_run_with_a_failed_tool_replays_as_a_stream_final_frame) or test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(graph_exposes_one_deterministic_ready_task) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(test_cycle_detection_and_invalid_graph_permutations_reject_with_clean_400) or test(approval_resolution_is_idempotent_and_conflict_safe) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(first_tool_call_failure_matches_the_go_selection_rules) or test(stale_tool_completion_is_rejected_after_keyed_takeover) or test(input_answers_are_canonicalized_by_question_order_and_invalid_answers_are_rejected) or test(simultaneous_input_request_calls_fail_the_run_instead_of_parking) or test(test_canvas_unreachable_agent) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(test_canvas_workflow_multi_node_execution_and_context_propagation) or test(test_canvas_diamond_graph_deterministic_tie_breaking) or test(test_canvas_workflow_cycle_detection_rejects_with_400) or test(test_canvas_workflow_self_loop_and_invalid_edges_rejected) or test(test_canvas_no_executable_nodes) or test(test_canvas_invalid_node_and_edge_inputs) or test(test_canvas_empty_graph_has_no_executable_nodes) or test(approval_and_running_nodes_suspend_then_resume_the_same_durable_request) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(test_canvas_workflow_error_skips_downstream_nodes) or test(test_schedule_trigger_disabled_parent_workflow_safely_advances) or test(test_canvas_linear_chain)"
         ],
         "testFilter": [
           "test_cycle_detection_and_invalid_graph_permutations_reject_with_clean_400"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "7a1765c2",
+        "verifiedAt": "2026-09-25T18:39:36Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -104249,20 +104254,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-assistant",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(explicit_access_modes_project_their_declared_tool_sets) or test(a_failed_tool_result_is_persisted_on_the_call_not_the_run) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(account_orders_stream_completes) or test(composition_recovers_transient_provider_failure_without_losing_stream_or_usage) or test(a_completed_run_with_a_failed_tool_replays_as_a_stream_final_frame) or test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(graph_exposes_one_deterministic_ready_task) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(test_cycle_detection_and_invalid_graph_permutations_reject_with_clean_400) or test(approval_resolution_is_idempotent_and_conflict_safe) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(first_tool_call_failure_matches_the_go_selection_rules) or test(stale_tool_completion_is_rejected_after_keyed_takeover) or test(input_answers_are_canonicalized_by_question_order_and_invalid_answers_are_rejected) or test(simultaneous_input_request_calls_fail_the_run_instead_of_parking) or test(test_canvas_unreachable_agent) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(test_canvas_workflow_multi_node_execution_and_context_propagation) or test(test_canvas_diamond_graph_deterministic_tie_breaking) or test(test_canvas_workflow_cycle_detection_rejects_with_400) or test(test_canvas_workflow_self_loop_and_invalid_edges_rejected) or test(test_canvas_no_executable_nodes) or test(test_canvas_invalid_node_and_edge_inputs) or test(test_canvas_empty_graph_has_no_executable_nodes) or test(approval_and_running_nodes_suspend_then_resume_the_same_durable_request) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(test_canvas_workflow_error_skips_downstream_nodes) or test(test_schedule_trigger_disabled_parent_workflow_safely_advances) or test(test_canvas_linear_chain)"
         ],
         "testFilter": [
           "approval_resolution_is_idempotent_and_conflict_safe"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "7a1765c2",
+        "verifiedAt": "2026-09-25T18:39:36Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -104311,20 +104317,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(explicit_access_modes_project_their_declared_tool_sets) or test(a_failed_tool_result_is_persisted_on_the_call_not_the_run) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(account_orders_stream_completes) or test(composition_recovers_transient_provider_failure_without_losing_stream_or_usage) or test(a_completed_run_with_a_failed_tool_replays_as_a_stream_final_frame) or test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(graph_exposes_one_deterministic_ready_task) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(test_cycle_detection_and_invalid_graph_permutations_reject_with_clean_400) or test(approval_resolution_is_idempotent_and_conflict_safe) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(first_tool_call_failure_matches_the_go_selection_rules) or test(stale_tool_completion_is_rejected_after_keyed_takeover) or test(input_answers_are_canonicalized_by_question_order_and_invalid_answers_are_rejected) or test(simultaneous_input_request_calls_fail_the_run_instead_of_parking) or test(test_canvas_unreachable_agent) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(test_canvas_workflow_multi_node_execution_and_context_propagation) or test(test_canvas_diamond_graph_deterministic_tie_breaking) or test(test_canvas_workflow_cycle_detection_rejects_with_400) or test(test_canvas_workflow_self_loop_and_invalid_edges_rejected) or test(test_canvas_no_executable_nodes) or test(test_canvas_invalid_node_and_edge_inputs) or test(test_canvas_empty_graph_has_no_executable_nodes) or test(approval_and_running_nodes_suspend_then_resume_the_same_durable_request) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(test_canvas_workflow_error_skips_downstream_nodes) or test(test_schedule_trigger_disabled_parent_workflow_safely_advances) or test(test_canvas_linear_chain)"
         ],
         "testFilter": [
           "a_resumed_approval_run_completes_with_the_confirmation_resolved_state"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "7a1765c2",
+        "verifiedAt": "2026-09-25T18:39:36Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -104373,20 +104380,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(explicit_access_modes_project_their_declared_tool_sets) or test(a_failed_tool_result_is_persisted_on_the_call_not_the_run) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(account_orders_stream_completes) or test(composition_recovers_transient_provider_failure_without_losing_stream_or_usage) or test(a_completed_run_with_a_failed_tool_replays_as_a_stream_final_frame) or test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(graph_exposes_one_deterministic_ready_task) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(test_cycle_detection_and_invalid_graph_permutations_reject_with_clean_400) or test(approval_resolution_is_idempotent_and_conflict_safe) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(first_tool_call_failure_matches_the_go_selection_rules) or test(stale_tool_completion_is_rejected_after_keyed_takeover) or test(input_answers_are_canonicalized_by_question_order_and_invalid_answers_are_rejected) or test(simultaneous_input_request_calls_fail_the_run_instead_of_parking) or test(test_canvas_unreachable_agent) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(test_canvas_workflow_multi_node_execution_and_context_propagation) or test(test_canvas_diamond_graph_deterministic_tie_breaking) or test(test_canvas_workflow_cycle_detection_rejects_with_400) or test(test_canvas_workflow_self_loop_and_invalid_edges_rejected) or test(test_canvas_no_executable_nodes) or test(test_canvas_invalid_node_and_edge_inputs) or test(test_canvas_empty_graph_has_no_executable_nodes) or test(approval_and_running_nodes_suspend_then_resume_the_same_durable_request) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(test_canvas_workflow_error_skips_downstream_nodes) or test(test_schedule_trigger_disabled_parent_workflow_safely_advances) or test(test_canvas_linear_chain)"
         ],
         "testFilter": [
           "first_tool_call_failure_matches_the_go_selection_rules"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "7a1765c2",
+        "verifiedAt": "2026-09-25T18:39:36Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -104441,10 +104449,11 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-assistant",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(explicit_access_modes_project_their_declared_tool_sets) or test(a_failed_tool_result_is_persisted_on_the_call_not_the_run) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(account_orders_stream_completes) or test(composition_recovers_transient_provider_failure_without_losing_stream_or_usage) or test(a_completed_run_with_a_failed_tool_replays_as_a_stream_final_frame) or test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(graph_exposes_one_deterministic_ready_task) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(test_cycle_detection_and_invalid_graph_permutations_reject_with_clean_400) or test(approval_resolution_is_idempotent_and_conflict_safe) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(first_tool_call_failure_matches_the_go_selection_rules) or test(stale_tool_completion_is_rejected_after_keyed_takeover) or test(input_answers_are_canonicalized_by_question_order_and_invalid_answers_are_rejected) or test(simultaneous_input_request_calls_fail_the_run_instead_of_parking) or test(test_canvas_unreachable_agent) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(test_canvas_workflow_multi_node_execution_and_context_propagation) or test(test_canvas_diamond_graph_deterministic_tie_breaking) or test(test_canvas_workflow_cycle_detection_rejects_with_400) or test(test_canvas_workflow_self_loop_and_invalid_edges_rejected) or test(test_canvas_no_executable_nodes) or test(test_canvas_invalid_node_and_edge_inputs) or test(test_canvas_empty_graph_has_no_executable_nodes) or test(approval_and_running_nodes_suspend_then_resume_the_same_durable_request) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(test_canvas_workflow_error_skips_downstream_nodes) or test(test_schedule_trigger_disabled_parent_workflow_safely_advances) or test(test_canvas_linear_chain)"
         ],
         "testFilter": [
           "approval_resolution_is_idempotent_and_conflict_safe",
@@ -104452,10 +104461,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "7a1765c2",
+        "verifiedAt": "2026-09-25T18:39:36Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -104504,20 +104513,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(explicit_access_modes_project_their_declared_tool_sets) or test(a_failed_tool_result_is_persisted_on_the_call_not_the_run) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(account_orders_stream_completes) or test(composition_recovers_transient_provider_failure_without_losing_stream_or_usage) or test(a_completed_run_with_a_failed_tool_replays_as_a_stream_final_frame) or test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(graph_exposes_one_deterministic_ready_task) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(test_cycle_detection_and_invalid_graph_permutations_reject_with_clean_400) or test(approval_resolution_is_idempotent_and_conflict_safe) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(first_tool_call_failure_matches_the_go_selection_rules) or test(stale_tool_completion_is_rejected_after_keyed_takeover) or test(input_answers_are_canonicalized_by_question_order_and_invalid_answers_are_rejected) or test(simultaneous_input_request_calls_fail_the_run_instead_of_parking) or test(test_canvas_unreachable_agent) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(test_canvas_workflow_multi_node_execution_and_context_propagation) or test(test_canvas_diamond_graph_deterministic_tie_breaking) or test(test_canvas_workflow_cycle_detection_rejects_with_400) or test(test_canvas_workflow_self_loop_and_invalid_edges_rejected) or test(test_canvas_no_executable_nodes) or test(test_canvas_invalid_node_and_edge_inputs) or test(test_canvas_empty_graph_has_no_executable_nodes) or test(approval_and_running_nodes_suspend_then_resume_the_same_durable_request) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(test_canvas_workflow_error_skips_downstream_nodes) or test(test_schedule_trigger_disabled_parent_workflow_safely_advances) or test(test_canvas_linear_chain)"
         ],
         "testFilter": [
           "input_answers_are_canonicalized_by_question_order_and_invalid_answers_are_rejected"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "7a1765c2",
+        "verifiedAt": "2026-09-25T18:39:36Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -104566,20 +104576,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(explicit_access_modes_project_their_declared_tool_sets) or test(a_failed_tool_result_is_persisted_on_the_call_not_the_run) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(account_orders_stream_completes) or test(composition_recovers_transient_provider_failure_without_losing_stream_or_usage) or test(a_completed_run_with_a_failed_tool_replays_as_a_stream_final_frame) or test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(graph_exposes_one_deterministic_ready_task) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(test_cycle_detection_and_invalid_graph_permutations_reject_with_clean_400) or test(approval_resolution_is_idempotent_and_conflict_safe) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(first_tool_call_failure_matches_the_go_selection_rules) or test(stale_tool_completion_is_rejected_after_keyed_takeover) or test(input_answers_are_canonicalized_by_question_order_and_invalid_answers_are_rejected) or test(simultaneous_input_request_calls_fail_the_run_instead_of_parking) or test(test_canvas_unreachable_agent) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(test_canvas_workflow_multi_node_execution_and_context_propagation) or test(test_canvas_diamond_graph_deterministic_tie_breaking) or test(test_canvas_workflow_cycle_detection_rejects_with_400) or test(test_canvas_workflow_self_loop_and_invalid_edges_rejected) or test(test_canvas_no_executable_nodes) or test(test_canvas_invalid_node_and_edge_inputs) or test(test_canvas_empty_graph_has_no_executable_nodes) or test(approval_and_running_nodes_suspend_then_resume_the_same_durable_request) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(test_canvas_workflow_error_skips_downstream_nodes) or test(test_schedule_trigger_disabled_parent_workflow_safely_advances) or test(test_canvas_linear_chain)"
         ],
         "testFilter": [
           "simultaneous_input_request_calls_fail_the_run_instead_of_parking"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "7a1765c2",
+        "verifiedAt": "2026-09-25T18:39:36Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -104628,20 +104639,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-assistant",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(explicit_access_modes_project_their_declared_tool_sets) or test(a_failed_tool_result_is_persisted_on_the_call_not_the_run) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(account_orders_stream_completes) or test(composition_recovers_transient_provider_failure_without_losing_stream_or_usage) or test(a_completed_run_with_a_failed_tool_replays_as_a_stream_final_frame) or test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(graph_exposes_one_deterministic_ready_task) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(test_cycle_detection_and_invalid_graph_permutations_reject_with_clean_400) or test(approval_resolution_is_idempotent_and_conflict_safe) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(first_tool_call_failure_matches_the_go_selection_rules) or test(stale_tool_completion_is_rejected_after_keyed_takeover) or test(input_answers_are_canonicalized_by_question_order_and_invalid_answers_are_rejected) or test(simultaneous_input_request_calls_fail_the_run_instead_of_parking) or test(test_canvas_unreachable_agent) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(test_canvas_workflow_multi_node_execution_and_context_propagation) or test(test_canvas_diamond_graph_deterministic_tie_breaking) or test(test_canvas_workflow_cycle_detection_rejects_with_400) or test(test_canvas_workflow_self_loop_and_invalid_edges_rejected) or test(test_canvas_no_executable_nodes) or test(test_canvas_invalid_node_and_edge_inputs) or test(test_canvas_empty_graph_has_no_executable_nodes) or test(approval_and_running_nodes_suspend_then_resume_the_same_durable_request) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(test_canvas_workflow_error_skips_downstream_nodes) or test(test_schedule_trigger_disabled_parent_workflow_safely_advances) or test(test_canvas_linear_chain)"
         ],
         "testFilter": [
           "graph_exposes_one_deterministic_ready_task"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "7a1765c2",
+        "verifiedAt": "2026-09-25T18:39:36Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -104690,20 +104702,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-assistant",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(explicit_access_modes_project_their_declared_tool_sets) or test(a_failed_tool_result_is_persisted_on_the_call_not_the_run) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(account_orders_stream_completes) or test(composition_recovers_transient_provider_failure_without_losing_stream_or_usage) or test(a_completed_run_with_a_failed_tool_replays_as_a_stream_final_frame) or test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(graph_exposes_one_deterministic_ready_task) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(test_cycle_detection_and_invalid_graph_permutations_reject_with_clean_400) or test(approval_resolution_is_idempotent_and_conflict_safe) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(first_tool_call_failure_matches_the_go_selection_rules) or test(stale_tool_completion_is_rejected_after_keyed_takeover) or test(input_answers_are_canonicalized_by_question_order_and_invalid_answers_are_rejected) or test(simultaneous_input_request_calls_fail_the_run_instead_of_parking) or test(test_canvas_unreachable_agent) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(test_canvas_workflow_multi_node_execution_and_context_propagation) or test(test_canvas_diamond_graph_deterministic_tie_breaking) or test(test_canvas_workflow_cycle_detection_rejects_with_400) or test(test_canvas_workflow_self_loop_and_invalid_edges_rejected) or test(test_canvas_no_executable_nodes) or test(test_canvas_invalid_node_and_edge_inputs) or test(test_canvas_empty_graph_has_no_executable_nodes) or test(approval_and_running_nodes_suspend_then_resume_the_same_durable_request) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(test_canvas_workflow_error_skips_downstream_nodes) or test(test_schedule_trigger_disabled_parent_workflow_safely_advances) or test(test_canvas_linear_chain)"
         ],
         "testFilter": [
           "test_canvas_unreachable_agent"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "7a1765c2",
+        "verifiedAt": "2026-09-25T18:39:36Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -104752,20 +104765,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-assistant",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(explicit_access_modes_project_their_declared_tool_sets) or test(a_failed_tool_result_is_persisted_on_the_call_not_the_run) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(account_orders_stream_completes) or test(composition_recovers_transient_provider_failure_without_losing_stream_or_usage) or test(a_completed_run_with_a_failed_tool_replays_as_a_stream_final_frame) or test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(graph_exposes_one_deterministic_ready_task) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(test_cycle_detection_and_invalid_graph_permutations_reject_with_clean_400) or test(approval_resolution_is_idempotent_and_conflict_safe) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(first_tool_call_failure_matches_the_go_selection_rules) or test(stale_tool_completion_is_rejected_after_keyed_takeover) or test(input_answers_are_canonicalized_by_question_order_and_invalid_answers_are_rejected) or test(simultaneous_input_request_calls_fail_the_run_instead_of_parking) or test(test_canvas_unreachable_agent) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(test_canvas_workflow_multi_node_execution_and_context_propagation) or test(test_canvas_diamond_graph_deterministic_tie_breaking) or test(test_canvas_workflow_cycle_detection_rejects_with_400) or test(test_canvas_workflow_self_loop_and_invalid_edges_rejected) or test(test_canvas_no_executable_nodes) or test(test_canvas_invalid_node_and_edge_inputs) or test(test_canvas_empty_graph_has_no_executable_nodes) or test(approval_and_running_nodes_suspend_then_resume_the_same_durable_request) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(test_canvas_workflow_error_skips_downstream_nodes) or test(test_schedule_trigger_disabled_parent_workflow_safely_advances) or test(test_canvas_linear_chain)"
         ],
         "testFilter": [
           "approval_resolution_is_idempotent_and_conflict_safe"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "7a1765c2",
+        "verifiedAt": "2026-09-25T18:39:36Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -104876,20 +104890,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(explicit_access_modes_project_their_declared_tool_sets) or test(a_failed_tool_result_is_persisted_on_the_call_not_the_run) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(account_orders_stream_completes) or test(composition_recovers_transient_provider_failure_without_losing_stream_or_usage) or test(a_completed_run_with_a_failed_tool_replays_as_a_stream_final_frame) or test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(graph_exposes_one_deterministic_ready_task) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(test_cycle_detection_and_invalid_graph_permutations_reject_with_clean_400) or test(approval_resolution_is_idempotent_and_conflict_safe) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(first_tool_call_failure_matches_the_go_selection_rules) or test(stale_tool_completion_is_rejected_after_keyed_takeover) or test(input_answers_are_canonicalized_by_question_order_and_invalid_answers_are_rejected) or test(simultaneous_input_request_calls_fail_the_run_instead_of_parking) or test(test_canvas_unreachable_agent) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(test_canvas_workflow_multi_node_execution_and_context_propagation) or test(test_canvas_diamond_graph_deterministic_tie_breaking) or test(test_canvas_workflow_cycle_detection_rejects_with_400) or test(test_canvas_workflow_self_loop_and_invalid_edges_rejected) or test(test_canvas_no_executable_nodes) or test(test_canvas_invalid_node_and_edge_inputs) or test(test_canvas_empty_graph_has_no_executable_nodes) or test(approval_and_running_nodes_suspend_then_resume_the_same_durable_request) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(test_canvas_workflow_error_skips_downstream_nodes) or test(test_schedule_trigger_disabled_parent_workflow_safely_advances) or test(test_canvas_linear_chain)"
         ],
         "testFilter": [
           "workflow_manager_failures_surface_verbatim_on_every_workflow_route"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "7a1765c2",
+        "verifiedAt": "2026-09-25T18:39:36Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -104949,10 +104964,11 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(explicit_access_modes_project_their_declared_tool_sets) or test(a_failed_tool_result_is_persisted_on_the_call_not_the_run) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(account_orders_stream_completes) or test(composition_recovers_transient_provider_failure_without_losing_stream_or_usage) or test(a_completed_run_with_a_failed_tool_replays_as_a_stream_final_frame) or test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(graph_exposes_one_deterministic_ready_task) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(test_cycle_detection_and_invalid_graph_permutations_reject_with_clean_400) or test(approval_resolution_is_idempotent_and_conflict_safe) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(first_tool_call_failure_matches_the_go_selection_rules) or test(stale_tool_completion_is_rejected_after_keyed_takeover) or test(input_answers_are_canonicalized_by_question_order_and_invalid_answers_are_rejected) or test(simultaneous_input_request_calls_fail_the_run_instead_of_parking) or test(test_canvas_unreachable_agent) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(test_canvas_workflow_multi_node_execution_and_context_propagation) or test(test_canvas_diamond_graph_deterministic_tie_breaking) or test(test_canvas_workflow_cycle_detection_rejects_with_400) or test(test_canvas_workflow_self_loop_and_invalid_edges_rejected) or test(test_canvas_no_executable_nodes) or test(test_canvas_invalid_node_and_edge_inputs) or test(test_canvas_empty_graph_has_no_executable_nodes) or test(approval_and_running_nodes_suspend_then_resume_the_same_durable_request) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(test_canvas_workflow_error_skips_downstream_nodes) or test(test_schedule_trigger_disabled_parent_workflow_safely_advances) or test(test_canvas_linear_chain)"
         ],
         "testFilter": [
           "test_canvas_workflow_multi_node_execution_and_context_propagation",
@@ -104960,10 +104976,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "7a1765c2",
+        "verifiedAt": "2026-09-25T18:39:36Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -105072,15 +105088,11 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
-          "-p",
-          "jftrade-assistant",
+          "--workspace",
           "--all-targets",
           "--locked",
-          "--no-fail-fast",
           "-E",
-          "test(canvas)"
+          "test(explicit_access_modes_project_their_declared_tool_sets) or test(a_failed_tool_result_is_persisted_on_the_call_not_the_run) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(account_orders_stream_completes) or test(composition_recovers_transient_provider_failure_without_losing_stream_or_usage) or test(a_completed_run_with_a_failed_tool_replays_as_a_stream_final_frame) or test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(graph_exposes_one_deterministic_ready_task) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(test_cycle_detection_and_invalid_graph_permutations_reject_with_clean_400) or test(approval_resolution_is_idempotent_and_conflict_safe) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(first_tool_call_failure_matches_the_go_selection_rules) or test(stale_tool_completion_is_rejected_after_keyed_takeover) or test(input_answers_are_canonicalized_by_question_order_and_invalid_answers_are_rejected) or test(simultaneous_input_request_calls_fail_the_run_instead_of_parking) or test(test_canvas_unreachable_agent) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(test_canvas_workflow_multi_node_execution_and_context_propagation) or test(test_canvas_diamond_graph_deterministic_tie_breaking) or test(test_canvas_workflow_cycle_detection_rejects_with_400) or test(test_canvas_workflow_self_loop_and_invalid_edges_rejected) or test(test_canvas_no_executable_nodes) or test(test_canvas_invalid_node_and_edge_inputs) or test(test_canvas_empty_graph_has_no_executable_nodes) or test(approval_and_running_nodes_suspend_then_resume_the_same_durable_request) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(test_canvas_workflow_error_skips_downstream_nodes) or test(test_schedule_trigger_disabled_parent_workflow_safely_advances) or test(test_canvas_linear_chain)"
         ],
         "testFilter": [
           "test_canvas_workflow_cycle_detection_rejects_with_400",
@@ -105092,10 +105104,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "7a1765c2",
+        "verifiedAt": "2026-09-25T18:39:36Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -105149,20 +105161,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(explicit_access_modes_project_their_declared_tool_sets) or test(a_failed_tool_result_is_persisted_on_the_call_not_the_run) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(account_orders_stream_completes) or test(composition_recovers_transient_provider_failure_without_losing_stream_or_usage) or test(a_completed_run_with_a_failed_tool_replays_as_a_stream_final_frame) or test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(graph_exposes_one_deterministic_ready_task) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(test_cycle_detection_and_invalid_graph_permutations_reject_with_clean_400) or test(approval_resolution_is_idempotent_and_conflict_safe) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(first_tool_call_failure_matches_the_go_selection_rules) or test(stale_tool_completion_is_rejected_after_keyed_takeover) or test(input_answers_are_canonicalized_by_question_order_and_invalid_answers_are_rejected) or test(simultaneous_input_request_calls_fail_the_run_instead_of_parking) or test(test_canvas_unreachable_agent) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(test_canvas_workflow_multi_node_execution_and_context_propagation) or test(test_canvas_diamond_graph_deterministic_tie_breaking) or test(test_canvas_workflow_cycle_detection_rejects_with_400) or test(test_canvas_workflow_self_loop_and_invalid_edges_rejected) or test(test_canvas_no_executable_nodes) or test(test_canvas_invalid_node_and_edge_inputs) or test(test_canvas_empty_graph_has_no_executable_nodes) or test(approval_and_running_nodes_suspend_then_resume_the_same_durable_request) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(test_canvas_workflow_error_skips_downstream_nodes) or test(test_schedule_trigger_disabled_parent_workflow_safely_advances) or test(test_canvas_linear_chain)"
         ],
         "testFilter": [
           "test_canvas_workflow_multi_node_execution_and_context_propagation"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "7a1765c2",
+        "verifiedAt": "2026-09-25T18:39:36Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -105216,20 +105229,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(explicit_access_modes_project_their_declared_tool_sets) or test(a_failed_tool_result_is_persisted_on_the_call_not_the_run) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(account_orders_stream_completes) or test(composition_recovers_transient_provider_failure_without_losing_stream_or_usage) or test(a_completed_run_with_a_failed_tool_replays_as_a_stream_final_frame) or test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(graph_exposes_one_deterministic_ready_task) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(test_cycle_detection_and_invalid_graph_permutations_reject_with_clean_400) or test(approval_resolution_is_idempotent_and_conflict_safe) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(first_tool_call_failure_matches_the_go_selection_rules) or test(stale_tool_completion_is_rejected_after_keyed_takeover) or test(input_answers_are_canonicalized_by_question_order_and_invalid_answers_are_rejected) or test(simultaneous_input_request_calls_fail_the_run_instead_of_parking) or test(test_canvas_unreachable_agent) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(test_canvas_workflow_multi_node_execution_and_context_propagation) or test(test_canvas_diamond_graph_deterministic_tie_breaking) or test(test_canvas_workflow_cycle_detection_rejects_with_400) or test(test_canvas_workflow_self_loop_and_invalid_edges_rejected) or test(test_canvas_no_executable_nodes) or test(test_canvas_invalid_node_and_edge_inputs) or test(test_canvas_empty_graph_has_no_executable_nodes) or test(approval_and_running_nodes_suspend_then_resume_the_same_durable_request) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(test_canvas_workflow_error_skips_downstream_nodes) or test(test_schedule_trigger_disabled_parent_workflow_safely_advances) or test(test_canvas_linear_chain)"
         ],
         "testFilter": [
           "approval_and_running_nodes_suspend_then_resume_the_same_durable_request"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "7a1765c2",
+        "verifiedAt": "2026-09-25T18:39:36Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -105283,20 +105297,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(explicit_access_modes_project_their_declared_tool_sets) or test(a_failed_tool_result_is_persisted_on_the_call_not_the_run) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(account_orders_stream_completes) or test(composition_recovers_transient_provider_failure_without_losing_stream_or_usage) or test(a_completed_run_with_a_failed_tool_replays_as_a_stream_final_frame) or test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(graph_exposes_one_deterministic_ready_task) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(test_cycle_detection_and_invalid_graph_permutations_reject_with_clean_400) or test(approval_resolution_is_idempotent_and_conflict_safe) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(first_tool_call_failure_matches_the_go_selection_rules) or test(stale_tool_completion_is_rejected_after_keyed_takeover) or test(input_answers_are_canonicalized_by_question_order_and_invalid_answers_are_rejected) or test(simultaneous_input_request_calls_fail_the_run_instead_of_parking) or test(test_canvas_unreachable_agent) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(test_canvas_workflow_multi_node_execution_and_context_propagation) or test(test_canvas_diamond_graph_deterministic_tie_breaking) or test(test_canvas_workflow_cycle_detection_rejects_with_400) or test(test_canvas_workflow_self_loop_and_invalid_edges_rejected) or test(test_canvas_no_executable_nodes) or test(test_canvas_invalid_node_and_edge_inputs) or test(test_canvas_empty_graph_has_no_executable_nodes) or test(approval_and_running_nodes_suspend_then_resume_the_same_durable_request) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(test_canvas_workflow_error_skips_downstream_nodes) or test(test_schedule_trigger_disabled_parent_workflow_safely_advances) or test(test_canvas_linear_chain)"
         ],
         "testFilter": [
           "workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "7a1765c2",
+        "verifiedAt": "2026-09-25T18:39:36Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -105407,20 +105422,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(explicit_access_modes_project_their_declared_tool_sets) or test(a_failed_tool_result_is_persisted_on_the_call_not_the_run) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(account_orders_stream_completes) or test(composition_recovers_transient_provider_failure_without_losing_stream_or_usage) or test(a_completed_run_with_a_failed_tool_replays_as_a_stream_final_frame) or test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(graph_exposes_one_deterministic_ready_task) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(test_cycle_detection_and_invalid_graph_permutations_reject_with_clean_400) or test(approval_resolution_is_idempotent_and_conflict_safe) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(first_tool_call_failure_matches_the_go_selection_rules) or test(stale_tool_completion_is_rejected_after_keyed_takeover) or test(input_answers_are_canonicalized_by_question_order_and_invalid_answers_are_rejected) or test(simultaneous_input_request_calls_fail_the_run_instead_of_parking) or test(test_canvas_unreachable_agent) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(test_canvas_workflow_multi_node_execution_and_context_propagation) or test(test_canvas_diamond_graph_deterministic_tie_breaking) or test(test_canvas_workflow_cycle_detection_rejects_with_400) or test(test_canvas_workflow_self_loop_and_invalid_edges_rejected) or test(test_canvas_no_executable_nodes) or test(test_canvas_invalid_node_and_edge_inputs) or test(test_canvas_empty_graph_has_no_executable_nodes) or test(approval_and_running_nodes_suspend_then_resume_the_same_durable_request) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(test_canvas_workflow_error_skips_downstream_nodes) or test(test_schedule_trigger_disabled_parent_workflow_safely_advances) or test(test_canvas_linear_chain)"
         ],
         "testFilter": [
           "test_canvas_workflow_error_skips_downstream_nodes"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "7a1765c2",
+        "verifiedAt": "2026-09-25T18:39:36Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -105469,20 +105485,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(explicit_access_modes_project_their_declared_tool_sets) or test(a_failed_tool_result_is_persisted_on_the_call_not_the_run) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(account_orders_stream_completes) or test(composition_recovers_transient_provider_failure_without_losing_stream_or_usage) or test(a_completed_run_with_a_failed_tool_replays_as_a_stream_final_frame) or test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(graph_exposes_one_deterministic_ready_task) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(test_cycle_detection_and_invalid_graph_permutations_reject_with_clean_400) or test(approval_resolution_is_idempotent_and_conflict_safe) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(first_tool_call_failure_matches_the_go_selection_rules) or test(stale_tool_completion_is_rejected_after_keyed_takeover) or test(input_answers_are_canonicalized_by_question_order_and_invalid_answers_are_rejected) or test(simultaneous_input_request_calls_fail_the_run_instead_of_parking) or test(test_canvas_unreachable_agent) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(test_canvas_workflow_multi_node_execution_and_context_propagation) or test(test_canvas_diamond_graph_deterministic_tie_breaking) or test(test_canvas_workflow_cycle_detection_rejects_with_400) or test(test_canvas_workflow_self_loop_and_invalid_edges_rejected) or test(test_canvas_no_executable_nodes) or test(test_canvas_invalid_node_and_edge_inputs) or test(test_canvas_empty_graph_has_no_executable_nodes) or test(approval_and_running_nodes_suspend_then_resume_the_same_durable_request) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(test_canvas_workflow_error_skips_downstream_nodes) or test(test_schedule_trigger_disabled_parent_workflow_safely_advances) or test(test_canvas_linear_chain)"
         ],
         "testFilter": [
           "test_schedule_trigger_disabled_parent_workflow_safely_advances"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "7a1765c2",
+        "verifiedAt": "2026-09-25T18:39:36Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -105536,20 +105553,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-assistant",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(explicit_access_modes_project_their_declared_tool_sets) or test(a_failed_tool_result_is_persisted_on_the_call_not_the_run) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(account_orders_stream_completes) or test(composition_recovers_transient_provider_failure_without_losing_stream_or_usage) or test(a_completed_run_with_a_failed_tool_replays_as_a_stream_final_frame) or test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(graph_exposes_one_deterministic_ready_task) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(test_cycle_detection_and_invalid_graph_permutations_reject_with_clean_400) or test(approval_resolution_is_idempotent_and_conflict_safe) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(first_tool_call_failure_matches_the_go_selection_rules) or test(stale_tool_completion_is_rejected_after_keyed_takeover) or test(input_answers_are_canonicalized_by_question_order_and_invalid_answers_are_rejected) or test(simultaneous_input_request_calls_fail_the_run_instead_of_parking) or test(test_canvas_unreachable_agent) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(test_canvas_workflow_multi_node_execution_and_context_propagation) or test(test_canvas_diamond_graph_deterministic_tie_breaking) or test(test_canvas_workflow_cycle_detection_rejects_with_400) or test(test_canvas_workflow_self_loop_and_invalid_edges_rejected) or test(test_canvas_no_executable_nodes) or test(test_canvas_invalid_node_and_edge_inputs) or test(test_canvas_empty_graph_has_no_executable_nodes) or test(approval_and_running_nodes_suspend_then_resume_the_same_durable_request) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(test_canvas_workflow_error_skips_downstream_nodes) or test(test_schedule_trigger_disabled_parent_workflow_safely_advances) or test(test_canvas_linear_chain)"
         ],
         "testFilter": [
           "test_canvas_diamond_graph_deterministic_tie_breaking"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "7a1765c2",
+        "verifiedAt": "2026-09-25T18:39:36Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -105603,20 +105621,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-assistant",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(explicit_access_modes_project_their_declared_tool_sets) or test(a_failed_tool_result_is_persisted_on_the_call_not_the_run) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(account_orders_stream_completes) or test(composition_recovers_transient_provider_failure_without_losing_stream_or_usage) or test(a_completed_run_with_a_failed_tool_replays_as_a_stream_final_frame) or test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(graph_exposes_one_deterministic_ready_task) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(test_cycle_detection_and_invalid_graph_permutations_reject_with_clean_400) or test(approval_resolution_is_idempotent_and_conflict_safe) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(first_tool_call_failure_matches_the_go_selection_rules) or test(stale_tool_completion_is_rejected_after_keyed_takeover) or test(input_answers_are_canonicalized_by_question_order_and_invalid_answers_are_rejected) or test(simultaneous_input_request_calls_fail_the_run_instead_of_parking) or test(test_canvas_unreachable_agent) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(test_canvas_workflow_multi_node_execution_and_context_propagation) or test(test_canvas_diamond_graph_deterministic_tie_breaking) or test(test_canvas_workflow_cycle_detection_rejects_with_400) or test(test_canvas_workflow_self_loop_and_invalid_edges_rejected) or test(test_canvas_no_executable_nodes) or test(test_canvas_invalid_node_and_edge_inputs) or test(test_canvas_empty_graph_has_no_executable_nodes) or test(approval_and_running_nodes_suspend_then_resume_the_same_durable_request) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(test_canvas_workflow_error_skips_downstream_nodes) or test(test_schedule_trigger_disabled_parent_workflow_safely_advances) or test(test_canvas_linear_chain)"
         ],
         "testFilter": [
           "test_canvas_linear_chain"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "7a1765c2",
+        "verifiedAt": "2026-09-25T18:39:36Z",
         "receiptDigest": null
       },
       "risk": "normal",

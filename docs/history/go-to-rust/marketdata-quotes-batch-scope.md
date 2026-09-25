@@ -1808,3 +1808,18 @@ ADK/Assistant 功能差异，先补失败回归测试再修改领域 owner。
 验证：动态生成本批过滤器运行 `pnpm run test:rust -- --no-fail-fast -E`（底层 `node scripts/quality/cargo-nextest.mjs run --workspace --all-targets --locked`），30/30 通过。
 
 下一片：继续剩余 P2 Assistant/Workflow/ADK runtime、tools、usage、workflow native integration 与 provider 条目，再转 API transport、MarketData/Quote、Storage/SQLite、Settings/Watchlist 与 Backtest/Calendar；helper/type-only 条目、`optional_bool_strict`、P1 `session_context_snapshot` 及其他无独立 Rust 测试条目仍保持未验证结论。
+
+## 第 211 批：workflow native integration、canvas execution 与 usage/tool continuation（2026-09-26）
+
+| 复核 | Go 测试范围 | Rust 证据 | P | 结论 |
+| :---: | --- | --- | :---: | --- |
+| [x] | `tools_test.go:743,775,837`; `usageprojection/projection_test.go:10,27,41` | explicit tool access modes, failed tool-call projection, account-order stream completion and transient provider usage recovery | P2 | partial：Rust gate/tool-deadline/compatibility owners cover policy, call failure and usage recovery; Go registry callbacks and local usage tracker helper are not a single equivalent runtime layer. |
+| [x] | `workflow_agent_native_integration_test.go:22,75,122,162`; `workflow_agent_runtime_branches_test.go:53` | native workflow partial/final output, consumer cancellation, branch/isolation, confirmation recreation and invalid graph rejection | P2 | partial：Rust input/workflow/canvas owners cover durable resume and graph safety; Go Google ADK native agent construction and event iterator wiring remain facade-specific. |
+| [x] | `workflow_agent_test.go:21,47,81,99,118,136,176,253,274` | interrupt-id approval matching, long-running resume, unmatched responses, consumed interrupt fencing, canonical input answers, simultaneous input failure, native agent graph and unreachable child | P2 | partial：Rust claims/input/canvas owners cover matching, CAS and fail-closed behavior; Go helper return shapes and native ADK node configuration are not one-to-one. |
+| [x] | `workflow_approval_test.go:9`; `workflow_canvas_test.go:11,60,133,167,223`; `workflow_child_test.go:79,137`; `workflow_compiler_test.go:25,51` | workflow manager error propagation, canvas fan-out/join/invalid graph/run/pause/provider failure, child callback transitions and compiler join/sequential edges | P2 | partial：Rust workflow canvas/scheduler/store owners cover graph, pause and parent transitions; Go manager facade and injected child/provider composition remain partial. |
+
+本批 30 条 P2 Go 映射对应 30 个去重后的 nextest 过滤器，Rust nextest 实际 **30/30** 通过（3443 skipped）。tool access/failure、usage recovery、native workflow streaming/cancellation/recreation、approval/input CAS、canvas graph execution/pause/failure、child callbacks 与 compiler edge semantics 均有 owner 证据；Go Google ADK iterator、registry callback、manager facade 和注入形状保持 `partial`，未把聚合测试升级为 exact。未发现需要先红后修的真实 Rust 功能差异。
+
+验证：动态生成本批过滤器运行 `pnpm run test:rust -- --no-fail-fast -E`（底层 `node scripts/quality/cargo-nextest.mjs run --workspace --all-targets --locked`），30/30 通过。
+
+下一片：继续剩余 P2 Assistant/Workflow/ADK workflow compiler/execution/goal、provider 与 runtime 条目，再转 API transport、MarketData/Quote、Storage/SQLite、Settings/Watchlist 与 Backtest/Calendar；helper/type-only 条目、`optional_bool_strict`、P1 `session_context_snapshot` 及其他无独立 Rust 测试条目仍保持未验证结论。
