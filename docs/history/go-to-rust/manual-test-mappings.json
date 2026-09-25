@@ -195563,18 +195563,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-integration-calendar"
+          "--all-targets",
+          "--locked",
+          "-E",
+          "test(default_registry_client_uses_the_calendar_fetch_timeout) or test(manual_override_status_and_session_window_boundaries_match_go) or test(validate_snapshot_rejects_the_go_boundary_table) or test(corrupt_cached_snapshots_are_rejected_with_the_go_conditions) or test(registered_provider_snapshots_pass_domain_validation_before_caching) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go) or test(restore_reports_malformed_cached_snapshot_with_its_path) or test(probe_budget_bounds_one_provider_call_without_hanging_the_manager) or test(invalid_cached_snapshot_is_discarded_deleted_and_replaced_by_builtin_rules) or test(probe_treats_an_empty_parse_as_structure_changed_unhealthy) or test(refresh_treats_an_empty_parse_as_structure_changed_failure) or test(network_timeout_variants_share_one_alert_fingerprint) or test(successful_probe_recovery_clears_the_recorded_fetch_failure) or test(probe_uses_market_local_year_when_us_crosses_utc_new_year) or test(cross_year_snapshot_is_cached_for_every_covered_year_and_summarised_once) or test(retries_transient_readiness_and_sends_optional_bearer) or test(test_research_screen_route_uses_production_helper_and_preserves_upstream_rate_limit) or test(candle_route_excludes_before_boundary_and_can_continue_loading_older_pages) or test(index_constituents_read_forwards_the_normalized_leaf_and_limit) or test(market_data_news_search_read_route_matches_group_fixture_in_cutover_only) or test(calendar_and_macro_propagate_capability_and_busy_errors) or test(economic_calendar_route_derives_date_and_time) or test(company_financials_forwards_market_symbol_and_statement) or test(research_screen_definition_rejects_unsupported_market_and_stable_keys) or test(rankings_limit_falls_back_to_legacy_limit_and_default) or test(candle_route_classifies_unknown_us_session_as_a_data_error) or test(research_screen_leaf_maps_invalid_provider_rows_to_bad_gateway) or test(decoder_rejects_unknown_and_trailing_json_before_the_port)"
         ],
         "testFilter": [
           "default_registry_client_uses_the_calendar_fetch_timeout"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "fe9ee7fa5fe27dc89d21a8a33694d44ec4aa09e0",
+        "verifiedAt": "2026-09-25T14:17:13Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -196473,18 +196475,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-calendar"
+          "--all-targets",
+          "--locked",
+          "-E",
+          "test(default_registry_client_uses_the_calendar_fetch_timeout) or test(manual_override_status_and_session_window_boundaries_match_go) or test(validate_snapshot_rejects_the_go_boundary_table) or test(corrupt_cached_snapshots_are_rejected_with_the_go_conditions) or test(registered_provider_snapshots_pass_domain_validation_before_caching) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go) or test(restore_reports_malformed_cached_snapshot_with_its_path) or test(probe_budget_bounds_one_provider_call_without_hanging_the_manager) or test(invalid_cached_snapshot_is_discarded_deleted_and_replaced_by_builtin_rules) or test(probe_treats_an_empty_parse_as_structure_changed_unhealthy) or test(refresh_treats_an_empty_parse_as_structure_changed_failure) or test(network_timeout_variants_share_one_alert_fingerprint) or test(successful_probe_recovery_clears_the_recorded_fetch_failure) or test(probe_uses_market_local_year_when_us_crosses_utc_new_year) or test(cross_year_snapshot_is_cached_for_every_covered_year_and_summarised_once) or test(retries_transient_readiness_and_sends_optional_bearer) or test(test_research_screen_route_uses_production_helper_and_preserves_upstream_rate_limit) or test(candle_route_excludes_before_boundary_and_can_continue_loading_older_pages) or test(index_constituents_read_forwards_the_normalized_leaf_and_limit) or test(market_data_news_search_read_route_matches_group_fixture_in_cutover_only) or test(calendar_and_macro_propagate_capability_and_busy_errors) or test(economic_calendar_route_derives_date_and_time) or test(company_financials_forwards_market_symbol_and_statement) or test(research_screen_definition_rejects_unsupported_market_and_stable_keys) or test(rankings_limit_falls_back_to_legacy_limit_and_default) or test(candle_route_classifies_unknown_us_session_as_a_data_error) or test(research_screen_leaf_maps_invalid_provider_rows_to_bad_gateway) or test(decoder_rejects_unknown_and_trailing_json_before_the_port)"
         ],
         "testFilter": [
           "manual_override_status_and_session_window_boundaries_match_go"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "fe9ee7fa5fe27dc89d21a8a33694d44ec4aa09e0",
+        "verifiedAt": "2026-09-25T14:17:13Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -196681,8 +196685,10 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-calendar"
+          "--all-targets",
+          "--locked",
+          "-E",
+          "test(default_registry_client_uses_the_calendar_fetch_timeout) or test(manual_override_status_and_session_window_boundaries_match_go) or test(validate_snapshot_rejects_the_go_boundary_table) or test(corrupt_cached_snapshots_are_rejected_with_the_go_conditions) or test(registered_provider_snapshots_pass_domain_validation_before_caching) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go) or test(restore_reports_malformed_cached_snapshot_with_its_path) or test(probe_budget_bounds_one_provider_call_without_hanging_the_manager) or test(invalid_cached_snapshot_is_discarded_deleted_and_replaced_by_builtin_rules) or test(probe_treats_an_empty_parse_as_structure_changed_unhealthy) or test(refresh_treats_an_empty_parse_as_structure_changed_failure) or test(network_timeout_variants_share_one_alert_fingerprint) or test(successful_probe_recovery_clears_the_recorded_fetch_failure) or test(probe_uses_market_local_year_when_us_crosses_utc_new_year) or test(cross_year_snapshot_is_cached_for_every_covered_year_and_summarised_once) or test(retries_transient_readiness_and_sends_optional_bearer) or test(test_research_screen_route_uses_production_helper_and_preserves_upstream_rate_limit) or test(candle_route_excludes_before_boundary_and_can_continue_loading_older_pages) or test(index_constituents_read_forwards_the_normalized_leaf_and_limit) or test(market_data_news_search_read_route_matches_group_fixture_in_cutover_only) or test(calendar_and_macro_propagate_capability_and_busy_errors) or test(economic_calendar_route_derives_date_and_time) or test(company_financials_forwards_market_symbol_and_statement) or test(research_screen_definition_rejects_unsupported_market_and_stable_keys) or test(rankings_limit_falls_back_to_legacy_limit_and_default) or test(candle_route_classifies_unknown_us_session_as_a_data_error) or test(research_screen_leaf_maps_invalid_provider_rows_to_bad_gateway) or test(decoder_rejects_unknown_and_trailing_json_before_the_port)"
         ],
         "testFilter": [
           "validate_snapshot_rejects_the_go_boundary_table",
@@ -196690,10 +196696,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "fe9ee7fa5fe27dc89d21a8a33694d44ec4aa09e0",
+        "verifiedAt": "2026-09-25T14:17:13Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -196747,18 +196753,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-calendar"
+          "--all-targets",
+          "--locked",
+          "-E",
+          "test(default_registry_client_uses_the_calendar_fetch_timeout) or test(manual_override_status_and_session_window_boundaries_match_go) or test(validate_snapshot_rejects_the_go_boundary_table) or test(corrupt_cached_snapshots_are_rejected_with_the_go_conditions) or test(registered_provider_snapshots_pass_domain_validation_before_caching) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go) or test(restore_reports_malformed_cached_snapshot_with_its_path) or test(probe_budget_bounds_one_provider_call_without_hanging_the_manager) or test(invalid_cached_snapshot_is_discarded_deleted_and_replaced_by_builtin_rules) or test(probe_treats_an_empty_parse_as_structure_changed_unhealthy) or test(refresh_treats_an_empty_parse_as_structure_changed_failure) or test(network_timeout_variants_share_one_alert_fingerprint) or test(successful_probe_recovery_clears_the_recorded_fetch_failure) or test(probe_uses_market_local_year_when_us_crosses_utc_new_year) or test(cross_year_snapshot_is_cached_for_every_covered_year_and_summarised_once) or test(retries_transient_readiness_and_sends_optional_bearer) or test(test_research_screen_route_uses_production_helper_and_preserves_upstream_rate_limit) or test(candle_route_excludes_before_boundary_and_can_continue_loading_older_pages) or test(index_constituents_read_forwards_the_normalized_leaf_and_limit) or test(market_data_news_search_read_route_matches_group_fixture_in_cutover_only) or test(calendar_and_macro_propagate_capability_and_busy_errors) or test(economic_calendar_route_derives_date_and_time) or test(company_financials_forwards_market_symbol_and_statement) or test(research_screen_definition_rejects_unsupported_market_and_stable_keys) or test(rankings_limit_falls_back_to_legacy_limit_and_default) or test(candle_route_classifies_unknown_us_session_as_a_data_error) or test(research_screen_leaf_maps_invalid_provider_rows_to_bad_gateway) or test(decoder_rejects_unknown_and_trailing_json_before_the_port)"
         ],
         "testFilter": [
           "registered_provider_snapshots_pass_domain_validation_before_caching"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "fe9ee7fa5fe27dc89d21a8a33694d44ec4aa09e0",
+        "verifiedAt": "2026-09-25T14:17:13Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -196812,18 +196820,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-calendar"
+          "--all-targets",
+          "--locked",
+          "-E",
+          "test(default_registry_client_uses_the_calendar_fetch_timeout) or test(manual_override_status_and_session_window_boundaries_match_go) or test(validate_snapshot_rejects_the_go_boundary_table) or test(corrupt_cached_snapshots_are_rejected_with_the_go_conditions) or test(registered_provider_snapshots_pass_domain_validation_before_caching) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go) or test(restore_reports_malformed_cached_snapshot_with_its_path) or test(probe_budget_bounds_one_provider_call_without_hanging_the_manager) or test(invalid_cached_snapshot_is_discarded_deleted_and_replaced_by_builtin_rules) or test(probe_treats_an_empty_parse_as_structure_changed_unhealthy) or test(refresh_treats_an_empty_parse_as_structure_changed_failure) or test(network_timeout_variants_share_one_alert_fingerprint) or test(successful_probe_recovery_clears_the_recorded_fetch_failure) or test(probe_uses_market_local_year_when_us_crosses_utc_new_year) or test(cross_year_snapshot_is_cached_for_every_covered_year_and_summarised_once) or test(retries_transient_readiness_and_sends_optional_bearer) or test(test_research_screen_route_uses_production_helper_and_preserves_upstream_rate_limit) or test(candle_route_excludes_before_boundary_and_can_continue_loading_older_pages) or test(index_constituents_read_forwards_the_normalized_leaf_and_limit) or test(market_data_news_search_read_route_matches_group_fixture_in_cutover_only) or test(calendar_and_macro_propagate_capability_and_busy_errors) or test(economic_calendar_route_derives_date_and_time) or test(company_financials_forwards_market_symbol_and_statement) or test(research_screen_definition_rejects_unsupported_market_and_stable_keys) or test(rankings_limit_falls_back_to_legacy_limit_and_default) or test(candle_route_classifies_unknown_us_session_as_a_data_error) or test(research_screen_leaf_maps_invalid_provider_rows_to_bad_gateway) or test(decoder_rejects_unknown_and_trailing_json_before_the_port)"
         ],
         "testFilter": [
           "cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "fe9ee7fa5fe27dc89d21a8a33694d44ec4aa09e0",
+        "verifiedAt": "2026-09-25T14:17:13Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -197208,20 +197218,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-calendar",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(restore_reports_malformed_cached_snapshot_with_its_path)"
+          "test(default_registry_client_uses_the_calendar_fetch_timeout) or test(manual_override_status_and_session_window_boundaries_match_go) or test(validate_snapshot_rejects_the_go_boundary_table) or test(corrupt_cached_snapshots_are_rejected_with_the_go_conditions) or test(registered_provider_snapshots_pass_domain_validation_before_caching) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go) or test(restore_reports_malformed_cached_snapshot_with_its_path) or test(probe_budget_bounds_one_provider_call_without_hanging_the_manager) or test(invalid_cached_snapshot_is_discarded_deleted_and_replaced_by_builtin_rules) or test(probe_treats_an_empty_parse_as_structure_changed_unhealthy) or test(refresh_treats_an_empty_parse_as_structure_changed_failure) or test(network_timeout_variants_share_one_alert_fingerprint) or test(successful_probe_recovery_clears_the_recorded_fetch_failure) or test(probe_uses_market_local_year_when_us_crosses_utc_new_year) or test(cross_year_snapshot_is_cached_for_every_covered_year_and_summarised_once) or test(retries_transient_readiness_and_sends_optional_bearer) or test(test_research_screen_route_uses_production_helper_and_preserves_upstream_rate_limit) or test(candle_route_excludes_before_boundary_and_can_continue_loading_older_pages) or test(index_constituents_read_forwards_the_normalized_leaf_and_limit) or test(market_data_news_search_read_route_matches_group_fixture_in_cutover_only) or test(calendar_and_macro_propagate_capability_and_busy_errors) or test(economic_calendar_route_derives_date_and_time) or test(company_financials_forwards_market_symbol_and_statement) or test(research_screen_definition_rejects_unsupported_market_and_stable_keys) or test(rankings_limit_falls_back_to_legacy_limit_and_default) or test(candle_route_classifies_unknown_us_session_as_a_data_error) or test(research_screen_leaf_maps_invalid_provider_rows_to_bad_gateway) or test(decoder_rejects_unknown_and_trailing_json_before_the_port)"
         ],
         "testFilter": [
           "restore_reports_malformed_cached_snapshot_with_its_path"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "fe9ee7fa5fe27dc89d21a8a33694d44ec4aa09e0",
+        "verifiedAt": "2026-09-25T14:17:13Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -197404,20 +197414,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-calendar",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(probe_budget_bounds_one_provider_call_without_hanging_the_manager)"
+          "test(default_registry_client_uses_the_calendar_fetch_timeout) or test(manual_override_status_and_session_window_boundaries_match_go) or test(validate_snapshot_rejects_the_go_boundary_table) or test(corrupt_cached_snapshots_are_rejected_with_the_go_conditions) or test(registered_provider_snapshots_pass_domain_validation_before_caching) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go) or test(restore_reports_malformed_cached_snapshot_with_its_path) or test(probe_budget_bounds_one_provider_call_without_hanging_the_manager) or test(invalid_cached_snapshot_is_discarded_deleted_and_replaced_by_builtin_rules) or test(probe_treats_an_empty_parse_as_structure_changed_unhealthy) or test(refresh_treats_an_empty_parse_as_structure_changed_failure) or test(network_timeout_variants_share_one_alert_fingerprint) or test(successful_probe_recovery_clears_the_recorded_fetch_failure) or test(probe_uses_market_local_year_when_us_crosses_utc_new_year) or test(cross_year_snapshot_is_cached_for_every_covered_year_and_summarised_once) or test(retries_transient_readiness_and_sends_optional_bearer) or test(test_research_screen_route_uses_production_helper_and_preserves_upstream_rate_limit) or test(candle_route_excludes_before_boundary_and_can_continue_loading_older_pages) or test(index_constituents_read_forwards_the_normalized_leaf_and_limit) or test(market_data_news_search_read_route_matches_group_fixture_in_cutover_only) or test(calendar_and_macro_propagate_capability_and_busy_errors) or test(economic_calendar_route_derives_date_and_time) or test(company_financials_forwards_market_symbol_and_statement) or test(research_screen_definition_rejects_unsupported_market_and_stable_keys) or test(rankings_limit_falls_back_to_legacy_limit_and_default) or test(candle_route_classifies_unknown_us_session_as_a_data_error) or test(research_screen_leaf_maps_invalid_provider_rows_to_bad_gateway) or test(decoder_rejects_unknown_and_trailing_json_before_the_port)"
         ],
         "testFilter": [
           "probe_budget_bounds_one_provider_call_without_hanging_the_manager"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "fe9ee7fa5fe27dc89d21a8a33694d44ec4aa09e0",
+        "verifiedAt": "2026-09-25T14:17:13Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -197806,20 +197816,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-calendar",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(invalid_cached_snapshot_is_discarded_deleted_and_replaced_by_builtin_rules)"
+          "test(default_registry_client_uses_the_calendar_fetch_timeout) or test(manual_override_status_and_session_window_boundaries_match_go) or test(validate_snapshot_rejects_the_go_boundary_table) or test(corrupt_cached_snapshots_are_rejected_with_the_go_conditions) or test(registered_provider_snapshots_pass_domain_validation_before_caching) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go) or test(restore_reports_malformed_cached_snapshot_with_its_path) or test(probe_budget_bounds_one_provider_call_without_hanging_the_manager) or test(invalid_cached_snapshot_is_discarded_deleted_and_replaced_by_builtin_rules) or test(probe_treats_an_empty_parse_as_structure_changed_unhealthy) or test(refresh_treats_an_empty_parse_as_structure_changed_failure) or test(network_timeout_variants_share_one_alert_fingerprint) or test(successful_probe_recovery_clears_the_recorded_fetch_failure) or test(probe_uses_market_local_year_when_us_crosses_utc_new_year) or test(cross_year_snapshot_is_cached_for_every_covered_year_and_summarised_once) or test(retries_transient_readiness_and_sends_optional_bearer) or test(test_research_screen_route_uses_production_helper_and_preserves_upstream_rate_limit) or test(candle_route_excludes_before_boundary_and_can_continue_loading_older_pages) or test(index_constituents_read_forwards_the_normalized_leaf_and_limit) or test(market_data_news_search_read_route_matches_group_fixture_in_cutover_only) or test(calendar_and_macro_propagate_capability_and_busy_errors) or test(economic_calendar_route_derives_date_and_time) or test(company_financials_forwards_market_symbol_and_statement) or test(research_screen_definition_rejects_unsupported_market_and_stable_keys) or test(rankings_limit_falls_back_to_legacy_limit_and_default) or test(candle_route_classifies_unknown_us_session_as_a_data_error) or test(research_screen_leaf_maps_invalid_provider_rows_to_bad_gateway) or test(decoder_rejects_unknown_and_trailing_json_before_the_port)"
         ],
         "testFilter": [
           "invalid_cached_snapshot_is_discarded_deleted_and_replaced_by_builtin_rules"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "fe9ee7fa5fe27dc89d21a8a33694d44ec4aa09e0",
+        "verifiedAt": "2026-09-25T14:17:13Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -197940,20 +197950,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-calendar",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(probe_treats_an_empty_parse_as_structure_changed_unhealthy)"
+          "test(default_registry_client_uses_the_calendar_fetch_timeout) or test(manual_override_status_and_session_window_boundaries_match_go) or test(validate_snapshot_rejects_the_go_boundary_table) or test(corrupt_cached_snapshots_are_rejected_with_the_go_conditions) or test(registered_provider_snapshots_pass_domain_validation_before_caching) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go) or test(restore_reports_malformed_cached_snapshot_with_its_path) or test(probe_budget_bounds_one_provider_call_without_hanging_the_manager) or test(invalid_cached_snapshot_is_discarded_deleted_and_replaced_by_builtin_rules) or test(probe_treats_an_empty_parse_as_structure_changed_unhealthy) or test(refresh_treats_an_empty_parse_as_structure_changed_failure) or test(network_timeout_variants_share_one_alert_fingerprint) or test(successful_probe_recovery_clears_the_recorded_fetch_failure) or test(probe_uses_market_local_year_when_us_crosses_utc_new_year) or test(cross_year_snapshot_is_cached_for_every_covered_year_and_summarised_once) or test(retries_transient_readiness_and_sends_optional_bearer) or test(test_research_screen_route_uses_production_helper_and_preserves_upstream_rate_limit) or test(candle_route_excludes_before_boundary_and_can_continue_loading_older_pages) or test(index_constituents_read_forwards_the_normalized_leaf_and_limit) or test(market_data_news_search_read_route_matches_group_fixture_in_cutover_only) or test(calendar_and_macro_propagate_capability_and_busy_errors) or test(economic_calendar_route_derives_date_and_time) or test(company_financials_forwards_market_symbol_and_statement) or test(research_screen_definition_rejects_unsupported_market_and_stable_keys) or test(rankings_limit_falls_back_to_legacy_limit_and_default) or test(candle_route_classifies_unknown_us_session_as_a_data_error) or test(research_screen_leaf_maps_invalid_provider_rows_to_bad_gateway) or test(decoder_rejects_unknown_and_trailing_json_before_the_port)"
         ],
         "testFilter": [
           "probe_treats_an_empty_parse_as_structure_changed_unhealthy"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "fe9ee7fa5fe27dc89d21a8a33694d44ec4aa09e0",
+        "verifiedAt": "2026-09-25T14:17:13Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -198007,20 +198017,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-calendar",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(refresh_treats_an_empty_parse_as_structure_changed_failure)"
+          "test(default_registry_client_uses_the_calendar_fetch_timeout) or test(manual_override_status_and_session_window_boundaries_match_go) or test(validate_snapshot_rejects_the_go_boundary_table) or test(corrupt_cached_snapshots_are_rejected_with_the_go_conditions) or test(registered_provider_snapshots_pass_domain_validation_before_caching) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go) or test(restore_reports_malformed_cached_snapshot_with_its_path) or test(probe_budget_bounds_one_provider_call_without_hanging_the_manager) or test(invalid_cached_snapshot_is_discarded_deleted_and_replaced_by_builtin_rules) or test(probe_treats_an_empty_parse_as_structure_changed_unhealthy) or test(refresh_treats_an_empty_parse_as_structure_changed_failure) or test(network_timeout_variants_share_one_alert_fingerprint) or test(successful_probe_recovery_clears_the_recorded_fetch_failure) or test(probe_uses_market_local_year_when_us_crosses_utc_new_year) or test(cross_year_snapshot_is_cached_for_every_covered_year_and_summarised_once) or test(retries_transient_readiness_and_sends_optional_bearer) or test(test_research_screen_route_uses_production_helper_and_preserves_upstream_rate_limit) or test(candle_route_excludes_before_boundary_and_can_continue_loading_older_pages) or test(index_constituents_read_forwards_the_normalized_leaf_and_limit) or test(market_data_news_search_read_route_matches_group_fixture_in_cutover_only) or test(calendar_and_macro_propagate_capability_and_busy_errors) or test(economic_calendar_route_derives_date_and_time) or test(company_financials_forwards_market_symbol_and_statement) or test(research_screen_definition_rejects_unsupported_market_and_stable_keys) or test(rankings_limit_falls_back_to_legacy_limit_and_default) or test(candle_route_classifies_unknown_us_session_as_a_data_error) or test(research_screen_leaf_maps_invalid_provider_rows_to_bad_gateway) or test(decoder_rejects_unknown_and_trailing_json_before_the_port)"
         ],
         "testFilter": [
           "refresh_treats_an_empty_parse_as_structure_changed_failure"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "fe9ee7fa5fe27dc89d21a8a33694d44ec4aa09e0",
+        "verifiedAt": "2026-09-25T14:17:13Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -198141,20 +198151,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-calendar",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(network_timeout_variants_share_one_alert_fingerprint)"
+          "test(default_registry_client_uses_the_calendar_fetch_timeout) or test(manual_override_status_and_session_window_boundaries_match_go) or test(validate_snapshot_rejects_the_go_boundary_table) or test(corrupt_cached_snapshots_are_rejected_with_the_go_conditions) or test(registered_provider_snapshots_pass_domain_validation_before_caching) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go) or test(restore_reports_malformed_cached_snapshot_with_its_path) or test(probe_budget_bounds_one_provider_call_without_hanging_the_manager) or test(invalid_cached_snapshot_is_discarded_deleted_and_replaced_by_builtin_rules) or test(probe_treats_an_empty_parse_as_structure_changed_unhealthy) or test(refresh_treats_an_empty_parse_as_structure_changed_failure) or test(network_timeout_variants_share_one_alert_fingerprint) or test(successful_probe_recovery_clears_the_recorded_fetch_failure) or test(probe_uses_market_local_year_when_us_crosses_utc_new_year) or test(cross_year_snapshot_is_cached_for_every_covered_year_and_summarised_once) or test(retries_transient_readiness_and_sends_optional_bearer) or test(test_research_screen_route_uses_production_helper_and_preserves_upstream_rate_limit) or test(candle_route_excludes_before_boundary_and_can_continue_loading_older_pages) or test(index_constituents_read_forwards_the_normalized_leaf_and_limit) or test(market_data_news_search_read_route_matches_group_fixture_in_cutover_only) or test(calendar_and_macro_propagate_capability_and_busy_errors) or test(economic_calendar_route_derives_date_and_time) or test(company_financials_forwards_market_symbol_and_statement) or test(research_screen_definition_rejects_unsupported_market_and_stable_keys) or test(rankings_limit_falls_back_to_legacy_limit_and_default) or test(candle_route_classifies_unknown_us_session_as_a_data_error) or test(research_screen_leaf_maps_invalid_provider_rows_to_bad_gateway) or test(decoder_rejects_unknown_and_trailing_json_before_the_port)"
         ],
         "testFilter": [
           "network_timeout_variants_share_one_alert_fingerprint"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "fe9ee7fa5fe27dc89d21a8a33694d44ec4aa09e0",
+        "verifiedAt": "2026-09-25T14:17:13Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -198208,20 +198218,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-calendar",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(successful_probe_recovery_clears_the_recorded_fetch_failure)"
+          "test(default_registry_client_uses_the_calendar_fetch_timeout) or test(manual_override_status_and_session_window_boundaries_match_go) or test(validate_snapshot_rejects_the_go_boundary_table) or test(corrupt_cached_snapshots_are_rejected_with_the_go_conditions) or test(registered_provider_snapshots_pass_domain_validation_before_caching) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go) or test(restore_reports_malformed_cached_snapshot_with_its_path) or test(probe_budget_bounds_one_provider_call_without_hanging_the_manager) or test(invalid_cached_snapshot_is_discarded_deleted_and_replaced_by_builtin_rules) or test(probe_treats_an_empty_parse_as_structure_changed_unhealthy) or test(refresh_treats_an_empty_parse_as_structure_changed_failure) or test(network_timeout_variants_share_one_alert_fingerprint) or test(successful_probe_recovery_clears_the_recorded_fetch_failure) or test(probe_uses_market_local_year_when_us_crosses_utc_new_year) or test(cross_year_snapshot_is_cached_for_every_covered_year_and_summarised_once) or test(retries_transient_readiness_and_sends_optional_bearer) or test(test_research_screen_route_uses_production_helper_and_preserves_upstream_rate_limit) or test(candle_route_excludes_before_boundary_and_can_continue_loading_older_pages) or test(index_constituents_read_forwards_the_normalized_leaf_and_limit) or test(market_data_news_search_read_route_matches_group_fixture_in_cutover_only) or test(calendar_and_macro_propagate_capability_and_busy_errors) or test(economic_calendar_route_derives_date_and_time) or test(company_financials_forwards_market_symbol_and_statement) or test(research_screen_definition_rejects_unsupported_market_and_stable_keys) or test(rankings_limit_falls_back_to_legacy_limit_and_default) or test(candle_route_classifies_unknown_us_session_as_a_data_error) or test(research_screen_leaf_maps_invalid_provider_rows_to_bad_gateway) or test(decoder_rejects_unknown_and_trailing_json_before_the_port)"
         ],
         "testFilter": [
           "successful_probe_recovery_clears_the_recorded_fetch_failure"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "fe9ee7fa5fe27dc89d21a8a33694d44ec4aa09e0",
+        "verifiedAt": "2026-09-25T14:17:13Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -198543,20 +198553,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-calendar",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(probe_uses_market_local_year_when_us_crosses_utc_new_year)"
+          "test(default_registry_client_uses_the_calendar_fetch_timeout) or test(manual_override_status_and_session_window_boundaries_match_go) or test(validate_snapshot_rejects_the_go_boundary_table) or test(corrupt_cached_snapshots_are_rejected_with_the_go_conditions) or test(registered_provider_snapshots_pass_domain_validation_before_caching) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go) or test(restore_reports_malformed_cached_snapshot_with_its_path) or test(probe_budget_bounds_one_provider_call_without_hanging_the_manager) or test(invalid_cached_snapshot_is_discarded_deleted_and_replaced_by_builtin_rules) or test(probe_treats_an_empty_parse_as_structure_changed_unhealthy) or test(refresh_treats_an_empty_parse_as_structure_changed_failure) or test(network_timeout_variants_share_one_alert_fingerprint) or test(successful_probe_recovery_clears_the_recorded_fetch_failure) or test(probe_uses_market_local_year_when_us_crosses_utc_new_year) or test(cross_year_snapshot_is_cached_for_every_covered_year_and_summarised_once) or test(retries_transient_readiness_and_sends_optional_bearer) or test(test_research_screen_route_uses_production_helper_and_preserves_upstream_rate_limit) or test(candle_route_excludes_before_boundary_and_can_continue_loading_older_pages) or test(index_constituents_read_forwards_the_normalized_leaf_and_limit) or test(market_data_news_search_read_route_matches_group_fixture_in_cutover_only) or test(calendar_and_macro_propagate_capability_and_busy_errors) or test(economic_calendar_route_derives_date_and_time) or test(company_financials_forwards_market_symbol_and_statement) or test(research_screen_definition_rejects_unsupported_market_and_stable_keys) or test(rankings_limit_falls_back_to_legacy_limit_and_default) or test(candle_route_classifies_unknown_us_session_as_a_data_error) or test(research_screen_leaf_maps_invalid_provider_rows_to_bad_gateway) or test(decoder_rejects_unknown_and_trailing_json_before_the_port)"
         ],
         "testFilter": [
           "probe_uses_market_local_year_when_us_crosses_utc_new_year"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "fe9ee7fa5fe27dc89d21a8a33694d44ec4aa09e0",
+        "verifiedAt": "2026-09-25T14:17:13Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -198610,18 +198620,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-calendar"
+          "--all-targets",
+          "--locked",
+          "-E",
+          "test(default_registry_client_uses_the_calendar_fetch_timeout) or test(manual_override_status_and_session_window_boundaries_match_go) or test(validate_snapshot_rejects_the_go_boundary_table) or test(corrupt_cached_snapshots_are_rejected_with_the_go_conditions) or test(registered_provider_snapshots_pass_domain_validation_before_caching) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go) or test(restore_reports_malformed_cached_snapshot_with_its_path) or test(probe_budget_bounds_one_provider_call_without_hanging_the_manager) or test(invalid_cached_snapshot_is_discarded_deleted_and_replaced_by_builtin_rules) or test(probe_treats_an_empty_parse_as_structure_changed_unhealthy) or test(refresh_treats_an_empty_parse_as_structure_changed_failure) or test(network_timeout_variants_share_one_alert_fingerprint) or test(successful_probe_recovery_clears_the_recorded_fetch_failure) or test(probe_uses_market_local_year_when_us_crosses_utc_new_year) or test(cross_year_snapshot_is_cached_for_every_covered_year_and_summarised_once) or test(retries_transient_readiness_and_sends_optional_bearer) or test(test_research_screen_route_uses_production_helper_and_preserves_upstream_rate_limit) or test(candle_route_excludes_before_boundary_and_can_continue_loading_older_pages) or test(index_constituents_read_forwards_the_normalized_leaf_and_limit) or test(market_data_news_search_read_route_matches_group_fixture_in_cutover_only) or test(calendar_and_macro_propagate_capability_and_busy_errors) or test(economic_calendar_route_derives_date_and_time) or test(company_financials_forwards_market_symbol_and_statement) or test(research_screen_definition_rejects_unsupported_market_and_stable_keys) or test(rankings_limit_falls_back_to_legacy_limit_and_default) or test(candle_route_classifies_unknown_us_session_as_a_data_error) or test(research_screen_leaf_maps_invalid_provider_rows_to_bad_gateway) or test(decoder_rejects_unknown_and_trailing_json_before_the_port)"
         ],
         "testFilter": [
           "cross_year_snapshot_is_cached_for_every_covered_year_and_summarised_once"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "fe9ee7fa5fe27dc89d21a8a33694d44ec4aa09e0",
+        "verifiedAt": "2026-09-25T14:17:13Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -199206,20 +199218,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-integration-marketdata-helper",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(default_registry_client_uses_the_calendar_fetch_timeout) or test(manual_override_status_and_session_window_boundaries_match_go) or test(validate_snapshot_rejects_the_go_boundary_table) or test(corrupt_cached_snapshots_are_rejected_with_the_go_conditions) or test(registered_provider_snapshots_pass_domain_validation_before_caching) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go) or test(restore_reports_malformed_cached_snapshot_with_its_path) or test(probe_budget_bounds_one_provider_call_without_hanging_the_manager) or test(invalid_cached_snapshot_is_discarded_deleted_and_replaced_by_builtin_rules) or test(probe_treats_an_empty_parse_as_structure_changed_unhealthy) or test(refresh_treats_an_empty_parse_as_structure_changed_failure) or test(network_timeout_variants_share_one_alert_fingerprint) or test(successful_probe_recovery_clears_the_recorded_fetch_failure) or test(probe_uses_market_local_year_when_us_crosses_utc_new_year) or test(cross_year_snapshot_is_cached_for_every_covered_year_and_summarised_once) or test(retries_transient_readiness_and_sends_optional_bearer) or test(test_research_screen_route_uses_production_helper_and_preserves_upstream_rate_limit) or test(candle_route_excludes_before_boundary_and_can_continue_loading_older_pages) or test(index_constituents_read_forwards_the_normalized_leaf_and_limit) or test(market_data_news_search_read_route_matches_group_fixture_in_cutover_only) or test(calendar_and_macro_propagate_capability_and_busy_errors) or test(economic_calendar_route_derives_date_and_time) or test(company_financials_forwards_market_symbol_and_statement) or test(research_screen_definition_rejects_unsupported_market_and_stable_keys) or test(rankings_limit_falls_back_to_legacy_limit_and_default) or test(candle_route_classifies_unknown_us_session_as_a_data_error) or test(research_screen_leaf_maps_invalid_provider_rows_to_bad_gateway) or test(decoder_rejects_unknown_and_trailing_json_before_the_port)"
         ],
         "testFilter": [
           "retries_transient_readiness_and_sends_optional_bearer"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "fe9ee7fa5fe27dc89d21a8a33694d44ec4aa09e0",
+        "verifiedAt": "2026-09-25T14:17:13Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -199268,20 +199280,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(default_registry_client_uses_the_calendar_fetch_timeout) or test(manual_override_status_and_session_window_boundaries_match_go) or test(validate_snapshot_rejects_the_go_boundary_table) or test(corrupt_cached_snapshots_are_rejected_with_the_go_conditions) or test(registered_provider_snapshots_pass_domain_validation_before_caching) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go) or test(restore_reports_malformed_cached_snapshot_with_its_path) or test(probe_budget_bounds_one_provider_call_without_hanging_the_manager) or test(invalid_cached_snapshot_is_discarded_deleted_and_replaced_by_builtin_rules) or test(probe_treats_an_empty_parse_as_structure_changed_unhealthy) or test(refresh_treats_an_empty_parse_as_structure_changed_failure) or test(network_timeout_variants_share_one_alert_fingerprint) or test(successful_probe_recovery_clears_the_recorded_fetch_failure) or test(probe_uses_market_local_year_when_us_crosses_utc_new_year) or test(cross_year_snapshot_is_cached_for_every_covered_year_and_summarised_once) or test(retries_transient_readiness_and_sends_optional_bearer) or test(test_research_screen_route_uses_production_helper_and_preserves_upstream_rate_limit) or test(candle_route_excludes_before_boundary_and_can_continue_loading_older_pages) or test(index_constituents_read_forwards_the_normalized_leaf_and_limit) or test(market_data_news_search_read_route_matches_group_fixture_in_cutover_only) or test(calendar_and_macro_propagate_capability_and_busy_errors) or test(economic_calendar_route_derives_date_and_time) or test(company_financials_forwards_market_symbol_and_statement) or test(research_screen_definition_rejects_unsupported_market_and_stable_keys) or test(rankings_limit_falls_back_to_legacy_limit_and_default) or test(candle_route_classifies_unknown_us_session_as_a_data_error) or test(research_screen_leaf_maps_invalid_provider_rows_to_bad_gateway) or test(decoder_rejects_unknown_and_trailing_json_before_the_port)"
         ],
         "testFilter": [
           "test_research_screen_route_uses_production_helper_and_preserves_upstream_rate_limit"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "fe9ee7fa5fe27dc89d21a8a33694d44ec4aa09e0",
+        "verifiedAt": "2026-09-25T14:17:13Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -199702,20 +199714,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(default_registry_client_uses_the_calendar_fetch_timeout) or test(manual_override_status_and_session_window_boundaries_match_go) or test(validate_snapshot_rejects_the_go_boundary_table) or test(corrupt_cached_snapshots_are_rejected_with_the_go_conditions) or test(registered_provider_snapshots_pass_domain_validation_before_caching) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go) or test(restore_reports_malformed_cached_snapshot_with_its_path) or test(probe_budget_bounds_one_provider_call_without_hanging_the_manager) or test(invalid_cached_snapshot_is_discarded_deleted_and_replaced_by_builtin_rules) or test(probe_treats_an_empty_parse_as_structure_changed_unhealthy) or test(refresh_treats_an_empty_parse_as_structure_changed_failure) or test(network_timeout_variants_share_one_alert_fingerprint) or test(successful_probe_recovery_clears_the_recorded_fetch_failure) or test(probe_uses_market_local_year_when_us_crosses_utc_new_year) or test(cross_year_snapshot_is_cached_for_every_covered_year_and_summarised_once) or test(retries_transient_readiness_and_sends_optional_bearer) or test(test_research_screen_route_uses_production_helper_and_preserves_upstream_rate_limit) or test(candle_route_excludes_before_boundary_and_can_continue_loading_older_pages) or test(index_constituents_read_forwards_the_normalized_leaf_and_limit) or test(market_data_news_search_read_route_matches_group_fixture_in_cutover_only) or test(calendar_and_macro_propagate_capability_and_busy_errors) or test(economic_calendar_route_derives_date_and_time) or test(company_financials_forwards_market_symbol_and_statement) or test(research_screen_definition_rejects_unsupported_market_and_stable_keys) or test(rankings_limit_falls_back_to_legacy_limit_and_default) or test(candle_route_classifies_unknown_us_session_as_a_data_error) or test(research_screen_leaf_maps_invalid_provider_rows_to_bad_gateway) or test(decoder_rejects_unknown_and_trailing_json_before_the_port)"
         ],
         "testFilter": [
           "candle_route_excludes_before_boundary_and_can_continue_loading_older_pages"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "fe9ee7fa5fe27dc89d21a8a33694d44ec4aa09e0",
+        "verifiedAt": "2026-09-25T14:17:13Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -200012,20 +200024,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(default_registry_client_uses_the_calendar_fetch_timeout) or test(manual_override_status_and_session_window_boundaries_match_go) or test(validate_snapshot_rejects_the_go_boundary_table) or test(corrupt_cached_snapshots_are_rejected_with_the_go_conditions) or test(registered_provider_snapshots_pass_domain_validation_before_caching) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go) or test(restore_reports_malformed_cached_snapshot_with_its_path) or test(probe_budget_bounds_one_provider_call_without_hanging_the_manager) or test(invalid_cached_snapshot_is_discarded_deleted_and_replaced_by_builtin_rules) or test(probe_treats_an_empty_parse_as_structure_changed_unhealthy) or test(refresh_treats_an_empty_parse_as_structure_changed_failure) or test(network_timeout_variants_share_one_alert_fingerprint) or test(successful_probe_recovery_clears_the_recorded_fetch_failure) or test(probe_uses_market_local_year_when_us_crosses_utc_new_year) or test(cross_year_snapshot_is_cached_for_every_covered_year_and_summarised_once) or test(retries_transient_readiness_and_sends_optional_bearer) or test(test_research_screen_route_uses_production_helper_and_preserves_upstream_rate_limit) or test(candle_route_excludes_before_boundary_and_can_continue_loading_older_pages) or test(index_constituents_read_forwards_the_normalized_leaf_and_limit) or test(market_data_news_search_read_route_matches_group_fixture_in_cutover_only) or test(calendar_and_macro_propagate_capability_and_busy_errors) or test(economic_calendar_route_derives_date_and_time) or test(company_financials_forwards_market_symbol_and_statement) or test(research_screen_definition_rejects_unsupported_market_and_stable_keys) or test(rankings_limit_falls_back_to_legacy_limit_and_default) or test(candle_route_classifies_unknown_us_session_as_a_data_error) or test(research_screen_leaf_maps_invalid_provider_rows_to_bad_gateway) or test(decoder_rejects_unknown_and_trailing_json_before_the_port)"
         ],
         "testFilter": [
           "index_constituents_read_forwards_the_normalized_leaf_and_limit"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "fe9ee7fa5fe27dc89d21a8a33694d44ec4aa09e0",
+        "verifiedAt": "2026-09-25T14:17:13Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -200136,20 +200148,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(default_registry_client_uses_the_calendar_fetch_timeout) or test(manual_override_status_and_session_window_boundaries_match_go) or test(validate_snapshot_rejects_the_go_boundary_table) or test(corrupt_cached_snapshots_are_rejected_with_the_go_conditions) or test(registered_provider_snapshots_pass_domain_validation_before_caching) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go) or test(restore_reports_malformed_cached_snapshot_with_its_path) or test(probe_budget_bounds_one_provider_call_without_hanging_the_manager) or test(invalid_cached_snapshot_is_discarded_deleted_and_replaced_by_builtin_rules) or test(probe_treats_an_empty_parse_as_structure_changed_unhealthy) or test(refresh_treats_an_empty_parse_as_structure_changed_failure) or test(network_timeout_variants_share_one_alert_fingerprint) or test(successful_probe_recovery_clears_the_recorded_fetch_failure) or test(probe_uses_market_local_year_when_us_crosses_utc_new_year) or test(cross_year_snapshot_is_cached_for_every_covered_year_and_summarised_once) or test(retries_transient_readiness_and_sends_optional_bearer) or test(test_research_screen_route_uses_production_helper_and_preserves_upstream_rate_limit) or test(candle_route_excludes_before_boundary_and_can_continue_loading_older_pages) or test(index_constituents_read_forwards_the_normalized_leaf_and_limit) or test(market_data_news_search_read_route_matches_group_fixture_in_cutover_only) or test(calendar_and_macro_propagate_capability_and_busy_errors) or test(economic_calendar_route_derives_date_and_time) or test(company_financials_forwards_market_symbol_and_statement) or test(research_screen_definition_rejects_unsupported_market_and_stable_keys) or test(rankings_limit_falls_back_to_legacy_limit_and_default) or test(candle_route_classifies_unknown_us_session_as_a_data_error) or test(research_screen_leaf_maps_invalid_provider_rows_to_bad_gateway) or test(decoder_rejects_unknown_and_trailing_json_before_the_port)"
         ],
         "testFilter": [
           "market_data_news_search_read_route_matches_group_fixture_in_cutover_only"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "fe9ee7fa5fe27dc89d21a8a33694d44ec4aa09e0",
+        "verifiedAt": "2026-09-25T14:17:13Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -200384,20 +200396,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(default_registry_client_uses_the_calendar_fetch_timeout) or test(manual_override_status_and_session_window_boundaries_match_go) or test(validate_snapshot_rejects_the_go_boundary_table) or test(corrupt_cached_snapshots_are_rejected_with_the_go_conditions) or test(registered_provider_snapshots_pass_domain_validation_before_caching) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go) or test(restore_reports_malformed_cached_snapshot_with_its_path) or test(probe_budget_bounds_one_provider_call_without_hanging_the_manager) or test(invalid_cached_snapshot_is_discarded_deleted_and_replaced_by_builtin_rules) or test(probe_treats_an_empty_parse_as_structure_changed_unhealthy) or test(refresh_treats_an_empty_parse_as_structure_changed_failure) or test(network_timeout_variants_share_one_alert_fingerprint) or test(successful_probe_recovery_clears_the_recorded_fetch_failure) or test(probe_uses_market_local_year_when_us_crosses_utc_new_year) or test(cross_year_snapshot_is_cached_for_every_covered_year_and_summarised_once) or test(retries_transient_readiness_and_sends_optional_bearer) or test(test_research_screen_route_uses_production_helper_and_preserves_upstream_rate_limit) or test(candle_route_excludes_before_boundary_and_can_continue_loading_older_pages) or test(index_constituents_read_forwards_the_normalized_leaf_and_limit) or test(market_data_news_search_read_route_matches_group_fixture_in_cutover_only) or test(calendar_and_macro_propagate_capability_and_busy_errors) or test(economic_calendar_route_derives_date_and_time) or test(company_financials_forwards_market_symbol_and_statement) or test(research_screen_definition_rejects_unsupported_market_and_stable_keys) or test(rankings_limit_falls_back_to_legacy_limit_and_default) or test(candle_route_classifies_unknown_us_session_as_a_data_error) or test(research_screen_leaf_maps_invalid_provider_rows_to_bad_gateway) or test(decoder_rejects_unknown_and_trailing_json_before_the_port)"
         ],
         "testFilter": [
           "test_research_screen_route_uses_production_helper_and_preserves_upstream_rate_limit"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "fe9ee7fa5fe27dc89d21a8a33694d44ec4aa09e0",
+        "verifiedAt": "2026-09-25T14:17:13Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -200446,20 +200458,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(default_registry_client_uses_the_calendar_fetch_timeout) or test(manual_override_status_and_session_window_boundaries_match_go) or test(validate_snapshot_rejects_the_go_boundary_table) or test(corrupt_cached_snapshots_are_rejected_with_the_go_conditions) or test(registered_provider_snapshots_pass_domain_validation_before_caching) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go) or test(restore_reports_malformed_cached_snapshot_with_its_path) or test(probe_budget_bounds_one_provider_call_without_hanging_the_manager) or test(invalid_cached_snapshot_is_discarded_deleted_and_replaced_by_builtin_rules) or test(probe_treats_an_empty_parse_as_structure_changed_unhealthy) or test(refresh_treats_an_empty_parse_as_structure_changed_failure) or test(network_timeout_variants_share_one_alert_fingerprint) or test(successful_probe_recovery_clears_the_recorded_fetch_failure) or test(probe_uses_market_local_year_when_us_crosses_utc_new_year) or test(cross_year_snapshot_is_cached_for_every_covered_year_and_summarised_once) or test(retries_transient_readiness_and_sends_optional_bearer) or test(test_research_screen_route_uses_production_helper_and_preserves_upstream_rate_limit) or test(candle_route_excludes_before_boundary_and_can_continue_loading_older_pages) or test(index_constituents_read_forwards_the_normalized_leaf_and_limit) or test(market_data_news_search_read_route_matches_group_fixture_in_cutover_only) or test(calendar_and_macro_propagate_capability_and_busy_errors) or test(economic_calendar_route_derives_date_and_time) or test(company_financials_forwards_market_symbol_and_statement) or test(research_screen_definition_rejects_unsupported_market_and_stable_keys) or test(rankings_limit_falls_back_to_legacy_limit_and_default) or test(candle_route_classifies_unknown_us_session_as_a_data_error) or test(research_screen_leaf_maps_invalid_provider_rows_to_bad_gateway) or test(decoder_rejects_unknown_and_trailing_json_before_the_port)"
         ],
         "testFilter": [
           "calendar_and_macro_propagate_capability_and_busy_errors"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "fe9ee7fa5fe27dc89d21a8a33694d44ec4aa09e0",
+        "verifiedAt": "2026-09-25T14:17:13Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -200570,20 +200582,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(default_registry_client_uses_the_calendar_fetch_timeout) or test(manual_override_status_and_session_window_boundaries_match_go) or test(validate_snapshot_rejects_the_go_boundary_table) or test(corrupt_cached_snapshots_are_rejected_with_the_go_conditions) or test(registered_provider_snapshots_pass_domain_validation_before_caching) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go) or test(restore_reports_malformed_cached_snapshot_with_its_path) or test(probe_budget_bounds_one_provider_call_without_hanging_the_manager) or test(invalid_cached_snapshot_is_discarded_deleted_and_replaced_by_builtin_rules) or test(probe_treats_an_empty_parse_as_structure_changed_unhealthy) or test(refresh_treats_an_empty_parse_as_structure_changed_failure) or test(network_timeout_variants_share_one_alert_fingerprint) or test(successful_probe_recovery_clears_the_recorded_fetch_failure) or test(probe_uses_market_local_year_when_us_crosses_utc_new_year) or test(cross_year_snapshot_is_cached_for_every_covered_year_and_summarised_once) or test(retries_transient_readiness_and_sends_optional_bearer) or test(test_research_screen_route_uses_production_helper_and_preserves_upstream_rate_limit) or test(candle_route_excludes_before_boundary_and_can_continue_loading_older_pages) or test(index_constituents_read_forwards_the_normalized_leaf_and_limit) or test(market_data_news_search_read_route_matches_group_fixture_in_cutover_only) or test(calendar_and_macro_propagate_capability_and_busy_errors) or test(economic_calendar_route_derives_date_and_time) or test(company_financials_forwards_market_symbol_and_statement) or test(research_screen_definition_rejects_unsupported_market_and_stable_keys) or test(rankings_limit_falls_back_to_legacy_limit_and_default) or test(candle_route_classifies_unknown_us_session_as_a_data_error) or test(research_screen_leaf_maps_invalid_provider_rows_to_bad_gateway) or test(decoder_rejects_unknown_and_trailing_json_before_the_port)"
         ],
         "testFilter": [
           "economic_calendar_route_derives_date_and_time"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "fe9ee7fa5fe27dc89d21a8a33694d44ec4aa09e0",
+        "verifiedAt": "2026-09-25T14:17:13Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -200880,20 +200892,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(default_registry_client_uses_the_calendar_fetch_timeout) or test(manual_override_status_and_session_window_boundaries_match_go) or test(validate_snapshot_rejects_the_go_boundary_table) or test(corrupt_cached_snapshots_are_rejected_with_the_go_conditions) or test(registered_provider_snapshots_pass_domain_validation_before_caching) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go) or test(restore_reports_malformed_cached_snapshot_with_its_path) or test(probe_budget_bounds_one_provider_call_without_hanging_the_manager) or test(invalid_cached_snapshot_is_discarded_deleted_and_replaced_by_builtin_rules) or test(probe_treats_an_empty_parse_as_structure_changed_unhealthy) or test(refresh_treats_an_empty_parse_as_structure_changed_failure) or test(network_timeout_variants_share_one_alert_fingerprint) or test(successful_probe_recovery_clears_the_recorded_fetch_failure) or test(probe_uses_market_local_year_when_us_crosses_utc_new_year) or test(cross_year_snapshot_is_cached_for_every_covered_year_and_summarised_once) or test(retries_transient_readiness_and_sends_optional_bearer) or test(test_research_screen_route_uses_production_helper_and_preserves_upstream_rate_limit) or test(candle_route_excludes_before_boundary_and_can_continue_loading_older_pages) or test(index_constituents_read_forwards_the_normalized_leaf_and_limit) or test(market_data_news_search_read_route_matches_group_fixture_in_cutover_only) or test(calendar_and_macro_propagate_capability_and_busy_errors) or test(economic_calendar_route_derives_date_and_time) or test(company_financials_forwards_market_symbol_and_statement) or test(research_screen_definition_rejects_unsupported_market_and_stable_keys) or test(rankings_limit_falls_back_to_legacy_limit_and_default) or test(candle_route_classifies_unknown_us_session_as_a_data_error) or test(research_screen_leaf_maps_invalid_provider_rows_to_bad_gateway) or test(decoder_rejects_unknown_and_trailing_json_before_the_port)"
         ],
         "testFilter": [
           "company_financials_forwards_market_symbol_and_statement"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "fe9ee7fa5fe27dc89d21a8a33694d44ec4aa09e0",
+        "verifiedAt": "2026-09-25T14:17:13Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -201128,20 +201140,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(default_registry_client_uses_the_calendar_fetch_timeout) or test(manual_override_status_and_session_window_boundaries_match_go) or test(validate_snapshot_rejects_the_go_boundary_table) or test(corrupt_cached_snapshots_are_rejected_with_the_go_conditions) or test(registered_provider_snapshots_pass_domain_validation_before_caching) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go) or test(restore_reports_malformed_cached_snapshot_with_its_path) or test(probe_budget_bounds_one_provider_call_without_hanging_the_manager) or test(invalid_cached_snapshot_is_discarded_deleted_and_replaced_by_builtin_rules) or test(probe_treats_an_empty_parse_as_structure_changed_unhealthy) or test(refresh_treats_an_empty_parse_as_structure_changed_failure) or test(network_timeout_variants_share_one_alert_fingerprint) or test(successful_probe_recovery_clears_the_recorded_fetch_failure) or test(probe_uses_market_local_year_when_us_crosses_utc_new_year) or test(cross_year_snapshot_is_cached_for_every_covered_year_and_summarised_once) or test(retries_transient_readiness_and_sends_optional_bearer) or test(test_research_screen_route_uses_production_helper_and_preserves_upstream_rate_limit) or test(candle_route_excludes_before_boundary_and_can_continue_loading_older_pages) or test(index_constituents_read_forwards_the_normalized_leaf_and_limit) or test(market_data_news_search_read_route_matches_group_fixture_in_cutover_only) or test(calendar_and_macro_propagate_capability_and_busy_errors) or test(economic_calendar_route_derives_date_and_time) or test(company_financials_forwards_market_symbol_and_statement) or test(research_screen_definition_rejects_unsupported_market_and_stable_keys) or test(rankings_limit_falls_back_to_legacy_limit_and_default) or test(candle_route_classifies_unknown_us_session_as_a_data_error) or test(research_screen_leaf_maps_invalid_provider_rows_to_bad_gateway) or test(decoder_rejects_unknown_and_trailing_json_before_the_port)"
         ],
         "testFilter": [
           "research_screen_definition_rejects_unsupported_market_and_stable_keys"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "fe9ee7fa5fe27dc89d21a8a33694d44ec4aa09e0",
+        "verifiedAt": "2026-09-25T14:17:13Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -202430,20 +202442,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(default_registry_client_uses_the_calendar_fetch_timeout) or test(manual_override_status_and_session_window_boundaries_match_go) or test(validate_snapshot_rejects_the_go_boundary_table) or test(corrupt_cached_snapshots_are_rejected_with_the_go_conditions) or test(registered_provider_snapshots_pass_domain_validation_before_caching) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go) or test(restore_reports_malformed_cached_snapshot_with_its_path) or test(probe_budget_bounds_one_provider_call_without_hanging_the_manager) or test(invalid_cached_snapshot_is_discarded_deleted_and_replaced_by_builtin_rules) or test(probe_treats_an_empty_parse_as_structure_changed_unhealthy) or test(refresh_treats_an_empty_parse_as_structure_changed_failure) or test(network_timeout_variants_share_one_alert_fingerprint) or test(successful_probe_recovery_clears_the_recorded_fetch_failure) or test(probe_uses_market_local_year_when_us_crosses_utc_new_year) or test(cross_year_snapshot_is_cached_for_every_covered_year_and_summarised_once) or test(retries_transient_readiness_and_sends_optional_bearer) or test(test_research_screen_route_uses_production_helper_and_preserves_upstream_rate_limit) or test(candle_route_excludes_before_boundary_and_can_continue_loading_older_pages) or test(index_constituents_read_forwards_the_normalized_leaf_and_limit) or test(market_data_news_search_read_route_matches_group_fixture_in_cutover_only) or test(calendar_and_macro_propagate_capability_and_busy_errors) or test(economic_calendar_route_derives_date_and_time) or test(company_financials_forwards_market_symbol_and_statement) or test(research_screen_definition_rejects_unsupported_market_and_stable_keys) or test(rankings_limit_falls_back_to_legacy_limit_and_default) or test(candle_route_classifies_unknown_us_session_as_a_data_error) or test(research_screen_leaf_maps_invalid_provider_rows_to_bad_gateway) or test(decoder_rejects_unknown_and_trailing_json_before_the_port)"
         ],
         "testFilter": [
           "rankings_limit_falls_back_to_legacy_limit_and_default"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "fe9ee7fa5fe27dc89d21a8a33694d44ec4aa09e0",
+        "verifiedAt": "2026-09-25T14:17:13Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -203484,20 +203496,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(default_registry_client_uses_the_calendar_fetch_timeout) or test(manual_override_status_and_session_window_boundaries_match_go) or test(validate_snapshot_rejects_the_go_boundary_table) or test(corrupt_cached_snapshots_are_rejected_with_the_go_conditions) or test(registered_provider_snapshots_pass_domain_validation_before_caching) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go) or test(restore_reports_malformed_cached_snapshot_with_its_path) or test(probe_budget_bounds_one_provider_call_without_hanging_the_manager) or test(invalid_cached_snapshot_is_discarded_deleted_and_replaced_by_builtin_rules) or test(probe_treats_an_empty_parse_as_structure_changed_unhealthy) or test(refresh_treats_an_empty_parse_as_structure_changed_failure) or test(network_timeout_variants_share_one_alert_fingerprint) or test(successful_probe_recovery_clears_the_recorded_fetch_failure) or test(probe_uses_market_local_year_when_us_crosses_utc_new_year) or test(cross_year_snapshot_is_cached_for_every_covered_year_and_summarised_once) or test(retries_transient_readiness_and_sends_optional_bearer) or test(test_research_screen_route_uses_production_helper_and_preserves_upstream_rate_limit) or test(candle_route_excludes_before_boundary_and_can_continue_loading_older_pages) or test(index_constituents_read_forwards_the_normalized_leaf_and_limit) or test(market_data_news_search_read_route_matches_group_fixture_in_cutover_only) or test(calendar_and_macro_propagate_capability_and_busy_errors) or test(economic_calendar_route_derives_date_and_time) or test(company_financials_forwards_market_symbol_and_statement) or test(research_screen_definition_rejects_unsupported_market_and_stable_keys) or test(rankings_limit_falls_back_to_legacy_limit_and_default) or test(candle_route_classifies_unknown_us_session_as_a_data_error) or test(research_screen_leaf_maps_invalid_provider_rows_to_bad_gateway) or test(decoder_rejects_unknown_and_trailing_json_before_the_port)"
         ],
         "testFilter": [
           "candle_route_classifies_unknown_us_session_as_a_data_error"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "fe9ee7fa5fe27dc89d21a8a33694d44ec4aa09e0",
+        "verifiedAt": "2026-09-25T14:17:13Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -203856,20 +203868,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(default_registry_client_uses_the_calendar_fetch_timeout) or test(manual_override_status_and_session_window_boundaries_match_go) or test(validate_snapshot_rejects_the_go_boundary_table) or test(corrupt_cached_snapshots_are_rejected_with_the_go_conditions) or test(registered_provider_snapshots_pass_domain_validation_before_caching) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go) or test(restore_reports_malformed_cached_snapshot_with_its_path) or test(probe_budget_bounds_one_provider_call_without_hanging_the_manager) or test(invalid_cached_snapshot_is_discarded_deleted_and_replaced_by_builtin_rules) or test(probe_treats_an_empty_parse_as_structure_changed_unhealthy) or test(refresh_treats_an_empty_parse_as_structure_changed_failure) or test(network_timeout_variants_share_one_alert_fingerprint) or test(successful_probe_recovery_clears_the_recorded_fetch_failure) or test(probe_uses_market_local_year_when_us_crosses_utc_new_year) or test(cross_year_snapshot_is_cached_for_every_covered_year_and_summarised_once) or test(retries_transient_readiness_and_sends_optional_bearer) or test(test_research_screen_route_uses_production_helper_and_preserves_upstream_rate_limit) or test(candle_route_excludes_before_boundary_and_can_continue_loading_older_pages) or test(index_constituents_read_forwards_the_normalized_leaf_and_limit) or test(market_data_news_search_read_route_matches_group_fixture_in_cutover_only) or test(calendar_and_macro_propagate_capability_and_busy_errors) or test(economic_calendar_route_derives_date_and_time) or test(company_financials_forwards_market_symbol_and_statement) or test(research_screen_definition_rejects_unsupported_market_and_stable_keys) or test(rankings_limit_falls_back_to_legacy_limit_and_default) or test(candle_route_classifies_unknown_us_session_as_a_data_error) or test(research_screen_leaf_maps_invalid_provider_rows_to_bad_gateway) or test(decoder_rejects_unknown_and_trailing_json_before_the_port)"
         ],
         "testFilter": [
           "calendar_and_macro_propagate_capability_and_busy_errors"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "fe9ee7fa5fe27dc89d21a8a33694d44ec4aa09e0",
+        "verifiedAt": "2026-09-25T14:17:13Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -204166,20 +204178,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(default_registry_client_uses_the_calendar_fetch_timeout) or test(manual_override_status_and_session_window_boundaries_match_go) or test(validate_snapshot_rejects_the_go_boundary_table) or test(corrupt_cached_snapshots_are_rejected_with_the_go_conditions) or test(registered_provider_snapshots_pass_domain_validation_before_caching) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go) or test(restore_reports_malformed_cached_snapshot_with_its_path) or test(probe_budget_bounds_one_provider_call_without_hanging_the_manager) or test(invalid_cached_snapshot_is_discarded_deleted_and_replaced_by_builtin_rules) or test(probe_treats_an_empty_parse_as_structure_changed_unhealthy) or test(refresh_treats_an_empty_parse_as_structure_changed_failure) or test(network_timeout_variants_share_one_alert_fingerprint) or test(successful_probe_recovery_clears_the_recorded_fetch_failure) or test(probe_uses_market_local_year_when_us_crosses_utc_new_year) or test(cross_year_snapshot_is_cached_for_every_covered_year_and_summarised_once) or test(retries_transient_readiness_and_sends_optional_bearer) or test(test_research_screen_route_uses_production_helper_and_preserves_upstream_rate_limit) or test(candle_route_excludes_before_boundary_and_can_continue_loading_older_pages) or test(index_constituents_read_forwards_the_normalized_leaf_and_limit) or test(market_data_news_search_read_route_matches_group_fixture_in_cutover_only) or test(calendar_and_macro_propagate_capability_and_busy_errors) or test(economic_calendar_route_derives_date_and_time) or test(company_financials_forwards_market_symbol_and_statement) or test(research_screen_definition_rejects_unsupported_market_and_stable_keys) or test(rankings_limit_falls_back_to_legacy_limit_and_default) or test(candle_route_classifies_unknown_us_session_as_a_data_error) or test(research_screen_leaf_maps_invalid_provider_rows_to_bad_gateway) or test(decoder_rejects_unknown_and_trailing_json_before_the_port)"
         ],
         "testFilter": [
           "research_screen_leaf_maps_invalid_provider_rows_to_bad_gateway"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "fe9ee7fa5fe27dc89d21a8a33694d44ec4aa09e0",
+        "verifiedAt": "2026-09-25T14:17:13Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -204290,20 +204302,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(default_registry_client_uses_the_calendar_fetch_timeout) or test(manual_override_status_and_session_window_boundaries_match_go) or test(validate_snapshot_rejects_the_go_boundary_table) or test(corrupt_cached_snapshots_are_rejected_with_the_go_conditions) or test(registered_provider_snapshots_pass_domain_validation_before_caching) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go) or test(restore_reports_malformed_cached_snapshot_with_its_path) or test(probe_budget_bounds_one_provider_call_without_hanging_the_manager) or test(invalid_cached_snapshot_is_discarded_deleted_and_replaced_by_builtin_rules) or test(probe_treats_an_empty_parse_as_structure_changed_unhealthy) or test(refresh_treats_an_empty_parse_as_structure_changed_failure) or test(network_timeout_variants_share_one_alert_fingerprint) or test(successful_probe_recovery_clears_the_recorded_fetch_failure) or test(probe_uses_market_local_year_when_us_crosses_utc_new_year) or test(cross_year_snapshot_is_cached_for_every_covered_year_and_summarised_once) or test(retries_transient_readiness_and_sends_optional_bearer) or test(test_research_screen_route_uses_production_helper_and_preserves_upstream_rate_limit) or test(candle_route_excludes_before_boundary_and_can_continue_loading_older_pages) or test(index_constituents_read_forwards_the_normalized_leaf_and_limit) or test(market_data_news_search_read_route_matches_group_fixture_in_cutover_only) or test(calendar_and_macro_propagate_capability_and_busy_errors) or test(economic_calendar_route_derives_date_and_time) or test(company_financials_forwards_market_symbol_and_statement) or test(research_screen_definition_rejects_unsupported_market_and_stable_keys) or test(rankings_limit_falls_back_to_legacy_limit_and_default) or test(candle_route_classifies_unknown_us_session_as_a_data_error) or test(research_screen_leaf_maps_invalid_provider_rows_to_bad_gateway) or test(decoder_rejects_unknown_and_trailing_json_before_the_port)"
         ],
         "testFilter": [
           "decoder_rejects_unknown_and_trailing_json_before_the_port"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "fe9ee7fa5fe27dc89d21a8a33694d44ec4aa09e0",
+        "verifiedAt": "2026-09-25T14:17:13Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -204352,20 +204364,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-integration-marketdata-helper",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(default_registry_client_uses_the_calendar_fetch_timeout) or test(manual_override_status_and_session_window_boundaries_match_go) or test(validate_snapshot_rejects_the_go_boundary_table) or test(corrupt_cached_snapshots_are_rejected_with_the_go_conditions) or test(registered_provider_snapshots_pass_domain_validation_before_caching) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go) or test(restore_reports_malformed_cached_snapshot_with_its_path) or test(probe_budget_bounds_one_provider_call_without_hanging_the_manager) or test(invalid_cached_snapshot_is_discarded_deleted_and_replaced_by_builtin_rules) or test(probe_treats_an_empty_parse_as_structure_changed_unhealthy) or test(refresh_treats_an_empty_parse_as_structure_changed_failure) or test(network_timeout_variants_share_one_alert_fingerprint) or test(successful_probe_recovery_clears_the_recorded_fetch_failure) or test(probe_uses_market_local_year_when_us_crosses_utc_new_year) or test(cross_year_snapshot_is_cached_for_every_covered_year_and_summarised_once) or test(retries_transient_readiness_and_sends_optional_bearer) or test(test_research_screen_route_uses_production_helper_and_preserves_upstream_rate_limit) or test(candle_route_excludes_before_boundary_and_can_continue_loading_older_pages) or test(index_constituents_read_forwards_the_normalized_leaf_and_limit) or test(market_data_news_search_read_route_matches_group_fixture_in_cutover_only) or test(calendar_and_macro_propagate_capability_and_busy_errors) or test(economic_calendar_route_derives_date_and_time) or test(company_financials_forwards_market_symbol_and_statement) or test(research_screen_definition_rejects_unsupported_market_and_stable_keys) or test(rankings_limit_falls_back_to_legacy_limit_and_default) or test(candle_route_classifies_unknown_us_session_as_a_data_error) or test(research_screen_leaf_maps_invalid_provider_rows_to_bad_gateway) or test(decoder_rejects_unknown_and_trailing_json_before_the_port)"
         ],
         "testFilter": [
           "retries_transient_readiness_and_sends_optional_bearer"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "fe9ee7fa5fe27dc89d21a8a33694d44ec4aa09e0",
+        "verifiedAt": "2026-09-25T14:17:13Z",
         "receiptDigest": null
       },
       "risk": "high",
