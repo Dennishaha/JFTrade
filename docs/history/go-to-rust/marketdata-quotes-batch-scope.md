@@ -811,6 +811,23 @@ ADK/Assistant 功能差异，先补失败回归测试再修改领域 owner。
 
 下一片：继续 P1 的 Assistant engine persistence/recovery、workflow/ADK 与 API transport 映射。
 
+## 第 158 批：Assistant approval resume、runner lifecycle 与 runtime store（2026-09-25）
+
+| 复核 | Go 测试范围 | Rust 证据 | P | 结论 |
+| :---: | --- | --- | :---: | --- |
+| [x] | `internal/assistant/engine/persistence_failure_boundaries_test.go:216,266,311`; `projection_canvas_memory_contracts_test.go:18`; `providers/responses_model_test.go:112` | approval persistence CAS/restage, stale writer cascade deletion, tool/session projection and terminal failure mapping | P1 | exact：approval durable failure、cascade fencing、projection 与 terminal mapping 均通过。 |
+| [x] | `internal/assistant/engine/resumed_execution_recovery_boundaries_test.go:14,92,111`; `run_timeline_test.go:8`; `runner_approval_concurrency_test.go:191`; `runner_chat_continuation_signal_test.go:52` | resumed approval recovery, blank session identifier guard, cancellation signal and nonterminal stream replay | P1 | exact：resume/recovery、输入 guard、取消与 replay marker 均有真实 owner。 |
+| [x] | `internal/assistant/engine/runner_chat_test.go:891,1043,1124`; `runner_continuation_boundaries_test.go:87,406`; `runner_goal_test.go:111,174` | closed-stream approval resume, session reuse/mismatch, terminal cancel, missing-run no-op, supervisor stopping and expired-run reads | P1 | exact：runner 生命周期、session reuse、终态 cancel 与 expired reconcile 逐项通过。 |
+| [x] | `internal/assistant/engine/runner_lifecycle_reconciliation_test.go:9,70,106,146`; `runner_lifecycle_shutdown_failures_test.go:8`; `runtime_execution_lease_boundaries_test.go:108,176` | stale-run reconciliation, child/approval cleanup, self-reference repair, storage shutdown and execution lease fencing | P1 | exact：reconcile/repair、shutdown fail-closed 与 lease cancellation/claims 均通过。 |
+| [x] | `internal/assistant/engine/runtime_store_test.go:36,286,409`; `session_compaction_boundaries_test.go:12`; `session_context_conflict_test.go:11` | runtime store agent/session ordering, provider snapshot/delete guards and compaction gate conflict | P1 | exact：runtime store、provider/session fail-closed 与 compaction gate 均有 durable 测试。 |
+
+本批 30 条 Go 映射对应 Rust 精准 nextest 28/28 通过；没有发现需要先红后修的 Rust 生产差异。
+
+验证：
+`node scripts/quality/cargo-nextest.mjs run --all-targets --locked -E 'test(adk_approval_resolution_stages_continuation_and_denial_cas) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(cascade_deletion_fences_stale_writer_and_session_recovery) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(terminal_failure_mapping_matches_the_reference_table) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(adk_read_routes_reject_blank_decoded_identifiers) or test(challenge_continuation_supervisor_cancellation_signal_propagates) or test(running_stream_payload_replays_all_nonterminal_events) or test(production_approval_resume_after_the_stream_closed_completes_without_late_frames) or test(chat_creates_the_session_once_and_reuses_its_stored_title) or test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(a_continuation_for_a_missing_run_is_a_silent_no_op) or test(challenge_continuation_supervisor_rejects_new_work_once_stopping) or test(the_run_read_routes_reconcile_expired_runs_before_serving) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(non_resumable_running_run_does_not_make_runtime_unready) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(graph_exposes_one_deterministic_ready_task) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success) or test(challenge_continuation_supervisor_concurrent_spawn_shutdown_race) or test(challenge_continuation_supervisor_claims_are_exclusive_and_released) or test(production_adk_updates_do_not_create_missing_agents_or_providers) or test(snapshot_and_provider_test_boundaries_fail_closed) or test(adk_session_delete_missing_is_reported_with_the_session_error_code) or test(a_second_compaction_is_rejected_while_the_session_gate_is_held)'`
+
+下一片：继续 P1 的 Assistant runner/session context、workflow/ADK 与 API transport 映射。
+
 ## 第 151 批：Futu/OpenD session resolver、snapshot fallback 与 margin/trade 读取（2026-09-25）
 
 | 复核 | Go 测试范围 | Rust 证据 | P | 结论 |
