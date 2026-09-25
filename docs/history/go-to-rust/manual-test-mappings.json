@@ -86197,20 +86197,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(a_rejected_compaction_records_the_failed_notice) or test(input_answers_are_canonicalized_by_question_order_and_invalid_answers_are_rejected) or test(adk_audit_route_filters_by_kind_and_subject_id) or test(a_structured_tool_failure_is_persisted_as_a_failed_call_and_the_loop_continues) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(a_failed_workflow_execution_surfaces_on_the_loop_chat_path) or test(production_chat_provider_failure_projects_go_failed_run_with_reply) or test(run_gate_rejects_the_eleventh_concurrent_run_and_releases_on_drop) or test(adk_chat_route_reports_the_go_error_classification) or test(run_terminal_state_classifies_unsupported_input_before_the_status_switch) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(a_top_level_follow_up_reply_keeps_its_run_completed) or test(a_tool_only_turn_returns_the_second_round_reply_that_names_the_tool) or test(terminal_failure_mapping_matches_the_reference_table) or test(a_failed_run_persists_its_terminal_state_and_audit_row) or test(a_completed_run_links_its_final_assistant_message_across_the_transcript) or test(a_gated_call_parks_the_run_and_audits_awaiting_approval) or test(a_failed_run_persists_the_provider_error_and_audit_row) or test(a_completed_run_persists_the_reply_and_audits_run_completed) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(chat_rejects_invalid_permission_work_mode_and_reasoning_overrides) or test(run_snapshot_freezes_provider_name_model_and_permission_mode) or test(a_provider_override_runs_the_turn_without_editing_the_stored_agent) or test(resolve_provider_follows_the_default_selection_and_its_repair) or test(a_gated_tool_call_parks_the_run_with_only_pending_approvals) or test(a_completed_projection_hides_resolved_approvals) or test(agent_unavailable_reason_prefers_status_over_the_delete_marker) or test(a_started_run_serves_its_snapshot_and_drops_the_active_handle) or test(challenge_continuation_supervisor_claims_are_exclusive_and_released) or test(challenge_continuation_supervisor_releases_claims_without_extra_initialization)"
         ],
         "testFilter": [
           "a_rejected_compaction_records_the_failed_notice"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "8af24809",
+        "verifiedAt": "2026-09-25T18:01:04Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -86259,20 +86259,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(a_rejected_compaction_records_the_failed_notice) or test(input_answers_are_canonicalized_by_question_order_and_invalid_answers_are_rejected) or test(adk_audit_route_filters_by_kind_and_subject_id) or test(a_structured_tool_failure_is_persisted_as_a_failed_call_and_the_loop_continues) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(a_failed_workflow_execution_surfaces_on_the_loop_chat_path) or test(production_chat_provider_failure_projects_go_failed_run_with_reply) or test(run_gate_rejects_the_eleventh_concurrent_run_and_releases_on_drop) or test(adk_chat_route_reports_the_go_error_classification) or test(run_terminal_state_classifies_unsupported_input_before_the_status_switch) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(a_top_level_follow_up_reply_keeps_its_run_completed) or test(a_tool_only_turn_returns_the_second_round_reply_that_names_the_tool) or test(terminal_failure_mapping_matches_the_reference_table) or test(a_failed_run_persists_its_terminal_state_and_audit_row) or test(a_completed_run_links_its_final_assistant_message_across_the_transcript) or test(a_gated_call_parks_the_run_and_audits_awaiting_approval) or test(a_failed_run_persists_the_provider_error_and_audit_row) or test(a_completed_run_persists_the_reply_and_audits_run_completed) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(chat_rejects_invalid_permission_work_mode_and_reasoning_overrides) or test(run_snapshot_freezes_provider_name_model_and_permission_mode) or test(a_provider_override_runs_the_turn_without_editing_the_stored_agent) or test(resolve_provider_follows_the_default_selection_and_its_repair) or test(a_gated_tool_call_parks_the_run_with_only_pending_approvals) or test(a_completed_projection_hides_resolved_approvals) or test(agent_unavailable_reason_prefers_status_over_the_delete_marker) or test(a_started_run_serves_its_snapshot_and_drops_the_active_handle) or test(challenge_continuation_supervisor_claims_are_exclusive_and_released) or test(challenge_continuation_supervisor_releases_claims_without_extra_initialization)"
         ],
         "testFilter": [
           "input_answers_are_canonicalized_by_question_order_and_invalid_answers_are_rejected"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "8af24809",
+        "verifiedAt": "2026-09-25T18:01:04Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -86321,20 +86321,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(a_rejected_compaction_records_the_failed_notice) or test(input_answers_are_canonicalized_by_question_order_and_invalid_answers_are_rejected) or test(adk_audit_route_filters_by_kind_and_subject_id) or test(a_structured_tool_failure_is_persisted_as_a_failed_call_and_the_loop_continues) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(a_failed_workflow_execution_surfaces_on_the_loop_chat_path) or test(production_chat_provider_failure_projects_go_failed_run_with_reply) or test(run_gate_rejects_the_eleventh_concurrent_run_and_releases_on_drop) or test(adk_chat_route_reports_the_go_error_classification) or test(run_terminal_state_classifies_unsupported_input_before_the_status_switch) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(a_top_level_follow_up_reply_keeps_its_run_completed) or test(a_tool_only_turn_returns_the_second_round_reply_that_names_the_tool) or test(terminal_failure_mapping_matches_the_reference_table) or test(a_failed_run_persists_its_terminal_state_and_audit_row) or test(a_completed_run_links_its_final_assistant_message_across_the_transcript) or test(a_gated_call_parks_the_run_and_audits_awaiting_approval) or test(a_failed_run_persists_the_provider_error_and_audit_row) or test(a_completed_run_persists_the_reply_and_audits_run_completed) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(chat_rejects_invalid_permission_work_mode_and_reasoning_overrides) or test(run_snapshot_freezes_provider_name_model_and_permission_mode) or test(a_provider_override_runs_the_turn_without_editing_the_stored_agent) or test(resolve_provider_follows_the_default_selection_and_its_repair) or test(a_gated_tool_call_parks_the_run_with_only_pending_approvals) or test(a_completed_projection_hides_resolved_approvals) or test(agent_unavailable_reason_prefers_status_over_the_delete_marker) or test(a_started_run_serves_its_snapshot_and_drops_the_active_handle) or test(challenge_continuation_supervisor_claims_are_exclusive_and_released) or test(challenge_continuation_supervisor_releases_claims_without_extra_initialization)"
         ],
         "testFilter": [
           "adk_audit_route_filters_by_kind_and_subject_id"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "8af24809",
+        "verifiedAt": "2026-09-25T18:01:04Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -86445,20 +86445,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(a_rejected_compaction_records_the_failed_notice) or test(input_answers_are_canonicalized_by_question_order_and_invalid_answers_are_rejected) or test(adk_audit_route_filters_by_kind_and_subject_id) or test(a_structured_tool_failure_is_persisted_as_a_failed_call_and_the_loop_continues) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(a_failed_workflow_execution_surfaces_on_the_loop_chat_path) or test(production_chat_provider_failure_projects_go_failed_run_with_reply) or test(run_gate_rejects_the_eleventh_concurrent_run_and_releases_on_drop) or test(adk_chat_route_reports_the_go_error_classification) or test(run_terminal_state_classifies_unsupported_input_before_the_status_switch) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(a_top_level_follow_up_reply_keeps_its_run_completed) or test(a_tool_only_turn_returns_the_second_round_reply_that_names_the_tool) or test(terminal_failure_mapping_matches_the_reference_table) or test(a_failed_run_persists_its_terminal_state_and_audit_row) or test(a_completed_run_links_its_final_assistant_message_across_the_transcript) or test(a_gated_call_parks_the_run_and_audits_awaiting_approval) or test(a_failed_run_persists_the_provider_error_and_audit_row) or test(a_completed_run_persists_the_reply_and_audits_run_completed) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(chat_rejects_invalid_permission_work_mode_and_reasoning_overrides) or test(run_snapshot_freezes_provider_name_model_and_permission_mode) or test(a_provider_override_runs_the_turn_without_editing_the_stored_agent) or test(resolve_provider_follows_the_default_selection_and_its_repair) or test(a_gated_tool_call_parks_the_run_with_only_pending_approvals) or test(a_completed_projection_hides_resolved_approvals) or test(agent_unavailable_reason_prefers_status_over_the_delete_marker) or test(a_started_run_serves_its_snapshot_and_drops_the_active_handle) or test(challenge_continuation_supervisor_claims_are_exclusive_and_released) or test(challenge_continuation_supervisor_releases_claims_without_extra_initialization)"
         ],
         "testFilter": [
           "a_structured_tool_failure_is_persisted_as_a_failed_call_and_the_loop_continues"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "8af24809",
+        "verifiedAt": "2026-09-25T18:01:04Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -86507,20 +86507,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(a_rejected_compaction_records_the_failed_notice) or test(input_answers_are_canonicalized_by_question_order_and_invalid_answers_are_rejected) or test(adk_audit_route_filters_by_kind_and_subject_id) or test(a_structured_tool_failure_is_persisted_as_a_failed_call_and_the_loop_continues) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(a_failed_workflow_execution_surfaces_on_the_loop_chat_path) or test(production_chat_provider_failure_projects_go_failed_run_with_reply) or test(run_gate_rejects_the_eleventh_concurrent_run_and_releases_on_drop) or test(adk_chat_route_reports_the_go_error_classification) or test(run_terminal_state_classifies_unsupported_input_before_the_status_switch) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(a_top_level_follow_up_reply_keeps_its_run_completed) or test(a_tool_only_turn_returns_the_second_round_reply_that_names_the_tool) or test(terminal_failure_mapping_matches_the_reference_table) or test(a_failed_run_persists_its_terminal_state_and_audit_row) or test(a_completed_run_links_its_final_assistant_message_across_the_transcript) or test(a_gated_call_parks_the_run_and_audits_awaiting_approval) or test(a_failed_run_persists_the_provider_error_and_audit_row) or test(a_completed_run_persists_the_reply_and_audits_run_completed) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(chat_rejects_invalid_permission_work_mode_and_reasoning_overrides) or test(run_snapshot_freezes_provider_name_model_and_permission_mode) or test(a_provider_override_runs_the_turn_without_editing_the_stored_agent) or test(resolve_provider_follows_the_default_selection_and_its_repair) or test(a_gated_tool_call_parks_the_run_with_only_pending_approvals) or test(a_completed_projection_hides_resolved_approvals) or test(agent_unavailable_reason_prefers_status_over_the_delete_marker) or test(a_started_run_serves_its_snapshot_and_drops_the_active_handle) or test(challenge_continuation_supervisor_claims_are_exclusive_and_released) or test(challenge_continuation_supervisor_releases_claims_without_extra_initialization)"
         ],
         "testFilter": [
           "a_resumed_approval_run_completes_with_the_confirmation_resolved_state"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "8af24809",
+        "verifiedAt": "2026-09-25T18:01:04Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -86569,20 +86569,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(a_rejected_compaction_records_the_failed_notice) or test(input_answers_are_canonicalized_by_question_order_and_invalid_answers_are_rejected) or test(adk_audit_route_filters_by_kind_and_subject_id) or test(a_structured_tool_failure_is_persisted_as_a_failed_call_and_the_loop_continues) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(a_failed_workflow_execution_surfaces_on_the_loop_chat_path) or test(production_chat_provider_failure_projects_go_failed_run_with_reply) or test(run_gate_rejects_the_eleventh_concurrent_run_and_releases_on_drop) or test(adk_chat_route_reports_the_go_error_classification) or test(run_terminal_state_classifies_unsupported_input_before_the_status_switch) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(a_top_level_follow_up_reply_keeps_its_run_completed) or test(a_tool_only_turn_returns_the_second_round_reply_that_names_the_tool) or test(terminal_failure_mapping_matches_the_reference_table) or test(a_failed_run_persists_its_terminal_state_and_audit_row) or test(a_completed_run_links_its_final_assistant_message_across_the_transcript) or test(a_gated_call_parks_the_run_and_audits_awaiting_approval) or test(a_failed_run_persists_the_provider_error_and_audit_row) or test(a_completed_run_persists_the_reply_and_audits_run_completed) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(chat_rejects_invalid_permission_work_mode_and_reasoning_overrides) or test(run_snapshot_freezes_provider_name_model_and_permission_mode) or test(a_provider_override_runs_the_turn_without_editing_the_stored_agent) or test(resolve_provider_follows_the_default_selection_and_its_repair) or test(a_gated_tool_call_parks_the_run_with_only_pending_approvals) or test(a_completed_projection_hides_resolved_approvals) or test(agent_unavailable_reason_prefers_status_over_the_delete_marker) or test(a_started_run_serves_its_snapshot_and_drops_the_active_handle) or test(challenge_continuation_supervisor_claims_are_exclusive_and_released) or test(challenge_continuation_supervisor_releases_claims_without_extra_initialization)"
         ],
         "testFilter": [
           "a_failed_workflow_execution_surfaces_on_the_loop_chat_path"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "8af24809",
+        "verifiedAt": "2026-09-25T18:01:04Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -86631,20 +86631,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(a_rejected_compaction_records_the_failed_notice) or test(input_answers_are_canonicalized_by_question_order_and_invalid_answers_are_rejected) or test(adk_audit_route_filters_by_kind_and_subject_id) or test(a_structured_tool_failure_is_persisted_as_a_failed_call_and_the_loop_continues) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(a_failed_workflow_execution_surfaces_on_the_loop_chat_path) or test(production_chat_provider_failure_projects_go_failed_run_with_reply) or test(run_gate_rejects_the_eleventh_concurrent_run_and_releases_on_drop) or test(adk_chat_route_reports_the_go_error_classification) or test(run_terminal_state_classifies_unsupported_input_before_the_status_switch) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(a_top_level_follow_up_reply_keeps_its_run_completed) or test(a_tool_only_turn_returns_the_second_round_reply_that_names_the_tool) or test(terminal_failure_mapping_matches_the_reference_table) or test(a_failed_run_persists_its_terminal_state_and_audit_row) or test(a_completed_run_links_its_final_assistant_message_across_the_transcript) or test(a_gated_call_parks_the_run_and_audits_awaiting_approval) or test(a_failed_run_persists_the_provider_error_and_audit_row) or test(a_completed_run_persists_the_reply_and_audits_run_completed) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(chat_rejects_invalid_permission_work_mode_and_reasoning_overrides) or test(run_snapshot_freezes_provider_name_model_and_permission_mode) or test(a_provider_override_runs_the_turn_without_editing_the_stored_agent) or test(resolve_provider_follows_the_default_selection_and_its_repair) or test(a_gated_tool_call_parks_the_run_with_only_pending_approvals) or test(a_completed_projection_hides_resolved_approvals) or test(agent_unavailable_reason_prefers_status_over_the_delete_marker) or test(a_started_run_serves_its_snapshot_and_drops_the_active_handle) or test(challenge_continuation_supervisor_claims_are_exclusive_and_released) or test(challenge_continuation_supervisor_releases_claims_without_extra_initialization)"
         ],
         "testFilter": [
           "production_chat_provider_failure_projects_go_failed_run_with_reply"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "8af24809",
+        "verifiedAt": "2026-09-25T18:01:04Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -86704,10 +86704,10 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(run_gate_"
+          "test(a_rejected_compaction_records_the_failed_notice) or test(input_answers_are_canonicalized_by_question_order_and_invalid_answers_are_rejected) or test(adk_audit_route_filters_by_kind_and_subject_id) or test(a_structured_tool_failure_is_persisted_as_a_failed_call_and_the_loop_continues) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(a_failed_workflow_execution_surfaces_on_the_loop_chat_path) or test(production_chat_provider_failure_projects_go_failed_run_with_reply) or test(run_gate_rejects_the_eleventh_concurrent_run_and_releases_on_drop) or test(adk_chat_route_reports_the_go_error_classification) or test(run_terminal_state_classifies_unsupported_input_before_the_status_switch) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(a_top_level_follow_up_reply_keeps_its_run_completed) or test(a_tool_only_turn_returns_the_second_round_reply_that_names_the_tool) or test(terminal_failure_mapping_matches_the_reference_table) or test(a_failed_run_persists_its_terminal_state_and_audit_row) or test(a_completed_run_links_its_final_assistant_message_across_the_transcript) or test(a_gated_call_parks_the_run_and_audits_awaiting_approval) or test(a_failed_run_persists_the_provider_error_and_audit_row) or test(a_completed_run_persists_the_reply_and_audits_run_completed) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(chat_rejects_invalid_permission_work_mode_and_reasoning_overrides) or test(run_snapshot_freezes_provider_name_model_and_permission_mode) or test(a_provider_override_runs_the_turn_without_editing_the_stored_agent) or test(resolve_provider_follows_the_default_selection_and_its_repair) or test(a_gated_tool_call_parks_the_run_with_only_pending_approvals) or test(a_completed_projection_hides_resolved_approvals) or test(agent_unavailable_reason_prefers_status_over_the_delete_marker) or test(a_started_run_serves_its_snapshot_and_drops_the_active_handle) or test(challenge_continuation_supervisor_claims_are_exclusive_and_released) or test(challenge_continuation_supervisor_releases_claims_without_extra_initialization)"
         ],
         "testFilter": [
           "run_gate_rejects_the_eleventh_concurrent_run_and_releases_on_drop",
@@ -86715,10 +86715,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "8af24809",
+        "verifiedAt": "2026-09-25T18:01:04Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -86767,20 +86767,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(run_terminal_state_classifies_unsupported_input_before_the_status_switch)"
+          "test(a_rejected_compaction_records_the_failed_notice) or test(input_answers_are_canonicalized_by_question_order_and_invalid_answers_are_rejected) or test(adk_audit_route_filters_by_kind_and_subject_id) or test(a_structured_tool_failure_is_persisted_as_a_failed_call_and_the_loop_continues) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(a_failed_workflow_execution_surfaces_on_the_loop_chat_path) or test(production_chat_provider_failure_projects_go_failed_run_with_reply) or test(run_gate_rejects_the_eleventh_concurrent_run_and_releases_on_drop) or test(adk_chat_route_reports_the_go_error_classification) or test(run_terminal_state_classifies_unsupported_input_before_the_status_switch) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(a_top_level_follow_up_reply_keeps_its_run_completed) or test(a_tool_only_turn_returns_the_second_round_reply_that_names_the_tool) or test(terminal_failure_mapping_matches_the_reference_table) or test(a_failed_run_persists_its_terminal_state_and_audit_row) or test(a_completed_run_links_its_final_assistant_message_across_the_transcript) or test(a_gated_call_parks_the_run_and_audits_awaiting_approval) or test(a_failed_run_persists_the_provider_error_and_audit_row) or test(a_completed_run_persists_the_reply_and_audits_run_completed) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(chat_rejects_invalid_permission_work_mode_and_reasoning_overrides) or test(run_snapshot_freezes_provider_name_model_and_permission_mode) or test(a_provider_override_runs_the_turn_without_editing_the_stored_agent) or test(resolve_provider_follows_the_default_selection_and_its_repair) or test(a_gated_tool_call_parks_the_run_with_only_pending_approvals) or test(a_completed_projection_hides_resolved_approvals) or test(agent_unavailable_reason_prefers_status_over_the_delete_marker) or test(a_started_run_serves_its_snapshot_and_drops_the_active_handle) or test(challenge_continuation_supervisor_claims_are_exclusive_and_released) or test(challenge_continuation_supervisor_releases_claims_without_extra_initialization)"
         ],
         "testFilter": [
           "run_terminal_state_classifies_unsupported_input_before_the_status_switch"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "8af24809",
+        "verifiedAt": "2026-09-25T18:01:04Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -86834,20 +86834,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals)"
+          "test(a_rejected_compaction_records_the_failed_notice) or test(input_answers_are_canonicalized_by_question_order_and_invalid_answers_are_rejected) or test(adk_audit_route_filters_by_kind_and_subject_id) or test(a_structured_tool_failure_is_persisted_as_a_failed_call_and_the_loop_continues) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(a_failed_workflow_execution_surfaces_on_the_loop_chat_path) or test(production_chat_provider_failure_projects_go_failed_run_with_reply) or test(run_gate_rejects_the_eleventh_concurrent_run_and_releases_on_drop) or test(adk_chat_route_reports_the_go_error_classification) or test(run_terminal_state_classifies_unsupported_input_before_the_status_switch) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(a_top_level_follow_up_reply_keeps_its_run_completed) or test(a_tool_only_turn_returns_the_second_round_reply_that_names_the_tool) or test(terminal_failure_mapping_matches_the_reference_table) or test(a_failed_run_persists_its_terminal_state_and_audit_row) or test(a_completed_run_links_its_final_assistant_message_across_the_transcript) or test(a_gated_call_parks_the_run_and_audits_awaiting_approval) or test(a_failed_run_persists_the_provider_error_and_audit_row) or test(a_completed_run_persists_the_reply_and_audits_run_completed) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(chat_rejects_invalid_permission_work_mode_and_reasoning_overrides) or test(run_snapshot_freezes_provider_name_model_and_permission_mode) or test(a_provider_override_runs_the_turn_without_editing_the_stored_agent) or test(resolve_provider_follows_the_default_selection_and_its_repair) or test(a_gated_tool_call_parks_the_run_with_only_pending_approvals) or test(a_completed_projection_hides_resolved_approvals) or test(agent_unavailable_reason_prefers_status_over_the_delete_marker) or test(a_started_run_serves_its_snapshot_and_drops_the_active_handle) or test(challenge_continuation_supervisor_claims_are_exclusive_and_released) or test(challenge_continuation_supervisor_releases_claims_without_extra_initialization)"
         ],
         "testFilter": [
           "the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "8af24809",
+        "verifiedAt": "2026-09-25T18:01:04Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -86901,20 +86901,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(a_top_level_follow_up_reply_keeps_its_run_completed)"
+          "test(a_rejected_compaction_records_the_failed_notice) or test(input_answers_are_canonicalized_by_question_order_and_invalid_answers_are_rejected) or test(adk_audit_route_filters_by_kind_and_subject_id) or test(a_structured_tool_failure_is_persisted_as_a_failed_call_and_the_loop_continues) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(a_failed_workflow_execution_surfaces_on_the_loop_chat_path) or test(production_chat_provider_failure_projects_go_failed_run_with_reply) or test(run_gate_rejects_the_eleventh_concurrent_run_and_releases_on_drop) or test(adk_chat_route_reports_the_go_error_classification) or test(run_terminal_state_classifies_unsupported_input_before_the_status_switch) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(a_top_level_follow_up_reply_keeps_its_run_completed) or test(a_tool_only_turn_returns_the_second_round_reply_that_names_the_tool) or test(terminal_failure_mapping_matches_the_reference_table) or test(a_failed_run_persists_its_terminal_state_and_audit_row) or test(a_completed_run_links_its_final_assistant_message_across_the_transcript) or test(a_gated_call_parks_the_run_and_audits_awaiting_approval) or test(a_failed_run_persists_the_provider_error_and_audit_row) or test(a_completed_run_persists_the_reply_and_audits_run_completed) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(chat_rejects_invalid_permission_work_mode_and_reasoning_overrides) or test(run_snapshot_freezes_provider_name_model_and_permission_mode) or test(a_provider_override_runs_the_turn_without_editing_the_stored_agent) or test(resolve_provider_follows_the_default_selection_and_its_repair) or test(a_gated_tool_call_parks_the_run_with_only_pending_approvals) or test(a_completed_projection_hides_resolved_approvals) or test(agent_unavailable_reason_prefers_status_over_the_delete_marker) or test(a_started_run_serves_its_snapshot_and_drops_the_active_handle) or test(challenge_continuation_supervisor_claims_are_exclusive_and_released) or test(challenge_continuation_supervisor_releases_claims_without_extra_initialization)"
         ],
         "testFilter": [
           "a_top_level_follow_up_reply_keeps_its_run_completed"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "8af24809",
+        "verifiedAt": "2026-09-25T18:01:04Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -86968,20 +86968,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(a_tool_only_turn_returns_the_second_round_reply_that_names_the_tool)"
+          "test(a_rejected_compaction_records_the_failed_notice) or test(input_answers_are_canonicalized_by_question_order_and_invalid_answers_are_rejected) or test(adk_audit_route_filters_by_kind_and_subject_id) or test(a_structured_tool_failure_is_persisted_as_a_failed_call_and_the_loop_continues) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(a_failed_workflow_execution_surfaces_on_the_loop_chat_path) or test(production_chat_provider_failure_projects_go_failed_run_with_reply) or test(run_gate_rejects_the_eleventh_concurrent_run_and_releases_on_drop) or test(adk_chat_route_reports_the_go_error_classification) or test(run_terminal_state_classifies_unsupported_input_before_the_status_switch) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(a_top_level_follow_up_reply_keeps_its_run_completed) or test(a_tool_only_turn_returns_the_second_round_reply_that_names_the_tool) or test(terminal_failure_mapping_matches_the_reference_table) or test(a_failed_run_persists_its_terminal_state_and_audit_row) or test(a_completed_run_links_its_final_assistant_message_across_the_transcript) or test(a_gated_call_parks_the_run_and_audits_awaiting_approval) or test(a_failed_run_persists_the_provider_error_and_audit_row) or test(a_completed_run_persists_the_reply_and_audits_run_completed) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(chat_rejects_invalid_permission_work_mode_and_reasoning_overrides) or test(run_snapshot_freezes_provider_name_model_and_permission_mode) or test(a_provider_override_runs_the_turn_without_editing_the_stored_agent) or test(resolve_provider_follows_the_default_selection_and_its_repair) or test(a_gated_tool_call_parks_the_run_with_only_pending_approvals) or test(a_completed_projection_hides_resolved_approvals) or test(agent_unavailable_reason_prefers_status_over_the_delete_marker) or test(a_started_run_serves_its_snapshot_and_drops_the_active_handle) or test(challenge_continuation_supervisor_claims_are_exclusive_and_released) or test(challenge_continuation_supervisor_releases_claims_without_extra_initialization)"
         ],
         "testFilter": [
           "a_tool_only_turn_returns_the_second_round_reply_that_names_the_tool"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "8af24809",
+        "verifiedAt": "2026-09-25T18:01:04Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -87035,20 +87035,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(a_rejected_compaction_records_the_failed_notice) or test(input_answers_are_canonicalized_by_question_order_and_invalid_answers_are_rejected) or test(adk_audit_route_filters_by_kind_and_subject_id) or test(a_structured_tool_failure_is_persisted_as_a_failed_call_and_the_loop_continues) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(a_failed_workflow_execution_surfaces_on_the_loop_chat_path) or test(production_chat_provider_failure_projects_go_failed_run_with_reply) or test(run_gate_rejects_the_eleventh_concurrent_run_and_releases_on_drop) or test(adk_chat_route_reports_the_go_error_classification) or test(run_terminal_state_classifies_unsupported_input_before_the_status_switch) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(a_top_level_follow_up_reply_keeps_its_run_completed) or test(a_tool_only_turn_returns_the_second_round_reply_that_names_the_tool) or test(terminal_failure_mapping_matches_the_reference_table) or test(a_failed_run_persists_its_terminal_state_and_audit_row) or test(a_completed_run_links_its_final_assistant_message_across_the_transcript) or test(a_gated_call_parks_the_run_and_audits_awaiting_approval) or test(a_failed_run_persists_the_provider_error_and_audit_row) or test(a_completed_run_persists_the_reply_and_audits_run_completed) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(chat_rejects_invalid_permission_work_mode_and_reasoning_overrides) or test(run_snapshot_freezes_provider_name_model_and_permission_mode) or test(a_provider_override_runs_the_turn_without_editing_the_stored_agent) or test(resolve_provider_follows_the_default_selection_and_its_repair) or test(a_gated_tool_call_parks_the_run_with_only_pending_approvals) or test(a_completed_projection_hides_resolved_approvals) or test(agent_unavailable_reason_prefers_status_over_the_delete_marker) or test(a_started_run_serves_its_snapshot_and_drops_the_active_handle) or test(challenge_continuation_supervisor_claims_are_exclusive_and_released) or test(challenge_continuation_supervisor_releases_claims_without_extra_initialization)"
         ],
         "testFilter": [
           "terminal_failure_mapping_matches_the_reference_table"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "8af24809",
+        "verifiedAt": "2026-09-25T18:01:04Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -87102,20 +87102,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(a_rejected_compaction_records_the_failed_notice) or test(input_answers_are_canonicalized_by_question_order_and_invalid_answers_are_rejected) or test(adk_audit_route_filters_by_kind_and_subject_id) or test(a_structured_tool_failure_is_persisted_as_a_failed_call_and_the_loop_continues) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(a_failed_workflow_execution_surfaces_on_the_loop_chat_path) or test(production_chat_provider_failure_projects_go_failed_run_with_reply) or test(run_gate_rejects_the_eleventh_concurrent_run_and_releases_on_drop) or test(adk_chat_route_reports_the_go_error_classification) or test(run_terminal_state_classifies_unsupported_input_before_the_status_switch) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(a_top_level_follow_up_reply_keeps_its_run_completed) or test(a_tool_only_turn_returns_the_second_round_reply_that_names_the_tool) or test(terminal_failure_mapping_matches_the_reference_table) or test(a_failed_run_persists_its_terminal_state_and_audit_row) or test(a_completed_run_links_its_final_assistant_message_across_the_transcript) or test(a_gated_call_parks_the_run_and_audits_awaiting_approval) or test(a_failed_run_persists_the_provider_error_and_audit_row) or test(a_completed_run_persists_the_reply_and_audits_run_completed) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(chat_rejects_invalid_permission_work_mode_and_reasoning_overrides) or test(run_snapshot_freezes_provider_name_model_and_permission_mode) or test(a_provider_override_runs_the_turn_without_editing_the_stored_agent) or test(resolve_provider_follows_the_default_selection_and_its_repair) or test(a_gated_tool_call_parks_the_run_with_only_pending_approvals) or test(a_completed_projection_hides_resolved_approvals) or test(agent_unavailable_reason_prefers_status_over_the_delete_marker) or test(a_started_run_serves_its_snapshot_and_drops_the_active_handle) or test(challenge_continuation_supervisor_claims_are_exclusive_and_released) or test(challenge_continuation_supervisor_releases_claims_without_extra_initialization)"
         ],
         "testFilter": [
           "a_failed_run_persists_its_terminal_state_and_audit_row"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "8af24809",
+        "verifiedAt": "2026-09-25T18:01:04Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -87169,20 +87169,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-assistant",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(runtime)"
+          "test(a_rejected_compaction_records_the_failed_notice) or test(input_answers_are_canonicalized_by_question_order_and_invalid_answers_are_rejected) or test(adk_audit_route_filters_by_kind_and_subject_id) or test(a_structured_tool_failure_is_persisted_as_a_failed_call_and_the_loop_continues) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(a_failed_workflow_execution_surfaces_on_the_loop_chat_path) or test(production_chat_provider_failure_projects_go_failed_run_with_reply) or test(run_gate_rejects_the_eleventh_concurrent_run_and_releases_on_drop) or test(adk_chat_route_reports_the_go_error_classification) or test(run_terminal_state_classifies_unsupported_input_before_the_status_switch) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(a_top_level_follow_up_reply_keeps_its_run_completed) or test(a_tool_only_turn_returns_the_second_round_reply_that_names_the_tool) or test(terminal_failure_mapping_matches_the_reference_table) or test(a_failed_run_persists_its_terminal_state_and_audit_row) or test(a_completed_run_links_its_final_assistant_message_across_the_transcript) or test(a_gated_call_parks_the_run_and_audits_awaiting_approval) or test(a_failed_run_persists_the_provider_error_and_audit_row) or test(a_completed_run_persists_the_reply_and_audits_run_completed) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(chat_rejects_invalid_permission_work_mode_and_reasoning_overrides) or test(run_snapshot_freezes_provider_name_model_and_permission_mode) or test(a_provider_override_runs_the_turn_without_editing_the_stored_agent) or test(resolve_provider_follows_the_default_selection_and_its_repair) or test(a_gated_tool_call_parks_the_run_with_only_pending_approvals) or test(a_completed_projection_hides_resolved_approvals) or test(agent_unavailable_reason_prefers_status_over_the_delete_marker) or test(a_started_run_serves_its_snapshot_and_drops_the_active_handle) or test(challenge_continuation_supervisor_claims_are_exclusive_and_released) or test(challenge_continuation_supervisor_releases_claims_without_extra_initialization)"
         ],
         "testFilter": [
           "a_completed_run_links_its_final_assistant_message_across_the_transcript"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "8af24809",
+        "verifiedAt": "2026-09-25T18:01:04Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -87236,20 +87236,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(a_rejected_compaction_records_the_failed_notice) or test(input_answers_are_canonicalized_by_question_order_and_invalid_answers_are_rejected) or test(adk_audit_route_filters_by_kind_and_subject_id) or test(a_structured_tool_failure_is_persisted_as_a_failed_call_and_the_loop_continues) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(a_failed_workflow_execution_surfaces_on_the_loop_chat_path) or test(production_chat_provider_failure_projects_go_failed_run_with_reply) or test(run_gate_rejects_the_eleventh_concurrent_run_and_releases_on_drop) or test(adk_chat_route_reports_the_go_error_classification) or test(run_terminal_state_classifies_unsupported_input_before_the_status_switch) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(a_top_level_follow_up_reply_keeps_its_run_completed) or test(a_tool_only_turn_returns_the_second_round_reply_that_names_the_tool) or test(terminal_failure_mapping_matches_the_reference_table) or test(a_failed_run_persists_its_terminal_state_and_audit_row) or test(a_completed_run_links_its_final_assistant_message_across_the_transcript) or test(a_gated_call_parks_the_run_and_audits_awaiting_approval) or test(a_failed_run_persists_the_provider_error_and_audit_row) or test(a_completed_run_persists_the_reply_and_audits_run_completed) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(chat_rejects_invalid_permission_work_mode_and_reasoning_overrides) or test(run_snapshot_freezes_provider_name_model_and_permission_mode) or test(a_provider_override_runs_the_turn_without_editing_the_stored_agent) or test(resolve_provider_follows_the_default_selection_and_its_repair) or test(a_gated_tool_call_parks_the_run_with_only_pending_approvals) or test(a_completed_projection_hides_resolved_approvals) or test(agent_unavailable_reason_prefers_status_over_the_delete_marker) or test(a_started_run_serves_its_snapshot_and_drops_the_active_handle) or test(challenge_continuation_supervisor_claims_are_exclusive_and_released) or test(challenge_continuation_supervisor_releases_claims_without_extra_initialization)"
         ],
         "testFilter": [
           "a_gated_call_parks_the_run_and_audits_awaiting_approval"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "8af24809",
+        "verifiedAt": "2026-09-25T18:01:04Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -87298,20 +87298,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(a_rejected_compaction_records_the_failed_notice) or test(input_answers_are_canonicalized_by_question_order_and_invalid_answers_are_rejected) or test(adk_audit_route_filters_by_kind_and_subject_id) or test(a_structured_tool_failure_is_persisted_as_a_failed_call_and_the_loop_continues) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(a_failed_workflow_execution_surfaces_on_the_loop_chat_path) or test(production_chat_provider_failure_projects_go_failed_run_with_reply) or test(run_gate_rejects_the_eleventh_concurrent_run_and_releases_on_drop) or test(adk_chat_route_reports_the_go_error_classification) or test(run_terminal_state_classifies_unsupported_input_before_the_status_switch) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(a_top_level_follow_up_reply_keeps_its_run_completed) or test(a_tool_only_turn_returns_the_second_round_reply_that_names_the_tool) or test(terminal_failure_mapping_matches_the_reference_table) or test(a_failed_run_persists_its_terminal_state_and_audit_row) or test(a_completed_run_links_its_final_assistant_message_across_the_transcript) or test(a_gated_call_parks_the_run_and_audits_awaiting_approval) or test(a_failed_run_persists_the_provider_error_and_audit_row) or test(a_completed_run_persists_the_reply_and_audits_run_completed) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(chat_rejects_invalid_permission_work_mode_and_reasoning_overrides) or test(run_snapshot_freezes_provider_name_model_and_permission_mode) or test(a_provider_override_runs_the_turn_without_editing_the_stored_agent) or test(resolve_provider_follows_the_default_selection_and_its_repair) or test(a_gated_tool_call_parks_the_run_with_only_pending_approvals) or test(a_completed_projection_hides_resolved_approvals) or test(agent_unavailable_reason_prefers_status_over_the_delete_marker) or test(a_started_run_serves_its_snapshot_and_drops_the_active_handle) or test(challenge_continuation_supervisor_claims_are_exclusive_and_released) or test(challenge_continuation_supervisor_releases_claims_without_extra_initialization)"
         ],
         "testFilter": [
           "a_failed_run_persists_the_provider_error_and_audit_row"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "8af24809",
+        "verifiedAt": "2026-09-25T18:01:04Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -87365,20 +87365,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(a_rejected_compaction_records_the_failed_notice) or test(input_answers_are_canonicalized_by_question_order_and_invalid_answers_are_rejected) or test(adk_audit_route_filters_by_kind_and_subject_id) or test(a_structured_tool_failure_is_persisted_as_a_failed_call_and_the_loop_continues) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(a_failed_workflow_execution_surfaces_on_the_loop_chat_path) or test(production_chat_provider_failure_projects_go_failed_run_with_reply) or test(run_gate_rejects_the_eleventh_concurrent_run_and_releases_on_drop) or test(adk_chat_route_reports_the_go_error_classification) or test(run_terminal_state_classifies_unsupported_input_before_the_status_switch) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(a_top_level_follow_up_reply_keeps_its_run_completed) or test(a_tool_only_turn_returns_the_second_round_reply_that_names_the_tool) or test(terminal_failure_mapping_matches_the_reference_table) or test(a_failed_run_persists_its_terminal_state_and_audit_row) or test(a_completed_run_links_its_final_assistant_message_across_the_transcript) or test(a_gated_call_parks_the_run_and_audits_awaiting_approval) or test(a_failed_run_persists_the_provider_error_and_audit_row) or test(a_completed_run_persists_the_reply_and_audits_run_completed) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(chat_rejects_invalid_permission_work_mode_and_reasoning_overrides) or test(run_snapshot_freezes_provider_name_model_and_permission_mode) or test(a_provider_override_runs_the_turn_without_editing_the_stored_agent) or test(resolve_provider_follows_the_default_selection_and_its_repair) or test(a_gated_tool_call_parks_the_run_with_only_pending_approvals) or test(a_completed_projection_hides_resolved_approvals) or test(agent_unavailable_reason_prefers_status_over_the_delete_marker) or test(a_started_run_serves_its_snapshot_and_drops_the_active_handle) or test(challenge_continuation_supervisor_claims_are_exclusive_and_released) or test(challenge_continuation_supervisor_releases_claims_without_extra_initialization)"
         ],
         "testFilter": [
           "a_completed_run_persists_the_reply_and_audits_run_completed"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "8af24809",
+        "verifiedAt": "2026-09-25T18:01:04Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -87432,23 +87432,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
           "--locked",
-          "--no-fail-fast",
           "-E",
-          "test(tool_failure) | test(first_tool_call_failure) | test(persist_success_marks)"
+          "test(a_rejected_compaction_records_the_failed_notice) or test(input_answers_are_canonicalized_by_question_order_and_invalid_answers_are_rejected) or test(adk_audit_route_filters_by_kind_and_subject_id) or test(a_structured_tool_failure_is_persisted_as_a_failed_call_and_the_loop_continues) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(a_failed_workflow_execution_surfaces_on_the_loop_chat_path) or test(production_chat_provider_failure_projects_go_failed_run_with_reply) or test(run_gate_rejects_the_eleventh_concurrent_run_and_releases_on_drop) or test(adk_chat_route_reports_the_go_error_classification) or test(run_terminal_state_classifies_unsupported_input_before_the_status_switch) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(a_top_level_follow_up_reply_keeps_its_run_completed) or test(a_tool_only_turn_returns_the_second_round_reply_that_names_the_tool) or test(terminal_failure_mapping_matches_the_reference_table) or test(a_failed_run_persists_its_terminal_state_and_audit_row) or test(a_completed_run_links_its_final_assistant_message_across_the_transcript) or test(a_gated_call_parks_the_run_and_audits_awaiting_approval) or test(a_failed_run_persists_the_provider_error_and_audit_row) or test(a_completed_run_persists_the_reply_and_audits_run_completed) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(chat_rejects_invalid_permission_work_mode_and_reasoning_overrides) or test(run_snapshot_freezes_provider_name_model_and_permission_mode) or test(a_provider_override_runs_the_turn_without_editing_the_stored_agent) or test(resolve_provider_follows_the_default_selection_and_its_repair) or test(a_gated_tool_call_parks_the_run_with_only_pending_approvals) or test(a_completed_projection_hides_resolved_approvals) or test(agent_unavailable_reason_prefers_status_over_the_delete_marker) or test(a_started_run_serves_its_snapshot_and_drops_the_active_handle) or test(challenge_continuation_supervisor_claims_are_exclusive_and_released) or test(challenge_continuation_supervisor_releases_claims_without_extra_initialization)"
         ],
         "testFilter": [
           "persist_success_marks_a_run_degraded_from_its_failed_tool_calls"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "8af24809",
+        "verifiedAt": "2026-09-25T18:01:04Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -87502,20 +87499,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline)"
+          "test(a_rejected_compaction_records_the_failed_notice) or test(input_answers_are_canonicalized_by_question_order_and_invalid_answers_are_rejected) or test(adk_audit_route_filters_by_kind_and_subject_id) or test(a_structured_tool_failure_is_persisted_as_a_failed_call_and_the_loop_continues) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(a_failed_workflow_execution_surfaces_on_the_loop_chat_path) or test(production_chat_provider_failure_projects_go_failed_run_with_reply) or test(run_gate_rejects_the_eleventh_concurrent_run_and_releases_on_drop) or test(adk_chat_route_reports_the_go_error_classification) or test(run_terminal_state_classifies_unsupported_input_before_the_status_switch) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(a_top_level_follow_up_reply_keeps_its_run_completed) or test(a_tool_only_turn_returns_the_second_round_reply_that_names_the_tool) or test(terminal_failure_mapping_matches_the_reference_table) or test(a_failed_run_persists_its_terminal_state_and_audit_row) or test(a_completed_run_links_its_final_assistant_message_across_the_transcript) or test(a_gated_call_parks_the_run_and_audits_awaiting_approval) or test(a_failed_run_persists_the_provider_error_and_audit_row) or test(a_completed_run_persists_the_reply_and_audits_run_completed) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(chat_rejects_invalid_permission_work_mode_and_reasoning_overrides) or test(run_snapshot_freezes_provider_name_model_and_permission_mode) or test(a_provider_override_runs_the_turn_without_editing_the_stored_agent) or test(resolve_provider_follows_the_default_selection_and_its_repair) or test(a_gated_tool_call_parks_the_run_with_only_pending_approvals) or test(a_completed_projection_hides_resolved_approvals) or test(agent_unavailable_reason_prefers_status_over_the_delete_marker) or test(a_started_run_serves_its_snapshot_and_drops_the_active_handle) or test(challenge_continuation_supervisor_claims_are_exclusive_and_released) or test(challenge_continuation_supervisor_releases_claims_without_extra_initialization)"
         ],
         "testFilter": [
           "a_tool_round_projects_the_pre_tool_reply_and_session_timeline"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "8af24809",
+        "verifiedAt": "2026-09-25T18:01:04Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -87569,20 +87566,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-assistant",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(runtime)"
+          "test(a_rejected_compaction_records_the_failed_notice) or test(input_answers_are_canonicalized_by_question_order_and_invalid_answers_are_rejected) or test(adk_audit_route_filters_by_kind_and_subject_id) or test(a_structured_tool_failure_is_persisted_as_a_failed_call_and_the_loop_continues) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(a_failed_workflow_execution_surfaces_on_the_loop_chat_path) or test(production_chat_provider_failure_projects_go_failed_run_with_reply) or test(run_gate_rejects_the_eleventh_concurrent_run_and_releases_on_drop) or test(adk_chat_route_reports_the_go_error_classification) or test(run_terminal_state_classifies_unsupported_input_before_the_status_switch) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(a_top_level_follow_up_reply_keeps_its_run_completed) or test(a_tool_only_turn_returns_the_second_round_reply_that_names_the_tool) or test(terminal_failure_mapping_matches_the_reference_table) or test(a_failed_run_persists_its_terminal_state_and_audit_row) or test(a_completed_run_links_its_final_assistant_message_across_the_transcript) or test(a_gated_call_parks_the_run_and_audits_awaiting_approval) or test(a_failed_run_persists_the_provider_error_and_audit_row) or test(a_completed_run_persists_the_reply_and_audits_run_completed) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(chat_rejects_invalid_permission_work_mode_and_reasoning_overrides) or test(run_snapshot_freezes_provider_name_model_and_permission_mode) or test(a_provider_override_runs_the_turn_without_editing_the_stored_agent) or test(resolve_provider_follows_the_default_selection_and_its_repair) or test(a_gated_tool_call_parks_the_run_with_only_pending_approvals) or test(a_completed_projection_hides_resolved_approvals) or test(agent_unavailable_reason_prefers_status_over_the_delete_marker) or test(a_started_run_serves_its_snapshot_and_drops_the_active_handle) or test(challenge_continuation_supervisor_claims_are_exclusive_and_released) or test(challenge_continuation_supervisor_releases_claims_without_extra_initialization)"
         ],
         "testFilter": [
           "chat_rejects_invalid_permission_work_mode_and_reasoning_overrides"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "8af24809",
+        "verifiedAt": "2026-09-25T18:01:04Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -87636,20 +87633,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-assistant",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(runtime)"
+          "test(a_rejected_compaction_records_the_failed_notice) or test(input_answers_are_canonicalized_by_question_order_and_invalid_answers_are_rejected) or test(adk_audit_route_filters_by_kind_and_subject_id) or test(a_structured_tool_failure_is_persisted_as_a_failed_call_and_the_loop_continues) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(a_failed_workflow_execution_surfaces_on_the_loop_chat_path) or test(production_chat_provider_failure_projects_go_failed_run_with_reply) or test(run_gate_rejects_the_eleventh_concurrent_run_and_releases_on_drop) or test(adk_chat_route_reports_the_go_error_classification) or test(run_terminal_state_classifies_unsupported_input_before_the_status_switch) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(a_top_level_follow_up_reply_keeps_its_run_completed) or test(a_tool_only_turn_returns_the_second_round_reply_that_names_the_tool) or test(terminal_failure_mapping_matches_the_reference_table) or test(a_failed_run_persists_its_terminal_state_and_audit_row) or test(a_completed_run_links_its_final_assistant_message_across_the_transcript) or test(a_gated_call_parks_the_run_and_audits_awaiting_approval) or test(a_failed_run_persists_the_provider_error_and_audit_row) or test(a_completed_run_persists_the_reply_and_audits_run_completed) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(chat_rejects_invalid_permission_work_mode_and_reasoning_overrides) or test(run_snapshot_freezes_provider_name_model_and_permission_mode) or test(a_provider_override_runs_the_turn_without_editing_the_stored_agent) or test(resolve_provider_follows_the_default_selection_and_its_repair) or test(a_gated_tool_call_parks_the_run_with_only_pending_approvals) or test(a_completed_projection_hides_resolved_approvals) or test(agent_unavailable_reason_prefers_status_over_the_delete_marker) or test(a_started_run_serves_its_snapshot_and_drops_the_active_handle) or test(challenge_continuation_supervisor_claims_are_exclusive_and_released) or test(challenge_continuation_supervisor_releases_claims_without_extra_initialization)"
         ],
         "testFilter": [
           "run_snapshot_freezes_provider_name_model_and_permission_mode"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "8af24809",
+        "verifiedAt": "2026-09-25T18:01:04Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -87703,20 +87700,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(a_provider_override_runs_the_turn_without_editing_the_stored_agent)"
+          "test(a_rejected_compaction_records_the_failed_notice) or test(input_answers_are_canonicalized_by_question_order_and_invalid_answers_are_rejected) or test(adk_audit_route_filters_by_kind_and_subject_id) or test(a_structured_tool_failure_is_persisted_as_a_failed_call_and_the_loop_continues) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(a_failed_workflow_execution_surfaces_on_the_loop_chat_path) or test(production_chat_provider_failure_projects_go_failed_run_with_reply) or test(run_gate_rejects_the_eleventh_concurrent_run_and_releases_on_drop) or test(adk_chat_route_reports_the_go_error_classification) or test(run_terminal_state_classifies_unsupported_input_before_the_status_switch) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(a_top_level_follow_up_reply_keeps_its_run_completed) or test(a_tool_only_turn_returns_the_second_round_reply_that_names_the_tool) or test(terminal_failure_mapping_matches_the_reference_table) or test(a_failed_run_persists_its_terminal_state_and_audit_row) or test(a_completed_run_links_its_final_assistant_message_across_the_transcript) or test(a_gated_call_parks_the_run_and_audits_awaiting_approval) or test(a_failed_run_persists_the_provider_error_and_audit_row) or test(a_completed_run_persists_the_reply_and_audits_run_completed) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(chat_rejects_invalid_permission_work_mode_and_reasoning_overrides) or test(run_snapshot_freezes_provider_name_model_and_permission_mode) or test(a_provider_override_runs_the_turn_without_editing_the_stored_agent) or test(resolve_provider_follows_the_default_selection_and_its_repair) or test(a_gated_tool_call_parks_the_run_with_only_pending_approvals) or test(a_completed_projection_hides_resolved_approvals) or test(agent_unavailable_reason_prefers_status_over_the_delete_marker) or test(a_started_run_serves_its_snapshot_and_drops_the_active_handle) or test(challenge_continuation_supervisor_claims_are_exclusive_and_released) or test(challenge_continuation_supervisor_releases_claims_without_extra_initialization)"
         ],
         "testFilter": [
           "a_provider_override_runs_the_turn_without_editing_the_stored_agent"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "8af24809",
+        "verifiedAt": "2026-09-25T18:01:04Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -87770,20 +87767,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(resolve_provider_follows_the_default_selection_and_its_repair)"
+          "test(a_rejected_compaction_records_the_failed_notice) or test(input_answers_are_canonicalized_by_question_order_and_invalid_answers_are_rejected) or test(adk_audit_route_filters_by_kind_and_subject_id) or test(a_structured_tool_failure_is_persisted_as_a_failed_call_and_the_loop_continues) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(a_failed_workflow_execution_surfaces_on_the_loop_chat_path) or test(production_chat_provider_failure_projects_go_failed_run_with_reply) or test(run_gate_rejects_the_eleventh_concurrent_run_and_releases_on_drop) or test(adk_chat_route_reports_the_go_error_classification) or test(run_terminal_state_classifies_unsupported_input_before_the_status_switch) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(a_top_level_follow_up_reply_keeps_its_run_completed) or test(a_tool_only_turn_returns_the_second_round_reply_that_names_the_tool) or test(terminal_failure_mapping_matches_the_reference_table) or test(a_failed_run_persists_its_terminal_state_and_audit_row) or test(a_completed_run_links_its_final_assistant_message_across_the_transcript) or test(a_gated_call_parks_the_run_and_audits_awaiting_approval) or test(a_failed_run_persists_the_provider_error_and_audit_row) or test(a_completed_run_persists_the_reply_and_audits_run_completed) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(chat_rejects_invalid_permission_work_mode_and_reasoning_overrides) or test(run_snapshot_freezes_provider_name_model_and_permission_mode) or test(a_provider_override_runs_the_turn_without_editing_the_stored_agent) or test(resolve_provider_follows_the_default_selection_and_its_repair) or test(a_gated_tool_call_parks_the_run_with_only_pending_approvals) or test(a_completed_projection_hides_resolved_approvals) or test(agent_unavailable_reason_prefers_status_over_the_delete_marker) or test(a_started_run_serves_its_snapshot_and_drops_the_active_handle) or test(challenge_continuation_supervisor_claims_are_exclusive_and_released) or test(challenge_continuation_supervisor_releases_claims_without_extra_initialization)"
         ],
         "testFilter": [
           "resolve_provider_follows_the_default_selection_and_its_repair"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "8af24809",
+        "verifiedAt": "2026-09-25T18:01:04Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -87837,20 +87834,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(a_gated_tool_call_parks_the_run_with_only_pending_approvals)"
+          "test(a_rejected_compaction_records_the_failed_notice) or test(input_answers_are_canonicalized_by_question_order_and_invalid_answers_are_rejected) or test(adk_audit_route_filters_by_kind_and_subject_id) or test(a_structured_tool_failure_is_persisted_as_a_failed_call_and_the_loop_continues) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(a_failed_workflow_execution_surfaces_on_the_loop_chat_path) or test(production_chat_provider_failure_projects_go_failed_run_with_reply) or test(run_gate_rejects_the_eleventh_concurrent_run_and_releases_on_drop) or test(adk_chat_route_reports_the_go_error_classification) or test(run_terminal_state_classifies_unsupported_input_before_the_status_switch) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(a_top_level_follow_up_reply_keeps_its_run_completed) or test(a_tool_only_turn_returns_the_second_round_reply_that_names_the_tool) or test(terminal_failure_mapping_matches_the_reference_table) or test(a_failed_run_persists_its_terminal_state_and_audit_row) or test(a_completed_run_links_its_final_assistant_message_across_the_transcript) or test(a_gated_call_parks_the_run_and_audits_awaiting_approval) or test(a_failed_run_persists_the_provider_error_and_audit_row) or test(a_completed_run_persists_the_reply_and_audits_run_completed) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(chat_rejects_invalid_permission_work_mode_and_reasoning_overrides) or test(run_snapshot_freezes_provider_name_model_and_permission_mode) or test(a_provider_override_runs_the_turn_without_editing_the_stored_agent) or test(resolve_provider_follows_the_default_selection_and_its_repair) or test(a_gated_tool_call_parks_the_run_with_only_pending_approvals) or test(a_completed_projection_hides_resolved_approvals) or test(agent_unavailable_reason_prefers_status_over_the_delete_marker) or test(a_started_run_serves_its_snapshot_and_drops_the_active_handle) or test(challenge_continuation_supervisor_claims_are_exclusive_and_released) or test(challenge_continuation_supervisor_releases_claims_without_extra_initialization)"
         ],
         "testFilter": [
           "a_gated_tool_call_parks_the_run_with_only_pending_approvals"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "8af24809",
+        "verifiedAt": "2026-09-25T18:01:04Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -87904,20 +87901,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(a_completed_projection_hides_resolved_approvals)"
+          "test(a_rejected_compaction_records_the_failed_notice) or test(input_answers_are_canonicalized_by_question_order_and_invalid_answers_are_rejected) or test(adk_audit_route_filters_by_kind_and_subject_id) or test(a_structured_tool_failure_is_persisted_as_a_failed_call_and_the_loop_continues) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(a_failed_workflow_execution_surfaces_on_the_loop_chat_path) or test(production_chat_provider_failure_projects_go_failed_run_with_reply) or test(run_gate_rejects_the_eleventh_concurrent_run_and_releases_on_drop) or test(adk_chat_route_reports_the_go_error_classification) or test(run_terminal_state_classifies_unsupported_input_before_the_status_switch) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(a_top_level_follow_up_reply_keeps_its_run_completed) or test(a_tool_only_turn_returns_the_second_round_reply_that_names_the_tool) or test(terminal_failure_mapping_matches_the_reference_table) or test(a_failed_run_persists_its_terminal_state_and_audit_row) or test(a_completed_run_links_its_final_assistant_message_across_the_transcript) or test(a_gated_call_parks_the_run_and_audits_awaiting_approval) or test(a_failed_run_persists_the_provider_error_and_audit_row) or test(a_completed_run_persists_the_reply_and_audits_run_completed) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(chat_rejects_invalid_permission_work_mode_and_reasoning_overrides) or test(run_snapshot_freezes_provider_name_model_and_permission_mode) or test(a_provider_override_runs_the_turn_without_editing_the_stored_agent) or test(resolve_provider_follows_the_default_selection_and_its_repair) or test(a_gated_tool_call_parks_the_run_with_only_pending_approvals) or test(a_completed_projection_hides_resolved_approvals) or test(agent_unavailable_reason_prefers_status_over_the_delete_marker) or test(a_started_run_serves_its_snapshot_and_drops_the_active_handle) or test(challenge_continuation_supervisor_claims_are_exclusive_and_released) or test(challenge_continuation_supervisor_releases_claims_without_extra_initialization)"
         ],
         "testFilter": [
           "a_completed_projection_hides_resolved_approvals"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "8af24809",
+        "verifiedAt": "2026-09-25T18:01:04Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -88044,10 +88041,10 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(agent_unavailable_reason_prefers_status_over_the_delete_marker)"
+          "test(a_rejected_compaction_records_the_failed_notice) or test(input_answers_are_canonicalized_by_question_order_and_invalid_answers_are_rejected) or test(adk_audit_route_filters_by_kind_and_subject_id) or test(a_structured_tool_failure_is_persisted_as_a_failed_call_and_the_loop_continues) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(a_failed_workflow_execution_surfaces_on_the_loop_chat_path) or test(production_chat_provider_failure_projects_go_failed_run_with_reply) or test(run_gate_rejects_the_eleventh_concurrent_run_and_releases_on_drop) or test(adk_chat_route_reports_the_go_error_classification) or test(run_terminal_state_classifies_unsupported_input_before_the_status_switch) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(a_top_level_follow_up_reply_keeps_its_run_completed) or test(a_tool_only_turn_returns_the_second_round_reply_that_names_the_tool) or test(terminal_failure_mapping_matches_the_reference_table) or test(a_failed_run_persists_its_terminal_state_and_audit_row) or test(a_completed_run_links_its_final_assistant_message_across_the_transcript) or test(a_gated_call_parks_the_run_and_audits_awaiting_approval) or test(a_failed_run_persists_the_provider_error_and_audit_row) or test(a_completed_run_persists_the_reply_and_audits_run_completed) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(chat_rejects_invalid_permission_work_mode_and_reasoning_overrides) or test(run_snapshot_freezes_provider_name_model_and_permission_mode) or test(a_provider_override_runs_the_turn_without_editing_the_stored_agent) or test(resolve_provider_follows_the_default_selection_and_its_repair) or test(a_gated_tool_call_parks_the_run_with_only_pending_approvals) or test(a_completed_projection_hides_resolved_approvals) or test(agent_unavailable_reason_prefers_status_over_the_delete_marker) or test(a_started_run_serves_its_snapshot_and_drops_the_active_handle) or test(challenge_continuation_supervisor_claims_are_exclusive_and_released) or test(challenge_continuation_supervisor_releases_claims_without_extra_initialization)"
         ],
         "testFilter": [
           "agent_unavailable_reason_prefers_status_over_the_delete_marker",
@@ -88055,10 +88052,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "8af24809",
+        "verifiedAt": "2026-09-25T18:01:04Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -88179,20 +88176,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(a_started_run_serves_its_snapshot_and_drops_the_active_handle)"
+          "test(a_rejected_compaction_records_the_failed_notice) or test(input_answers_are_canonicalized_by_question_order_and_invalid_answers_are_rejected) or test(adk_audit_route_filters_by_kind_and_subject_id) or test(a_structured_tool_failure_is_persisted_as_a_failed_call_and_the_loop_continues) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(a_failed_workflow_execution_surfaces_on_the_loop_chat_path) or test(production_chat_provider_failure_projects_go_failed_run_with_reply) or test(run_gate_rejects_the_eleventh_concurrent_run_and_releases_on_drop) or test(adk_chat_route_reports_the_go_error_classification) or test(run_terminal_state_classifies_unsupported_input_before_the_status_switch) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(a_top_level_follow_up_reply_keeps_its_run_completed) or test(a_tool_only_turn_returns_the_second_round_reply_that_names_the_tool) or test(terminal_failure_mapping_matches_the_reference_table) or test(a_failed_run_persists_its_terminal_state_and_audit_row) or test(a_completed_run_links_its_final_assistant_message_across_the_transcript) or test(a_gated_call_parks_the_run_and_audits_awaiting_approval) or test(a_failed_run_persists_the_provider_error_and_audit_row) or test(a_completed_run_persists_the_reply_and_audits_run_completed) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(chat_rejects_invalid_permission_work_mode_and_reasoning_overrides) or test(run_snapshot_freezes_provider_name_model_and_permission_mode) or test(a_provider_override_runs_the_turn_without_editing_the_stored_agent) or test(resolve_provider_follows_the_default_selection_and_its_repair) or test(a_gated_tool_call_parks_the_run_with_only_pending_approvals) or test(a_completed_projection_hides_resolved_approvals) or test(agent_unavailable_reason_prefers_status_over_the_delete_marker) or test(a_started_run_serves_its_snapshot_and_drops_the_active_handle) or test(challenge_continuation_supervisor_claims_are_exclusive_and_released) or test(challenge_continuation_supervisor_releases_claims_without_extra_initialization)"
         ],
         "testFilter": [
           "a_started_run_serves_its_snapshot_and_drops_the_active_handle"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "8af24809",
+        "verifiedAt": "2026-09-25T18:01:04Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -88313,20 +88310,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(a_rejected_compaction_records_the_failed_notice) or test(input_answers_are_canonicalized_by_question_order_and_invalid_answers_are_rejected) or test(adk_audit_route_filters_by_kind_and_subject_id) or test(a_structured_tool_failure_is_persisted_as_a_failed_call_and_the_loop_continues) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(a_failed_workflow_execution_surfaces_on_the_loop_chat_path) or test(production_chat_provider_failure_projects_go_failed_run_with_reply) or test(run_gate_rejects_the_eleventh_concurrent_run_and_releases_on_drop) or test(adk_chat_route_reports_the_go_error_classification) or test(run_terminal_state_classifies_unsupported_input_before_the_status_switch) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(a_top_level_follow_up_reply_keeps_its_run_completed) or test(a_tool_only_turn_returns_the_second_round_reply_that_names_the_tool) or test(terminal_failure_mapping_matches_the_reference_table) or test(a_failed_run_persists_its_terminal_state_and_audit_row) or test(a_completed_run_links_its_final_assistant_message_across_the_transcript) or test(a_gated_call_parks_the_run_and_audits_awaiting_approval) or test(a_failed_run_persists_the_provider_error_and_audit_row) or test(a_completed_run_persists_the_reply_and_audits_run_completed) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(chat_rejects_invalid_permission_work_mode_and_reasoning_overrides) or test(run_snapshot_freezes_provider_name_model_and_permission_mode) or test(a_provider_override_runs_the_turn_without_editing_the_stored_agent) or test(resolve_provider_follows_the_default_selection_and_its_repair) or test(a_gated_tool_call_parks_the_run_with_only_pending_approvals) or test(a_completed_projection_hides_resolved_approvals) or test(agent_unavailable_reason_prefers_status_over_the_delete_marker) or test(a_started_run_serves_its_snapshot_and_drops_the_active_handle) or test(challenge_continuation_supervisor_claims_are_exclusive_and_released) or test(challenge_continuation_supervisor_releases_claims_without_extra_initialization)"
         ],
         "testFilter": [
           "challenge_continuation_supervisor_claims_are_exclusive_and_released"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "8af24809",
+        "verifiedAt": "2026-09-25T18:01:04Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -88380,20 +88377,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(a_rejected_compaction_records_the_failed_notice) or test(input_answers_are_canonicalized_by_question_order_and_invalid_answers_are_rejected) or test(adk_audit_route_filters_by_kind_and_subject_id) or test(a_structured_tool_failure_is_persisted_as_a_failed_call_and_the_loop_continues) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(a_failed_workflow_execution_surfaces_on_the_loop_chat_path) or test(production_chat_provider_failure_projects_go_failed_run_with_reply) or test(run_gate_rejects_the_eleventh_concurrent_run_and_releases_on_drop) or test(adk_chat_route_reports_the_go_error_classification) or test(run_terminal_state_classifies_unsupported_input_before_the_status_switch) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(a_top_level_follow_up_reply_keeps_its_run_completed) or test(a_tool_only_turn_returns_the_second_round_reply_that_names_the_tool) or test(terminal_failure_mapping_matches_the_reference_table) or test(a_failed_run_persists_its_terminal_state_and_audit_row) or test(a_completed_run_links_its_final_assistant_message_across_the_transcript) or test(a_gated_call_parks_the_run_and_audits_awaiting_approval) or test(a_failed_run_persists_the_provider_error_and_audit_row) or test(a_completed_run_persists_the_reply_and_audits_run_completed) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(chat_rejects_invalid_permission_work_mode_and_reasoning_overrides) or test(run_snapshot_freezes_provider_name_model_and_permission_mode) or test(a_provider_override_runs_the_turn_without_editing_the_stored_agent) or test(resolve_provider_follows_the_default_selection_and_its_repair) or test(a_gated_tool_call_parks_the_run_with_only_pending_approvals) or test(a_completed_projection_hides_resolved_approvals) or test(agent_unavailable_reason_prefers_status_over_the_delete_marker) or test(a_started_run_serves_its_snapshot_and_drops_the_active_handle) or test(challenge_continuation_supervisor_claims_are_exclusive_and_released) or test(challenge_continuation_supervisor_releases_claims_without_extra_initialization)"
         ],
         "testFilter": [
           "challenge_continuation_supervisor_releases_claims_without_extra_initialization"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "8af24809",
+        "verifiedAt": "2026-09-25T18:01:04Z",
         "receiptDigest": null
       },
       "risk": "normal",

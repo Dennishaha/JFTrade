@@ -1579,6 +1579,22 @@ ADK/Assistant 功能差异，先补失败回归测试再修改领域 owner。
 
 下一片：继续剩余 P2 Assistant/Workflow/ADK provider、runner 与 transport 条目，再转 API transport、MarketData/Quote、Storage/SQLite、Settings/Watchlist 与 Backtest/Calendar；`optional_bool_strict`、`session_context_snapshot` 及其他无独立 Rust 测试条目仍保持未验证结论。
 
+## 第 205 批：Runner chat projection、continuation signal 与 approval runtime（2026-09-26）
+
+| 复核 | Go 测试范围 | Rust 证据 | P | 结论 |
+| :---: | --- | --- | :---: | --- |
+| [x] | `runner_chat_callbacks_test.go:49`; `runner_chat_continuation_signal_test.go:9,22` | rejected compaction notice、continuation-only input canonicalization 与 audit filtering | P2 | partial：Rust session-context、input-response 与 ADK read owners 覆盖 notice、canonical answers 和 audit projection；Go callback sink、session facade 与 raw prompt suppression 仍保持 partial。 |
+| [x] | `runner_chat_runtime_branches_test.go:55,190,337,487` | structured tool failure loop、approval resume、workflow execution failure 与 provider failure terminal projection | P2 | partial：Rust ADK runtime/tool failure/production stream owners 覆盖失败持久化、approval continuation 与 failed-run wire；Go Google ADK runner construction 和 callback wiring 保留结构差异。 |
+| [x] | `runner_chat_test.go:18,56,69,102,127,156,181,225,267,325,376,423,490` | run gate、unsupported input state、run projection/follow-up、tool-only reply、terminal mapping/audit、final message link、approval pending、degraded tool calls 与 pre-tool timeline | P2 | partial：Rust gate/projection/terminal-audit owners 逐项通过；Go `runChat`/`ProjectedChatResponse` 聚合、GORM transcript 注入与 in-process state machine 不升级为 exact。 |
+| [x] | `runner_chat_test.go:541,552,609,670,737,846,978,1079` | invalid override、run snapshot、provider override/default repair、pending approval projection、resolved approval hiding、agent/provider validation 与 active handle lifecycle | P2 | partial：Rust runtime gate/projection/production ADK owners 覆盖状态快照、provider 选择、approval visibility 与 run handle；Go facade error wording 和 registry/HTTP aggregation 保持 partial。 |
+| [x] | `runner_continuation_boundaries_test.go:11,63` | exclusive continuation claims、closing runtime cleanup 与 queue initialization without background context | P2 | partial：Rust fencing tests 覆盖 claim exclusivity/release 与 missing-runtime queue；Go nil receiver、goroutine scheduling 与 `approvalWG` 生命周期保留边界。 |
+
+本批共 30 条 Go 映射，对应表达式中的 31 个真实过滤器；Rust nextest 实际 **31/31** 通过（3442 skipped）。runner chat callbacks/continuation signal、runtime branch failures、projection/terminal audit、provider selection、approval pending/resume 与 continuation fencing 均有 owner 测试；Go Google ADK runner facade、GORM transcript wiring、callback sink、in-process registry 与 nil receiver 专属行为继续保持 `partial`/`boundary`，未凭聚合测试升级为 exact，也未发现需要先红后修的真实 Rust 功能差异。
+
+验证：动态生成本批过滤器运行 `node scripts/quality/cargo-nextest.mjs run --all-targets --locked -E`，31/31 通过。
+
+下一片：继续 P2 Assistant/Workflow/ADK 的 runner continuation、transport 与 provider 边界，再转 API transport、MarketData/Quote、Storage/SQLite、Settings/Watchlist 与 Backtest/Calendar；helper/type-only 条目、`optional_bool_strict`、`session_context_snapshot` 及其他无独立 Rust 测试条目仍保持未验证结论。
+
 ## 第 197 批：Web access/frontend 安全与 Assistant/Workflow/ADK contracts（2026-09-26）
 
 | 复核 | Go 测试范围 | Rust 证据 | P | 结论 |
