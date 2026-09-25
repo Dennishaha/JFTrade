@@ -2972,7 +2972,7 @@
       "status": "[~]",
       "rust_entry": "不适用：Go 进程内 adkTimelineStreamState（hub helper）",
       "conclusion": "boundary：该测试针对 Go 进程内 hub 的 `adkTimelineStreamState`（observeSession/observeRun/appendReasoning/appendMessage/firstTimelineToolTime）。Rust 没有等价结构：timeline 由 durable run payload 的 streamEvents 与 session transcript 事件直接投影（product_adk_model_runtime_stream_events.rs::emit_stream_event / product_production_ports_adk_projection.rs::timeline_value），不存在需要维护的进程内 sequence/toolGroup 状态机。对应行为契约由 adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart（重放保留 timeline 帧）与 production_live_chat_stream_emits_session_run_and_final_events（session→run→final 顺序）覆盖。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E test(adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart) or test(production_live_chat_stream_emits_session_run_and_final_events)",
       "evidence_type": "boundary",
       "source": {
         "file": "internal/api/assistant/chat_helpers_test.go",
@@ -2982,11 +2982,13 @@
       },
       "rustEvidence": [],
       "assertionCoverage": {
-        "covered": [],
-        "uncovered": [
-          "boundary：该测试针对 Go 进程内 hub 的 `adkTimelineStreamState`（observeSession/observeRun/appendReasoning/appendMessage/firstTimelineToolTime）。Rust 没有等价结构：timeline 由 durable run payload 的 streamEvents 与 session transcript 事件直接投影（product_adk_model_runtime_stream_events.rs::emit_stream_event / product_production_ports_adk_projection.rs::timeline_value），不存在需要维护的进程内 sequence/toolGroup 状态机。对应行为契约由 adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart（重放保留 timeline 帧）与 production_live_chat_stream_emits_session_run_and_final_events（session→run→final 顺序）覆盖。"
+        "covered": [
+          "Rust 已验证 durable stream 重放与 production session→run→final 顺序，覆盖该 helper 对应的外部事件契约。"
         ],
-        "source": "legacy-conclusion"
+        "uncovered": [
+          "Go 的 adkTimelineStreamState sequence、toolGroup 最早时间、reasoning/message 拼接属于进程内 helper 状态机；Rust 直接写入 durable streamEvents，没有同形状态对象。"
+        ],
+        "source": "manual-batch-review"
       },
       "verification": {
         "argv": [
@@ -2996,15 +2998,20 @@
           "-p",
           "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart) or test(production_live_chat_stream_emits_session_run_and_final_events)"
         ],
-        "testFilter": [],
+        "testFilter": [
+          "adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart",
+          "production_live_chat_stream_emits_session_run_and_final_events"
+        ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
+        "status": "passed",
+        "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": null,
+        "verifiedAt": "2026-09-25T03:30:00Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -3015,9 +3022,11 @@
         "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [],
+      "coveredAssertions": [
+        "Rust 已验证 durable stream 重放与 production session→run→final 顺序，覆盖该 helper 对应的外部事件契约。"
+      ],
       "uncoveredAssertions": [
-        "boundary：该测试针对 Go 进程内 hub 的 `adkTimelineStreamState`（observeSession/observeRun/appendReasoning/appendMessage/firstTimelineToolTime）。Rust 没有等价结构：timeline 由 durable run payload 的 streamEvents 与 session transcript 事件直接投影（product_adk_model_runtime_stream_events.rs::emit_stream_event / product_production_ports_adk_projection.rs::timeline_value），不存在需要维护的进程内 sequence/toolGroup 状态机。对应行为契约由 adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart（重放保留 timeline 帧）与 production_live_chat_stream_emits_session_run_and_final_events（session→run→final 顺序）覆盖。"
+        "Go 的 adkTimelineStreamState sequence、toolGroup 最早时间、reasoning/message 拼接属于进程内 helper 状态机；Rust 直接写入 durable streamEvents，没有同形状态对象。"
       ],
       "boundaryReason": "boundary：该测试针对 Go 进程内 hub 的 `adkTimelineStreamState`（observeSession/observeRun/appendReasoning/appendMessage/firstTimelineToolTime）。Rust 没有等价结构：timeline 由 durable run payload 的 streamEvents 与 session transcript 事件直接投影（product_adk_model_runtime_stream_events.rs::emit_stream_event / product_production_ports_adk_projection.rs::timeline_value），不存在需要维护的进程内 sequence/toolGroup 状态机。对应行为契约由 adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart（重放保留 timeline 帧）与 production_live_chat_stream_emits_session_run_and_final_events（session→run→final 顺序）覆盖。"
     },
@@ -3078,7 +3087,7 @@
       "status": "[~]",
       "rust_entry": "不适用：Go 进程内 timeline clone 兜底",
       "conclusion": "boundary：`appendReasoning/appendMessage/cloneTimelineEntry/defaultTimelineRunID` 都是 Go 内存 hub 的防御性拷贝与缺省值逻辑。Rust 的 timeline 条目在写入时即为 serde_json::Value 并从 SQLite 读回（timeline_value），不存在共享指针可变别名，也不需要 `defaultTimelineRunID(\"  \")==\"stream\"` 这类仅服务内存 hub 的缺省。空 delta 不产生条目由 durable 事件写入路径保证：emit_stream_event 只在有内容时写入 streamEvents。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E test(production_live_chat_stream_emits_auto_compaction_frames_before_the_run) or test(adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart)",
       "evidence_type": "boundary",
       "source": {
         "file": "internal/api/assistant/chat_helpers_test.go",
@@ -3088,11 +3097,13 @@
       },
       "rustEvidence": [],
       "assertionCoverage": {
-        "covered": [],
-        "uncovered": [
-          "boundary：`appendReasoning/appendMessage/cloneTimelineEntry/defaultTimelineRunID` 都是 Go 内存 hub 的防御性拷贝与缺省值逻辑。Rust 的 timeline 条目在写入时即为 serde_json::Value 并从 SQLite 读回（timeline_value），不存在共享指针可变别名，也不需要 `defaultTimelineRunID(\"  \")==\"stream\"` 这类仅服务内存 hub 的缺省。空 delta 不产生条目由 durable 事件写入路径保证：emit_stream_event 只在有内容时写入 streamEvents。"
+        "covered": [
+          "Rust 已验证 timeline/context durable frame 在 live stream 与 replay 中保留，空内容不会伪造 narrative frame。"
         ],
-        "source": "legacy-conclusion"
+        "uncovered": [
+          "Go 的 appendReasoning/appendMessage clone 防别名、defaultTimelineRunID 与 firstTimelineToolTime fallback 只服务内存 hub；Rust serde 值没有共享指针别名或同形缺省 helper。"
+        ],
+        "source": "manual-batch-review"
       },
       "verification": {
         "argv": [
@@ -3102,15 +3113,20 @@
           "-p",
           "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(production_live_chat_stream_emits_auto_compaction_frames_before_the_run) or test(adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart)"
         ],
-        "testFilter": [],
+        "testFilter": [
+          "production_live_chat_stream_emits_auto_compaction_frames_before_the_run",
+          "adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart"
+        ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
+        "status": "passed",
+        "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": null,
+        "verifiedAt": "2026-09-25T03:30:00Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -3121,9 +3137,11 @@
         "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [],
+      "coveredAssertions": [
+        "Rust 已验证 timeline/context durable frame 在 live stream 与 replay 中保留，空内容不会伪造 narrative frame。"
+      ],
       "uncoveredAssertions": [
-        "boundary：`appendReasoning/appendMessage/cloneTimelineEntry/defaultTimelineRunID` 都是 Go 内存 hub 的防御性拷贝与缺省值逻辑。Rust 的 timeline 条目在写入时即为 serde_json::Value 并从 SQLite 读回（timeline_value），不存在共享指针可变别名，也不需要 `defaultTimelineRunID(\"  \")==\"stream\"` 这类仅服务内存 hub 的缺省。空 delta 不产生条目由 durable 事件写入路径保证：emit_stream_event 只在有内容时写入 streamEvents。"
+        "Go 的 appendReasoning/appendMessage clone 防别名、defaultTimelineRunID 与 firstTimelineToolTime fallback 只服务内存 hub；Rust serde 值没有共享指针别名或同形缺省 helper。"
       ],
       "boundaryReason": "boundary：`appendReasoning/appendMessage/cloneTimelineEntry/defaultTimelineRunID` 都是 Go 内存 hub 的防御性拷贝与缺省值逻辑。Rust 的 timeline 条目在写入时即为 serde_json::Value 并从 SQLite 读回（timeline_value），不存在共享指针可变别名，也不需要 `defaultTimelineRunID(\"  \")==\"stream\"` 这类仅服务内存 hub 的缺省。空 delta 不产生条目由 durable 事件写入路径保证：emit_stream_event 只在有内容时写入 streamEvents。"
     },
@@ -3521,7 +3539,7 @@
       "status": "[~]",
       "rust_entry": "不适用：cloneADKChatStreamEvent 的 JSON 往返兜底",
       "conclusion": "boundary：Go 的 `cloneADKChatStreamEvent` 用 JSON 往返克隆事件，并在 `func()` 这类不可序列化 tool output 上保留原事件（防止 live 事件被丢弃）。Rust 的事件在构造时就是 serde_json::Value，不可能出现不可序列化字段，因此不存在同等结构；timeline-only delta 不产生叙事重复的契约由 durable 投影承接——流事件写入 payload 的 `streamEvents` 且 final 只追加一帧（persisted_terminal_run_is_published_as_final_instead_of_a_second_error 断言终态只产生一个 final、无第二个 error）。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E test(adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart) or test(production_live_chat_stream_emits_session_run_and_final_events) or test(persisted_terminal_run_is_published_as_final_instead_of_a_second_error)",
       "evidence_type": "boundary",
       "source": {
         "file": "internal/api/assistant/chat_stream_recovery_contracts_test.go",
@@ -3531,11 +3549,13 @@
       },
       "rustEvidence": [],
       "assertionCoverage": {
-        "covered": [],
-        "uncovered": [
-          "boundary：Go 的 `cloneADKChatStreamEvent` 用 JSON 往返克隆事件，并在 `func()` 这类不可序列化 tool output 上保留原事件（防止 live 事件被丢弃）。Rust 的事件在构造时就是 serde_json::Value，不可能出现不可序列化字段，因此不存在同等结构；timeline-only delta 不产生叙事重复的契约由 durable 投影承接——流事件写入 payload 的 `streamEvents` 且 final 只追加一帧（persisted_terminal_run_is_published_as_final_instead_of_a_second_error 断言终态只产生一个 final、无第二个 error）。"
+        "covered": [
+          "Rust 已验证 durable timeline/replay、live frame 顺序与终态只发布 final 的 recovery 契约。"
         ],
-        "source": "legacy-conclusion"
+        "uncovered": [
+          "Go 的 cloneADKChatStreamEvent 对不可序列化 func tool output 的保留是进程内 JSON 兜底；Rust 事件构造即为 serde_json::Value，没有同形不可序列化字段。"
+        ],
+        "source": "manual-batch-review"
       },
       "verification": {
         "argv": [
@@ -3545,15 +3565,21 @@
           "-p",
           "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart) or test(production_live_chat_stream_emits_session_run_and_final_events) or test(persisted_terminal_run_is_published_as_final_instead_of_a_second_error)"
         ],
-        "testFilter": [],
+        "testFilter": [
+          "adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart",
+          "production_live_chat_stream_emits_session_run_and_final_events",
+          "persisted_terminal_run_is_published_as_final_instead_of_a_second_error"
+        ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
+        "status": "passed",
+        "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": null,
+        "verifiedAt": "2026-09-25T03:30:00Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -3564,9 +3590,11 @@
         "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [],
+      "coveredAssertions": [
+        "Rust 已验证 durable timeline/replay、live frame 顺序与终态只发布 final 的 recovery 契约。"
+      ],
       "uncoveredAssertions": [
-        "boundary：Go 的 `cloneADKChatStreamEvent` 用 JSON 往返克隆事件，并在 `func()` 这类不可序列化 tool output 上保留原事件（防止 live 事件被丢弃）。Rust 的事件在构造时就是 serde_json::Value，不可能出现不可序列化字段，因此不存在同等结构；timeline-only delta 不产生叙事重复的契约由 durable 投影承接——流事件写入 payload 的 `streamEvents` 且 final 只追加一帧（persisted_terminal_run_is_published_as_final_instead_of_a_second_error 断言终态只产生一个 final、无第二个 error）。"
+        "Go 的 cloneADKChatStreamEvent 对不可序列化 func tool output 的保留是进程内 JSON 兜底；Rust 事件构造即为 serde_json::Value，没有同形不可序列化字段。"
       ],
       "boundaryReason": "boundary：Go 的 `cloneADKChatStreamEvent` 用 JSON 往返克隆事件，并在 `func()` 这类不可序列化 tool output 上保留原事件（防止 live 事件被丢弃）。Rust 的事件在构造时就是 serde_json::Value，不可能出现不可序列化字段，因此不存在同等结构；timeline-only delta 不产生叙事重复的契约由 durable 投影承接——流事件写入 payload 的 `streamEvents` 且 final 只追加一帧（persisted_terminal_run_is_published_as_final_instead_of_a_second_error 断言终态只产生一个 final、无第二个 error）。"
     },
@@ -3574,7 +3602,7 @@
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_recovery_tests.rs::persisted_terminal_run_is_published_as_final_instead_of_a_second_error",
       "conclusion": "partial：已覆盖持久化终态 run 只发 final 不伪造第二个 error（durable 合成，探针确认）。缺口：Go 同用例的前半断言已知 context 的 preview 投影（contextSent 即置 sessionSent 且恰好一帧 session、无重抓），Rust 无对应断言。回归：在 stream 产品测试补已知 context preview 断言后再升 exact。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(persisted_terminal_run_is_published_as_final_instead_of_a_second_error)'",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E test(persisted_terminal_run_is_published_as_final_instead_of_a_second_error) or test(production_live_chat_stream_emits_session_before_run_and_terminal_frame)",
       "evidence_type": "partial",
       "source": {
         "file": "internal/api/assistant/chat_stream_recovery_contracts_test.go",
@@ -3596,11 +3624,13 @@
         }
       ],
       "assertionCoverage": {
-        "covered": [],
-        "uncovered": [
-          "partial：已覆盖持久化终态 run 只发 final 不伪造第二个 error（durable 合成，探针确认）。缺口：Go 同用例的前半断言已知 context 的 preview 投影（contextSent 即置 sessionSent 且恰好一帧 session、无重抓），Rust 无对应断言。回归：在 stream 产品测试补已知 context preview 断言后再升 exact。"
+        "covered": [
+          "Rust 已验证持久化终态 run 恢复为 final 而不追加第二个 error，并验证 preview session 在 run 之前发布。"
         ],
-        "source": "legacy-conclusion"
+        "uncovered": [
+          "Go 同一聚合测试还断言 contextSent 时恰好只发一帧 session 且不重新抓取 context；Rust 没有该内存 execution seam，因此保持 partial。"
+        ],
+        "source": "manual-batch-review"
       },
       "verification": {
         "argv": [
@@ -3609,18 +3639,21 @@
           "run",
           "-p",
           "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(persisted_terminal_run_is_published_as_final_instead_of_a_second_error)"
+          "test(persisted_terminal_run_is_published_as_final_instead_of_a_second_error) or test(production_live_chat_stream_emits_session_before_run_and_terminal_frame)"
         ],
         "testFilter": [
-          "persisted_terminal_run_is_published_as_final_instead_of_a_second_error"
+          "persisted_terminal_run_is_published_as_final_instead_of_a_second_error",
+          "production_live_chat_stream_emits_session_before_run_and_terminal_frame"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
+        "status": "passed",
+        "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": null,
+        "verifiedAt": "2026-09-25T03:30:00Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -3631,9 +3664,11 @@
         "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [],
+      "coveredAssertions": [
+        "Rust 已验证持久化终态 run 恢复为 final 而不追加第二个 error，并验证 preview session 在 run 之前发布。"
+      ],
       "uncoveredAssertions": [
-        "partial：已覆盖持久化终态 run 只发 final 不伪造第二个 error（durable 合成，探针确认）。缺口：Go 同用例的前半断言已知 context 的 preview 投影（contextSent 即置 sessionSent 且恰好一帧 session、无重抓），Rust 无对应断言。回归：在 stream 产品测试补已知 context preview 断言后再升 exact。"
+        "Go 同一聚合测试还断言 contextSent 时恰好只发一帧 session 且不重新抓取 context；Rust 没有该内存 execution seam，因此保持 partial。"
       ],
       "boundaryReason": null
     },
@@ -3715,7 +3750,7 @@
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart",
       "conclusion": "partial：已覆盖重连路由的 replay 标记、after 游标切片、未知 stream/run fail-closed（adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed）与 499 断线后保留终态、重放过滤（引用用例）。Go 的“重连时 retry 指令写失败只写一次并立即退出”在 Rust 无同形 socket 写循环——SSE 响应体在引擎侧一次性物化后交传输层，写失败传播由 jftrade-api SseWriter 用例断言（write_failures_are_reported_with_their_source_message、write_event_propagates_serialization_and_write_failures）。缺口 owner：crates/jftrade-api sse/router；回归要求：若改为流式写回，需补一次写失败即退出的传输用例。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-api --all-targets --locked -E test(adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart) or test(adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed) or test(write_failures_are_reported_with_their_source_message) or test(write_event_propagates_serialization_and_write_failures)",
       "evidence_type": "partial",
       "source": {
         "file": "internal/api/assistant/chat_transport_disconnect_test.go",
@@ -3737,11 +3772,13 @@
         }
       ],
       "assertionCoverage": {
-        "covered": [],
-        "uncovered": [
-          "partial：已覆盖重连路由的 replay 标记、after 游标切片、未知 stream/run fail-closed（adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed）与 499 断线后保留终态、重放过滤（引用用例）。Go 的“重连时 retry 指令写失败只写一次并立即退出”在 Rust 无同形 socket 写循环——SSE 响应体在引擎侧一次性物化后交传输层，写失败传播由 jftrade-api SseWriter 用例断言（write_failures_are_reported_with_their_source_message、write_event_propagates_serialization_and_write_failures）。缺口 owner：crates/jftrade-api sse/router；回归要求：若改为流式写回，需补一次写失败即退出的传输用例。"
+        "covered": [
+          "Rust 已验证断线后保留终态并按 after 游标重放、stream/run 重连的 replay 标记与未知标识 fail-closed，以及 SSE writer 对写入/序列化错误的来源传播。"
         ],
-        "source": "legacy-conclusion"
+        "uncovered": [
+          "Go 直接注入失败 SSE writer，要求 retry 指令或首个事件写失败后只写一次并立即退出；Rust 响应体由引擎一次性物化后交给传输层，没有同形 socket 写循环和单写次数断言。"
+        ],
+        "source": "manual-batch-review"
       },
       "verification": {
         "argv": [
@@ -3750,18 +3787,25 @@
           "run",
           "-p",
           "jftrade-engine",
+          "-p",
+          "jftrade-api",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart) or test(adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed) or test(write_failures_are_reported_with_their_source_message) or test(write_event_propagates_serialization_and_write_failures)"
         ],
         "testFilter": [
-          "adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart"
+          "adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart",
+          "adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed",
+          "write_failures_are_reported_with_their_source_message",
+          "write_event_propagates_serialization_and_write_failures"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
+        "status": "passed",
+        "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": null,
+        "verifiedAt": "2026-09-25T03:35:00Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -3772,9 +3816,11 @@
         "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [],
+      "coveredAssertions": [
+        "Rust 已验证断线后保留终态并按 after 游标重放、stream/run 重连的 replay 标记与未知标识 fail-closed，以及 SSE writer 对写入/序列化错误的来源传播。"
+      ],
       "uncoveredAssertions": [
-        "partial：已覆盖重连路由的 replay 标记、after 游标切片、未知 stream/run fail-closed（adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed）与 499 断线后保留终态、重放过滤（引用用例）。Go 的“重连时 retry 指令写失败只写一次并立即退出”在 Rust 无同形 socket 写循环——SSE 响应体在引擎侧一次性物化后交传输层，写失败传播由 jftrade-api SseWriter 用例断言（write_failures_are_reported_with_their_source_message、write_event_propagates_serialization_and_write_failures）。缺口 owner：crates/jftrade-api sse/router；回归要求：若改为流式写回，需补一次写失败即退出的传输用例。"
+        "Go 直接注入失败 SSE writer，要求 retry 指令或首个事件写失败后只写一次并立即退出；Rust 响应体由引擎一次性物化后交给传输层，没有同形 socket 写循环和单写次数断言。"
       ],
       "boundaryReason": null
     },
