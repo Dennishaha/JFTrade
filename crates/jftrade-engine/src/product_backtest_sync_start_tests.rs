@@ -265,6 +265,22 @@ fn sync_request_session_scope_parity_with_go() {
     }
 }
 
+#[test]
+// Parity: go:452dea11:internal/app/apiserver/backtestapp/historical_source_test.go:87 TestProviderHistoricalSourceRejectsExtendedSessionsOutsideUSIntraday
+fn sync_request_rejects_extended_session_scope_outside_us_intraday() {
+    let payload = json!({
+        "market": "HK",
+        "code": "00700",
+        "intervals": ["1m"],
+        "since": "2026-08-01T00:00:00Z",
+        "until": "2026-08-02T00:00:00Z",
+        "sessionScope": "extended",
+    });
+    let error = parse_sync_request(&payload)
+        .expect_err("HK extended session sync must be rejected before provider work");
+    assert!(matches!(error, BacktestsWritePortError::BadRequest(message) if message.contains("US intraday")));
+}
+
 fn production_port() -> (ProductionBacktestPort, tempfile::TempDir) {
     let directory = tempfile::tempdir().expect("temporary directory");
     let runs_path = directory.path().join("backtest-runs.db");

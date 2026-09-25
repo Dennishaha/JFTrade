@@ -113,6 +113,17 @@ pub(super) fn parse_sync_request(payload: &Value) -> Result<SyncRequest, Backtes
             ));
         }
     };
+    let planned_intervals = plan_sync_intervals(&symbol, &intervals, &session_scope);
+    if session_scope == "extended"
+        && (market != "US"
+            || planned_intervals
+                .iter()
+                .any(|interval| !is_us_intraday_interval(interval)))
+    {
+        return Err(BacktestsWritePortError::BadRequest(
+            "extended sessionScope is only supported for US intraday candles".to_owned(),
+        ));
+    }
     let rehab_type = match text("rehabType")
         .unwrap_or("forward")
         .trim()
@@ -126,12 +137,16 @@ pub(super) fn parse_sync_request(payload: &Value) -> Result<SyncRequest, Backtes
     Ok(SyncRequest {
         market,
         symbol: symbol.clone(),
-        intervals: plan_sync_intervals(&symbol, &intervals, &session_scope),
+        intervals: planned_intervals,
         since: format_timestamp(since),
         until: format_timestamp(until),
         session_scope,
         rehab_type,
     })
+}
+
+fn is_us_intraday_interval(interval: &str) -> bool {
+    matches!(interval, "tick" | "1m" | "5m" | "15m" | "30m" | "1h")
 }
 
 /// Go's provider capability guard: the AKShare descriptor declares

@@ -24284,9 +24284,9 @@
     },
     "internal/app/apiserver/backtestapp/historical_source_test.go:87:TestProviderHistoricalSourceRejectsExtendedSessionsOutsideUSIntraday": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_backtest_sync_start_tests.rs::sync_request_rejects_invalid_ranges_and_intervals; crates/jftrade-store-sqlite/tests/backtest_market_data_session_scope.rs::unknown_session_scope_is_rejected_without_creating_a_table",
-      "conclusion": "partial：Go 断言 HK 1m 与 US 1d 的扩展会话请求被 ValidateHistoricalCandleQuery 拒绝。Rust 拒绝非法区间/间隔（sync_request_rejects_invalid_ranges_and_intervals）与未知 session scope（unknown_session_scope_is_rejected_without_creating_a_table），但没有“扩展会话仅限 US 日内”的逐步规则断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-store-sqlite --all-targets --locked",
+      "rust_entry": "crates/jftrade-engine/src/product_backtest_sync_start_tests.rs::sync_request_rejects_extended_session_scope_outside_us_intraday; crates/jftrade-engine/src/product_backtest_sync_start_tests.rs::sync_request_session_scope_parity_with_go; crates/jftrade-engine/src/product_backtest_sync_start_tests.rs::sync_request_plans_intervals_like_go; crates/jftrade-store-sqlite/tests/backtest_market_data_session_scope.rs::unknown_session_scope_is_rejected_without_creating_a_table",
+      "conclusion": "partial：Go 旧 source validator 逐项断言 HK 1m 与 US 1d 的 extended sessions 被拒绝。Rust 已在公开 backtest sync request owner 中补齐 HK/非 US extended sessionScope 的先红后修回归（sync_request_rejects_extended_session_scope_outside_us_intraday），并保持 regular/extended 枚举与 US extended 日线→1h 规划（sync_request_session_scope_parity_with_go、sync_request_plans_intervals_like_go）；存储层继续拒绝未知 scope。剩余差异是 Go 直接调用已退役 providerHistoricalSource.ValidateHistoricalCandleQuery 对 US 1d 的低层拒绝，Rust 公开同步路径会先按 Go planner 将 US extended 日线归一为 1h，没有同形 source validator，保持 partial，owner = backtest sync request boundary。",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-store-sqlite --all-targets --locked -E 'test(sync_request_rejects_extended_session_scope_outside_us_intraday) or test(sync_request_session_scope_parity_with_go) or test(sync_request_plans_intervals_like_go) or test(unknown_session_scope_is_rejected_without_creating_a_table)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/backtestapp/historical_source_test.go",
@@ -24297,7 +24297,19 @@
       "rustEvidence": [
         {
           "file": "crates/jftrade-engine/src/product_backtest_sync_start_tests.rs",
-          "test": "sync_request_rejects_invalid_ranges_and_intervals",
+          "test": "sync_request_rejects_extended_session_scope_outside_us_intraday",
+          "crate": "jftrade-engine",
+          "anchor": null
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_backtest_sync_start_tests.rs",
+          "test": "sync_request_session_scope_parity_with_go",
+          "crate": "jftrade-engine",
+          "anchor": null
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_backtest_sync_start_tests.rs",
+          "test": "sync_request_plans_intervals_like_go",
           "crate": "jftrade-engine",
           "anchor": null
         },
@@ -24311,7 +24323,7 @@
       "assertionCoverage": {
         "covered": [],
         "uncovered": [
-          "partial：Go 断言 HK 1m 与 US 1d 的扩展会话请求被 ValidateHistoricalCandleQuery 拒绝。Rust 拒绝非法区间/间隔（sync_request_rejects_invalid_ranges_and_intervals）与未知 session scope（unknown_session_scope_is_rejected_without_creating_a_table），但没有“扩展会话仅限 US 日内”的逐步规则断言。"
+          "partial：Go 旧 source validator 断言 HK 1m 与 US 1d 的 extended sessions 被拒绝；Rust 已对公开 sync request 拒绝非 US extended，并保持 US extended 日线→1h 规划。Go 低层 US 1d source validator 没有 Rust 同形入口，保持 partial。"
         ],
         "source": "legacy-conclusion"
       },
@@ -24325,18 +24337,22 @@
           "-p",
           "jftrade-store-sqlite",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(sync_request_rejects_extended_session_scope_outside_us_intraday) or test(sync_request_session_scope_parity_with_go) or test(sync_request_plans_intervals_like_go) or test(unknown_session_scope_is_rejected_without_creating_a_table)"
         ],
         "testFilter": [
-          "sync_request_rejects_invalid_ranges_and_intervals",
+          "sync_request_rejects_extended_session_scope_outside_us_intraday",
+          "sync_request_session_scope_parity_with_go",
+          "sync_request_plans_intervals_like_go",
           "unknown_session_scope_is_rejected_without_creating_a_table"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "51d7bf4b",
+        "verifiedAt": "2026-09-25T09:18:00Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -24349,7 +24365,7 @@
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
-        "partial：Go 断言 HK 1m 与 US 1d 的扩展会话请求被 ValidateHistoricalCandleQuery 拒绝。Rust 拒绝非法区间/间隔（sync_request_rejects_invalid_ranges_and_intervals）与未知 session scope（unknown_session_scope_is_rejected_without_creating_a_table），但没有“扩展会话仅限 US 日内”的逐步规则断言。"
+        "partial：Go 旧 source validator 断言 HK 1m 与 US 1d 的 extended sessions 被拒绝；Rust 已对公开 sync request 拒绝非 US extended，并保持 US extended 日线→1h 规划。Go 低层 US 1d source validator 没有 Rust 同形入口，保持 partial。"
       ],
       "boundaryReason": null
     },
@@ -294371,18 +294387,18 @@
       "reviewStatus": "unreviewed"
     },
     "crates/jftrade-engine/src/product_backtest_sync_start_tests.rs::sync_request_plans_intervals_like_go": {
-      "referenceCount": 1,
+      "referenceCount": 2,
       "referenceKeys": [
-        "internal/backtest/sync_test.go:367:TestPlanSyncIntervals"
+        "internal/backtest/sync_test.go:367:TestPlanSyncIntervals",
+        "internal/app/apiserver/backtestapp/historical_source_test.go:87:TestProviderHistoricalSourceRejectsExtendedSessionsOutsideUSIntraday"
       ],
-      "allowed": true,
-      "reviewStatus": "single"
+      "allowed": false,
+      "reviewStatus": "unreviewed"
     },
     "crates/jftrade-engine/src/product_backtest_sync_start_tests.rs::sync_request_rejects_invalid_ranges_and_intervals": {
-      "referenceCount": 5,
+      "referenceCount": 4,
       "referenceKeys": [
         "internal/api/backtest/routes_test.go:21:TestSyncRouteClassifiesRequestErrorsAsBadRequest",
-        "internal/app/apiserver/backtestapp/historical_source_test.go:87:TestProviderHistoricalSourceRejectsExtendedSessionsOutsideUSIntraday",
         "internal/backtest/input_and_readiness_validation_test.go:14:TestBacktestDateRangeRejectsIncompleteAndInvalidMarketInputs",
         "internal/backtest/sync_test.go:298:TestSyncRequestErrors",
         "internal/app/apiserver/servercoretest/backtest_provider_runtime_test.go:27:TestBacktestSyncUsesAssembledMarketDataRuntime"
@@ -294391,14 +294407,23 @@
       "reviewStatus": "unreviewed"
     },
     "crates/jftrade-engine/src/product_backtest_sync_start_tests.rs::sync_request_session_scope_parity_with_go": {
-      "referenceCount": 3,
+      "referenceCount": 4,
       "referenceKeys": [
         "internal/api/backtest/routes_boundaries_test.go:78:TestBacktestSyncRouteRejectsObsoleteSessionScope",
         "internal/app/apiserver/backtestapp/historical_source_test.go:62:TestProviderHistoricalSourceMapsExtendedSessionsToProviderCapabilities",
+        "internal/app/apiserver/backtestapp/historical_source_test.go:87:TestProviderHistoricalSourceRejectsExtendedSessionsOutsideUSIntraday",
         "internal/backtest/sync_test.go:412:TestParseSessionScope"
       ],
       "allowed": false,
       "reviewStatus": "unreviewed"
+    },
+    "crates/jftrade-engine/src/product_backtest_sync_start_tests.rs::sync_request_rejects_extended_session_scope_outside_us_intraday": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/app/apiserver/backtestapp/historical_source_test.go:87:TestProviderHistoricalSourceRejectsExtendedSessionsOutsideUSIntraday"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
     },
     "crates/jftrade-engine/src/product_backtests_sync_tests.rs::backtests_sync_read_route_fails_closed_when_snapshot_port_is_unavailable": {
       "referenceCount": 1,
