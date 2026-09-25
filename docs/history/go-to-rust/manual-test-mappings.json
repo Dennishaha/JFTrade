@@ -288,18 +288,22 @@
           "run",
           "-p",
           "jftrade-engine",
-          "--all-targets",
-          "--locked"
+          "--test",
+          "product_api_launcher_lifecycle",
+          "--locked",
+          "-E",
+          "test(api_launcher_serves_on_the_configured_address_and_stops_on_termination_signal) or test(api_launcher_reports_startup_failure_when_the_configured_address_is_taken)"
         ],
         "testFilter": [
-          "api_launcher_serves_on_the_configured_address_and_stops_on_termination_signal"
+          "api_launcher_serves_on_the_configured_address_and_stops_on_termination_signal",
+          "api_launcher_reports_startup_failure_when_the_configured_address_is_taken"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "be498c77",
+        "verifiedAt": "2026-09-25T10:30:59Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -350,18 +354,22 @@
           "run",
           "-p",
           "jftrade-engine",
-          "--all-targets",
-          "--locked"
+          "--test",
+          "product_api_launcher_lifecycle",
+          "--locked",
+          "-E",
+          "test(api_launcher_serves_on_the_configured_address_and_stops_on_termination_signal) or test(api_launcher_reports_startup_failure_when_the_configured_address_is_taken)"
         ],
         "testFilter": [
+          "api_launcher_serves_on_the_configured_address_and_stops_on_termination_signal",
           "api_launcher_reports_startup_failure_when_the_configured_address_is_taken"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "be498c77",
+        "verifiedAt": "2026-09-25T10:30:59Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -24727,10 +24735,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "ff8a0a84",
+        "verifiedAt": "2026-09-25T10:30:59Z",
         "receiptDigest": null
       },
       "risk": "high",
