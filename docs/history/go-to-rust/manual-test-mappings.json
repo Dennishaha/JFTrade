@@ -261136,20 +261136,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-strategy",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(pine_indicators_reject_zero_periods_without_partial_results) or test(test_resolve_interval_minutes_supports_broker_intervals_and_safe_fallbacks) or test(native_pipeline_parses_lowers_and_plans_strategy_requirements) or test(compile_supports_framework_language_features) or test(compile_v14_window_momentum_fixture_keeps_go_requirement_keys) or test(compile_accepts_strategy_order_subset_scripts) or test(compile_accepts_expression_udf_and_static_for_unroll) or test(validate_script_reports_supported_udf_and_static_for_boundaries) or test(parser_handles_strings_history_and_nested_calls_without_regex) or test(semantic_checker_rejects_non_boolean_conditions_and_unsupported_declarations) or test(validation_payload_matches_save_hint_and_rejection_contract) or test(history_references_ignore_string_literals) or test(compile_warns_when_strategy_constants_fall_back_to_defaults) or test(pine_shadow_error_payload_keeps_the_worker_failure_message) or test(validates_loopback_worker_boundary_before_spawn) or test(command_error_summary_keeps_output_tail_within_wire_budget) or test(pine_spec_freezes_go_owner_sections_and_key_payload_fields) or test(endpoint_and_token_boundaries_fail_closed) or test(monitor_shutdown_marks_state_and_joins_task) or test(closing_a_live_session_releases_its_pin) or test(reserving_an_open_session_blocks_a_second_open)"
         ],
         "testFilter": [
           "pine_indicators_reject_zero_periods_without_partial_results"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "c907706c228a053f19a6a38eb979b2028082802a",
+        "verifiedAt": "2026-09-25T14:26:02Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -261389,18 +261389,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-strategy"
+          "--all-targets",
+          "--locked",
+          "-E",
+          "test(pine_indicators_reject_zero_periods_without_partial_results) or test(test_resolve_interval_minutes_supports_broker_intervals_and_safe_fallbacks) or test(native_pipeline_parses_lowers_and_plans_strategy_requirements) or test(compile_supports_framework_language_features) or test(compile_v14_window_momentum_fixture_keeps_go_requirement_keys) or test(compile_accepts_strategy_order_subset_scripts) or test(compile_accepts_expression_udf_and_static_for_unroll) or test(validate_script_reports_supported_udf_and_static_for_boundaries) or test(parser_handles_strings_history_and_nested_calls_without_regex) or test(semantic_checker_rejects_non_boolean_conditions_and_unsupported_declarations) or test(validation_payload_matches_save_hint_and_rejection_contract) or test(history_references_ignore_string_literals) or test(compile_warns_when_strategy_constants_fall_back_to_defaults) or test(pine_shadow_error_payload_keeps_the_worker_failure_message) or test(validates_loopback_worker_boundary_before_spawn) or test(command_error_summary_keeps_output_tail_within_wire_budget) or test(pine_spec_freezes_go_owner_sections_and_key_payload_fields) or test(endpoint_and_token_boundaries_fail_closed) or test(monitor_shutdown_marks_state_and_joins_task) or test(closing_a_live_session_releases_its_pin) or test(reserving_an_open_session_blocks_a_second_open)"
         ],
         "testFilter": [
           "test_resolve_interval_minutes_supports_broker_intervals_and_safe_fallbacks"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "c907706c228a053f19a6a38eb979b2028082802a",
+        "verifiedAt": "2026-09-25T14:26:02Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -262415,20 +262417,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-strategy",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(pine_indicators_reject_zero_periods_without_partial_results) or test(test_resolve_interval_minutes_supports_broker_intervals_and_safe_fallbacks) or test(native_pipeline_parses_lowers_and_plans_strategy_requirements) or test(compile_supports_framework_language_features) or test(compile_v14_window_momentum_fixture_keeps_go_requirement_keys) or test(compile_accepts_strategy_order_subset_scripts) or test(compile_accepts_expression_udf_and_static_for_unroll) or test(validate_script_reports_supported_udf_and_static_for_boundaries) or test(parser_handles_strings_history_and_nested_calls_without_regex) or test(semantic_checker_rejects_non_boolean_conditions_and_unsupported_declarations) or test(validation_payload_matches_save_hint_and_rejection_contract) or test(history_references_ignore_string_literals) or test(compile_warns_when_strategy_constants_fall_back_to_defaults) or test(pine_shadow_error_payload_keeps_the_worker_failure_message) or test(validates_loopback_worker_boundary_before_spawn) or test(command_error_summary_keeps_output_tail_within_wire_budget) or test(pine_spec_freezes_go_owner_sections_and_key_payload_fields) or test(endpoint_and_token_boundaries_fail_closed) or test(monitor_shutdown_marks_state_and_joins_task) or test(closing_a_live_session_releases_its_pin) or test(reserving_an_open_session_blocks_a_second_open)"
         ],
         "testFilter": [
           "native_pipeline_parses_lowers_and_plans_strategy_requirements"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "c907706c228a053f19a6a38eb979b2028082802a",
+        "verifiedAt": "2026-09-25T14:26:02Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -266510,20 +266512,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-strategy",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(pine_indicators_reject_zero_periods_without_partial_results) or test(test_resolve_interval_minutes_supports_broker_intervals_and_safe_fallbacks) or test(native_pipeline_parses_lowers_and_plans_strategy_requirements) or test(compile_supports_framework_language_features) or test(compile_v14_window_momentum_fixture_keeps_go_requirement_keys) or test(compile_accepts_strategy_order_subset_scripts) or test(compile_accepts_expression_udf_and_static_for_unroll) or test(validate_script_reports_supported_udf_and_static_for_boundaries) or test(parser_handles_strings_history_and_nested_calls_without_regex) or test(semantic_checker_rejects_non_boolean_conditions_and_unsupported_declarations) or test(validation_payload_matches_save_hint_and_rejection_contract) or test(history_references_ignore_string_literals) or test(compile_warns_when_strategy_constants_fall_back_to_defaults) or test(pine_shadow_error_payload_keeps_the_worker_failure_message) or test(validates_loopback_worker_boundary_before_spawn) or test(command_error_summary_keeps_output_tail_within_wire_budget) or test(pine_spec_freezes_go_owner_sections_and_key_payload_fields) or test(endpoint_and_token_boundaries_fail_closed) or test(monitor_shutdown_marks_state_and_joins_task) or test(closing_a_live_session_releases_its_pin) or test(reserving_an_open_session_blocks_a_second_open)"
         ],
         "testFilter": [
           "compile_supports_framework_language_features"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "c907706c228a053f19a6a38eb979b2028082802a",
+        "verifiedAt": "2026-09-25T14:26:02Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -267192,20 +267194,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-strategy",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(pine_indicators_reject_zero_periods_without_partial_results) or test(test_resolve_interval_minutes_supports_broker_intervals_and_safe_fallbacks) or test(native_pipeline_parses_lowers_and_plans_strategy_requirements) or test(compile_supports_framework_language_features) or test(compile_v14_window_momentum_fixture_keeps_go_requirement_keys) or test(compile_accepts_strategy_order_subset_scripts) or test(compile_accepts_expression_udf_and_static_for_unroll) or test(validate_script_reports_supported_udf_and_static_for_boundaries) or test(parser_handles_strings_history_and_nested_calls_without_regex) or test(semantic_checker_rejects_non_boolean_conditions_and_unsupported_declarations) or test(validation_payload_matches_save_hint_and_rejection_contract) or test(history_references_ignore_string_literals) or test(compile_warns_when_strategy_constants_fall_back_to_defaults) or test(pine_shadow_error_payload_keeps_the_worker_failure_message) or test(validates_loopback_worker_boundary_before_spawn) or test(command_error_summary_keeps_output_tail_within_wire_budget) or test(pine_spec_freezes_go_owner_sections_and_key_payload_fields) or test(endpoint_and_token_boundaries_fail_closed) or test(monitor_shutdown_marks_state_and_joins_task) or test(closing_a_live_session_releases_its_pin) or test(reserving_an_open_session_blocks_a_second_open)"
         ],
         "testFilter": [
           "compile_supports_framework_language_features"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "c907706c228a053f19a6a38eb979b2028082802a",
+        "verifiedAt": "2026-09-25T14:26:02Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -267817,20 +267819,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-strategy",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(pine_indicators_reject_zero_periods_without_partial_results) or test(test_resolve_interval_minutes_supports_broker_intervals_and_safe_fallbacks) or test(native_pipeline_parses_lowers_and_plans_strategy_requirements) or test(compile_supports_framework_language_features) or test(compile_v14_window_momentum_fixture_keeps_go_requirement_keys) or test(compile_accepts_strategy_order_subset_scripts) or test(compile_accepts_expression_udf_and_static_for_unroll) or test(validate_script_reports_supported_udf_and_static_for_boundaries) or test(parser_handles_strings_history_and_nested_calls_without_regex) or test(semantic_checker_rejects_non_boolean_conditions_and_unsupported_declarations) or test(validation_payload_matches_save_hint_and_rejection_contract) or test(history_references_ignore_string_literals) or test(compile_warns_when_strategy_constants_fall_back_to_defaults) or test(pine_shadow_error_payload_keeps_the_worker_failure_message) or test(validates_loopback_worker_boundary_before_spawn) or test(command_error_summary_keeps_output_tail_within_wire_budget) or test(pine_spec_freezes_go_owner_sections_and_key_payload_fields) or test(endpoint_and_token_boundaries_fail_closed) or test(monitor_shutdown_marks_state_and_joins_task) or test(closing_a_live_session_releases_its_pin) or test(reserving_an_open_session_blocks_a_second_open)"
         ],
         "testFilter": [
           "compile_supports_framework_language_features"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "c907706c228a053f19a6a38eb979b2028082802a",
+        "verifiedAt": "2026-09-25T14:26:02Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -268333,20 +268335,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-strategy",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(pine_indicators_reject_zero_periods_without_partial_results) or test(test_resolve_interval_minutes_supports_broker_intervals_and_safe_fallbacks) or test(native_pipeline_parses_lowers_and_plans_strategy_requirements) or test(compile_supports_framework_language_features) or test(compile_v14_window_momentum_fixture_keeps_go_requirement_keys) or test(compile_accepts_strategy_order_subset_scripts) or test(compile_accepts_expression_udf_and_static_for_unroll) or test(validate_script_reports_supported_udf_and_static_for_boundaries) or test(parser_handles_strings_history_and_nested_calls_without_regex) or test(semantic_checker_rejects_non_boolean_conditions_and_unsupported_declarations) or test(validation_payload_matches_save_hint_and_rejection_contract) or test(history_references_ignore_string_literals) or test(compile_warns_when_strategy_constants_fall_back_to_defaults) or test(pine_shadow_error_payload_keeps_the_worker_failure_message) or test(validates_loopback_worker_boundary_before_spawn) or test(command_error_summary_keeps_output_tail_within_wire_budget) or test(pine_spec_freezes_go_owner_sections_and_key_payload_fields) or test(endpoint_and_token_boundaries_fail_closed) or test(monitor_shutdown_marks_state_and_joins_task) or test(closing_a_live_session_releases_its_pin) or test(reserving_an_open_session_blocks_a_second_open)"
         ],
         "testFilter": [
           "compile_v14_window_momentum_fixture_keeps_go_requirement_keys"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "c907706c228a053f19a6a38eb979b2028082802a",
+        "verifiedAt": "2026-09-25T14:26:02Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -269017,20 +269019,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-strategy",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(pine_indicators_reject_zero_periods_without_partial_results) or test(test_resolve_interval_minutes_supports_broker_intervals_and_safe_fallbacks) or test(native_pipeline_parses_lowers_and_plans_strategy_requirements) or test(compile_supports_framework_language_features) or test(compile_v14_window_momentum_fixture_keeps_go_requirement_keys) or test(compile_accepts_strategy_order_subset_scripts) or test(compile_accepts_expression_udf_and_static_for_unroll) or test(validate_script_reports_supported_udf_and_static_for_boundaries) or test(parser_handles_strings_history_and_nested_calls_without_regex) or test(semantic_checker_rejects_non_boolean_conditions_and_unsupported_declarations) or test(validation_payload_matches_save_hint_and_rejection_contract) or test(history_references_ignore_string_literals) or test(compile_warns_when_strategy_constants_fall_back_to_defaults) or test(pine_shadow_error_payload_keeps_the_worker_failure_message) or test(validates_loopback_worker_boundary_before_spawn) or test(command_error_summary_keeps_output_tail_within_wire_budget) or test(pine_spec_freezes_go_owner_sections_and_key_payload_fields) or test(endpoint_and_token_boundaries_fail_closed) or test(monitor_shutdown_marks_state_and_joins_task) or test(closing_a_live_session_releases_its_pin) or test(reserving_an_open_session_blocks_a_second_open)"
         ],
         "testFilter": [
           "compile_supports_framework_language_features"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "c907706c228a053f19a6a38eb979b2028082802a",
+        "verifiedAt": "2026-09-25T14:26:02Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -269079,20 +269081,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-strategy",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(pine_indicators_reject_zero_periods_without_partial_results) or test(test_resolve_interval_minutes_supports_broker_intervals_and_safe_fallbacks) or test(native_pipeline_parses_lowers_and_plans_strategy_requirements) or test(compile_supports_framework_language_features) or test(compile_v14_window_momentum_fixture_keeps_go_requirement_keys) or test(compile_accepts_strategy_order_subset_scripts) or test(compile_accepts_expression_udf_and_static_for_unroll) or test(validate_script_reports_supported_udf_and_static_for_boundaries) or test(parser_handles_strings_history_and_nested_calls_without_regex) or test(semantic_checker_rejects_non_boolean_conditions_and_unsupported_declarations) or test(validation_payload_matches_save_hint_and_rejection_contract) or test(history_references_ignore_string_literals) or test(compile_warns_when_strategy_constants_fall_back_to_defaults) or test(pine_shadow_error_payload_keeps_the_worker_failure_message) or test(validates_loopback_worker_boundary_before_spawn) or test(command_error_summary_keeps_output_tail_within_wire_budget) or test(pine_spec_freezes_go_owner_sections_and_key_payload_fields) or test(endpoint_and_token_boundaries_fail_closed) or test(monitor_shutdown_marks_state_and_joins_task) or test(closing_a_live_session_releases_its_pin) or test(reserving_an_open_session_blocks_a_second_open)"
         ],
         "testFilter": [
           "compile_supports_framework_language_features"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "c907706c228a053f19a6a38eb979b2028082802a",
+        "verifiedAt": "2026-09-25T14:26:02Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -270332,20 +270334,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-strategy",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(pine_indicators_reject_zero_periods_without_partial_results) or test(test_resolve_interval_minutes_supports_broker_intervals_and_safe_fallbacks) or test(native_pipeline_parses_lowers_and_plans_strategy_requirements) or test(compile_supports_framework_language_features) or test(compile_v14_window_momentum_fixture_keeps_go_requirement_keys) or test(compile_accepts_strategy_order_subset_scripts) or test(compile_accepts_expression_udf_and_static_for_unroll) or test(validate_script_reports_supported_udf_and_static_for_boundaries) or test(parser_handles_strings_history_and_nested_calls_without_regex) or test(semantic_checker_rejects_non_boolean_conditions_and_unsupported_declarations) or test(validation_payload_matches_save_hint_and_rejection_contract) or test(history_references_ignore_string_literals) or test(compile_warns_when_strategy_constants_fall_back_to_defaults) or test(pine_shadow_error_payload_keeps_the_worker_failure_message) or test(validates_loopback_worker_boundary_before_spawn) or test(command_error_summary_keeps_output_tail_within_wire_budget) or test(pine_spec_freezes_go_owner_sections_and_key_payload_fields) or test(endpoint_and_token_boundaries_fail_closed) or test(monitor_shutdown_marks_state_and_joins_task) or test(closing_a_live_session_releases_its_pin) or test(reserving_an_open_session_blocks_a_second_open)"
         ],
         "testFilter": [
           "compile_accepts_strategy_order_subset_scripts"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "c907706c228a053f19a6a38eb979b2028082802a",
+        "verifiedAt": "2026-09-25T14:26:02Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -271193,20 +271195,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-strategy",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(pine_indicators_reject_zero_periods_without_partial_results) or test(test_resolve_interval_minutes_supports_broker_intervals_and_safe_fallbacks) or test(native_pipeline_parses_lowers_and_plans_strategy_requirements) or test(compile_supports_framework_language_features) or test(compile_v14_window_momentum_fixture_keeps_go_requirement_keys) or test(compile_accepts_strategy_order_subset_scripts) or test(compile_accepts_expression_udf_and_static_for_unroll) or test(validate_script_reports_supported_udf_and_static_for_boundaries) or test(parser_handles_strings_history_and_nested_calls_without_regex) or test(semantic_checker_rejects_non_boolean_conditions_and_unsupported_declarations) or test(validation_payload_matches_save_hint_and_rejection_contract) or test(history_references_ignore_string_literals) or test(compile_warns_when_strategy_constants_fall_back_to_defaults) or test(pine_shadow_error_payload_keeps_the_worker_failure_message) or test(validates_loopback_worker_boundary_before_spawn) or test(command_error_summary_keeps_output_tail_within_wire_budget) or test(pine_spec_freezes_go_owner_sections_and_key_payload_fields) or test(endpoint_and_token_boundaries_fail_closed) or test(monitor_shutdown_marks_state_and_joins_task) or test(closing_a_live_session_releases_its_pin) or test(reserving_an_open_session_blocks_a_second_open)"
         ],
         "testFilter": [
           "compile_accepts_expression_udf_and_static_for_unroll"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "c907706c228a053f19a6a38eb979b2028082802a",
+        "verifiedAt": "2026-09-25T14:26:02Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -271260,20 +271262,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-strategy",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(pine_indicators_reject_zero_periods_without_partial_results) or test(test_resolve_interval_minutes_supports_broker_intervals_and_safe_fallbacks) or test(native_pipeline_parses_lowers_and_plans_strategy_requirements) or test(compile_supports_framework_language_features) or test(compile_v14_window_momentum_fixture_keeps_go_requirement_keys) or test(compile_accepts_strategy_order_subset_scripts) or test(compile_accepts_expression_udf_and_static_for_unroll) or test(validate_script_reports_supported_udf_and_static_for_boundaries) or test(parser_handles_strings_history_and_nested_calls_without_regex) or test(semantic_checker_rejects_non_boolean_conditions_and_unsupported_declarations) or test(validation_payload_matches_save_hint_and_rejection_contract) or test(history_references_ignore_string_literals) or test(compile_warns_when_strategy_constants_fall_back_to_defaults) or test(pine_shadow_error_payload_keeps_the_worker_failure_message) or test(validates_loopback_worker_boundary_before_spawn) or test(command_error_summary_keeps_output_tail_within_wire_budget) or test(pine_spec_freezes_go_owner_sections_and_key_payload_fields) or test(endpoint_and_token_boundaries_fail_closed) or test(monitor_shutdown_marks_state_and_joins_task) or test(closing_a_live_session_releases_its_pin) or test(reserving_an_open_session_blocks_a_second_open)"
         ],
         "testFilter": [
           "validate_script_reports_supported_udf_and_static_for_boundaries"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "c907706c228a053f19a6a38eb979b2028082802a",
+        "verifiedAt": "2026-09-25T14:26:02Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -271647,20 +271649,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-strategy",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(pine_indicators_reject_zero_periods_without_partial_results) or test(test_resolve_interval_minutes_supports_broker_intervals_and_safe_fallbacks) or test(native_pipeline_parses_lowers_and_plans_strategy_requirements) or test(compile_supports_framework_language_features) or test(compile_v14_window_momentum_fixture_keeps_go_requirement_keys) or test(compile_accepts_strategy_order_subset_scripts) or test(compile_accepts_expression_udf_and_static_for_unroll) or test(validate_script_reports_supported_udf_and_static_for_boundaries) or test(parser_handles_strings_history_and_nested_calls_without_regex) or test(semantic_checker_rejects_non_boolean_conditions_and_unsupported_declarations) or test(validation_payload_matches_save_hint_and_rejection_contract) or test(history_references_ignore_string_literals) or test(compile_warns_when_strategy_constants_fall_back_to_defaults) or test(pine_shadow_error_payload_keeps_the_worker_failure_message) or test(validates_loopback_worker_boundary_before_spawn) or test(command_error_summary_keeps_output_tail_within_wire_budget) or test(pine_spec_freezes_go_owner_sections_and_key_payload_fields) or test(endpoint_and_token_boundaries_fail_closed) or test(monitor_shutdown_marks_state_and_joins_task) or test(closing_a_live_session_releases_its_pin) or test(reserving_an_open_session_blocks_a_second_open)"
         ],
         "testFilter": [
           "parser_handles_strings_history_and_nested_calls_without_regex"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "c907706c228a053f19a6a38eb979b2028082802a",
+        "verifiedAt": "2026-09-25T14:26:02Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -271709,20 +271711,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-strategy",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(pine_indicators_reject_zero_periods_without_partial_results) or test(test_resolve_interval_minutes_supports_broker_intervals_and_safe_fallbacks) or test(native_pipeline_parses_lowers_and_plans_strategy_requirements) or test(compile_supports_framework_language_features) or test(compile_v14_window_momentum_fixture_keeps_go_requirement_keys) or test(compile_accepts_strategy_order_subset_scripts) or test(compile_accepts_expression_udf_and_static_for_unroll) or test(validate_script_reports_supported_udf_and_static_for_boundaries) or test(parser_handles_strings_history_and_nested_calls_without_regex) or test(semantic_checker_rejects_non_boolean_conditions_and_unsupported_declarations) or test(validation_payload_matches_save_hint_and_rejection_contract) or test(history_references_ignore_string_literals) or test(compile_warns_when_strategy_constants_fall_back_to_defaults) or test(pine_shadow_error_payload_keeps_the_worker_failure_message) or test(validates_loopback_worker_boundary_before_spawn) or test(command_error_summary_keeps_output_tail_within_wire_budget) or test(pine_spec_freezes_go_owner_sections_and_key_payload_fields) or test(endpoint_and_token_boundaries_fail_closed) or test(monitor_shutdown_marks_state_and_joins_task) or test(closing_a_live_session_releases_its_pin) or test(reserving_an_open_session_blocks_a_second_open)"
         ],
         "testFilter": [
           "validate_script_reports_supported_udf_and_static_for_boundaries"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "c907706c228a053f19a6a38eb979b2028082802a",
+        "verifiedAt": "2026-09-25T14:26:02Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -271771,20 +271773,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-strategy",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(pine_indicators_reject_zero_periods_without_partial_results) or test(test_resolve_interval_minutes_supports_broker_intervals_and_safe_fallbacks) or test(native_pipeline_parses_lowers_and_plans_strategy_requirements) or test(compile_supports_framework_language_features) or test(compile_v14_window_momentum_fixture_keeps_go_requirement_keys) or test(compile_accepts_strategy_order_subset_scripts) or test(compile_accepts_expression_udf_and_static_for_unroll) or test(validate_script_reports_supported_udf_and_static_for_boundaries) or test(parser_handles_strings_history_and_nested_calls_without_regex) or test(semantic_checker_rejects_non_boolean_conditions_and_unsupported_declarations) or test(validation_payload_matches_save_hint_and_rejection_contract) or test(history_references_ignore_string_literals) or test(compile_warns_when_strategy_constants_fall_back_to_defaults) or test(pine_shadow_error_payload_keeps_the_worker_failure_message) or test(validates_loopback_worker_boundary_before_spawn) or test(command_error_summary_keeps_output_tail_within_wire_budget) or test(pine_spec_freezes_go_owner_sections_and_key_payload_fields) or test(endpoint_and_token_boundaries_fail_closed) or test(monitor_shutdown_marks_state_and_joins_task) or test(closing_a_live_session_releases_its_pin) or test(reserving_an_open_session_blocks_a_second_open)"
         ],
         "testFilter": [
           "semantic_checker_rejects_non_boolean_conditions_and_unsupported_declarations"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "c907706c228a053f19a6a38eb979b2028082802a",
+        "verifiedAt": "2026-09-25T14:26:02Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -271833,20 +271835,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-strategy",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(pine_indicators_reject_zero_periods_without_partial_results) or test(test_resolve_interval_minutes_supports_broker_intervals_and_safe_fallbacks) or test(native_pipeline_parses_lowers_and_plans_strategy_requirements) or test(compile_supports_framework_language_features) or test(compile_v14_window_momentum_fixture_keeps_go_requirement_keys) or test(compile_accepts_strategy_order_subset_scripts) or test(compile_accepts_expression_udf_and_static_for_unroll) or test(validate_script_reports_supported_udf_and_static_for_boundaries) or test(parser_handles_strings_history_and_nested_calls_without_regex) or test(semantic_checker_rejects_non_boolean_conditions_and_unsupported_declarations) or test(validation_payload_matches_save_hint_and_rejection_contract) or test(history_references_ignore_string_literals) or test(compile_warns_when_strategy_constants_fall_back_to_defaults) or test(pine_shadow_error_payload_keeps_the_worker_failure_message) or test(validates_loopback_worker_boundary_before_spawn) or test(command_error_summary_keeps_output_tail_within_wire_budget) or test(pine_spec_freezes_go_owner_sections_and_key_payload_fields) or test(endpoint_and_token_boundaries_fail_closed) or test(monitor_shutdown_marks_state_and_joins_task) or test(closing_a_live_session_releases_its_pin) or test(reserving_an_open_session_blocks_a_second_open)"
         ],
         "testFilter": [
           "compile_accepts_expression_udf_and_static_for_unroll"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "c907706c228a053f19a6a38eb979b2028082802a",
+        "verifiedAt": "2026-09-25T14:26:02Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -271895,20 +271897,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-strategy",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(pine_indicators_reject_zero_periods_without_partial_results) or test(test_resolve_interval_minutes_supports_broker_intervals_and_safe_fallbacks) or test(native_pipeline_parses_lowers_and_plans_strategy_requirements) or test(compile_supports_framework_language_features) or test(compile_v14_window_momentum_fixture_keeps_go_requirement_keys) or test(compile_accepts_strategy_order_subset_scripts) or test(compile_accepts_expression_udf_and_static_for_unroll) or test(validate_script_reports_supported_udf_and_static_for_boundaries) or test(parser_handles_strings_history_and_nested_calls_without_regex) or test(semantic_checker_rejects_non_boolean_conditions_and_unsupported_declarations) or test(validation_payload_matches_save_hint_and_rejection_contract) or test(history_references_ignore_string_literals) or test(compile_warns_when_strategy_constants_fall_back_to_defaults) or test(pine_shadow_error_payload_keeps_the_worker_failure_message) or test(validates_loopback_worker_boundary_before_spawn) or test(command_error_summary_keeps_output_tail_within_wire_budget) or test(pine_spec_freezes_go_owner_sections_and_key_payload_fields) or test(endpoint_and_token_boundaries_fail_closed) or test(monitor_shutdown_marks_state_and_joins_task) or test(closing_a_live_session_releases_its_pin) or test(reserving_an_open_session_blocks_a_second_open)"
         ],
         "testFilter": [
           "compile_accepts_strategy_order_subset_scripts"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "c907706c228a053f19a6a38eb979b2028082802a",
+        "verifiedAt": "2026-09-25T14:26:02Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -271957,20 +271959,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-strategy",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(pine_indicators_reject_zero_periods_without_partial_results) or test(test_resolve_interval_minutes_supports_broker_intervals_and_safe_fallbacks) or test(native_pipeline_parses_lowers_and_plans_strategy_requirements) or test(compile_supports_framework_language_features) or test(compile_v14_window_momentum_fixture_keeps_go_requirement_keys) or test(compile_accepts_strategy_order_subset_scripts) or test(compile_accepts_expression_udf_and_static_for_unroll) or test(validate_script_reports_supported_udf_and_static_for_boundaries) or test(parser_handles_strings_history_and_nested_calls_without_regex) or test(semantic_checker_rejects_non_boolean_conditions_and_unsupported_declarations) or test(validation_payload_matches_save_hint_and_rejection_contract) or test(history_references_ignore_string_literals) or test(compile_warns_when_strategy_constants_fall_back_to_defaults) or test(pine_shadow_error_payload_keeps_the_worker_failure_message) or test(validates_loopback_worker_boundary_before_spawn) or test(command_error_summary_keeps_output_tail_within_wire_budget) or test(pine_spec_freezes_go_owner_sections_and_key_payload_fields) or test(endpoint_and_token_boundaries_fail_closed) or test(monitor_shutdown_marks_state_and_joins_task) or test(closing_a_live_session_releases_its_pin) or test(reserving_an_open_session_blocks_a_second_open)"
         ],
         "testFilter": [
           "validation_payload_matches_save_hint_and_rejection_contract"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "c907706c228a053f19a6a38eb979b2028082802a",
+        "verifiedAt": "2026-09-25T14:26:02Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -272019,20 +272021,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-strategy",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(pine_indicators_reject_zero_periods_without_partial_results) or test(test_resolve_interval_minutes_supports_broker_intervals_and_safe_fallbacks) or test(native_pipeline_parses_lowers_and_plans_strategy_requirements) or test(compile_supports_framework_language_features) or test(compile_v14_window_momentum_fixture_keeps_go_requirement_keys) or test(compile_accepts_strategy_order_subset_scripts) or test(compile_accepts_expression_udf_and_static_for_unroll) or test(validate_script_reports_supported_udf_and_static_for_boundaries) or test(parser_handles_strings_history_and_nested_calls_without_regex) or test(semantic_checker_rejects_non_boolean_conditions_and_unsupported_declarations) or test(validation_payload_matches_save_hint_and_rejection_contract) or test(history_references_ignore_string_literals) or test(compile_warns_when_strategy_constants_fall_back_to_defaults) or test(pine_shadow_error_payload_keeps_the_worker_failure_message) or test(validates_loopback_worker_boundary_before_spawn) or test(command_error_summary_keeps_output_tail_within_wire_budget) or test(pine_spec_freezes_go_owner_sections_and_key_payload_fields) or test(endpoint_and_token_boundaries_fail_closed) or test(monitor_shutdown_marks_state_and_joins_task) or test(closing_a_live_session_releases_its_pin) or test(reserving_an_open_session_blocks_a_second_open)"
         ],
         "testFilter": [
           "history_references_ignore_string_literals"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "c907706c228a053f19a6a38eb979b2028082802a",
+        "verifiedAt": "2026-09-25T14:26:02Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -272081,20 +272083,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-strategy",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(pine_indicators_reject_zero_periods_without_partial_results) or test(test_resolve_interval_minutes_supports_broker_intervals_and_safe_fallbacks) or test(native_pipeline_parses_lowers_and_plans_strategy_requirements) or test(compile_supports_framework_language_features) or test(compile_v14_window_momentum_fixture_keeps_go_requirement_keys) or test(compile_accepts_strategy_order_subset_scripts) or test(compile_accepts_expression_udf_and_static_for_unroll) or test(validate_script_reports_supported_udf_and_static_for_boundaries) or test(parser_handles_strings_history_and_nested_calls_without_regex) or test(semantic_checker_rejects_non_boolean_conditions_and_unsupported_declarations) or test(validation_payload_matches_save_hint_and_rejection_contract) or test(history_references_ignore_string_literals) or test(compile_warns_when_strategy_constants_fall_back_to_defaults) or test(pine_shadow_error_payload_keeps_the_worker_failure_message) or test(validates_loopback_worker_boundary_before_spawn) or test(command_error_summary_keeps_output_tail_within_wire_budget) or test(pine_spec_freezes_go_owner_sections_and_key_payload_fields) or test(endpoint_and_token_boundaries_fail_closed) or test(monitor_shutdown_marks_state_and_joins_task) or test(closing_a_live_session_releases_its_pin) or test(reserving_an_open_session_blocks_a_second_open)"
         ],
         "testFilter": [
           "parser_handles_strings_history_and_nested_calls_without_regex"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "c907706c228a053f19a6a38eb979b2028082802a",
+        "verifiedAt": "2026-09-25T14:26:02Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -272511,20 +272513,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-strategy",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(pine_indicators_reject_zero_periods_without_partial_results) or test(test_resolve_interval_minutes_supports_broker_intervals_and_safe_fallbacks) or test(native_pipeline_parses_lowers_and_plans_strategy_requirements) or test(compile_supports_framework_language_features) or test(compile_v14_window_momentum_fixture_keeps_go_requirement_keys) or test(compile_accepts_strategy_order_subset_scripts) or test(compile_accepts_expression_udf_and_static_for_unroll) or test(validate_script_reports_supported_udf_and_static_for_boundaries) or test(parser_handles_strings_history_and_nested_calls_without_regex) or test(semantic_checker_rejects_non_boolean_conditions_and_unsupported_declarations) or test(validation_payload_matches_save_hint_and_rejection_contract) or test(history_references_ignore_string_literals) or test(compile_warns_when_strategy_constants_fall_back_to_defaults) or test(pine_shadow_error_payload_keeps_the_worker_failure_message) or test(validates_loopback_worker_boundary_before_spawn) or test(command_error_summary_keeps_output_tail_within_wire_budget) or test(pine_spec_freezes_go_owner_sections_and_key_payload_fields) or test(endpoint_and_token_boundaries_fail_closed) or test(monitor_shutdown_marks_state_and_joins_task) or test(closing_a_live_session_releases_its_pin) or test(reserving_an_open_session_blocks_a_second_open)"
         ],
         "testFilter": [
           "validate_script_reports_supported_udf_and_static_for_boundaries"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "c907706c228a053f19a6a38eb979b2028082802a",
+        "verifiedAt": "2026-09-25T14:26:02Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -275018,20 +275020,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-strategy",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(pine_indicators_reject_zero_periods_without_partial_results) or test(test_resolve_interval_minutes_supports_broker_intervals_and_safe_fallbacks) or test(native_pipeline_parses_lowers_and_plans_strategy_requirements) or test(compile_supports_framework_language_features) or test(compile_v14_window_momentum_fixture_keeps_go_requirement_keys) or test(compile_accepts_strategy_order_subset_scripts) or test(compile_accepts_expression_udf_and_static_for_unroll) or test(validate_script_reports_supported_udf_and_static_for_boundaries) or test(parser_handles_strings_history_and_nested_calls_without_regex) or test(semantic_checker_rejects_non_boolean_conditions_and_unsupported_declarations) or test(validation_payload_matches_save_hint_and_rejection_contract) or test(history_references_ignore_string_literals) or test(compile_warns_when_strategy_constants_fall_back_to_defaults) or test(pine_shadow_error_payload_keeps_the_worker_failure_message) or test(validates_loopback_worker_boundary_before_spawn) or test(command_error_summary_keeps_output_tail_within_wire_budget) or test(pine_spec_freezes_go_owner_sections_and_key_payload_fields) or test(endpoint_and_token_boundaries_fail_closed) or test(monitor_shutdown_marks_state_and_joins_task) or test(closing_a_live_session_releases_its_pin) or test(reserving_an_open_session_blocks_a_second_open)"
         ],
         "testFilter": [
           "compile_warns_when_strategy_constants_fall_back_to_defaults"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "c907706c228a053f19a6a38eb979b2028082802a",
+        "verifiedAt": "2026-09-25T14:26:02Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -275905,22 +275907,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
           "--locked",
           "-E",
-          "test(pine_shadow) | test(pine_external_engine_payload) | test(pine_external_mode)"
+          "test(pine_indicators_reject_zero_periods_without_partial_results) or test(test_resolve_interval_minutes_supports_broker_intervals_and_safe_fallbacks) or test(native_pipeline_parses_lowers_and_plans_strategy_requirements) or test(compile_supports_framework_language_features) or test(compile_v14_window_momentum_fixture_keeps_go_requirement_keys) or test(compile_accepts_strategy_order_subset_scripts) or test(compile_accepts_expression_udf_and_static_for_unroll) or test(validate_script_reports_supported_udf_and_static_for_boundaries) or test(parser_handles_strings_history_and_nested_calls_without_regex) or test(semantic_checker_rejects_non_boolean_conditions_and_unsupported_declarations) or test(validation_payload_matches_save_hint_and_rejection_contract) or test(history_references_ignore_string_literals) or test(compile_warns_when_strategy_constants_fall_back_to_defaults) or test(pine_shadow_error_payload_keeps_the_worker_failure_message) or test(validates_loopback_worker_boundary_before_spawn) or test(command_error_summary_keeps_output_tail_within_wire_budget) or test(pine_spec_freezes_go_owner_sections_and_key_payload_fields) or test(endpoint_and_token_boundaries_fail_closed) or test(monitor_shutdown_marks_state_and_joins_task) or test(closing_a_live_session_releases_its_pin) or test(reserving_an_open_session_blocks_a_second_open)"
         ],
         "testFilter": [
           "pine_shadow_error_payload_keeps_the_worker_failure_message"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "c907706c228a053f19a6a38eb979b2028082802a",
+        "verifiedAt": "2026-09-25T14:26:02Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -275969,20 +275969,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-integration-pine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(pine_indicators_reject_zero_periods_without_partial_results) or test(test_resolve_interval_minutes_supports_broker_intervals_and_safe_fallbacks) or test(native_pipeline_parses_lowers_and_plans_strategy_requirements) or test(compile_supports_framework_language_features) or test(compile_v14_window_momentum_fixture_keeps_go_requirement_keys) or test(compile_accepts_strategy_order_subset_scripts) or test(compile_accepts_expression_udf_and_static_for_unroll) or test(validate_script_reports_supported_udf_and_static_for_boundaries) or test(parser_handles_strings_history_and_nested_calls_without_regex) or test(semantic_checker_rejects_non_boolean_conditions_and_unsupported_declarations) or test(validation_payload_matches_save_hint_and_rejection_contract) or test(history_references_ignore_string_literals) or test(compile_warns_when_strategy_constants_fall_back_to_defaults) or test(pine_shadow_error_payload_keeps_the_worker_failure_message) or test(validates_loopback_worker_boundary_before_spawn) or test(command_error_summary_keeps_output_tail_within_wire_budget) or test(pine_spec_freezes_go_owner_sections_and_key_payload_fields) or test(endpoint_and_token_boundaries_fail_closed) or test(monitor_shutdown_marks_state_and_joins_task) or test(closing_a_live_session_releases_its_pin) or test(reserving_an_open_session_blocks_a_second_open)"
         ],
         "testFilter": [
           "validates_loopback_worker_boundary_before_spawn"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "c907706c228a053f19a6a38eb979b2028082802a",
+        "verifiedAt": "2026-09-25T14:26:02Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -276031,20 +276031,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(pine_indicators_reject_zero_periods_without_partial_results) or test(test_resolve_interval_minutes_supports_broker_intervals_and_safe_fallbacks) or test(native_pipeline_parses_lowers_and_plans_strategy_requirements) or test(compile_supports_framework_language_features) or test(compile_v14_window_momentum_fixture_keeps_go_requirement_keys) or test(compile_accepts_strategy_order_subset_scripts) or test(compile_accepts_expression_udf_and_static_for_unroll) or test(validate_script_reports_supported_udf_and_static_for_boundaries) or test(parser_handles_strings_history_and_nested_calls_without_regex) or test(semantic_checker_rejects_non_boolean_conditions_and_unsupported_declarations) or test(validation_payload_matches_save_hint_and_rejection_contract) or test(history_references_ignore_string_literals) or test(compile_warns_when_strategy_constants_fall_back_to_defaults) or test(pine_shadow_error_payload_keeps_the_worker_failure_message) or test(validates_loopback_worker_boundary_before_spawn) or test(command_error_summary_keeps_output_tail_within_wire_budget) or test(pine_spec_freezes_go_owner_sections_and_key_payload_fields) or test(endpoint_and_token_boundaries_fail_closed) or test(monitor_shutdown_marks_state_and_joins_task) or test(closing_a_live_session_releases_its_pin) or test(reserving_an_open_session_blocks_a_second_open)"
         ],
         "testFilter": [
           "command_error_summary_keeps_output_tail_within_wire_budget"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "c907706c228a053f19a6a38eb979b2028082802a",
+        "verifiedAt": "2026-09-25T14:26:02Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -276465,20 +276465,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-strategy",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(pine_indicators_reject_zero_periods_without_partial_results) or test(test_resolve_interval_minutes_supports_broker_intervals_and_safe_fallbacks) or test(native_pipeline_parses_lowers_and_plans_strategy_requirements) or test(compile_supports_framework_language_features) or test(compile_v14_window_momentum_fixture_keeps_go_requirement_keys) or test(compile_accepts_strategy_order_subset_scripts) or test(compile_accepts_expression_udf_and_static_for_unroll) or test(validate_script_reports_supported_udf_and_static_for_boundaries) or test(parser_handles_strings_history_and_nested_calls_without_regex) or test(semantic_checker_rejects_non_boolean_conditions_and_unsupported_declarations) or test(validation_payload_matches_save_hint_and_rejection_contract) or test(history_references_ignore_string_literals) or test(compile_warns_when_strategy_constants_fall_back_to_defaults) or test(pine_shadow_error_payload_keeps_the_worker_failure_message) or test(validates_loopback_worker_boundary_before_spawn) or test(command_error_summary_keeps_output_tail_within_wire_budget) or test(pine_spec_freezes_go_owner_sections_and_key_payload_fields) or test(endpoint_and_token_boundaries_fail_closed) or test(monitor_shutdown_marks_state_and_joins_task) or test(closing_a_live_session_releases_its_pin) or test(reserving_an_open_session_blocks_a_second_open)"
         ],
         "testFilter": [
           "pine_spec_freezes_go_owner_sections_and_key_payload_fields"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "c907706c228a053f19a6a38eb979b2028082802a",
+        "verifiedAt": "2026-09-25T14:26:02Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -277209,20 +277209,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-integration-pine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(pine_indicators_reject_zero_periods_without_partial_results) or test(test_resolve_interval_minutes_supports_broker_intervals_and_safe_fallbacks) or test(native_pipeline_parses_lowers_and_plans_strategy_requirements) or test(compile_supports_framework_language_features) or test(compile_v14_window_momentum_fixture_keeps_go_requirement_keys) or test(compile_accepts_strategy_order_subset_scripts) or test(compile_accepts_expression_udf_and_static_for_unroll) or test(validate_script_reports_supported_udf_and_static_for_boundaries) or test(parser_handles_strings_history_and_nested_calls_without_regex) or test(semantic_checker_rejects_non_boolean_conditions_and_unsupported_declarations) or test(validation_payload_matches_save_hint_and_rejection_contract) or test(history_references_ignore_string_literals) or test(compile_warns_when_strategy_constants_fall_back_to_defaults) or test(pine_shadow_error_payload_keeps_the_worker_failure_message) or test(validates_loopback_worker_boundary_before_spawn) or test(command_error_summary_keeps_output_tail_within_wire_budget) or test(pine_spec_freezes_go_owner_sections_and_key_payload_fields) or test(endpoint_and_token_boundaries_fail_closed) or test(monitor_shutdown_marks_state_and_joins_task) or test(closing_a_live_session_releases_its_pin) or test(reserving_an_open_session_blocks_a_second_open)"
         ],
         "testFilter": [
           "endpoint_and_token_boundaries_fail_closed"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "c907706c228a053f19a6a38eb979b2028082802a",
+        "verifiedAt": "2026-09-25T14:26:02Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -277891,20 +277891,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-integration-pine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(pine_indicators_reject_zero_periods_without_partial_results) or test(test_resolve_interval_minutes_supports_broker_intervals_and_safe_fallbacks) or test(native_pipeline_parses_lowers_and_plans_strategy_requirements) or test(compile_supports_framework_language_features) or test(compile_v14_window_momentum_fixture_keeps_go_requirement_keys) or test(compile_accepts_strategy_order_subset_scripts) or test(compile_accepts_expression_udf_and_static_for_unroll) or test(validate_script_reports_supported_udf_and_static_for_boundaries) or test(parser_handles_strings_history_and_nested_calls_without_regex) or test(semantic_checker_rejects_non_boolean_conditions_and_unsupported_declarations) or test(validation_payload_matches_save_hint_and_rejection_contract) or test(history_references_ignore_string_literals) or test(compile_warns_when_strategy_constants_fall_back_to_defaults) or test(pine_shadow_error_payload_keeps_the_worker_failure_message) or test(validates_loopback_worker_boundary_before_spawn) or test(command_error_summary_keeps_output_tail_within_wire_budget) or test(pine_spec_freezes_go_owner_sections_and_key_payload_fields) or test(endpoint_and_token_boundaries_fail_closed) or test(monitor_shutdown_marks_state_and_joins_task) or test(closing_a_live_session_releases_its_pin) or test(reserving_an_open_session_blocks_a_second_open)"
         ],
         "testFilter": [
           "monitor_shutdown_marks_state_and_joins_task"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "c907706c228a053f19a6a38eb979b2028082802a",
+        "verifiedAt": "2026-09-25T14:26:02Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -278087,20 +278087,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-integration-pine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(pine_indicators_reject_zero_periods_without_partial_results) or test(test_resolve_interval_minutes_supports_broker_intervals_and_safe_fallbacks) or test(native_pipeline_parses_lowers_and_plans_strategy_requirements) or test(compile_supports_framework_language_features) or test(compile_v14_window_momentum_fixture_keeps_go_requirement_keys) or test(compile_accepts_strategy_order_subset_scripts) or test(compile_accepts_expression_udf_and_static_for_unroll) or test(validate_script_reports_supported_udf_and_static_for_boundaries) or test(parser_handles_strings_history_and_nested_calls_without_regex) or test(semantic_checker_rejects_non_boolean_conditions_and_unsupported_declarations) or test(validation_payload_matches_save_hint_and_rejection_contract) or test(history_references_ignore_string_literals) or test(compile_warns_when_strategy_constants_fall_back_to_defaults) or test(pine_shadow_error_payload_keeps_the_worker_failure_message) or test(validates_loopback_worker_boundary_before_spawn) or test(command_error_summary_keeps_output_tail_within_wire_budget) or test(pine_spec_freezes_go_owner_sections_and_key_payload_fields) or test(endpoint_and_token_boundaries_fail_closed) or test(monitor_shutdown_marks_state_and_joins_task) or test(closing_a_live_session_releases_its_pin) or test(reserving_an_open_session_blocks_a_second_open)"
         ],
         "testFilter": [
           "closing_a_live_session_releases_its_pin"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "c907706c228a053f19a6a38eb979b2028082802a",
+        "verifiedAt": "2026-09-25T14:26:02Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -278154,20 +278154,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-integration-pine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(pine_indicators_reject_zero_periods_without_partial_results) or test(test_resolve_interval_minutes_supports_broker_intervals_and_safe_fallbacks) or test(native_pipeline_parses_lowers_and_plans_strategy_requirements) or test(compile_supports_framework_language_features) or test(compile_v14_window_momentum_fixture_keeps_go_requirement_keys) or test(compile_accepts_strategy_order_subset_scripts) or test(compile_accepts_expression_udf_and_static_for_unroll) or test(validate_script_reports_supported_udf_and_static_for_boundaries) or test(parser_handles_strings_history_and_nested_calls_without_regex) or test(semantic_checker_rejects_non_boolean_conditions_and_unsupported_declarations) or test(validation_payload_matches_save_hint_and_rejection_contract) or test(history_references_ignore_string_literals) or test(compile_warns_when_strategy_constants_fall_back_to_defaults) or test(pine_shadow_error_payload_keeps_the_worker_failure_message) or test(validates_loopback_worker_boundary_before_spawn) or test(command_error_summary_keeps_output_tail_within_wire_budget) or test(pine_spec_freezes_go_owner_sections_and_key_payload_fields) or test(endpoint_and_token_boundaries_fail_closed) or test(monitor_shutdown_marks_state_and_joins_task) or test(closing_a_live_session_releases_its_pin) or test(reserving_an_open_session_blocks_a_second_open)"
         ],
         "testFilter": [
           "reserving_an_open_session_blocks_a_second_open"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "c907706c228a053f19a6a38eb979b2028082802a",
+        "verifiedAt": "2026-09-25T14:26:02Z",
         "receiptDigest": null
       },
       "risk": "high",
