@@ -19555,7 +19555,7 @@
             "goFile": "internal/api/system/routes_test.go",
             "goLine": 61,
             "rustFile": "crates/jftrade-engine/tests/system_write_compatibility.rs",
-            "rustLine": 268
+            "rustLine": 303
           }
         }
       ],
@@ -19683,9 +19683,9 @@
     },
     "internal/api/system/routes_test.go:102:TestSystemRouteBoundaryValidatorsRejectMissingHardStopAndNonPositiveLimits": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/tests/system_write_compatibility.rs::system_write_leaf_fails_closed_after_shape_validation",
-      "conclusion": "partial：Go 断言缺 hard-stop id → 400、非正数限额被拒。Rust 引用用例断言写叶子形状校验先于端口调用；缺失路径参数在模板路由下等价 404 而非 400。缺口 owner：crates/jftrade-engine system 写叶 + jftrade-api router；回归要求：补非正数限额 → 400 断言，并确认缺参语义（404 vs 400）。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+      "rust_entry": "crates/jftrade-engine/tests/system_write_compatibility.rs::system_write_validator_boundaries_keep_go_non_positive_rejection_and_missing_id_semantics",
+      "conclusion": "partial：Rust 专用回归直接断言 maxOrderQuantity=0 和 maxOrderNotional=0 在端口调用前返回 400/BAD_REQUEST；缺 hard-stop id 的 Go DELETE 路径在 Rust system-write 路由表中不是可匹配模板，保持 404/NOT_FOUND，记录为 HTTP 路由边界差异。未发现需要修复的 Rust 生产功能缺口。",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(system_write_validator_boundaries_keep_go_non_positive_rejection_and_missing_id_semantics) or test(system_write_leaf_fails_closed_after_shape_validation)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/api/system/routes_test.go",
@@ -19696,17 +19696,25 @@
       "rustEvidence": [
         {
           "file": "crates/jftrade-engine/tests/system_write_compatibility.rs",
-          "test": "system_write_leaf_fails_closed_after_shape_validation",
+          "test": "system_write_validator_boundaries_keep_go_non_positive_rejection_and_missing_id_semantics",
           "crate": "jftrade-engine",
-          "anchor": null
+          "anchor": {
+            "goFile": "internal/api/system/routes_test.go",
+            "goLine": 102,
+            "rustFile": "crates/jftrade-engine/tests/system_write_compatibility.rs",
+            "rustLine": 257
+          }
         }
       ],
       "assertionCoverage": {
-        "covered": [],
-        "uncovered": [
-          "partial：Go 断言缺 hard-stop id → 400、非正数限额被拒。Rust 引用用例断言写叶子形状校验先于端口调用；缺失路径参数在模板路由下等价 404 而非 400。缺口 owner：crates/jftrade-engine system 写叶 + jftrade-api router；回归要求：补非正数限额 → 400 断言，并确认缺参语义（404 vs 400）。"
+        "covered": [
+          "partial：maxOrderQuantity=0 与 maxOrderNotional=0 均在 Rust system-write leaf 调用端口前返回 400/BAD_REQUEST。",
+          "partial：Rust 对 Go 缺 hard-stop id 的 DELETE 路径保持 404/NOT_FOUND，并固定该模板路由边界。"
         ],
-        "source": "legacy-conclusion"
+        "uncovered": [
+          "partial：Go handler 对 /api/v1/system/real-trade-hard-stops/ 直接返回 400；Rust 路由采用 POST /real-trade-hard-stops/{hardStopId}/release 模板，缺失模板参数无法匹配，因此保留 404，未强行改变公开路由契约。"
+        ],
+        "source": "manual-batch-review"
       },
       "verification": {
         "argv": [
@@ -19716,30 +19724,36 @@
           "-p",
           "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(system_write_validator_boundaries_keep_go_non_positive_rejection_and_missing_id_semantics) or test(system_write_leaf_fails_closed_after_shape_validation)"
         ],
         "testFilter": [
+          "system_write_validator_boundaries_keep_go_non_positive_rejection_and_missing_id_semantics",
           "system_write_leaf_fails_closed_after_shape_validation"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
+        "status": "passed",
+        "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": null,
+        "verifiedAt": "2026-09-25T03:59:10Z",
         "receiptDigest": null
       },
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
+      "nextAction": "preserve_partial_and_track_route_template_boundary",
       "blockedBy": [
         "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [],
+      "coveredAssertions": [
+        "partial：maxOrderQuantity=0 与 maxOrderNotional=0 在端口调用前返回 400/BAD_REQUEST。",
+        "partial：缺 hard-stop id 的 Rust 模板路由语义固定为 404/NOT_FOUND。"
+      ],
       "uncoveredAssertions": [
-        "partial：Go 断言缺 hard-stop id → 400、非正数限额被拒。Rust 引用用例断言写叶子形状校验先于端口调用；缺失路径参数在模板路由下等价 404 而非 400。缺口 owner：crates/jftrade-engine system 写叶 + jftrade-api router；回归要求：补非正数限额 → 400 断言，并确认缺参语义（404 vs 400）。"
+        "partial：Go 缺 hard-stop id handler 返回 400，而 Rust 采用带 id 的 POST release 模板并返回 404；这是路由形状差异，继续保留 partial。"
       ],
       "boundaryReason": null
     },
@@ -303087,9 +303101,8 @@
       "reviewStatus": "single"
     },
     "crates/jftrade-engine/tests/system_write_compatibility.rs::system_write_leaf_fails_closed_after_shape_validation": {
-      "referenceCount": 3,
+      "referenceCount": 2,
       "referenceKeys": [
-        "internal/api/system/routes_test.go:102:TestSystemRouteBoundaryValidatorsRejectMissingHardStopAndNonPositiveLimits",
         "internal/api/system/routes_test.go:121:TestRealTradeReleaseRoutesRejectMalformedOptionalPayloadBeforeStateChange",
         "internal/api/system/routes_test.go:316:TestRealTradeControlRoutesMapValidationAndControlFailures"
       ],
@@ -311269,6 +311282,14 @@
       "referenceCount": 1,
       "referenceKeys": [
         "internal/marketdata/quote_availability_test.go:35:TestSnapshotSerializationKeepsLegacyZeroValuesAvailable"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/tests/system_write_compatibility.rs::system_write_validator_boundaries_keep_go_non_positive_rejection_and_missing_id_semantics": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/api/system/routes_test.go:102:TestSystemRouteBoundaryValidatorsRejectMissingHardStopAndNonPositiveLimits"
       ],
       "allowed": true,
       "reviewStatus": "single"

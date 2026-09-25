@@ -252,6 +252,39 @@ fn system_write_leaf_fails_closed_after_shape_validation() {
     assert_eq!(response.body["error"]["code"], "BAD_REQUEST");
 }
 
+// Parity: go:452dea11:internal/api/system/routes_test.go:102 TestSystemRouteBoundaryValidatorsRejectMissingHardStopAndNonPositiveLimits
+#[test]
+fn system_write_validator_boundaries_keep_go_non_positive_rejection_and_missing_id_semantics() {
+    for body in [
+        br#"{"maxOrderQuantity":0}"#.as_slice(),
+        br#"{"maxOrderNotional":0}"#.as_slice(),
+    ] {
+        let response = dispatch_system_write(
+            &SystemWriteRequest {
+                method: "PUT".to_owned(),
+                path: "/api/v1/system/real-trade-risk-limits".to_owned(),
+                body: body.to_vec(),
+            },
+            None,
+            FIXTURE_TIMESTAMP,
+        );
+        assert_eq!(response.status, 400);
+        assert_eq!(response.body["error"]["code"], "BAD_REQUEST");
+    }
+
+    let missing_hard_stop_id = dispatch_system_write(
+        &SystemWriteRequest {
+            method: "DELETE".to_owned(),
+            path: "/api/v1/system/real-trade-hard-stops/".to_owned(),
+            body: Vec::new(),
+        },
+        None,
+        FIXTURE_TIMESTAMP,
+    );
+    assert_eq!(missing_hard_stop_id.status, 404);
+    assert_eq!(missing_hard_stop_id.body["error"]["code"], "NOT_FOUND");
+}
+
 #[test]
 fn system_write_port_unavailable_maps_to_fail_closed_503() {
     let request = SystemWriteRequest {
