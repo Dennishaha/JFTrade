@@ -7336,7 +7336,7 @@
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_query.rs::optional_query_time_normalizes_to_utc_and_blank_means_absent",
       "conclusion": "partial：Go 断言空串与不可解析文本都返回调用方 fallback（不报错）。Rust 空串返回 Ok(None)（等价“交给调用方”，已断言），但不可解析文本返回 Err，路由映射为 400 \"time must be a valid timestamp\"（product_production_ports_market_data_quote_reads.rs:149/165）。缺口 owner：crates/jftrade-engine 查询时间解析与 candles/trade 路由；回归要求：产品或契约确认“非法时间 → 400”是否为目标语义，如保留则把该差异登记为有意收紧，否则改为 fallback 并补断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-api --all-targets --locked -E test(optional_query_time_normalizes_to_utc_and_blank_means_absent)",
       "evidence_type": "partial",
       "source": {
         "file": "internal/api/httpserver/bindings_boundaries_test.go",
@@ -7358,11 +7358,13 @@
         }
       ],
       "assertionCoverage": {
-        "covered": [],
-        "uncovered": [
-          "partial：Go 断言空串与不可解析文本都返回调用方 fallback（不报错）。Rust 空串返回 Ok(None)（等价“交给调用方”，已断言），但不可解析文本返回 Err，路由映射为 400 \"time must be a valid timestamp\"（product_production_ports_market_data_quote_reads.rs:149/165）。缺口 owner：crates/jftrade-engine 查询时间解析与 candles/trade 路由；回归要求：产品或契约确认“非法时间 → 400”是否为目标语义，如保留则把该差异登记为有意收紧，否则改为 fallback 并补断言。"
+        "covered": [
+          "Rust 已验证 query time 的 UTC 归一和 blank 输入表示 absent。"
         ],
-        "source": "legacy-conclusion"
+        "uncovered": [
+          "Go 还断言 not-a-time 输入返回 caller fallback；Rust query parser 对非法值 fail closed/返回错误，没有同形 fallback 参数。"
+        ],
+        "source": "manual-batch-review"
       },
       "verification": {
         "argv": [
@@ -7371,18 +7373,22 @@
           "run",
           "-p",
           "jftrade-engine",
+          "-p",
+          "jftrade-api",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(optional_query_time_normalizes_to_utc_and_blank_means_absent)"
         ],
         "testFilter": [
           "optional_query_time_normalizes_to_utc_and_blank_means_absent"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
+        "status": "passed",
+        "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": null,
+        "verifiedAt": "2026-09-25T04:00:00Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -7393,9 +7399,11 @@
         "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [],
+      "coveredAssertions": [
+        "Rust 已验证 query time 的 UTC 归一和 blank 输入表示 absent。"
+      ],
       "uncoveredAssertions": [
-        "partial：Go 断言空串与不可解析文本都返回调用方 fallback（不报错）。Rust 空串返回 Ok(None)（等价“交给调用方”，已断言），但不可解析文本返回 Err，路由映射为 400 \"time must be a valid timestamp\"（product_production_ports_market_data_quote_reads.rs:149/165）。缺口 owner：crates/jftrade-engine 查询时间解析与 candles/trade 路由；回归要求：产品或契约确认“非法时间 → 400”是否为目标语义，如保留则把该差异登记为有意收紧，否则改为 fallback 并补断言。"
+        "Go 还断言 not-a-time 输入返回 caller fallback；Rust query parser 对非法值 fail closed/返回错误，没有同形 fallback 参数。"
       ],
       "boundaryReason": null
     },
@@ -7403,7 +7411,7 @@
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_query.rs::uri_escape_validation_accepts_literal_percent_and_rejects_malformed; crates/jftrade-api/src/route.rs::exact_method_and_single_segment_parameters_are_required",
       "conclusion": "partial：Go 的三个子用例中“合法/非法 params 转义”已由新用例覆盖（%20 接受、%ZZ/%2 拒绝）；剩余“必需参数缺失报错”在 Rust 无同名对象——路由模板不匹配即 404 NOT_FOUND（route.rs 要求精确方法+单段参数，引用测试）。缺口 owner：crates/jftrade-api router/route；回归要求：补一条“缺少路径参数 → 404 JSON 信封”的 wire 断言，或把 gin 绑定错误语义登记为边界差异。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --all-targets --locked",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-api --all-targets --locked -E test(uri_escape_validation_accepts_literal_percent_and_rejects_malformed) or test(exact_method_and_single_segment_parameters_are_required)",
       "evidence_type": "partial",
       "source": {
         "file": "internal/api/httpserver/bindings_boundaries_test.go",
@@ -7431,11 +7439,13 @@
         }
       ],
       "assertionCoverage": {
-        "covered": [],
-        "uncovered": [
-          "partial：Go 的三个子用例中“合法/非法 params 转义”已由新用例覆盖（%20 接受、%ZZ/%2 拒绝）；剩余“必需参数缺失报错”在 Rust 无同名对象——路由模板不匹配即 404 NOT_FOUND（route.rs 要求精确方法+单段参数，引用测试）。缺口 owner：crates/jftrade-api router/route；回归要求：补一条“缺少路径参数 → 404 JSON 信封”的 wire 断言，或把 gin 绑定错误语义登记为边界差异。"
+        "covered": [
+          "Rust 已验证 malformed/literal percent URI escape 规则，以及路由 method 与单段参数约束。"
         ],
-        "source": "legacy-conclusion"
+        "uncovered": [
+          "Go Gin BindURI 的 required 缺失、gin.Params fallback 合法 escape 解码和 malformed escape 三分支没有 Rust 同形 binding helper；Rust 在 route/query 边界表达。"
+        ],
+        "source": "manual-batch-review"
       },
       "verification": {
         "argv": [
@@ -7443,9 +7453,13 @@
           "scripts/quality/cargo-nextest.mjs",
           "run",
           "-p",
+          "jftrade-engine",
+          "-p",
           "jftrade-api",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(uri_escape_validation_accepts_literal_percent_and_rejects_malformed) or test(exact_method_and_single_segment_parameters_are_required)"
         ],
         "testFilter": [
           "uri_escape_validation_accepts_literal_percent_and_rejects_malformed",
@@ -7453,10 +7467,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
+        "status": "passed",
+        "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": null,
+        "verifiedAt": "2026-09-25T04:00:00Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -7467,9 +7481,11 @@
         "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [],
+      "coveredAssertions": [
+        "Rust 已验证 malformed/literal percent URI escape 规则，以及路由 method 与单段参数约束。"
+      ],
       "uncoveredAssertions": [
-        "partial：Go 的三个子用例中“合法/非法 params 转义”已由新用例覆盖（%20 接受、%ZZ/%2 拒绝）；剩余“必需参数缺失报错”在 Rust 无同名对象——路由模板不匹配即 404 NOT_FOUND（route.rs 要求精确方法+单段参数，引用测试）。缺口 owner：crates/jftrade-api router/route；回归要求：补一条“缺少路径参数 → 404 JSON 信封”的 wire 断言，或把 gin 绑定错误语义登记为边界差异。"
+        "Go Gin BindURI 的 required 缺失、gin.Params fallback 合法 escape 解码和 malformed escape 三分支没有 Rust 同形 binding helper；Rust 在 route/query 边界表达。"
       ],
       "boundaryReason": null
     },
@@ -7850,7 +7866,7 @@
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_query.rs::candle_period_normalizes_aliases_and_rejects_unsupported; crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::candle_route_treats_blank_period_as_unset_and_rejects_unsupported",
       "conclusion": "partial：周期半已逐项对齐（60m→1h、k_day→1d、2h 拒绝，本批补齐空白 period 语义）；分页半无同签名 helper——Go NormalizeBoundPage(limit, offset, default, max) 在 Rust 由各路由 clamp 表达（watchlist normalize_limit(0)=100、min(max)；candle 路由 limit<=0→200、>1000→1000，与 Go 服务端 clamp 一致），且 Go 的 limit=-3→1 与负 offset→0 在 Rust usize/入参校验下不可达，登记为结构边界。缺口 owner：crates/jftrade-engine product_query 与各读路由。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-api --all-targets --locked -E test(candle_period_normalizes_aliases_and_rejects_unsupported) or test(candle_route_treats_blank_period_as_unset_and_rejects_unsupported)",
       "evidence_type": "partial",
       "source": {
         "file": "internal/api/httpserver/bindings_test.go",
@@ -7878,11 +7894,13 @@
         }
       ],
       "assertionCoverage": {
-        "covered": [],
-        "uncovered": [
-          "partial：周期半已逐项对齐（60m→1h、k_day→1d、2h 拒绝，本批补齐空白 period 语义）；分页半无同签名 helper——Go NormalizeBoundPage(limit, offset, default, max) 在 Rust 由各路由 clamp 表达（watchlist normalize_limit(0)=100、min(max)；candle 路由 limit<=0→200、>1000→1000，与 Go 服务端 clamp 一致），且 Go 的 limit=-3→1 与负 offset→0 在 Rust usize/入参校验下不可达，登记为结构边界。缺口 owner：crates/jftrade-engine product_query 与各读路由。"
+        "covered": [
+          "Rust 已验证 candle period alias→canonical、unsupported reject 与 blank period 在 candle route 上视为 unset。"
         ],
-        "source": "legacy-conclusion"
+        "uncovered": [
+          "Go 同一测试还逐项断言 NormalizeBoundPage 的 default/max/min limit 与 offset 钳制；Rust 无同名纯 helper 聚合测试，分页边界由各 route owner 分散约束。"
+        ],
+        "source": "manual-batch-review"
       },
       "verification": {
         "argv": [
@@ -7891,8 +7909,12 @@
           "run",
           "-p",
           "jftrade-engine",
+          "-p",
+          "jftrade-api",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(candle_period_normalizes_aliases_and_rejects_unsupported) or test(candle_route_treats_blank_period_as_unset_and_rejects_unsupported)"
         ],
         "testFilter": [
           "candle_period_normalizes_aliases_and_rejects_unsupported",
@@ -7900,10 +7922,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
+        "status": "passed",
+        "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": null,
+        "verifiedAt": "2026-09-25T04:00:00Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -7914,9 +7936,11 @@
         "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [],
+      "coveredAssertions": [
+        "Rust 已验证 candle period alias→canonical、unsupported reject 与 blank period 在 candle route 上视为 unset。"
+      ],
       "uncoveredAssertions": [
-        "partial：周期半已逐项对齐（60m→1h、k_day→1d、2h 拒绝，本批补齐空白 period 语义）；分页半无同签名 helper——Go NormalizeBoundPage(limit, offset, default, max) 在 Rust 由各路由 clamp 表达（watchlist normalize_limit(0)=100、min(max)；candle 路由 limit<=0→200、>1000→1000，与 Go 服务端 clamp 一致），且 Go 的 limit=-3→1 与负 offset→0 在 Rust usize/入参校验下不可达，登记为结构边界。缺口 owner：crates/jftrade-engine product_query 与各读路由。"
+        "Go 同一测试还逐项断言 NormalizeBoundPage 的 default/max/min limit 与 offset 钳制；Rust 无同名纯 helper 聚合测试，分页边界由各 route owner 分散约束。"
       ],
       "boundaryReason": null
     },
