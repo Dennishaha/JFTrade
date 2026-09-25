@@ -88511,20 +88511,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_denied_approval_closes_siblings_and_unrelated_resolution_keeps_the_projection) or test(durable_error_classification_keeps_invariants_fatal) or test(adk_approval_wakeup_accepts_an_already_claimed_continuation) or test(test_adk_resume_approval_cas_rejection) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success) or test(terminal_run_cannot_be_resumed) or test(challenge_continuation_supervisor_rejects_new_work_once_stopping) or test(challenge_continuation_supervisor_shutdown_cancels_in_flight_and_rejects_new_work) or test(an_unrecoverable_input_continuation_fails_the_run_with_the_reference_resume_state) or test(assistant_run_mutation_routes_enforce_goal_lifecycle_rules) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(adk_agent_update_revalidates_the_merged_payload) or test(staging_a_tool_round_freezes_the_pre_tool_assistant_text) or test(same_owner_heartbeat_renews_without_advancing_fence) or test(run_lease_expiry_fencing_and_stale_release_are_rejected) or test(fail_closed_stale_claim_becomes_indeterminate) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(adk_catalog_boundary_status_codes_match_the_go_matrix) or test(model_projection_is_allowlisted_and_searchable) or test(test_provider) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(direct_product_drop_terminates_reconciliation_before_releasing_leases) or test(production_adk_approval_resolution_is_persisted_and_idempotent) or test(skill_document_install_registers_the_parsed_document) or test(skill_install_projection_is_durable) or test(skill_archive_rejects_unsafe_paths_and_symlinks) or test(builtin_skill_catalog_stays_registered_alongside_external_installs)"
         ],
         "testFilter": [
           "adk_denied_approval_closes_siblings_and_unrelated_resolution_keeps_the_projection"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "67be9fbe",
+        "verifiedAt": "2026-09-25T18:06:28Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -88573,20 +88573,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_denied_approval_closes_siblings_and_unrelated_resolution_keeps_the_projection) or test(durable_error_classification_keeps_invariants_fatal) or test(adk_approval_wakeup_accepts_an_already_claimed_continuation) or test(test_adk_resume_approval_cas_rejection) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success) or test(terminal_run_cannot_be_resumed) or test(challenge_continuation_supervisor_rejects_new_work_once_stopping) or test(challenge_continuation_supervisor_shutdown_cancels_in_flight_and_rejects_new_work) or test(an_unrecoverable_input_continuation_fails_the_run_with_the_reference_resume_state) or test(assistant_run_mutation_routes_enforce_goal_lifecycle_rules) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(adk_agent_update_revalidates_the_merged_payload) or test(staging_a_tool_round_freezes_the_pre_tool_assistant_text) or test(same_owner_heartbeat_renews_without_advancing_fence) or test(run_lease_expiry_fencing_and_stale_release_are_rejected) or test(fail_closed_stale_claim_becomes_indeterminate) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(adk_catalog_boundary_status_codes_match_the_go_matrix) or test(model_projection_is_allowlisted_and_searchable) or test(test_provider) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(direct_product_drop_terminates_reconciliation_before_releasing_leases) or test(production_adk_approval_resolution_is_persisted_and_idempotent) or test(skill_document_install_registers_the_parsed_document) or test(skill_install_projection_is_durable) or test(skill_archive_rejects_unsafe_paths_and_symlinks) or test(builtin_skill_catalog_stays_registered_alongside_external_installs)"
         ],
         "testFilter": [
           "durable_error_classification_keeps_invariants_fatal"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "67be9fbe",
+        "verifiedAt": "2026-09-25T18:06:28Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -88651,10 +88651,10 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_denied_approval_closes_siblings_and_unrelated_resolution_keeps_the_projection) or test(durable_error_classification_keeps_invariants_fatal) or test(adk_approval_wakeup_accepts_an_already_claimed_continuation) or test(test_adk_resume_approval_cas_rejection) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success) or test(terminal_run_cannot_be_resumed) or test(challenge_continuation_supervisor_rejects_new_work_once_stopping) or test(challenge_continuation_supervisor_shutdown_cancels_in_flight_and_rejects_new_work) or test(an_unrecoverable_input_continuation_fails_the_run_with_the_reference_resume_state) or test(assistant_run_mutation_routes_enforce_goal_lifecycle_rules) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(adk_agent_update_revalidates_the_merged_payload) or test(staging_a_tool_round_freezes_the_pre_tool_assistant_text) or test(same_owner_heartbeat_renews_without_advancing_fence) or test(run_lease_expiry_fencing_and_stale_release_are_rejected) or test(fail_closed_stale_claim_becomes_indeterminate) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(adk_catalog_boundary_status_codes_match_the_go_matrix) or test(model_projection_is_allowlisted_and_searchable) or test(test_provider) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(direct_product_drop_terminates_reconciliation_before_releasing_leases) or test(production_adk_approval_resolution_is_persisted_and_idempotent) or test(skill_document_install_registers_the_parsed_document) or test(skill_install_projection_is_durable) or test(skill_archive_rejects_unsafe_paths_and_symlinks) or test(builtin_skill_catalog_stays_registered_alongside_external_installs)"
         ],
         "testFilter": [
           "adk_approval_wakeup_accepts_an_already_claimed_continuation",
@@ -88662,10 +88662,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "67be9fbe",
+        "verifiedAt": "2026-09-25T18:06:28Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -88714,20 +88714,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_denied_approval_closes_siblings_and_unrelated_resolution_keeps_the_projection) or test(durable_error_classification_keeps_invariants_fatal) or test(adk_approval_wakeup_accepts_an_already_claimed_continuation) or test(test_adk_resume_approval_cas_rejection) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success) or test(terminal_run_cannot_be_resumed) or test(challenge_continuation_supervisor_rejects_new_work_once_stopping) or test(challenge_continuation_supervisor_shutdown_cancels_in_flight_and_rejects_new_work) or test(an_unrecoverable_input_continuation_fails_the_run_with_the_reference_resume_state) or test(assistant_run_mutation_routes_enforce_goal_lifecycle_rules) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(adk_agent_update_revalidates_the_merged_payload) or test(staging_a_tool_round_freezes_the_pre_tool_assistant_text) or test(same_owner_heartbeat_renews_without_advancing_fence) or test(run_lease_expiry_fencing_and_stale_release_are_rejected) or test(fail_closed_stale_claim_becomes_indeterminate) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(adk_catalog_boundary_status_codes_match_the_go_matrix) or test(model_projection_is_allowlisted_and_searchable) or test(test_provider) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(direct_product_drop_terminates_reconciliation_before_releasing_leases) or test(production_adk_approval_resolution_is_persisted_and_idempotent) or test(skill_document_install_registers_the_parsed_document) or test(skill_install_projection_is_durable) or test(skill_archive_rejects_unsafe_paths_and_symlinks) or test(builtin_skill_catalog_stays_registered_alongside_external_installs)"
         ],
         "testFilter": [
           "failed_recovery_scan_marks_readiness_degraded_until_next_success"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "67be9fbe",
+        "verifiedAt": "2026-09-25T18:06:28Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -88781,20 +88781,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-assistant",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_denied_approval_closes_siblings_and_unrelated_resolution_keeps_the_projection) or test(durable_error_classification_keeps_invariants_fatal) or test(adk_approval_wakeup_accepts_an_already_claimed_continuation) or test(test_adk_resume_approval_cas_rejection) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success) or test(terminal_run_cannot_be_resumed) or test(challenge_continuation_supervisor_rejects_new_work_once_stopping) or test(challenge_continuation_supervisor_shutdown_cancels_in_flight_and_rejects_new_work) or test(an_unrecoverable_input_continuation_fails_the_run_with_the_reference_resume_state) or test(assistant_run_mutation_routes_enforce_goal_lifecycle_rules) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(adk_agent_update_revalidates_the_merged_payload) or test(staging_a_tool_round_freezes_the_pre_tool_assistant_text) or test(same_owner_heartbeat_renews_without_advancing_fence) or test(run_lease_expiry_fencing_and_stale_release_are_rejected) or test(fail_closed_stale_claim_becomes_indeterminate) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(adk_catalog_boundary_status_codes_match_the_go_matrix) or test(model_projection_is_allowlisted_and_searchable) or test(test_provider) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(direct_product_drop_terminates_reconciliation_before_releasing_leases) or test(production_adk_approval_resolution_is_persisted_and_idempotent) or test(skill_document_install_registers_the_parsed_document) or test(skill_install_projection_is_durable) or test(skill_archive_rejects_unsafe_paths_and_symlinks) or test(builtin_skill_catalog_stays_registered_alongside_external_installs)"
         ],
         "testFilter": [
           "terminal_run_cannot_be_resumed"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "67be9fbe",
+        "verifiedAt": "2026-09-25T18:06:28Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -88848,20 +88848,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_denied_approval_closes_siblings_and_unrelated_resolution_keeps_the_projection) or test(durable_error_classification_keeps_invariants_fatal) or test(adk_approval_wakeup_accepts_an_already_claimed_continuation) or test(test_adk_resume_approval_cas_rejection) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success) or test(terminal_run_cannot_be_resumed) or test(challenge_continuation_supervisor_rejects_new_work_once_stopping) or test(challenge_continuation_supervisor_shutdown_cancels_in_flight_and_rejects_new_work) or test(an_unrecoverable_input_continuation_fails_the_run_with_the_reference_resume_state) or test(assistant_run_mutation_routes_enforce_goal_lifecycle_rules) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(adk_agent_update_revalidates_the_merged_payload) or test(staging_a_tool_round_freezes_the_pre_tool_assistant_text) or test(same_owner_heartbeat_renews_without_advancing_fence) or test(run_lease_expiry_fencing_and_stale_release_are_rejected) or test(fail_closed_stale_claim_becomes_indeterminate) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(adk_catalog_boundary_status_codes_match_the_go_matrix) or test(model_projection_is_allowlisted_and_searchable) or test(test_provider) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(direct_product_drop_terminates_reconciliation_before_releasing_leases) or test(production_adk_approval_resolution_is_persisted_and_idempotent) or test(skill_document_install_registers_the_parsed_document) or test(skill_install_projection_is_durable) or test(skill_archive_rejects_unsafe_paths_and_symlinks) or test(builtin_skill_catalog_stays_registered_alongside_external_installs)"
         ],
         "testFilter": [
           "challenge_continuation_supervisor_rejects_new_work_once_stopping"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "67be9fbe",
+        "verifiedAt": "2026-09-25T18:06:28Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -88915,20 +88915,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_denied_approval_closes_siblings_and_unrelated_resolution_keeps_the_projection) or test(durable_error_classification_keeps_invariants_fatal) or test(adk_approval_wakeup_accepts_an_already_claimed_continuation) or test(test_adk_resume_approval_cas_rejection) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success) or test(terminal_run_cannot_be_resumed) or test(challenge_continuation_supervisor_rejects_new_work_once_stopping) or test(challenge_continuation_supervisor_shutdown_cancels_in_flight_and_rejects_new_work) or test(an_unrecoverable_input_continuation_fails_the_run_with_the_reference_resume_state) or test(assistant_run_mutation_routes_enforce_goal_lifecycle_rules) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(adk_agent_update_revalidates_the_merged_payload) or test(staging_a_tool_round_freezes_the_pre_tool_assistant_text) or test(same_owner_heartbeat_renews_without_advancing_fence) or test(run_lease_expiry_fencing_and_stale_release_are_rejected) or test(fail_closed_stale_claim_becomes_indeterminate) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(adk_catalog_boundary_status_codes_match_the_go_matrix) or test(model_projection_is_allowlisted_and_searchable) or test(test_provider) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(direct_product_drop_terminates_reconciliation_before_releasing_leases) or test(production_adk_approval_resolution_is_persisted_and_idempotent) or test(skill_document_install_registers_the_parsed_document) or test(skill_install_projection_is_durable) or test(skill_archive_rejects_unsafe_paths_and_symlinks) or test(builtin_skill_catalog_stays_registered_alongside_external_installs)"
         ],
         "testFilter": [
           "challenge_continuation_supervisor_shutdown_cancels_in_flight_and_rejects_new_work"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "67be9fbe",
+        "verifiedAt": "2026-09-25T18:06:28Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -89039,20 +89039,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_denied_approval_closes_siblings_and_unrelated_resolution_keeps_the_projection) or test(durable_error_classification_keeps_invariants_fatal) or test(adk_approval_wakeup_accepts_an_already_claimed_continuation) or test(test_adk_resume_approval_cas_rejection) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success) or test(terminal_run_cannot_be_resumed) or test(challenge_continuation_supervisor_rejects_new_work_once_stopping) or test(challenge_continuation_supervisor_shutdown_cancels_in_flight_and_rejects_new_work) or test(an_unrecoverable_input_continuation_fails_the_run_with_the_reference_resume_state) or test(assistant_run_mutation_routes_enforce_goal_lifecycle_rules) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(adk_agent_update_revalidates_the_merged_payload) or test(staging_a_tool_round_freezes_the_pre_tool_assistant_text) or test(same_owner_heartbeat_renews_without_advancing_fence) or test(run_lease_expiry_fencing_and_stale_release_are_rejected) or test(fail_closed_stale_claim_becomes_indeterminate) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(adk_catalog_boundary_status_codes_match_the_go_matrix) or test(model_projection_is_allowlisted_and_searchable) or test(test_provider) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(direct_product_drop_terminates_reconciliation_before_releasing_leases) or test(production_adk_approval_resolution_is_persisted_and_idempotent) or test(skill_document_install_registers_the_parsed_document) or test(skill_install_projection_is_durable) or test(skill_archive_rejects_unsafe_paths_and_symlinks) or test(builtin_skill_catalog_stays_registered_alongside_external_installs)"
         ],
         "testFilter": [
           "an_unrecoverable_input_continuation_fails_the_run_with_the_reference_resume_state"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "67be9fbe",
+        "verifiedAt": "2026-09-25T18:06:28Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -89101,20 +89101,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_denied_approval_closes_siblings_and_unrelated_resolution_keeps_the_projection) or test(durable_error_classification_keeps_invariants_fatal) or test(adk_approval_wakeup_accepts_an_already_claimed_continuation) or test(test_adk_resume_approval_cas_rejection) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success) or test(terminal_run_cannot_be_resumed) or test(challenge_continuation_supervisor_rejects_new_work_once_stopping) or test(challenge_continuation_supervisor_shutdown_cancels_in_flight_and_rejects_new_work) or test(an_unrecoverable_input_continuation_fails_the_run_with_the_reference_resume_state) or test(assistant_run_mutation_routes_enforce_goal_lifecycle_rules) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(adk_agent_update_revalidates_the_merged_payload) or test(staging_a_tool_round_freezes_the_pre_tool_assistant_text) or test(same_owner_heartbeat_renews_without_advancing_fence) or test(run_lease_expiry_fencing_and_stale_release_are_rejected) or test(fail_closed_stale_claim_becomes_indeterminate) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(adk_catalog_boundary_status_codes_match_the_go_matrix) or test(model_projection_is_allowlisted_and_searchable) or test(test_provider) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(direct_product_drop_terminates_reconciliation_before_releasing_leases) or test(production_adk_approval_resolution_is_persisted_and_idempotent) or test(skill_document_install_registers_the_parsed_document) or test(skill_install_projection_is_durable) or test(skill_archive_rejects_unsafe_paths_and_symlinks) or test(builtin_skill_catalog_stays_registered_alongside_external_installs)"
         ],
         "testFilter": [
           "assistant_run_mutation_routes_enforce_goal_lifecycle_rules"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "67be9fbe",
+        "verifiedAt": "2026-09-25T18:06:28Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -89163,20 +89163,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_denied_approval_closes_siblings_and_unrelated_resolution_keeps_the_projection) or test(durable_error_classification_keeps_invariants_fatal) or test(adk_approval_wakeup_accepts_an_already_claimed_continuation) or test(test_adk_resume_approval_cas_rejection) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success) or test(terminal_run_cannot_be_resumed) or test(challenge_continuation_supervisor_rejects_new_work_once_stopping) or test(challenge_continuation_supervisor_shutdown_cancels_in_flight_and_rejects_new_work) or test(an_unrecoverable_input_continuation_fails_the_run_with_the_reference_resume_state) or test(assistant_run_mutation_routes_enforce_goal_lifecycle_rules) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(adk_agent_update_revalidates_the_merged_payload) or test(staging_a_tool_round_freezes_the_pre_tool_assistant_text) or test(same_owner_heartbeat_renews_without_advancing_fence) or test(run_lease_expiry_fencing_and_stale_release_are_rejected) or test(fail_closed_stale_claim_becomes_indeterminate) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(adk_catalog_boundary_status_codes_match_the_go_matrix) or test(model_projection_is_allowlisted_and_searchable) or test(test_provider) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(direct_product_drop_terminates_reconciliation_before_releasing_leases) or test(production_adk_approval_resolution_is_persisted_and_idempotent) or test(skill_document_install_registers_the_parsed_document) or test(skill_install_projection_is_durable) or test(skill_archive_rejects_unsafe_paths_and_symlinks) or test(builtin_skill_catalog_stays_registered_alongside_external_installs)"
         ],
         "testFilter": [
           "goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "67be9fbe",
+        "verifiedAt": "2026-09-25T18:06:28Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -89349,20 +89349,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_denied_approval_closes_siblings_and_unrelated_resolution_keeps_the_projection) or test(durable_error_classification_keeps_invariants_fatal) or test(adk_approval_wakeup_accepts_an_already_claimed_continuation) or test(test_adk_resume_approval_cas_rejection) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success) or test(terminal_run_cannot_be_resumed) or test(challenge_continuation_supervisor_rejects_new_work_once_stopping) or test(challenge_continuation_supervisor_shutdown_cancels_in_flight_and_rejects_new_work) or test(an_unrecoverable_input_continuation_fails_the_run_with_the_reference_resume_state) or test(assistant_run_mutation_routes_enforce_goal_lifecycle_rules) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(adk_agent_update_revalidates_the_merged_payload) or test(staging_a_tool_round_freezes_the_pre_tool_assistant_text) or test(same_owner_heartbeat_renews_without_advancing_fence) or test(run_lease_expiry_fencing_and_stale_release_are_rejected) or test(fail_closed_stale_claim_becomes_indeterminate) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(adk_catalog_boundary_status_codes_match_the_go_matrix) or test(model_projection_is_allowlisted_and_searchable) or test(test_provider) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(direct_product_drop_terminates_reconciliation_before_releasing_leases) or test(production_adk_approval_resolution_is_persisted_and_idempotent) or test(skill_document_install_registers_the_parsed_document) or test(skill_install_projection_is_durable) or test(skill_archive_rejects_unsafe_paths_and_symlinks) or test(builtin_skill_catalog_stays_registered_alongside_external_installs)"
         ],
         "testFilter": [
           "the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "67be9fbe",
+        "verifiedAt": "2026-09-25T18:06:28Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -89411,20 +89411,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_denied_approval_closes_siblings_and_unrelated_resolution_keeps_the_projection) or test(durable_error_classification_keeps_invariants_fatal) or test(adk_approval_wakeup_accepts_an_already_claimed_continuation) or test(test_adk_resume_approval_cas_rejection) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success) or test(terminal_run_cannot_be_resumed) or test(challenge_continuation_supervisor_rejects_new_work_once_stopping) or test(challenge_continuation_supervisor_shutdown_cancels_in_flight_and_rejects_new_work) or test(an_unrecoverable_input_continuation_fails_the_run_with_the_reference_resume_state) or test(assistant_run_mutation_routes_enforce_goal_lifecycle_rules) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(adk_agent_update_revalidates_the_merged_payload) or test(staging_a_tool_round_freezes_the_pre_tool_assistant_text) or test(same_owner_heartbeat_renews_without_advancing_fence) or test(run_lease_expiry_fencing_and_stale_release_are_rejected) or test(fail_closed_stale_claim_becomes_indeterminate) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(adk_catalog_boundary_status_codes_match_the_go_matrix) or test(model_projection_is_allowlisted_and_searchable) or test(test_provider) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(direct_product_drop_terminates_reconciliation_before_releasing_leases) or test(production_adk_approval_resolution_is_persisted_and_idempotent) or test(skill_document_install_registers_the_parsed_document) or test(skill_install_projection_is_durable) or test(skill_archive_rejects_unsafe_paths_and_symlinks) or test(builtin_skill_catalog_stays_registered_alongside_external_installs)"
         ],
         "testFilter": [
           "adk_agent_update_revalidates_the_merged_payload"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "67be9fbe",
+        "verifiedAt": "2026-09-25T18:06:28Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -89783,20 +89783,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_denied_approval_closes_siblings_and_unrelated_resolution_keeps_the_projection) or test(durable_error_classification_keeps_invariants_fatal) or test(adk_approval_wakeup_accepts_an_already_claimed_continuation) or test(test_adk_resume_approval_cas_rejection) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success) or test(terminal_run_cannot_be_resumed) or test(challenge_continuation_supervisor_rejects_new_work_once_stopping) or test(challenge_continuation_supervisor_shutdown_cancels_in_flight_and_rejects_new_work) or test(an_unrecoverable_input_continuation_fails_the_run_with_the_reference_resume_state) or test(assistant_run_mutation_routes_enforce_goal_lifecycle_rules) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(adk_agent_update_revalidates_the_merged_payload) or test(staging_a_tool_round_freezes_the_pre_tool_assistant_text) or test(same_owner_heartbeat_renews_without_advancing_fence) or test(run_lease_expiry_fencing_and_stale_release_are_rejected) or test(fail_closed_stale_claim_becomes_indeterminate) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(adk_catalog_boundary_status_codes_match_the_go_matrix) or test(model_projection_is_allowlisted_and_searchable) or test(test_provider) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(direct_product_drop_terminates_reconciliation_before_releasing_leases) or test(production_adk_approval_resolution_is_persisted_and_idempotent) or test(skill_document_install_registers_the_parsed_document) or test(skill_install_projection_is_durable) or test(skill_archive_rejects_unsafe_paths_and_symlinks) or test(builtin_skill_catalog_stays_registered_alongside_external_installs)"
         ],
         "testFilter": [
           "staging_a_tool_round_freezes_the_pre_tool_assistant_text"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "67be9fbe",
+        "verifiedAt": "2026-09-25T18:06:28Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -89845,20 +89845,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_denied_approval_closes_siblings_and_unrelated_resolution_keeps_the_projection) or test(durable_error_classification_keeps_invariants_fatal) or test(adk_approval_wakeup_accepts_an_already_claimed_continuation) or test(test_adk_resume_approval_cas_rejection) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success) or test(terminal_run_cannot_be_resumed) or test(challenge_continuation_supervisor_rejects_new_work_once_stopping) or test(challenge_continuation_supervisor_shutdown_cancels_in_flight_and_rejects_new_work) or test(an_unrecoverable_input_continuation_fails_the_run_with_the_reference_resume_state) or test(assistant_run_mutation_routes_enforce_goal_lifecycle_rules) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(adk_agent_update_revalidates_the_merged_payload) or test(staging_a_tool_round_freezes_the_pre_tool_assistant_text) or test(same_owner_heartbeat_renews_without_advancing_fence) or test(run_lease_expiry_fencing_and_stale_release_are_rejected) or test(fail_closed_stale_claim_becomes_indeterminate) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(adk_catalog_boundary_status_codes_match_the_go_matrix) or test(model_projection_is_allowlisted_and_searchable) or test(test_provider) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(direct_product_drop_terminates_reconciliation_before_releasing_leases) or test(production_adk_approval_resolution_is_persisted_and_idempotent) or test(skill_document_install_registers_the_parsed_document) or test(skill_install_projection_is_durable) or test(skill_archive_rejects_unsafe_paths_and_symlinks) or test(builtin_skill_catalog_stays_registered_alongside_external_installs)"
         ],
         "testFilter": [
           "staging_a_tool_round_freezes_the_pre_tool_assistant_text"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "67be9fbe",
+        "verifiedAt": "2026-09-25T18:06:28Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -89907,20 +89907,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-assistant",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_denied_approval_closes_siblings_and_unrelated_resolution_keeps_the_projection) or test(durable_error_classification_keeps_invariants_fatal) or test(adk_approval_wakeup_accepts_an_already_claimed_continuation) or test(test_adk_resume_approval_cas_rejection) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success) or test(terminal_run_cannot_be_resumed) or test(challenge_continuation_supervisor_rejects_new_work_once_stopping) or test(challenge_continuation_supervisor_shutdown_cancels_in_flight_and_rejects_new_work) or test(an_unrecoverable_input_continuation_fails_the_run_with_the_reference_resume_state) or test(assistant_run_mutation_routes_enforce_goal_lifecycle_rules) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(adk_agent_update_revalidates_the_merged_payload) or test(staging_a_tool_round_freezes_the_pre_tool_assistant_text) or test(same_owner_heartbeat_renews_without_advancing_fence) or test(run_lease_expiry_fencing_and_stale_release_are_rejected) or test(fail_closed_stale_claim_becomes_indeterminate) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(adk_catalog_boundary_status_codes_match_the_go_matrix) or test(model_projection_is_allowlisted_and_searchable) or test(test_provider) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(direct_product_drop_terminates_reconciliation_before_releasing_leases) or test(production_adk_approval_resolution_is_persisted_and_idempotent) or test(skill_document_install_registers_the_parsed_document) or test(skill_install_projection_is_durable) or test(skill_archive_rejects_unsafe_paths_and_symlinks) or test(builtin_skill_catalog_stays_registered_alongside_external_installs)"
         ],
         "testFilter": [
           "same_owner_heartbeat_renews_without_advancing_fence"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "67be9fbe",
+        "verifiedAt": "2026-09-25T18:06:28Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -90031,20 +90031,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-assistant",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_denied_approval_closes_siblings_and_unrelated_resolution_keeps_the_projection) or test(durable_error_classification_keeps_invariants_fatal) or test(adk_approval_wakeup_accepts_an_already_claimed_continuation) or test(test_adk_resume_approval_cas_rejection) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success) or test(terminal_run_cannot_be_resumed) or test(challenge_continuation_supervisor_rejects_new_work_once_stopping) or test(challenge_continuation_supervisor_shutdown_cancels_in_flight_and_rejects_new_work) or test(an_unrecoverable_input_continuation_fails_the_run_with_the_reference_resume_state) or test(assistant_run_mutation_routes_enforce_goal_lifecycle_rules) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(adk_agent_update_revalidates_the_merged_payload) or test(staging_a_tool_round_freezes_the_pre_tool_assistant_text) or test(same_owner_heartbeat_renews_without_advancing_fence) or test(run_lease_expiry_fencing_and_stale_release_are_rejected) or test(fail_closed_stale_claim_becomes_indeterminate) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(adk_catalog_boundary_status_codes_match_the_go_matrix) or test(model_projection_is_allowlisted_and_searchable) or test(test_provider) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(direct_product_drop_terminates_reconciliation_before_releasing_leases) or test(production_adk_approval_resolution_is_persisted_and_idempotent) or test(skill_document_install_registers_the_parsed_document) or test(skill_install_projection_is_durable) or test(skill_archive_rejects_unsafe_paths_and_symlinks) or test(builtin_skill_catalog_stays_registered_alongside_external_installs)"
         ],
         "testFilter": [
           "run_lease_expiry_fencing_and_stale_release_are_rejected"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "67be9fbe",
+        "verifiedAt": "2026-09-25T18:06:28Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -90093,20 +90093,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-assistant",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_denied_approval_closes_siblings_and_unrelated_resolution_keeps_the_projection) or test(durable_error_classification_keeps_invariants_fatal) or test(adk_approval_wakeup_accepts_an_already_claimed_continuation) or test(test_adk_resume_approval_cas_rejection) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success) or test(terminal_run_cannot_be_resumed) or test(challenge_continuation_supervisor_rejects_new_work_once_stopping) or test(challenge_continuation_supervisor_shutdown_cancels_in_flight_and_rejects_new_work) or test(an_unrecoverable_input_continuation_fails_the_run_with_the_reference_resume_state) or test(assistant_run_mutation_routes_enforce_goal_lifecycle_rules) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(adk_agent_update_revalidates_the_merged_payload) or test(staging_a_tool_round_freezes_the_pre_tool_assistant_text) or test(same_owner_heartbeat_renews_without_advancing_fence) or test(run_lease_expiry_fencing_and_stale_release_are_rejected) or test(fail_closed_stale_claim_becomes_indeterminate) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(adk_catalog_boundary_status_codes_match_the_go_matrix) or test(model_projection_is_allowlisted_and_searchable) or test(test_provider) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(direct_product_drop_terminates_reconciliation_before_releasing_leases) or test(production_adk_approval_resolution_is_persisted_and_idempotent) or test(skill_document_install_registers_the_parsed_document) or test(skill_install_projection_is_durable) or test(skill_archive_rejects_unsafe_paths_and_symlinks) or test(builtin_skill_catalog_stays_registered_alongside_external_installs)"
         ],
         "testFilter": [
           "same_owner_heartbeat_renews_without_advancing_fence"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "67be9fbe",
+        "verifiedAt": "2026-09-25T18:06:28Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -90155,20 +90155,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-assistant",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_denied_approval_closes_siblings_and_unrelated_resolution_keeps_the_projection) or test(durable_error_classification_keeps_invariants_fatal) or test(adk_approval_wakeup_accepts_an_already_claimed_continuation) or test(test_adk_resume_approval_cas_rejection) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success) or test(terminal_run_cannot_be_resumed) or test(challenge_continuation_supervisor_rejects_new_work_once_stopping) or test(challenge_continuation_supervisor_shutdown_cancels_in_flight_and_rejects_new_work) or test(an_unrecoverable_input_continuation_fails_the_run_with_the_reference_resume_state) or test(assistant_run_mutation_routes_enforce_goal_lifecycle_rules) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(adk_agent_update_revalidates_the_merged_payload) or test(staging_a_tool_round_freezes_the_pre_tool_assistant_text) or test(same_owner_heartbeat_renews_without_advancing_fence) or test(run_lease_expiry_fencing_and_stale_release_are_rejected) or test(fail_closed_stale_claim_becomes_indeterminate) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(adk_catalog_boundary_status_codes_match_the_go_matrix) or test(model_projection_is_allowlisted_and_searchable) or test(test_provider) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(direct_product_drop_terminates_reconciliation_before_releasing_leases) or test(production_adk_approval_resolution_is_persisted_and_idempotent) or test(skill_document_install_registers_the_parsed_document) or test(skill_install_projection_is_durable) or test(skill_archive_rejects_unsafe_paths_and_symlinks) or test(builtin_skill_catalog_stays_registered_alongside_external_installs)"
         ],
         "testFilter": [
           "fail_closed_stale_claim_becomes_indeterminate"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "67be9fbe",
+        "verifiedAt": "2026-09-25T18:06:28Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -90308,20 +90308,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_denied_approval_closes_siblings_and_unrelated_resolution_keeps_the_projection) or test(durable_error_classification_keeps_invariants_fatal) or test(adk_approval_wakeup_accepts_an_already_claimed_continuation) or test(test_adk_resume_approval_cas_rejection) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success) or test(terminal_run_cannot_be_resumed) or test(challenge_continuation_supervisor_rejects_new_work_once_stopping) or test(challenge_continuation_supervisor_shutdown_cancels_in_flight_and_rejects_new_work) or test(an_unrecoverable_input_continuation_fails_the_run_with_the_reference_resume_state) or test(assistant_run_mutation_routes_enforce_goal_lifecycle_rules) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(adk_agent_update_revalidates_the_merged_payload) or test(staging_a_tool_round_freezes_the_pre_tool_assistant_text) or test(same_owner_heartbeat_renews_without_advancing_fence) or test(run_lease_expiry_fencing_and_stale_release_are_rejected) or test(fail_closed_stale_claim_becomes_indeterminate) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(adk_catalog_boundary_status_codes_match_the_go_matrix) or test(model_projection_is_allowlisted_and_searchable) or test(test_provider) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(direct_product_drop_terminates_reconciliation_before_releasing_leases) or test(production_adk_approval_resolution_is_persisted_and_idempotent) or test(skill_document_install_registers_the_parsed_document) or test(skill_install_projection_is_durable) or test(skill_archive_rejects_unsafe_paths_and_symlinks) or test(builtin_skill_catalog_stays_registered_alongside_external_installs)"
         ],
         "testFilter": [
           "challenge_continuation_supervisor_rejects_new_work_once_stopping"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "67be9fbe",
+        "verifiedAt": "2026-09-25T18:06:28Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -90432,20 +90432,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_denied_approval_closes_siblings_and_unrelated_resolution_keeps_the_projection) or test(durable_error_classification_keeps_invariants_fatal) or test(adk_approval_wakeup_accepts_an_already_claimed_continuation) or test(test_adk_resume_approval_cas_rejection) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success) or test(terminal_run_cannot_be_resumed) or test(challenge_continuation_supervisor_rejects_new_work_once_stopping) or test(challenge_continuation_supervisor_shutdown_cancels_in_flight_and_rejects_new_work) or test(an_unrecoverable_input_continuation_fails_the_run_with_the_reference_resume_state) or test(assistant_run_mutation_routes_enforce_goal_lifecycle_rules) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(adk_agent_update_revalidates_the_merged_payload) or test(staging_a_tool_round_freezes_the_pre_tool_assistant_text) or test(same_owner_heartbeat_renews_without_advancing_fence) or test(run_lease_expiry_fencing_and_stale_release_are_rejected) or test(fail_closed_stale_claim_becomes_indeterminate) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(adk_catalog_boundary_status_codes_match_the_go_matrix) or test(model_projection_is_allowlisted_and_searchable) or test(test_provider) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(direct_product_drop_terminates_reconciliation_before_releasing_leases) or test(production_adk_approval_resolution_is_persisted_and_idempotent) or test(skill_document_install_registers_the_parsed_document) or test(skill_install_projection_is_durable) or test(skill_archive_rejects_unsafe_paths_and_symlinks) or test(builtin_skill_catalog_stays_registered_alongside_external_installs)"
         ],
         "testFilter": [
           "adk_builtin_strategy_skills_publish_the_curated_tool_split"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "67be9fbe",
+        "verifiedAt": "2026-09-25T18:06:28Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -90494,20 +90494,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_denied_approval_closes_siblings_and_unrelated_resolution_keeps_the_projection) or test(durable_error_classification_keeps_invariants_fatal) or test(adk_approval_wakeup_accepts_an_already_claimed_continuation) or test(test_adk_resume_approval_cas_rejection) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success) or test(terminal_run_cannot_be_resumed) or test(challenge_continuation_supervisor_rejects_new_work_once_stopping) or test(challenge_continuation_supervisor_shutdown_cancels_in_flight_and_rejects_new_work) or test(an_unrecoverable_input_continuation_fails_the_run_with_the_reference_resume_state) or test(assistant_run_mutation_routes_enforce_goal_lifecycle_rules) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(adk_agent_update_revalidates_the_merged_payload) or test(staging_a_tool_round_freezes_the_pre_tool_assistant_text) or test(same_owner_heartbeat_renews_without_advancing_fence) or test(run_lease_expiry_fencing_and_stale_release_are_rejected) or test(fail_closed_stale_claim_becomes_indeterminate) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(adk_catalog_boundary_status_codes_match_the_go_matrix) or test(model_projection_is_allowlisted_and_searchable) or test(test_provider) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(direct_product_drop_terminates_reconciliation_before_releasing_leases) or test(production_adk_approval_resolution_is_persisted_and_idempotent) or test(skill_document_install_registers_the_parsed_document) or test(skill_install_projection_is_durable) or test(skill_archive_rejects_unsafe_paths_and_symlinks) or test(builtin_skill_catalog_stays_registered_alongside_external_installs)"
         ],
         "testFilter": [
           "adk_catalog_boundary_status_codes_match_the_go_matrix"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "67be9fbe",
+        "verifiedAt": "2026-09-25T18:06:28Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -90556,20 +90556,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_denied_approval_closes_siblings_and_unrelated_resolution_keeps_the_projection) or test(durable_error_classification_keeps_invariants_fatal) or test(adk_approval_wakeup_accepts_an_already_claimed_continuation) or test(test_adk_resume_approval_cas_rejection) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success) or test(terminal_run_cannot_be_resumed) or test(challenge_continuation_supervisor_rejects_new_work_once_stopping) or test(challenge_continuation_supervisor_shutdown_cancels_in_flight_and_rejects_new_work) or test(an_unrecoverable_input_continuation_fails_the_run_with_the_reference_resume_state) or test(assistant_run_mutation_routes_enforce_goal_lifecycle_rules) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(adk_agent_update_revalidates_the_merged_payload) or test(staging_a_tool_round_freezes_the_pre_tool_assistant_text) or test(same_owner_heartbeat_renews_without_advancing_fence) or test(run_lease_expiry_fencing_and_stale_release_are_rejected) or test(fail_closed_stale_claim_becomes_indeterminate) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(adk_catalog_boundary_status_codes_match_the_go_matrix) or test(model_projection_is_allowlisted_and_searchable) or test(test_provider) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(direct_product_drop_terminates_reconciliation_before_releasing_leases) or test(production_adk_approval_resolution_is_persisted_and_idempotent) or test(skill_document_install_registers_the_parsed_document) or test(skill_install_projection_is_durable) or test(skill_archive_rejects_unsafe_paths_and_symlinks) or test(builtin_skill_catalog_stays_registered_alongside_external_installs)"
         ],
         "testFilter": [
           "model_projection_is_allowlisted_and_searchable"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "67be9fbe",
+        "verifiedAt": "2026-09-25T18:06:28Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -90680,20 +90680,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_denied_approval_closes_siblings_and_unrelated_resolution_keeps_the_projection) or test(durable_error_classification_keeps_invariants_fatal) or test(adk_approval_wakeup_accepts_an_already_claimed_continuation) or test(test_adk_resume_approval_cas_rejection) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success) or test(terminal_run_cannot_be_resumed) or test(challenge_continuation_supervisor_rejects_new_work_once_stopping) or test(challenge_continuation_supervisor_shutdown_cancels_in_flight_and_rejects_new_work) or test(an_unrecoverable_input_continuation_fails_the_run_with_the_reference_resume_state) or test(assistant_run_mutation_routes_enforce_goal_lifecycle_rules) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(adk_agent_update_revalidates_the_merged_payload) or test(staging_a_tool_round_freezes_the_pre_tool_assistant_text) or test(same_owner_heartbeat_renews_without_advancing_fence) or test(run_lease_expiry_fencing_and_stale_release_are_rejected) or test(fail_closed_stale_claim_becomes_indeterminate) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(adk_catalog_boundary_status_codes_match_the_go_matrix) or test(model_projection_is_allowlisted_and_searchable) or test(test_provider) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(direct_product_drop_terminates_reconciliation_before_releasing_leases) or test(production_adk_approval_resolution_is_persisted_and_idempotent) or test(skill_document_install_registers_the_parsed_document) or test(skill_install_projection_is_durable) or test(skill_archive_rejects_unsafe_paths_and_symlinks) or test(builtin_skill_catalog_stays_registered_alongside_external_installs)"
         ],
         "testFilter": [
           "test_provider"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "67be9fbe",
+        "verifiedAt": "2026-09-25T18:06:28Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -90804,20 +90804,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_denied_approval_closes_siblings_and_unrelated_resolution_keeps_the_projection) or test(durable_error_classification_keeps_invariants_fatal) or test(adk_approval_wakeup_accepts_an_already_claimed_continuation) or test(test_adk_resume_approval_cas_rejection) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success) or test(terminal_run_cannot_be_resumed) or test(challenge_continuation_supervisor_rejects_new_work_once_stopping) or test(challenge_continuation_supervisor_shutdown_cancels_in_flight_and_rejects_new_work) or test(an_unrecoverable_input_continuation_fails_the_run_with_the_reference_resume_state) or test(assistant_run_mutation_routes_enforce_goal_lifecycle_rules) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(adk_agent_update_revalidates_the_merged_payload) or test(staging_a_tool_round_freezes_the_pre_tool_assistant_text) or test(same_owner_heartbeat_renews_without_advancing_fence) or test(run_lease_expiry_fencing_and_stale_release_are_rejected) or test(fail_closed_stale_claim_becomes_indeterminate) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(adk_catalog_boundary_status_codes_match_the_go_matrix) or test(model_projection_is_allowlisted_and_searchable) or test(test_provider) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(direct_product_drop_terminates_reconciliation_before_releasing_leases) or test(production_adk_approval_resolution_is_persisted_and_idempotent) or test(skill_document_install_registers_the_parsed_document) or test(skill_install_projection_is_durable) or test(skill_archive_rejects_unsafe_paths_and_symlinks) or test(builtin_skill_catalog_stays_registered_alongside_external_installs)"
         ],
         "testFilter": [
           "direct_product_shutdown_stops_reconciliation_before_releasing_leases"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "67be9fbe",
+        "verifiedAt": "2026-09-25T18:06:28Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -90866,20 +90866,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_denied_approval_closes_siblings_and_unrelated_resolution_keeps_the_projection) or test(durable_error_classification_keeps_invariants_fatal) or test(adk_approval_wakeup_accepts_an_already_claimed_continuation) or test(test_adk_resume_approval_cas_rejection) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success) or test(terminal_run_cannot_be_resumed) or test(challenge_continuation_supervisor_rejects_new_work_once_stopping) or test(challenge_continuation_supervisor_shutdown_cancels_in_flight_and_rejects_new_work) or test(an_unrecoverable_input_continuation_fails_the_run_with_the_reference_resume_state) or test(assistant_run_mutation_routes_enforce_goal_lifecycle_rules) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(adk_agent_update_revalidates_the_merged_payload) or test(staging_a_tool_round_freezes_the_pre_tool_assistant_text) or test(same_owner_heartbeat_renews_without_advancing_fence) or test(run_lease_expiry_fencing_and_stale_release_are_rejected) or test(fail_closed_stale_claim_becomes_indeterminate) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(adk_catalog_boundary_status_codes_match_the_go_matrix) or test(model_projection_is_allowlisted_and_searchable) or test(test_provider) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(direct_product_drop_terminates_reconciliation_before_releasing_leases) or test(production_adk_approval_resolution_is_persisted_and_idempotent) or test(skill_document_install_registers_the_parsed_document) or test(skill_install_projection_is_durable) or test(skill_archive_rejects_unsafe_paths_and_symlinks) or test(builtin_skill_catalog_stays_registered_alongside_external_installs)"
         ],
         "testFilter": [
           "direct_product_drop_terminates_reconciliation_before_releasing_leases"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "67be9fbe",
+        "verifiedAt": "2026-09-25T18:06:28Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -90928,20 +90928,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_denied_approval_closes_siblings_and_unrelated_resolution_keeps_the_projection) or test(durable_error_classification_keeps_invariants_fatal) or test(adk_approval_wakeup_accepts_an_already_claimed_continuation) or test(test_adk_resume_approval_cas_rejection) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success) or test(terminal_run_cannot_be_resumed) or test(challenge_continuation_supervisor_rejects_new_work_once_stopping) or test(challenge_continuation_supervisor_shutdown_cancels_in_flight_and_rejects_new_work) or test(an_unrecoverable_input_continuation_fails_the_run_with_the_reference_resume_state) or test(assistant_run_mutation_routes_enforce_goal_lifecycle_rules) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(adk_agent_update_revalidates_the_merged_payload) or test(staging_a_tool_round_freezes_the_pre_tool_assistant_text) or test(same_owner_heartbeat_renews_without_advancing_fence) or test(run_lease_expiry_fencing_and_stale_release_are_rejected) or test(fail_closed_stale_claim_becomes_indeterminate) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(adk_catalog_boundary_status_codes_match_the_go_matrix) or test(model_projection_is_allowlisted_and_searchable) or test(test_provider) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(direct_product_drop_terminates_reconciliation_before_releasing_leases) or test(production_adk_approval_resolution_is_persisted_and_idempotent) or test(skill_document_install_registers_the_parsed_document) or test(skill_install_projection_is_durable) or test(skill_archive_rejects_unsafe_paths_and_symlinks) or test(builtin_skill_catalog_stays_registered_alongside_external_installs)"
         ],
         "testFilter": [
           "production_adk_approval_resolution_is_persisted_and_idempotent"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "67be9fbe",
+        "verifiedAt": "2026-09-25T18:06:28Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -93569,20 +93569,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_denied_approval_closes_siblings_and_unrelated_resolution_keeps_the_projection) or test(durable_error_classification_keeps_invariants_fatal) or test(adk_approval_wakeup_accepts_an_already_claimed_continuation) or test(test_adk_resume_approval_cas_rejection) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success) or test(terminal_run_cannot_be_resumed) or test(challenge_continuation_supervisor_rejects_new_work_once_stopping) or test(challenge_continuation_supervisor_shutdown_cancels_in_flight_and_rejects_new_work) or test(an_unrecoverable_input_continuation_fails_the_run_with_the_reference_resume_state) or test(assistant_run_mutation_routes_enforce_goal_lifecycle_rules) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(adk_agent_update_revalidates_the_merged_payload) or test(staging_a_tool_round_freezes_the_pre_tool_assistant_text) or test(same_owner_heartbeat_renews_without_advancing_fence) or test(run_lease_expiry_fencing_and_stale_release_are_rejected) or test(fail_closed_stale_claim_becomes_indeterminate) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(adk_catalog_boundary_status_codes_match_the_go_matrix) or test(model_projection_is_allowlisted_and_searchable) or test(test_provider) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(direct_product_drop_terminates_reconciliation_before_releasing_leases) or test(production_adk_approval_resolution_is_persisted_and_idempotent) or test(skill_document_install_registers_the_parsed_document) or test(skill_install_projection_is_durable) or test(skill_archive_rejects_unsafe_paths_and_symlinks) or test(builtin_skill_catalog_stays_registered_alongside_external_installs)"
         ],
         "testFilter": [
           "skill_document_install_registers_the_parsed_document"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "67be9fbe",
+        "verifiedAt": "2026-09-25T18:06:28Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -93631,20 +93631,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_denied_approval_closes_siblings_and_unrelated_resolution_keeps_the_projection) or test(durable_error_classification_keeps_invariants_fatal) or test(adk_approval_wakeup_accepts_an_already_claimed_continuation) or test(test_adk_resume_approval_cas_rejection) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success) or test(terminal_run_cannot_be_resumed) or test(challenge_continuation_supervisor_rejects_new_work_once_stopping) or test(challenge_continuation_supervisor_shutdown_cancels_in_flight_and_rejects_new_work) or test(an_unrecoverable_input_continuation_fails_the_run_with_the_reference_resume_state) or test(assistant_run_mutation_routes_enforce_goal_lifecycle_rules) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(adk_agent_update_revalidates_the_merged_payload) or test(staging_a_tool_round_freezes_the_pre_tool_assistant_text) or test(same_owner_heartbeat_renews_without_advancing_fence) or test(run_lease_expiry_fencing_and_stale_release_are_rejected) or test(fail_closed_stale_claim_becomes_indeterminate) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(adk_catalog_boundary_status_codes_match_the_go_matrix) or test(model_projection_is_allowlisted_and_searchable) or test(test_provider) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(direct_product_drop_terminates_reconciliation_before_releasing_leases) or test(production_adk_approval_resolution_is_persisted_and_idempotent) or test(skill_document_install_registers_the_parsed_document) or test(skill_install_projection_is_durable) or test(skill_archive_rejects_unsafe_paths_and_symlinks) or test(builtin_skill_catalog_stays_registered_alongside_external_installs)"
         ],
         "testFilter": [
           "skill_install_projection_is_durable"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "67be9fbe",
+        "verifiedAt": "2026-09-25T18:06:28Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -93693,20 +93693,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_denied_approval_closes_siblings_and_unrelated_resolution_keeps_the_projection) or test(durable_error_classification_keeps_invariants_fatal) or test(adk_approval_wakeup_accepts_an_already_claimed_continuation) or test(test_adk_resume_approval_cas_rejection) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success) or test(terminal_run_cannot_be_resumed) or test(challenge_continuation_supervisor_rejects_new_work_once_stopping) or test(challenge_continuation_supervisor_shutdown_cancels_in_flight_and_rejects_new_work) or test(an_unrecoverable_input_continuation_fails_the_run_with_the_reference_resume_state) or test(assistant_run_mutation_routes_enforce_goal_lifecycle_rules) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(adk_agent_update_revalidates_the_merged_payload) or test(staging_a_tool_round_freezes_the_pre_tool_assistant_text) or test(same_owner_heartbeat_renews_without_advancing_fence) or test(run_lease_expiry_fencing_and_stale_release_are_rejected) or test(fail_closed_stale_claim_becomes_indeterminate) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(adk_catalog_boundary_status_codes_match_the_go_matrix) or test(model_projection_is_allowlisted_and_searchable) or test(test_provider) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(direct_product_drop_terminates_reconciliation_before_releasing_leases) or test(production_adk_approval_resolution_is_persisted_and_idempotent) or test(skill_document_install_registers_the_parsed_document) or test(skill_install_projection_is_durable) or test(skill_archive_rejects_unsafe_paths_and_symlinks) or test(builtin_skill_catalog_stays_registered_alongside_external_installs)"
         ],
         "testFilter": [
           "skill_archive_rejects_unsafe_paths_and_symlinks"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "67be9fbe",
+        "verifiedAt": "2026-09-25T18:06:28Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -93755,20 +93755,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_denied_approval_closes_siblings_and_unrelated_resolution_keeps_the_projection) or test(durable_error_classification_keeps_invariants_fatal) or test(adk_approval_wakeup_accepts_an_already_claimed_continuation) or test(test_adk_resume_approval_cas_rejection) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success) or test(terminal_run_cannot_be_resumed) or test(challenge_continuation_supervisor_rejects_new_work_once_stopping) or test(challenge_continuation_supervisor_shutdown_cancels_in_flight_and_rejects_new_work) or test(an_unrecoverable_input_continuation_fails_the_run_with_the_reference_resume_state) or test(assistant_run_mutation_routes_enforce_goal_lifecycle_rules) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(adk_agent_update_revalidates_the_merged_payload) or test(staging_a_tool_round_freezes_the_pre_tool_assistant_text) or test(same_owner_heartbeat_renews_without_advancing_fence) or test(run_lease_expiry_fencing_and_stale_release_are_rejected) or test(fail_closed_stale_claim_becomes_indeterminate) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(adk_catalog_boundary_status_codes_match_the_go_matrix) or test(model_projection_is_allowlisted_and_searchable) or test(test_provider) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(direct_product_drop_terminates_reconciliation_before_releasing_leases) or test(production_adk_approval_resolution_is_persisted_and_idempotent) or test(skill_document_install_registers_the_parsed_document) or test(skill_install_projection_is_durable) or test(skill_archive_rejects_unsafe_paths_and_symlinks) or test(builtin_skill_catalog_stays_registered_alongside_external_installs)"
         ],
         "testFilter": [
           "builtin_skill_catalog_stays_registered_alongside_external_installs"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "67be9fbe",
+        "verifiedAt": "2026-09-25T18:06:28Z",
         "receiptDigest": null
       },
       "risk": "normal",

@@ -1595,6 +1595,23 @@ ADK/Assistant 功能差异，先补失败回归测试再修改领域 owner。
 
 下一片：继续 P2 Assistant/Workflow/ADK 的 runner continuation、transport 与 provider 边界，再转 API transport、MarketData/Quote、Storage/SQLite、Settings/Watchlist 与 Backtest/Calendar；helper/type-only 条目、`optional_bool_strict`、`session_context_snapshot` 及其他无独立 Rust 测试条目仍保持未验证结论。
 
+## 第 206 批：continuation lease、goal lifecycle、runtime store 与 skills（2026-09-26）
+
+| 复核 | Go 测试范围 | Rust 证据 | P | 结论 |
+| :---: | --- | --- | :---: | --- |
+| [x] | `runner_continuation_boundaries_test.go:136,188,207,242,275,314,347,427` | sibling approval atomicity、lease claim failure/CAS、recovery readiness、terminal goal resume、closing/background guards 与 unrecoverable input continuation | P2 | partial：Rust ADK fencing/recovery/input-response owners 覆盖 lease ownership、CAS、closing cancellation 与 terminal failure；Go goroutine scheduling、nil receiver 和 lifecycle supervisor facade 保持 partial。 |
+| [x] | `runner_goal_test.go:11,72,264` | goal pause/resume lifecycle validation、run projection objective/recent message branches | P2 | partial：Rust mutation/store projection owners 覆盖 root loop goal、pause fields 与 durable projection；Go goal handler aggregation、error wording 与 test runtime setup 不升级为 exact。 |
+| [x] | `runner_lifecycle_boundaries_test.go:24`; `runner_plugin_test.go:11,38` | merged agent payload revalidation、pre-tool assistant text staging；nil execution plugin guard | P2 | partial：Rust ADK mutation/run-projection owners 覆盖 merged validation 与 pre-tool snapshot；Go plugin callback registration、nil pointer seam 与 Google ADK facade 保持边界。 |
+| [x] | `runtime_execution_lease_boundaries_test.go:14,133,144,161,234` | same-owner heartbeat/fencing、expired lease rejection、safe defaults、closing lease guard | P2 | partial：Rust assistant claims/fencing owners 逐项覆盖 TTL、fence 与 shutdown；Go runtime lease helper、clock injection 与 store error wrapping 保持 partial。 |
+| [x] | `runtime_store_test.go:117,174,193,362,434,454,485` | builtin strategy skill tool split、catalog boundary status、model allowlist、provider probe failure、runtime shutdown/drop ownership 与 approval summary | P2 | partial：Rust store/MCP/production assembly owners 覆盖 curated tools、model projection、provider capability、shutdown order 与 approval persistence；Go Runtime constructor、test provider fixture、user-facing localized summary 与 nil-safe helpers保留结构差异。 |
+| [x] | `skill_recover_test.go:11,39,114`; `skill_reg_fs_test.go:19` | malformed frontmatter/nil registry、builtin sync protection/replacement、safe archive extraction、builtin/external source ordering | P2 | partial：Rust skill mutation/catalog owners 覆盖 document parse、durability、unsafe archive rejection 与 builtin registration；Go filesystem registry path and metadata injection remains partial。 |
+
+本批共 30 条 Go 映射，对应 28 个去重过滤器；Rust nextest 实际 **28/28** 通过（3445 skipped）。continuation lease/CAS、goal lifecycle、runtime store/shutdown、provider/model projection 与 skill registry/archive 的引用测试均在通过结果中出现；Go runner/Runtime facade、GORM/test provider fixture、goroutine/nil receiver、localized summary 与 filesystem registry 注入继续保持 `partial`/`boundary`，未凭聚合测试升级为 exact，也未发现需要先红后修的真实 Rust 功能差异。
+
+验证：动态生成本批过滤器运行 `node scripts/quality/cargo-nextest.mjs run --all-targets --locked -E`，28/28 通过。
+
+下一片：继续剩余 P2 Assistant/Workflow/ADK skill registry、provider 与 runtime 边界，再转 API transport、MarketData/Quote、Storage/SQLite、Settings/Watchlist 与 Backtest/Calendar；helper/type-only 条目、`optional_bool_strict`、`session_context_snapshot` 及其他无独立 Rust 测试条目仍保持未验证结论。
+
 ## 第 197 批：Web access/frontend 安全与 Assistant/Workflow/ADK contracts（2026-09-26）
 
 | 复核 | Go 测试范围 | Rust 证据 | P | 结论 |
