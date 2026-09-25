@@ -714,6 +714,95 @@ fn responses_request_injects_provider_reasoning_mapping() {
     server.join().expect("join reasoning provider");
 }
 
+/// Parity: go:452dea11:internal/assistant/engine/providers/reasoning_effort_transport_test.go:14
+/// TestResponsesReasoningEffortRequestField.
+#[test]
+fn responses_request_reasoning_effort_matrix_matches_go_contract() {
+    for (label, input, expected) in [
+        ("model default", None, None),
+        ("low", Some("low"), Some("low")),
+        ("medium", Some("medium"), Some("medium")),
+        ("high", Some("high"), Some("high")),
+        ("xhigh", Some("xhigh"), Some("xhigh")),
+        ("max", Some("max"), Some("max")),
+    ] {
+        let reasoning = input.map(|effort| ("reasoning.effort".to_owned(), effort.to_owned()));
+        let body = capture_responses_request(reasoning);
+        let actual = body.pointer("/reasoning/effort").and_then(Value::as_str);
+        assert_eq!(actual, expected, "reasoning matrix case {label}");
+        assert_eq!(body.get("reasoning").is_some(), expected.is_some(), "reasoning presence case {label}");
+    }
+}
+
+fn capture_responses_request(reasoning: Option<(String, String)>) -> Value {
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind reasoning matrix provider");
+    let address = listener.local_addr().expect("reasoning matrix provider address");
+    let (captured_sender, captured_receiver) = std::sync::mpsc::channel();
+    let server = std::thread::spawn(move || {
+        let (mut stream, _) = listener.accept().expect("accept reasoning matrix request");
+        let mut request = Vec::new();
+        let mut chunk = [0_u8; 4096];
+        let mut expected = None;
+        loop {
+            let count = std::io::Read::read(&mut stream, &mut chunk).expect("read reasoning matrix request");
+            if count == 0 {
+                break;
+            }
+            request.extend_from_slice(&chunk[..count]);
+            if expected.is_none()
+                && let Some(headers_end) = request.windows(4).position(|window| window == b"\r\n\r\n")
+            {
+                let headers_end = headers_end + 4;
+                let headers = String::from_utf8_lossy(&request[..headers_end]).to_ascii_lowercase();
+                let length = headers
+                    .lines()
+                    .find_map(|line| line.strip_prefix("content-length:"))
+                    .and_then(|value| value.trim().parse::<usize>().ok())
+                    .unwrap_or_default();
+                expected = Some(headers_end + length);
+            }
+            if expected.is_some_and(|length| request.len() >= length) {
+                break;
+            }
+        }
+        let headers_end = request
+            .windows(4)
+            .position(|window| window == b"\r\n\r\n")
+            .map(|index| index + 4)
+            .expect("reasoning matrix request headers");
+        let body: Value = serde_json::from_slice(&request[headers_end..]).expect("reasoning matrix body");
+        captured_sender.send(body).expect("send reasoning matrix body");
+        let response = b"{\"output_text\":\"ok\"}";
+        let header = format!(
+            "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+            response.len()
+        );
+        std::io::Write::write_all(&mut stream, header.as_bytes()).expect("write reasoning matrix headers");
+        std::io::Write::write_all(&mut stream, response).expect("write reasoning matrix response");
+    });
+
+    execute_model(
+        ModelRequest {
+            endpoint: Url::parse(&format!("http://{}:{}/v1/responses", address.ip(), address.port()))
+                .expect("reasoning matrix endpoint"),
+            api_key: "sk-fixture".to_owned(),
+            model: "fixture-model".to_owned(),
+            instruction: None,
+            message: "hello".to_owned(),
+            durable_context: Vec::new(),
+            tool_context: Vec::new(),
+            timeout: Duration::from_secs(2),
+            tools: Vec::new(),
+            reasoning,
+        },
+        Arc::new(AtomicBool::new(false)),
+    )
+    .expect("reasoning matrix request succeeds");
+    let body = captured_receiver.recv().expect("captured reasoning matrix body");
+    server.join().expect("join reasoning matrix provider");
+    body
+}
+
 /// Parity: go:452dea11:internal/assistant/model/provider_reasoning_config_test.go:8
 /// Parity: go:452dea11:internal/assistant/model/provider_reasoning_config_test.go:27
 /// Parity: go:452dea11:internal/assistant/model/provider_reasoning_config_test.go:65

@@ -84416,11 +84416,11 @@
       "boundaryReason": "boundary（功能缺失，保留）：Go 的 ProviderProbeTimeout 把配置超时钳到上限；Rust 的 provider 请求超时来自运行配置（request.timeout）且无 probe 专用上限，不迁移为等价测试。"
     },
     "internal/assistant/engine/providers/reasoning_effort_transport_test.go:14:TestResponsesReasoningEffortRequestField": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_lifecycle_tests.rs::responses_request_injects_provider_reasoning_mapping；crates/jftrade-engine/src/product_adk_model_runtime_lifecycle_tests.rs::resolve_provider_freezes_agent_reasoning_mapping_and_request_override",
-      "conclusion": "partial：Rust 已把 provider mapping 解析为 nested Responses JSON 并覆盖 agent effort 与 request override 的优先级；本批只直接抓取自定义 nested field，Go 该测试还逐档验证缺省/low/medium/high/xhigh/max 的标准 reasoning.effort 请求矩阵，保持 partial。",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_lifecycle_tests.rs::responses_request_reasoning_effort_matrix_matches_go_contract",
+      "conclusion": "function_exact：Rust loopback Responses endpoint 按 Go 表驱动用例逐项验证 model default、low、medium、high、xhigh、max；缺省时不写 reasoning，指定档位时写入对应 reasoning.effort。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-      "evidence_type": "partial",
+      "evidence_type": "function_exact",
       "source": {
         "file": "internal/assistant/engine/providers/reasoning_effort_transport_test.go",
         "line": 14,
@@ -84430,29 +84430,22 @@
       "rustEvidence": [
         {
           "file": "crates/jftrade-engine/src/product_adk_model_runtime_lifecycle_tests.rs",
-          "test": "responses_request_injects_provider_reasoning_mapping",
+          "test": "responses_request_reasoning_effort_matrix_matches_go_contract",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/assistant/engine/providers/reasoning_effort_transport_test.go",
             "goLine": 14,
             "rustFile": "crates/jftrade-engine/src/product_adk_model_runtime_lifecycle_tests.rs",
-            "rustLine": 644
+            "rustLine": 720
           }
-        },
-        {
-          "file": "crates/jftrade-engine/src/product_adk_model_runtime_lifecycle_tests.rs",
-          "test": "resolve_provider_freezes_agent_reasoning_mapping_and_request_override",
-          "crate": "jftrade-engine",
-          "anchor": null
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "A configured custom mapping is resolved and injected into the nested Responses request path; a request override takes precedence over the agent effort."
+          "The model default request omits reasoning.",
+          "Each standard reasoning effort low, medium, high, xhigh and max is written to reasoning.effort in the Responses request."
         ],
-        "uncovered": [
-          "The Go table asserts all standard effort values and the no-effort request shape individually."
-        ],
+        "uncovered": [],
         "source": "manual-batch-review"
       },
       "verification": {
@@ -84474,7 +84467,7 @@
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": "2026-09-25T06:58:09Z",
+        "verifiedAt": "2026-09-25T07:30:02Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -311663,22 +311656,28 @@
       "reviewStatus": "single"
     },
     "crates/jftrade-engine/src/product_adk_model_runtime_lifecycle_tests.rs::responses_request_injects_provider_reasoning_mapping": {
-      "referenceCount": 2,
+      "referenceCount": 1,
       "referenceKeys": [
-        "internal/assistant/engine/providers/reasoning_effort_transport_test.go:14:TestResponsesReasoningEffortRequestField",
         "internal/assistant/engine/providers/reasoning_effort_transport_test.go:64:TestResponsesCustomReasoningMappingInjectsNestedField"
       ],
-      "allowed": true,
-      "reviewStatus": "reviewed"
+      "allowed": false,
+      "reviewStatus": "single"
     },
     "crates/jftrade-engine/src/product_adk_model_runtime_lifecycle_tests.rs::resolve_provider_freezes_agent_reasoning_mapping_and_request_override": {
-      "referenceCount": 2,
+      "referenceCount": 1,
       "referenceKeys": [
-        "internal/assistant/engine/providers/reasoning_effort_transport_test.go:14:TestResponsesReasoningEffortRequestField",
         "internal/assistant/model/provider_reasoning_config_test.go:27:TestProviderReasoningValidationAndCustomMapping"
       ],
-      "allowed": true,
-      "reviewStatus": "reviewed"
+      "allowed": false,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_adk_model_runtime_lifecycle_tests.rs::responses_request_reasoning_effort_matrix_matches_go_contract": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/assistant/engine/providers/reasoning_effort_transport_test.go:14:TestResponsesReasoningEffortRequestField"
+      ],
+      "allowed": false,
+      "reviewStatus": "single"
     },
     "crates/jftrade-engine/src/product_adk_model_runtime_lifecycle_tests.rs::provider_reasoning_resolution_matches_mapping_and_unsupported_effort_contract": {
       "referenceCount": 3,
