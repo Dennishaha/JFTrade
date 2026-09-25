@@ -619,3 +619,17 @@ ADK/Assistant 功能差异，先补失败回归测试再修改领域 owner。
 `node scripts/quality/cargo-nextest.mjs run -p jftrade-broker --all-targets --locked -E 'test(market_rules_ignore_missing_non_positive_and_non_finite_constraints)'`
 
 下一片：继续处理 `historical_source_test.go` 后续 backtest source/provider 条目，保持 P1 优先并在出现真实 owner 差异时先写失败回归。
+
+## 第 139 批：provider health backoff 与 cancellation boundary（2026-09-25）
+
+| 复核 | Go 测试 | Rust 证据 | P | 结论 |
+| :---: | --- | --- | :---: | --- |
+| [x] | `runtime_health_test.go:222:TestProviderHealthRetryDelayBacksOffAndCaps` | `compute_helper_backoff_doubles_and_caps_at_max` | P1 | partial：Rust 断言 helper restart backoff 倍增并封顶，但默认序列为 500ms→…→10s，Go `waitForProviderHealth` 为 100ms→…→1s；两者 owner/数值都不同。 |
+| [x] | `runtime_health_test.go:240:TestWaitForProviderHealthPreservesLastFailureOnCancellation` | `disconnected_provider_reports_its_reason_and_keeps_the_previous_selection` | P1 | partial：Rust 覆盖 disconnected reason 和保持既有 provider selection；Go 的 context cancellation、底层 probeErr 原样返回及单次探测次数没有 Rust 同形 monitor API。 |
+
+本批没有发现可安全直接修复的 Rust 生产差异：backoff 属于 Rust helper restart policy，取消路径属于 Go wait helper 与 Rust router/monitor owner 形状差异。精准 nextest 2/2 通过。
+
+验证：
+`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-marketdata --all-targets --locked -E 'test(compute_helper_backoff_doubles_and_caps_at_max) or test(disconnected_provider_reports_its_reason_and_keeps_the_previous_selection)'`
+
+下一片：继续 `internal/app/apiserver/marketdataapp/runtime_health_test.go` 的 provider health/activation 条目。

@@ -36690,7 +36690,7 @@
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_runtime_helper_health.rs::tests::compute_helper_backoff_doubles_and_caps_at_max",
       "conclusion": "部分覆盖：Go 断言重试延迟序列 100ms→200→400→800→1s→1s（在 1s 封顶）。Rust 的 compute_helper_backoff_doubles_and_caps_at_max 断言同样的倍增+封顶形状，但基准值是 500ms→…→10000ms，且由 HelperHealthMonitor 的 restart_policy 参数化；数值不同（Rust 默认 initial 500ms / max 10s），不能宣称逐条等价。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(compute_helper_backoff_doubles_and_caps_at_max)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/marketdataapp/runtime_health_test.go",
@@ -36721,7 +36721,9 @@
           "-p",
           "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(compute_helper_backoff_doubles_and_caps_at_max)"
         ],
         "testFilter": [
           "compute_helper_backoff_doubles_and_caps_at_max"
@@ -36752,7 +36754,7 @@
       "status": "[~]",
       "rust_entry": "crates/jftrade-marketdata/src/router.rs::tests::disconnected_provider_reports_its_reason_and_keeps_the_previous_selection",
       "conclusion": "partial：Rust 仅覆盖 disconnected 上报原因并保持既有选择；Go 同测的取消路径半侧（探测失败透出底层 probeErr、单次探测）无对应，Rust 侧无取消语义用例。回归要求：取消保留最后探测错误且不额外重试的断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --all-targets --locked",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --all-targets --locked -E 'test(disconnected_provider_reports_its_reason_and_keeps_the_previous_selection)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/marketdataapp/runtime_health_test.go",
@@ -36788,7 +36790,9 @@
           "-p",
           "jftrade-marketdata",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(disconnected_provider_reports_its_reason_and_keeps_the_previous_selection)"
         ],
         "testFilter": [
           "disconnected_provider_reports_its_reason_and_keeps_the_previous_selection"
