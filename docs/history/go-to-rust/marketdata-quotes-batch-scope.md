@@ -554,3 +554,16 @@ ADK/Assistant 功能差异，先补失败回归测试再修改领域 owner。
 
 验证：
 `node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -p jftrade-engine -p jftrade-api -p jftrade-integration-futu -p jftrade-integration-marketdata-helper --all-targets --locked -E 'test(cache_rejects_stale_generation_and_classifies_freshness) or test(cache_rejects_empty_generation_and_backwards_timestamp_inputs) or test(a_new_trading_day_or_session_resets_the_cumulative_baseline) or test(demand_is_deduplicated_and_managed_leases_do_not_expire) or test(partial_release_and_clear_operations) or test(active_instruments_are_normalized_unioned_replaced_and_released) or test(market_data_quote_read_routes_fail_closed_when_snapshot_is_unavailable) or test(snapshot_rejects_malformed_refresh_before_provider_access) or test(empty_invalid_closed_and_inactive_demand_never_calls_provider) or test(close_shuts_down_the_transport_before_joining_the_reader) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(router_drives_runtime_recorder_from_provider_and_demand_state) or test(reconcile_preserves_demand_and_clears_previous_runtime_state) or test(recorder_matches_generation_retry_recovery_and_close_rules) or test(basic_quote_query_uses_the_collector_900ms_deadline_boundary) or test(futu_search_rejects_invalid_queries_before_reaching_opend) or test(provider_aware_methods_prefix_providers_and_validate_provider_names)'`（16/16 通过）。
+
+## 第 134 批：backtest sync worker lifecycle（2026-09-25）
+
+| 复核 | Go 测试 | Rust 证据 | P | 结论 |
+| :---: | --- | --- | :---: | --- |
+| [x] | `historical_source_test.go:310:TestBacktestProviderSyncerPinsFutuAndClosesOnFailures` | `test_historical_k_line_syncer_rejects_empty_provider_result`；`shutdown_persists_cancellation_before_joining_sync_workers`；`terminate_persists_cancellation_and_aborts_sync_workers`；`production_sync_restart_recovery_marks_orphaned_task_failed` | P1 | partial：空 provider 结果、shutdown/terminate 在 join 或 abort 前持久化 cancelled、重启 orphaned task 标记 failed 已有 Rust 回归；固定 futu、成功后 Close、descriptor 错误和非法数据库路径 constructor 属于旧 owner 或 composition 注入边界。 |
+
+本批先红后修没有发现新的 Rust 生产功能差异；新增 worker registry 生命周期回归由 `jftrade-engine` owner 持有。精准 nextest 4/4 通过。
+
+验证：
+`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(test_historical_k_line_syncer_rejects_empty_provider_result) or test(shutdown_persists_cancellation_before_joining_sync_workers) or test(terminate_persists_cancellation_and_aborts_sync_workers) or test(production_sync_restart_recovery_marks_orphaned_task_failed)'`
+
+下一片：`internal/app/apiserver/backtestapp/historical_source_test.go:354:TestInstrumentSpecUsesProviderRulesAndConservativeFallbacks`，优先核对 provider 规则与保守 fallback 的 owner 及逐市场断言。

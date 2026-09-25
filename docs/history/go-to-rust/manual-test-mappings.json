@@ -24890,9 +24890,9 @@
     },
     "internal/app/apiserver/backtestapp/historical_source_test.go:310:TestBacktestProviderSyncerPinsFutuAndClosesOnFailures": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_production_ports_backtest_sync_helpers.rs::test_historical_k_line_syncer_rejects_empty_provider_result",
-      "conclusion": "partial：Rust 覆盖空结果与断链分页拒绝。缺口：Go 的题眼是同步器固定 futu、成功后关闭、四种构造失败（无历史能力、描述符错误、非法库路径、已关闭运行时）；Rust 无同步器固定关闭与失败模式断言，结论原称由同步入口与 store 契约覆盖但未列入引用。owner=回测同步器装配；回归要求：补固定关闭与失败模式断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+      "rust_entry": "crates/jftrade-engine/src/product_production_ports_backtest_sync_helpers.rs::test_historical_k_line_syncer_rejects_empty_provider_result; crates/jftrade-engine/src/product_backtest_sync_registry.rs::shutdown_persists_cancellation_before_joining_sync_workers; crates/jftrade-engine/src/product_backtest_sync_registry.rs::terminate_persists_cancellation_and_aborts_sync_workers; crates/jftrade-engine/src/product_backtest_sync_start_tests.rs::production_sync_restart_recovery_marks_orphaned_task_failed",
+      "conclusion": "partial：Rust 现在覆盖空 provider 结果、worker shutdown/terminate 在 join/abort 前持久化 cancelled，以及进程重启将 orphaned task 标记 failed。Go 的固定 futu provider、成功后显式 Close、descriptor 错误和非法数据库路径 constructor 仍没有 Rust 同形对象：Rust production sync 按 provider 选择并由 composition 持有 store/runtime，路径和 descriptor 在 owner 边界不可注入，故不升级为 exact。",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(test_historical_k_line_syncer_rejects_empty_provider_result) or test(shutdown_persists_cancellation_before_joining_sync_workers) or test(terminate_persists_cancellation_and_aborts_sync_workers) or test(production_sync_restart_recovery_marks_orphaned_task_failed)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/backtestapp/historical_source_test.go",
@@ -24911,11 +24911,29 @@
             "rustFile": "crates/jftrade-engine/src/product_production_ports_backtest_sync_helpers.rs",
             "rustLine": 49
           }
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_backtest_sync_registry.rs",
+          "test": "shutdown_persists_cancellation_before_joining_sync_workers",
+          "crate": "jftrade-engine",
+          "anchor": null
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_backtest_sync_registry.rs",
+          "test": "terminate_persists_cancellation_and_aborts_sync_workers",
+          "crate": "jftrade-engine",
+          "anchor": null
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_backtest_sync_start_tests.rs",
+          "test": "production_sync_restart_recovery_marks_orphaned_task_failed",
+          "crate": "jftrade-engine",
+          "anchor": null
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "function_exact：Go 断言同步器固定 futu、同步成功后 Close，并在缺历史能力、descriptor 错误、非法数据库路径、运行时已关闭时失败。Rust 的同步器测试断言空 provider 结果被拒绝（并覆盖分页破坏），提供者能力/失败关闭语义由同步入口与 store 契约覆盖，核心“固定 futu 并失败关闭”契约等价。"
+          "partial：Rust 通过空页、worker shutdown/terminate cancellation persistence 与 restart orphan recovery 覆盖失败关闭生命周期；Go 的固定 futu、成功后 Close、descriptor error 和非法数据库路径 constructor 仍是旧 owner/不可注入边界。"
         ],
         "uncovered": [],
         "source": "legacy-conclusion"
@@ -24931,7 +24949,10 @@
           "--locked"
         ],
         "testFilter": [
-          "test_historical_k_line_syncer_rejects_empty_provider_result"
+          "test_historical_k_line_syncer_rejects_empty_provider_result",
+          "shutdown_persists_cancellation_before_joining_sync_workers",
+          "terminate_persists_cancellation_and_aborts_sync_workers",
+          "production_sync_restart_recovery_marks_orphaned_task_failed"
         ],
         "runnerVersion": null,
         "toolchain": null,
@@ -24950,10 +24971,12 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "空结果与断链分页拒绝"
+        "空结果与断链分页拒绝",
+        "shutdown/terminate 在 join 或 abort 前持久化 cancelled",
+        "进程重启 orphaned task 标记 failed"
       ],
       "uncoveredAssertions": [
-        "partial：Rust 覆盖空结果与断链分页拒绝。缺口：Go 的题眼是同步器固定 futu、成功后关闭、四种构造失败（无历史能力、描述符错误、非法库路径、已关闭运行时）；Rust 无同步器固定关闭与失败模式断言，结论原称由同步入口与 store 契约覆盖但未列入引用。owner=回测同步器装配；回归要求：补固定关闭与失败模式断言。"
+        "partial：Rust 通过空页、worker shutdown/terminate cancellation persistence 与 restart orphan recovery 覆盖失败关闭生命周期；缺口：Go 的固定 futu、成功后 Close、descriptor error 和非法数据库路径 constructor 在 Rust composition owner 中没有同形注入入口。"
       ],
       "boundaryReason": null
     },
@@ -294447,13 +294470,30 @@
       "reviewStatus": "unreviewed"
     },
     "crates/jftrade-engine/src/product_backtest_sync_start_tests.rs::production_sync_restart_recovery_marks_orphaned_task_failed": {
-      "referenceCount": 2,
+      "referenceCount": 3,
       "referenceKeys": [
         "internal/app/apiserver/servercoretest/backtest_runs_test.go:34:TestNewServerReloadsPersistedBacktestRuns",
-        "internal/backtest/sync_test.go:106:TestSyncFailureMarksProgressFailedAndClosesAdapter"
+        "internal/backtest/sync_test.go:106:TestSyncFailureMarksProgressFailedAndClosesAdapter",
+        "internal/app/apiserver/backtestapp/historical_source_test.go:310:TestBacktestProviderSyncerPinsFutuAndClosesOnFailures"
       ],
       "allowed": false,
       "reviewStatus": "unreviewed"
+    },
+    "crates/jftrade-engine/src/product_backtest_sync_registry.rs::shutdown_persists_cancellation_before_joining_sync_workers": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/app/apiserver/backtestapp/historical_source_test.go:310:TestBacktestProviderSyncerPinsFutuAndClosesOnFailures"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_backtest_sync_registry.rs::terminate_persists_cancellation_and_aborts_sync_workers": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/app/apiserver/backtestapp/historical_source_test.go:310:TestBacktestProviderSyncerPinsFutuAndClosesOnFailures"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
     },
     "crates/jftrade-engine/src/product_backtest_sync_start_tests.rs::sync_request_defaults_match_public_contract_without_provider_success": {
       "referenceCount": 3,

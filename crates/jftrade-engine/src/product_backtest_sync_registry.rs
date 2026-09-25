@@ -166,6 +166,25 @@ mod tests {
         )
     }
 
+    fn queued_task(task_id: &str) -> jftrade_store_sqlite::StoredBacktestSyncTask {
+        jftrade_store_sqlite::StoredBacktestSyncTask {
+            task_id: task_id.to_owned(),
+            status: "queued".to_owned(),
+            symbol: "US.AAPL".to_owned(),
+            market_data_provider: "futu".to_owned(),
+            total_intervals: 1,
+            completed_intervals: 0,
+            total_batches: 0,
+            completed_batches: 0,
+            current_interval: String::new(),
+            retries: 0,
+            error: None,
+            started_at: "2026-08-29T00:00:00Z".to_owned(),
+            updated_at: "2026-08-29T00:00:00Z".to_owned(),
+            revision: 0,
+        }
+    }
+
     #[tokio::test]
     async fn reap_finished_removes_completed_join_handles() {
         let registry = BacktestSyncWorkerRegistry::default();
@@ -175,6 +194,49 @@ mod tests {
         registry.register("missing".to_owned(), tasks, handle, cancel);
         tokio::task::yield_now().await;
         registry.reap_finished();
+        assert_eq!(registry.worker_count(), 0);
+    }
+
+    #[tokio::test]
+    async fn shutdown_persists_cancellation_before_joining_sync_workers() {
+        let registry = BacktestSyncWorkerRegistry::default();
+        let (tasks, _directory) = task_store();
+        tasks.create(queued_task("shutdown-task")).expect("task");
+        let (cancel, receiver) = oneshot::channel();
+        let handle = tokio::spawn(async move {
+            let _ = receiver.await;
+        });
+        registry.register("shutdown-task".to_owned(), tasks.clone(), handle, cancel);
+
+        registry.shutdown().await;
+
+        let task = tasks
+            .get("shutdown-task")
+            .expect("read task")
+            .expect("stored task");
+        assert_eq!(task.status, "cancelled");
+        assert_eq!(registry.worker_count(), 0);
+    }
+
+    #[tokio::test]
+    async fn terminate_persists_cancellation_and_aborts_sync_workers() {
+        let registry = BacktestSyncWorkerRegistry::default();
+        let (tasks, _directory) = task_store();
+        tasks.create(queued_task("terminate-task")).expect("task");
+        let (cancel, receiver) = oneshot::channel();
+        let handle = tokio::spawn(async move {
+            let _ = receiver.await;
+            tokio::time::sleep(std::time::Duration::from_secs(60)).await;
+        });
+        registry.register("terminate-task".to_owned(), tasks.clone(), handle, cancel);
+
+        registry.terminate();
+
+        let task = tasks
+            .get("terminate-task")
+            .expect("read task")
+            .expect("stored task");
+        assert_eq!(task.status, "cancelled");
         assert_eq!(registry.worker_count(), 0);
     }
 }
