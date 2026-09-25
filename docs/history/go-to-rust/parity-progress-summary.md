@@ -75,7 +75,7 @@
 
 ## 调度收敛规则
 
-- 当前只保留一个持续队列上下文；本批完成后下一片按 P1 继续处理 `internal/api/httpserver/bindings_boundaries_test.go:61:TestParseQueryTimeReturnsCallerFallback`。
+- 当前只保留一个持续队列上下文；本批完成后下一片按 P1 继续处理 `internal/api/httpserver/bindings_boundaries_test.go:70:TestBindURIHandlesBindingAndFallbackEscapeValidation`。
 - 不创建子任务、不创建第二个 heartbeat、不重复复核已经完成的切片。
 - 每批先读 Go 实现和 Rust owner；只有发现真实行为差异才先写失败回归测试并修改生产代码。
 - 仅证据不足时维持 `partial` 或 `boundary`，不得为了提高数字升级为 `function_exact`。
@@ -104,6 +104,7 @@
 - 当前批次：`internal/api/assistant/chat_transport_disconnect_test.go:110` 的 stream/run reconnect、after 游标重放与失败 writer 退出逐项核对；engine/API 精准回归 4/4 通过，Rust 一次性 SSE 物化没有 Go 单写次数 seam，保持 partial。
 - 当前批次：`internal/api/backtest/routes_progress_test.go:71` 的 sync progress/cancel 成功与缺失路由逐项闭环；GET fixture、SQLite cancel 成功、production cancel 缺失及 sync owner 五条 Rust 证据 5/5 通过，映射升级为 `function_exact`。
 - 本批门禁：`check:quick` 按清单/文档变更落到 policy lane，zero-go、架构/生产策略、AI context、脚本兼容性与 actionlint 全部通过；完整 `check:rust` workspace 3464/3464（2 skipped）与 7 个 compatibility replay 全部通过。映射审计更新为 Rust 3338、`function_exact` 1481、`partial` 2336、`boundary` 636；重复 exact 0、nonexistent crate 0，Parity 锚点 1764/1718/0/0/46。
+- 当前批次：`internal/api/httpserver/bindings_boundaries_test.go:61` 的 caller fallback 逐项复核；Rust UTC/日期/空值归一精准回归 1/1 通过，非法时间仍由 market-data route fail closed 为 400，保持 `partial` 并记录为有意 owner 语义差异。
 - `00f89290`：marketdata façade 剩余 34 条逐项复核，补 helper provider polling mode owner 回归测试并修复状态投影。
 - `47bf7b1a`：注入配置的默认交易市场并补交易读取测试。
 - `917d1534`：API transport P1 partial 第 1–30 条核对。
