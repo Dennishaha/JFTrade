@@ -101064,20 +101064,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(a_denied_approval_audits_run_resumed_and_run_denied_with_the_denied_state) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(a_hanging_provider_is_bounded_by_the_request_timeout) or test(challenge_completion_barrier_high_concurrency_tokio_blocking) or test(test_canvas_workflow_cycle_detection_rejects_with_400) or test(staging_a_tool_round_freezes_the_pre_tool_assistant_text) or test(adk_artifact_store_lifecycle_and_restart_durability) or test(restore_rejects_a_version_gap) or test(production_catalog_registers_application_tools_from_the_composition_root) or test(reviewed_mcp_descriptors_expose_strict_per_tool_schemas) or test(http_fetch_redirect_guard_blocks_unsafe_hosts) or test(reject_unsafe_host_blocks_the_reference_host_table) or test(reject_unsafe_host_and_unsafe_addr_classification) or test(adk_task_normalization_and_validation_match_go) or test(models_list_schema_is_safe_and_complete) or test(task_write_tools_are_low_risk_and_skip_approval) or test(read_tool_runs_without_approval_in_approval_mode) or test(memory_and_draft_writes_skip_approval_in_approval_mode) or test(medium_and_higher_risk_require_approval_only_in_approval_mode) or test(permission_classes_keep_their_mode_specific_gates) or test(workflow_wait_tool_waits_and_does_not_require_approval) or test(workflow_wait_tool_rejects_too_long_duration) or test(workflow_wait_duration_parses_multiple_input_forms) or test(http_fetch_tool_rejects_invalid_and_unsafe_targets) or test(http_fetch_tool_handles_responses_without_real_network) or test(account_orders_completes_without_hanging) or test(account_orders_completes_with_a_slow_portfolio_summary) or test(live_trading_call_is_gated_in_every_mode) or test(live_trading_tools_stay_available_and_gated_in_every_mode) or test(selected_backtest_tools_gain_the_kline_sync_companion)"
         ],
         "testFilter": [
           "a_denied_approval_audits_run_resumed_and_run_denied_with_the_denied_state"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "9e74c311",
+        "verifiedAt": "2026-09-25T18:31:47Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -101126,20 +101127,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(a_denied_approval_audits_run_resumed_and_run_denied_with_the_denied_state) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(a_hanging_provider_is_bounded_by_the_request_timeout) or test(challenge_completion_barrier_high_concurrency_tokio_blocking) or test(test_canvas_workflow_cycle_detection_rejects_with_400) or test(staging_a_tool_round_freezes_the_pre_tool_assistant_text) or test(adk_artifact_store_lifecycle_and_restart_durability) or test(restore_rejects_a_version_gap) or test(production_catalog_registers_application_tools_from_the_composition_root) or test(reviewed_mcp_descriptors_expose_strict_per_tool_schemas) or test(http_fetch_redirect_guard_blocks_unsafe_hosts) or test(reject_unsafe_host_blocks_the_reference_host_table) or test(reject_unsafe_host_and_unsafe_addr_classification) or test(adk_task_normalization_and_validation_match_go) or test(models_list_schema_is_safe_and_complete) or test(task_write_tools_are_low_risk_and_skip_approval) or test(read_tool_runs_without_approval_in_approval_mode) or test(memory_and_draft_writes_skip_approval_in_approval_mode) or test(medium_and_higher_risk_require_approval_only_in_approval_mode) or test(permission_classes_keep_their_mode_specific_gates) or test(workflow_wait_tool_waits_and_does_not_require_approval) or test(workflow_wait_tool_rejects_too_long_duration) or test(workflow_wait_duration_parses_multiple_input_forms) or test(http_fetch_tool_rejects_invalid_and_unsafe_targets) or test(http_fetch_tool_handles_responses_without_real_network) or test(account_orders_completes_without_hanging) or test(account_orders_completes_with_a_slow_portfolio_summary) or test(live_trading_call_is_gated_in_every_mode) or test(live_trading_tools_stay_available_and_gated_in_every_mode) or test(selected_backtest_tools_gain_the_kline_sync_companion)"
         ],
         "testFilter": [
           "persist_success_marks_a_run_degraded_from_its_failed_tool_calls"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "9e74c311",
+        "verifiedAt": "2026-09-25T18:31:47Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -101193,20 +101195,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(a_denied_approval_audits_run_resumed_and_run_denied_with_the_denied_state) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(a_hanging_provider_is_bounded_by_the_request_timeout) or test(challenge_completion_barrier_high_concurrency_tokio_blocking) or test(test_canvas_workflow_cycle_detection_rejects_with_400) or test(staging_a_tool_round_freezes_the_pre_tool_assistant_text) or test(adk_artifact_store_lifecycle_and_restart_durability) or test(restore_rejects_a_version_gap) or test(production_catalog_registers_application_tools_from_the_composition_root) or test(reviewed_mcp_descriptors_expose_strict_per_tool_schemas) or test(http_fetch_redirect_guard_blocks_unsafe_hosts) or test(reject_unsafe_host_blocks_the_reference_host_table) or test(reject_unsafe_host_and_unsafe_addr_classification) or test(adk_task_normalization_and_validation_match_go) or test(models_list_schema_is_safe_and_complete) or test(task_write_tools_are_low_risk_and_skip_approval) or test(read_tool_runs_without_approval_in_approval_mode) or test(memory_and_draft_writes_skip_approval_in_approval_mode) or test(medium_and_higher_risk_require_approval_only_in_approval_mode) or test(permission_classes_keep_their_mode_specific_gates) or test(workflow_wait_tool_waits_and_does_not_require_approval) or test(workflow_wait_tool_rejects_too_long_duration) or test(workflow_wait_duration_parses_multiple_input_forms) or test(http_fetch_tool_rejects_invalid_and_unsafe_targets) or test(http_fetch_tool_handles_responses_without_real_network) or test(account_orders_completes_without_hanging) or test(account_orders_completes_with_a_slow_portfolio_summary) or test(live_trading_call_is_gated_in_every_mode) or test(live_trading_tools_stay_available_and_gated_in_every_mode) or test(selected_backtest_tools_gain_the_kline_sync_companion)"
         ],
         "testFilter": [
           "a_hanging_provider_is_bounded_by_the_request_timeout"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "9e74c311",
+        "verifiedAt": "2026-09-25T18:31:47Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -101523,20 +101526,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(a_denied_approval_audits_run_resumed_and_run_denied_with_the_denied_state) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(a_hanging_provider_is_bounded_by_the_request_timeout) or test(challenge_completion_barrier_high_concurrency_tokio_blocking) or test(test_canvas_workflow_cycle_detection_rejects_with_400) or test(staging_a_tool_round_freezes_the_pre_tool_assistant_text) or test(adk_artifact_store_lifecycle_and_restart_durability) or test(restore_rejects_a_version_gap) or test(production_catalog_registers_application_tools_from_the_composition_root) or test(reviewed_mcp_descriptors_expose_strict_per_tool_schemas) or test(http_fetch_redirect_guard_blocks_unsafe_hosts) or test(reject_unsafe_host_blocks_the_reference_host_table) or test(reject_unsafe_host_and_unsafe_addr_classification) or test(adk_task_normalization_and_validation_match_go) or test(models_list_schema_is_safe_and_complete) or test(task_write_tools_are_low_risk_and_skip_approval) or test(read_tool_runs_without_approval_in_approval_mode) or test(memory_and_draft_writes_skip_approval_in_approval_mode) or test(medium_and_higher_risk_require_approval_only_in_approval_mode) or test(permission_classes_keep_their_mode_specific_gates) or test(workflow_wait_tool_waits_and_does_not_require_approval) or test(workflow_wait_tool_rejects_too_long_duration) or test(workflow_wait_duration_parses_multiple_input_forms) or test(http_fetch_tool_rejects_invalid_and_unsafe_targets) or test(http_fetch_tool_handles_responses_without_real_network) or test(account_orders_completes_without_hanging) or test(account_orders_completes_with_a_slow_portfolio_summary) or test(live_trading_call_is_gated_in_every_mode) or test(live_trading_tools_stay_available_and_gated_in_every_mode) or test(selected_backtest_tools_gain_the_kline_sync_companion)"
         ],
         "testFilter": [
           "challenge_completion_barrier_high_concurrency_tokio_blocking"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "9e74c311",
+        "verifiedAt": "2026-09-25T18:31:47Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -101647,20 +101651,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(a_denied_approval_audits_run_resumed_and_run_denied_with_the_denied_state) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(a_hanging_provider_is_bounded_by_the_request_timeout) or test(challenge_completion_barrier_high_concurrency_tokio_blocking) or test(test_canvas_workflow_cycle_detection_rejects_with_400) or test(staging_a_tool_round_freezes_the_pre_tool_assistant_text) or test(adk_artifact_store_lifecycle_and_restart_durability) or test(restore_rejects_a_version_gap) or test(production_catalog_registers_application_tools_from_the_composition_root) or test(reviewed_mcp_descriptors_expose_strict_per_tool_schemas) or test(http_fetch_redirect_guard_blocks_unsafe_hosts) or test(reject_unsafe_host_blocks_the_reference_host_table) or test(reject_unsafe_host_and_unsafe_addr_classification) or test(adk_task_normalization_and_validation_match_go) or test(models_list_schema_is_safe_and_complete) or test(task_write_tools_are_low_risk_and_skip_approval) or test(read_tool_runs_without_approval_in_approval_mode) or test(memory_and_draft_writes_skip_approval_in_approval_mode) or test(medium_and_higher_risk_require_approval_only_in_approval_mode) or test(permission_classes_keep_their_mode_specific_gates) or test(workflow_wait_tool_waits_and_does_not_require_approval) or test(workflow_wait_tool_rejects_too_long_duration) or test(workflow_wait_duration_parses_multiple_input_forms) or test(http_fetch_tool_rejects_invalid_and_unsafe_targets) or test(http_fetch_tool_handles_responses_without_real_network) or test(account_orders_completes_without_hanging) or test(account_orders_completes_with_a_slow_portfolio_summary) or test(live_trading_call_is_gated_in_every_mode) or test(live_trading_tools_stay_available_and_gated_in_every_mode) or test(selected_backtest_tools_gain_the_kline_sync_companion)"
         ],
         "testFilter": [
           "test_canvas_workflow_cycle_detection_rejects_with_400"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "9e74c311",
+        "verifiedAt": "2026-09-25T18:31:47Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -101709,20 +101714,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(a_denied_approval_audits_run_resumed_and_run_denied_with_the_denied_state) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(a_hanging_provider_is_bounded_by_the_request_timeout) or test(challenge_completion_barrier_high_concurrency_tokio_blocking) or test(test_canvas_workflow_cycle_detection_rejects_with_400) or test(staging_a_tool_round_freezes_the_pre_tool_assistant_text) or test(adk_artifact_store_lifecycle_and_restart_durability) or test(restore_rejects_a_version_gap) or test(production_catalog_registers_application_tools_from_the_composition_root) or test(reviewed_mcp_descriptors_expose_strict_per_tool_schemas) or test(http_fetch_redirect_guard_blocks_unsafe_hosts) or test(reject_unsafe_host_blocks_the_reference_host_table) or test(reject_unsafe_host_and_unsafe_addr_classification) or test(adk_task_normalization_and_validation_match_go) or test(models_list_schema_is_safe_and_complete) or test(task_write_tools_are_low_risk_and_skip_approval) or test(read_tool_runs_without_approval_in_approval_mode) or test(memory_and_draft_writes_skip_approval_in_approval_mode) or test(medium_and_higher_risk_require_approval_only_in_approval_mode) or test(permission_classes_keep_their_mode_specific_gates) or test(workflow_wait_tool_waits_and_does_not_require_approval) or test(workflow_wait_tool_rejects_too_long_duration) or test(workflow_wait_duration_parses_multiple_input_forms) or test(http_fetch_tool_rejects_invalid_and_unsafe_targets) or test(http_fetch_tool_handles_responses_without_real_network) or test(account_orders_completes_without_hanging) or test(account_orders_completes_with_a_slow_portfolio_summary) or test(live_trading_call_is_gated_in_every_mode) or test(live_trading_tools_stay_available_and_gated_in_every_mode) or test(selected_backtest_tools_gain_the_kline_sync_companion)"
         ],
         "testFilter": [
           "staging_a_tool_round_freezes_the_pre_tool_assistant_text"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "9e74c311",
+        "verifiedAt": "2026-09-25T18:31:47Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -101771,20 +101777,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-assistant",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(a_denied_approval_audits_run_resumed_and_run_denied_with_the_denied_state) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(a_hanging_provider_is_bounded_by_the_request_timeout) or test(challenge_completion_barrier_high_concurrency_tokio_blocking) or test(test_canvas_workflow_cycle_detection_rejects_with_400) or test(staging_a_tool_round_freezes_the_pre_tool_assistant_text) or test(adk_artifact_store_lifecycle_and_restart_durability) or test(restore_rejects_a_version_gap) or test(production_catalog_registers_application_tools_from_the_composition_root) or test(reviewed_mcp_descriptors_expose_strict_per_tool_schemas) or test(http_fetch_redirect_guard_blocks_unsafe_hosts) or test(reject_unsafe_host_blocks_the_reference_host_table) or test(reject_unsafe_host_and_unsafe_addr_classification) or test(adk_task_normalization_and_validation_match_go) or test(models_list_schema_is_safe_and_complete) or test(task_write_tools_are_low_risk_and_skip_approval) or test(read_tool_runs_without_approval_in_approval_mode) or test(memory_and_draft_writes_skip_approval_in_approval_mode) or test(medium_and_higher_risk_require_approval_only_in_approval_mode) or test(permission_classes_keep_their_mode_specific_gates) or test(workflow_wait_tool_waits_and_does_not_require_approval) or test(workflow_wait_tool_rejects_too_long_duration) or test(workflow_wait_duration_parses_multiple_input_forms) or test(http_fetch_tool_rejects_invalid_and_unsafe_targets) or test(http_fetch_tool_handles_responses_without_real_network) or test(account_orders_completes_without_hanging) or test(account_orders_completes_with_a_slow_portfolio_summary) or test(live_trading_call_is_gated_in_every_mode) or test(live_trading_tools_stay_available_and_gated_in_every_mode) or test(selected_backtest_tools_gain_the_kline_sync_companion)"
         ],
         "testFilter": [
           "adk_artifact_store_lifecycle_and_restart_durability"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "9e74c311",
+        "verifiedAt": "2026-09-25T18:31:47Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -101833,20 +101840,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-assistant",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(a_denied_approval_audits_run_resumed_and_run_denied_with_the_denied_state) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(a_hanging_provider_is_bounded_by_the_request_timeout) or test(challenge_completion_barrier_high_concurrency_tokio_blocking) or test(test_canvas_workflow_cycle_detection_rejects_with_400) or test(staging_a_tool_round_freezes_the_pre_tool_assistant_text) or test(adk_artifact_store_lifecycle_and_restart_durability) or test(restore_rejects_a_version_gap) or test(production_catalog_registers_application_tools_from_the_composition_root) or test(reviewed_mcp_descriptors_expose_strict_per_tool_schemas) or test(http_fetch_redirect_guard_blocks_unsafe_hosts) or test(reject_unsafe_host_blocks_the_reference_host_table) or test(reject_unsafe_host_and_unsafe_addr_classification) or test(adk_task_normalization_and_validation_match_go) or test(models_list_schema_is_safe_and_complete) or test(task_write_tools_are_low_risk_and_skip_approval) or test(read_tool_runs_without_approval_in_approval_mode) or test(memory_and_draft_writes_skip_approval_in_approval_mode) or test(medium_and_higher_risk_require_approval_only_in_approval_mode) or test(permission_classes_keep_their_mode_specific_gates) or test(workflow_wait_tool_waits_and_does_not_require_approval) or test(workflow_wait_tool_rejects_too_long_duration) or test(workflow_wait_duration_parses_multiple_input_forms) or test(http_fetch_tool_rejects_invalid_and_unsafe_targets) or test(http_fetch_tool_handles_responses_without_real_network) or test(account_orders_completes_without_hanging) or test(account_orders_completes_with_a_slow_portfolio_summary) or test(live_trading_call_is_gated_in_every_mode) or test(live_trading_tools_stay_available_and_gated_in_every_mode) or test(selected_backtest_tools_gain_the_kline_sync_companion)"
         ],
         "testFilter": [
           "restore_rejects_a_version_gap"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "9e74c311",
+        "verifiedAt": "2026-09-25T18:31:47Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -101895,20 +101903,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-assistant",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(a_denied_approval_audits_run_resumed_and_run_denied_with_the_denied_state) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(a_hanging_provider_is_bounded_by_the_request_timeout) or test(challenge_completion_barrier_high_concurrency_tokio_blocking) or test(test_canvas_workflow_cycle_detection_rejects_with_400) or test(staging_a_tool_round_freezes_the_pre_tool_assistant_text) or test(adk_artifact_store_lifecycle_and_restart_durability) or test(restore_rejects_a_version_gap) or test(production_catalog_registers_application_tools_from_the_composition_root) or test(reviewed_mcp_descriptors_expose_strict_per_tool_schemas) or test(http_fetch_redirect_guard_blocks_unsafe_hosts) or test(reject_unsafe_host_blocks_the_reference_host_table) or test(reject_unsafe_host_and_unsafe_addr_classification) or test(adk_task_normalization_and_validation_match_go) or test(models_list_schema_is_safe_and_complete) or test(task_write_tools_are_low_risk_and_skip_approval) or test(read_tool_runs_without_approval_in_approval_mode) or test(memory_and_draft_writes_skip_approval_in_approval_mode) or test(medium_and_higher_risk_require_approval_only_in_approval_mode) or test(permission_classes_keep_their_mode_specific_gates) or test(workflow_wait_tool_waits_and_does_not_require_approval) or test(workflow_wait_tool_rejects_too_long_duration) or test(workflow_wait_duration_parses_multiple_input_forms) or test(http_fetch_tool_rejects_invalid_and_unsafe_targets) or test(http_fetch_tool_handles_responses_without_real_network) or test(account_orders_completes_without_hanging) or test(account_orders_completes_with_a_slow_portfolio_summary) or test(live_trading_call_is_gated_in_every_mode) or test(live_trading_tools_stay_available_and_gated_in_every_mode) or test(selected_backtest_tools_gain_the_kline_sync_companion)"
         ],
         "testFilter": [
           "restore_rejects_a_version_gap"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "9e74c311",
+        "verifiedAt": "2026-09-25T18:31:47Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -101957,20 +101966,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(a_denied_approval_audits_run_resumed_and_run_denied_with_the_denied_state) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(a_hanging_provider_is_bounded_by_the_request_timeout) or test(challenge_completion_barrier_high_concurrency_tokio_blocking) or test(test_canvas_workflow_cycle_detection_rejects_with_400) or test(staging_a_tool_round_freezes_the_pre_tool_assistant_text) or test(adk_artifact_store_lifecycle_and_restart_durability) or test(restore_rejects_a_version_gap) or test(production_catalog_registers_application_tools_from_the_composition_root) or test(reviewed_mcp_descriptors_expose_strict_per_tool_schemas) or test(http_fetch_redirect_guard_blocks_unsafe_hosts) or test(reject_unsafe_host_blocks_the_reference_host_table) or test(reject_unsafe_host_and_unsafe_addr_classification) or test(adk_task_normalization_and_validation_match_go) or test(models_list_schema_is_safe_and_complete) or test(task_write_tools_are_low_risk_and_skip_approval) or test(read_tool_runs_without_approval_in_approval_mode) or test(memory_and_draft_writes_skip_approval_in_approval_mode) or test(medium_and_higher_risk_require_approval_only_in_approval_mode) or test(permission_classes_keep_their_mode_specific_gates) or test(workflow_wait_tool_waits_and_does_not_require_approval) or test(workflow_wait_tool_rejects_too_long_duration) or test(workflow_wait_duration_parses_multiple_input_forms) or test(http_fetch_tool_rejects_invalid_and_unsafe_targets) or test(http_fetch_tool_handles_responses_without_real_network) or test(account_orders_completes_without_hanging) or test(account_orders_completes_with_a_slow_portfolio_summary) or test(live_trading_call_is_gated_in_every_mode) or test(live_trading_tools_stay_available_and_gated_in_every_mode) or test(selected_backtest_tools_gain_the_kline_sync_companion)"
         ],
         "testFilter": [
           "production_catalog_registers_application_tools_from_the_composition_root"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "9e74c311",
+        "verifiedAt": "2026-09-25T18:31:47Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -102019,20 +102029,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(a_denied_approval_audits_run_resumed_and_run_denied_with_the_denied_state) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(a_hanging_provider_is_bounded_by_the_request_timeout) or test(challenge_completion_barrier_high_concurrency_tokio_blocking) or test(test_canvas_workflow_cycle_detection_rejects_with_400) or test(staging_a_tool_round_freezes_the_pre_tool_assistant_text) or test(adk_artifact_store_lifecycle_and_restart_durability) or test(restore_rejects_a_version_gap) or test(production_catalog_registers_application_tools_from_the_composition_root) or test(reviewed_mcp_descriptors_expose_strict_per_tool_schemas) or test(http_fetch_redirect_guard_blocks_unsafe_hosts) or test(reject_unsafe_host_blocks_the_reference_host_table) or test(reject_unsafe_host_and_unsafe_addr_classification) or test(adk_task_normalization_and_validation_match_go) or test(models_list_schema_is_safe_and_complete) or test(task_write_tools_are_low_risk_and_skip_approval) or test(read_tool_runs_without_approval_in_approval_mode) or test(memory_and_draft_writes_skip_approval_in_approval_mode) or test(medium_and_higher_risk_require_approval_only_in_approval_mode) or test(permission_classes_keep_their_mode_specific_gates) or test(workflow_wait_tool_waits_and_does_not_require_approval) or test(workflow_wait_tool_rejects_too_long_duration) or test(workflow_wait_duration_parses_multiple_input_forms) or test(http_fetch_tool_rejects_invalid_and_unsafe_targets) or test(http_fetch_tool_handles_responses_without_real_network) or test(account_orders_completes_without_hanging) or test(account_orders_completes_with_a_slow_portfolio_summary) or test(live_trading_call_is_gated_in_every_mode) or test(live_trading_tools_stay_available_and_gated_in_every_mode) or test(selected_backtest_tools_gain_the_kline_sync_companion)"
         ],
         "testFilter": [
           "reviewed_mcp_descriptors_expose_strict_per_tool_schemas"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "9e74c311",
+        "verifiedAt": "2026-09-25T18:31:47Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -102143,20 +102154,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(a_denied_approval_audits_run_resumed_and_run_denied_with_the_denied_state) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(a_hanging_provider_is_bounded_by_the_request_timeout) or test(challenge_completion_barrier_high_concurrency_tokio_blocking) or test(test_canvas_workflow_cycle_detection_rejects_with_400) or test(staging_a_tool_round_freezes_the_pre_tool_assistant_text) or test(adk_artifact_store_lifecycle_and_restart_durability) or test(restore_rejects_a_version_gap) or test(production_catalog_registers_application_tools_from_the_composition_root) or test(reviewed_mcp_descriptors_expose_strict_per_tool_schemas) or test(http_fetch_redirect_guard_blocks_unsafe_hosts) or test(reject_unsafe_host_blocks_the_reference_host_table) or test(reject_unsafe_host_and_unsafe_addr_classification) or test(adk_task_normalization_and_validation_match_go) or test(models_list_schema_is_safe_and_complete) or test(task_write_tools_are_low_risk_and_skip_approval) or test(read_tool_runs_without_approval_in_approval_mode) or test(memory_and_draft_writes_skip_approval_in_approval_mode) or test(medium_and_higher_risk_require_approval_only_in_approval_mode) or test(permission_classes_keep_their_mode_specific_gates) or test(workflow_wait_tool_waits_and_does_not_require_approval) or test(workflow_wait_tool_rejects_too_long_duration) or test(workflow_wait_duration_parses_multiple_input_forms) or test(http_fetch_tool_rejects_invalid_and_unsafe_targets) or test(http_fetch_tool_handles_responses_without_real_network) or test(account_orders_completes_without_hanging) or test(account_orders_completes_with_a_slow_portfolio_summary) or test(live_trading_call_is_gated_in_every_mode) or test(live_trading_tools_stay_available_and_gated_in_every_mode) or test(selected_backtest_tools_gain_the_kline_sync_companion)"
         ],
         "testFilter": [
           "http_fetch_redirect_guard_blocks_unsafe_hosts"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "9e74c311",
+        "verifiedAt": "2026-09-25T18:31:47Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -102205,20 +102217,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(a_denied_approval_audits_run_resumed_and_run_denied_with_the_denied_state) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(a_hanging_provider_is_bounded_by_the_request_timeout) or test(challenge_completion_barrier_high_concurrency_tokio_blocking) or test(test_canvas_workflow_cycle_detection_rejects_with_400) or test(staging_a_tool_round_freezes_the_pre_tool_assistant_text) or test(adk_artifact_store_lifecycle_and_restart_durability) or test(restore_rejects_a_version_gap) or test(production_catalog_registers_application_tools_from_the_composition_root) or test(reviewed_mcp_descriptors_expose_strict_per_tool_schemas) or test(http_fetch_redirect_guard_blocks_unsafe_hosts) or test(reject_unsafe_host_blocks_the_reference_host_table) or test(reject_unsafe_host_and_unsafe_addr_classification) or test(adk_task_normalization_and_validation_match_go) or test(models_list_schema_is_safe_and_complete) or test(task_write_tools_are_low_risk_and_skip_approval) or test(read_tool_runs_without_approval_in_approval_mode) or test(memory_and_draft_writes_skip_approval_in_approval_mode) or test(medium_and_higher_risk_require_approval_only_in_approval_mode) or test(permission_classes_keep_their_mode_specific_gates) or test(workflow_wait_tool_waits_and_does_not_require_approval) or test(workflow_wait_tool_rejects_too_long_duration) or test(workflow_wait_duration_parses_multiple_input_forms) or test(http_fetch_tool_rejects_invalid_and_unsafe_targets) or test(http_fetch_tool_handles_responses_without_real_network) or test(account_orders_completes_without_hanging) or test(account_orders_completes_with_a_slow_portfolio_summary) or test(live_trading_call_is_gated_in_every_mode) or test(live_trading_tools_stay_available_and_gated_in_every_mode) or test(selected_backtest_tools_gain_the_kline_sync_companion)"
         ],
         "testFilter": [
           "reject_unsafe_host_blocks_the_reference_host_table"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "9e74c311",
+        "verifiedAt": "2026-09-25T18:31:47Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -102267,20 +102280,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(a_denied_approval_audits_run_resumed_and_run_denied_with_the_denied_state) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(a_hanging_provider_is_bounded_by_the_request_timeout) or test(challenge_completion_barrier_high_concurrency_tokio_blocking) or test(test_canvas_workflow_cycle_detection_rejects_with_400) or test(staging_a_tool_round_freezes_the_pre_tool_assistant_text) or test(adk_artifact_store_lifecycle_and_restart_durability) or test(restore_rejects_a_version_gap) or test(production_catalog_registers_application_tools_from_the_composition_root) or test(reviewed_mcp_descriptors_expose_strict_per_tool_schemas) or test(http_fetch_redirect_guard_blocks_unsafe_hosts) or test(reject_unsafe_host_blocks_the_reference_host_table) or test(reject_unsafe_host_and_unsafe_addr_classification) or test(adk_task_normalization_and_validation_match_go) or test(models_list_schema_is_safe_and_complete) or test(task_write_tools_are_low_risk_and_skip_approval) or test(read_tool_runs_without_approval_in_approval_mode) or test(memory_and_draft_writes_skip_approval_in_approval_mode) or test(medium_and_higher_risk_require_approval_only_in_approval_mode) or test(permission_classes_keep_their_mode_specific_gates) or test(workflow_wait_tool_waits_and_does_not_require_approval) or test(workflow_wait_tool_rejects_too_long_duration) or test(workflow_wait_duration_parses_multiple_input_forms) or test(http_fetch_tool_rejects_invalid_and_unsafe_targets) or test(http_fetch_tool_handles_responses_without_real_network) or test(account_orders_completes_without_hanging) or test(account_orders_completes_with_a_slow_portfolio_summary) or test(live_trading_call_is_gated_in_every_mode) or test(live_trading_tools_stay_available_and_gated_in_every_mode) or test(selected_backtest_tools_gain_the_kline_sync_companion)"
         ],
         "testFilter": [
           "reject_unsafe_host_and_unsafe_addr_classification"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "9e74c311",
+        "verifiedAt": "2026-09-25T18:31:47Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -102396,20 +102410,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(a_denied_approval_audits_run_resumed_and_run_denied_with_the_denied_state) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(a_hanging_provider_is_bounded_by_the_request_timeout) or test(challenge_completion_barrier_high_concurrency_tokio_blocking) or test(test_canvas_workflow_cycle_detection_rejects_with_400) or test(staging_a_tool_round_freezes_the_pre_tool_assistant_text) or test(adk_artifact_store_lifecycle_and_restart_durability) or test(restore_rejects_a_version_gap) or test(production_catalog_registers_application_tools_from_the_composition_root) or test(reviewed_mcp_descriptors_expose_strict_per_tool_schemas) or test(http_fetch_redirect_guard_blocks_unsafe_hosts) or test(reject_unsafe_host_blocks_the_reference_host_table) or test(reject_unsafe_host_and_unsafe_addr_classification) or test(adk_task_normalization_and_validation_match_go) or test(models_list_schema_is_safe_and_complete) or test(task_write_tools_are_low_risk_and_skip_approval) or test(read_tool_runs_without_approval_in_approval_mode) or test(memory_and_draft_writes_skip_approval_in_approval_mode) or test(medium_and_higher_risk_require_approval_only_in_approval_mode) or test(permission_classes_keep_their_mode_specific_gates) or test(workflow_wait_tool_waits_and_does_not_require_approval) or test(workflow_wait_tool_rejects_too_long_duration) or test(workflow_wait_duration_parses_multiple_input_forms) or test(http_fetch_tool_rejects_invalid_and_unsafe_targets) or test(http_fetch_tool_handles_responses_without_real_network) or test(account_orders_completes_without_hanging) or test(account_orders_completes_with_a_slow_portfolio_summary) or test(live_trading_call_is_gated_in_every_mode) or test(live_trading_tools_stay_available_and_gated_in_every_mode) or test(selected_backtest_tools_gain_the_kline_sync_companion)"
         ],
         "testFilter": [
           "adk_task_normalization_and_validation_match_go"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "9e74c311",
+        "verifiedAt": "2026-09-25T18:31:47Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -102463,20 +102478,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(a_denied_approval_audits_run_resumed_and_run_denied_with_the_denied_state) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(a_hanging_provider_is_bounded_by_the_request_timeout) or test(challenge_completion_barrier_high_concurrency_tokio_blocking) or test(test_canvas_workflow_cycle_detection_rejects_with_400) or test(staging_a_tool_round_freezes_the_pre_tool_assistant_text) or test(adk_artifact_store_lifecycle_and_restart_durability) or test(restore_rejects_a_version_gap) or test(production_catalog_registers_application_tools_from_the_composition_root) or test(reviewed_mcp_descriptors_expose_strict_per_tool_schemas) or test(http_fetch_redirect_guard_blocks_unsafe_hosts) or test(reject_unsafe_host_blocks_the_reference_host_table) or test(reject_unsafe_host_and_unsafe_addr_classification) or test(adk_task_normalization_and_validation_match_go) or test(models_list_schema_is_safe_and_complete) or test(task_write_tools_are_low_risk_and_skip_approval) or test(read_tool_runs_without_approval_in_approval_mode) or test(memory_and_draft_writes_skip_approval_in_approval_mode) or test(medium_and_higher_risk_require_approval_only_in_approval_mode) or test(permission_classes_keep_their_mode_specific_gates) or test(workflow_wait_tool_waits_and_does_not_require_approval) or test(workflow_wait_tool_rejects_too_long_duration) or test(workflow_wait_duration_parses_multiple_input_forms) or test(http_fetch_tool_rejects_invalid_and_unsafe_targets) or test(http_fetch_tool_handles_responses_without_real_network) or test(account_orders_completes_without_hanging) or test(account_orders_completes_with_a_slow_portfolio_summary) or test(live_trading_call_is_gated_in_every_mode) or test(live_trading_tools_stay_available_and_gated_in_every_mode) or test(selected_backtest_tools_gain_the_kline_sync_companion)"
         ],
         "testFilter": [
           "models_list_schema_is_safe_and_complete"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "9e74c311",
+        "verifiedAt": "2026-09-25T18:31:47Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -102530,20 +102546,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-assistant",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(a_denied_approval_audits_run_resumed_and_run_denied_with_the_denied_state) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(a_hanging_provider_is_bounded_by_the_request_timeout) or test(challenge_completion_barrier_high_concurrency_tokio_blocking) or test(test_canvas_workflow_cycle_detection_rejects_with_400) or test(staging_a_tool_round_freezes_the_pre_tool_assistant_text) or test(adk_artifact_store_lifecycle_and_restart_durability) or test(restore_rejects_a_version_gap) or test(production_catalog_registers_application_tools_from_the_composition_root) or test(reviewed_mcp_descriptors_expose_strict_per_tool_schemas) or test(http_fetch_redirect_guard_blocks_unsafe_hosts) or test(reject_unsafe_host_blocks_the_reference_host_table) or test(reject_unsafe_host_and_unsafe_addr_classification) or test(adk_task_normalization_and_validation_match_go) or test(models_list_schema_is_safe_and_complete) or test(task_write_tools_are_low_risk_and_skip_approval) or test(read_tool_runs_without_approval_in_approval_mode) or test(memory_and_draft_writes_skip_approval_in_approval_mode) or test(medium_and_higher_risk_require_approval_only_in_approval_mode) or test(permission_classes_keep_their_mode_specific_gates) or test(workflow_wait_tool_waits_and_does_not_require_approval) or test(workflow_wait_tool_rejects_too_long_duration) or test(workflow_wait_duration_parses_multiple_input_forms) or test(http_fetch_tool_rejects_invalid_and_unsafe_targets) or test(http_fetch_tool_handles_responses_without_real_network) or test(account_orders_completes_without_hanging) or test(account_orders_completes_with_a_slow_portfolio_summary) or test(live_trading_call_is_gated_in_every_mode) or test(live_trading_tools_stay_available_and_gated_in_every_mode) or test(selected_backtest_tools_gain_the_kline_sync_companion)"
         ],
         "testFilter": [
           "task_write_tools_are_low_risk_and_skip_approval"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "9e74c311",
+        "verifiedAt": "2026-09-25T18:31:47Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -102608,10 +102625,11 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(a_denied_approval_audits_run_resumed_and_run_denied_with_the_denied_state) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(a_hanging_provider_is_bounded_by_the_request_timeout) or test(challenge_completion_barrier_high_concurrency_tokio_blocking) or test(test_canvas_workflow_cycle_detection_rejects_with_400) or test(staging_a_tool_round_freezes_the_pre_tool_assistant_text) or test(adk_artifact_store_lifecycle_and_restart_durability) or test(restore_rejects_a_version_gap) or test(production_catalog_registers_application_tools_from_the_composition_root) or test(reviewed_mcp_descriptors_expose_strict_per_tool_schemas) or test(http_fetch_redirect_guard_blocks_unsafe_hosts) or test(reject_unsafe_host_blocks_the_reference_host_table) or test(reject_unsafe_host_and_unsafe_addr_classification) or test(adk_task_normalization_and_validation_match_go) or test(models_list_schema_is_safe_and_complete) or test(task_write_tools_are_low_risk_and_skip_approval) or test(read_tool_runs_without_approval_in_approval_mode) or test(memory_and_draft_writes_skip_approval_in_approval_mode) or test(medium_and_higher_risk_require_approval_only_in_approval_mode) or test(permission_classes_keep_their_mode_specific_gates) or test(workflow_wait_tool_waits_and_does_not_require_approval) or test(workflow_wait_tool_rejects_too_long_duration) or test(workflow_wait_duration_parses_multiple_input_forms) or test(http_fetch_tool_rejects_invalid_and_unsafe_targets) or test(http_fetch_tool_handles_responses_without_real_network) or test(account_orders_completes_without_hanging) or test(account_orders_completes_with_a_slow_portfolio_summary) or test(live_trading_call_is_gated_in_every_mode) or test(live_trading_tools_stay_available_and_gated_in_every_mode) or test(selected_backtest_tools_gain_the_kline_sync_companion)"
         ],
         "testFilter": [
           "read_tool_runs_without_approval_in_approval_mode",
@@ -102619,10 +102637,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "9e74c311",
+        "verifiedAt": "2026-09-25T18:31:47Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -102676,20 +102694,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-assistant",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(a_denied_approval_audits_run_resumed_and_run_denied_with_the_denied_state) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(a_hanging_provider_is_bounded_by_the_request_timeout) or test(challenge_completion_barrier_high_concurrency_tokio_blocking) or test(test_canvas_workflow_cycle_detection_rejects_with_400) or test(staging_a_tool_round_freezes_the_pre_tool_assistant_text) or test(adk_artifact_store_lifecycle_and_restart_durability) or test(restore_rejects_a_version_gap) or test(production_catalog_registers_application_tools_from_the_composition_root) or test(reviewed_mcp_descriptors_expose_strict_per_tool_schemas) or test(http_fetch_redirect_guard_blocks_unsafe_hosts) or test(reject_unsafe_host_blocks_the_reference_host_table) or test(reject_unsafe_host_and_unsafe_addr_classification) or test(adk_task_normalization_and_validation_match_go) or test(models_list_schema_is_safe_and_complete) or test(task_write_tools_are_low_risk_and_skip_approval) or test(read_tool_runs_without_approval_in_approval_mode) or test(memory_and_draft_writes_skip_approval_in_approval_mode) or test(medium_and_higher_risk_require_approval_only_in_approval_mode) or test(permission_classes_keep_their_mode_specific_gates) or test(workflow_wait_tool_waits_and_does_not_require_approval) or test(workflow_wait_tool_rejects_too_long_duration) or test(workflow_wait_duration_parses_multiple_input_forms) or test(http_fetch_tool_rejects_invalid_and_unsafe_targets) or test(http_fetch_tool_handles_responses_without_real_network) or test(account_orders_completes_without_hanging) or test(account_orders_completes_with_a_slow_portfolio_summary) or test(live_trading_call_is_gated_in_every_mode) or test(live_trading_tools_stay_available_and_gated_in_every_mode) or test(selected_backtest_tools_gain_the_kline_sync_companion)"
         ],
         "testFilter": [
           "medium_and_higher_risk_require_approval_only_in_approval_mode"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "9e74c311",
+        "verifiedAt": "2026-09-25T18:31:47Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -102738,20 +102757,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-assistant",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(a_denied_approval_audits_run_resumed_and_run_denied_with_the_denied_state) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(a_hanging_provider_is_bounded_by_the_request_timeout) or test(challenge_completion_barrier_high_concurrency_tokio_blocking) or test(test_canvas_workflow_cycle_detection_rejects_with_400) or test(staging_a_tool_round_freezes_the_pre_tool_assistant_text) or test(adk_artifact_store_lifecycle_and_restart_durability) or test(restore_rejects_a_version_gap) or test(production_catalog_registers_application_tools_from_the_composition_root) or test(reviewed_mcp_descriptors_expose_strict_per_tool_schemas) or test(http_fetch_redirect_guard_blocks_unsafe_hosts) or test(reject_unsafe_host_blocks_the_reference_host_table) or test(reject_unsafe_host_and_unsafe_addr_classification) or test(adk_task_normalization_and_validation_match_go) or test(models_list_schema_is_safe_and_complete) or test(task_write_tools_are_low_risk_and_skip_approval) or test(read_tool_runs_without_approval_in_approval_mode) or test(memory_and_draft_writes_skip_approval_in_approval_mode) or test(medium_and_higher_risk_require_approval_only_in_approval_mode) or test(permission_classes_keep_their_mode_specific_gates) or test(workflow_wait_tool_waits_and_does_not_require_approval) or test(workflow_wait_tool_rejects_too_long_duration) or test(workflow_wait_duration_parses_multiple_input_forms) or test(http_fetch_tool_rejects_invalid_and_unsafe_targets) or test(http_fetch_tool_handles_responses_without_real_network) or test(account_orders_completes_without_hanging) or test(account_orders_completes_with_a_slow_portfolio_summary) or test(live_trading_call_is_gated_in_every_mode) or test(live_trading_tools_stay_available_and_gated_in_every_mode) or test(selected_backtest_tools_gain_the_kline_sync_companion)"
         ],
         "testFilter": [
           "permission_classes_keep_their_mode_specific_gates"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "9e74c311",
+        "verifiedAt": "2026-09-25T18:31:47Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -102800,20 +102820,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(a_denied_approval_audits_run_resumed_and_run_denied_with_the_denied_state) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(a_hanging_provider_is_bounded_by_the_request_timeout) or test(challenge_completion_barrier_high_concurrency_tokio_blocking) or test(test_canvas_workflow_cycle_detection_rejects_with_400) or test(staging_a_tool_round_freezes_the_pre_tool_assistant_text) or test(adk_artifact_store_lifecycle_and_restart_durability) or test(restore_rejects_a_version_gap) or test(production_catalog_registers_application_tools_from_the_composition_root) or test(reviewed_mcp_descriptors_expose_strict_per_tool_schemas) or test(http_fetch_redirect_guard_blocks_unsafe_hosts) or test(reject_unsafe_host_blocks_the_reference_host_table) or test(reject_unsafe_host_and_unsafe_addr_classification) or test(adk_task_normalization_and_validation_match_go) or test(models_list_schema_is_safe_and_complete) or test(task_write_tools_are_low_risk_and_skip_approval) or test(read_tool_runs_without_approval_in_approval_mode) or test(memory_and_draft_writes_skip_approval_in_approval_mode) or test(medium_and_higher_risk_require_approval_only_in_approval_mode) or test(permission_classes_keep_their_mode_specific_gates) or test(workflow_wait_tool_waits_and_does_not_require_approval) or test(workflow_wait_tool_rejects_too_long_duration) or test(workflow_wait_duration_parses_multiple_input_forms) or test(http_fetch_tool_rejects_invalid_and_unsafe_targets) or test(http_fetch_tool_handles_responses_without_real_network) or test(account_orders_completes_without_hanging) or test(account_orders_completes_with_a_slow_portfolio_summary) or test(live_trading_call_is_gated_in_every_mode) or test(live_trading_tools_stay_available_and_gated_in_every_mode) or test(selected_backtest_tools_gain_the_kline_sync_companion)"
         ],
         "testFilter": [
           "workflow_wait_tool_waits_and_does_not_require_approval"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "9e74c311",
+        "verifiedAt": "2026-09-25T18:31:47Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -102862,20 +102883,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(a_denied_approval_audits_run_resumed_and_run_denied_with_the_denied_state) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(a_hanging_provider_is_bounded_by_the_request_timeout) or test(challenge_completion_barrier_high_concurrency_tokio_blocking) or test(test_canvas_workflow_cycle_detection_rejects_with_400) or test(staging_a_tool_round_freezes_the_pre_tool_assistant_text) or test(adk_artifact_store_lifecycle_and_restart_durability) or test(restore_rejects_a_version_gap) or test(production_catalog_registers_application_tools_from_the_composition_root) or test(reviewed_mcp_descriptors_expose_strict_per_tool_schemas) or test(http_fetch_redirect_guard_blocks_unsafe_hosts) or test(reject_unsafe_host_blocks_the_reference_host_table) or test(reject_unsafe_host_and_unsafe_addr_classification) or test(adk_task_normalization_and_validation_match_go) or test(models_list_schema_is_safe_and_complete) or test(task_write_tools_are_low_risk_and_skip_approval) or test(read_tool_runs_without_approval_in_approval_mode) or test(memory_and_draft_writes_skip_approval_in_approval_mode) or test(medium_and_higher_risk_require_approval_only_in_approval_mode) or test(permission_classes_keep_their_mode_specific_gates) or test(workflow_wait_tool_waits_and_does_not_require_approval) or test(workflow_wait_tool_rejects_too_long_duration) or test(workflow_wait_duration_parses_multiple_input_forms) or test(http_fetch_tool_rejects_invalid_and_unsafe_targets) or test(http_fetch_tool_handles_responses_without_real_network) or test(account_orders_completes_without_hanging) or test(account_orders_completes_with_a_slow_portfolio_summary) or test(live_trading_call_is_gated_in_every_mode) or test(live_trading_tools_stay_available_and_gated_in_every_mode) or test(selected_backtest_tools_gain_the_kline_sync_companion)"
         ],
         "testFilter": [
           "workflow_wait_tool_rejects_too_long_duration"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "9e74c311",
+        "verifiedAt": "2026-09-25T18:31:47Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -102991,20 +103013,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(a_denied_approval_audits_run_resumed_and_run_denied_with_the_denied_state) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(a_hanging_provider_is_bounded_by_the_request_timeout) or test(challenge_completion_barrier_high_concurrency_tokio_blocking) or test(test_canvas_workflow_cycle_detection_rejects_with_400) or test(staging_a_tool_round_freezes_the_pre_tool_assistant_text) or test(adk_artifact_store_lifecycle_and_restart_durability) or test(restore_rejects_a_version_gap) or test(production_catalog_registers_application_tools_from_the_composition_root) or test(reviewed_mcp_descriptors_expose_strict_per_tool_schemas) or test(http_fetch_redirect_guard_blocks_unsafe_hosts) or test(reject_unsafe_host_blocks_the_reference_host_table) or test(reject_unsafe_host_and_unsafe_addr_classification) or test(adk_task_normalization_and_validation_match_go) or test(models_list_schema_is_safe_and_complete) or test(task_write_tools_are_low_risk_and_skip_approval) or test(read_tool_runs_without_approval_in_approval_mode) or test(memory_and_draft_writes_skip_approval_in_approval_mode) or test(medium_and_higher_risk_require_approval_only_in_approval_mode) or test(permission_classes_keep_their_mode_specific_gates) or test(workflow_wait_tool_waits_and_does_not_require_approval) or test(workflow_wait_tool_rejects_too_long_duration) or test(workflow_wait_duration_parses_multiple_input_forms) or test(http_fetch_tool_rejects_invalid_and_unsafe_targets) or test(http_fetch_tool_handles_responses_without_real_network) or test(account_orders_completes_without_hanging) or test(account_orders_completes_with_a_slow_portfolio_summary) or test(live_trading_call_is_gated_in_every_mode) or test(live_trading_tools_stay_available_and_gated_in_every_mode) or test(selected_backtest_tools_gain_the_kline_sync_companion)"
         ],
         "testFilter": [
           "workflow_wait_duration_parses_multiple_input_forms"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "9e74c311",
+        "verifiedAt": "2026-09-25T18:31:47Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -103053,20 +103076,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(a_denied_approval_audits_run_resumed_and_run_denied_with_the_denied_state) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(a_hanging_provider_is_bounded_by_the_request_timeout) or test(challenge_completion_barrier_high_concurrency_tokio_blocking) or test(test_canvas_workflow_cycle_detection_rejects_with_400) or test(staging_a_tool_round_freezes_the_pre_tool_assistant_text) or test(adk_artifact_store_lifecycle_and_restart_durability) or test(restore_rejects_a_version_gap) or test(production_catalog_registers_application_tools_from_the_composition_root) or test(reviewed_mcp_descriptors_expose_strict_per_tool_schemas) or test(http_fetch_redirect_guard_blocks_unsafe_hosts) or test(reject_unsafe_host_blocks_the_reference_host_table) or test(reject_unsafe_host_and_unsafe_addr_classification) or test(adk_task_normalization_and_validation_match_go) or test(models_list_schema_is_safe_and_complete) or test(task_write_tools_are_low_risk_and_skip_approval) or test(read_tool_runs_without_approval_in_approval_mode) or test(memory_and_draft_writes_skip_approval_in_approval_mode) or test(medium_and_higher_risk_require_approval_only_in_approval_mode) or test(permission_classes_keep_their_mode_specific_gates) or test(workflow_wait_tool_waits_and_does_not_require_approval) or test(workflow_wait_tool_rejects_too_long_duration) or test(workflow_wait_duration_parses_multiple_input_forms) or test(http_fetch_tool_rejects_invalid_and_unsafe_targets) or test(http_fetch_tool_handles_responses_without_real_network) or test(account_orders_completes_without_hanging) or test(account_orders_completes_with_a_slow_portfolio_summary) or test(live_trading_call_is_gated_in_every_mode) or test(live_trading_tools_stay_available_and_gated_in_every_mode) or test(selected_backtest_tools_gain_the_kline_sync_companion)"
         ],
         "testFilter": [
           "http_fetch_tool_rejects_invalid_and_unsafe_targets"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "9e74c311",
+        "verifiedAt": "2026-09-25T18:31:47Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -103115,20 +103139,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(a_denied_approval_audits_run_resumed_and_run_denied_with_the_denied_state) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(a_hanging_provider_is_bounded_by_the_request_timeout) or test(challenge_completion_barrier_high_concurrency_tokio_blocking) or test(test_canvas_workflow_cycle_detection_rejects_with_400) or test(staging_a_tool_round_freezes_the_pre_tool_assistant_text) or test(adk_artifact_store_lifecycle_and_restart_durability) or test(restore_rejects_a_version_gap) or test(production_catalog_registers_application_tools_from_the_composition_root) or test(reviewed_mcp_descriptors_expose_strict_per_tool_schemas) or test(http_fetch_redirect_guard_blocks_unsafe_hosts) or test(reject_unsafe_host_blocks_the_reference_host_table) or test(reject_unsafe_host_and_unsafe_addr_classification) or test(adk_task_normalization_and_validation_match_go) or test(models_list_schema_is_safe_and_complete) or test(task_write_tools_are_low_risk_and_skip_approval) or test(read_tool_runs_without_approval_in_approval_mode) or test(memory_and_draft_writes_skip_approval_in_approval_mode) or test(medium_and_higher_risk_require_approval_only_in_approval_mode) or test(permission_classes_keep_their_mode_specific_gates) or test(workflow_wait_tool_waits_and_does_not_require_approval) or test(workflow_wait_tool_rejects_too_long_duration) or test(workflow_wait_duration_parses_multiple_input_forms) or test(http_fetch_tool_rejects_invalid_and_unsafe_targets) or test(http_fetch_tool_handles_responses_without_real_network) or test(account_orders_completes_without_hanging) or test(account_orders_completes_with_a_slow_portfolio_summary) or test(live_trading_call_is_gated_in_every_mode) or test(live_trading_tools_stay_available_and_gated_in_every_mode) or test(selected_backtest_tools_gain_the_kline_sync_companion)"
         ],
         "testFilter": [
           "reject_unsafe_host_and_unsafe_addr_classification"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "9e74c311",
+        "verifiedAt": "2026-09-25T18:31:47Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -103177,20 +103202,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(a_denied_approval_audits_run_resumed_and_run_denied_with_the_denied_state) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(a_hanging_provider_is_bounded_by_the_request_timeout) or test(challenge_completion_barrier_high_concurrency_tokio_blocking) or test(test_canvas_workflow_cycle_detection_rejects_with_400) or test(staging_a_tool_round_freezes_the_pre_tool_assistant_text) or test(adk_artifact_store_lifecycle_and_restart_durability) or test(restore_rejects_a_version_gap) or test(production_catalog_registers_application_tools_from_the_composition_root) or test(reviewed_mcp_descriptors_expose_strict_per_tool_schemas) or test(http_fetch_redirect_guard_blocks_unsafe_hosts) or test(reject_unsafe_host_blocks_the_reference_host_table) or test(reject_unsafe_host_and_unsafe_addr_classification) or test(adk_task_normalization_and_validation_match_go) or test(models_list_schema_is_safe_and_complete) or test(task_write_tools_are_low_risk_and_skip_approval) or test(read_tool_runs_without_approval_in_approval_mode) or test(memory_and_draft_writes_skip_approval_in_approval_mode) or test(medium_and_higher_risk_require_approval_only_in_approval_mode) or test(permission_classes_keep_their_mode_specific_gates) or test(workflow_wait_tool_waits_and_does_not_require_approval) or test(workflow_wait_tool_rejects_too_long_duration) or test(workflow_wait_duration_parses_multiple_input_forms) or test(http_fetch_tool_rejects_invalid_and_unsafe_targets) or test(http_fetch_tool_handles_responses_without_real_network) or test(account_orders_completes_without_hanging) or test(account_orders_completes_with_a_slow_portfolio_summary) or test(live_trading_call_is_gated_in_every_mode) or test(live_trading_tools_stay_available_and_gated_in_every_mode) or test(selected_backtest_tools_gain_the_kline_sync_companion)"
         ],
         "testFilter": [
           "http_fetch_tool_handles_responses_without_real_network"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "9e74c311",
+        "verifiedAt": "2026-09-25T18:31:47Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -103244,23 +103270,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
           "--locked",
-          "--no-fail-fast",
           "-E",
-          "test(tool_deadline)"
+          "test(a_denied_approval_audits_run_resumed_and_run_denied_with_the_denied_state) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(a_hanging_provider_is_bounded_by_the_request_timeout) or test(challenge_completion_barrier_high_concurrency_tokio_blocking) or test(test_canvas_workflow_cycle_detection_rejects_with_400) or test(staging_a_tool_round_freezes_the_pre_tool_assistant_text) or test(adk_artifact_store_lifecycle_and_restart_durability) or test(restore_rejects_a_version_gap) or test(production_catalog_registers_application_tools_from_the_composition_root) or test(reviewed_mcp_descriptors_expose_strict_per_tool_schemas) or test(http_fetch_redirect_guard_blocks_unsafe_hosts) or test(reject_unsafe_host_blocks_the_reference_host_table) or test(reject_unsafe_host_and_unsafe_addr_classification) or test(adk_task_normalization_and_validation_match_go) or test(models_list_schema_is_safe_and_complete) or test(task_write_tools_are_low_risk_and_skip_approval) or test(read_tool_runs_without_approval_in_approval_mode) or test(memory_and_draft_writes_skip_approval_in_approval_mode) or test(medium_and_higher_risk_require_approval_only_in_approval_mode) or test(permission_classes_keep_their_mode_specific_gates) or test(workflow_wait_tool_waits_and_does_not_require_approval) or test(workflow_wait_tool_rejects_too_long_duration) or test(workflow_wait_duration_parses_multiple_input_forms) or test(http_fetch_tool_rejects_invalid_and_unsafe_targets) or test(http_fetch_tool_handles_responses_without_real_network) or test(account_orders_completes_without_hanging) or test(account_orders_completes_with_a_slow_portfolio_summary) or test(live_trading_call_is_gated_in_every_mode) or test(live_trading_tools_stay_available_and_gated_in_every_mode) or test(selected_backtest_tools_gain_the_kline_sync_companion)"
         ],
         "testFilter": [
           "account_orders_completes_without_hanging"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "9e74c311",
+        "verifiedAt": "2026-09-25T18:31:47Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -103314,23 +103338,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
           "--locked",
-          "--no-fail-fast",
           "-E",
-          "test(tool_deadline)"
+          "test(a_denied_approval_audits_run_resumed_and_run_denied_with_the_denied_state) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(a_hanging_provider_is_bounded_by_the_request_timeout) or test(challenge_completion_barrier_high_concurrency_tokio_blocking) or test(test_canvas_workflow_cycle_detection_rejects_with_400) or test(staging_a_tool_round_freezes_the_pre_tool_assistant_text) or test(adk_artifact_store_lifecycle_and_restart_durability) or test(restore_rejects_a_version_gap) or test(production_catalog_registers_application_tools_from_the_composition_root) or test(reviewed_mcp_descriptors_expose_strict_per_tool_schemas) or test(http_fetch_redirect_guard_blocks_unsafe_hosts) or test(reject_unsafe_host_blocks_the_reference_host_table) or test(reject_unsafe_host_and_unsafe_addr_classification) or test(adk_task_normalization_and_validation_match_go) or test(models_list_schema_is_safe_and_complete) or test(task_write_tools_are_low_risk_and_skip_approval) or test(read_tool_runs_without_approval_in_approval_mode) or test(memory_and_draft_writes_skip_approval_in_approval_mode) or test(medium_and_higher_risk_require_approval_only_in_approval_mode) or test(permission_classes_keep_their_mode_specific_gates) or test(workflow_wait_tool_waits_and_does_not_require_approval) or test(workflow_wait_tool_rejects_too_long_duration) or test(workflow_wait_duration_parses_multiple_input_forms) or test(http_fetch_tool_rejects_invalid_and_unsafe_targets) or test(http_fetch_tool_handles_responses_without_real_network) or test(account_orders_completes_without_hanging) or test(account_orders_completes_with_a_slow_portfolio_summary) or test(live_trading_call_is_gated_in_every_mode) or test(live_trading_tools_stay_available_and_gated_in_every_mode) or test(selected_backtest_tools_gain_the_kline_sync_companion)"
         ],
         "testFilter": [
           "account_orders_completes_with_a_slow_portfolio_summary"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "9e74c311",
+        "verifiedAt": "2026-09-25T18:31:47Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -103390,10 +103412,11 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(a_denied_approval_audits_run_resumed_and_run_denied_with_the_denied_state) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(a_hanging_provider_is_bounded_by_the_request_timeout) or test(challenge_completion_barrier_high_concurrency_tokio_blocking) or test(test_canvas_workflow_cycle_detection_rejects_with_400) or test(staging_a_tool_round_freezes_the_pre_tool_assistant_text) or test(adk_artifact_store_lifecycle_and_restart_durability) or test(restore_rejects_a_version_gap) or test(production_catalog_registers_application_tools_from_the_composition_root) or test(reviewed_mcp_descriptors_expose_strict_per_tool_schemas) or test(http_fetch_redirect_guard_blocks_unsafe_hosts) or test(reject_unsafe_host_blocks_the_reference_host_table) or test(reject_unsafe_host_and_unsafe_addr_classification) or test(adk_task_normalization_and_validation_match_go) or test(models_list_schema_is_safe_and_complete) or test(task_write_tools_are_low_risk_and_skip_approval) or test(read_tool_runs_without_approval_in_approval_mode) or test(memory_and_draft_writes_skip_approval_in_approval_mode) or test(medium_and_higher_risk_require_approval_only_in_approval_mode) or test(permission_classes_keep_their_mode_specific_gates) or test(workflow_wait_tool_waits_and_does_not_require_approval) or test(workflow_wait_tool_rejects_too_long_duration) or test(workflow_wait_duration_parses_multiple_input_forms) or test(http_fetch_tool_rejects_invalid_and_unsafe_targets) or test(http_fetch_tool_handles_responses_without_real_network) or test(account_orders_completes_without_hanging) or test(account_orders_completes_with_a_slow_portfolio_summary) or test(live_trading_call_is_gated_in_every_mode) or test(live_trading_tools_stay_available_and_gated_in_every_mode) or test(selected_backtest_tools_gain_the_kline_sync_companion)"
         ],
         "testFilter": [
           "live_trading_call_is_gated_in_every_mode",
@@ -103401,10 +103424,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "9e74c311",
+        "verifiedAt": "2026-09-25T18:31:47Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -103453,20 +103476,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(a_denied_approval_audits_run_resumed_and_run_denied_with_the_denied_state) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(a_hanging_provider_is_bounded_by_the_request_timeout) or test(challenge_completion_barrier_high_concurrency_tokio_blocking) or test(test_canvas_workflow_cycle_detection_rejects_with_400) or test(staging_a_tool_round_freezes_the_pre_tool_assistant_text) or test(adk_artifact_store_lifecycle_and_restart_durability) or test(restore_rejects_a_version_gap) or test(production_catalog_registers_application_tools_from_the_composition_root) or test(reviewed_mcp_descriptors_expose_strict_per_tool_schemas) or test(http_fetch_redirect_guard_blocks_unsafe_hosts) or test(reject_unsafe_host_blocks_the_reference_host_table) or test(reject_unsafe_host_and_unsafe_addr_classification) or test(adk_task_normalization_and_validation_match_go) or test(models_list_schema_is_safe_and_complete) or test(task_write_tools_are_low_risk_and_skip_approval) or test(read_tool_runs_without_approval_in_approval_mode) or test(memory_and_draft_writes_skip_approval_in_approval_mode) or test(medium_and_higher_risk_require_approval_only_in_approval_mode) or test(permission_classes_keep_their_mode_specific_gates) or test(workflow_wait_tool_waits_and_does_not_require_approval) or test(workflow_wait_tool_rejects_too_long_duration) or test(workflow_wait_duration_parses_multiple_input_forms) or test(http_fetch_tool_rejects_invalid_and_unsafe_targets) or test(http_fetch_tool_handles_responses_without_real_network) or test(account_orders_completes_without_hanging) or test(account_orders_completes_with_a_slow_portfolio_summary) or test(live_trading_call_is_gated_in_every_mode) or test(live_trading_tools_stay_available_and_gated_in_every_mode) or test(selected_backtest_tools_gain_the_kline_sync_companion)"
         ],
         "testFilter": [
           "selected_backtest_tools_gain_the_kline_sync_companion"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "9e74c311",
+        "verifiedAt": "2026-09-25T18:31:47Z",
         "receiptDigest": null
       },
       "risk": "normal",

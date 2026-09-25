@@ -1792,3 +1792,19 @@ ADK/Assistant 功能差异，先补失败回归测试再修改领域 owner。
 验证：动态生成本批过滤器运行 `pnpm run test:rust -- --no-fail-fast -E`（底层 `node scripts/quality/cargo-nextest.mjs run --workspace --all-targets --locked`），30/30 通过。
 
 下一片：继续剩余 P2 Assistant/Workflow/ADK store、runtime、task/timeline 与 provider 条目，再转 API transport、MarketData/Quote、Storage/SQLite、Settings/Watchlist 与 Backtest/Calendar；helper/type-only 条目、`optional_bool_strict`、P1 `session_context_snapshot` 及其他无独立 Rust 测试条目仍保持未验证结论。
+
+## 第 210 批：approval audit、task runner、artifact 与 tool/network policy（2026-09-26）
+
+| 复核 | Go 测试范围 | Rust 证据 | P | 结论 |
+| :---: | --- | --- | :---: | --- |
+| [x] | `store_test.go:720,792,862` | denial audit events, degraded completion after tool failure and bounded provider deadline | P2 | partial：Rust terminal-audit/tool-failure/lifecycle owners cover state and audit transitions; Go Google ADK execution facade and combined transcript assertions remain partial. |
+| [x] | `task_runner_test.go:13`; `taskset_biz_test.go:9`; `timeline_projection_helpers_test.go:11` | bounded completion barrier, workflow cycle rejection and pre-tool timeline projection | P2 | partial：Rust runtime/workflow/timeline owners cover concurrency, cycle and projection behavior; Go goroutine runner, helper fallback branches and large pagination fixture are not one-to-one. |
+| [x] | `tool_artifact_materialization_test.go:24,52,73` | durable artifact lifecycle/restart and version-gap rejection | P2 | partial：Rust artifact store and model artifact owners cover persistence and restore fencing; Go materialization fallback, safe names and test-store injection remain partial. |
+| [x] | `tool_registry_change_test.go:8`; `tool_schema_workflow_test.go:10`; `tools_net_transport_boundaries_test.go:12`; `tools_security_test.go:11,33` | composition-root catalog registration, strict workflow MCP descriptors, redirect safety and unsafe host/address classification | P2 | partial：Rust catalog/MCP security owners cover production policy; Go registry callback subscription and local network transport seams remain partial. |
+| [x] | `tools_test.go:44,61,87,106,129,145,163,195,219,275,315,342,468,605,700,726` | task/model schema, risk and approval policy, workflow wait parsing, HTTP fetch safety/transport, account-order deadlines, live-trading gates and K-line companion | P2 | partial：Rust model/MCP/runtime owners cover the policy and deadline behavior; Go tool registry and multi-tool chat aggregation remain partial. |
+
+本批 30 条 P2 Go 映射对应 30 个去重后的 nextest 过滤器，Rust nextest 实际 **30/30** 通过（3443 skipped）。approval audit/tool failure、task runner/workflow cycle、timeline/artifact persistence、MCP/network security、tool risk/approval policy、account orders 与 K-line companion 均有 owner 证据；Go goroutine/HTTP fixture、Google ADK facade、multi-tool aggregation 与 helper fallback 保持 `partial`，未凭聚合测试升级为 exact。未发现需要先红后修的真实 Rust 功能差异。
+
+验证：动态生成本批过滤器运行 `pnpm run test:rust -- --no-fail-fast -E`（底层 `node scripts/quality/cargo-nextest.mjs run --workspace --all-targets --locked`），30/30 通过。
+
+下一片：继续剩余 P2 Assistant/Workflow/ADK runtime、tools、usage、workflow native integration 与 provider 条目，再转 API transport、MarketData/Quote、Storage/SQLite、Settings/Watchlist 与 Backtest/Calendar；helper/type-only 条目、`optional_bool_strict`、P1 `session_context_snapshot` 及其他无独立 Rust 测试条目仍保持未验证结论。
