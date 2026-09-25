@@ -3011,7 +3011,7 @@
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": null,
-      "verifiedAt": "2026-09-25T07:41:37Z",
+        "verifiedAt": "2026-09-25T07:41:37Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -3126,7 +3126,7 @@
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": null,
-      "verifiedAt": "2026-09-25T07:40:24Z",
+        "verifiedAt": "2026-09-25T07:40:24Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -3634,7 +3634,7 @@
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": null,
-      "verifiedAt": "2026-09-25T07:42:33Z",
+        "verifiedAt": "2026-09-25T07:42:33Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -3720,7 +3720,7 @@
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": null,
-      "verifiedAt": "2026-09-25T07:43:09Z",
+        "verifiedAt": "2026-09-25T07:43:09Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -3872,7 +3872,7 @@
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": null,
-      "verifiedAt": "2026-09-25T07:44:10Z",
+        "verifiedAt": "2026-09-25T07:44:10Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -7478,7 +7478,7 @@
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": null,
-      "verifiedAt": "2026-09-25T07:53:25Z",
+        "verifiedAt": "2026-09-25T07:53:25Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -7560,7 +7560,7 @@
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": null,
-      "verifiedAt": "2026-09-25T07:54:21Z",
+        "verifiedAt": "2026-09-25T07:54:21Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -24351,8 +24351,8 @@
         "toolchain": null,
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "51d7bf4b",
-        "verifiedAt": "2026-09-25T09:18:00Z",
+        "verifiedCommit": "c6aad11b",
+        "verifiedAt": "2026-09-25T09:58:34Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -24412,7 +24412,9 @@
           "-p",
           "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(sync_request_validates_provider_adjustment_and_lookback_capabilities) or test(sync_request_rejects_extended_session_scope_outside_us_intraday)"
         ],
         "testFilter": [
           "sync_request_validates_provider_adjustment_and_lookback_capabilities",
@@ -24420,10 +24422,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "6cf17b65",
+        "verifiedAt": "2026-09-25T09:58:34Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -24557,7 +24559,9 @@
           "-p",
           "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(sync_request_validates_provider_adjustment_and_lookback_capabilities) or test(candle_adjustment_maps_to_the_opend_rehab_enum)"
         ],
         "testFilter": [
           "sync_request_validates_provider_adjustment_and_lookback_capabilities",
@@ -24565,10 +24569,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "6cf17b65",
+        "verifiedAt": "2026-09-25T09:58:34Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -24628,7 +24632,9 @@
           "-p",
           "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(production_sync_rejects_provider_capability_before_queuing) or test(akshare_sync_rejects_history_beyond_the_intraday_lookback_window)"
         ],
         "testFilter": [
           "production_sync_rejects_provider_capability_before_queuing",
@@ -24636,10 +24642,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "6cf17b65",
+        "verifiedAt": "2026-09-25T09:58:34Z",
         "receiptDigest": null
       },
       "risk": "normal",
