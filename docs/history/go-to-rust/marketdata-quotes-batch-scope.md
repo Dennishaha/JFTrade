@@ -1562,6 +1562,23 @@ ADK/Assistant 功能差异，先补失败回归测试再修改领域 owner。
 
 下一片：继续 P2 Assistant/Workflow/ADK、API transport、MarketData/Quote、Storage/SQLite 与 Backtest/Calendar；`optional_bool_strict` helper、P1 `session_context_snapshot` 及其他无独立 Rust 测试条目仍保持未验证结论。
 
+## 第 200 批：Workflow bridge/tools、ADK runtime edges 与 typed capabilities（2026-09-26）
+
+| 复核 | Go 测试范围 | Rust 证据 | P | 结论 |
+| :---: | --- | --- | :---: | --- |
+| [x] | `typed_product_capabilities_test.go:11,45`; `watchlist_adapter_test.go:24,72` | typed capability/research schema fields、watchlist stored-group reads without quote enrichment、missing-port/unknown-group failures | P2 | partial：Rust capability/MCP/watchlist owners cover schemas and read boundaries；Go ADK adapter and capability assembly remain partial. |
+| [x] | `workflow_bridge_contracts_test.go:14,103`; `workflow_execution_injection_test.go:60`; `workflow_tools_error_boundaries_test.go:52` | workflow CRUD/run target pages、missing-port fail-closed、injected loop-chat failure and verbatim manager errors | P2 | partial/boundary：Rust workflow bridge/chat/error owners cover lifecycle and error propagation；Go manager facade and injected service composition remain structural boundaries. |
+| [x] | `workflow_tools_test.go:15,132,183,285` | workflow catalog/approval metadata、patch omission/explicit clear semantics、deleted-row filtering、no-model fail-closed and Go error codes | P2 | partial：Rust store parity and workflow canvas tests cover durable mutation behavior；Go tool handlers and approval aggregation remain partial. |
+| [x] | `adk22regression/native_runtime_test.go:24,86`; `adk_edges_test.go:25,61,105,153,203,209,237` | approval resume ordering、workflow interrupt identity/event order、memory/model/notice/pause/schema/store transaction and maintenance boundaries | P2 | partial/boundary：Rust assistant runtime, ADK store and MCP tests cover state transitions and fail-closed paths；Google ADK/GORM facade-specific branches remain boundary evidence. |
+| [x] | `adk_edges_test.go:294,351,684`; `adk_runner_edges_test.go:14,234,352` | timeout default、session compaction gate、snapshot/provider fail-closed、pause child-run guard、approval resume confirmation and denial CAS | P2 | partial：Rust runtime/store owners cover durable lifecycle and CAS; Go runner/test-double orchestration and session facade remain partial. |
+| [x] | `adk_schema_test.go:8,42`; `adk_skill_edges_test.go:13` | strict MCP schema descriptors、core schema dispatch helper and exclusive skill install | P2 | partial/boundary：strict descriptor and skill mutation tests pass; `core_schema_for` is a helper symbol without an independent test and is kept as boundary evidence. |
+
+本批 30 条 Go 映射对应表达式中的 31 个过滤器，Rust nextest 实际 **30/30** 通过（3443 skipped）；其中 `workflow_bridge_operations_fail_closed_without_their_ports` 报告一次 `LEAK` 但测试结果为 PASS，已保留为测试卫生跟踪项，没有把它误记为功能失败。`core_schema_for` 仅为 schema helper、未计作独立测试证据；其余 Workflow/ADK/capability/watchlist 条目均写入通过凭证。Go Google ADK/GORM/test-double facade、workflow manager wiring 与聚合 handler 继续保持 `partial`/`boundary`，未凭聚合测试升级为 exact；未发现需要先红后修的真实 Rust 功能差异。
+
+验证：动态生成本批过滤器运行 `node scripts/quality/cargo-nextest.mjs run --all-targets --locked -E`，30/30 通过（1 leaky pass）。
+
+下一片：继续 P2 Assistant/Workflow/ADK、API transport、MarketData/Quote、Storage/SQLite 与 Backtest/Calendar；`optional_bool_strict` helper、P1 `session_context_snapshot` 及其他无独立 Rust 测试条目仍保持未验证结论。
+
 ## 第 199 批：MCP auth、Portfolio tools、runtime adapters 与 tool catalog（2026-09-26）
 
 | 复核 | Go 测试范围 | Rust 证据 | P | 结论 |
