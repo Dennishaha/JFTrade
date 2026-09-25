@@ -1562,6 +1562,22 @@ ADK/Assistant 功能差异，先补失败回归测试再修改领域 owner。
 
 下一片：继续 P2 Assistant/Workflow/ADK、API transport、MarketData/Quote、Storage/SQLite 与 Backtest/Calendar；`optional_bool_strict` helper、P1 `session_context_snapshot` 及其他无独立 Rust 测试条目仍保持未验证结论。
 
+## 第 199 批：MCP auth、Portfolio tools、runtime adapters 与 tool catalog（2026-09-26）
+
+| 复核 | Go 测试范围 | Rust 证据 | P | 结论 |
+| :---: | --- | --- | :---: | --- |
+| [x] | `mcp_server_lifecycle_authorization_test.go:74,95`; `mcp_server_test.go:22,181,203,257,280` | serve-generation recovery、bearer rotation、authorization/loopback/host guards、listener conflict, replacement, close and unexpected-exit cleanup | P2 | partial/boundary：Rust MCP lifecycle tests cover token, generation and listener ownership；Go manager/handler facade and replacement aggregation remain partial. |
+| [x] | `portfolio_tools_test.go:85,255,288,338,376,444` | layered portfolio discovery/overview/positions、exact account suffix isolation、partial reads/discovery failures、account scope filters and broker runtime projection | P2 | partial：Rust portfolio parity and broker ports cover discovery, scope and incomplete-result semantics；Go account resolver and multi-tool facade aggregation remain partial. |
+| [x] | `product_adapters_test.go:15,26,83,155,217`; `product_execution_contracts_test.go:84` | single OpenD customization action、advanced candle input mapping、unknown dispatch rejection、screen/calendar forwarding and market-search page/limit normalization | P2 | partial：Rust MCP/market/research owner tests cover normalized inputs and failure boundaries；Go adapter helper grouping and execution dispatch facade remain partial. |
+| [x] | `runtime_test.go:45,55,74,131` | database probe layout、composition-root tool registration、ADK audit filtering and Futu/OpenD reader ownership | P2 | partial/boundary：Rust startup/MCP/read owners cover layout and port requirements；Go runtime Handle nil lifecycle and application registration facade remain structural boundaries. |
+| [x] | `tool_catalog_test.go:16,159,272,415,550,672,707` | broker/task normalization、terminal K-line sync wait、system/plugin/risk projections、risk metadata、watchlist paging and execution order event/ID decoding | P2 | partial：Rust tool-catalog parity tests cover normalization and wire projection；Go helper branching and catalog handler aggregation remain partial. |
+
+本批 30 条 Go 映射对应表达式中的 34 个过滤器，Rust nextest 实际 **35/35** 通过（3438 skipped）；`screen_query_defaults_the_page_and_keeps_catalog_columns` 在主 engine 与 compatibility binary 中实际运行，按 nextest 结果计数。MCP authorization/lifecycle、portfolio/account、product adapter、runtime ownership 与 tool catalog 证据均写入凭证；Go facade、Handle 生命周期聚合、跨 binary duplicate 与多工具 adapter 分支继续保持 `partial`/`boundary`，未凭聚合测试升级为 exact；未发现需要先红后修的真实 Rust 功能差异。
+
+验证：动态生成本批过滤器运行 `node scripts/quality/cargo-nextest.mjs run --all-targets --locked -E`，35/35 通过。
+
+下一片：继续 P2 Assistant/Workflow/ADK、API transport、MarketData/Quote、Storage/SQLite 与 Backtest/Calendar；`optional_bool_strict` helper、P1 `session_context_snapshot` 及其他无独立 Rust 测试条目仍保持未验证结论。
+
 ## 第 198 批：ADK application adapters、market research tools 与 MCP lifecycle（2026-09-26）
 
 | 复核 | Go 测试范围 | Rust 证据 | P | 结论 |
