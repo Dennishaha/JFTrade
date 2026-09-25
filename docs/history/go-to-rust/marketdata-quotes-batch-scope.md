@@ -707,6 +707,23 @@ ADK/Assistant 功能差异，先补失败回归测试再修改领域 owner。
 
 下一片：继续 P1 的 Futu/OpenD protocol、trading/broker 与 API transport 映射。
 
+## 第 149 批：Futu K-line pagination、session routing 与 OpenD read boundaries（2026-09-25）
+
+| 复核 | Go 测试范围 | Rust 证据 | P | 结论 |
+| :---: | --- | --- | :---: | --- |
+| [x] | `pkg/futu/exchange_kline_test.go:50,106,131,150,178,192,228,291,326,356` | US RTH/ETH/ALL routing and fallback, session planner, merged-page filtering, history pagination and upstream page-size tests | P1 | exact：路由拆分/合并、session fallback、时间窗口、超过八页分页与 latest-limit 保留逐项通过。 |
+| [x] | `pkg/futu/adapter_kline_pagination_test.go:15,66,92,121,152,198,223,284` | broker candle cursor/page normalization, period catalog, OpenD market-time window and helper bounds tests | P1 | exact：exclusive cursor、dedupe/sort、inclusive range、invalid boundaries、period mapping 和 helper projection 均有断言。 |
+| [x] | `pkg/futu/adapter_new_methods_test.go:163,475,559`; `pkg/futu/opend/new_methods_test.go:752,768,848`; `orderbook_boundaries_test.go:14` | empty symbol/order-book projections, basic quote/K-line/history empty payloads, depth closed-session guard | P1 | exact：空集合/空结果与 depth 前置错误逐项保持；current-KL 的另一聚合引用继续作为上一批 partial，避免重复 exact。 |
+| [~] | `pkg/futu/opend/advanced_test.go:66`; `system_user_info_test.go:14`; `trading_reads_contracts_test.go:268` | strict option/prediction protocol, quote-rights generation state, empty funds/modify-order wrappers | P1 | partial：Rust 覆盖协议字段与 typed projection；Go 的跨 adapter 聚合、closed-client和完整 wrapper 表仍拆分在多个 owner。 |
+| [x] | `pkg/futu/opend/client_test.go:206`; `client_transport_boundaries_test.go:166`; `prediction_push_test.go:14`; `search_quote_test.go:14` | request-timeout stale waiter, keep-alive worker, typed prediction push and search request encoding | P1 | exact：超时/关闭回收、推送只分发成功载荷和搜索 keyword/maxCount 透传均通过。 |
+
+本批 32 条 Go 映射对应 Rust 精准 nextest 36/36 通过；没有发现需要先红后修的 Rust 生产差异。current-KL duplicate evidence、跨 adapter 聚合与 Rust typed wrapper 拆分继续保持 partial，不把共享测试提升为 exact。
+
+验证：
+`node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine --all-targets --locked -E 'test(broker_kline_cursor_preserves_exact_second_window_and_excludes_boundary_locally) or test(normalize_broker_kline_page_deduplicates_sorts_and_keeps_latest) or test(broker_klines_return_latest_page_and_use_exclusive_before_cursor) or test(normalize_broker_kline_range_keeps_inclusive_boundaries) or test(broker_kline_query_rejects_cursor_and_time_boundary_errors) or test(broker_kline_pagination_helpers_cover_sessions_bounds_and_listing_dates) or test(declared_candle_periods_map_to_historical_and_realtime_types) or test(broker_kline_query_formats_opend_window_in_market_time_and_returns_utc) or test(normalized_instruments_accepts_empty_symbol_list) or test(order_book_levels_omit_detail_list_when_absent) or test(depth_read_returns_empty_arrays_for_empty_s2c_lists) or test(us_regular_only_history_uses_a_single_rth_route) or test(session_planner_selects_explicit_routes_and_keep_sets) or test(us_regular_only_request_still_queries_the_current_bucket) or test(us_regular_only_bounded_window_re_filters_the_merged_page) or test(routed_sessions_override_the_clock_classification) or test(us_history_falls_back_to_session_all_when_a_route_is_rejected) or test(chinese_supported_session_message_triggers_the_all_fallback) or test(history_window_follows_forward_pages_and_keeps_the_latest_limit) or test(history_window_allows_more_than_eight_pages) or test(history_window_uses_a_larger_upstream_page_size_than_the_limit) or test(us_intraday_history_fans_out_across_opend_session_routes) or test(request_uses_all_strategy_filters) or test(prediction_category_read_encodes_protocol_and_projects_entries) or test(response_after_request_timeout_is_not_delivered_to_a_stale_waiter) or test(keep_alive_worker_sends_frames_and_stops_on_close) or test(basic_quote_query_returns_an_empty_list_when_the_success_s2c_is_absent) or test(get_kl_missing_s2c_returns_an_empty_result) or test(history_pagination_round_trips_the_next_req_key_across_pages) or test(depth_read_rejects_a_closed_session_before_any_projection) or test(prediction_subscribers_dispatch_only_successful_typed_updates) or test(search_request_preserves_chinese_name_and_requests_full_candidate_window) or test(fetch_failure_outcomes_follow_generation_and_notification_state) or test(entitlement_query_runs_once_per_connection) or test(funds_missing_s2c_normalizes_to_an_empty_snapshot) or test(modify_order_returns_stable_identity_for_an_empty_success_payload)'`
+
+下一片：继续 P1 的 Futu/OpenD protocol、trading/broker 与 API transport 映射。
+
 ## 第 145 批：ProductFeatures market-data facade 与 Settings provider rollback（2026-09-25）
 
 | 复核 | Go 测试范围 | Rust 证据 | P | 结论 |
