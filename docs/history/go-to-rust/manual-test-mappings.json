@@ -184230,20 +184230,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-calendar",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(builtin_hk_and_mainland_weekday_weekend_and_alias_boundaries_match_go) or test(market_rules_ssot_contains_all_core_markets_with_decimal_tick_sizes) or test(normalize_instrument_rejects_missing_inputs) or test(manager_lifecycle_and_market_lookup_boundaries_match_go) or test(session_context_distinguishes_hk_lunch_and_weekend) or test(manual_override_is_authoritative_for_closed_and_custom_windows) or test(manual_override_status_and_session_window_boundaries_match_go) or test(test_go_compatible_candle_conversion_and_session_classification) or test(authoritative_half_day_closes_daily_and_partial_intraday_bars) or test(session_context_handles_us_holidays_early_close_and_sunday_overnight) or test(unknown_market_probe_and_refresh_are_accepted_noops) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go) or test(refresh_uses_market_local_boundaries_and_not_current_dst_offset) or test(desktop_missing_static_assets_do_not_use_spa_fallback) or test(log_reader_matches_go_filter_paging_and_day_order) or test(log_reader_caps_page_limit_and_paginates_all_lines) or test(test_list_desktop_log_days_missing_dir_returns_empty) or test(maintenance_service_confirmation_validation_and_rejection_parity)"
         ],
         "testFilter": [
           "builtin_hk_and_mainland_weekday_weekend_and_alias_boundaries_match_go"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "04229c19f7717df0fa1ed1ed70161f7af4ae4af9",
+        "verifiedAt": "2026-09-25T14:15:21Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -184359,20 +184359,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-marketdata",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(builtin_hk_and_mainland_weekday_weekend_and_alias_boundaries_match_go) or test(market_rules_ssot_contains_all_core_markets_with_decimal_tick_sizes) or test(normalize_instrument_rejects_missing_inputs) or test(manager_lifecycle_and_market_lookup_boundaries_match_go) or test(session_context_distinguishes_hk_lunch_and_weekend) or test(manual_override_is_authoritative_for_closed_and_custom_windows) or test(manual_override_status_and_session_window_boundaries_match_go) or test(test_go_compatible_candle_conversion_and_session_classification) or test(authoritative_half_day_closes_daily_and_partial_intraday_bars) or test(session_context_handles_us_holidays_early_close_and_sunday_overnight) or test(unknown_market_probe_and_refresh_are_accepted_noops) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go) or test(refresh_uses_market_local_boundaries_and_not_current_dst_offset) or test(desktop_missing_static_assets_do_not_use_spa_fallback) or test(log_reader_matches_go_filter_paging_and_day_order) or test(log_reader_caps_page_limit_and_paginates_all_lines) or test(test_list_desktop_log_days_missing_dir_returns_empty) or test(maintenance_service_confirmation_validation_and_rejection_parity)"
         ],
         "testFilter": [
           "market_rules_ssot_contains_all_core_markets_with_decimal_tick_sizes"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "04229c19f7717df0fa1ed1ed70161f7af4ae4af9",
+        "verifiedAt": "2026-09-25T14:15:21Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -184474,20 +184474,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-marketdata",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(builtin_hk_and_mainland_weekday_weekend_and_alias_boundaries_match_go) or test(market_rules_ssot_contains_all_core_markets_with_decimal_tick_sizes) or test(normalize_instrument_rejects_missing_inputs) or test(manager_lifecycle_and_market_lookup_boundaries_match_go) or test(session_context_distinguishes_hk_lunch_and_weekend) or test(manual_override_is_authoritative_for_closed_and_custom_windows) or test(manual_override_status_and_session_window_boundaries_match_go) or test(test_go_compatible_candle_conversion_and_session_classification) or test(authoritative_half_day_closes_daily_and_partial_intraday_bars) or test(session_context_handles_us_holidays_early_close_and_sunday_overnight) or test(unknown_market_probe_and_refresh_are_accepted_noops) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go) or test(refresh_uses_market_local_boundaries_and_not_current_dst_offset) or test(desktop_missing_static_assets_do_not_use_spa_fallback) or test(log_reader_matches_go_filter_paging_and_day_order) or test(log_reader_caps_page_limit_and_paginates_all_lines) or test(test_list_desktop_log_days_missing_dir_returns_empty) or test(maintenance_service_confirmation_validation_and_rejection_parity)"
         ],
         "testFilter": [
           "normalize_instrument_rejects_missing_inputs"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "04229c19f7717df0fa1ed1ed70161f7af4ae4af9",
+        "verifiedAt": "2026-09-25T14:15:21Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -184536,20 +184536,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-calendar",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(builtin_hk_and_mainland_weekday_weekend_and_alias_boundaries_match_go) or test(market_rules_ssot_contains_all_core_markets_with_decimal_tick_sizes) or test(normalize_instrument_rejects_missing_inputs) or test(manager_lifecycle_and_market_lookup_boundaries_match_go) or test(session_context_distinguishes_hk_lunch_and_weekend) or test(manual_override_is_authoritative_for_closed_and_custom_windows) or test(manual_override_status_and_session_window_boundaries_match_go) or test(test_go_compatible_candle_conversion_and_session_classification) or test(authoritative_half_day_closes_daily_and_partial_intraday_bars) or test(session_context_handles_us_holidays_early_close_and_sunday_overnight) or test(unknown_market_probe_and_refresh_are_accepted_noops) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go) or test(refresh_uses_market_local_boundaries_and_not_current_dst_offset) or test(desktop_missing_static_assets_do_not_use_spa_fallback) or test(log_reader_matches_go_filter_paging_and_day_order) or test(log_reader_caps_page_limit_and_paginates_all_lines) or test(test_list_desktop_log_days_missing_dir_returns_empty) or test(maintenance_service_confirmation_validation_and_rejection_parity)"
         ],
         "testFilter": [
           "manager_lifecycle_and_market_lookup_boundaries_match_go"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "04229c19f7717df0fa1ed1ed70161f7af4ae4af9",
+        "verifiedAt": "2026-09-25T14:15:21Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -184660,20 +184660,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-calendar",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(builtin_hk_and_mainland_weekday_weekend_and_alias_boundaries_match_go) or test(market_rules_ssot_contains_all_core_markets_with_decimal_tick_sizes) or test(normalize_instrument_rejects_missing_inputs) or test(manager_lifecycle_and_market_lookup_boundaries_match_go) or test(session_context_distinguishes_hk_lunch_and_weekend) or test(manual_override_is_authoritative_for_closed_and_custom_windows) or test(manual_override_status_and_session_window_boundaries_match_go) or test(test_go_compatible_candle_conversion_and_session_classification) or test(authoritative_half_day_closes_daily_and_partial_intraday_bars) or test(session_context_handles_us_holidays_early_close_and_sunday_overnight) or test(unknown_market_probe_and_refresh_are_accepted_noops) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go) or test(refresh_uses_market_local_boundaries_and_not_current_dst_offset) or test(desktop_missing_static_assets_do_not_use_spa_fallback) or test(log_reader_matches_go_filter_paging_and_day_order) or test(log_reader_caps_page_limit_and_paginates_all_lines) or test(test_list_desktop_log_days_missing_dir_returns_empty) or test(maintenance_service_confirmation_validation_and_rejection_parity)"
         ],
         "testFilter": [
           "session_context_distinguishes_hk_lunch_and_weekend"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "04229c19f7717df0fa1ed1ed70161f7af4ae4af9",
+        "verifiedAt": "2026-09-25T14:15:21Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -184846,20 +184846,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-calendar",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(builtin_hk_and_mainland_weekday_weekend_and_alias_boundaries_match_go) or test(market_rules_ssot_contains_all_core_markets_with_decimal_tick_sizes) or test(normalize_instrument_rejects_missing_inputs) or test(manager_lifecycle_and_market_lookup_boundaries_match_go) or test(session_context_distinguishes_hk_lunch_and_weekend) or test(manual_override_is_authoritative_for_closed_and_custom_windows) or test(manual_override_status_and_session_window_boundaries_match_go) or test(test_go_compatible_candle_conversion_and_session_classification) or test(authoritative_half_day_closes_daily_and_partial_intraday_bars) or test(session_context_handles_us_holidays_early_close_and_sunday_overnight) or test(unknown_market_probe_and_refresh_are_accepted_noops) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go) or test(refresh_uses_market_local_boundaries_and_not_current_dst_offset) or test(desktop_missing_static_assets_do_not_use_spa_fallback) or test(log_reader_matches_go_filter_paging_and_day_order) or test(log_reader_caps_page_limit_and_paginates_all_lines) or test(test_list_desktop_log_days_missing_dir_returns_empty) or test(maintenance_service_confirmation_validation_and_rejection_parity)"
         ],
         "testFilter": [
           "session_context_distinguishes_hk_lunch_and_weekend"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "04229c19f7717df0fa1ed1ed70161f7af4ae4af9",
+        "verifiedAt": "2026-09-25T14:15:21Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -185032,20 +185032,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-calendar",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(builtin_hk_and_mainland_weekday_weekend_and_alias_boundaries_match_go) or test(market_rules_ssot_contains_all_core_markets_with_decimal_tick_sizes) or test(normalize_instrument_rejects_missing_inputs) or test(manager_lifecycle_and_market_lookup_boundaries_match_go) or test(session_context_distinguishes_hk_lunch_and_weekend) or test(manual_override_is_authoritative_for_closed_and_custom_windows) or test(manual_override_status_and_session_window_boundaries_match_go) or test(test_go_compatible_candle_conversion_and_session_classification) or test(authoritative_half_day_closes_daily_and_partial_intraday_bars) or test(session_context_handles_us_holidays_early_close_and_sunday_overnight) or test(unknown_market_probe_and_refresh_are_accepted_noops) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go) or test(refresh_uses_market_local_boundaries_and_not_current_dst_offset) or test(desktop_missing_static_assets_do_not_use_spa_fallback) or test(log_reader_matches_go_filter_paging_and_day_order) or test(log_reader_caps_page_limit_and_paginates_all_lines) or test(test_list_desktop_log_days_missing_dir_returns_empty) or test(maintenance_service_confirmation_validation_and_rejection_parity)"
         ],
         "testFilter": [
           "manual_override_is_authoritative_for_closed_and_custom_windows"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "04229c19f7717df0fa1ed1ed70161f7af4ae4af9",
+        "verifiedAt": "2026-09-25T14:15:21Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -185156,20 +185156,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-calendar",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(builtin_hk_and_mainland_weekday_weekend_and_alias_boundaries_match_go) or test(market_rules_ssot_contains_all_core_markets_with_decimal_tick_sizes) or test(normalize_instrument_rejects_missing_inputs) or test(manager_lifecycle_and_market_lookup_boundaries_match_go) or test(session_context_distinguishes_hk_lunch_and_weekend) or test(manual_override_is_authoritative_for_closed_and_custom_windows) or test(manual_override_status_and_session_window_boundaries_match_go) or test(test_go_compatible_candle_conversion_and_session_classification) or test(authoritative_half_day_closes_daily_and_partial_intraday_bars) or test(session_context_handles_us_holidays_early_close_and_sunday_overnight) or test(unknown_market_probe_and_refresh_are_accepted_noops) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go) or test(refresh_uses_market_local_boundaries_and_not_current_dst_offset) or test(desktop_missing_static_assets_do_not_use_spa_fallback) or test(log_reader_matches_go_filter_paging_and_day_order) or test(log_reader_caps_page_limit_and_paginates_all_lines) or test(test_list_desktop_log_days_missing_dir_returns_empty) or test(maintenance_service_confirmation_validation_and_rejection_parity)"
         ],
         "testFilter": [
           "manual_override_status_and_session_window_boundaries_match_go"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "04229c19f7717df0fa1ed1ed70161f7af4ae4af9",
+        "verifiedAt": "2026-09-25T14:15:21Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -185280,20 +185280,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(market)"
+          "test(builtin_hk_and_mainland_weekday_weekend_and_alias_boundaries_match_go) or test(market_rules_ssot_contains_all_core_markets_with_decimal_tick_sizes) or test(normalize_instrument_rejects_missing_inputs) or test(manager_lifecycle_and_market_lookup_boundaries_match_go) or test(session_context_distinguishes_hk_lunch_and_weekend) or test(manual_override_is_authoritative_for_closed_and_custom_windows) or test(manual_override_status_and_session_window_boundaries_match_go) or test(test_go_compatible_candle_conversion_and_session_classification) or test(authoritative_half_day_closes_daily_and_partial_intraday_bars) or test(session_context_handles_us_holidays_early_close_and_sunday_overnight) or test(unknown_market_probe_and_refresh_are_accepted_noops) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go) or test(refresh_uses_market_local_boundaries_and_not_current_dst_offset) or test(desktop_missing_static_assets_do_not_use_spa_fallback) or test(log_reader_matches_go_filter_paging_and_day_order) or test(log_reader_caps_page_limit_and_paginates_all_lines) or test(test_list_desktop_log_days_missing_dir_returns_empty) or test(maintenance_service_confirmation_validation_and_rejection_parity)"
         ],
         "testFilter": [
           "test_go_compatible_candle_conversion_and_session_classification"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "04229c19f7717df0fa1ed1ed70161f7af4ae4af9",
+        "verifiedAt": "2026-09-25T14:15:21Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -185900,20 +185900,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-calendar",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(builtin_hk_and_mainland_weekday_weekend_and_alias_boundaries_match_go) or test(market_rules_ssot_contains_all_core_markets_with_decimal_tick_sizes) or test(normalize_instrument_rejects_missing_inputs) or test(manager_lifecycle_and_market_lookup_boundaries_match_go) or test(session_context_distinguishes_hk_lunch_and_weekend) or test(manual_override_is_authoritative_for_closed_and_custom_windows) or test(manual_override_status_and_session_window_boundaries_match_go) or test(test_go_compatible_candle_conversion_and_session_classification) or test(authoritative_half_day_closes_daily_and_partial_intraday_bars) or test(session_context_handles_us_holidays_early_close_and_sunday_overnight) or test(unknown_market_probe_and_refresh_are_accepted_noops) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go) or test(refresh_uses_market_local_boundaries_and_not_current_dst_offset) or test(desktop_missing_static_assets_do_not_use_spa_fallback) or test(log_reader_matches_go_filter_paging_and_day_order) or test(log_reader_caps_page_limit_and_paginates_all_lines) or test(test_list_desktop_log_days_missing_dir_returns_empty) or test(maintenance_service_confirmation_validation_and_rejection_parity)"
         ],
         "testFilter": [
           "authoritative_half_day_closes_daily_and_partial_intraday_bars"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "04229c19f7717df0fa1ed1ed70161f7af4ae4af9",
+        "verifiedAt": "2026-09-25T14:15:21Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -185962,20 +185962,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-calendar",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(builtin_hk_and_mainland_weekday_weekend_and_alias_boundaries_match_go) or test(market_rules_ssot_contains_all_core_markets_with_decimal_tick_sizes) or test(normalize_instrument_rejects_missing_inputs) or test(manager_lifecycle_and_market_lookup_boundaries_match_go) or test(session_context_distinguishes_hk_lunch_and_weekend) or test(manual_override_is_authoritative_for_closed_and_custom_windows) or test(manual_override_status_and_session_window_boundaries_match_go) or test(test_go_compatible_candle_conversion_and_session_classification) or test(authoritative_half_day_closes_daily_and_partial_intraday_bars) or test(session_context_handles_us_holidays_early_close_and_sunday_overnight) or test(unknown_market_probe_and_refresh_are_accepted_noops) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go) or test(refresh_uses_market_local_boundaries_and_not_current_dst_offset) or test(desktop_missing_static_assets_do_not_use_spa_fallback) or test(log_reader_matches_go_filter_paging_and_day_order) or test(log_reader_caps_page_limit_and_paginates_all_lines) or test(test_list_desktop_log_days_missing_dir_returns_empty) or test(maintenance_service_confirmation_validation_and_rejection_parity)"
         ],
         "testFilter": [
           "manager_lifecycle_and_market_lookup_boundaries_match_go"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "04229c19f7717df0fa1ed1ed70161f7af4ae4af9",
+        "verifiedAt": "2026-09-25T14:15:21Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -186024,20 +186024,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-calendar",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(builtin_hk_and_mainland_weekday_weekend_and_alias_boundaries_match_go) or test(market_rules_ssot_contains_all_core_markets_with_decimal_tick_sizes) or test(normalize_instrument_rejects_missing_inputs) or test(manager_lifecycle_and_market_lookup_boundaries_match_go) or test(session_context_distinguishes_hk_lunch_and_weekend) or test(manual_override_is_authoritative_for_closed_and_custom_windows) or test(manual_override_status_and_session_window_boundaries_match_go) or test(test_go_compatible_candle_conversion_and_session_classification) or test(authoritative_half_day_closes_daily_and_partial_intraday_bars) or test(session_context_handles_us_holidays_early_close_and_sunday_overnight) or test(unknown_market_probe_and_refresh_are_accepted_noops) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go) or test(refresh_uses_market_local_boundaries_and_not_current_dst_offset) or test(desktop_missing_static_assets_do_not_use_spa_fallback) or test(log_reader_matches_go_filter_paging_and_day_order) or test(log_reader_caps_page_limit_and_paginates_all_lines) or test(test_list_desktop_log_days_missing_dir_returns_empty) or test(maintenance_service_confirmation_validation_and_rejection_parity)"
         ],
         "testFilter": [
           "authoritative_half_day_closes_daily_and_partial_intraday_bars"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "04229c19f7717df0fa1ed1ed70161f7af4ae4af9",
+        "verifiedAt": "2026-09-25T14:15:21Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -186086,20 +186086,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-calendar",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(builtin_hk_and_mainland_weekday_weekend_and_alias_boundaries_match_go) or test(market_rules_ssot_contains_all_core_markets_with_decimal_tick_sizes) or test(normalize_instrument_rejects_missing_inputs) or test(manager_lifecycle_and_market_lookup_boundaries_match_go) or test(session_context_distinguishes_hk_lunch_and_weekend) or test(manual_override_is_authoritative_for_closed_and_custom_windows) or test(manual_override_status_and_session_window_boundaries_match_go) or test(test_go_compatible_candle_conversion_and_session_classification) or test(authoritative_half_day_closes_daily_and_partial_intraday_bars) or test(session_context_handles_us_holidays_early_close_and_sunday_overnight) or test(unknown_market_probe_and_refresh_are_accepted_noops) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go) or test(refresh_uses_market_local_boundaries_and_not_current_dst_offset) or test(desktop_missing_static_assets_do_not_use_spa_fallback) or test(log_reader_matches_go_filter_paging_and_day_order) or test(log_reader_caps_page_limit_and_paginates_all_lines) or test(test_list_desktop_log_days_missing_dir_returns_empty) or test(maintenance_service_confirmation_validation_and_rejection_parity)"
         ],
         "testFilter": [
           "session_context_handles_us_holidays_early_close_and_sunday_overnight"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "04229c19f7717df0fa1ed1ed70161f7af4ae4af9",
+        "verifiedAt": "2026-09-25T14:15:21Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -186148,20 +186148,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-calendar",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(builtin_hk_and_mainland_weekday_weekend_and_alias_boundaries_match_go) or test(market_rules_ssot_contains_all_core_markets_with_decimal_tick_sizes) or test(normalize_instrument_rejects_missing_inputs) or test(manager_lifecycle_and_market_lookup_boundaries_match_go) or test(session_context_distinguishes_hk_lunch_and_weekend) or test(manual_override_is_authoritative_for_closed_and_custom_windows) or test(manual_override_status_and_session_window_boundaries_match_go) or test(test_go_compatible_candle_conversion_and_session_classification) or test(authoritative_half_day_closes_daily_and_partial_intraday_bars) or test(session_context_handles_us_holidays_early_close_and_sunday_overnight) or test(unknown_market_probe_and_refresh_are_accepted_noops) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go) or test(refresh_uses_market_local_boundaries_and_not_current_dst_offset) or test(desktop_missing_static_assets_do_not_use_spa_fallback) or test(log_reader_matches_go_filter_paging_and_day_order) or test(log_reader_caps_page_limit_and_paginates_all_lines) or test(test_list_desktop_log_days_missing_dir_returns_empty) or test(maintenance_service_confirmation_validation_and_rejection_parity)"
         ],
         "testFilter": [
           "unknown_market_probe_and_refresh_are_accepted_noops"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "04229c19f7717df0fa1ed1ed70161f7af4ae4af9",
+        "verifiedAt": "2026-09-25T14:15:21Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -186210,20 +186210,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-calendar",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(builtin_hk_and_mainland_weekday_weekend_and_alias_boundaries_match_go) or test(market_rules_ssot_contains_all_core_markets_with_decimal_tick_sizes) or test(normalize_instrument_rejects_missing_inputs) or test(manager_lifecycle_and_market_lookup_boundaries_match_go) or test(session_context_distinguishes_hk_lunch_and_weekend) or test(manual_override_is_authoritative_for_closed_and_custom_windows) or test(manual_override_status_and_session_window_boundaries_match_go) or test(test_go_compatible_candle_conversion_and_session_classification) or test(authoritative_half_day_closes_daily_and_partial_intraday_bars) or test(session_context_handles_us_holidays_early_close_and_sunday_overnight) or test(unknown_market_probe_and_refresh_are_accepted_noops) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go) or test(refresh_uses_market_local_boundaries_and_not_current_dst_offset) or test(desktop_missing_static_assets_do_not_use_spa_fallback) or test(log_reader_matches_go_filter_paging_and_day_order) or test(log_reader_caps_page_limit_and_paginates_all_lines) or test(test_list_desktop_log_days_missing_dir_returns_empty) or test(maintenance_service_confirmation_validation_and_rejection_parity)"
         ],
         "testFilter": [
           "manual_override_is_authoritative_for_closed_and_custom_windows"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "04229c19f7717df0fa1ed1ed70161f7af4ae4af9",
+        "verifiedAt": "2026-09-25T14:15:21Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -186272,20 +186272,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-calendar",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(builtin_hk_and_mainland_weekday_weekend_and_alias_boundaries_match_go) or test(market_rules_ssot_contains_all_core_markets_with_decimal_tick_sizes) or test(normalize_instrument_rejects_missing_inputs) or test(manager_lifecycle_and_market_lookup_boundaries_match_go) or test(session_context_distinguishes_hk_lunch_and_weekend) or test(manual_override_is_authoritative_for_closed_and_custom_windows) or test(manual_override_status_and_session_window_boundaries_match_go) or test(test_go_compatible_candle_conversion_and_session_classification) or test(authoritative_half_day_closes_daily_and_partial_intraday_bars) or test(session_context_handles_us_holidays_early_close_and_sunday_overnight) or test(unknown_market_probe_and_refresh_are_accepted_noops) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go) or test(refresh_uses_market_local_boundaries_and_not_current_dst_offset) or test(desktop_missing_static_assets_do_not_use_spa_fallback) or test(log_reader_matches_go_filter_paging_and_day_order) or test(log_reader_caps_page_limit_and_paginates_all_lines) or test(test_list_desktop_log_days_missing_dir_returns_empty) or test(maintenance_service_confirmation_validation_and_rejection_parity)"
         ],
         "testFilter": [
           "manual_override_status_and_session_window_boundaries_match_go"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "04229c19f7717df0fa1ed1ed70161f7af4ae4af9",
+        "verifiedAt": "2026-09-25T14:15:21Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -186334,20 +186334,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-calendar",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(builtin_hk_and_mainland_weekday_weekend_and_alias_boundaries_match_go) or test(market_rules_ssot_contains_all_core_markets_with_decimal_tick_sizes) or test(normalize_instrument_rejects_missing_inputs) or test(manager_lifecycle_and_market_lookup_boundaries_match_go) or test(session_context_distinguishes_hk_lunch_and_weekend) or test(manual_override_is_authoritative_for_closed_and_custom_windows) or test(manual_override_status_and_session_window_boundaries_match_go) or test(test_go_compatible_candle_conversion_and_session_classification) or test(authoritative_half_day_closes_daily_and_partial_intraday_bars) or test(session_context_handles_us_holidays_early_close_and_sunday_overnight) or test(unknown_market_probe_and_refresh_are_accepted_noops) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go) or test(refresh_uses_market_local_boundaries_and_not_current_dst_offset) or test(desktop_missing_static_assets_do_not_use_spa_fallback) or test(log_reader_matches_go_filter_paging_and_day_order) or test(log_reader_caps_page_limit_and_paginates_all_lines) or test(test_list_desktop_log_days_missing_dir_returns_empty) or test(maintenance_service_confirmation_validation_and_rejection_parity)"
         ],
         "testFilter": [
           "session_context_handles_us_holidays_early_close_and_sunday_overnight"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "04229c19f7717df0fa1ed1ed70161f7af4ae4af9",
+        "verifiedAt": "2026-09-25T14:15:21Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -186396,20 +186396,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-calendar",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(builtin_hk_and_mainland_weekday_weekend_and_alias_boundaries_match_go) or test(market_rules_ssot_contains_all_core_markets_with_decimal_tick_sizes) or test(normalize_instrument_rejects_missing_inputs) or test(manager_lifecycle_and_market_lookup_boundaries_match_go) or test(session_context_distinguishes_hk_lunch_and_weekend) or test(manual_override_is_authoritative_for_closed_and_custom_windows) or test(manual_override_status_and_session_window_boundaries_match_go) or test(test_go_compatible_candle_conversion_and_session_classification) or test(authoritative_half_day_closes_daily_and_partial_intraday_bars) or test(session_context_handles_us_holidays_early_close_and_sunday_overnight) or test(unknown_market_probe_and_refresh_are_accepted_noops) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go) or test(refresh_uses_market_local_boundaries_and_not_current_dst_offset) or test(desktop_missing_static_assets_do_not_use_spa_fallback) or test(log_reader_matches_go_filter_paging_and_day_order) or test(log_reader_caps_page_limit_and_paginates_all_lines) or test(test_list_desktop_log_days_missing_dir_returns_empty) or test(maintenance_service_confirmation_validation_and_rejection_parity)"
         ],
         "testFilter": [
           "manual_override_is_authoritative_for_closed_and_custom_windows"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "04229c19f7717df0fa1ed1ed70161f7af4ae4af9",
+        "verifiedAt": "2026-09-25T14:15:21Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -186458,20 +186458,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-calendar",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(builtin_hk_and_mainland_weekday_weekend_and_alias_boundaries_match_go) or test(market_rules_ssot_contains_all_core_markets_with_decimal_tick_sizes) or test(normalize_instrument_rejects_missing_inputs) or test(manager_lifecycle_and_market_lookup_boundaries_match_go) or test(session_context_distinguishes_hk_lunch_and_weekend) or test(manual_override_is_authoritative_for_closed_and_custom_windows) or test(manual_override_status_and_session_window_boundaries_match_go) or test(test_go_compatible_candle_conversion_and_session_classification) or test(authoritative_half_day_closes_daily_and_partial_intraday_bars) or test(session_context_handles_us_holidays_early_close_and_sunday_overnight) or test(unknown_market_probe_and_refresh_are_accepted_noops) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go) or test(refresh_uses_market_local_boundaries_and_not_current_dst_offset) or test(desktop_missing_static_assets_do_not_use_spa_fallback) or test(log_reader_matches_go_filter_paging_and_day_order) or test(log_reader_caps_page_limit_and_paginates_all_lines) or test(test_list_desktop_log_days_missing_dir_returns_empty) or test(maintenance_service_confirmation_validation_and_rejection_parity)"
         ],
         "testFilter": [
           "cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "04229c19f7717df0fa1ed1ed70161f7af4ae4af9",
+        "verifiedAt": "2026-09-25T14:15:21Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -186520,20 +186520,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-calendar",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(builtin_hk_and_mainland_weekday_weekend_and_alias_boundaries_match_go) or test(market_rules_ssot_contains_all_core_markets_with_decimal_tick_sizes) or test(normalize_instrument_rejects_missing_inputs) or test(manager_lifecycle_and_market_lookup_boundaries_match_go) or test(session_context_distinguishes_hk_lunch_and_weekend) or test(manual_override_is_authoritative_for_closed_and_custom_windows) or test(manual_override_status_and_session_window_boundaries_match_go) or test(test_go_compatible_candle_conversion_and_session_classification) or test(authoritative_half_day_closes_daily_and_partial_intraday_bars) or test(session_context_handles_us_holidays_early_close_and_sunday_overnight) or test(unknown_market_probe_and_refresh_are_accepted_noops) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go) or test(refresh_uses_market_local_boundaries_and_not_current_dst_offset) or test(desktop_missing_static_assets_do_not_use_spa_fallback) or test(log_reader_matches_go_filter_paging_and_day_order) or test(log_reader_caps_page_limit_and_paginates_all_lines) or test(test_list_desktop_log_days_missing_dir_returns_empty) or test(maintenance_service_confirmation_validation_and_rejection_parity)"
         ],
         "testFilter": [
           "refresh_uses_market_local_boundaries_and_not_current_dst_offset"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "04229c19f7717df0fa1ed1ed70161f7af4ae4af9",
+        "verifiedAt": "2026-09-25T14:15:21Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -186582,20 +186582,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-marketdata",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(builtin_hk_and_mainland_weekday_weekend_and_alias_boundaries_match_go) or test(market_rules_ssot_contains_all_core_markets_with_decimal_tick_sizes) or test(normalize_instrument_rejects_missing_inputs) or test(manager_lifecycle_and_market_lookup_boundaries_match_go) or test(session_context_distinguishes_hk_lunch_and_weekend) or test(manual_override_is_authoritative_for_closed_and_custom_windows) or test(manual_override_status_and_session_window_boundaries_match_go) or test(test_go_compatible_candle_conversion_and_session_classification) or test(authoritative_half_day_closes_daily_and_partial_intraday_bars) or test(session_context_handles_us_holidays_early_close_and_sunday_overnight) or test(unknown_market_probe_and_refresh_are_accepted_noops) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go) or test(refresh_uses_market_local_boundaries_and_not_current_dst_offset) or test(desktop_missing_static_assets_do_not_use_spa_fallback) or test(log_reader_matches_go_filter_paging_and_day_order) or test(log_reader_caps_page_limit_and_paginates_all_lines) or test(test_list_desktop_log_days_missing_dir_returns_empty) or test(maintenance_service_confirmation_validation_and_rejection_parity)"
         ],
         "testFilter": [
           "market_rules_ssot_contains_all_core_markets_with_decimal_tick_sizes"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "04229c19f7717df0fa1ed1ed70161f7af4ae4af9",
+        "verifiedAt": "2026-09-25T14:15:21Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -186697,20 +186697,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-marketdata",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(builtin_hk_and_mainland_weekday_weekend_and_alias_boundaries_match_go) or test(market_rules_ssot_contains_all_core_markets_with_decimal_tick_sizes) or test(normalize_instrument_rejects_missing_inputs) or test(manager_lifecycle_and_market_lookup_boundaries_match_go) or test(session_context_distinguishes_hk_lunch_and_weekend) or test(manual_override_is_authoritative_for_closed_and_custom_windows) or test(manual_override_status_and_session_window_boundaries_match_go) or test(test_go_compatible_candle_conversion_and_session_classification) or test(authoritative_half_day_closes_daily_and_partial_intraday_bars) or test(session_context_handles_us_holidays_early_close_and_sunday_overnight) or test(unknown_market_probe_and_refresh_are_accepted_noops) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go) or test(refresh_uses_market_local_boundaries_and_not_current_dst_offset) or test(desktop_missing_static_assets_do_not_use_spa_fallback) or test(log_reader_matches_go_filter_paging_and_day_order) or test(log_reader_caps_page_limit_and_paginates_all_lines) or test(test_list_desktop_log_days_missing_dir_returns_empty) or test(maintenance_service_confirmation_validation_and_rejection_parity)"
         ],
         "testFilter": [
           "market_rules_ssot_contains_all_core_markets_with_decimal_tick_sizes"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "04229c19f7717df0fa1ed1ed70161f7af4ae4af9",
+        "verifiedAt": "2026-09-25T14:15:21Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -186812,20 +186812,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-marketdata",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(builtin_hk_and_mainland_weekday_weekend_and_alias_boundaries_match_go) or test(market_rules_ssot_contains_all_core_markets_with_decimal_tick_sizes) or test(normalize_instrument_rejects_missing_inputs) or test(manager_lifecycle_and_market_lookup_boundaries_match_go) or test(session_context_distinguishes_hk_lunch_and_weekend) or test(manual_override_is_authoritative_for_closed_and_custom_windows) or test(manual_override_status_and_session_window_boundaries_match_go) or test(test_go_compatible_candle_conversion_and_session_classification) or test(authoritative_half_day_closes_daily_and_partial_intraday_bars) or test(session_context_handles_us_holidays_early_close_and_sunday_overnight) or test(unknown_market_probe_and_refresh_are_accepted_noops) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go) or test(refresh_uses_market_local_boundaries_and_not_current_dst_offset) or test(desktop_missing_static_assets_do_not_use_spa_fallback) or test(log_reader_matches_go_filter_paging_and_day_order) or test(log_reader_caps_page_limit_and_paginates_all_lines) or test(test_list_desktop_log_days_missing_dir_returns_empty) or test(maintenance_service_confirmation_validation_and_rejection_parity)"
         ],
         "testFilter": [
           "market_rules_ssot_contains_all_core_markets_with_decimal_tick_sizes"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "04229c19f7717df0fa1ed1ed70161f7af4ae4af9",
+        "verifiedAt": "2026-09-25T14:15:21Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -193051,21 +193051,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-api",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(desktop_missing_static_assets_do_not_use_spa_fallback)",
-          "--locked"
+          "test(builtin_hk_and_mainland_weekday_weekend_and_alias_boundaries_match_go) or test(market_rules_ssot_contains_all_core_markets_with_decimal_tick_sizes) or test(normalize_instrument_rejects_missing_inputs) or test(manager_lifecycle_and_market_lookup_boundaries_match_go) or test(session_context_distinguishes_hk_lunch_and_weekend) or test(manual_override_is_authoritative_for_closed_and_custom_windows) or test(manual_override_status_and_session_window_boundaries_match_go) or test(test_go_compatible_candle_conversion_and_session_classification) or test(authoritative_half_day_closes_daily_and_partial_intraday_bars) or test(session_context_handles_us_holidays_early_close_and_sunday_overnight) or test(unknown_market_probe_and_refresh_are_accepted_noops) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go) or test(refresh_uses_market_local_boundaries_and_not_current_dst_offset) or test(desktop_missing_static_assets_do_not_use_spa_fallback) or test(log_reader_matches_go_filter_paging_and_day_order) or test(log_reader_caps_page_limit_and_paginates_all_lines) or test(test_list_desktop_log_days_missing_dir_returns_empty) or test(maintenance_service_confirmation_validation_and_rejection_parity)"
         ],
         "testFilter": [
           "desktop_missing_static_assets_do_not_use_spa_fallback"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "04229c19f7717df0fa1ed1ed70161f7af4ae4af9",
+        "verifiedAt": "2026-09-25T14:15:21Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -193783,21 +193782,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-desktop",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(log_reader_matches_go_filter_paging_and_day_order)",
-          "--locked"
+          "test(builtin_hk_and_mainland_weekday_weekend_and_alias_boundaries_match_go) or test(market_rules_ssot_contains_all_core_markets_with_decimal_tick_sizes) or test(normalize_instrument_rejects_missing_inputs) or test(manager_lifecycle_and_market_lookup_boundaries_match_go) or test(session_context_distinguishes_hk_lunch_and_weekend) or test(manual_override_is_authoritative_for_closed_and_custom_windows) or test(manual_override_status_and_session_window_boundaries_match_go) or test(test_go_compatible_candle_conversion_and_session_classification) or test(authoritative_half_day_closes_daily_and_partial_intraday_bars) or test(session_context_handles_us_holidays_early_close_and_sunday_overnight) or test(unknown_market_probe_and_refresh_are_accepted_noops) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go) or test(refresh_uses_market_local_boundaries_and_not_current_dst_offset) or test(desktop_missing_static_assets_do_not_use_spa_fallback) or test(log_reader_matches_go_filter_paging_and_day_order) or test(log_reader_caps_page_limit_and_paginates_all_lines) or test(test_list_desktop_log_days_missing_dir_returns_empty) or test(maintenance_service_confirmation_validation_and_rejection_parity)"
         ],
         "testFilter": [
           "log_reader_matches_go_filter_paging_and_day_order"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "04229c19f7717df0fa1ed1ed70161f7af4ae4af9",
+        "verifiedAt": "2026-09-25T14:15:21Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -193862,11 +193860,10 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-desktop",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(log_reader_caps_page_limit_and_paginates_all_lines)",
-          "--locked"
+          "test(builtin_hk_and_mainland_weekday_weekend_and_alias_boundaries_match_go) or test(market_rules_ssot_contains_all_core_markets_with_decimal_tick_sizes) or test(normalize_instrument_rejects_missing_inputs) or test(manager_lifecycle_and_market_lookup_boundaries_match_go) or test(session_context_distinguishes_hk_lunch_and_weekend) or test(manual_override_is_authoritative_for_closed_and_custom_windows) or test(manual_override_status_and_session_window_boundaries_match_go) or test(test_go_compatible_candle_conversion_and_session_classification) or test(authoritative_half_day_closes_daily_and_partial_intraday_bars) or test(session_context_handles_us_holidays_early_close_and_sunday_overnight) or test(unknown_market_probe_and_refresh_are_accepted_noops) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go) or test(refresh_uses_market_local_boundaries_and_not_current_dst_offset) or test(desktop_missing_static_assets_do_not_use_spa_fallback) or test(log_reader_matches_go_filter_paging_and_day_order) or test(log_reader_caps_page_limit_and_paginates_all_lines) or test(test_list_desktop_log_days_missing_dir_returns_empty) or test(maintenance_service_confirmation_validation_and_rejection_parity)"
         ],
         "testFilter": [
           "log_reader_matches_go_filter_paging_and_day_order",
@@ -193874,10 +193871,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "04229c19f7717df0fa1ed1ed70161f7af4ae4af9",
+        "verifiedAt": "2026-09-25T14:15:21Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -193931,21 +193928,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-desktop",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(log_reader_matches_go_filter_paging_and_day_order)",
-          "--locked"
+          "test(builtin_hk_and_mainland_weekday_weekend_and_alias_boundaries_match_go) or test(market_rules_ssot_contains_all_core_markets_with_decimal_tick_sizes) or test(normalize_instrument_rejects_missing_inputs) or test(manager_lifecycle_and_market_lookup_boundaries_match_go) or test(session_context_distinguishes_hk_lunch_and_weekend) or test(manual_override_is_authoritative_for_closed_and_custom_windows) or test(manual_override_status_and_session_window_boundaries_match_go) or test(test_go_compatible_candle_conversion_and_session_classification) or test(authoritative_half_day_closes_daily_and_partial_intraday_bars) or test(session_context_handles_us_holidays_early_close_and_sunday_overnight) or test(unknown_market_probe_and_refresh_are_accepted_noops) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go) or test(refresh_uses_market_local_boundaries_and_not_current_dst_offset) or test(desktop_missing_static_assets_do_not_use_spa_fallback) or test(log_reader_matches_go_filter_paging_and_day_order) or test(log_reader_caps_page_limit_and_paginates_all_lines) or test(test_list_desktop_log_days_missing_dir_returns_empty) or test(maintenance_service_confirmation_validation_and_rejection_parity)"
         ],
         "testFilter": [
           "log_reader_matches_go_filter_paging_and_day_order"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "04229c19f7717df0fa1ed1ed70161f7af4ae4af9",
+        "verifiedAt": "2026-09-25T14:15:21Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -193999,21 +193995,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-desktop",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(log_reader_matches_go_filter_paging_and_day_order)",
-          "--locked"
+          "test(builtin_hk_and_mainland_weekday_weekend_and_alias_boundaries_match_go) or test(market_rules_ssot_contains_all_core_markets_with_decimal_tick_sizes) or test(normalize_instrument_rejects_missing_inputs) or test(manager_lifecycle_and_market_lookup_boundaries_match_go) or test(session_context_distinguishes_hk_lunch_and_weekend) or test(manual_override_is_authoritative_for_closed_and_custom_windows) or test(manual_override_status_and_session_window_boundaries_match_go) or test(test_go_compatible_candle_conversion_and_session_classification) or test(authoritative_half_day_closes_daily_and_partial_intraday_bars) or test(session_context_handles_us_holidays_early_close_and_sunday_overnight) or test(unknown_market_probe_and_refresh_are_accepted_noops) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go) or test(refresh_uses_market_local_boundaries_and_not_current_dst_offset) or test(desktop_missing_static_assets_do_not_use_spa_fallback) or test(log_reader_matches_go_filter_paging_and_day_order) or test(log_reader_caps_page_limit_and_paginates_all_lines) or test(test_list_desktop_log_days_missing_dir_returns_empty) or test(maintenance_service_confirmation_validation_and_rejection_parity)"
         ],
         "testFilter": [
           "log_reader_matches_go_filter_paging_and_day_order"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "04229c19f7717df0fa1ed1ed70161f7af4ae4af9",
+        "verifiedAt": "2026-09-25T14:15:21Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -194067,21 +194062,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-desktop",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(test_list_desktop_log_days_missing_dir_returns_empty)",
-          "--locked"
+          "test(builtin_hk_and_mainland_weekday_weekend_and_alias_boundaries_match_go) or test(market_rules_ssot_contains_all_core_markets_with_decimal_tick_sizes) or test(normalize_instrument_rejects_missing_inputs) or test(manager_lifecycle_and_market_lookup_boundaries_match_go) or test(session_context_distinguishes_hk_lunch_and_weekend) or test(manual_override_is_authoritative_for_closed_and_custom_windows) or test(manual_override_status_and_session_window_boundaries_match_go) or test(test_go_compatible_candle_conversion_and_session_classification) or test(authoritative_half_day_closes_daily_and_partial_intraday_bars) or test(session_context_handles_us_holidays_early_close_and_sunday_overnight) or test(unknown_market_probe_and_refresh_are_accepted_noops) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go) or test(refresh_uses_market_local_boundaries_and_not_current_dst_offset) or test(desktop_missing_static_assets_do_not_use_spa_fallback) or test(log_reader_matches_go_filter_paging_and_day_order) or test(log_reader_caps_page_limit_and_paginates_all_lines) or test(test_list_desktop_log_days_missing_dir_returns_empty) or test(maintenance_service_confirmation_validation_and_rejection_parity)"
         ],
         "testFilter": [
           "test_list_desktop_log_days_missing_dir_returns_empty"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "04229c19f7717df0fa1ed1ed70161f7af4ae4af9",
+        "verifiedAt": "2026-09-25T14:15:21Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -194425,20 +194419,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-datamanagement",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(builtin_hk_and_mainland_weekday_weekend_and_alias_boundaries_match_go) or test(market_rules_ssot_contains_all_core_markets_with_decimal_tick_sizes) or test(normalize_instrument_rejects_missing_inputs) or test(manager_lifecycle_and_market_lookup_boundaries_match_go) or test(session_context_distinguishes_hk_lunch_and_weekend) or test(manual_override_is_authoritative_for_closed_and_custom_windows) or test(manual_override_status_and_session_window_boundaries_match_go) or test(test_go_compatible_candle_conversion_and_session_classification) or test(authoritative_half_day_closes_daily_and_partial_intraday_bars) or test(session_context_handles_us_holidays_early_close_and_sunday_overnight) or test(unknown_market_probe_and_refresh_are_accepted_noops) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go) or test(refresh_uses_market_local_boundaries_and_not_current_dst_offset) or test(desktop_missing_static_assets_do_not_use_spa_fallback) or test(log_reader_matches_go_filter_paging_and_day_order) or test(log_reader_caps_page_limit_and_paginates_all_lines) or test(test_list_desktop_log_days_missing_dir_returns_empty) or test(maintenance_service_confirmation_validation_and_rejection_parity)"
         ],
         "testFilter": [
           "maintenance_service_confirmation_validation_and_rejection_parity"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "04229c19f7717df0fa1ed1ed70161f7af4ae4af9",
+        "verifiedAt": "2026-09-25T14:15:21Z",
         "receiptDigest": null
       },
       "risk": "high",
