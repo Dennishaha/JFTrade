@@ -5,7 +5,7 @@ use serde_json::{Value, json};
 use tempfile::tempdir;
 
 use super::super::product_system_write_port::{
-    SystemWriteInput, SystemWritePort, SystemWritePortError,
+    SystemWriteInput, SystemWriteOperation, SystemWritePort, SystemWritePortError,
 };
 use super::*;
 
@@ -278,6 +278,14 @@ async fn system_write_product_replays_browser_boundary_failure_recovery_and_rest
     assert_eq!(duplicate.0, 200);
     let calls = port.calls();
     assert_eq!(calls.len(), 10);
+    assert_eq!(
+        calls
+            .iter()
+            .filter(|call| call.operation == SystemWriteOperation::ManualRetry)
+            .count(),
+        1,
+        "manual-retry reset must be invoked exactly once"
+    );
     assert_eq!(calls[0].operation.name(), "activate-kill-switch");
     assert_eq!(calls[1].operation.name(), "activate-kill-switch");
     assert_eq!(calls[9].operation.name(), "activate-kill-switch");

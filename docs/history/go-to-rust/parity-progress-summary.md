@@ -30,6 +30,8 @@
 - `internal/api/live/dispatcher_boundaries_test.go:205:TestDispatcherEnvelopeDefaultsAndMapFallback` 已逐项核对；保持 `partial`，Rust SSE frame 证据 1/1 通过。dispatcher envelope 缺省字段与 mapString fallback 是 Go helper seam，未把 frame 形状聚合测试升级为 exact。
 - `internal/api/marketdata/routes_test.go:147:TestExplicitBrokerRoutesUseBrokerReaderAndNeverLegacyFallback` 已逐项核对；保持 `partial`，Rust 显式 broker 证据 2/2 通过。Rust active-provider owner 与 Go 独立 broker reader 调用列表不同，按架构边界保留四路序列差异。
 - `internal/api/settings/routes_market_data_test.go:63:TestBacktestMarketDataSettingsRoutesExposeCatalogAndRollbackPreparationFailure` 已逐项核对；保持 `partial`，Rust engine/settings 证据 3/3 通过。provider catalog、prepare-before-persist 与旧值保持已有 owner 断言，HTTP 409 envelope/GET 回读仍是跨 owner 聚合差异。
+- `internal/api/system/routes_test.go:61:TestSystemManualRetryRouteCallsReset` 已逐项读取 Go 断言并补 Rust 专用回归；升级为 `function_exact`，精准 nextest 4/4 通过。Rust 明确断言 manual-retry 返回 accepted=true 且 SystemWritePort 的 ManualRetry operation 只调用一次。
+- 本批门禁：受影响 `check:quick` 与完整 `check:rust` 均被既有 `product_api_launcher_lifecycle` sidecar 退出码 `None`/`Some(0)` 间歇性断言打断；两个失败用例随后以 nextest `--retries 2` 复核均通过。该 flaky 只涉及 launcher 生命周期，不涉及本批 system-write 变更。
 - resolver limit 差异已在 `crates/jftrade-engine/src/product_production_ports_market_data_catalog_futu.rs` 修复：避免 provider 在 CN/SH/SZ 过滤前按公开 limit 截断候选；TTL/singleflight 仍保留为架构边界，不宣称等价。
 - 近期真正修改过 Rust 生产代码的批次包括：交易默认市场注入、下单前名义金额回退、市日边界、策略运行时及若干行情/路由边界；这些改动均配有回归测试或兼容性证据。
 - 最近的 strategy/API 批次主要是证据审查和文档落账，没有新增 Rust 生产代码，必须与“功能已完成”分开看待。
@@ -43,7 +45,7 @@
 
 ## 调度收敛规则
 
-- 当前只保留一个持续队列上下文；本批完成后下一片按 P1 处理 `internal/api/system/routes_test.go:61:TestSystemManualRetryRouteCallsReset`，继续核对 system retry owner 与错误边界。
+- 当前只保留一个持续队列上下文；本批完成后下一片按 P1 处理 `internal/api/system/routes_test.go:77:TestExchangeCalendarRefreshRouteCallsRefresh`，继续核对 calendar refresh owner 与市场参数透传。
 - 不创建子任务、不创建第二个 heartbeat、不重复复核已经完成的切片。
 - 每批先读 Go 实现和 Rust owner；只有发现真实行为差异才先写失败回归测试并修改生产代码。
 - 仅证据不足时维持 `partial` 或 `boundary`，不得为了提高数字升级为 `function_exact`。
@@ -52,6 +54,8 @@
 ## 最近提交
 
 - 当前批次：subscriptions 与 quote availability 6 条测试逐项复核，补 authoritative quote 缺失字段与 legacy zero projection 回归测试。
+- `b83b57d4`：marketdata provider settings 路由 catalog、失败回滚与成功写入逐项核对，保持 partial。
+- 当前批次：system manual-retry 路由补一次调用回归并升级为 function_exact。
 - `00f89290`：marketdata façade 剩余 34 条逐项复核，补 helper provider polling mode owner 回归测试并修复状态投影。
 - `47bf7b1a`：注入配置的默认交易市场并补交易读取测试。
 - `917d1534`：API transport P1 partial 第 1–30 条核对。

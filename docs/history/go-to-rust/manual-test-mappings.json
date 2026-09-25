@@ -19535,11 +19535,11 @@
       "boundaryReason": null
     },
     "internal/api/system/routes_test.go:61:TestSystemManualRetryRouteCallsReset": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/tests/system_write_compatibility.rs::system_write_port_unavailable_maps_to_fail_closed_503",
-      "conclusion": "partial：Go 断言手动重试路由调用 reset 回调。Rust 语料含 manual-retry-success 并断言 wire 响应，端口不可用映射 503 由引用用例覆盖；reset 回调副作用（调用次数/参数）无断言。缺口 owner：crates/jftrade-engine Futu/OpenD 控制端口；回归要求：补“manual-retry → reset 被调用一次”断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-      "evidence_type": "partial",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-engine/tests/system_write_compatibility.rs::system_write_manual_retry_invokes_port_once",
+      "conclusion": "function_exact：Go 断言 POST /api/v1/system/futu-opend/manual-retry 返回 200、accepted=true，且注入的 reset 回调被调用一次。Rust 专用回归测试直接走 system-write dispatcher，断言相同路径返回 200/accepted=true，且 SystemWritePort 收到且只收到一次 ManualRetry operation；同批路由产品回归还覆盖浏览器边界与失败后恢复。",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E test(system_write_manual_retry_invokes_port_once) or test(system_write_port_unavailable_maps_to_fail_closed_503) or test(system_write_fixture_replays_go_wire_for_all_seven_routes) or test(system_write_product_replays_browser_boundary_failure_recovery_and_restart)",
+      "evidence_type": "function_exact",
       "source": {
         "file": "internal/api/system/routes_test.go",
         "line": 61,
@@ -19549,17 +19549,22 @@
       "rustEvidence": [
         {
           "file": "crates/jftrade-engine/tests/system_write_compatibility.rs",
-          "test": "system_write_port_unavailable_maps_to_fail_closed_503",
+          "test": "system_write_manual_retry_invokes_port_once",
           "crate": "jftrade-engine",
-          "anchor": null
+          "anchor": {
+            "goFile": "internal/api/system/routes_test.go",
+            "goLine": 61,
+            "rustFile": "crates/jftrade-engine/tests/system_write_compatibility.rs",
+            "rustLine": 268
+          }
         }
       ],
       "assertionCoverage": {
-        "covered": [],
-        "uncovered": [
-          "partial：Go 断言手动重试路由调用 reset 回调。Rust 语料含 manual-retry-success 并断言 wire 响应，端口不可用映射 503 由引用用例覆盖；reset 回调副作用（调用次数/参数）无断言。缺口 owner：crates/jftrade-engine Futu/OpenD 控制端口；回归要求：补“manual-retry → reset 被调用一次”断言。"
+        "covered": [
+          "function_exact：Go 的 HTTP 成功响应、accepted=true 与 reset 回调一次调用均由 system_write_manual_retry_invokes_port_once 逐项断言；Rust 将回调折叠为 SystemWritePort::ManualRetry operation，其调用次数和 operation 名称与 Go reset 委派等价。"
         ],
-        "source": "legacy-conclusion"
+        "uncovered": [],
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -19569,31 +19574,34 @@
           "-p",
           "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(system_write_manual_retry_invokes_port_once) or test(system_write_port_unavailable_maps_to_fail_closed_503) or test(system_write_fixture_replays_go_wire_for_all_seven_routes) or test(system_write_product_replays_browser_boundary_failure_recovery_and_restart)"
         ],
         "testFilter": [
-          "system_write_port_unavailable_maps_to_fail_closed_503"
+          "system_write_manual_retry_invokes_port_once",
+          "system_write_port_unavailable_maps_to_fail_closed_503",
+          "system_write_fixture_replays_go_wire_for_all_seven_routes",
+          "system_write_product_replays_browser_boundary_failure_recovery_and_restart"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
+        "status": "passed",
+        "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": null,
+        "verifiedAt": "2026-09-25T03:53:39Z",
         "receiptDigest": null
       },
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "continue_p1",
+      "blockedBy": [],
       "waiverExpiresAt": null,
-      "coveredAssertions": [],
-      "uncoveredAssertions": [
-        "partial：Go 断言手动重试路由调用 reset 回调。Rust 语料含 manual-retry-success 并断言 wire 响应，端口不可用映射 503 由引用用例覆盖；reset 回调副作用（调用次数/参数）无断言。缺口 owner：crates/jftrade-engine Futu/OpenD 控制端口；回归要求：补“manual-retry → reset 被调用一次”断言。"
+      "coveredAssertions": [
+        "function_exact：Go 的 HTTP 成功响应、accepted=true 与 reset 回调一次调用均由 system_write_manual_retry_invokes_port_once 逐项断言；Rust 将回调折叠为 SystemWritePort::ManualRetry operation，其调用次数和 operation 名称与 Go reset 委派等价。"
       ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/api/system/routes_test.go:77:TestExchangeCalendarRefreshRouteCallsRefresh": {
@@ -303073,7 +303081,7 @@
       "allowed": false,
       "reviewStatus": "unreviewed"
     },
-    "crates/jftrade-engine/tests/system_write_compatibility.rs::system_write_port_unavailable_maps_to_fail_closed_503": {
+    "crates/jftrade-engine/tests/system_write_compatibility.rs::system_write_manual_retry_invokes_port_once": {
       "referenceCount": 1,
       "referenceKeys": [
         "internal/api/system/routes_test.go:61:TestSystemManualRetryRouteCallsReset"

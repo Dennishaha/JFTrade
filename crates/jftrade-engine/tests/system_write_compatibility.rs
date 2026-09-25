@@ -265,6 +265,26 @@ fn system_write_port_unavailable_maps_to_fail_closed_503() {
     assert_eq!(response.body["error"]["code"], "SYSTEM_WRITE_UNAVAILABLE");
 }
 
+// Parity: go:452dea11:internal/api/system/routes_test.go:61 TestSystemManualRetryRouteCallsReset
+#[test]
+fn system_write_manual_retry_invokes_port_once() {
+    let port = FixturePort {
+        responses: Mutex::new(VecDeque::from([Ok(json!({"accepted": true}))])),
+        calls: Mutex::new(Vec::new()),
+    };
+    let request = SystemWriteRequest {
+        method: "POST".to_owned(),
+        path: "/api/v1/system/futu-opend/manual-retry".to_owned(),
+        body: Vec::new(),
+    };
+    let response = dispatch_system_write(&request, Some(&port), FIXTURE_TIMESTAMP);
+    assert_eq!(response.status, 200);
+    assert_eq!(response.body["data"]["accepted"], true);
+    let calls = port.calls();
+    assert_eq!(calls.len(), 1);
+    assert_eq!(calls[0].operation, SystemWriteOperation::ManualRetry);
+}
+
 #[derive(Debug)]
 struct UnavailablePort;
 
