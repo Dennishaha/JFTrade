@@ -350,6 +350,96 @@ fn a_tool_round_projects_the_pre_tool_reply_and_session_timeline() {
     assert_eq!(timeline[1]["id"], response["run"]["finalMessageId"]);
 }
 
+/// Go's `publishFinal` strips tool outputs from the terminal SSE response while
+/// retaining the durable tool activity on the run.  The stream projection must
+/// keep that transport boundary so reconnect replay does not expose the raw
+/// tool payload.
+/// Parity: go:452dea11:internal/api/assistant/chat_helpers_test.go:167 TestChatStreamExecutionPublishesDeltaAndFinalVariants
+#[test]
+fn stream_terminal_projection_trims_tool_outputs_from_final_response() {
+    let (directory, store, session_store) = initialized_stores();
+    let runtime = runtime_for(&directory, &store, &session_store);
+    store
+        .create_run(CreateAdkRunParams {
+            id: "run-stream-trim-tool-output",
+            session_id: "session-run-stream-trim-tool-output",
+            agent_id: "agent-projection",
+            status: "RUNNING",
+            client_request_id: "request-stream-trim-tool-output",
+            request_fingerprint: "fingerprint-stream-trim-tool-output",
+            payload_json: &json!({
+                "id": "run-stream-trim-tool-output",
+                "sessionId": "session-run-stream-trim-tool-output",
+                "agentId": "agent-projection",
+                "status": "RUNNING",
+                "route": "stream",
+                "streamId": "run-stream-trim-tool-output",
+                "streamEvents": [],
+                "toolCalls": [{
+                    "id": "tool-1",
+                    "toolName": "strategy.optimize",
+                    "status": "SUCCEEDED",
+                    "output": {"taskId": "opt-1", "status": "started"}
+                }],
+                "pendingApprovals": []
+            })
+            .to_string(),
+        })
+        .expect("create stream run");
+    record_user_message(&session_store, "run-stream-trim-tool-output");
+    let lease = RunLeaseGuard::acquire(
+        Arc::clone(&store),
+        "run-stream-trim-tool-output",
+        "owner-stream-trim-tool-output",
+    )
+    .expect("acquire run lease");
+    let mut chat = chat_for(
+        "run-stream-trim-tool-output",
+        "http://127.0.0.1:1/v1/responses",
+    );
+    chat.route = AdkChatRoute::Stream;
+
+    let response = runtime
+        .persist_success(
+            &chat,
+            ModelResponse {
+                text: "done".to_owned(),
+                tool_calls: Vec::new(),
+            },
+            &lease,
+        )
+        .expect("persist stream success");
+
+    assert_eq!(
+        response["run"]["toolCalls"][0]["output"],
+        json!({"taskId": "opt-1", "status": "started"}),
+        "the returned run keeps durable tool activity"
+    );
+    let stored = store
+        .get_run("run-stream-trim-tool-output")
+        .expect("read stream run")
+        .expect("stream run row");
+    let payload: Value = serde_json::from_str(&stored.payload_json).expect("decode stream payload");
+    assert_eq!(
+        payload["response"]["run"]["toolCalls"][0].get("output"),
+        None,
+        "the stream final response must trim tool output"
+    );
+    assert_eq!(
+        payload["toolCalls"][0]["output"],
+        json!({"taskId": "opt-1", "status": "started"}),
+        "durable run activity keeps the tool output"
+    );
+    assert_eq!(
+        payload["streamEvents"]
+            .as_array()
+            .and_then(|events| events.last())
+            .and_then(|event| event.get("type")),
+        Some(&json!("final")),
+        "stream success stores a terminal final event"
+    );
+}
+
 /// The assistant text that introduced a tool call is captured once, when the
 /// call is staged, and a later round never overwrites it.
 ///

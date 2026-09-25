@@ -3253,9 +3253,9 @@
     },
     "internal/api/assistant/chat_helpers_test.go:167:TestChatStreamExecutionPublishesDeltaAndFinalVariants": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart（终帧保留与重放）；crates/jftrade-engine/src/product_adk_model_runtime_recovery_tests.rs::persisted_terminal_run_is_published_as_final_instead_of_a_second_error（终态只出 final）",
-      "conclusion": "partial：已覆盖终帧保留/重放与终态只产生一个 final（不伪造第二个 error）。缺口：参考实现 Hub 侧的 delta 分类（空 delta 不消费、仅 timeline 才算 timeline-only、混合不算、仅 run 才算 run delta）与 publishFinal 对 toolCalls[].output 的裁剪在 Rust 无对应断言——Rust 终帧直接回放持久化 response，未发现裁剪逻辑。修复位置：crates/jftrade-engine/src/product_adk_model_runtime_stream.rs（终帧投影）与 product_adk_model_runtime_events.rs（delta 投影）。回归要求：新增断言 final 帧 response.run.toolCalls[].output 为空（或明确记录不裁剪的产品决策），并为 delta 分类补表驱动用例。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart) or test(persisted_terminal_run_is_published_as_final_instead_of_a_second_error)'",
+      "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_run_projection_tests.rs::stream_terminal_projection_trims_tool_outputs_from_final_response（Stream 终帧裁剪）；crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart（终帧保留与重放）；crates/jftrade-engine/src/product_adk_model_runtime_recovery_tests.rs::persisted_terminal_run_is_published_as_final_instead_of_a_second_error（终态只出 final）",
+      "conclusion": "partial：Rust 已覆盖终帧保留/重放、终态只产生一个 final（不伪造第二个 error），并新增 Stream route 回归：final response 中移除 toolCalls[].output，同时保留 durable run 的完整 tool activity。Go Hub 侧 delta 分类（空 delta 不消费、仅 timeline 才算 timeline-only、混合不算、仅 run 才算 run delta）仍是进程内 helper；Rust provider delta 直接进入 durable stream event，未建立同形内存分类测试，保持 partial。",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(stream_terminal_projection_trims_tool_outputs_from_final_response) or test(adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart) or test(persisted_terminal_run_is_published_as_final_instead_of_a_second_error) or test(production_live_chat_stream_emits_session_run_and_final_events)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/api/assistant/chat_helpers_test.go",
@@ -3264,6 +3264,17 @@
         "blobSha": "e88d562eb812486ad0dd14161347727b1eb845ba"
       },
       "rustEvidence": [
+        {
+          "file": "crates/jftrade-engine/src/product_adk_model_runtime_run_projection_tests.rs",
+          "test": "stream_terminal_projection_trims_tool_outputs_from_final_response",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/api/assistant/chat_helpers_test.go",
+            "goLine": 167,
+            "rustFile": "crates/jftrade-engine/src/product_adk_model_runtime_run_projection_tests.rs",
+            "rustLine": 357
+          }
+        },
         {
           "file": "crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs",
           "test": "adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart",
@@ -3278,9 +3289,12 @@
         }
       ],
       "assertionCoverage": {
-        "covered": [],
+        "covered": [
+          "Rust durable stream replay 保留终帧，终态恢复只产生一个 final 且不伪造第二个 error。",
+          "Stream 终帧 response.run.toolCalls[].output 被移除，durable payload.toolCalls 仍保留完整 output。"
+        ],
         "uncovered": [
-          "partial：已覆盖终帧保留/重放与终态只产生一个 final（不伪造第二个 error）。缺口：参考实现 Hub 侧的 delta 分类（空 delta 不消费、仅 timeline 才算 timeline-only、混合不算、仅 run 才算 run delta）与 publishFinal 对 toolCalls[].output 的裁剪在 Rust 无对应断言——Rust 终帧直接回放持久化 response，未发现裁剪逻辑。修复位置：crates/jftrade-engine/src/product_adk_model_runtime_stream.rs（终帧投影）与 product_adk_model_runtime_events.rs（delta 投影）。回归要求：新增断言 final 帧 response.run.toolCalls[].output 为空（或明确记录不裁剪的产品决策），并为 delta 分类补表驱动用例。"
+          "Go adkChatStreamExecution.handleDelta 的空/timeline-only/mixed/run-only 分类与 publishNarrativeDeltas 的进程内 clone 行为没有 Rust 同形 helper；Rust 采用 provider delta 直接写入 durable stream event，继续保持 partial。"
         ],
         "source": "legacy-conclusion"
       },
@@ -3294,18 +3308,20 @@
           "--all-targets",
           "--locked",
           "-E",
-          "test(adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart) or test(persisted_terminal_run_is_published_as_final_instead_of_a_second_error)"
+          "test(stream_terminal_projection_trims_tool_outputs_from_final_response) or test(adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart) or test(persisted_terminal_run_is_published_as_final_instead_of_a_second_error) or test(production_live_chat_stream_emits_session_run_and_final_events)"
         ],
         "testFilter": [
+          "stream_terminal_projection_trims_tool_outputs_from_final_response",
           "adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart",
-          "persisted_terminal_run_is_published_as_final_instead_of_a_second_error"
+          "persisted_terminal_run_is_published_as_final_instead_of_a_second_error",
+          "production_live_chat_stream_emits_session_run_and_final_events"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
+        "status": "passed",
+        "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": null,
+        "verifiedAt": "2026-09-25T05:37:41Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -3316,17 +3332,20 @@
         "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [],
+      "coveredAssertions": [
+        "Rust durable stream replay 保留终帧，终态恢复只产生一个 final 且不伪造第二个 error。",
+        "Stream 终帧 response.run.toolCalls[].output 被移除，durable payload.toolCalls 仍保留完整 output。"
+      ],
       "uncoveredAssertions": [
-        "partial：已覆盖终帧保留/重放与终态只产生一个 final（不伪造第二个 error）。缺口：参考实现 Hub 侧的 delta 分类（空 delta 不消费、仅 timeline 才算 timeline-only、混合不算、仅 run 才算 run delta）与 publishFinal 对 toolCalls[].output 的裁剪在 Rust 无对应断言——Rust 终帧直接回放持久化 response，未发现裁剪逻辑。修复位置：crates/jftrade-engine/src/product_adk_model_runtime_stream.rs（终帧投影）与 product_adk_model_runtime_events.rs（delta 投影）。回归要求：新增断言 final 帧 response.run.toolCalls[].output 为空（或明确记录不裁剪的产品决策），并为 delta 分类补表驱动用例。"
+        "Go adkChatStreamExecution.handleDelta 的空/timeline-only/mixed/run-only 分类与 publishNarrativeDeltas 的进程内 clone 行为没有 Rust 同形 helper；Rust 采用 provider delta 直接写入 durable stream event，继续保持 partial。"
       ],
       "boundaryReason": null
     },
     "internal/api/assistant/chat_helpers_test.go:216:TestExecuteADKChatStreamPublishesTerminalErrorForInvalidRequest": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/tests/adk_chat_stream_compatibility.rs::adk_chat_stream_replays_go_wire_fixture_for_leaf_owned_cases；crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::adk_chat_stream_routes_are_isolated_without_port",
-      "conclusion": "partial：已覆盖非法 JSON 的终局 error 帧（fixture 逐帧）与缺端口 fail-closed。缺口：Go 同用例还断言 previewSession 语义——有效 session 的 ensureSessionAndContext 置 sessionSent，以及未知 agent 的 preview 不产生任何帧；Rust 的 preview session 先于 run 断言挂在另一参考用例（routes_test.go:265）名下，missing-agent preview 零帧在 Rust 无对应断言。回归：在 stream 产品测试补 missing-agent preview 行为断言，或确认为 fail-closed 产品决策。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --test adk_chat_stream_compatibility --locked",
+      "rust_entry": "crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::production_stream_missing_agent_emits_no_preview_frames（未知 agent 无 preview）；crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::production_live_chat_stream_emits_session_before_run_and_terminal_frame（有效 session preview 顺序）；crates/jftrade-engine/tests/adk_chat_stream_compatibility.rs::adk_chat_stream_replays_go_wire_fixture_for_leaf_owned_cases（非法 JSON error）",
+      "conclusion": "partial：Rust 已覆盖非法 JSON 的终局 error 帧、有效 agent 的 preview session→run 顺序，以及未知 agent fail-closed 时不发 session/run 预览帧。Go helper 内部的 `sessionSent` 布尔状态与 previewExecution 的进程内对象生命周期没有 Rust 同形状态，属于 transport owner 边界，保持 partial。",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(production_stream_missing_agent_emits_no_preview_frames) or test(production_live_chat_stream_emits_session_before_run_and_terminal_frame) or test(adk_chat_stream_replays_go_wire_fixture_for_leaf_owned_cases)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/api/assistant/chat_helpers_test.go",
@@ -3335,6 +3354,17 @@
         "blobSha": "e88d562eb812486ad0dd14161347727b1eb845ba"
       },
       "rustEvidence": [
+        {
+          "file": "crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs",
+          "test": "production_stream_missing_agent_emits_no_preview_frames",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/api/assistant/chat_helpers_test.go",
+            "goLine": 216,
+            "rustFile": "crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs",
+            "rustLine": 1649
+          }
+        },
         {
           "file": "crates/jftrade-engine/tests/adk_chat_stream_compatibility.rs",
           "test": "adk_chat_stream_replays_go_wire_fixture_for_leaf_owned_cases",
@@ -3354,9 +3384,12 @@
         }
       ],
       "assertionCoverage": {
-        "covered": [],
+        "covered": [
+          "非法 JSON 请求返回终局 error 帧。",
+          "有效 agent 的 live stream 先发 session 再发 run；未知 agent fail-closed 且不发 session/run preview 帧。"
+        ],
         "uncovered": [
-          "partial：已覆盖非法 JSON 的终局 error 帧（fixture 逐帧）与缺端口 fail-closed。缺口：Go 同用例还断言 previewSession 语义——有效 session 的 ensureSessionAndContext 置 sessionSent，以及未知 agent 的 preview 不产生任何帧；Rust 的 preview session 先于 run 断言挂在另一参考用例（routes_test.go:265）名下，missing-agent preview 零帧在 Rust 无对应断言。回归：在 stream 产品测试补 missing-agent preview 行为断言，或确认为 fail-closed 产品决策。"
+          "Go previewExecution.sessionSent 进程内布尔字段及 ensureSessionAndContext 的对象生命周期没有 Rust 同形状态；Rust 以 durable session/frame 顺序表达公开契约。"
         ],
         "source": "legacy-conclusion"
       },
@@ -3367,20 +3400,22 @@
           "run",
           "-p",
           "jftrade-engine",
-          "--test",
-          "adk_chat_stream_compatibility",
-          "--locked"
+          "--all-targets",
+          "--locked",
+          "-E",
+          "test(production_stream_missing_agent_emits_no_preview_frames) or test(production_live_chat_stream_emits_session_before_run_and_terminal_frame) or test(adk_chat_stream_replays_go_wire_fixture_for_leaf_owned_cases)"
         ],
         "testFilter": [
-          "adk_chat_stream_replays_go_wire_fixture_for_leaf_owned_cases",
-          "adk_chat_stream_routes_are_isolated_without_port"
+          "production_stream_missing_agent_emits_no_preview_frames",
+          "production_live_chat_stream_emits_session_before_run_and_terminal_frame",
+          "adk_chat_stream_replays_go_wire_fixture_for_leaf_owned_cases"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
+        "status": "passed",
+        "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": null,
+        "verifiedAt": "2026-09-25T05:37:41Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -3391,9 +3426,12 @@
         "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [],
+      "coveredAssertions": [
+        "非法 JSON 请求返回终局 error 帧。",
+        "有效 agent 的 live stream 先发 session 再发 run；未知 agent fail-closed 且不发 session/run preview 帧。"
+      ],
       "uncoveredAssertions": [
-        "partial：已覆盖非法 JSON 的终局 error 帧（fixture 逐帧）与缺端口 fail-closed。缺口：Go 同用例还断言 previewSession 语义——有效 session 的 ensureSessionAndContext 置 sessionSent，以及未知 agent 的 preview 不产生任何帧；Rust 的 preview session 先于 run 断言挂在另一参考用例（routes_test.go:265）名下，missing-agent preview 零帧在 Rust 无对应断言。回归：在 stream 产品测试补 missing-agent preview 行为断言，或确认为 fail-closed 产品决策。"
+        "Go previewExecution.sessionSent 进程内布尔字段及 ensureSessionAndContext 的对象生命周期没有 Rust 同形状态；Rust 以 durable session/frame 顺序表达公开契约。"
       ],
       "boundaryReason": null
     },
@@ -311444,6 +311482,22 @@
       "referenceCount": 1,
       "referenceKeys": [
         "internal/api/assistant/chat_helpers_test.go:260:TestAssistantRequestHelpersCoverInvalidAndBoundaryInputs"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_adk_model_runtime_run_projection_tests.rs::stream_terminal_projection_trims_tool_outputs_from_final_response": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/api/assistant/chat_helpers_test.go:167:TestChatStreamExecutionPublishesDeltaAndFinalVariants"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::production_stream_missing_agent_emits_no_preview_frames": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/api/assistant/chat_helpers_test.go:216:TestExecuteADKChatStreamPublishesTerminalErrorForInvalidRequest"
       ],
       "allowed": true,
       "reviewStatus": "single"

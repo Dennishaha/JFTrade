@@ -174,6 +174,17 @@ impl ProductionAdkChatRuntime {
             "pendingApprovals": [],
             "timeline": timeline,
         });
+        // Go's `publishFinal` clears each ToolCall.Output before emitting the
+        // terminal SSE frame.  Keep the full activity on the durable run, but
+        // make the stored response used by reconnect replay match that wire
+        // boundary for Stream requests.
+        let terminal_response = if chat.route == AdkChatRoute::Stream {
+            let mut trimmed = response.clone();
+            trim_stream_tool_outputs(&mut trimmed);
+            trimmed
+        } else {
+            response.clone()
+        };
         let mut payload: Value =
             serde_json::from_str(&run.payload_json).map_err(storage_unavailable)?;
         payload["id"] = Value::String(chat.run_id.clone());
@@ -212,7 +223,7 @@ impl ProductionAdkChatRuntime {
             object.remove("errorStatus");
             object.insert("pendingApprovals".to_owned(), Value::Array(Vec::new()));
         }
-        payload["response"] = response.clone();
+        payload["response"] = terminal_response.clone();
         let mut final_sequence = None;
         if chat.route == AdkChatRoute::Stream {
             let events = payload
@@ -220,7 +231,7 @@ impl ProductionAdkChatRuntime {
                 .and_then(Value::as_array_mut)
                 .ok_or_else(|| unavailable("persisted ADK run has no stream event list"))?;
             let sequence = events.len() as u64 + 1;
-            let mut final_event = json!({"type":"final","response":response.clone()});
+            let mut final_event = json!({"type":"final","response":terminal_response.clone()});
             if let Some(object) = final_event.as_object_mut() {
                 object.insert("streamId".to_owned(), Value::String(chat.run_id.clone()));
                 object.insert("sequence".to_owned(), Value::from(sequence));
@@ -323,4 +334,16 @@ impl ProductionAdkChatRuntime {
         Ok(response)
     }
 
+}
+
+fn trim_stream_tool_outputs(response: &mut Value) {
+    let Some(tool_calls) = response.pointer_mut("/run/toolCalls").and_then(Value::as_array_mut)
+    else {
+        return;
+    };
+    for tool_call in tool_calls {
+        if let Some(object) = tool_call.as_object_mut() {
+            object.remove("output");
+        }
+    }
 }

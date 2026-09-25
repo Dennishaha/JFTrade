@@ -1643,6 +1643,34 @@ async fn production_live_chat_stream_emits_session_before_run_and_terminal_frame
     handle.shutdown().await.expect("shutdown product");
 }
 
+/// Go's `previewSession()` suppresses the preview frame when the requested
+/// agent cannot be resolved.  The Rust stream transport fails closed before
+/// creating a run, so it must not leak a synthetic session or run frame.
+/// Parity: go:452dea11:internal/api/assistant/chat_helpers_test.go:216 TestExecuteADKChatStreamPublishesTerminalErrorForInvalidRequest
+#[tokio::test]
+async fn production_stream_missing_agent_emits_no_preview_frames() {
+    let endpoint = closed_model_endpoint();
+    let (_directory, handle) = start_adk_product_with_loopback_provider(&endpoint).await;
+    let address = handle.startup_record().address;
+    let body = br#"{"clientRequestId":"22222222-2222-4222-8222-222222222222","agentId":"missing-agent","message":"preview"}"#;
+
+    let text = request_sse_until(address, "POST", ADK_CHAT_STREAM_PATH, body, |text| {
+        text.contains("agent not found") || text.contains("ADK_")
+    })
+    .await;
+
+    assert!(
+        text.contains("agent not found"),
+        "missing agent must fail closed with a useful error: {text}"
+    );
+    assert!(
+        !text.contains("\"type\":\"session\"") && !text.contains("\"type\":\"run\""),
+        "missing agent must not publish preview session or run frames: {text}"
+    );
+
+    handle.shutdown().await.expect("shutdown product");
+}
+
 /// Go `adkChatStreamExecution.handleDelta` over the live route: an automatic
 /// compaction publishes its notice as a `timeline` frame (streaming then
 /// final) and the compacted projection as a `context` frame, and all of them
