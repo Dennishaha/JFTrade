@@ -100,6 +100,91 @@ fn futu_search_port(reader: SearchReader) -> ProductionMarketDataCatalogPort {
     .with_trade_runtime(Some(runtime))
 }
 
+#[derive(Debug)]
+struct WindowSearchReader {
+    seen_max_count: Arc<AtomicUsize>,
+}
+
+impl jftrade_integration_futu::InstrumentSearchReadPort for WindowSearchReader {
+    fn search(
+        &self,
+        _keyword: &str,
+    ) -> Result<
+        Vec<jftrade_integration_futu::InstrumentSearchEntry>,
+        jftrade_integration_futu::InstrumentSearchError,
+    > {
+        self.search_with_limit("", jftrade_integration_futu::MAX_SEARCH_QUOTE_COUNT)
+    }
+
+    fn search_with_limit(
+        &self,
+        _keyword: &str,
+        max_count: i32,
+    ) -> Result<
+        Vec<jftrade_integration_futu::InstrumentSearchEntry>,
+        jftrade_integration_futu::InstrumentSearchError,
+    > {
+        self.seen_max_count
+            .store(max_count as usize, Ordering::SeqCst);
+        let rows = vec![
+            search_entry_typed("US", "000001", "WARRANT"),
+            search_entry_typed("SH", "000001", "INDEX"),
+            search_entry_typed("SZ", "000001", "EQUITY"),
+        ];
+        Ok(if max_count == jftrade_integration_futu::MAX_SEARCH_QUOTE_COUNT {
+            rows
+        } else {
+            rows.into_iter().take(max_count.max(0) as usize).collect()
+        })
+    }
+
+    fn lookup(
+        &self,
+        _market: &str,
+        _code: &str,
+    ) -> Result<
+        Vec<jftrade_integration_futu::InstrumentSearchEntry>,
+        jftrade_integration_futu::InstrumentSearchError,
+    > {
+        Ok(Vec::new())
+    }
+}
+
+fn futu_search_window_port(reader: WindowSearchReader) -> ProductionMarketDataCatalogPort {
+    let runtime = Arc::new(SharedTradeReadRuntime::default());
+    runtime.set_instrument_search_reader(Some(Arc::new(reader)));
+    ProductionMarketDataCatalogPort::new(
+        Arc::new(ActiveProviderState::new(Some(MarketDataProvider::Futu))),
+        None,
+    )
+    .with_trade_runtime(Some(runtime))
+}
+
+// Parity: go:452dea11:internal/marketdata/instrument_resolver_test.go:229 TestMarketSubsetInstrumentResolverLimitsAfterRankingWithoutAutoResolvingHiddenMatches
+#[tokio::test]
+async fn instrument_search_requests_full_provider_window_before_applying_limit() {
+    let seen_max_count = Arc::new(AtomicUsize::new(0));
+    let port = futu_search_window_port(WindowSearchReader {
+        seen_max_count: Arc::clone(&seen_max_count),
+    });
+    let result = port
+        .read(
+            "/api/v1/market-data/instruments",
+            "market=CN&query=000001&limit=1",
+        )
+        .await
+        .expect("CN search should project after filtering");
+
+    assert_eq!(
+        seen_max_count.load(Ordering::SeqCst),
+        jftrade_integration_futu::MAX_SEARCH_QUOTE_COUNT as usize,
+        "provider must receive the full candidate window before the public limit"
+    );
+    assert_eq!(result["resolutionStatus"], "ambiguous");
+    assert_eq!(result["totalReturned"], 1);
+    assert_eq!(result["entries"][0]["instrumentId"], "SH.000001");
+}
+
 #[tokio::test]
 async fn futu_search_resolves_chinese_name_bare_code_and_qualified_code() {
     let port = futu_search_port(SearchReader {

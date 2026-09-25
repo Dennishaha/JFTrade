@@ -174898,8 +174898,8 @@
     },
     "internal/marketdata/instrument_resolver_test.go:229:TestMarketSubsetInstrumentResolverLimitsAfterRankingWithoutAutoResolvingHiddenMatches": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_catalog_tests.rs::futu_search_filters_and_deduplicates_before_limiting_without_hiding_ambiguity；crates/jftrade-engine/src/product_production_ports_market_data_catalog_tests.rs::instrument_search_route_returns_subset_resolution_contract",
-      "conclusion": "partial：Rust 断言先过滤/去重再截断（不在截断前隐藏歧义），与 Go“先排序后 limit、不自动解析被截断候选”方向一致；差异：Go 断言 limit 后被隐藏的候选不会自动解析，Rust 没有针对 limit 截断后 ambiguity 状态的专门断言。",
+      "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_catalog_tests.rs::futu_search_filters_and_deduplicates_before_limiting_without_hiding_ambiguity；crates/jftrade-engine/src/product_production_ports_market_data_catalog_tests.rs::instrument_search_route_returns_subset_resolution_contract；crates/jftrade-engine/src/product_production_ports_market_data_catalog_tests.rs::instrument_search_requests_full_provider_window_before_applying_limit",
+      "conclusion": "partial（本批修复一处真实 P1 差异）：Rust 新增用例锁定未限定搜索先请求 OpenD 最大 100 条、再做 CN/SH/SZ 过滤和 public limit，修复此前把 limit=1 直接传给 provider 导致候选在过滤前被截断的问题；仍缺 Go 的 limit 后隐藏候选不自动解析专门断言，以及 resolver TTL/singleflight 语义。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
       "evidence_type": "partial",
       "source": {
@@ -174920,12 +174920,23 @@
           "test": "instrument_search_route_returns_subset_resolution_contract",
           "crate": "jftrade-engine",
           "anchor": null
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_production_ports_market_data_catalog_tests.rs",
+          "test": "instrument_search_requests_full_provider_window_before_applying_limit",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/marketdata/instrument_resolver_test.go",
+            "goLine": 229,
+            "rustFile": "crates/jftrade-engine/src/product_production_ports_market_data_catalog_tests.rs",
+            "rustLine": 165
+          }
         }
       ],
       "assertionCoverage": {
         "covered": [],
         "uncovered": [
-          "partial：Rust 断言先过滤/去重再截断（不在截断前隐藏歧义），与 Go“先排序后 limit、不自动解析被截断候选”方向一致；差异：Go 断言 limit 后被隐藏的候选不会自动解析，Rust 没有针对 limit 截断后 ambiguity 状态的专门断言。"
+          "partial（本批修复一处真实 P1 差异）：Rust 新增用例锁定未限定搜索先请求 OpenD 最大 100 条、再做 CN/SH/SZ 过滤和 public limit，修复此前把 limit=1 直接传给 provider 导致候选在过滤前被截断的问题；仍缺 Go 的 limit 后隐藏候选不自动解析专门断言，以及 resolver TTL/singleflight 语义。"
         ],
         "source": "legacy-conclusion"
       },
@@ -174941,7 +174952,8 @@
         ],
         "testFilter": [
           "futu_search_filters_and_deduplicates_before_limiting_without_hiding_ambiguity",
-          "instrument_search_route_returns_subset_resolution_contract"
+          "instrument_search_route_returns_subset_resolution_contract",
+          "instrument_search_requests_full_provider_window_before_applying_limit"
         ],
         "runnerVersion": null,
         "toolchain": null,
@@ -297849,6 +297861,14 @@
       ],
       "allowed": false,
       "reviewStatus": "unreviewed"
+    },
+    "crates/jftrade-engine/src/product_production_ports_market_data_catalog_tests.rs::instrument_search_requests_full_provider_window_before_applying_limit": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/marketdata/instrument_resolver_test.go:229:TestMarketSubsetInstrumentResolverLimitsAfterRankingWithoutAutoResolvingHiddenMatches"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
     },
     "crates/jftrade-engine/src/product_production_ports_market_data_catalog_tests.rs::futu_search_maps_cross_market_rows_and_drops_unusable_entries": {
       "referenceCount": 1,
