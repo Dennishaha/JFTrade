@@ -249253,18 +249253,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-strategy"
+          "--all-targets",
+          "--locked",
+          "-E",
+          "test(test_normalize_broker_account_drops_empty_input) or test(market_rules_ignore_missing_non_positive_and_non_finite_constraints) or test(test_execute_strategy_intents_cancel_all_queries_and_cancels_active_orders) or test(explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback) or test(test_strategy_runtime_idempotent_lifecycle_operations) or test(test_strategy_stop_bounded_timeout_on_synchronously_blocking_task) or test(strategy_market_day_start_follows_the_order_market_timezone) or test(pine_runtime_checkpoint_restores_latest_bar_and_intent_keys) or test(close_rejects_a_different_session_or_a_stale_explicit_revision) or test(start_request_accepts_explicit_market_and_code_without_symbol) or test(strategy_runtime_holds_exact_kline_demand_until_stop_and_shutdown) or test(timed_out_stop_keeps_owner_and_releases_store_during_blocking_quote_io) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(test_execute_strategy_intents_success_calls_execution_and_audits) or test(monitor_shutdown_marks_state_and_joins_task) or test(live_sessions_are_pinned_and_open_failure_rolls_back) or test(closing_a_live_session_releases_its_pin) or test(runtime_path_precedence_prefers_settings_then_worker_env_then_legacy_binary) or test(stopped_state_ignores_late_health_success) or test(test_select_from_fs_returns_embedded_bundle_metadata) or test(live_session_contract_requires_identity_mode_and_revisions) or test(validates_loopback_worker_boundary_before_spawn) or test(strategy_market_day_start_follows_dst_transition) or test(validation_payload_matches_go_owner_field_set_and_defaults_requirements)"
         ],
         "testFilter": [
           "test_normalize_broker_account_drops_empty_input"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "69eb6c90291cb93f07cd9cc0038ea1f793eb1a62",
+        "verifiedAt": "2026-09-25T14:24:29Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -250375,20 +250377,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(test_normalize_broker_account_drops_empty_input) or test(market_rules_ignore_missing_non_positive_and_non_finite_constraints) or test(test_execute_strategy_intents_cancel_all_queries_and_cancels_active_orders) or test(explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback) or test(test_strategy_runtime_idempotent_lifecycle_operations) or test(test_strategy_stop_bounded_timeout_on_synchronously_blocking_task) or test(strategy_market_day_start_follows_the_order_market_timezone) or test(pine_runtime_checkpoint_restores_latest_bar_and_intent_keys) or test(close_rejects_a_different_session_or_a_stale_explicit_revision) or test(start_request_accepts_explicit_market_and_code_without_symbol) or test(strategy_runtime_holds_exact_kline_demand_until_stop_and_shutdown) or test(timed_out_stop_keeps_owner_and_releases_store_during_blocking_quote_io) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(test_execute_strategy_intents_success_calls_execution_and_audits) or test(monitor_shutdown_marks_state_and_joins_task) or test(live_sessions_are_pinned_and_open_failure_rolls_back) or test(closing_a_live_session_releases_its_pin) or test(runtime_path_precedence_prefers_settings_then_worker_env_then_legacy_binary) or test(stopped_state_ignores_late_health_success) or test(test_select_from_fs_returns_embedded_bundle_metadata) or test(live_session_contract_requires_identity_mode_and_revisions) or test(validates_loopback_worker_boundary_before_spawn) or test(strategy_market_day_start_follows_dst_transition) or test(validation_payload_matches_go_owner_field_set_and_defaults_requirements)"
         ],
         "testFilter": [
           "market_rules_ignore_missing_non_positive_and_non_finite_constraints"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "69eb6c90291cb93f07cd9cc0038ea1f793eb1a62",
+        "verifiedAt": "2026-09-25T14:24:29Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -250499,20 +250501,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(test_normalize_broker_account_drops_empty_input) or test(market_rules_ignore_missing_non_positive_and_non_finite_constraints) or test(test_execute_strategy_intents_cancel_all_queries_and_cancels_active_orders) or test(explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback) or test(test_strategy_runtime_idempotent_lifecycle_operations) or test(test_strategy_stop_bounded_timeout_on_synchronously_blocking_task) or test(strategy_market_day_start_follows_the_order_market_timezone) or test(pine_runtime_checkpoint_restores_latest_bar_and_intent_keys) or test(close_rejects_a_different_session_or_a_stale_explicit_revision) or test(start_request_accepts_explicit_market_and_code_without_symbol) or test(strategy_runtime_holds_exact_kline_demand_until_stop_and_shutdown) or test(timed_out_stop_keeps_owner_and_releases_store_during_blocking_quote_io) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(test_execute_strategy_intents_success_calls_execution_and_audits) or test(monitor_shutdown_marks_state_and_joins_task) or test(live_sessions_are_pinned_and_open_failure_rolls_back) or test(closing_a_live_session_releases_its_pin) or test(runtime_path_precedence_prefers_settings_then_worker_env_then_legacy_binary) or test(stopped_state_ignores_late_health_success) or test(test_select_from_fs_returns_embedded_bundle_metadata) or test(live_session_contract_requires_identity_mode_and_revisions) or test(validates_loopback_worker_boundary_before_spawn) or test(strategy_market_day_start_follows_dst_transition) or test(validation_payload_matches_go_owner_field_set_and_defaults_requirements)"
         ],
         "testFilter": [
           "test_execute_strategy_intents_cancel_all_queries_and_cancels_active_orders"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "69eb6c90291cb93f07cd9cc0038ea1f793eb1a62",
+        "verifiedAt": "2026-09-25T14:24:29Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -250809,20 +250811,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(test_normalize_broker_account_drops_empty_input) or test(market_rules_ignore_missing_non_positive_and_non_finite_constraints) or test(test_execute_strategy_intents_cancel_all_queries_and_cancels_active_orders) or test(explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback) or test(test_strategy_runtime_idempotent_lifecycle_operations) or test(test_strategy_stop_bounded_timeout_on_synchronously_blocking_task) or test(strategy_market_day_start_follows_the_order_market_timezone) or test(pine_runtime_checkpoint_restores_latest_bar_and_intent_keys) or test(close_rejects_a_different_session_or_a_stale_explicit_revision) or test(start_request_accepts_explicit_market_and_code_without_symbol) or test(strategy_runtime_holds_exact_kline_demand_until_stop_and_shutdown) or test(timed_out_stop_keeps_owner_and_releases_store_during_blocking_quote_io) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(test_execute_strategy_intents_success_calls_execution_and_audits) or test(monitor_shutdown_marks_state_and_joins_task) or test(live_sessions_are_pinned_and_open_failure_rolls_back) or test(closing_a_live_session_releases_its_pin) or test(runtime_path_precedence_prefers_settings_then_worker_env_then_legacy_binary) or test(stopped_state_ignores_late_health_success) or test(test_select_from_fs_returns_embedded_bundle_metadata) or test(live_session_contract_requires_identity_mode_and_revisions) or test(validates_loopback_worker_boundary_before_spawn) or test(strategy_market_day_start_follows_dst_transition) or test(validation_payload_matches_go_owner_field_set_and_defaults_requirements)"
         ],
         "testFilter": [
           "explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "69eb6c90291cb93f07cd9cc0038ea1f793eb1a62",
+        "verifiedAt": "2026-09-25T14:24:29Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -251243,20 +251245,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(test_normalize_broker_account_drops_empty_input) or test(market_rules_ignore_missing_non_positive_and_non_finite_constraints) or test(test_execute_strategy_intents_cancel_all_queries_and_cancels_active_orders) or test(explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback) or test(test_strategy_runtime_idempotent_lifecycle_operations) or test(test_strategy_stop_bounded_timeout_on_synchronously_blocking_task) or test(strategy_market_day_start_follows_the_order_market_timezone) or test(pine_runtime_checkpoint_restores_latest_bar_and_intent_keys) or test(close_rejects_a_different_session_or_a_stale_explicit_revision) or test(start_request_accepts_explicit_market_and_code_without_symbol) or test(strategy_runtime_holds_exact_kline_demand_until_stop_and_shutdown) or test(timed_out_stop_keeps_owner_and_releases_store_during_blocking_quote_io) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(test_execute_strategy_intents_success_calls_execution_and_audits) or test(monitor_shutdown_marks_state_and_joins_task) or test(live_sessions_are_pinned_and_open_failure_rolls_back) or test(closing_a_live_session_releases_its_pin) or test(runtime_path_precedence_prefers_settings_then_worker_env_then_legacy_binary) or test(stopped_state_ignores_late_health_success) or test(test_select_from_fs_returns_embedded_bundle_metadata) or test(live_session_contract_requires_identity_mode_and_revisions) or test(validates_loopback_worker_boundary_before_spawn) or test(strategy_market_day_start_follows_dst_transition) or test(validation_payload_matches_go_owner_field_set_and_defaults_requirements)"
         ],
         "testFilter": [
           "test_strategy_runtime_idempotent_lifecycle_operations"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "69eb6c90291cb93f07cd9cc0038ea1f793eb1a62",
+        "verifiedAt": "2026-09-25T14:24:29Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -251367,20 +251369,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(test_normalize_broker_account_drops_empty_input) or test(market_rules_ignore_missing_non_positive_and_non_finite_constraints) or test(test_execute_strategy_intents_cancel_all_queries_and_cancels_active_orders) or test(explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback) or test(test_strategy_runtime_idempotent_lifecycle_operations) or test(test_strategy_stop_bounded_timeout_on_synchronously_blocking_task) or test(strategy_market_day_start_follows_the_order_market_timezone) or test(pine_runtime_checkpoint_restores_latest_bar_and_intent_keys) or test(close_rejects_a_different_session_or_a_stale_explicit_revision) or test(start_request_accepts_explicit_market_and_code_without_symbol) or test(strategy_runtime_holds_exact_kline_demand_until_stop_and_shutdown) or test(timed_out_stop_keeps_owner_and_releases_store_during_blocking_quote_io) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(test_execute_strategy_intents_success_calls_execution_and_audits) or test(monitor_shutdown_marks_state_and_joins_task) or test(live_sessions_are_pinned_and_open_failure_rolls_back) or test(closing_a_live_session_releases_its_pin) or test(runtime_path_precedence_prefers_settings_then_worker_env_then_legacy_binary) or test(stopped_state_ignores_late_health_success) or test(test_select_from_fs_returns_embedded_bundle_metadata) or test(live_session_contract_requires_identity_mode_and_revisions) or test(validates_loopback_worker_boundary_before_spawn) or test(strategy_market_day_start_follows_dst_transition) or test(validation_payload_matches_go_owner_field_set_and_defaults_requirements)"
         ],
         "testFilter": [
           "test_strategy_stop_bounded_timeout_on_synchronously_blocking_task"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "69eb6c90291cb93f07cd9cc0038ea1f793eb1a62",
+        "verifiedAt": "2026-09-25T14:24:29Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -251682,20 +251684,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(test_normalize_broker_account_drops_empty_input) or test(market_rules_ignore_missing_non_positive_and_non_finite_constraints) or test(test_execute_strategy_intents_cancel_all_queries_and_cancels_active_orders) or test(explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback) or test(test_strategy_runtime_idempotent_lifecycle_operations) or test(test_strategy_stop_bounded_timeout_on_synchronously_blocking_task) or test(strategy_market_day_start_follows_the_order_market_timezone) or test(pine_runtime_checkpoint_restores_latest_bar_and_intent_keys) or test(close_rejects_a_different_session_or_a_stale_explicit_revision) or test(start_request_accepts_explicit_market_and_code_without_symbol) or test(strategy_runtime_holds_exact_kline_demand_until_stop_and_shutdown) or test(timed_out_stop_keeps_owner_and_releases_store_during_blocking_quote_io) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(test_execute_strategy_intents_success_calls_execution_and_audits) or test(monitor_shutdown_marks_state_and_joins_task) or test(live_sessions_are_pinned_and_open_failure_rolls_back) or test(closing_a_live_session_releases_its_pin) or test(runtime_path_precedence_prefers_settings_then_worker_env_then_legacy_binary) or test(stopped_state_ignores_late_health_success) or test(test_select_from_fs_returns_embedded_bundle_metadata) or test(live_session_contract_requires_identity_mode_and_revisions) or test(validates_loopback_worker_boundary_before_spawn) or test(strategy_market_day_start_follows_dst_transition) or test(validation_payload_matches_go_owner_field_set_and_defaults_requirements)"
         ],
         "testFilter": [
           "test_execute_strategy_intents_cancel_all_queries_and_cancels_active_orders"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "69eb6c90291cb93f07cd9cc0038ea1f793eb1a62",
+        "verifiedAt": "2026-09-25T14:24:29Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -251744,20 +251746,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(test_normalize_broker_account_drops_empty_input) or test(market_rules_ignore_missing_non_positive_and_non_finite_constraints) or test(test_execute_strategy_intents_cancel_all_queries_and_cancels_active_orders) or test(explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback) or test(test_strategy_runtime_idempotent_lifecycle_operations) or test(test_strategy_stop_bounded_timeout_on_synchronously_blocking_task) or test(strategy_market_day_start_follows_the_order_market_timezone) or test(pine_runtime_checkpoint_restores_latest_bar_and_intent_keys) or test(close_rejects_a_different_session_or_a_stale_explicit_revision) or test(start_request_accepts_explicit_market_and_code_without_symbol) or test(strategy_runtime_holds_exact_kline_demand_until_stop_and_shutdown) or test(timed_out_stop_keeps_owner_and_releases_store_during_blocking_quote_io) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(test_execute_strategy_intents_success_calls_execution_and_audits) or test(monitor_shutdown_marks_state_and_joins_task) or test(live_sessions_are_pinned_and_open_failure_rolls_back) or test(closing_a_live_session_releases_its_pin) or test(runtime_path_precedence_prefers_settings_then_worker_env_then_legacy_binary) or test(stopped_state_ignores_late_health_success) or test(test_select_from_fs_returns_embedded_bundle_metadata) or test(live_session_contract_requires_identity_mode_and_revisions) or test(validates_loopback_worker_boundary_before_spawn) or test(strategy_market_day_start_follows_dst_transition) or test(validation_payload_matches_go_owner_field_set_and_defaults_requirements)"
         ],
         "testFilter": [
           "strategy_market_day_start_follows_the_order_market_timezone"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "69eb6c90291cb93f07cd9cc0038ea1f793eb1a62",
+        "verifiedAt": "2026-09-25T14:24:29Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -251873,20 +251875,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(test_normalize_broker_account_drops_empty_input) or test(market_rules_ignore_missing_non_positive_and_non_finite_constraints) or test(test_execute_strategy_intents_cancel_all_queries_and_cancels_active_orders) or test(explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback) or test(test_strategy_runtime_idempotent_lifecycle_operations) or test(test_strategy_stop_bounded_timeout_on_synchronously_blocking_task) or test(strategy_market_day_start_follows_the_order_market_timezone) or test(pine_runtime_checkpoint_restores_latest_bar_and_intent_keys) or test(close_rejects_a_different_session_or_a_stale_explicit_revision) or test(start_request_accepts_explicit_market_and_code_without_symbol) or test(strategy_runtime_holds_exact_kline_demand_until_stop_and_shutdown) or test(timed_out_stop_keeps_owner_and_releases_store_during_blocking_quote_io) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(test_execute_strategy_intents_success_calls_execution_and_audits) or test(monitor_shutdown_marks_state_and_joins_task) or test(live_sessions_are_pinned_and_open_failure_rolls_back) or test(closing_a_live_session_releases_its_pin) or test(runtime_path_precedence_prefers_settings_then_worker_env_then_legacy_binary) or test(stopped_state_ignores_late_health_success) or test(test_select_from_fs_returns_embedded_bundle_metadata) or test(live_session_contract_requires_identity_mode_and_revisions) or test(validates_loopback_worker_boundary_before_spawn) or test(strategy_market_day_start_follows_dst_transition) or test(validation_payload_matches_go_owner_field_set_and_defaults_requirements)"
         ],
         "testFilter": [
           "pine_runtime_checkpoint_restores_latest_bar_and_intent_keys"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "69eb6c90291cb93f07cd9cc0038ea1f793eb1a62",
+        "verifiedAt": "2026-09-25T14:24:29Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -252121,20 +252123,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-integration-pine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(test_normalize_broker_account_drops_empty_input) or test(market_rules_ignore_missing_non_positive_and_non_finite_constraints) or test(test_execute_strategy_intents_cancel_all_queries_and_cancels_active_orders) or test(explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback) or test(test_strategy_runtime_idempotent_lifecycle_operations) or test(test_strategy_stop_bounded_timeout_on_synchronously_blocking_task) or test(strategy_market_day_start_follows_the_order_market_timezone) or test(pine_runtime_checkpoint_restores_latest_bar_and_intent_keys) or test(close_rejects_a_different_session_or_a_stale_explicit_revision) or test(start_request_accepts_explicit_market_and_code_without_symbol) or test(strategy_runtime_holds_exact_kline_demand_until_stop_and_shutdown) or test(timed_out_stop_keeps_owner_and_releases_store_during_blocking_quote_io) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(test_execute_strategy_intents_success_calls_execution_and_audits) or test(monitor_shutdown_marks_state_and_joins_task) or test(live_sessions_are_pinned_and_open_failure_rolls_back) or test(closing_a_live_session_releases_its_pin) or test(runtime_path_precedence_prefers_settings_then_worker_env_then_legacy_binary) or test(stopped_state_ignores_late_health_success) or test(test_select_from_fs_returns_embedded_bundle_metadata) or test(live_session_contract_requires_identity_mode_and_revisions) or test(validates_loopback_worker_boundary_before_spawn) or test(strategy_market_day_start_follows_dst_transition) or test(validation_payload_matches_go_owner_field_set_and_defaults_requirements)"
         ],
         "testFilter": [
           "close_rejects_a_different_session_or_a_stale_explicit_revision"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "69eb6c90291cb93f07cd9cc0038ea1f793eb1a62",
+        "verifiedAt": "2026-09-25T14:24:29Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -252732,20 +252734,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(test_normalize_broker_account_drops_empty_input) or test(market_rules_ignore_missing_non_positive_and_non_finite_constraints) or test(test_execute_strategy_intents_cancel_all_queries_and_cancels_active_orders) or test(explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback) or test(test_strategy_runtime_idempotent_lifecycle_operations) or test(test_strategy_stop_bounded_timeout_on_synchronously_blocking_task) or test(strategy_market_day_start_follows_the_order_market_timezone) or test(pine_runtime_checkpoint_restores_latest_bar_and_intent_keys) or test(close_rejects_a_different_session_or_a_stale_explicit_revision) or test(start_request_accepts_explicit_market_and_code_without_symbol) or test(strategy_runtime_holds_exact_kline_demand_until_stop_and_shutdown) or test(timed_out_stop_keeps_owner_and_releases_store_during_blocking_quote_io) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(test_execute_strategy_intents_success_calls_execution_and_audits) or test(monitor_shutdown_marks_state_and_joins_task) or test(live_sessions_are_pinned_and_open_failure_rolls_back) or test(closing_a_live_session_releases_its_pin) or test(runtime_path_precedence_prefers_settings_then_worker_env_then_legacy_binary) or test(stopped_state_ignores_late_health_success) or test(test_select_from_fs_returns_embedded_bundle_metadata) or test(live_session_contract_requires_identity_mode_and_revisions) or test(validates_loopback_worker_boundary_before_spawn) or test(strategy_market_day_start_follows_dst_transition) or test(validation_payload_matches_go_owner_field_set_and_defaults_requirements)"
         ],
         "testFilter": [
           "start_request_accepts_explicit_market_and_code_without_symbol"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "69eb6c90291cb93f07cd9cc0038ea1f793eb1a62",
+        "verifiedAt": "2026-09-25T14:24:29Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -252918,20 +252920,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(test_normalize_broker_account_drops_empty_input) or test(market_rules_ignore_missing_non_positive_and_non_finite_constraints) or test(test_execute_strategy_intents_cancel_all_queries_and_cancels_active_orders) or test(explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback) or test(test_strategy_runtime_idempotent_lifecycle_operations) or test(test_strategy_stop_bounded_timeout_on_synchronously_blocking_task) or test(strategy_market_day_start_follows_the_order_market_timezone) or test(pine_runtime_checkpoint_restores_latest_bar_and_intent_keys) or test(close_rejects_a_different_session_or_a_stale_explicit_revision) or test(start_request_accepts_explicit_market_and_code_without_symbol) or test(strategy_runtime_holds_exact_kline_demand_until_stop_and_shutdown) or test(timed_out_stop_keeps_owner_and_releases_store_during_blocking_quote_io) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(test_execute_strategy_intents_success_calls_execution_and_audits) or test(monitor_shutdown_marks_state_and_joins_task) or test(live_sessions_are_pinned_and_open_failure_rolls_back) or test(closing_a_live_session_releases_its_pin) or test(runtime_path_precedence_prefers_settings_then_worker_env_then_legacy_binary) or test(stopped_state_ignores_late_health_success) or test(test_select_from_fs_returns_embedded_bundle_metadata) or test(live_session_contract_requires_identity_mode_and_revisions) or test(validates_loopback_worker_boundary_before_spawn) or test(strategy_market_day_start_follows_dst_transition) or test(validation_payload_matches_go_owner_field_set_and_defaults_requirements)"
         ],
         "testFilter": [
           "strategy_runtime_holds_exact_kline_demand_until_stop_and_shutdown"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "69eb6c90291cb93f07cd9cc0038ea1f793eb1a62",
+        "verifiedAt": "2026-09-25T14:24:29Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -253166,20 +253168,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(test_normalize_broker_account_drops_empty_input) or test(market_rules_ignore_missing_non_positive_and_non_finite_constraints) or test(test_execute_strategy_intents_cancel_all_queries_and_cancels_active_orders) or test(explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback) or test(test_strategy_runtime_idempotent_lifecycle_operations) or test(test_strategy_stop_bounded_timeout_on_synchronously_blocking_task) or test(strategy_market_day_start_follows_the_order_market_timezone) or test(pine_runtime_checkpoint_restores_latest_bar_and_intent_keys) or test(close_rejects_a_different_session_or_a_stale_explicit_revision) or test(start_request_accepts_explicit_market_and_code_without_symbol) or test(strategy_runtime_holds_exact_kline_demand_until_stop_and_shutdown) or test(timed_out_stop_keeps_owner_and_releases_store_during_blocking_quote_io) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(test_execute_strategy_intents_success_calls_execution_and_audits) or test(monitor_shutdown_marks_state_and_joins_task) or test(live_sessions_are_pinned_and_open_failure_rolls_back) or test(closing_a_live_session_releases_its_pin) or test(runtime_path_precedence_prefers_settings_then_worker_env_then_legacy_binary) or test(stopped_state_ignores_late_health_success) or test(test_select_from_fs_returns_embedded_bundle_metadata) or test(live_session_contract_requires_identity_mode_and_revisions) or test(validates_loopback_worker_boundary_before_spawn) or test(strategy_market_day_start_follows_dst_transition) or test(validation_payload_matches_go_owner_field_set_and_defaults_requirements)"
         ],
         "testFilter": [
           "timed_out_stop_keeps_owner_and_releases_store_during_blocking_quote_io"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "69eb6c90291cb93f07cd9cc0038ea1f793eb1a62",
+        "verifiedAt": "2026-09-25T14:24:29Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -254868,20 +254870,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(test_normalize_broker_account_drops_empty_input) or test(market_rules_ignore_missing_non_positive_and_non_finite_constraints) or test(test_execute_strategy_intents_cancel_all_queries_and_cancels_active_orders) or test(explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback) or test(test_strategy_runtime_idempotent_lifecycle_operations) or test(test_strategy_stop_bounded_timeout_on_synchronously_blocking_task) or test(strategy_market_day_start_follows_the_order_market_timezone) or test(pine_runtime_checkpoint_restores_latest_bar_and_intent_keys) or test(close_rejects_a_different_session_or_a_stale_explicit_revision) or test(start_request_accepts_explicit_market_and_code_without_symbol) or test(strategy_runtime_holds_exact_kline_demand_until_stop_and_shutdown) or test(timed_out_stop_keeps_owner_and_releases_store_during_blocking_quote_io) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(test_execute_strategy_intents_success_calls_execution_and_audits) or test(monitor_shutdown_marks_state_and_joins_task) or test(live_sessions_are_pinned_and_open_failure_rolls_back) or test(closing_a_live_session_releases_its_pin) or test(runtime_path_precedence_prefers_settings_then_worker_env_then_legacy_binary) or test(stopped_state_ignores_late_health_success) or test(test_select_from_fs_returns_embedded_bundle_metadata) or test(live_session_contract_requires_identity_mode_and_revisions) or test(validates_loopback_worker_boundary_before_spawn) or test(strategy_market_day_start_follows_dst_transition) or test(validation_payload_matches_go_owner_field_set_and_defaults_requirements)"
         ],
         "testFilter": [
           "test_execute_strategy_intents_cancel_dispatches_order_cancel"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "69eb6c90291cb93f07cd9cc0038ea1f793eb1a62",
+        "verifiedAt": "2026-09-25T14:24:29Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -254930,20 +254932,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(test_normalize_broker_account_drops_empty_input) or test(market_rules_ignore_missing_non_positive_and_non_finite_constraints) or test(test_execute_strategy_intents_cancel_all_queries_and_cancels_active_orders) or test(explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback) or test(test_strategy_runtime_idempotent_lifecycle_operations) or test(test_strategy_stop_bounded_timeout_on_synchronously_blocking_task) or test(strategy_market_day_start_follows_the_order_market_timezone) or test(pine_runtime_checkpoint_restores_latest_bar_and_intent_keys) or test(close_rejects_a_different_session_or_a_stale_explicit_revision) or test(start_request_accepts_explicit_market_and_code_without_symbol) or test(strategy_runtime_holds_exact_kline_demand_until_stop_and_shutdown) or test(timed_out_stop_keeps_owner_and_releases_store_during_blocking_quote_io) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(test_execute_strategy_intents_success_calls_execution_and_audits) or test(monitor_shutdown_marks_state_and_joins_task) or test(live_sessions_are_pinned_and_open_failure_rolls_back) or test(closing_a_live_session_releases_its_pin) or test(runtime_path_precedence_prefers_settings_then_worker_env_then_legacy_binary) or test(stopped_state_ignores_late_health_success) or test(test_select_from_fs_returns_embedded_bundle_metadata) or test(live_session_contract_requires_identity_mode_and_revisions) or test(validates_loopback_worker_boundary_before_spawn) or test(strategy_market_day_start_follows_dst_transition) or test(validation_payload_matches_go_owner_field_set_and_defaults_requirements)"
         ],
         "testFilter": [
           "test_execute_strategy_intents_cancel_all_queries_and_cancels_active_orders"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "69eb6c90291cb93f07cd9cc0038ea1f793eb1a62",
+        "verifiedAt": "2026-09-25T14:24:29Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -255302,20 +255304,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(test_normalize_broker_account_drops_empty_input) or test(market_rules_ignore_missing_non_positive_and_non_finite_constraints) or test(test_execute_strategy_intents_cancel_all_queries_and_cancels_active_orders) or test(explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback) or test(test_strategy_runtime_idempotent_lifecycle_operations) or test(test_strategy_stop_bounded_timeout_on_synchronously_blocking_task) or test(strategy_market_day_start_follows_the_order_market_timezone) or test(pine_runtime_checkpoint_restores_latest_bar_and_intent_keys) or test(close_rejects_a_different_session_or_a_stale_explicit_revision) or test(start_request_accepts_explicit_market_and_code_without_symbol) or test(strategy_runtime_holds_exact_kline_demand_until_stop_and_shutdown) or test(timed_out_stop_keeps_owner_and_releases_store_during_blocking_quote_io) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(test_execute_strategy_intents_success_calls_execution_and_audits) or test(monitor_shutdown_marks_state_and_joins_task) or test(live_sessions_are_pinned_and_open_failure_rolls_back) or test(closing_a_live_session_releases_its_pin) or test(runtime_path_precedence_prefers_settings_then_worker_env_then_legacy_binary) or test(stopped_state_ignores_late_health_success) or test(test_select_from_fs_returns_embedded_bundle_metadata) or test(live_session_contract_requires_identity_mode_and_revisions) or test(validates_loopback_worker_boundary_before_spawn) or test(strategy_market_day_start_follows_dst_transition) or test(validation_payload_matches_go_owner_field_set_and_defaults_requirements)"
         ],
         "testFilter": [
           "test_execute_strategy_intents_success_calls_execution_and_audits"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "69eb6c90291cb93f07cd9cc0038ea1f793eb1a62",
+        "verifiedAt": "2026-09-25T14:24:29Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -255364,20 +255366,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(test_normalize_broker_account_drops_empty_input) or test(market_rules_ignore_missing_non_positive_and_non_finite_constraints) or test(test_execute_strategy_intents_cancel_all_queries_and_cancels_active_orders) or test(explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback) or test(test_strategy_runtime_idempotent_lifecycle_operations) or test(test_strategy_stop_bounded_timeout_on_synchronously_blocking_task) or test(strategy_market_day_start_follows_the_order_market_timezone) or test(pine_runtime_checkpoint_restores_latest_bar_and_intent_keys) or test(close_rejects_a_different_session_or_a_stale_explicit_revision) or test(start_request_accepts_explicit_market_and_code_without_symbol) or test(strategy_runtime_holds_exact_kline_demand_until_stop_and_shutdown) or test(timed_out_stop_keeps_owner_and_releases_store_during_blocking_quote_io) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(test_execute_strategy_intents_success_calls_execution_and_audits) or test(monitor_shutdown_marks_state_and_joins_task) or test(live_sessions_are_pinned_and_open_failure_rolls_back) or test(closing_a_live_session_releases_its_pin) or test(runtime_path_precedence_prefers_settings_then_worker_env_then_legacy_binary) or test(stopped_state_ignores_late_health_success) or test(test_select_from_fs_returns_embedded_bundle_metadata) or test(live_session_contract_requires_identity_mode_and_revisions) or test(validates_loopback_worker_boundary_before_spawn) or test(strategy_market_day_start_follows_dst_transition) or test(validation_payload_matches_go_owner_field_set_and_defaults_requirements)"
         ],
         "testFilter": [
           "test_execute_strategy_intents_cancel_dispatches_order_cancel"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "69eb6c90291cb93f07cd9cc0038ea1f793eb1a62",
+        "verifiedAt": "2026-09-25T14:24:29Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -255479,20 +255481,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-integration-pine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(test_normalize_broker_account_drops_empty_input) or test(market_rules_ignore_missing_non_positive_and_non_finite_constraints) or test(test_execute_strategy_intents_cancel_all_queries_and_cancels_active_orders) or test(explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback) or test(test_strategy_runtime_idempotent_lifecycle_operations) or test(test_strategy_stop_bounded_timeout_on_synchronously_blocking_task) or test(strategy_market_day_start_follows_the_order_market_timezone) or test(pine_runtime_checkpoint_restores_latest_bar_and_intent_keys) or test(close_rejects_a_different_session_or_a_stale_explicit_revision) or test(start_request_accepts_explicit_market_and_code_without_symbol) or test(strategy_runtime_holds_exact_kline_demand_until_stop_and_shutdown) or test(timed_out_stop_keeps_owner_and_releases_store_during_blocking_quote_io) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(test_execute_strategy_intents_success_calls_execution_and_audits) or test(monitor_shutdown_marks_state_and_joins_task) or test(live_sessions_are_pinned_and_open_failure_rolls_back) or test(closing_a_live_session_releases_its_pin) or test(runtime_path_precedence_prefers_settings_then_worker_env_then_legacy_binary) or test(stopped_state_ignores_late_health_success) or test(test_select_from_fs_returns_embedded_bundle_metadata) or test(live_session_contract_requires_identity_mode_and_revisions) or test(validates_loopback_worker_boundary_before_spawn) or test(strategy_market_day_start_follows_dst_transition) or test(validation_payload_matches_go_owner_field_set_and_defaults_requirements)"
         ],
         "testFilter": [
           "monitor_shutdown_marks_state_and_joins_task"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "69eb6c90291cb93f07cd9cc0038ea1f793eb1a62",
+        "verifiedAt": "2026-09-25T14:24:29Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -255541,20 +255543,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-integration-pine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(test_normalize_broker_account_drops_empty_input) or test(market_rules_ignore_missing_non_positive_and_non_finite_constraints) or test(test_execute_strategy_intents_cancel_all_queries_and_cancels_active_orders) or test(explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback) or test(test_strategy_runtime_idempotent_lifecycle_operations) or test(test_strategy_stop_bounded_timeout_on_synchronously_blocking_task) or test(strategy_market_day_start_follows_the_order_market_timezone) or test(pine_runtime_checkpoint_restores_latest_bar_and_intent_keys) or test(close_rejects_a_different_session_or_a_stale_explicit_revision) or test(start_request_accepts_explicit_market_and_code_without_symbol) or test(strategy_runtime_holds_exact_kline_demand_until_stop_and_shutdown) or test(timed_out_stop_keeps_owner_and_releases_store_during_blocking_quote_io) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(test_execute_strategy_intents_success_calls_execution_and_audits) or test(monitor_shutdown_marks_state_and_joins_task) or test(live_sessions_are_pinned_and_open_failure_rolls_back) or test(closing_a_live_session_releases_its_pin) or test(runtime_path_precedence_prefers_settings_then_worker_env_then_legacy_binary) or test(stopped_state_ignores_late_health_success) or test(test_select_from_fs_returns_embedded_bundle_metadata) or test(live_session_contract_requires_identity_mode_and_revisions) or test(validates_loopback_worker_boundary_before_spawn) or test(strategy_market_day_start_follows_dst_transition) or test(validation_payload_matches_go_owner_field_set_and_defaults_requirements)"
         ],
         "testFilter": [
           "live_sessions_are_pinned_and_open_failure_rolls_back"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "69eb6c90291cb93f07cd9cc0038ea1f793eb1a62",
+        "verifiedAt": "2026-09-25T14:24:29Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -255603,20 +255605,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-integration-pine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(test_normalize_broker_account_drops_empty_input) or test(market_rules_ignore_missing_non_positive_and_non_finite_constraints) or test(test_execute_strategy_intents_cancel_all_queries_and_cancels_active_orders) or test(explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback) or test(test_strategy_runtime_idempotent_lifecycle_operations) or test(test_strategy_stop_bounded_timeout_on_synchronously_blocking_task) or test(strategy_market_day_start_follows_the_order_market_timezone) or test(pine_runtime_checkpoint_restores_latest_bar_and_intent_keys) or test(close_rejects_a_different_session_or_a_stale_explicit_revision) or test(start_request_accepts_explicit_market_and_code_without_symbol) or test(strategy_runtime_holds_exact_kline_demand_until_stop_and_shutdown) or test(timed_out_stop_keeps_owner_and_releases_store_during_blocking_quote_io) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(test_execute_strategy_intents_success_calls_execution_and_audits) or test(monitor_shutdown_marks_state_and_joins_task) or test(live_sessions_are_pinned_and_open_failure_rolls_back) or test(closing_a_live_session_releases_its_pin) or test(runtime_path_precedence_prefers_settings_then_worker_env_then_legacy_binary) or test(stopped_state_ignores_late_health_success) or test(test_select_from_fs_returns_embedded_bundle_metadata) or test(live_session_contract_requires_identity_mode_and_revisions) or test(validates_loopback_worker_boundary_before_spawn) or test(strategy_market_day_start_follows_dst_transition) or test(validation_payload_matches_go_owner_field_set_and_defaults_requirements)"
         ],
         "testFilter": [
           "monitor_shutdown_marks_state_and_joins_task"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "69eb6c90291cb93f07cd9cc0038ea1f793eb1a62",
+        "verifiedAt": "2026-09-25T14:24:29Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -255665,20 +255667,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-integration-pine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(test_normalize_broker_account_drops_empty_input) or test(market_rules_ignore_missing_non_positive_and_non_finite_constraints) or test(test_execute_strategy_intents_cancel_all_queries_and_cancels_active_orders) or test(explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback) or test(test_strategy_runtime_idempotent_lifecycle_operations) or test(test_strategy_stop_bounded_timeout_on_synchronously_blocking_task) or test(strategy_market_day_start_follows_the_order_market_timezone) or test(pine_runtime_checkpoint_restores_latest_bar_and_intent_keys) or test(close_rejects_a_different_session_or_a_stale_explicit_revision) or test(start_request_accepts_explicit_market_and_code_without_symbol) or test(strategy_runtime_holds_exact_kline_demand_until_stop_and_shutdown) or test(timed_out_stop_keeps_owner_and_releases_store_during_blocking_quote_io) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(test_execute_strategy_intents_success_calls_execution_and_audits) or test(monitor_shutdown_marks_state_and_joins_task) or test(live_sessions_are_pinned_and_open_failure_rolls_back) or test(closing_a_live_session_releases_its_pin) or test(runtime_path_precedence_prefers_settings_then_worker_env_then_legacy_binary) or test(stopped_state_ignores_late_health_success) or test(test_select_from_fs_returns_embedded_bundle_metadata) or test(live_session_contract_requires_identity_mode_and_revisions) or test(validates_loopback_worker_boundary_before_spawn) or test(strategy_market_day_start_follows_dst_transition) or test(validation_payload_matches_go_owner_field_set_and_defaults_requirements)"
         ],
         "testFilter": [
           "closing_a_live_session_releases_its_pin"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "69eb6c90291cb93f07cd9cc0038ea1f793eb1a62",
+        "verifiedAt": "2026-09-25T14:24:29Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -255789,20 +255791,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(test_normalize_broker_account_drops_empty_input) or test(market_rules_ignore_missing_non_positive_and_non_finite_constraints) or test(test_execute_strategy_intents_cancel_all_queries_and_cancels_active_orders) or test(explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback) or test(test_strategy_runtime_idempotent_lifecycle_operations) or test(test_strategy_stop_bounded_timeout_on_synchronously_blocking_task) or test(strategy_market_day_start_follows_the_order_market_timezone) or test(pine_runtime_checkpoint_restores_latest_bar_and_intent_keys) or test(close_rejects_a_different_session_or_a_stale_explicit_revision) or test(start_request_accepts_explicit_market_and_code_without_symbol) or test(strategy_runtime_holds_exact_kline_demand_until_stop_and_shutdown) or test(timed_out_stop_keeps_owner_and_releases_store_during_blocking_quote_io) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(test_execute_strategy_intents_success_calls_execution_and_audits) or test(monitor_shutdown_marks_state_and_joins_task) or test(live_sessions_are_pinned_and_open_failure_rolls_back) or test(closing_a_live_session_releases_its_pin) or test(runtime_path_precedence_prefers_settings_then_worker_env_then_legacy_binary) or test(stopped_state_ignores_late_health_success) or test(test_select_from_fs_returns_embedded_bundle_metadata) or test(live_session_contract_requires_identity_mode_and_revisions) or test(validates_loopback_worker_boundary_before_spawn) or test(strategy_market_day_start_follows_dst_transition) or test(validation_payload_matches_go_owner_field_set_and_defaults_requirements)"
         ],
         "testFilter": [
           "runtime_path_precedence_prefers_settings_then_worker_env_then_legacy_binary"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "69eb6c90291cb93f07cd9cc0038ea1f793eb1a62",
+        "verifiedAt": "2026-09-25T14:24:29Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -256037,20 +256039,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-integration-pine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(test_normalize_broker_account_drops_empty_input) or test(market_rules_ignore_missing_non_positive_and_non_finite_constraints) or test(test_execute_strategy_intents_cancel_all_queries_and_cancels_active_orders) or test(explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback) or test(test_strategy_runtime_idempotent_lifecycle_operations) or test(test_strategy_stop_bounded_timeout_on_synchronously_blocking_task) or test(strategy_market_day_start_follows_the_order_market_timezone) or test(pine_runtime_checkpoint_restores_latest_bar_and_intent_keys) or test(close_rejects_a_different_session_or_a_stale_explicit_revision) or test(start_request_accepts_explicit_market_and_code_without_symbol) or test(strategy_runtime_holds_exact_kline_demand_until_stop_and_shutdown) or test(timed_out_stop_keeps_owner_and_releases_store_during_blocking_quote_io) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(test_execute_strategy_intents_success_calls_execution_and_audits) or test(monitor_shutdown_marks_state_and_joins_task) or test(live_sessions_are_pinned_and_open_failure_rolls_back) or test(closing_a_live_session_releases_its_pin) or test(runtime_path_precedence_prefers_settings_then_worker_env_then_legacy_binary) or test(stopped_state_ignores_late_health_success) or test(test_select_from_fs_returns_embedded_bundle_metadata) or test(live_session_contract_requires_identity_mode_and_revisions) or test(validates_loopback_worker_boundary_before_spawn) or test(strategy_market_day_start_follows_dst_transition) or test(validation_payload_matches_go_owner_field_set_and_defaults_requirements)"
         ],
         "testFilter": [
           "stopped_state_ignores_late_health_success"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "69eb6c90291cb93f07cd9cc0038ea1f793eb1a62",
+        "verifiedAt": "2026-09-25T14:24:29Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -256099,20 +256101,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-integration-pine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(test_normalize_broker_account_drops_empty_input) or test(market_rules_ignore_missing_non_positive_and_non_finite_constraints) or test(test_execute_strategy_intents_cancel_all_queries_and_cancels_active_orders) or test(explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback) or test(test_strategy_runtime_idempotent_lifecycle_operations) or test(test_strategy_stop_bounded_timeout_on_synchronously_blocking_task) or test(strategy_market_day_start_follows_the_order_market_timezone) or test(pine_runtime_checkpoint_restores_latest_bar_and_intent_keys) or test(close_rejects_a_different_session_or_a_stale_explicit_revision) or test(start_request_accepts_explicit_market_and_code_without_symbol) or test(strategy_runtime_holds_exact_kline_demand_until_stop_and_shutdown) or test(timed_out_stop_keeps_owner_and_releases_store_during_blocking_quote_io) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(test_execute_strategy_intents_success_calls_execution_and_audits) or test(monitor_shutdown_marks_state_and_joins_task) or test(live_sessions_are_pinned_and_open_failure_rolls_back) or test(closing_a_live_session_releases_its_pin) or test(runtime_path_precedence_prefers_settings_then_worker_env_then_legacy_binary) or test(stopped_state_ignores_late_health_success) or test(test_select_from_fs_returns_embedded_bundle_metadata) or test(live_session_contract_requires_identity_mode_and_revisions) or test(validates_loopback_worker_boundary_before_spawn) or test(strategy_market_day_start_follows_dst_transition) or test(validation_payload_matches_go_owner_field_set_and_defaults_requirements)"
         ],
         "testFilter": [
           "monitor_shutdown_marks_state_and_joins_task"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "69eb6c90291cb93f07cd9cc0038ea1f793eb1a62",
+        "verifiedAt": "2026-09-25T14:24:29Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -256538,20 +256540,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-integration-pine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(test_normalize_broker_account_drops_empty_input) or test(market_rules_ignore_missing_non_positive_and_non_finite_constraints) or test(test_execute_strategy_intents_cancel_all_queries_and_cancels_active_orders) or test(explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback) or test(test_strategy_runtime_idempotent_lifecycle_operations) or test(test_strategy_stop_bounded_timeout_on_synchronously_blocking_task) or test(strategy_market_day_start_follows_the_order_market_timezone) or test(pine_runtime_checkpoint_restores_latest_bar_and_intent_keys) or test(close_rejects_a_different_session_or_a_stale_explicit_revision) or test(start_request_accepts_explicit_market_and_code_without_symbol) or test(strategy_runtime_holds_exact_kline_demand_until_stop_and_shutdown) or test(timed_out_stop_keeps_owner_and_releases_store_during_blocking_quote_io) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(test_execute_strategy_intents_success_calls_execution_and_audits) or test(monitor_shutdown_marks_state_and_joins_task) or test(live_sessions_are_pinned_and_open_failure_rolls_back) or test(closing_a_live_session_releases_its_pin) or test(runtime_path_precedence_prefers_settings_then_worker_env_then_legacy_binary) or test(stopped_state_ignores_late_health_success) or test(test_select_from_fs_returns_embedded_bundle_metadata) or test(live_session_contract_requires_identity_mode_and_revisions) or test(validates_loopback_worker_boundary_before_spawn) or test(strategy_market_day_start_follows_dst_transition) or test(validation_payload_matches_go_owner_field_set_and_defaults_requirements)"
         ],
         "testFilter": [
           "test_select_from_fs_returns_embedded_bundle_metadata"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "69eb6c90291cb93f07cd9cc0038ea1f793eb1a62",
+        "verifiedAt": "2026-09-25T14:24:29Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -256786,20 +256788,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-integration-pine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(test_normalize_broker_account_drops_empty_input) or test(market_rules_ignore_missing_non_positive_and_non_finite_constraints) or test(test_execute_strategy_intents_cancel_all_queries_and_cancels_active_orders) or test(explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback) or test(test_strategy_runtime_idempotent_lifecycle_operations) or test(test_strategy_stop_bounded_timeout_on_synchronously_blocking_task) or test(strategy_market_day_start_follows_the_order_market_timezone) or test(pine_runtime_checkpoint_restores_latest_bar_and_intent_keys) or test(close_rejects_a_different_session_or_a_stale_explicit_revision) or test(start_request_accepts_explicit_market_and_code_without_symbol) or test(strategy_runtime_holds_exact_kline_demand_until_stop_and_shutdown) or test(timed_out_stop_keeps_owner_and_releases_store_during_blocking_quote_io) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(test_execute_strategy_intents_success_calls_execution_and_audits) or test(monitor_shutdown_marks_state_and_joins_task) or test(live_sessions_are_pinned_and_open_failure_rolls_back) or test(closing_a_live_session_releases_its_pin) or test(runtime_path_precedence_prefers_settings_then_worker_env_then_legacy_binary) or test(stopped_state_ignores_late_health_success) or test(test_select_from_fs_returns_embedded_bundle_metadata) or test(live_session_contract_requires_identity_mode_and_revisions) or test(validates_loopback_worker_boundary_before_spawn) or test(strategy_market_day_start_follows_dst_transition) or test(validation_payload_matches_go_owner_field_set_and_defaults_requirements)"
         ],
         "testFilter": [
           "live_session_contract_requires_identity_mode_and_revisions"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "69eb6c90291cb93f07cd9cc0038ea1f793eb1a62",
+        "verifiedAt": "2026-09-25T14:24:29Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -256910,20 +256912,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-integration-pine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(test_normalize_broker_account_drops_empty_input) or test(market_rules_ignore_missing_non_positive_and_non_finite_constraints) or test(test_execute_strategy_intents_cancel_all_queries_and_cancels_active_orders) or test(explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback) or test(test_strategy_runtime_idempotent_lifecycle_operations) or test(test_strategy_stop_bounded_timeout_on_synchronously_blocking_task) or test(strategy_market_day_start_follows_the_order_market_timezone) or test(pine_runtime_checkpoint_restores_latest_bar_and_intent_keys) or test(close_rejects_a_different_session_or_a_stale_explicit_revision) or test(start_request_accepts_explicit_market_and_code_without_symbol) or test(strategy_runtime_holds_exact_kline_demand_until_stop_and_shutdown) or test(timed_out_stop_keeps_owner_and_releases_store_during_blocking_quote_io) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(test_execute_strategy_intents_success_calls_execution_and_audits) or test(monitor_shutdown_marks_state_and_joins_task) or test(live_sessions_are_pinned_and_open_failure_rolls_back) or test(closing_a_live_session_releases_its_pin) or test(runtime_path_precedence_prefers_settings_then_worker_env_then_legacy_binary) or test(stopped_state_ignores_late_health_success) or test(test_select_from_fs_returns_embedded_bundle_metadata) or test(live_session_contract_requires_identity_mode_and_revisions) or test(validates_loopback_worker_boundary_before_spawn) or test(strategy_market_day_start_follows_dst_transition) or test(validation_payload_matches_go_owner_field_set_and_defaults_requirements)"
         ],
         "testFilter": [
           "validates_loopback_worker_boundary_before_spawn"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "69eb6c90291cb93f07cd9cc0038ea1f793eb1a62",
+        "verifiedAt": "2026-09-25T14:24:29Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -257330,10 +257332,10 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(test_normalize_broker_account_drops_empty_input) or test(market_rules_ignore_missing_non_positive_and_non_finite_constraints) or test(test_execute_strategy_intents_cancel_all_queries_and_cancels_active_orders) or test(explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback) or test(test_strategy_runtime_idempotent_lifecycle_operations) or test(test_strategy_stop_bounded_timeout_on_synchronously_blocking_task) or test(strategy_market_day_start_follows_the_order_market_timezone) or test(pine_runtime_checkpoint_restores_latest_bar_and_intent_keys) or test(close_rejects_a_different_session_or_a_stale_explicit_revision) or test(start_request_accepts_explicit_market_and_code_without_symbol) or test(strategy_runtime_holds_exact_kline_demand_until_stop_and_shutdown) or test(timed_out_stop_keeps_owner_and_releases_store_during_blocking_quote_io) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(test_execute_strategy_intents_success_calls_execution_and_audits) or test(monitor_shutdown_marks_state_and_joins_task) or test(live_sessions_are_pinned_and_open_failure_rolls_back) or test(closing_a_live_session_releases_its_pin) or test(runtime_path_precedence_prefers_settings_then_worker_env_then_legacy_binary) or test(stopped_state_ignores_late_health_success) or test(test_select_from_fs_returns_embedded_bundle_metadata) or test(live_session_contract_requires_identity_mode_and_revisions) or test(validates_loopback_worker_boundary_before_spawn) or test(strategy_market_day_start_follows_dst_transition) or test(validation_payload_matches_go_owner_field_set_and_defaults_requirements)"
         ],
         "testFilter": [
           "strategy_market_day_start_follows_the_order_market_timezone",
@@ -257341,10 +257343,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "69eb6c90291cb93f07cd9cc0038ea1f793eb1a62",
+        "verifiedAt": "2026-09-25T14:24:29Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -258129,20 +258131,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(test_normalize_broker_account_drops_empty_input) or test(market_rules_ignore_missing_non_positive_and_non_finite_constraints) or test(test_execute_strategy_intents_cancel_all_queries_and_cancels_active_orders) or test(explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback) or test(test_strategy_runtime_idempotent_lifecycle_operations) or test(test_strategy_stop_bounded_timeout_on_synchronously_blocking_task) or test(strategy_market_day_start_follows_the_order_market_timezone) or test(pine_runtime_checkpoint_restores_latest_bar_and_intent_keys) or test(close_rejects_a_different_session_or_a_stale_explicit_revision) or test(start_request_accepts_explicit_market_and_code_without_symbol) or test(strategy_runtime_holds_exact_kline_demand_until_stop_and_shutdown) or test(timed_out_stop_keeps_owner_and_releases_store_during_blocking_quote_io) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(test_execute_strategy_intents_success_calls_execution_and_audits) or test(monitor_shutdown_marks_state_and_joins_task) or test(live_sessions_are_pinned_and_open_failure_rolls_back) or test(closing_a_live_session_releases_its_pin) or test(runtime_path_precedence_prefers_settings_then_worker_env_then_legacy_binary) or test(stopped_state_ignores_late_health_success) or test(test_select_from_fs_returns_embedded_bundle_metadata) or test(live_session_contract_requires_identity_mode_and_revisions) or test(validates_loopback_worker_boundary_before_spawn) or test(strategy_market_day_start_follows_dst_transition) or test(validation_payload_matches_go_owner_field_set_and_defaults_requirements)"
         ],
         "testFilter": [
           "test_strategy_runtime_idempotent_lifecycle_operations"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "69eb6c90291cb93f07cd9cc0038ea1f793eb1a62",
+        "verifiedAt": "2026-09-25T14:24:29Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -260576,20 +260578,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-strategy",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(test_normalize_broker_account_drops_empty_input) or test(market_rules_ignore_missing_non_positive_and_non_finite_constraints) or test(test_execute_strategy_intents_cancel_all_queries_and_cancels_active_orders) or test(explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback) or test(test_strategy_runtime_idempotent_lifecycle_operations) or test(test_strategy_stop_bounded_timeout_on_synchronously_blocking_task) or test(strategy_market_day_start_follows_the_order_market_timezone) or test(pine_runtime_checkpoint_restores_latest_bar_and_intent_keys) or test(close_rejects_a_different_session_or_a_stale_explicit_revision) or test(start_request_accepts_explicit_market_and_code_without_symbol) or test(strategy_runtime_holds_exact_kline_demand_until_stop_and_shutdown) or test(timed_out_stop_keeps_owner_and_releases_store_during_blocking_quote_io) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(test_execute_strategy_intents_success_calls_execution_and_audits) or test(monitor_shutdown_marks_state_and_joins_task) or test(live_sessions_are_pinned_and_open_failure_rolls_back) or test(closing_a_live_session_releases_its_pin) or test(runtime_path_precedence_prefers_settings_then_worker_env_then_legacy_binary) or test(stopped_state_ignores_late_health_success) or test(test_select_from_fs_returns_embedded_bundle_metadata) or test(live_session_contract_requires_identity_mode_and_revisions) or test(validates_loopback_worker_boundary_before_spawn) or test(strategy_market_day_start_follows_dst_transition) or test(validation_payload_matches_go_owner_field_set_and_defaults_requirements)"
         ],
         "testFilter": [
           "validation_payload_matches_go_owner_field_set_and_defaults_requirements"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "69eb6c90291cb93f07cd9cc0038ea1f793eb1a62",
+        "verifiedAt": "2026-09-25T14:24:29Z",
         "receiptDigest": null
       },
       "risk": "high",
