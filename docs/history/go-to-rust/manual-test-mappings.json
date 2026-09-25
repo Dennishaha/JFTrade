@@ -25247,7 +25247,7 @@
       "status": "[~]",
       "rust_entry": "crates/jftrade-broker/tests/market_rules_snapshot_errors.rs::market_rules_ignore_missing_non_positive_and_non_finite_constraints",
       "conclusion": "partial：Go 断言 positiveFloat 识别受支持的规则类型（数值/字符串/JSON）并拒绝非法值。Rust 的市场规则解析断言忽略缺失/非正/非有限约束（market_rules_ignore_missing_non_positive_and_non_finite_constraints），覆盖数值合法性过滤，但逐类型表断言形态不同。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-broker --all-targets --locked",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-broker --all-targets --locked -E 'test(market_rules_ignore_missing_non_positive_and_non_finite_constraints)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/backtestapp/historical_source_test.go",
@@ -25278,7 +25278,9 @@
           "-p",
           "jftrade-broker",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(market_rules_ignore_missing_non_positive_and_non_finite_constraints)"
         ],
         "testFilter": [
           "market_rules_ignore_missing_non_positive_and_non_finite_constraints"

@@ -606,3 +606,16 @@ ADK/Assistant 功能差异，先补失败回归测试再修改领域 owner。
 `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(production_backtest_start_without_worker_fails_before_persisting_run)'`
 
 下一片：`internal/app/apiserver/backtestapp/historical_source_test.go:414:TestPositiveFloatRecognizesSupportedRuleTypes`，核对市场规则正浮点过滤与 Rust typed constraint parser 的差异。
+
+## 第 138 批：positiveFloat 与 typed market-rule constraints（2026-09-25）
+
+| 复核 | Go 测试 | Rust 证据 | P | 结论 |
+| :---: | --- | --- | :---: | --- |
+| [x] | `historical_source_test.go:414:TestPositiveFloatRecognizesSupportedRuleTypes` | `market_rules_ignore_missing_non_positive_and_non_finite_constraints` | P2 | partial：Go `positiveFloat` 接受 float64/float32/int/int32/int64 与 decimal string 的正值并拒绝 0、非法字符串、bool；Rust broker 规则层覆盖正约束过滤、零/负 lot、非有限 Fixed8 忽略，但 typed `Fixed8`/serde 输入没有同形宽 `any` 逐类型 helper 表。 |
+
+本批没有发现需要先红后修的 Rust 生产功能差异；差异属于 Go 私有宽类型 helper 与 Rust typed DTO/Fixed8 owner 的边界。精准 nextest 1/1 通过。
+
+验证：
+`node scripts/quality/cargo-nextest.mjs run -p jftrade-broker --all-targets --locked -E 'test(market_rules_ignore_missing_non_positive_and_non_finite_constraints)'`
+
+下一片：继续处理 `historical_source_test.go` 后续 backtest source/provider 条目，保持 P1 优先并在出现真实 owner 差异时先写失败回归。
