@@ -25,6 +25,7 @@
 - `subscriptions_test.go` 4 条与 `quote_availability_test.go` 2 条已逐项读取 Go 断言并核对 Rust owner；6/6 保持 `partial`，新增 authoritative quote 缺失字段与 legacy zero projection 回归测试，精准 nextest 11/11 通过。Rust 没有 LiveTickJSON/LatestTicksJSON 与 Go `SnapshotJSON` 同形 helper，因此未升级为 `function_exact`。
 - `lifecycle_boundaries_test.go` 余量 7 条已逐项读取 Go 断言并核对 Rust owner；7/7 保持 `partial`，精准 nextest 16/16 通过，没有新增生产修复。Cache、subscription、service、collector 与 resolver 的聚合 fixture 差异继续按 owner/架构边界记录。
 - Assistant chat stream helper/recovery 与断线重连 5 条已逐项读取 Go 断言并核对 Rust/SSE owner；5/5 保持 `boundary`/`partial`，精准 nextest 5/5 与 SSE/重连证据 4/4 通过。内存 hub clone、toolGroup、失败 writer 单写次数等旧 owner 行为按边界保留。
+- `internal/api/backtest/routes_progress_test.go:71` 已逐项读取 Go 断言并核对 Rust sync owner；保持 `partial`，精准 nextest 2/2 通过。Rust 已覆盖持久化 task 读回与 cancel 成功/缺失语义，HTTP progress 双态仍缺同形冻结路由语料。
 - resolver limit 差异已在 `crates/jftrade-engine/src/product_production_ports_market_data_catalog_futu.rs` 修复：避免 provider 在 CN/SH/SZ 过滤前按公开 limit 截断候选；TTL/singleflight 仍保留为架构边界，不宣称等价。
 - 近期真正修改过 Rust 生产代码的批次包括：交易默认市场注入、下单前名义金额回退、市日边界、策略运行时及若干行情/路由边界；这些改动均配有回归测试或兼容性证据。
 - 最近的 strategy/API 批次主要是证据审查和文档落账，没有新增 Rust 生产代码，必须与“功能已完成”分开看待。
@@ -38,7 +39,7 @@
 
 ## 调度收敛规则
 
-- 当前只保留一个持续队列上下文；本批完成后下一片按 P1 处理 `internal/api/backtest/routes_progress_test.go:71:TestSyncProgressAndCancelRoutesHandleSuccessAndNotFound`，再继续 API/backtest 与 Assistant 余量。
+- 当前只保留一个持续队列上下文；本批完成后下一片按 P1 处理 `internal/api/httpserver/bindings_boundaries_test.go:61`、`:70` 与 `internal/api/httpserver/bindings_test.go:186` 三条 query/URI/candle pagination 测试。
 - 不创建子任务、不创建第二个 heartbeat、不重复复核已经完成的切片。
 - 每批先读 Go 实现和 Rust owner；只有发现真实行为差异才先写失败回归测试并修改生产代码。
 - 仅证据不足时维持 `partial` 或 `boundary`，不得为了提高数字升级为 `function_exact`。

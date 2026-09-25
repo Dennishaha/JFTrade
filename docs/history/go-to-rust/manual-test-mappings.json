@@ -6449,7 +6449,7 @@
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_backtest_sync_start_tests.rs::production_sync_cancel_matches_not_found_for_terminal_task; crates/jftrade-engine/src/product_backtest_sync_start_tests.rs::production_sync_read_projects_persisted_task",
       "conclusion": "partial：Go 断言 sync progress 200、cancel 200、缺失 progress/cancel→404 NOT_FOUND。Rust 写语料覆盖 cancel-success/cancel-missing（200/404）与端口级取消缺失语义，读投影用例覆盖已持久化任务读回；缺口：sync progress 的 HTTP 200/404 双态无冻结语料与路由级断言，owner = 回测读路由投影。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --locked -E 'test(production_sync_cancel_matches_not_found_for_terminal_task) | test(production_sync_read_projects_persisted_task)'",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E test(production_sync_cancel_matches_not_found_for_terminal_task) or test(production_sync_read_projects_persisted_task)",
       "evidence_type": "partial",
       "source": {
         "file": "internal/api/backtest/routes_progress_test.go",
@@ -6472,11 +6472,13 @@
         }
       ],
       "assertionCoverage": {
-        "covered": [],
-        "uncovered": [
-          "partial：Go 断言 sync progress 200、cancel 200、缺失 progress/cancel→404 NOT_FOUND。Rust 写语料覆盖 cancel-success/cancel-missing（200/404）与端口级取消缺失语义，读投影用例覆盖已持久化任务读回；缺口：sync progress 的 HTTP 200/404 双态无冻结语料与路由级断言，owner = 回测读路由投影。"
+        "covered": [
+          "Rust 已验证 sync cancel 的成功/缺失语义与持久化 task 读回投影，覆盖 cancel 200/404 和 progress 数据来源。"
         ],
-        "source": "legacy-conclusion"
+        "uncovered": [
+          "Go 还在 HTTP router fixture 中同时断言 progress 200、progress missing 404、cancel 200/cancel missing 404 及 NOT_FOUND envelope；Rust 没有同一冻结 HTTP 路由双态语料，仍保留 partial。"
+        ],
+        "source": "manual-batch-review"
       },
       "verification": {
         "argv": [
@@ -6485,9 +6487,10 @@
           "run",
           "-p",
           "jftrade-engine",
+          "--all-targets",
           "--locked",
           "-E",
-          "test(production_sync_cancel_matches_not_found_for_terminal_task) | test(production_sync_read_projects_persisted_task)"
+          "test(production_sync_cancel_matches_not_found_for_terminal_task) or test(production_sync_read_projects_persisted_task)"
         ],
         "testFilter": [
           "production_sync_cancel_matches_not_found_for_terminal_task",
@@ -6495,10 +6498,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
+        "status": "passed",
+        "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": null,
+        "verifiedAt": "2026-09-25T03:50:00Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -6509,9 +6512,11 @@
         "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [],
+      "coveredAssertions": [
+        "Rust 已验证 sync cancel 的成功/缺失语义与持久化 task 读回投影，覆盖 cancel 200/404 和 progress 数据来源。"
+      ],
       "uncoveredAssertions": [
-        "partial：Go 断言 sync progress 200、cancel 200、缺失 progress/cancel→404 NOT_FOUND。Rust 写语料覆盖 cancel-success/cancel-missing（200/404）与端口级取消缺失语义，读投影用例覆盖已持久化任务读回；缺口：sync progress 的 HTTP 200/404 双态无冻结语料与路由级断言，owner = 回测读路由投影。"
+        "Go 还在 HTTP router fixture 中同时断言 progress 200、progress missing 404、cancel 200/cancel missing 404 及 NOT_FOUND envelope；Rust 没有同一冻结 HTTP 路由双态语料，仍保留 partial。"
       ],
       "boundaryReason": null
     },
