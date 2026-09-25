@@ -156469,8 +156469,12 @@
           "jftrade-integration-futu",
           "-p",
           "jftrade-engine",
+          "-p",
+          "jftrade-broker",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(resolver_projects_us_early_close_extended_window_with_timezone) or test(us_intraday_futu_candles_carry_calendar_resolved_session_labels) or test(broker_lot_size_initializes_minimum_and_step_quantity) or test(buying_power_requires_opend_trade_reader_and_forwards_max_quantity_query) or test(previous_close_condition_switches_on_session_type) or test(previous_close_condition_does_not_rewrite_non_us_unknown_sessions) or test(resolve_account_honors_requested_authority_and_falls_back_like_go) or test(security_snapshot_coordinator_caches_clones_and_uses_market_batches) or test(security_snapshot_coordinator_enforces_sliding_budget_and_does_not_cache_failures) or test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(security_snapshot_coordinator_handles_empty_and_unexpected_results) or test(symbol_scoped_snapshot_errors_are_detectable_through_context) or test(closed_ready_session_is_replaced_on_peer_close) or test(stock_screen_fallback_wire_value_helpers_match_go_coercions) or test(stock_screen_fallback_parses_rows_and_market_groups) or test(stock_screen_fallback_cancellation_and_adapter_entry_point) or test(stock_screen_fallback_coordinates_copies_and_errors) or test(snapshot_fallback_params_use_strict_delayed_quote_fields) or test(futu_stock_screen_snapshot_fallback_uses_static_ids_without_subscription) or test(stock_screen_snapshot_coordinator_caches_rows_and_negative_results) or test(futu_stock_screen_snapshot_fallback_reports_screen_errors) or test(runtime_shutdown_cancels_then_joins_its_worker) or test(basic_quote_pushes_drop_rows_without_a_usable_security_or_price) or test(provider_reconnect_publishes_resync_events_and_wakes_reconciliation) or test(coordinator_close_is_terminal_and_prevents_orphaned_reconnect) or test(failed_or_replayed_subscriptions_are_not_active_until_opend_confirms) or test(closed_session_generation_invalidates_its_subscriptions_and_requires_replay) or test(failed_connection_does_not_advance_the_established_session_generation) or test(hk_lunch_snapshot_keeps_previous_close_and_does_not_mark_extended_hours) or test(history_query_converts_supported_trade_markets_to_local_wall_clock) or test(history_fill_call_uses_history_protocol_and_forwards_time_filter) or test(history_query_converts_hk_rfc3339_to_local_wall_clock) or test(history_fill_read_projects_fill_identity) or test(resolve_trade_market_covers_requested_and_fallback_branches_like_go) or test(broker_read_projects_max_trade_quantity_snapshot) or test(max_trade_quantity_call_preserves_serial_and_projects_optional_fields) or test(margin_ratio_unknown_stock_code_extraction_matches_go_boundaries) or test(margin_ratio_unknown_stock_recovery_keeps_nil_security_rows_and_code_forms) or test(margin_ratio_server_throttling_maps_to_the_typed_rate_limit) or test(margin_ratio_wire_throttling_reaches_the_typed_rate_limit_variant)"
         ],
         "testFilter": [
           "resolver_projects_us_early_close_extended_window_with_timezone",
@@ -156478,10 +156482,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "5eab8d75",
+        "verifiedAt": "2026-09-25T13:16:09Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -157155,9 +157159,15 @@
           "scripts/quality/cargo-nextest.mjs",
           "run",
           "-p",
+          "jftrade-integration-futu",
+          "-p",
           "jftrade-engine",
+          "-p",
+          "jftrade-broker",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(resolver_projects_us_early_close_extended_window_with_timezone) or test(us_intraday_futu_candles_carry_calendar_resolved_session_labels) or test(broker_lot_size_initializes_minimum_and_step_quantity) or test(buying_power_requires_opend_trade_reader_and_forwards_max_quantity_query) or test(previous_close_condition_switches_on_session_type) or test(previous_close_condition_does_not_rewrite_non_us_unknown_sessions) or test(resolve_account_honors_requested_authority_and_falls_back_like_go) or test(security_snapshot_coordinator_caches_clones_and_uses_market_batches) or test(security_snapshot_coordinator_enforces_sliding_budget_and_does_not_cache_failures) or test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(security_snapshot_coordinator_handles_empty_and_unexpected_results) or test(symbol_scoped_snapshot_errors_are_detectable_through_context) or test(closed_ready_session_is_replaced_on_peer_close) or test(stock_screen_fallback_wire_value_helpers_match_go_coercions) or test(stock_screen_fallback_parses_rows_and_market_groups) or test(stock_screen_fallback_cancellation_and_adapter_entry_point) or test(stock_screen_fallback_coordinates_copies_and_errors) or test(snapshot_fallback_params_use_strict_delayed_quote_fields) or test(futu_stock_screen_snapshot_fallback_uses_static_ids_without_subscription) or test(stock_screen_snapshot_coordinator_caches_rows_and_negative_results) or test(futu_stock_screen_snapshot_fallback_reports_screen_errors) or test(runtime_shutdown_cancels_then_joins_its_worker) or test(basic_quote_pushes_drop_rows_without_a_usable_security_or_price) or test(provider_reconnect_publishes_resync_events_and_wakes_reconciliation) or test(coordinator_close_is_terminal_and_prevents_orphaned_reconnect) or test(failed_or_replayed_subscriptions_are_not_active_until_opend_confirms) or test(closed_session_generation_invalidates_its_subscriptions_and_requires_replay) or test(failed_connection_does_not_advance_the_established_session_generation) or test(hk_lunch_snapshot_keeps_previous_close_and_does_not_mark_extended_hours) or test(history_query_converts_supported_trade_markets_to_local_wall_clock) or test(history_fill_call_uses_history_protocol_and_forwards_time_filter) or test(history_query_converts_hk_rfc3339_to_local_wall_clock) or test(history_fill_read_projects_fill_identity) or test(resolve_trade_market_covers_requested_and_fallback_branches_like_go) or test(broker_read_projects_max_trade_quantity_snapshot) or test(max_trade_quantity_call_preserves_serial_and_projects_optional_fields) or test(margin_ratio_unknown_stock_code_extraction_matches_go_boundaries) or test(margin_ratio_unknown_stock_recovery_keeps_nil_security_rows_and_code_forms) or test(margin_ratio_server_throttling_maps_to_the_typed_rate_limit) or test(margin_ratio_wire_throttling_reaches_the_typed_rate_limit_variant)"
         ],
         "testFilter": [
           "broker_lot_size_initializes_minimum_and_step_quantity",
@@ -157165,10 +157175,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "5eab8d75",
+        "verifiedAt": "2026-09-25T13:16:09Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -165566,18 +165576,22 @@
           "jftrade-integration-futu",
           "-p",
           "jftrade-engine",
+          "-p",
+          "jftrade-broker",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(resolver_projects_us_early_close_extended_window_with_timezone) or test(us_intraday_futu_candles_carry_calendar_resolved_session_labels) or test(broker_lot_size_initializes_minimum_and_step_quantity) or test(buying_power_requires_opend_trade_reader_and_forwards_max_quantity_query) or test(previous_close_condition_switches_on_session_type) or test(previous_close_condition_does_not_rewrite_non_us_unknown_sessions) or test(resolve_account_honors_requested_authority_and_falls_back_like_go) or test(security_snapshot_coordinator_caches_clones_and_uses_market_batches) or test(security_snapshot_coordinator_enforces_sliding_budget_and_does_not_cache_failures) or test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(security_snapshot_coordinator_handles_empty_and_unexpected_results) or test(symbol_scoped_snapshot_errors_are_detectable_through_context) or test(closed_ready_session_is_replaced_on_peer_close) or test(stock_screen_fallback_wire_value_helpers_match_go_coercions) or test(stock_screen_fallback_parses_rows_and_market_groups) or test(stock_screen_fallback_cancellation_and_adapter_entry_point) or test(stock_screen_fallback_coordinates_copies_and_errors) or test(snapshot_fallback_params_use_strict_delayed_quote_fields) or test(futu_stock_screen_snapshot_fallback_uses_static_ids_without_subscription) or test(stock_screen_snapshot_coordinator_caches_rows_and_negative_results) or test(futu_stock_screen_snapshot_fallback_reports_screen_errors) or test(runtime_shutdown_cancels_then_joins_its_worker) or test(basic_quote_pushes_drop_rows_without_a_usable_security_or_price) or test(provider_reconnect_publishes_resync_events_and_wakes_reconciliation) or test(coordinator_close_is_terminal_and_prevents_orphaned_reconnect) or test(failed_or_replayed_subscriptions_are_not_active_until_opend_confirms) or test(closed_session_generation_invalidates_its_subscriptions_and_requires_replay) or test(failed_connection_does_not_advance_the_established_session_generation) or test(hk_lunch_snapshot_keeps_previous_close_and_does_not_mark_extended_hours) or test(history_query_converts_supported_trade_markets_to_local_wall_clock) or test(history_fill_call_uses_history_protocol_and_forwards_time_filter) or test(history_query_converts_hk_rfc3339_to_local_wall_clock) or test(history_fill_read_projects_fill_identity) or test(resolve_trade_market_covers_requested_and_fallback_branches_like_go) or test(broker_read_projects_max_trade_quantity_snapshot) or test(max_trade_quantity_call_preserves_serial_and_projects_optional_fields) or test(margin_ratio_unknown_stock_code_extraction_matches_go_boundaries) or test(margin_ratio_unknown_stock_recovery_keeps_nil_security_rows_and_code_forms) or test(margin_ratio_server_throttling_maps_to_the_typed_rate_limit) or test(margin_ratio_wire_throttling_reaches_the_typed_rate_limit_variant)"
         ],
         "testFilter": [
           "previous_close_condition_switches_on_session_type"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "5eab8d75",
+        "verifiedAt": "2026-09-25T13:16:09Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -165635,18 +165649,22 @@
           "jftrade-integration-futu",
           "-p",
           "jftrade-engine",
+          "-p",
+          "jftrade-broker",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(resolver_projects_us_early_close_extended_window_with_timezone) or test(us_intraday_futu_candles_carry_calendar_resolved_session_labels) or test(broker_lot_size_initializes_minimum_and_step_quantity) or test(buying_power_requires_opend_trade_reader_and_forwards_max_quantity_query) or test(previous_close_condition_switches_on_session_type) or test(previous_close_condition_does_not_rewrite_non_us_unknown_sessions) or test(resolve_account_honors_requested_authority_and_falls_back_like_go) or test(security_snapshot_coordinator_caches_clones_and_uses_market_batches) or test(security_snapshot_coordinator_enforces_sliding_budget_and_does_not_cache_failures) or test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(security_snapshot_coordinator_handles_empty_and_unexpected_results) or test(symbol_scoped_snapshot_errors_are_detectable_through_context) or test(closed_ready_session_is_replaced_on_peer_close) or test(stock_screen_fallback_wire_value_helpers_match_go_coercions) or test(stock_screen_fallback_parses_rows_and_market_groups) or test(stock_screen_fallback_cancellation_and_adapter_entry_point) or test(stock_screen_fallback_coordinates_copies_and_errors) or test(snapshot_fallback_params_use_strict_delayed_quote_fields) or test(futu_stock_screen_snapshot_fallback_uses_static_ids_without_subscription) or test(stock_screen_snapshot_coordinator_caches_rows_and_negative_results) or test(futu_stock_screen_snapshot_fallback_reports_screen_errors) or test(runtime_shutdown_cancels_then_joins_its_worker) or test(basic_quote_pushes_drop_rows_without_a_usable_security_or_price) or test(provider_reconnect_publishes_resync_events_and_wakes_reconciliation) or test(coordinator_close_is_terminal_and_prevents_orphaned_reconnect) or test(failed_or_replayed_subscriptions_are_not_active_until_opend_confirms) or test(closed_session_generation_invalidates_its_subscriptions_and_requires_replay) or test(failed_connection_does_not_advance_the_established_session_generation) or test(hk_lunch_snapshot_keeps_previous_close_and_does_not_mark_extended_hours) or test(history_query_converts_supported_trade_markets_to_local_wall_clock) or test(history_fill_call_uses_history_protocol_and_forwards_time_filter) or test(history_query_converts_hk_rfc3339_to_local_wall_clock) or test(history_fill_read_projects_fill_identity) or test(resolve_trade_market_covers_requested_and_fallback_branches_like_go) or test(broker_read_projects_max_trade_quantity_snapshot) or test(max_trade_quantity_call_preserves_serial_and_projects_optional_fields) or test(margin_ratio_unknown_stock_code_extraction_matches_go_boundaries) or test(margin_ratio_unknown_stock_recovery_keeps_nil_security_rows_and_code_forms) or test(margin_ratio_server_throttling_maps_to_the_typed_rate_limit) or test(margin_ratio_wire_throttling_reaches_the_typed_rate_limit_variant)"
         ],
         "testFilter": [
           "previous_close_condition_does_not_rewrite_non_us_unknown_sessions"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "5eab8d75",
+        "verifiedAt": "2026-09-25T13:16:09Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -165772,21 +165790,25 @@
           "scripts/quality/cargo-nextest.mjs",
           "run",
           "-p",
+          "jftrade-integration-futu",
+          "-p",
           "jftrade-engine",
+          "-p",
+          "jftrade-broker",
           "--all-targets",
           "--locked",
           "-E",
-          "test(resolve_account_honors_requested_authority_and_falls_back_like_go)"
+          "test(resolver_projects_us_early_close_extended_window_with_timezone) or test(us_intraday_futu_candles_carry_calendar_resolved_session_labels) or test(broker_lot_size_initializes_minimum_and_step_quantity) or test(buying_power_requires_opend_trade_reader_and_forwards_max_quantity_query) or test(previous_close_condition_switches_on_session_type) or test(previous_close_condition_does_not_rewrite_non_us_unknown_sessions) or test(resolve_account_honors_requested_authority_and_falls_back_like_go) or test(security_snapshot_coordinator_caches_clones_and_uses_market_batches) or test(security_snapshot_coordinator_enforces_sliding_budget_and_does_not_cache_failures) or test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(security_snapshot_coordinator_handles_empty_and_unexpected_results) or test(symbol_scoped_snapshot_errors_are_detectable_through_context) or test(closed_ready_session_is_replaced_on_peer_close) or test(stock_screen_fallback_wire_value_helpers_match_go_coercions) or test(stock_screen_fallback_parses_rows_and_market_groups) or test(stock_screen_fallback_cancellation_and_adapter_entry_point) or test(stock_screen_fallback_coordinates_copies_and_errors) or test(snapshot_fallback_params_use_strict_delayed_quote_fields) or test(futu_stock_screen_snapshot_fallback_uses_static_ids_without_subscription) or test(stock_screen_snapshot_coordinator_caches_rows_and_negative_results) or test(futu_stock_screen_snapshot_fallback_reports_screen_errors) or test(runtime_shutdown_cancels_then_joins_its_worker) or test(basic_quote_pushes_drop_rows_without_a_usable_security_or_price) or test(provider_reconnect_publishes_resync_events_and_wakes_reconciliation) or test(coordinator_close_is_terminal_and_prevents_orphaned_reconnect) or test(failed_or_replayed_subscriptions_are_not_active_until_opend_confirms) or test(closed_session_generation_invalidates_its_subscriptions_and_requires_replay) or test(failed_connection_does_not_advance_the_established_session_generation) or test(hk_lunch_snapshot_keeps_previous_close_and_does_not_mark_extended_hours) or test(history_query_converts_supported_trade_markets_to_local_wall_clock) or test(history_fill_call_uses_history_protocol_and_forwards_time_filter) or test(history_query_converts_hk_rfc3339_to_local_wall_clock) or test(history_fill_read_projects_fill_identity) or test(resolve_trade_market_covers_requested_and_fallback_branches_like_go) or test(broker_read_projects_max_trade_quantity_snapshot) or test(max_trade_quantity_call_preserves_serial_and_projects_optional_fields) or test(margin_ratio_unknown_stock_code_extraction_matches_go_boundaries) or test(margin_ratio_unknown_stock_recovery_keeps_nil_security_rows_and_code_forms) or test(margin_ratio_server_throttling_maps_to_the_typed_rate_limit) or test(margin_ratio_wire_throttling_reaches_the_typed_rate_limit_variant)"
         ],
         "testFilter": [
           "resolve_account_honors_requested_authority_and_falls_back_like_go"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "5eab8d75",
+        "verifiedAt": "2026-09-25T13:16:09Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -166465,19 +166487,24 @@
           "run",
           "-p",
           "jftrade-integration-futu",
+          "-p",
+          "jftrade-engine",
+          "-p",
+          "jftrade-broker",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(security_snapshot_coordinator)",
-          "--locked"
+          "test(resolver_projects_us_early_close_extended_window_with_timezone) or test(us_intraday_futu_candles_carry_calendar_resolved_session_labels) or test(broker_lot_size_initializes_minimum_and_step_quantity) or test(buying_power_requires_opend_trade_reader_and_forwards_max_quantity_query) or test(previous_close_condition_switches_on_session_type) or test(previous_close_condition_does_not_rewrite_non_us_unknown_sessions) or test(resolve_account_honors_requested_authority_and_falls_back_like_go) or test(security_snapshot_coordinator_caches_clones_and_uses_market_batches) or test(security_snapshot_coordinator_enforces_sliding_budget_and_does_not_cache_failures) or test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(security_snapshot_coordinator_handles_empty_and_unexpected_results) or test(symbol_scoped_snapshot_errors_are_detectable_through_context) or test(closed_ready_session_is_replaced_on_peer_close) or test(stock_screen_fallback_wire_value_helpers_match_go_coercions) or test(stock_screen_fallback_parses_rows_and_market_groups) or test(stock_screen_fallback_cancellation_and_adapter_entry_point) or test(stock_screen_fallback_coordinates_copies_and_errors) or test(snapshot_fallback_params_use_strict_delayed_quote_fields) or test(futu_stock_screen_snapshot_fallback_uses_static_ids_without_subscription) or test(stock_screen_snapshot_coordinator_caches_rows_and_negative_results) or test(futu_stock_screen_snapshot_fallback_reports_screen_errors) or test(runtime_shutdown_cancels_then_joins_its_worker) or test(basic_quote_pushes_drop_rows_without_a_usable_security_or_price) or test(provider_reconnect_publishes_resync_events_and_wakes_reconciliation) or test(coordinator_close_is_terminal_and_prevents_orphaned_reconnect) or test(failed_or_replayed_subscriptions_are_not_active_until_opend_confirms) or test(closed_session_generation_invalidates_its_subscriptions_and_requires_replay) or test(failed_connection_does_not_advance_the_established_session_generation) or test(hk_lunch_snapshot_keeps_previous_close_and_does_not_mark_extended_hours) or test(history_query_converts_supported_trade_markets_to_local_wall_clock) or test(history_fill_call_uses_history_protocol_and_forwards_time_filter) or test(history_query_converts_hk_rfc3339_to_local_wall_clock) or test(history_fill_read_projects_fill_identity) or test(resolve_trade_market_covers_requested_and_fallback_branches_like_go) or test(broker_read_projects_max_trade_quantity_snapshot) or test(max_trade_quantity_call_preserves_serial_and_projects_optional_fields) or test(margin_ratio_unknown_stock_code_extraction_matches_go_boundaries) or test(margin_ratio_unknown_stock_recovery_keeps_nil_security_rows_and_code_forms) or test(margin_ratio_server_throttling_maps_to_the_typed_rate_limit) or test(margin_ratio_wire_throttling_reaches_the_typed_rate_limit_variant)"
         ],
         "testFilter": [
           "security_snapshot_coordinator_caches_clones_and_uses_market_batches"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "5eab8d75",
+        "verifiedAt": "2026-09-25T13:16:09Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -166601,19 +166628,24 @@
           "run",
           "-p",
           "jftrade-integration-futu",
+          "-p",
+          "jftrade-engine",
+          "-p",
+          "jftrade-broker",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(security_snapshot_coordinator)",
-          "--locked"
+          "test(resolver_projects_us_early_close_extended_window_with_timezone) or test(us_intraday_futu_candles_carry_calendar_resolved_session_labels) or test(broker_lot_size_initializes_minimum_and_step_quantity) or test(buying_power_requires_opend_trade_reader_and_forwards_max_quantity_query) or test(previous_close_condition_switches_on_session_type) or test(previous_close_condition_does_not_rewrite_non_us_unknown_sessions) or test(resolve_account_honors_requested_authority_and_falls_back_like_go) or test(security_snapshot_coordinator_caches_clones_and_uses_market_batches) or test(security_snapshot_coordinator_enforces_sliding_budget_and_does_not_cache_failures) or test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(security_snapshot_coordinator_handles_empty_and_unexpected_results) or test(symbol_scoped_snapshot_errors_are_detectable_through_context) or test(closed_ready_session_is_replaced_on_peer_close) or test(stock_screen_fallback_wire_value_helpers_match_go_coercions) or test(stock_screen_fallback_parses_rows_and_market_groups) or test(stock_screen_fallback_cancellation_and_adapter_entry_point) or test(stock_screen_fallback_coordinates_copies_and_errors) or test(snapshot_fallback_params_use_strict_delayed_quote_fields) or test(futu_stock_screen_snapshot_fallback_uses_static_ids_without_subscription) or test(stock_screen_snapshot_coordinator_caches_rows_and_negative_results) or test(futu_stock_screen_snapshot_fallback_reports_screen_errors) or test(runtime_shutdown_cancels_then_joins_its_worker) or test(basic_quote_pushes_drop_rows_without_a_usable_security_or_price) or test(provider_reconnect_publishes_resync_events_and_wakes_reconciliation) or test(coordinator_close_is_terminal_and_prevents_orphaned_reconnect) or test(failed_or_replayed_subscriptions_are_not_active_until_opend_confirms) or test(closed_session_generation_invalidates_its_subscriptions_and_requires_replay) or test(failed_connection_does_not_advance_the_established_session_generation) or test(hk_lunch_snapshot_keeps_previous_close_and_does_not_mark_extended_hours) or test(history_query_converts_supported_trade_markets_to_local_wall_clock) or test(history_fill_call_uses_history_protocol_and_forwards_time_filter) or test(history_query_converts_hk_rfc3339_to_local_wall_clock) or test(history_fill_read_projects_fill_identity) or test(resolve_trade_market_covers_requested_and_fallback_branches_like_go) or test(broker_read_projects_max_trade_quantity_snapshot) or test(max_trade_quantity_call_preserves_serial_and_projects_optional_fields) or test(margin_ratio_unknown_stock_code_extraction_matches_go_boundaries) or test(margin_ratio_unknown_stock_recovery_keeps_nil_security_rows_and_code_forms) or test(margin_ratio_server_throttling_maps_to_the_typed_rate_limit) or test(margin_ratio_wire_throttling_reaches_the_typed_rate_limit_variant)"
         ],
         "testFilter": [
           "security_snapshot_coordinator_enforces_sliding_budget_and_does_not_cache_failures"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "5eab8d75",
+        "verifiedAt": "2026-09-25T13:16:09Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -166669,19 +166701,24 @@
           "run",
           "-p",
           "jftrade-integration-futu",
+          "-p",
+          "jftrade-engine",
+          "-p",
+          "jftrade-broker",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(security_snapshot_coordinator)",
-          "--locked"
+          "test(resolver_projects_us_early_close_extended_window_with_timezone) or test(us_intraday_futu_candles_carry_calendar_resolved_session_labels) or test(broker_lot_size_initializes_minimum_and_step_quantity) or test(buying_power_requires_opend_trade_reader_and_forwards_max_quantity_query) or test(previous_close_condition_switches_on_session_type) or test(previous_close_condition_does_not_rewrite_non_us_unknown_sessions) or test(resolve_account_honors_requested_authority_and_falls_back_like_go) or test(security_snapshot_coordinator_caches_clones_and_uses_market_batches) or test(security_snapshot_coordinator_enforces_sliding_budget_and_does_not_cache_failures) or test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(security_snapshot_coordinator_handles_empty_and_unexpected_results) or test(symbol_scoped_snapshot_errors_are_detectable_through_context) or test(closed_ready_session_is_replaced_on_peer_close) or test(stock_screen_fallback_wire_value_helpers_match_go_coercions) or test(stock_screen_fallback_parses_rows_and_market_groups) or test(stock_screen_fallback_cancellation_and_adapter_entry_point) or test(stock_screen_fallback_coordinates_copies_and_errors) or test(snapshot_fallback_params_use_strict_delayed_quote_fields) or test(futu_stock_screen_snapshot_fallback_uses_static_ids_without_subscription) or test(stock_screen_snapshot_coordinator_caches_rows_and_negative_results) or test(futu_stock_screen_snapshot_fallback_reports_screen_errors) or test(runtime_shutdown_cancels_then_joins_its_worker) or test(basic_quote_pushes_drop_rows_without_a_usable_security_or_price) or test(provider_reconnect_publishes_resync_events_and_wakes_reconciliation) or test(coordinator_close_is_terminal_and_prevents_orphaned_reconnect) or test(failed_or_replayed_subscriptions_are_not_active_until_opend_confirms) or test(closed_session_generation_invalidates_its_subscriptions_and_requires_replay) or test(failed_connection_does_not_advance_the_established_session_generation) or test(hk_lunch_snapshot_keeps_previous_close_and_does_not_mark_extended_hours) or test(history_query_converts_supported_trade_markets_to_local_wall_clock) or test(history_fill_call_uses_history_protocol_and_forwards_time_filter) or test(history_query_converts_hk_rfc3339_to_local_wall_clock) or test(history_fill_read_projects_fill_identity) or test(resolve_trade_market_covers_requested_and_fallback_branches_like_go) or test(broker_read_projects_max_trade_quantity_snapshot) or test(max_trade_quantity_call_preserves_serial_and_projects_optional_fields) or test(margin_ratio_unknown_stock_code_extraction_matches_go_boundaries) or test(margin_ratio_unknown_stock_recovery_keeps_nil_security_rows_and_code_forms) or test(margin_ratio_server_throttling_maps_to_the_typed_rate_limit) or test(margin_ratio_wire_throttling_reaches_the_typed_rate_limit_variant)"
         ],
         "testFilter": [
           "security_snapshot_coordinator_classifies_remote_rate_limit"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "5eab8d75",
+        "verifiedAt": "2026-09-25T13:16:09Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -166805,19 +166842,24 @@
           "run",
           "-p",
           "jftrade-integration-futu",
+          "-p",
+          "jftrade-engine",
+          "-p",
+          "jftrade-broker",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(security_snapshot_coordinator)",
-          "--locked"
+          "test(resolver_projects_us_early_close_extended_window_with_timezone) or test(us_intraday_futu_candles_carry_calendar_resolved_session_labels) or test(broker_lot_size_initializes_minimum_and_step_quantity) or test(buying_power_requires_opend_trade_reader_and_forwards_max_quantity_query) or test(previous_close_condition_switches_on_session_type) or test(previous_close_condition_does_not_rewrite_non_us_unknown_sessions) or test(resolve_account_honors_requested_authority_and_falls_back_like_go) or test(security_snapshot_coordinator_caches_clones_and_uses_market_batches) or test(security_snapshot_coordinator_enforces_sliding_budget_and_does_not_cache_failures) or test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(security_snapshot_coordinator_handles_empty_and_unexpected_results) or test(symbol_scoped_snapshot_errors_are_detectable_through_context) or test(closed_ready_session_is_replaced_on_peer_close) or test(stock_screen_fallback_wire_value_helpers_match_go_coercions) or test(stock_screen_fallback_parses_rows_and_market_groups) or test(stock_screen_fallback_cancellation_and_adapter_entry_point) or test(stock_screen_fallback_coordinates_copies_and_errors) or test(snapshot_fallback_params_use_strict_delayed_quote_fields) or test(futu_stock_screen_snapshot_fallback_uses_static_ids_without_subscription) or test(stock_screen_snapshot_coordinator_caches_rows_and_negative_results) or test(futu_stock_screen_snapshot_fallback_reports_screen_errors) or test(runtime_shutdown_cancels_then_joins_its_worker) or test(basic_quote_pushes_drop_rows_without_a_usable_security_or_price) or test(provider_reconnect_publishes_resync_events_and_wakes_reconciliation) or test(coordinator_close_is_terminal_and_prevents_orphaned_reconnect) or test(failed_or_replayed_subscriptions_are_not_active_until_opend_confirms) or test(closed_session_generation_invalidates_its_subscriptions_and_requires_replay) or test(failed_connection_does_not_advance_the_established_session_generation) or test(hk_lunch_snapshot_keeps_previous_close_and_does_not_mark_extended_hours) or test(history_query_converts_supported_trade_markets_to_local_wall_clock) or test(history_fill_call_uses_history_protocol_and_forwards_time_filter) or test(history_query_converts_hk_rfc3339_to_local_wall_clock) or test(history_fill_read_projects_fill_identity) or test(resolve_trade_market_covers_requested_and_fallback_branches_like_go) or test(broker_read_projects_max_trade_quantity_snapshot) or test(max_trade_quantity_call_preserves_serial_and_projects_optional_fields) or test(margin_ratio_unknown_stock_code_extraction_matches_go_boundaries) or test(margin_ratio_unknown_stock_recovery_keeps_nil_security_rows_and_code_forms) or test(margin_ratio_server_throttling_maps_to_the_typed_rate_limit) or test(margin_ratio_wire_throttling_reaches_the_typed_rate_limit_variant)"
         ],
         "testFilter": [
           "security_snapshot_coordinator_handles_empty_and_unexpected_results"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "5eab8d75",
+        "verifiedAt": "2026-09-25T13:16:09Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -166942,9 +166984,15 @@
           "scripts/quality/cargo-nextest.mjs",
           "run",
           "-p",
+          "jftrade-integration-futu",
+          "-p",
+          "jftrade-engine",
+          "-p",
           "jftrade-broker",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(resolver_projects_us_early_close_extended_window_with_timezone) or test(us_intraday_futu_candles_carry_calendar_resolved_session_labels) or test(broker_lot_size_initializes_minimum_and_step_quantity) or test(buying_power_requires_opend_trade_reader_and_forwards_max_quantity_query) or test(previous_close_condition_switches_on_session_type) or test(previous_close_condition_does_not_rewrite_non_us_unknown_sessions) or test(resolve_account_honors_requested_authority_and_falls_back_like_go) or test(security_snapshot_coordinator_caches_clones_and_uses_market_batches) or test(security_snapshot_coordinator_enforces_sliding_budget_and_does_not_cache_failures) or test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(security_snapshot_coordinator_handles_empty_and_unexpected_results) or test(symbol_scoped_snapshot_errors_are_detectable_through_context) or test(closed_ready_session_is_replaced_on_peer_close) or test(stock_screen_fallback_wire_value_helpers_match_go_coercions) or test(stock_screen_fallback_parses_rows_and_market_groups) or test(stock_screen_fallback_cancellation_and_adapter_entry_point) or test(stock_screen_fallback_coordinates_copies_and_errors) or test(snapshot_fallback_params_use_strict_delayed_quote_fields) or test(futu_stock_screen_snapshot_fallback_uses_static_ids_without_subscription) or test(stock_screen_snapshot_coordinator_caches_rows_and_negative_results) or test(futu_stock_screen_snapshot_fallback_reports_screen_errors) or test(runtime_shutdown_cancels_then_joins_its_worker) or test(basic_quote_pushes_drop_rows_without_a_usable_security_or_price) or test(provider_reconnect_publishes_resync_events_and_wakes_reconciliation) or test(coordinator_close_is_terminal_and_prevents_orphaned_reconnect) or test(failed_or_replayed_subscriptions_are_not_active_until_opend_confirms) or test(closed_session_generation_invalidates_its_subscriptions_and_requires_replay) or test(failed_connection_does_not_advance_the_established_session_generation) or test(hk_lunch_snapshot_keeps_previous_close_and_does_not_mark_extended_hours) or test(history_query_converts_supported_trade_markets_to_local_wall_clock) or test(history_fill_call_uses_history_protocol_and_forwards_time_filter) or test(history_query_converts_hk_rfc3339_to_local_wall_clock) or test(history_fill_read_projects_fill_identity) or test(resolve_trade_market_covers_requested_and_fallback_branches_like_go) or test(broker_read_projects_max_trade_quantity_snapshot) or test(max_trade_quantity_call_preserves_serial_and_projects_optional_fields) or test(margin_ratio_unknown_stock_code_extraction_matches_go_boundaries) or test(margin_ratio_unknown_stock_recovery_keeps_nil_security_rows_and_code_forms) or test(margin_ratio_server_throttling_maps_to_the_typed_rate_limit) or test(margin_ratio_wire_throttling_reaches_the_typed_rate_limit_variant)"
         ],
         "testFilter": [
           "symbol_scoped_snapshot_errors_are_detectable_through_context",
@@ -166952,10 +167000,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "5eab8d75",
+        "verifiedAt": "2026-09-25T13:16:09Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -167220,19 +167268,24 @@
           "run",
           "-p",
           "jftrade-integration-futu",
+          "-p",
+          "jftrade-engine",
+          "-p",
+          "jftrade-broker",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(snapshot_fallback)",
-          "--locked"
+          "test(resolver_projects_us_early_close_extended_window_with_timezone) or test(us_intraday_futu_candles_carry_calendar_resolved_session_labels) or test(broker_lot_size_initializes_minimum_and_step_quantity) or test(buying_power_requires_opend_trade_reader_and_forwards_max_quantity_query) or test(previous_close_condition_switches_on_session_type) or test(previous_close_condition_does_not_rewrite_non_us_unknown_sessions) or test(resolve_account_honors_requested_authority_and_falls_back_like_go) or test(security_snapshot_coordinator_caches_clones_and_uses_market_batches) or test(security_snapshot_coordinator_enforces_sliding_budget_and_does_not_cache_failures) or test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(security_snapshot_coordinator_handles_empty_and_unexpected_results) or test(symbol_scoped_snapshot_errors_are_detectable_through_context) or test(closed_ready_session_is_replaced_on_peer_close) or test(stock_screen_fallback_wire_value_helpers_match_go_coercions) or test(stock_screen_fallback_parses_rows_and_market_groups) or test(stock_screen_fallback_cancellation_and_adapter_entry_point) or test(stock_screen_fallback_coordinates_copies_and_errors) or test(snapshot_fallback_params_use_strict_delayed_quote_fields) or test(futu_stock_screen_snapshot_fallback_uses_static_ids_without_subscription) or test(stock_screen_snapshot_coordinator_caches_rows_and_negative_results) or test(futu_stock_screen_snapshot_fallback_reports_screen_errors) or test(runtime_shutdown_cancels_then_joins_its_worker) or test(basic_quote_pushes_drop_rows_without_a_usable_security_or_price) or test(provider_reconnect_publishes_resync_events_and_wakes_reconciliation) or test(coordinator_close_is_terminal_and_prevents_orphaned_reconnect) or test(failed_or_replayed_subscriptions_are_not_active_until_opend_confirms) or test(closed_session_generation_invalidates_its_subscriptions_and_requires_replay) or test(failed_connection_does_not_advance_the_established_session_generation) or test(hk_lunch_snapshot_keeps_previous_close_and_does_not_mark_extended_hours) or test(history_query_converts_supported_trade_markets_to_local_wall_clock) or test(history_fill_call_uses_history_protocol_and_forwards_time_filter) or test(history_query_converts_hk_rfc3339_to_local_wall_clock) or test(history_fill_read_projects_fill_identity) or test(resolve_trade_market_covers_requested_and_fallback_branches_like_go) or test(broker_read_projects_max_trade_quantity_snapshot) or test(max_trade_quantity_call_preserves_serial_and_projects_optional_fields) or test(margin_ratio_unknown_stock_code_extraction_matches_go_boundaries) or test(margin_ratio_unknown_stock_recovery_keeps_nil_security_rows_and_code_forms) or test(margin_ratio_server_throttling_maps_to_the_typed_rate_limit) or test(margin_ratio_wire_throttling_reaches_the_typed_rate_limit_variant)"
         ],
         "testFilter": [
           "stock_screen_fallback_wire_value_helpers_match_go_coercions"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "5eab8d75",
+        "verifiedAt": "2026-09-25T13:16:09Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -167288,19 +167341,24 @@
           "run",
           "-p",
           "jftrade-integration-futu",
+          "-p",
+          "jftrade-engine",
+          "-p",
+          "jftrade-broker",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(snapshot_fallback)",
-          "--locked"
+          "test(resolver_projects_us_early_close_extended_window_with_timezone) or test(us_intraday_futu_candles_carry_calendar_resolved_session_labels) or test(broker_lot_size_initializes_minimum_and_step_quantity) or test(buying_power_requires_opend_trade_reader_and_forwards_max_quantity_query) or test(previous_close_condition_switches_on_session_type) or test(previous_close_condition_does_not_rewrite_non_us_unknown_sessions) or test(resolve_account_honors_requested_authority_and_falls_back_like_go) or test(security_snapshot_coordinator_caches_clones_and_uses_market_batches) or test(security_snapshot_coordinator_enforces_sliding_budget_and_does_not_cache_failures) or test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(security_snapshot_coordinator_handles_empty_and_unexpected_results) or test(symbol_scoped_snapshot_errors_are_detectable_through_context) or test(closed_ready_session_is_replaced_on_peer_close) or test(stock_screen_fallback_wire_value_helpers_match_go_coercions) or test(stock_screen_fallback_parses_rows_and_market_groups) or test(stock_screen_fallback_cancellation_and_adapter_entry_point) or test(stock_screen_fallback_coordinates_copies_and_errors) or test(snapshot_fallback_params_use_strict_delayed_quote_fields) or test(futu_stock_screen_snapshot_fallback_uses_static_ids_without_subscription) or test(stock_screen_snapshot_coordinator_caches_rows_and_negative_results) or test(futu_stock_screen_snapshot_fallback_reports_screen_errors) or test(runtime_shutdown_cancels_then_joins_its_worker) or test(basic_quote_pushes_drop_rows_without_a_usable_security_or_price) or test(provider_reconnect_publishes_resync_events_and_wakes_reconciliation) or test(coordinator_close_is_terminal_and_prevents_orphaned_reconnect) or test(failed_or_replayed_subscriptions_are_not_active_until_opend_confirms) or test(closed_session_generation_invalidates_its_subscriptions_and_requires_replay) or test(failed_connection_does_not_advance_the_established_session_generation) or test(hk_lunch_snapshot_keeps_previous_close_and_does_not_mark_extended_hours) or test(history_query_converts_supported_trade_markets_to_local_wall_clock) or test(history_fill_call_uses_history_protocol_and_forwards_time_filter) or test(history_query_converts_hk_rfc3339_to_local_wall_clock) or test(history_fill_read_projects_fill_identity) or test(resolve_trade_market_covers_requested_and_fallback_branches_like_go) or test(broker_read_projects_max_trade_quantity_snapshot) or test(max_trade_quantity_call_preserves_serial_and_projects_optional_fields) or test(margin_ratio_unknown_stock_code_extraction_matches_go_boundaries) or test(margin_ratio_unknown_stock_recovery_keeps_nil_security_rows_and_code_forms) or test(margin_ratio_server_throttling_maps_to_the_typed_rate_limit) or test(margin_ratio_wire_throttling_reaches_the_typed_rate_limit_variant)"
         ],
         "testFilter": [
           "stock_screen_fallback_parses_rows_and_market_groups"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "5eab8d75",
+        "verifiedAt": "2026-09-25T13:16:09Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -167367,9 +167425,14 @@
           "run",
           "-p",
           "jftrade-integration-futu",
+          "-p",
+          "jftrade-engine",
+          "-p",
+          "jftrade-broker",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(snapshot_fallback)",
-          "--locked"
+          "test(resolver_projects_us_early_close_extended_window_with_timezone) or test(us_intraday_futu_candles_carry_calendar_resolved_session_labels) or test(broker_lot_size_initializes_minimum_and_step_quantity) or test(buying_power_requires_opend_trade_reader_and_forwards_max_quantity_query) or test(previous_close_condition_switches_on_session_type) or test(previous_close_condition_does_not_rewrite_non_us_unknown_sessions) or test(resolve_account_honors_requested_authority_and_falls_back_like_go) or test(security_snapshot_coordinator_caches_clones_and_uses_market_batches) or test(security_snapshot_coordinator_enforces_sliding_budget_and_does_not_cache_failures) or test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(security_snapshot_coordinator_handles_empty_and_unexpected_results) or test(symbol_scoped_snapshot_errors_are_detectable_through_context) or test(closed_ready_session_is_replaced_on_peer_close) or test(stock_screen_fallback_wire_value_helpers_match_go_coercions) or test(stock_screen_fallback_parses_rows_and_market_groups) or test(stock_screen_fallback_cancellation_and_adapter_entry_point) or test(stock_screen_fallback_coordinates_copies_and_errors) or test(snapshot_fallback_params_use_strict_delayed_quote_fields) or test(futu_stock_screen_snapshot_fallback_uses_static_ids_without_subscription) or test(stock_screen_snapshot_coordinator_caches_rows_and_negative_results) or test(futu_stock_screen_snapshot_fallback_reports_screen_errors) or test(runtime_shutdown_cancels_then_joins_its_worker) or test(basic_quote_pushes_drop_rows_without_a_usable_security_or_price) or test(provider_reconnect_publishes_resync_events_and_wakes_reconciliation) or test(coordinator_close_is_terminal_and_prevents_orphaned_reconnect) or test(failed_or_replayed_subscriptions_are_not_active_until_opend_confirms) or test(closed_session_generation_invalidates_its_subscriptions_and_requires_replay) or test(failed_connection_does_not_advance_the_established_session_generation) or test(hk_lunch_snapshot_keeps_previous_close_and_does_not_mark_extended_hours) or test(history_query_converts_supported_trade_markets_to_local_wall_clock) or test(history_fill_call_uses_history_protocol_and_forwards_time_filter) or test(history_query_converts_hk_rfc3339_to_local_wall_clock) or test(history_fill_read_projects_fill_identity) or test(resolve_trade_market_covers_requested_and_fallback_branches_like_go) or test(broker_read_projects_max_trade_quantity_snapshot) or test(max_trade_quantity_call_preserves_serial_and_projects_optional_fields) or test(margin_ratio_unknown_stock_code_extraction_matches_go_boundaries) or test(margin_ratio_unknown_stock_recovery_keeps_nil_security_rows_and_code_forms) or test(margin_ratio_server_throttling_maps_to_the_typed_rate_limit) or test(margin_ratio_wire_throttling_reaches_the_typed_rate_limit_variant)"
         ],
         "testFilter": [
           "stock_screen_fallback_cancellation_and_adapter_entry_point",
@@ -167377,10 +167440,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "5eab8d75",
+        "verifiedAt": "2026-09-25T13:16:09Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -167436,19 +167499,24 @@
           "run",
           "-p",
           "jftrade-integration-futu",
+          "-p",
+          "jftrade-engine",
+          "-p",
+          "jftrade-broker",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(snapshot_fallback)",
-          "--locked"
+          "test(resolver_projects_us_early_close_extended_window_with_timezone) or test(us_intraday_futu_candles_carry_calendar_resolved_session_labels) or test(broker_lot_size_initializes_minimum_and_step_quantity) or test(buying_power_requires_opend_trade_reader_and_forwards_max_quantity_query) or test(previous_close_condition_switches_on_session_type) or test(previous_close_condition_does_not_rewrite_non_us_unknown_sessions) or test(resolve_account_honors_requested_authority_and_falls_back_like_go) or test(security_snapshot_coordinator_caches_clones_and_uses_market_batches) or test(security_snapshot_coordinator_enforces_sliding_budget_and_does_not_cache_failures) or test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(security_snapshot_coordinator_handles_empty_and_unexpected_results) or test(symbol_scoped_snapshot_errors_are_detectable_through_context) or test(closed_ready_session_is_replaced_on_peer_close) or test(stock_screen_fallback_wire_value_helpers_match_go_coercions) or test(stock_screen_fallback_parses_rows_and_market_groups) or test(stock_screen_fallback_cancellation_and_adapter_entry_point) or test(stock_screen_fallback_coordinates_copies_and_errors) or test(snapshot_fallback_params_use_strict_delayed_quote_fields) or test(futu_stock_screen_snapshot_fallback_uses_static_ids_without_subscription) or test(stock_screen_snapshot_coordinator_caches_rows_and_negative_results) or test(futu_stock_screen_snapshot_fallback_reports_screen_errors) or test(runtime_shutdown_cancels_then_joins_its_worker) or test(basic_quote_pushes_drop_rows_without_a_usable_security_or_price) or test(provider_reconnect_publishes_resync_events_and_wakes_reconciliation) or test(coordinator_close_is_terminal_and_prevents_orphaned_reconnect) or test(failed_or_replayed_subscriptions_are_not_active_until_opend_confirms) or test(closed_session_generation_invalidates_its_subscriptions_and_requires_replay) or test(failed_connection_does_not_advance_the_established_session_generation) or test(hk_lunch_snapshot_keeps_previous_close_and_does_not_mark_extended_hours) or test(history_query_converts_supported_trade_markets_to_local_wall_clock) or test(history_fill_call_uses_history_protocol_and_forwards_time_filter) or test(history_query_converts_hk_rfc3339_to_local_wall_clock) or test(history_fill_read_projects_fill_identity) or test(resolve_trade_market_covers_requested_and_fallback_branches_like_go) or test(broker_read_projects_max_trade_quantity_snapshot) or test(max_trade_quantity_call_preserves_serial_and_projects_optional_fields) or test(margin_ratio_unknown_stock_code_extraction_matches_go_boundaries) or test(margin_ratio_unknown_stock_recovery_keeps_nil_security_rows_and_code_forms) or test(margin_ratio_server_throttling_maps_to_the_typed_rate_limit) or test(margin_ratio_wire_throttling_reaches_the_typed_rate_limit_variant)"
         ],
         "testFilter": [
           "snapshot_fallback_params_use_strict_delayed_quote_fields"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "5eab8d75",
+        "verifiedAt": "2026-09-25T13:16:09Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -167504,19 +167572,24 @@
           "run",
           "-p",
           "jftrade-integration-futu",
+          "-p",
+          "jftrade-engine",
+          "-p",
+          "jftrade-broker",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(snapshot_fallback)",
-          "--locked"
+          "test(resolver_projects_us_early_close_extended_window_with_timezone) or test(us_intraday_futu_candles_carry_calendar_resolved_session_labels) or test(broker_lot_size_initializes_minimum_and_step_quantity) or test(buying_power_requires_opend_trade_reader_and_forwards_max_quantity_query) or test(previous_close_condition_switches_on_session_type) or test(previous_close_condition_does_not_rewrite_non_us_unknown_sessions) or test(resolve_account_honors_requested_authority_and_falls_back_like_go) or test(security_snapshot_coordinator_caches_clones_and_uses_market_batches) or test(security_snapshot_coordinator_enforces_sliding_budget_and_does_not_cache_failures) or test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(security_snapshot_coordinator_handles_empty_and_unexpected_results) or test(symbol_scoped_snapshot_errors_are_detectable_through_context) or test(closed_ready_session_is_replaced_on_peer_close) or test(stock_screen_fallback_wire_value_helpers_match_go_coercions) or test(stock_screen_fallback_parses_rows_and_market_groups) or test(stock_screen_fallback_cancellation_and_adapter_entry_point) or test(stock_screen_fallback_coordinates_copies_and_errors) or test(snapshot_fallback_params_use_strict_delayed_quote_fields) or test(futu_stock_screen_snapshot_fallback_uses_static_ids_without_subscription) or test(stock_screen_snapshot_coordinator_caches_rows_and_negative_results) or test(futu_stock_screen_snapshot_fallback_reports_screen_errors) or test(runtime_shutdown_cancels_then_joins_its_worker) or test(basic_quote_pushes_drop_rows_without_a_usable_security_or_price) or test(provider_reconnect_publishes_resync_events_and_wakes_reconciliation) or test(coordinator_close_is_terminal_and_prevents_orphaned_reconnect) or test(failed_or_replayed_subscriptions_are_not_active_until_opend_confirms) or test(closed_session_generation_invalidates_its_subscriptions_and_requires_replay) or test(failed_connection_does_not_advance_the_established_session_generation) or test(hk_lunch_snapshot_keeps_previous_close_and_does_not_mark_extended_hours) or test(history_query_converts_supported_trade_markets_to_local_wall_clock) or test(history_fill_call_uses_history_protocol_and_forwards_time_filter) or test(history_query_converts_hk_rfc3339_to_local_wall_clock) or test(history_fill_read_projects_fill_identity) or test(resolve_trade_market_covers_requested_and_fallback_branches_like_go) or test(broker_read_projects_max_trade_quantity_snapshot) or test(max_trade_quantity_call_preserves_serial_and_projects_optional_fields) or test(margin_ratio_unknown_stock_code_extraction_matches_go_boundaries) or test(margin_ratio_unknown_stock_recovery_keeps_nil_security_rows_and_code_forms) or test(margin_ratio_server_throttling_maps_to_the_typed_rate_limit) or test(margin_ratio_wire_throttling_reaches_the_typed_rate_limit_variant)"
         ],
         "testFilter": [
           "futu_stock_screen_snapshot_fallback_uses_static_ids_without_subscription"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "5eab8d75",
+        "verifiedAt": "2026-09-25T13:16:09Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -167572,19 +167645,24 @@
           "run",
           "-p",
           "jftrade-integration-futu",
+          "-p",
+          "jftrade-engine",
+          "-p",
+          "jftrade-broker",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(snapshot_fallback)",
-          "--locked"
+          "test(resolver_projects_us_early_close_extended_window_with_timezone) or test(us_intraday_futu_candles_carry_calendar_resolved_session_labels) or test(broker_lot_size_initializes_minimum_and_step_quantity) or test(buying_power_requires_opend_trade_reader_and_forwards_max_quantity_query) or test(previous_close_condition_switches_on_session_type) or test(previous_close_condition_does_not_rewrite_non_us_unknown_sessions) or test(resolve_account_honors_requested_authority_and_falls_back_like_go) or test(security_snapshot_coordinator_caches_clones_and_uses_market_batches) or test(security_snapshot_coordinator_enforces_sliding_budget_and_does_not_cache_failures) or test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(security_snapshot_coordinator_handles_empty_and_unexpected_results) or test(symbol_scoped_snapshot_errors_are_detectable_through_context) or test(closed_ready_session_is_replaced_on_peer_close) or test(stock_screen_fallback_wire_value_helpers_match_go_coercions) or test(stock_screen_fallback_parses_rows_and_market_groups) or test(stock_screen_fallback_cancellation_and_adapter_entry_point) or test(stock_screen_fallback_coordinates_copies_and_errors) or test(snapshot_fallback_params_use_strict_delayed_quote_fields) or test(futu_stock_screen_snapshot_fallback_uses_static_ids_without_subscription) or test(stock_screen_snapshot_coordinator_caches_rows_and_negative_results) or test(futu_stock_screen_snapshot_fallback_reports_screen_errors) or test(runtime_shutdown_cancels_then_joins_its_worker) or test(basic_quote_pushes_drop_rows_without_a_usable_security_or_price) or test(provider_reconnect_publishes_resync_events_and_wakes_reconciliation) or test(coordinator_close_is_terminal_and_prevents_orphaned_reconnect) or test(failed_or_replayed_subscriptions_are_not_active_until_opend_confirms) or test(closed_session_generation_invalidates_its_subscriptions_and_requires_replay) or test(failed_connection_does_not_advance_the_established_session_generation) or test(hk_lunch_snapshot_keeps_previous_close_and_does_not_mark_extended_hours) or test(history_query_converts_supported_trade_markets_to_local_wall_clock) or test(history_fill_call_uses_history_protocol_and_forwards_time_filter) or test(history_query_converts_hk_rfc3339_to_local_wall_clock) or test(history_fill_read_projects_fill_identity) or test(resolve_trade_market_covers_requested_and_fallback_branches_like_go) or test(broker_read_projects_max_trade_quantity_snapshot) or test(max_trade_quantity_call_preserves_serial_and_projects_optional_fields) or test(margin_ratio_unknown_stock_code_extraction_matches_go_boundaries) or test(margin_ratio_unknown_stock_recovery_keeps_nil_security_rows_and_code_forms) or test(margin_ratio_server_throttling_maps_to_the_typed_rate_limit) or test(margin_ratio_wire_throttling_reaches_the_typed_rate_limit_variant)"
         ],
         "testFilter": [
           "stock_screen_snapshot_coordinator_caches_rows_and_negative_results"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "5eab8d75",
+        "verifiedAt": "2026-09-25T13:16:09Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -167640,19 +167718,24 @@
           "run",
           "-p",
           "jftrade-integration-futu",
+          "-p",
+          "jftrade-engine",
+          "-p",
+          "jftrade-broker",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(snapshot_fallback)",
-          "--locked"
+          "test(resolver_projects_us_early_close_extended_window_with_timezone) or test(us_intraday_futu_candles_carry_calendar_resolved_session_labels) or test(broker_lot_size_initializes_minimum_and_step_quantity) or test(buying_power_requires_opend_trade_reader_and_forwards_max_quantity_query) or test(previous_close_condition_switches_on_session_type) or test(previous_close_condition_does_not_rewrite_non_us_unknown_sessions) or test(resolve_account_honors_requested_authority_and_falls_back_like_go) or test(security_snapshot_coordinator_caches_clones_and_uses_market_batches) or test(security_snapshot_coordinator_enforces_sliding_budget_and_does_not_cache_failures) or test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(security_snapshot_coordinator_handles_empty_and_unexpected_results) or test(symbol_scoped_snapshot_errors_are_detectable_through_context) or test(closed_ready_session_is_replaced_on_peer_close) or test(stock_screen_fallback_wire_value_helpers_match_go_coercions) or test(stock_screen_fallback_parses_rows_and_market_groups) or test(stock_screen_fallback_cancellation_and_adapter_entry_point) or test(stock_screen_fallback_coordinates_copies_and_errors) or test(snapshot_fallback_params_use_strict_delayed_quote_fields) or test(futu_stock_screen_snapshot_fallback_uses_static_ids_without_subscription) or test(stock_screen_snapshot_coordinator_caches_rows_and_negative_results) or test(futu_stock_screen_snapshot_fallback_reports_screen_errors) or test(runtime_shutdown_cancels_then_joins_its_worker) or test(basic_quote_pushes_drop_rows_without_a_usable_security_or_price) or test(provider_reconnect_publishes_resync_events_and_wakes_reconciliation) or test(coordinator_close_is_terminal_and_prevents_orphaned_reconnect) or test(failed_or_replayed_subscriptions_are_not_active_until_opend_confirms) or test(closed_session_generation_invalidates_its_subscriptions_and_requires_replay) or test(failed_connection_does_not_advance_the_established_session_generation) or test(hk_lunch_snapshot_keeps_previous_close_and_does_not_mark_extended_hours) or test(history_query_converts_supported_trade_markets_to_local_wall_clock) or test(history_fill_call_uses_history_protocol_and_forwards_time_filter) or test(history_query_converts_hk_rfc3339_to_local_wall_clock) or test(history_fill_read_projects_fill_identity) or test(resolve_trade_market_covers_requested_and_fallback_branches_like_go) or test(broker_read_projects_max_trade_quantity_snapshot) or test(max_trade_quantity_call_preserves_serial_and_projects_optional_fields) or test(margin_ratio_unknown_stock_code_extraction_matches_go_boundaries) or test(margin_ratio_unknown_stock_recovery_keeps_nil_security_rows_and_code_forms) or test(margin_ratio_server_throttling_maps_to_the_typed_rate_limit) or test(margin_ratio_wire_throttling_reaches_the_typed_rate_limit_variant)"
         ],
         "testFilter": [
           "futu_stock_screen_snapshot_fallback_reports_screen_errors"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "5eab8d75",
+        "verifiedAt": "2026-09-25T13:16:09Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -167710,18 +167793,22 @@
           "jftrade-integration-futu",
           "-p",
           "jftrade-engine",
+          "-p",
+          "jftrade-broker",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(resolver_projects_us_early_close_extended_window_with_timezone) or test(us_intraday_futu_candles_carry_calendar_resolved_session_labels) or test(broker_lot_size_initializes_minimum_and_step_quantity) or test(buying_power_requires_opend_trade_reader_and_forwards_max_quantity_query) or test(previous_close_condition_switches_on_session_type) or test(previous_close_condition_does_not_rewrite_non_us_unknown_sessions) or test(resolve_account_honors_requested_authority_and_falls_back_like_go) or test(security_snapshot_coordinator_caches_clones_and_uses_market_batches) or test(security_snapshot_coordinator_enforces_sliding_budget_and_does_not_cache_failures) or test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(security_snapshot_coordinator_handles_empty_and_unexpected_results) or test(symbol_scoped_snapshot_errors_are_detectable_through_context) or test(closed_ready_session_is_replaced_on_peer_close) or test(stock_screen_fallback_wire_value_helpers_match_go_coercions) or test(stock_screen_fallback_parses_rows_and_market_groups) or test(stock_screen_fallback_cancellation_and_adapter_entry_point) or test(stock_screen_fallback_coordinates_copies_and_errors) or test(snapshot_fallback_params_use_strict_delayed_quote_fields) or test(futu_stock_screen_snapshot_fallback_uses_static_ids_without_subscription) or test(stock_screen_snapshot_coordinator_caches_rows_and_negative_results) or test(futu_stock_screen_snapshot_fallback_reports_screen_errors) or test(runtime_shutdown_cancels_then_joins_its_worker) or test(basic_quote_pushes_drop_rows_without_a_usable_security_or_price) or test(provider_reconnect_publishes_resync_events_and_wakes_reconciliation) or test(coordinator_close_is_terminal_and_prevents_orphaned_reconnect) or test(failed_or_replayed_subscriptions_are_not_active_until_opend_confirms) or test(closed_session_generation_invalidates_its_subscriptions_and_requires_replay) or test(failed_connection_does_not_advance_the_established_session_generation) or test(hk_lunch_snapshot_keeps_previous_close_and_does_not_mark_extended_hours) or test(history_query_converts_supported_trade_markets_to_local_wall_clock) or test(history_fill_call_uses_history_protocol_and_forwards_time_filter) or test(history_query_converts_hk_rfc3339_to_local_wall_clock) or test(history_fill_read_projects_fill_identity) or test(resolve_trade_market_covers_requested_and_fallback_branches_like_go) or test(broker_read_projects_max_trade_quantity_snapshot) or test(max_trade_quantity_call_preserves_serial_and_projects_optional_fields) or test(margin_ratio_unknown_stock_code_extraction_matches_go_boundaries) or test(margin_ratio_unknown_stock_recovery_keeps_nil_security_rows_and_code_forms) or test(margin_ratio_server_throttling_maps_to_the_typed_rate_limit) or test(margin_ratio_wire_throttling_reaches_the_typed_rate_limit_variant)"
         ],
         "testFilter": [
           "runtime_shutdown_cancels_then_joins_its_worker"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "5eab8d75",
+        "verifiedAt": "2026-09-25T13:16:09Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -167857,19 +167944,25 @@
           "scripts/quality/cargo-nextest.mjs",
           "run",
           "-p",
+          "jftrade-integration-futu",
+          "-p",
           "jftrade-engine",
+          "-p",
+          "jftrade-broker",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(basic_quote_pushes_drop_rows_without_a_usable_security_or_price)"
+          "test(resolver_projects_us_early_close_extended_window_with_timezone) or test(us_intraday_futu_candles_carry_calendar_resolved_session_labels) or test(broker_lot_size_initializes_minimum_and_step_quantity) or test(buying_power_requires_opend_trade_reader_and_forwards_max_quantity_query) or test(previous_close_condition_switches_on_session_type) or test(previous_close_condition_does_not_rewrite_non_us_unknown_sessions) or test(resolve_account_honors_requested_authority_and_falls_back_like_go) or test(security_snapshot_coordinator_caches_clones_and_uses_market_batches) or test(security_snapshot_coordinator_enforces_sliding_budget_and_does_not_cache_failures) or test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(security_snapshot_coordinator_handles_empty_and_unexpected_results) or test(symbol_scoped_snapshot_errors_are_detectable_through_context) or test(closed_ready_session_is_replaced_on_peer_close) or test(stock_screen_fallback_wire_value_helpers_match_go_coercions) or test(stock_screen_fallback_parses_rows_and_market_groups) or test(stock_screen_fallback_cancellation_and_adapter_entry_point) or test(stock_screen_fallback_coordinates_copies_and_errors) or test(snapshot_fallback_params_use_strict_delayed_quote_fields) or test(futu_stock_screen_snapshot_fallback_uses_static_ids_without_subscription) or test(stock_screen_snapshot_coordinator_caches_rows_and_negative_results) or test(futu_stock_screen_snapshot_fallback_reports_screen_errors) or test(runtime_shutdown_cancels_then_joins_its_worker) or test(basic_quote_pushes_drop_rows_without_a_usable_security_or_price) or test(provider_reconnect_publishes_resync_events_and_wakes_reconciliation) or test(coordinator_close_is_terminal_and_prevents_orphaned_reconnect) or test(failed_or_replayed_subscriptions_are_not_active_until_opend_confirms) or test(closed_session_generation_invalidates_its_subscriptions_and_requires_replay) or test(failed_connection_does_not_advance_the_established_session_generation) or test(hk_lunch_snapshot_keeps_previous_close_and_does_not_mark_extended_hours) or test(history_query_converts_supported_trade_markets_to_local_wall_clock) or test(history_fill_call_uses_history_protocol_and_forwards_time_filter) or test(history_query_converts_hk_rfc3339_to_local_wall_clock) or test(history_fill_read_projects_fill_identity) or test(resolve_trade_market_covers_requested_and_fallback_branches_like_go) or test(broker_read_projects_max_trade_quantity_snapshot) or test(max_trade_quantity_call_preserves_serial_and_projects_optional_fields) or test(margin_ratio_unknown_stock_code_extraction_matches_go_boundaries) or test(margin_ratio_unknown_stock_recovery_keeps_nil_security_rows_and_code_forms) or test(margin_ratio_server_throttling_maps_to_the_typed_rate_limit) or test(margin_ratio_wire_throttling_reaches_the_typed_rate_limit_variant)"
         ],
         "testFilter": [
           "basic_quote_pushes_drop_rows_without_a_usable_security_or_price"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "5eab8d75",
+        "verifiedAt": "2026-09-25T13:16:09Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -168432,8 +168525,12 @@
           "jftrade-integration-futu",
           "-p",
           "jftrade-engine",
+          "-p",
+          "jftrade-broker",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(resolver_projects_us_early_close_extended_window_with_timezone) or test(us_intraday_futu_candles_carry_calendar_resolved_session_labels) or test(broker_lot_size_initializes_minimum_and_step_quantity) or test(buying_power_requires_opend_trade_reader_and_forwards_max_quantity_query) or test(previous_close_condition_switches_on_session_type) or test(previous_close_condition_does_not_rewrite_non_us_unknown_sessions) or test(resolve_account_honors_requested_authority_and_falls_back_like_go) or test(security_snapshot_coordinator_caches_clones_and_uses_market_batches) or test(security_snapshot_coordinator_enforces_sliding_budget_and_does_not_cache_failures) or test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(security_snapshot_coordinator_handles_empty_and_unexpected_results) or test(symbol_scoped_snapshot_errors_are_detectable_through_context) or test(closed_ready_session_is_replaced_on_peer_close) or test(stock_screen_fallback_wire_value_helpers_match_go_coercions) or test(stock_screen_fallback_parses_rows_and_market_groups) or test(stock_screen_fallback_cancellation_and_adapter_entry_point) or test(stock_screen_fallback_coordinates_copies_and_errors) or test(snapshot_fallback_params_use_strict_delayed_quote_fields) or test(futu_stock_screen_snapshot_fallback_uses_static_ids_without_subscription) or test(stock_screen_snapshot_coordinator_caches_rows_and_negative_results) or test(futu_stock_screen_snapshot_fallback_reports_screen_errors) or test(runtime_shutdown_cancels_then_joins_its_worker) or test(basic_quote_pushes_drop_rows_without_a_usable_security_or_price) or test(provider_reconnect_publishes_resync_events_and_wakes_reconciliation) or test(coordinator_close_is_terminal_and_prevents_orphaned_reconnect) or test(failed_or_replayed_subscriptions_are_not_active_until_opend_confirms) or test(closed_session_generation_invalidates_its_subscriptions_and_requires_replay) or test(failed_connection_does_not_advance_the_established_session_generation) or test(hk_lunch_snapshot_keeps_previous_close_and_does_not_mark_extended_hours) or test(history_query_converts_supported_trade_markets_to_local_wall_clock) or test(history_fill_call_uses_history_protocol_and_forwards_time_filter) or test(history_query_converts_hk_rfc3339_to_local_wall_clock) or test(history_fill_read_projects_fill_identity) or test(resolve_trade_market_covers_requested_and_fallback_branches_like_go) or test(broker_read_projects_max_trade_quantity_snapshot) or test(max_trade_quantity_call_preserves_serial_and_projects_optional_fields) or test(margin_ratio_unknown_stock_code_extraction_matches_go_boundaries) or test(margin_ratio_unknown_stock_recovery_keeps_nil_security_rows_and_code_forms) or test(margin_ratio_server_throttling_maps_to_the_typed_rate_limit) or test(margin_ratio_wire_throttling_reaches_the_typed_rate_limit_variant)"
         ],
         "testFilter": [
           "provider_reconnect_publishes_resync_events_and_wakes_reconciliation",
@@ -168443,10 +168540,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "5eab8d75",
+        "verifiedAt": "2026-09-25T13:16:09Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -168635,18 +168732,22 @@
           "jftrade-integration-futu",
           "-p",
           "jftrade-engine",
+          "-p",
+          "jftrade-broker",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(resolver_projects_us_early_close_extended_window_with_timezone) or test(us_intraday_futu_candles_carry_calendar_resolved_session_labels) or test(broker_lot_size_initializes_minimum_and_step_quantity) or test(buying_power_requires_opend_trade_reader_and_forwards_max_quantity_query) or test(previous_close_condition_switches_on_session_type) or test(previous_close_condition_does_not_rewrite_non_us_unknown_sessions) or test(resolve_account_honors_requested_authority_and_falls_back_like_go) or test(security_snapshot_coordinator_caches_clones_and_uses_market_batches) or test(security_snapshot_coordinator_enforces_sliding_budget_and_does_not_cache_failures) or test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(security_snapshot_coordinator_handles_empty_and_unexpected_results) or test(symbol_scoped_snapshot_errors_are_detectable_through_context) or test(closed_ready_session_is_replaced_on_peer_close) or test(stock_screen_fallback_wire_value_helpers_match_go_coercions) or test(stock_screen_fallback_parses_rows_and_market_groups) or test(stock_screen_fallback_cancellation_and_adapter_entry_point) or test(stock_screen_fallback_coordinates_copies_and_errors) or test(snapshot_fallback_params_use_strict_delayed_quote_fields) or test(futu_stock_screen_snapshot_fallback_uses_static_ids_without_subscription) or test(stock_screen_snapshot_coordinator_caches_rows_and_negative_results) or test(futu_stock_screen_snapshot_fallback_reports_screen_errors) or test(runtime_shutdown_cancels_then_joins_its_worker) or test(basic_quote_pushes_drop_rows_without_a_usable_security_or_price) or test(provider_reconnect_publishes_resync_events_and_wakes_reconciliation) or test(coordinator_close_is_terminal_and_prevents_orphaned_reconnect) or test(failed_or_replayed_subscriptions_are_not_active_until_opend_confirms) or test(closed_session_generation_invalidates_its_subscriptions_and_requires_replay) or test(failed_connection_does_not_advance_the_established_session_generation) or test(hk_lunch_snapshot_keeps_previous_close_and_does_not_mark_extended_hours) or test(history_query_converts_supported_trade_markets_to_local_wall_clock) or test(history_fill_call_uses_history_protocol_and_forwards_time_filter) or test(history_query_converts_hk_rfc3339_to_local_wall_clock) or test(history_fill_read_projects_fill_identity) or test(resolve_trade_market_covers_requested_and_fallback_branches_like_go) or test(broker_read_projects_max_trade_quantity_snapshot) or test(max_trade_quantity_call_preserves_serial_and_projects_optional_fields) or test(margin_ratio_unknown_stock_code_extraction_matches_go_boundaries) or test(margin_ratio_unknown_stock_recovery_keeps_nil_security_rows_and_code_forms) or test(margin_ratio_server_throttling_maps_to_the_typed_rate_limit) or test(margin_ratio_wire_throttling_reaches_the_typed_rate_limit_variant)"
         ],
         "testFilter": [
           "failed_or_replayed_subscriptions_are_not_active_until_opend_confirms"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "5eab8d75",
+        "verifiedAt": "2026-09-25T13:16:09Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -168842,18 +168943,22 @@
           "jftrade-integration-futu",
           "-p",
           "jftrade-engine",
+          "-p",
+          "jftrade-broker",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(resolver_projects_us_early_close_extended_window_with_timezone) or test(us_intraday_futu_candles_carry_calendar_resolved_session_labels) or test(broker_lot_size_initializes_minimum_and_step_quantity) or test(buying_power_requires_opend_trade_reader_and_forwards_max_quantity_query) or test(previous_close_condition_switches_on_session_type) or test(previous_close_condition_does_not_rewrite_non_us_unknown_sessions) or test(resolve_account_honors_requested_authority_and_falls_back_like_go) or test(security_snapshot_coordinator_caches_clones_and_uses_market_batches) or test(security_snapshot_coordinator_enforces_sliding_budget_and_does_not_cache_failures) or test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(security_snapshot_coordinator_handles_empty_and_unexpected_results) or test(symbol_scoped_snapshot_errors_are_detectable_through_context) or test(closed_ready_session_is_replaced_on_peer_close) or test(stock_screen_fallback_wire_value_helpers_match_go_coercions) or test(stock_screen_fallback_parses_rows_and_market_groups) or test(stock_screen_fallback_cancellation_and_adapter_entry_point) or test(stock_screen_fallback_coordinates_copies_and_errors) or test(snapshot_fallback_params_use_strict_delayed_quote_fields) or test(futu_stock_screen_snapshot_fallback_uses_static_ids_without_subscription) or test(stock_screen_snapshot_coordinator_caches_rows_and_negative_results) or test(futu_stock_screen_snapshot_fallback_reports_screen_errors) or test(runtime_shutdown_cancels_then_joins_its_worker) or test(basic_quote_pushes_drop_rows_without_a_usable_security_or_price) or test(provider_reconnect_publishes_resync_events_and_wakes_reconciliation) or test(coordinator_close_is_terminal_and_prevents_orphaned_reconnect) or test(failed_or_replayed_subscriptions_are_not_active_until_opend_confirms) or test(closed_session_generation_invalidates_its_subscriptions_and_requires_replay) or test(failed_connection_does_not_advance_the_established_session_generation) or test(hk_lunch_snapshot_keeps_previous_close_and_does_not_mark_extended_hours) or test(history_query_converts_supported_trade_markets_to_local_wall_clock) or test(history_fill_call_uses_history_protocol_and_forwards_time_filter) or test(history_query_converts_hk_rfc3339_to_local_wall_clock) or test(history_fill_read_projects_fill_identity) or test(resolve_trade_market_covers_requested_and_fallback_branches_like_go) or test(broker_read_projects_max_trade_quantity_snapshot) or test(max_trade_quantity_call_preserves_serial_and_projects_optional_fields) or test(margin_ratio_unknown_stock_code_extraction_matches_go_boundaries) or test(margin_ratio_unknown_stock_recovery_keeps_nil_security_rows_and_code_forms) or test(margin_ratio_server_throttling_maps_to_the_typed_rate_limit) or test(margin_ratio_wire_throttling_reaches_the_typed_rate_limit_variant)"
         ],
         "testFilter": [
           "closed_session_generation_invalidates_its_subscriptions_and_requires_replay"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "5eab8d75",
+        "verifiedAt": "2026-09-25T13:16:09Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -168911,18 +169016,22 @@
           "jftrade-integration-futu",
           "-p",
           "jftrade-engine",
+          "-p",
+          "jftrade-broker",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(resolver_projects_us_early_close_extended_window_with_timezone) or test(us_intraday_futu_candles_carry_calendar_resolved_session_labels) or test(broker_lot_size_initializes_minimum_and_step_quantity) or test(buying_power_requires_opend_trade_reader_and_forwards_max_quantity_query) or test(previous_close_condition_switches_on_session_type) or test(previous_close_condition_does_not_rewrite_non_us_unknown_sessions) or test(resolve_account_honors_requested_authority_and_falls_back_like_go) or test(security_snapshot_coordinator_caches_clones_and_uses_market_batches) or test(security_snapshot_coordinator_enforces_sliding_budget_and_does_not_cache_failures) or test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(security_snapshot_coordinator_handles_empty_and_unexpected_results) or test(symbol_scoped_snapshot_errors_are_detectable_through_context) or test(closed_ready_session_is_replaced_on_peer_close) or test(stock_screen_fallback_wire_value_helpers_match_go_coercions) or test(stock_screen_fallback_parses_rows_and_market_groups) or test(stock_screen_fallback_cancellation_and_adapter_entry_point) or test(stock_screen_fallback_coordinates_copies_and_errors) or test(snapshot_fallback_params_use_strict_delayed_quote_fields) or test(futu_stock_screen_snapshot_fallback_uses_static_ids_without_subscription) or test(stock_screen_snapshot_coordinator_caches_rows_and_negative_results) or test(futu_stock_screen_snapshot_fallback_reports_screen_errors) or test(runtime_shutdown_cancels_then_joins_its_worker) or test(basic_quote_pushes_drop_rows_without_a_usable_security_or_price) or test(provider_reconnect_publishes_resync_events_and_wakes_reconciliation) or test(coordinator_close_is_terminal_and_prevents_orphaned_reconnect) or test(failed_or_replayed_subscriptions_are_not_active_until_opend_confirms) or test(closed_session_generation_invalidates_its_subscriptions_and_requires_replay) or test(failed_connection_does_not_advance_the_established_session_generation) or test(hk_lunch_snapshot_keeps_previous_close_and_does_not_mark_extended_hours) or test(history_query_converts_supported_trade_markets_to_local_wall_clock) or test(history_fill_call_uses_history_protocol_and_forwards_time_filter) or test(history_query_converts_hk_rfc3339_to_local_wall_clock) or test(history_fill_read_projects_fill_identity) or test(resolve_trade_market_covers_requested_and_fallback_branches_like_go) or test(broker_read_projects_max_trade_quantity_snapshot) or test(max_trade_quantity_call_preserves_serial_and_projects_optional_fields) or test(margin_ratio_unknown_stock_code_extraction_matches_go_boundaries) or test(margin_ratio_unknown_stock_recovery_keeps_nil_security_rows_and_code_forms) or test(margin_ratio_server_throttling_maps_to_the_typed_rate_limit) or test(margin_ratio_wire_throttling_reaches_the_typed_rate_limit_variant)"
         ],
         "testFilter": [
           "coordinator_close_is_terminal_and_prevents_orphaned_reconnect"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "5eab8d75",
+        "verifiedAt": "2026-09-25T13:16:09Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -169049,18 +169158,22 @@
           "jftrade-integration-futu",
           "-p",
           "jftrade-engine",
+          "-p",
+          "jftrade-broker",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(resolver_projects_us_early_close_extended_window_with_timezone) or test(us_intraday_futu_candles_carry_calendar_resolved_session_labels) or test(broker_lot_size_initializes_minimum_and_step_quantity) or test(buying_power_requires_opend_trade_reader_and_forwards_max_quantity_query) or test(previous_close_condition_switches_on_session_type) or test(previous_close_condition_does_not_rewrite_non_us_unknown_sessions) or test(resolve_account_honors_requested_authority_and_falls_back_like_go) or test(security_snapshot_coordinator_caches_clones_and_uses_market_batches) or test(security_snapshot_coordinator_enforces_sliding_budget_and_does_not_cache_failures) or test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(security_snapshot_coordinator_handles_empty_and_unexpected_results) or test(symbol_scoped_snapshot_errors_are_detectable_through_context) or test(closed_ready_session_is_replaced_on_peer_close) or test(stock_screen_fallback_wire_value_helpers_match_go_coercions) or test(stock_screen_fallback_parses_rows_and_market_groups) or test(stock_screen_fallback_cancellation_and_adapter_entry_point) or test(stock_screen_fallback_coordinates_copies_and_errors) or test(snapshot_fallback_params_use_strict_delayed_quote_fields) or test(futu_stock_screen_snapshot_fallback_uses_static_ids_without_subscription) or test(stock_screen_snapshot_coordinator_caches_rows_and_negative_results) or test(futu_stock_screen_snapshot_fallback_reports_screen_errors) or test(runtime_shutdown_cancels_then_joins_its_worker) or test(basic_quote_pushes_drop_rows_without_a_usable_security_or_price) or test(provider_reconnect_publishes_resync_events_and_wakes_reconciliation) or test(coordinator_close_is_terminal_and_prevents_orphaned_reconnect) or test(failed_or_replayed_subscriptions_are_not_active_until_opend_confirms) or test(closed_session_generation_invalidates_its_subscriptions_and_requires_replay) or test(failed_connection_does_not_advance_the_established_session_generation) or test(hk_lunch_snapshot_keeps_previous_close_and_does_not_mark_extended_hours) or test(history_query_converts_supported_trade_markets_to_local_wall_clock) or test(history_fill_call_uses_history_protocol_and_forwards_time_filter) or test(history_query_converts_hk_rfc3339_to_local_wall_clock) or test(history_fill_read_projects_fill_identity) or test(resolve_trade_market_covers_requested_and_fallback_branches_like_go) or test(broker_read_projects_max_trade_quantity_snapshot) or test(max_trade_quantity_call_preserves_serial_and_projects_optional_fields) or test(margin_ratio_unknown_stock_code_extraction_matches_go_boundaries) or test(margin_ratio_unknown_stock_recovery_keeps_nil_security_rows_and_code_forms) or test(margin_ratio_server_throttling_maps_to_the_typed_rate_limit) or test(margin_ratio_wire_throttling_reaches_the_typed_rate_limit_variant)"
         ],
         "testFilter": [
           "failed_connection_does_not_advance_the_established_session_generation"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "5eab8d75",
+        "verifiedAt": "2026-09-25T13:16:09Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -169255,8 +169368,14 @@
           "run",
           "-p",
           "jftrade-integration-futu",
+          "-p",
+          "jftrade-engine",
+          "-p",
+          "jftrade-broker",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(resolver_projects_us_early_close_extended_window_with_timezone) or test(us_intraday_futu_candles_carry_calendar_resolved_session_labels) or test(broker_lot_size_initializes_minimum_and_step_quantity) or test(buying_power_requires_opend_trade_reader_and_forwards_max_quantity_query) or test(previous_close_condition_switches_on_session_type) or test(previous_close_condition_does_not_rewrite_non_us_unknown_sessions) or test(resolve_account_honors_requested_authority_and_falls_back_like_go) or test(security_snapshot_coordinator_caches_clones_and_uses_market_batches) or test(security_snapshot_coordinator_enforces_sliding_budget_and_does_not_cache_failures) or test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(security_snapshot_coordinator_handles_empty_and_unexpected_results) or test(symbol_scoped_snapshot_errors_are_detectable_through_context) or test(closed_ready_session_is_replaced_on_peer_close) or test(stock_screen_fallback_wire_value_helpers_match_go_coercions) or test(stock_screen_fallback_parses_rows_and_market_groups) or test(stock_screen_fallback_cancellation_and_adapter_entry_point) or test(stock_screen_fallback_coordinates_copies_and_errors) or test(snapshot_fallback_params_use_strict_delayed_quote_fields) or test(futu_stock_screen_snapshot_fallback_uses_static_ids_without_subscription) or test(stock_screen_snapshot_coordinator_caches_rows_and_negative_results) or test(futu_stock_screen_snapshot_fallback_reports_screen_errors) or test(runtime_shutdown_cancels_then_joins_its_worker) or test(basic_quote_pushes_drop_rows_without_a_usable_security_or_price) or test(provider_reconnect_publishes_resync_events_and_wakes_reconciliation) or test(coordinator_close_is_terminal_and_prevents_orphaned_reconnect) or test(failed_or_replayed_subscriptions_are_not_active_until_opend_confirms) or test(closed_session_generation_invalidates_its_subscriptions_and_requires_replay) or test(failed_connection_does_not_advance_the_established_session_generation) or test(hk_lunch_snapshot_keeps_previous_close_and_does_not_mark_extended_hours) or test(history_query_converts_supported_trade_markets_to_local_wall_clock) or test(history_fill_call_uses_history_protocol_and_forwards_time_filter) or test(history_query_converts_hk_rfc3339_to_local_wall_clock) or test(history_fill_read_projects_fill_identity) or test(resolve_trade_market_covers_requested_and_fallback_branches_like_go) or test(broker_read_projects_max_trade_quantity_snapshot) or test(max_trade_quantity_call_preserves_serial_and_projects_optional_fields) or test(margin_ratio_unknown_stock_code_extraction_matches_go_boundaries) or test(margin_ratio_unknown_stock_recovery_keeps_nil_security_rows_and_code_forms) or test(margin_ratio_server_throttling_maps_to_the_typed_rate_limit) or test(margin_ratio_wire_throttling_reaches_the_typed_rate_limit_variant)"
         ],
         "testFilter": [
           "resolver_projects_us_early_close_extended_window_with_timezone",
@@ -169264,10 +169383,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "5eab8d75",
+        "verifiedAt": "2026-09-25T13:16:09Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -169326,8 +169445,12 @@
           "jftrade-integration-futu",
           "-p",
           "jftrade-engine",
+          "-p",
+          "jftrade-broker",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(resolver_projects_us_early_close_extended_window_with_timezone) or test(us_intraday_futu_candles_carry_calendar_resolved_session_labels) or test(broker_lot_size_initializes_minimum_and_step_quantity) or test(buying_power_requires_opend_trade_reader_and_forwards_max_quantity_query) or test(previous_close_condition_switches_on_session_type) or test(previous_close_condition_does_not_rewrite_non_us_unknown_sessions) or test(resolve_account_honors_requested_authority_and_falls_back_like_go) or test(security_snapshot_coordinator_caches_clones_and_uses_market_batches) or test(security_snapshot_coordinator_enforces_sliding_budget_and_does_not_cache_failures) or test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(security_snapshot_coordinator_handles_empty_and_unexpected_results) or test(symbol_scoped_snapshot_errors_are_detectable_through_context) or test(closed_ready_session_is_replaced_on_peer_close) or test(stock_screen_fallback_wire_value_helpers_match_go_coercions) or test(stock_screen_fallback_parses_rows_and_market_groups) or test(stock_screen_fallback_cancellation_and_adapter_entry_point) or test(stock_screen_fallback_coordinates_copies_and_errors) or test(snapshot_fallback_params_use_strict_delayed_quote_fields) or test(futu_stock_screen_snapshot_fallback_uses_static_ids_without_subscription) or test(stock_screen_snapshot_coordinator_caches_rows_and_negative_results) or test(futu_stock_screen_snapshot_fallback_reports_screen_errors) or test(runtime_shutdown_cancels_then_joins_its_worker) or test(basic_quote_pushes_drop_rows_without_a_usable_security_or_price) or test(provider_reconnect_publishes_resync_events_and_wakes_reconciliation) or test(coordinator_close_is_terminal_and_prevents_orphaned_reconnect) or test(failed_or_replayed_subscriptions_are_not_active_until_opend_confirms) or test(closed_session_generation_invalidates_its_subscriptions_and_requires_replay) or test(failed_connection_does_not_advance_the_established_session_generation) or test(hk_lunch_snapshot_keeps_previous_close_and_does_not_mark_extended_hours) or test(history_query_converts_supported_trade_markets_to_local_wall_clock) or test(history_fill_call_uses_history_protocol_and_forwards_time_filter) or test(history_query_converts_hk_rfc3339_to_local_wall_clock) or test(history_fill_read_projects_fill_identity) or test(resolve_trade_market_covers_requested_and_fallback_branches_like_go) or test(broker_read_projects_max_trade_quantity_snapshot) or test(max_trade_quantity_call_preserves_serial_and_projects_optional_fields) or test(margin_ratio_unknown_stock_code_extraction_matches_go_boundaries) or test(margin_ratio_unknown_stock_recovery_keeps_nil_security_rows_and_code_forms) or test(margin_ratio_server_throttling_maps_to_the_typed_rate_limit) or test(margin_ratio_wire_throttling_reaches_the_typed_rate_limit_variant)"
         ],
         "testFilter": [
           "history_query_converts_supported_trade_markets_to_local_wall_clock",
@@ -169335,10 +169458,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "5eab8d75",
+        "verifiedAt": "2026-09-25T13:16:09Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -169397,8 +169520,12 @@
           "jftrade-integration-futu",
           "-p",
           "jftrade-engine",
+          "-p",
+          "jftrade-broker",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(resolver_projects_us_early_close_extended_window_with_timezone) or test(us_intraday_futu_candles_carry_calendar_resolved_session_labels) or test(broker_lot_size_initializes_minimum_and_step_quantity) or test(buying_power_requires_opend_trade_reader_and_forwards_max_quantity_query) or test(previous_close_condition_switches_on_session_type) or test(previous_close_condition_does_not_rewrite_non_us_unknown_sessions) or test(resolve_account_honors_requested_authority_and_falls_back_like_go) or test(security_snapshot_coordinator_caches_clones_and_uses_market_batches) or test(security_snapshot_coordinator_enforces_sliding_budget_and_does_not_cache_failures) or test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(security_snapshot_coordinator_handles_empty_and_unexpected_results) or test(symbol_scoped_snapshot_errors_are_detectable_through_context) or test(closed_ready_session_is_replaced_on_peer_close) or test(stock_screen_fallback_wire_value_helpers_match_go_coercions) or test(stock_screen_fallback_parses_rows_and_market_groups) or test(stock_screen_fallback_cancellation_and_adapter_entry_point) or test(stock_screen_fallback_coordinates_copies_and_errors) or test(snapshot_fallback_params_use_strict_delayed_quote_fields) or test(futu_stock_screen_snapshot_fallback_uses_static_ids_without_subscription) or test(stock_screen_snapshot_coordinator_caches_rows_and_negative_results) or test(futu_stock_screen_snapshot_fallback_reports_screen_errors) or test(runtime_shutdown_cancels_then_joins_its_worker) or test(basic_quote_pushes_drop_rows_without_a_usable_security_or_price) or test(provider_reconnect_publishes_resync_events_and_wakes_reconciliation) or test(coordinator_close_is_terminal_and_prevents_orphaned_reconnect) or test(failed_or_replayed_subscriptions_are_not_active_until_opend_confirms) or test(closed_session_generation_invalidates_its_subscriptions_and_requires_replay) or test(failed_connection_does_not_advance_the_established_session_generation) or test(hk_lunch_snapshot_keeps_previous_close_and_does_not_mark_extended_hours) or test(history_query_converts_supported_trade_markets_to_local_wall_clock) or test(history_fill_call_uses_history_protocol_and_forwards_time_filter) or test(history_query_converts_hk_rfc3339_to_local_wall_clock) or test(history_fill_read_projects_fill_identity) or test(resolve_trade_market_covers_requested_and_fallback_branches_like_go) or test(broker_read_projects_max_trade_quantity_snapshot) or test(max_trade_quantity_call_preserves_serial_and_projects_optional_fields) or test(margin_ratio_unknown_stock_code_extraction_matches_go_boundaries) or test(margin_ratio_unknown_stock_recovery_keeps_nil_security_rows_and_code_forms) or test(margin_ratio_server_throttling_maps_to_the_typed_rate_limit) or test(margin_ratio_wire_throttling_reaches_the_typed_rate_limit_variant)"
         ],
         "testFilter": [
           "history_query_converts_hk_rfc3339_to_local_wall_clock",
@@ -169406,10 +169533,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "5eab8d75",
+        "verifiedAt": "2026-09-25T13:16:09Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -169600,19 +169727,25 @@
           "scripts/quality/cargo-nextest.mjs",
           "run",
           "-p",
+          "jftrade-integration-futu",
+          "-p",
           "jftrade-engine",
+          "-p",
+          "jftrade-broker",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(resolve_trade_market_covers_requested_and_fallback_branches_like_go)"
+          "test(resolver_projects_us_early_close_extended_window_with_timezone) or test(us_intraday_futu_candles_carry_calendar_resolved_session_labels) or test(broker_lot_size_initializes_minimum_and_step_quantity) or test(buying_power_requires_opend_trade_reader_and_forwards_max_quantity_query) or test(previous_close_condition_switches_on_session_type) or test(previous_close_condition_does_not_rewrite_non_us_unknown_sessions) or test(resolve_account_honors_requested_authority_and_falls_back_like_go) or test(security_snapshot_coordinator_caches_clones_and_uses_market_batches) or test(security_snapshot_coordinator_enforces_sliding_budget_and_does_not_cache_failures) or test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(security_snapshot_coordinator_handles_empty_and_unexpected_results) or test(symbol_scoped_snapshot_errors_are_detectable_through_context) or test(closed_ready_session_is_replaced_on_peer_close) or test(stock_screen_fallback_wire_value_helpers_match_go_coercions) or test(stock_screen_fallback_parses_rows_and_market_groups) or test(stock_screen_fallback_cancellation_and_adapter_entry_point) or test(stock_screen_fallback_coordinates_copies_and_errors) or test(snapshot_fallback_params_use_strict_delayed_quote_fields) or test(futu_stock_screen_snapshot_fallback_uses_static_ids_without_subscription) or test(stock_screen_snapshot_coordinator_caches_rows_and_negative_results) or test(futu_stock_screen_snapshot_fallback_reports_screen_errors) or test(runtime_shutdown_cancels_then_joins_its_worker) or test(basic_quote_pushes_drop_rows_without_a_usable_security_or_price) or test(provider_reconnect_publishes_resync_events_and_wakes_reconciliation) or test(coordinator_close_is_terminal_and_prevents_orphaned_reconnect) or test(failed_or_replayed_subscriptions_are_not_active_until_opend_confirms) or test(closed_session_generation_invalidates_its_subscriptions_and_requires_replay) or test(failed_connection_does_not_advance_the_established_session_generation) or test(hk_lunch_snapshot_keeps_previous_close_and_does_not_mark_extended_hours) or test(history_query_converts_supported_trade_markets_to_local_wall_clock) or test(history_fill_call_uses_history_protocol_and_forwards_time_filter) or test(history_query_converts_hk_rfc3339_to_local_wall_clock) or test(history_fill_read_projects_fill_identity) or test(resolve_trade_market_covers_requested_and_fallback_branches_like_go) or test(broker_read_projects_max_trade_quantity_snapshot) or test(max_trade_quantity_call_preserves_serial_and_projects_optional_fields) or test(margin_ratio_unknown_stock_code_extraction_matches_go_boundaries) or test(margin_ratio_unknown_stock_recovery_keeps_nil_security_rows_and_code_forms) or test(margin_ratio_server_throttling_maps_to_the_typed_rate_limit) or test(margin_ratio_wire_throttling_reaches_the_typed_rate_limit_variant)"
         ],
         "testFilter": [
           "resolve_trade_market_covers_requested_and_fallback_branches_like_go"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "5eab8d75",
+        "verifiedAt": "2026-09-25T13:16:09Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -169874,8 +170007,12 @@
           "jftrade-integration-futu",
           "-p",
           "jftrade-engine",
+          "-p",
+          "jftrade-broker",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(resolver_projects_us_early_close_extended_window_with_timezone) or test(us_intraday_futu_candles_carry_calendar_resolved_session_labels) or test(broker_lot_size_initializes_minimum_and_step_quantity) or test(buying_power_requires_opend_trade_reader_and_forwards_max_quantity_query) or test(previous_close_condition_switches_on_session_type) or test(previous_close_condition_does_not_rewrite_non_us_unknown_sessions) or test(resolve_account_honors_requested_authority_and_falls_back_like_go) or test(security_snapshot_coordinator_caches_clones_and_uses_market_batches) or test(security_snapshot_coordinator_enforces_sliding_budget_and_does_not_cache_failures) or test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(security_snapshot_coordinator_handles_empty_and_unexpected_results) or test(symbol_scoped_snapshot_errors_are_detectable_through_context) or test(closed_ready_session_is_replaced_on_peer_close) or test(stock_screen_fallback_wire_value_helpers_match_go_coercions) or test(stock_screen_fallback_parses_rows_and_market_groups) or test(stock_screen_fallback_cancellation_and_adapter_entry_point) or test(stock_screen_fallback_coordinates_copies_and_errors) or test(snapshot_fallback_params_use_strict_delayed_quote_fields) or test(futu_stock_screen_snapshot_fallback_uses_static_ids_without_subscription) or test(stock_screen_snapshot_coordinator_caches_rows_and_negative_results) or test(futu_stock_screen_snapshot_fallback_reports_screen_errors) or test(runtime_shutdown_cancels_then_joins_its_worker) or test(basic_quote_pushes_drop_rows_without_a_usable_security_or_price) or test(provider_reconnect_publishes_resync_events_and_wakes_reconciliation) or test(coordinator_close_is_terminal_and_prevents_orphaned_reconnect) or test(failed_or_replayed_subscriptions_are_not_active_until_opend_confirms) or test(closed_session_generation_invalidates_its_subscriptions_and_requires_replay) or test(failed_connection_does_not_advance_the_established_session_generation) or test(hk_lunch_snapshot_keeps_previous_close_and_does_not_mark_extended_hours) or test(history_query_converts_supported_trade_markets_to_local_wall_clock) or test(history_fill_call_uses_history_protocol_and_forwards_time_filter) or test(history_query_converts_hk_rfc3339_to_local_wall_clock) or test(history_fill_read_projects_fill_identity) or test(resolve_trade_market_covers_requested_and_fallback_branches_like_go) or test(broker_read_projects_max_trade_quantity_snapshot) or test(max_trade_quantity_call_preserves_serial_and_projects_optional_fields) or test(margin_ratio_unknown_stock_code_extraction_matches_go_boundaries) or test(margin_ratio_unknown_stock_recovery_keeps_nil_security_rows_and_code_forms) or test(margin_ratio_server_throttling_maps_to_the_typed_rate_limit) or test(margin_ratio_wire_throttling_reaches_the_typed_rate_limit_variant)"
         ],
         "testFilter": [
           "broker_read_projects_max_trade_quantity_snapshot",
@@ -169883,10 +170020,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "5eab8d75",
+        "verifiedAt": "2026-09-25T13:16:09Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -170454,10 +170591,14 @@
           "run",
           "-p",
           "jftrade-integration-futu",
+          "-p",
+          "jftrade-engine",
+          "-p",
+          "jftrade-broker",
           "--all-targets",
           "--locked",
           "-E",
-          "test(margin_ratio_unknown_stock) | test(margin_ratio_server_throttling) | test(margin_ratio_wire_throttling)"
+          "test(resolver_projects_us_early_close_extended_window_with_timezone) or test(us_intraday_futu_candles_carry_calendar_resolved_session_labels) or test(broker_lot_size_initializes_minimum_and_step_quantity) or test(buying_power_requires_opend_trade_reader_and_forwards_max_quantity_query) or test(previous_close_condition_switches_on_session_type) or test(previous_close_condition_does_not_rewrite_non_us_unknown_sessions) or test(resolve_account_honors_requested_authority_and_falls_back_like_go) or test(security_snapshot_coordinator_caches_clones_and_uses_market_batches) or test(security_snapshot_coordinator_enforces_sliding_budget_and_does_not_cache_failures) or test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(security_snapshot_coordinator_handles_empty_and_unexpected_results) or test(symbol_scoped_snapshot_errors_are_detectable_through_context) or test(closed_ready_session_is_replaced_on_peer_close) or test(stock_screen_fallback_wire_value_helpers_match_go_coercions) or test(stock_screen_fallback_parses_rows_and_market_groups) or test(stock_screen_fallback_cancellation_and_adapter_entry_point) or test(stock_screen_fallback_coordinates_copies_and_errors) or test(snapshot_fallback_params_use_strict_delayed_quote_fields) or test(futu_stock_screen_snapshot_fallback_uses_static_ids_without_subscription) or test(stock_screen_snapshot_coordinator_caches_rows_and_negative_results) or test(futu_stock_screen_snapshot_fallback_reports_screen_errors) or test(runtime_shutdown_cancels_then_joins_its_worker) or test(basic_quote_pushes_drop_rows_without_a_usable_security_or_price) or test(provider_reconnect_publishes_resync_events_and_wakes_reconciliation) or test(coordinator_close_is_terminal_and_prevents_orphaned_reconnect) or test(failed_or_replayed_subscriptions_are_not_active_until_opend_confirms) or test(closed_session_generation_invalidates_its_subscriptions_and_requires_replay) or test(failed_connection_does_not_advance_the_established_session_generation) or test(hk_lunch_snapshot_keeps_previous_close_and_does_not_mark_extended_hours) or test(history_query_converts_supported_trade_markets_to_local_wall_clock) or test(history_fill_call_uses_history_protocol_and_forwards_time_filter) or test(history_query_converts_hk_rfc3339_to_local_wall_clock) or test(history_fill_read_projects_fill_identity) or test(resolve_trade_market_covers_requested_and_fallback_branches_like_go) or test(broker_read_projects_max_trade_quantity_snapshot) or test(max_trade_quantity_call_preserves_serial_and_projects_optional_fields) or test(margin_ratio_unknown_stock_code_extraction_matches_go_boundaries) or test(margin_ratio_unknown_stock_recovery_keeps_nil_security_rows_and_code_forms) or test(margin_ratio_server_throttling_maps_to_the_typed_rate_limit) or test(margin_ratio_wire_throttling_reaches_the_typed_rate_limit_variant)"
         ],
         "testFilter": [
           "margin_ratio_unknown_stock_code_extraction_matches_go_boundaries",
@@ -170467,10 +170608,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "5eab8d75",
+        "verifiedAt": "2026-09-25T13:16:09Z",
         "receiptDigest": null
       },
       "risk": "high",
