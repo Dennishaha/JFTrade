@@ -75195,20 +75195,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(compacted_context_survives_restart_and_precedes_current_user_message) or test(context_compaction_shrinks_the_projected_session_view) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(session_context_read_reports_pressure_without_compacting) or test(chat_creates_the_session_once_and_reuses_its_stored_title) or test(a_cancelled_tool_call_reports_the_context_cancellation) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(stale_replay_safe_claim_takes_over_with_fencing) or test(expired_tool_invocation_takeover_fences_old_ticket_with_live_run_lease) or test(infrastructure_resume_error_degrades_until_a_successful_scan) or test(context_notices_are_best_effort_and_keep_one_identity_across_updates) or test(an_unrecoverable_input_continuation_fails_the_run_with_the_reference_resume_state) or test(input_response_payload_anchors_the_resumed_run_to_the_original_request) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(cancelling_a_pending_input_run_cancels_the_request_and_rejects_a_late_answer) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(adk_task_normalization_and_validation_match_go) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_store_fences_a_second_writer_and_serializes_concurrent_access) or test(paths_follow_go_environment_overrides_and_adk_artifact_lifecycle) or test(adk_session_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_v2_migration_rebuilds_runs_without_losing_payload) or test(adk_session_store_lifecycle_and_restart_durability) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success)"
         ],
         "testFilter": [
           "resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "592df11d",
+        "verifiedAt": "2026-09-25T13:53:41Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -75730,18 +75730,8 @@
         "source": "legacy-conclusion"
       },
       "verification": {
-        "argv": [
-          "node",
-          "scripts/quality/cargo-nextest.mjs",
-          "run",
-          "-p",
-          "jftrade-engine",
-          "--all-targets",
-          "--locked"
-        ],
-        "testFilter": [
-          "execute_model"
-        ],
+        "argv": [],
+        "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
         "status": "unverified",
@@ -76061,20 +76051,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(compacted_context_survives_restart_and_precedes_current_user_message) or test(context_compaction_shrinks_the_projected_session_view) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(session_context_read_reports_pressure_without_compacting) or test(chat_creates_the_session_once_and_reuses_its_stored_title) or test(a_cancelled_tool_call_reports_the_context_cancellation) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(stale_replay_safe_claim_takes_over_with_fencing) or test(expired_tool_invocation_takeover_fences_old_ticket_with_live_run_lease) or test(infrastructure_resume_error_degrades_until_a_successful_scan) or test(context_notices_are_best_effort_and_keep_one_identity_across_updates) or test(an_unrecoverable_input_continuation_fails_the_run_with_the_reference_resume_state) or test(input_response_payload_anchors_the_resumed_run_to_the_original_request) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(cancelling_a_pending_input_run_cancels_the_request_and_rejects_a_late_answer) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(adk_task_normalization_and_validation_match_go) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_store_fences_a_second_writer_and_serializes_concurrent_access) or test(paths_follow_go_environment_overrides_and_adk_artifact_lifecycle) or test(adk_session_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_v2_migration_rebuilds_runs_without_losing_payload) or test(adk_session_store_lifecycle_and_restart_durability) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success)"
         ],
         "testFilter": [
           "compacted_context_survives_restart_and_precedes_current_user_message"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "592df11d",
+        "verifiedAt": "2026-09-25T13:53:41Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -76123,20 +76113,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(compacted_context_survives_restart_and_precedes_current_user_message) or test(context_compaction_shrinks_the_projected_session_view) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(session_context_read_reports_pressure_without_compacting) or test(chat_creates_the_session_once_and_reuses_its_stored_title) or test(a_cancelled_tool_call_reports_the_context_cancellation) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(stale_replay_safe_claim_takes_over_with_fencing) or test(expired_tool_invocation_takeover_fences_old_ticket_with_live_run_lease) or test(infrastructure_resume_error_degrades_until_a_successful_scan) or test(context_notices_are_best_effort_and_keep_one_identity_across_updates) or test(an_unrecoverable_input_continuation_fails_the_run_with_the_reference_resume_state) or test(input_response_payload_anchors_the_resumed_run_to_the_original_request) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(cancelling_a_pending_input_run_cancels_the_request_and_rejects_a_late_answer) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(adk_task_normalization_and_validation_match_go) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_store_fences_a_second_writer_and_serializes_concurrent_access) or test(paths_follow_go_environment_overrides_and_adk_artifact_lifecycle) or test(adk_session_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_v2_migration_rebuilds_runs_without_losing_payload) or test(adk_session_store_lifecycle_and_restart_durability) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success)"
         ],
         "testFilter": [
           "context_compaction_shrinks_the_projected_session_view"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "592df11d",
+        "verifiedAt": "2026-09-25T13:53:41Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -76397,20 +76387,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(compacted_context_survives_restart_and_precedes_current_user_message) or test(context_compaction_shrinks_the_projected_session_view) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(session_context_read_reports_pressure_without_compacting) or test(chat_creates_the_session_once_and_reuses_its_stored_title) or test(a_cancelled_tool_call_reports_the_context_cancellation) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(stale_replay_safe_claim_takes_over_with_fencing) or test(expired_tool_invocation_takeover_fences_old_ticket_with_live_run_lease) or test(infrastructure_resume_error_degrades_until_a_successful_scan) or test(context_notices_are_best_effort_and_keep_one_identity_across_updates) or test(an_unrecoverable_input_continuation_fails_the_run_with_the_reference_resume_state) or test(input_response_payload_anchors_the_resumed_run_to_the_original_request) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(cancelling_a_pending_input_run_cancels_the_request_and_rejects_a_late_answer) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(adk_task_normalization_and_validation_match_go) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_store_fences_a_second_writer_and_serializes_concurrent_access) or test(paths_follow_go_environment_overrides_and_adk_artifact_lifecycle) or test(adk_session_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_v2_migration_rebuilds_runs_without_losing_payload) or test(adk_session_store_lifecycle_and_restart_durability) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success)"
         ],
         "testFilter": [
           "a_tool_round_projects_the_pre_tool_reply_and_session_timeline"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "592df11d",
+        "verifiedAt": "2026-09-25T13:53:41Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -76459,20 +76449,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(compacted_context_survives_restart_and_precedes_current_user_message) or test(context_compaction_shrinks_the_projected_session_view) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(session_context_read_reports_pressure_without_compacting) or test(chat_creates_the_session_once_and_reuses_its_stored_title) or test(a_cancelled_tool_call_reports_the_context_cancellation) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(stale_replay_safe_claim_takes_over_with_fencing) or test(expired_tool_invocation_takeover_fences_old_ticket_with_live_run_lease) or test(infrastructure_resume_error_degrades_until_a_successful_scan) or test(context_notices_are_best_effort_and_keep_one_identity_across_updates) or test(an_unrecoverable_input_continuation_fails_the_run_with_the_reference_resume_state) or test(input_response_payload_anchors_the_resumed_run_to_the_original_request) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(cancelling_a_pending_input_run_cancels_the_request_and_rejects_a_late_answer) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(adk_task_normalization_and_validation_match_go) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_store_fences_a_second_writer_and_serializes_concurrent_access) or test(paths_follow_go_environment_overrides_and_adk_artifact_lifecycle) or test(adk_session_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_v2_migration_rebuilds_runs_without_losing_payload) or test(adk_session_store_lifecycle_and_restart_durability) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success)"
         ],
         "testFilter": [
           "session_context_read_reports_pressure_without_compacting"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "592df11d",
+        "verifiedAt": "2026-09-25T13:53:41Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -76521,20 +76511,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(compacted_context_survives_restart_and_precedes_current_user_message) or test(context_compaction_shrinks_the_projected_session_view) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(session_context_read_reports_pressure_without_compacting) or test(chat_creates_the_session_once_and_reuses_its_stored_title) or test(a_cancelled_tool_call_reports_the_context_cancellation) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(stale_replay_safe_claim_takes_over_with_fencing) or test(expired_tool_invocation_takeover_fences_old_ticket_with_live_run_lease) or test(infrastructure_resume_error_degrades_until_a_successful_scan) or test(context_notices_are_best_effort_and_keep_one_identity_across_updates) or test(an_unrecoverable_input_continuation_fails_the_run_with_the_reference_resume_state) or test(input_response_payload_anchors_the_resumed_run_to_the_original_request) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(cancelling_a_pending_input_run_cancels_the_request_and_rejects_a_late_answer) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(adk_task_normalization_and_validation_match_go) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_store_fences_a_second_writer_and_serializes_concurrent_access) or test(paths_follow_go_environment_overrides_and_adk_artifact_lifecycle) or test(adk_session_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_v2_migration_rebuilds_runs_without_losing_payload) or test(adk_session_store_lifecycle_and_restart_durability) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success)"
         ],
         "testFilter": [
           "chat_creates_the_session_once_and_reuses_its_stored_title"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "592df11d",
+        "verifiedAt": "2026-09-25T13:53:41Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -76848,20 +76838,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(compacted_context_survives_restart_and_precedes_current_user_message) or test(context_compaction_shrinks_the_projected_session_view) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(session_context_read_reports_pressure_without_compacting) or test(chat_creates_the_session_once_and_reuses_its_stored_title) or test(a_cancelled_tool_call_reports_the_context_cancellation) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(stale_replay_safe_claim_takes_over_with_fencing) or test(expired_tool_invocation_takeover_fences_old_ticket_with_live_run_lease) or test(infrastructure_resume_error_degrades_until_a_successful_scan) or test(context_notices_are_best_effort_and_keep_one_identity_across_updates) or test(an_unrecoverable_input_continuation_fails_the_run_with_the_reference_resume_state) or test(input_response_payload_anchors_the_resumed_run_to_the_original_request) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(cancelling_a_pending_input_run_cancels_the_request_and_rejects_a_late_answer) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(adk_task_normalization_and_validation_match_go) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_store_fences_a_second_writer_and_serializes_concurrent_access) or test(paths_follow_go_environment_overrides_and_adk_artifact_lifecycle) or test(adk_session_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_v2_migration_rebuilds_runs_without_losing_payload) or test(adk_session_store_lifecycle_and_restart_durability) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success)"
         ],
         "testFilter": [
           "a_cancelled_tool_call_reports_the_context_cancellation"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "592df11d",
+        "verifiedAt": "2026-09-25T13:53:41Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -77158,20 +77148,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(compacted_context_survives_restart_and_precedes_current_user_message) or test(context_compaction_shrinks_the_projected_session_view) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(session_context_read_reports_pressure_without_compacting) or test(chat_creates_the_session_once_and_reuses_its_stored_title) or test(a_cancelled_tool_call_reports_the_context_cancellation) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(stale_replay_safe_claim_takes_over_with_fencing) or test(expired_tool_invocation_takeover_fences_old_ticket_with_live_run_lease) or test(infrastructure_resume_error_degrades_until_a_successful_scan) or test(context_notices_are_best_effort_and_keep_one_identity_across_updates) or test(an_unrecoverable_input_continuation_fails_the_run_with_the_reference_resume_state) or test(input_response_payload_anchors_the_resumed_run_to_the_original_request) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(cancelling_a_pending_input_run_cancels_the_request_and_rejects_a_late_answer) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(adk_task_normalization_and_validation_match_go) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_store_fences_a_second_writer_and_serializes_concurrent_access) or test(paths_follow_go_environment_overrides_and_adk_artifact_lifecycle) or test(adk_session_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_v2_migration_rebuilds_runs_without_losing_payload) or test(adk_session_store_lifecycle_and_restart_durability) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success)"
         ],
         "testFilter": [
           "the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "592df11d",
+        "verifiedAt": "2026-09-25T13:53:41Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -77904,10 +77894,10 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-assistant",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(compacted_context_survives_restart_and_precedes_current_user_message) or test(context_compaction_shrinks_the_projected_session_view) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(session_context_read_reports_pressure_without_compacting) or test(chat_creates_the_session_once_and_reuses_its_stored_title) or test(a_cancelled_tool_call_reports_the_context_cancellation) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(stale_replay_safe_claim_takes_over_with_fencing) or test(expired_tool_invocation_takeover_fences_old_ticket_with_live_run_lease) or test(infrastructure_resume_error_degrades_until_a_successful_scan) or test(context_notices_are_best_effort_and_keep_one_identity_across_updates) or test(an_unrecoverable_input_continuation_fails_the_run_with_the_reference_resume_state) or test(input_response_payload_anchors_the_resumed_run_to_the_original_request) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(cancelling_a_pending_input_run_cancels_the_request_and_rejects_a_late_answer) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(adk_task_normalization_and_validation_match_go) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_store_fences_a_second_writer_and_serializes_concurrent_access) or test(paths_follow_go_environment_overrides_and_adk_artifact_lifecycle) or test(adk_session_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_v2_migration_rebuilds_runs_without_losing_payload) or test(adk_session_store_lifecycle_and_restart_durability) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success)"
         ],
         "testFilter": [
           "stale_replay_safe_claim_takes_over_with_fencing",
@@ -77915,10 +77905,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "592df11d",
+        "verifiedAt": "2026-09-25T13:53:41Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -78232,20 +78222,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(compacted_context_survives_restart_and_precedes_current_user_message) or test(context_compaction_shrinks_the_projected_session_view) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(session_context_read_reports_pressure_without_compacting) or test(chat_creates_the_session_once_and_reuses_its_stored_title) or test(a_cancelled_tool_call_reports_the_context_cancellation) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(stale_replay_safe_claim_takes_over_with_fencing) or test(expired_tool_invocation_takeover_fences_old_ticket_with_live_run_lease) or test(infrastructure_resume_error_degrades_until_a_successful_scan) or test(context_notices_are_best_effort_and_keep_one_identity_across_updates) or test(an_unrecoverable_input_continuation_fails_the_run_with_the_reference_resume_state) or test(input_response_payload_anchors_the_resumed_run_to_the_original_request) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(cancelling_a_pending_input_run_cancels_the_request_and_rejects_a_late_answer) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(adk_task_normalization_and_validation_match_go) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_store_fences_a_second_writer_and_serializes_concurrent_access) or test(paths_follow_go_environment_overrides_and_adk_artifact_lifecycle) or test(adk_session_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_v2_migration_rebuilds_runs_without_losing_payload) or test(adk_session_store_lifecycle_and_restart_durability) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success)"
         ],
         "testFilter": [
           "infrastructure_resume_error_degrades_until_a_successful_scan"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "592df11d",
+        "verifiedAt": "2026-09-25T13:53:41Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -78910,20 +78900,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(compacted_context_survives_restart_and_precedes_current_user_message) or test(context_compaction_shrinks_the_projected_session_view) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(session_context_read_reports_pressure_without_compacting) or test(chat_creates_the_session_once_and_reuses_its_stored_title) or test(a_cancelled_tool_call_reports_the_context_cancellation) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(stale_replay_safe_claim_takes_over_with_fencing) or test(expired_tool_invocation_takeover_fences_old_ticket_with_live_run_lease) or test(infrastructure_resume_error_degrades_until_a_successful_scan) or test(context_notices_are_best_effort_and_keep_one_identity_across_updates) or test(an_unrecoverable_input_continuation_fails_the_run_with_the_reference_resume_state) or test(input_response_payload_anchors_the_resumed_run_to_the_original_request) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(cancelling_a_pending_input_run_cancels_the_request_and_rejects_a_late_answer) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(adk_task_normalization_and_validation_match_go) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_store_fences_a_second_writer_and_serializes_concurrent_access) or test(paths_follow_go_environment_overrides_and_adk_artifact_lifecycle) or test(adk_session_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_v2_migration_rebuilds_runs_without_losing_payload) or test(adk_session_store_lifecycle_and_restart_durability) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success)"
         ],
         "testFilter": [
           "context_notices_are_best_effort_and_keep_one_identity_across_updates"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "592df11d",
+        "verifiedAt": "2026-09-25T13:53:41Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -78972,20 +78962,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(compacted_context_survives_restart_and_precedes_current_user_message) or test(context_compaction_shrinks_the_projected_session_view) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(session_context_read_reports_pressure_without_compacting) or test(chat_creates_the_session_once_and_reuses_its_stored_title) or test(a_cancelled_tool_call_reports_the_context_cancellation) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(stale_replay_safe_claim_takes_over_with_fencing) or test(expired_tool_invocation_takeover_fences_old_ticket_with_live_run_lease) or test(infrastructure_resume_error_degrades_until_a_successful_scan) or test(context_notices_are_best_effort_and_keep_one_identity_across_updates) or test(an_unrecoverable_input_continuation_fails_the_run_with_the_reference_resume_state) or test(input_response_payload_anchors_the_resumed_run_to_the_original_request) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(cancelling_a_pending_input_run_cancels_the_request_and_rejects_a_late_answer) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(adk_task_normalization_and_validation_match_go) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_store_fences_a_second_writer_and_serializes_concurrent_access) or test(paths_follow_go_environment_overrides_and_adk_artifact_lifecycle) or test(adk_session_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_v2_migration_rebuilds_runs_without_losing_payload) or test(adk_session_store_lifecycle_and_restart_durability) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success)"
         ],
         "testFilter": [
           "an_unrecoverable_input_continuation_fails_the_run_with_the_reference_resume_state"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "592df11d",
+        "verifiedAt": "2026-09-25T13:53:41Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -79034,20 +79024,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(compacted_context_survives_restart_and_precedes_current_user_message) or test(context_compaction_shrinks_the_projected_session_view) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(session_context_read_reports_pressure_without_compacting) or test(chat_creates_the_session_once_and_reuses_its_stored_title) or test(a_cancelled_tool_call_reports_the_context_cancellation) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(stale_replay_safe_claim_takes_over_with_fencing) or test(expired_tool_invocation_takeover_fences_old_ticket_with_live_run_lease) or test(infrastructure_resume_error_degrades_until_a_successful_scan) or test(context_notices_are_best_effort_and_keep_one_identity_across_updates) or test(an_unrecoverable_input_continuation_fails_the_run_with_the_reference_resume_state) or test(input_response_payload_anchors_the_resumed_run_to_the_original_request) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(cancelling_a_pending_input_run_cancels_the_request_and_rejects_a_late_answer) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(adk_task_normalization_and_validation_match_go) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_store_fences_a_second_writer_and_serializes_concurrent_access) or test(paths_follow_go_environment_overrides_and_adk_artifact_lifecycle) or test(adk_session_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_v2_migration_rebuilds_runs_without_losing_payload) or test(adk_session_store_lifecycle_and_restart_durability) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success)"
         ],
         "testFilter": [
           "input_response_payload_anchors_the_resumed_run_to_the_original_request"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "592df11d",
+        "verifiedAt": "2026-09-25T13:53:41Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -79096,20 +79086,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(compacted_context_survives_restart_and_precedes_current_user_message) or test(context_compaction_shrinks_the_projected_session_view) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(session_context_read_reports_pressure_without_compacting) or test(chat_creates_the_session_once_and_reuses_its_stored_title) or test(a_cancelled_tool_call_reports_the_context_cancellation) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(stale_replay_safe_claim_takes_over_with_fencing) or test(expired_tool_invocation_takeover_fences_old_ticket_with_live_run_lease) or test(infrastructure_resume_error_degrades_until_a_successful_scan) or test(context_notices_are_best_effort_and_keep_one_identity_across_updates) or test(an_unrecoverable_input_continuation_fails_the_run_with_the_reference_resume_state) or test(input_response_payload_anchors_the_resumed_run_to_the_original_request) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(cancelling_a_pending_input_run_cancels_the_request_and_rejects_a_late_answer) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(adk_task_normalization_and_validation_match_go) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_store_fences_a_second_writer_and_serializes_concurrent_access) or test(paths_follow_go_environment_overrides_and_adk_artifact_lifecycle) or test(adk_session_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_v2_migration_rebuilds_runs_without_losing_payload) or test(adk_session_store_lifecycle_and_restart_durability) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success)"
         ],
         "testFilter": [
           "a_restarted_runtime_resumes_a_pending_input_run"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "592df11d",
+        "verifiedAt": "2026-09-25T13:53:41Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -79769,23 +79759,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
           "--locked",
-          "--no-fail-fast",
           "-E",
-          "test(cancelling_a_pending_input_run_cancels_the_request_and_rejects_a_late_answer)"
+          "test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(compacted_context_survives_restart_and_precedes_current_user_message) or test(context_compaction_shrinks_the_projected_session_view) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(session_context_read_reports_pressure_without_compacting) or test(chat_creates_the_session_once_and_reuses_its_stored_title) or test(a_cancelled_tool_call_reports_the_context_cancellation) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(stale_replay_safe_claim_takes_over_with_fencing) or test(expired_tool_invocation_takeover_fences_old_ticket_with_live_run_lease) or test(infrastructure_resume_error_degrades_until_a_successful_scan) or test(context_notices_are_best_effort_and_keep_one_identity_across_updates) or test(an_unrecoverable_input_continuation_fails_the_run_with_the_reference_resume_state) or test(input_response_payload_anchors_the_resumed_run_to_the_original_request) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(cancelling_a_pending_input_run_cancels_the_request_and_rejects_a_late_answer) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(adk_task_normalization_and_validation_match_go) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_store_fences_a_second_writer_and_serializes_concurrent_access) or test(paths_follow_go_environment_overrides_and_adk_artifact_lifecycle) or test(adk_session_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_v2_migration_rebuilds_runs_without_losing_payload) or test(adk_session_store_lifecycle_and_restart_durability) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success)"
         ],
         "testFilter": [
           "cancelling_a_pending_input_run_cancels_the_request_and_rejects_a_late_answer"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "592df11d",
+        "verifiedAt": "2026-09-25T13:53:41Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -80432,20 +80419,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(compacted_context_survives_restart_and_precedes_current_user_message) or test(context_compaction_shrinks_the_projected_session_view) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(session_context_read_reports_pressure_without_compacting) or test(chat_creates_the_session_once_and_reuses_its_stored_title) or test(a_cancelled_tool_call_reports_the_context_cancellation) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(stale_replay_safe_claim_takes_over_with_fencing) or test(expired_tool_invocation_takeover_fences_old_ticket_with_live_run_lease) or test(infrastructure_resume_error_degrades_until_a_successful_scan) or test(context_notices_are_best_effort_and_keep_one_identity_across_updates) or test(an_unrecoverable_input_continuation_fails_the_run_with_the_reference_resume_state) or test(input_response_payload_anchors_the_resumed_run_to_the_original_request) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(cancelling_a_pending_input_run_cancels_the_request_and_rejects_a_late_answer) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(adk_task_normalization_and_validation_match_go) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_store_fences_a_second_writer_and_serializes_concurrent_access) or test(paths_follow_go_environment_overrides_and_adk_artifact_lifecycle) or test(adk_session_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_v2_migration_rebuilds_runs_without_losing_payload) or test(adk_session_store_lifecycle_and_restart_durability) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success)"
         ],
         "testFilter": [
           "expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "592df11d",
+        "verifiedAt": "2026-09-25T13:53:41Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -80494,20 +80481,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(compacted_context_survives_restart_and_precedes_current_user_message) or test(context_compaction_shrinks_the_projected_session_view) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(session_context_read_reports_pressure_without_compacting) or test(chat_creates_the_session_once_and_reuses_its_stored_title) or test(a_cancelled_tool_call_reports_the_context_cancellation) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(stale_replay_safe_claim_takes_over_with_fencing) or test(expired_tool_invocation_takeover_fences_old_ticket_with_live_run_lease) or test(infrastructure_resume_error_degrades_until_a_successful_scan) or test(context_notices_are_best_effort_and_keep_one_identity_across_updates) or test(an_unrecoverable_input_continuation_fails_the_run_with_the_reference_resume_state) or test(input_response_payload_anchors_the_resumed_run_to_the_original_request) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(cancelling_a_pending_input_run_cancels_the_request_and_rejects_a_late_answer) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(adk_task_normalization_and_validation_match_go) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_store_fences_a_second_writer_and_serializes_concurrent_access) or test(paths_follow_go_environment_overrides_and_adk_artifact_lifecycle) or test(adk_session_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_v2_migration_rebuilds_runs_without_losing_payload) or test(adk_session_store_lifecycle_and_restart_durability) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success)"
         ],
         "testFilter": [
           "orphaned_pending_approval_runs_are_failed_on_startup_reconcile"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "592df11d",
+        "verifiedAt": "2026-09-25T13:53:41Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -81519,20 +81506,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(compacted_context_survives_restart_and_precedes_current_user_message) or test(context_compaction_shrinks_the_projected_session_view) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(session_context_read_reports_pressure_without_compacting) or test(chat_creates_the_session_once_and_reuses_its_stored_title) or test(a_cancelled_tool_call_reports_the_context_cancellation) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(stale_replay_safe_claim_takes_over_with_fencing) or test(expired_tool_invocation_takeover_fences_old_ticket_with_live_run_lease) or test(infrastructure_resume_error_degrades_until_a_successful_scan) or test(context_notices_are_best_effort_and_keep_one_identity_across_updates) or test(an_unrecoverable_input_continuation_fails_the_run_with_the_reference_resume_state) or test(input_response_payload_anchors_the_resumed_run_to_the_original_request) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(cancelling_a_pending_input_run_cancels_the_request_and_rejects_a_late_answer) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(adk_task_normalization_and_validation_match_go) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_store_fences_a_second_writer_and_serializes_concurrent_access) or test(paths_follow_go_environment_overrides_and_adk_artifact_lifecycle) or test(adk_session_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_v2_migration_rebuilds_runs_without_losing_payload) or test(adk_session_store_lifecycle_and_restart_durability) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success)"
         ],
         "testFilter": [
           "adk_task_normalization_and_validation_match_go"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "592df11d",
+        "verifiedAt": "2026-09-25T13:53:41Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -81696,20 +81683,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(compacted_context_survives_restart_and_precedes_current_user_message) or test(context_compaction_shrinks_the_projected_session_view) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(session_context_read_reports_pressure_without_compacting) or test(chat_creates_the_session_once_and_reuses_its_stored_title) or test(a_cancelled_tool_call_reports_the_context_cancellation) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(stale_replay_safe_claim_takes_over_with_fencing) or test(expired_tool_invocation_takeover_fences_old_ticket_with_live_run_lease) or test(infrastructure_resume_error_degrades_until_a_successful_scan) or test(context_notices_are_best_effort_and_keep_one_identity_across_updates) or test(an_unrecoverable_input_continuation_fails_the_run_with_the_reference_resume_state) or test(input_response_payload_anchors_the_resumed_run_to_the_original_request) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(cancelling_a_pending_input_run_cancels_the_request_and_rejects_a_late_answer) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(adk_task_normalization_and_validation_match_go) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_store_fences_a_second_writer_and_serializes_concurrent_access) or test(paths_follow_go_environment_overrides_and_adk_artifact_lifecycle) or test(adk_session_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_v2_migration_rebuilds_runs_without_losing_payload) or test(adk_session_store_lifecycle_and_restart_durability) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success)"
         ],
         "testFilter": [
           "adk_composer_state_truncates_trim_and_rejects_invalid_modes"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "592df11d",
+        "verifiedAt": "2026-09-25T13:53:41Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -81825,20 +81812,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(compacted_context_survives_restart_and_precedes_current_user_message) or test(context_compaction_shrinks_the_projected_session_view) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(session_context_read_reports_pressure_without_compacting) or test(chat_creates_the_session_once_and_reuses_its_stored_title) or test(a_cancelled_tool_call_reports_the_context_cancellation) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(stale_replay_safe_claim_takes_over_with_fencing) or test(expired_tool_invocation_takeover_fences_old_ticket_with_live_run_lease) or test(infrastructure_resume_error_degrades_until_a_successful_scan) or test(context_notices_are_best_effort_and_keep_one_identity_across_updates) or test(an_unrecoverable_input_continuation_fails_the_run_with_the_reference_resume_state) or test(input_response_payload_anchors_the_resumed_run_to_the_original_request) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(cancelling_a_pending_input_run_cancels_the_request_and_rejects_a_late_answer) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(adk_task_normalization_and_validation_match_go) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_store_fences_a_second_writer_and_serializes_concurrent_access) or test(paths_follow_go_environment_overrides_and_adk_artifact_lifecycle) or test(adk_session_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_v2_migration_rebuilds_runs_without_losing_payload) or test(adk_session_store_lifecycle_and_restart_durability) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success)"
         ],
         "testFilter": [
           "adk_store_fences_a_second_writer_and_serializes_concurrent_access"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "592df11d",
+        "verifiedAt": "2026-09-25T13:53:41Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -82286,20 +82273,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(compacted_context_survives_restart_and_precedes_current_user_message) or test(context_compaction_shrinks_the_projected_session_view) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(session_context_read_reports_pressure_without_compacting) or test(chat_creates_the_session_once_and_reuses_its_stored_title) or test(a_cancelled_tool_call_reports_the_context_cancellation) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(stale_replay_safe_claim_takes_over_with_fencing) or test(expired_tool_invocation_takeover_fences_old_ticket_with_live_run_lease) or test(infrastructure_resume_error_degrades_until_a_successful_scan) or test(context_notices_are_best_effort_and_keep_one_identity_across_updates) or test(an_unrecoverable_input_continuation_fails_the_run_with_the_reference_resume_state) or test(input_response_payload_anchors_the_resumed_run_to_the_original_request) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(cancelling_a_pending_input_run_cancels_the_request_and_rejects_a_late_answer) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(adk_task_normalization_and_validation_match_go) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_store_fences_a_second_writer_and_serializes_concurrent_access) or test(paths_follow_go_environment_overrides_and_adk_artifact_lifecycle) or test(adk_session_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_v2_migration_rebuilds_runs_without_losing_payload) or test(adk_session_store_lifecycle_and_restart_durability) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success)"
         ],
         "testFilter": [
           "paths_follow_go_environment_overrides_and_adk_artifact_lifecycle"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "592df11d",
+        "verifiedAt": "2026-09-25T13:53:41Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -82683,20 +82670,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(compacted_context_survives_restart_and_precedes_current_user_message) or test(context_compaction_shrinks_the_projected_session_view) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(session_context_read_reports_pressure_without_compacting) or test(chat_creates_the_session_once_and_reuses_its_stored_title) or test(a_cancelled_tool_call_reports_the_context_cancellation) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(stale_replay_safe_claim_takes_over_with_fencing) or test(expired_tool_invocation_takeover_fences_old_ticket_with_live_run_lease) or test(infrastructure_resume_error_degrades_until_a_successful_scan) or test(context_notices_are_best_effort_and_keep_one_identity_across_updates) or test(an_unrecoverable_input_continuation_fails_the_run_with_the_reference_resume_state) or test(input_response_payload_anchors_the_resumed_run_to_the_original_request) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(cancelling_a_pending_input_run_cancels_the_request_and_rejects_a_late_answer) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(adk_task_normalization_and_validation_match_go) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_store_fences_a_second_writer_and_serializes_concurrent_access) or test(paths_follow_go_environment_overrides_and_adk_artifact_lifecycle) or test(adk_session_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_v2_migration_rebuilds_runs_without_losing_payload) or test(adk_session_store_lifecycle_and_restart_durability) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success)"
         ],
         "testFilter": [
           "adk_session_store_rejects_missing_drifted_and_corrupted_go_databases"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "592df11d",
+        "verifiedAt": "2026-09-25T13:53:41Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -82750,20 +82737,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(compacted_context_survives_restart_and_precedes_current_user_message) or test(context_compaction_shrinks_the_projected_session_view) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(session_context_read_reports_pressure_without_compacting) or test(chat_creates_the_session_once_and_reuses_its_stored_title) or test(a_cancelled_tool_call_reports_the_context_cancellation) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(stale_replay_safe_claim_takes_over_with_fencing) or test(expired_tool_invocation_takeover_fences_old_ticket_with_live_run_lease) or test(infrastructure_resume_error_degrades_until_a_successful_scan) or test(context_notices_are_best_effort_and_keep_one_identity_across_updates) or test(an_unrecoverable_input_continuation_fails_the_run_with_the_reference_resume_state) or test(input_response_payload_anchors_the_resumed_run_to_the_original_request) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(cancelling_a_pending_input_run_cancels_the_request_and_rejects_a_late_answer) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(adk_task_normalization_and_validation_match_go) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_store_fences_a_second_writer_and_serializes_concurrent_access) or test(paths_follow_go_environment_overrides_and_adk_artifact_lifecycle) or test(adk_session_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_v2_migration_rebuilds_runs_without_losing_payload) or test(adk_session_store_lifecycle_and_restart_durability) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success)"
         ],
         "testFilter": [
           "adk_session_store_rejects_missing_drifted_and_corrupted_go_databases"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "592df11d",
+        "verifiedAt": "2026-09-25T13:53:41Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -82812,20 +82799,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(compacted_context_survives_restart_and_precedes_current_user_message) or test(context_compaction_shrinks_the_projected_session_view) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(session_context_read_reports_pressure_without_compacting) or test(chat_creates_the_session_once_and_reuses_its_stored_title) or test(a_cancelled_tool_call_reports_the_context_cancellation) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(stale_replay_safe_claim_takes_over_with_fencing) or test(expired_tool_invocation_takeover_fences_old_ticket_with_live_run_lease) or test(infrastructure_resume_error_degrades_until_a_successful_scan) or test(context_notices_are_best_effort_and_keep_one_identity_across_updates) or test(an_unrecoverable_input_continuation_fails_the_run_with_the_reference_resume_state) or test(input_response_payload_anchors_the_resumed_run_to_the_original_request) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(cancelling_a_pending_input_run_cancels_the_request_and_rejects_a_late_answer) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(adk_task_normalization_and_validation_match_go) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_store_fences_a_second_writer_and_serializes_concurrent_access) or test(paths_follow_go_environment_overrides_and_adk_artifact_lifecycle) or test(adk_session_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_v2_migration_rebuilds_runs_without_losing_payload) or test(adk_session_store_lifecycle_and_restart_durability) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success)"
         ],
         "testFilter": [
           "adk_session_store_rejects_missing_drifted_and_corrupted_go_databases"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "592df11d",
+        "verifiedAt": "2026-09-25T13:53:41Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -82874,20 +82861,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(compacted_context_survives_restart_and_precedes_current_user_message) or test(context_compaction_shrinks_the_projected_session_view) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(session_context_read_reports_pressure_without_compacting) or test(chat_creates_the_session_once_and_reuses_its_stored_title) or test(a_cancelled_tool_call_reports_the_context_cancellation) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(stale_replay_safe_claim_takes_over_with_fencing) or test(expired_tool_invocation_takeover_fences_old_ticket_with_live_run_lease) or test(infrastructure_resume_error_degrades_until_a_successful_scan) or test(context_notices_are_best_effort_and_keep_one_identity_across_updates) or test(an_unrecoverable_input_continuation_fails_the_run_with_the_reference_resume_state) or test(input_response_payload_anchors_the_resumed_run_to_the_original_request) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(cancelling_a_pending_input_run_cancels_the_request_and_rejects_a_late_answer) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(adk_task_normalization_and_validation_match_go) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_store_fences_a_second_writer_and_serializes_concurrent_access) or test(paths_follow_go_environment_overrides_and_adk_artifact_lifecycle) or test(adk_session_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_v2_migration_rebuilds_runs_without_losing_payload) or test(adk_session_store_lifecycle_and_restart_durability) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success)"
         ],
         "testFilter": [
           "adk_v2_migration_rebuilds_runs_without_losing_payload"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "592df11d",
+        "verifiedAt": "2026-09-25T13:53:41Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -82936,20 +82923,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(compacted_context_survives_restart_and_precedes_current_user_message) or test(context_compaction_shrinks_the_projected_session_view) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(session_context_read_reports_pressure_without_compacting) or test(chat_creates_the_session_once_and_reuses_its_stored_title) or test(a_cancelled_tool_call_reports_the_context_cancellation) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(stale_replay_safe_claim_takes_over_with_fencing) or test(expired_tool_invocation_takeover_fences_old_ticket_with_live_run_lease) or test(infrastructure_resume_error_degrades_until_a_successful_scan) or test(context_notices_are_best_effort_and_keep_one_identity_across_updates) or test(an_unrecoverable_input_continuation_fails_the_run_with_the_reference_resume_state) or test(input_response_payload_anchors_the_resumed_run_to_the_original_request) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(cancelling_a_pending_input_run_cancels_the_request_and_rejects_a_late_answer) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(adk_task_normalization_and_validation_match_go) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_store_fences_a_second_writer_and_serializes_concurrent_access) or test(paths_follow_go_environment_overrides_and_adk_artifact_lifecycle) or test(adk_session_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_v2_migration_rebuilds_runs_without_losing_payload) or test(adk_session_store_lifecycle_and_restart_durability) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success)"
         ],
         "testFilter": [
           "adk_session_store_lifecycle_and_restart_durability"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "592df11d",
+        "verifiedAt": "2026-09-25T13:53:41Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -82998,20 +82985,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(compacted_context_survives_restart_and_precedes_current_user_message) or test(context_compaction_shrinks_the_projected_session_view) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(session_context_read_reports_pressure_without_compacting) or test(chat_creates_the_session_once_and_reuses_its_stored_title) or test(a_cancelled_tool_call_reports_the_context_cancellation) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(stale_replay_safe_claim_takes_over_with_fencing) or test(expired_tool_invocation_takeover_fences_old_ticket_with_live_run_lease) or test(infrastructure_resume_error_degrades_until_a_successful_scan) or test(context_notices_are_best_effort_and_keep_one_identity_across_updates) or test(an_unrecoverable_input_continuation_fails_the_run_with_the_reference_resume_state) or test(input_response_payload_anchors_the_resumed_run_to_the_original_request) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(cancelling_a_pending_input_run_cancels_the_request_and_rejects_a_late_answer) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(adk_task_normalization_and_validation_match_go) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_store_fences_a_second_writer_and_serializes_concurrent_access) or test(paths_follow_go_environment_overrides_and_adk_artifact_lifecycle) or test(adk_session_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_v2_migration_rebuilds_runs_without_losing_payload) or test(adk_session_store_lifecycle_and_restart_durability) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success)"
         ],
         "testFilter": [
           "adk_session_store_lifecycle_and_restart_durability"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "592df11d",
+        "verifiedAt": "2026-09-25T13:53:41Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -83065,20 +83052,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(compacted_context_survives_restart_and_precedes_current_user_message) or test(context_compaction_shrinks_the_projected_session_view) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(session_context_read_reports_pressure_without_compacting) or test(chat_creates_the_session_once_and_reuses_its_stored_title) or test(a_cancelled_tool_call_reports_the_context_cancellation) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(stale_replay_safe_claim_takes_over_with_fencing) or test(expired_tool_invocation_takeover_fences_old_ticket_with_live_run_lease) or test(infrastructure_resume_error_degrades_until_a_successful_scan) or test(context_notices_are_best_effort_and_keep_one_identity_across_updates) or test(an_unrecoverable_input_continuation_fails_the_run_with_the_reference_resume_state) or test(input_response_payload_anchors_the_resumed_run_to_the_original_request) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(cancelling_a_pending_input_run_cancels_the_request_and_rejects_a_late_answer) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(adk_task_normalization_and_validation_match_go) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_store_fences_a_second_writer_and_serializes_concurrent_access) or test(paths_follow_go_environment_overrides_and_adk_artifact_lifecycle) or test(adk_session_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_v2_migration_rebuilds_runs_without_losing_payload) or test(adk_session_store_lifecycle_and_restart_durability) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success)"
         ],
         "testFilter": [
           "adk_session_store_lifecycle_and_restart_durability"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "592df11d",
+        "verifiedAt": "2026-09-25T13:53:41Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -83127,20 +83114,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(compacted_context_survives_restart_and_precedes_current_user_message) or test(context_compaction_shrinks_the_projected_session_view) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(session_context_read_reports_pressure_without_compacting) or test(chat_creates_the_session_once_and_reuses_its_stored_title) or test(a_cancelled_tool_call_reports_the_context_cancellation) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(stale_replay_safe_claim_takes_over_with_fencing) or test(expired_tool_invocation_takeover_fences_old_ticket_with_live_run_lease) or test(infrastructure_resume_error_degrades_until_a_successful_scan) or test(context_notices_are_best_effort_and_keep_one_identity_across_updates) or test(an_unrecoverable_input_continuation_fails_the_run_with_the_reference_resume_state) or test(input_response_payload_anchors_the_resumed_run_to_the_original_request) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(cancelling_a_pending_input_run_cancels_the_request_and_rejects_a_late_answer) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(adk_task_normalization_and_validation_match_go) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_store_fences_a_second_writer_and_serializes_concurrent_access) or test(paths_follow_go_environment_overrides_and_adk_artifact_lifecycle) or test(adk_session_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_v2_migration_rebuilds_runs_without_losing_payload) or test(adk_session_store_lifecycle_and_restart_durability) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success)"
         ],
         "testFilter": [
           "adk_session_store_rejects_missing_drifted_and_corrupted_go_databases"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "592df11d",
+        "verifiedAt": "2026-09-25T13:53:41Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -83189,20 +83176,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(compacted_context_survives_restart_and_precedes_current_user_message) or test(context_compaction_shrinks_the_projected_session_view) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(session_context_read_reports_pressure_without_compacting) or test(chat_creates_the_session_once_and_reuses_its_stored_title) or test(a_cancelled_tool_call_reports_the_context_cancellation) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(stale_replay_safe_claim_takes_over_with_fencing) or test(expired_tool_invocation_takeover_fences_old_ticket_with_live_run_lease) or test(infrastructure_resume_error_degrades_until_a_successful_scan) or test(context_notices_are_best_effort_and_keep_one_identity_across_updates) or test(an_unrecoverable_input_continuation_fails_the_run_with_the_reference_resume_state) or test(input_response_payload_anchors_the_resumed_run_to_the_original_request) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(cancelling_a_pending_input_run_cancels_the_request_and_rejects_a_late_answer) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(adk_task_normalization_and_validation_match_go) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_store_fences_a_second_writer_and_serializes_concurrent_access) or test(paths_follow_go_environment_overrides_and_adk_artifact_lifecycle) or test(adk_session_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_v2_migration_rebuilds_runs_without_losing_payload) or test(adk_session_store_lifecycle_and_restart_durability) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success)"
         ],
         "testFilter": [
           "adk_session_store_rejects_missing_drifted_and_corrupted_go_databases"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "592df11d",
+        "verifiedAt": "2026-09-25T13:53:41Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -83562,20 +83549,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(failed_recovery_scan_marks_readiness_degraded_until_next_success)"
         ],
         "testFilter": [
           "failed_recovery_scan_marks_readiness_degraded_until_next_success"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "3d356b9a",
+        "verifiedAt": "2026-09-25T13:47:02Z",
         "receiptDigest": null
       },
       "risk": "high",
