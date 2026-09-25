@@ -93244,20 +93244,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(session_context_tracks_events_appended_after_a_compaction)"
+          "test(session_context_tracks_events_appended_after_a_compaction) or test(a_run_waiting_for_approval_does_not_block_chat_auto_compaction) or test(compaction_preserves_the_call_of_a_pending_approval) or test(builtin_skill_catalog_stays_registered_alongside_external_installs) or test(session_context_window_follows_the_composer_provider_override) or test(reviewed_mcp_schemas_match_canonical_go_fixture_deeply) or test(session_delete_missing_is_idempotent_and_blank_ids_are_rejected) or test(completed_run_reopens_only_for_a_fresh_durable_approval) or test(adk_audit_route_filters_by_kind_and_subject_id) or test(test_shared_artifacts_preserved_and_user_session_deletion_rejected) or test(adk_store_lifecycle_and_restart_durability) or test(test_idempotent_retry_and_partial_failure_crash_recovery) or test(test_adk_cascade_cleanup_removes_all_entities_across_three_databases) or test(adk_session_page_filters_by_agent_and_title_and_paginates) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_session_delete_missing_is_reported_with_the_session_error_code) or test(adk_approval_page_orders_by_latest_update_and_counts_filtered_rows) or test(adk_maintenance_compacts_every_owned_database_and_requires_the_writer_lease) or test(chat_rejects_a_session_owned_by_a_different_agent) or test(cancelling_a_run_denies_its_pending_approvals) or test(adk_cancel_run_missing_is_the_dedicated_cancel_failure) or test(adk_resolve_approval_missing_returns_the_idempotent_empty_envelope) or test(adk_run_listing_filters_and_sorts_newest_first) or test(saved_provider_normalizes_the_request_timeout_on_write) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(run_start_freezes_the_configured_run_timeout_from_settings) or test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(expired_runs_use_each_runs_own_timeout_window)"
         ],
         "testFilter": [
           "session_context_tracks_events_appended_after_a_compaction"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "401604517dde7ec5b5ea8721ce8fbcac51b94726",
+        "verifiedAt": "2026-09-25T14:05:33Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -93311,20 +93311,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(a_run_waiting_for_approval_does_not_block_chat_auto_compaction)"
+          "test(session_context_tracks_events_appended_after_a_compaction) or test(a_run_waiting_for_approval_does_not_block_chat_auto_compaction) or test(compaction_preserves_the_call_of_a_pending_approval) or test(builtin_skill_catalog_stays_registered_alongside_external_installs) or test(session_context_window_follows_the_composer_provider_override) or test(reviewed_mcp_schemas_match_canonical_go_fixture_deeply) or test(session_delete_missing_is_idempotent_and_blank_ids_are_rejected) or test(completed_run_reopens_only_for_a_fresh_durable_approval) or test(adk_audit_route_filters_by_kind_and_subject_id) or test(test_shared_artifacts_preserved_and_user_session_deletion_rejected) or test(adk_store_lifecycle_and_restart_durability) or test(test_idempotent_retry_and_partial_failure_crash_recovery) or test(test_adk_cascade_cleanup_removes_all_entities_across_three_databases) or test(adk_session_page_filters_by_agent_and_title_and_paginates) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_session_delete_missing_is_reported_with_the_session_error_code) or test(adk_approval_page_orders_by_latest_update_and_counts_filtered_rows) or test(adk_maintenance_compacts_every_owned_database_and_requires_the_writer_lease) or test(chat_rejects_a_session_owned_by_a_different_agent) or test(cancelling_a_run_denies_its_pending_approvals) or test(adk_cancel_run_missing_is_the_dedicated_cancel_failure) or test(adk_resolve_approval_missing_returns_the_idempotent_empty_envelope) or test(adk_run_listing_filters_and_sorts_newest_first) or test(saved_provider_normalizes_the_request_timeout_on_write) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(run_start_freezes_the_configured_run_timeout_from_settings) or test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(expired_runs_use_each_runs_own_timeout_window)"
         ],
         "testFilter": [
           "a_run_waiting_for_approval_does_not_block_chat_auto_compaction"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "401604517dde7ec5b5ea8721ce8fbcac51b94726",
+        "verifiedAt": "2026-09-25T14:05:33Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -93378,20 +93378,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(compaction_preserves_the_call_of_a_pending_approval)"
+          "test(session_context_tracks_events_appended_after_a_compaction) or test(a_run_waiting_for_approval_does_not_block_chat_auto_compaction) or test(compaction_preserves_the_call_of_a_pending_approval) or test(builtin_skill_catalog_stays_registered_alongside_external_installs) or test(session_context_window_follows_the_composer_provider_override) or test(reviewed_mcp_schemas_match_canonical_go_fixture_deeply) or test(session_delete_missing_is_idempotent_and_blank_ids_are_rejected) or test(completed_run_reopens_only_for_a_fresh_durable_approval) or test(adk_audit_route_filters_by_kind_and_subject_id) or test(test_shared_artifacts_preserved_and_user_session_deletion_rejected) or test(adk_store_lifecycle_and_restart_durability) or test(test_idempotent_retry_and_partial_failure_crash_recovery) or test(test_adk_cascade_cleanup_removes_all_entities_across_three_databases) or test(adk_session_page_filters_by_agent_and_title_and_paginates) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_session_delete_missing_is_reported_with_the_session_error_code) or test(adk_approval_page_orders_by_latest_update_and_counts_filtered_rows) or test(adk_maintenance_compacts_every_owned_database_and_requires_the_writer_lease) or test(chat_rejects_a_session_owned_by_a_different_agent) or test(cancelling_a_run_denies_its_pending_approvals) or test(adk_cancel_run_missing_is_the_dedicated_cancel_failure) or test(adk_resolve_approval_missing_returns_the_idempotent_empty_envelope) or test(adk_run_listing_filters_and_sorts_newest_first) or test(saved_provider_normalizes_the_request_timeout_on_write) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(run_start_freezes_the_configured_run_timeout_from_settings) or test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(expired_runs_use_each_runs_own_timeout_window)"
         ],
         "testFilter": [
           "compaction_preserves_the_call_of_a_pending_approval"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "401604517dde7ec5b5ea8721ce8fbcac51b94726",
+        "verifiedAt": "2026-09-25T14:05:33Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -93440,20 +93440,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(session_context_tracks_events_appended_after_a_compaction) or test(a_run_waiting_for_approval_does_not_block_chat_auto_compaction) or test(compaction_preserves_the_call_of_a_pending_approval) or test(builtin_skill_catalog_stays_registered_alongside_external_installs) or test(session_context_window_follows_the_composer_provider_override) or test(reviewed_mcp_schemas_match_canonical_go_fixture_deeply) or test(session_delete_missing_is_idempotent_and_blank_ids_are_rejected) or test(completed_run_reopens_only_for_a_fresh_durable_approval) or test(adk_audit_route_filters_by_kind_and_subject_id) or test(test_shared_artifacts_preserved_and_user_session_deletion_rejected) or test(adk_store_lifecycle_and_restart_durability) or test(test_idempotent_retry_and_partial_failure_crash_recovery) or test(test_adk_cascade_cleanup_removes_all_entities_across_three_databases) or test(adk_session_page_filters_by_agent_and_title_and_paginates) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_session_delete_missing_is_reported_with_the_session_error_code) or test(adk_approval_page_orders_by_latest_update_and_counts_filtered_rows) or test(adk_maintenance_compacts_every_owned_database_and_requires_the_writer_lease) or test(chat_rejects_a_session_owned_by_a_different_agent) or test(cancelling_a_run_denies_its_pending_approvals) or test(adk_cancel_run_missing_is_the_dedicated_cancel_failure) or test(adk_resolve_approval_missing_returns_the_idempotent_empty_envelope) or test(adk_run_listing_filters_and_sorts_newest_first) or test(saved_provider_normalizes_the_request_timeout_on_write) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(run_start_freezes_the_configured_run_timeout_from_settings) or test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(expired_runs_use_each_runs_own_timeout_window)"
         ],
         "testFilter": [
           "session_context_tracks_events_appended_after_a_compaction"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "401604517dde7ec5b5ea8721ce8fbcac51b94726",
+        "verifiedAt": "2026-09-25T14:05:33Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -93502,20 +93502,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(session_context_tracks_events_appended_after_a_compaction) or test(a_run_waiting_for_approval_does_not_block_chat_auto_compaction) or test(compaction_preserves_the_call_of_a_pending_approval) or test(builtin_skill_catalog_stays_registered_alongside_external_installs) or test(session_context_window_follows_the_composer_provider_override) or test(reviewed_mcp_schemas_match_canonical_go_fixture_deeply) or test(session_delete_missing_is_idempotent_and_blank_ids_are_rejected) or test(completed_run_reopens_only_for_a_fresh_durable_approval) or test(adk_audit_route_filters_by_kind_and_subject_id) or test(test_shared_artifacts_preserved_and_user_session_deletion_rejected) or test(adk_store_lifecycle_and_restart_durability) or test(test_idempotent_retry_and_partial_failure_crash_recovery) or test(test_adk_cascade_cleanup_removes_all_entities_across_three_databases) or test(adk_session_page_filters_by_agent_and_title_and_paginates) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_session_delete_missing_is_reported_with_the_session_error_code) or test(adk_approval_page_orders_by_latest_update_and_counts_filtered_rows) or test(adk_maintenance_compacts_every_owned_database_and_requires_the_writer_lease) or test(chat_rejects_a_session_owned_by_a_different_agent) or test(cancelling_a_run_denies_its_pending_approvals) or test(adk_cancel_run_missing_is_the_dedicated_cancel_failure) or test(adk_resolve_approval_missing_returns_the_idempotent_empty_envelope) or test(adk_run_listing_filters_and_sorts_newest_first) or test(saved_provider_normalizes_the_request_timeout_on_write) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(run_start_freezes_the_configured_run_timeout_from_settings) or test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(expired_runs_use_each_runs_own_timeout_window)"
         ],
         "testFilter": [
           "builtin_skill_catalog_stays_registered_alongside_external_installs"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "401604517dde7ec5b5ea8721ce8fbcac51b94726",
+        "verifiedAt": "2026-09-25T14:05:33Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -93564,20 +93564,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(session_context_tracks_events_appended_after_a_compaction) or test(a_run_waiting_for_approval_does_not_block_chat_auto_compaction) or test(compaction_preserves_the_call_of_a_pending_approval) or test(builtin_skill_catalog_stays_registered_alongside_external_installs) or test(session_context_window_follows_the_composer_provider_override) or test(reviewed_mcp_schemas_match_canonical_go_fixture_deeply) or test(session_delete_missing_is_idempotent_and_blank_ids_are_rejected) or test(completed_run_reopens_only_for_a_fresh_durable_approval) or test(adk_audit_route_filters_by_kind_and_subject_id) or test(test_shared_artifacts_preserved_and_user_session_deletion_rejected) or test(adk_store_lifecycle_and_restart_durability) or test(test_idempotent_retry_and_partial_failure_crash_recovery) or test(test_adk_cascade_cleanup_removes_all_entities_across_three_databases) or test(adk_session_page_filters_by_agent_and_title_and_paginates) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_session_delete_missing_is_reported_with_the_session_error_code) or test(adk_approval_page_orders_by_latest_update_and_counts_filtered_rows) or test(adk_maintenance_compacts_every_owned_database_and_requires_the_writer_lease) or test(chat_rejects_a_session_owned_by_a_different_agent) or test(cancelling_a_run_denies_its_pending_approvals) or test(adk_cancel_run_missing_is_the_dedicated_cancel_failure) or test(adk_resolve_approval_missing_returns_the_idempotent_empty_envelope) or test(adk_run_listing_filters_and_sorts_newest_first) or test(saved_provider_normalizes_the_request_timeout_on_write) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(run_start_freezes_the_configured_run_timeout_from_settings) or test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(expired_runs_use_each_runs_own_timeout_window)"
         ],
         "testFilter": [
           "session_context_window_follows_the_composer_provider_override"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "401604517dde7ec5b5ea8721ce8fbcac51b94726",
+        "verifiedAt": "2026-09-25T14:05:33Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -95238,20 +95238,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(session_context_tracks_events_appended_after_a_compaction) or test(a_run_waiting_for_approval_does_not_block_chat_auto_compaction) or test(compaction_preserves_the_call_of_a_pending_approval) or test(builtin_skill_catalog_stays_registered_alongside_external_installs) or test(session_context_window_follows_the_composer_provider_override) or test(reviewed_mcp_schemas_match_canonical_go_fixture_deeply) or test(session_delete_missing_is_idempotent_and_blank_ids_are_rejected) or test(completed_run_reopens_only_for_a_fresh_durable_approval) or test(adk_audit_route_filters_by_kind_and_subject_id) or test(test_shared_artifacts_preserved_and_user_session_deletion_rejected) or test(adk_store_lifecycle_and_restart_durability) or test(test_idempotent_retry_and_partial_failure_crash_recovery) or test(test_adk_cascade_cleanup_removes_all_entities_across_three_databases) or test(adk_session_page_filters_by_agent_and_title_and_paginates) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_session_delete_missing_is_reported_with_the_session_error_code) or test(adk_approval_page_orders_by_latest_update_and_counts_filtered_rows) or test(adk_maintenance_compacts_every_owned_database_and_requires_the_writer_lease) or test(chat_rejects_a_session_owned_by_a_different_agent) or test(cancelling_a_run_denies_its_pending_approvals) or test(adk_cancel_run_missing_is_the_dedicated_cancel_failure) or test(adk_resolve_approval_missing_returns_the_idempotent_empty_envelope) or test(adk_run_listing_filters_and_sorts_newest_first) or test(saved_provider_normalizes_the_request_timeout_on_write) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(run_start_freezes_the_configured_run_timeout_from_settings) or test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(expired_runs_use_each_runs_own_timeout_window)"
         ],
         "testFilter": [
           "reviewed_mcp_schemas_match_canonical_go_fixture_deeply"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "401604517dde7ec5b5ea8721ce8fbcac51b94726",
+        "verifiedAt": "2026-09-25T14:05:33Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -95796,20 +95796,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(session_context_tracks_events_appended_after_a_compaction) or test(a_run_waiting_for_approval_does_not_block_chat_auto_compaction) or test(compaction_preserves_the_call_of_a_pending_approval) or test(builtin_skill_catalog_stays_registered_alongside_external_installs) or test(session_context_window_follows_the_composer_provider_override) or test(reviewed_mcp_schemas_match_canonical_go_fixture_deeply) or test(session_delete_missing_is_idempotent_and_blank_ids_are_rejected) or test(completed_run_reopens_only_for_a_fresh_durable_approval) or test(adk_audit_route_filters_by_kind_and_subject_id) or test(test_shared_artifacts_preserved_and_user_session_deletion_rejected) or test(adk_store_lifecycle_and_restart_durability) or test(test_idempotent_retry_and_partial_failure_crash_recovery) or test(test_adk_cascade_cleanup_removes_all_entities_across_three_databases) or test(adk_session_page_filters_by_agent_and_title_and_paginates) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_session_delete_missing_is_reported_with_the_session_error_code) or test(adk_approval_page_orders_by_latest_update_and_counts_filtered_rows) or test(adk_maintenance_compacts_every_owned_database_and_requires_the_writer_lease) or test(chat_rejects_a_session_owned_by_a_different_agent) or test(cancelling_a_run_denies_its_pending_approvals) or test(adk_cancel_run_missing_is_the_dedicated_cancel_failure) or test(adk_resolve_approval_missing_returns_the_idempotent_empty_envelope) or test(adk_run_listing_filters_and_sorts_newest_first) or test(saved_provider_normalizes_the_request_timeout_on_write) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(run_start_freezes_the_configured_run_timeout_from_settings) or test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(expired_runs_use_each_runs_own_timeout_window)"
         ],
         "testFilter": [
           "session_delete_missing_is_idempotent_and_blank_ids_are_rejected"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "401604517dde7ec5b5ea8721ce8fbcac51b94726",
+        "verifiedAt": "2026-09-25T14:05:33Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -95920,20 +95920,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(session_context_tracks_events_appended_after_a_compaction) or test(a_run_waiting_for_approval_does_not_block_chat_auto_compaction) or test(compaction_preserves_the_call_of_a_pending_approval) or test(builtin_skill_catalog_stays_registered_alongside_external_installs) or test(session_context_window_follows_the_composer_provider_override) or test(reviewed_mcp_schemas_match_canonical_go_fixture_deeply) or test(session_delete_missing_is_idempotent_and_blank_ids_are_rejected) or test(completed_run_reopens_only_for_a_fresh_durable_approval) or test(adk_audit_route_filters_by_kind_and_subject_id) or test(test_shared_artifacts_preserved_and_user_session_deletion_rejected) or test(adk_store_lifecycle_and_restart_durability) or test(test_idempotent_retry_and_partial_failure_crash_recovery) or test(test_adk_cascade_cleanup_removes_all_entities_across_three_databases) or test(adk_session_page_filters_by_agent_and_title_and_paginates) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_session_delete_missing_is_reported_with_the_session_error_code) or test(adk_approval_page_orders_by_latest_update_and_counts_filtered_rows) or test(adk_maintenance_compacts_every_owned_database_and_requires_the_writer_lease) or test(chat_rejects_a_session_owned_by_a_different_agent) or test(cancelling_a_run_denies_its_pending_approvals) or test(adk_cancel_run_missing_is_the_dedicated_cancel_failure) or test(adk_resolve_approval_missing_returns_the_idempotent_empty_envelope) or test(adk_run_listing_filters_and_sorts_newest_first) or test(saved_provider_normalizes_the_request_timeout_on_write) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(run_start_freezes_the_configured_run_timeout_from_settings) or test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(expired_runs_use_each_runs_own_timeout_window)"
         ],
         "testFilter": [
           "completed_run_reopens_only_for_a_fresh_durable_approval"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "401604517dde7ec5b5ea8721ce8fbcac51b94726",
+        "verifiedAt": "2026-09-25T14:05:33Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -95982,20 +95982,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(session_context_tracks_events_appended_after_a_compaction) or test(a_run_waiting_for_approval_does_not_block_chat_auto_compaction) or test(compaction_preserves_the_call_of_a_pending_approval) or test(builtin_skill_catalog_stays_registered_alongside_external_installs) or test(session_context_window_follows_the_composer_provider_override) or test(reviewed_mcp_schemas_match_canonical_go_fixture_deeply) or test(session_delete_missing_is_idempotent_and_blank_ids_are_rejected) or test(completed_run_reopens_only_for_a_fresh_durable_approval) or test(adk_audit_route_filters_by_kind_and_subject_id) or test(test_shared_artifacts_preserved_and_user_session_deletion_rejected) or test(adk_store_lifecycle_and_restart_durability) or test(test_idempotent_retry_and_partial_failure_crash_recovery) or test(test_adk_cascade_cleanup_removes_all_entities_across_three_databases) or test(adk_session_page_filters_by_agent_and_title_and_paginates) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_session_delete_missing_is_reported_with_the_session_error_code) or test(adk_approval_page_orders_by_latest_update_and_counts_filtered_rows) or test(adk_maintenance_compacts_every_owned_database_and_requires_the_writer_lease) or test(chat_rejects_a_session_owned_by_a_different_agent) or test(cancelling_a_run_denies_its_pending_approvals) or test(adk_cancel_run_missing_is_the_dedicated_cancel_failure) or test(adk_resolve_approval_missing_returns_the_idempotent_empty_envelope) or test(adk_run_listing_filters_and_sorts_newest_first) or test(saved_provider_normalizes_the_request_timeout_on_write) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(run_start_freezes_the_configured_run_timeout_from_settings) or test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(expired_runs_use_each_runs_own_timeout_window)"
         ],
         "testFilter": [
           "adk_audit_route_filters_by_kind_and_subject_id"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "401604517dde7ec5b5ea8721ce8fbcac51b94726",
+        "verifiedAt": "2026-09-25T14:05:33Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -96106,20 +96106,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(session_context_tracks_events_appended_after_a_compaction) or test(a_run_waiting_for_approval_does_not_block_chat_auto_compaction) or test(compaction_preserves_the_call_of_a_pending_approval) or test(builtin_skill_catalog_stays_registered_alongside_external_installs) or test(session_context_window_follows_the_composer_provider_override) or test(reviewed_mcp_schemas_match_canonical_go_fixture_deeply) or test(session_delete_missing_is_idempotent_and_blank_ids_are_rejected) or test(completed_run_reopens_only_for_a_fresh_durable_approval) or test(adk_audit_route_filters_by_kind_and_subject_id) or test(test_shared_artifacts_preserved_and_user_session_deletion_rejected) or test(adk_store_lifecycle_and_restart_durability) or test(test_idempotent_retry_and_partial_failure_crash_recovery) or test(test_adk_cascade_cleanup_removes_all_entities_across_three_databases) or test(adk_session_page_filters_by_agent_and_title_and_paginates) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_session_delete_missing_is_reported_with_the_session_error_code) or test(adk_approval_page_orders_by_latest_update_and_counts_filtered_rows) or test(adk_maintenance_compacts_every_owned_database_and_requires_the_writer_lease) or test(chat_rejects_a_session_owned_by_a_different_agent) or test(cancelling_a_run_denies_its_pending_approvals) or test(adk_cancel_run_missing_is_the_dedicated_cancel_failure) or test(adk_resolve_approval_missing_returns_the_idempotent_empty_envelope) or test(adk_run_listing_filters_and_sorts_newest_first) or test(saved_provider_normalizes_the_request_timeout_on_write) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(run_start_freezes_the_configured_run_timeout_from_settings) or test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(expired_runs_use_each_runs_own_timeout_window)"
         ],
         "testFilter": [
           "test_shared_artifacts_preserved_and_user_session_deletion_rejected"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "401604517dde7ec5b5ea8721ce8fbcac51b94726",
+        "verifiedAt": "2026-09-25T14:05:33Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -96478,20 +96478,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(session_context_tracks_events_appended_after_a_compaction) or test(a_run_waiting_for_approval_does_not_block_chat_auto_compaction) or test(compaction_preserves_the_call_of_a_pending_approval) or test(builtin_skill_catalog_stays_registered_alongside_external_installs) or test(session_context_window_follows_the_composer_provider_override) or test(reviewed_mcp_schemas_match_canonical_go_fixture_deeply) or test(session_delete_missing_is_idempotent_and_blank_ids_are_rejected) or test(completed_run_reopens_only_for_a_fresh_durable_approval) or test(adk_audit_route_filters_by_kind_and_subject_id) or test(test_shared_artifacts_preserved_and_user_session_deletion_rejected) or test(adk_store_lifecycle_and_restart_durability) or test(test_idempotent_retry_and_partial_failure_crash_recovery) or test(test_adk_cascade_cleanup_removes_all_entities_across_three_databases) or test(adk_session_page_filters_by_agent_and_title_and_paginates) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_session_delete_missing_is_reported_with_the_session_error_code) or test(adk_approval_page_orders_by_latest_update_and_counts_filtered_rows) or test(adk_maintenance_compacts_every_owned_database_and_requires_the_writer_lease) or test(chat_rejects_a_session_owned_by_a_different_agent) or test(cancelling_a_run_denies_its_pending_approvals) or test(adk_cancel_run_missing_is_the_dedicated_cancel_failure) or test(adk_resolve_approval_missing_returns_the_idempotent_empty_envelope) or test(adk_run_listing_filters_and_sorts_newest_first) or test(saved_provider_normalizes_the_request_timeout_on_write) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(run_start_freezes_the_configured_run_timeout_from_settings) or test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(expired_runs_use_each_runs_own_timeout_window)"
         ],
         "testFilter": [
           "adk_store_lifecycle_and_restart_durability"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "401604517dde7ec5b5ea8721ce8fbcac51b94726",
+        "verifiedAt": "2026-09-25T14:05:33Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -96664,20 +96664,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(session_context_tracks_events_appended_after_a_compaction) or test(a_run_waiting_for_approval_does_not_block_chat_auto_compaction) or test(compaction_preserves_the_call_of_a_pending_approval) or test(builtin_skill_catalog_stays_registered_alongside_external_installs) or test(session_context_window_follows_the_composer_provider_override) or test(reviewed_mcp_schemas_match_canonical_go_fixture_deeply) or test(session_delete_missing_is_idempotent_and_blank_ids_are_rejected) or test(completed_run_reopens_only_for_a_fresh_durable_approval) or test(adk_audit_route_filters_by_kind_and_subject_id) or test(test_shared_artifacts_preserved_and_user_session_deletion_rejected) or test(adk_store_lifecycle_and_restart_durability) or test(test_idempotent_retry_and_partial_failure_crash_recovery) or test(test_adk_cascade_cleanup_removes_all_entities_across_three_databases) or test(adk_session_page_filters_by_agent_and_title_and_paginates) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_session_delete_missing_is_reported_with_the_session_error_code) or test(adk_approval_page_orders_by_latest_update_and_counts_filtered_rows) or test(adk_maintenance_compacts_every_owned_database_and_requires_the_writer_lease) or test(chat_rejects_a_session_owned_by_a_different_agent) or test(cancelling_a_run_denies_its_pending_approvals) or test(adk_cancel_run_missing_is_the_dedicated_cancel_failure) or test(adk_resolve_approval_missing_returns_the_idempotent_empty_envelope) or test(adk_run_listing_filters_and_sorts_newest_first) or test(saved_provider_normalizes_the_request_timeout_on_write) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(run_start_freezes_the_configured_run_timeout_from_settings) or test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(expired_runs_use_each_runs_own_timeout_window)"
         ],
         "testFilter": [
           "test_idempotent_retry_and_partial_failure_crash_recovery"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "401604517dde7ec5b5ea8721ce8fbcac51b94726",
+        "verifiedAt": "2026-09-25T14:05:33Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -96872,20 +96872,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(test_adk_cascade_cleanup_removes_all_entities_across_three_databases)"
+          "test(session_context_tracks_events_appended_after_a_compaction) or test(a_run_waiting_for_approval_does_not_block_chat_auto_compaction) or test(compaction_preserves_the_call_of_a_pending_approval) or test(builtin_skill_catalog_stays_registered_alongside_external_installs) or test(session_context_window_follows_the_composer_provider_override) or test(reviewed_mcp_schemas_match_canonical_go_fixture_deeply) or test(session_delete_missing_is_idempotent_and_blank_ids_are_rejected) or test(completed_run_reopens_only_for_a_fresh_durable_approval) or test(adk_audit_route_filters_by_kind_and_subject_id) or test(test_shared_artifacts_preserved_and_user_session_deletion_rejected) or test(adk_store_lifecycle_and_restart_durability) or test(test_idempotent_retry_and_partial_failure_crash_recovery) or test(test_adk_cascade_cleanup_removes_all_entities_across_three_databases) or test(adk_session_page_filters_by_agent_and_title_and_paginates) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_session_delete_missing_is_reported_with_the_session_error_code) or test(adk_approval_page_orders_by_latest_update_and_counts_filtered_rows) or test(adk_maintenance_compacts_every_owned_database_and_requires_the_writer_lease) or test(chat_rejects_a_session_owned_by_a_different_agent) or test(cancelling_a_run_denies_its_pending_approvals) or test(adk_cancel_run_missing_is_the_dedicated_cancel_failure) or test(adk_resolve_approval_missing_returns_the_idempotent_empty_envelope) or test(adk_run_listing_filters_and_sorts_newest_first) or test(saved_provider_normalizes_the_request_timeout_on_write) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(run_start_freezes_the_configured_run_timeout_from_settings) or test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(expired_runs_use_each_runs_own_timeout_window)"
         ],
         "testFilter": [
           "test_adk_cascade_cleanup_removes_all_entities_across_three_databases"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "401604517dde7ec5b5ea8721ce8fbcac51b94726",
+        "verifiedAt": "2026-09-25T14:05:33Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -97187,20 +97187,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(adk_session_page_filters_by_agent_and_title_and_paginates)"
+          "test(session_context_tracks_events_appended_after_a_compaction) or test(a_run_waiting_for_approval_does_not_block_chat_auto_compaction) or test(compaction_preserves_the_call_of_a_pending_approval) or test(builtin_skill_catalog_stays_registered_alongside_external_installs) or test(session_context_window_follows_the_composer_provider_override) or test(reviewed_mcp_schemas_match_canonical_go_fixture_deeply) or test(session_delete_missing_is_idempotent_and_blank_ids_are_rejected) or test(completed_run_reopens_only_for_a_fresh_durable_approval) or test(adk_audit_route_filters_by_kind_and_subject_id) or test(test_shared_artifacts_preserved_and_user_session_deletion_rejected) or test(adk_store_lifecycle_and_restart_durability) or test(test_idempotent_retry_and_partial_failure_crash_recovery) or test(test_adk_cascade_cleanup_removes_all_entities_across_three_databases) or test(adk_session_page_filters_by_agent_and_title_and_paginates) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_session_delete_missing_is_reported_with_the_session_error_code) or test(adk_approval_page_orders_by_latest_update_and_counts_filtered_rows) or test(adk_maintenance_compacts_every_owned_database_and_requires_the_writer_lease) or test(chat_rejects_a_session_owned_by_a_different_agent) or test(cancelling_a_run_denies_its_pending_approvals) or test(adk_cancel_run_missing_is_the_dedicated_cancel_failure) or test(adk_resolve_approval_missing_returns_the_idempotent_empty_envelope) or test(adk_run_listing_filters_and_sorts_newest_first) or test(saved_provider_normalizes_the_request_timeout_on_write) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(run_start_freezes_the_configured_run_timeout_from_settings) or test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(expired_runs_use_each_runs_own_timeout_window)"
         ],
         "testFilter": [
           "adk_session_page_filters_by_agent_and_title_and_paginates"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "401604517dde7ec5b5ea8721ce8fbcac51b94726",
+        "verifiedAt": "2026-09-25T14:05:33Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -97254,20 +97254,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(adk_composer_state_truncates_trim_and_rejects_invalid_modes)"
+          "test(session_context_tracks_events_appended_after_a_compaction) or test(a_run_waiting_for_approval_does_not_block_chat_auto_compaction) or test(compaction_preserves_the_call_of_a_pending_approval) or test(builtin_skill_catalog_stays_registered_alongside_external_installs) or test(session_context_window_follows_the_composer_provider_override) or test(reviewed_mcp_schemas_match_canonical_go_fixture_deeply) or test(session_delete_missing_is_idempotent_and_blank_ids_are_rejected) or test(completed_run_reopens_only_for_a_fresh_durable_approval) or test(adk_audit_route_filters_by_kind_and_subject_id) or test(test_shared_artifacts_preserved_and_user_session_deletion_rejected) or test(adk_store_lifecycle_and_restart_durability) or test(test_idempotent_retry_and_partial_failure_crash_recovery) or test(test_adk_cascade_cleanup_removes_all_entities_across_three_databases) or test(adk_session_page_filters_by_agent_and_title_and_paginates) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_session_delete_missing_is_reported_with_the_session_error_code) or test(adk_approval_page_orders_by_latest_update_and_counts_filtered_rows) or test(adk_maintenance_compacts_every_owned_database_and_requires_the_writer_lease) or test(chat_rejects_a_session_owned_by_a_different_agent) or test(cancelling_a_run_denies_its_pending_approvals) or test(adk_cancel_run_missing_is_the_dedicated_cancel_failure) or test(adk_resolve_approval_missing_returns_the_idempotent_empty_envelope) or test(adk_run_listing_filters_and_sorts_newest_first) or test(saved_provider_normalizes_the_request_timeout_on_write) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(run_start_freezes_the_configured_run_timeout_from_settings) or test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(expired_runs_use_each_runs_own_timeout_window)"
         ],
         "testFilter": [
           "adk_composer_state_truncates_trim_and_rejects_invalid_modes"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "401604517dde7ec5b5ea8721ce8fbcac51b94726",
+        "verifiedAt": "2026-09-25T14:05:33Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -97327,10 +97327,10 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(adk_session_delete_missing_is_reported_with_the_session_error_code)"
+          "test(session_context_tracks_events_appended_after_a_compaction) or test(a_run_waiting_for_approval_does_not_block_chat_auto_compaction) or test(compaction_preserves_the_call_of_a_pending_approval) or test(builtin_skill_catalog_stays_registered_alongside_external_installs) or test(session_context_window_follows_the_composer_provider_override) or test(reviewed_mcp_schemas_match_canonical_go_fixture_deeply) or test(session_delete_missing_is_idempotent_and_blank_ids_are_rejected) or test(completed_run_reopens_only_for_a_fresh_durable_approval) or test(adk_audit_route_filters_by_kind_and_subject_id) or test(test_shared_artifacts_preserved_and_user_session_deletion_rejected) or test(adk_store_lifecycle_and_restart_durability) or test(test_idempotent_retry_and_partial_failure_crash_recovery) or test(test_adk_cascade_cleanup_removes_all_entities_across_three_databases) or test(adk_session_page_filters_by_agent_and_title_and_paginates) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_session_delete_missing_is_reported_with_the_session_error_code) or test(adk_approval_page_orders_by_latest_update_and_counts_filtered_rows) or test(adk_maintenance_compacts_every_owned_database_and_requires_the_writer_lease) or test(chat_rejects_a_session_owned_by_a_different_agent) or test(cancelling_a_run_denies_its_pending_approvals) or test(adk_cancel_run_missing_is_the_dedicated_cancel_failure) or test(adk_resolve_approval_missing_returns_the_idempotent_empty_envelope) or test(adk_run_listing_filters_and_sorts_newest_first) or test(saved_provider_normalizes_the_request_timeout_on_write) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(run_start_freezes_the_configured_run_timeout_from_settings) or test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(expired_runs_use_each_runs_own_timeout_window)"
         ],
         "testFilter": [
           "adk_session_delete_missing_is_reported_with_the_session_error_code",
@@ -97338,10 +97338,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "401604517dde7ec5b5ea8721ce8fbcac51b94726",
+        "verifiedAt": "2026-09-25T14:05:33Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -97395,20 +97395,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(adk_approval_page_orders_by_latest_update_and_counts_filtered_rows)"
+          "test(session_context_tracks_events_appended_after_a_compaction) or test(a_run_waiting_for_approval_does_not_block_chat_auto_compaction) or test(compaction_preserves_the_call_of_a_pending_approval) or test(builtin_skill_catalog_stays_registered_alongside_external_installs) or test(session_context_window_follows_the_composer_provider_override) or test(reviewed_mcp_schemas_match_canonical_go_fixture_deeply) or test(session_delete_missing_is_idempotent_and_blank_ids_are_rejected) or test(completed_run_reopens_only_for_a_fresh_durable_approval) or test(adk_audit_route_filters_by_kind_and_subject_id) or test(test_shared_artifacts_preserved_and_user_session_deletion_rejected) or test(adk_store_lifecycle_and_restart_durability) or test(test_idempotent_retry_and_partial_failure_crash_recovery) or test(test_adk_cascade_cleanup_removes_all_entities_across_three_databases) or test(adk_session_page_filters_by_agent_and_title_and_paginates) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_session_delete_missing_is_reported_with_the_session_error_code) or test(adk_approval_page_orders_by_latest_update_and_counts_filtered_rows) or test(adk_maintenance_compacts_every_owned_database_and_requires_the_writer_lease) or test(chat_rejects_a_session_owned_by_a_different_agent) or test(cancelling_a_run_denies_its_pending_approvals) or test(adk_cancel_run_missing_is_the_dedicated_cancel_failure) or test(adk_resolve_approval_missing_returns_the_idempotent_empty_envelope) or test(adk_run_listing_filters_and_sorts_newest_first) or test(saved_provider_normalizes_the_request_timeout_on_write) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(run_start_freezes_the_configured_run_timeout_from_settings) or test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(expired_runs_use_each_runs_own_timeout_window)"
         ],
         "testFilter": [
           "adk_approval_page_orders_by_latest_update_and_counts_filtered_rows"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "401604517dde7ec5b5ea8721ce8fbcac51b94726",
+        "verifiedAt": "2026-09-25T14:05:33Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -98107,20 +98107,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(session_context_tracks_events_appended_after_a_compaction) or test(a_run_waiting_for_approval_does_not_block_chat_auto_compaction) or test(compaction_preserves_the_call_of_a_pending_approval) or test(builtin_skill_catalog_stays_registered_alongside_external_installs) or test(session_context_window_follows_the_composer_provider_override) or test(reviewed_mcp_schemas_match_canonical_go_fixture_deeply) or test(session_delete_missing_is_idempotent_and_blank_ids_are_rejected) or test(completed_run_reopens_only_for_a_fresh_durable_approval) or test(adk_audit_route_filters_by_kind_and_subject_id) or test(test_shared_artifacts_preserved_and_user_session_deletion_rejected) or test(adk_store_lifecycle_and_restart_durability) or test(test_idempotent_retry_and_partial_failure_crash_recovery) or test(test_adk_cascade_cleanup_removes_all_entities_across_three_databases) or test(adk_session_page_filters_by_agent_and_title_and_paginates) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_session_delete_missing_is_reported_with_the_session_error_code) or test(adk_approval_page_orders_by_latest_update_and_counts_filtered_rows) or test(adk_maintenance_compacts_every_owned_database_and_requires_the_writer_lease) or test(chat_rejects_a_session_owned_by_a_different_agent) or test(cancelling_a_run_denies_its_pending_approvals) or test(adk_cancel_run_missing_is_the_dedicated_cancel_failure) or test(adk_resolve_approval_missing_returns_the_idempotent_empty_envelope) or test(adk_run_listing_filters_and_sorts_newest_first) or test(saved_provider_normalizes_the_request_timeout_on_write) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(run_start_freezes_the_configured_run_timeout_from_settings) or test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(expired_runs_use_each_runs_own_timeout_window)"
         ],
         "testFilter": [
           "adk_maintenance_compacts_every_owned_database_and_requires_the_writer_lease"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "401604517dde7ec5b5ea8721ce8fbcac51b94726",
+        "verifiedAt": "2026-09-25T14:05:33Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -98609,20 +98609,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(session_context_tracks_events_appended_after_a_compaction) or test(a_run_waiting_for_approval_does_not_block_chat_auto_compaction) or test(compaction_preserves_the_call_of_a_pending_approval) or test(builtin_skill_catalog_stays_registered_alongside_external_installs) or test(session_context_window_follows_the_composer_provider_override) or test(reviewed_mcp_schemas_match_canonical_go_fixture_deeply) or test(session_delete_missing_is_idempotent_and_blank_ids_are_rejected) or test(completed_run_reopens_only_for_a_fresh_durable_approval) or test(adk_audit_route_filters_by_kind_and_subject_id) or test(test_shared_artifacts_preserved_and_user_session_deletion_rejected) or test(adk_store_lifecycle_and_restart_durability) or test(test_idempotent_retry_and_partial_failure_crash_recovery) or test(test_adk_cascade_cleanup_removes_all_entities_across_three_databases) or test(adk_session_page_filters_by_agent_and_title_and_paginates) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_session_delete_missing_is_reported_with_the_session_error_code) or test(adk_approval_page_orders_by_latest_update_and_counts_filtered_rows) or test(adk_maintenance_compacts_every_owned_database_and_requires_the_writer_lease) or test(chat_rejects_a_session_owned_by_a_different_agent) or test(cancelling_a_run_denies_its_pending_approvals) or test(adk_cancel_run_missing_is_the_dedicated_cancel_failure) or test(adk_resolve_approval_missing_returns_the_idempotent_empty_envelope) or test(adk_run_listing_filters_and_sorts_newest_first) or test(saved_provider_normalizes_the_request_timeout_on_write) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(run_start_freezes_the_configured_run_timeout_from_settings) or test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(expired_runs_use_each_runs_own_timeout_window)"
         ],
         "testFilter": [
           "chat_rejects_a_session_owned_by_a_different_agent"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "401604517dde7ec5b5ea8721ce8fbcac51b94726",
+        "verifiedAt": "2026-09-25T14:05:33Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -98877,20 +98877,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(session_context_tracks_events_appended_after_a_compaction) or test(a_run_waiting_for_approval_does_not_block_chat_auto_compaction) or test(compaction_preserves_the_call_of_a_pending_approval) or test(builtin_skill_catalog_stays_registered_alongside_external_installs) or test(session_context_window_follows_the_composer_provider_override) or test(reviewed_mcp_schemas_match_canonical_go_fixture_deeply) or test(session_delete_missing_is_idempotent_and_blank_ids_are_rejected) or test(completed_run_reopens_only_for_a_fresh_durable_approval) or test(adk_audit_route_filters_by_kind_and_subject_id) or test(test_shared_artifacts_preserved_and_user_session_deletion_rejected) or test(adk_store_lifecycle_and_restart_durability) or test(test_idempotent_retry_and_partial_failure_crash_recovery) or test(test_adk_cascade_cleanup_removes_all_entities_across_three_databases) or test(adk_session_page_filters_by_agent_and_title_and_paginates) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_session_delete_missing_is_reported_with_the_session_error_code) or test(adk_approval_page_orders_by_latest_update_and_counts_filtered_rows) or test(adk_maintenance_compacts_every_owned_database_and_requires_the_writer_lease) or test(chat_rejects_a_session_owned_by_a_different_agent) or test(cancelling_a_run_denies_its_pending_approvals) or test(adk_cancel_run_missing_is_the_dedicated_cancel_failure) or test(adk_resolve_approval_missing_returns_the_idempotent_empty_envelope) or test(adk_run_listing_filters_and_sorts_newest_first) or test(saved_provider_normalizes_the_request_timeout_on_write) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(run_start_freezes_the_configured_run_timeout_from_settings) or test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(expired_runs_use_each_runs_own_timeout_window)"
         ],
         "testFilter": [
           "cancelling_a_run_denies_its_pending_approvals"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "401604517dde7ec5b5ea8721ce8fbcac51b94726",
+        "verifiedAt": "2026-09-25T14:05:33Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -98944,20 +98944,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(session_context_tracks_events_appended_after_a_compaction) or test(a_run_waiting_for_approval_does_not_block_chat_auto_compaction) or test(compaction_preserves_the_call_of_a_pending_approval) or test(builtin_skill_catalog_stays_registered_alongside_external_installs) or test(session_context_window_follows_the_composer_provider_override) or test(reviewed_mcp_schemas_match_canonical_go_fixture_deeply) or test(session_delete_missing_is_idempotent_and_blank_ids_are_rejected) or test(completed_run_reopens_only_for_a_fresh_durable_approval) or test(adk_audit_route_filters_by_kind_and_subject_id) or test(test_shared_artifacts_preserved_and_user_session_deletion_rejected) or test(adk_store_lifecycle_and_restart_durability) or test(test_idempotent_retry_and_partial_failure_crash_recovery) or test(test_adk_cascade_cleanup_removes_all_entities_across_three_databases) or test(adk_session_page_filters_by_agent_and_title_and_paginates) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_session_delete_missing_is_reported_with_the_session_error_code) or test(adk_approval_page_orders_by_latest_update_and_counts_filtered_rows) or test(adk_maintenance_compacts_every_owned_database_and_requires_the_writer_lease) or test(chat_rejects_a_session_owned_by_a_different_agent) or test(cancelling_a_run_denies_its_pending_approvals) or test(adk_cancel_run_missing_is_the_dedicated_cancel_failure) or test(adk_resolve_approval_missing_returns_the_idempotent_empty_envelope) or test(adk_run_listing_filters_and_sorts_newest_first) or test(saved_provider_normalizes_the_request_timeout_on_write) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(run_start_freezes_the_configured_run_timeout_from_settings) or test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(expired_runs_use_each_runs_own_timeout_window)"
         ],
         "testFilter": [
           "adk_cancel_run_missing_is_the_dedicated_cancel_failure"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "401604517dde7ec5b5ea8721ce8fbcac51b94726",
+        "verifiedAt": "2026-09-25T14:05:33Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -99011,20 +99011,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(session_context_tracks_events_appended_after_a_compaction) or test(a_run_waiting_for_approval_does_not_block_chat_auto_compaction) or test(compaction_preserves_the_call_of_a_pending_approval) or test(builtin_skill_catalog_stays_registered_alongside_external_installs) or test(session_context_window_follows_the_composer_provider_override) or test(reviewed_mcp_schemas_match_canonical_go_fixture_deeply) or test(session_delete_missing_is_idempotent_and_blank_ids_are_rejected) or test(completed_run_reopens_only_for_a_fresh_durable_approval) or test(adk_audit_route_filters_by_kind_and_subject_id) or test(test_shared_artifacts_preserved_and_user_session_deletion_rejected) or test(adk_store_lifecycle_and_restart_durability) or test(test_idempotent_retry_and_partial_failure_crash_recovery) or test(test_adk_cascade_cleanup_removes_all_entities_across_three_databases) or test(adk_session_page_filters_by_agent_and_title_and_paginates) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_session_delete_missing_is_reported_with_the_session_error_code) or test(adk_approval_page_orders_by_latest_update_and_counts_filtered_rows) or test(adk_maintenance_compacts_every_owned_database_and_requires_the_writer_lease) or test(chat_rejects_a_session_owned_by_a_different_agent) or test(cancelling_a_run_denies_its_pending_approvals) or test(adk_cancel_run_missing_is_the_dedicated_cancel_failure) or test(adk_resolve_approval_missing_returns_the_idempotent_empty_envelope) or test(adk_run_listing_filters_and_sorts_newest_first) or test(saved_provider_normalizes_the_request_timeout_on_write) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(run_start_freezes_the_configured_run_timeout_from_settings) or test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(expired_runs_use_each_runs_own_timeout_window)"
         ],
         "testFilter": [
           "adk_resolve_approval_missing_returns_the_idempotent_empty_envelope"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "401604517dde7ec5b5ea8721ce8fbcac51b94726",
+        "verifiedAt": "2026-09-25T14:05:33Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -99145,20 +99145,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(session_context_tracks_events_appended_after_a_compaction) or test(a_run_waiting_for_approval_does_not_block_chat_auto_compaction) or test(compaction_preserves_the_call_of_a_pending_approval) or test(builtin_skill_catalog_stays_registered_alongside_external_installs) or test(session_context_window_follows_the_composer_provider_override) or test(reviewed_mcp_schemas_match_canonical_go_fixture_deeply) or test(session_delete_missing_is_idempotent_and_blank_ids_are_rejected) or test(completed_run_reopens_only_for_a_fresh_durable_approval) or test(adk_audit_route_filters_by_kind_and_subject_id) or test(test_shared_artifacts_preserved_and_user_session_deletion_rejected) or test(adk_store_lifecycle_and_restart_durability) or test(test_idempotent_retry_and_partial_failure_crash_recovery) or test(test_adk_cascade_cleanup_removes_all_entities_across_three_databases) or test(adk_session_page_filters_by_agent_and_title_and_paginates) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_session_delete_missing_is_reported_with_the_session_error_code) or test(adk_approval_page_orders_by_latest_update_and_counts_filtered_rows) or test(adk_maintenance_compacts_every_owned_database_and_requires_the_writer_lease) or test(chat_rejects_a_session_owned_by_a_different_agent) or test(cancelling_a_run_denies_its_pending_approvals) or test(adk_cancel_run_missing_is_the_dedicated_cancel_failure) or test(adk_resolve_approval_missing_returns_the_idempotent_empty_envelope) or test(adk_run_listing_filters_and_sorts_newest_first) or test(saved_provider_normalizes_the_request_timeout_on_write) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(run_start_freezes_the_configured_run_timeout_from_settings) or test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(expired_runs_use_each_runs_own_timeout_window)"
         ],
         "testFilter": [
           "adk_run_listing_filters_and_sorts_newest_first"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "401604517dde7ec5b5ea8721ce8fbcac51b94726",
+        "verifiedAt": "2026-09-25T14:05:33Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -100677,20 +100677,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(session_context_tracks_events_appended_after_a_compaction) or test(a_run_waiting_for_approval_does_not_block_chat_auto_compaction) or test(compaction_preserves_the_call_of_a_pending_approval) or test(builtin_skill_catalog_stays_registered_alongside_external_installs) or test(session_context_window_follows_the_composer_provider_override) or test(reviewed_mcp_schemas_match_canonical_go_fixture_deeply) or test(session_delete_missing_is_idempotent_and_blank_ids_are_rejected) or test(completed_run_reopens_only_for_a_fresh_durable_approval) or test(adk_audit_route_filters_by_kind_and_subject_id) or test(test_shared_artifacts_preserved_and_user_session_deletion_rejected) or test(adk_store_lifecycle_and_restart_durability) or test(test_idempotent_retry_and_partial_failure_crash_recovery) or test(test_adk_cascade_cleanup_removes_all_entities_across_three_databases) or test(adk_session_page_filters_by_agent_and_title_and_paginates) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_session_delete_missing_is_reported_with_the_session_error_code) or test(adk_approval_page_orders_by_latest_update_and_counts_filtered_rows) or test(adk_maintenance_compacts_every_owned_database_and_requires_the_writer_lease) or test(chat_rejects_a_session_owned_by_a_different_agent) or test(cancelling_a_run_denies_its_pending_approvals) or test(adk_cancel_run_missing_is_the_dedicated_cancel_failure) or test(adk_resolve_approval_missing_returns_the_idempotent_empty_envelope) or test(adk_run_listing_filters_and_sorts_newest_first) or test(saved_provider_normalizes_the_request_timeout_on_write) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(run_start_freezes_the_configured_run_timeout_from_settings) or test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(expired_runs_use_each_runs_own_timeout_window)"
         ],
         "testFilter": [
           "saved_provider_normalizes_the_request_timeout_on_write"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "401604517dde7ec5b5ea8721ce8fbcac51b94726",
+        "verifiedAt": "2026-09-25T14:05:33Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -100905,20 +100905,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(session_context_tracks_events_appended_after_a_compaction) or test(a_run_waiting_for_approval_does_not_block_chat_auto_compaction) or test(compaction_preserves_the_call_of_a_pending_approval) or test(builtin_skill_catalog_stays_registered_alongside_external_installs) or test(session_context_window_follows_the_composer_provider_override) or test(reviewed_mcp_schemas_match_canonical_go_fixture_deeply) or test(session_delete_missing_is_idempotent_and_blank_ids_are_rejected) or test(completed_run_reopens_only_for_a_fresh_durable_approval) or test(adk_audit_route_filters_by_kind_and_subject_id) or test(test_shared_artifacts_preserved_and_user_session_deletion_rejected) or test(adk_store_lifecycle_and_restart_durability) or test(test_idempotent_retry_and_partial_failure_crash_recovery) or test(test_adk_cascade_cleanup_removes_all_entities_across_three_databases) or test(adk_session_page_filters_by_agent_and_title_and_paginates) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_session_delete_missing_is_reported_with_the_session_error_code) or test(adk_approval_page_orders_by_latest_update_and_counts_filtered_rows) or test(adk_maintenance_compacts_every_owned_database_and_requires_the_writer_lease) or test(chat_rejects_a_session_owned_by_a_different_agent) or test(cancelling_a_run_denies_its_pending_approvals) or test(adk_cancel_run_missing_is_the_dedicated_cancel_failure) or test(adk_resolve_approval_missing_returns_the_idempotent_empty_envelope) or test(adk_run_listing_filters_and_sorts_newest_first) or test(saved_provider_normalizes_the_request_timeout_on_write) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(run_start_freezes_the_configured_run_timeout_from_settings) or test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(expired_runs_use_each_runs_own_timeout_window)"
         ],
         "testFilter": [
           "an_approval_resuming_run_is_recovered_after_a_runtime_restart"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "401604517dde7ec5b5ea8721ce8fbcac51b94726",
+        "verifiedAt": "2026-09-25T14:05:33Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -101235,20 +101235,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(session_context_tracks_events_appended_after_a_compaction) or test(a_run_waiting_for_approval_does_not_block_chat_auto_compaction) or test(compaction_preserves_the_call_of_a_pending_approval) or test(builtin_skill_catalog_stays_registered_alongside_external_installs) or test(session_context_window_follows_the_composer_provider_override) or test(reviewed_mcp_schemas_match_canonical_go_fixture_deeply) or test(session_delete_missing_is_idempotent_and_blank_ids_are_rejected) or test(completed_run_reopens_only_for_a_fresh_durable_approval) or test(adk_audit_route_filters_by_kind_and_subject_id) or test(test_shared_artifacts_preserved_and_user_session_deletion_rejected) or test(adk_store_lifecycle_and_restart_durability) or test(test_idempotent_retry_and_partial_failure_crash_recovery) or test(test_adk_cascade_cleanup_removes_all_entities_across_three_databases) or test(adk_session_page_filters_by_agent_and_title_and_paginates) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_session_delete_missing_is_reported_with_the_session_error_code) or test(adk_approval_page_orders_by_latest_update_and_counts_filtered_rows) or test(adk_maintenance_compacts_every_owned_database_and_requires_the_writer_lease) or test(chat_rejects_a_session_owned_by_a_different_agent) or test(cancelling_a_run_denies_its_pending_approvals) or test(adk_cancel_run_missing_is_the_dedicated_cancel_failure) or test(adk_resolve_approval_missing_returns_the_idempotent_empty_envelope) or test(adk_run_listing_filters_and_sorts_newest_first) or test(saved_provider_normalizes_the_request_timeout_on_write) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(run_start_freezes_the_configured_run_timeout_from_settings) or test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(expired_runs_use_each_runs_own_timeout_window)"
         ],
         "testFilter": [
           "run_start_freezes_the_configured_run_timeout_from_settings"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "401604517dde7ec5b5ea8721ce8fbcac51b94726",
+        "verifiedAt": "2026-09-25T14:05:33Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -101302,20 +101302,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(session_context_tracks_events_appended_after_a_compaction) or test(a_run_waiting_for_approval_does_not_block_chat_auto_compaction) or test(compaction_preserves_the_call_of_a_pending_approval) or test(builtin_skill_catalog_stays_registered_alongside_external_installs) or test(session_context_window_follows_the_composer_provider_override) or test(reviewed_mcp_schemas_match_canonical_go_fixture_deeply) or test(session_delete_missing_is_idempotent_and_blank_ids_are_rejected) or test(completed_run_reopens_only_for_a_fresh_durable_approval) or test(adk_audit_route_filters_by_kind_and_subject_id) or test(test_shared_artifacts_preserved_and_user_session_deletion_rejected) or test(adk_store_lifecycle_and_restart_durability) or test(test_idempotent_retry_and_partial_failure_crash_recovery) or test(test_adk_cascade_cleanup_removes_all_entities_across_three_databases) or test(adk_session_page_filters_by_agent_and_title_and_paginates) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_session_delete_missing_is_reported_with_the_session_error_code) or test(adk_approval_page_orders_by_latest_update_and_counts_filtered_rows) or test(adk_maintenance_compacts_every_owned_database_and_requires_the_writer_lease) or test(chat_rejects_a_session_owned_by_a_different_agent) or test(cancelling_a_run_denies_its_pending_approvals) or test(adk_cancel_run_missing_is_the_dedicated_cancel_failure) or test(adk_resolve_approval_missing_returns_the_idempotent_empty_envelope) or test(adk_run_listing_filters_and_sorts_newest_first) or test(saved_provider_normalizes_the_request_timeout_on_write) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(run_start_freezes_the_configured_run_timeout_from_settings) or test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(expired_runs_use_each_runs_own_timeout_window)"
         ],
         "testFilter": [
           "resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "401604517dde7ec5b5ea8721ce8fbcac51b94726",
+        "verifiedAt": "2026-09-25T14:05:33Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -101369,21 +101369,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
           "--locked",
-          "expiry"
+          "-E",
+          "test(session_context_tracks_events_appended_after_a_compaction) or test(a_run_waiting_for_approval_does_not_block_chat_auto_compaction) or test(compaction_preserves_the_call_of_a_pending_approval) or test(builtin_skill_catalog_stays_registered_alongside_external_installs) or test(session_context_window_follows_the_composer_provider_override) or test(reviewed_mcp_schemas_match_canonical_go_fixture_deeply) or test(session_delete_missing_is_idempotent_and_blank_ids_are_rejected) or test(completed_run_reopens_only_for_a_fresh_durable_approval) or test(adk_audit_route_filters_by_kind_and_subject_id) or test(test_shared_artifacts_preserved_and_user_session_deletion_rejected) or test(adk_store_lifecycle_and_restart_durability) or test(test_idempotent_retry_and_partial_failure_crash_recovery) or test(test_adk_cascade_cleanup_removes_all_entities_across_three_databases) or test(adk_session_page_filters_by_agent_and_title_and_paginates) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_session_delete_missing_is_reported_with_the_session_error_code) or test(adk_approval_page_orders_by_latest_update_and_counts_filtered_rows) or test(adk_maintenance_compacts_every_owned_database_and_requires_the_writer_lease) or test(chat_rejects_a_session_owned_by_a_different_agent) or test(cancelling_a_run_denies_its_pending_approvals) or test(adk_cancel_run_missing_is_the_dedicated_cancel_failure) or test(adk_resolve_approval_missing_returns_the_idempotent_empty_envelope) or test(adk_run_listing_filters_and_sorts_newest_first) or test(saved_provider_normalizes_the_request_timeout_on_write) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(run_start_freezes_the_configured_run_timeout_from_settings) or test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(expired_runs_use_each_runs_own_timeout_window)"
         ],
         "testFilter": [
           "expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "401604517dde7ec5b5ea8721ce8fbcac51b94726",
+        "verifiedAt": "2026-09-25T14:05:33Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -101437,21 +101436,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
           "--locked",
-          "expiry"
+          "-E",
+          "test(session_context_tracks_events_appended_after_a_compaction) or test(a_run_waiting_for_approval_does_not_block_chat_auto_compaction) or test(compaction_preserves_the_call_of_a_pending_approval) or test(builtin_skill_catalog_stays_registered_alongside_external_installs) or test(session_context_window_follows_the_composer_provider_override) or test(reviewed_mcp_schemas_match_canonical_go_fixture_deeply) or test(session_delete_missing_is_idempotent_and_blank_ids_are_rejected) or test(completed_run_reopens_only_for_a_fresh_durable_approval) or test(adk_audit_route_filters_by_kind_and_subject_id) or test(test_shared_artifacts_preserved_and_user_session_deletion_rejected) or test(adk_store_lifecycle_and_restart_durability) or test(test_idempotent_retry_and_partial_failure_crash_recovery) or test(test_adk_cascade_cleanup_removes_all_entities_across_three_databases) or test(adk_session_page_filters_by_agent_and_title_and_paginates) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_session_delete_missing_is_reported_with_the_session_error_code) or test(adk_approval_page_orders_by_latest_update_and_counts_filtered_rows) or test(adk_maintenance_compacts_every_owned_database_and_requires_the_writer_lease) or test(chat_rejects_a_session_owned_by_a_different_agent) or test(cancelling_a_run_denies_its_pending_approvals) or test(adk_cancel_run_missing_is_the_dedicated_cancel_failure) or test(adk_resolve_approval_missing_returns_the_idempotent_empty_envelope) or test(adk_run_listing_filters_and_sorts_newest_first) or test(saved_provider_normalizes_the_request_timeout_on_write) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(run_start_freezes_the_configured_run_timeout_from_settings) or test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(expired_runs_use_each_runs_own_timeout_window)"
         ],
         "testFilter": [
           "expired_runs_use_each_runs_own_timeout_window"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "401604517dde7ec5b5ea8721ce8fbcac51b94726",
+        "verifiedAt": "2026-09-25T14:05:33Z",
         "receiptDigest": null
       },
       "risk": "high",
