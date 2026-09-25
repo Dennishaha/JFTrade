@@ -24193,10 +24193,10 @@
     },
     "internal/app/apiserver/backtestapp/historical_source_test.go:62:TestProviderHistoricalSourceMapsExtendedSessionsToProviderCapabilities": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_backtest_sync_start_tests.rs::sync_request_session_scope_parity_with_go; crates/jftrade-store-sqlite/tests/backtest_market_data_session_scope.rs::regular_and_extended_session_tables_keep_direct_reads_isolated",
-      "conclusion": "partial：Go 断言 providerSessions 把请求的 regular/extended/overnight 映射为 provider 能力支持的集合（yfinance：extended→extended；futu：RTH/ETH/ALL/OVERNIGHT→regular/extended/overnight）。Rust 的会话范围在同步请求与存储层校验（sync_request_session_scope_parity_with_go、regular_and_extended_session_tables_keep_direct_reads_isolated），但没有 provider 能力→会话集合的映射函数与逐条表。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-store-sqlite --all-targets --locked",
-      "evidence_type": "partial",
+      "rust_entry": "crates/jftrade-engine/src/product_backtest_sync_start_tests.rs::sync_request_session_scope_parity_with_go; crates/jftrade-store-sqlite/tests/backtest_market_data_session_scope.rs::regular_and_extended_session_tables_keep_direct_reads_isolated; crates/jftrade-integration-futu/src/history_session_plan.rs::tests::default_selection_produces_rth_eth_and_all_routes; crates/jftrade-integration-marketdata-helper/src/provider.rs::tests::retained_helper_descriptors_are_static_and_valid",
+      "conclusion": "boundary：Go 断言旧 backtestapp 私有 providerHistoricalSource.providerSessions 接受任意 regular/extended/overnight 列表，并按 provider descriptor 过滤 overnight（yfinance 保留 regular/extended，Futu 保留 regular/extended/overnight）。Rust 当前公开 backtest sync contract 只有 regular/extended 的 sessionScope，未知值由 sync_request_session_scope_parity_with_go 拒绝；Futu 历史读取由 history_session_plan 的 RTH/ETH/ALL 路由处理 overnight，helper descriptor 则明确声明 yfinance 无 overnight。没有同形的旧 providerSessions 任意列表入口，因此该旧 owner helper 保留边界；存储层的 session 隔离仍由 regular_and_extended_session_tables_keep_direct_reads_isolated 覆盖。",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-store-sqlite -p jftrade-integration-futu -p jftrade-integration-marketdata-helper --all-targets --locked -E 'test(sync_request_session_scope_parity_with_go) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(default_selection_produces_rth_eth_and_all_routes) or test(retained_helper_descriptors_are_static_and_valid)'",
+      "evidence_type": "boundary",
       "source": {
         "file": "internal/app/apiserver/backtestapp/historical_source_test.go",
         "line": 62,
@@ -24215,12 +24215,24 @@
           "test": "regular_and_extended_session_tables_keep_direct_reads_isolated",
           "crate": "jftrade-store-sqlite",
           "anchor": null
+        },
+        {
+          "file": "crates/jftrade-integration-futu/src/history_session_plan.rs",
+          "test": "default_selection_produces_rth_eth_and_all_routes",
+          "crate": "jftrade-integration-futu",
+          "anchor": null
+        },
+        {
+          "file": "crates/jftrade-integration-marketdata-helper/src/provider.rs",
+          "test": "retained_helper_descriptors_are_static_and_valid",
+          "crate": "jftrade-integration-marketdata-helper",
+          "anchor": null
         }
       ],
       "assertionCoverage": {
         "covered": [],
         "uncovered": [
-          "partial：Go 断言 providerSessions 把请求的 regular/extended/overnight 映射为 provider 能力支持的集合（yfinance：extended→extended；futu：RTH/ETH/ALL/OVERNIGHT→regular/extended/overnight）。Rust 的会话范围在同步请求与存储层校验（sync_request_session_scope_parity_with_go、regular_and_extended_session_tables_keep_direct_reads_isolated），但没有 provider 能力→会话集合的映射函数与逐条表。"
+          "boundary：Go 断言旧 backtestapp 私有 providerHistoricalSource.providerSessions 接受任意 regular/extended/overnight 列表，并按 provider descriptor 过滤 overnight（yfinance 保留 regular/extended，Futu 保留 regular/extended/overnight）。Rust 当前公开 backtest sync contract 只有 regular/extended 的 sessionScope，未知值由 sync_request_session_scope_parity_with_go 拒绝；Futu 历史读取由 history_session_plan 的 RTH/ETH/ALL 路由处理 overnight，helper descriptor 则明确声明 yfinance 无 overnight。没有同形的旧 providerSessions 任意列表入口，因此该旧 owner helper 保留边界；存储层的 session 隔离仍由 regular_and_extended_session_tables_keep_direct_reads_isolated 覆盖。"
         ],
         "source": "legacy-conclusion"
       },
@@ -24233,19 +24245,27 @@
           "jftrade-engine",
           "-p",
           "jftrade-store-sqlite",
+          "-p",
+          "jftrade-integration-futu",
+          "-p",
+          "jftrade-integration-marketdata-helper",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(sync_request_session_scope_parity_with_go) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(default_selection_produces_rth_eth_and_all_routes) or test(retained_helper_descriptors_are_static_and_valid)"
         ],
         "testFilter": [
           "sync_request_session_scope_parity_with_go",
-          "regular_and_extended_session_tables_keep_direct_reads_isolated"
+          "regular_and_extended_session_tables_keep_direct_reads_isolated",
+          "default_selection_produces_rth_eth_and_all_routes",
+          "retained_helper_descriptors_are_static_and_valid"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "9717e937",
+        "verifiedAt": "2026-09-25T09:02:00Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -24258,9 +24278,9 @@
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
-        "partial：Go 断言 providerSessions 把请求的 regular/extended/overnight 映射为 provider 能力支持的集合（yfinance：extended→extended；futu：RTH/ETH/ALL/OVERNIGHT→regular/extended/overnight）。Rust 的会话范围在同步请求与存储层校验（sync_request_session_scope_parity_with_go、regular_and_extended_session_tables_keep_direct_reads_isolated），但没有 provider 能力→会话集合的映射函数与逐条表。"
+        "boundary：Go 断言旧 backtestapp 私有 providerHistoricalSource.providerSessions 接受任意 regular/extended/overnight 列表，并按 provider descriptor 过滤 overnight（yfinance 保留 regular/extended，Futu 保留 regular/extended/overnight）。Rust 当前公开 backtest sync contract 只有 regular/extended 的 sessionScope，未知值由 sync_request_session_scope_parity_with_go 拒绝；Futu 历史读取由 history_session_plan 的 RTH/ETH/ALL 路由处理 overnight，helper descriptor 则明确声明 yfinance 无 overnight。没有同形的旧 providerSessions 任意列表入口，因此该旧 owner helper 保留边界；存储层的 session 隔离仍由 regular_and_extended_session_tables_keep_direct_reads_isolated 覆盖。"
       ],
-      "boundaryReason": null
+      "boundaryReason": "boundary：Go 断言旧 backtestapp 私有 providerHistoricalSource.providerSessions 接受任意 regular/extended/overnight 列表，并按 provider descriptor 过滤 overnight（yfinance 保留 regular/extended，Futu 保留 regular/extended/overnight）。Rust 当前公开 backtest sync contract 只有 regular/extended 的 sessionScope，未知值由 sync_request_session_scope_parity_with_go 拒绝；Futu 历史读取由 history_session_plan 的 RTH/ETH/ALL 路由处理 overnight，helper descriptor 则明确声明 yfinance 无 overnight。没有同形的旧 providerSessions 任意列表入口，因此该旧 owner helper 保留边界；存储层的 session 隔离仍由 regular_and_extended_session_tables_keep_direct_reads_isolated 覆盖。"
     },
     "internal/app/apiserver/backtestapp/historical_source_test.go:87:TestProviderHistoricalSourceRejectsExtendedSessionsOutsideUSIntraday": {
       "status": "[~]",
@@ -304255,6 +304275,14 @@
       "allowed": true,
       "reviewStatus": "single"
     },
+    "crates/jftrade-integration-futu/src/history_session_plan.rs::default_selection_produces_rth_eth_and_all_routes": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/app/apiserver/backtestapp/historical_source_test.go:62:TestProviderHistoricalSourceMapsExtendedSessionsToProviderCapabilities"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
     "crates/jftrade-integration-futu/src/history_window_tests.rs::historical_page_size_preserves_the_unset_non_positive_budget": {
       "referenceCount": 1,
       "referenceKeys": [
@@ -307206,10 +307234,11 @@
       "reviewStatus": "single"
     },
     "crates/jftrade-integration-marketdata-helper/src/provider.rs::retained_helper_descriptors_are_static_and_valid": {
-      "referenceCount": 2,
+      "referenceCount": 3,
       "referenceKeys": [
         "internal/integration/akshare/provider_test.go:20:TestProviderExposesPollingOnlyAKShareBoundary",
-        "internal/integration/yfinance/provider_test.go:66:TestProviderDescriptorReflectsActualYahooPollingBoundary"
+        "internal/integration/yfinance/provider_test.go:66:TestProviderDescriptorReflectsActualYahooPollingBoundary",
+        "internal/app/apiserver/backtestapp/historical_source_test.go:62:TestProviderHistoricalSourceMapsExtendedSessionsToProviderCapabilities"
       ],
       "allowed": false,
       "reviewStatus": "unreviewed"
