@@ -91233,20 +91233,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(protected_tail_ignores_approvals_closed_by_a_denied_run) or test(context_compaction_shrinks_the_projected_session_view) or test(protected_tail_keeps_only_the_approval_that_is_still_pending) or test(protected_tail_ignores_an_approval_with_a_durable_tool_outcome) or test(protected_tail_starts_at_the_earliest_unresolved_approval) or test(a_chat_turn_autocompacts_the_session_before_the_provider_payload) or test(a_rejected_compaction_records_the_failed_notice) or test(a_second_compaction_is_rejected_while_the_session_gate_is_held) or test(event_must_match_the_run_and_session_before_projection_changes) or test(duplicate_event_key_with_different_content_rolls_back_projection) or test(adk_session_store_lifecycle_and_restart_durability) or test(missing_session_database_is_not_created_and_run_is_unchanged) or test(pending_input_is_persisted_and_answer_resume_is_idempotent) or test(model_context_autocompacts_before_the_provider_payload) or test(session_context_read_reports_pressure_without_compacting) or test(session_context_window_follows_the_composer_provider_override) or test(each_context_compaction_creates_the_next_current_revision) or test(manual_context_compaction_writes_the_done_notice_into_the_timeline) or test(auto_compaction_emits_streaming_then_final_notice_and_context_delta) or test(auto_compaction_skips_while_another_compaction_holds_the_session_gate) or test(model_context_read_compacts_only_when_the_session_gate_is_free) or test(workflow_auto_compaction_proceeds_under_an_active_run_while_chat_waits) or test(protected_tail_rewinds_a_pending_approval_to_its_original_call) or test(session_context_ignores_handoff_segments_without_a_revision)"
         ],
         "testFilter": [
           "protected_tail_ignores_approvals_closed_by_a_denied_run"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "a601d03c8fc607e147f1f4eb377f7cba1020592f",
+        "verifiedAt": "2026-09-25T14:03:33Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -91295,20 +91295,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(protected_tail_ignores_approvals_closed_by_a_denied_run) or test(context_compaction_shrinks_the_projected_session_view) or test(protected_tail_keeps_only_the_approval_that_is_still_pending) or test(protected_tail_ignores_an_approval_with_a_durable_tool_outcome) or test(protected_tail_starts_at_the_earliest_unresolved_approval) or test(a_chat_turn_autocompacts_the_session_before_the_provider_payload) or test(a_rejected_compaction_records_the_failed_notice) or test(a_second_compaction_is_rejected_while_the_session_gate_is_held) or test(event_must_match_the_run_and_session_before_projection_changes) or test(duplicate_event_key_with_different_content_rolls_back_projection) or test(adk_session_store_lifecycle_and_restart_durability) or test(missing_session_database_is_not_created_and_run_is_unchanged) or test(pending_input_is_persisted_and_answer_resume_is_idempotent) or test(model_context_autocompacts_before_the_provider_payload) or test(session_context_read_reports_pressure_without_compacting) or test(session_context_window_follows_the_composer_provider_override) or test(each_context_compaction_creates_the_next_current_revision) or test(manual_context_compaction_writes_the_done_notice_into_the_timeline) or test(auto_compaction_emits_streaming_then_final_notice_and_context_delta) or test(auto_compaction_skips_while_another_compaction_holds_the_session_gate) or test(model_context_read_compacts_only_when_the_session_gate_is_free) or test(workflow_auto_compaction_proceeds_under_an_active_run_while_chat_waits) or test(protected_tail_rewinds_a_pending_approval_to_its_original_call) or test(session_context_ignores_handoff_segments_without_a_revision)"
         ],
         "testFilter": [
           "context_compaction_shrinks_the_projected_session_view"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "a601d03c8fc607e147f1f4eb377f7cba1020592f",
+        "verifiedAt": "2026-09-25T14:03:33Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -91357,20 +91357,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(protected_tail_ignores_approvals_closed_by_a_denied_run) or test(context_compaction_shrinks_the_projected_session_view) or test(protected_tail_keeps_only_the_approval_that_is_still_pending) or test(protected_tail_ignores_an_approval_with_a_durable_tool_outcome) or test(protected_tail_starts_at_the_earliest_unresolved_approval) or test(a_chat_turn_autocompacts_the_session_before_the_provider_payload) or test(a_rejected_compaction_records_the_failed_notice) or test(a_second_compaction_is_rejected_while_the_session_gate_is_held) or test(event_must_match_the_run_and_session_before_projection_changes) or test(duplicate_event_key_with_different_content_rolls_back_projection) or test(adk_session_store_lifecycle_and_restart_durability) or test(missing_session_database_is_not_created_and_run_is_unchanged) or test(pending_input_is_persisted_and_answer_resume_is_idempotent) or test(model_context_autocompacts_before_the_provider_payload) or test(session_context_read_reports_pressure_without_compacting) or test(session_context_window_follows_the_composer_provider_override) or test(each_context_compaction_creates_the_next_current_revision) or test(manual_context_compaction_writes_the_done_notice_into_the_timeline) or test(auto_compaction_emits_streaming_then_final_notice_and_context_delta) or test(auto_compaction_skips_while_another_compaction_holds_the_session_gate) or test(model_context_read_compacts_only_when_the_session_gate_is_free) or test(workflow_auto_compaction_proceeds_under_an_active_run_while_chat_waits) or test(protected_tail_rewinds_a_pending_approval_to_its_original_call) or test(session_context_ignores_handoff_segments_without_a_revision)"
         ],
         "testFilter": [
           "protected_tail_keeps_only_the_approval_that_is_still_pending"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "a601d03c8fc607e147f1f4eb377f7cba1020592f",
+        "verifiedAt": "2026-09-25T14:03:33Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -91419,20 +91419,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(protected_tail_ignores_approvals_closed_by_a_denied_run) or test(context_compaction_shrinks_the_projected_session_view) or test(protected_tail_keeps_only_the_approval_that_is_still_pending) or test(protected_tail_ignores_an_approval_with_a_durable_tool_outcome) or test(protected_tail_starts_at_the_earliest_unresolved_approval) or test(a_chat_turn_autocompacts_the_session_before_the_provider_payload) or test(a_rejected_compaction_records_the_failed_notice) or test(a_second_compaction_is_rejected_while_the_session_gate_is_held) or test(event_must_match_the_run_and_session_before_projection_changes) or test(duplicate_event_key_with_different_content_rolls_back_projection) or test(adk_session_store_lifecycle_and_restart_durability) or test(missing_session_database_is_not_created_and_run_is_unchanged) or test(pending_input_is_persisted_and_answer_resume_is_idempotent) or test(model_context_autocompacts_before_the_provider_payload) or test(session_context_read_reports_pressure_without_compacting) or test(session_context_window_follows_the_composer_provider_override) or test(each_context_compaction_creates_the_next_current_revision) or test(manual_context_compaction_writes_the_done_notice_into_the_timeline) or test(auto_compaction_emits_streaming_then_final_notice_and_context_delta) or test(auto_compaction_skips_while_another_compaction_holds_the_session_gate) or test(model_context_read_compacts_only_when_the_session_gate_is_free) or test(workflow_auto_compaction_proceeds_under_an_active_run_while_chat_waits) or test(protected_tail_rewinds_a_pending_approval_to_its_original_call) or test(session_context_ignores_handoff_segments_without_a_revision)"
         ],
         "testFilter": [
           "protected_tail_ignores_an_approval_with_a_durable_tool_outcome"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "a601d03c8fc607e147f1f4eb377f7cba1020592f",
+        "verifiedAt": "2026-09-25T14:03:33Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -91481,20 +91481,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(protected_tail_ignores_approvals_closed_by_a_denied_run) or test(context_compaction_shrinks_the_projected_session_view) or test(protected_tail_keeps_only_the_approval_that_is_still_pending) or test(protected_tail_ignores_an_approval_with_a_durable_tool_outcome) or test(protected_tail_starts_at_the_earliest_unresolved_approval) or test(a_chat_turn_autocompacts_the_session_before_the_provider_payload) or test(a_rejected_compaction_records_the_failed_notice) or test(a_second_compaction_is_rejected_while_the_session_gate_is_held) or test(event_must_match_the_run_and_session_before_projection_changes) or test(duplicate_event_key_with_different_content_rolls_back_projection) or test(adk_session_store_lifecycle_and_restart_durability) or test(missing_session_database_is_not_created_and_run_is_unchanged) or test(pending_input_is_persisted_and_answer_resume_is_idempotent) or test(model_context_autocompacts_before_the_provider_payload) or test(session_context_read_reports_pressure_without_compacting) or test(session_context_window_follows_the_composer_provider_override) or test(each_context_compaction_creates_the_next_current_revision) or test(manual_context_compaction_writes_the_done_notice_into_the_timeline) or test(auto_compaction_emits_streaming_then_final_notice_and_context_delta) or test(auto_compaction_skips_while_another_compaction_holds_the_session_gate) or test(model_context_read_compacts_only_when_the_session_gate_is_free) or test(workflow_auto_compaction_proceeds_under_an_active_run_while_chat_waits) or test(protected_tail_rewinds_a_pending_approval_to_its_original_call) or test(session_context_ignores_handoff_segments_without_a_revision)"
         ],
         "testFilter": [
           "protected_tail_starts_at_the_earliest_unresolved_approval"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "a601d03c8fc607e147f1f4eb377f7cba1020592f",
+        "verifiedAt": "2026-09-25T14:03:33Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -91543,20 +91543,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(protected_tail_ignores_approvals_closed_by_a_denied_run) or test(context_compaction_shrinks_the_projected_session_view) or test(protected_tail_keeps_only_the_approval_that_is_still_pending) or test(protected_tail_ignores_an_approval_with_a_durable_tool_outcome) or test(protected_tail_starts_at_the_earliest_unresolved_approval) or test(a_chat_turn_autocompacts_the_session_before_the_provider_payload) or test(a_rejected_compaction_records_the_failed_notice) or test(a_second_compaction_is_rejected_while_the_session_gate_is_held) or test(event_must_match_the_run_and_session_before_projection_changes) or test(duplicate_event_key_with_different_content_rolls_back_projection) or test(adk_session_store_lifecycle_and_restart_durability) or test(missing_session_database_is_not_created_and_run_is_unchanged) or test(pending_input_is_persisted_and_answer_resume_is_idempotent) or test(model_context_autocompacts_before_the_provider_payload) or test(session_context_read_reports_pressure_without_compacting) or test(session_context_window_follows_the_composer_provider_override) or test(each_context_compaction_creates_the_next_current_revision) or test(manual_context_compaction_writes_the_done_notice_into_the_timeline) or test(auto_compaction_emits_streaming_then_final_notice_and_context_delta) or test(auto_compaction_skips_while_another_compaction_holds_the_session_gate) or test(model_context_read_compacts_only_when_the_session_gate_is_free) or test(workflow_auto_compaction_proceeds_under_an_active_run_while_chat_waits) or test(protected_tail_rewinds_a_pending_approval_to_its_original_call) or test(session_context_ignores_handoff_segments_without_a_revision)"
         ],
         "testFilter": [
           "a_chat_turn_autocompacts_the_session_before_the_provider_payload"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "a601d03c8fc607e147f1f4eb377f7cba1020592f",
+        "verifiedAt": "2026-09-25T14:03:33Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -91605,20 +91605,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(protected_tail_ignores_approvals_closed_by_a_denied_run) or test(context_compaction_shrinks_the_projected_session_view) or test(protected_tail_keeps_only_the_approval_that_is_still_pending) or test(protected_tail_ignores_an_approval_with_a_durable_tool_outcome) or test(protected_tail_starts_at_the_earliest_unresolved_approval) or test(a_chat_turn_autocompacts_the_session_before_the_provider_payload) or test(a_rejected_compaction_records_the_failed_notice) or test(a_second_compaction_is_rejected_while_the_session_gate_is_held) or test(event_must_match_the_run_and_session_before_projection_changes) or test(duplicate_event_key_with_different_content_rolls_back_projection) or test(adk_session_store_lifecycle_and_restart_durability) or test(missing_session_database_is_not_created_and_run_is_unchanged) or test(pending_input_is_persisted_and_answer_resume_is_idempotent) or test(model_context_autocompacts_before_the_provider_payload) or test(session_context_read_reports_pressure_without_compacting) or test(session_context_window_follows_the_composer_provider_override) or test(each_context_compaction_creates_the_next_current_revision) or test(manual_context_compaction_writes_the_done_notice_into_the_timeline) or test(auto_compaction_emits_streaming_then_final_notice_and_context_delta) or test(auto_compaction_skips_while_another_compaction_holds_the_session_gate) or test(model_context_read_compacts_only_when_the_session_gate_is_free) or test(workflow_auto_compaction_proceeds_under_an_active_run_while_chat_waits) or test(protected_tail_rewinds_a_pending_approval_to_its_original_call) or test(session_context_ignores_handoff_segments_without_a_revision)"
         ],
         "testFilter": [
           "a_rejected_compaction_records_the_failed_notice"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "a601d03c8fc607e147f1f4eb377f7cba1020592f",
+        "verifiedAt": "2026-09-25T14:03:33Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -91667,20 +91667,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(protected_tail_ignores_approvals_closed_by_a_denied_run) or test(context_compaction_shrinks_the_projected_session_view) or test(protected_tail_keeps_only_the_approval_that_is_still_pending) or test(protected_tail_ignores_an_approval_with_a_durable_tool_outcome) or test(protected_tail_starts_at_the_earliest_unresolved_approval) or test(a_chat_turn_autocompacts_the_session_before_the_provider_payload) or test(a_rejected_compaction_records_the_failed_notice) or test(a_second_compaction_is_rejected_while_the_session_gate_is_held) or test(event_must_match_the_run_and_session_before_projection_changes) or test(duplicate_event_key_with_different_content_rolls_back_projection) or test(adk_session_store_lifecycle_and_restart_durability) or test(missing_session_database_is_not_created_and_run_is_unchanged) or test(pending_input_is_persisted_and_answer_resume_is_idempotent) or test(model_context_autocompacts_before_the_provider_payload) or test(session_context_read_reports_pressure_without_compacting) or test(session_context_window_follows_the_composer_provider_override) or test(each_context_compaction_creates_the_next_current_revision) or test(manual_context_compaction_writes_the_done_notice_into_the_timeline) or test(auto_compaction_emits_streaming_then_final_notice_and_context_delta) or test(auto_compaction_skips_while_another_compaction_holds_the_session_gate) or test(model_context_read_compacts_only_when_the_session_gate_is_free) or test(workflow_auto_compaction_proceeds_under_an_active_run_while_chat_waits) or test(protected_tail_rewinds_a_pending_approval_to_its_original_call) or test(session_context_ignores_handoff_segments_without_a_revision)"
         ],
         "testFilter": [
           "a_second_compaction_is_rejected_while_the_session_gate_is_held"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "a601d03c8fc607e147f1f4eb377f7cba1020592f",
+        "verifiedAt": "2026-09-25T14:03:33Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -91734,20 +91734,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(protected_tail_ignores_approvals_closed_by_a_denied_run) or test(context_compaction_shrinks_the_projected_session_view) or test(protected_tail_keeps_only_the_approval_that_is_still_pending) or test(protected_tail_ignores_an_approval_with_a_durable_tool_outcome) or test(protected_tail_starts_at_the_earliest_unresolved_approval) or test(a_chat_turn_autocompacts_the_session_before_the_provider_payload) or test(a_rejected_compaction_records_the_failed_notice) or test(a_second_compaction_is_rejected_while_the_session_gate_is_held) or test(event_must_match_the_run_and_session_before_projection_changes) or test(duplicate_event_key_with_different_content_rolls_back_projection) or test(adk_session_store_lifecycle_and_restart_durability) or test(missing_session_database_is_not_created_and_run_is_unchanged) or test(pending_input_is_persisted_and_answer_resume_is_idempotent) or test(model_context_autocompacts_before_the_provider_payload) or test(session_context_read_reports_pressure_without_compacting) or test(session_context_window_follows_the_composer_provider_override) or test(each_context_compaction_creates_the_next_current_revision) or test(manual_context_compaction_writes_the_done_notice_into_the_timeline) or test(auto_compaction_emits_streaming_then_final_notice_and_context_delta) or test(auto_compaction_skips_while_another_compaction_holds_the_session_gate) or test(model_context_read_compacts_only_when_the_session_gate_is_free) or test(workflow_auto_compaction_proceeds_under_an_active_run_while_chat_waits) or test(protected_tail_rewinds_a_pending_approval_to_its_original_call) or test(session_context_ignores_handoff_segments_without_a_revision)"
         ],
         "testFilter": [
           "event_must_match_the_run_and_session_before_projection_changes"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "a601d03c8fc607e147f1f4eb377f7cba1020592f",
+        "verifiedAt": "2026-09-25T14:03:33Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -91796,20 +91796,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(protected_tail_ignores_approvals_closed_by_a_denied_run) or test(context_compaction_shrinks_the_projected_session_view) or test(protected_tail_keeps_only_the_approval_that_is_still_pending) or test(protected_tail_ignores_an_approval_with_a_durable_tool_outcome) or test(protected_tail_starts_at_the_earliest_unresolved_approval) or test(a_chat_turn_autocompacts_the_session_before_the_provider_payload) or test(a_rejected_compaction_records_the_failed_notice) or test(a_second_compaction_is_rejected_while_the_session_gate_is_held) or test(event_must_match_the_run_and_session_before_projection_changes) or test(duplicate_event_key_with_different_content_rolls_back_projection) or test(adk_session_store_lifecycle_and_restart_durability) or test(missing_session_database_is_not_created_and_run_is_unchanged) or test(pending_input_is_persisted_and_answer_resume_is_idempotent) or test(model_context_autocompacts_before_the_provider_payload) or test(session_context_read_reports_pressure_without_compacting) or test(session_context_window_follows_the_composer_provider_override) or test(each_context_compaction_creates_the_next_current_revision) or test(manual_context_compaction_writes_the_done_notice_into_the_timeline) or test(auto_compaction_emits_streaming_then_final_notice_and_context_delta) or test(auto_compaction_skips_while_another_compaction_holds_the_session_gate) or test(model_context_read_compacts_only_when_the_session_gate_is_free) or test(workflow_auto_compaction_proceeds_under_an_active_run_while_chat_waits) or test(protected_tail_rewinds_a_pending_approval_to_its_original_call) or test(session_context_ignores_handoff_segments_without_a_revision)"
         ],
         "testFilter": [
           "duplicate_event_key_with_different_content_rolls_back_projection"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "a601d03c8fc607e147f1f4eb377f7cba1020592f",
+        "verifiedAt": "2026-09-25T14:03:33Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -91858,20 +91858,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(protected_tail_ignores_approvals_closed_by_a_denied_run) or test(context_compaction_shrinks_the_projected_session_view) or test(protected_tail_keeps_only_the_approval_that_is_still_pending) or test(protected_tail_ignores_an_approval_with_a_durable_tool_outcome) or test(protected_tail_starts_at_the_earliest_unresolved_approval) or test(a_chat_turn_autocompacts_the_session_before_the_provider_payload) or test(a_rejected_compaction_records_the_failed_notice) or test(a_second_compaction_is_rejected_while_the_session_gate_is_held) or test(event_must_match_the_run_and_session_before_projection_changes) or test(duplicate_event_key_with_different_content_rolls_back_projection) or test(adk_session_store_lifecycle_and_restart_durability) or test(missing_session_database_is_not_created_and_run_is_unchanged) or test(pending_input_is_persisted_and_answer_resume_is_idempotent) or test(model_context_autocompacts_before_the_provider_payload) or test(session_context_read_reports_pressure_without_compacting) or test(session_context_window_follows_the_composer_provider_override) or test(each_context_compaction_creates_the_next_current_revision) or test(manual_context_compaction_writes_the_done_notice_into_the_timeline) or test(auto_compaction_emits_streaming_then_final_notice_and_context_delta) or test(auto_compaction_skips_while_another_compaction_holds_the_session_gate) or test(model_context_read_compacts_only_when_the_session_gate_is_free) or test(workflow_auto_compaction_proceeds_under_an_active_run_while_chat_waits) or test(protected_tail_rewinds_a_pending_approval_to_its_original_call) or test(session_context_ignores_handoff_segments_without_a_revision)"
         ],
         "testFilter": [
           "adk_session_store_lifecycle_and_restart_durability"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "a601d03c8fc607e147f1f4eb377f7cba1020592f",
+        "verifiedAt": "2026-09-25T14:03:33Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -91920,20 +91920,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(protected_tail_ignores_approvals_closed_by_a_denied_run) or test(context_compaction_shrinks_the_projected_session_view) or test(protected_tail_keeps_only_the_approval_that_is_still_pending) or test(protected_tail_ignores_an_approval_with_a_durable_tool_outcome) or test(protected_tail_starts_at_the_earliest_unresolved_approval) or test(a_chat_turn_autocompacts_the_session_before_the_provider_payload) or test(a_rejected_compaction_records_the_failed_notice) or test(a_second_compaction_is_rejected_while_the_session_gate_is_held) or test(event_must_match_the_run_and_session_before_projection_changes) or test(duplicate_event_key_with_different_content_rolls_back_projection) or test(adk_session_store_lifecycle_and_restart_durability) or test(missing_session_database_is_not_created_and_run_is_unchanged) or test(pending_input_is_persisted_and_answer_resume_is_idempotent) or test(model_context_autocompacts_before_the_provider_payload) or test(session_context_read_reports_pressure_without_compacting) or test(session_context_window_follows_the_composer_provider_override) or test(each_context_compaction_creates_the_next_current_revision) or test(manual_context_compaction_writes_the_done_notice_into_the_timeline) or test(auto_compaction_emits_streaming_then_final_notice_and_context_delta) or test(auto_compaction_skips_while_another_compaction_holds_the_session_gate) or test(model_context_read_compacts_only_when_the_session_gate_is_free) or test(workflow_auto_compaction_proceeds_under_an_active_run_while_chat_waits) or test(protected_tail_rewinds_a_pending_approval_to_its_original_call) or test(session_context_ignores_handoff_segments_without_a_revision)"
         ],
         "testFilter": [
           "missing_session_database_is_not_created_and_run_is_unchanged"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "a601d03c8fc607e147f1f4eb377f7cba1020592f",
+        "verifiedAt": "2026-09-25T14:03:33Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -91982,20 +91982,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-assistant",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(protected_tail_ignores_approvals_closed_by_a_denied_run) or test(context_compaction_shrinks_the_projected_session_view) or test(protected_tail_keeps_only_the_approval_that_is_still_pending) or test(protected_tail_ignores_an_approval_with_a_durable_tool_outcome) or test(protected_tail_starts_at_the_earliest_unresolved_approval) or test(a_chat_turn_autocompacts_the_session_before_the_provider_payload) or test(a_rejected_compaction_records_the_failed_notice) or test(a_second_compaction_is_rejected_while_the_session_gate_is_held) or test(event_must_match_the_run_and_session_before_projection_changes) or test(duplicate_event_key_with_different_content_rolls_back_projection) or test(adk_session_store_lifecycle_and_restart_durability) or test(missing_session_database_is_not_created_and_run_is_unchanged) or test(pending_input_is_persisted_and_answer_resume_is_idempotent) or test(model_context_autocompacts_before_the_provider_payload) or test(session_context_read_reports_pressure_without_compacting) or test(session_context_window_follows_the_composer_provider_override) or test(each_context_compaction_creates_the_next_current_revision) or test(manual_context_compaction_writes_the_done_notice_into_the_timeline) or test(auto_compaction_emits_streaming_then_final_notice_and_context_delta) or test(auto_compaction_skips_while_another_compaction_holds_the_session_gate) or test(model_context_read_compacts_only_when_the_session_gate_is_free) or test(workflow_auto_compaction_proceeds_under_an_active_run_while_chat_waits) or test(protected_tail_rewinds_a_pending_approval_to_its_original_call) or test(session_context_ignores_handoff_segments_without_a_revision)"
         ],
         "testFilter": [
           "pending_input_is_persisted_and_answer_resume_is_idempotent"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "a601d03c8fc607e147f1f4eb377f7cba1020592f",
+        "verifiedAt": "2026-09-25T14:03:33Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -92060,10 +92060,10 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(protected_tail_ignores_approvals_closed_by_a_denied_run) or test(context_compaction_shrinks_the_projected_session_view) or test(protected_tail_keeps_only_the_approval_that_is_still_pending) or test(protected_tail_ignores_an_approval_with_a_durable_tool_outcome) or test(protected_tail_starts_at_the_earliest_unresolved_approval) or test(a_chat_turn_autocompacts_the_session_before_the_provider_payload) or test(a_rejected_compaction_records_the_failed_notice) or test(a_second_compaction_is_rejected_while_the_session_gate_is_held) or test(event_must_match_the_run_and_session_before_projection_changes) or test(duplicate_event_key_with_different_content_rolls_back_projection) or test(adk_session_store_lifecycle_and_restart_durability) or test(missing_session_database_is_not_created_and_run_is_unchanged) or test(pending_input_is_persisted_and_answer_resume_is_idempotent) or test(model_context_autocompacts_before_the_provider_payload) or test(session_context_read_reports_pressure_without_compacting) or test(session_context_window_follows_the_composer_provider_override) or test(each_context_compaction_creates_the_next_current_revision) or test(manual_context_compaction_writes_the_done_notice_into_the_timeline) or test(auto_compaction_emits_streaming_then_final_notice_and_context_delta) or test(auto_compaction_skips_while_another_compaction_holds_the_session_gate) or test(model_context_read_compacts_only_when_the_session_gate_is_free) or test(workflow_auto_compaction_proceeds_under_an_active_run_while_chat_waits) or test(protected_tail_rewinds_a_pending_approval_to_its_original_call) or test(session_context_ignores_handoff_segments_without_a_revision)"
         ],
         "testFilter": [
           "context_compaction_shrinks_the_projected_session_view",
@@ -92071,10 +92071,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "a601d03c8fc607e147f1f4eb377f7cba1020592f",
+        "verifiedAt": "2026-09-25T14:03:33Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -92123,20 +92123,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(protected_tail_ignores_approvals_closed_by_a_denied_run) or test(context_compaction_shrinks_the_projected_session_view) or test(protected_tail_keeps_only_the_approval_that_is_still_pending) or test(protected_tail_ignores_an_approval_with_a_durable_tool_outcome) or test(protected_tail_starts_at_the_earliest_unresolved_approval) or test(a_chat_turn_autocompacts_the_session_before_the_provider_payload) or test(a_rejected_compaction_records_the_failed_notice) or test(a_second_compaction_is_rejected_while_the_session_gate_is_held) or test(event_must_match_the_run_and_session_before_projection_changes) or test(duplicate_event_key_with_different_content_rolls_back_projection) or test(adk_session_store_lifecycle_and_restart_durability) or test(missing_session_database_is_not_created_and_run_is_unchanged) or test(pending_input_is_persisted_and_answer_resume_is_idempotent) or test(model_context_autocompacts_before_the_provider_payload) or test(session_context_read_reports_pressure_without_compacting) or test(session_context_window_follows_the_composer_provider_override) or test(each_context_compaction_creates_the_next_current_revision) or test(manual_context_compaction_writes_the_done_notice_into_the_timeline) or test(auto_compaction_emits_streaming_then_final_notice_and_context_delta) or test(auto_compaction_skips_while_another_compaction_holds_the_session_gate) or test(model_context_read_compacts_only_when_the_session_gate_is_free) or test(workflow_auto_compaction_proceeds_under_an_active_run_while_chat_waits) or test(protected_tail_rewinds_a_pending_approval_to_its_original_call) or test(session_context_ignores_handoff_segments_without_a_revision)"
         ],
         "testFilter": [
           "session_context_read_reports_pressure_without_compacting"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "a601d03c8fc607e147f1f4eb377f7cba1020592f",
+        "verifiedAt": "2026-09-25T14:03:33Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -92190,21 +92190,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
           "--locked",
-          "session_context"
+          "-E",
+          "test(protected_tail_ignores_approvals_closed_by_a_denied_run) or test(context_compaction_shrinks_the_projected_session_view) or test(protected_tail_keeps_only_the_approval_that_is_still_pending) or test(protected_tail_ignores_an_approval_with_a_durable_tool_outcome) or test(protected_tail_starts_at_the_earliest_unresolved_approval) or test(a_chat_turn_autocompacts_the_session_before_the_provider_payload) or test(a_rejected_compaction_records_the_failed_notice) or test(a_second_compaction_is_rejected_while_the_session_gate_is_held) or test(event_must_match_the_run_and_session_before_projection_changes) or test(duplicate_event_key_with_different_content_rolls_back_projection) or test(adk_session_store_lifecycle_and_restart_durability) or test(missing_session_database_is_not_created_and_run_is_unchanged) or test(pending_input_is_persisted_and_answer_resume_is_idempotent) or test(model_context_autocompacts_before_the_provider_payload) or test(session_context_read_reports_pressure_without_compacting) or test(session_context_window_follows_the_composer_provider_override) or test(each_context_compaction_creates_the_next_current_revision) or test(manual_context_compaction_writes_the_done_notice_into_the_timeline) or test(auto_compaction_emits_streaming_then_final_notice_and_context_delta) or test(auto_compaction_skips_while_another_compaction_holds_the_session_gate) or test(model_context_read_compacts_only_when_the_session_gate_is_free) or test(workflow_auto_compaction_proceeds_under_an_active_run_while_chat_waits) or test(protected_tail_rewinds_a_pending_approval_to_its_original_call) or test(session_context_ignores_handoff_segments_without_a_revision)"
         ],
         "testFilter": [
           "context_compaction_shrinks_the_projected_session_view"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "a601d03c8fc607e147f1f4eb377f7cba1020592f",
+        "verifiedAt": "2026-09-25T14:03:33Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -92258,21 +92257,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
           "--locked",
-          "session_context"
+          "-E",
+          "test(protected_tail_ignores_approvals_closed_by_a_denied_run) or test(context_compaction_shrinks_the_projected_session_view) or test(protected_tail_keeps_only_the_approval_that_is_still_pending) or test(protected_tail_ignores_an_approval_with_a_durable_tool_outcome) or test(protected_tail_starts_at_the_earliest_unresolved_approval) or test(a_chat_turn_autocompacts_the_session_before_the_provider_payload) or test(a_rejected_compaction_records_the_failed_notice) or test(a_second_compaction_is_rejected_while_the_session_gate_is_held) or test(event_must_match_the_run_and_session_before_projection_changes) or test(duplicate_event_key_with_different_content_rolls_back_projection) or test(adk_session_store_lifecycle_and_restart_durability) or test(missing_session_database_is_not_created_and_run_is_unchanged) or test(pending_input_is_persisted_and_answer_resume_is_idempotent) or test(model_context_autocompacts_before_the_provider_payload) or test(session_context_read_reports_pressure_without_compacting) or test(session_context_window_follows_the_composer_provider_override) or test(each_context_compaction_creates_the_next_current_revision) or test(manual_context_compaction_writes_the_done_notice_into_the_timeline) or test(auto_compaction_emits_streaming_then_final_notice_and_context_delta) or test(auto_compaction_skips_while_another_compaction_holds_the_session_gate) or test(model_context_read_compacts_only_when_the_session_gate_is_free) or test(workflow_auto_compaction_proceeds_under_an_active_run_while_chat_waits) or test(protected_tail_rewinds_a_pending_approval_to_its_original_call) or test(session_context_ignores_handoff_segments_without_a_revision)"
         ],
         "testFilter": [
           "session_context_window_follows_the_composer_provider_override"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "a601d03c8fc607e147f1f4eb377f7cba1020592f",
+        "verifiedAt": "2026-09-25T14:03:33Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -92326,21 +92324,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
           "--locked",
-          "session_context"
+          "-E",
+          "test(protected_tail_ignores_approvals_closed_by_a_denied_run) or test(context_compaction_shrinks_the_projected_session_view) or test(protected_tail_keeps_only_the_approval_that_is_still_pending) or test(protected_tail_ignores_an_approval_with_a_durable_tool_outcome) or test(protected_tail_starts_at_the_earliest_unresolved_approval) or test(a_chat_turn_autocompacts_the_session_before_the_provider_payload) or test(a_rejected_compaction_records_the_failed_notice) or test(a_second_compaction_is_rejected_while_the_session_gate_is_held) or test(event_must_match_the_run_and_session_before_projection_changes) or test(duplicate_event_key_with_different_content_rolls_back_projection) or test(adk_session_store_lifecycle_and_restart_durability) or test(missing_session_database_is_not_created_and_run_is_unchanged) or test(pending_input_is_persisted_and_answer_resume_is_idempotent) or test(model_context_autocompacts_before_the_provider_payload) or test(session_context_read_reports_pressure_without_compacting) or test(session_context_window_follows_the_composer_provider_override) or test(each_context_compaction_creates_the_next_current_revision) or test(manual_context_compaction_writes_the_done_notice_into_the_timeline) or test(auto_compaction_emits_streaming_then_final_notice_and_context_delta) or test(auto_compaction_skips_while_another_compaction_holds_the_session_gate) or test(model_context_read_compacts_only_when_the_session_gate_is_free) or test(workflow_auto_compaction_proceeds_under_an_active_run_while_chat_waits) or test(protected_tail_rewinds_a_pending_approval_to_its_original_call) or test(session_context_ignores_handoff_segments_without_a_revision)"
         ],
         "testFilter": [
           "each_context_compaction_creates_the_next_current_revision"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "a601d03c8fc607e147f1f4eb377f7cba1020592f",
+        "verifiedAt": "2026-09-25T14:03:33Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -92394,21 +92391,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
           "--locked",
-          "session_context_tests::"
+          "-E",
+          "test(protected_tail_ignores_approvals_closed_by_a_denied_run) or test(context_compaction_shrinks_the_projected_session_view) or test(protected_tail_keeps_only_the_approval_that_is_still_pending) or test(protected_tail_ignores_an_approval_with_a_durable_tool_outcome) or test(protected_tail_starts_at_the_earliest_unresolved_approval) or test(a_chat_turn_autocompacts_the_session_before_the_provider_payload) or test(a_rejected_compaction_records_the_failed_notice) or test(a_second_compaction_is_rejected_while_the_session_gate_is_held) or test(event_must_match_the_run_and_session_before_projection_changes) or test(duplicate_event_key_with_different_content_rolls_back_projection) or test(adk_session_store_lifecycle_and_restart_durability) or test(missing_session_database_is_not_created_and_run_is_unchanged) or test(pending_input_is_persisted_and_answer_resume_is_idempotent) or test(model_context_autocompacts_before_the_provider_payload) or test(session_context_read_reports_pressure_without_compacting) or test(session_context_window_follows_the_composer_provider_override) or test(each_context_compaction_creates_the_next_current_revision) or test(manual_context_compaction_writes_the_done_notice_into_the_timeline) or test(auto_compaction_emits_streaming_then_final_notice_and_context_delta) or test(auto_compaction_skips_while_another_compaction_holds_the_session_gate) or test(model_context_read_compacts_only_when_the_session_gate_is_free) or test(workflow_auto_compaction_proceeds_under_an_active_run_while_chat_waits) or test(protected_tail_rewinds_a_pending_approval_to_its_original_call) or test(session_context_ignores_handoff_segments_without_a_revision)"
         ],
         "testFilter": [
           "manual_context_compaction_writes_the_done_notice_into_the_timeline"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "a601d03c8fc607e147f1f4eb377f7cba1020592f",
+        "verifiedAt": "2026-09-25T14:03:33Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -92462,21 +92458,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
           "--locked",
-          "session_context_tests::"
+          "-E",
+          "test(protected_tail_ignores_approvals_closed_by_a_denied_run) or test(context_compaction_shrinks_the_projected_session_view) or test(protected_tail_keeps_only_the_approval_that_is_still_pending) or test(protected_tail_ignores_an_approval_with_a_durable_tool_outcome) or test(protected_tail_starts_at_the_earliest_unresolved_approval) or test(a_chat_turn_autocompacts_the_session_before_the_provider_payload) or test(a_rejected_compaction_records_the_failed_notice) or test(a_second_compaction_is_rejected_while_the_session_gate_is_held) or test(event_must_match_the_run_and_session_before_projection_changes) or test(duplicate_event_key_with_different_content_rolls_back_projection) or test(adk_session_store_lifecycle_and_restart_durability) or test(missing_session_database_is_not_created_and_run_is_unchanged) or test(pending_input_is_persisted_and_answer_resume_is_idempotent) or test(model_context_autocompacts_before_the_provider_payload) or test(session_context_read_reports_pressure_without_compacting) or test(session_context_window_follows_the_composer_provider_override) or test(each_context_compaction_creates_the_next_current_revision) or test(manual_context_compaction_writes_the_done_notice_into_the_timeline) or test(auto_compaction_emits_streaming_then_final_notice_and_context_delta) or test(auto_compaction_skips_while_another_compaction_holds_the_session_gate) or test(model_context_read_compacts_only_when_the_session_gate_is_free) or test(workflow_auto_compaction_proceeds_under_an_active_run_while_chat_waits) or test(protected_tail_rewinds_a_pending_approval_to_its_original_call) or test(session_context_ignores_handoff_segments_without_a_revision)"
         ],
         "testFilter": [
           "auto_compaction_emits_streaming_then_final_notice_and_context_delta"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "a601d03c8fc607e147f1f4eb377f7cba1020592f",
+        "verifiedAt": "2026-09-25T14:03:33Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -92530,21 +92525,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
           "--locked",
-          "session_context_tests::"
+          "-E",
+          "test(protected_tail_ignores_approvals_closed_by_a_denied_run) or test(context_compaction_shrinks_the_projected_session_view) or test(protected_tail_keeps_only_the_approval_that_is_still_pending) or test(protected_tail_ignores_an_approval_with_a_durable_tool_outcome) or test(protected_tail_starts_at_the_earliest_unresolved_approval) or test(a_chat_turn_autocompacts_the_session_before_the_provider_payload) or test(a_rejected_compaction_records_the_failed_notice) or test(a_second_compaction_is_rejected_while_the_session_gate_is_held) or test(event_must_match_the_run_and_session_before_projection_changes) or test(duplicate_event_key_with_different_content_rolls_back_projection) or test(adk_session_store_lifecycle_and_restart_durability) or test(missing_session_database_is_not_created_and_run_is_unchanged) or test(pending_input_is_persisted_and_answer_resume_is_idempotent) or test(model_context_autocompacts_before_the_provider_payload) or test(session_context_read_reports_pressure_without_compacting) or test(session_context_window_follows_the_composer_provider_override) or test(each_context_compaction_creates_the_next_current_revision) or test(manual_context_compaction_writes_the_done_notice_into_the_timeline) or test(auto_compaction_emits_streaming_then_final_notice_and_context_delta) or test(auto_compaction_skips_while_another_compaction_holds_the_session_gate) or test(model_context_read_compacts_only_when_the_session_gate_is_free) or test(workflow_auto_compaction_proceeds_under_an_active_run_while_chat_waits) or test(protected_tail_rewinds_a_pending_approval_to_its_original_call) or test(session_context_ignores_handoff_segments_without_a_revision)"
         ],
         "testFilter": [
           "auto_compaction_skips_while_another_compaction_holds_the_session_gate"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "a601d03c8fc607e147f1f4eb377f7cba1020592f",
+        "verifiedAt": "2026-09-25T14:03:33Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -92598,21 +92592,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
           "--locked",
-          "session_context_tests::"
+          "-E",
+          "test(protected_tail_ignores_approvals_closed_by_a_denied_run) or test(context_compaction_shrinks_the_projected_session_view) or test(protected_tail_keeps_only_the_approval_that_is_still_pending) or test(protected_tail_ignores_an_approval_with_a_durable_tool_outcome) or test(protected_tail_starts_at_the_earliest_unresolved_approval) or test(a_chat_turn_autocompacts_the_session_before_the_provider_payload) or test(a_rejected_compaction_records_the_failed_notice) or test(a_second_compaction_is_rejected_while_the_session_gate_is_held) or test(event_must_match_the_run_and_session_before_projection_changes) or test(duplicate_event_key_with_different_content_rolls_back_projection) or test(adk_session_store_lifecycle_and_restart_durability) or test(missing_session_database_is_not_created_and_run_is_unchanged) or test(pending_input_is_persisted_and_answer_resume_is_idempotent) or test(model_context_autocompacts_before_the_provider_payload) or test(session_context_read_reports_pressure_without_compacting) or test(session_context_window_follows_the_composer_provider_override) or test(each_context_compaction_creates_the_next_current_revision) or test(manual_context_compaction_writes_the_done_notice_into_the_timeline) or test(auto_compaction_emits_streaming_then_final_notice_and_context_delta) or test(auto_compaction_skips_while_another_compaction_holds_the_session_gate) or test(model_context_read_compacts_only_when_the_session_gate_is_free) or test(workflow_auto_compaction_proceeds_under_an_active_run_while_chat_waits) or test(protected_tail_rewinds_a_pending_approval_to_its_original_call) or test(session_context_ignores_handoff_segments_without_a_revision)"
         ],
         "testFilter": [
           "model_context_read_compacts_only_when_the_session_gate_is_free"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "a601d03c8fc607e147f1f4eb377f7cba1020592f",
+        "verifiedAt": "2026-09-25T14:03:33Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -92666,21 +92659,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
           "--locked",
-          "session_context_tests::"
+          "-E",
+          "test(protected_tail_ignores_approvals_closed_by_a_denied_run) or test(context_compaction_shrinks_the_projected_session_view) or test(protected_tail_keeps_only_the_approval_that_is_still_pending) or test(protected_tail_ignores_an_approval_with_a_durable_tool_outcome) or test(protected_tail_starts_at_the_earliest_unresolved_approval) or test(a_chat_turn_autocompacts_the_session_before_the_provider_payload) or test(a_rejected_compaction_records_the_failed_notice) or test(a_second_compaction_is_rejected_while_the_session_gate_is_held) or test(event_must_match_the_run_and_session_before_projection_changes) or test(duplicate_event_key_with_different_content_rolls_back_projection) or test(adk_session_store_lifecycle_and_restart_durability) or test(missing_session_database_is_not_created_and_run_is_unchanged) or test(pending_input_is_persisted_and_answer_resume_is_idempotent) or test(model_context_autocompacts_before_the_provider_payload) or test(session_context_read_reports_pressure_without_compacting) or test(session_context_window_follows_the_composer_provider_override) or test(each_context_compaction_creates_the_next_current_revision) or test(manual_context_compaction_writes_the_done_notice_into_the_timeline) or test(auto_compaction_emits_streaming_then_final_notice_and_context_delta) or test(auto_compaction_skips_while_another_compaction_holds_the_session_gate) or test(model_context_read_compacts_only_when_the_session_gate_is_free) or test(workflow_auto_compaction_proceeds_under_an_active_run_while_chat_waits) or test(protected_tail_rewinds_a_pending_approval_to_its_original_call) or test(session_context_ignores_handoff_segments_without_a_revision)"
         ],
         "testFilter": [
           "workflow_auto_compaction_proceeds_under_an_active_run_while_chat_waits"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "a601d03c8fc607e147f1f4eb377f7cba1020592f",
+        "verifiedAt": "2026-09-25T14:03:33Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -92734,21 +92726,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
           "--locked",
-          "session_context"
+          "-E",
+          "test(protected_tail_ignores_approvals_closed_by_a_denied_run) or test(context_compaction_shrinks_the_projected_session_view) or test(protected_tail_keeps_only_the_approval_that_is_still_pending) or test(protected_tail_ignores_an_approval_with_a_durable_tool_outcome) or test(protected_tail_starts_at_the_earliest_unresolved_approval) or test(a_chat_turn_autocompacts_the_session_before_the_provider_payload) or test(a_rejected_compaction_records_the_failed_notice) or test(a_second_compaction_is_rejected_while_the_session_gate_is_held) or test(event_must_match_the_run_and_session_before_projection_changes) or test(duplicate_event_key_with_different_content_rolls_back_projection) or test(adk_session_store_lifecycle_and_restart_durability) or test(missing_session_database_is_not_created_and_run_is_unchanged) or test(pending_input_is_persisted_and_answer_resume_is_idempotent) or test(model_context_autocompacts_before_the_provider_payload) or test(session_context_read_reports_pressure_without_compacting) or test(session_context_window_follows_the_composer_provider_override) or test(each_context_compaction_creates_the_next_current_revision) or test(manual_context_compaction_writes_the_done_notice_into_the_timeline) or test(auto_compaction_emits_streaming_then_final_notice_and_context_delta) or test(auto_compaction_skips_while_another_compaction_holds_the_session_gate) or test(model_context_read_compacts_only_when_the_session_gate_is_free) or test(workflow_auto_compaction_proceeds_under_an_active_run_while_chat_waits) or test(protected_tail_rewinds_a_pending_approval_to_its_original_call) or test(session_context_ignores_handoff_segments_without_a_revision)"
         ],
         "testFilter": [
           "session_context_read_reports_pressure_without_compacting"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "a601d03c8fc607e147f1f4eb377f7cba1020592f",
+        "verifiedAt": "2026-09-25T14:03:33Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -92802,21 +92793,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
           "--locked",
-          "session_context_tests::"
+          "-E",
+          "test(protected_tail_ignores_approvals_closed_by_a_denied_run) or test(context_compaction_shrinks_the_projected_session_view) or test(protected_tail_keeps_only_the_approval_that_is_still_pending) or test(protected_tail_ignores_an_approval_with_a_durable_tool_outcome) or test(protected_tail_starts_at_the_earliest_unresolved_approval) or test(a_chat_turn_autocompacts_the_session_before_the_provider_payload) or test(a_rejected_compaction_records_the_failed_notice) or test(a_second_compaction_is_rejected_while_the_session_gate_is_held) or test(event_must_match_the_run_and_session_before_projection_changes) or test(duplicate_event_key_with_different_content_rolls_back_projection) or test(adk_session_store_lifecycle_and_restart_durability) or test(missing_session_database_is_not_created_and_run_is_unchanged) or test(pending_input_is_persisted_and_answer_resume_is_idempotent) or test(model_context_autocompacts_before_the_provider_payload) or test(session_context_read_reports_pressure_without_compacting) or test(session_context_window_follows_the_composer_provider_override) or test(each_context_compaction_creates_the_next_current_revision) or test(manual_context_compaction_writes_the_done_notice_into_the_timeline) or test(auto_compaction_emits_streaming_then_final_notice_and_context_delta) or test(auto_compaction_skips_while_another_compaction_holds_the_session_gate) or test(model_context_read_compacts_only_when_the_session_gate_is_free) or test(workflow_auto_compaction_proceeds_under_an_active_run_while_chat_waits) or test(protected_tail_rewinds_a_pending_approval_to_its_original_call) or test(session_context_ignores_handoff_segments_without_a_revision)"
         ],
         "testFilter": [
           "model_context_autocompacts_before_the_provider_payload"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "a601d03c8fc607e147f1f4eb377f7cba1020592f",
+        "verifiedAt": "2026-09-25T14:03:33Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -92870,20 +92860,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(protected_tail_starts_at_the_earliest_unresolved_approval)"
+          "test(protected_tail_ignores_approvals_closed_by_a_denied_run) or test(context_compaction_shrinks_the_projected_session_view) or test(protected_tail_keeps_only_the_approval_that_is_still_pending) or test(protected_tail_ignores_an_approval_with_a_durable_tool_outcome) or test(protected_tail_starts_at_the_earliest_unresolved_approval) or test(a_chat_turn_autocompacts_the_session_before_the_provider_payload) or test(a_rejected_compaction_records_the_failed_notice) or test(a_second_compaction_is_rejected_while_the_session_gate_is_held) or test(event_must_match_the_run_and_session_before_projection_changes) or test(duplicate_event_key_with_different_content_rolls_back_projection) or test(adk_session_store_lifecycle_and_restart_durability) or test(missing_session_database_is_not_created_and_run_is_unchanged) or test(pending_input_is_persisted_and_answer_resume_is_idempotent) or test(model_context_autocompacts_before_the_provider_payload) or test(session_context_read_reports_pressure_without_compacting) or test(session_context_window_follows_the_composer_provider_override) or test(each_context_compaction_creates_the_next_current_revision) or test(manual_context_compaction_writes_the_done_notice_into_the_timeline) or test(auto_compaction_emits_streaming_then_final_notice_and_context_delta) or test(auto_compaction_skips_while_another_compaction_holds_the_session_gate) or test(model_context_read_compacts_only_when_the_session_gate_is_free) or test(workflow_auto_compaction_proceeds_under_an_active_run_while_chat_waits) or test(protected_tail_rewinds_a_pending_approval_to_its_original_call) or test(session_context_ignores_handoff_segments_without_a_revision)"
         ],
         "testFilter": [
           "protected_tail_starts_at_the_earliest_unresolved_approval"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "a601d03c8fc607e147f1f4eb377f7cba1020592f",
+        "verifiedAt": "2026-09-25T14:03:33Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -92937,20 +92927,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(protected_tail_rewinds_a_pending_approval_to_its_original_call)"
+          "test(protected_tail_ignores_approvals_closed_by_a_denied_run) or test(context_compaction_shrinks_the_projected_session_view) or test(protected_tail_keeps_only_the_approval_that_is_still_pending) or test(protected_tail_ignores_an_approval_with_a_durable_tool_outcome) or test(protected_tail_starts_at_the_earliest_unresolved_approval) or test(a_chat_turn_autocompacts_the_session_before_the_provider_payload) or test(a_rejected_compaction_records_the_failed_notice) or test(a_second_compaction_is_rejected_while_the_session_gate_is_held) or test(event_must_match_the_run_and_session_before_projection_changes) or test(duplicate_event_key_with_different_content_rolls_back_projection) or test(adk_session_store_lifecycle_and_restart_durability) or test(missing_session_database_is_not_created_and_run_is_unchanged) or test(pending_input_is_persisted_and_answer_resume_is_idempotent) or test(model_context_autocompacts_before_the_provider_payload) or test(session_context_read_reports_pressure_without_compacting) or test(session_context_window_follows_the_composer_provider_override) or test(each_context_compaction_creates_the_next_current_revision) or test(manual_context_compaction_writes_the_done_notice_into_the_timeline) or test(auto_compaction_emits_streaming_then_final_notice_and_context_delta) or test(auto_compaction_skips_while_another_compaction_holds_the_session_gate) or test(model_context_read_compacts_only_when_the_session_gate_is_free) or test(workflow_auto_compaction_proceeds_under_an_active_run_while_chat_waits) or test(protected_tail_rewinds_a_pending_approval_to_its_original_call) or test(session_context_ignores_handoff_segments_without_a_revision)"
         ],
         "testFilter": [
           "protected_tail_rewinds_a_pending_approval_to_its_original_call"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "a601d03c8fc607e147f1f4eb377f7cba1020592f",
+        "verifiedAt": "2026-09-25T14:03:33Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -93004,20 +92994,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(protected_tail_ignores_an_approval_with_a_durable_tool_outcome)"
+          "test(protected_tail_ignores_approvals_closed_by_a_denied_run) or test(context_compaction_shrinks_the_projected_session_view) or test(protected_tail_keeps_only_the_approval_that_is_still_pending) or test(protected_tail_ignores_an_approval_with_a_durable_tool_outcome) or test(protected_tail_starts_at_the_earliest_unresolved_approval) or test(a_chat_turn_autocompacts_the_session_before_the_provider_payload) or test(a_rejected_compaction_records_the_failed_notice) or test(a_second_compaction_is_rejected_while_the_session_gate_is_held) or test(event_must_match_the_run_and_session_before_projection_changes) or test(duplicate_event_key_with_different_content_rolls_back_projection) or test(adk_session_store_lifecycle_and_restart_durability) or test(missing_session_database_is_not_created_and_run_is_unchanged) or test(pending_input_is_persisted_and_answer_resume_is_idempotent) or test(model_context_autocompacts_before_the_provider_payload) or test(session_context_read_reports_pressure_without_compacting) or test(session_context_window_follows_the_composer_provider_override) or test(each_context_compaction_creates_the_next_current_revision) or test(manual_context_compaction_writes_the_done_notice_into_the_timeline) or test(auto_compaction_emits_streaming_then_final_notice_and_context_delta) or test(auto_compaction_skips_while_another_compaction_holds_the_session_gate) or test(model_context_read_compacts_only_when_the_session_gate_is_free) or test(workflow_auto_compaction_proceeds_under_an_active_run_while_chat_waits) or test(protected_tail_rewinds_a_pending_approval_to_its_original_call) or test(session_context_ignores_handoff_segments_without_a_revision)"
         ],
         "testFilter": [
           "protected_tail_ignores_an_approval_with_a_durable_tool_outcome"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "a601d03c8fc607e147f1f4eb377f7cba1020592f",
+        "verifiedAt": "2026-09-25T14:03:33Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -93071,20 +93061,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(protected_tail_keeps_only_the_approval_that_is_still_pending)"
+          "test(protected_tail_ignores_approvals_closed_by_a_denied_run) or test(context_compaction_shrinks_the_projected_session_view) or test(protected_tail_keeps_only_the_approval_that_is_still_pending) or test(protected_tail_ignores_an_approval_with_a_durable_tool_outcome) or test(protected_tail_starts_at_the_earliest_unresolved_approval) or test(a_chat_turn_autocompacts_the_session_before_the_provider_payload) or test(a_rejected_compaction_records_the_failed_notice) or test(a_second_compaction_is_rejected_while_the_session_gate_is_held) or test(event_must_match_the_run_and_session_before_projection_changes) or test(duplicate_event_key_with_different_content_rolls_back_projection) or test(adk_session_store_lifecycle_and_restart_durability) or test(missing_session_database_is_not_created_and_run_is_unchanged) or test(pending_input_is_persisted_and_answer_resume_is_idempotent) or test(model_context_autocompacts_before_the_provider_payload) or test(session_context_read_reports_pressure_without_compacting) or test(session_context_window_follows_the_composer_provider_override) or test(each_context_compaction_creates_the_next_current_revision) or test(manual_context_compaction_writes_the_done_notice_into_the_timeline) or test(auto_compaction_emits_streaming_then_final_notice_and_context_delta) or test(auto_compaction_skips_while_another_compaction_holds_the_session_gate) or test(model_context_read_compacts_only_when_the_session_gate_is_free) or test(workflow_auto_compaction_proceeds_under_an_active_run_while_chat_waits) or test(protected_tail_rewinds_a_pending_approval_to_its_original_call) or test(session_context_ignores_handoff_segments_without_a_revision)"
         ],
         "testFilter": [
           "protected_tail_keeps_only_the_approval_that_is_still_pending"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "a601d03c8fc607e147f1f4eb377f7cba1020592f",
+        "verifiedAt": "2026-09-25T14:03:33Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -93138,20 +93128,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(session_context_ignores_handoff_segments_without_a_revision)"
+          "test(protected_tail_ignores_approvals_closed_by_a_denied_run) or test(context_compaction_shrinks_the_projected_session_view) or test(protected_tail_keeps_only_the_approval_that_is_still_pending) or test(protected_tail_ignores_an_approval_with_a_durable_tool_outcome) or test(protected_tail_starts_at_the_earliest_unresolved_approval) or test(a_chat_turn_autocompacts_the_session_before_the_provider_payload) or test(a_rejected_compaction_records_the_failed_notice) or test(a_second_compaction_is_rejected_while_the_session_gate_is_held) or test(event_must_match_the_run_and_session_before_projection_changes) or test(duplicate_event_key_with_different_content_rolls_back_projection) or test(adk_session_store_lifecycle_and_restart_durability) or test(missing_session_database_is_not_created_and_run_is_unchanged) or test(pending_input_is_persisted_and_answer_resume_is_idempotent) or test(model_context_autocompacts_before_the_provider_payload) or test(session_context_read_reports_pressure_without_compacting) or test(session_context_window_follows_the_composer_provider_override) or test(each_context_compaction_creates_the_next_current_revision) or test(manual_context_compaction_writes_the_done_notice_into_the_timeline) or test(auto_compaction_emits_streaming_then_final_notice_and_context_delta) or test(auto_compaction_skips_while_another_compaction_holds_the_session_gate) or test(model_context_read_compacts_only_when_the_session_gate_is_free) or test(workflow_auto_compaction_proceeds_under_an_active_run_while_chat_waits) or test(protected_tail_rewinds_a_pending_approval_to_its_original_call) or test(session_context_ignores_handoff_segments_without_a_revision)"
         ],
         "testFilter": [
           "session_context_ignores_handoff_segments_without_a_revision"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "a601d03c8fc607e147f1f4eb377f7cba1020592f",
+        "verifiedAt": "2026-09-25T14:03:33Z",
         "receiptDigest": null
       },
       "risk": "high",

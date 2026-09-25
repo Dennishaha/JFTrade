@@ -691,6 +691,22 @@ ADK/Assistant 功能差异，先补失败回归测试再修改领域 owner。
 
 下一片：继续 P1 的 MarketData/Quote provider forwarding 与 runtime boundary 映射。
 
+## 第 159 批：Assistant session context、compaction 与 stale projection（2026-09-25）
+
+| 复核 | Go 测试范围 | Rust 证据 | P | 结论 |
+| :---: | --- | --- | :---: | --- |
+| [x] | `internal/assistant/engine/session_context_projection_test.go:15,60,118,181,208` | protected-tail approval filtering, context compaction and session gate tests | P1 | partial：projection、approval tail 与 compaction 分支逐条通过；Go helper 聚合和错误文本由多个 Rust owner 拆分承载。 |
+| [x] | `internal/assistant/engine/session_context_recovery_edges_test.go:9`; `session_context_retry_boundaries_test.go:89,143` | chat auto-compaction, rejected compaction notice and gate contention tests | P1 | exact：恢复、失败 notice 与并发 gate 行为均有对应 Rust 断言。 |
+| [x] | `internal/assistant/engine/session_context_stale_test.go:106,160,188,209,231,315,420` | stale event/session fencing, duplicate rollback, restart durability, projection size and pressure tests | P1 | partial：stale retry、数据库回滚、handoff/input 恢复和 projection pressure 均通过；Go 的单体 retry 聚合仍由拆分证据覆盖。 |
+| [x] | `internal/assistant/engine/session_context_test.go:15,120,183,287,341,446,506,569,651,703,773,787,800,813,827` | context window/revision, manual/auto compaction, pending approval rewind, handoff revision tests | P1 | exact：窗口、revision、notice、gate、workflow compaction 与 approval tail 行为逐项通过。 |
+
+本批 30 条 Go 映射对应 Rust 精准 nextest 24 个去重测试通过，另以 `session_context_ignores_handoff_segments_without_a_revision` 替换无实际 Rust 测试的 `session_context_snapshot` 条目；未发现需要先红后修的生产差异。projection 聚合保持 partial，不把重复或拆分证据升级为 exact。
+
+验证：
+`node scripts/quality/cargo-nextest.mjs run --all-targets --locked -E 'test(protected_tail_ignores_approvals_closed_by_a_denied_run) or test(context_compaction_shrinks_the_projected_session_view) or test(protected_tail_keeps_only_the_approval_that_is_still_pending) or test(protected_tail_ignores_an_approval_with_a_durable_tool_outcome) or test(protected_tail_starts_at_the_earliest_unresolved_approval) or test(a_chat_turn_autocompacts_the_session_before_the_provider_payload) or test(a_rejected_compaction_records_the_failed_notice) or test(a_second_compaction_is_rejected_while_the_session_gate_is_held) or test(event_must_match_the_run_and_session_before_projection_changes) or test(duplicate_event_key_with_different_content_rolls_back_projection) or test(adk_session_store_lifecycle_and_restart_durability) or test(missing_session_database_is_not_created_and_run_is_unchanged) or test(pending_input_is_persisted_and_answer_resume_is_idempotent) or test(model_context_autocompacts_before_the_provider_payload) or test(session_context_read_reports_pressure_without_compacting) or test(session_context_window_follows_the_composer_provider_override) or test(each_context_compaction_creates_the_next_current_revision) or test(manual_context_compaction_writes_the_done_notice_into_the_timeline) or test(auto_compaction_emits_streaming_then_final_notice_and_context_delta) or test(auto_compaction_skips_while_another_compaction_holds_the_session_gate) or test(model_context_read_compacts_only_when_the_session_gate_is_free) or test(workflow_auto_compaction_proceeds_under_an_active_run_while_chat_waits) or test(protected_tail_rewinds_a_pending_approval_to_its_original_call) or test(session_context_ignores_handoff_segments_without_a_revision)'`
+
+下一片：继续 P1 Assistant session skill/store、workflow/ADK 与 API transport 映射。
+
 ## 第 148 批：Futu/OpenD connection recovery、market/trading reads 与 user security（2026-09-25）
 
 | 复核 | Go 测试范围 | Rust 证据 | P | 结论 |
