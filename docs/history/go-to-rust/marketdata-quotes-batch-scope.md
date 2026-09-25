@@ -1545,6 +1545,23 @@ ADK/Assistant 功能差异，先补失败回归测试再修改领域 owner。
 
 下一片：继续 P2 API transport、MarketData/Quote、Storage/SQLite、Settings/Watchlist、Backtest/Calendar 与 Strategy/Pine；`optional_bool_strict` helper、P1 `session_context_snapshot` 及其他无独立 Rust 测试条目仍保持未验证结论。
 
+## 第 197 批：Web access/frontend 安全与 Assistant/Workflow/ADK contracts（2026-09-26）
+
+| 复核 | Go 测试范围 | Rust 证据 | P | 结论 |
+| :---: | --- | --- | :---: | --- |
+| [x] | `webaccess/frontend_test.go:106,139`; `webaccess/security_integration_test.go:175,256,278,335,362,400,422,437,461,510` | SPA/API fallback、TLS/loopback scheme、web auth/session、listener binding、bearer protocol、origin allowlist、cookie and removed-route guards | P2 | partial/boundary：Rust API/engine auth owner tests cover the security matrix; Go WebAccess facade、browser navigation and desktop/public-access composition remain partial. `desired_bind` is a runtime helper, not an independent test. |
+| [x] | `assistant/assembly/adk_backtest_adapter_test.go:8`; `adk_capability_contracts_test.go:12,94` | Pine validation owner fields/defaults、strategy activity paging、research backtest structured costs、approval gating、malformed/missing ADK inputs | P2 | partial：Rust ADK/Pine production ports cover normalized payload and rejection behavior；Go adapter/handler aggregation and visual-model facade remain partial. |
+| [x] | `assistant/assembly/adk_closure_contracts_test.go:12,73` | ready-runtime system status block、plain status without assistant、candle/watchlist normalization、compact market candles、missing-owner fail-closed mapping | P2 | partial：closure readers and owner-port failures have direct Rust tests；Go closure construction、dependency injection and tool error aggregation remain structural boundaries. |
+| [x] | `assistant/assembly/adk_product_catalog_test.go:13,29,77,138` | built-in tool registry、reviewed read-only capability classes、catalog-backed operation schemas and structured routing without free text | P2 | partial：catalog/schema owner tests are present and bounded；Go assembled registry and MCP facade wiring are not promoted to exact from aggregate registration evidence. |
+| [x] | `assistant/assembly/adk_runtime_contracts_test.go:13,113,156`; `adk_strategy_input_validation_test.go:10` | Pine/backtest result owner contracts、real bundle ports、nested backtest filters、optimization task persistence、pending sync short-circuit and extended-hours summary | P2 | partial：runtime executor and durable task tests cover the business outcomes；Go runtime adapter, queue ownership and summary response facade remain partial. |
+| [x] | `assistant/assembly/adk_strategy_test.go:19,32,77,308,397` | subscription failure projection、order scope/status normalization、ADK task/memory CRUD、definition-version history and backtest filter matrix | P2 | partial：Rust MCP/strategy/trade owners cover validation and persistence semantics；Go workflow adapter helpers, handler composition and immutable snapshot aggregation remain partial. |
+
+本批 30 条 Go 映射对应表达式中的 43 个过滤器，Rust nextest 实际 **42/42** 通过（3431 skipped）。`desired_bind` 是 server runtime helper、没有独立测试，未将其计入通过凭证；其余 Web access、frontend、Assistant、Workflow、ADK catalog/runtime 条目均写入通过证据。Go WebAuth/HTTP facade、Wails/desktop 组合、ADK closure/handler 聚合与 queue wiring 保持 `partial`/`boundary`，未把 catalog 或聚合测试升级为 exact；未发现需要先红后修的真实 Rust 功能差异。
+
+验证：动态生成本批过滤器运行 `node scripts/quality/cargo-nextest.mjs run --all-targets --locked -E`，42/42 通过。
+
+下一片：继续 P2 Assistant/Workflow/ADK、API transport、MarketData/Quote、Storage/SQLite 与 Backtest/Calendar；`optional_bool_strict` helper、P1 `session_context_snapshot` 及其他无独立 Rust 测试条目仍保持未验证结论。
+
 ## 第 196 批：系统状态、执行通知、订单对账与 Web 鉴权（2026-09-26）
 
 | 复核 | Go 测试范围 | Rust 证据 | P | 结论 |
