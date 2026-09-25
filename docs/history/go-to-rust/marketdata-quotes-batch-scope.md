@@ -1562,6 +1562,23 @@ ADK/Assistant 功能差异，先补失败回归测试再修改领域 owner。
 
 下一片：继续 P2 Assistant/Workflow/ADK、API transport、MarketData/Quote、Storage/SQLite 与 Backtest/Calendar；`optional_bool_strict` helper、P1 `session_context_snapshot` 及其他无独立 Rust 测试条目仍保持未验证结论。
 
+## 第 201 批：ADK store/tool edges、chat execution 与 durable claims（2026-09-26）
+
+| 复核 | Go 测试范围 | Rust 证据 | P | 结论 |
+| :---: | --- | --- | :---: | --- |
+| [x] | `adk_store_edges_test.go:148,193,272,303,437` | provider default ordering、approval/memory idempotence、transaction JSON/table failures、workflow timestamp CAS/delete and task normalization | P2 | partial：Rust ADK SQLite/store owners cover durable state and error boundaries；Go GORM/store facade and helper-specific error branches remain partial. |
+| [x] | `adk_tool_edges_test.go:21,77,131,165,340` | model listing、unsafe HTTP redirect guard、run projection summaries/usage、stale embedded approval restage and session pressure | P2 | partial：Rust MCP/runtime edge tests cover validation and projection; Go tool helper composition and provider test doubles remain boundary evidence. |
+| [~] | `adk_tool_edges_test.go:177,235`; `completion_review_test.go:35` | `complete`, `CanvasCompiler`, `synthetic_assistant_message_id` helper/type symbols only; no independent Rust test filter | P2 | boundary：保持 `unverified`，未将宽匹配或类型符号计入 Rust 覆盖。 |
+| [x] | `approval_persistence_failures_test.go:9`; `approval_state_guard_test.go:9`; `canvas_provider_model_overrides_test.go:8`; `chat_request_idempotency_test.go:17,48`; `completion_review_test.go:79`; `event_projection_reply_ordering_test.go:15` | approval CAS, fresh durable reopen, canvas provider/model propagation, chat idempotency/concurrent event, final SSE order and pre-tool timeline anchoring | P2 | partial：Rust assistant runtime/store/canvas contracts cover durable transitions and event ordering；Go Google ADK runtime facade and SSE aggregation remain partial. |
+| [x] | `exec_bounds_test.go:14,57,93,175,238,275,364`; `exec_state_bounds_test.go:101,171` | run projection/tool summaries、failed tool-call persistence、workflow error、pause snapshot、tool-only synthesis、approval resolution、terminal rehydrate and buffered text/run snapshot | P2 | partial：Rust execution projection and recovery tests cover state ownership; Go execution descriptor/test-double branches and stream facade remain structural boundaries. |
+| [x] | `execution_claim_failure_boundaries_test.go:39` | lease expiry/stale release fencing and same-owner heartbeat renewal | P2 | partial：Rust assistant claims owner tests pass; Go claim lifecycle facade is recorded as partial pending broader call-path equivalence. |
+
+本批 30 条 Go 映射中，3 条仅引用 helper/type 符号，保持 `unverified`；其余 27 条写入通过凭证。排除 `complete`、`CanvasCompiler`、`synthetic_assistant_message_id` 后，表达式包含 26 个真实过滤器，Rust nextest **26/26** 通过（3447 skipped）。ADK store/tool edges、chat execution、projection/recovery 与 durable claim 证据均可解析；未发现需要先红后修的真实 Rust 功能差异，也未将 helper/type 名称或聚合测试升级为 exact。
+
+验证：动态生成本批过滤器运行 `node scripts/quality/cargo-nextest.mjs run --all-targets --locked -E`，26/26 通过；3 个 helper/type-only 映射保留边界结论。
+
+下一片：继续 P2 Assistant/Workflow/ADK、API transport、MarketData/Quote、Storage/SQLite 与 Backtest/Calendar；`optional_bool_strict`、`complete`、`CanvasCompiler`、`synthetic_assistant_message_id` 及 P1 `session_context_snapshot` 等无独立 Rust 测试条目仍保持未验证结论。
+
 ## 第 200 批：Workflow bridge/tools、ADK runtime edges 与 typed capabilities（2026-09-26）
 
 | 复核 | Go 测试范围 | Rust 证据 | P | 结论 |
