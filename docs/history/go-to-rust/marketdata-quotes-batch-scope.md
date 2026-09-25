@@ -593,3 +593,16 @@ ADK/Assistant 功能差异，先补失败回归测试再修改领域 owner。
 `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(readiness_without_composed_runtimes_reports_all_false) or test(news_actions_binding_requires_yfinance_helper_readiness) or test(test_helper_health_failure_dynamically_downgrades_provider_readiness)'`
 
 下一片：`internal/app/apiserver/backtestapp/historical_source_test.go:401:TestProviderOptionsRequireMarketDataRuntime`，核对旧 ProviderOptions 构造器与 Rust composition/backtest startup 边界。
+
+## 第 137 批：ProviderOptions market-data runtime boundary（2026-09-25）
+
+| 复核 | Go 测试 | Rust 证据 | P | 结论 |
+| :---: | --- | --- | :---: | --- |
+| [x] | `historical_source_test.go:401:TestProviderOptionsRequireMarketDataRuntime` | `production_backtest_start_without_worker_fails_before_persisting_run` | P2 | boundary：Go 断言 `ProviderOptions(nil, ...)` panic 为 `assemble backtest service: market-data provider runtime is unavailable`，并隐含固定数量 options 构造；Rust 没有同形函数式 options owner，但回测 start 在 worker runtime 缺失时返回 unavailable 且 run_count 保持 0，属于 composition/backtest port 形状差异。 |
+
+本批没有发现需要先红后修的 Rust 生产功能差异；精准 nextest 1/1 通过。
+
+验证：
+`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(production_backtest_start_without_worker_fails_before_persisting_run)'`
+
+下一片：`internal/app/apiserver/backtestapp/historical_source_test.go:414:TestPositiveFloatRecognizesSupportedRuleTypes`，核对市场规则正浮点过滤与 Rust typed constraint parser 的差异。

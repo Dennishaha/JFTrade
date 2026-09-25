@@ -25183,7 +25183,7 @@
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_backtest_sync_start_tests.rs::production_backtest_start_without_worker_fails_before_persisting_run",
       "conclusion": "boundary：Go 断言 ProviderOptions 需要 market-data runtime 且返回固定数量的选项。Rust 没有 Go 的函数式 options 构造器；回测启动在缺 worker/历史时失败且不落库（production_backtest_start_without_worker_fails_before_persisting_run），装配期依赖在组合根显式化，属接口差异。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(production_backtest_start_without_worker_fails_before_persisting_run)'",
       "evidence_type": "boundary",
       "source": {
         "file": "internal/app/apiserver/backtestapp/historical_source_test.go",
@@ -25214,7 +25214,9 @@
           "-p",
           "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(production_backtest_start_without_worker_fails_before_persisting_run)"
         ],
         "testFilter": [
           "production_backtest_start_without_worker_fails_before_persisting_run"
