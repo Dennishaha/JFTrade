@@ -230772,20 +230772,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-integration-futu",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(test_basic_quote_availability_rejection_enters_delayed_fallback_and_reconcile_succeeds) or test(quote_cache_serves_repeat_reads_within_one_provider_generation) or test(futu_snapshot_route_projects_cached_extended_quote_contract) or test(malformed_identity_and_unbounded_pages_fail_closed) or test(test_quote_cache_and_import_helpers_keep_absent_data_explicit) or test(rejected_provider_switch_preserves_the_current_quote_cache) or test(provider_switch_drops_quotes_cached_under_the_previous_provider) or test(concurrent_group_updates_commit_with_revision_fence) or test(test_store_canceled_maintenance_does_not_mutate_runs) or test(test_in_memory_store_implements_run_lifecycle_and_cancellation) or test(sync_task_cancel_distinguishes_missing_active_and_terminal) or test(test_calendar_store_empty_load_and_delete_are_idempotent) or test(test_save_snapshot_validates_inputs_and_resolves_year_fallbacks) or test(test_settings_normalization_handles_fallbacks_and_boundaries) or test(test_failed_setting_saves_rollback_all_runtime_state) or test(test_failed_bootstrap_and_migration_rollback_runtime_state) or test(test_failed_managed_account_crud_rolls_back_backing_array) or test(missing_empty_and_corrupted_documents_have_distinct_behavior) or test(product_corpus_replays_frozen_compatibility_and_preserves_unknown_fields) or test(appearance_round_trip_preserves_unknown_go_owned_fields) or test(security_settings_writes_match_frozen_compatibility_expectations) or test(listener_failure_rolls_back_the_persisted_settings) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(exclusive_lock_conflicts_and_file_survives_release)"
         ],
         "testFilter": [
           "security_snapshot_coordinator_classifies_remote_rate_limit"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "3132b60290fd9e70004b73805342636497ac2f27",
+        "verifiedAt": "2026-09-25T14:21:18Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -230834,20 +230834,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-integration-futu",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(test_basic_quote_availability_rejection_enters_delayed_fallback_and_reconcile_succeeds) or test(quote_cache_serves_repeat_reads_within_one_provider_generation) or test(futu_snapshot_route_projects_cached_extended_quote_contract) or test(malformed_identity_and_unbounded_pages_fail_closed) or test(test_quote_cache_and_import_helpers_keep_absent_data_explicit) or test(rejected_provider_switch_preserves_the_current_quote_cache) or test(provider_switch_drops_quotes_cached_under_the_previous_provider) or test(concurrent_group_updates_commit_with_revision_fence) or test(test_store_canceled_maintenance_does_not_mutate_runs) or test(test_in_memory_store_implements_run_lifecycle_and_cancellation) or test(sync_task_cancel_distinguishes_missing_active_and_terminal) or test(test_calendar_store_empty_load_and_delete_are_idempotent) or test(test_save_snapshot_validates_inputs_and_resolves_year_fallbacks) or test(test_settings_normalization_handles_fallbacks_and_boundaries) or test(test_failed_setting_saves_rollback_all_runtime_state) or test(test_failed_bootstrap_and_migration_rollback_runtime_state) or test(test_failed_managed_account_crud_rolls_back_backing_array) or test(missing_empty_and_corrupted_documents_have_distinct_behavior) or test(product_corpus_replays_frozen_compatibility_and_preserves_unknown_fields) or test(appearance_round_trip_preserves_unknown_go_owned_fields) or test(security_settings_writes_match_frozen_compatibility_expectations) or test(listener_failure_rolls_back_the_persisted_settings) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(exclusive_lock_conflicts_and_file_survives_release)"
         ],
         "testFilter": [
           "test_basic_quote_availability_rejection_enters_delayed_fallback_and_reconcile_succeeds"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "3132b60290fd9e70004b73805342636497ac2f27",
+        "verifiedAt": "2026-09-25T14:21:18Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -231082,20 +231082,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(test_basic_quote_availability_rejection_enters_delayed_fallback_and_reconcile_succeeds) or test(quote_cache_serves_repeat_reads_within_one_provider_generation) or test(futu_snapshot_route_projects_cached_extended_quote_contract) or test(malformed_identity_and_unbounded_pages_fail_closed) or test(test_quote_cache_and_import_helpers_keep_absent_data_explicit) or test(rejected_provider_switch_preserves_the_current_quote_cache) or test(provider_switch_drops_quotes_cached_under_the_previous_provider) or test(concurrent_group_updates_commit_with_revision_fence) or test(test_store_canceled_maintenance_does_not_mutate_runs) or test(test_in_memory_store_implements_run_lifecycle_and_cancellation) or test(sync_task_cancel_distinguishes_missing_active_and_terminal) or test(test_calendar_store_empty_load_and_delete_are_idempotent) or test(test_save_snapshot_validates_inputs_and_resolves_year_fallbacks) or test(test_settings_normalization_handles_fallbacks_and_boundaries) or test(test_failed_setting_saves_rollback_all_runtime_state) or test(test_failed_bootstrap_and_migration_rollback_runtime_state) or test(test_failed_managed_account_crud_rolls_back_backing_array) or test(missing_empty_and_corrupted_documents_have_distinct_behavior) or test(product_corpus_replays_frozen_compatibility_and_preserves_unknown_fields) or test(appearance_round_trip_preserves_unknown_go_owned_fields) or test(security_settings_writes_match_frozen_compatibility_expectations) or test(listener_failure_rolls_back_the_persisted_settings) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(exclusive_lock_conflicts_and_file_survives_release)"
         ],
         "testFilter": [
           "quote_cache_serves_repeat_reads_within_one_provider_generation"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "3132b60290fd9e70004b73805342636497ac2f27",
+        "verifiedAt": "2026-09-25T14:21:18Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -231144,20 +231144,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(test_basic_quote_availability_rejection_enters_delayed_fallback_and_reconcile_succeeds) or test(quote_cache_serves_repeat_reads_within_one_provider_generation) or test(futu_snapshot_route_projects_cached_extended_quote_contract) or test(malformed_identity_and_unbounded_pages_fail_closed) or test(test_quote_cache_and_import_helpers_keep_absent_data_explicit) or test(rejected_provider_switch_preserves_the_current_quote_cache) or test(provider_switch_drops_quotes_cached_under_the_previous_provider) or test(concurrent_group_updates_commit_with_revision_fence) or test(test_store_canceled_maintenance_does_not_mutate_runs) or test(test_in_memory_store_implements_run_lifecycle_and_cancellation) or test(sync_task_cancel_distinguishes_missing_active_and_terminal) or test(test_calendar_store_empty_load_and_delete_are_idempotent) or test(test_save_snapshot_validates_inputs_and_resolves_year_fallbacks) or test(test_settings_normalization_handles_fallbacks_and_boundaries) or test(test_failed_setting_saves_rollback_all_runtime_state) or test(test_failed_bootstrap_and_migration_rollback_runtime_state) or test(test_failed_managed_account_crud_rolls_back_backing_array) or test(missing_empty_and_corrupted_documents_have_distinct_behavior) or test(product_corpus_replays_frozen_compatibility_and_preserves_unknown_fields) or test(appearance_round_trip_preserves_unknown_go_owned_fields) or test(security_settings_writes_match_frozen_compatibility_expectations) or test(listener_failure_rolls_back_the_persisted_settings) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(exclusive_lock_conflicts_and_file_survives_release)"
         ],
         "testFilter": [
           "futu_snapshot_route_projects_cached_extended_quote_contract"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "3132b60290fd9e70004b73805342636497ac2f27",
+        "verifiedAt": "2026-09-25T14:21:18Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -231392,20 +231392,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-watchlist",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(test_basic_quote_availability_rejection_enters_delayed_fallback_and_reconcile_succeeds) or test(quote_cache_serves_repeat_reads_within_one_provider_generation) or test(futu_snapshot_route_projects_cached_extended_quote_contract) or test(malformed_identity_and_unbounded_pages_fail_closed) or test(test_quote_cache_and_import_helpers_keep_absent_data_explicit) or test(rejected_provider_switch_preserves_the_current_quote_cache) or test(provider_switch_drops_quotes_cached_under_the_previous_provider) or test(concurrent_group_updates_commit_with_revision_fence) or test(test_store_canceled_maintenance_does_not_mutate_runs) or test(test_in_memory_store_implements_run_lifecycle_and_cancellation) or test(sync_task_cancel_distinguishes_missing_active_and_terminal) or test(test_calendar_store_empty_load_and_delete_are_idempotent) or test(test_save_snapshot_validates_inputs_and_resolves_year_fallbacks) or test(test_settings_normalization_handles_fallbacks_and_boundaries) or test(test_failed_setting_saves_rollback_all_runtime_state) or test(test_failed_bootstrap_and_migration_rollback_runtime_state) or test(test_failed_managed_account_crud_rolls_back_backing_array) or test(missing_empty_and_corrupted_documents_have_distinct_behavior) or test(product_corpus_replays_frozen_compatibility_and_preserves_unknown_fields) or test(appearance_round_trip_preserves_unknown_go_owned_fields) or test(security_settings_writes_match_frozen_compatibility_expectations) or test(listener_failure_rolls_back_the_persisted_settings) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(exclusive_lock_conflicts_and_file_survives_release)"
         ],
         "testFilter": [
           "malformed_identity_and_unbounded_pages_fail_closed"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "3132b60290fd9e70004b73805342636497ac2f27",
+        "verifiedAt": "2026-09-25T14:21:18Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -231459,18 +231459,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-watchlist"
+          "--all-targets",
+          "--locked",
+          "-E",
+          "test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(test_basic_quote_availability_rejection_enters_delayed_fallback_and_reconcile_succeeds) or test(quote_cache_serves_repeat_reads_within_one_provider_generation) or test(futu_snapshot_route_projects_cached_extended_quote_contract) or test(malformed_identity_and_unbounded_pages_fail_closed) or test(test_quote_cache_and_import_helpers_keep_absent_data_explicit) or test(rejected_provider_switch_preserves_the_current_quote_cache) or test(provider_switch_drops_quotes_cached_under_the_previous_provider) or test(concurrent_group_updates_commit_with_revision_fence) or test(test_store_canceled_maintenance_does_not_mutate_runs) or test(test_in_memory_store_implements_run_lifecycle_and_cancellation) or test(sync_task_cancel_distinguishes_missing_active_and_terminal) or test(test_calendar_store_empty_load_and_delete_are_idempotent) or test(test_save_snapshot_validates_inputs_and_resolves_year_fallbacks) or test(test_settings_normalization_handles_fallbacks_and_boundaries) or test(test_failed_setting_saves_rollback_all_runtime_state) or test(test_failed_bootstrap_and_migration_rollback_runtime_state) or test(test_failed_managed_account_crud_rolls_back_backing_array) or test(missing_empty_and_corrupted_documents_have_distinct_behavior) or test(product_corpus_replays_frozen_compatibility_and_preserves_unknown_fields) or test(appearance_round_trip_preserves_unknown_go_owned_fields) or test(security_settings_writes_match_frozen_compatibility_expectations) or test(listener_failure_rolls_back_the_persisted_settings) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(exclusive_lock_conflicts_and_file_survives_release)"
         ],
         "testFilter": [
           "test_quote_cache_and_import_helpers_keep_absent_data_explicit"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "3132b60290fd9e70004b73805342636497ac2f27",
+        "verifiedAt": "2026-09-25T14:21:18Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -231585,20 +231587,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(test_basic_quote_availability_rejection_enters_delayed_fallback_and_reconcile_succeeds) or test(quote_cache_serves_repeat_reads_within_one_provider_generation) or test(futu_snapshot_route_projects_cached_extended_quote_contract) or test(malformed_identity_and_unbounded_pages_fail_closed) or test(test_quote_cache_and_import_helpers_keep_absent_data_explicit) or test(rejected_provider_switch_preserves_the_current_quote_cache) or test(provider_switch_drops_quotes_cached_under_the_previous_provider) or test(concurrent_group_updates_commit_with_revision_fence) or test(test_store_canceled_maintenance_does_not_mutate_runs) or test(test_in_memory_store_implements_run_lifecycle_and_cancellation) or test(sync_task_cancel_distinguishes_missing_active_and_terminal) or test(test_calendar_store_empty_load_and_delete_are_idempotent) or test(test_save_snapshot_validates_inputs_and_resolves_year_fallbacks) or test(test_settings_normalization_handles_fallbacks_and_boundaries) or test(test_failed_setting_saves_rollback_all_runtime_state) or test(test_failed_bootstrap_and_migration_rollback_runtime_state) or test(test_failed_managed_account_crud_rolls_back_backing_array) or test(missing_empty_and_corrupted_documents_have_distinct_behavior) or test(product_corpus_replays_frozen_compatibility_and_preserves_unknown_fields) or test(appearance_round_trip_preserves_unknown_go_owned_fields) or test(security_settings_writes_match_frozen_compatibility_expectations) or test(listener_failure_rolls_back_the_persisted_settings) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(exclusive_lock_conflicts_and_file_survives_release)"
         ],
         "testFilter": [
           "quote_cache_serves_repeat_reads_within_one_provider_generation"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "3132b60290fd9e70004b73805342636497ac2f27",
+        "verifiedAt": "2026-09-25T14:21:18Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -231709,20 +231711,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(test_basic_quote_availability_rejection_enters_delayed_fallback_and_reconcile_succeeds) or test(quote_cache_serves_repeat_reads_within_one_provider_generation) or test(futu_snapshot_route_projects_cached_extended_quote_contract) or test(malformed_identity_and_unbounded_pages_fail_closed) or test(test_quote_cache_and_import_helpers_keep_absent_data_explicit) or test(rejected_provider_switch_preserves_the_current_quote_cache) or test(provider_switch_drops_quotes_cached_under_the_previous_provider) or test(concurrent_group_updates_commit_with_revision_fence) or test(test_store_canceled_maintenance_does_not_mutate_runs) or test(test_in_memory_store_implements_run_lifecycle_and_cancellation) or test(sync_task_cancel_distinguishes_missing_active_and_terminal) or test(test_calendar_store_empty_load_and_delete_are_idempotent) or test(test_save_snapshot_validates_inputs_and_resolves_year_fallbacks) or test(test_settings_normalization_handles_fallbacks_and_boundaries) or test(test_failed_setting_saves_rollback_all_runtime_state) or test(test_failed_bootstrap_and_migration_rollback_runtime_state) or test(test_failed_managed_account_crud_rolls_back_backing_array) or test(missing_empty_and_corrupted_documents_have_distinct_behavior) or test(product_corpus_replays_frozen_compatibility_and_preserves_unknown_fields) or test(appearance_round_trip_preserves_unknown_go_owned_fields) or test(security_settings_writes_match_frozen_compatibility_expectations) or test(listener_failure_rolls_back_the_persisted_settings) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(exclusive_lock_conflicts_and_file_survives_release)"
         ],
         "testFilter": [
           "quote_cache_serves_repeat_reads_within_one_provider_generation"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "3132b60290fd9e70004b73805342636497ac2f27",
+        "verifiedAt": "2026-09-25T14:21:18Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -231905,20 +231907,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(test_basic_quote_availability_rejection_enters_delayed_fallback_and_reconcile_succeeds) or test(quote_cache_serves_repeat_reads_within_one_provider_generation) or test(futu_snapshot_route_projects_cached_extended_quote_contract) or test(malformed_identity_and_unbounded_pages_fail_closed) or test(test_quote_cache_and_import_helpers_keep_absent_data_explicit) or test(rejected_provider_switch_preserves_the_current_quote_cache) or test(provider_switch_drops_quotes_cached_under_the_previous_provider) or test(concurrent_group_updates_commit_with_revision_fence) or test(test_store_canceled_maintenance_does_not_mutate_runs) or test(test_in_memory_store_implements_run_lifecycle_and_cancellation) or test(sync_task_cancel_distinguishes_missing_active_and_terminal) or test(test_calendar_store_empty_load_and_delete_are_idempotent) or test(test_save_snapshot_validates_inputs_and_resolves_year_fallbacks) or test(test_settings_normalization_handles_fallbacks_and_boundaries) or test(test_failed_setting_saves_rollback_all_runtime_state) or test(test_failed_bootstrap_and_migration_rollback_runtime_state) or test(test_failed_managed_account_crud_rolls_back_backing_array) or test(missing_empty_and_corrupted_documents_have_distinct_behavior) or test(product_corpus_replays_frozen_compatibility_and_preserves_unknown_fields) or test(appearance_round_trip_preserves_unknown_go_owned_fields) or test(security_settings_writes_match_frozen_compatibility_expectations) or test(listener_failure_rolls_back_the_persisted_settings) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(exclusive_lock_conflicts_and_file_survives_release)"
         ],
         "testFilter": [
           "rejected_provider_switch_preserves_the_current_quote_cache"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "3132b60290fd9e70004b73805342636497ac2f27",
+        "verifiedAt": "2026-09-25T14:21:18Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -231967,20 +231969,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(test_basic_quote_availability_rejection_enters_delayed_fallback_and_reconcile_succeeds) or test(quote_cache_serves_repeat_reads_within_one_provider_generation) or test(futu_snapshot_route_projects_cached_extended_quote_contract) or test(malformed_identity_and_unbounded_pages_fail_closed) or test(test_quote_cache_and_import_helpers_keep_absent_data_explicit) or test(rejected_provider_switch_preserves_the_current_quote_cache) or test(provider_switch_drops_quotes_cached_under_the_previous_provider) or test(concurrent_group_updates_commit_with_revision_fence) or test(test_store_canceled_maintenance_does_not_mutate_runs) or test(test_in_memory_store_implements_run_lifecycle_and_cancellation) or test(sync_task_cancel_distinguishes_missing_active_and_terminal) or test(test_calendar_store_empty_load_and_delete_are_idempotent) or test(test_save_snapshot_validates_inputs_and_resolves_year_fallbacks) or test(test_settings_normalization_handles_fallbacks_and_boundaries) or test(test_failed_setting_saves_rollback_all_runtime_state) or test(test_failed_bootstrap_and_migration_rollback_runtime_state) or test(test_failed_managed_account_crud_rolls_back_backing_array) or test(missing_empty_and_corrupted_documents_have_distinct_behavior) or test(product_corpus_replays_frozen_compatibility_and_preserves_unknown_fields) or test(appearance_round_trip_preserves_unknown_go_owned_fields) or test(security_settings_writes_match_frozen_compatibility_expectations) or test(listener_failure_rolls_back_the_persisted_settings) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(exclusive_lock_conflicts_and_file_survives_release)"
         ],
         "testFilter": [
           "provider_switch_drops_quotes_cached_under_the_previous_provider"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "3132b60290fd9e70004b73805342636497ac2f27",
+        "verifiedAt": "2026-09-25T14:21:18Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -232029,20 +232031,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(test_basic_quote_availability_rejection_enters_delayed_fallback_and_reconcile_succeeds) or test(quote_cache_serves_repeat_reads_within_one_provider_generation) or test(futu_snapshot_route_projects_cached_extended_quote_contract) or test(malformed_identity_and_unbounded_pages_fail_closed) or test(test_quote_cache_and_import_helpers_keep_absent_data_explicit) or test(rejected_provider_switch_preserves_the_current_quote_cache) or test(provider_switch_drops_quotes_cached_under_the_previous_provider) or test(concurrent_group_updates_commit_with_revision_fence) or test(test_store_canceled_maintenance_does_not_mutate_runs) or test(test_in_memory_store_implements_run_lifecycle_and_cancellation) or test(sync_task_cancel_distinguishes_missing_active_and_terminal) or test(test_calendar_store_empty_load_and_delete_are_idempotent) or test(test_save_snapshot_validates_inputs_and_resolves_year_fallbacks) or test(test_settings_normalization_handles_fallbacks_and_boundaries) or test(test_failed_setting_saves_rollback_all_runtime_state) or test(test_failed_bootstrap_and_migration_rollback_runtime_state) or test(test_failed_managed_account_crud_rolls_back_backing_array) or test(missing_empty_and_corrupted_documents_have_distinct_behavior) or test(product_corpus_replays_frozen_compatibility_and_preserves_unknown_fields) or test(appearance_round_trip_preserves_unknown_go_owned_fields) or test(security_settings_writes_match_frozen_compatibility_expectations) or test(listener_failure_rolls_back_the_persisted_settings) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(exclusive_lock_conflicts_and_file_survives_release)"
         ],
         "testFilter": [
           "quote_cache_serves_repeat_reads_within_one_provider_generation"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "3132b60290fd9e70004b73805342636497ac2f27",
+        "verifiedAt": "2026-09-25T14:21:18Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -232525,20 +232527,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(test_basic_quote_availability_rejection_enters_delayed_fallback_and_reconcile_succeeds) or test(quote_cache_serves_repeat_reads_within_one_provider_generation) or test(futu_snapshot_route_projects_cached_extended_quote_contract) or test(malformed_identity_and_unbounded_pages_fail_closed) or test(test_quote_cache_and_import_helpers_keep_absent_data_explicit) or test(rejected_provider_switch_preserves_the_current_quote_cache) or test(provider_switch_drops_quotes_cached_under_the_previous_provider) or test(concurrent_group_updates_commit_with_revision_fence) or test(test_store_canceled_maintenance_does_not_mutate_runs) or test(test_in_memory_store_implements_run_lifecycle_and_cancellation) or test(sync_task_cancel_distinguishes_missing_active_and_terminal) or test(test_calendar_store_empty_load_and_delete_are_idempotent) or test(test_save_snapshot_validates_inputs_and_resolves_year_fallbacks) or test(test_settings_normalization_handles_fallbacks_and_boundaries) or test(test_failed_setting_saves_rollback_all_runtime_state) or test(test_failed_bootstrap_and_migration_rollback_runtime_state) or test(test_failed_managed_account_crud_rolls_back_backing_array) or test(missing_empty_and_corrupted_documents_have_distinct_behavior) or test(product_corpus_replays_frozen_compatibility_and_preserves_unknown_fields) or test(appearance_round_trip_preserves_unknown_go_owned_fields) or test(security_settings_writes_match_frozen_compatibility_expectations) or test(listener_failure_rolls_back_the_persisted_settings) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(exclusive_lock_conflicts_and_file_survives_release)"
         ],
         "testFilter": [
           "concurrent_group_updates_commit_with_revision_fence"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "3132b60290fd9e70004b73805342636497ac2f27",
+        "verifiedAt": "2026-09-25T14:21:18Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -233336,20 +233338,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(test_store_canceled_maintenance_does_not_mutate_runs)"
+          "test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(test_basic_quote_availability_rejection_enters_delayed_fallback_and_reconcile_succeeds) or test(quote_cache_serves_repeat_reads_within_one_provider_generation) or test(futu_snapshot_route_projects_cached_extended_quote_contract) or test(malformed_identity_and_unbounded_pages_fail_closed) or test(test_quote_cache_and_import_helpers_keep_absent_data_explicit) or test(rejected_provider_switch_preserves_the_current_quote_cache) or test(provider_switch_drops_quotes_cached_under_the_previous_provider) or test(concurrent_group_updates_commit_with_revision_fence) or test(test_store_canceled_maintenance_does_not_mutate_runs) or test(test_in_memory_store_implements_run_lifecycle_and_cancellation) or test(sync_task_cancel_distinguishes_missing_active_and_terminal) or test(test_calendar_store_empty_load_and_delete_are_idempotent) or test(test_save_snapshot_validates_inputs_and_resolves_year_fallbacks) or test(test_settings_normalization_handles_fallbacks_and_boundaries) or test(test_failed_setting_saves_rollback_all_runtime_state) or test(test_failed_bootstrap_and_migration_rollback_runtime_state) or test(test_failed_managed_account_crud_rolls_back_backing_array) or test(missing_empty_and_corrupted_documents_have_distinct_behavior) or test(product_corpus_replays_frozen_compatibility_and_preserves_unknown_fields) or test(appearance_round_trip_preserves_unknown_go_owned_fields) or test(security_settings_writes_match_frozen_compatibility_expectations) or test(listener_failure_rolls_back_the_persisted_settings) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(exclusive_lock_conflicts_and_file_survives_release)"
         ],
         "testFilter": [
           "test_store_canceled_maintenance_does_not_mutate_runs"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "3132b60290fd9e70004b73805342636497ac2f27",
+        "verifiedAt": "2026-09-25T14:21:18Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -233708,20 +233710,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(test_in_memory_store_implements_run_lifecycle_and_cancellation)"
+          "test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(test_basic_quote_availability_rejection_enters_delayed_fallback_and_reconcile_succeeds) or test(quote_cache_serves_repeat_reads_within_one_provider_generation) or test(futu_snapshot_route_projects_cached_extended_quote_contract) or test(malformed_identity_and_unbounded_pages_fail_closed) or test(test_quote_cache_and_import_helpers_keep_absent_data_explicit) or test(rejected_provider_switch_preserves_the_current_quote_cache) or test(provider_switch_drops_quotes_cached_under_the_previous_provider) or test(concurrent_group_updates_commit_with_revision_fence) or test(test_store_canceled_maintenance_does_not_mutate_runs) or test(test_in_memory_store_implements_run_lifecycle_and_cancellation) or test(sync_task_cancel_distinguishes_missing_active_and_terminal) or test(test_calendar_store_empty_load_and_delete_are_idempotent) or test(test_save_snapshot_validates_inputs_and_resolves_year_fallbacks) or test(test_settings_normalization_handles_fallbacks_and_boundaries) or test(test_failed_setting_saves_rollback_all_runtime_state) or test(test_failed_bootstrap_and_migration_rollback_runtime_state) or test(test_failed_managed_account_crud_rolls_back_backing_array) or test(missing_empty_and_corrupted_documents_have_distinct_behavior) or test(product_corpus_replays_frozen_compatibility_and_preserves_unknown_fields) or test(appearance_round_trip_preserves_unknown_go_owned_fields) or test(security_settings_writes_match_frozen_compatibility_expectations) or test(listener_failure_rolls_back_the_persisted_settings) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(exclusive_lock_conflicts_and_file_survives_release)"
         ],
         "testFilter": [
           "test_in_memory_store_implements_run_lifecycle_and_cancellation"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "3132b60290fd9e70004b73805342636497ac2f27",
+        "verifiedAt": "2026-09-25T14:21:18Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -233775,20 +233777,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(sync_task_cancel_distinguishes_missing_active_and_terminal)"
+          "test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(test_basic_quote_availability_rejection_enters_delayed_fallback_and_reconcile_succeeds) or test(quote_cache_serves_repeat_reads_within_one_provider_generation) or test(futu_snapshot_route_projects_cached_extended_quote_contract) or test(malformed_identity_and_unbounded_pages_fail_closed) or test(test_quote_cache_and_import_helpers_keep_absent_data_explicit) or test(rejected_provider_switch_preserves_the_current_quote_cache) or test(provider_switch_drops_quotes_cached_under_the_previous_provider) or test(concurrent_group_updates_commit_with_revision_fence) or test(test_store_canceled_maintenance_does_not_mutate_runs) or test(test_in_memory_store_implements_run_lifecycle_and_cancellation) or test(sync_task_cancel_distinguishes_missing_active_and_terminal) or test(test_calendar_store_empty_load_and_delete_are_idempotent) or test(test_save_snapshot_validates_inputs_and_resolves_year_fallbacks) or test(test_settings_normalization_handles_fallbacks_and_boundaries) or test(test_failed_setting_saves_rollback_all_runtime_state) or test(test_failed_bootstrap_and_migration_rollback_runtime_state) or test(test_failed_managed_account_crud_rolls_back_backing_array) or test(missing_empty_and_corrupted_documents_have_distinct_behavior) or test(product_corpus_replays_frozen_compatibility_and_preserves_unknown_fields) or test(appearance_round_trip_preserves_unknown_go_owned_fields) or test(security_settings_writes_match_frozen_compatibility_expectations) or test(listener_failure_rolls_back_the_persisted_settings) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(exclusive_lock_conflicts_and_file_survives_release)"
         ],
         "testFilter": [
           "sync_task_cancel_distinguishes_missing_active_and_terminal"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "3132b60290fd9e70004b73805342636497ac2f27",
+        "verifiedAt": "2026-09-25T14:21:18Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -234110,18 +234112,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-calendar"
+          "--all-targets",
+          "--locked",
+          "-E",
+          "test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(test_basic_quote_availability_rejection_enters_delayed_fallback_and_reconcile_succeeds) or test(quote_cache_serves_repeat_reads_within_one_provider_generation) or test(futu_snapshot_route_projects_cached_extended_quote_contract) or test(malformed_identity_and_unbounded_pages_fail_closed) or test(test_quote_cache_and_import_helpers_keep_absent_data_explicit) or test(rejected_provider_switch_preserves_the_current_quote_cache) or test(provider_switch_drops_quotes_cached_under_the_previous_provider) or test(concurrent_group_updates_commit_with_revision_fence) or test(test_store_canceled_maintenance_does_not_mutate_runs) or test(test_in_memory_store_implements_run_lifecycle_and_cancellation) or test(sync_task_cancel_distinguishes_missing_active_and_terminal) or test(test_calendar_store_empty_load_and_delete_are_idempotent) or test(test_save_snapshot_validates_inputs_and_resolves_year_fallbacks) or test(test_settings_normalization_handles_fallbacks_and_boundaries) or test(test_failed_setting_saves_rollback_all_runtime_state) or test(test_failed_bootstrap_and_migration_rollback_runtime_state) or test(test_failed_managed_account_crud_rolls_back_backing_array) or test(missing_empty_and_corrupted_documents_have_distinct_behavior) or test(product_corpus_replays_frozen_compatibility_and_preserves_unknown_fields) or test(appearance_round_trip_preserves_unknown_go_owned_fields) or test(security_settings_writes_match_frozen_compatibility_expectations) or test(listener_failure_rolls_back_the_persisted_settings) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(exclusive_lock_conflicts_and_file_survives_release)"
         ],
         "testFilter": [
           "test_calendar_store_empty_load_and_delete_are_idempotent"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "3132b60290fd9e70004b73805342636497ac2f27",
+        "verifiedAt": "2026-09-25T14:21:18Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -234309,18 +234313,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-calendar"
+          "--all-targets",
+          "--locked",
+          "-E",
+          "test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(test_basic_quote_availability_rejection_enters_delayed_fallback_and_reconcile_succeeds) or test(quote_cache_serves_repeat_reads_within_one_provider_generation) or test(futu_snapshot_route_projects_cached_extended_quote_contract) or test(malformed_identity_and_unbounded_pages_fail_closed) or test(test_quote_cache_and_import_helpers_keep_absent_data_explicit) or test(rejected_provider_switch_preserves_the_current_quote_cache) or test(provider_switch_drops_quotes_cached_under_the_previous_provider) or test(concurrent_group_updates_commit_with_revision_fence) or test(test_store_canceled_maintenance_does_not_mutate_runs) or test(test_in_memory_store_implements_run_lifecycle_and_cancellation) or test(sync_task_cancel_distinguishes_missing_active_and_terminal) or test(test_calendar_store_empty_load_and_delete_are_idempotent) or test(test_save_snapshot_validates_inputs_and_resolves_year_fallbacks) or test(test_settings_normalization_handles_fallbacks_and_boundaries) or test(test_failed_setting_saves_rollback_all_runtime_state) or test(test_failed_bootstrap_and_migration_rollback_runtime_state) or test(test_failed_managed_account_crud_rolls_back_backing_array) or test(missing_empty_and_corrupted_documents_have_distinct_behavior) or test(product_corpus_replays_frozen_compatibility_and_preserves_unknown_fields) or test(appearance_round_trip_preserves_unknown_go_owned_fields) or test(security_settings_writes_match_frozen_compatibility_expectations) or test(listener_failure_rolls_back_the_persisted_settings) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(exclusive_lock_conflicts_and_file_survives_release)"
         ],
         "testFilter": [
           "test_save_snapshot_validates_inputs_and_resolves_year_fallbacks"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "3132b60290fd9e70004b73805342636497ac2f27",
+        "verifiedAt": "2026-09-25T14:21:18Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -235520,20 +235526,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-settings-file",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(test_settings_normalization_handles_fallbacks_and_boundaries)"
+          "test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(test_basic_quote_availability_rejection_enters_delayed_fallback_and_reconcile_succeeds) or test(quote_cache_serves_repeat_reads_within_one_provider_generation) or test(futu_snapshot_route_projects_cached_extended_quote_contract) or test(malformed_identity_and_unbounded_pages_fail_closed) or test(test_quote_cache_and_import_helpers_keep_absent_data_explicit) or test(rejected_provider_switch_preserves_the_current_quote_cache) or test(provider_switch_drops_quotes_cached_under_the_previous_provider) or test(concurrent_group_updates_commit_with_revision_fence) or test(test_store_canceled_maintenance_does_not_mutate_runs) or test(test_in_memory_store_implements_run_lifecycle_and_cancellation) or test(sync_task_cancel_distinguishes_missing_active_and_terminal) or test(test_calendar_store_empty_load_and_delete_are_idempotent) or test(test_save_snapshot_validates_inputs_and_resolves_year_fallbacks) or test(test_settings_normalization_handles_fallbacks_and_boundaries) or test(test_failed_setting_saves_rollback_all_runtime_state) or test(test_failed_bootstrap_and_migration_rollback_runtime_state) or test(test_failed_managed_account_crud_rolls_back_backing_array) or test(missing_empty_and_corrupted_documents_have_distinct_behavior) or test(product_corpus_replays_frozen_compatibility_and_preserves_unknown_fields) or test(appearance_round_trip_preserves_unknown_go_owned_fields) or test(security_settings_writes_match_frozen_compatibility_expectations) or test(listener_failure_rolls_back_the_persisted_settings) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(exclusive_lock_conflicts_and_file_survives_release)"
         ],
         "testFilter": [
           "test_settings_normalization_handles_fallbacks_and_boundaries"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "3132b60290fd9e70004b73805342636497ac2f27",
+        "verifiedAt": "2026-09-25T14:21:18Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -235959,20 +235965,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-settings-file",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(test_failed_setting_saves_rollback_all_runtime_state)"
+          "test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(test_basic_quote_availability_rejection_enters_delayed_fallback_and_reconcile_succeeds) or test(quote_cache_serves_repeat_reads_within_one_provider_generation) or test(futu_snapshot_route_projects_cached_extended_quote_contract) or test(malformed_identity_and_unbounded_pages_fail_closed) or test(test_quote_cache_and_import_helpers_keep_absent_data_explicit) or test(rejected_provider_switch_preserves_the_current_quote_cache) or test(provider_switch_drops_quotes_cached_under_the_previous_provider) or test(concurrent_group_updates_commit_with_revision_fence) or test(test_store_canceled_maintenance_does_not_mutate_runs) or test(test_in_memory_store_implements_run_lifecycle_and_cancellation) or test(sync_task_cancel_distinguishes_missing_active_and_terminal) or test(test_calendar_store_empty_load_and_delete_are_idempotent) or test(test_save_snapshot_validates_inputs_and_resolves_year_fallbacks) or test(test_settings_normalization_handles_fallbacks_and_boundaries) or test(test_failed_setting_saves_rollback_all_runtime_state) or test(test_failed_bootstrap_and_migration_rollback_runtime_state) or test(test_failed_managed_account_crud_rolls_back_backing_array) or test(missing_empty_and_corrupted_documents_have_distinct_behavior) or test(product_corpus_replays_frozen_compatibility_and_preserves_unknown_fields) or test(appearance_round_trip_preserves_unknown_go_owned_fields) or test(security_settings_writes_match_frozen_compatibility_expectations) or test(listener_failure_rolls_back_the_persisted_settings) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(exclusive_lock_conflicts_and_file_survives_release)"
         ],
         "testFilter": [
           "test_failed_setting_saves_rollback_all_runtime_state"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "3132b60290fd9e70004b73805342636497ac2f27",
+        "verifiedAt": "2026-09-25T14:21:18Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -236021,20 +236027,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-settings-file",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(test_failed_bootstrap_and_migration_rollback_runtime_state)"
+          "test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(test_basic_quote_availability_rejection_enters_delayed_fallback_and_reconcile_succeeds) or test(quote_cache_serves_repeat_reads_within_one_provider_generation) or test(futu_snapshot_route_projects_cached_extended_quote_contract) or test(malformed_identity_and_unbounded_pages_fail_closed) or test(test_quote_cache_and_import_helpers_keep_absent_data_explicit) or test(rejected_provider_switch_preserves_the_current_quote_cache) or test(provider_switch_drops_quotes_cached_under_the_previous_provider) or test(concurrent_group_updates_commit_with_revision_fence) or test(test_store_canceled_maintenance_does_not_mutate_runs) or test(test_in_memory_store_implements_run_lifecycle_and_cancellation) or test(sync_task_cancel_distinguishes_missing_active_and_terminal) or test(test_calendar_store_empty_load_and_delete_are_idempotent) or test(test_save_snapshot_validates_inputs_and_resolves_year_fallbacks) or test(test_settings_normalization_handles_fallbacks_and_boundaries) or test(test_failed_setting_saves_rollback_all_runtime_state) or test(test_failed_bootstrap_and_migration_rollback_runtime_state) or test(test_failed_managed_account_crud_rolls_back_backing_array) or test(missing_empty_and_corrupted_documents_have_distinct_behavior) or test(product_corpus_replays_frozen_compatibility_and_preserves_unknown_fields) or test(appearance_round_trip_preserves_unknown_go_owned_fields) or test(security_settings_writes_match_frozen_compatibility_expectations) or test(listener_failure_rolls_back_the_persisted_settings) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(exclusive_lock_conflicts_and_file_survives_release)"
         ],
         "testFilter": [
           "test_failed_bootstrap_and_migration_rollback_runtime_state"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "3132b60290fd9e70004b73805342636497ac2f27",
+        "verifiedAt": "2026-09-25T14:21:18Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -236083,20 +236089,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-settings-file",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(test_failed_managed_account_crud_rolls_back_backing_array)"
+          "test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(test_basic_quote_availability_rejection_enters_delayed_fallback_and_reconcile_succeeds) or test(quote_cache_serves_repeat_reads_within_one_provider_generation) or test(futu_snapshot_route_projects_cached_extended_quote_contract) or test(malformed_identity_and_unbounded_pages_fail_closed) or test(test_quote_cache_and_import_helpers_keep_absent_data_explicit) or test(rejected_provider_switch_preserves_the_current_quote_cache) or test(provider_switch_drops_quotes_cached_under_the_previous_provider) or test(concurrent_group_updates_commit_with_revision_fence) or test(test_store_canceled_maintenance_does_not_mutate_runs) or test(test_in_memory_store_implements_run_lifecycle_and_cancellation) or test(sync_task_cancel_distinguishes_missing_active_and_terminal) or test(test_calendar_store_empty_load_and_delete_are_idempotent) or test(test_save_snapshot_validates_inputs_and_resolves_year_fallbacks) or test(test_settings_normalization_handles_fallbacks_and_boundaries) or test(test_failed_setting_saves_rollback_all_runtime_state) or test(test_failed_bootstrap_and_migration_rollback_runtime_state) or test(test_failed_managed_account_crud_rolls_back_backing_array) or test(missing_empty_and_corrupted_documents_have_distinct_behavior) or test(product_corpus_replays_frozen_compatibility_and_preserves_unknown_fields) or test(appearance_round_trip_preserves_unknown_go_owned_fields) or test(security_settings_writes_match_frozen_compatibility_expectations) or test(listener_failure_rolls_back_the_persisted_settings) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(exclusive_lock_conflicts_and_file_survives_release)"
         ],
         "testFilter": [
           "test_failed_managed_account_crud_rolls_back_backing_array"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "3132b60290fd9e70004b73805342636497ac2f27",
+        "verifiedAt": "2026-09-25T14:21:18Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -236703,20 +236709,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-settings-file",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(test_basic_quote_availability_rejection_enters_delayed_fallback_and_reconcile_succeeds) or test(quote_cache_serves_repeat_reads_within_one_provider_generation) or test(futu_snapshot_route_projects_cached_extended_quote_contract) or test(malformed_identity_and_unbounded_pages_fail_closed) or test(test_quote_cache_and_import_helpers_keep_absent_data_explicit) or test(rejected_provider_switch_preserves_the_current_quote_cache) or test(provider_switch_drops_quotes_cached_under_the_previous_provider) or test(concurrent_group_updates_commit_with_revision_fence) or test(test_store_canceled_maintenance_does_not_mutate_runs) or test(test_in_memory_store_implements_run_lifecycle_and_cancellation) or test(sync_task_cancel_distinguishes_missing_active_and_terminal) or test(test_calendar_store_empty_load_and_delete_are_idempotent) or test(test_save_snapshot_validates_inputs_and_resolves_year_fallbacks) or test(test_settings_normalization_handles_fallbacks_and_boundaries) or test(test_failed_setting_saves_rollback_all_runtime_state) or test(test_failed_bootstrap_and_migration_rollback_runtime_state) or test(test_failed_managed_account_crud_rolls_back_backing_array) or test(missing_empty_and_corrupted_documents_have_distinct_behavior) or test(product_corpus_replays_frozen_compatibility_and_preserves_unknown_fields) or test(appearance_round_trip_preserves_unknown_go_owned_fields) or test(security_settings_writes_match_frozen_compatibility_expectations) or test(listener_failure_rolls_back_the_persisted_settings) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(exclusive_lock_conflicts_and_file_survives_release)"
         ],
         "testFilter": [
           "missing_empty_and_corrupted_documents_have_distinct_behavior"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "3132b60290fd9e70004b73805342636497ac2f27",
+        "verifiedAt": "2026-09-25T14:21:18Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -236765,20 +236771,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-settings-file",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(test_basic_quote_availability_rejection_enters_delayed_fallback_and_reconcile_succeeds) or test(quote_cache_serves_repeat_reads_within_one_provider_generation) or test(futu_snapshot_route_projects_cached_extended_quote_contract) or test(malformed_identity_and_unbounded_pages_fail_closed) or test(test_quote_cache_and_import_helpers_keep_absent_data_explicit) or test(rejected_provider_switch_preserves_the_current_quote_cache) or test(provider_switch_drops_quotes_cached_under_the_previous_provider) or test(concurrent_group_updates_commit_with_revision_fence) or test(test_store_canceled_maintenance_does_not_mutate_runs) or test(test_in_memory_store_implements_run_lifecycle_and_cancellation) or test(sync_task_cancel_distinguishes_missing_active_and_terminal) or test(test_calendar_store_empty_load_and_delete_are_idempotent) or test(test_save_snapshot_validates_inputs_and_resolves_year_fallbacks) or test(test_settings_normalization_handles_fallbacks_and_boundaries) or test(test_failed_setting_saves_rollback_all_runtime_state) or test(test_failed_bootstrap_and_migration_rollback_runtime_state) or test(test_failed_managed_account_crud_rolls_back_backing_array) or test(missing_empty_and_corrupted_documents_have_distinct_behavior) or test(product_corpus_replays_frozen_compatibility_and_preserves_unknown_fields) or test(appearance_round_trip_preserves_unknown_go_owned_fields) or test(security_settings_writes_match_frozen_compatibility_expectations) or test(listener_failure_rolls_back_the_persisted_settings) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(exclusive_lock_conflicts_and_file_survives_release)"
         ],
         "testFilter": [
           "test_failed_bootstrap_and_migration_rollback_runtime_state"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "3132b60290fd9e70004b73805342636497ac2f27",
+        "verifiedAt": "2026-09-25T14:21:18Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -236827,20 +236833,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-settings-file",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(test_basic_quote_availability_rejection_enters_delayed_fallback_and_reconcile_succeeds) or test(quote_cache_serves_repeat_reads_within_one_provider_generation) or test(futu_snapshot_route_projects_cached_extended_quote_contract) or test(malformed_identity_and_unbounded_pages_fail_closed) or test(test_quote_cache_and_import_helpers_keep_absent_data_explicit) or test(rejected_provider_switch_preserves_the_current_quote_cache) or test(provider_switch_drops_quotes_cached_under_the_previous_provider) or test(concurrent_group_updates_commit_with_revision_fence) or test(test_store_canceled_maintenance_does_not_mutate_runs) or test(test_in_memory_store_implements_run_lifecycle_and_cancellation) or test(sync_task_cancel_distinguishes_missing_active_and_terminal) or test(test_calendar_store_empty_load_and_delete_are_idempotent) or test(test_save_snapshot_validates_inputs_and_resolves_year_fallbacks) or test(test_settings_normalization_handles_fallbacks_and_boundaries) or test(test_failed_setting_saves_rollback_all_runtime_state) or test(test_failed_bootstrap_and_migration_rollback_runtime_state) or test(test_failed_managed_account_crud_rolls_back_backing_array) or test(missing_empty_and_corrupted_documents_have_distinct_behavior) or test(product_corpus_replays_frozen_compatibility_and_preserves_unknown_fields) or test(appearance_round_trip_preserves_unknown_go_owned_fields) or test(security_settings_writes_match_frozen_compatibility_expectations) or test(listener_failure_rolls_back_the_persisted_settings) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(exclusive_lock_conflicts_and_file_survives_release)"
         ],
         "testFilter": [
           "product_corpus_replays_frozen_compatibility_and_preserves_unknown_fields"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "3132b60290fd9e70004b73805342636497ac2f27",
+        "verifiedAt": "2026-09-25T14:21:18Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -236889,20 +236895,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-settings-file",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(test_basic_quote_availability_rejection_enters_delayed_fallback_and_reconcile_succeeds) or test(quote_cache_serves_repeat_reads_within_one_provider_generation) or test(futu_snapshot_route_projects_cached_extended_quote_contract) or test(malformed_identity_and_unbounded_pages_fail_closed) or test(test_quote_cache_and_import_helpers_keep_absent_data_explicit) or test(rejected_provider_switch_preserves_the_current_quote_cache) or test(provider_switch_drops_quotes_cached_under_the_previous_provider) or test(concurrent_group_updates_commit_with_revision_fence) or test(test_store_canceled_maintenance_does_not_mutate_runs) or test(test_in_memory_store_implements_run_lifecycle_and_cancellation) or test(sync_task_cancel_distinguishes_missing_active_and_terminal) or test(test_calendar_store_empty_load_and_delete_are_idempotent) or test(test_save_snapshot_validates_inputs_and_resolves_year_fallbacks) or test(test_settings_normalization_handles_fallbacks_and_boundaries) or test(test_failed_setting_saves_rollback_all_runtime_state) or test(test_failed_bootstrap_and_migration_rollback_runtime_state) or test(test_failed_managed_account_crud_rolls_back_backing_array) or test(missing_empty_and_corrupted_documents_have_distinct_behavior) or test(product_corpus_replays_frozen_compatibility_and_preserves_unknown_fields) or test(appearance_round_trip_preserves_unknown_go_owned_fields) or test(security_settings_writes_match_frozen_compatibility_expectations) or test(listener_failure_rolls_back_the_persisted_settings) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(exclusive_lock_conflicts_and_file_survives_release)"
         ],
         "testFilter": [
           "appearance_round_trip_preserves_unknown_go_owned_fields"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "3132b60290fd9e70004b73805342636497ac2f27",
+        "verifiedAt": "2026-09-25T14:21:18Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -236951,20 +236957,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-settings-file",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(test_basic_quote_availability_rejection_enters_delayed_fallback_and_reconcile_succeeds) or test(quote_cache_serves_repeat_reads_within_one_provider_generation) or test(futu_snapshot_route_projects_cached_extended_quote_contract) or test(malformed_identity_and_unbounded_pages_fail_closed) or test(test_quote_cache_and_import_helpers_keep_absent_data_explicit) or test(rejected_provider_switch_preserves_the_current_quote_cache) or test(provider_switch_drops_quotes_cached_under_the_previous_provider) or test(concurrent_group_updates_commit_with_revision_fence) or test(test_store_canceled_maintenance_does_not_mutate_runs) or test(test_in_memory_store_implements_run_lifecycle_and_cancellation) or test(sync_task_cancel_distinguishes_missing_active_and_terminal) or test(test_calendar_store_empty_load_and_delete_are_idempotent) or test(test_save_snapshot_validates_inputs_and_resolves_year_fallbacks) or test(test_settings_normalization_handles_fallbacks_and_boundaries) or test(test_failed_setting_saves_rollback_all_runtime_state) or test(test_failed_bootstrap_and_migration_rollback_runtime_state) or test(test_failed_managed_account_crud_rolls_back_backing_array) or test(missing_empty_and_corrupted_documents_have_distinct_behavior) or test(product_corpus_replays_frozen_compatibility_and_preserves_unknown_fields) or test(appearance_round_trip_preserves_unknown_go_owned_fields) or test(security_settings_writes_match_frozen_compatibility_expectations) or test(listener_failure_rolls_back_the_persisted_settings) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(exclusive_lock_conflicts_and_file_survives_release)"
         ],
         "testFilter": [
           "security_settings_writes_match_frozen_compatibility_expectations"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "3132b60290fd9e70004b73805342636497ac2f27",
+        "verifiedAt": "2026-09-25T14:21:18Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -237013,20 +237019,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-settings",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(test_basic_quote_availability_rejection_enters_delayed_fallback_and_reconcile_succeeds) or test(quote_cache_serves_repeat_reads_within_one_provider_generation) or test(futu_snapshot_route_projects_cached_extended_quote_contract) or test(malformed_identity_and_unbounded_pages_fail_closed) or test(test_quote_cache_and_import_helpers_keep_absent_data_explicit) or test(rejected_provider_switch_preserves_the_current_quote_cache) or test(provider_switch_drops_quotes_cached_under_the_previous_provider) or test(concurrent_group_updates_commit_with_revision_fence) or test(test_store_canceled_maintenance_does_not_mutate_runs) or test(test_in_memory_store_implements_run_lifecycle_and_cancellation) or test(sync_task_cancel_distinguishes_missing_active_and_terminal) or test(test_calendar_store_empty_load_and_delete_are_idempotent) or test(test_save_snapshot_validates_inputs_and_resolves_year_fallbacks) or test(test_settings_normalization_handles_fallbacks_and_boundaries) or test(test_failed_setting_saves_rollback_all_runtime_state) or test(test_failed_bootstrap_and_migration_rollback_runtime_state) or test(test_failed_managed_account_crud_rolls_back_backing_array) or test(missing_empty_and_corrupted_documents_have_distinct_behavior) or test(product_corpus_replays_frozen_compatibility_and_preserves_unknown_fields) or test(appearance_round_trip_preserves_unknown_go_owned_fields) or test(security_settings_writes_match_frozen_compatibility_expectations) or test(listener_failure_rolls_back_the_persisted_settings) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(exclusive_lock_conflicts_and_file_survives_release)"
         ],
         "testFilter": [
           "listener_failure_rolls_back_the_persisted_settings"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "3132b60290fd9e70004b73805342636497ac2f27",
+        "verifiedAt": "2026-09-25T14:21:18Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -237556,20 +237562,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(test_basic_quote_availability_rejection_enters_delayed_fallback_and_reconcile_succeeds) or test(quote_cache_serves_repeat_reads_within_one_provider_generation) or test(futu_snapshot_route_projects_cached_extended_quote_contract) or test(malformed_identity_and_unbounded_pages_fail_closed) or test(test_quote_cache_and_import_helpers_keep_absent_data_explicit) or test(rejected_provider_switch_preserves_the_current_quote_cache) or test(provider_switch_drops_quotes_cached_under_the_previous_provider) or test(concurrent_group_updates_commit_with_revision_fence) or test(test_store_canceled_maintenance_does_not_mutate_runs) or test(test_in_memory_store_implements_run_lifecycle_and_cancellation) or test(sync_task_cancel_distinguishes_missing_active_and_terminal) or test(test_calendar_store_empty_load_and_delete_are_idempotent) or test(test_save_snapshot_validates_inputs_and_resolves_year_fallbacks) or test(test_settings_normalization_handles_fallbacks_and_boundaries) or test(test_failed_setting_saves_rollback_all_runtime_state) or test(test_failed_bootstrap_and_migration_rollback_runtime_state) or test(test_failed_managed_account_crud_rolls_back_backing_array) or test(missing_empty_and_corrupted_documents_have_distinct_behavior) or test(product_corpus_replays_frozen_compatibility_and_preserves_unknown_fields) or test(appearance_round_trip_preserves_unknown_go_owned_fields) or test(security_settings_writes_match_frozen_compatibility_expectations) or test(listener_failure_rolls_back_the_persisted_settings) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(exclusive_lock_conflicts_and_file_survives_release)"
         ],
         "testFilter": [
           "opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "3132b60290fd9e70004b73805342636497ac2f27",
+        "verifiedAt": "2026-09-25T14:21:18Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -238243,20 +238249,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-owner-lock",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(test_basic_quote_availability_rejection_enters_delayed_fallback_and_reconcile_succeeds) or test(quote_cache_serves_repeat_reads_within_one_provider_generation) or test(futu_snapshot_route_projects_cached_extended_quote_contract) or test(malformed_identity_and_unbounded_pages_fail_closed) or test(test_quote_cache_and_import_helpers_keep_absent_data_explicit) or test(rejected_provider_switch_preserves_the_current_quote_cache) or test(provider_switch_drops_quotes_cached_under_the_previous_provider) or test(concurrent_group_updates_commit_with_revision_fence) or test(test_store_canceled_maintenance_does_not_mutate_runs) or test(test_in_memory_store_implements_run_lifecycle_and_cancellation) or test(sync_task_cancel_distinguishes_missing_active_and_terminal) or test(test_calendar_store_empty_load_and_delete_are_idempotent) or test(test_save_snapshot_validates_inputs_and_resolves_year_fallbacks) or test(test_settings_normalization_handles_fallbacks_and_boundaries) or test(test_failed_setting_saves_rollback_all_runtime_state) or test(test_failed_bootstrap_and_migration_rollback_runtime_state) or test(test_failed_managed_account_crud_rolls_back_backing_array) or test(missing_empty_and_corrupted_documents_have_distinct_behavior) or test(product_corpus_replays_frozen_compatibility_and_preserves_unknown_fields) or test(appearance_round_trip_preserves_unknown_go_owned_fields) or test(security_settings_writes_match_frozen_compatibility_expectations) or test(listener_failure_rolls_back_the_persisted_settings) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(exclusive_lock_conflicts_and_file_survives_release)"
         ],
         "testFilter": [
           "exclusive_lock_conflicts_and_file_survives_release"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "3132b60290fd9e70004b73805342636497ac2f27",
+        "verifiedAt": "2026-09-25T14:21:18Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -238305,20 +238311,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-owner-lock",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(test_basic_quote_availability_rejection_enters_delayed_fallback_and_reconcile_succeeds) or test(quote_cache_serves_repeat_reads_within_one_provider_generation) or test(futu_snapshot_route_projects_cached_extended_quote_contract) or test(malformed_identity_and_unbounded_pages_fail_closed) or test(test_quote_cache_and_import_helpers_keep_absent_data_explicit) or test(rejected_provider_switch_preserves_the_current_quote_cache) or test(provider_switch_drops_quotes_cached_under_the_previous_provider) or test(concurrent_group_updates_commit_with_revision_fence) or test(test_store_canceled_maintenance_does_not_mutate_runs) or test(test_in_memory_store_implements_run_lifecycle_and_cancellation) or test(sync_task_cancel_distinguishes_missing_active_and_terminal) or test(test_calendar_store_empty_load_and_delete_are_idempotent) or test(test_save_snapshot_validates_inputs_and_resolves_year_fallbacks) or test(test_settings_normalization_handles_fallbacks_and_boundaries) or test(test_failed_setting_saves_rollback_all_runtime_state) or test(test_failed_bootstrap_and_migration_rollback_runtime_state) or test(test_failed_managed_account_crud_rolls_back_backing_array) or test(missing_empty_and_corrupted_documents_have_distinct_behavior) or test(product_corpus_replays_frozen_compatibility_and_preserves_unknown_fields) or test(appearance_round_trip_preserves_unknown_go_owned_fields) or test(security_settings_writes_match_frozen_compatibility_expectations) or test(listener_failure_rolls_back_the_persisted_settings) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(exclusive_lock_conflicts_and_file_survives_release)"
         ],
         "testFilter": [
           "exclusive_lock_conflicts_and_file_survives_release"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "3132b60290fd9e70004b73805342636497ac2f27",
+        "verifiedAt": "2026-09-25T14:21:18Z",
         "receiptDigest": null
       },
       "risk": "high",
