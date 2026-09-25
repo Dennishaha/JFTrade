@@ -137019,7 +137019,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-integration-futu/src/basic_quote_tick.rs::test_tick_conversion_rejects_unusable_prices_and_uses_quote_fallbacks",
       "conclusion": "完整覆盖：Rust 测试覆盖了无效价格剔除以及使用前收盘价/报价后备填补的完整转换分支，与 Go 等价",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(test_tick_conversion_rejects_unusable_prices_and_uses_quote_fallbacks)'",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(test_tick_conversion_rejects_unusable_prices_and_uses_quote_fallbacks)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/integration/futu/marketdata_runtime_test.go",
@@ -137054,6 +137054,8 @@
           "run",
           "-p",
           "jftrade-integration-futu",
+          "--all-targets",
+          "--locked",
           "-E",
           "test(test_tick_conversion_rejects_unusable_prices_and_uses_quote_fallbacks)"
         ],
@@ -137153,7 +137155,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-marketdata/tests/cache_boundaries.rs::test_tick_from_trade_inherits_latest_quote_fields_through_cache",
       "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --all-targets --locked -E 'test(test_tick_from_trade_inherits_latest_quote_fields_through_cache)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/integration/futu/marketdata_runtime_test.go",
@@ -137187,7 +137189,11 @@
           "scripts/quality/cargo-nextest.mjs",
           "run",
           "-p",
-          "jftrade-marketdata"
+          "jftrade-marketdata",
+          "--all-targets",
+          "--locked",
+          "-E",
+          "test(test_tick_from_trade_inherits_latest_quote_fields_through_cache)"
         ],
         "testFilter": [
           "test_tick_from_trade_inherits_latest_quote_fields_through_cache"
@@ -137391,7 +137397,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-integration-futu/src/subscriptions_tests.rs::fallback_instruments_are_filtered_from_the_push_stream",
       "conclusion": "完整覆盖：Rust 在唯一 owner（SubscriptionReconciler，对应 Go reconciler 的 IsFallbackInstrument/HasFallbackSubscriptions）实现并断言 push 流过滤——fallback 标的下 FilterPushInstruments 只保留健康标的、恢复后重新放行、输入 trim+大写化、空串/空白丢弃、无法解析的标的留在流上、无 fallback 记录时不过滤。新增生产方法 SubscriptionReconciler::filter_push_instruments（此前 Rust 完全没有该能力）。配额拒绝经由 ReconcileSubscriptions 真实进入 fallback 的端到端路径另由 fake_framed_opend_runtime_tests::test_basic_quote_availability_rejection_enters_delayed_fallback_and_reconcile_succeeds 覆盖",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(fallback_instruments_are_filtered_from_the_push_stream)'",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(fallback_instruments_are_filtered_from_the_push_stream)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/integration/futu/marketdata_runtime_test.go",
@@ -137426,6 +137432,8 @@
           "run",
           "-p",
           "jftrade-integration-futu",
+          "--all-targets",
+          "--locked",
           "-E",
           "test(fallback_instruments_are_filtered_from_the_push_stream)"
         ],
@@ -137611,7 +137619,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-integration-futu/src/session_resolver.rs::test_fallback_ticker_map_projects_only_requested_usable_snapshots",
       "conclusion": "完整覆盖：Rust 测试对降级快照只映射请求中可用数据的行为进行了完整断言，逻辑等价",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(test_fallback_ticker_map_projects_only_requested_usable_snapshots)'",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(test_fallback_ticker_map_projects_only_requested_usable_snapshots)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/integration/futu/marketdata_runtime_test.go",
@@ -137646,6 +137654,8 @@
           "run",
           "-p",
           "jftrade-integration-futu",
+          "--all-targets",
+          "--locked",
           "-E",
           "test(test_fallback_ticker_map_projects_only_requested_usable_snapshots)"
         ],
@@ -137678,7 +137688,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-integration-futu/src/session_resolver.rs::test_fallback_snapshot_conversion_rejects_invalid_values_and_uses_classification",
       "conclusion": "完整覆盖：Rust 测试覆盖了非法字段值拒绝和按品种分类生成行情快照的校验逻辑，与 Go 测试等价",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(test_fallback_snapshot_conversion_rejects_invalid_values_and_uses_classification)'",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(test_fallback_snapshot_conversion_rejects_invalid_values_and_uses_classification)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/integration/futu/marketdata_runtime_test.go",
@@ -137713,6 +137723,8 @@
           "run",
           "-p",
           "jftrade-integration-futu",
+          "--all-targets",
+          "--locked",
           "-E",
           "test(test_fallback_snapshot_conversion_rejects_invalid_values_and_uses_classification)"
         ],
@@ -144087,7 +144099,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_catalog_tests.rs::futu_search_rejects_invalid_queries_before_reaching_opend",
       "conclusion": "function_exact：空/仅空格 keyword、limit=0、limit=101 全部在触达 OpenD 前以 400 MARKET_INSTRUMENT_INVALID 拒绝，并断言 fixture 的 search 调用计数为 0（即未发起 Qot_GetSearchQuote）。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(futu_search_rejects_invalid_queries_before_reaching_opend)'",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(futu_search_rejects_invalid_queries_before_reaching_opend)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "pkg/futu/adapter_marketdata_search_test.go",
@@ -144122,6 +144134,8 @@
           "run",
           "-p",
           "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
           "test(futu_search_rejects_invalid_queries_before_reaching_opend)"
         ],
@@ -157352,7 +157366,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/product_trade_runtime_projection_tests.rs::session_selection_normalizes_aliases_and_rejects_unsupported_ones + crates/jftrade-engine/src/product_trade_runtime_projection_tests.rs::broker_kline_snapshot_session_fields_follow_go_classification_helpers + crates/jftrade-engine/src/product_trade_runtime_projection_tests.rs::sessions_default_and_validation_follow_go_extended_hours_rules",
       "conclusion": "function_exact：默认 US 会话四段、逗号切分与 trim、固定顺序 regular→extended→overnight、非扩展市场拒绝 extended/overnight、未知 token 拒绝均已覆盖。本批修复了两处真实缺口：(1) parse_requested_sessions 原先保留调用方顺序，改为 BTreeSet + 固定顺序；(2) historical_snapshot 原先用 market 能力推导 extendedHours/session，违反 hasNonRegularBrokerSession/brokerKLineSessionLabel——现在 regular-only 选择在 US 上返回 extendedHours=false、单独 extended/overnight 折叠为 session=\"all\"。探针把 extendedHours 改回旧式能力推导即复现 left=true/right=false，已回滚。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(product_trade_runtime_projection)'",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(session_selection_normalizes_aliases_and_rejects_unsupported_ones) or test(broker_kline_snapshot_session_fields_follow_go_classification_helpers) or test(sessions_default_and_validation_follow_go_extended_hours_rules)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "pkg/futu/marketdata_reader_boundaries_test.go",
@@ -157409,8 +157423,10 @@
           "run",
           "-p",
           "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(product_trade_runtime_projection)"
+          "test(session_selection_normalizes_aliases_and_rejects_unsupported_ones) or test(broker_kline_snapshot_session_fields_follow_go_classification_helpers) or test(sessions_default_and_validation_follow_go_extended_hours_rules)"
         ],
         "testFilter": [
           "session_selection_normalizes_aliases_and_rejects_unsupported_ones",
@@ -157443,7 +157459,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-integration-futu/src/market_rules_query_tests.rs::market_rules_fallback_empty_keeps_the_primary_error_in_the_message + crates/jftrade-integration-futu/src/market_rules_query_tests.rs::market_rules_fall_back_to_security_snapshot_lot_size_and_report_the_primary_error + crates/jftrade-integration-futu/src/market_rules_query_tests.rs::market_rules_report_no_rules_when_both_sources_are_empty + crates/jftrade-integration-futu/src/market_rules_query_tests.rs::market_rules_combine_primary_and_fallback_failures + crates/jftrade-integration-futu/src/market_rules_query_tests.rs::market_rules_reject_empty_symbol_queries_before_touching_opend",
       "conclusion": "function_exact：空 symbols 在触碰 OpenD 前拒绝；快照 fallback 成功时只有一条 warning 且同时含 \"QuerySecuritySnapshot fallback\" 与主错误文本；主错误 + 空 fallback 返回 FallbackEmpty 且渲染信息含 \"returned no market rules\"（本批新增）；主/备同时失败返回 FallbackFailed；两侧都空返回 NoRules。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(market_rules)'",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(market_rules_fallback_empty_keeps_the_primary_error_in_the_message) or test(market_rules_fall_back_to_security_snapshot_lot_size_and_report_the_primary_error) or test(market_rules_report_no_rules_when_both_sources_are_empty) or test(market_rules_combine_primary_and_fallback_failures) or test(market_rules_reject_empty_symbol_queries_before_touching_opend)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "pkg/futu/marketdata_reader_boundaries_test.go",
@@ -157522,8 +157538,10 @@
           "run",
           "-p",
           "jftrade-integration-futu",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(market_rules)"
+          "test(market_rules_fallback_empty_keeps_the_primary_error_in_the_message) or test(market_rules_fall_back_to_security_snapshot_lot_size_and_report_the_primary_error) or test(market_rules_report_no_rules_when_both_sources_are_empty) or test(market_rules_combine_primary_and_fallback_failures) or test(market_rules_reject_empty_symbol_queries_before_touching_opend)"
         ],
         "testFilter": [
           "market_rules_fallback_empty_keeps_the_primary_error_in_the_message",

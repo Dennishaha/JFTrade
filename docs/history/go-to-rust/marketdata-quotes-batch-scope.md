@@ -691,6 +691,23 @@ ADK/Assistant 功能差异，先补失败回归测试再修改领域 owner。
 
 下一片：继续 P1 的 MarketData/Quote provider forwarding 与 runtime boundary 映射。
 
+## 第 144 批：Futu marketdata tick、fallback 与 market-rule reader 边界（2026-09-25）
+
+| 复核 | Go 测试范围 | Rust 证据 | P | 结论 |
+| :---: | --- | --- | :---: | --- |
+| [x] | `internal/integration/futu/marketdata_runtime_test.go:267,364,613,824,869` | tick conversion/trade cache inheritance, fallback push filtering, ticker map and snapshot classification | P1 | exact：不可用价格、quote fallback、trade 字段继承、fallback instrument 过滤、usable snapshot 与 session/value 分类逐条通过。 |
+| [x] | `pkg/futu/adapter_marketdata_search_test.go:113` | `futu_search_rejects_invalid_queries_before_reaching_opend` | P1 | exact：空 keyword、负 limit、超上限 limit 在触达 OpenD 前拒绝。 |
+| [x] | `pkg/futu/marketdata_reader_boundaries_test.go:108` | session selection and broker K-line snapshot projection tests | P1 | exact：US extended-hours 默认集合、alias 归一化、非 US/unknown session 拒绝与 response label 一致。 |
+| [x] | `pkg/futu/marketdata_reader_boundaries_test.go:153` | market-rule primary/fallback/error composition tests | P1 | exact：静态规则失败时 snapshot fallback、空规则和 primary/fallback 错误合并、空 symbol 前置拒绝均覆盖。 |
+| [~] | `internal/integration/futu/marketdata_runtime_test.go:452:TestMarketDataRuntimeExchangeResetAndStreamLifecycle` | `product_runtime_supervisor.rs`; `runtime_task.rs` | P1 | boundary：Go 依赖 BBGO/OpenD exchange wrapper 的 Ensure/替换、Broker ownership、通知 session 和 disabled runtime 聚合；Rust owner 分拆为 product supervisor 与显式 OpenD task，没有同形单一 runtime API，保留边界。 |
+
+本批 9 条 Go 映射对应 Rust 精准 nextest 14/14 通过；exchange wrapper 行为保持边界，未发现需先红后修的 Rust 生产差异。
+
+验证：
+`node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-marketdata -p jftrade-engine --all-targets --locked -E 'test(test_tick_conversion_rejects_unusable_prices_and_uses_quote_fallbacks) or test(test_tick_from_trade_inherits_latest_quote_fields_through_cache) or test(fallback_instruments_are_filtered_from_the_push_stream) or test(test_fallback_ticker_map_projects_only_requested_usable_snapshots) or test(test_fallback_snapshot_conversion_rejects_invalid_values_and_uses_classification) or test(futu_search_rejects_invalid_queries_before_reaching_opend) or test(session_selection_normalizes_aliases_and_rejects_unsupported_ones) or test(broker_kline_snapshot_session_fields_follow_go_classification_helpers) or test(sessions_default_and_validation_follow_go_extended_hours_rules) or test(market_rules_fallback_empty_keeps_the_primary_error_in_the_message) or test(market_rules_fall_back_to_security_snapshot_lot_size_and_report_the_primary_error) or test(market_rules_report_no_rules_when_both_sources_are_empty) or test(market_rules_combine_primary_and_fallback_failures) or test(market_rules_reject_empty_symbol_queries_before_touching_opend)'`
+
+下一片：继续 P1 的 MarketData/Quote provider forwarding 与 runtime boundary 映射。
+
 ## 第 143 批：MarketData candle/cache/collector/provider-switch 细节（2026-09-25）
 
 | 复核 | Go 测试范围 | Rust 证据 | P | 结论 |
