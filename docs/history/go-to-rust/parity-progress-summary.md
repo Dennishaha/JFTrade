@@ -44,6 +44,8 @@
 - `internal/api/system/routes_test.go:316:TestRealTradeControlRoutesMapValidationAndControlFailures` 已逐项读取 Go 断言并补 Rust 专用错误映射回归；保持 `partial`。Rust 逐条覆盖三条 malformed JSON、缺少正向 runtime limit 的 `400/BAD_REQUEST`，以及 kill-switch、hard-stop、runtime-risk enable/disable 六条 `409/REAL_TRADE_CONTROL_FAILED`，并断言校验失败不触发 port、控制失败各调用一次；Gin/service callback 委派形状继续按边界保留。
 - `internal/api/system/routes_test.go:19:TestSystemRoutesReturnEnvelopes` 已逐项核对 16 条系统读路由；保持 `partial`。既有 system-read fixture、control-read、product server 与 CalendarManager 回归共同覆盖 futu-opend、worker、status、runtime-dependencies、storage、calendar 及控制读族的成功 envelope；未合并为单一 Gin 必填键表，继续记录 owner/路由聚合差异。
 - 本批专用错误映射回归 2/2、系统读 envelope 证据 4/4 通过；完整 `check:rust` workspace nextest 3453 项完成且 compatibility replays 全通过。`check:quick` 在既有 `product_api_launcher_lifecycle::api_launcher_serves_on_the_configured_address_and_stops_on_termination_signal` 处失败，随后单测重跑仍复现 `status.code() = None`（非本批 system-write/system-read 变更）；保留失败证据，不记为 quick 通过。映射审计 0 重复 exact、0 nonexistent crate、0 unrecorded/stale anchor，锚点 1754/1708/0/0/46。
+- `internal/api/system/status_mapper_test.go:11:TestSystemStatusTransportMapperPreservesDomainJSON` 已逐项读取 Go mapper 与 Rust system status owner；保持 `partial`。Rust 锚定稳定字段和成功 envelope 回归；复核确认 Go 测试只把同一个 typed `Status` 分别编码后比较，未构造未知顶层字段，Rust 没有可拆出的第二层 mapper，未发现真实功能差异。
+- 本批状态 mapper 定向回归 2/2、`check:quick` 受影响 Rust/desktop 1969/1969 与完整 `check:rust` workspace 3453 项均通过；7 个 compatibility replays 与 Pine worker 98/98 全部通过。映射审计 0 重复 exact、0 nonexistent crate、0 unrecorded/stale anchor，锚点 1755/1709/0/0/46。
 - resolver limit 差异已在 `crates/jftrade-engine/src/product_production_ports_market_data_catalog_futu.rs` 修复：避免 provider 在 CN/SH/SZ 过滤前按公开 limit 截断候选；TTL/singleflight 仍保留为架构边界，不宣称等价。
 - 近期真正修改过 Rust 生产代码的批次包括：交易默认市场注入、下单前名义金额回退、市日边界、策略运行时及若干行情/路由边界；这些改动均配有回归测试或兼容性证据。
 - 最近的 strategy/API 批次主要是证据审查和文档落账，没有新增 Rust 生产代码，必须与“功能已完成”分开看待。
@@ -57,7 +59,7 @@
 
 ## 调度收敛规则
 
-- 当前只保留一个持续队列上下文；本批完成后下一片按 P2 处理 `internal/api/system/status_mapper_test.go:11:TestSystemStatusTransportMapperPreservesDomainJSON`，继续核对系统状态 transport 原样透传与未知字段保留断言。
+- 当前只保留一个持续队列上下文；本批完成后下一片按 P1 处理 `internal/api/assistant/chat_helpers_test.go:13:TestTimelineStreamStateTracksSessionRunAndToolTiming`，继续核对 Assistant stream timeline 状态 owner 与工具计时断言。
 - 不创建子任务、不创建第二个 heartbeat、不重复复核已经完成的切片。
 - 每批先读 Go 实现和 Rust owner；只有发现真实行为差异才先写失败回归测试并修改生产代码。
 - 仅证据不足时维持 `partial` 或 `boundary`，不得为了提高数字升级为 `function_exact`。
@@ -74,6 +76,7 @@
 - 当前批次：system calendar probe 路由核对真实 manager 结果与 market 边界，保持 partial，记录 callback 参数/次数差异。
 - 当前批次：system real-trade control 写路由补真实产品状态读回序列，保持 partial，记录 Gin callback 与固定 hard-stop ID 差异。
 - 当前批次：system control 错误映射与 16 路由 envelope 逐项核对；新增错误码回归，系统读族保持 partial，记录 Gin 必填键表与 Rust 分散 owner 差异。
+- 当前批次：system status mapper typed JSON 投影逐项核对，补稳定字段/成功 envelope 锚点，保持 partial 并记录未知字段断言缺口。
 - `00f89290`：marketdata façade 剩余 34 条逐项复核，补 helper provider polling mode owner 回归测试并修复状态投影。
 - `47bf7b1a`：注入配置的默认交易市场并补交易读取测试。
 - `917d1534`：API transport P1 partial 第 1–30 条核对。

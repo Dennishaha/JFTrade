@@ -20108,8 +20108,8 @@
     "internal/api/system/status_mapper_test.go:11:TestSystemStatusTransportMapperPreservesDomainJSON": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_system_control_read_tests.rs::system_status_matches_go_stable_fields_without_claiming_migration_ownership",
-      "conclusion": "partial：Go 断言状态传输投影不改写领域 JSON（原样透传）。Rust 引用用例断言 /api/v1/system/status 的稳定字段与 Go 一致且不声称迁移所有权；逐字段等价以该用例断言集表达，但“未改写”的正向对照（未知字段保留）无断言。缺口 owner：crates/jftrade-engine 系统状态投影；回归要求：补“领域响应含额外字段 → 投影原样保留”断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+      "conclusion": "partial：Rust 现有 system status 产品回归逐字段核对 Go 稳定状态投影与成功 envelope，并明确不声称迁移所有权。Go 的 `toSystemStatusResponse` 是 typed DTO 映射；该测试把同一个 typed `Status` 分别 JSON 编码后比较，未构造可携带未知顶层字段的领域值，因此“额外字段原样保留”不是实际被执行的断言。Rust 直接生成 canonical JSON，没有另一层 mapper 可供比较；保留 partial 以记录测试证据边界，未发现需要修复的 Rust 功能差异。",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(system_status_matches_go_stable_fields_without_claiming_migration_ownership) or test(system_status_contract_envelope_exposes_required_fields_and_trading_resource)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/api/system/status_mapper_test.go",
@@ -20122,15 +20122,23 @@
           "file": "crates/jftrade-engine/src/product_system_control_read_tests.rs",
           "test": "system_status_matches_go_stable_fields_without_claiming_migration_ownership",
           "crate": "jftrade-engine",
-          "anchor": null
+          "anchor": {
+            "goFile": "internal/api/system/status_mapper_test.go",
+            "goLine": 11,
+            "rustFile": "crates/jftrade-engine/src/product_system_control_read_tests.rs",
+            "rustLine": 338
+          }
         }
       ],
       "assertionCoverage": {
-        "covered": [],
-        "uncovered": [
-          "partial：Go 断言状态传输投影不改写领域 JSON（原样透传）。Rust 引用用例断言 /api/v1/system/status 的稳定字段与 Go 一致且不声称迁移所有权；逐字段等价以该用例断言集表达，但“未改写”的正向对照（未知字段保留）无断言。缺口 owner：crates/jftrade-engine 系统状态投影；回归要求：补“领域响应含额外字段 → 投影原样保留”断言。"
+        "covered": [
+          "system status successful envelope and stable fields remain JSON-equivalent to the Go projection",
+          "Rust status projection exposes the required top-level fields without claiming migration ownership"
         ],
-        "source": "legacy-conclusion"
+        "uncovered": [
+          "Go typed DTO test does not construct unknown top-level fields, so extra-field preservation is not exercised"
+        ],
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -20143,14 +20151,15 @@
           "--locked"
         ],
         "testFilter": [
-          "system_status_matches_go_stable_fields_without_claiming_migration_ownership"
+          "system_status_matches_go_stable_fields_without_claiming_migration_ownership",
+          "system_status_contract_envelope_exposes_required_fields_and_trading_resource"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
+        "status": "passed",
+        "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": null,
+        "verifiedAt": "2026-09-25T06:31:00Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -20161,9 +20170,12 @@
         "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [],
+      "coveredAssertions": [
+        "system status successful envelope and stable fields remain JSON-equivalent to the Go projection",
+        "Rust status projection exposes the required top-level fields without claiming migration ownership"
+      ],
       "uncoveredAssertions": [
-        "partial：Go 断言状态传输投影不改写领域 JSON（原样透传）。Rust 引用用例断言 /api/v1/system/status 的稳定字段与 Go 一致且不声称迁移所有权；逐字段等价以该用例断言集表达，但“未改写”的正向对照（未知字段保留）无断言。缺口 owner：crates/jftrade-engine 系统状态投影；回归要求：补“领域响应含额外字段 → 投影原样保留”断言。"
+        "Go typed DTO test does not construct unknown top-level fields, so extra-field preservation is not exercised"
       ],
       "boundaryReason": null
     },

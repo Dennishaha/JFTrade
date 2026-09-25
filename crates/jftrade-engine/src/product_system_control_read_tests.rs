@@ -334,6 +334,7 @@ async fn runtime_dependencies_use_the_normalized_settings_node_candidate() {
 // Parity: go:452dea11:internal/app/apiserver/runtime/resources_test.go:78 TestRuntimeResourceSummaryIncludesCountAndItems
 // Parity: go:452dea11:internal/system/service_test.go:13 TestStatusDefaultsAndInjectedSummaries
 // Parity: go:452dea11:internal/app/apiserver/servercoretest/system_routes_test.go:12 TestSystemStatusEndpointReturnsStatus
+// Parity: go:452dea11:internal/api/system/status_mapper_test.go:11 TestSystemStatusTransportMapperPreservesDomainJSON
 #[tokio::test]
 async fn system_status_matches_go_stable_fields_without_claiming_migration_ownership() {
     let directory = tempdir().expect("temporary directory");
