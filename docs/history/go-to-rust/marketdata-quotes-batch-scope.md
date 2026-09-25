@@ -1545,6 +1545,23 @@ ADK/Assistant 功能差异，先补失败回归测试再修改领域 owner。
 
 下一片：继续 P2 API transport、MarketData/Quote、Storage/SQLite、Settings/Watchlist、Backtest/Calendar 与 Strategy/Pine；`optional_bool_strict` helper、P1 `session_context_snapshot` 及其他无独立 Rust 测试条目仍保持未验证结论。
 
+## 第 196 批：系统状态、执行通知、订单对账与 Web 鉴权（2026-09-26）
+
+| 复核 | Go 测试范围 | Rust 证据 | P | 结论 |
+| :---: | --- | --- | :---: | --- |
+| [x] | `servercoretest/system_routes_test.go:89,112`; `watchlist_runtime_test.go:14,51` | request-id 规范化与观测传播、持久化 trading environment、watchlist revision/restart 与损坏数据库 fail-closed | P2 | partial/boundary：Rust transport、engine startup 与 sqlite owner 测试覆盖核心状态和失败路径；Go Server facade、API 端口更新及默认组启动组合保持 partial。 |
+| [x] | `status/status_test.go:12,26,76`; `strategyapp/runtime_ports_test.go:62,110,137` | system/live metrics、market-data/strategy runtime projections、simulated account reads、capability lease 与 provider readiness | P2 | partial：projection、lease、account 与 readiness 有 owner 证据；Go status 聚合、runtime descriptor facade 和 capability error helper 不升级为 exact。 |
+| [x] | `tradingapp/execution_gateway_boundaries_test.go:10,19`; `execution_gateway_lifecycle_test.go:144,331` | combo quantity/hash identity、accepted cancel persistence、reservation replay 与 notification projector cursors | P2 | partial：Rust execution/ledger owner 测试逐项通过；Go gateway helper、handler aggregation 与 broker boundary 保持 partial，未将 hash/取消聚合宣称完整等价。 |
+| [x] | `tradingapp/notifications_lifecycle_test.go:10,29,62`; `notifications_test.go:10,32` | notification labels/builders、ordered dedup、neutral protocol mapping 与 shadow notification suppression | P2 | partial：Futu neutral notification、settings mode 和 trading dedup owner 测试有证据；Go 文本 facade、空字段组合和 event handler 形状保持 partial。 |
+| [x] | `tradingapp/order_update_source_broker_test.go:12,33`; `order_updates_test.go:13,70,80,92` | reconciliation discovery/account identity/environment filtering、durable unknown-order idempotence、newest-page dedup 与 unavailable OpenD propagation | P2 | partial/boundary：Rust reconciliation/store/integration owner 覆盖 durable 与 fail-closed 行为；Go worker construction、account subscription facade 与 runtime identifier trimming 保持结构边界。 |
+| [x] | `webaccess/auth_boundaries_test.go:43,101,138,282,295` | origin normalization、public/authenticator guards、cutover session fixture、forwarded client identity 与 rate limiting | P2 | partial：API/engine auth owner 测试覆盖 origin、credential、proxy identity、session fixture 和 attempt limit；Go WebAuth facade、login response aggregation 与 desktop/browser boundary 保持 partial。 |
+
+本批 30 条 Go 映射对应表达式中的 36 个过滤器，Rust nextest 实际 **36/36** 通过（3437 skipped）。`capability_unsupported_error` 仅是 capability helper 符号，不作为独立测试证据；`simulated_broker_account_supplies_real_balance_and_sellable_positions` 在两个 binary 中的运行结果按实际测试计数保留。系统状态、watchlist、execution、notification、reconciliation 与 auth 条目均写入通过凭证；Go facade、聚合 handler、Wails/worker 组合继续按 `partial`/`boundary` 记录，未凭聚合测试升级为 exact，也未发现需要先红后修的真实 Rust 功能差异。
+
+验证：动态生成本批过滤器运行 `node scripts/quality/cargo-nextest.mjs run --all-targets --locked -E`，36/36 通过。
+
+下一片：继续 P2 API transport、MarketData/Quote、Storage/SQLite、Settings/Watchlist、Backtest/Calendar 与 Strategy/Pine；`optional_bool_strict` helper、P1 `session_context_snapshot` 及其他无独立 Rust 测试条目仍保持未验证结论。
+
 ## 第 195 批：Research runtime、Settings onboarding、Strategy definitions 与 Swagger status（2026-09-26）
 
 | 复核 | Go 测试范围 | Rust 证据 | P | 结论 |
