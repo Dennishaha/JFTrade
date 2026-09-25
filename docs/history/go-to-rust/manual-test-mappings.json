@@ -16479,7 +16479,7 @@
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_tests.rs::product_server_persists_ui_settings_and_reports_actual_port; crates/jftrade-engine/tests/market_data_production_compatibility.rs::provider_settings_writes_replay_frozen_compatibility_cases",
       "conclusion": "partial：Go 断言 backtest provider 目录、失败切换后 stored 不变、成功切换后 stored 更新。Rust 断言目录顺序（futu/yfinance/akshare）与 PUT 后 activeProvider=futu；失败回滚的“stored 不变”由冻结语料回放（断言输入条数与 error 标记），未断言持久值。缺口 owner：crates/jftrade-engine provider 设置写端口；回归要求：补失败切换后 GET 回读仍为旧 provider 的断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-settings --all-targets --locked -E test(product_server_persists_ui_settings_and_reports_actual_port) or test(provider_settings_writes_replay_frozen_compatibility_cases) or test(backtest_provider_is_prepared_before_atomic_persistence)",
       "evidence_type": "partial",
       "source": {
         "file": "internal/api/settings/routes_market_data_test.go",
@@ -16502,11 +16502,13 @@
         }
       ],
       "assertionCoverage": {
-        "covered": [],
-        "uncovered": [
-          "partial：Go 断言 backtest provider 目录、失败切换后 stored 不变、成功切换后 stored 更新。Rust 断言目录顺序（futu/yfinance/akshare）与 PUT 后 activeProvider=futu；失败回滚的“stored 不变”由冻结语料回放（断言输入条数与 error 标记），未断言持久值。缺口 owner：crates/jftrade-engine provider 设置写端口；回归要求：补失败切换后 GET 回读仍为旧 provider 的断言。"
+        "covered": [
+          "Rust 已验证 backtest provider catalog 的可用 provider 顺序、设置读写投影以及 runtime prepare 失败发生在 durable persistence 前并保持旧值。"
         ],
-        "source": "legacy-conclusion"
+        "uncovered": [
+          "Go 还在 settings HTTP router fixture 中断言 catalog descriptor 的 yfinance capabilities、失败 PUT 的 409/MARKET_DATA_PROVIDER_UPDATE_FAILED envelope 与成功 PUT 后 GET 回读；Rust 这些断言分散在 product/settings owner，未由同一 route fixture 串联。"
+        ],
+        "source": "manual-batch-review"
       },
       "verification": {
         "argv": [
@@ -16515,19 +16517,24 @@
           "run",
           "-p",
           "jftrade-engine",
+          "-p",
+          "jftrade-settings",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(product_server_persists_ui_settings_and_reports_actual_port) or test(provider_settings_writes_replay_frozen_compatibility_cases) or test(backtest_provider_is_prepared_before_atomic_persistence)"
         ],
         "testFilter": [
           "product_server_persists_ui_settings_and_reports_actual_port",
-          "provider_settings_writes_replay_frozen_compatibility_cases"
+          "provider_settings_writes_replay_frozen_compatibility_cases",
+          "backtest_provider_is_prepared_before_atomic_persistence"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
+        "status": "passed",
+        "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": null,
+        "verifiedAt": "2026-09-25T04:40:00Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -16538,9 +16545,11 @@
         "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [],
+      "coveredAssertions": [
+        "Rust 已验证 backtest provider catalog 的可用 provider 顺序、设置读写投影以及 runtime prepare 失败发生在 durable persistence 前并保持旧值。"
+      ],
       "uncoveredAssertions": [
-        "partial：Go 断言 backtest provider 目录、失败切换后 stored 不变、成功切换后 stored 更新。Rust 断言目录顺序（futu/yfinance/akshare）与 PUT 后 activeProvider=futu；失败回滚的“stored 不变”由冻结语料回放（断言输入条数与 error 标记），未断言持久值。缺口 owner：crates/jftrade-engine provider 设置写端口；回归要求：补失败切换后 GET 回读仍为旧 provider 的断言。"
+        "Go 还在 settings HTTP router fixture 中断言 catalog descriptor 的 yfinance capabilities、失败 PUT 的 409/MARKET_DATA_PROVIDER_UPDATE_FAILED envelope 与成功 PUT 后 GET 回读；Rust 这些断言分散在 product/settings owner，未由同一 route fixture 串联。"
       ],
       "boundaryReason": null
     },
