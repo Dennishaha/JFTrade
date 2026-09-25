@@ -709,6 +709,24 @@ ADK/Assistant 功能差异，先补失败回归测试再修改领域 owner。
 
 下一片：继续 P1 的 MarketData assets、instrument resolver 和 subscription lifecycle 映射。
 
+## 第 146 批：MarketData assets、instrument resolver 与 subscription lifecycle（2026-09-25）
+
+| 复核 | Go 测试范围 | Rust 证据 | P | 结论 |
+| :---: | --- | --- | :---: | --- |
+| [x] | `internal/marketdataassets/asset_selection_boundaries_test.go:58,192` | `rejects_checksum_mismatch_before_writing` | P1 | partial：Rust 覆盖 asset 校验失败前不写入；Go missing/empty FS 的 unavailable 选择与同一 helper 聚合，保持 partial。 |
+| [x] | `internal/marketdataassets/cache_test.go:15,45,83,118,249,310,336` | asset reuse, digest mismatch and path traversal tests | P1 | partial/exact：Rust 覆盖已发布 bundle 复用、digest tamper 和 unsafe path；并发 winner、socket/permission/cleanup 细节由 Go/sidecar owner 拆分。 |
+| [~] | `internal/marketdataassets/assets_dev_test.go:44`; `assets_release_test.go:72`; `cache_test.go:159,185,193,207,218,229,407` | no same-shape Rust test | P1 | boundary/partial：Go 依赖嵌入 release asset、开发空资源和本地 FS 权限/清理故障；Rust helper 使用内容寻址 bundle，保留 owner 边界。 |
+| [~] | `internal/marketdata/instrument_resolver_test.go:248,365` | no same-shape Rust test | P1 | boundary：Go peer cache/singleflight 与 cache recheck 是旧 resolver owner 专属，Rust provider search 不持有同形缓存。 |
+| [x] | `internal/marketdata/instrument_resolver_test.go:397,437` | search failure/input mapping and generation-fenced read tests | P1 | partial：Rust 覆盖 malformed/provider error 不变为空成功、输入校验和 generation fence；Go 两次不缓存错误及 context cancellation 聚合断言拆分在不同 owner。 |
+| [x] | `internal/marketdata/subscription_lifecycle_test.go:149,469,498` | subscription lease sharing, demand merge, close/deactivation cleanup | P1 | partial：Rust 覆盖 web/managed lease 隔离、并发 reconcile、exact request contract 与 close cleanup；Go fake reconciler snapshot 序列仍是聚合层差异。 |
+
+本批 25 条 Go 映射对应 Rust 精准 nextest 15/15 通过；资产嵌入/权限和旧 resolver singleflight 保持 boundary/partial，未发现需先红后修的 Rust 生产差异。
+
+验证：
+`node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper -p jftrade-engine -p jftrade-marketdata -p jftrade-integration-futu --all-targets --locked -E 'test(rejects_checksum_mismatch_before_writing) or test(reuses_a_published_asset_without_rewriting_it) or test(rejects_a_bundle_whose_bytes_no_longer_match_the_digest) or test(rejects_escaping_asset_names_before_writing) or test(search_failures_and_malformed_responses_are_not_empty_successes) or test(instrument_search_route_validates_input_and_maps_provider_failures) or test(snapshot_read_fences_provider_generation_switch_during_helper_query) or test(broker_neutral_polling_acquire_heartbeat_release_never_consumes_futu_lease) or test(clear_route_preserves_running_strategy_lease) or test(exact_physical_subscriptions_are_shared_and_final_release_is_deferred) or test(concurrent_reconcile_passes_are_idempotent_for_subscribe_and_release) or test(subscription_routes_preserve_instrument_request_contract_through_acquire_release_and_clear) or test(deactivation_fences_cache_and_marks_router_inactive) or test(release_and_deactivate_clears_bridge_owned_router_state) or test(lifecycle_rejects_stale_callbacks_and_closes_recorder_once)'`
+
+下一片：继续 P1 的 Futu/OpenD protocol、trading/broker 与 API transport 映射。
+
 ## 第 144 批：Futu marketdata tick、fallback 与 market-rule reader 边界（2026-09-25）
 
 | 复核 | Go 测试范围 | Rust 证据 | P | 结论 |

@@ -176051,7 +176051,7 @@
       "status": "[~]",
       "rust_entry": "crates/jftrade-integration-futu/src/instrument_search_query_tests.rs::search_failures_and_malformed_responses_are_not_empty_successes；crates/jftrade-engine/src/product_production_ports_market_data_catalog_tests.rs::instrument_search_route_validates_input_and_maps_provider_failures",
       "conclusion": "partial：Rust 断言搜索失败/畸形响应不会被当作空成功（错误向上暴露、不被吞掉）；差异：Go 断言错误不被写入缓存（两次调用都打到 provider），Rust 无缓存层，因此只覆盖“错误不静默”的部分。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-integration-futu --all-targets --locked",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-integration-futu --all-targets --locked -E 'test(search_failures_and_malformed_responses_are_not_empty_successes) or test(instrument_search_route_validates_input_and_maps_provider_failures)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/marketdata/instrument_resolver_test.go",
@@ -176090,7 +176090,9 @@
           "-p",
           "jftrade-integration-futu",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(search_failures_and_malformed_responses_are_not_empty_successes) or test(instrument_search_route_validates_input_and_maps_provider_failures)"
         ],
         "testFilter": [
           "search_failures_and_malformed_responses_are_not_empty_successes",
@@ -176193,7 +176195,7 @@
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::snapshot_read_fences_provider_generation_switch_during_helper_query；crates/jftrade-integration-futu/src/instrument_search_query_tests.rs::search_failures_and_malformed_responses_are_not_empty_successes",
       "conclusion": "partial：Rust 读/搜索路径的取消与 generation 失效都会拒绝在途结果；差异：Go 断言 ctx 取消时 Resolve 返回 context.Canceled 且不污染缓存，Rust 无搜索专用的取消断言（异步取消由读端口层与 provider 客户端失败路径覆盖）。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-integration-futu --all-targets --locked",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-integration-futu --all-targets --locked -E 'test(snapshot_read_fences_provider_generation_switch_during_helper_query) or test(search_failures_and_malformed_responses_are_not_empty_successes)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/marketdata/instrument_resolver_test.go",
@@ -176232,7 +176234,9 @@
           "-p",
           "jftrade-integration-futu",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(snapshot_read_fences_provider_generation_switch_during_helper_query) or test(search_failures_and_malformed_responses_are_not_empty_successes)"
         ],
         "testFilter": [
           "snapshot_read_fences_provider_generation_switch_during_helper_query",
@@ -180089,7 +180093,7 @@
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_subscription_tests.rs::broker_neutral_polling_acquire_heartbeat_release_never_consumes_futu_lease；crates/jftrade-engine/src/product_production_ports_market_data_subscription_tests.rs::clear_route_preserves_running_strategy_lease；crates/jftrade-integration-futu/src/subscriptions_tests.rs::exact_physical_subscriptions_are_shared_and_final_release_is_deferred",
       "conclusion": "partial：Rust 在 engine 订阅路由区分 web 消费者与运行中策略租约（clear 只清 web、策略租约保留），Futu executor 侧对共享物理订阅做去重与延迟释放；差异：Go 的 reconciler desired 长度序列 [1,1,1,0] 与 brokerState/subscribedAt 逻辑字段装饰没有对应逐断言测试，Rust 用 DemandSnapshot 与租约计数表达。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -p jftrade-engine --all-targets --locked",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-integration-futu --all-targets --locked -E 'test(broker_neutral_polling_acquire_heartbeat_release_never_consumes_futu_lease) or test(clear_route_preserves_running_strategy_lease) or test(exact_physical_subscriptions_are_shared_and_final_release_is_deferred)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/marketdata/subscription_lifecycle_test.go",
@@ -180130,11 +180134,13 @@
           "scripts/quality/cargo-nextest.mjs",
           "run",
           "-p",
-          "jftrade-marketdata",
-          "-p",
           "jftrade-engine",
+          "-p",
+          "jftrade-integration-futu",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(broker_neutral_polling_acquire_heartbeat_release_never_consumes_futu_lease) or test(clear_route_preserves_running_strategy_lease) or test(exact_physical_subscriptions_are_shared_and_final_release_is_deferred)"
         ],
         "testFilter": [
           "broker_neutral_polling_acquire_heartbeat_release_never_consumes_futu_lease",
@@ -180601,7 +180607,7 @@
       "status": "[~]",
       "rust_entry": "crates/jftrade-integration-futu/src/subscriptions_tests.rs::concurrent_reconcile_passes_are_idempotent_for_subscribe_and_release；crates/jftrade-engine/src/product_production_ports_market_data_subscription_tests.rs::subscription_routes_preserve_instrument_request_contract_through_acquire_release_and_clear",
       "conclusion": "partial：Rust 每次 reconcile 都以当前需求集合精确重建（router.sync_runtime_demand 同步 logical/active 计数），Futu 侧并发 reconcile 幂等；差异：Go 断言 reconciler 收到的逐次 refs 集合 [A]、[A,B]、[A] 与合并顺序，Rust 没有逐次调用参数断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -p jftrade-integration-futu --all-targets --locked",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-integration-futu --all-targets --locked -E 'test(concurrent_reconcile_passes_are_idempotent_for_subscribe_and_release) or test(subscription_routes_preserve_instrument_request_contract_through_acquire_release_and_clear)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/marketdata/subscription_lifecycle_test.go",
@@ -180636,11 +180642,13 @@
           "scripts/quality/cargo-nextest.mjs",
           "run",
           "-p",
-          "jftrade-marketdata",
+          "jftrade-engine",
           "-p",
           "jftrade-integration-futu",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(concurrent_reconcile_passes_are_idempotent_for_subscribe_and_release) or test(subscription_routes_preserve_instrument_request_contract_through_acquire_release_and_clear)"
         ],
         "testFilter": [
           "concurrent_reconcile_passes_are_idempotent_for_subscribe_and_release",
@@ -180672,7 +180680,7 @@
       "status": "[~]",
       "rust_entry": "crates/jftrade-marketdata/src/router.rs::deactivation_fences_cache_and_marks_router_inactive；crates/jftrade-integration-futu/src/provider_runtime.rs::release_and_deactivate_clears_bridge_owned_router_state；crates/jftrade-integration-futu/src/subscriptions_tests.rs::lifecycle_rejects_stale_callbacks_and_closes_recorder_once",
       "conclusion": "partial：Rust 关闭路径等价语义为：deactivate 使 router 失活并递增 generation、清除缓存，Futu bridge 释放路由状态后不再接受回调；差异：Go 的“Close 后 collector 不再收到 reconcile、最终一次为空集合”断言在 Rust 由 provider 释放 + generation fence 覆盖，无同形计数断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -p jftrade-integration-futu --all-targets --locked",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -p jftrade-integration-futu --all-targets --locked -E 'test(deactivation_fences_cache_and_marks_router_inactive) or test(release_and_deactivate_clears_bridge_owned_router_state) or test(lifecycle_rejects_stale_callbacks_and_closes_recorder_once)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/marketdata/subscription_lifecycle_test.go",
@@ -180717,7 +180725,9 @@
           "-p",
           "jftrade-integration-futu",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(deactivation_fences_cache_and_marks_router_inactive) or test(release_and_deactivate_clears_bridge_owned_router_state) or test(lifecycle_rejects_stale_callbacks_and_closes_recorder_once)"
         ],
         "testFilter": [
           "deactivation_fences_cache_and_marks_router_inactive",
@@ -181179,7 +181189,7 @@
       "status": "[~]",
       "rust_entry": "crates/jftrade-integration-marketdata-helper/src/asset.rs::rejects_checksum_mismatch_before_writing",
       "conclusion": "partial：Rust 在可执行文件缺失或摘要不匹配时拒绝发布侧车（marketdata_helper_command/required_asset 返回 MissingAsset，HelperProcess::new 的 validate 返回 MissingExecutable，空 bundle 无法通过校验和）；差异：Go 用 (Asset{}, false, nil) 表达“本构建未嵌入 release 资产”，Rust 用 Option/Err 表达，且 dev 构建走 JFTRADE_MARKETDATA_DEV_PYTHON/venv 源而不是空 embed FS。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper --all-targets --locked",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper --all-targets --locked -E 'test(rejects_checksum_mismatch_before_writing)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/marketdataassets/asset_selection_boundaries_test.go",
@@ -181210,7 +181220,9 @@
           "-p",
           "jftrade-integration-marketdata-helper",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(rejects_checksum_mismatch_before_writing)"
         ],
         "testFilter": [
           "rejects_checksum_mismatch_before_writing"
@@ -181489,7 +181501,7 @@
       "status": "[~]",
       "rust_entry": "crates/jftrade-integration-marketdata-helper/src/asset.rs::rejects_checksum_mismatch_before_writing",
       "conclusion": "partial：空字节或缺失记录摘要的 bundle 在 Rust 无法通过 verify（InvalidName/ChecksumMismatch），不会写盘；差异：Go 以 (nil, false, nil) 表达“空资产=不可用”，Rust 以错误表达而非可用性三元组。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper --all-targets --locked",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper --all-targets --locked -E 'test(rejects_checksum_mismatch_before_writing)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/marketdataassets/asset_selection_boundaries_test.go",
@@ -181520,7 +181532,9 @@
           "-p",
           "jftrade-integration-marketdata-helper",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(rejects_checksum_mismatch_before_writing)"
         ],
         "testFilter": [
           "rejects_checksum_mismatch_before_writing"
@@ -182302,7 +182316,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-integration-marketdata-helper/src/asset.rs::reuses_a_published_asset_without_rewriting_it",
       "conclusion": "[x]：二次物化复用已发布文件——同一路径、内容仍为已发布字节、文件身份（inode）与 mtime 不变，对应 Go 的“第二次返回同一 Path 且 mtime 未被重写”；Go 末条断言（持久资产的 Cleanup 是 no-op、缓存不被删除）在 Rust 结构上成立：materialize 没有删除路径，测试同样断言复用后文件仍存在。本批新增回归测试；因 check-zero-go 禁止活动根出现该退休包的内部路径字样，代码侧不写 `// Parity:` 锚点，证据保留在 docs/history/go-to-rust/marketdata-assets-batch-scope.md 与审计清单。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper --all-targets --locked",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper --all-targets --locked -E 'test(reuses_a_published_asset_without_rewriting_it)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/marketdataassets/cache_test.go",
@@ -182333,7 +182347,9 @@
           "-p",
           "jftrade-integration-marketdata-helper",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(reuses_a_published_asset_without_rewriting_it)"
         ],
         "testFilter": [
           "reuses_a_published_asset_without_rewriting_it"
@@ -182364,7 +182380,7 @@
       "status": "[~]",
       "rust_entry": "crates/jftrade-integration-marketdata-helper/src/asset.rs::reuses_a_published_asset_without_rewriting_it",
       "conclusion": "partial：Rust 复用判定按字节比对，内容被篡改后会重新写入（临时文件 + 原子 rename 覆盖），因此篡改可自愈；差异：Go 断言 onedir 依赖文件被篡改以及被替换成符号链接后都修复，Rust 单文件模型没有 lib/ 目录与 symlink 条目，也不校验 POSIX 权限位（依赖打包目录权限）。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper --all-targets --locked",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper --all-targets --locked -E 'test(reuses_a_published_asset_without_rewriting_it)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/marketdataassets/cache_test.go",
@@ -182395,7 +182411,9 @@
           "-p",
           "jftrade-integration-marketdata-helper",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(reuses_a_published_asset_without_rewriting_it)"
         ],
         "testFilter": [
           "reuses_a_published_asset_without_rewriting_it"
@@ -182426,7 +182444,7 @@
       "status": "[~]",
       "rust_entry": "crates/jftrade-integration-marketdata-helper/src/asset.rs::reuses_a_published_asset_without_rewriting_it",
       "conclusion": "partial：Rust 通过临时文件 + rename 原子发布，并发重复发布最终收敛到同一目标路径，复用分支保证赢家字节不被覆盖；差异：Go 显式用 6 个 goroutine 断言并发调用返回同一路径，Rust 无并发回归测试，也没有内容寻址目录（目标名固定为资产文件名）。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper --all-targets --locked",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper --all-targets --locked -E 'test(reuses_a_published_asset_without_rewriting_it)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/marketdataassets/cache_test.go",
@@ -182457,7 +182475,9 @@
           "-p",
           "jftrade-integration-marketdata-helper",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(reuses_a_published_asset_without_rewriting_it)"
         ],
         "testFilter": [
           "reuses_a_published_asset_without_rewriting_it"
@@ -182488,7 +182508,7 @@
       "status": "[~]",
       "rust_entry": "crates/jftrade-integration-marketdata-helper/src/asset.rs::reuses_a_published_asset_without_rewriting_it",
       "conclusion": "partial：Rust 在 rename 失败时删除临时文件并把错误返回调用方（不覆盖已存在的合法目标，后续调用走复用分支）；差异：Go 的 publishCachedAsset 在 rename 失败后重新校验目标是否为合法并发赢家，合法则接受、非法则回滚 staging，Rust 没有“接受并发赢家”的显式分支与 staging 目录。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper --all-targets --locked",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper --all-targets --locked -E 'test(reuses_a_published_asset_without_rewriting_it)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/marketdataassets/cache_test.go",
@@ -182519,7 +182539,9 @@
           "-p",
           "jftrade-integration-marketdata-helper",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(reuses_a_published_asset_without_rewriting_it)"
         ],
         "testFilter": [
           "reuses_a_published_asset_without_rewriting_it"
@@ -182868,7 +182890,7 @@
       "status": "[~]",
       "rust_entry": "crates/jftrade-integration-marketdata-helper/src/asset.rs::rejects_a_bundle_whose_bytes_no_longer_match_the_digest",
       "conclusion": "partial：Rust 覆盖其中的无效输入面——空资产/缺失可执行/摘要不匹配/越界名在 verify 阶段拒绝且不写盘；差异：Go 还断言重复路径、相对缓存根、文件阻塞子目录等 onedir/缓存专属输入，Rust 单文件模型没有这些输入（目录冲突会以 IOException 失败而非参数校验错误）。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper --all-targets --locked",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper --all-targets --locked -E 'test(rejects_a_bundle_whose_bytes_no_longer_match_the_digest)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/marketdataassets/cache_test.go",
@@ -182899,7 +182921,9 @@
           "-p",
           "jftrade-integration-marketdata-helper",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(rejects_a_bundle_whose_bytes_no_longer_match_the_digest)"
         ],
         "testFilter": [
           "rejects_a_bundle_whose_bytes_no_longer_match_the_digest"
@@ -182930,7 +182954,7 @@
       "status": "[~]",
       "rust_entry": "crates/jftrade-integration-marketdata-helper/src/asset.rs::rejects_escaping_asset_names_before_writing",
       "conclusion": "partial：Rust 的越界路径写盘前即被拒绝（不创建目录），文件/目录冲突由 create_dir_all 与 rename 的 io 错误 fail-closed 上抛；差异：Go 的 writeAssetFiles 在写入阶段区分“逃逸路径”与“文件阻塞目录/目录阻塞文件”两类错误文案，Rust 只有名称校验 + io 错误两种结果。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper --all-targets --locked",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper --all-targets --locked -E 'test(rejects_escaping_asset_names_before_writing)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/marketdataassets/cache_test.go",
@@ -182961,7 +182985,9 @@
           "-p",
           "jftrade-integration-marketdata-helper",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(rejects_escaping_asset_names_before_writing)"
         ],
         "testFilter": [
           "rejects_escaping_asset_names_before_writing"
@@ -182992,7 +183018,7 @@
       "status": "[~]",
       "rust_entry": "crates/jftrade-integration-marketdata-helper/src/asset.rs::reuses_a_published_asset_without_rewriting_it",
       "conclusion": "partial：Rust 复用前按字节比对已发布内容（等价于摘要校验的最小形式），内容不符即重写，因而篡改/缺文件不会通过；差异：Go 对 onedir 目录树校验根权限、目录/文件权限、多余文件、不完整打包与摘要不一致五类形状，Rust 无目录树校验（release 资源完整性由 apps/desktop/src-tauri/src/resource_integrity.rs::verify_release_resources 的清单摘要覆盖）。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper --all-targets --locked",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper --all-targets --locked -E 'test(reuses_a_published_asset_without_rewriting_it)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/marketdataassets/cache_test.go",
@@ -183023,7 +183049,9 @@
           "-p",
           "jftrade-integration-marketdata-helper",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(reuses_a_published_asset_without_rewriting_it)"
         ],
         "testFilter": [
           "reuses_a_published_asset_without_rewriting_it"
