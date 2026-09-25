@@ -9123,7 +9123,7 @@
     "internal/api/live/dispatcher_boundaries_test.go:205:TestDispatcherEnvelopeDefaultsAndMapFallback": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-api/src/sse.rs::frames_preserve_go_retry_id_data_and_comment_shape",
-      "conclusion": "partial：Go 断言 writeEnvelope 默认字段（entityId 回退 eventType、eventId 非空）与 mapString 非字符串回退。Rust 帧形状（retry/id/data/comment）由 sse 单测断言、信封默认字段由投影/语料固定；mapString 回退在 Rust 由类型化取值替代，无等价分支。缺口：缺省字段信封未单独断言。owner：crates/jftrade-api sse/envelope；回归要求：补缺省字段信封断言。",
+      "conclusion": "partial：Go 断言 writeEnvelope 默认字段（entityId 回退 eventType、eventId 非空）与 mapString 非字符串回退。Rust 帧形状（retry/id/data/comment）由 sse 单测断言，WebSocket/事件生产者则直接生成完整 typed JSON envelope；mapString 回退在 Rust 由类型化取值替代，无等价分支。缺口：没有 Go helper 对应的通用缺省字段 envelope owner，不能把帧格式测试升级为 exact。owner：crates/jftrade-api sse/websocket 与各事件生产者。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --all-targets --locked -E test(frames_preserve_go_retry_id_data_and_comment_shape)",
       "evidence_type": "partial",
       "source": {
@@ -9169,7 +9169,7 @@
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": "2026-09-25T04:15:00Z",
+        "verifiedAt": "2026-09-25T08:08:48Z",
         "receiptDigest": null
       },
       "risk": "high",
