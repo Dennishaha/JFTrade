@@ -3720,7 +3720,7 @@
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": "2026-09-25T06:00:00Z",
+      "verifiedAt": "2026-09-25T07:43:09Z",
         "receiptDigest": null
       },
       "risk": "high",
