@@ -172054,7 +172054,7 @@
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::test_broker_k_line_candles_response_projects_strict_page",
       "conclusion": "部分覆盖：Rust 断言页大小、分页标记和字段类型，但未像 Go 一样固定 candle 时间/收盘值、source、extendedHours 与 session 的具体 wire 值；不得标记为行为等价",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(test_broker_k_line_candles_response_projects_strict_page)'",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(test_broker_k_line_candles_response_projects_strict_page)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/marketdata/broker_candles_test.go",
@@ -172089,6 +172089,8 @@
           "run",
           "-p",
           "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
           "test(test_broker_k_line_candles_response_projects_strict_page)"
         ],
@@ -172121,7 +172123,7 @@
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::test_broker_k_line_candles_response_handles_terminal_and_bounded_pages",
       "conclusion": "部分覆盖：Rust 仅验证 terminal 请求的 hasMore=false，未执行 Go 测试中的 bounded 分支，也未断言 pagination 对象仅含预期字段；需补 bounded fixture 回归",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(test_broker_k_line_candles_response_handles_terminal_and_bounded_pages)'",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(test_broker_k_line_candles_response_handles_terminal_and_bounded_pages)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/marketdata/broker_candles_test.go",
@@ -172156,6 +172158,8 @@
           "run",
           "-p",
           "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
           "test(test_broker_k_line_candles_response_handles_terminal_and_bounded_pages)"
         ],
@@ -172250,7 +172254,7 @@
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::test_broker_k_line_helpers_classify_sessions_and_numbers",
       "conclusion": "部分覆盖：Rust 验证空/有效时间和数字解析，但未验证 Go 测试中的默认 regular、显式 after session 分类及其 CandleSession 分组",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(test_broker_k_line_helpers_classify_sessions_and_numbers)'",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(test_broker_k_line_helpers_classify_sessions_and_numbers)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/marketdata/broker_candles_test.go",
@@ -172285,6 +172289,8 @@
           "run",
           "-p",
           "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
           "test(test_broker_k_line_helpers_classify_sessions_and_numbers)"
         ],
@@ -172317,7 +172323,7 @@
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::test_broker_k_line_pagination_rejects_invalid_bounded_and_paged_metadata",
       "conclusion": "部分覆盖：Rust 仅覆盖 bounded hasMore 和 page exceeds limit 两个场景，Go 还要求 bounded cursor、空/非法 nextBefore 等分页元数据边界；需补齐错误矩阵",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(test_broker_k_line_pagination_rejects_invalid_bounded_and_paged_metadata)'",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(test_broker_k_line_pagination_rejects_invalid_bounded_and_paged_metadata)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/marketdata/broker_candles_test.go",
@@ -172352,6 +172358,8 @@
           "run",
           "-p",
           "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
           "test(test_broker_k_line_pagination_rejects_invalid_bounded_and_paged_metadata)"
         ],
@@ -172384,7 +172392,7 @@
       "status": "[~]",
       "rust_entry": "crates/jftrade-marketdata/tests/cache_boundaries.rs::test_cache_deduplicates_promotes_and_inherits",
       "conclusion": "部分覆盖：Rust 验证同价 snapshot promotion 与计数，但 Go 还断言重复 observedAt 保留、trade 的 bid/ask/volumeDelta、previous/pre-market/turnover/session 继承；当前无等价断言",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(test_cache_deduplicates_promotes_and_inherits)'",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --all-targets --locked -E 'test(test_cache_deduplicates_promotes_and_inherits)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/marketdata/cache_test.go",
@@ -172419,6 +172427,8 @@
           "run",
           "-p",
           "jftrade-marketdata",
+          "--all-targets",
+          "--locked",
           "-E",
           "test(test_cache_deduplicates_promotes_and_inherits)"
         ],
@@ -172451,7 +172461,7 @@
       "status": "[~]",
       "rust_entry": "crates/jftrade-marketdata/tests/cache_boundaries.rs::test_cache_freshness_retention_and_maximum",
       "conclusion": "部分覆盖：Rust 验证 max_age 下 fresh/stale，但 Go 还验证 retention 清除旧样本、max=3 截断顺序以及 AllFresh 对 stale 样本返回 false",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(test_cache_freshness_retention_and_maximum)'",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --all-targets --locked -E 'test(test_cache_freshness_retention_and_maximum)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/marketdata/cache_test.go",
@@ -172486,6 +172496,8 @@
           "run",
           "-p",
           "jftrade-marketdata",
+          "--all-targets",
+          "--locked",
           "-E",
           "test(test_cache_freshness_retention_and_maximum)"
         ],
@@ -172518,7 +172530,7 @@
       "status": "[~]",
       "rust_entry": "crates/jftrade-marketdata/tests/cache_extended_sessions_parity.rs::test_cache_does_not_inherit_extended_sessions_across_trading_days",
       "conclusion": "部分覆盖：Rust 用 trading_date 变化验证 session/pre/after 不跨日继承，但 Go 还断言 ExtendedHours、overnight、bid/ask 与 volume 不泄漏；字段模型未完全对齐",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(test_cache_does_not_inherit_extended_sessions_across_trading_days)'",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --all-targets --locked -E 'test(test_cache_does_not_inherit_extended_sessions_across_trading_days)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/marketdata/cache_test.go",
@@ -172553,6 +172565,8 @@
           "run",
           "-p",
           "jftrade-marketdata",
+          "--all-targets",
+          "--locked",
           "-E",
           "test(test_cache_does_not_inherit_extended_sessions_across_trading_days)"
         ],
@@ -172585,7 +172599,7 @@
       "status": "[~]",
       "rust_entry": "crates/jftrade-marketdata/tests/cache_extended_sessions_parity.rs::test_cache_promotes_us_regular_close_when_after_hours_trade_arrives",
       "conclusion": "部分覆盖：Rust 验证 after-hours previous/last close promotion 与价格，但 Go 还断言 SnapshotJSON wire 字段及后续 after-hours tick 保留 regular close 上下文",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(test_cache_promotes_us_regular_close_when_after_hours_trade_arrives)'",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --all-targets --locked -E 'test(test_cache_promotes_us_regular_close_when_after_hours_trade_arrives)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/marketdata/cache_test.go",
@@ -172620,6 +172634,8 @@
           "run",
           "-p",
           "jftrade-marketdata",
+          "--all-targets",
+          "--locked",
           "-E",
           "test(test_cache_promotes_us_regular_close_when_after_hours_trade_arrives)"
         ],
@@ -172652,7 +172668,7 @@
       "status": "[~]",
       "rust_entry": "crates/jftrade-marketdata/tests/cache_extended_sessions_parity.rs::test_cache_retains_extended_quote_when_price_is_unchanged",
       "conclusion": "部分覆盖：Rust 验证同价 tick 携带新的 after-market quote，但 Go 还要求样本计数从 1 增至 2、quote 时间和 previous/last close 字段完整保留",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -E 'test(test_cache_retains_extended_quote_when_price_is_unchanged)'",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --all-targets --locked -E 'test(test_cache_retains_extended_quote_when_price_is_unchanged)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/marketdata/cache_test.go",
@@ -172687,6 +172703,8 @@
           "run",
           "-p",
           "jftrade-marketdata",
+          "--all-targets",
+          "--locked",
           "-E",
           "test(test_cache_retains_extended_quote_when_price_is_unchanged)"
         ],
@@ -172719,7 +172737,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-marketdata/src/tick_candles.rs::tick_candles_default_to_a_fifteen_minute_window_and_clamp_negative_volume",
       "conclusion": "function_exact：同一组样本（16m 前样本被默认 15m 窗口丢弃、limit=2 保留最新两根、负成交量钳为 0、session=regular）逐项断言一致；Rust 侧另有尾随零裁剪断言，为超集。锚点行号将从 :207 修正为清单键 :210。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --all-targets --locked",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --all-targets --locked -E 'test(tick_candles_default_to_a_fifteen_minute_window_and_clamp_negative_volume)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/marketdata/cache_test.go",
@@ -172755,7 +172773,9 @@
           "-p",
           "jftrade-marketdata",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(tick_candles_default_to_a_fifteen_minute_window_and_clamp_negative_volume)"
         ],
         "testFilter": [
           "tick_candles_default_to_a_fifteen_minute_window_and_clamp_negative_volume"
@@ -172786,7 +172806,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-marketdata/src/tick_candles.rs::tick_candles_use_explicit_volume_delta_across_trading_days",
       "conclusion": "function_exact：跨交易日显式 delta 场景（前日 10000/次日 250 累计计数，VolumeDelta 12/7）逐项断言 volume 为 \"12\"/\"7\" 且长度为 2，与 Go 断言一致；Rust 测试注释已带 :241 锚点。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --all-targets --locked",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --all-targets --locked -E 'test(tick_candles_use_explicit_volume_delta_across_trading_days)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/marketdata/cache_test.go",
@@ -172822,7 +172842,9 @@
           "-p",
           "jftrade-marketdata",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(tick_candles_use_explicit_volume_delta_across_trading_days)"
         ],
         "testFilter": [
           "tick_candles_use_explicit_volume_delta_across_trading_days"
@@ -172853,7 +172875,7 @@
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_quote_snapshot.rs::cached_projection_uses_active_after_quote_and_separates_closes；crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::futu_snapshot_route_projects_cached_extended_quote_contract",
       "conclusion": "partial：Rust 覆盖快照/扩展时段字段投影（afterMarket 价格、quoteTime、session 窗口、价格字符串格式、volume \"0\"）与 observedAt 覆盖；差异：Go 的 Availability.Authoritative 决定零值输出 nil 的契约在 Rust 由 PriceValue/Option 类型表达（缺失即 null、零值输出 \"0\"），没有“权威缺失 → null”的同形断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -p jftrade-engine --all-targets --locked",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(cached_projection_uses_active_after_quote_and_separates_closes) or test(futu_snapshot_route_projects_cached_extended_quote_contract)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/marketdata/cache_test.go",
@@ -172888,11 +172910,11 @@
           "scripts/quality/cargo-nextest.mjs",
           "run",
           "-p",
-          "jftrade-marketdata",
-          "-p",
           "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(cached_projection_uses_active_after_quote_and_separates_closes) or test(futu_snapshot_route_projects_cached_extended_quote_contract)"
         ],
         "testFilter": [
           "cached_projection_uses_active_after_quote_and_separates_closes",
@@ -172924,7 +172946,7 @@
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::snapshot_route_serves_a_fresh_cache_hit_without_provider_access；crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::tick_candles_use_fresh_cache_without_querying_the_provider；crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::cached_security_snapshot_reader_batches_hk_and_serves_repeats_from_cache",
       "conclusion": "partial：Rust 分别断言 snapshot 缓存命中不再访问 provider（fromCache=true）、tick candles 命中缓存时 ticker 调用为 0、security snapshot 批量读复用缓存；差异：Go 用同一条服务实例串联 snapshot→cached snapshot→tick candles→latest ticks 验证“单一缓存”，Rust 没有同一条端到端串联断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -p jftrade-engine --all-targets --locked",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(snapshot_route_serves_a_fresh_cache_hit_without_provider_access) or test(tick_candles_use_fresh_cache_without_querying_the_provider) or test(cached_security_snapshot_reader_batches_hk_and_serves_repeats_from_cache)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/marketdata/cache_test.go",
@@ -172965,11 +172987,11 @@
           "scripts/quality/cargo-nextest.mjs",
           "run",
           "-p",
-          "jftrade-marketdata",
-          "-p",
           "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(snapshot_route_serves_a_fresh_cache_hit_without_provider_access) or test(tick_candles_use_fresh_cache_without_querying_the_provider) or test(cached_security_snapshot_reader_batches_hk_and_serves_repeats_from_cache)"
         ],
         "testFilter": [
           "snapshot_route_serves_a_fresh_cache_hit_without_provider_access",
@@ -173002,7 +173024,7 @@
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::tick_candles_fall_back_to_retained_cache_on_ticker_error",
       "conclusion": "partial（唯一引用约束）：该 Rust 测试已作为 internal/app/apiserver/marketdataapp/market_http_test.go:442 的 function_exact 证据占用，本行不重复占用；其断言（ticker 失败回退保留缓存、totalReturned=1、fromCache=true、ticker 调用=1）与 Go 本行语义一致，故记为 partial 并保留引用。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(tick_candles_fall_back_to_retained_cache_on_ticker_error)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/marketdata/cache_test.go",
@@ -173038,7 +173060,9 @@
           "-p",
           "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(tick_candles_fall_back_to_retained_cache_on_ticker_error)"
         ],
         "testFilter": [
           "tick_candles_fall_back_to_retained_cache_on_ticker_error"
@@ -173373,7 +173397,7 @@
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_query.rs::candle_sessions_parse_dedup_order_and_reject_invalid",
       "conclusion": "partial（唯一引用约束）：该 Rust 测试已作为 internal/app/apiserver/marketdataapp/query_test.go:45 的 function_exact 证据占用；其覆盖同一输入 [\"overnight,regular\",\"extended\",\"regular\"] 的归一顺序 [\"regular\",\"extended\",\"overnight\"]（并含空值/非法 token 拒绝），与 Go 本行断言一致，故记为 partial 并保留引用。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(candle_sessions_parse_dedup_order_and_reject_invalid)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/marketdata/candle_sessions_test.go",
@@ -173409,7 +173433,9 @@
           "-p",
           "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(candle_sessions_parse_dedup_order_and_reject_invalid)"
         ],
         "testFilter": [
           "candle_sessions_parse_dedup_order_and_reject_invalid"
@@ -173440,7 +173466,7 @@
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_query.rs::candle_sessions_parse_dedup_order_and_reject_invalid；crates/jftrade-engine/src/product_production_assembly_tests.rs::candles_and_search_validation_rules",
       "conclusion": "partial：Rust 覆盖空值（CandleSessionError::Empty）与未知 token（Invalid(\"all\")）拒绝，路由层断言两者都映射 400 MARKET_CANDLE_SESSIONS_INVALID；差异：Go 对 {\"\"} 与 {\"regular,invalid\"} 都返回同一个 ErrInvalidCandleSessions，Rust 区分 Empty/Invalid 变体且未断言组合 token 输入 \"regular,invalid\"。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(candle_sessions_parse_dedup_order_and_reject_invalid) or test(candles_and_search_validation_rules)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/marketdata/candle_sessions_test.go",
@@ -173477,7 +173503,9 @@
           "-p",
           "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(candle_sessions_parse_dedup_order_and_reject_invalid) or test(candles_and_search_validation_rules)"
         ],
         "testFilter": [
           "candle_sessions_parse_dedup_order_and_reject_invalid",
@@ -173509,7 +173537,7 @@
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::us_intraday_futu_candles_carry_calendar_resolved_session_labels；crates/jftrade-engine/src/product_production_assembly_tests.rs::candles_and_search_validation_rules",
       "conclusion": "partial：Rust 覆盖缺省解析（未传 sessions 时按市场默认路由/标注）与会话不支持时的 400；差异：Go 的 ResolveCandleSessions(available) 语义（请求 overnight 不在可用集合时拒绝、available 顺序归一）在 Rust 由 history session planner 与路由参数解析分摊，没有同形函数级断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-integration-futu --all-targets --locked",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(us_intraday_futu_candles_carry_calendar_resolved_session_labels) or test(candles_and_search_validation_rules)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/marketdata/candle_sessions_test.go",
@@ -173545,10 +173573,10 @@
           "run",
           "-p",
           "jftrade-engine",
-          "-p",
-          "jftrade-integration-futu",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(us_intraday_futu_candles_carry_calendar_resolved_session_labels) or test(candles_and_search_validation_rules)"
         ],
         "testFilter": [
           "us_intraday_futu_candles_carry_calendar_resolved_session_labels",
@@ -173580,7 +173608,7 @@
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::tick_candles_filter_sessions_before_applying_the_limit；crates/jftrade-engine/src/product_production_ports_market_data_quote_reads_futu.rs::broker_kline_pagination_helpers_cover_sessions_bounds_and_listing_dates",
       "conclusion": "partial：Rust 覆盖按会话过滤（extended 过滤、limit 前过滤）与 K 线会话分类助手；差异：Go 断言未知标签（无 session 字段）按 regular 归类、nil 过滤返回全集、CandleSessionForLabel 映射表，Rust 的等价映射在 filter_klines_by_sessions/session_group，但没有“未知标签降级为 regular”的同形断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-integration-futu --all-targets --locked",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(tick_candles_filter_sessions_before_applying_the_limit) or test(broker_kline_pagination_helpers_cover_sessions_bounds_and_listing_dates)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/marketdata/candle_sessions_test.go",
@@ -173616,10 +173644,10 @@
           "run",
           "-p",
           "jftrade-engine",
-          "-p",
-          "jftrade-integration-futu",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(tick_candles_filter_sessions_before_applying_the_limit) or test(broker_kline_pagination_helpers_cover_sessions_bounds_and_listing_dates)"
         ],
         "testFilter": [
           "tick_candles_filter_sessions_before_applying_the_limit",
@@ -173651,7 +173679,7 @@
       "status": "[~]",
       "rust_entry": "crates/jftrade-marketdata/src/catalog_tests.rs::infer_cn_prefix_supports_various_formats_and_preserves_explicit_prefixes；crates/jftrade-marketdata/src/catalog_tests.rs::normalize_instrument_rejects_unsupported_market_and_market_mismatch",
       "conclusion": "partial：Rust 覆盖未限定输入的市场推断（显式前缀保留、CN 前缀推断）与不受支持市场拒绝；差异：Go 对无法识别的市场 \"??\" 仍拼出 \"??.CODE\" 的宽松回退在 Rust 是拒绝（fail-closed），属 go-behavior quirk 不迁移。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --all-targets --locked",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --all-targets --locked -E 'test(infer_cn_prefix_supports_various_formats_and_preserves_explicit_prefixes) or test(normalize_instrument_rejects_unsupported_market_and_market_mismatch)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/marketdata/candle_sessions_test.go",
@@ -173688,7 +173716,9 @@
           "-p",
           "jftrade-marketdata",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(infer_cn_prefix_supports_various_formats_and_preserves_explicit_prefixes) or test(normalize_instrument_rejects_unsupported_market_and_market_mismatch)"
         ],
         "testFilter": [
           "infer_cn_prefix_supports_various_formats_and_preserves_explicit_prefixes",
@@ -173720,7 +173750,7 @@
       "status": "[~]",
       "rust_entry": "crates/jftrade-integration-futu/src/subscription_executor.rs::lifecycle_rejects_stale_executor_before_qot_sub_io；crates/jftrade-integration-futu/src/managed_session_tests.rs::closed_session_rejects_connect_like_rpcs_before_touching_the_transport；crates/jftrade-marketdata/src/runtime.rs::recorder_matches_generation_retry_recovery_and_close_rules",
       "conclusion": "partial：Rust 关闭后 executor/session 拒绝新的连接类 RPC（不触碰 transport），recorder.close 幂等且后续写入被 closed fence 拒绝；差异：Go 断言阻塞中的 Connect 被取消且 Wake 不再新建 stream，Rust 由异步取消与 stale executor 检查覆盖，无流创建计数断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -p jftrade-integration-futu --all-targets --locked",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -p jftrade-integration-futu --all-targets --locked -E 'test(lifecycle_rejects_stale_executor_before_qot_sub_io) or test(closed_session_rejects_connect_like_rpcs_before_touching_the_transport) or test(recorder_matches_generation_retry_recovery_and_close_rules)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/marketdata/collector_test.go",
@@ -173765,7 +173795,9 @@
           "-p",
           "jftrade-integration-futu",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(lifecycle_rejects_stale_executor_before_qot_sub_io) or test(closed_session_rejects_connect_like_rpcs_before_touching_the_transport) or test(recorder_matches_generation_retry_recovery_and_close_rules)"
         ],
         "testFilter": [
           "lifecycle_rejects_stale_executor_before_qot_sub_io",
@@ -174018,7 +174050,7 @@
       "status": "[~]",
       "rust_entry": "crates/jftrade-marketdata/src/snapshot_poll.rs::poll_normalizes_demand_writes_only_requested_ticks_and_skips_fresh_cache；crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::tick_candles_query_the_provider_once_on_cache_miss_and_ingest_the_sample",
       "conclusion": "partial：Rust 的 poll 路径只写缓存、不经过 push handler（push 由独立订阅 executor 处理）；差异：Go 直接以 handler 调用计数断言轮询不触发 push，Rust 没有“push handler 未被调用”的显式计数断言（两条路径在类型层分离）。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -p jftrade-engine --all-targets --locked",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-marketdata --all-targets --locked -E 'test(poll_normalizes_demand_writes_only_requested_ticks_and_skips_fresh_cache) or test(tick_candles_query_the_provider_once_on_cache_miss_and_ingest_the_sample)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/marketdata/collector_test.go",
@@ -174053,11 +174085,13 @@
           "scripts/quality/cargo-nextest.mjs",
           "run",
           "-p",
-          "jftrade-marketdata",
-          "-p",
           "jftrade-engine",
+          "-p",
+          "jftrade-marketdata",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(poll_normalizes_demand_writes_only_requested_ticks_and_skips_fresh_cache) or test(tick_candles_query_the_provider_once_on_cache_miss_and_ingest_the_sample)"
         ],
         "testFilter": [
           "poll_normalizes_demand_writes_only_requested_ticks_and_skips_fresh_cache",
@@ -174158,7 +174192,7 @@
       "status": "[~]",
       "rust_entry": "crates/jftrade-marketdata/src/snapshot_poll.rs::poll_normalizes_demand_writes_only_requested_ticks_and_skips_fresh_cache；crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::poll_only_read_routes_prioritize_capabilities_and_preserve_leases",
       "conclusion": "partial：Rust 轮询按规范化需求集合请求（assert_eq instruments [\"HK.00700\",\"US.AAPL\"]）、只写入被请求且有效的 tick；差异：Go 断言 push stream 只包含可实时标的、回退标的只轮询，Rust 侧实时/回退分流由 provider 能力与订阅 executor 决定，无同形分流断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -p jftrade-engine --all-targets --locked",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-marketdata --all-targets --locked -E 'test(poll_normalizes_demand_writes_only_requested_ticks_and_skips_fresh_cache) or test(poll_only_read_routes_prioritize_capabilities_and_preserve_leases)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/marketdata/collector_test.go",
@@ -174193,11 +174227,13 @@
           "scripts/quality/cargo-nextest.mjs",
           "run",
           "-p",
-          "jftrade-marketdata",
-          "-p",
           "jftrade-engine",
+          "-p",
+          "jftrade-marketdata",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(poll_normalizes_demand_writes_only_requested_ticks_and_skips_fresh_cache) or test(poll_only_read_routes_prioritize_capabilities_and_preserve_leases)"
         ],
         "testFilter": [
           "poll_normalizes_demand_writes_only_requested_ticks_and_skips_fresh_cache",
@@ -174298,7 +174334,7 @@
       "status": "[~]",
       "rust_entry": "crates/jftrade-marketdata/src/snapshot_poll.rs::stale_caller_is_rejected_even_when_the_active_generation_cache_is_fresh；crates/jftrade-marketdata/src/snapshot_poll.rs::completion_after_generation_change_cannot_mutate_cache_or_failure_state；crates/jftrade-integration-futu/tests/provider_runtime_recovery.rs::latest_demand_replaces_stale_replay_while_reconnect_is_pending",
       "conclusion": "partial：Rust 断言旧调用在 generation 变化后被拒绝（即使缓存新）、在途结果被丢弃，重连期间以最新需求替代过期回放；差异：Go 断言需求变化会取消上一个 provider poll（逐次 instrumentID 断言），Rust 用 generation/需求替换表达，无取消计数断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -p jftrade-integration-futu --all-targets --locked",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -p jftrade-integration-futu --all-targets --locked -E 'test(stale_caller_is_rejected_even_when_the_active_generation_cache_is_fresh) or test(completion_after_generation_change_cannot_mutate_cache_or_failure_state) or test(latest_demand_replaces_stale_replay_while_reconnect_is_pending)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/marketdata/collector_test.go",
@@ -174343,7 +174379,9 @@
           "-p",
           "jftrade-integration-futu",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(stale_caller_is_rejected_even_when_the_active_generation_cache_is_fresh) or test(completion_after_generation_change_cannot_mutate_cache_or_failure_state) or test(latest_demand_replaces_stale_replay_while_reconnect_is_pending)"
         ],
         "testFilter": [
           "stale_caller_is_rejected_even_when_the_active_generation_cache_is_fresh",
@@ -174583,7 +174621,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-marketdata/src/runtime.rs::retry_delay_is_capped_after_four_failures",
       "conclusion": "function_exact：Go retryDelay(0..4) = [5s,10s,20s,30s,30s]（cap 在最后一档）；Rust 同名序列测试连续记录 5 次 quote 失败并断言 retry_at-now 为 [5,10,20,30,30] 秒，取值与顺序逐项一致。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --all-targets --locked",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --all-targets --locked -E 'test(retry_delay_is_capped_after_four_failures)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/marketdata/collector_test.go",
@@ -174619,7 +174657,9 @@
           "-p",
           "jftrade-marketdata",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(retry_delay_is_capped_after_four_failures)"
         ],
         "testFilter": [
           "retry_delay_is_capped_after_four_failures"
@@ -177891,7 +177931,7 @@
       "status": "[~]",
       "rust_entry": "crates/jftrade-marketdata/src/router.rs::explicit_activation_fails_closed_and_switch_clears_cache；crates/jftrade-marketdata/src/router.rs::deactivation_fences_cache_and_marks_router_inactive；crates/jftrade-marketdata/tests/provider_activation_recovery.rs::provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update",
       "conclusion": "partial：Rust 切换激活会清空缓存并递增 generation（读方以 generation fence 拒绝旧数据）；差异：Go 断言“provider 回调执行完毕前读方被阻塞”，Rust 用 generation 校验而非激活屏障，无阻塞断言的对应物。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --all-targets --locked",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --all-targets --locked -E 'test(explicit_activation_fails_closed_and_switch_clears_cache) or test(deactivation_fences_cache_and_marks_router_inactive) or test(provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/marketdata/provider_switch_lifecycle_test.go",
@@ -177934,7 +177974,9 @@
           "-p",
           "jftrade-marketdata",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(explicit_activation_fails_closed_and_switch_clears_cache) or test(deactivation_fences_cache_and_marks_router_inactive) or test(provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update)"
         ],
         "testFilter": [
           "explicit_activation_fails_closed_and_switch_clears_cache",
@@ -178038,7 +178080,7 @@
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::snapshot_read_fences_provider_generation_switch_during_helper_query；crates/jftrade-marketdata/src/snapshot_poll.rs::completion_after_generation_change_cannot_mutate_cache_or_failure_state",
       "conclusion": "partial：Rust 断言在途读的完成结果在 generation 变化后不写入缓存、不计失败（StaleGeneration）；差异：Go 断言切换会等待在途读结束后清缓存，Rust 是切换立即生效并由 fence 丢弃在途结果，语义等价但无等待时序断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -p jftrade-engine --all-targets --locked",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-marketdata --all-targets --locked -E 'test(snapshot_read_fences_provider_generation_switch_during_helper_query) or test(completion_after_generation_change_cannot_mutate_cache_or_failure_state)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/marketdata/provider_switch_lifecycle_test.go",
@@ -178073,11 +178115,13 @@
           "scripts/quality/cargo-nextest.mjs",
           "run",
           "-p",
-          "jftrade-marketdata",
-          "-p",
           "jftrade-engine",
+          "-p",
+          "jftrade-marketdata",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(snapshot_read_fences_provider_generation_switch_during_helper_query) or test(completion_after_generation_change_cannot_mutate_cache_or_failure_state)"
         ],
         "testFilter": [
           "snapshot_read_fences_provider_generation_switch_during_helper_query",
@@ -178109,7 +178153,7 @@
       "status": "[~]",
       "rust_entry": "crates/jftrade-marketdata/src/router.rs::disconnected_provider_reports_its_reason_and_keeps_the_previous_selection；crates/jftrade-marketdata/src/router.rs::unknown_provider_activation_is_rejected_without_touching_the_active_selection；crates/jftrade-marketdata/tests/provider_activation_recovery.rs::provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update",
       "conclusion": "partial：Rust 切换失败（未知 provider / 健康检查不通过）保持旧 provider 选择、generation 与缓存不变；差异：Go 断言旧 stream 未被关闭（stream 关闭计数）与旧缓存仍在，Rust 侧旧 collector 由旧 provider runtime 继续持有，无显式未关闭断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --all-targets --locked",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --all-targets --locked -E 'test(disconnected_provider_reports_its_reason_and_keeps_the_previous_selection) or test(unknown_provider_activation_is_rejected_without_touching_the_active_selection) or test(provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/marketdata/provider_switch_lifecycle_test.go",
@@ -178152,7 +178196,9 @@
           "-p",
           "jftrade-marketdata",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(disconnected_provider_reports_its_reason_and_keeps_the_previous_selection) or test(unknown_provider_activation_is_rejected_without_touching_the_active_selection) or test(provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update)"
         ],
         "testFilter": [
           "disconnected_provider_reports_its_reason_and_keeps_the_previous_selection",
