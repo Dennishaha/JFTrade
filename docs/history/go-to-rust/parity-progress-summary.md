@@ -75,7 +75,7 @@
 
 ## 调度收敛规则
 
-- 当前只保留一个持续队列上下文；本批完成后下一片按 P1 继续处理 `internal/api/assistant/chat_stream_recovery_contracts_test.go:12:TestChatStreamHubKeepsEventAndTimelineContracts`。
+- 当前只保留一个持续队列上下文；本批完成后下一片按 P1 继续处理 `internal/api/assistant/chat_stream_recovery_contracts_test.go:41:TestChatStreamExecutionReusesKnownContextAndRecoversTerminalRun`。
 - 不创建子任务、不创建第二个 heartbeat、不重复复核已经完成的切片。
 - 每批先读 Go 实现和 Rust owner；只有发现真实行为差异才先写失败回归测试并修改生产代码。
 - 仅证据不足时维持 `partial` 或 `boundary`，不得为了提高数字升级为 `function_exact`。
@@ -99,6 +99,7 @@
 - 当前批次：provider reasoning mapping 持久化、agent/override 解析与 Responses nested transport 逐项对齐；新增先红后修的请求体回归与 agent unsupported-effort 回归，标准五档/缺省请求矩阵回归后，5 条映射升级为 function_exact。
 - 当前批次：`internal/api/assistant/chat_helpers_test.go:59` 的 timeline 空 delta、clone、防御性缺省 helper 逐项复核；确认属于 Go 内存 hub 专属边界，Rust durable stream/replay 两条生产测试 2/2 通过，无生产功能差异。
 - 当前批次：`internal/api/assistant/chat_helpers_test.go:13` 的 session/run/tool timing 与 reasoning/message 拼接逐项复核；确认属于 Go 进程内 timeline state machine 边界，Rust durable session→run→final 与 replay 证据 2/2 通过，无生产功能差异。
+- 当前批次：`internal/api/assistant/chat_stream_recovery_contracts_test.go:12` 的不可序列化 transient tool clone fallback、timeline-only delta 与 final recovery 逐项复核；确认 Go JSON clone 兜底属于旧内存 hub 边界，Rust durable replay/live/final recovery 三条证据 3/3 通过，无生产功能差异。
 - `00f89290`：marketdata façade 剩余 34 条逐项复核，补 helper provider polling mode owner 回归测试并修复状态投影。
 - `47bf7b1a`：注入配置的默认交易市场并补交易读取测试。
 - `917d1534`：API transport P1 partial 第 1–30 条核对。
