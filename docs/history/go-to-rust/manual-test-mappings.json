@@ -63839,20 +63839,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(auth_manager_login_validate_and_logout_flow)"
+          "test(auth_manager_login_validate_and_logout_flow) or test(session_cookie_reads_and_csrf_protected_writes_share_one_browser_flow) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable) or test(auth_session_route_matches_go_fixture_in_cutover_only) or test(ws_live_transport_upgrades_with_a_browser_session_cookie_alone) or test(backtest_and_strategy_tools_reject_missing_identifiers_and_unknown_targets) or test(strategy_optimize_enqueues_every_candidate_and_persists_the_task) or test(screen_catalog_normalizes_padded_lowercase_markets_and_rejects_unsupported_labels) or test(production_backtest_cancel_reports_false_without_a_cancellable_run) or test(disabled_runtime_has_stopped_status_and_releases_listener) or test(token_auth_and_tools_list_use_reviewed_catalog) or test(test_portfolio_funds_overview_and_sorting_and_unsupported_market) or test(portfolio_summary_merges_positions_balances_and_orders_and_rejects_unknown_brokers) or test(portfolio_layered_tools_report_discovery_failure_and_partial_read_states) or test(portfolio_tools_require_trading_environment_and_fail_closed_without_a_broker_reader) or test(screen_query_rejects_wrong_catalog_and_schema_versions) or test(product_runtime_without_optional_workers_starts_and_stops_cleanly) or test(test_product_runtime_ordered_shutdown_explicit) or test(test_product_runtime_ordered_shutdown_direct_drop) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(workflow_wait_tool_rejects_too_long_duration) or test(workflow_wait_tool_returns_context_cancellation) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(session_context_overrides_fall_back_to_the_agent_provider_window) or test(chat_resolution_reports_missing_agents_and_unusable_providers) or test(run_gate_is_shared_across_runtime_facades) or test(session_context_read_reports_pressure_without_compacting) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(infrastructure_resume_error_degrades_until_a_successful_scan) or test(sibling_approvals_resume_once_after_every_decision)"
         ],
         "testFilter": [
           "auth_manager_login_validate_and_logout_flow"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "3d356b9a",
+        "verifiedAt": "2026-09-25T13:47:02Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -64083,20 +64083,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-api",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(auth_manager_login_validate_and_logout_flow) or test(session_cookie_reads_and_csrf_protected_writes_share_one_browser_flow) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable) or test(auth_session_route_matches_go_fixture_in_cutover_only) or test(ws_live_transport_upgrades_with_a_browser_session_cookie_alone) or test(backtest_and_strategy_tools_reject_missing_identifiers_and_unknown_targets) or test(strategy_optimize_enqueues_every_candidate_and_persists_the_task) or test(screen_catalog_normalizes_padded_lowercase_markets_and_rejects_unsupported_labels) or test(production_backtest_cancel_reports_false_without_a_cancellable_run) or test(disabled_runtime_has_stopped_status_and_releases_listener) or test(token_auth_and_tools_list_use_reviewed_catalog) or test(test_portfolio_funds_overview_and_sorting_and_unsupported_market) or test(portfolio_summary_merges_positions_balances_and_orders_and_rejects_unknown_brokers) or test(portfolio_layered_tools_report_discovery_failure_and_partial_read_states) or test(portfolio_tools_require_trading_environment_and_fail_closed_without_a_broker_reader) or test(screen_query_rejects_wrong_catalog_and_schema_versions) or test(product_runtime_without_optional_workers_starts_and_stops_cleanly) or test(test_product_runtime_ordered_shutdown_explicit) or test(test_product_runtime_ordered_shutdown_direct_drop) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(workflow_wait_tool_rejects_too_long_duration) or test(workflow_wait_tool_returns_context_cancellation) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(session_context_overrides_fall_back_to_the_agent_provider_window) or test(chat_resolution_reports_missing_agents_and_unusable_providers) or test(run_gate_is_shared_across_runtime_facades) or test(session_context_read_reports_pressure_without_compacting) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(infrastructure_resume_error_degrades_until_a_successful_scan) or test(sibling_approvals_resume_once_after_every_decision)"
         ],
         "testFilter": [
           "session_cookie_reads_and_csrf_protected_writes_share_one_browser_flow"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "3d356b9a",
+        "verifiedAt": "2026-09-25T13:47:02Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -64235,10 +64235,10 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(auth_sessions_are_cookie_bound_hashed_and_restart_durable)"
+          "test(auth_manager_login_validate_and_logout_flow) or test(session_cookie_reads_and_csrf_protected_writes_share_one_browser_flow) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable) or test(auth_session_route_matches_go_fixture_in_cutover_only) or test(ws_live_transport_upgrades_with_a_browser_session_cookie_alone) or test(backtest_and_strategy_tools_reject_missing_identifiers_and_unknown_targets) or test(strategy_optimize_enqueues_every_candidate_and_persists_the_task) or test(screen_catalog_normalizes_padded_lowercase_markets_and_rejects_unsupported_labels) or test(production_backtest_cancel_reports_false_without_a_cancellable_run) or test(disabled_runtime_has_stopped_status_and_releases_listener) or test(token_auth_and_tools_list_use_reviewed_catalog) or test(test_portfolio_funds_overview_and_sorting_and_unsupported_market) or test(portfolio_summary_merges_positions_balances_and_orders_and_rejects_unknown_brokers) or test(portfolio_layered_tools_report_discovery_failure_and_partial_read_states) or test(portfolio_tools_require_trading_environment_and_fail_closed_without_a_broker_reader) or test(screen_query_rejects_wrong_catalog_and_schema_versions) or test(product_runtime_without_optional_workers_starts_and_stops_cleanly) or test(test_product_runtime_ordered_shutdown_explicit) or test(test_product_runtime_ordered_shutdown_direct_drop) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(workflow_wait_tool_rejects_too_long_duration) or test(workflow_wait_tool_returns_context_cancellation) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(session_context_overrides_fall_back_to_the_agent_provider_window) or test(chat_resolution_reports_missing_agents_and_unusable_providers) or test(run_gate_is_shared_across_runtime_facades) or test(session_context_read_reports_pressure_without_compacting) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(infrastructure_resume_error_degrades_until_a_successful_scan) or test(sibling_approvals_resume_once_after_every_decision)"
         ],
         "testFilter": [
           "auth_sessions_are_cookie_bound_hashed_and_restart_durable",
@@ -64246,10 +64246,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "3d356b9a",
+        "verifiedAt": "2026-09-25T13:47:02Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -64376,10 +64376,10 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(auth_manager_login_validate_and_logout_flow)"
+          "test(auth_manager_login_validate_and_logout_flow) or test(session_cookie_reads_and_csrf_protected_writes_share_one_browser_flow) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable) or test(auth_session_route_matches_go_fixture_in_cutover_only) or test(ws_live_transport_upgrades_with_a_browser_session_cookie_alone) or test(backtest_and_strategy_tools_reject_missing_identifiers_and_unknown_targets) or test(strategy_optimize_enqueues_every_candidate_and_persists_the_task) or test(screen_catalog_normalizes_padded_lowercase_markets_and_rejects_unsupported_labels) or test(production_backtest_cancel_reports_false_without_a_cancellable_run) or test(disabled_runtime_has_stopped_status_and_releases_listener) or test(token_auth_and_tools_list_use_reviewed_catalog) or test(test_portfolio_funds_overview_and_sorting_and_unsupported_market) or test(portfolio_summary_merges_positions_balances_and_orders_and_rejects_unknown_brokers) or test(portfolio_layered_tools_report_discovery_failure_and_partial_read_states) or test(portfolio_tools_require_trading_environment_and_fail_closed_without_a_broker_reader) or test(screen_query_rejects_wrong_catalog_and_schema_versions) or test(product_runtime_without_optional_workers_starts_and_stops_cleanly) or test(test_product_runtime_ordered_shutdown_explicit) or test(test_product_runtime_ordered_shutdown_direct_drop) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(workflow_wait_tool_rejects_too_long_duration) or test(workflow_wait_tool_returns_context_cancellation) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(session_context_overrides_fall_back_to_the_agent_provider_window) or test(chat_resolution_reports_missing_agents_and_unusable_providers) or test(run_gate_is_shared_across_runtime_facades) or test(session_context_read_reports_pressure_without_compacting) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(infrastructure_resume_error_degrades_until_a_successful_scan) or test(sibling_approvals_resume_once_after_every_decision)"
         ],
         "testFilter": [
           "auth_manager_login_validate_and_logout_flow",
@@ -64387,10 +64387,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "3d356b9a",
+        "verifiedAt": "2026-09-25T13:47:02Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -64709,20 +64709,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(auth_manager_login_validate_and_logout_flow) or test(session_cookie_reads_and_csrf_protected_writes_share_one_browser_flow) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable) or test(auth_session_route_matches_go_fixture_in_cutover_only) or test(ws_live_transport_upgrades_with_a_browser_session_cookie_alone) or test(backtest_and_strategy_tools_reject_missing_identifiers_and_unknown_targets) or test(strategy_optimize_enqueues_every_candidate_and_persists_the_task) or test(screen_catalog_normalizes_padded_lowercase_markets_and_rejects_unsupported_labels) or test(production_backtest_cancel_reports_false_without_a_cancellable_run) or test(disabled_runtime_has_stopped_status_and_releases_listener) or test(token_auth_and_tools_list_use_reviewed_catalog) or test(test_portfolio_funds_overview_and_sorting_and_unsupported_market) or test(portfolio_summary_merges_positions_balances_and_orders_and_rejects_unknown_brokers) or test(portfolio_layered_tools_report_discovery_failure_and_partial_read_states) or test(portfolio_tools_require_trading_environment_and_fail_closed_without_a_broker_reader) or test(screen_query_rejects_wrong_catalog_and_schema_versions) or test(product_runtime_without_optional_workers_starts_and_stops_cleanly) or test(test_product_runtime_ordered_shutdown_explicit) or test(test_product_runtime_ordered_shutdown_direct_drop) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(workflow_wait_tool_rejects_too_long_duration) or test(workflow_wait_tool_returns_context_cancellation) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(session_context_overrides_fall_back_to_the_agent_provider_window) or test(chat_resolution_reports_missing_agents_and_unusable_providers) or test(run_gate_is_shared_across_runtime_facades) or test(session_context_read_reports_pressure_without_compacting) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(infrastructure_resume_error_degrades_until_a_successful_scan) or test(sibling_approvals_resume_once_after_every_decision)"
         ],
         "testFilter": [
           "ws_live_transport_upgrades_with_a_browser_session_cookie_alone"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "3d356b9a",
+        "verifiedAt": "2026-09-25T13:47:02Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -66017,20 +66017,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(backtest_and_strategy_tools_reject_missing_identifiers_and_unknown_targets)"
+          "test(auth_manager_login_validate_and_logout_flow) or test(session_cookie_reads_and_csrf_protected_writes_share_one_browser_flow) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable) or test(auth_session_route_matches_go_fixture_in_cutover_only) or test(ws_live_transport_upgrades_with_a_browser_session_cookie_alone) or test(backtest_and_strategy_tools_reject_missing_identifiers_and_unknown_targets) or test(strategy_optimize_enqueues_every_candidate_and_persists_the_task) or test(screen_catalog_normalizes_padded_lowercase_markets_and_rejects_unsupported_labels) or test(production_backtest_cancel_reports_false_without_a_cancellable_run) or test(disabled_runtime_has_stopped_status_and_releases_listener) or test(token_auth_and_tools_list_use_reviewed_catalog) or test(test_portfolio_funds_overview_and_sorting_and_unsupported_market) or test(portfolio_summary_merges_positions_balances_and_orders_and_rejects_unknown_brokers) or test(portfolio_layered_tools_report_discovery_failure_and_partial_read_states) or test(portfolio_tools_require_trading_environment_and_fail_closed_without_a_broker_reader) or test(screen_query_rejects_wrong_catalog_and_schema_versions) or test(product_runtime_without_optional_workers_starts_and_stops_cleanly) or test(test_product_runtime_ordered_shutdown_explicit) or test(test_product_runtime_ordered_shutdown_direct_drop) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(workflow_wait_tool_rejects_too_long_duration) or test(workflow_wait_tool_returns_context_cancellation) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(session_context_overrides_fall_back_to_the_agent_provider_window) or test(chat_resolution_reports_missing_agents_and_unusable_providers) or test(run_gate_is_shared_across_runtime_facades) or test(session_context_read_reports_pressure_without_compacting) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(infrastructure_resume_error_degrades_until_a_successful_scan) or test(sibling_approvals_resume_once_after_every_decision)"
         ],
         "testFilter": [
           "backtest_and_strategy_tools_reject_missing_identifiers_and_unknown_targets"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "3d356b9a",
+        "verifiedAt": "2026-09-25T13:47:02Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -66316,20 +66316,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(strategy_optimize)"
+          "test(auth_manager_login_validate_and_logout_flow) or test(session_cookie_reads_and_csrf_protected_writes_share_one_browser_flow) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable) or test(auth_session_route_matches_go_fixture_in_cutover_only) or test(ws_live_transport_upgrades_with_a_browser_session_cookie_alone) or test(backtest_and_strategy_tools_reject_missing_identifiers_and_unknown_targets) or test(strategy_optimize_enqueues_every_candidate_and_persists_the_task) or test(screen_catalog_normalizes_padded_lowercase_markets_and_rejects_unsupported_labels) or test(production_backtest_cancel_reports_false_without_a_cancellable_run) or test(disabled_runtime_has_stopped_status_and_releases_listener) or test(token_auth_and_tools_list_use_reviewed_catalog) or test(test_portfolio_funds_overview_and_sorting_and_unsupported_market) or test(portfolio_summary_merges_positions_balances_and_orders_and_rejects_unknown_brokers) or test(portfolio_layered_tools_report_discovery_failure_and_partial_read_states) or test(portfolio_tools_require_trading_environment_and_fail_closed_without_a_broker_reader) or test(screen_query_rejects_wrong_catalog_and_schema_versions) or test(product_runtime_without_optional_workers_starts_and_stops_cleanly) or test(test_product_runtime_ordered_shutdown_explicit) or test(test_product_runtime_ordered_shutdown_direct_drop) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(workflow_wait_tool_rejects_too_long_duration) or test(workflow_wait_tool_returns_context_cancellation) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(session_context_overrides_fall_back_to_the_agent_provider_window) or test(chat_resolution_reports_missing_agents_and_unusable_providers) or test(run_gate_is_shared_across_runtime_facades) or test(session_context_read_reports_pressure_without_compacting) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(infrastructure_resume_error_degrades_until_a_successful_scan) or test(sibling_approvals_resume_once_after_every_decision)"
         ],
         "testFilter": [
           "strategy_optimize_enqueues_every_candidate_and_persists_the_task"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "3d356b9a",
+        "verifiedAt": "2026-09-25T13:47:02Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -67447,12 +67447,10 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-research",
-          "-p",
-          "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(screen_catalog_normalizes_padded_lowercase_markets_and_rejects_unsupported_labels) | test(production_backtest_cancel_reports_false_without_a_cancellable_run)"
+          "test(auth_manager_login_validate_and_logout_flow) or test(session_cookie_reads_and_csrf_protected_writes_share_one_browser_flow) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable) or test(auth_session_route_matches_go_fixture_in_cutover_only) or test(ws_live_transport_upgrades_with_a_browser_session_cookie_alone) or test(backtest_and_strategy_tools_reject_missing_identifiers_and_unknown_targets) or test(strategy_optimize_enqueues_every_candidate_and_persists_the_task) or test(screen_catalog_normalizes_padded_lowercase_markets_and_rejects_unsupported_labels) or test(production_backtest_cancel_reports_false_without_a_cancellable_run) or test(disabled_runtime_has_stopped_status_and_releases_listener) or test(token_auth_and_tools_list_use_reviewed_catalog) or test(test_portfolio_funds_overview_and_sorting_and_unsupported_market) or test(portfolio_summary_merges_positions_balances_and_orders_and_rejects_unknown_brokers) or test(portfolio_layered_tools_report_discovery_failure_and_partial_read_states) or test(portfolio_tools_require_trading_environment_and_fail_closed_without_a_broker_reader) or test(screen_query_rejects_wrong_catalog_and_schema_versions) or test(product_runtime_without_optional_workers_starts_and_stops_cleanly) or test(test_product_runtime_ordered_shutdown_explicit) or test(test_product_runtime_ordered_shutdown_direct_drop) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(workflow_wait_tool_rejects_too_long_duration) or test(workflow_wait_tool_returns_context_cancellation) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(session_context_overrides_fall_back_to_the_agent_provider_window) or test(chat_resolution_reports_missing_agents_and_unusable_providers) or test(run_gate_is_shared_across_runtime_facades) or test(session_context_read_reports_pressure_without_compacting) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(infrastructure_resume_error_degrades_until_a_successful_scan) or test(sibling_approvals_resume_once_after_every_decision)"
         ],
         "testFilter": [
           "screen_catalog_normalizes_padded_lowercase_markets_and_rejects_unsupported_labels",
@@ -67460,10 +67458,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "3d356b9a",
+        "verifiedAt": "2026-09-25T13:47:02Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -68890,23 +68888,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
           "--locked",
-          "--no-fail-fast",
           "-E",
-          "test(disabled_runtime_has_stopped_status_and_releases_listener)"
+          "test(auth_manager_login_validate_and_logout_flow) or test(session_cookie_reads_and_csrf_protected_writes_share_one_browser_flow) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable) or test(auth_session_route_matches_go_fixture_in_cutover_only) or test(ws_live_transport_upgrades_with_a_browser_session_cookie_alone) or test(backtest_and_strategy_tools_reject_missing_identifiers_and_unknown_targets) or test(strategy_optimize_enqueues_every_candidate_and_persists_the_task) or test(screen_catalog_normalizes_padded_lowercase_markets_and_rejects_unsupported_labels) or test(production_backtest_cancel_reports_false_without_a_cancellable_run) or test(disabled_runtime_has_stopped_status_and_releases_listener) or test(token_auth_and_tools_list_use_reviewed_catalog) or test(test_portfolio_funds_overview_and_sorting_and_unsupported_market) or test(portfolio_summary_merges_positions_balances_and_orders_and_rejects_unknown_brokers) or test(portfolio_layered_tools_report_discovery_failure_and_partial_read_states) or test(portfolio_tools_require_trading_environment_and_fail_closed_without_a_broker_reader) or test(screen_query_rejects_wrong_catalog_and_schema_versions) or test(product_runtime_without_optional_workers_starts_and_stops_cleanly) or test(test_product_runtime_ordered_shutdown_explicit) or test(test_product_runtime_ordered_shutdown_direct_drop) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(workflow_wait_tool_rejects_too_long_duration) or test(workflow_wait_tool_returns_context_cancellation) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(session_context_overrides_fall_back_to_the_agent_provider_window) or test(chat_resolution_reports_missing_agents_and_unusable_providers) or test(run_gate_is_shared_across_runtime_facades) or test(session_context_read_reports_pressure_without_compacting) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(infrastructure_resume_error_degrades_until_a_successful_scan) or test(sibling_approvals_resume_once_after_every_decision)"
         ],
         "testFilter": [
           "disabled_runtime_has_stopped_status_and_releases_listener"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "3d356b9a",
+        "verifiedAt": "2026-09-25T13:47:02Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -68960,23 +68955,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
           "--locked",
-          "--no-fail-fast",
           "-E",
-          "test(token_auth_and_tools_list_use_reviewed_catalog)"
+          "test(auth_manager_login_validate_and_logout_flow) or test(session_cookie_reads_and_csrf_protected_writes_share_one_browser_flow) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable) or test(auth_session_route_matches_go_fixture_in_cutover_only) or test(ws_live_transport_upgrades_with_a_browser_session_cookie_alone) or test(backtest_and_strategy_tools_reject_missing_identifiers_and_unknown_targets) or test(strategy_optimize_enqueues_every_candidate_and_persists_the_task) or test(screen_catalog_normalizes_padded_lowercase_markets_and_rejects_unsupported_labels) or test(production_backtest_cancel_reports_false_without_a_cancellable_run) or test(disabled_runtime_has_stopped_status_and_releases_listener) or test(token_auth_and_tools_list_use_reviewed_catalog) or test(test_portfolio_funds_overview_and_sorting_and_unsupported_market) or test(portfolio_summary_merges_positions_balances_and_orders_and_rejects_unknown_brokers) or test(portfolio_layered_tools_report_discovery_failure_and_partial_read_states) or test(portfolio_tools_require_trading_environment_and_fail_closed_without_a_broker_reader) or test(screen_query_rejects_wrong_catalog_and_schema_versions) or test(product_runtime_without_optional_workers_starts_and_stops_cleanly) or test(test_product_runtime_ordered_shutdown_explicit) or test(test_product_runtime_ordered_shutdown_direct_drop) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(workflow_wait_tool_rejects_too_long_duration) or test(workflow_wait_tool_returns_context_cancellation) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(session_context_overrides_fall_back_to_the_agent_provider_window) or test(chat_resolution_reports_missing_agents_and_unusable_providers) or test(run_gate_is_shared_across_runtime_facades) or test(session_context_read_reports_pressure_without_compacting) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(infrastructure_resume_error_degrades_until_a_successful_scan) or test(sibling_approvals_resume_once_after_every_decision)"
         ],
         "testFilter": [
           "token_auth_and_tools_list_use_reviewed_catalog"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "3d356b9a",
+        "verifiedAt": "2026-09-25T13:47:02Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -69311,12 +69303,10 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
           "--locked",
           "-E",
-          "test(test_portfolio_funds_overview_and_sorting_and_unsupported_market) | test(portfolio_summary_merges_positions_balances_and_orders_and_rejects_unknown_brokers)"
+          "test(auth_manager_login_validate_and_logout_flow) or test(session_cookie_reads_and_csrf_protected_writes_share_one_browser_flow) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable) or test(auth_session_route_matches_go_fixture_in_cutover_only) or test(ws_live_transport_upgrades_with_a_browser_session_cookie_alone) or test(backtest_and_strategy_tools_reject_missing_identifiers_and_unknown_targets) or test(strategy_optimize_enqueues_every_candidate_and_persists_the_task) or test(screen_catalog_normalizes_padded_lowercase_markets_and_rejects_unsupported_labels) or test(production_backtest_cancel_reports_false_without_a_cancellable_run) or test(disabled_runtime_has_stopped_status_and_releases_listener) or test(token_auth_and_tools_list_use_reviewed_catalog) or test(test_portfolio_funds_overview_and_sorting_and_unsupported_market) or test(portfolio_summary_merges_positions_balances_and_orders_and_rejects_unknown_brokers) or test(portfolio_layered_tools_report_discovery_failure_and_partial_read_states) or test(portfolio_tools_require_trading_environment_and_fail_closed_without_a_broker_reader) or test(screen_query_rejects_wrong_catalog_and_schema_versions) or test(product_runtime_without_optional_workers_starts_and_stops_cleanly) or test(test_product_runtime_ordered_shutdown_explicit) or test(test_product_runtime_ordered_shutdown_direct_drop) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(workflow_wait_tool_rejects_too_long_duration) or test(workflow_wait_tool_returns_context_cancellation) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(session_context_overrides_fall_back_to_the_agent_provider_window) or test(chat_resolution_reports_missing_agents_and_unusable_providers) or test(run_gate_is_shared_across_runtime_facades) or test(session_context_read_reports_pressure_without_compacting) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(infrastructure_resume_error_degrades_until_a_successful_scan) or test(sibling_approvals_resume_once_after_every_decision)"
         ],
         "testFilter": [
           "test_portfolio_funds_overview_and_sorting_and_unsupported_market",
@@ -69324,10 +69314,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "3d356b9a",
+        "verifiedAt": "2026-09-25T13:47:02Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -69461,12 +69451,10 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
           "--locked",
           "-E",
-          "test(portfolio_layered_tools_report_discovery_failure_and_partial_read_states) | test(portfolio_tools_require_trading_environment_and_fail_closed_without_a_broker_reader)"
+          "test(auth_manager_login_validate_and_logout_flow) or test(session_cookie_reads_and_csrf_protected_writes_share_one_browser_flow) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable) or test(auth_session_route_matches_go_fixture_in_cutover_only) or test(ws_live_transport_upgrades_with_a_browser_session_cookie_alone) or test(backtest_and_strategy_tools_reject_missing_identifiers_and_unknown_targets) or test(strategy_optimize_enqueues_every_candidate_and_persists_the_task) or test(screen_catalog_normalizes_padded_lowercase_markets_and_rejects_unsupported_labels) or test(production_backtest_cancel_reports_false_without_a_cancellable_run) or test(disabled_runtime_has_stopped_status_and_releases_listener) or test(token_auth_and_tools_list_use_reviewed_catalog) or test(test_portfolio_funds_overview_and_sorting_and_unsupported_market) or test(portfolio_summary_merges_positions_balances_and_orders_and_rejects_unknown_brokers) or test(portfolio_layered_tools_report_discovery_failure_and_partial_read_states) or test(portfolio_tools_require_trading_environment_and_fail_closed_without_a_broker_reader) or test(screen_query_rejects_wrong_catalog_and_schema_versions) or test(product_runtime_without_optional_workers_starts_and_stops_cleanly) or test(test_product_runtime_ordered_shutdown_explicit) or test(test_product_runtime_ordered_shutdown_direct_drop) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(workflow_wait_tool_rejects_too_long_duration) or test(workflow_wait_tool_returns_context_cancellation) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(session_context_overrides_fall_back_to_the_agent_provider_window) or test(chat_resolution_reports_missing_agents_and_unusable_providers) or test(run_gate_is_shared_across_runtime_facades) or test(session_context_read_reports_pressure_without_compacting) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(infrastructure_resume_error_degrades_until_a_successful_scan) or test(sibling_approvals_resume_once_after_every_decision)"
         ],
         "testFilter": [
           "portfolio_layered_tools_report_discovery_failure_and_partial_read_states",
@@ -69474,10 +69462,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "3d356b9a",
+        "verifiedAt": "2026-09-25T13:47:02Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -70175,22 +70163,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
           "--locked",
           "-E",
-          "test(screen_query_rejects_wrong_catalog_and_schema_versions)"
+          "test(auth_manager_login_validate_and_logout_flow) or test(session_cookie_reads_and_csrf_protected_writes_share_one_browser_flow) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable) or test(auth_session_route_matches_go_fixture_in_cutover_only) or test(ws_live_transport_upgrades_with_a_browser_session_cookie_alone) or test(backtest_and_strategy_tools_reject_missing_identifiers_and_unknown_targets) or test(strategy_optimize_enqueues_every_candidate_and_persists_the_task) or test(screen_catalog_normalizes_padded_lowercase_markets_and_rejects_unsupported_labels) or test(production_backtest_cancel_reports_false_without_a_cancellable_run) or test(disabled_runtime_has_stopped_status_and_releases_listener) or test(token_auth_and_tools_list_use_reviewed_catalog) or test(test_portfolio_funds_overview_and_sorting_and_unsupported_market) or test(portfolio_summary_merges_positions_balances_and_orders_and_rejects_unknown_brokers) or test(portfolio_layered_tools_report_discovery_failure_and_partial_read_states) or test(portfolio_tools_require_trading_environment_and_fail_closed_without_a_broker_reader) or test(screen_query_rejects_wrong_catalog_and_schema_versions) or test(product_runtime_without_optional_workers_starts_and_stops_cleanly) or test(test_product_runtime_ordered_shutdown_explicit) or test(test_product_runtime_ordered_shutdown_direct_drop) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(workflow_wait_tool_rejects_too_long_duration) or test(workflow_wait_tool_returns_context_cancellation) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(session_context_overrides_fall_back_to_the_agent_provider_window) or test(chat_resolution_reports_missing_agents_and_unusable_providers) or test(run_gate_is_shared_across_runtime_facades) or test(session_context_read_reports_pressure_without_compacting) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(infrastructure_resume_error_degrades_until_a_successful_scan) or test(sibling_approvals_resume_once_after_every_decision)"
         ],
         "testFilter": [
           "screen_query_rejects_wrong_catalog_and_schema_versions"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "3d356b9a",
+        "verifiedAt": "2026-09-25T13:47:02Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -70383,12 +70369,10 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
           "--locked",
           "-E",
-          "test(product_runtime_without_optional_workers_starts_and_stops_cleanly) | test(test_product_runtime_ordered_shutdown_explicit) | test(test_product_runtime_ordered_shutdown_direct_drop)"
+          "test(auth_manager_login_validate_and_logout_flow) or test(session_cookie_reads_and_csrf_protected_writes_share_one_browser_flow) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable) or test(auth_session_route_matches_go_fixture_in_cutover_only) or test(ws_live_transport_upgrades_with_a_browser_session_cookie_alone) or test(backtest_and_strategy_tools_reject_missing_identifiers_and_unknown_targets) or test(strategy_optimize_enqueues_every_candidate_and_persists_the_task) or test(screen_catalog_normalizes_padded_lowercase_markets_and_rejects_unsupported_labels) or test(production_backtest_cancel_reports_false_without_a_cancellable_run) or test(disabled_runtime_has_stopped_status_and_releases_listener) or test(token_auth_and_tools_list_use_reviewed_catalog) or test(test_portfolio_funds_overview_and_sorting_and_unsupported_market) or test(portfolio_summary_merges_positions_balances_and_orders_and_rejects_unknown_brokers) or test(portfolio_layered_tools_report_discovery_failure_and_partial_read_states) or test(portfolio_tools_require_trading_environment_and_fail_closed_without_a_broker_reader) or test(screen_query_rejects_wrong_catalog_and_schema_versions) or test(product_runtime_without_optional_workers_starts_and_stops_cleanly) or test(test_product_runtime_ordered_shutdown_explicit) or test(test_product_runtime_ordered_shutdown_direct_drop) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(workflow_wait_tool_rejects_too_long_duration) or test(workflow_wait_tool_returns_context_cancellation) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(session_context_overrides_fall_back_to_the_agent_provider_window) or test(chat_resolution_reports_missing_agents_and_unusable_providers) or test(run_gate_is_shared_across_runtime_facades) or test(session_context_read_reports_pressure_without_compacting) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(infrastructure_resume_error_degrades_until_a_successful_scan) or test(sibling_approvals_resume_once_after_every_decision)"
         ],
         "testFilter": [
           "product_runtime_without_optional_workers_starts_and_stops_cleanly",
@@ -70397,10 +70381,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "3d356b9a",
+        "verifiedAt": "2026-09-25T13:47:02Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -71768,20 +71752,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(workflow_writes_reject_malformed_canvas_graphs_before_storing) | test(workflow_writes_apply_the_documented_write_fields) | test(workflow_trigger_update_switches_a_manual_trigger_to_a_schedule)"
+          "test(auth_manager_login_validate_and_logout_flow) or test(session_cookie_reads_and_csrf_protected_writes_share_one_browser_flow) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable) or test(auth_session_route_matches_go_fixture_in_cutover_only) or test(ws_live_transport_upgrades_with_a_browser_session_cookie_alone) or test(backtest_and_strategy_tools_reject_missing_identifiers_and_unknown_targets) or test(strategy_optimize_enqueues_every_candidate_and_persists_the_task) or test(screen_catalog_normalizes_padded_lowercase_markets_and_rejects_unsupported_labels) or test(production_backtest_cancel_reports_false_without_a_cancellable_run) or test(disabled_runtime_has_stopped_status_and_releases_listener) or test(token_auth_and_tools_list_use_reviewed_catalog) or test(test_portfolio_funds_overview_and_sorting_and_unsupported_market) or test(portfolio_summary_merges_positions_balances_and_orders_and_rejects_unknown_brokers) or test(portfolio_layered_tools_report_discovery_failure_and_partial_read_states) or test(portfolio_tools_require_trading_environment_and_fail_closed_without_a_broker_reader) or test(screen_query_rejects_wrong_catalog_and_schema_versions) or test(product_runtime_without_optional_workers_starts_and_stops_cleanly) or test(test_product_runtime_ordered_shutdown_explicit) or test(test_product_runtime_ordered_shutdown_direct_drop) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(workflow_wait_tool_rejects_too_long_duration) or test(workflow_wait_tool_returns_context_cancellation) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(session_context_overrides_fall_back_to_the_agent_provider_window) or test(chat_resolution_reports_missing_agents_and_unusable_providers) or test(run_gate_is_shared_across_runtime_facades) or test(session_context_read_reports_pressure_without_compacting) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(infrastructure_resume_error_degrades_until_a_successful_scan) or test(sibling_approvals_resume_once_after_every_decision)"
         ],
         "testFilter": [
           "workflow_writes_reject_malformed_canvas_graphs_before_storing"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "3d356b9a",
+        "verifiedAt": "2026-09-25T13:47:02Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -71886,15 +71870,7 @@
         "source": "legacy-conclusion"
       },
       "verification": {
-        "argv": [
-          "node",
-          "scripts/quality/cargo-nextest.mjs",
-          "run",
-          "-p",
-          "jftrade-engine",
-          "--all-targets",
-          "--locked"
-        ],
+        "argv": [],
         "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
@@ -71956,10 +71932,10 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(auth_manager_login_validate_and_logout_flow) or test(session_cookie_reads_and_csrf_protected_writes_share_one_browser_flow) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable) or test(auth_session_route_matches_go_fixture_in_cutover_only) or test(ws_live_transport_upgrades_with_a_browser_session_cookie_alone) or test(backtest_and_strategy_tools_reject_missing_identifiers_and_unknown_targets) or test(strategy_optimize_enqueues_every_candidate_and_persists_the_task) or test(screen_catalog_normalizes_padded_lowercase_markets_and_rejects_unsupported_labels) or test(production_backtest_cancel_reports_false_without_a_cancellable_run) or test(disabled_runtime_has_stopped_status_and_releases_listener) or test(token_auth_and_tools_list_use_reviewed_catalog) or test(test_portfolio_funds_overview_and_sorting_and_unsupported_market) or test(portfolio_summary_merges_positions_balances_and_orders_and_rejects_unknown_brokers) or test(portfolio_layered_tools_report_discovery_failure_and_partial_read_states) or test(portfolio_tools_require_trading_environment_and_fail_closed_without_a_broker_reader) or test(screen_query_rejects_wrong_catalog_and_schema_versions) or test(product_runtime_without_optional_workers_starts_and_stops_cleanly) or test(test_product_runtime_ordered_shutdown_explicit) or test(test_product_runtime_ordered_shutdown_direct_drop) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(workflow_wait_tool_rejects_too_long_duration) or test(workflow_wait_tool_returns_context_cancellation) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(session_context_overrides_fall_back_to_the_agent_provider_window) or test(chat_resolution_reports_missing_agents_and_unusable_providers) or test(run_gate_is_shared_across_runtime_facades) or test(session_context_read_reports_pressure_without_compacting) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(infrastructure_resume_error_degrades_until_a_successful_scan) or test(sibling_approvals_resume_once_after_every_decision)"
         ],
         "testFilter": [
           "workflow_wait_tool_rejects_too_long_duration",
@@ -71967,10 +71943,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "3d356b9a",
+        "verifiedAt": "2026-09-25T13:47:02Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -72142,15 +72118,7 @@
         "source": "legacy-conclusion"
       },
       "verification": {
-        "argv": [
-          "node",
-          "scripts/quality/cargo-nextest.mjs",
-          "run",
-          "-p",
-          "jftrade-engine",
-          "--all-targets",
-          "--locked"
-        ],
+        "argv": [],
         "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
@@ -72409,20 +72377,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(auth_manager_login_validate_and_logout_flow) or test(session_cookie_reads_and_csrf_protected_writes_share_one_browser_flow) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable) or test(auth_session_route_matches_go_fixture_in_cutover_only) or test(ws_live_transport_upgrades_with_a_browser_session_cookie_alone) or test(backtest_and_strategy_tools_reject_missing_identifiers_and_unknown_targets) or test(strategy_optimize_enqueues_every_candidate_and_persists_the_task) or test(screen_catalog_normalizes_padded_lowercase_markets_and_rejects_unsupported_labels) or test(production_backtest_cancel_reports_false_without_a_cancellable_run) or test(disabled_runtime_has_stopped_status_and_releases_listener) or test(token_auth_and_tools_list_use_reviewed_catalog) or test(test_portfolio_funds_overview_and_sorting_and_unsupported_market) or test(portfolio_summary_merges_positions_balances_and_orders_and_rejects_unknown_brokers) or test(portfolio_layered_tools_report_discovery_failure_and_partial_read_states) or test(portfolio_tools_require_trading_environment_and_fail_closed_without_a_broker_reader) or test(screen_query_rejects_wrong_catalog_and_schema_versions) or test(product_runtime_without_optional_workers_starts_and_stops_cleanly) or test(test_product_runtime_ordered_shutdown_explicit) or test(test_product_runtime_ordered_shutdown_direct_drop) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(workflow_wait_tool_rejects_too_long_duration) or test(workflow_wait_tool_returns_context_cancellation) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(session_context_overrides_fall_back_to_the_agent_provider_window) or test(chat_resolution_reports_missing_agents_and_unusable_providers) or test(run_gate_is_shared_across_runtime_facades) or test(session_context_read_reports_pressure_without_compacting) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(infrastructure_resume_error_degrades_until_a_successful_scan) or test(sibling_approvals_resume_once_after_every_decision)"
         ],
         "testFilter": [
           "cancellation_registry_fans_out_and_unregisters_exact_token"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "3d356b9a",
+        "verifiedAt": "2026-09-25T13:47:02Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -73106,23 +73074,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
           "--locked",
-          "--no-fail-fast",
           "-E",
-          "test(session_context_overrides_fall_back_to_the_agent_provider_window)"
+          "test(auth_manager_login_validate_and_logout_flow) or test(session_cookie_reads_and_csrf_protected_writes_share_one_browser_flow) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable) or test(auth_session_route_matches_go_fixture_in_cutover_only) or test(ws_live_transport_upgrades_with_a_browser_session_cookie_alone) or test(backtest_and_strategy_tools_reject_missing_identifiers_and_unknown_targets) or test(strategy_optimize_enqueues_every_candidate_and_persists_the_task) or test(screen_catalog_normalizes_padded_lowercase_markets_and_rejects_unsupported_labels) or test(production_backtest_cancel_reports_false_without_a_cancellable_run) or test(disabled_runtime_has_stopped_status_and_releases_listener) or test(token_auth_and_tools_list_use_reviewed_catalog) or test(test_portfolio_funds_overview_and_sorting_and_unsupported_market) or test(portfolio_summary_merges_positions_balances_and_orders_and_rejects_unknown_brokers) or test(portfolio_layered_tools_report_discovery_failure_and_partial_read_states) or test(portfolio_tools_require_trading_environment_and_fail_closed_without_a_broker_reader) or test(screen_query_rejects_wrong_catalog_and_schema_versions) or test(product_runtime_without_optional_workers_starts_and_stops_cleanly) or test(test_product_runtime_ordered_shutdown_explicit) or test(test_product_runtime_ordered_shutdown_direct_drop) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(workflow_wait_tool_rejects_too_long_duration) or test(workflow_wait_tool_returns_context_cancellation) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(session_context_overrides_fall_back_to_the_agent_provider_window) or test(chat_resolution_reports_missing_agents_and_unusable_providers) or test(run_gate_is_shared_across_runtime_facades) or test(session_context_read_reports_pressure_without_compacting) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(infrastructure_resume_error_degrades_until_a_successful_scan) or test(sibling_approvals_resume_once_after_every_decision)"
         ],
         "testFilter": [
           "session_context_overrides_fall_back_to_the_agent_provider_window"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "3d356b9a",
+        "verifiedAt": "2026-09-25T13:47:02Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -73176,23 +73141,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
           "--locked",
-          "--no-fail-fast",
           "-E",
-          "test(chat_resolution_reports_missing_agents_and_unusable_providers)"
+          "test(auth_manager_login_validate_and_logout_flow) or test(session_cookie_reads_and_csrf_protected_writes_share_one_browser_flow) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable) or test(auth_session_route_matches_go_fixture_in_cutover_only) or test(ws_live_transport_upgrades_with_a_browser_session_cookie_alone) or test(backtest_and_strategy_tools_reject_missing_identifiers_and_unknown_targets) or test(strategy_optimize_enqueues_every_candidate_and_persists_the_task) or test(screen_catalog_normalizes_padded_lowercase_markets_and_rejects_unsupported_labels) or test(production_backtest_cancel_reports_false_without_a_cancellable_run) or test(disabled_runtime_has_stopped_status_and_releases_listener) or test(token_auth_and_tools_list_use_reviewed_catalog) or test(test_portfolio_funds_overview_and_sorting_and_unsupported_market) or test(portfolio_summary_merges_positions_balances_and_orders_and_rejects_unknown_brokers) or test(portfolio_layered_tools_report_discovery_failure_and_partial_read_states) or test(portfolio_tools_require_trading_environment_and_fail_closed_without_a_broker_reader) or test(screen_query_rejects_wrong_catalog_and_schema_versions) or test(product_runtime_without_optional_workers_starts_and_stops_cleanly) or test(test_product_runtime_ordered_shutdown_explicit) or test(test_product_runtime_ordered_shutdown_direct_drop) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(workflow_wait_tool_rejects_too_long_duration) or test(workflow_wait_tool_returns_context_cancellation) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(session_context_overrides_fall_back_to_the_agent_provider_window) or test(chat_resolution_reports_missing_agents_and_unusable_providers) or test(run_gate_is_shared_across_runtime_facades) or test(session_context_read_reports_pressure_without_compacting) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(infrastructure_resume_error_degrades_until_a_successful_scan) or test(sibling_approvals_resume_once_after_every_decision)"
         ],
         "testFilter": [
           "chat_resolution_reports_missing_agents_and_unusable_providers"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "3d356b9a",
+        "verifiedAt": "2026-09-25T13:47:02Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -73373,20 +73335,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(run_gate_is_shared_across_runtime_facades)"
+          "test(auth_manager_login_validate_and_logout_flow) or test(session_cookie_reads_and_csrf_protected_writes_share_one_browser_flow) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable) or test(auth_session_route_matches_go_fixture_in_cutover_only) or test(ws_live_transport_upgrades_with_a_browser_session_cookie_alone) or test(backtest_and_strategy_tools_reject_missing_identifiers_and_unknown_targets) or test(strategy_optimize_enqueues_every_candidate_and_persists_the_task) or test(screen_catalog_normalizes_padded_lowercase_markets_and_rejects_unsupported_labels) or test(production_backtest_cancel_reports_false_without_a_cancellable_run) or test(disabled_runtime_has_stopped_status_and_releases_listener) or test(token_auth_and_tools_list_use_reviewed_catalog) or test(test_portfolio_funds_overview_and_sorting_and_unsupported_market) or test(portfolio_summary_merges_positions_balances_and_orders_and_rejects_unknown_brokers) or test(portfolio_layered_tools_report_discovery_failure_and_partial_read_states) or test(portfolio_tools_require_trading_environment_and_fail_closed_without_a_broker_reader) or test(screen_query_rejects_wrong_catalog_and_schema_versions) or test(product_runtime_without_optional_workers_starts_and_stops_cleanly) or test(test_product_runtime_ordered_shutdown_explicit) or test(test_product_runtime_ordered_shutdown_direct_drop) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(workflow_wait_tool_rejects_too_long_duration) or test(workflow_wait_tool_returns_context_cancellation) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(session_context_overrides_fall_back_to_the_agent_provider_window) or test(chat_resolution_reports_missing_agents_and_unusable_providers) or test(run_gate_is_shared_across_runtime_facades) or test(session_context_read_reports_pressure_without_compacting) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(infrastructure_resume_error_degrades_until_a_successful_scan) or test(sibling_approvals_resume_once_after_every_decision)"
         ],
         "testFilter": [
           "run_gate_is_shared_across_runtime_facades"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "3d356b9a",
+        "verifiedAt": "2026-09-25T13:47:02Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -73745,20 +73707,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(auth_manager_login_validate_and_logout_flow) or test(session_cookie_reads_and_csrf_protected_writes_share_one_browser_flow) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable) or test(auth_session_route_matches_go_fixture_in_cutover_only) or test(ws_live_transport_upgrades_with_a_browser_session_cookie_alone) or test(backtest_and_strategy_tools_reject_missing_identifiers_and_unknown_targets) or test(strategy_optimize_enqueues_every_candidate_and_persists_the_task) or test(screen_catalog_normalizes_padded_lowercase_markets_and_rejects_unsupported_labels) or test(production_backtest_cancel_reports_false_without_a_cancellable_run) or test(disabled_runtime_has_stopped_status_and_releases_listener) or test(token_auth_and_tools_list_use_reviewed_catalog) or test(test_portfolio_funds_overview_and_sorting_and_unsupported_market) or test(portfolio_summary_merges_positions_balances_and_orders_and_rejects_unknown_brokers) or test(portfolio_layered_tools_report_discovery_failure_and_partial_read_states) or test(portfolio_tools_require_trading_environment_and_fail_closed_without_a_broker_reader) or test(screen_query_rejects_wrong_catalog_and_schema_versions) or test(product_runtime_without_optional_workers_starts_and_stops_cleanly) or test(test_product_runtime_ordered_shutdown_explicit) or test(test_product_runtime_ordered_shutdown_direct_drop) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(workflow_wait_tool_rejects_too_long_duration) or test(workflow_wait_tool_returns_context_cancellation) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(session_context_overrides_fall_back_to_the_agent_provider_window) or test(chat_resolution_reports_missing_agents_and_unusable_providers) or test(run_gate_is_shared_across_runtime_facades) or test(session_context_read_reports_pressure_without_compacting) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(infrastructure_resume_error_degrades_until_a_successful_scan) or test(sibling_approvals_resume_once_after_every_decision)"
         ],
         "testFilter": [
           "session_context_read_reports_pressure_without_compacting"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "3d356b9a",
+        "verifiedAt": "2026-09-25T13:47:02Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -73807,20 +73769,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(auth_manager_login_validate_and_logout_flow) or test(session_cookie_reads_and_csrf_protected_writes_share_one_browser_flow) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable) or test(auth_session_route_matches_go_fixture_in_cutover_only) or test(ws_live_transport_upgrades_with_a_browser_session_cookie_alone) or test(backtest_and_strategy_tools_reject_missing_identifiers_and_unknown_targets) or test(strategy_optimize_enqueues_every_candidate_and_persists_the_task) or test(screen_catalog_normalizes_padded_lowercase_markets_and_rejects_unsupported_labels) or test(production_backtest_cancel_reports_false_without_a_cancellable_run) or test(disabled_runtime_has_stopped_status_and_releases_listener) or test(token_auth_and_tools_list_use_reviewed_catalog) or test(test_portfolio_funds_overview_and_sorting_and_unsupported_market) or test(portfolio_summary_merges_positions_balances_and_orders_and_rejects_unknown_brokers) or test(portfolio_layered_tools_report_discovery_failure_and_partial_read_states) or test(portfolio_tools_require_trading_environment_and_fail_closed_without_a_broker_reader) or test(screen_query_rejects_wrong_catalog_and_schema_versions) or test(product_runtime_without_optional_workers_starts_and_stops_cleanly) or test(test_product_runtime_ordered_shutdown_explicit) or test(test_product_runtime_ordered_shutdown_direct_drop) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(workflow_wait_tool_rejects_too_long_duration) or test(workflow_wait_tool_returns_context_cancellation) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(session_context_overrides_fall_back_to_the_agent_provider_window) or test(chat_resolution_reports_missing_agents_and_unusable_providers) or test(run_gate_is_shared_across_runtime_facades) or test(session_context_read_reports_pressure_without_compacting) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(infrastructure_resume_error_degrades_until_a_successful_scan) or test(sibling_approvals_resume_once_after_every_decision)"
         ],
         "testFilter": [
           "adk_store_rejects_missing_drifted_and_corrupted_go_databases"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "3d356b9a",
+        "verifiedAt": "2026-09-25T13:47:02Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -74117,20 +74079,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(auth_manager_login_validate_and_logout_flow) or test(session_cookie_reads_and_csrf_protected_writes_share_one_browser_flow) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable) or test(auth_session_route_matches_go_fixture_in_cutover_only) or test(ws_live_transport_upgrades_with_a_browser_session_cookie_alone) or test(backtest_and_strategy_tools_reject_missing_identifiers_and_unknown_targets) or test(strategy_optimize_enqueues_every_candidate_and_persists_the_task) or test(screen_catalog_normalizes_padded_lowercase_markets_and_rejects_unsupported_labels) or test(production_backtest_cancel_reports_false_without_a_cancellable_run) or test(disabled_runtime_has_stopped_status_and_releases_listener) or test(token_auth_and_tools_list_use_reviewed_catalog) or test(test_portfolio_funds_overview_and_sorting_and_unsupported_market) or test(portfolio_summary_merges_positions_balances_and_orders_and_rejects_unknown_brokers) or test(portfolio_layered_tools_report_discovery_failure_and_partial_read_states) or test(portfolio_tools_require_trading_environment_and_fail_closed_without_a_broker_reader) or test(screen_query_rejects_wrong_catalog_and_schema_versions) or test(product_runtime_without_optional_workers_starts_and_stops_cleanly) or test(test_product_runtime_ordered_shutdown_explicit) or test(test_product_runtime_ordered_shutdown_direct_drop) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(workflow_wait_tool_rejects_too_long_duration) or test(workflow_wait_tool_returns_context_cancellation) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(session_context_overrides_fall_back_to_the_agent_provider_window) or test(chat_resolution_reports_missing_agents_and_unusable_providers) or test(run_gate_is_shared_across_runtime_facades) or test(session_context_read_reports_pressure_without_compacting) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(infrastructure_resume_error_degrades_until_a_successful_scan) or test(sibling_approvals_resume_once_after_every_decision)"
         ],
         "testFilter": [
           "adk_composer_state_truncates_trim_and_rejects_invalid_modes"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "3d356b9a",
+        "verifiedAt": "2026-09-25T13:47:02Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -74737,20 +74699,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(auth_manager_login_validate_and_logout_flow) or test(session_cookie_reads_and_csrf_protected_writes_share_one_browser_flow) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable) or test(auth_session_route_matches_go_fixture_in_cutover_only) or test(ws_live_transport_upgrades_with_a_browser_session_cookie_alone) or test(backtest_and_strategy_tools_reject_missing_identifiers_and_unknown_targets) or test(strategy_optimize_enqueues_every_candidate_and_persists_the_task) or test(screen_catalog_normalizes_padded_lowercase_markets_and_rejects_unsupported_labels) or test(production_backtest_cancel_reports_false_without_a_cancellable_run) or test(disabled_runtime_has_stopped_status_and_releases_listener) or test(token_auth_and_tools_list_use_reviewed_catalog) or test(test_portfolio_funds_overview_and_sorting_and_unsupported_market) or test(portfolio_summary_merges_positions_balances_and_orders_and_rejects_unknown_brokers) or test(portfolio_layered_tools_report_discovery_failure_and_partial_read_states) or test(portfolio_tools_require_trading_environment_and_fail_closed_without_a_broker_reader) or test(screen_query_rejects_wrong_catalog_and_schema_versions) or test(product_runtime_without_optional_workers_starts_and_stops_cleanly) or test(test_product_runtime_ordered_shutdown_explicit) or test(test_product_runtime_ordered_shutdown_direct_drop) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(workflow_wait_tool_rejects_too_long_duration) or test(workflow_wait_tool_returns_context_cancellation) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(session_context_overrides_fall_back_to_the_agent_provider_window) or test(chat_resolution_reports_missing_agents_and_unusable_providers) or test(run_gate_is_shared_across_runtime_facades) or test(session_context_read_reports_pressure_without_compacting) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(infrastructure_resume_error_degrades_until_a_successful_scan) or test(sibling_approvals_resume_once_after_every_decision)"
         ],
         "testFilter": [
           "adk_approval_resolution_restages_a_stale_embedded_approval"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "3d356b9a",
+        "verifiedAt": "2026-09-25T13:47:02Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -74799,20 +74761,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(auth_manager_login_validate_and_logout_flow) or test(session_cookie_reads_and_csrf_protected_writes_share_one_browser_flow) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable) or test(auth_session_route_matches_go_fixture_in_cutover_only) or test(ws_live_transport_upgrades_with_a_browser_session_cookie_alone) or test(backtest_and_strategy_tools_reject_missing_identifiers_and_unknown_targets) or test(strategy_optimize_enqueues_every_candidate_and_persists_the_task) or test(screen_catalog_normalizes_padded_lowercase_markets_and_rejects_unsupported_labels) or test(production_backtest_cancel_reports_false_without_a_cancellable_run) or test(disabled_runtime_has_stopped_status_and_releases_listener) or test(token_auth_and_tools_list_use_reviewed_catalog) or test(test_portfolio_funds_overview_and_sorting_and_unsupported_market) or test(portfolio_summary_merges_positions_balances_and_orders_and_rejects_unknown_brokers) or test(portfolio_layered_tools_report_discovery_failure_and_partial_read_states) or test(portfolio_tools_require_trading_environment_and_fail_closed_without_a_broker_reader) or test(screen_query_rejects_wrong_catalog_and_schema_versions) or test(product_runtime_without_optional_workers_starts_and_stops_cleanly) or test(test_product_runtime_ordered_shutdown_explicit) or test(test_product_runtime_ordered_shutdown_direct_drop) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(workflow_wait_tool_rejects_too_long_duration) or test(workflow_wait_tool_returns_context_cancellation) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(session_context_overrides_fall_back_to_the_agent_provider_window) or test(chat_resolution_reports_missing_agents_and_unusable_providers) or test(run_gate_is_shared_across_runtime_facades) or test(session_context_read_reports_pressure_without_compacting) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(infrastructure_resume_error_degrades_until_a_successful_scan) or test(sibling_approvals_resume_once_after_every_decision)"
         ],
         "testFilter": [
           "orphaned_pending_approval_runs_are_failed_on_startup_reconcile"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "3d356b9a",
+        "verifiedAt": "2026-09-25T13:47:02Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -74861,20 +74823,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(auth_manager_login_validate_and_logout_flow) or test(session_cookie_reads_and_csrf_protected_writes_share_one_browser_flow) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable) or test(auth_session_route_matches_go_fixture_in_cutover_only) or test(ws_live_transport_upgrades_with_a_browser_session_cookie_alone) or test(backtest_and_strategy_tools_reject_missing_identifiers_and_unknown_targets) or test(strategy_optimize_enqueues_every_candidate_and_persists_the_task) or test(screen_catalog_normalizes_padded_lowercase_markets_and_rejects_unsupported_labels) or test(production_backtest_cancel_reports_false_without_a_cancellable_run) or test(disabled_runtime_has_stopped_status_and_releases_listener) or test(token_auth_and_tools_list_use_reviewed_catalog) or test(test_portfolio_funds_overview_and_sorting_and_unsupported_market) or test(portfolio_summary_merges_positions_balances_and_orders_and_rejects_unknown_brokers) or test(portfolio_layered_tools_report_discovery_failure_and_partial_read_states) or test(portfolio_tools_require_trading_environment_and_fail_closed_without_a_broker_reader) or test(screen_query_rejects_wrong_catalog_and_schema_versions) or test(product_runtime_without_optional_workers_starts_and_stops_cleanly) or test(test_product_runtime_ordered_shutdown_explicit) or test(test_product_runtime_ordered_shutdown_direct_drop) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(workflow_wait_tool_rejects_too_long_duration) or test(workflow_wait_tool_returns_context_cancellation) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(session_context_overrides_fall_back_to_the_agent_provider_window) or test(chat_resolution_reports_missing_agents_and_unusable_providers) or test(run_gate_is_shared_across_runtime_facades) or test(session_context_read_reports_pressure_without_compacting) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(infrastructure_resume_error_degrades_until_a_successful_scan) or test(sibling_approvals_resume_once_after_every_decision)"
         ],
         "testFilter": [
           "infrastructure_resume_error_degrades_until_a_successful_scan"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "3d356b9a",
+        "verifiedAt": "2026-09-25T13:47:02Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -74923,20 +74885,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-assistant",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(auth_manager_login_validate_and_logout_flow) or test(session_cookie_reads_and_csrf_protected_writes_share_one_browser_flow) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable) or test(auth_session_route_matches_go_fixture_in_cutover_only) or test(ws_live_transport_upgrades_with_a_browser_session_cookie_alone) or test(backtest_and_strategy_tools_reject_missing_identifiers_and_unknown_targets) or test(strategy_optimize_enqueues_every_candidate_and_persists_the_task) or test(screen_catalog_normalizes_padded_lowercase_markets_and_rejects_unsupported_labels) or test(production_backtest_cancel_reports_false_without_a_cancellable_run) or test(disabled_runtime_has_stopped_status_and_releases_listener) or test(token_auth_and_tools_list_use_reviewed_catalog) or test(test_portfolio_funds_overview_and_sorting_and_unsupported_market) or test(portfolio_summary_merges_positions_balances_and_orders_and_rejects_unknown_brokers) or test(portfolio_layered_tools_report_discovery_failure_and_partial_read_states) or test(portfolio_tools_require_trading_environment_and_fail_closed_without_a_broker_reader) or test(screen_query_rejects_wrong_catalog_and_schema_versions) or test(product_runtime_without_optional_workers_starts_and_stops_cleanly) or test(test_product_runtime_ordered_shutdown_explicit) or test(test_product_runtime_ordered_shutdown_direct_drop) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(workflow_wait_tool_rejects_too_long_duration) or test(workflow_wait_tool_returns_context_cancellation) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(session_context_overrides_fall_back_to_the_agent_provider_window) or test(chat_resolution_reports_missing_agents_and_unusable_providers) or test(run_gate_is_shared_across_runtime_facades) or test(session_context_read_reports_pressure_without_compacting) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(infrastructure_resume_error_degrades_until_a_successful_scan) or test(sibling_approvals_resume_once_after_every_decision)"
         ],
         "testFilter": [
           "sibling_approvals_resume_once_after_every_decision"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "3d356b9a",
+        "verifiedAt": "2026-09-25T13:47:02Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -74985,20 +74947,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(auth_manager_login_validate_and_logout_flow) or test(session_cookie_reads_and_csrf_protected_writes_share_one_browser_flow) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable) or test(auth_session_route_matches_go_fixture_in_cutover_only) or test(ws_live_transport_upgrades_with_a_browser_session_cookie_alone) or test(backtest_and_strategy_tools_reject_missing_identifiers_and_unknown_targets) or test(strategy_optimize_enqueues_every_candidate_and_persists_the_task) or test(screen_catalog_normalizes_padded_lowercase_markets_and_rejects_unsupported_labels) or test(production_backtest_cancel_reports_false_without_a_cancellable_run) or test(disabled_runtime_has_stopped_status_and_releases_listener) or test(token_auth_and_tools_list_use_reviewed_catalog) or test(test_portfolio_funds_overview_and_sorting_and_unsupported_market) or test(portfolio_summary_merges_positions_balances_and_orders_and_rejects_unknown_brokers) or test(portfolio_layered_tools_report_discovery_failure_and_partial_read_states) or test(portfolio_tools_require_trading_environment_and_fail_closed_without_a_broker_reader) or test(screen_query_rejects_wrong_catalog_and_schema_versions) or test(product_runtime_without_optional_workers_starts_and_stops_cleanly) or test(test_product_runtime_ordered_shutdown_explicit) or test(test_product_runtime_ordered_shutdown_direct_drop) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(workflow_wait_tool_rejects_too_long_duration) or test(workflow_wait_tool_returns_context_cancellation) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(session_context_overrides_fall_back_to_the_agent_provider_window) or test(chat_resolution_reports_missing_agents_and_unusable_providers) or test(run_gate_is_shared_across_runtime_facades) or test(session_context_read_reports_pressure_without_compacting) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(infrastructure_resume_error_degrades_until_a_successful_scan) or test(sibling_approvals_resume_once_after_every_decision)"
         ],
         "testFilter": [
           "cancellation_registry_fans_out_and_unregisters_exact_token"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "3d356b9a",
+        "verifiedAt": "2026-09-25T13:47:02Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -75047,20 +75009,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_approval_resolution_stages_continuation_and_denial_cas) or test(durable_error_classification_keeps_invariants_fatal)"
         ],
         "testFilter": [
           "adk_approval_resolution_stages_continuation_and_denial_cas"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "3d356b9a",
+        "verifiedAt": "2026-09-25T13:47:02Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -75109,20 +75071,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(adk_approval_resolution_stages_continuation_and_denial_cas) or test(durable_error_classification_keeps_invariants_fatal)"
         ],
         "testFilter": [
           "durable_error_classification_keeps_invariants_fatal"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "3d356b9a",
+        "verifiedAt": "2026-09-25T13:47:02Z",
         "receiptDigest": null
       },
       "risk": "high",
