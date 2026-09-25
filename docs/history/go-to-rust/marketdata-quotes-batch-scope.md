@@ -1561,6 +1561,24 @@ ADK/Assistant 功能差异，先补失败回归测试再修改领域 owner。
 
 下一片：继续当前 P2 Assistant/Workflow/ADK 尾项，再转 API transport、MarketData/Quote、Storage/SQLite、Settings/Watchlist 与 Backtest/Calendar；`optional_bool_strict`、`session_context_snapshot` 及其他无独立 Rust 测试条目仍保持未验证结论。
 
+## 第 204 批：ADK persistence failures、provider runtime 与 approval concurrency（2026-09-26）
+
+| 复核 | Go 测试范围 | Rust 证据 | P | 结论 |
+| :---: | --- | --- | :---: | --- |
+| [x] | `persistence/provider_selection_test.go:8,29`; `persistence/store_run_test.go:11`; `persistence/task_patch_test.go:8` | provider default normalization/order、unsupported prepared-run payload rejection、task normalization/validation | P2 | partial：Rust SQLite/ADK store owners 覆盖 default repair、transaction boundary 与 task projection；Go GORM store 实例、JSON marshal seam 与 nil-task helper 仍保留 partial。 |
+| [x] | `persistence_failure_boundaries_test.go:12,111,381`; `persistence_propagation_closeout_test.go:13,34,92` | atomic payload/session-event commit rollback、paused workflow terminal updates、missing database pre-run error、workflow manager error propagation 与 fail-closed bridge | P2 | partial：Rust store/workflow owners 覆盖持久化失败可见性、CAS 与缺失 port；Go trigger 注入、startup supervisor 和 handler 聚合形状不升级为 exact。 |
+| [x] | `projection_canvas_memory_contracts_test.go:106,225`; `planner_toolset_test.go:21,167` | workspace memory scoping、approval resume terminal state；`CanvasCompiler`/`new` 仅为 helper/type 引用 | P2 | partial/boundary：Rust runtime/store 有 memory 与 approval owner 测试；两个 planner helper 没有独立同名 Rust 测试，保留未验证。 |
+| [x] | `provider_base_url_test.go:5`; `provider_headers_test.go:9`; `providers/http_test.go:15` | `provider_payload` helper、credential-free provider projection、unsafe redirect guard | P2 | partial/boundary：Rust provider mutation/MCP HTTP owners 覆盖凭证隐藏与 redirect 安全；Go base URL helper 与测试注入 seam 不升级为 exact。 |
+| [x] | `providers/responses_model_test.go:18,48,96,144`; `reasoning_effort_lifecycle_test.go:10,23`; `responses_model_runtime_test.go:9`; `responses_stream_projection_test.go:12` | Responses tool round/usage/error、reasoning override/snapshot、provider model selection；`extract_tool_calls`/`execute_model` 为内部 helper | P2 | partial：Rust ADK model runtime、stream、provider projection owner 覆盖主要 durable/runtime 行为；Go Responses HTTP fixture、模型 facade 与 stream delta helper 继续保持 partial。 |
+| [x] | `runner_approval_concurrency_test.go:12,92,119,154` | idempotent approval CAS、sibling merge/async wakeup、continuation lease fencing | P2 | partial：Rust claims/runtime fencing owners 覆盖一次执行、兄弟 approval 合并和 lease release；Go in-process mutex、goroutine scheduling 与 registry wiring 保留结构差异。 |
+| [x] | `persistence/secret_store_test.go:9`; `planner_toolset_test.go:21,167`; `provider_base_url_test.go:5`; `providers/responses_model_test.go:96`; `responses_stream_projection_test.go:12` | `write_adk_secrets`、`CanvasCompiler`、`new`、`provider_payload`、`extract_tool_calls`、`execute_model` helper/type-only 过滤器 | P2 | partial/boundary：这些名称没有可独立计数的 Rust parity test；动态 nextest 命中的是零匹配或其他测试中的同名片段，不作为覆盖证据，继续保持未验证。 |
+
+本批共 30 条 Go 映射。动态表达式包含 30 个过滤器，nextest 报告 **81/81** 通过（3392 skipped），其中 6 个 helper/type-only 过滤器产生零匹配或过宽符号匹配，额外命中的测试不计作这些 Go 条目的独立证据；其余 24 条映射的 Rust 引用测试均在通过结果中出现。provider selection、ADK transaction/failure、workflow projection、Responses/reasoning/runtime 与 approval concurrency 凭证已写入 `manual-test-mappings.json`；Go GORM/Google ADK facade、fixture 注入、内部 helper 和 goroutine/registry wiring 继续保持 `partial`/`boundary`，未凭聚合测试升级为 exact，也未发现需要先红后修的真实 Rust 功能差异。
+
+验证：动态生成本批过滤器运行 `node scripts/quality/cargo-nextest.mjs run --all-targets --locked -E`，命令结果 81/81 通过；6 个 helper/type-only 过滤器保持 `verification.status=unverified`，不把过宽命中计入覆盖。
+
+下一片：继续剩余 P2 Assistant/Workflow/ADK provider、runner 与 transport 条目，再转 API transport、MarketData/Quote、Storage/SQLite、Settings/Watchlist 与 Backtest/Calendar；`optional_bool_strict`、`session_context_snapshot` 及其他无独立 Rust 测试条目仍保持未验证结论。
+
 ## 第 197 批：Web access/frontend 安全与 Assistant/Workflow/ADK contracts（2026-09-26）
 
 | 复核 | Go 测试范围 | Rust 证据 | P | 结论 |

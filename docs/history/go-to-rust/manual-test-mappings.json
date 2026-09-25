@@ -82425,20 +82425,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(provider_list_normalizes_default_selection_and_orders_default_first)"
+          "test(provider_list_normalizes_default_selection_and_orders_default_first) or test(provider_list_reports_the_repaired_default_selection) or test(write_adk_secrets) or test(adk_transaction_boundaries_commit_roll_back_and_report_missing_tables) or test(adk_task_normalization_and_validation_match_go) or test(payload_and_session_event_commit_or_rollback_together) or test(paused_workflow_run_keeps_accepting_progress_and_terminal_updates) or test(missing_session_database_is_not_created_and_run_is_unchanged) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(workflow_bridge_operations_fail_closed_without_their_ports) or test(CanvasCompiler) or test(new) or test(agent_memory_prompt_scopes_workspace_rows_and_fails_closed) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(provider_payload) or test(saved_provider_hides_the_credential_from_the_row_and_projection) or test(http_fetch_redirect_guard_blocks_unsafe_hosts) or test(a_tool_only_turn_returns_the_second_round_reply_that_names_the_tool) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(extract_tool_calls) or test(a_failed_run_persists_the_provider_error_and_audit_row) or test(chat_rejects_invalid_permission_work_mode_and_reasoning_overrides) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(a_provider_override_runs_the_turn_without_editing_the_stored_agent) or test(execute_model) or test(approval_resolution_is_idempotent_and_conflict_safe) or test(sibling_approvals_resume_once_after_every_decision) or test(adk_approval_wakeup_accepts_an_already_claimed_continuation) or test(fail_closed_lease_takeover_blocks_duplicate_tool_execution_and_stale_commit) or test(challenge_continuation_supervisor_releases_claims_without_extra_initialization)"
         ],
         "testFilter": [
           "provider_list_normalizes_default_selection_and_orders_default_first"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "ddc0fa3b",
+        "verifiedAt": "2026-09-25T17:55:36Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -82492,20 +82492,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(provider_list_reports_the_repaired_default_selection)"
+          "test(provider_list_normalizes_default_selection_and_orders_default_first) or test(provider_list_reports_the_repaired_default_selection) or test(write_adk_secrets) or test(adk_transaction_boundaries_commit_roll_back_and_report_missing_tables) or test(adk_task_normalization_and_validation_match_go) or test(payload_and_session_event_commit_or_rollback_together) or test(paused_workflow_run_keeps_accepting_progress_and_terminal_updates) or test(missing_session_database_is_not_created_and_run_is_unchanged) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(workflow_bridge_operations_fail_closed_without_their_ports) or test(CanvasCompiler) or test(new) or test(agent_memory_prompt_scopes_workspace_rows_and_fails_closed) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(provider_payload) or test(saved_provider_hides_the_credential_from_the_row_and_projection) or test(http_fetch_redirect_guard_blocks_unsafe_hosts) or test(a_tool_only_turn_returns_the_second_round_reply_that_names_the_tool) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(extract_tool_calls) or test(a_failed_run_persists_the_provider_error_and_audit_row) or test(chat_rejects_invalid_permission_work_mode_and_reasoning_overrides) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(a_provider_override_runs_the_turn_without_editing_the_stored_agent) or test(execute_model) or test(approval_resolution_is_idempotent_and_conflict_safe) or test(sibling_approvals_resume_once_after_every_decision) or test(adk_approval_wakeup_accepts_an_already_claimed_continuation) or test(fail_closed_lease_takeover_blocks_duplicate_tool_execution_and_stale_commit) or test(challenge_continuation_supervisor_releases_claims_without_extra_initialization)"
         ],
         "testFilter": [
           "provider_list_reports_the_repaired_default_selection"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "ddc0fa3b",
+        "verifiedAt": "2026-09-25T17:55:36Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -83184,20 +83184,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(provider_list_normalizes_default_selection_and_orders_default_first) or test(provider_list_reports_the_repaired_default_selection) or test(write_adk_secrets) or test(adk_transaction_boundaries_commit_roll_back_and_report_missing_tables) or test(adk_task_normalization_and_validation_match_go) or test(payload_and_session_event_commit_or_rollback_together) or test(paused_workflow_run_keeps_accepting_progress_and_terminal_updates) or test(missing_session_database_is_not_created_and_run_is_unchanged) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(workflow_bridge_operations_fail_closed_without_their_ports) or test(CanvasCompiler) or test(new) or test(agent_memory_prompt_scopes_workspace_rows_and_fails_closed) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(provider_payload) or test(saved_provider_hides_the_credential_from_the_row_and_projection) or test(http_fetch_redirect_guard_blocks_unsafe_hosts) or test(a_tool_only_turn_returns_the_second_round_reply_that_names_the_tool) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(extract_tool_calls) or test(a_failed_run_persists_the_provider_error_and_audit_row) or test(chat_rejects_invalid_permission_work_mode_and_reasoning_overrides) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(a_provider_override_runs_the_turn_without_editing_the_stored_agent) or test(execute_model) or test(approval_resolution_is_idempotent_and_conflict_safe) or test(sibling_approvals_resume_once_after_every_decision) or test(adk_approval_wakeup_accepts_an_already_claimed_continuation) or test(fail_closed_lease_takeover_blocks_duplicate_tool_execution_and_stale_commit) or test(challenge_continuation_supervisor_releases_claims_without_extra_initialization)"
         ],
         "testFilter": [
           "adk_transaction_boundaries_commit_roll_back_and_report_missing_tables"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "ddc0fa3b",
+        "verifiedAt": "2026-09-25T17:55:36Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -83299,20 +83299,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(provider_list_normalizes_default_selection_and_orders_default_first) or test(provider_list_reports_the_repaired_default_selection) or test(write_adk_secrets) or test(adk_transaction_boundaries_commit_roll_back_and_report_missing_tables) or test(adk_task_normalization_and_validation_match_go) or test(payload_and_session_event_commit_or_rollback_together) or test(paused_workflow_run_keeps_accepting_progress_and_terminal_updates) or test(missing_session_database_is_not_created_and_run_is_unchanged) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(workflow_bridge_operations_fail_closed_without_their_ports) or test(CanvasCompiler) or test(new) or test(agent_memory_prompt_scopes_workspace_rows_and_fails_closed) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(provider_payload) or test(saved_provider_hides_the_credential_from_the_row_and_projection) or test(http_fetch_redirect_guard_blocks_unsafe_hosts) or test(a_tool_only_turn_returns_the_second_round_reply_that_names_the_tool) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(extract_tool_calls) or test(a_failed_run_persists_the_provider_error_and_audit_row) or test(chat_rejects_invalid_permission_work_mode_and_reasoning_overrides) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(a_provider_override_runs_the_turn_without_editing_the_stored_agent) or test(execute_model) or test(approval_resolution_is_idempotent_and_conflict_safe) or test(sibling_approvals_resume_once_after_every_decision) or test(adk_approval_wakeup_accepts_an_already_claimed_continuation) or test(fail_closed_lease_takeover_blocks_duplicate_tool_execution_and_stale_commit) or test(challenge_continuation_supervisor_releases_claims_without_extra_initialization)"
         ],
         "testFilter": [
           "adk_task_normalization_and_validation_match_go"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "ddc0fa3b",
+        "verifiedAt": "2026-09-25T17:55:36Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -83366,20 +83366,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(provider_list_normalizes_default_selection_and_orders_default_first) or test(provider_list_reports_the_repaired_default_selection) or test(write_adk_secrets) or test(adk_transaction_boundaries_commit_roll_back_and_report_missing_tables) or test(adk_task_normalization_and_validation_match_go) or test(payload_and_session_event_commit_or_rollback_together) or test(paused_workflow_run_keeps_accepting_progress_and_terminal_updates) or test(missing_session_database_is_not_created_and_run_is_unchanged) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(workflow_bridge_operations_fail_closed_without_their_ports) or test(CanvasCompiler) or test(new) or test(agent_memory_prompt_scopes_workspace_rows_and_fails_closed) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(provider_payload) or test(saved_provider_hides_the_credential_from_the_row_and_projection) or test(http_fetch_redirect_guard_blocks_unsafe_hosts) or test(a_tool_only_turn_returns_the_second_round_reply_that_names_the_tool) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(extract_tool_calls) or test(a_failed_run_persists_the_provider_error_and_audit_row) or test(chat_rejects_invalid_permission_work_mode_and_reasoning_overrides) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(a_provider_override_runs_the_turn_without_editing_the_stored_agent) or test(execute_model) or test(approval_resolution_is_idempotent_and_conflict_safe) or test(sibling_approvals_resume_once_after_every_decision) or test(adk_approval_wakeup_accepts_an_already_claimed_continuation) or test(fail_closed_lease_takeover_blocks_duplicate_tool_execution_and_stale_commit) or test(challenge_continuation_supervisor_releases_claims_without_extra_initialization)"
         ],
         "testFilter": [
           "payload_and_session_event_commit_or_rollback_together"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "ddc0fa3b",
+        "verifiedAt": "2026-09-25T17:55:36Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -83433,20 +83433,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(provider_list_normalizes_default_selection_and_orders_default_first) or test(provider_list_reports_the_repaired_default_selection) or test(write_adk_secrets) or test(adk_transaction_boundaries_commit_roll_back_and_report_missing_tables) or test(adk_task_normalization_and_validation_match_go) or test(payload_and_session_event_commit_or_rollback_together) or test(paused_workflow_run_keeps_accepting_progress_and_terminal_updates) or test(missing_session_database_is_not_created_and_run_is_unchanged) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(workflow_bridge_operations_fail_closed_without_their_ports) or test(CanvasCompiler) or test(new) or test(agent_memory_prompt_scopes_workspace_rows_and_fails_closed) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(provider_payload) or test(saved_provider_hides_the_credential_from_the_row_and_projection) or test(http_fetch_redirect_guard_blocks_unsafe_hosts) or test(a_tool_only_turn_returns_the_second_round_reply_that_names_the_tool) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(extract_tool_calls) or test(a_failed_run_persists_the_provider_error_and_audit_row) or test(chat_rejects_invalid_permission_work_mode_and_reasoning_overrides) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(a_provider_override_runs_the_turn_without_editing_the_stored_agent) or test(execute_model) or test(approval_resolution_is_idempotent_and_conflict_safe) or test(sibling_approvals_resume_once_after_every_decision) or test(adk_approval_wakeup_accepts_an_already_claimed_continuation) or test(fail_closed_lease_takeover_blocks_duplicate_tool_execution_and_stale_commit) or test(challenge_continuation_supervisor_releases_claims_without_extra_initialization)"
         ],
         "testFilter": [
           "paused_workflow_run_keeps_accepting_progress_and_terminal_updates"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "ddc0fa3b",
+        "verifiedAt": "2026-09-25T17:55:36Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -83748,20 +83748,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(provider_list_normalizes_default_selection_and_orders_default_first) or test(provider_list_reports_the_repaired_default_selection) or test(write_adk_secrets) or test(adk_transaction_boundaries_commit_roll_back_and_report_missing_tables) or test(adk_task_normalization_and_validation_match_go) or test(payload_and_session_event_commit_or_rollback_together) or test(paused_workflow_run_keeps_accepting_progress_and_terminal_updates) or test(missing_session_database_is_not_created_and_run_is_unchanged) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(workflow_bridge_operations_fail_closed_without_their_ports) or test(CanvasCompiler) or test(new) or test(agent_memory_prompt_scopes_workspace_rows_and_fails_closed) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(provider_payload) or test(saved_provider_hides_the_credential_from_the_row_and_projection) or test(http_fetch_redirect_guard_blocks_unsafe_hosts) or test(a_tool_only_turn_returns_the_second_round_reply_that_names_the_tool) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(extract_tool_calls) or test(a_failed_run_persists_the_provider_error_and_audit_row) or test(chat_rejects_invalid_permission_work_mode_and_reasoning_overrides) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(a_provider_override_runs_the_turn_without_editing_the_stored_agent) or test(execute_model) or test(approval_resolution_is_idempotent_and_conflict_safe) or test(sibling_approvals_resume_once_after_every_decision) or test(adk_approval_wakeup_accepts_an_already_claimed_continuation) or test(fail_closed_lease_takeover_blocks_duplicate_tool_execution_and_stale_commit) or test(challenge_continuation_supervisor_releases_claims_without_extra_initialization)"
         ],
         "testFilter": [
           "missing_session_database_is_not_created_and_run_is_unchanged"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "ddc0fa3b",
+        "verifiedAt": "2026-09-25T17:55:36Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -83810,20 +83810,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(provider_list_normalizes_default_selection_and_orders_default_first) or test(provider_list_reports_the_repaired_default_selection) or test(write_adk_secrets) or test(adk_transaction_boundaries_commit_roll_back_and_report_missing_tables) or test(adk_task_normalization_and_validation_match_go) or test(payload_and_session_event_commit_or_rollback_together) or test(paused_workflow_run_keeps_accepting_progress_and_terminal_updates) or test(missing_session_database_is_not_created_and_run_is_unchanged) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(workflow_bridge_operations_fail_closed_without_their_ports) or test(CanvasCompiler) or test(new) or test(agent_memory_prompt_scopes_workspace_rows_and_fails_closed) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(provider_payload) or test(saved_provider_hides_the_credential_from_the_row_and_projection) or test(http_fetch_redirect_guard_blocks_unsafe_hosts) or test(a_tool_only_turn_returns_the_second_round_reply_that_names_the_tool) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(extract_tool_calls) or test(a_failed_run_persists_the_provider_error_and_audit_row) or test(chat_rejects_invalid_permission_work_mode_and_reasoning_overrides) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(a_provider_override_runs_the_turn_without_editing_the_stored_agent) or test(execute_model) or test(approval_resolution_is_idempotent_and_conflict_safe) or test(sibling_approvals_resume_once_after_every_decision) or test(adk_approval_wakeup_accepts_an_already_claimed_continuation) or test(fail_closed_lease_takeover_blocks_duplicate_tool_execution_and_stale_commit) or test(challenge_continuation_supervisor_releases_claims_without_extra_initialization)"
         ],
         "testFilter": [
           "workflow_manager_failures_surface_verbatim_on_every_workflow_route"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "ddc0fa3b",
+        "verifiedAt": "2026-09-25T17:55:36Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -83872,20 +83872,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(provider_list_normalizes_default_selection_and_orders_default_first) or test(provider_list_reports_the_repaired_default_selection) or test(write_adk_secrets) or test(adk_transaction_boundaries_commit_roll_back_and_report_missing_tables) or test(adk_task_normalization_and_validation_match_go) or test(payload_and_session_event_commit_or_rollback_together) or test(paused_workflow_run_keeps_accepting_progress_and_terminal_updates) or test(missing_session_database_is_not_created_and_run_is_unchanged) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(workflow_bridge_operations_fail_closed_without_their_ports) or test(CanvasCompiler) or test(new) or test(agent_memory_prompt_scopes_workspace_rows_and_fails_closed) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(provider_payload) or test(saved_provider_hides_the_credential_from_the_row_and_projection) or test(http_fetch_redirect_guard_blocks_unsafe_hosts) or test(a_tool_only_turn_returns_the_second_round_reply_that_names_the_tool) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(extract_tool_calls) or test(a_failed_run_persists_the_provider_error_and_audit_row) or test(chat_rejects_invalid_permission_work_mode_and_reasoning_overrides) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(a_provider_override_runs_the_turn_without_editing_the_stored_agent) or test(execute_model) or test(approval_resolution_is_idempotent_and_conflict_safe) or test(sibling_approvals_resume_once_after_every_decision) or test(adk_approval_wakeup_accepts_an_already_claimed_continuation) or test(fail_closed_lease_takeover_blocks_duplicate_tool_execution_and_stale_commit) or test(challenge_continuation_supervisor_releases_claims_without_extra_initialization)"
         ],
         "testFilter": [
           "paused_workflow_run_keeps_accepting_progress_and_terminal_updates"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "ddc0fa3b",
+        "verifiedAt": "2026-09-25T17:55:36Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -83934,20 +83934,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(provider_list_normalizes_default_selection_and_orders_default_first) or test(provider_list_reports_the_repaired_default_selection) or test(write_adk_secrets) or test(adk_transaction_boundaries_commit_roll_back_and_report_missing_tables) or test(adk_task_normalization_and_validation_match_go) or test(payload_and_session_event_commit_or_rollback_together) or test(paused_workflow_run_keeps_accepting_progress_and_terminal_updates) or test(missing_session_database_is_not_created_and_run_is_unchanged) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(workflow_bridge_operations_fail_closed_without_their_ports) or test(CanvasCompiler) or test(new) or test(agent_memory_prompt_scopes_workspace_rows_and_fails_closed) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(provider_payload) or test(saved_provider_hides_the_credential_from_the_row_and_projection) or test(http_fetch_redirect_guard_blocks_unsafe_hosts) or test(a_tool_only_turn_returns_the_second_round_reply_that_names_the_tool) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(extract_tool_calls) or test(a_failed_run_persists_the_provider_error_and_audit_row) or test(chat_rejects_invalid_permission_work_mode_and_reasoning_overrides) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(a_provider_override_runs_the_turn_without_editing_the_stored_agent) or test(execute_model) or test(approval_resolution_is_idempotent_and_conflict_safe) or test(sibling_approvals_resume_once_after_every_decision) or test(adk_approval_wakeup_accepts_an_already_claimed_continuation) or test(fail_closed_lease_takeover_blocks_duplicate_tool_execution_and_stale_commit) or test(challenge_continuation_supervisor_releases_claims_without_extra_initialization)"
         ],
         "testFilter": [
           "workflow_bridge_operations_fail_closed_without_their_ports"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "ddc0fa3b",
+        "verifiedAt": "2026-09-25T17:55:36Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -84235,20 +84235,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(provider_list_normalizes_default_selection_and_orders_default_first) or test(provider_list_reports_the_repaired_default_selection) or test(write_adk_secrets) or test(adk_transaction_boundaries_commit_roll_back_and_report_missing_tables) or test(adk_task_normalization_and_validation_match_go) or test(payload_and_session_event_commit_or_rollback_together) or test(paused_workflow_run_keeps_accepting_progress_and_terminal_updates) or test(missing_session_database_is_not_created_and_run_is_unchanged) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(workflow_bridge_operations_fail_closed_without_their_ports) or test(CanvasCompiler) or test(new) or test(agent_memory_prompt_scopes_workspace_rows_and_fails_closed) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(provider_payload) or test(saved_provider_hides_the_credential_from_the_row_and_projection) or test(http_fetch_redirect_guard_blocks_unsafe_hosts) or test(a_tool_only_turn_returns_the_second_round_reply_that_names_the_tool) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(extract_tool_calls) or test(a_failed_run_persists_the_provider_error_and_audit_row) or test(chat_rejects_invalid_permission_work_mode_and_reasoning_overrides) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(a_provider_override_runs_the_turn_without_editing_the_stored_agent) or test(execute_model) or test(approval_resolution_is_idempotent_and_conflict_safe) or test(sibling_approvals_resume_once_after_every_decision) or test(adk_approval_wakeup_accepts_an_already_claimed_continuation) or test(fail_closed_lease_takeover_blocks_duplicate_tool_execution_and_stale_commit) or test(challenge_continuation_supervisor_releases_claims_without_extra_initialization)"
         ],
         "testFilter": [
           "agent_memory_prompt_scopes_workspace_rows_and_fails_closed"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "ddc0fa3b",
+        "verifiedAt": "2026-09-25T17:55:36Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -84297,20 +84297,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(provider_list_normalizes_default_selection_and_orders_default_first) or test(provider_list_reports_the_repaired_default_selection) or test(write_adk_secrets) or test(adk_transaction_boundaries_commit_roll_back_and_report_missing_tables) or test(adk_task_normalization_and_validation_match_go) or test(payload_and_session_event_commit_or_rollback_together) or test(paused_workflow_run_keeps_accepting_progress_and_terminal_updates) or test(missing_session_database_is_not_created_and_run_is_unchanged) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(workflow_bridge_operations_fail_closed_without_their_ports) or test(CanvasCompiler) or test(new) or test(agent_memory_prompt_scopes_workspace_rows_and_fails_closed) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(provider_payload) or test(saved_provider_hides_the_credential_from_the_row_and_projection) or test(http_fetch_redirect_guard_blocks_unsafe_hosts) or test(a_tool_only_turn_returns_the_second_round_reply_that_names_the_tool) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(extract_tool_calls) or test(a_failed_run_persists_the_provider_error_and_audit_row) or test(chat_rejects_invalid_permission_work_mode_and_reasoning_overrides) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(a_provider_override_runs_the_turn_without_editing_the_stored_agent) or test(execute_model) or test(approval_resolution_is_idempotent_and_conflict_safe) or test(sibling_approvals_resume_once_after_every_decision) or test(adk_approval_wakeup_accepts_an_already_claimed_continuation) or test(fail_closed_lease_takeover_blocks_duplicate_tool_execution_and_stale_commit) or test(challenge_continuation_supervisor_releases_claims_without_extra_initialization)"
         ],
         "testFilter": [
           "a_resumed_approval_run_completes_with_the_confirmation_resolved_state"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "ddc0fa3b",
+        "verifiedAt": "2026-09-25T17:55:36Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -84421,20 +84421,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(provider_list_normalizes_default_selection_and_orders_default_first) or test(provider_list_reports_the_repaired_default_selection) or test(write_adk_secrets) or test(adk_transaction_boundaries_commit_roll_back_and_report_missing_tables) or test(adk_task_normalization_and_validation_match_go) or test(payload_and_session_event_commit_or_rollback_together) or test(paused_workflow_run_keeps_accepting_progress_and_terminal_updates) or test(missing_session_database_is_not_created_and_run_is_unchanged) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(workflow_bridge_operations_fail_closed_without_their_ports) or test(CanvasCompiler) or test(new) or test(agent_memory_prompt_scopes_workspace_rows_and_fails_closed) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(provider_payload) or test(saved_provider_hides_the_credential_from_the_row_and_projection) or test(http_fetch_redirect_guard_blocks_unsafe_hosts) or test(a_tool_only_turn_returns_the_second_round_reply_that_names_the_tool) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(extract_tool_calls) or test(a_failed_run_persists_the_provider_error_and_audit_row) or test(chat_rejects_invalid_permission_work_mode_and_reasoning_overrides) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(a_provider_override_runs_the_turn_without_editing_the_stored_agent) or test(execute_model) or test(approval_resolution_is_idempotent_and_conflict_safe) or test(sibling_approvals_resume_once_after_every_decision) or test(adk_approval_wakeup_accepts_an_already_claimed_continuation) or test(fail_closed_lease_takeover_blocks_duplicate_tool_execution_and_stale_commit) or test(challenge_continuation_supervisor_releases_claims_without_extra_initialization)"
         ],
         "testFilter": [
           "saved_provider_hides_the_credential_from_the_row_and_projection"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "ddc0fa3b",
+        "verifiedAt": "2026-09-25T17:55:36Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -84483,20 +84483,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(provider_list_normalizes_default_selection_and_orders_default_first) or test(provider_list_reports_the_repaired_default_selection) or test(write_adk_secrets) or test(adk_transaction_boundaries_commit_roll_back_and_report_missing_tables) or test(adk_task_normalization_and_validation_match_go) or test(payload_and_session_event_commit_or_rollback_together) or test(paused_workflow_run_keeps_accepting_progress_and_terminal_updates) or test(missing_session_database_is_not_created_and_run_is_unchanged) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(workflow_bridge_operations_fail_closed_without_their_ports) or test(CanvasCompiler) or test(new) or test(agent_memory_prompt_scopes_workspace_rows_and_fails_closed) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(provider_payload) or test(saved_provider_hides_the_credential_from_the_row_and_projection) or test(http_fetch_redirect_guard_blocks_unsafe_hosts) or test(a_tool_only_turn_returns_the_second_round_reply_that_names_the_tool) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(extract_tool_calls) or test(a_failed_run_persists_the_provider_error_and_audit_row) or test(chat_rejects_invalid_permission_work_mode_and_reasoning_overrides) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(a_provider_override_runs_the_turn_without_editing_the_stored_agent) or test(execute_model) or test(approval_resolution_is_idempotent_and_conflict_safe) or test(sibling_approvals_resume_once_after_every_decision) or test(adk_approval_wakeup_accepts_an_already_claimed_continuation) or test(fail_closed_lease_takeover_blocks_duplicate_tool_execution_and_stale_commit) or test(challenge_continuation_supervisor_releases_claims_without_extra_initialization)"
         ],
         "testFilter": [
           "http_fetch_redirect_guard_blocks_unsafe_hosts"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "ddc0fa3b",
+        "verifiedAt": "2026-09-25T17:55:36Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -84895,20 +84895,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(provider_list_normalizes_default_selection_and_orders_default_first) or test(provider_list_reports_the_repaired_default_selection) or test(write_adk_secrets) or test(adk_transaction_boundaries_commit_roll_back_and_report_missing_tables) or test(adk_task_normalization_and_validation_match_go) or test(payload_and_session_event_commit_or_rollback_together) or test(paused_workflow_run_keeps_accepting_progress_and_terminal_updates) or test(missing_session_database_is_not_created_and_run_is_unchanged) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(workflow_bridge_operations_fail_closed_without_their_ports) or test(CanvasCompiler) or test(new) or test(agent_memory_prompt_scopes_workspace_rows_and_fails_closed) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(provider_payload) or test(saved_provider_hides_the_credential_from_the_row_and_projection) or test(http_fetch_redirect_guard_blocks_unsafe_hosts) or test(a_tool_only_turn_returns_the_second_round_reply_that_names_the_tool) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(extract_tool_calls) or test(a_failed_run_persists_the_provider_error_and_audit_row) or test(chat_rejects_invalid_permission_work_mode_and_reasoning_overrides) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(a_provider_override_runs_the_turn_without_editing_the_stored_agent) or test(execute_model) or test(approval_resolution_is_idempotent_and_conflict_safe) or test(sibling_approvals_resume_once_after_every_decision) or test(adk_approval_wakeup_accepts_an_already_claimed_continuation) or test(fail_closed_lease_takeover_blocks_duplicate_tool_execution_and_stale_commit) or test(challenge_continuation_supervisor_releases_claims_without_extra_initialization)"
         ],
         "testFilter": [
           "a_tool_only_turn_returns_the_second_round_reply_that_names_the_tool"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "ddc0fa3b",
+        "verifiedAt": "2026-09-25T17:55:36Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -84957,20 +84957,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(provider_list_normalizes_default_selection_and_orders_default_first) or test(provider_list_reports_the_repaired_default_selection) or test(write_adk_secrets) or test(adk_transaction_boundaries_commit_roll_back_and_report_missing_tables) or test(adk_task_normalization_and_validation_match_go) or test(payload_and_session_event_commit_or_rollback_together) or test(paused_workflow_run_keeps_accepting_progress_and_terminal_updates) or test(missing_session_database_is_not_created_and_run_is_unchanged) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(workflow_bridge_operations_fail_closed_without_their_ports) or test(CanvasCompiler) or test(new) or test(agent_memory_prompt_scopes_workspace_rows_and_fails_closed) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(provider_payload) or test(saved_provider_hides_the_credential_from_the_row_and_projection) or test(http_fetch_redirect_guard_blocks_unsafe_hosts) or test(a_tool_only_turn_returns_the_second_round_reply_that_names_the_tool) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(extract_tool_calls) or test(a_failed_run_persists_the_provider_error_and_audit_row) or test(chat_rejects_invalid_permission_work_mode_and_reasoning_overrides) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(a_provider_override_runs_the_turn_without_editing_the_stored_agent) or test(execute_model) or test(approval_resolution_is_idempotent_and_conflict_safe) or test(sibling_approvals_resume_once_after_every_decision) or test(adk_approval_wakeup_accepts_an_already_claimed_continuation) or test(fail_closed_lease_takeover_blocks_duplicate_tool_execution_and_stale_commit) or test(challenge_continuation_supervisor_releases_claims_without_extra_initialization)"
         ],
         "testFilter": [
           "the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "ddc0fa3b",
+        "verifiedAt": "2026-09-25T17:55:36Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -85196,20 +85196,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(provider_list_normalizes_default_selection_and_orders_default_first) or test(provider_list_reports_the_repaired_default_selection) or test(write_adk_secrets) or test(adk_transaction_boundaries_commit_roll_back_and_report_missing_tables) or test(adk_task_normalization_and_validation_match_go) or test(payload_and_session_event_commit_or_rollback_together) or test(paused_workflow_run_keeps_accepting_progress_and_terminal_updates) or test(missing_session_database_is_not_created_and_run_is_unchanged) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(workflow_bridge_operations_fail_closed_without_their_ports) or test(CanvasCompiler) or test(new) or test(agent_memory_prompt_scopes_workspace_rows_and_fails_closed) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(provider_payload) or test(saved_provider_hides_the_credential_from_the_row_and_projection) or test(http_fetch_redirect_guard_blocks_unsafe_hosts) or test(a_tool_only_turn_returns_the_second_round_reply_that_names_the_tool) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(extract_tool_calls) or test(a_failed_run_persists_the_provider_error_and_audit_row) or test(chat_rejects_invalid_permission_work_mode_and_reasoning_overrides) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(a_provider_override_runs_the_turn_without_editing_the_stored_agent) or test(execute_model) or test(approval_resolution_is_idempotent_and_conflict_safe) or test(sibling_approvals_resume_once_after_every_decision) or test(adk_approval_wakeup_accepts_an_already_claimed_continuation) or test(fail_closed_lease_takeover_blocks_duplicate_tool_execution_and_stale_commit) or test(challenge_continuation_supervisor_releases_claims_without_extra_initialization)"
         ],
         "testFilter": [
           "a_failed_run_persists_the_provider_error_and_audit_row"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "ddc0fa3b",
+        "verifiedAt": "2026-09-25T17:55:36Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -85364,20 +85364,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(provider_list_normalizes_default_selection_and_orders_default_first) or test(provider_list_reports_the_repaired_default_selection) or test(write_adk_secrets) or test(adk_transaction_boundaries_commit_roll_back_and_report_missing_tables) or test(adk_task_normalization_and_validation_match_go) or test(payload_and_session_event_commit_or_rollback_together) or test(paused_workflow_run_keeps_accepting_progress_and_terminal_updates) or test(missing_session_database_is_not_created_and_run_is_unchanged) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(workflow_bridge_operations_fail_closed_without_their_ports) or test(CanvasCompiler) or test(new) or test(agent_memory_prompt_scopes_workspace_rows_and_fails_closed) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(provider_payload) or test(saved_provider_hides_the_credential_from_the_row_and_projection) or test(http_fetch_redirect_guard_blocks_unsafe_hosts) or test(a_tool_only_turn_returns_the_second_round_reply_that_names_the_tool) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(extract_tool_calls) or test(a_failed_run_persists_the_provider_error_and_audit_row) or test(chat_rejects_invalid_permission_work_mode_and_reasoning_overrides) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(a_provider_override_runs_the_turn_without_editing_the_stored_agent) or test(execute_model) or test(approval_resolution_is_idempotent_and_conflict_safe) or test(sibling_approvals_resume_once_after_every_decision) or test(adk_approval_wakeup_accepts_an_already_claimed_continuation) or test(fail_closed_lease_takeover_blocks_duplicate_tool_execution_and_stale_commit) or test(challenge_continuation_supervisor_releases_claims_without_extra_initialization)"
         ],
         "testFilter": [
           "chat_rejects_invalid_permission_work_mode_and_reasoning_overrides"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "ddc0fa3b",
+        "verifiedAt": "2026-09-25T17:55:36Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -85426,20 +85426,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(provider_list_normalizes_default_selection_and_orders_default_first) or test(provider_list_reports_the_repaired_default_selection) or test(write_adk_secrets) or test(adk_transaction_boundaries_commit_roll_back_and_report_missing_tables) or test(adk_task_normalization_and_validation_match_go) or test(payload_and_session_event_commit_or_rollback_together) or test(paused_workflow_run_keeps_accepting_progress_and_terminal_updates) or test(missing_session_database_is_not_created_and_run_is_unchanged) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(workflow_bridge_operations_fail_closed_without_their_ports) or test(CanvasCompiler) or test(new) or test(agent_memory_prompt_scopes_workspace_rows_and_fails_closed) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(provider_payload) or test(saved_provider_hides_the_credential_from_the_row_and_projection) or test(http_fetch_redirect_guard_blocks_unsafe_hosts) or test(a_tool_only_turn_returns_the_second_round_reply_that_names_the_tool) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(extract_tool_calls) or test(a_failed_run_persists_the_provider_error_and_audit_row) or test(chat_rejects_invalid_permission_work_mode_and_reasoning_overrides) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(a_provider_override_runs_the_turn_without_editing_the_stored_agent) or test(execute_model) or test(approval_resolution_is_idempotent_and_conflict_safe) or test(sibling_approvals_resume_once_after_every_decision) or test(adk_approval_wakeup_accepts_an_already_claimed_continuation) or test(fail_closed_lease_takeover_blocks_duplicate_tool_execution_and_stale_commit) or test(challenge_continuation_supervisor_releases_claims_without_extra_initialization)"
         ],
         "testFilter": [
           "adk_composer_state_truncates_trim_and_rejects_invalid_modes"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "ddc0fa3b",
+        "verifiedAt": "2026-09-25T17:55:36Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -85488,20 +85488,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(provider_list_normalizes_default_selection_and_orders_default_first) or test(provider_list_reports_the_repaired_default_selection) or test(write_adk_secrets) or test(adk_transaction_boundaries_commit_roll_back_and_report_missing_tables) or test(adk_task_normalization_and_validation_match_go) or test(payload_and_session_event_commit_or_rollback_together) or test(paused_workflow_run_keeps_accepting_progress_and_terminal_updates) or test(missing_session_database_is_not_created_and_run_is_unchanged) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(workflow_bridge_operations_fail_closed_without_their_ports) or test(CanvasCompiler) or test(new) or test(agent_memory_prompt_scopes_workspace_rows_and_fails_closed) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(provider_payload) or test(saved_provider_hides_the_credential_from_the_row_and_projection) or test(http_fetch_redirect_guard_blocks_unsafe_hosts) or test(a_tool_only_turn_returns_the_second_round_reply_that_names_the_tool) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(extract_tool_calls) or test(a_failed_run_persists_the_provider_error_and_audit_row) or test(chat_rejects_invalid_permission_work_mode_and_reasoning_overrides) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(a_provider_override_runs_the_turn_without_editing_the_stored_agent) or test(execute_model) or test(approval_resolution_is_idempotent_and_conflict_safe) or test(sibling_approvals_resume_once_after_every_decision) or test(adk_approval_wakeup_accepts_an_already_claimed_continuation) or test(fail_closed_lease_takeover_blocks_duplicate_tool_execution_and_stale_commit) or test(challenge_continuation_supervisor_releases_claims_without_extra_initialization)"
         ],
         "testFilter": [
           "a_provider_override_runs_the_turn_without_editing_the_stored_agent"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "ddc0fa3b",
+        "verifiedAt": "2026-09-25T17:55:36Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -85865,20 +85865,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-assistant",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(provider_list_normalizes_default_selection_and_orders_default_first) or test(provider_list_reports_the_repaired_default_selection) or test(write_adk_secrets) or test(adk_transaction_boundaries_commit_roll_back_and_report_missing_tables) or test(adk_task_normalization_and_validation_match_go) or test(payload_and_session_event_commit_or_rollback_together) or test(paused_workflow_run_keeps_accepting_progress_and_terminal_updates) or test(missing_session_database_is_not_created_and_run_is_unchanged) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(workflow_bridge_operations_fail_closed_without_their_ports) or test(CanvasCompiler) or test(new) or test(agent_memory_prompt_scopes_workspace_rows_and_fails_closed) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(provider_payload) or test(saved_provider_hides_the_credential_from_the_row_and_projection) or test(http_fetch_redirect_guard_blocks_unsafe_hosts) or test(a_tool_only_turn_returns_the_second_round_reply_that_names_the_tool) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(extract_tool_calls) or test(a_failed_run_persists_the_provider_error_and_audit_row) or test(chat_rejects_invalid_permission_work_mode_and_reasoning_overrides) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(a_provider_override_runs_the_turn_without_editing_the_stored_agent) or test(execute_model) or test(approval_resolution_is_idempotent_and_conflict_safe) or test(sibling_approvals_resume_once_after_every_decision) or test(adk_approval_wakeup_accepts_an_already_claimed_continuation) or test(fail_closed_lease_takeover_blocks_duplicate_tool_execution_and_stale_commit) or test(challenge_continuation_supervisor_releases_claims_without_extra_initialization)"
         ],
         "testFilter": [
           "approval_resolution_is_idempotent_and_conflict_safe"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "ddc0fa3b",
+        "verifiedAt": "2026-09-25T17:55:36Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -85932,20 +85932,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-assistant",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(provider_list_normalizes_default_selection_and_orders_default_first) or test(provider_list_reports_the_repaired_default_selection) or test(write_adk_secrets) or test(adk_transaction_boundaries_commit_roll_back_and_report_missing_tables) or test(adk_task_normalization_and_validation_match_go) or test(payload_and_session_event_commit_or_rollback_together) or test(paused_workflow_run_keeps_accepting_progress_and_terminal_updates) or test(missing_session_database_is_not_created_and_run_is_unchanged) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(workflow_bridge_operations_fail_closed_without_their_ports) or test(CanvasCompiler) or test(new) or test(agent_memory_prompt_scopes_workspace_rows_and_fails_closed) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(provider_payload) or test(saved_provider_hides_the_credential_from_the_row_and_projection) or test(http_fetch_redirect_guard_blocks_unsafe_hosts) or test(a_tool_only_turn_returns_the_second_round_reply_that_names_the_tool) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(extract_tool_calls) or test(a_failed_run_persists_the_provider_error_and_audit_row) or test(chat_rejects_invalid_permission_work_mode_and_reasoning_overrides) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(a_provider_override_runs_the_turn_without_editing_the_stored_agent) or test(execute_model) or test(approval_resolution_is_idempotent_and_conflict_safe) or test(sibling_approvals_resume_once_after_every_decision) or test(adk_approval_wakeup_accepts_an_already_claimed_continuation) or test(fail_closed_lease_takeover_blocks_duplicate_tool_execution_and_stale_commit) or test(challenge_continuation_supervisor_releases_claims_without_extra_initialization)"
         ],
         "testFilter": [
           "sibling_approvals_resume_once_after_every_decision"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "ddc0fa3b",
+        "verifiedAt": "2026-09-25T17:55:36Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -86005,10 +86005,10 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(provider_list_normalizes_default_selection_and_orders_default_first) or test(provider_list_reports_the_repaired_default_selection) or test(write_adk_secrets) or test(adk_transaction_boundaries_commit_roll_back_and_report_missing_tables) or test(adk_task_normalization_and_validation_match_go) or test(payload_and_session_event_commit_or_rollback_together) or test(paused_workflow_run_keeps_accepting_progress_and_terminal_updates) or test(missing_session_database_is_not_created_and_run_is_unchanged) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(workflow_bridge_operations_fail_closed_without_their_ports) or test(CanvasCompiler) or test(new) or test(agent_memory_prompt_scopes_workspace_rows_and_fails_closed) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(provider_payload) or test(saved_provider_hides_the_credential_from_the_row_and_projection) or test(http_fetch_redirect_guard_blocks_unsafe_hosts) or test(a_tool_only_turn_returns_the_second_round_reply_that_names_the_tool) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(extract_tool_calls) or test(a_failed_run_persists_the_provider_error_and_audit_row) or test(chat_rejects_invalid_permission_work_mode_and_reasoning_overrides) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(a_provider_override_runs_the_turn_without_editing_the_stored_agent) or test(execute_model) or test(approval_resolution_is_idempotent_and_conflict_safe) or test(sibling_approvals_resume_once_after_every_decision) or test(adk_approval_wakeup_accepts_an_already_claimed_continuation) or test(fail_closed_lease_takeover_blocks_duplicate_tool_execution_and_stale_commit) or test(challenge_continuation_supervisor_releases_claims_without_extra_initialization)"
         ],
         "testFilter": [
           "adk_approval_wakeup_accepts_an_already_claimed_continuation",
@@ -86016,10 +86016,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "ddc0fa3b",
+        "verifiedAt": "2026-09-25T17:55:36Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -86068,20 +86068,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(provider_list_normalizes_default_selection_and_orders_default_first) or test(provider_list_reports_the_repaired_default_selection) or test(write_adk_secrets) or test(adk_transaction_boundaries_commit_roll_back_and_report_missing_tables) or test(adk_task_normalization_and_validation_match_go) or test(payload_and_session_event_commit_or_rollback_together) or test(paused_workflow_run_keeps_accepting_progress_and_terminal_updates) or test(missing_session_database_is_not_created_and_run_is_unchanged) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(workflow_bridge_operations_fail_closed_without_their_ports) or test(CanvasCompiler) or test(new) or test(agent_memory_prompt_scopes_workspace_rows_and_fails_closed) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(provider_payload) or test(saved_provider_hides_the_credential_from_the_row_and_projection) or test(http_fetch_redirect_guard_blocks_unsafe_hosts) or test(a_tool_only_turn_returns_the_second_round_reply_that_names_the_tool) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(extract_tool_calls) or test(a_failed_run_persists_the_provider_error_and_audit_row) or test(chat_rejects_invalid_permission_work_mode_and_reasoning_overrides) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(a_provider_override_runs_the_turn_without_editing_the_stored_agent) or test(execute_model) or test(approval_resolution_is_idempotent_and_conflict_safe) or test(sibling_approvals_resume_once_after_every_decision) or test(adk_approval_wakeup_accepts_an_already_claimed_continuation) or test(fail_closed_lease_takeover_blocks_duplicate_tool_execution_and_stale_commit) or test(challenge_continuation_supervisor_releases_claims_without_extra_initialization)"
         ],
         "testFilter": [
           "challenge_continuation_supervisor_releases_claims_without_extra_initialization"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "ddc0fa3b",
+        "verifiedAt": "2026-09-25T17:55:36Z",
         "receiptDigest": null
       },
       "risk": "normal",
