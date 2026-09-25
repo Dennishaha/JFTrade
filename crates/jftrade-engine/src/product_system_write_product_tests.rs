@@ -326,3 +326,161 @@ async fn system_write_product_replays_browser_boundary_failure_recovery_and_rest
         settings_before
     );
 }
+
+// Parity: go:452dea11:internal/api/system/routes_test.go:191 TestRealTradeControlRoutesDelegateStateChanges
+#[tokio::test]
+async fn system_write_product_replays_real_trade_control_state_readback_sequence() {
+    let directory = tempdir().expect("temporary directory");
+    let settings_path = directory.path().join("settings.json");
+    let config =
+        ProductConfig::test_cutover("127.0.0.1:0".parse().expect("address"), &settings_path)
+            .expect("config");
+    let coordinator = Arc::new(super::super::ExecutionRiskCoordinator::new(
+        config.real_trade_control_path(),
+    ));
+    let write_port = Arc::new(
+        super::super::product_production_ports::ProductionSystemWritePort::with_coordinator(
+            coordinator,
+        ),
+    );
+    let config = config.with_system_write_port(write_port);
+    let handle = start_product(config)
+        .await
+        .expect("start system-write product");
+    let address = handle.startup_record().address;
+
+    let (status, response) = request_json_with_status(
+        address,
+        "PUT",
+        "/api/v1/system/real-trade-risk-limits",
+        Some(r#"{"realTradingEnabled":true,"maxOrderQuantity":10,"operatorId":"tester","reason":"session open"}"#),
+        &[],
+    )
+    .await;
+    assert_eq!(status, 200);
+    assert_eq!(response["data"]["realTradingEnabled"], true);
+    let (status, risk_readback) = request_json_with_status(
+        address,
+        "GET",
+        "/api/v1/system/real-trade-risk-limits",
+        None,
+        &[],
+    )
+    .await;
+    assert_eq!(status, 200);
+    assert_eq!(risk_readback["data"]["realTradingEnabled"], true);
+
+    let (status, response) = request_json_with_status(
+        address,
+        "POST",
+        "/api/v1/system/real-trade-kill-switch/activate",
+        Some(r#"{"operatorId":"tester","reason":"incident"}"#),
+        &[],
+    )
+    .await;
+    assert_eq!(status, 200);
+    assert_eq!(response["data"]["killSwitchActive"], true);
+    let (status, kill_readback) = request_json_with_status(
+        address,
+        "GET",
+        "/api/v1/system/real-trade-kill-switch",
+        None,
+        &[],
+    )
+    .await;
+    assert_eq!(status, 200);
+    assert_eq!(kill_readback["data"]["killSwitchActive"], true);
+
+    let (status, _response) = request_json_with_status(
+        address,
+        "POST",
+        "/api/v1/system/real-trade-hard-stops",
+        Some(r#"{"accountId":"ACC-1","market":"US","symbol":"AAPL"}"#),
+        &[],
+    )
+    .await;
+    assert_eq!(status, 200);
+    let (status, hard_stop_readback) = request_json_with_status(
+        address,
+        "GET",
+        "/api/v1/system/real-trade-hard-stops",
+        None,
+        &[],
+    )
+    .await;
+    assert_eq!(status, 200);
+    let hard_stop_id = hard_stop_readback["data"]["entries"]
+        .as_array()
+        .and_then(|entries| entries.first())
+        .and_then(|entry| entry["id"].as_str())
+        .expect("activated hard-stop id");
+    assert_eq!(
+        hard_stop_readback["data"]["entries"]
+            .as_array()
+            .map(Vec::len),
+        Some(1)
+    );
+
+    let release_path = format!("/api/v1/system/real-trade-hard-stops/{hard_stop_id}/release");
+    let (status, _) = request_json_with_status(
+        address,
+        "POST",
+        &release_path,
+        Some(r#"{"operatorId":"tester"}"#),
+        &[],
+    )
+    .await;
+    assert_eq!(status, 200);
+    let (status, hard_stop_after_release) = request_json_with_status(
+        address,
+        "GET",
+        "/api/v1/system/real-trade-hard-stops",
+        None,
+        &[],
+    )
+    .await;
+    assert_eq!(status, 200);
+    assert_eq!(
+        hard_stop_after_release["data"]["entries"]
+            .as_array()
+            .map(Vec::len),
+        Some(0)
+    );
+
+    let (status, response) = request_json_with_status(
+        address,
+        "POST",
+        "/api/v1/system/real-trade-kill-switch/release",
+        Some(r#"{"operatorId":"tester"}"#),
+        &[],
+    )
+    .await;
+    assert_eq!(status, 200);
+    assert_eq!(response["data"]["killSwitchActive"], false);
+    let (status, kill_after_release) = request_json_with_status(
+        address,
+        "GET",
+        "/api/v1/system/real-trade-kill-switch",
+        None,
+        &[],
+    )
+    .await;
+    assert_eq!(status, 200);
+    assert_eq!(kill_after_release["data"]["killSwitchActive"], false);
+
+    let (status, response) = request_json_with_status(
+        address,
+        "DELETE",
+        "/api/v1/system/real-trade-risk-limits",
+        Some(r#"{"operatorId":"tester","reason":"close"}"#),
+        &[],
+    )
+    .await;
+    assert_eq!(status, 200);
+    assert_eq!(response["data"]["realTradingEnabled"], false);
+
+    handle
+        .shutdown()
+        .await
+        .expect("shutdown system-write product");
+}

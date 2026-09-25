@@ -19915,9 +19915,9 @@
     },
     "internal/api/system/routes_test.go:191:TestRealTradeControlRoutesDelegateStateChanges": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/tests/system_write_compatibility.rs::system_write_fixture_replays_go_wire_for_all_seven_routes",
-      "conclusion": "partial：Go 断言真实交易控制路由委派与状态变更（风险限额、kill switch、hard stop）。Rust 引用用例逐路由回放七条写路由的 Go wire 响应；状态变更后的读回（GET 反映新状态）未断言。缺口 owner：crates/jftrade-engine 实盘控制端口；回归要求：补“写 → 读回可见状态”的序列断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+      "rust_entry": "crates/jftrade-engine/src/product_system_write_product_tests.rs::system_write_product_replays_real_trade_control_state_readback_sequence",
+      "conclusion": "partial：Go 断言风险限额、kill switch、hard stop 七条真实交易控制写路由的委派与写后 GET 状态变化。Rust 产品回归通过生产 ExecutionRiskCoordinator、真实 HTTP 写路由和控制文件读回，覆盖风险开启/读回、kill switch 开关/读回、hard stop 激活与动态 ID release/读回以及风险关闭；Go 通过 Gin 注入 callback 直接观察 owner 委派并固定 hs-1，Rust 没有同形 callback spy，hard-stop ID 由生产 owner 生成，继续保持 partial。",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(system_write_product_replays_real_trade_control_state_readback_sequence) or test(system_write_fixture_replays_go_wire_for_all_seven_routes)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/api/system/routes_test.go",
@@ -19927,6 +19927,17 @@
       },
       "rustEvidence": [
         {
+          "file": "crates/jftrade-engine/src/product_system_write_product_tests.rs",
+          "test": "system_write_product_replays_real_trade_control_state_readback_sequence",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/api/system/routes_test.go",
+            "goLine": 191,
+            "rustFile": "crates/jftrade-engine/src/product_system_write_product_tests.rs",
+            "rustLine": 332
+          }
+        },
+        {
           "file": "crates/jftrade-engine/tests/system_write_compatibility.rs",
           "test": "system_write_fixture_replays_go_wire_for_all_seven_routes",
           "crate": "jftrade-engine",
@@ -19934,11 +19945,15 @@
         }
       ],
       "assertionCoverage": {
-        "covered": [],
-        "uncovered": [
-          "partial：Go 断言真实交易控制路由委派与状态变更（风险限额、kill switch、hard stop）。Rust 引用用例逐路由回放七条写路由的 Go wire 响应；状态变更后的读回（GET 反映新状态）未断言。缺口 owner：crates/jftrade-engine 实盘控制端口；回归要求：补“写 → 读回可见状态”的序列断言。"
+        "covered": [
+          "partial：真实 HTTP PUT 风险限额后 GET 读回 realTradingEnabled=true，并断言写响应成功。",
+          "partial：真实 HTTP kill switch activate/release 后分别读回 active=true/false。",
+          "partial：真实 HTTP hard-stop activate 后读回一条 entries，使用生产生成 ID release 后读回空 entries；DELETE 风险限额后写响应 realTradingEnabled=false。"
         ],
-        "source": "legacy-conclusion"
+        "uncovered": [
+          "partial：Go 通过 Gin service callback spy 断言具体 callback 委派与固定 hs-1；Rust 复用生产控制文件 owner，未提供同形 callback 调用次数/固定 ID 断言。"
+        ],
+        "source": "manual-batch-review"
       },
       "verification": {
         "argv": [
@@ -19948,30 +19963,37 @@
           "-p",
           "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(system_write_product_replays_real_trade_control_state_readback_sequence) or test(system_write_fixture_replays_go_wire_for_all_seven_routes)"
         ],
         "testFilter": [
+          "system_write_product_replays_real_trade_control_state_readback_sequence",
           "system_write_fixture_replays_go_wire_for_all_seven_routes"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
+        "status": "passed",
+        "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": null,
+        "verifiedAt": "2026-09-25T04:37:27Z",
         "receiptDigest": null
       },
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
+      "nextAction": "preserve_partial_and_track_callback_owner_boundary",
       "blockedBy": [
         "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
-      "coveredAssertions": [],
+      "coveredAssertions": [
+        "partial：风险限额写入后 GET 读回 realTradingEnabled=true。",
+        "partial：kill switch activate/release 与 hard stop activate/release 均通过真实 HTTP 序列读回状态。",
+        "partial：风险限额 DELETE 写响应 realTradingEnabled=false。"
+      ],
       "uncoveredAssertions": [
-        "partial：Go 断言真实交易控制路由委派与状态变更（风险限额、kill switch、hard stop）。Rust 引用用例逐路由回放七条写路由的 Go wire 响应；状态变更后的读回（GET 反映新状态）未断言。缺口 owner：crates/jftrade-engine 实盘控制端口；回归要求：补“写 → 读回可见状态”的序列断言。"
+        "partial：Go callback spy 的具体委派/调用次数与固定 hs-1 ID；Rust 生产 owner 生成动态 hard-stop ID，继续保持 partial。"
       ],
       "boundaryReason": null
     },
@@ -311329,6 +311351,14 @@
       "referenceCount": 1,
       "referenceKeys": [
         "internal/api/system/routes_test.go:121:TestRealTradeReleaseRoutesRejectMalformedOptionalPayloadBeforeStateChange"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_system_write_product_tests.rs::system_write_product_replays_real_trade_control_state_readback_sequence": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/api/system/routes_test.go:191:TestRealTradeControlRoutesDelegateStateChanges"
       ],
       "allowed": true,
       "reviewStatus": "single"

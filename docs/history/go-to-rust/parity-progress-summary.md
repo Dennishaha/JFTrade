@@ -7,12 +7,12 @@
 | 项目 | 数值 | 解释 |
 | --- | ---: | --- |
 | Go 测试候选 | 4451 | 冻结基线 `go:452dea11` |
-| Rust 测试 | 3325 | 数量不代表行为等价 |
+| Rust 测试 | 3326 | 数量不代表行为等价 |
 | `function_exact` | 1473 | 有真实且唯一的 Rust 测试证据 |
 | `partial` | 2343 | 只覆盖部分断言，不能视为完成 |
 | `boundary` | 636 | 当前架构边界或没有同形对象 |
 | 重复映射 | 0 | 审计脚本结果 |
-| Parity 锚点 | 1752 / 1706 / 0 / 0 / 46 | unique / recorded / unrecorded / stale / unknown |
+| Parity 锚点 | 1753 / 1707 / 0 / 0 / 46 | unique / recorded / unrecorded / stale / unknown |
 
 ## 已完成的工作
 
@@ -38,6 +38,8 @@
 - 本批精准回归 3/3、`check:quick` engine 1937/1937 与完整 `check:rust` workspace 3451/3451（2 skipped）均通过；7 个兼容回放全部通过。
 - `internal/api/system/routes_test.go:170:TestExchangeCalendarProbeRouteCallsProbe` 已逐项读取 Go 断言并核对真实 CalendarManager probe owner；保持 `partial`。Rust 已断言 `/probe/US` 返回 accepted/healthy/checksum，并覆盖无 manager 与未知 market 边界；Go callback 的 HK 参数透传和一次调用次数没有 Rust 同形 spy，继续记录差异。
 - 本批 probe 定向回归 3/3、`check:quick` policy 与完整 `check:rust` workspace 3451/3451（2 skipped）均通过；7 个兼容回放全部通过。
+- `internal/api/system/routes_test.go:191:TestRealTradeControlRoutesDelegateStateChanges` 已逐项读取 Go 断言并补真实产品 HTTP 写入→GET 读回回归；保持 `partial`。Rust 复用生产 `ExecutionRiskCoordinator` 和控制文件 owner，覆盖风险限额、kill switch、hard stop 的写后状态读回；Go Gin callback spy、调用次数与固定 `hs-1` ID 没有同形 Rust 断言，继续记录为差异。
+- 本批专用回归与 wire 聚合回放 2/2、`check:quick` Rust/desktop 1968/1968、完整 `check:rust` workspace 3452/3452（2 skipped）均通过；compatibility replays、clippy、格式和 Pine worker 98/98 均通过。映射审计保持 0 重复 exact、0 stale/unrecorded anchor。
 - 本批门禁：受影响 `check:quick` 与完整 `check:rust` 均被既有 `product_api_launcher_lifecycle` sidecar 退出码 `None`/`Some(0)` 间歇性断言打断；两个失败用例随后以 nextest `--retries 2` 复核均通过。该 flaky 只涉及 launcher 生命周期，不涉及本批 system-write 变更。
 - resolver limit 差异已在 `crates/jftrade-engine/src/product_production_ports_market_data_catalog_futu.rs` 修复：避免 provider 在 CN/SH/SZ 过滤前按公开 limit 截断候选；TTL/singleflight 仍保留为架构边界，不宣称等价。
 - 近期真正修改过 Rust 生产代码的批次包括：交易默认市场注入、下单前名义金额回退、市日边界、策略运行时及若干行情/路由边界；这些改动均配有回归测试或兼容性证据。
@@ -52,7 +54,7 @@
 
 ## 调度收敛规则
 
-- 当前只保留一个持续队列上下文；本批完成后下一片按 P1 处理 `internal/api/system/routes_test.go:191:TestRealTradeControlRoutesDelegateStateChanges`，继续核对真实交易控制写路由的状态 owner 与读回语义。
+- 当前只保留一个持续队列上下文；本批完成后下一片按 P1 处理 `internal/api/system/routes_test.go:316:TestRealTradeControlRoutesMapValidationAndControlFailures`，继续逐错误码核对控制路由的校验与控制失败映射。
 - 不创建子任务、不创建第二个 heartbeat、不重复复核已经完成的切片。
 - 每批先读 Go 实现和 Rust owner；只有发现真实行为差异才先写失败回归测试并修改生产代码。
 - 仅证据不足时维持 `partial` 或 `boundary`，不得为了提高数字升级为 `function_exact`。
@@ -67,6 +69,7 @@
 - 当前批次：system validator 边界补零值限额与缺 hard-stop ID 路由回归，保持 partial，记录 400/404 形状差异。
 - 当前批次：system release/disable 畸形载荷补三路由 no-port-call 回归，保持 partial，记录 Gin/service owner 形状边界。
 - 当前批次：system calendar probe 路由核对真实 manager 结果与 market 边界，保持 partial，记录 callback 参数/次数差异。
+- 当前批次：system real-trade control 写路由补真实产品状态读回序列，保持 partial，记录 Gin callback 与固定 hard-stop ID 差异。
 - `00f89290`：marketdata façade 剩余 34 条逐项复核，补 helper provider polling mode owner 回归测试并修复状态投影。
 - `47bf7b1a`：注入配置的默认交易市场并补交易读取测试。
 - `917d1534`：API transport P1 partial 第 1–30 条核对。
