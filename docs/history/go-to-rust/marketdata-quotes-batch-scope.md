@@ -1545,6 +1545,22 @@ ADK/Assistant 功能差异，先补失败回归测试再修改领域 owner。
 
 下一片：继续 P2 API transport、MarketData/Quote、Storage/SQLite、Settings/Watchlist、Backtest/Calendar 与 Strategy/Pine；`optional_bool_strict` helper、P1 `session_context_snapshot` 及其他无独立 Rust 测试条目仍保持未验证结论。
 
+## 第 203 批：input request continuation、MCP reviewed tools 与 ADK persistence（2026-09-26）
+
+| 复核 | Go 测试范围 | Rust 证据 | P | 结论 |
+| :---: | --- | --- | :---: | --- |
+| [x] | `input_request_test.go:584,647,694,738,773,802`; `input_workflow_test.go:9` | awaiting-input audit、连续问题、输入转 approval、runtime restart、原始请求锚点与 workflow durable blocking | P2 | partial：Rust product ADK/input-response 与 workflow owner 覆盖 durable pause/resume、audit、approval 和 provider anchor；Go Google ADK continuation handler、UI prompt composition 与 test runtime wiring 保持 partial。 |
+| [x] | `mcp_server_test.go:17,119,129,136,162,194,266,293,333,358,367,382,440` | reviewed read allowlist、write-name rejection、catalog counts、close/rebind、tool error、stateless POST、host protection、sanitized runtime status/subscription 与 executor refresh | P2 | partial：Rust MCP product owner 逐项覆盖 reviewed catalog、HTTP protection、runtime resource 与动态 executor；Go handler/registry facade、HTTP response aggregation 与 listener wiring 保持 partial。 |
+| [x] | `persistence/approval_query_plan_test.go:9`; `persistence/execution_claims_test.go:58,186,229` | ADK session-events query plan、run lease fencing、completed output replay、fail-closed indeterminate 与 replay-safe takeover | P2 | partial：SQLite/assistant claim owners 有真实查询计划、租约 CAS、回放和 fencing 证据；Go GORM store connection seams 与错误包装不升级为 exact。 |
+| [x] | `persistence/google_artifact_test.go:19,120,186,247` | artifact version-gap rejection、atomic auto-version allocation、restart/user scope durability 与 corrupt/missing database boundaries | P2 | partial：Rust artifact/store-sqlite owners 覆盖版本、并发分配、重启和数据库边界；Go Google ADK service facade、GORM schema 初始化与 nil/empty receiver 专属分支保留边界。 |
+| [x] | `adk_tool_edges_test.go:235`; `completion_review_test.go:35` | `CanvasCompiler`、`synthetic_assistant_message_id` 仅作为类型/辅助符号被引用 | P2 | partial/boundary：nextest 未找到同名独立 Rust 测试；不把 helper/type 过滤器的零匹配当作覆盖，继续保留未验证并留待边界审查。 |
+
+本批共 30 条 Go 映射。动态表达式包含 30 个过滤器，其中上述两个 helper/type-only 名称没有独立测试；其余 28 个真实 Rust 测试均通过，nextest 实际 **28/28** 通过（3445 skipped）。没有把 `CanvasCompiler` 或 `synthetic_assistant_message_id` 的符号命中计入测试证据，也没有发现需要先红后修的真实 Rust 功能差异。输入续接、MCP reviewed tools、claims fencing、SQLite query plan 与 artifact persistence 的映射凭证已写入 `manual-test-mappings.json`；Go handler、Google ADK/GORM facade、test runtime wiring 和 helper-only 分支继续保持 `partial`/`boundary`，未凭聚合测试升级为 exact。
+
+验证：动态生成本批过滤器运行 `node scripts/quality/cargo-nextest.mjs run --all-targets --locked -E`，真实测试 28/28 通过；两个 helper/type-only 过滤器没有独立测试匹配，保持 `verification.status=unverified`。
+
+下一片：继续当前 P2 Assistant/Workflow/ADK 尾项，再转 API transport、MarketData/Quote、Storage/SQLite、Settings/Watchlist 与 Backtest/Calendar；`optional_bool_strict`、`session_context_snapshot` 及其他无独立 Rust 测试条目仍保持未验证结论。
+
 ## 第 197 批：Web access/frontend 安全与 Assistant/Workflow/ADK contracts（2026-09-26）
 
 | 复核 | Go 测试范围 | Rust 证据 | P | 结论 |

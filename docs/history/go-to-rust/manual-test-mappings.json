@@ -79945,20 +79945,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(a_pending_input_run_audits_awaiting_input_with_the_decision_kind) or test(sequential_questions_in_one_run_keep_both_answered_requests) or test(an_answered_input_request_can_transition_into_an_approval_wait) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(input_response_payload_anchors_the_resumed_run_to_the_original_request) or test(a_resumed_input_run_replays_the_original_request_anchor_to_the_provider) or test(approval_and_running_nodes_suspend_then_resume_the_same_durable_request) or test(mcp_tools_list_exposes_only_reviewed_read_tools) or test(write_capable_names_are_never_reachable_through_the_reviewed_allowlist) or test(reviewed_mcp_catalog_reports_native_and_fail_closed_counts) or test(shutdown_is_idempotent_and_closed_runtime_rejects_rebind) or test(tool_failures_are_returned_as_mcp_tool_errors) or test(stateless_post_only_requests_never_issue_a_session_header) or test(host_rebinding_and_missing_host_are_rejected) or test(runtime_status_resource_reports_store_and_reviewed_tools) or test(runtime_status_resource_includes_configured_providers_agents_and_skills) or test(runtime_status_resource_serializes_sanitized_descriptors) or test(runtime_status_subscription_validation_rejects_unknown_uris) or test(runtime_status_resource_reflects_live_dependency_availability) or test(tool_calls_resolve_the_current_executor_on_every_request) or test(test_p1_05_adk_session_events_query_plan_without_index_shows_scan_and_temp_btree) or test(run_lease_expiry_fencing_and_stale_release_are_rejected) or test(completed_tool_output_replays_after_checkpoint_restore) or test(fail_closed_stale_claim_becomes_indeterminate) or test(stale_replay_safe_claim_takes_over_with_fencing) or test(restore_rejects_a_version_gap) or test(adk_artifact_store_lifecycle_and_restart_durability) or test(adk_artifact_store_rejects_missing_drifted_and_corrupted_go_databases)"
         ],
         "testFilter": [
           "a_pending_input_run_audits_awaiting_input_with_the_decision_kind"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "be549603",
+        "verifiedAt": "2026-09-25T17:48:13Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -80012,23 +80012,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
           "--locked",
-          "--no-fail-fast",
           "-E",
-          "test(sequential_questions_in_one_run_keep_both_answered_requests)"
+          "test(a_pending_input_run_audits_awaiting_input_with_the_decision_kind) or test(sequential_questions_in_one_run_keep_both_answered_requests) or test(an_answered_input_request_can_transition_into_an_approval_wait) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(input_response_payload_anchors_the_resumed_run_to_the_original_request) or test(a_resumed_input_run_replays_the_original_request_anchor_to_the_provider) or test(approval_and_running_nodes_suspend_then_resume_the_same_durable_request) or test(mcp_tools_list_exposes_only_reviewed_read_tools) or test(write_capable_names_are_never_reachable_through_the_reviewed_allowlist) or test(reviewed_mcp_catalog_reports_native_and_fail_closed_counts) or test(shutdown_is_idempotent_and_closed_runtime_rejects_rebind) or test(tool_failures_are_returned_as_mcp_tool_errors) or test(stateless_post_only_requests_never_issue_a_session_header) or test(host_rebinding_and_missing_host_are_rejected) or test(runtime_status_resource_reports_store_and_reviewed_tools) or test(runtime_status_resource_includes_configured_providers_agents_and_skills) or test(runtime_status_resource_serializes_sanitized_descriptors) or test(runtime_status_subscription_validation_rejects_unknown_uris) or test(runtime_status_resource_reflects_live_dependency_availability) or test(tool_calls_resolve_the_current_executor_on_every_request) or test(test_p1_05_adk_session_events_query_plan_without_index_shows_scan_and_temp_btree) or test(run_lease_expiry_fencing_and_stale_release_are_rejected) or test(completed_tool_output_replays_after_checkpoint_restore) or test(fail_closed_stale_claim_becomes_indeterminate) or test(stale_replay_safe_claim_takes_over_with_fencing) or test(restore_rejects_a_version_gap) or test(adk_artifact_store_lifecycle_and_restart_durability) or test(adk_artifact_store_rejects_missing_drifted_and_corrupted_go_databases)"
         ],
         "testFilter": [
           "sequential_questions_in_one_run_keep_both_answered_requests"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "be549603",
+        "verifiedAt": "2026-09-25T17:48:13Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -80082,23 +80079,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
           "--locked",
-          "--no-fail-fast",
           "-E",
-          "test(an_answered_input_request_can_transition_into_an_approval_wait)"
+          "test(a_pending_input_run_audits_awaiting_input_with_the_decision_kind) or test(sequential_questions_in_one_run_keep_both_answered_requests) or test(an_answered_input_request_can_transition_into_an_approval_wait) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(input_response_payload_anchors_the_resumed_run_to_the_original_request) or test(a_resumed_input_run_replays_the_original_request_anchor_to_the_provider) or test(approval_and_running_nodes_suspend_then_resume_the_same_durable_request) or test(mcp_tools_list_exposes_only_reviewed_read_tools) or test(write_capable_names_are_never_reachable_through_the_reviewed_allowlist) or test(reviewed_mcp_catalog_reports_native_and_fail_closed_counts) or test(shutdown_is_idempotent_and_closed_runtime_rejects_rebind) or test(tool_failures_are_returned_as_mcp_tool_errors) or test(stateless_post_only_requests_never_issue_a_session_header) or test(host_rebinding_and_missing_host_are_rejected) or test(runtime_status_resource_reports_store_and_reviewed_tools) or test(runtime_status_resource_includes_configured_providers_agents_and_skills) or test(runtime_status_resource_serializes_sanitized_descriptors) or test(runtime_status_subscription_validation_rejects_unknown_uris) or test(runtime_status_resource_reflects_live_dependency_availability) or test(tool_calls_resolve_the_current_executor_on_every_request) or test(test_p1_05_adk_session_events_query_plan_without_index_shows_scan_and_temp_btree) or test(run_lease_expiry_fencing_and_stale_release_are_rejected) or test(completed_tool_output_replays_after_checkpoint_restore) or test(fail_closed_stale_claim_becomes_indeterminate) or test(stale_replay_safe_claim_takes_over_with_fencing) or test(restore_rejects_a_version_gap) or test(adk_artifact_store_lifecycle_and_restart_durability) or test(adk_artifact_store_rejects_missing_drifted_and_corrupted_go_databases)"
         ],
         "testFilter": [
           "an_answered_input_request_can_transition_into_an_approval_wait"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "be549603",
+        "verifiedAt": "2026-09-25T17:48:13Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -80152,23 +80146,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
           "--locked",
-          "--no-fail-fast",
           "-E",
-          "test(a_restarted_runtime_resumes_a_pending_input_run)"
+          "test(a_pending_input_run_audits_awaiting_input_with_the_decision_kind) or test(sequential_questions_in_one_run_keep_both_answered_requests) or test(an_answered_input_request_can_transition_into_an_approval_wait) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(input_response_payload_anchors_the_resumed_run_to_the_original_request) or test(a_resumed_input_run_replays_the_original_request_anchor_to_the_provider) or test(approval_and_running_nodes_suspend_then_resume_the_same_durable_request) or test(mcp_tools_list_exposes_only_reviewed_read_tools) or test(write_capable_names_are_never_reachable_through_the_reviewed_allowlist) or test(reviewed_mcp_catalog_reports_native_and_fail_closed_counts) or test(shutdown_is_idempotent_and_closed_runtime_rejects_rebind) or test(tool_failures_are_returned_as_mcp_tool_errors) or test(stateless_post_only_requests_never_issue_a_session_header) or test(host_rebinding_and_missing_host_are_rejected) or test(runtime_status_resource_reports_store_and_reviewed_tools) or test(runtime_status_resource_includes_configured_providers_agents_and_skills) or test(runtime_status_resource_serializes_sanitized_descriptors) or test(runtime_status_subscription_validation_rejects_unknown_uris) or test(runtime_status_resource_reflects_live_dependency_availability) or test(tool_calls_resolve_the_current_executor_on_every_request) or test(test_p1_05_adk_session_events_query_plan_without_index_shows_scan_and_temp_btree) or test(run_lease_expiry_fencing_and_stale_release_are_rejected) or test(completed_tool_output_replays_after_checkpoint_restore) or test(fail_closed_stale_claim_becomes_indeterminate) or test(stale_replay_safe_claim_takes_over_with_fencing) or test(restore_rejects_a_version_gap) or test(adk_artifact_store_lifecycle_and_restart_durability) or test(adk_artifact_store_rejects_missing_drifted_and_corrupted_go_databases)"
         ],
         "testFilter": [
           "a_restarted_runtime_resumes_a_pending_input_run"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "be549603",
+        "verifiedAt": "2026-09-25T17:48:13Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -80222,23 +80213,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
           "--locked",
-          "--no-fail-fast",
           "-E",
-          "test(input_response_payload_anchors_the_resumed_run_to_the_original_request)"
+          "test(a_pending_input_run_audits_awaiting_input_with_the_decision_kind) or test(sequential_questions_in_one_run_keep_both_answered_requests) or test(an_answered_input_request_can_transition_into_an_approval_wait) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(input_response_payload_anchors_the_resumed_run_to_the_original_request) or test(a_resumed_input_run_replays_the_original_request_anchor_to_the_provider) or test(approval_and_running_nodes_suspend_then_resume_the_same_durable_request) or test(mcp_tools_list_exposes_only_reviewed_read_tools) or test(write_capable_names_are_never_reachable_through_the_reviewed_allowlist) or test(reviewed_mcp_catalog_reports_native_and_fail_closed_counts) or test(shutdown_is_idempotent_and_closed_runtime_rejects_rebind) or test(tool_failures_are_returned_as_mcp_tool_errors) or test(stateless_post_only_requests_never_issue_a_session_header) or test(host_rebinding_and_missing_host_are_rejected) or test(runtime_status_resource_reports_store_and_reviewed_tools) or test(runtime_status_resource_includes_configured_providers_agents_and_skills) or test(runtime_status_resource_serializes_sanitized_descriptors) or test(runtime_status_subscription_validation_rejects_unknown_uris) or test(runtime_status_resource_reflects_live_dependency_availability) or test(tool_calls_resolve_the_current_executor_on_every_request) or test(test_p1_05_adk_session_events_query_plan_without_index_shows_scan_and_temp_btree) or test(run_lease_expiry_fencing_and_stale_release_are_rejected) or test(completed_tool_output_replays_after_checkpoint_restore) or test(fail_closed_stale_claim_becomes_indeterminate) or test(stale_replay_safe_claim_takes_over_with_fencing) or test(restore_rejects_a_version_gap) or test(adk_artifact_store_lifecycle_and_restart_durability) or test(adk_artifact_store_rejects_missing_drifted_and_corrupted_go_databases)"
         ],
         "testFilter": [
           "input_response_payload_anchors_the_resumed_run_to_the_original_request"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "be549603",
+        "verifiedAt": "2026-09-25T17:48:13Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -80292,23 +80280,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
           "--locked",
-          "--no-fail-fast",
           "-E",
-          "test(a_resumed_input_run_replays_the_original_request_anchor_to_the_provider)"
+          "test(a_pending_input_run_audits_awaiting_input_with_the_decision_kind) or test(sequential_questions_in_one_run_keep_both_answered_requests) or test(an_answered_input_request_can_transition_into_an_approval_wait) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(input_response_payload_anchors_the_resumed_run_to_the_original_request) or test(a_resumed_input_run_replays_the_original_request_anchor_to_the_provider) or test(approval_and_running_nodes_suspend_then_resume_the_same_durable_request) or test(mcp_tools_list_exposes_only_reviewed_read_tools) or test(write_capable_names_are_never_reachable_through_the_reviewed_allowlist) or test(reviewed_mcp_catalog_reports_native_and_fail_closed_counts) or test(shutdown_is_idempotent_and_closed_runtime_rejects_rebind) or test(tool_failures_are_returned_as_mcp_tool_errors) or test(stateless_post_only_requests_never_issue_a_session_header) or test(host_rebinding_and_missing_host_are_rejected) or test(runtime_status_resource_reports_store_and_reviewed_tools) or test(runtime_status_resource_includes_configured_providers_agents_and_skills) or test(runtime_status_resource_serializes_sanitized_descriptors) or test(runtime_status_subscription_validation_rejects_unknown_uris) or test(runtime_status_resource_reflects_live_dependency_availability) or test(tool_calls_resolve_the_current_executor_on_every_request) or test(test_p1_05_adk_session_events_query_plan_without_index_shows_scan_and_temp_btree) or test(run_lease_expiry_fencing_and_stale_release_are_rejected) or test(completed_tool_output_replays_after_checkpoint_restore) or test(fail_closed_stale_claim_becomes_indeterminate) or test(stale_replay_safe_claim_takes_over_with_fencing) or test(restore_rejects_a_version_gap) or test(adk_artifact_store_lifecycle_and_restart_durability) or test(adk_artifact_store_rejects_missing_drifted_and_corrupted_go_databases)"
         ],
         "testFilter": [
           "a_resumed_input_run_replays_the_original_request_anchor_to_the_provider"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "be549603",
+        "verifiedAt": "2026-09-25T17:48:13Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -80357,20 +80342,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(a_pending_input_run_audits_awaiting_input_with_the_decision_kind) or test(sequential_questions_in_one_run_keep_both_answered_requests) or test(an_answered_input_request_can_transition_into_an_approval_wait) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(input_response_payload_anchors_the_resumed_run_to_the_original_request) or test(a_resumed_input_run_replays_the_original_request_anchor_to_the_provider) or test(approval_and_running_nodes_suspend_then_resume_the_same_durable_request) or test(mcp_tools_list_exposes_only_reviewed_read_tools) or test(write_capable_names_are_never_reachable_through_the_reviewed_allowlist) or test(reviewed_mcp_catalog_reports_native_and_fail_closed_counts) or test(shutdown_is_idempotent_and_closed_runtime_rejects_rebind) or test(tool_failures_are_returned_as_mcp_tool_errors) or test(stateless_post_only_requests_never_issue_a_session_header) or test(host_rebinding_and_missing_host_are_rejected) or test(runtime_status_resource_reports_store_and_reviewed_tools) or test(runtime_status_resource_includes_configured_providers_agents_and_skills) or test(runtime_status_resource_serializes_sanitized_descriptors) or test(runtime_status_subscription_validation_rejects_unknown_uris) or test(runtime_status_resource_reflects_live_dependency_availability) or test(tool_calls_resolve_the_current_executor_on_every_request) or test(test_p1_05_adk_session_events_query_plan_without_index_shows_scan_and_temp_btree) or test(run_lease_expiry_fencing_and_stale_release_are_rejected) or test(completed_tool_output_replays_after_checkpoint_restore) or test(fail_closed_stale_claim_becomes_indeterminate) or test(stale_replay_safe_claim_takes_over_with_fencing) or test(restore_rejects_a_version_gap) or test(adk_artifact_store_lifecycle_and_restart_durability) or test(adk_artifact_store_rejects_missing_drifted_and_corrupted_go_databases)"
         ],
         "testFilter": [
           "approval_and_running_nodes_suspend_then_resume_the_same_durable_request"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "be549603",
+        "verifiedAt": "2026-09-25T17:48:13Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -80548,23 +80533,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
           "--locked",
-          "--no-fail-fast",
           "-E",
-          "test(mcp_tools_list_exposes_only_reviewed_read_tools)"
+          "test(a_pending_input_run_audits_awaiting_input_with_the_decision_kind) or test(sequential_questions_in_one_run_keep_both_answered_requests) or test(an_answered_input_request_can_transition_into_an_approval_wait) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(input_response_payload_anchors_the_resumed_run_to_the_original_request) or test(a_resumed_input_run_replays_the_original_request_anchor_to_the_provider) or test(approval_and_running_nodes_suspend_then_resume_the_same_durable_request) or test(mcp_tools_list_exposes_only_reviewed_read_tools) or test(write_capable_names_are_never_reachable_through_the_reviewed_allowlist) or test(reviewed_mcp_catalog_reports_native_and_fail_closed_counts) or test(shutdown_is_idempotent_and_closed_runtime_rejects_rebind) or test(tool_failures_are_returned_as_mcp_tool_errors) or test(stateless_post_only_requests_never_issue_a_session_header) or test(host_rebinding_and_missing_host_are_rejected) or test(runtime_status_resource_reports_store_and_reviewed_tools) or test(runtime_status_resource_includes_configured_providers_agents_and_skills) or test(runtime_status_resource_serializes_sanitized_descriptors) or test(runtime_status_subscription_validation_rejects_unknown_uris) or test(runtime_status_resource_reflects_live_dependency_availability) or test(tool_calls_resolve_the_current_executor_on_every_request) or test(test_p1_05_adk_session_events_query_plan_without_index_shows_scan_and_temp_btree) or test(run_lease_expiry_fencing_and_stale_release_are_rejected) or test(completed_tool_output_replays_after_checkpoint_restore) or test(fail_closed_stale_claim_becomes_indeterminate) or test(stale_replay_safe_claim_takes_over_with_fencing) or test(restore_rejects_a_version_gap) or test(adk_artifact_store_lifecycle_and_restart_durability) or test(adk_artifact_store_rejects_missing_drifted_and_corrupted_go_databases)"
         ],
         "testFilter": [
           "mcp_tools_list_exposes_only_reviewed_read_tools"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "be549603",
+        "verifiedAt": "2026-09-25T17:48:13Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -80618,23 +80600,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
           "--locked",
-          "--no-fail-fast",
           "-E",
-          "test(write_capable_names_are_never_reachable_through_the_reviewed_allowlist)"
+          "test(a_pending_input_run_audits_awaiting_input_with_the_decision_kind) or test(sequential_questions_in_one_run_keep_both_answered_requests) or test(an_answered_input_request_can_transition_into_an_approval_wait) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(input_response_payload_anchors_the_resumed_run_to_the_original_request) or test(a_resumed_input_run_replays_the_original_request_anchor_to_the_provider) or test(approval_and_running_nodes_suspend_then_resume_the_same_durable_request) or test(mcp_tools_list_exposes_only_reviewed_read_tools) or test(write_capable_names_are_never_reachable_through_the_reviewed_allowlist) or test(reviewed_mcp_catalog_reports_native_and_fail_closed_counts) or test(shutdown_is_idempotent_and_closed_runtime_rejects_rebind) or test(tool_failures_are_returned_as_mcp_tool_errors) or test(stateless_post_only_requests_never_issue_a_session_header) or test(host_rebinding_and_missing_host_are_rejected) or test(runtime_status_resource_reports_store_and_reviewed_tools) or test(runtime_status_resource_includes_configured_providers_agents_and_skills) or test(runtime_status_resource_serializes_sanitized_descriptors) or test(runtime_status_subscription_validation_rejects_unknown_uris) or test(runtime_status_resource_reflects_live_dependency_availability) or test(tool_calls_resolve_the_current_executor_on_every_request) or test(test_p1_05_adk_session_events_query_plan_without_index_shows_scan_and_temp_btree) or test(run_lease_expiry_fencing_and_stale_release_are_rejected) or test(completed_tool_output_replays_after_checkpoint_restore) or test(fail_closed_stale_claim_becomes_indeterminate) or test(stale_replay_safe_claim_takes_over_with_fencing) or test(restore_rejects_a_version_gap) or test(adk_artifact_store_lifecycle_and_restart_durability) or test(adk_artifact_store_rejects_missing_drifted_and_corrupted_go_databases)"
         ],
         "testFilter": [
           "write_capable_names_are_never_reachable_through_the_reviewed_allowlist"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "be549603",
+        "verifiedAt": "2026-09-25T17:48:13Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -80688,23 +80667,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
           "--locked",
-          "--no-fail-fast",
           "-E",
-          "test(reviewed_mcp_catalog_reports_native_and_fail_closed_counts)"
+          "test(a_pending_input_run_audits_awaiting_input_with_the_decision_kind) or test(sequential_questions_in_one_run_keep_both_answered_requests) or test(an_answered_input_request_can_transition_into_an_approval_wait) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(input_response_payload_anchors_the_resumed_run_to_the_original_request) or test(a_resumed_input_run_replays_the_original_request_anchor_to_the_provider) or test(approval_and_running_nodes_suspend_then_resume_the_same_durable_request) or test(mcp_tools_list_exposes_only_reviewed_read_tools) or test(write_capable_names_are_never_reachable_through_the_reviewed_allowlist) or test(reviewed_mcp_catalog_reports_native_and_fail_closed_counts) or test(shutdown_is_idempotent_and_closed_runtime_rejects_rebind) or test(tool_failures_are_returned_as_mcp_tool_errors) or test(stateless_post_only_requests_never_issue_a_session_header) or test(host_rebinding_and_missing_host_are_rejected) or test(runtime_status_resource_reports_store_and_reviewed_tools) or test(runtime_status_resource_includes_configured_providers_agents_and_skills) or test(runtime_status_resource_serializes_sanitized_descriptors) or test(runtime_status_subscription_validation_rejects_unknown_uris) or test(runtime_status_resource_reflects_live_dependency_availability) or test(tool_calls_resolve_the_current_executor_on_every_request) or test(test_p1_05_adk_session_events_query_plan_without_index_shows_scan_and_temp_btree) or test(run_lease_expiry_fencing_and_stale_release_are_rejected) or test(completed_tool_output_replays_after_checkpoint_restore) or test(fail_closed_stale_claim_becomes_indeterminate) or test(stale_replay_safe_claim_takes_over_with_fencing) or test(restore_rejects_a_version_gap) or test(adk_artifact_store_lifecycle_and_restart_durability) or test(adk_artifact_store_rejects_missing_drifted_and_corrupted_go_databases)"
         ],
         "testFilter": [
           "reviewed_mcp_catalog_reports_native_and_fail_closed_counts"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "be549603",
+        "verifiedAt": "2026-09-25T17:48:13Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -80758,23 +80734,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
           "--locked",
-          "--no-fail-fast",
           "-E",
-          "test(shutdown_is_idempotent_and_closed_runtime_rejects_rebind)"
+          "test(a_pending_input_run_audits_awaiting_input_with_the_decision_kind) or test(sequential_questions_in_one_run_keep_both_answered_requests) or test(an_answered_input_request_can_transition_into_an_approval_wait) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(input_response_payload_anchors_the_resumed_run_to_the_original_request) or test(a_resumed_input_run_replays_the_original_request_anchor_to_the_provider) or test(approval_and_running_nodes_suspend_then_resume_the_same_durable_request) or test(mcp_tools_list_exposes_only_reviewed_read_tools) or test(write_capable_names_are_never_reachable_through_the_reviewed_allowlist) or test(reviewed_mcp_catalog_reports_native_and_fail_closed_counts) or test(shutdown_is_idempotent_and_closed_runtime_rejects_rebind) or test(tool_failures_are_returned_as_mcp_tool_errors) or test(stateless_post_only_requests_never_issue_a_session_header) or test(host_rebinding_and_missing_host_are_rejected) or test(runtime_status_resource_reports_store_and_reviewed_tools) or test(runtime_status_resource_includes_configured_providers_agents_and_skills) or test(runtime_status_resource_serializes_sanitized_descriptors) or test(runtime_status_subscription_validation_rejects_unknown_uris) or test(runtime_status_resource_reflects_live_dependency_availability) or test(tool_calls_resolve_the_current_executor_on_every_request) or test(test_p1_05_adk_session_events_query_plan_without_index_shows_scan_and_temp_btree) or test(run_lease_expiry_fencing_and_stale_release_are_rejected) or test(completed_tool_output_replays_after_checkpoint_restore) or test(fail_closed_stale_claim_becomes_indeterminate) or test(stale_replay_safe_claim_takes_over_with_fencing) or test(restore_rejects_a_version_gap) or test(adk_artifact_store_lifecycle_and_restart_durability) or test(adk_artifact_store_rejects_missing_drifted_and_corrupted_go_databases)"
         ],
         "testFilter": [
           "shutdown_is_idempotent_and_closed_runtime_rejects_rebind"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "be549603",
+        "verifiedAt": "2026-09-25T17:48:13Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -80828,23 +80801,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
           "--locked",
-          "--no-fail-fast",
           "-E",
-          "test(tool_failures_are_returned_as_mcp_tool_errors)"
+          "test(a_pending_input_run_audits_awaiting_input_with_the_decision_kind) or test(sequential_questions_in_one_run_keep_both_answered_requests) or test(an_answered_input_request_can_transition_into_an_approval_wait) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(input_response_payload_anchors_the_resumed_run_to_the_original_request) or test(a_resumed_input_run_replays_the_original_request_anchor_to_the_provider) or test(approval_and_running_nodes_suspend_then_resume_the_same_durable_request) or test(mcp_tools_list_exposes_only_reviewed_read_tools) or test(write_capable_names_are_never_reachable_through_the_reviewed_allowlist) or test(reviewed_mcp_catalog_reports_native_and_fail_closed_counts) or test(shutdown_is_idempotent_and_closed_runtime_rejects_rebind) or test(tool_failures_are_returned_as_mcp_tool_errors) or test(stateless_post_only_requests_never_issue_a_session_header) or test(host_rebinding_and_missing_host_are_rejected) or test(runtime_status_resource_reports_store_and_reviewed_tools) or test(runtime_status_resource_includes_configured_providers_agents_and_skills) or test(runtime_status_resource_serializes_sanitized_descriptors) or test(runtime_status_subscription_validation_rejects_unknown_uris) or test(runtime_status_resource_reflects_live_dependency_availability) or test(tool_calls_resolve_the_current_executor_on_every_request) or test(test_p1_05_adk_session_events_query_plan_without_index_shows_scan_and_temp_btree) or test(run_lease_expiry_fencing_and_stale_release_are_rejected) or test(completed_tool_output_replays_after_checkpoint_restore) or test(fail_closed_stale_claim_becomes_indeterminate) or test(stale_replay_safe_claim_takes_over_with_fencing) or test(restore_rejects_a_version_gap) or test(adk_artifact_store_lifecycle_and_restart_durability) or test(adk_artifact_store_rejects_missing_drifted_and_corrupted_go_databases)"
         ],
         "testFilter": [
           "tool_failures_are_returned_as_mcp_tool_errors"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "be549603",
+        "verifiedAt": "2026-09-25T17:48:13Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -80898,23 +80868,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
           "--locked",
-          "--no-fail-fast",
           "-E",
-          "test(stateless_post_only_requests_never_issue_a_session_header)"
+          "test(a_pending_input_run_audits_awaiting_input_with_the_decision_kind) or test(sequential_questions_in_one_run_keep_both_answered_requests) or test(an_answered_input_request_can_transition_into_an_approval_wait) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(input_response_payload_anchors_the_resumed_run_to_the_original_request) or test(a_resumed_input_run_replays_the_original_request_anchor_to_the_provider) or test(approval_and_running_nodes_suspend_then_resume_the_same_durable_request) or test(mcp_tools_list_exposes_only_reviewed_read_tools) or test(write_capable_names_are_never_reachable_through_the_reviewed_allowlist) or test(reviewed_mcp_catalog_reports_native_and_fail_closed_counts) or test(shutdown_is_idempotent_and_closed_runtime_rejects_rebind) or test(tool_failures_are_returned_as_mcp_tool_errors) or test(stateless_post_only_requests_never_issue_a_session_header) or test(host_rebinding_and_missing_host_are_rejected) or test(runtime_status_resource_reports_store_and_reviewed_tools) or test(runtime_status_resource_includes_configured_providers_agents_and_skills) or test(runtime_status_resource_serializes_sanitized_descriptors) or test(runtime_status_subscription_validation_rejects_unknown_uris) or test(runtime_status_resource_reflects_live_dependency_availability) or test(tool_calls_resolve_the_current_executor_on_every_request) or test(test_p1_05_adk_session_events_query_plan_without_index_shows_scan_and_temp_btree) or test(run_lease_expiry_fencing_and_stale_release_are_rejected) or test(completed_tool_output_replays_after_checkpoint_restore) or test(fail_closed_stale_claim_becomes_indeterminate) or test(stale_replay_safe_claim_takes_over_with_fencing) or test(restore_rejects_a_version_gap) or test(adk_artifact_store_lifecycle_and_restart_durability) or test(adk_artifact_store_rejects_missing_drifted_and_corrupted_go_databases)"
         ],
         "testFilter": [
           "stateless_post_only_requests_never_issue_a_session_header"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "be549603",
+        "verifiedAt": "2026-09-25T17:48:13Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -80968,23 +80935,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
           "--locked",
-          "--no-fail-fast",
           "-E",
-          "test(host_rebinding_and_missing_host_are_rejected)"
+          "test(a_pending_input_run_audits_awaiting_input_with_the_decision_kind) or test(sequential_questions_in_one_run_keep_both_answered_requests) or test(an_answered_input_request_can_transition_into_an_approval_wait) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(input_response_payload_anchors_the_resumed_run_to_the_original_request) or test(a_resumed_input_run_replays_the_original_request_anchor_to_the_provider) or test(approval_and_running_nodes_suspend_then_resume_the_same_durable_request) or test(mcp_tools_list_exposes_only_reviewed_read_tools) or test(write_capable_names_are_never_reachable_through_the_reviewed_allowlist) or test(reviewed_mcp_catalog_reports_native_and_fail_closed_counts) or test(shutdown_is_idempotent_and_closed_runtime_rejects_rebind) or test(tool_failures_are_returned_as_mcp_tool_errors) or test(stateless_post_only_requests_never_issue_a_session_header) or test(host_rebinding_and_missing_host_are_rejected) or test(runtime_status_resource_reports_store_and_reviewed_tools) or test(runtime_status_resource_includes_configured_providers_agents_and_skills) or test(runtime_status_resource_serializes_sanitized_descriptors) or test(runtime_status_subscription_validation_rejects_unknown_uris) or test(runtime_status_resource_reflects_live_dependency_availability) or test(tool_calls_resolve_the_current_executor_on_every_request) or test(test_p1_05_adk_session_events_query_plan_without_index_shows_scan_and_temp_btree) or test(run_lease_expiry_fencing_and_stale_release_are_rejected) or test(completed_tool_output_replays_after_checkpoint_restore) or test(fail_closed_stale_claim_becomes_indeterminate) or test(stale_replay_safe_claim_takes_over_with_fencing) or test(restore_rejects_a_version_gap) or test(adk_artifact_store_lifecycle_and_restart_durability) or test(adk_artifact_store_rejects_missing_drifted_and_corrupted_go_databases)"
         ],
         "testFilter": [
           "host_rebinding_and_missing_host_are_rejected"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "be549603",
+        "verifiedAt": "2026-09-25T17:48:13Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -81038,23 +81002,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
           "--locked",
-          "--no-fail-fast",
           "-E",
-          "test(runtime_status_resource_reports_store_and_reviewed_tools)"
+          "test(a_pending_input_run_audits_awaiting_input_with_the_decision_kind) or test(sequential_questions_in_one_run_keep_both_answered_requests) or test(an_answered_input_request_can_transition_into_an_approval_wait) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(input_response_payload_anchors_the_resumed_run_to_the_original_request) or test(a_resumed_input_run_replays_the_original_request_anchor_to_the_provider) or test(approval_and_running_nodes_suspend_then_resume_the_same_durable_request) or test(mcp_tools_list_exposes_only_reviewed_read_tools) or test(write_capable_names_are_never_reachable_through_the_reviewed_allowlist) or test(reviewed_mcp_catalog_reports_native_and_fail_closed_counts) or test(shutdown_is_idempotent_and_closed_runtime_rejects_rebind) or test(tool_failures_are_returned_as_mcp_tool_errors) or test(stateless_post_only_requests_never_issue_a_session_header) or test(host_rebinding_and_missing_host_are_rejected) or test(runtime_status_resource_reports_store_and_reviewed_tools) or test(runtime_status_resource_includes_configured_providers_agents_and_skills) or test(runtime_status_resource_serializes_sanitized_descriptors) or test(runtime_status_subscription_validation_rejects_unknown_uris) or test(runtime_status_resource_reflects_live_dependency_availability) or test(tool_calls_resolve_the_current_executor_on_every_request) or test(test_p1_05_adk_session_events_query_plan_without_index_shows_scan_and_temp_btree) or test(run_lease_expiry_fencing_and_stale_release_are_rejected) or test(completed_tool_output_replays_after_checkpoint_restore) or test(fail_closed_stale_claim_becomes_indeterminate) or test(stale_replay_safe_claim_takes_over_with_fencing) or test(restore_rejects_a_version_gap) or test(adk_artifact_store_lifecycle_and_restart_durability) or test(adk_artifact_store_rejects_missing_drifted_and_corrupted_go_databases)"
         ],
         "testFilter": [
           "runtime_status_resource_reports_store_and_reviewed_tools"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "be549603",
+        "verifiedAt": "2026-09-25T17:48:13Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -81108,23 +81069,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
           "--locked",
-          "--no-fail-fast",
           "-E",
-          "test(runtime_status_resource_includes_configured_providers_agents_and_skills)"
+          "test(a_pending_input_run_audits_awaiting_input_with_the_decision_kind) or test(sequential_questions_in_one_run_keep_both_answered_requests) or test(an_answered_input_request_can_transition_into_an_approval_wait) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(input_response_payload_anchors_the_resumed_run_to_the_original_request) or test(a_resumed_input_run_replays_the_original_request_anchor_to_the_provider) or test(approval_and_running_nodes_suspend_then_resume_the_same_durable_request) or test(mcp_tools_list_exposes_only_reviewed_read_tools) or test(write_capable_names_are_never_reachable_through_the_reviewed_allowlist) or test(reviewed_mcp_catalog_reports_native_and_fail_closed_counts) or test(shutdown_is_idempotent_and_closed_runtime_rejects_rebind) or test(tool_failures_are_returned_as_mcp_tool_errors) or test(stateless_post_only_requests_never_issue_a_session_header) or test(host_rebinding_and_missing_host_are_rejected) or test(runtime_status_resource_reports_store_and_reviewed_tools) or test(runtime_status_resource_includes_configured_providers_agents_and_skills) or test(runtime_status_resource_serializes_sanitized_descriptors) or test(runtime_status_subscription_validation_rejects_unknown_uris) or test(runtime_status_resource_reflects_live_dependency_availability) or test(tool_calls_resolve_the_current_executor_on_every_request) or test(test_p1_05_adk_session_events_query_plan_without_index_shows_scan_and_temp_btree) or test(run_lease_expiry_fencing_and_stale_release_are_rejected) or test(completed_tool_output_replays_after_checkpoint_restore) or test(fail_closed_stale_claim_becomes_indeterminate) or test(stale_replay_safe_claim_takes_over_with_fencing) or test(restore_rejects_a_version_gap) or test(adk_artifact_store_lifecycle_and_restart_durability) or test(adk_artifact_store_rejects_missing_drifted_and_corrupted_go_databases)"
         ],
         "testFilter": [
           "runtime_status_resource_includes_configured_providers_agents_and_skills"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "be549603",
+        "verifiedAt": "2026-09-25T17:48:13Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -81178,23 +81136,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
           "--locked",
-          "--no-fail-fast",
           "-E",
-          "test(runtime_status_resource_serializes_sanitized_descriptors)"
+          "test(a_pending_input_run_audits_awaiting_input_with_the_decision_kind) or test(sequential_questions_in_one_run_keep_both_answered_requests) or test(an_answered_input_request_can_transition_into_an_approval_wait) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(input_response_payload_anchors_the_resumed_run_to_the_original_request) or test(a_resumed_input_run_replays_the_original_request_anchor_to_the_provider) or test(approval_and_running_nodes_suspend_then_resume_the_same_durable_request) or test(mcp_tools_list_exposes_only_reviewed_read_tools) or test(write_capable_names_are_never_reachable_through_the_reviewed_allowlist) or test(reviewed_mcp_catalog_reports_native_and_fail_closed_counts) or test(shutdown_is_idempotent_and_closed_runtime_rejects_rebind) or test(tool_failures_are_returned_as_mcp_tool_errors) or test(stateless_post_only_requests_never_issue_a_session_header) or test(host_rebinding_and_missing_host_are_rejected) or test(runtime_status_resource_reports_store_and_reviewed_tools) or test(runtime_status_resource_includes_configured_providers_agents_and_skills) or test(runtime_status_resource_serializes_sanitized_descriptors) or test(runtime_status_subscription_validation_rejects_unknown_uris) or test(runtime_status_resource_reflects_live_dependency_availability) or test(tool_calls_resolve_the_current_executor_on_every_request) or test(test_p1_05_adk_session_events_query_plan_without_index_shows_scan_and_temp_btree) or test(run_lease_expiry_fencing_and_stale_release_are_rejected) or test(completed_tool_output_replays_after_checkpoint_restore) or test(fail_closed_stale_claim_becomes_indeterminate) or test(stale_replay_safe_claim_takes_over_with_fencing) or test(restore_rejects_a_version_gap) or test(adk_artifact_store_lifecycle_and_restart_durability) or test(adk_artifact_store_rejects_missing_drifted_and_corrupted_go_databases)"
         ],
         "testFilter": [
           "runtime_status_resource_serializes_sanitized_descriptors"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "be549603",
+        "verifiedAt": "2026-09-25T17:48:13Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -81248,23 +81203,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
           "--locked",
-          "--no-fail-fast",
           "-E",
-          "test(runtime_status_subscription_validation_rejects_unknown_uris)"
+          "test(a_pending_input_run_audits_awaiting_input_with_the_decision_kind) or test(sequential_questions_in_one_run_keep_both_answered_requests) or test(an_answered_input_request_can_transition_into_an_approval_wait) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(input_response_payload_anchors_the_resumed_run_to_the_original_request) or test(a_resumed_input_run_replays_the_original_request_anchor_to_the_provider) or test(approval_and_running_nodes_suspend_then_resume_the_same_durable_request) or test(mcp_tools_list_exposes_only_reviewed_read_tools) or test(write_capable_names_are_never_reachable_through_the_reviewed_allowlist) or test(reviewed_mcp_catalog_reports_native_and_fail_closed_counts) or test(shutdown_is_idempotent_and_closed_runtime_rejects_rebind) or test(tool_failures_are_returned_as_mcp_tool_errors) or test(stateless_post_only_requests_never_issue_a_session_header) or test(host_rebinding_and_missing_host_are_rejected) or test(runtime_status_resource_reports_store_and_reviewed_tools) or test(runtime_status_resource_includes_configured_providers_agents_and_skills) or test(runtime_status_resource_serializes_sanitized_descriptors) or test(runtime_status_subscription_validation_rejects_unknown_uris) or test(runtime_status_resource_reflects_live_dependency_availability) or test(tool_calls_resolve_the_current_executor_on_every_request) or test(test_p1_05_adk_session_events_query_plan_without_index_shows_scan_and_temp_btree) or test(run_lease_expiry_fencing_and_stale_release_are_rejected) or test(completed_tool_output_replays_after_checkpoint_restore) or test(fail_closed_stale_claim_becomes_indeterminate) or test(stale_replay_safe_claim_takes_over_with_fencing) or test(restore_rejects_a_version_gap) or test(adk_artifact_store_lifecycle_and_restart_durability) or test(adk_artifact_store_rejects_missing_drifted_and_corrupted_go_databases)"
         ],
         "testFilter": [
           "runtime_status_subscription_validation_rejects_unknown_uris"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "be549603",
+        "verifiedAt": "2026-09-25T17:48:13Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -81318,23 +81270,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
           "--locked",
-          "--no-fail-fast",
           "-E",
-          "test(runtime_status_resource_reflects_live_dependency_availability)"
+          "test(a_pending_input_run_audits_awaiting_input_with_the_decision_kind) or test(sequential_questions_in_one_run_keep_both_answered_requests) or test(an_answered_input_request_can_transition_into_an_approval_wait) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(input_response_payload_anchors_the_resumed_run_to_the_original_request) or test(a_resumed_input_run_replays_the_original_request_anchor_to_the_provider) or test(approval_and_running_nodes_suspend_then_resume_the_same_durable_request) or test(mcp_tools_list_exposes_only_reviewed_read_tools) or test(write_capable_names_are_never_reachable_through_the_reviewed_allowlist) or test(reviewed_mcp_catalog_reports_native_and_fail_closed_counts) or test(shutdown_is_idempotent_and_closed_runtime_rejects_rebind) or test(tool_failures_are_returned_as_mcp_tool_errors) or test(stateless_post_only_requests_never_issue_a_session_header) or test(host_rebinding_and_missing_host_are_rejected) or test(runtime_status_resource_reports_store_and_reviewed_tools) or test(runtime_status_resource_includes_configured_providers_agents_and_skills) or test(runtime_status_resource_serializes_sanitized_descriptors) or test(runtime_status_subscription_validation_rejects_unknown_uris) or test(runtime_status_resource_reflects_live_dependency_availability) or test(tool_calls_resolve_the_current_executor_on_every_request) or test(test_p1_05_adk_session_events_query_plan_without_index_shows_scan_and_temp_btree) or test(run_lease_expiry_fencing_and_stale_release_are_rejected) or test(completed_tool_output_replays_after_checkpoint_restore) or test(fail_closed_stale_claim_becomes_indeterminate) or test(stale_replay_safe_claim_takes_over_with_fencing) or test(restore_rejects_a_version_gap) or test(adk_artifact_store_lifecycle_and_restart_durability) or test(adk_artifact_store_rejects_missing_drifted_and_corrupted_go_databases)"
         ],
         "testFilter": [
           "runtime_status_resource_reflects_live_dependency_availability"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "be549603",
+        "verifiedAt": "2026-09-25T17:48:13Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -81388,23 +81337,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
           "--locked",
-          "--no-fail-fast",
           "-E",
-          "test(tool_calls_resolve_the_current_executor_on_every_request)"
+          "test(a_pending_input_run_audits_awaiting_input_with_the_decision_kind) or test(sequential_questions_in_one_run_keep_both_answered_requests) or test(an_answered_input_request_can_transition_into_an_approval_wait) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(input_response_payload_anchors_the_resumed_run_to_the_original_request) or test(a_resumed_input_run_replays_the_original_request_anchor_to_the_provider) or test(approval_and_running_nodes_suspend_then_resume_the_same_durable_request) or test(mcp_tools_list_exposes_only_reviewed_read_tools) or test(write_capable_names_are_never_reachable_through_the_reviewed_allowlist) or test(reviewed_mcp_catalog_reports_native_and_fail_closed_counts) or test(shutdown_is_idempotent_and_closed_runtime_rejects_rebind) or test(tool_failures_are_returned_as_mcp_tool_errors) or test(stateless_post_only_requests_never_issue_a_session_header) or test(host_rebinding_and_missing_host_are_rejected) or test(runtime_status_resource_reports_store_and_reviewed_tools) or test(runtime_status_resource_includes_configured_providers_agents_and_skills) or test(runtime_status_resource_serializes_sanitized_descriptors) or test(runtime_status_subscription_validation_rejects_unknown_uris) or test(runtime_status_resource_reflects_live_dependency_availability) or test(tool_calls_resolve_the_current_executor_on_every_request) or test(test_p1_05_adk_session_events_query_plan_without_index_shows_scan_and_temp_btree) or test(run_lease_expiry_fencing_and_stale_release_are_rejected) or test(completed_tool_output_replays_after_checkpoint_restore) or test(fail_closed_stale_claim_becomes_indeterminate) or test(stale_replay_safe_claim_takes_over_with_fencing) or test(restore_rejects_a_version_gap) or test(adk_artifact_store_lifecycle_and_restart_durability) or test(adk_artifact_store_rejects_missing_drifted_and_corrupted_go_databases)"
         ],
         "testFilter": [
           "tool_calls_resolve_the_current_executor_on_every_request"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "be549603",
+        "verifiedAt": "2026-09-25T17:48:13Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -81621,20 +81567,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(a_pending_input_run_audits_awaiting_input_with_the_decision_kind) or test(sequential_questions_in_one_run_keep_both_answered_requests) or test(an_answered_input_request_can_transition_into_an_approval_wait) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(input_response_payload_anchors_the_resumed_run_to_the_original_request) or test(a_resumed_input_run_replays_the_original_request_anchor_to_the_provider) or test(approval_and_running_nodes_suspend_then_resume_the_same_durable_request) or test(mcp_tools_list_exposes_only_reviewed_read_tools) or test(write_capable_names_are_never_reachable_through_the_reviewed_allowlist) or test(reviewed_mcp_catalog_reports_native_and_fail_closed_counts) or test(shutdown_is_idempotent_and_closed_runtime_rejects_rebind) or test(tool_failures_are_returned_as_mcp_tool_errors) or test(stateless_post_only_requests_never_issue_a_session_header) or test(host_rebinding_and_missing_host_are_rejected) or test(runtime_status_resource_reports_store_and_reviewed_tools) or test(runtime_status_resource_includes_configured_providers_agents_and_skills) or test(runtime_status_resource_serializes_sanitized_descriptors) or test(runtime_status_subscription_validation_rejects_unknown_uris) or test(runtime_status_resource_reflects_live_dependency_availability) or test(tool_calls_resolve_the_current_executor_on_every_request) or test(test_p1_05_adk_session_events_query_plan_without_index_shows_scan_and_temp_btree) or test(run_lease_expiry_fencing_and_stale_release_are_rejected) or test(completed_tool_output_replays_after_checkpoint_restore) or test(fail_closed_stale_claim_becomes_indeterminate) or test(stale_replay_safe_claim_takes_over_with_fencing) or test(restore_rejects_a_version_gap) or test(adk_artifact_store_lifecycle_and_restart_durability) or test(adk_artifact_store_rejects_missing_drifted_and_corrupted_go_databases)"
         ],
         "testFilter": [
           "test_p1_05_adk_session_events_query_plan_without_index_shows_scan_and_temp_btree"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "be549603",
+        "verifiedAt": "2026-09-25T17:48:13Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -81750,20 +81696,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-assistant",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(a_pending_input_run_audits_awaiting_input_with_the_decision_kind) or test(sequential_questions_in_one_run_keep_both_answered_requests) or test(an_answered_input_request_can_transition_into_an_approval_wait) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(input_response_payload_anchors_the_resumed_run_to_the_original_request) or test(a_resumed_input_run_replays_the_original_request_anchor_to_the_provider) or test(approval_and_running_nodes_suspend_then_resume_the_same_durable_request) or test(mcp_tools_list_exposes_only_reviewed_read_tools) or test(write_capable_names_are_never_reachable_through_the_reviewed_allowlist) or test(reviewed_mcp_catalog_reports_native_and_fail_closed_counts) or test(shutdown_is_idempotent_and_closed_runtime_rejects_rebind) or test(tool_failures_are_returned_as_mcp_tool_errors) or test(stateless_post_only_requests_never_issue_a_session_header) or test(host_rebinding_and_missing_host_are_rejected) or test(runtime_status_resource_reports_store_and_reviewed_tools) or test(runtime_status_resource_includes_configured_providers_agents_and_skills) or test(runtime_status_resource_serializes_sanitized_descriptors) or test(runtime_status_subscription_validation_rejects_unknown_uris) or test(runtime_status_resource_reflects_live_dependency_availability) or test(tool_calls_resolve_the_current_executor_on_every_request) or test(test_p1_05_adk_session_events_query_plan_without_index_shows_scan_and_temp_btree) or test(run_lease_expiry_fencing_and_stale_release_are_rejected) or test(completed_tool_output_replays_after_checkpoint_restore) or test(fail_closed_stale_claim_becomes_indeterminate) or test(stale_replay_safe_claim_takes_over_with_fencing) or test(restore_rejects_a_version_gap) or test(adk_artifact_store_lifecycle_and_restart_durability) or test(adk_artifact_store_rejects_missing_drifted_and_corrupted_go_databases)"
         ],
         "testFilter": [
           "run_lease_expiry_fencing_and_stale_release_are_rejected"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "be549603",
+        "verifiedAt": "2026-09-25T17:48:13Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -81879,20 +81825,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-assistant",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(a_pending_input_run_audits_awaiting_input_with_the_decision_kind) or test(sequential_questions_in_one_run_keep_both_answered_requests) or test(an_answered_input_request_can_transition_into_an_approval_wait) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(input_response_payload_anchors_the_resumed_run_to_the_original_request) or test(a_resumed_input_run_replays_the_original_request_anchor_to_the_provider) or test(approval_and_running_nodes_suspend_then_resume_the_same_durable_request) or test(mcp_tools_list_exposes_only_reviewed_read_tools) or test(write_capable_names_are_never_reachable_through_the_reviewed_allowlist) or test(reviewed_mcp_catalog_reports_native_and_fail_closed_counts) or test(shutdown_is_idempotent_and_closed_runtime_rejects_rebind) or test(tool_failures_are_returned_as_mcp_tool_errors) or test(stateless_post_only_requests_never_issue_a_session_header) or test(host_rebinding_and_missing_host_are_rejected) or test(runtime_status_resource_reports_store_and_reviewed_tools) or test(runtime_status_resource_includes_configured_providers_agents_and_skills) or test(runtime_status_resource_serializes_sanitized_descriptors) or test(runtime_status_subscription_validation_rejects_unknown_uris) or test(runtime_status_resource_reflects_live_dependency_availability) or test(tool_calls_resolve_the_current_executor_on_every_request) or test(test_p1_05_adk_session_events_query_plan_without_index_shows_scan_and_temp_btree) or test(run_lease_expiry_fencing_and_stale_release_are_rejected) or test(completed_tool_output_replays_after_checkpoint_restore) or test(fail_closed_stale_claim_becomes_indeterminate) or test(stale_replay_safe_claim_takes_over_with_fencing) or test(restore_rejects_a_version_gap) or test(adk_artifact_store_lifecycle_and_restart_durability) or test(adk_artifact_store_rejects_missing_drifted_and_corrupted_go_databases)"
         ],
         "testFilter": [
           "completed_tool_output_replays_after_checkpoint_restore"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "be549603",
+        "verifiedAt": "2026-09-25T17:48:13Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -81957,10 +81903,10 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-assistant",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(a_pending_input_run_audits_awaiting_input_with_the_decision_kind) or test(sequential_questions_in_one_run_keep_both_answered_requests) or test(an_answered_input_request_can_transition_into_an_approval_wait) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(input_response_payload_anchors_the_resumed_run_to_the_original_request) or test(a_resumed_input_run_replays_the_original_request_anchor_to_the_provider) or test(approval_and_running_nodes_suspend_then_resume_the_same_durable_request) or test(mcp_tools_list_exposes_only_reviewed_read_tools) or test(write_capable_names_are_never_reachable_through_the_reviewed_allowlist) or test(reviewed_mcp_catalog_reports_native_and_fail_closed_counts) or test(shutdown_is_idempotent_and_closed_runtime_rejects_rebind) or test(tool_failures_are_returned_as_mcp_tool_errors) or test(stateless_post_only_requests_never_issue_a_session_header) or test(host_rebinding_and_missing_host_are_rejected) or test(runtime_status_resource_reports_store_and_reviewed_tools) or test(runtime_status_resource_includes_configured_providers_agents_and_skills) or test(runtime_status_resource_serializes_sanitized_descriptors) or test(runtime_status_subscription_validation_rejects_unknown_uris) or test(runtime_status_resource_reflects_live_dependency_availability) or test(tool_calls_resolve_the_current_executor_on_every_request) or test(test_p1_05_adk_session_events_query_plan_without_index_shows_scan_and_temp_btree) or test(run_lease_expiry_fencing_and_stale_release_are_rejected) or test(completed_tool_output_replays_after_checkpoint_restore) or test(fail_closed_stale_claim_becomes_indeterminate) or test(stale_replay_safe_claim_takes_over_with_fencing) or test(restore_rejects_a_version_gap) or test(adk_artifact_store_lifecycle_and_restart_durability) or test(adk_artifact_store_rejects_missing_drifted_and_corrupted_go_databases)"
         ],
         "testFilter": [
           "fail_closed_stale_claim_becomes_indeterminate",
@@ -81968,10 +81914,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "be549603",
+        "verifiedAt": "2026-09-25T17:48:13Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -82020,20 +81966,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-assistant",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(a_pending_input_run_audits_awaiting_input_with_the_decision_kind) or test(sequential_questions_in_one_run_keep_both_answered_requests) or test(an_answered_input_request_can_transition_into_an_approval_wait) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(input_response_payload_anchors_the_resumed_run_to_the_original_request) or test(a_resumed_input_run_replays_the_original_request_anchor_to_the_provider) or test(approval_and_running_nodes_suspend_then_resume_the_same_durable_request) or test(mcp_tools_list_exposes_only_reviewed_read_tools) or test(write_capable_names_are_never_reachable_through_the_reviewed_allowlist) or test(reviewed_mcp_catalog_reports_native_and_fail_closed_counts) or test(shutdown_is_idempotent_and_closed_runtime_rejects_rebind) or test(tool_failures_are_returned_as_mcp_tool_errors) or test(stateless_post_only_requests_never_issue_a_session_header) or test(host_rebinding_and_missing_host_are_rejected) or test(runtime_status_resource_reports_store_and_reviewed_tools) or test(runtime_status_resource_includes_configured_providers_agents_and_skills) or test(runtime_status_resource_serializes_sanitized_descriptors) or test(runtime_status_subscription_validation_rejects_unknown_uris) or test(runtime_status_resource_reflects_live_dependency_availability) or test(tool_calls_resolve_the_current_executor_on_every_request) or test(test_p1_05_adk_session_events_query_plan_without_index_shows_scan_and_temp_btree) or test(run_lease_expiry_fencing_and_stale_release_are_rejected) or test(completed_tool_output_replays_after_checkpoint_restore) or test(fail_closed_stale_claim_becomes_indeterminate) or test(stale_replay_safe_claim_takes_over_with_fencing) or test(restore_rejects_a_version_gap) or test(adk_artifact_store_lifecycle_and_restart_durability) or test(adk_artifact_store_rejects_missing_drifted_and_corrupted_go_databases)"
         ],
         "testFilter": [
           "restore_rejects_a_version_gap"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "be549603",
+        "verifiedAt": "2026-09-25T17:48:13Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -82082,20 +82028,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(a_pending_input_run_audits_awaiting_input_with_the_decision_kind) or test(sequential_questions_in_one_run_keep_both_answered_requests) or test(an_answered_input_request_can_transition_into_an_approval_wait) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(input_response_payload_anchors_the_resumed_run_to_the_original_request) or test(a_resumed_input_run_replays_the_original_request_anchor_to_the_provider) or test(approval_and_running_nodes_suspend_then_resume_the_same_durable_request) or test(mcp_tools_list_exposes_only_reviewed_read_tools) or test(write_capable_names_are_never_reachable_through_the_reviewed_allowlist) or test(reviewed_mcp_catalog_reports_native_and_fail_closed_counts) or test(shutdown_is_idempotent_and_closed_runtime_rejects_rebind) or test(tool_failures_are_returned_as_mcp_tool_errors) or test(stateless_post_only_requests_never_issue_a_session_header) or test(host_rebinding_and_missing_host_are_rejected) or test(runtime_status_resource_reports_store_and_reviewed_tools) or test(runtime_status_resource_includes_configured_providers_agents_and_skills) or test(runtime_status_resource_serializes_sanitized_descriptors) or test(runtime_status_subscription_validation_rejects_unknown_uris) or test(runtime_status_resource_reflects_live_dependency_availability) or test(tool_calls_resolve_the_current_executor_on_every_request) or test(test_p1_05_adk_session_events_query_plan_without_index_shows_scan_and_temp_btree) or test(run_lease_expiry_fencing_and_stale_release_are_rejected) or test(completed_tool_output_replays_after_checkpoint_restore) or test(fail_closed_stale_claim_becomes_indeterminate) or test(stale_replay_safe_claim_takes_over_with_fencing) or test(restore_rejects_a_version_gap) or test(adk_artifact_store_lifecycle_and_restart_durability) or test(adk_artifact_store_rejects_missing_drifted_and_corrupted_go_databases)"
         ],
         "testFilter": [
           "adk_artifact_store_lifecycle_and_restart_durability"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "be549603",
+        "verifiedAt": "2026-09-25T17:48:13Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -82149,20 +82095,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(a_pending_input_run_audits_awaiting_input_with_the_decision_kind) or test(sequential_questions_in_one_run_keep_both_answered_requests) or test(an_answered_input_request_can_transition_into_an_approval_wait) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(input_response_payload_anchors_the_resumed_run_to_the_original_request) or test(a_resumed_input_run_replays_the_original_request_anchor_to_the_provider) or test(approval_and_running_nodes_suspend_then_resume_the_same_durable_request) or test(mcp_tools_list_exposes_only_reviewed_read_tools) or test(write_capable_names_are_never_reachable_through_the_reviewed_allowlist) or test(reviewed_mcp_catalog_reports_native_and_fail_closed_counts) or test(shutdown_is_idempotent_and_closed_runtime_rejects_rebind) or test(tool_failures_are_returned_as_mcp_tool_errors) or test(stateless_post_only_requests_never_issue_a_session_header) or test(host_rebinding_and_missing_host_are_rejected) or test(runtime_status_resource_reports_store_and_reviewed_tools) or test(runtime_status_resource_includes_configured_providers_agents_and_skills) or test(runtime_status_resource_serializes_sanitized_descriptors) or test(runtime_status_subscription_validation_rejects_unknown_uris) or test(runtime_status_resource_reflects_live_dependency_availability) or test(tool_calls_resolve_the_current_executor_on_every_request) or test(test_p1_05_adk_session_events_query_plan_without_index_shows_scan_and_temp_btree) or test(run_lease_expiry_fencing_and_stale_release_are_rejected) or test(completed_tool_output_replays_after_checkpoint_restore) or test(fail_closed_stale_claim_becomes_indeterminate) or test(stale_replay_safe_claim_takes_over_with_fencing) or test(restore_rejects_a_version_gap) or test(adk_artifact_store_lifecycle_and_restart_durability) or test(adk_artifact_store_rejects_missing_drifted_and_corrupted_go_databases)"
         ],
         "testFilter": [
           "adk_artifact_store_lifecycle_and_restart_durability"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "be549603",
+        "verifiedAt": "2026-09-25T17:48:13Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -82211,20 +82157,20 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(a_pending_input_run_audits_awaiting_input_with_the_decision_kind) or test(sequential_questions_in_one_run_keep_both_answered_requests) or test(an_answered_input_request_can_transition_into_an_approval_wait) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(input_response_payload_anchors_the_resumed_run_to_the_original_request) or test(a_resumed_input_run_replays_the_original_request_anchor_to_the_provider) or test(approval_and_running_nodes_suspend_then_resume_the_same_durable_request) or test(mcp_tools_list_exposes_only_reviewed_read_tools) or test(write_capable_names_are_never_reachable_through_the_reviewed_allowlist) or test(reviewed_mcp_catalog_reports_native_and_fail_closed_counts) or test(shutdown_is_idempotent_and_closed_runtime_rejects_rebind) or test(tool_failures_are_returned_as_mcp_tool_errors) or test(stateless_post_only_requests_never_issue_a_session_header) or test(host_rebinding_and_missing_host_are_rejected) or test(runtime_status_resource_reports_store_and_reviewed_tools) or test(runtime_status_resource_includes_configured_providers_agents_and_skills) or test(runtime_status_resource_serializes_sanitized_descriptors) or test(runtime_status_subscription_validation_rejects_unknown_uris) or test(runtime_status_resource_reflects_live_dependency_availability) or test(tool_calls_resolve_the_current_executor_on_every_request) or test(test_p1_05_adk_session_events_query_plan_without_index_shows_scan_and_temp_btree) or test(run_lease_expiry_fencing_and_stale_release_are_rejected) or test(completed_tool_output_replays_after_checkpoint_restore) or test(fail_closed_stale_claim_becomes_indeterminate) or test(stale_replay_safe_claim_takes_over_with_fencing) or test(restore_rejects_a_version_gap) or test(adk_artifact_store_lifecycle_and_restart_durability) or test(adk_artifact_store_rejects_missing_drifted_and_corrupted_go_databases)"
         ],
         "testFilter": [
           "adk_artifact_store_rejects_missing_drifted_and_corrupted_go_databases"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "be549603",
+        "verifiedAt": "2026-09-25T17:48:13Z",
         "receiptDigest": null
       },
       "risk": "normal",
