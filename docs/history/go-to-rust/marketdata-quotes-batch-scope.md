@@ -2001,3 +2001,17 @@ ADK/Assistant 功能差异，先补失败回归测试再修改领域 owner。
 验证：动态生成过滤器运行 `pnpm run test:rust -- --no-fail-fast -E`（底层 `node scripts/quality/cargo-nextest.mjs run --workspace --all-targets --locked`），203/203 通过。
 
 下一片：继续 P2 MarketData/Quote、Futu/OpenD、Storage/SQLite、Settings/Watchlist、API transport/MCP 与 Pine/Strategy runtime 条目，再回补 Backtest/Calendar 尾项；helper/type-only、`optional_bool_strict`、`session_context_snapshot` 及其他无独立 Rust 测试条目仍保持未验证结论。
+
+## 第 224 批：Futu 账户/高级协议、交易桥、能力权利与期权组合（2026-09-26）
+
+| 复核 | Go 测试范围 | Rust 证据 | P | 结论 |
+| :---: | --- | --- | :---: | --- |
+| [x] | `account_fill_test.go:14,153`; `adapter_advanced_protocol_test.go:15,128,149,296,365,471`; `adapter_advanced_test.go:92,124,150` | account/funds projection and max-trade validation, prediction subscription replay, rehab mapping, advanced protocol defaults/payloads, combo/product denials, transport failure, catalog IDs and no-replay safety | P2 | partial/boundary：Rust trade/session、research params、prediction/combo execution 与 capability catalog owners 覆盖 protocol payload、rights、validation 与 reconnect；Go OpenD fixture、protobuf transport、feature aggregation 与 callback seams 保持 partial。 |
+| [x] | `adapter_bridge_test.go:19,124,155,191,465,608,709` | broker place/cancel identity, market rule primary/fallback lot size, position/account analytics, subscription lease/idempotence, no-lease read guard and unlock forwarding | P2 | partial：Rust production trade/quote/subscription owners 覆盖 order identity、market rule fallback、analytics、lease guards 与 unlock DTO；Go fake exchange callbacks、GORM/broker adapter composition 与 exact error text 保持 partial/boundary。 |
+| [x] | `adapter_capabilities_service_test.go:13`; `adapter_capability_runtime_test.go:18,85,265,366,405`; `adapter_combo_rules_test.go:12,134`; `adapter_combo_transport_test.go:16,80,149,199` | quote-right entitlement generation/fencing, login gate, user-info conversion, option/event combo leg mapping and legality, account-impact normalization and place/preview transport failures | P2 | partial：Rust OpenD quote-right, option strategy and execution preview owners 覆盖 generation fencing、entitlement cache、leg legality、impact fields 与 transport errors；Go adapter state, protobuf fixture catalog, event/option response assembly 与 nil/edge helper 行为保持 partial。 |
+
+本批 30 条 P2 Go 映射对应 **36 个证据过滤器**，Rust nextest 实际 **36/36** 通过（3437 skipped）。账户/资金与 max-trade、prediction/advanced protocol、交易桥和 market-rule fallback、subscription lease、quote-right generation fencing、option/event combo validation、account impact 与 transport failure 均有 owner 证据；结论保持 `partial`/`boundary`，未把 OpenD fixture、protobuf transport、多阶段 adapter 聚合或 catalog 映射升级为 exact。未发现需要先红后修的真实 Rust 功能差异。
+
+验证：动态生成过滤器运行 `pnpm run test:rust -- --no-fail-fast -E`（底层 `node scripts/quality/cargo-nextest.mjs run --workspace --all-targets --locked`），36/36 通过。
+
+下一片：继续 P2 Futu/OpenD、MarketData/Quote、Storage/SQLite、Settings/Watchlist、API transport/MCP 与 Pine/Strategy runtime 条目，再回补 Backtest/Calendar 尾项；helper/type-only、`optional_bool_strict`、`session_context_snapshot` 及其他无独立 Rust 测试条目仍保持未验证结论。
