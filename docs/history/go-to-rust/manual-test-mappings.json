@@ -122758,20 +122758,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-backtest",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(limit_sell_open_improvement_intrabar_and_close_point) or test(stop_market_and_stop_limit_orders_execution) or test(warnings_emitted_and_deduplicated_for_zero_volume_and_unsupported_order) or test(liquidity_warnings_for_sub_step_and_below_min_quantity) or test(matching_and_pricing_helper_branches_behavior) or test(non_billable_trade_does_not_consume_per_order_fee) or test(equity_report_tracks_peak_maximum_and_current_drawdown) or test(missing_symbol_table_reports_storage_error_then_recovers_after_insert) or test(corpus_output_is_byte_deterministic_across_replays) or test(cancellation_before_first_bar_reports_zero_trade_metrics_and_empty_curves) or test(sync_task_persists_across_reopen_and_uses_run_store_lease) or test(aggregates_complete_one_minute_coverage_into_canonical_five_and_fifteen_minute_bars) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(backtest_replays_the_frozen_compatibility_golden_without_differences) or test(interval_aliases_share_a_canonical_storage_table) or test(closest_period_priority_selects_five_minute_over_one_minute_when_both_exist) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(test_tc_d4_04_extended_session_pre_market_does_not_pollute_regular_open) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries)"
         ],
         "testFilter": [
           "limit_sell_open_improvement_intrabar_and_close_point"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "e8964281e07ab1db9a34053b25e834e435f48a15",
+        "verifiedAt": "2026-09-26T03:09:08Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -122825,20 +122826,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-backtest",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(limit_sell_open_improvement_intrabar_and_close_point) or test(stop_market_and_stop_limit_orders_execution) or test(warnings_emitted_and_deduplicated_for_zero_volume_and_unsupported_order) or test(liquidity_warnings_for_sub_step_and_below_min_quantity) or test(matching_and_pricing_helper_branches_behavior) or test(non_billable_trade_does_not_consume_per_order_fee) or test(equity_report_tracks_peak_maximum_and_current_drawdown) or test(missing_symbol_table_reports_storage_error_then_recovers_after_insert) or test(corpus_output_is_byte_deterministic_across_replays) or test(cancellation_before_first_bar_reports_zero_trade_metrics_and_empty_curves) or test(sync_task_persists_across_reopen_and_uses_run_store_lease) or test(aggregates_complete_one_minute_coverage_into_canonical_five_and_fifteen_minute_bars) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(backtest_replays_the_frozen_compatibility_golden_without_differences) or test(interval_aliases_share_a_canonical_storage_table) or test(closest_period_priority_selects_five_minute_over_one_minute_when_both_exist) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(test_tc_d4_04_extended_session_pre_market_does_not_pollute_regular_open) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries)"
         ],
         "testFilter": [
           "stop_market_and_stop_limit_orders_execution"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "e8964281e07ab1db9a34053b25e834e435f48a15",
+        "verifiedAt": "2026-09-26T03:09:08Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -122892,20 +122894,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-backtest",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(limit_sell_open_improvement_intrabar_and_close_point) or test(stop_market_and_stop_limit_orders_execution) or test(warnings_emitted_and_deduplicated_for_zero_volume_and_unsupported_order) or test(liquidity_warnings_for_sub_step_and_below_min_quantity) or test(matching_and_pricing_helper_branches_behavior) or test(non_billable_trade_does_not_consume_per_order_fee) or test(equity_report_tracks_peak_maximum_and_current_drawdown) or test(missing_symbol_table_reports_storage_error_then_recovers_after_insert) or test(corpus_output_is_byte_deterministic_across_replays) or test(cancellation_before_first_bar_reports_zero_trade_metrics_and_empty_curves) or test(sync_task_persists_across_reopen_and_uses_run_store_lease) or test(aggregates_complete_one_minute_coverage_into_canonical_five_and_fifteen_minute_bars) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(backtest_replays_the_frozen_compatibility_golden_without_differences) or test(interval_aliases_share_a_canonical_storage_table) or test(closest_period_priority_selects_five_minute_over_one_minute_when_both_exist) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(test_tc_d4_04_extended_session_pre_market_does_not_pollute_regular_open) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries)"
         ],
         "testFilter": [
           "warnings_emitted_and_deduplicated_for_zero_volume_and_unsupported_order"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "e8964281e07ab1db9a34053b25e834e435f48a15",
+        "verifiedAt": "2026-09-26T03:09:08Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -122959,20 +122962,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-backtest",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(limit_sell_open_improvement_intrabar_and_close_point) or test(stop_market_and_stop_limit_orders_execution) or test(warnings_emitted_and_deduplicated_for_zero_volume_and_unsupported_order) or test(liquidity_warnings_for_sub_step_and_below_min_quantity) or test(matching_and_pricing_helper_branches_behavior) or test(non_billable_trade_does_not_consume_per_order_fee) or test(equity_report_tracks_peak_maximum_and_current_drawdown) or test(missing_symbol_table_reports_storage_error_then_recovers_after_insert) or test(corpus_output_is_byte_deterministic_across_replays) or test(cancellation_before_first_bar_reports_zero_trade_metrics_and_empty_curves) or test(sync_task_persists_across_reopen_and_uses_run_store_lease) or test(aggregates_complete_one_minute_coverage_into_canonical_five_and_fifteen_minute_bars) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(backtest_replays_the_frozen_compatibility_golden_without_differences) or test(interval_aliases_share_a_canonical_storage_table) or test(closest_period_priority_selects_five_minute_over_one_minute_when_both_exist) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(test_tc_d4_04_extended_session_pre_market_does_not_pollute_regular_open) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries)"
         ],
         "testFilter": [
           "liquidity_warnings_for_sub_step_and_below_min_quantity"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "e8964281e07ab1db9a34053b25e834e435f48a15",
+        "verifiedAt": "2026-09-26T03:09:08Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -123021,20 +123025,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-backtest",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(limit_sell_open_improvement_intrabar_and_close_point) or test(stop_market_and_stop_limit_orders_execution) or test(warnings_emitted_and_deduplicated_for_zero_volume_and_unsupported_order) or test(liquidity_warnings_for_sub_step_and_below_min_quantity) or test(matching_and_pricing_helper_branches_behavior) or test(non_billable_trade_does_not_consume_per_order_fee) or test(equity_report_tracks_peak_maximum_and_current_drawdown) or test(missing_symbol_table_reports_storage_error_then_recovers_after_insert) or test(corpus_output_is_byte_deterministic_across_replays) or test(cancellation_before_first_bar_reports_zero_trade_metrics_and_empty_curves) or test(sync_task_persists_across_reopen_and_uses_run_store_lease) or test(aggregates_complete_one_minute_coverage_into_canonical_five_and_fifteen_minute_bars) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(backtest_replays_the_frozen_compatibility_golden_without_differences) or test(interval_aliases_share_a_canonical_storage_table) or test(closest_period_priority_selects_five_minute_over_one_minute_when_both_exist) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(test_tc_d4_04_extended_session_pre_market_does_not_pollute_regular_open) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries)"
         ],
         "testFilter": [
           "matching_and_pricing_helper_branches_behavior"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "e8964281e07ab1db9a34053b25e834e435f48a15",
+        "verifiedAt": "2026-09-26T03:09:08Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -123212,20 +123217,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-backtest",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(limit_sell_open_improvement_intrabar_and_close_point) or test(stop_market_and_stop_limit_orders_execution) or test(warnings_emitted_and_deduplicated_for_zero_volume_and_unsupported_order) or test(liquidity_warnings_for_sub_step_and_below_min_quantity) or test(matching_and_pricing_helper_branches_behavior) or test(non_billable_trade_does_not_consume_per_order_fee) or test(equity_report_tracks_peak_maximum_and_current_drawdown) or test(missing_symbol_table_reports_storage_error_then_recovers_after_insert) or test(corpus_output_is_byte_deterministic_across_replays) or test(cancellation_before_first_bar_reports_zero_trade_metrics_and_empty_curves) or test(sync_task_persists_across_reopen_and_uses_run_store_lease) or test(aggregates_complete_one_minute_coverage_into_canonical_five_and_fifteen_minute_bars) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(backtest_replays_the_frozen_compatibility_golden_without_differences) or test(interval_aliases_share_a_canonical_storage_table) or test(closest_period_priority_selects_five_minute_over_one_minute_when_both_exist) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(test_tc_d4_04_extended_session_pre_market_does_not_pollute_regular_open) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries)"
         ],
         "testFilter": [
           "non_billable_trade_does_not_consume_per_order_fee"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "e8964281e07ab1db9a34053b25e834e435f48a15",
+        "verifiedAt": "2026-09-26T03:09:08Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -123274,20 +123280,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-backtest",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(limit_sell_open_improvement_intrabar_and_close_point) or test(stop_market_and_stop_limit_orders_execution) or test(warnings_emitted_and_deduplicated_for_zero_volume_and_unsupported_order) or test(liquidity_warnings_for_sub_step_and_below_min_quantity) or test(matching_and_pricing_helper_branches_behavior) or test(non_billable_trade_does_not_consume_per_order_fee) or test(equity_report_tracks_peak_maximum_and_current_drawdown) or test(missing_symbol_table_reports_storage_error_then_recovers_after_insert) or test(corpus_output_is_byte_deterministic_across_replays) or test(cancellation_before_first_bar_reports_zero_trade_metrics_and_empty_curves) or test(sync_task_persists_across_reopen_and_uses_run_store_lease) or test(aggregates_complete_one_minute_coverage_into_canonical_five_and_fifteen_minute_bars) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(backtest_replays_the_frozen_compatibility_golden_without_differences) or test(interval_aliases_share_a_canonical_storage_table) or test(closest_period_priority_selects_five_minute_over_one_minute_when_both_exist) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(test_tc_d4_04_extended_session_pre_market_does_not_pollute_regular_open) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries)"
         ],
         "testFilter": [
           "equity_report_tracks_peak_maximum_and_current_drawdown"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "e8964281e07ab1db9a34053b25e834e435f48a15",
+        "verifiedAt": "2026-09-26T03:09:08Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -123336,20 +123343,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(limit_sell_open_improvement_intrabar_and_close_point) or test(stop_market_and_stop_limit_orders_execution) or test(warnings_emitted_and_deduplicated_for_zero_volume_and_unsupported_order) or test(liquidity_warnings_for_sub_step_and_below_min_quantity) or test(matching_and_pricing_helper_branches_behavior) or test(non_billable_trade_does_not_consume_per_order_fee) or test(equity_report_tracks_peak_maximum_and_current_drawdown) or test(missing_symbol_table_reports_storage_error_then_recovers_after_insert) or test(corpus_output_is_byte_deterministic_across_replays) or test(cancellation_before_first_bar_reports_zero_trade_metrics_and_empty_curves) or test(sync_task_persists_across_reopen_and_uses_run_store_lease) or test(aggregates_complete_one_minute_coverage_into_canonical_five_and_fifteen_minute_bars) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(backtest_replays_the_frozen_compatibility_golden_without_differences) or test(interval_aliases_share_a_canonical_storage_table) or test(closest_period_priority_selects_five_minute_over_one_minute_when_both_exist) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(test_tc_d4_04_extended_session_pre_market_does_not_pollute_regular_open) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries)"
         ],
         "testFilter": [
           "missing_symbol_table_reports_storage_error_then_recovers_after_insert"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "e8964281e07ab1db9a34053b25e834e435f48a15",
+        "verifiedAt": "2026-09-26T03:09:08Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -124080,20 +124088,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-backtest",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(limit_sell_open_improvement_intrabar_and_close_point) or test(stop_market_and_stop_limit_orders_execution) or test(warnings_emitted_and_deduplicated_for_zero_volume_and_unsupported_order) or test(liquidity_warnings_for_sub_step_and_below_min_quantity) or test(matching_and_pricing_helper_branches_behavior) or test(non_billable_trade_does_not_consume_per_order_fee) or test(equity_report_tracks_peak_maximum_and_current_drawdown) or test(missing_symbol_table_reports_storage_error_then_recovers_after_insert) or test(corpus_output_is_byte_deterministic_across_replays) or test(cancellation_before_first_bar_reports_zero_trade_metrics_and_empty_curves) or test(sync_task_persists_across_reopen_and_uses_run_store_lease) or test(aggregates_complete_one_minute_coverage_into_canonical_five_and_fifteen_minute_bars) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(backtest_replays_the_frozen_compatibility_golden_without_differences) or test(interval_aliases_share_a_canonical_storage_table) or test(closest_period_priority_selects_five_minute_over_one_minute_when_both_exist) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(test_tc_d4_04_extended_session_pre_market_does_not_pollute_regular_open) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries)"
         ],
         "testFilter": [
           "corpus_output_is_byte_deterministic_across_replays"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "e8964281e07ab1db9a34053b25e834e435f48a15",
+        "verifiedAt": "2026-09-26T03:09:08Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -124204,20 +124213,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-backtest",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(limit_sell_open_improvement_intrabar_and_close_point) or test(stop_market_and_stop_limit_orders_execution) or test(warnings_emitted_and_deduplicated_for_zero_volume_and_unsupported_order) or test(liquidity_warnings_for_sub_step_and_below_min_quantity) or test(matching_and_pricing_helper_branches_behavior) or test(non_billable_trade_does_not_consume_per_order_fee) or test(equity_report_tracks_peak_maximum_and_current_drawdown) or test(missing_symbol_table_reports_storage_error_then_recovers_after_insert) or test(corpus_output_is_byte_deterministic_across_replays) or test(cancellation_before_first_bar_reports_zero_trade_metrics_and_empty_curves) or test(sync_task_persists_across_reopen_and_uses_run_store_lease) or test(aggregates_complete_one_minute_coverage_into_canonical_five_and_fifteen_minute_bars) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(backtest_replays_the_frozen_compatibility_golden_without_differences) or test(interval_aliases_share_a_canonical_storage_table) or test(closest_period_priority_selects_five_minute_over_one_minute_when_both_exist) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(test_tc_d4_04_extended_session_pre_market_does_not_pollute_regular_open) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries)"
         ],
         "testFilter": [
           "corpus_output_is_byte_deterministic_across_replays"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "e8964281e07ab1db9a34053b25e834e435f48a15",
+        "verifiedAt": "2026-09-26T03:09:08Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -124266,20 +124276,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-backtest",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(limit_sell_open_improvement_intrabar_and_close_point) or test(stop_market_and_stop_limit_orders_execution) or test(warnings_emitted_and_deduplicated_for_zero_volume_and_unsupported_order) or test(liquidity_warnings_for_sub_step_and_below_min_quantity) or test(matching_and_pricing_helper_branches_behavior) or test(non_billable_trade_does_not_consume_per_order_fee) or test(equity_report_tracks_peak_maximum_and_current_drawdown) or test(missing_symbol_table_reports_storage_error_then_recovers_after_insert) or test(corpus_output_is_byte_deterministic_across_replays) or test(cancellation_before_first_bar_reports_zero_trade_metrics_and_empty_curves) or test(sync_task_persists_across_reopen_and_uses_run_store_lease) or test(aggregates_complete_one_minute_coverage_into_canonical_five_and_fifteen_minute_bars) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(backtest_replays_the_frozen_compatibility_golden_without_differences) or test(interval_aliases_share_a_canonical_storage_table) or test(closest_period_priority_selects_five_minute_over_one_minute_when_both_exist) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(test_tc_d4_04_extended_session_pre_market_does_not_pollute_regular_open) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries)"
         ],
         "testFilter": [
           "warnings_emitted_and_deduplicated_for_zero_volume_and_unsupported_order"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "e8964281e07ab1db9a34053b25e834e435f48a15",
+        "verifiedAt": "2026-09-26T03:09:08Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -124328,20 +124339,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-backtest",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(limit_sell_open_improvement_intrabar_and_close_point) or test(stop_market_and_stop_limit_orders_execution) or test(warnings_emitted_and_deduplicated_for_zero_volume_and_unsupported_order) or test(liquidity_warnings_for_sub_step_and_below_min_quantity) or test(matching_and_pricing_helper_branches_behavior) or test(non_billable_trade_does_not_consume_per_order_fee) or test(equity_report_tracks_peak_maximum_and_current_drawdown) or test(missing_symbol_table_reports_storage_error_then_recovers_after_insert) or test(corpus_output_is_byte_deterministic_across_replays) or test(cancellation_before_first_bar_reports_zero_trade_metrics_and_empty_curves) or test(sync_task_persists_across_reopen_and_uses_run_store_lease) or test(aggregates_complete_one_minute_coverage_into_canonical_five_and_fifteen_minute_bars) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(backtest_replays_the_frozen_compatibility_golden_without_differences) or test(interval_aliases_share_a_canonical_storage_table) or test(closest_period_priority_selects_five_minute_over_one_minute_when_both_exist) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(test_tc_d4_04_extended_session_pre_market_does_not_pollute_regular_open) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries)"
         ],
         "testFilter": [
           "warnings_emitted_and_deduplicated_for_zero_volume_and_unsupported_order"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "e8964281e07ab1db9a34053b25e834e435f48a15",
+        "verifiedAt": "2026-09-26T03:09:08Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -124390,20 +124402,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-backtest",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(limit_sell_open_improvement_intrabar_and_close_point) or test(stop_market_and_stop_limit_orders_execution) or test(warnings_emitted_and_deduplicated_for_zero_volume_and_unsupported_order) or test(liquidity_warnings_for_sub_step_and_below_min_quantity) or test(matching_and_pricing_helper_branches_behavior) or test(non_billable_trade_does_not_consume_per_order_fee) or test(equity_report_tracks_peak_maximum_and_current_drawdown) or test(missing_symbol_table_reports_storage_error_then_recovers_after_insert) or test(corpus_output_is_byte_deterministic_across_replays) or test(cancellation_before_first_bar_reports_zero_trade_metrics_and_empty_curves) or test(sync_task_persists_across_reopen_and_uses_run_store_lease) or test(aggregates_complete_one_minute_coverage_into_canonical_five_and_fifteen_minute_bars) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(backtest_replays_the_frozen_compatibility_golden_without_differences) or test(interval_aliases_share_a_canonical_storage_table) or test(closest_period_priority_selects_five_minute_over_one_minute_when_both_exist) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(test_tc_d4_04_extended_session_pre_market_does_not_pollute_regular_open) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries)"
         ],
         "testFilter": [
           "cancellation_before_first_bar_reports_zero_trade_metrics_and_empty_curves"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "e8964281e07ab1db9a34053b25e834e435f48a15",
+        "verifiedAt": "2026-09-26T03:09:08Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -124514,20 +124527,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(limit_sell_open_improvement_intrabar_and_close_point) or test(stop_market_and_stop_limit_orders_execution) or test(warnings_emitted_and_deduplicated_for_zero_volume_and_unsupported_order) or test(liquidity_warnings_for_sub_step_and_below_min_quantity) or test(matching_and_pricing_helper_branches_behavior) or test(non_billable_trade_does_not_consume_per_order_fee) or test(equity_report_tracks_peak_maximum_and_current_drawdown) or test(missing_symbol_table_reports_storage_error_then_recovers_after_insert) or test(corpus_output_is_byte_deterministic_across_replays) or test(cancellation_before_first_bar_reports_zero_trade_metrics_and_empty_curves) or test(sync_task_persists_across_reopen_and_uses_run_store_lease) or test(aggregates_complete_one_minute_coverage_into_canonical_five_and_fifteen_minute_bars) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(backtest_replays_the_frozen_compatibility_golden_without_differences) or test(interval_aliases_share_a_canonical_storage_table) or test(closest_period_priority_selects_five_minute_over_one_minute_when_both_exist) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(test_tc_d4_04_extended_session_pre_market_does_not_pollute_regular_open) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries)"
         ],
         "testFilter": [
           "sync_task_persists_across_reopen_and_uses_run_store_lease"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "e8964281e07ab1db9a34053b25e834e435f48a15",
+        "verifiedAt": "2026-09-26T03:09:08Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -124576,20 +124590,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(limit_sell_open_improvement_intrabar_and_close_point) or test(stop_market_and_stop_limit_orders_execution) or test(warnings_emitted_and_deduplicated_for_zero_volume_and_unsupported_order) or test(liquidity_warnings_for_sub_step_and_below_min_quantity) or test(matching_and_pricing_helper_branches_behavior) or test(non_billable_trade_does_not_consume_per_order_fee) or test(equity_report_tracks_peak_maximum_and_current_drawdown) or test(missing_symbol_table_reports_storage_error_then_recovers_after_insert) or test(corpus_output_is_byte_deterministic_across_replays) or test(cancellation_before_first_bar_reports_zero_trade_metrics_and_empty_curves) or test(sync_task_persists_across_reopen_and_uses_run_store_lease) or test(aggregates_complete_one_minute_coverage_into_canonical_five_and_fifteen_minute_bars) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(backtest_replays_the_frozen_compatibility_golden_without_differences) or test(interval_aliases_share_a_canonical_storage_table) or test(closest_period_priority_selects_five_minute_over_one_minute_when_both_exist) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(test_tc_d4_04_extended_session_pre_market_does_not_pollute_regular_open) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries)"
         ],
         "testFilter": [
           "aggregates_complete_one_minute_coverage_into_canonical_five_and_fifteen_minute_bars"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "e8964281e07ab1db9a34053b25e834e435f48a15",
+        "verifiedAt": "2026-09-26T03:09:08Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -124638,20 +124653,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(limit_sell_open_improvement_intrabar_and_close_point) or test(stop_market_and_stop_limit_orders_execution) or test(warnings_emitted_and_deduplicated_for_zero_volume_and_unsupported_order) or test(liquidity_warnings_for_sub_step_and_below_min_quantity) or test(matching_and_pricing_helper_branches_behavior) or test(non_billable_trade_does_not_consume_per_order_fee) or test(equity_report_tracks_peak_maximum_and_current_drawdown) or test(missing_symbol_table_reports_storage_error_then_recovers_after_insert) or test(corpus_output_is_byte_deterministic_across_replays) or test(cancellation_before_first_bar_reports_zero_trade_metrics_and_empty_curves) or test(sync_task_persists_across_reopen_and_uses_run_store_lease) or test(aggregates_complete_one_minute_coverage_into_canonical_five_and_fifteen_minute_bars) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(backtest_replays_the_frozen_compatibility_golden_without_differences) or test(interval_aliases_share_a_canonical_storage_table) or test(closest_period_priority_selects_five_minute_over_one_minute_when_both_exist) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(test_tc_d4_04_extended_session_pre_market_does_not_pollute_regular_open) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries)"
         ],
         "testFilter": [
           "missing_empty_partial_and_corrupt_lower_coverage_fail_closed"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "e8964281e07ab1db9a34053b25e834e435f48a15",
+        "verifiedAt": "2026-09-26T03:09:08Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -124762,20 +124778,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(limit_sell_open_improvement_intrabar_and_close_point) or test(stop_market_and_stop_limit_orders_execution) or test(warnings_emitted_and_deduplicated_for_zero_volume_and_unsupported_order) or test(liquidity_warnings_for_sub_step_and_below_min_quantity) or test(matching_and_pricing_helper_branches_behavior) or test(non_billable_trade_does_not_consume_per_order_fee) or test(equity_report_tracks_peak_maximum_and_current_drawdown) or test(missing_symbol_table_reports_storage_error_then_recovers_after_insert) or test(corpus_output_is_byte_deterministic_across_replays) or test(cancellation_before_first_bar_reports_zero_trade_metrics_and_empty_curves) or test(sync_task_persists_across_reopen_and_uses_run_store_lease) or test(aggregates_complete_one_minute_coverage_into_canonical_five_and_fifteen_minute_bars) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(backtest_replays_the_frozen_compatibility_golden_without_differences) or test(interval_aliases_share_a_canonical_storage_table) or test(closest_period_priority_selects_five_minute_over_one_minute_when_both_exist) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(test_tc_d4_04_extended_session_pre_market_does_not_pollute_regular_open) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries)"
         ],
         "testFilter": [
           "opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "e8964281e07ab1db9a34053b25e834e435f48a15",
+        "verifiedAt": "2026-09-26T03:09:08Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -124824,20 +124841,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(limit_sell_open_improvement_intrabar_and_close_point) or test(stop_market_and_stop_limit_orders_execution) or test(warnings_emitted_and_deduplicated_for_zero_volume_and_unsupported_order) or test(liquidity_warnings_for_sub_step_and_below_min_quantity) or test(matching_and_pricing_helper_branches_behavior) or test(non_billable_trade_does_not_consume_per_order_fee) or test(equity_report_tracks_peak_maximum_and_current_drawdown) or test(missing_symbol_table_reports_storage_error_then_recovers_after_insert) or test(corpus_output_is_byte_deterministic_across_replays) or test(cancellation_before_first_bar_reports_zero_trade_metrics_and_empty_curves) or test(sync_task_persists_across_reopen_and_uses_run_store_lease) or test(aggregates_complete_one_minute_coverage_into_canonical_five_and_fifteen_minute_bars) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(backtest_replays_the_frozen_compatibility_golden_without_differences) or test(interval_aliases_share_a_canonical_storage_table) or test(closest_period_priority_selects_five_minute_over_one_minute_when_both_exist) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(test_tc_d4_04_extended_session_pre_market_does_not_pollute_regular_open) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries)"
         ],
         "testFilter": [
           "opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "e8964281e07ab1db9a34053b25e834e435f48a15",
+        "verifiedAt": "2026-09-26T03:09:08Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -124886,20 +124904,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(limit_sell_open_improvement_intrabar_and_close_point) or test(stop_market_and_stop_limit_orders_execution) or test(warnings_emitted_and_deduplicated_for_zero_volume_and_unsupported_order) or test(liquidity_warnings_for_sub_step_and_below_min_quantity) or test(matching_and_pricing_helper_branches_behavior) or test(non_billable_trade_does_not_consume_per_order_fee) or test(equity_report_tracks_peak_maximum_and_current_drawdown) or test(missing_symbol_table_reports_storage_error_then_recovers_after_insert) or test(corpus_output_is_byte_deterministic_across_replays) or test(cancellation_before_first_bar_reports_zero_trade_metrics_and_empty_curves) or test(sync_task_persists_across_reopen_and_uses_run_store_lease) or test(aggregates_complete_one_minute_coverage_into_canonical_five_and_fifteen_minute_bars) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(backtest_replays_the_frozen_compatibility_golden_without_differences) or test(interval_aliases_share_a_canonical_storage_table) or test(closest_period_priority_selects_five_minute_over_one_minute_when_both_exist) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(test_tc_d4_04_extended_session_pre_market_does_not_pollute_regular_open) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries)"
         ],
         "testFilter": [
           "aggregates_complete_one_minute_coverage_into_canonical_five_and_fifteen_minute_bars"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "e8964281e07ab1db9a34053b25e834e435f48a15",
+        "verifiedAt": "2026-09-26T03:09:08Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -124948,20 +124967,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-backtest",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(limit_sell_open_improvement_intrabar_and_close_point) or test(stop_market_and_stop_limit_orders_execution) or test(warnings_emitted_and_deduplicated_for_zero_volume_and_unsupported_order) or test(liquidity_warnings_for_sub_step_and_below_min_quantity) or test(matching_and_pricing_helper_branches_behavior) or test(non_billable_trade_does_not_consume_per_order_fee) or test(equity_report_tracks_peak_maximum_and_current_drawdown) or test(missing_symbol_table_reports_storage_error_then_recovers_after_insert) or test(corpus_output_is_byte_deterministic_across_replays) or test(cancellation_before_first_bar_reports_zero_trade_metrics_and_empty_curves) or test(sync_task_persists_across_reopen_and_uses_run_store_lease) or test(aggregates_complete_one_minute_coverage_into_canonical_five_and_fifteen_minute_bars) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(backtest_replays_the_frozen_compatibility_golden_without_differences) or test(interval_aliases_share_a_canonical_storage_table) or test(closest_period_priority_selects_five_minute_over_one_minute_when_both_exist) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(test_tc_d4_04_extended_session_pre_market_does_not_pollute_regular_open) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries)"
         ],
         "testFilter": [
           "backtest_replays_the_frozen_compatibility_golden_without_differences"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "e8964281e07ab1db9a34053b25e834e435f48a15",
+        "verifiedAt": "2026-09-26T03:09:08Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -125134,20 +125154,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(limit_sell_open_improvement_intrabar_and_close_point) or test(stop_market_and_stop_limit_orders_execution) or test(warnings_emitted_and_deduplicated_for_zero_volume_and_unsupported_order) or test(liquidity_warnings_for_sub_step_and_below_min_quantity) or test(matching_and_pricing_helper_branches_behavior) or test(non_billable_trade_does_not_consume_per_order_fee) or test(equity_report_tracks_peak_maximum_and_current_drawdown) or test(missing_symbol_table_reports_storage_error_then_recovers_after_insert) or test(corpus_output_is_byte_deterministic_across_replays) or test(cancellation_before_first_bar_reports_zero_trade_metrics_and_empty_curves) or test(sync_task_persists_across_reopen_and_uses_run_store_lease) or test(aggregates_complete_one_minute_coverage_into_canonical_five_and_fifteen_minute_bars) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(backtest_replays_the_frozen_compatibility_golden_without_differences) or test(interval_aliases_share_a_canonical_storage_table) or test(closest_period_priority_selects_five_minute_over_one_minute_when_both_exist) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(test_tc_d4_04_extended_session_pre_market_does_not_pollute_regular_open) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries)"
         ],
         "testFilter": [
           "interval_aliases_share_a_canonical_storage_table"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "e8964281e07ab1db9a34053b25e834e435f48a15",
+        "verifiedAt": "2026-09-26T03:09:08Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -125196,20 +125217,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(limit_sell_open_improvement_intrabar_and_close_point) or test(stop_market_and_stop_limit_orders_execution) or test(warnings_emitted_and_deduplicated_for_zero_volume_and_unsupported_order) or test(liquidity_warnings_for_sub_step_and_below_min_quantity) or test(matching_and_pricing_helper_branches_behavior) or test(non_billable_trade_does_not_consume_per_order_fee) or test(equity_report_tracks_peak_maximum_and_current_drawdown) or test(missing_symbol_table_reports_storage_error_then_recovers_after_insert) or test(corpus_output_is_byte_deterministic_across_replays) or test(cancellation_before_first_bar_reports_zero_trade_metrics_and_empty_curves) or test(sync_task_persists_across_reopen_and_uses_run_store_lease) or test(aggregates_complete_one_minute_coverage_into_canonical_five_and_fifteen_minute_bars) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(backtest_replays_the_frozen_compatibility_golden_without_differences) or test(interval_aliases_share_a_canonical_storage_table) or test(closest_period_priority_selects_five_minute_over_one_minute_when_both_exist) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(test_tc_d4_04_extended_session_pre_market_does_not_pollute_regular_open) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries)"
         ],
         "testFilter": [
           "interval_aliases_share_a_canonical_storage_table"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "e8964281e07ab1db9a34053b25e834e435f48a15",
+        "verifiedAt": "2026-09-26T03:09:08Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -125320,20 +125342,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(limit_sell_open_improvement_intrabar_and_close_point) or test(stop_market_and_stop_limit_orders_execution) or test(warnings_emitted_and_deduplicated_for_zero_volume_and_unsupported_order) or test(liquidity_warnings_for_sub_step_and_below_min_quantity) or test(matching_and_pricing_helper_branches_behavior) or test(non_billable_trade_does_not_consume_per_order_fee) or test(equity_report_tracks_peak_maximum_and_current_drawdown) or test(missing_symbol_table_reports_storage_error_then_recovers_after_insert) or test(corpus_output_is_byte_deterministic_across_replays) or test(cancellation_before_first_bar_reports_zero_trade_metrics_and_empty_curves) or test(sync_task_persists_across_reopen_and_uses_run_store_lease) or test(aggregates_complete_one_minute_coverage_into_canonical_five_and_fifteen_minute_bars) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(backtest_replays_the_frozen_compatibility_golden_without_differences) or test(interval_aliases_share_a_canonical_storage_table) or test(closest_period_priority_selects_five_minute_over_one_minute_when_both_exist) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(test_tc_d4_04_extended_session_pre_market_does_not_pollute_regular_open) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries)"
         ],
         "testFilter": [
           "closest_period_priority_selects_five_minute_over_one_minute_when_both_exist"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "e8964281e07ab1db9a34053b25e834e435f48a15",
+        "verifiedAt": "2026-09-26T03:09:08Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -125382,20 +125405,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(limit_sell_open_improvement_intrabar_and_close_point) or test(stop_market_and_stop_limit_orders_execution) or test(warnings_emitted_and_deduplicated_for_zero_volume_and_unsupported_order) or test(liquidity_warnings_for_sub_step_and_below_min_quantity) or test(matching_and_pricing_helper_branches_behavior) or test(non_billable_trade_does_not_consume_per_order_fee) or test(equity_report_tracks_peak_maximum_and_current_drawdown) or test(missing_symbol_table_reports_storage_error_then_recovers_after_insert) or test(corpus_output_is_byte_deterministic_across_replays) or test(cancellation_before_first_bar_reports_zero_trade_metrics_and_empty_curves) or test(sync_task_persists_across_reopen_and_uses_run_store_lease) or test(aggregates_complete_one_minute_coverage_into_canonical_five_and_fifteen_minute_bars) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(backtest_replays_the_frozen_compatibility_golden_without_differences) or test(interval_aliases_share_a_canonical_storage_table) or test(closest_period_priority_selects_five_minute_over_one_minute_when_both_exist) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(test_tc_d4_04_extended_session_pre_market_does_not_pollute_regular_open) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries)"
         ],
         "testFilter": [
           "extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "e8964281e07ab1db9a34053b25e834e435f48a15",
+        "verifiedAt": "2026-09-26T03:09:08Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -125444,20 +125468,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(limit_sell_open_improvement_intrabar_and_close_point) or test(stop_market_and_stop_limit_orders_execution) or test(warnings_emitted_and_deduplicated_for_zero_volume_and_unsupported_order) or test(liquidity_warnings_for_sub_step_and_below_min_quantity) or test(matching_and_pricing_helper_branches_behavior) or test(non_billable_trade_does_not_consume_per_order_fee) or test(equity_report_tracks_peak_maximum_and_current_drawdown) or test(missing_symbol_table_reports_storage_error_then_recovers_after_insert) or test(corpus_output_is_byte_deterministic_across_replays) or test(cancellation_before_first_bar_reports_zero_trade_metrics_and_empty_curves) or test(sync_task_persists_across_reopen_and_uses_run_store_lease) or test(aggregates_complete_one_minute_coverage_into_canonical_five_and_fifteen_minute_bars) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(backtest_replays_the_frozen_compatibility_golden_without_differences) or test(interval_aliases_share_a_canonical_storage_table) or test(closest_period_priority_selects_five_minute_over_one_minute_when_both_exist) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(test_tc_d4_04_extended_session_pre_market_does_not_pollute_regular_open) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries)"
         ],
         "testFilter": [
           "test_tc_d4_04_extended_session_pre_market_does_not_pollute_regular_open"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "e8964281e07ab1db9a34053b25e834e435f48a15",
+        "verifiedAt": "2026-09-26T03:09:08Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -125630,20 +125655,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(limit_sell_open_improvement_intrabar_and_close_point) or test(stop_market_and_stop_limit_orders_execution) or test(warnings_emitted_and_deduplicated_for_zero_volume_and_unsupported_order) or test(liquidity_warnings_for_sub_step_and_below_min_quantity) or test(matching_and_pricing_helper_branches_behavior) or test(non_billable_trade_does_not_consume_per_order_fee) or test(equity_report_tracks_peak_maximum_and_current_drawdown) or test(missing_symbol_table_reports_storage_error_then_recovers_after_insert) or test(corpus_output_is_byte_deterministic_across_replays) or test(cancellation_before_first_bar_reports_zero_trade_metrics_and_empty_curves) or test(sync_task_persists_across_reopen_and_uses_run_store_lease) or test(aggregates_complete_one_minute_coverage_into_canonical_five_and_fifteen_minute_bars) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(backtest_replays_the_frozen_compatibility_golden_without_differences) or test(interval_aliases_share_a_canonical_storage_table) or test(closest_period_priority_selects_five_minute_over_one_minute_when_both_exist) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(test_tc_d4_04_extended_session_pre_market_does_not_pollute_regular_open) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries)"
         ],
         "testFilter": [
           "direct_interval_rows_win_and_paging_is_deterministic"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "e8964281e07ab1db9a34053b25e834e435f48a15",
+        "verifiedAt": "2026-09-26T03:09:08Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -125692,20 +125718,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(limit_sell_open_improvement_intrabar_and_close_point) or test(stop_market_and_stop_limit_orders_execution) or test(warnings_emitted_and_deduplicated_for_zero_volume_and_unsupported_order) or test(liquidity_warnings_for_sub_step_and_below_min_quantity) or test(matching_and_pricing_helper_branches_behavior) or test(non_billable_trade_does_not_consume_per_order_fee) or test(equity_report_tracks_peak_maximum_and_current_drawdown) or test(missing_symbol_table_reports_storage_error_then_recovers_after_insert) or test(corpus_output_is_byte_deterministic_across_replays) or test(cancellation_before_first_bar_reports_zero_trade_metrics_and_empty_curves) or test(sync_task_persists_across_reopen_and_uses_run_store_lease) or test(aggregates_complete_one_minute_coverage_into_canonical_five_and_fifteen_minute_bars) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(backtest_replays_the_frozen_compatibility_golden_without_differences) or test(interval_aliases_share_a_canonical_storage_table) or test(closest_period_priority_selects_five_minute_over_one_minute_when_both_exist) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(test_tc_d4_04_extended_session_pre_market_does_not_pollute_regular_open) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries)"
         ],
         "testFilter": [
           "missing_empty_partial_and_corrupt_lower_coverage_fail_closed"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "e8964281e07ab1db9a34053b25e834e435f48a15",
+        "verifiedAt": "2026-09-26T03:09:08Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -125754,20 +125781,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(limit_sell_open_improvement_intrabar_and_close_point) or test(stop_market_and_stop_limit_orders_execution) or test(warnings_emitted_and_deduplicated_for_zero_volume_and_unsupported_order) or test(liquidity_warnings_for_sub_step_and_below_min_quantity) or test(matching_and_pricing_helper_branches_behavior) or test(non_billable_trade_does_not_consume_per_order_fee) or test(equity_report_tracks_peak_maximum_and_current_drawdown) or test(missing_symbol_table_reports_storage_error_then_recovers_after_insert) or test(corpus_output_is_byte_deterministic_across_replays) or test(cancellation_before_first_bar_reports_zero_trade_metrics_and_empty_curves) or test(sync_task_persists_across_reopen_and_uses_run_store_lease) or test(aggregates_complete_one_minute_coverage_into_canonical_five_and_fifteen_minute_bars) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(backtest_replays_the_frozen_compatibility_golden_without_differences) or test(interval_aliases_share_a_canonical_storage_table) or test(closest_period_priority_selects_five_minute_over_one_minute_when_both_exist) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(test_tc_d4_04_extended_session_pre_market_does_not_pollute_regular_open) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries)"
         ],
         "testFilter": [
           "weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "e8964281e07ab1db9a34053b25e834e435f48a15",
+        "verifiedAt": "2026-09-26T03:09:08Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -125816,20 +125844,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(limit_sell_open_improvement_intrabar_and_close_point) or test(stop_market_and_stop_limit_orders_execution) or test(warnings_emitted_and_deduplicated_for_zero_volume_and_unsupported_order) or test(liquidity_warnings_for_sub_step_and_below_min_quantity) or test(matching_and_pricing_helper_branches_behavior) or test(non_billable_trade_does_not_consume_per_order_fee) or test(equity_report_tracks_peak_maximum_and_current_drawdown) or test(missing_symbol_table_reports_storage_error_then_recovers_after_insert) or test(corpus_output_is_byte_deterministic_across_replays) or test(cancellation_before_first_bar_reports_zero_trade_metrics_and_empty_curves) or test(sync_task_persists_across_reopen_and_uses_run_store_lease) or test(aggregates_complete_one_minute_coverage_into_canonical_five_and_fifteen_minute_bars) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(backtest_replays_the_frozen_compatibility_golden_without_differences) or test(interval_aliases_share_a_canonical_storage_table) or test(closest_period_priority_selects_five_minute_over_one_minute_when_both_exist) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(test_tc_d4_04_extended_session_pre_market_does_not_pollute_regular_open) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries)"
         ],
         "testFilter": [
           "extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "e8964281e07ab1db9a34053b25e834e435f48a15",
+        "verifiedAt": "2026-09-26T03:09:08Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -125940,20 +125969,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(limit_sell_open_improvement_intrabar_and_close_point) or test(stop_market_and_stop_limit_orders_execution) or test(warnings_emitted_and_deduplicated_for_zero_volume_and_unsupported_order) or test(liquidity_warnings_for_sub_step_and_below_min_quantity) or test(matching_and_pricing_helper_branches_behavior) or test(non_billable_trade_does_not_consume_per_order_fee) or test(equity_report_tracks_peak_maximum_and_current_drawdown) or test(missing_symbol_table_reports_storage_error_then_recovers_after_insert) or test(corpus_output_is_byte_deterministic_across_replays) or test(cancellation_before_first_bar_reports_zero_trade_metrics_and_empty_curves) or test(sync_task_persists_across_reopen_and_uses_run_store_lease) or test(aggregates_complete_one_minute_coverage_into_canonical_five_and_fifteen_minute_bars) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(backtest_replays_the_frozen_compatibility_golden_without_differences) or test(interval_aliases_share_a_canonical_storage_table) or test(closest_period_priority_selects_five_minute_over_one_minute_when_both_exist) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(test_tc_d4_04_extended_session_pre_market_does_not_pollute_regular_open) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries)"
         ],
         "testFilter": [
           "missing_empty_partial_and_corrupt_lower_coverage_fail_closed"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "e8964281e07ab1db9a34053b25e834e435f48a15",
+        "verifiedAt": "2026-09-26T03:09:08Z",
         "receiptDigest": null
       },
       "risk": "normal",

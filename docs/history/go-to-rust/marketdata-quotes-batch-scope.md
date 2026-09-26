@@ -1917,3 +1917,18 @@ ADK/Assistant 功能差异，先补失败回归测试再修改领域 owner。
 验证：动态生成过滤器运行 `pnpm run test:rust -- --no-fail-fast -E`（底层 `node scripts/quality/cargo-nextest.mjs run --workspace --all-targets --locked`），24/24 通过。
 
 下一片：继续 P2 Backtest/Calendar 后续与 MarketData/Quote、Storage/SQLite、Settings/Watchlist，再处理 API transport/MCP、Strategy/Pine 与剩余 Assistant/provider 条目；helper/type-only、`optional_bool_strict`、P1 `session_context_snapshot` 及其他无独立 Rust 测试条目仍保持未验证结论。
+
+## 第 218 批：conservative-bar 深度分支、结果/费用边界与 K 线存储聚合（2026-09-26）
+
+| 复核 | Go 测试范围 | Rust 证据 | P | 结论 |
+| :---: | --- | --- | :---: | --- |
+| [x] | `conservative_bar_executor_test.go:477,515,575,602,652` | limit/stop execution, warning dedup/liquidity, matching and pricing helpers | P2 | partial：Rust conservative-bar owner 覆盖 order fill、warnings 与 helper 分支；Go account/stream event fixture、日志收集和 exact warning text 保持 partial。 |
+| [x] | `cost_account_failure_boundaries_test.go:26,56,68`; `internal/runmodel/result_test.go:8,137,172,198,224` | fee idempotence, drawdown/equity, storage error recovery, deterministic result snapshots, runtime/warning caps and cancellation metrics | P2 | partial/boundary：Rust fees/result-reporting/SQLite recovery owners 覆盖财务边界与确定性；Go in-memory model copy、error sample grouping 和 account facade 组合未升级为 exact。 |
+| [x] | `internal/storage/codec_progress_boundaries_test.go:15,55,90,150,172`; `internal/storage/codec_test.go:11,51` | sync progress/lease, fixed decimal codec, malformed coverage rows, damaged schema refusal and frozen replay | P2 | partial：Rust sync-store/market-data failure/compatibility owners 覆盖 codec、schema fail-closed 与 lease；Go Futu KLineStore adapter and nil receiver behavior 保持 boundary。 |
+| [x] | `internal/storage/store_aggregation_boundaries_test.go:11,38,98,145,173`; `store_business_aggregation_test.go:12,37,84,144,209` | interval aliases/tables, period priority, extended daily/session aggregation, deterministic paging, missing coverage and calendar synthesis | P2 | partial：Rust SQLite aggregation/calendar owners 覆盖 source priority、session boundaries、weekly/monthly synthesis 与 coverage；Go GORM/provider storage wrappers 保持 partial。 |
+
+本批 30 条 P2 Go 映射对应 **21 个去重后的 nextest 过滤器**，Rust nextest 实际 **21/21** 通过（3452 skipped）。conservative-bar stop/limit/warnings、fee/equity/result accounting、codec/schema/lease、interval aliases、extended session 与 calendar aggregation 均有 owner 证据；结论保持 `partial`/`boundary`，未把内部 helper 或聚合测试升级为 exact。未发现需要先红后修的真实 Rust 功能差异。
+
+验证：动态生成过滤器运行 `pnpm run test:rust -- --no-fail-fast -E`（底层 `node scripts/quality/cargo-nextest.mjs run --workspace --all-targets --locked`），21/21 通过。
+
+下一片：继续 P2 Backtest/Calendar 存储与 execution 条目，再转 MarketData/Quote、Storage/SQLite、Settings/Watchlist、API transport/MCP 与 Strategy/Pine；helper/type-only、`optional_bool_strict`、P1 `session_context_snapshot` 及其他无独立 Rust 测试条目仍保持未验证结论。
