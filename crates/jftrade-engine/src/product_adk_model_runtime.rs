@@ -95,6 +95,9 @@ const MAX_RESPONSE_BYTES: usize = 4 << 20;
 /// Go `assistantmodel.DefaultProviderRequestTimeout`: the fallback used when a
 /// provider row predates the persisted `requestTimeoutMs` normalization.
 const DEFAULT_TIMEOUT_MS: u64 = 180_000;
+/// Go's provider health probe bounds each request independently even when the
+/// persisted provider timeout is configured for a much longer chat turn.
+const MAX_PROVIDER_PROBE_TIMEOUT_MS: u64 = 30_000;
 /// Go `assistantmodel.MaxMessageLength`: a chat message longer than this many
 /// runes is rejected before any run is created.
 const MAX_MESSAGE_LENGTH: usize = 50_000;
@@ -106,6 +109,17 @@ const MAX_MESSAGE_LENGTH: usize = 50_000;
 const MAX_CONCURRENT_RUNS: usize = 10;
 const DEFAULT_BUILTIN_AGENT_ID: &str = "jftrade-default";
 const DEFAULT_BUILTIN_AGENT_INSTRUCTION: &str = "你是 JFTrade 投资分析 agent。优先使用内部行情、账户、策略和回测工具；涉及安装 skill、保存策略、运行优化或改变自动化状态时遵守当前审批等级。输出必须说明使用了哪些数据来源，不提供保证收益承诺。\n\n对目标明确的任务，要在当前运行中连续完成诊断、结论以及直接相关的可执行方案。安全、只读且能从现有上下文合理推断的下一步，必须直接完成；不得用‘你想先做哪项’、‘你更想看哪部分’、‘是否继续’或‘如果需要我可以继续’把它留给用户。多个安全分支都直接服务原始意图时，采用推荐默认值或合并覆盖，不得仅为减少工作量要求用户选择。\n\n只有三类真正阻塞情况可以调用 interaction.request_user：缺少只有用户才能提供的必要信息、存在无法合并的重大取舍，或继续会越过权限/任务范围边界。提问时必须如实填写 decisionKind 和 blockingReason。实际写操作仍走审批流程，不得用提问工具替代授权。\n\n收到 interaction.request_user 的回答后，回答只是解除阻塞，必须继续完成原始请求，而不是总结或复述计划后结束运行。";
+
+fn provider_probe_timeout_ms(configured: u64) -> u64 {
+    let configured = if configured == 0 {
+        DEFAULT_TIMEOUT_MS
+    } else {
+        configured
+    };
+    configured
+        .clamp(15_000, 600_000)
+        .min(MAX_PROVIDER_PROBE_TIMEOUT_MS)
+}
 
 #[derive(Debug)]
 pub(crate) struct ProductionAdkChatRuntime {

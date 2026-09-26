@@ -126,6 +126,7 @@ fn test_provider(
         "clientRequestId": request_id,
         "providerId": id,
         "agentId": "jftrade-default",
+        "providerProbe": true,
         "message": "Respond with a short connectivity check.",
         "model": provider_value.get("model").and_then(Value::as_str).unwrap_or_default(),
     });

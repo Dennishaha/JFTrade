@@ -3072,26 +3072,17 @@
       },
       "verification": {
         "argv": [
-          "node",
-          "scripts/quality/cargo-nextest.mjs",
+          "pnpm",
           "run",
-          "-p",
-          "jftrade-engine",
-          "--all-targets",
-          "--locked",
-          "-E",
-          "test(adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart) or test(production_live_chat_stream_emits_session_run_and_final_events)"
+          "check:rust"
         ],
-        "testFilter": [
-          "adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart",
-          "production_live_chat_stream_emits_session_run_and_final_events"
-        ],
+        "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": "2026-09-25T07:41:37Z",
+        "verifiedAt": "2026-09-26T10:21:14Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -3187,26 +3178,17 @@
       },
       "verification": {
         "argv": [
-          "node",
-          "scripts/quality/cargo-nextest.mjs",
+          "pnpm",
           "run",
-          "-p",
-          "jftrade-engine",
-          "--all-targets",
-          "--locked",
-          "-E",
-          "test(production_live_chat_stream_emits_auto_compaction_frames_before_the_run) or test(adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart)"
+          "check:rust"
         ],
-        "testFilter": [
-          "production_live_chat_stream_emits_auto_compaction_frames_before_the_run",
-          "adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart"
-        ],
+        "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": "2026-09-25T07:40:24Z",
+        "verifiedAt": "2026-09-26T10:21:14Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -3702,27 +3684,17 @@
       },
       "verification": {
         "argv": [
-          "node",
-          "scripts/quality/cargo-nextest.mjs",
+          "pnpm",
           "run",
-          "-p",
-          "jftrade-engine",
-          "--all-targets",
-          "--locked",
-          "-E",
-          "test(adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart) or test(production_live_chat_stream_emits_session_run_and_final_events) or test(persisted_terminal_run_is_published_as_final_instead_of_a_second_error)"
+          "check:rust"
         ],
-        "testFilter": [
-          "adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart",
-          "production_live_chat_stream_emits_session_run_and_final_events",
-          "persisted_terminal_run_is_published_as_final_instead_of_a_second_error"
-        ],
+        "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": "2026-09-25T07:42:33Z",
+        "verifiedAt": "2026-09-26T10:21:14Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -3788,27 +3760,17 @@
       },
       "verification": {
         "argv": [
-          "node",
-          "scripts/quality/cargo-nextest.mjs",
+          "pnpm",
           "run",
-          "-p",
-          "jftrade-engine",
-          "--all-targets",
-          "--locked",
-          "-E",
-          "test(persisted_terminal_run_is_published_as_final_instead_of_a_second_error) or test(production_live_chat_stream_emits_session_before_run_and_terminal_frame) or test(production_live_chat_stream_reuses_existing_session_preview_once)"
+          "check:rust"
         ],
-        "testFilter": [
-          "persisted_terminal_run_is_published_as_final_instead_of_a_second_error",
-          "production_live_chat_stream_emits_session_before_run_and_terminal_frame",
-          "production_live_chat_stream_reuses_existing_session_preview_once"
-        ],
+        "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": "2026-09-26T08:38:17Z",
+        "verifiedAt": "2026-09-26T10:21:14Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -3943,30 +3905,17 @@
       },
       "verification": {
         "argv": [
-          "node",
-          "scripts/quality/cargo-nextest.mjs",
+          "pnpm",
           "run",
-          "-p",
-          "jftrade-engine",
-          "-p",
-          "jftrade-api",
-          "--all-targets",
-          "--locked",
-          "-E",
-          "test(adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart) or test(adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed) or test(write_failures_are_reported_with_their_source_message) or test(write_event_propagates_serialization_and_write_failures)"
+          "check:rust"
         ],
-        "testFilter": [
-          "adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart",
-          "adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed",
-          "write_failures_are_reported_with_their_source_message",
-          "write_event_propagates_serialization_and_write_failures"
-        ],
+        "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": "2026-09-26T08:38:17Z",
+        "verifiedAt": "2026-09-26T10:21:14Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -9283,25 +9232,17 @@
       },
       "verification": {
         "argv": [
-          "node",
-          "scripts/quality/cargo-nextest.mjs",
+          "pnpm",
           "run",
-          "-p",
-          "jftrade-api",
-          "--all-targets",
-          "--locked",
-          "-E",
-          "test(frames_preserve_go_retry_id_data_and_comment_shape)"
+          "check:rust"
         ],
-        "testFilter": [
-          "frames_preserve_go_retry_id_data_and_comment_shape"
-        ],
+        "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": "2026-09-26T08:38:17Z",
+        "verifiedAt": "2026-09-26T10:21:14Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -71749,7 +71690,7 @@
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": "2026-09-26T09:59:41Z",
+        "verifiedAt": "2026-09-26T10:21:14Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -71863,7 +71804,7 @@
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": "2026-09-26T09:59:41Z",
+        "verifiedAt": "2026-09-26T10:21:14Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -71925,7 +71866,7 @@
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": "2026-09-26T09:59:41Z",
+        "verifiedAt": "2026-09-26T10:21:14Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -72106,7 +72047,7 @@
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": "2026-09-26T09:59:41Z",
+        "verifiedAt": "2026-09-26T10:21:14Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -76152,7 +76093,7 @@
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": "2026-09-26T09:59:41Z",
+        "verifiedAt": "2026-09-26T10:21:14Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -84645,8 +84586,8 @@
     },
     "internal/assistant/engine/providers/probe_test.go:105:TestProviderProbeTimeoutCapsConfiguredRequestTimeout": {
       "status": "[~]",
-      "rust_entry": "不适用：Rust 无 ProviderProbeTimeout 上限函数",
-      "conclusion": "boundary（功能缺失，保留）：Go 的 ProviderProbeTimeout 把配置超时钳到上限；Rust 的 provider 请求超时来自运行配置（request.timeout）且无 probe 专用上限，不迁移为等价测试。 批230高风险复核：未发现可解析的 Rust 同形独立测试；继续保留原 partial/边界结论，不以相邻聚合测试替代，待对应 owner 或明确边界后再处理。",
+      "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_lifecycle_tests.rs::provider_probe_timeout_caps_configured_request_timeout",
+      "conclusion": "partial：Rust 新增 provider test 请求的 30s timeout cap，覆盖默认、15s 和 600s 配置并让真实 provider-test route 走 probe 专用上限；Go 仍有 quick/full reasoning probe 请求计数、能力探测与错误结果矩阵，Rust 尚未实现完整 ProbeProvider 链路，保持 partial。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
       "evidence_type": "boundary",
       "source": {
@@ -84655,7 +84596,14 @@
         "test": "TestProviderProbeTimeoutCapsConfiguredRequestTimeout",
         "blobSha": "20d2c16051b0639d3e58c1623dc779a397de30ac"
       },
-      "rustEvidence": [],
+      "rustEvidence": [
+        {
+          "file": "crates/jftrade-engine/src/product_adk_model_runtime_lifecycle_tests.rs",
+          "test": "provider_probe_timeout_caps_configured_request_timeout",
+          "crate": "jftrade-engine",
+          "anchor": null
+        }
+      ],
       "assertionCoverage": {
         "covered": [],
         "uncovered": [
@@ -84665,13 +84613,9 @@
       },
       "verification": {
         "argv": [
-          "node",
-          "scripts/quality/cargo-nextest.mjs",
+          "pnpm",
           "run",
-          "-p",
-          "jftrade-engine",
-          "--all-targets",
-          "--locked"
+          "check:rust"
         ],
         "testFilter": [],
         "runnerVersion": null,
@@ -84679,7 +84623,7 @@
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": "2026-09-26T05:02:11Z",
+        "verifiedAt": "2026-09-26T10:21:14Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -93096,7 +93040,7 @@
         "argv": [
           "pnpm",
           "run",
-          "check:rust:architecture"
+          "check:rust"
         ],
         "testFilter": [],
         "runnerVersion": null,
@@ -93104,7 +93048,7 @@
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": "2026-09-26T05:02:11Z",
+        "verifiedAt": "2026-09-26T10:21:14Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -139543,7 +139487,7 @@
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": "2026-09-26T09:59:41Z",
+        "verifiedAt": "2026-09-26T10:21:14Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -140387,7 +140331,7 @@
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": "4b7b77f215c7499eaec49eda7b7782329a08f428",
-        "verifiedAt": "2026-09-26T09:59:41Z",
+        "verifiedAt": "2026-09-26T10:21:14Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -141492,7 +141436,7 @@
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": "50e13e18",
-        "verifiedAt": "2026-09-26T09:59:41Z",
+        "verifiedAt": "2026-09-26T10:21:14Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -141895,7 +141839,7 @@
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": "50e13e18",
-        "verifiedAt": "2026-09-26T09:59:41Z",
+        "verifiedAt": "2026-09-26T10:21:14Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -155204,25 +155148,17 @@
       },
       "verification": {
         "argv": [
-          "node",
-          "scripts/quality/cargo-nextest.mjs",
+          "pnpm",
           "run",
-          "--all-targets",
-          "--locked",
-          "-E",
-          "test(short_covers_and_reversals_count_each_closing_order_once) or test(partial_closing_cancellation_finalizes_the_filled_segment) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(matching_and_pricing_helper_branches_behavior) or test(explicit_cancel_orders_by_generated_order_id) or test(test_tc_d4_02_and_03_dst_boundary_and_60m_session_anchored_aggregation) or test(test_tc_d4_01_regular_session_intraday_sub_hourly_aggregation) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(missing_daily_target_synthesizes_us_regular_day_from_minutes) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries) or test(weekly_daily_source_requires_every_open_trading_date) or test(test_market_sessions_for_candle_sessions) or test(mapper_rejects_partial_or_malformed_fill_fields) or test(test_tc_d5_01_sequential_partial_fills_and_fees_monotonic) or test(futu_securities_route_projects_broker_neutral_envelope_boundary) or test(resolve_market_session) or test(QuoteSessionResolver) or test(quote_session_label) or test(resolve_quote_session) or test(tick_candles_default_to_a_fifteen_minute_window_and_clamp_negative_volume) or test(infer_cn_prefix_supports_various_formats_and_preserves_explicit_prefixes) or test(tick_candles_use_fresh_cache_without_querying_the_provider) or test(test_board_kind_defaults_empty_to_industry) or test(builtin_hk_and_mainland_weekday_weekend_and_alias_boundaries_match_go) or test(validate_snapshot_accepts_mainland_alias_markets) or test(manual_override_status_and_session_window_boundaries_match_go) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go)"
+          "check:rust"
         ],
-        "testFilter": [
-          "resolve_market_session",
-          "QuoteSessionResolver",
-          "quote_session_label"
-        ],
+        "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": "4b7b77f215c7499eaec49eda7b7782329a08f428",
-        "verifiedAt": "2026-09-26T09:45:00Z",
+        "verifiedAt": "2026-09-26T10:21:14Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -160559,28 +160495,17 @@
       },
       "verification": {
         "argv": [
-          "node",
-          "scripts/quality/cargo-nextest.mjs",
+          "pnpm",
           "run",
-          "-p",
-          "jftrade-integration-futu",
-          "-p",
-          "jftrade-engine",
-          "--all-targets",
-          "--locked",
-          "-E",
-          "test(fills_projection_sorts_filled_at_desc_with_id_tiebreak) or test(history_fill_read_projects_fill_identity) or test(advanced_feature_defaults_build_strict_opend_requests) or test(advanced_page_size_respects_protocol_limits) or test(high_dividend_state_is_hk_only) or test(product_states_match_go_quote_right_table) or test(entitlement_failure_is_cached_and_refreshed_after_reconnect) or test(fallback_requires_the_same_route_and_an_unsupported_marker) or test(test_adjust_kline_time_semantics) or test(helper_boundaries_return_the_input_unchanged) or test(broker_adapter_forwards_unavailable_opend_errors_on_every_read_route) or test(candle_period_catalog_rejects_missing_and_unmappable_intervals) or test(combo_rfq_creates_the_quote_once_and_never_replays_after_a_transport_failure) or test(prediction_push_handlers_install_once_and_fail_closed_on_invalid_demand) or test(prediction_catalog_pagination_and_identity_follow_the_go_rules) or test(catalog_operations_build_strict_opend_requests_like_go) or test(local_pagination_never_leaks_into_the_opend_request) or test(local_pagination_walks_plate_and_catalog_windows) or test(economic_calendar_pagination_honors_explicit_has_more_and_empty_rows) or test(payload_envelope_picks_the_first_sorted_entry_list_like_go) or test(futu_securities_route_projects_broker_neutral_envelope_boundary) or test(portfolio_cash_balances_prefer_currency_rows_over_summary_fallback) or test(public_coordinator_polls_basic_quotes_into_a_generation_fenced_cache) or test(subscribe_trade_accounts_propagates_opend_rejection) or test(executor_rejects_invalid_instrument_and_unsupported_interval) or test(market_rules_fall_back_to_security_snapshot_lot_size_and_report_the_primary_error) or test(basic_quote_query_requires_subscription_and_maps_success_rejection_and_empty) or test(maps_normalized_requested_rows_and_keeps_the_last_duplicate) or test(basic_quote_query_returns_an_empty_list_when_the_success_s2c_is_absent) or test(snapshot_reader_rejects_a_present_s2c_with_no_mappable_rows) or test(snapshot_reader_keeps_mappable_rows_and_drops_invalid_ones) or test(snapshot_reader_rejects_invalid_symbols_before_any_opend_call) or test(snapshot_reader_keeps_a_payload_less_ack_as_an_empty_collection) or test(cached_projection_does_not_promote_stale_overnight_during_regular_hours) or test(holiday_snapshot_stays_closed_with_stale_extended_blocks) or test(margin_ratios_reuse_a_recent_success_within_the_ttl) or test(cancel_order_uses_modify_order_cancel_operation) or test(subscribe_trade_accounts_forwards_every_account_id) or test(mainland_trade_market_falls_back_to_the_shanghai_request_location) or test(stale_or_malformed_push_updates_never_reach_the_lifecycle) or test(kline_adds_basic_and_minimum_age_delays_unsubscribe) or test(executor_sends_us_intraday_kline_session_all_on_the_wire)"
+          "check:rust"
         ],
-        "testFilter": [
-          "candle_period_catalog_rejects_missing_and_unmappable_intervals",
-          "stale_or_malformed_push_updates_never_reach_the_lifecycle"
-        ],
+        "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": "78e36bd3",
-        "verifiedAt": "2026-09-26T09:45:00Z",
+        "verifiedAt": "2026-09-26T10:21:14Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -160632,28 +160557,17 @@
       },
       "verification": {
         "argv": [
-          "node",
-          "scripts/quality/cargo-nextest.mjs",
+          "pnpm",
           "run",
-          "-p",
-          "jftrade-integration-futu",
-          "-p",
-          "jftrade-engine",
-          "--all-targets",
-          "--locked",
-          "-E",
-          "test(fills_projection_sorts_filled_at_desc_with_id_tiebreak) or test(history_fill_read_projects_fill_identity) or test(advanced_feature_defaults_build_strict_opend_requests) or test(advanced_page_size_respects_protocol_limits) or test(high_dividend_state_is_hk_only) or test(product_states_match_go_quote_right_table) or test(entitlement_failure_is_cached_and_refreshed_after_reconnect) or test(fallback_requires_the_same_route_and_an_unsupported_marker) or test(test_adjust_kline_time_semantics) or test(helper_boundaries_return_the_input_unchanged) or test(broker_adapter_forwards_unavailable_opend_errors_on_every_read_route) or test(candle_period_catalog_rejects_missing_and_unmappable_intervals) or test(combo_rfq_creates_the_quote_once_and_never_replays_after_a_transport_failure) or test(prediction_push_handlers_install_once_and_fail_closed_on_invalid_demand) or test(prediction_catalog_pagination_and_identity_follow_the_go_rules) or test(catalog_operations_build_strict_opend_requests_like_go) or test(local_pagination_never_leaks_into_the_opend_request) or test(local_pagination_walks_plate_and_catalog_windows) or test(economic_calendar_pagination_honors_explicit_has_more_and_empty_rows) or test(payload_envelope_picks_the_first_sorted_entry_list_like_go) or test(futu_securities_route_projects_broker_neutral_envelope_boundary) or test(portfolio_cash_balances_prefer_currency_rows_over_summary_fallback) or test(public_coordinator_polls_basic_quotes_into_a_generation_fenced_cache) or test(subscribe_trade_accounts_propagates_opend_rejection) or test(executor_rejects_invalid_instrument_and_unsupported_interval) or test(market_rules_fall_back_to_security_snapshot_lot_size_and_report_the_primary_error) or test(basic_quote_query_requires_subscription_and_maps_success_rejection_and_empty) or test(maps_normalized_requested_rows_and_keeps_the_last_duplicate) or test(basic_quote_query_returns_an_empty_list_when_the_success_s2c_is_absent) or test(snapshot_reader_rejects_a_present_s2c_with_no_mappable_rows) or test(snapshot_reader_keeps_mappable_rows_and_drops_invalid_ones) or test(snapshot_reader_rejects_invalid_symbols_before_any_opend_call) or test(snapshot_reader_keeps_a_payload_less_ack_as_an_empty_collection) or test(cached_projection_does_not_promote_stale_overnight_during_regular_hours) or test(holiday_snapshot_stays_closed_with_stale_extended_blocks) or test(margin_ratios_reuse_a_recent_success_within_the_ttl) or test(cancel_order_uses_modify_order_cancel_operation) or test(subscribe_trade_accounts_forwards_every_account_id) or test(mainland_trade_market_falls_back_to_the_shanghai_request_location) or test(stale_or_malformed_push_updates_never_reach_the_lifecycle) or test(kline_adds_basic_and_minimum_age_delays_unsubscribe) or test(executor_sends_us_intraday_kline_session_all_on_the_wire)"
+          "check:rust"
         ],
-        "testFilter": [
-          "kline_adds_basic_and_minimum_age_delays_unsubscribe",
-          "executor_sends_us_intraday_kline_session_all_on_the_wire"
-        ],
+        "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": "78e36bd3",
-        "verifiedAt": "2026-09-26T09:45:00Z",
+        "verifiedAt": "2026-09-26T10:21:14Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -160981,27 +160895,17 @@
       },
       "verification": {
         "argv": [
-          "node",
-          "scripts/quality/cargo-nextest.mjs",
+          "pnpm",
           "run",
-          "-p",
-          "jftrade-integration-futu",
-          "-p",
-          "jftrade-engine",
-          "--all-targets",
-          "--locked",
-          "-E",
-          "test(delayed_snapshot_fallback_reads_static_info_and_pages_stock_screen_without_subscribing) or test(closed_us_session_reports_regular_close_as_previous_close)"
+          "check:rust"
         ],
-        "testFilter": [
-          "delayed_snapshot_fallback_reads_static_info_and_pages_stock_screen_without_subscribing"
-        ],
+        "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": "78e36bd3",
-        "verifiedAt": "2026-09-26T09:45:00Z",
+        "verifiedAt": "2026-09-26T10:21:14Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -180499,13 +180403,9 @@
       },
       "verification": {
         "argv": [
-          "node",
-          "scripts/quality/cargo-nextest.mjs",
+          "pnpm",
           "run",
-          "-p",
-          "jftrade-integration-futu",
-          "--all-targets",
-          "--locked"
+          "check:rust"
         ],
         "testFilter": [],
         "runnerVersion": null,
@@ -180513,7 +180413,7 @@
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": "2026-09-26T05:02:11Z",
+        "verifiedAt": "2026-09-26T10:21:14Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -180623,13 +180523,9 @@
       },
       "verification": {
         "argv": [
-          "node",
-          "scripts/quality/cargo-nextest.mjs",
+          "pnpm",
           "run",
-          "-p",
-          "jftrade-integration-futu",
-          "--all-targets",
-          "--locked"
+          "check:rust"
         ],
         "testFilter": [],
         "runnerVersion": null,
@@ -180637,7 +180533,7 @@
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": "2026-09-26T05:02:11Z",
+        "verifiedAt": "2026-09-26T10:21:14Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -285483,7 +285379,7 @@
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": "2026-09-26T09:59:41Z",
+        "verifiedAt": "2026-09-26T10:21:14Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -285758,7 +285654,7 @@
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": "2026-09-26T09:59:41Z",
+        "verifiedAt": "2026-09-26T10:21:14Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -290620,7 +290516,7 @@
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": "2026-09-26T09:59:41Z",
+        "verifiedAt": "2026-09-26T10:21:14Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -290808,24 +290704,17 @@
       },
       "verification": {
         "argv": [
-          "node",
-          "scripts/quality/cargo-nextest.mjs",
+          "pnpm",
           "run",
-          "--all-targets",
-          "--locked",
-          "-E",
-          "test(empty_pools_and_unknown_workers_fail_closed) or test(grpc_request_message_limit_has_exact_encoded_boundaries) or test(checksum_is_verified_before_worker_asset_is_written) or test(readiness_policy_preserves_go_delay_and_supports_capped_backoff) or test(live_session_contract_requires_identity_mode_and_revisions) or test(test_service_broker_read_operations_return_fallback_when_market_data_unavailable) or test(portfolio_views_return_fallback_keys_when_market_data_runtime_is_absent) or test(reconciliation_cancel_submitted_resolves_fill_and_cancel_confirmation) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(portfolio_cash_balances_prefer_currency_rows_over_summary_fallback) or test(portfolio_cash_balances_fall_back_to_market_currency_when_summary_currency_is_absent) or test(position_projection_prefers_diluted_cost_and_account_pnl_with_legacy_fallback) or test(portfolio_cash_balances_carry_created_at_alongside_updated_at) or test(broker_adapter_place_and_cancel_keep_server_order_identity_and_submitted_status) or test(broker_unlock_route_forwards_password_md5_and_unlock_flag_to_opend) or test(broker_write_routes_reject_an_inactive_broker_before_the_trade_writer) or test(control_plane_hard_stop_release_is_single_shot) or test(control_plane_hard_stops_block_until_every_entry_released) or test(blank_persisted_state_loads_as_available_fresh_plane) or test(directory_state_path_reports_unavailable_plane_with_load_error) or test(unavailable_plane_mutations_report_control_plane_unavailable) or test(port_update_risk_validates_limits_before_mutating) or test(port_release_missing_hard_stop_reports_not_found) or test(hard_stop_rejection_audit_failure_degrades_the_snapshot_and_blocks_later_mutations) or test(option_combo_lifecycle_preview_place_cancel_and_buying_power_keep_go_contract) or test(execution_details_read_boundaries_keep_go_failure_propagation) or test(derivative_single_leg_preview_requires_client_order_id_and_locks_the_place) or test(single_preview_hash_binds_client_order_id) or test(combo_preview_hash_binds_client_order_id) or test(test_normalize_execution_order_supports_extended_us_limit_sessions) or test(execution_read_port_normalizes_filters_and_routes_order_identifiers) or test(pre_trade_risk_snapshot_uses_empty_vectors_not_null) or test(kill_switch_and_hard_stop_survive_a_restart_with_rejection_audit) or test(unreadable_persisted_state_fails_closed_and_blocks_mutations) or test(test_normalize_execution_order_uses_env_fallback_and_supports_non_limit_us_sessions) or test(test_reconcile_canonical_order_status_prevents_broker_regressions) or test(reconciliation_replays_history_fill_and_fee_once_after_restart) or test(reconciliation_keeps_external_unavailable_as_retryable_without_unknown_write) or test(reconciliation_no_candidate_preserves_unknown_submission) or test(reconciliation_worker_projects_inactive_source_connectivity_and_go_shaped_invalidations) or test(subscribe_trade_accounts) or test(security_snapshot_coordinator_honors_cancellation_of_a_coalesced_wait) or test(trade_push_subscription_failure_surfaces_a_transport_error) or test(failed_unsubscribe_is_deferred_until_its_retry_window) or test(reconciliation_polling_throttles_scans_until_a_push_wake_forces_one) or test(reconciliation_worker_bounds_recent_invalidations_to_twenty_entries)"
+          "check:rust"
         ],
-        "testFilter": [
-          "subscribe_trade_accounts",
-          "trade_push_subscription_failure_surfaces_a_transport_error"
-        ],
+        "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": "2026-09-26T08:38:17Z",
+        "verifiedAt": "2026-09-26T10:21:14Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -290869,23 +290758,17 @@
       },
       "verification": {
         "argv": [
-          "node",
-          "scripts/quality/cargo-nextest.mjs",
+          "pnpm",
           "run",
-          "--all-targets",
-          "--locked",
-          "-E",
-          "test(empty_pools_and_unknown_workers_fail_closed) or test(grpc_request_message_limit_has_exact_encoded_boundaries) or test(checksum_is_verified_before_worker_asset_is_written) or test(readiness_policy_preserves_go_delay_and_supports_capped_backoff) or test(live_session_contract_requires_identity_mode_and_revisions) or test(test_service_broker_read_operations_return_fallback_when_market_data_unavailable) or test(portfolio_views_return_fallback_keys_when_market_data_runtime_is_absent) or test(reconciliation_cancel_submitted_resolves_fill_and_cancel_confirmation) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(portfolio_cash_balances_prefer_currency_rows_over_summary_fallback) or test(portfolio_cash_balances_fall_back_to_market_currency_when_summary_currency_is_absent) or test(position_projection_prefers_diluted_cost_and_account_pnl_with_legacy_fallback) or test(portfolio_cash_balances_carry_created_at_alongside_updated_at) or test(broker_adapter_place_and_cancel_keep_server_order_identity_and_submitted_status) or test(broker_unlock_route_forwards_password_md5_and_unlock_flag_to_opend) or test(broker_write_routes_reject_an_inactive_broker_before_the_trade_writer) or test(control_plane_hard_stop_release_is_single_shot) or test(control_plane_hard_stops_block_until_every_entry_released) or test(blank_persisted_state_loads_as_available_fresh_plane) or test(directory_state_path_reports_unavailable_plane_with_load_error) or test(unavailable_plane_mutations_report_control_plane_unavailable) or test(port_update_risk_validates_limits_before_mutating) or test(port_release_missing_hard_stop_reports_not_found) or test(hard_stop_rejection_audit_failure_degrades_the_snapshot_and_blocks_later_mutations) or test(option_combo_lifecycle_preview_place_cancel_and_buying_power_keep_go_contract) or test(execution_details_read_boundaries_keep_go_failure_propagation) or test(derivative_single_leg_preview_requires_client_order_id_and_locks_the_place) or test(single_preview_hash_binds_client_order_id) or test(combo_preview_hash_binds_client_order_id) or test(test_normalize_execution_order_supports_extended_us_limit_sessions) or test(execution_read_port_normalizes_filters_and_routes_order_identifiers) or test(pre_trade_risk_snapshot_uses_empty_vectors_not_null) or test(kill_switch_and_hard_stop_survive_a_restart_with_rejection_audit) or test(unreadable_persisted_state_fails_closed_and_blocks_mutations) or test(test_normalize_execution_order_uses_env_fallback_and_supports_non_limit_us_sessions) or test(test_reconcile_canonical_order_status_prevents_broker_regressions) or test(reconciliation_replays_history_fill_and_fee_once_after_restart) or test(reconciliation_keeps_external_unavailable_as_retryable_without_unknown_write) or test(reconciliation_no_candidate_preserves_unknown_submission) or test(reconciliation_worker_projects_inactive_source_connectivity_and_go_shaped_invalidations) or test(subscribe_trade_accounts) or test(security_snapshot_coordinator_honors_cancellation_of_a_coalesced_wait) or test(trade_push_subscription_failure_surfaces_a_transport_error) or test(failed_unsubscribe_is_deferred_until_its_retry_window) or test(reconciliation_polling_throttles_scans_until_a_push_wake_forces_one) or test(reconciliation_worker_bounds_recent_invalidations_to_twenty_entries)"
+          "check:rust"
         ],
-        "testFilter": [
-          "failed_unsubscribe_is_deferred_until_its_retry_window"
-        ],
+        "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": "9b96e4bb923c64e7e1f882809d608ae6374bfb69",
-        "verifiedAt": "2026-09-25T14:28:17Z",
+        "verifiedAt": "2026-09-26T10:21:14Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -290989,7 +290872,7 @@
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": "2026-09-26T09:59:41Z",
+        "verifiedAt": "2026-09-26T10:21:14Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -291026,15 +290909,9 @@
       },
       "verification": {
         "argv": [
-          "node",
-          "scripts/quality/cargo-nextest.mjs",
+          "pnpm",
           "run",
-          "-p",
-          "jftrade-engine",
-          "-E",
-          "test(push_worker_tests)",
-          "--all-targets",
-          "--locked"
+          "check:rust"
         ],
         "testFilter": [],
         "runnerVersion": null,
@@ -291042,7 +290919,7 @@
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": "2026-09-26T05:09:37Z",
+        "verifiedAt": "2026-09-26T10:21:14Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -316700,6 +316577,14 @@
       "referenceCount": 1,
       "referenceKeys": [
         "internal/marketdataassets/cache_test.go:193:TestMaterializeCachedAssetRejectsUnsafeCacheRoot"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_adk_model_runtime_lifecycle_tests.rs::provider_probe_timeout_caps_configured_request_timeout": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/assistant/engine/providers/probe_test.go:105:TestProviderProbeTimeoutCapsConfiguredRequestTimeout"
       ],
       "allowed": true,
       "reviewStatus": "single"

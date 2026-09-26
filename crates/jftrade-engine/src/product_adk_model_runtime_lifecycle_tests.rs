@@ -37,6 +37,13 @@ fn initialized_stores() -> (tempfile::TempDir, Arc<AdkStore>, Arc<AdkSessionStor
     )
 }
 
+#[test]
+fn provider_probe_timeout_caps_configured_request_timeout() {
+    assert_eq!(provider_probe_timeout_ms(0), 30_000);
+    assert_eq!(provider_probe_timeout_ms(15_000), 15_000);
+    assert_eq!(provider_probe_timeout_ms(600_000), 30_000);
+}
+
 // Parity: go:452dea11:internal/assistant/engine/chat_request_idempotency_test.go:48 TestConcurrentResponsesRequestReusesOneRunAndNativeAssistantEvent
 #[test]
 fn concurrent_first_delivery_creates_one_durable_run_and_event() {

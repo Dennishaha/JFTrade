@@ -528,11 +528,19 @@ impl ProductionAdkChatRuntime {
                 );
             }
         }
-        let timeout_ms = value
+        let configured_timeout_ms = value
             .get("requestTimeoutMs")
             .and_then(Value::as_u64)
-            .unwrap_or(DEFAULT_TIMEOUT_MS)
-            .clamp(15_000, 600_000);
+            .unwrap_or(DEFAULT_TIMEOUT_MS);
+        let timeout_ms = if request
+            .get("providerProbe")
+            .and_then(Value::as_bool)
+            .unwrap_or(false)
+        {
+            provider_probe_timeout_ms(configured_timeout_ms)
+        } else {
+            configured_timeout_ms.clamp(15_000, 600_000)
+        };
         // Go's `validateChatOverrides` ran before the agent was resolved and
         // its permission result wins over the agent's own `permissionMode`
         // when the run snapshot is taken.  The override string is carried on

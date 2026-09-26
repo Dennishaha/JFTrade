@@ -2147,3 +2147,14 @@ ADK/Assistant 功能差异，先补失败回归测试再修改领域 owner。
 - Trading/Broker fallback、cancel conformance、portfolio degraded response、execution detail/cache failure 与 order update history 逐项复核；HTTP facade、旧 worker 订阅和错误 envelope 仍按边界保留。
 
 验证证据：helper crate nextest `26/26`；当前批次映射统一记录 `pnpm run check:rust` 门禁，报告/inventory 重生成后再复核锚点，未把测试数量比例视为功能等价。
+
+## 批次 232：Assistant provider timeout 与 Futu/Trading/API 高风险复核（30 条）
+
+本批逐条复核 30 条 P1/high：Assistant provider/workflow 6 条、API chat/SSE 6 条、Futu/OpenD 8 条、Trading/Broker 7 条、MarketData instrument resolver 2 条。
+
+- `internal/assistant/engine/providers/probe_test.go:105:TestProviderProbeTimeoutCapsConfiguredRequestTimeout` 发现真实差异：Rust provider-test route 原先沿用聊天请求最长 600s；先补失败回归，再由 `provider_probe_timeout_ms` 和 `providerProbe` request marker 将探测请求限制为 30s。完整 quick/Rust 门禁覆盖该 owner；quick/full reasoning probe 请求矩阵仍未实现，状态保持 `partial`。
+- `workflow_runs.wait`、interactive session 来源门禁、timeline clone 与 dispatcher map fallback 是 Go facade/helper seam；Rust 的 `workflow.wait`、REST console workflow owner、SSE typed frame 与 durable run projection 分别承担可达行为，未把不同接口升级为 exact。
+- Futu runtime reset、session registry、OpenD delayed snapshot、订阅代际/quota ack 与 push adapter 由 integration/engine typed owner 覆盖；BBGO stream/registry 聚合保留 partial。
+- Trading order-update cache/reconnect/backfill、broker fallback/cancel conformance 与 MarketData singleflight resolver 继续保留 Go worker/cache seam 差异；清单记录实际 Rust owner 与门禁命令。
+
+验证：provider timeout 定向回归 1/1；quick affected nextest 2014/2014；workspace nextest 3479/3479（2 skipped）；7 条 compatibility replay 全部通过；映射审计与锚点复核在提交前重新生成。
