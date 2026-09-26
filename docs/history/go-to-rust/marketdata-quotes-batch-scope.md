@@ -1887,3 +1887,19 @@ ADK/Assistant 功能差异，先补失败回归测试再修改领域 owner。
 验证：动态生成过滤器运行 `pnpm run test:rust -- --no-fail-fast -E`（底层 `node scripts/quality/cargo-nextest.mjs run --workspace --all-targets --locked`），28/28 通过。
 
 下一片：继续剩余 P2 workflow CRUD/scheduler/provider/runtime 与 API transport/MCP 条目，再转 MarketData/Quote、Storage/SQLite、Settings/Watchlist、Backtest/Calendar 与 Strategy/Pine；helper/type-only、`optional_bool_strict`、P1 `session_context_snapshot` 及其他无独立 Rust 测试条目仍保持未验证结论。
+
+## 第 216 批：workflow secret/canvas 与 backtest sync、readiness、result view（2026-09-26）
+
+| 复核 | Go 测试范围 | Rust 证据 | P | 结论 |
+| :---: | --- | --- | :---: | --- |
+| [x] | `workflows_test.go:88,157` | webhook secret hash/sanitization/authentication, workflow update clears and canvas graph round-trip | P2 | partial：Rust canvas/tool/store owners 覆盖 secret 生命周期、字段清理与图持久化；Go service facade、one-time secret response 与 GORM round-trip 组合保持 partial。 |
+| [x] | `backtest/business_test.go:12,59`; `historical_source_test.go:59,198,204,309` | nil-store query fail-closed, readiness/normalization, backward pagination/provider isolation, validator omission, lifecycle failures and candle conversion | P2 | partial/boundary：Rust backtest/readiness/sync helper owners 覆盖输入与转换边界；Go in-memory store、provider adapter injection 和 progress callback 组合未升级为 exact。 |
+| [x] | `input_and_readiness_validation_test.go:14,53,87,122,137,161,181,191,218,307` | date/range and strategy validation, provider override/readiness pinning, worker/missing-history guards, sync defaults and result-view validation | P2 | partial：Rust sync-start/research/backtest owners 覆盖 request validation、provider pinning、queue guards 与 malformed payload；Go service preparation helpers与策略 provider facade 保持 partial。 |
+| [x] | `result_view_aggregation_test.go:10,84`; `result_view_test.go:12,34,122,199,310` | warning/chart filtering, damaged candle aggregation, provider/execution metadata, order/log windows, cursor/time/resolution parsing, seed/diagnostic projection | P2 | partial：Rust strategy/result-view owners 覆盖六视图、downsampling、fees、metadata 与 curve trimming；Go map payload assembly、cursor pagination 与 numeric parsing 组合保持 boundary。 |
+| [x] | `service_pineworker_test.go:12,27`; `service_test.go:16,138,196` | missing/configured Pine worker behavior, injected backtest runner/research dispatch and chart-type normalization | P2 | partial/boundary：Rust production backtest/research owners 覆盖 worker fail-closed、fixture execution、dispatch 与 chart normalization；Go worker function injection、goroutine completion 与 observability fields 保持 partial。 |
+
+本批 30 条 P2 Go 映射对应 **25 个去重后的 nextest 过滤器**，Rust nextest 实际 **25/25** 通过（3448 skipped）。workflow secret/canvas、historical sync/provider isolation、backtest validation/readiness/worker guards、result-view aggregation 与 Pine/research dispatch 均有 owner 证据；结论保持 `partial`/`boundary`，未把跨 service facade 或聚合测试升级为 exact。未发现需要先红后修的真实 Rust 功能差异。
+
+验证：动态生成过滤器运行 `pnpm run test:rust -- --no-fail-fast -E`（底层 `node scripts/quality/cargo-nextest.mjs run --workspace --all-targets --locked`），25/25 通过。
+
+下一片：继续 P2 Backtest/Calendar 与 MarketData/Quote、Storage/SQLite、Settings/Watchlist，再处理 API transport/MCP、Strategy/Pine 与剩余 Assistant/provider 条目；helper/type-only、`optional_bool_strict`、P1 `session_context_snapshot` 及其他无独立 Rust 测试条目仍保持未验证结论。

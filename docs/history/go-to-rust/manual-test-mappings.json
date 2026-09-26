@@ -117331,12 +117331,11 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
           "--locked",
           "-E",
-          "test(workflow_webhook_secret_lifecycle_stays_sanitized_and_authenticated) or test(workflow_updates_keep_omitted_fields_and_apply_explicit_clears) or test(production_adk_local_mutations_persist_tasks_memory_and_workflow_triggers)"
+          "test(workflow_webhook_secret_lifecycle_stays_sanitized_and_authenticated) or test(workflow_updates_keep_omitted_fields_and_apply_explicit_clears) or test(production_adk_local_mutations_persist_tasks_memory_and_workflow_triggers) or test(workflow_writes_apply_the_documented_write_fields) or test(backtests_read_routes_fail_closed_when_snapshot_port_is_unavailable) or test(test_research_backtest_data_readiness_and_sync_lifecycle) or test(test_historical_k_line_syncer_rejects_broken_pagination) or test(test_historical_k_line_syncer_rejects_empty_provider_result) or test(test_historical_candle_conversion_rejects_invalid_fields_and_defaults_volume) or test(sync_request_rejects_invalid_ranges_and_intervals) or test(research_script_validation_rejects_free_text) or test(production_backtest_start_executes_fixture_and_persists_terminal_result) or test(production_backtest_start_without_worker_fails_before_persisting_run) or test(production_backtest_start_rejects_missing_history_without_queuing) or test(sync_request_defaults_match_public_contract_without_provider_success) or test(production_backtest_read_rejects_corrupted_request_json) or test(test_result_view_all_six_views_and_validation) or test(test_result_view_warmup_tagging_and_curve_trimming) or test(test_result_view_contract_alignment_and_edge_cases) or test(test_research_backtest_result_view_projection) or test(test_result_view_resolution_downsampling) or test(test_result_view_order_fee_aggregation_and_numeric_types) or test(test_result_view_seed_preservation_and_metadata_stripping) or test(test_portfolio_and_research_backtest_execution_dispatch) or test(backtest_start_normalizes_chart_type)"
         ],
         "testFilter": [
           "workflow_webhook_secret_lifecycle_stays_sanitized_and_authenticated",
@@ -117345,10 +117344,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "cbad1d96cd595a48fe423d44fdbd54d3b38899ef",
+        "verifiedAt": "2026-09-26T02:53:55Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -117397,20 +117396,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(workflow_webhook_secret_lifecycle_stays_sanitized_and_authenticated) or test(workflow_updates_keep_omitted_fields_and_apply_explicit_clears) or test(production_adk_local_mutations_persist_tasks_memory_and_workflow_triggers) or test(workflow_writes_apply_the_documented_write_fields) or test(backtests_read_routes_fail_closed_when_snapshot_port_is_unavailable) or test(test_research_backtest_data_readiness_and_sync_lifecycle) or test(test_historical_k_line_syncer_rejects_broken_pagination) or test(test_historical_k_line_syncer_rejects_empty_provider_result) or test(test_historical_candle_conversion_rejects_invalid_fields_and_defaults_volume) or test(sync_request_rejects_invalid_ranges_and_intervals) or test(research_script_validation_rejects_free_text) or test(production_backtest_start_executes_fixture_and_persists_terminal_result) or test(production_backtest_start_without_worker_fails_before_persisting_run) or test(production_backtest_start_rejects_missing_history_without_queuing) or test(sync_request_defaults_match_public_contract_without_provider_success) or test(production_backtest_read_rejects_corrupted_request_json) or test(test_result_view_all_six_views_and_validation) or test(test_result_view_warmup_tagging_and_curve_trimming) or test(test_result_view_contract_alignment_and_edge_cases) or test(test_research_backtest_result_view_projection) or test(test_result_view_resolution_downsampling) or test(test_result_view_order_fee_aggregation_and_numeric_types) or test(test_result_view_seed_preservation_and_metadata_stripping) or test(test_portfolio_and_research_backtest_execution_dispatch) or test(backtest_start_normalizes_chart_type)"
         ],
         "testFilter": [
           "workflow_writes_apply_the_documented_write_fields"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "cbad1d96cd595a48fe423d44fdbd54d3b38899ef",
+        "verifiedAt": "2026-09-26T02:53:55Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -117645,20 +117645,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(backtest)"
+          "test(workflow_webhook_secret_lifecycle_stays_sanitized_and_authenticated) or test(workflow_updates_keep_omitted_fields_and_apply_explicit_clears) or test(production_adk_local_mutations_persist_tasks_memory_and_workflow_triggers) or test(workflow_writes_apply_the_documented_write_fields) or test(backtests_read_routes_fail_closed_when_snapshot_port_is_unavailable) or test(test_research_backtest_data_readiness_and_sync_lifecycle) or test(test_historical_k_line_syncer_rejects_broken_pagination) or test(test_historical_k_line_syncer_rejects_empty_provider_result) or test(test_historical_candle_conversion_rejects_invalid_fields_and_defaults_volume) or test(sync_request_rejects_invalid_ranges_and_intervals) or test(research_script_validation_rejects_free_text) or test(production_backtest_start_executes_fixture_and_persists_terminal_result) or test(production_backtest_start_without_worker_fails_before_persisting_run) or test(production_backtest_start_rejects_missing_history_without_queuing) or test(sync_request_defaults_match_public_contract_without_provider_success) or test(production_backtest_read_rejects_corrupted_request_json) or test(test_result_view_all_six_views_and_validation) or test(test_result_view_warmup_tagging_and_curve_trimming) or test(test_result_view_contract_alignment_and_edge_cases) or test(test_research_backtest_result_view_projection) or test(test_result_view_resolution_downsampling) or test(test_result_view_order_fee_aggregation_and_numeric_types) or test(test_result_view_seed_preservation_and_metadata_stripping) or test(test_portfolio_and_research_backtest_execution_dispatch) or test(backtest_start_normalizes_chart_type)"
         ],
         "testFilter": [
           "backtests_read_routes_fail_closed_when_snapshot_port_is_unavailable"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "cbad1d96cd595a48fe423d44fdbd54d3b38899ef",
+        "verifiedAt": "2026-09-26T02:53:55Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -117707,20 +117708,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(backtest)"
+          "test(workflow_webhook_secret_lifecycle_stays_sanitized_and_authenticated) or test(workflow_updates_keep_omitted_fields_and_apply_explicit_clears) or test(production_adk_local_mutations_persist_tasks_memory_and_workflow_triggers) or test(workflow_writes_apply_the_documented_write_fields) or test(backtests_read_routes_fail_closed_when_snapshot_port_is_unavailable) or test(test_research_backtest_data_readiness_and_sync_lifecycle) or test(test_historical_k_line_syncer_rejects_broken_pagination) or test(test_historical_k_line_syncer_rejects_empty_provider_result) or test(test_historical_candle_conversion_rejects_invalid_fields_and_defaults_volume) or test(sync_request_rejects_invalid_ranges_and_intervals) or test(research_script_validation_rejects_free_text) or test(production_backtest_start_executes_fixture_and_persists_terminal_result) or test(production_backtest_start_without_worker_fails_before_persisting_run) or test(production_backtest_start_rejects_missing_history_without_queuing) or test(sync_request_defaults_match_public_contract_without_provider_success) or test(production_backtest_read_rejects_corrupted_request_json) or test(test_result_view_all_six_views_and_validation) or test(test_result_view_warmup_tagging_and_curve_trimming) or test(test_result_view_contract_alignment_and_edge_cases) or test(test_research_backtest_result_view_projection) or test(test_result_view_resolution_downsampling) or test(test_result_view_order_fee_aggregation_and_numeric_types) or test(test_result_view_seed_preservation_and_metadata_stripping) or test(test_portfolio_and_research_backtest_execution_dispatch) or test(backtest_start_normalizes_chart_type)"
         ],
         "testFilter": [
           "test_research_backtest_data_readiness_and_sync_lifecycle"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "cbad1d96cd595a48fe423d44fdbd54d3b38899ef",
+        "verifiedAt": "2026-09-26T02:53:55Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -117769,20 +117771,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(backtest)"
+          "test(workflow_webhook_secret_lifecycle_stays_sanitized_and_authenticated) or test(workflow_updates_keep_omitted_fields_and_apply_explicit_clears) or test(production_adk_local_mutations_persist_tasks_memory_and_workflow_triggers) or test(workflow_writes_apply_the_documented_write_fields) or test(backtests_read_routes_fail_closed_when_snapshot_port_is_unavailable) or test(test_research_backtest_data_readiness_and_sync_lifecycle) or test(test_historical_k_line_syncer_rejects_broken_pagination) or test(test_historical_k_line_syncer_rejects_empty_provider_result) or test(test_historical_candle_conversion_rejects_invalid_fields_and_defaults_volume) or test(sync_request_rejects_invalid_ranges_and_intervals) or test(research_script_validation_rejects_free_text) or test(production_backtest_start_executes_fixture_and_persists_terminal_result) or test(production_backtest_start_without_worker_fails_before_persisting_run) or test(production_backtest_start_rejects_missing_history_without_queuing) or test(sync_request_defaults_match_public_contract_without_provider_success) or test(production_backtest_read_rejects_corrupted_request_json) or test(test_result_view_all_six_views_and_validation) or test(test_result_view_warmup_tagging_and_curve_trimming) or test(test_result_view_contract_alignment_and_edge_cases) or test(test_research_backtest_result_view_projection) or test(test_result_view_resolution_downsampling) or test(test_result_view_order_fee_aggregation_and_numeric_types) or test(test_result_view_seed_preservation_and_metadata_stripping) or test(test_portfolio_and_research_backtest_execution_dispatch) or test(backtest_start_normalizes_chart_type)"
         ],
         "testFilter": [
           "test_historical_k_line_syncer_rejects_broken_pagination"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "cbad1d96cd595a48fe423d44fdbd54d3b38899ef",
+        "verifiedAt": "2026-09-26T02:53:55Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -118017,20 +118020,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(backtest)"
+          "test(workflow_webhook_secret_lifecycle_stays_sanitized_and_authenticated) or test(workflow_updates_keep_omitted_fields_and_apply_explicit_clears) or test(production_adk_local_mutations_persist_tasks_memory_and_workflow_triggers) or test(workflow_writes_apply_the_documented_write_fields) or test(backtests_read_routes_fail_closed_when_snapshot_port_is_unavailable) or test(test_research_backtest_data_readiness_and_sync_lifecycle) or test(test_historical_k_line_syncer_rejects_broken_pagination) or test(test_historical_k_line_syncer_rejects_empty_provider_result) or test(test_historical_candle_conversion_rejects_invalid_fields_and_defaults_volume) or test(sync_request_rejects_invalid_ranges_and_intervals) or test(research_script_validation_rejects_free_text) or test(production_backtest_start_executes_fixture_and_persists_terminal_result) or test(production_backtest_start_without_worker_fails_before_persisting_run) or test(production_backtest_start_rejects_missing_history_without_queuing) or test(sync_request_defaults_match_public_contract_without_provider_success) or test(production_backtest_read_rejects_corrupted_request_json) or test(test_result_view_all_six_views_and_validation) or test(test_result_view_warmup_tagging_and_curve_trimming) or test(test_result_view_contract_alignment_and_edge_cases) or test(test_research_backtest_result_view_projection) or test(test_result_view_resolution_downsampling) or test(test_result_view_order_fee_aggregation_and_numeric_types) or test(test_result_view_seed_preservation_and_metadata_stripping) or test(test_portfolio_and_research_backtest_execution_dispatch) or test(backtest_start_normalizes_chart_type)"
         ],
         "testFilter": [
           "test_historical_k_line_syncer_rejects_empty_provider_result"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "cbad1d96cd595a48fe423d44fdbd54d3b38899ef",
+        "verifiedAt": "2026-09-26T02:53:55Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -118079,20 +118083,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(backtest)"
+          "test(workflow_webhook_secret_lifecycle_stays_sanitized_and_authenticated) or test(workflow_updates_keep_omitted_fields_and_apply_explicit_clears) or test(production_adk_local_mutations_persist_tasks_memory_and_workflow_triggers) or test(workflow_writes_apply_the_documented_write_fields) or test(backtests_read_routes_fail_closed_when_snapshot_port_is_unavailable) or test(test_research_backtest_data_readiness_and_sync_lifecycle) or test(test_historical_k_line_syncer_rejects_broken_pagination) or test(test_historical_k_line_syncer_rejects_empty_provider_result) or test(test_historical_candle_conversion_rejects_invalid_fields_and_defaults_volume) or test(sync_request_rejects_invalid_ranges_and_intervals) or test(research_script_validation_rejects_free_text) or test(production_backtest_start_executes_fixture_and_persists_terminal_result) or test(production_backtest_start_without_worker_fails_before_persisting_run) or test(production_backtest_start_rejects_missing_history_without_queuing) or test(sync_request_defaults_match_public_contract_without_provider_success) or test(production_backtest_read_rejects_corrupted_request_json) or test(test_result_view_all_six_views_and_validation) or test(test_result_view_warmup_tagging_and_curve_trimming) or test(test_result_view_contract_alignment_and_edge_cases) or test(test_research_backtest_result_view_projection) or test(test_result_view_resolution_downsampling) or test(test_result_view_order_fee_aggregation_and_numeric_types) or test(test_result_view_seed_preservation_and_metadata_stripping) or test(test_portfolio_and_research_backtest_execution_dispatch) or test(backtest_start_normalizes_chart_type)"
         ],
         "testFilter": [
           "test_historical_candle_conversion_rejects_invalid_fields_and_defaults_volume"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "cbad1d96cd595a48fe423d44fdbd54d3b38899ef",
+        "verifiedAt": "2026-09-26T02:53:55Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -118203,20 +118208,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(test_historical_candle_conversion_rejects_invalid_fields_and_defaults_volume)"
+          "test(workflow_webhook_secret_lifecycle_stays_sanitized_and_authenticated) or test(workflow_updates_keep_omitted_fields_and_apply_explicit_clears) or test(production_adk_local_mutations_persist_tasks_memory_and_workflow_triggers) or test(workflow_writes_apply_the_documented_write_fields) or test(backtests_read_routes_fail_closed_when_snapshot_port_is_unavailable) or test(test_research_backtest_data_readiness_and_sync_lifecycle) or test(test_historical_k_line_syncer_rejects_broken_pagination) or test(test_historical_k_line_syncer_rejects_empty_provider_result) or test(test_historical_candle_conversion_rejects_invalid_fields_and_defaults_volume) or test(sync_request_rejects_invalid_ranges_and_intervals) or test(research_script_validation_rejects_free_text) or test(production_backtest_start_executes_fixture_and_persists_terminal_result) or test(production_backtest_start_without_worker_fails_before_persisting_run) or test(production_backtest_start_rejects_missing_history_without_queuing) or test(sync_request_defaults_match_public_contract_without_provider_success) or test(production_backtest_read_rejects_corrupted_request_json) or test(test_result_view_all_six_views_and_validation) or test(test_result_view_warmup_tagging_and_curve_trimming) or test(test_result_view_contract_alignment_and_edge_cases) or test(test_research_backtest_result_view_projection) or test(test_result_view_resolution_downsampling) or test(test_result_view_order_fee_aggregation_and_numeric_types) or test(test_result_view_seed_preservation_and_metadata_stripping) or test(test_portfolio_and_research_backtest_execution_dispatch) or test(backtest_start_normalizes_chart_type)"
         ],
         "testFilter": [
           "test_historical_candle_conversion_rejects_invalid_fields_and_defaults_volume"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "cbad1d96cd595a48fe423d44fdbd54d3b38899ef",
+        "verifiedAt": "2026-09-26T02:53:55Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -118327,20 +118333,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(backtest)"
+          "test(workflow_webhook_secret_lifecycle_stays_sanitized_and_authenticated) or test(workflow_updates_keep_omitted_fields_and_apply_explicit_clears) or test(production_adk_local_mutations_persist_tasks_memory_and_workflow_triggers) or test(workflow_writes_apply_the_documented_write_fields) or test(backtests_read_routes_fail_closed_when_snapshot_port_is_unavailable) or test(test_research_backtest_data_readiness_and_sync_lifecycle) or test(test_historical_k_line_syncer_rejects_broken_pagination) or test(test_historical_k_line_syncer_rejects_empty_provider_result) or test(test_historical_candle_conversion_rejects_invalid_fields_and_defaults_volume) or test(sync_request_rejects_invalid_ranges_and_intervals) or test(research_script_validation_rejects_free_text) or test(production_backtest_start_executes_fixture_and_persists_terminal_result) or test(production_backtest_start_without_worker_fails_before_persisting_run) or test(production_backtest_start_rejects_missing_history_without_queuing) or test(sync_request_defaults_match_public_contract_without_provider_success) or test(production_backtest_read_rejects_corrupted_request_json) or test(test_result_view_all_six_views_and_validation) or test(test_result_view_warmup_tagging_and_curve_trimming) or test(test_result_view_contract_alignment_and_edge_cases) or test(test_research_backtest_result_view_projection) or test(test_result_view_resolution_downsampling) or test(test_result_view_order_fee_aggregation_and_numeric_types) or test(test_result_view_seed_preservation_and_metadata_stripping) or test(test_portfolio_and_research_backtest_execution_dispatch) or test(backtest_start_normalizes_chart_type)"
         ],
         "testFilter": [
           "sync_request_rejects_invalid_ranges_and_intervals"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "cbad1d96cd595a48fe423d44fdbd54d3b38899ef",
+        "verifiedAt": "2026-09-26T02:53:55Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -118389,20 +118396,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(backtest)"
+          "test(workflow_webhook_secret_lifecycle_stays_sanitized_and_authenticated) or test(workflow_updates_keep_omitted_fields_and_apply_explicit_clears) or test(production_adk_local_mutations_persist_tasks_memory_and_workflow_triggers) or test(workflow_writes_apply_the_documented_write_fields) or test(backtests_read_routes_fail_closed_when_snapshot_port_is_unavailable) or test(test_research_backtest_data_readiness_and_sync_lifecycle) or test(test_historical_k_line_syncer_rejects_broken_pagination) or test(test_historical_k_line_syncer_rejects_empty_provider_result) or test(test_historical_candle_conversion_rejects_invalid_fields_and_defaults_volume) or test(sync_request_rejects_invalid_ranges_and_intervals) or test(research_script_validation_rejects_free_text) or test(production_backtest_start_executes_fixture_and_persists_terminal_result) or test(production_backtest_start_without_worker_fails_before_persisting_run) or test(production_backtest_start_rejects_missing_history_without_queuing) or test(sync_request_defaults_match_public_contract_without_provider_success) or test(production_backtest_read_rejects_corrupted_request_json) or test(test_result_view_all_six_views_and_validation) or test(test_result_view_warmup_tagging_and_curve_trimming) or test(test_result_view_contract_alignment_and_edge_cases) or test(test_research_backtest_result_view_projection) or test(test_result_view_resolution_downsampling) or test(test_result_view_order_fee_aggregation_and_numeric_types) or test(test_result_view_seed_preservation_and_metadata_stripping) or test(test_portfolio_and_research_backtest_execution_dispatch) or test(backtest_start_normalizes_chart_type)"
         ],
         "testFilter": [
           "research_script_validation_rejects_free_text"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "cbad1d96cd595a48fe423d44fdbd54d3b38899ef",
+        "verifiedAt": "2026-09-26T02:53:55Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -118451,20 +118459,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(backtest)"
+          "test(workflow_webhook_secret_lifecycle_stays_sanitized_and_authenticated) or test(workflow_updates_keep_omitted_fields_and_apply_explicit_clears) or test(production_adk_local_mutations_persist_tasks_memory_and_workflow_triggers) or test(workflow_writes_apply_the_documented_write_fields) or test(backtests_read_routes_fail_closed_when_snapshot_port_is_unavailable) or test(test_research_backtest_data_readiness_and_sync_lifecycle) or test(test_historical_k_line_syncer_rejects_broken_pagination) or test(test_historical_k_line_syncer_rejects_empty_provider_result) or test(test_historical_candle_conversion_rejects_invalid_fields_and_defaults_volume) or test(sync_request_rejects_invalid_ranges_and_intervals) or test(research_script_validation_rejects_free_text) or test(production_backtest_start_executes_fixture_and_persists_terminal_result) or test(production_backtest_start_without_worker_fails_before_persisting_run) or test(production_backtest_start_rejects_missing_history_without_queuing) or test(sync_request_defaults_match_public_contract_without_provider_success) or test(production_backtest_read_rejects_corrupted_request_json) or test(test_result_view_all_six_views_and_validation) or test(test_result_view_warmup_tagging_and_curve_trimming) or test(test_result_view_contract_alignment_and_edge_cases) or test(test_research_backtest_result_view_projection) or test(test_result_view_resolution_downsampling) or test(test_result_view_order_fee_aggregation_and_numeric_types) or test(test_result_view_seed_preservation_and_metadata_stripping) or test(test_portfolio_and_research_backtest_execution_dispatch) or test(backtest_start_normalizes_chart_type)"
         ],
         "testFilter": [
           "production_backtest_start_executes_fixture_and_persists_terminal_result"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "cbad1d96cd595a48fe423d44fdbd54d3b38899ef",
+        "verifiedAt": "2026-09-26T02:53:55Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -118513,20 +118522,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(backtest)"
+          "test(workflow_webhook_secret_lifecycle_stays_sanitized_and_authenticated) or test(workflow_updates_keep_omitted_fields_and_apply_explicit_clears) or test(production_adk_local_mutations_persist_tasks_memory_and_workflow_triggers) or test(workflow_writes_apply_the_documented_write_fields) or test(backtests_read_routes_fail_closed_when_snapshot_port_is_unavailable) or test(test_research_backtest_data_readiness_and_sync_lifecycle) or test(test_historical_k_line_syncer_rejects_broken_pagination) or test(test_historical_k_line_syncer_rejects_empty_provider_result) or test(test_historical_candle_conversion_rejects_invalid_fields_and_defaults_volume) or test(sync_request_rejects_invalid_ranges_and_intervals) or test(research_script_validation_rejects_free_text) or test(production_backtest_start_executes_fixture_and_persists_terminal_result) or test(production_backtest_start_without_worker_fails_before_persisting_run) or test(production_backtest_start_rejects_missing_history_without_queuing) or test(sync_request_defaults_match_public_contract_without_provider_success) or test(production_backtest_read_rejects_corrupted_request_json) or test(test_result_view_all_six_views_and_validation) or test(test_result_view_warmup_tagging_and_curve_trimming) or test(test_result_view_contract_alignment_and_edge_cases) or test(test_research_backtest_result_view_projection) or test(test_result_view_resolution_downsampling) or test(test_result_view_order_fee_aggregation_and_numeric_types) or test(test_result_view_seed_preservation_and_metadata_stripping) or test(test_portfolio_and_research_backtest_execution_dispatch) or test(backtest_start_normalizes_chart_type)"
         ],
         "testFilter": [
           "production_backtest_start_without_worker_fails_before_persisting_run"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "cbad1d96cd595a48fe423d44fdbd54d3b38899ef",
+        "verifiedAt": "2026-09-26T02:53:55Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -118575,20 +118585,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(backtest)"
+          "test(workflow_webhook_secret_lifecycle_stays_sanitized_and_authenticated) or test(workflow_updates_keep_omitted_fields_and_apply_explicit_clears) or test(production_adk_local_mutations_persist_tasks_memory_and_workflow_triggers) or test(workflow_writes_apply_the_documented_write_fields) or test(backtests_read_routes_fail_closed_when_snapshot_port_is_unavailable) or test(test_research_backtest_data_readiness_and_sync_lifecycle) or test(test_historical_k_line_syncer_rejects_broken_pagination) or test(test_historical_k_line_syncer_rejects_empty_provider_result) or test(test_historical_candle_conversion_rejects_invalid_fields_and_defaults_volume) or test(sync_request_rejects_invalid_ranges_and_intervals) or test(research_script_validation_rejects_free_text) or test(production_backtest_start_executes_fixture_and_persists_terminal_result) or test(production_backtest_start_without_worker_fails_before_persisting_run) or test(production_backtest_start_rejects_missing_history_without_queuing) or test(sync_request_defaults_match_public_contract_without_provider_success) or test(production_backtest_read_rejects_corrupted_request_json) or test(test_result_view_all_six_views_and_validation) or test(test_result_view_warmup_tagging_and_curve_trimming) or test(test_result_view_contract_alignment_and_edge_cases) or test(test_research_backtest_result_view_projection) or test(test_result_view_resolution_downsampling) or test(test_result_view_order_fee_aggregation_and_numeric_types) or test(test_result_view_seed_preservation_and_metadata_stripping) or test(test_portfolio_and_research_backtest_execution_dispatch) or test(backtest_start_normalizes_chart_type)"
         ],
         "testFilter": [
           "production_backtest_start_rejects_missing_history_without_queuing"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "cbad1d96cd595a48fe423d44fdbd54d3b38899ef",
+        "verifiedAt": "2026-09-26T02:53:55Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -118637,20 +118648,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(backtest)"
+          "test(workflow_webhook_secret_lifecycle_stays_sanitized_and_authenticated) or test(workflow_updates_keep_omitted_fields_and_apply_explicit_clears) or test(production_adk_local_mutations_persist_tasks_memory_and_workflow_triggers) or test(workflow_writes_apply_the_documented_write_fields) or test(backtests_read_routes_fail_closed_when_snapshot_port_is_unavailable) or test(test_research_backtest_data_readiness_and_sync_lifecycle) or test(test_historical_k_line_syncer_rejects_broken_pagination) or test(test_historical_k_line_syncer_rejects_empty_provider_result) or test(test_historical_candle_conversion_rejects_invalid_fields_and_defaults_volume) or test(sync_request_rejects_invalid_ranges_and_intervals) or test(research_script_validation_rejects_free_text) or test(production_backtest_start_executes_fixture_and_persists_terminal_result) or test(production_backtest_start_without_worker_fails_before_persisting_run) or test(production_backtest_start_rejects_missing_history_without_queuing) or test(sync_request_defaults_match_public_contract_without_provider_success) or test(production_backtest_read_rejects_corrupted_request_json) or test(test_result_view_all_six_views_and_validation) or test(test_result_view_warmup_tagging_and_curve_trimming) or test(test_result_view_contract_alignment_and_edge_cases) or test(test_research_backtest_result_view_projection) or test(test_result_view_resolution_downsampling) or test(test_result_view_order_fee_aggregation_and_numeric_types) or test(test_result_view_seed_preservation_and_metadata_stripping) or test(test_portfolio_and_research_backtest_execution_dispatch) or test(backtest_start_normalizes_chart_type)"
         ],
         "testFilter": [
           "sync_request_defaults_match_public_contract_without_provider_success"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "cbad1d96cd595a48fe423d44fdbd54d3b38899ef",
+        "verifiedAt": "2026-09-26T02:53:55Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -118699,20 +118711,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(backtest)"
+          "test(workflow_webhook_secret_lifecycle_stays_sanitized_and_authenticated) or test(workflow_updates_keep_omitted_fields_and_apply_explicit_clears) or test(production_adk_local_mutations_persist_tasks_memory_and_workflow_triggers) or test(workflow_writes_apply_the_documented_write_fields) or test(backtests_read_routes_fail_closed_when_snapshot_port_is_unavailable) or test(test_research_backtest_data_readiness_and_sync_lifecycle) or test(test_historical_k_line_syncer_rejects_broken_pagination) or test(test_historical_k_line_syncer_rejects_empty_provider_result) or test(test_historical_candle_conversion_rejects_invalid_fields_and_defaults_volume) or test(sync_request_rejects_invalid_ranges_and_intervals) or test(research_script_validation_rejects_free_text) or test(production_backtest_start_executes_fixture_and_persists_terminal_result) or test(production_backtest_start_without_worker_fails_before_persisting_run) or test(production_backtest_start_rejects_missing_history_without_queuing) or test(sync_request_defaults_match_public_contract_without_provider_success) or test(production_backtest_read_rejects_corrupted_request_json) or test(test_result_view_all_six_views_and_validation) or test(test_result_view_warmup_tagging_and_curve_trimming) or test(test_result_view_contract_alignment_and_edge_cases) or test(test_research_backtest_result_view_projection) or test(test_result_view_resolution_downsampling) or test(test_result_view_order_fee_aggregation_and_numeric_types) or test(test_result_view_seed_preservation_and_metadata_stripping) or test(test_portfolio_and_research_backtest_execution_dispatch) or test(backtest_start_normalizes_chart_type)"
         ],
         "testFilter": [
           "production_backtest_read_rejects_corrupted_request_json"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "cbad1d96cd595a48fe423d44fdbd54d3b38899ef",
+        "verifiedAt": "2026-09-26T02:53:55Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -118761,20 +118774,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(backtest)"
+          "test(workflow_webhook_secret_lifecycle_stays_sanitized_and_authenticated) or test(workflow_updates_keep_omitted_fields_and_apply_explicit_clears) or test(production_adk_local_mutations_persist_tasks_memory_and_workflow_triggers) or test(workflow_writes_apply_the_documented_write_fields) or test(backtests_read_routes_fail_closed_when_snapshot_port_is_unavailable) or test(test_research_backtest_data_readiness_and_sync_lifecycle) or test(test_historical_k_line_syncer_rejects_broken_pagination) or test(test_historical_k_line_syncer_rejects_empty_provider_result) or test(test_historical_candle_conversion_rejects_invalid_fields_and_defaults_volume) or test(sync_request_rejects_invalid_ranges_and_intervals) or test(research_script_validation_rejects_free_text) or test(production_backtest_start_executes_fixture_and_persists_terminal_result) or test(production_backtest_start_without_worker_fails_before_persisting_run) or test(production_backtest_start_rejects_missing_history_without_queuing) or test(sync_request_defaults_match_public_contract_without_provider_success) or test(production_backtest_read_rejects_corrupted_request_json) or test(test_result_view_all_six_views_and_validation) or test(test_result_view_warmup_tagging_and_curve_trimming) or test(test_result_view_contract_alignment_and_edge_cases) or test(test_research_backtest_result_view_projection) or test(test_result_view_resolution_downsampling) or test(test_result_view_order_fee_aggregation_and_numeric_types) or test(test_result_view_seed_preservation_and_metadata_stripping) or test(test_portfolio_and_research_backtest_execution_dispatch) or test(backtest_start_normalizes_chart_type)"
         ],
         "testFilter": [
           "test_result_view_all_six_views_and_validation"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "cbad1d96cd595a48fe423d44fdbd54d3b38899ef",
+        "verifiedAt": "2026-09-26T02:53:55Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -118823,20 +118837,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(backtest)"
+          "test(workflow_webhook_secret_lifecycle_stays_sanitized_and_authenticated) or test(workflow_updates_keep_omitted_fields_and_apply_explicit_clears) or test(production_adk_local_mutations_persist_tasks_memory_and_workflow_triggers) or test(workflow_writes_apply_the_documented_write_fields) or test(backtests_read_routes_fail_closed_when_snapshot_port_is_unavailable) or test(test_research_backtest_data_readiness_and_sync_lifecycle) or test(test_historical_k_line_syncer_rejects_broken_pagination) or test(test_historical_k_line_syncer_rejects_empty_provider_result) or test(test_historical_candle_conversion_rejects_invalid_fields_and_defaults_volume) or test(sync_request_rejects_invalid_ranges_and_intervals) or test(research_script_validation_rejects_free_text) or test(production_backtest_start_executes_fixture_and_persists_terminal_result) or test(production_backtest_start_without_worker_fails_before_persisting_run) or test(production_backtest_start_rejects_missing_history_without_queuing) or test(sync_request_defaults_match_public_contract_without_provider_success) or test(production_backtest_read_rejects_corrupted_request_json) or test(test_result_view_all_six_views_and_validation) or test(test_result_view_warmup_tagging_and_curve_trimming) or test(test_result_view_contract_alignment_and_edge_cases) or test(test_research_backtest_result_view_projection) or test(test_result_view_resolution_downsampling) or test(test_result_view_order_fee_aggregation_and_numeric_types) or test(test_result_view_seed_preservation_and_metadata_stripping) or test(test_portfolio_and_research_backtest_execution_dispatch) or test(backtest_start_normalizes_chart_type)"
         ],
         "testFilter": [
           "test_research_backtest_data_readiness_and_sync_lifecycle"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "cbad1d96cd595a48fe423d44fdbd54d3b38899ef",
+        "verifiedAt": "2026-09-26T02:53:55Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -118885,20 +118900,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(backtest)"
+          "test(workflow_webhook_secret_lifecycle_stays_sanitized_and_authenticated) or test(workflow_updates_keep_omitted_fields_and_apply_explicit_clears) or test(production_adk_local_mutations_persist_tasks_memory_and_workflow_triggers) or test(workflow_writes_apply_the_documented_write_fields) or test(backtests_read_routes_fail_closed_when_snapshot_port_is_unavailable) or test(test_research_backtest_data_readiness_and_sync_lifecycle) or test(test_historical_k_line_syncer_rejects_broken_pagination) or test(test_historical_k_line_syncer_rejects_empty_provider_result) or test(test_historical_candle_conversion_rejects_invalid_fields_and_defaults_volume) or test(sync_request_rejects_invalid_ranges_and_intervals) or test(research_script_validation_rejects_free_text) or test(production_backtest_start_executes_fixture_and_persists_terminal_result) or test(production_backtest_start_without_worker_fails_before_persisting_run) or test(production_backtest_start_rejects_missing_history_without_queuing) or test(sync_request_defaults_match_public_contract_without_provider_success) or test(production_backtest_read_rejects_corrupted_request_json) or test(test_result_view_all_six_views_and_validation) or test(test_result_view_warmup_tagging_and_curve_trimming) or test(test_result_view_contract_alignment_and_edge_cases) or test(test_research_backtest_result_view_projection) or test(test_result_view_resolution_downsampling) or test(test_result_view_order_fee_aggregation_and_numeric_types) or test(test_result_view_seed_preservation_and_metadata_stripping) or test(test_portfolio_and_research_backtest_execution_dispatch) or test(backtest_start_normalizes_chart_type)"
         ],
         "testFilter": [
           "test_research_backtest_data_readiness_and_sync_lifecycle"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "cbad1d96cd595a48fe423d44fdbd54d3b38899ef",
+        "verifiedAt": "2026-09-26T02:53:55Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -119138,20 +119154,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(backtest)"
+          "test(workflow_webhook_secret_lifecycle_stays_sanitized_and_authenticated) or test(workflow_updates_keep_omitted_fields_and_apply_explicit_clears) or test(production_adk_local_mutations_persist_tasks_memory_and_workflow_triggers) or test(workflow_writes_apply_the_documented_write_fields) or test(backtests_read_routes_fail_closed_when_snapshot_port_is_unavailable) or test(test_research_backtest_data_readiness_and_sync_lifecycle) or test(test_historical_k_line_syncer_rejects_broken_pagination) or test(test_historical_k_line_syncer_rejects_empty_provider_result) or test(test_historical_candle_conversion_rejects_invalid_fields_and_defaults_volume) or test(sync_request_rejects_invalid_ranges_and_intervals) or test(research_script_validation_rejects_free_text) or test(production_backtest_start_executes_fixture_and_persists_terminal_result) or test(production_backtest_start_without_worker_fails_before_persisting_run) or test(production_backtest_start_rejects_missing_history_without_queuing) or test(sync_request_defaults_match_public_contract_without_provider_success) or test(production_backtest_read_rejects_corrupted_request_json) or test(test_result_view_all_six_views_and_validation) or test(test_result_view_warmup_tagging_and_curve_trimming) or test(test_result_view_contract_alignment_and_edge_cases) or test(test_research_backtest_result_view_projection) or test(test_result_view_resolution_downsampling) or test(test_result_view_order_fee_aggregation_and_numeric_types) or test(test_result_view_seed_preservation_and_metadata_stripping) or test(test_portfolio_and_research_backtest_execution_dispatch) or test(backtest_start_normalizes_chart_type)"
         ],
         "testFilter": [
           "test_result_view_warmup_tagging_and_curve_trimming"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "cbad1d96cd595a48fe423d44fdbd54d3b38899ef",
+        "verifiedAt": "2026-09-26T02:53:55Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -119200,20 +119217,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(backtest)"
+          "test(workflow_webhook_secret_lifecycle_stays_sanitized_and_authenticated) or test(workflow_updates_keep_omitted_fields_and_apply_explicit_clears) or test(production_adk_local_mutations_persist_tasks_memory_and_workflow_triggers) or test(workflow_writes_apply_the_documented_write_fields) or test(backtests_read_routes_fail_closed_when_snapshot_port_is_unavailable) or test(test_research_backtest_data_readiness_and_sync_lifecycle) or test(test_historical_k_line_syncer_rejects_broken_pagination) or test(test_historical_k_line_syncer_rejects_empty_provider_result) or test(test_historical_candle_conversion_rejects_invalid_fields_and_defaults_volume) or test(sync_request_rejects_invalid_ranges_and_intervals) or test(research_script_validation_rejects_free_text) or test(production_backtest_start_executes_fixture_and_persists_terminal_result) or test(production_backtest_start_without_worker_fails_before_persisting_run) or test(production_backtest_start_rejects_missing_history_without_queuing) or test(sync_request_defaults_match_public_contract_without_provider_success) or test(production_backtest_read_rejects_corrupted_request_json) or test(test_result_view_all_six_views_and_validation) or test(test_result_view_warmup_tagging_and_curve_trimming) or test(test_result_view_contract_alignment_and_edge_cases) or test(test_research_backtest_result_view_projection) or test(test_result_view_resolution_downsampling) or test(test_result_view_order_fee_aggregation_and_numeric_types) or test(test_result_view_seed_preservation_and_metadata_stripping) or test(test_portfolio_and_research_backtest_execution_dispatch) or test(backtest_start_normalizes_chart_type)"
         ],
         "testFilter": [
           "test_result_view_contract_alignment_and_edge_cases"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "cbad1d96cd595a48fe423d44fdbd54d3b38899ef",
+        "verifiedAt": "2026-09-26T02:53:55Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -119262,20 +119280,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(backtest)"
+          "test(workflow_webhook_secret_lifecycle_stays_sanitized_and_authenticated) or test(workflow_updates_keep_omitted_fields_and_apply_explicit_clears) or test(production_adk_local_mutations_persist_tasks_memory_and_workflow_triggers) or test(workflow_writes_apply_the_documented_write_fields) or test(backtests_read_routes_fail_closed_when_snapshot_port_is_unavailable) or test(test_research_backtest_data_readiness_and_sync_lifecycle) or test(test_historical_k_line_syncer_rejects_broken_pagination) or test(test_historical_k_line_syncer_rejects_empty_provider_result) or test(test_historical_candle_conversion_rejects_invalid_fields_and_defaults_volume) or test(sync_request_rejects_invalid_ranges_and_intervals) or test(research_script_validation_rejects_free_text) or test(production_backtest_start_executes_fixture_and_persists_terminal_result) or test(production_backtest_start_without_worker_fails_before_persisting_run) or test(production_backtest_start_rejects_missing_history_without_queuing) or test(sync_request_defaults_match_public_contract_without_provider_success) or test(production_backtest_read_rejects_corrupted_request_json) or test(test_result_view_all_six_views_and_validation) or test(test_result_view_warmup_tagging_and_curve_trimming) or test(test_result_view_contract_alignment_and_edge_cases) or test(test_research_backtest_result_view_projection) or test(test_result_view_resolution_downsampling) or test(test_result_view_order_fee_aggregation_and_numeric_types) or test(test_result_view_seed_preservation_and_metadata_stripping) or test(test_portfolio_and_research_backtest_execution_dispatch) or test(backtest_start_normalizes_chart_type)"
         ],
         "testFilter": [
           "test_research_backtest_result_view_projection"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "cbad1d96cd595a48fe423d44fdbd54d3b38899ef",
+        "verifiedAt": "2026-09-26T02:53:55Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -119324,20 +119343,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(backtest)"
+          "test(workflow_webhook_secret_lifecycle_stays_sanitized_and_authenticated) or test(workflow_updates_keep_omitted_fields_and_apply_explicit_clears) or test(production_adk_local_mutations_persist_tasks_memory_and_workflow_triggers) or test(workflow_writes_apply_the_documented_write_fields) or test(backtests_read_routes_fail_closed_when_snapshot_port_is_unavailable) or test(test_research_backtest_data_readiness_and_sync_lifecycle) or test(test_historical_k_line_syncer_rejects_broken_pagination) or test(test_historical_k_line_syncer_rejects_empty_provider_result) or test(test_historical_candle_conversion_rejects_invalid_fields_and_defaults_volume) or test(sync_request_rejects_invalid_ranges_and_intervals) or test(research_script_validation_rejects_free_text) or test(production_backtest_start_executes_fixture_and_persists_terminal_result) or test(production_backtest_start_without_worker_fails_before_persisting_run) or test(production_backtest_start_rejects_missing_history_without_queuing) or test(sync_request_defaults_match_public_contract_without_provider_success) or test(production_backtest_read_rejects_corrupted_request_json) or test(test_result_view_all_six_views_and_validation) or test(test_result_view_warmup_tagging_and_curve_trimming) or test(test_result_view_contract_alignment_and_edge_cases) or test(test_research_backtest_result_view_projection) or test(test_result_view_resolution_downsampling) or test(test_result_view_order_fee_aggregation_and_numeric_types) or test(test_result_view_seed_preservation_and_metadata_stripping) or test(test_portfolio_and_research_backtest_execution_dispatch) or test(backtest_start_normalizes_chart_type)"
         ],
         "testFilter": [
           "test_result_view_all_six_views_and_validation"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "cbad1d96cd595a48fe423d44fdbd54d3b38899ef",
+        "verifiedAt": "2026-09-26T02:53:55Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -119386,20 +119406,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(backtest)"
+          "test(workflow_webhook_secret_lifecycle_stays_sanitized_and_authenticated) or test(workflow_updates_keep_omitted_fields_and_apply_explicit_clears) or test(production_adk_local_mutations_persist_tasks_memory_and_workflow_triggers) or test(workflow_writes_apply_the_documented_write_fields) or test(backtests_read_routes_fail_closed_when_snapshot_port_is_unavailable) or test(test_research_backtest_data_readiness_and_sync_lifecycle) or test(test_historical_k_line_syncer_rejects_broken_pagination) or test(test_historical_k_line_syncer_rejects_empty_provider_result) or test(test_historical_candle_conversion_rejects_invalid_fields_and_defaults_volume) or test(sync_request_rejects_invalid_ranges_and_intervals) or test(research_script_validation_rejects_free_text) or test(production_backtest_start_executes_fixture_and_persists_terminal_result) or test(production_backtest_start_without_worker_fails_before_persisting_run) or test(production_backtest_start_rejects_missing_history_without_queuing) or test(sync_request_defaults_match_public_contract_without_provider_success) or test(production_backtest_read_rejects_corrupted_request_json) or test(test_result_view_all_six_views_and_validation) or test(test_result_view_warmup_tagging_and_curve_trimming) or test(test_result_view_contract_alignment_and_edge_cases) or test(test_research_backtest_result_view_projection) or test(test_result_view_resolution_downsampling) or test(test_result_view_order_fee_aggregation_and_numeric_types) or test(test_result_view_seed_preservation_and_metadata_stripping) or test(test_portfolio_and_research_backtest_execution_dispatch) or test(backtest_start_normalizes_chart_type)"
         ],
         "testFilter": [
           "test_result_view_resolution_downsampling"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "cbad1d96cd595a48fe423d44fdbd54d3b38899ef",
+        "verifiedAt": "2026-09-26T02:53:55Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -119448,20 +119469,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(backtest)"
+          "test(workflow_webhook_secret_lifecycle_stays_sanitized_and_authenticated) or test(workflow_updates_keep_omitted_fields_and_apply_explicit_clears) or test(production_adk_local_mutations_persist_tasks_memory_and_workflow_triggers) or test(workflow_writes_apply_the_documented_write_fields) or test(backtests_read_routes_fail_closed_when_snapshot_port_is_unavailable) or test(test_research_backtest_data_readiness_and_sync_lifecycle) or test(test_historical_k_line_syncer_rejects_broken_pagination) or test(test_historical_k_line_syncer_rejects_empty_provider_result) or test(test_historical_candle_conversion_rejects_invalid_fields_and_defaults_volume) or test(sync_request_rejects_invalid_ranges_and_intervals) or test(research_script_validation_rejects_free_text) or test(production_backtest_start_executes_fixture_and_persists_terminal_result) or test(production_backtest_start_without_worker_fails_before_persisting_run) or test(production_backtest_start_rejects_missing_history_without_queuing) or test(sync_request_defaults_match_public_contract_without_provider_success) or test(production_backtest_read_rejects_corrupted_request_json) or test(test_result_view_all_six_views_and_validation) or test(test_result_view_warmup_tagging_and_curve_trimming) or test(test_result_view_contract_alignment_and_edge_cases) or test(test_research_backtest_result_view_projection) or test(test_result_view_resolution_downsampling) or test(test_result_view_order_fee_aggregation_and_numeric_types) or test(test_result_view_seed_preservation_and_metadata_stripping) or test(test_portfolio_and_research_backtest_execution_dispatch) or test(backtest_start_normalizes_chart_type)"
         ],
         "testFilter": [
           "test_result_view_order_fee_aggregation_and_numeric_types"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "cbad1d96cd595a48fe423d44fdbd54d3b38899ef",
+        "verifiedAt": "2026-09-26T02:53:55Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -119572,20 +119594,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(backtest)"
+          "test(workflow_webhook_secret_lifecycle_stays_sanitized_and_authenticated) or test(workflow_updates_keep_omitted_fields_and_apply_explicit_clears) or test(production_adk_local_mutations_persist_tasks_memory_and_workflow_triggers) or test(workflow_writes_apply_the_documented_write_fields) or test(backtests_read_routes_fail_closed_when_snapshot_port_is_unavailable) or test(test_research_backtest_data_readiness_and_sync_lifecycle) or test(test_historical_k_line_syncer_rejects_broken_pagination) or test(test_historical_k_line_syncer_rejects_empty_provider_result) or test(test_historical_candle_conversion_rejects_invalid_fields_and_defaults_volume) or test(sync_request_rejects_invalid_ranges_and_intervals) or test(research_script_validation_rejects_free_text) or test(production_backtest_start_executes_fixture_and_persists_terminal_result) or test(production_backtest_start_without_worker_fails_before_persisting_run) or test(production_backtest_start_rejects_missing_history_without_queuing) or test(sync_request_defaults_match_public_contract_without_provider_success) or test(production_backtest_read_rejects_corrupted_request_json) or test(test_result_view_all_six_views_and_validation) or test(test_result_view_warmup_tagging_and_curve_trimming) or test(test_result_view_contract_alignment_and_edge_cases) or test(test_research_backtest_result_view_projection) or test(test_result_view_resolution_downsampling) or test(test_result_view_order_fee_aggregation_and_numeric_types) or test(test_result_view_seed_preservation_and_metadata_stripping) or test(test_portfolio_and_research_backtest_execution_dispatch) or test(backtest_start_normalizes_chart_type)"
         ],
         "testFilter": [
           "test_result_view_seed_preservation_and_metadata_stripping"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "cbad1d96cd595a48fe423d44fdbd54d3b38899ef",
+        "verifiedAt": "2026-09-26T02:53:55Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -119820,20 +119843,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(backtest)"
+          "test(workflow_webhook_secret_lifecycle_stays_sanitized_and_authenticated) or test(workflow_updates_keep_omitted_fields_and_apply_explicit_clears) or test(production_adk_local_mutations_persist_tasks_memory_and_workflow_triggers) or test(workflow_writes_apply_the_documented_write_fields) or test(backtests_read_routes_fail_closed_when_snapshot_port_is_unavailable) or test(test_research_backtest_data_readiness_and_sync_lifecycle) or test(test_historical_k_line_syncer_rejects_broken_pagination) or test(test_historical_k_line_syncer_rejects_empty_provider_result) or test(test_historical_candle_conversion_rejects_invalid_fields_and_defaults_volume) or test(sync_request_rejects_invalid_ranges_and_intervals) or test(research_script_validation_rejects_free_text) or test(production_backtest_start_executes_fixture_and_persists_terminal_result) or test(production_backtest_start_without_worker_fails_before_persisting_run) or test(production_backtest_start_rejects_missing_history_without_queuing) or test(sync_request_defaults_match_public_contract_without_provider_success) or test(production_backtest_read_rejects_corrupted_request_json) or test(test_result_view_all_six_views_and_validation) or test(test_result_view_warmup_tagging_and_curve_trimming) or test(test_result_view_contract_alignment_and_edge_cases) or test(test_research_backtest_result_view_projection) or test(test_result_view_resolution_downsampling) or test(test_result_view_order_fee_aggregation_and_numeric_types) or test(test_result_view_seed_preservation_and_metadata_stripping) or test(test_portfolio_and_research_backtest_execution_dispatch) or test(backtest_start_normalizes_chart_type)"
         ],
         "testFilter": [
           "production_backtest_start_without_worker_fails_before_persisting_run"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "cbad1d96cd595a48fe423d44fdbd54d3b38899ef",
+        "verifiedAt": "2026-09-26T02:53:55Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -119882,20 +119906,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(backtest)"
+          "test(workflow_webhook_secret_lifecycle_stays_sanitized_and_authenticated) or test(workflow_updates_keep_omitted_fields_and_apply_explicit_clears) or test(production_adk_local_mutations_persist_tasks_memory_and_workflow_triggers) or test(workflow_writes_apply_the_documented_write_fields) or test(backtests_read_routes_fail_closed_when_snapshot_port_is_unavailable) or test(test_research_backtest_data_readiness_and_sync_lifecycle) or test(test_historical_k_line_syncer_rejects_broken_pagination) or test(test_historical_k_line_syncer_rejects_empty_provider_result) or test(test_historical_candle_conversion_rejects_invalid_fields_and_defaults_volume) or test(sync_request_rejects_invalid_ranges_and_intervals) or test(research_script_validation_rejects_free_text) or test(production_backtest_start_executes_fixture_and_persists_terminal_result) or test(production_backtest_start_without_worker_fails_before_persisting_run) or test(production_backtest_start_rejects_missing_history_without_queuing) or test(sync_request_defaults_match_public_contract_without_provider_success) or test(production_backtest_read_rejects_corrupted_request_json) or test(test_result_view_all_six_views_and_validation) or test(test_result_view_warmup_tagging_and_curve_trimming) or test(test_result_view_contract_alignment_and_edge_cases) or test(test_research_backtest_result_view_projection) or test(test_result_view_resolution_downsampling) or test(test_result_view_order_fee_aggregation_and_numeric_types) or test(test_result_view_seed_preservation_and_metadata_stripping) or test(test_portfolio_and_research_backtest_execution_dispatch) or test(backtest_start_normalizes_chart_type)"
         ],
         "testFilter": [
           "production_backtest_start_executes_fixture_and_persists_terminal_result"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "cbad1d96cd595a48fe423d44fdbd54d3b38899ef",
+        "verifiedAt": "2026-09-26T02:53:55Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -119944,20 +119969,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(backtest)"
+          "test(workflow_webhook_secret_lifecycle_stays_sanitized_and_authenticated) or test(workflow_updates_keep_omitted_fields_and_apply_explicit_clears) or test(production_adk_local_mutations_persist_tasks_memory_and_workflow_triggers) or test(workflow_writes_apply_the_documented_write_fields) or test(backtests_read_routes_fail_closed_when_snapshot_port_is_unavailable) or test(test_research_backtest_data_readiness_and_sync_lifecycle) or test(test_historical_k_line_syncer_rejects_broken_pagination) or test(test_historical_k_line_syncer_rejects_empty_provider_result) or test(test_historical_candle_conversion_rejects_invalid_fields_and_defaults_volume) or test(sync_request_rejects_invalid_ranges_and_intervals) or test(research_script_validation_rejects_free_text) or test(production_backtest_start_executes_fixture_and_persists_terminal_result) or test(production_backtest_start_without_worker_fails_before_persisting_run) or test(production_backtest_start_rejects_missing_history_without_queuing) or test(sync_request_defaults_match_public_contract_without_provider_success) or test(production_backtest_read_rejects_corrupted_request_json) or test(test_result_view_all_six_views_and_validation) or test(test_result_view_warmup_tagging_and_curve_trimming) or test(test_result_view_contract_alignment_and_edge_cases) or test(test_research_backtest_result_view_projection) or test(test_result_view_resolution_downsampling) or test(test_result_view_order_fee_aggregation_and_numeric_types) or test(test_result_view_seed_preservation_and_metadata_stripping) or test(test_portfolio_and_research_backtest_execution_dispatch) or test(backtest_start_normalizes_chart_type)"
         ],
         "testFilter": [
           "production_backtest_start_executes_fixture_and_persists_terminal_result"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "cbad1d96cd595a48fe423d44fdbd54d3b38899ef",
+        "verifiedAt": "2026-09-26T02:53:55Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -120006,20 +120032,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(backtest)"
+          "test(workflow_webhook_secret_lifecycle_stays_sanitized_and_authenticated) or test(workflow_updates_keep_omitted_fields_and_apply_explicit_clears) or test(production_adk_local_mutations_persist_tasks_memory_and_workflow_triggers) or test(workflow_writes_apply_the_documented_write_fields) or test(backtests_read_routes_fail_closed_when_snapshot_port_is_unavailable) or test(test_research_backtest_data_readiness_and_sync_lifecycle) or test(test_historical_k_line_syncer_rejects_broken_pagination) or test(test_historical_k_line_syncer_rejects_empty_provider_result) or test(test_historical_candle_conversion_rejects_invalid_fields_and_defaults_volume) or test(sync_request_rejects_invalid_ranges_and_intervals) or test(research_script_validation_rejects_free_text) or test(production_backtest_start_executes_fixture_and_persists_terminal_result) or test(production_backtest_start_without_worker_fails_before_persisting_run) or test(production_backtest_start_rejects_missing_history_without_queuing) or test(sync_request_defaults_match_public_contract_without_provider_success) or test(production_backtest_read_rejects_corrupted_request_json) or test(test_result_view_all_six_views_and_validation) or test(test_result_view_warmup_tagging_and_curve_trimming) or test(test_result_view_contract_alignment_and_edge_cases) or test(test_research_backtest_result_view_projection) or test(test_result_view_resolution_downsampling) or test(test_result_view_order_fee_aggregation_and_numeric_types) or test(test_result_view_seed_preservation_and_metadata_stripping) or test(test_portfolio_and_research_backtest_execution_dispatch) or test(backtest_start_normalizes_chart_type)"
         ],
         "testFilter": [
           "test_portfolio_and_research_backtest_execution_dispatch"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "cbad1d96cd595a48fe423d44fdbd54d3b38899ef",
+        "verifiedAt": "2026-09-26T02:53:55Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -120073,20 +120100,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(backtest)"
+          "test(workflow_webhook_secret_lifecycle_stays_sanitized_and_authenticated) or test(workflow_updates_keep_omitted_fields_and_apply_explicit_clears) or test(production_adk_local_mutations_persist_tasks_memory_and_workflow_triggers) or test(workflow_writes_apply_the_documented_write_fields) or test(backtests_read_routes_fail_closed_when_snapshot_port_is_unavailable) or test(test_research_backtest_data_readiness_and_sync_lifecycle) or test(test_historical_k_line_syncer_rejects_broken_pagination) or test(test_historical_k_line_syncer_rejects_empty_provider_result) or test(test_historical_candle_conversion_rejects_invalid_fields_and_defaults_volume) or test(sync_request_rejects_invalid_ranges_and_intervals) or test(research_script_validation_rejects_free_text) or test(production_backtest_start_executes_fixture_and_persists_terminal_result) or test(production_backtest_start_without_worker_fails_before_persisting_run) or test(production_backtest_start_rejects_missing_history_without_queuing) or test(sync_request_defaults_match_public_contract_without_provider_success) or test(production_backtest_read_rejects_corrupted_request_json) or test(test_result_view_all_six_views_and_validation) or test(test_result_view_warmup_tagging_and_curve_trimming) or test(test_result_view_contract_alignment_and_edge_cases) or test(test_research_backtest_result_view_projection) or test(test_result_view_resolution_downsampling) or test(test_result_view_order_fee_aggregation_and_numeric_types) or test(test_result_view_seed_preservation_and_metadata_stripping) or test(test_portfolio_and_research_backtest_execution_dispatch) or test(backtest_start_normalizes_chart_type)"
         ],
         "testFilter": [
           "backtest_start_normalizes_chart_type"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "cbad1d96cd595a48fe423d44fdbd54d3b38899ef",
+        "verifiedAt": "2026-09-26T02:53:55Z",
         "receiptDigest": null
       },
       "risk": "normal",
