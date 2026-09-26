@@ -1973,3 +1973,17 @@ ADK/Assistant 功能差异，先补失败回归测试再修改领域 owner。
 验证：动态生成过滤器运行 `pnpm run test:rust -- --no-fail-fast -E`（底层 `node scripts/quality/cargo-nextest.mjs run --workspace --all-targets --locked`），23/23 通过。
 
 下一片：继续 P2 Pine/Strategy runtime、MarketData/Quote、Storage/SQLite、Settings/Watchlist 与 API transport/MCP 条目，再回补 Backtest/Calendar 尾项；helper/type-only、`optional_bool_strict`、`session_context_snapshot` 及其他无独立 Rust 测试条目仍保持未验证结论。
+
+## 第 222 批：结果收集、短向回放、市场规则与 K 线存储契约（2026-09-26）
+
+| 复核 | Go 测试范围 | Rust 证据 | P | 结论 |
+| :---: | --- | --- | :---: | --- |
+| [x] | `result_collector_test.go:198,256,270,303,344,392`; `result_collector_trade_stats_test.go:13,28,63,96,116` | incremental fills, fee/drawdown accounting, warning deduplication, order identity, open-position finalization, weighted long/short/reversal and warmup trade stats | P2 | partial：Rust result-reporting/execution-cost owners 覆盖 fill aggregation、fees、drawdown、trade cost 与 warmup；Go account querier、order-book projection、runtime error collection 与 facade 组合保持 partial。 |
+| [x] | `run_result_test.go:8,83`; `runner_hardcut_test.go:10`; `runner_helpers_test.go:10`; `short_replay_bounds_test.go:14,48`; `short_replay_test.go:12` | deterministic result snapshot/error corpus, Pine adapter boundary, source/history guard, short replay cancellation/validation and short-cover execution | P2 | partial/boundary：Rust compatibility/Pine matcher/strategy runtime owners 覆盖 copy/determinism、disabled legacy runner、short direction 与 cancellation；Go direct runner hard-cut、helper and callback boundaries remain boundary. |
+| [x] | `source_exchange_business_test.go:9,49`; `store_test.go:16,85,120,183,250,330,409,495,510,532` | market override ordering and conservative lot defaults, schema manifest/table aliases, scoped sync CAS, session isolation, period priority, compact decimal rows, rehab filtering, coverage and five-minute synthesis | P2 | partial：Rust broker-rule/SQLite aggregation/session/calendar owners 覆盖 market rules、schema、scope、coverage 与 synthesis；Go GORM/Futu store fixtures、SQLite introspection 与 provider wrappers 保持 partial。 |
+
+本批 30 条 P2 Go 映射对应 **27 个证据过滤器**，因 strategy runtime 与 matcher 多 binary 重复，Rust nextest 实际 **29/29** 通过（3444 skipped）。result collector 的增量成交、手续费/回撤、订单身份、weighted cost、反转与 warmup、短向回放、market rule override、K 线 schema/session/coverage/synthesis 均有 owner 证据；结论保持 `partial`/`boundary`，未把跨 binary、Go facade 或 SQLite fixture 聚合测试升级为 exact。未发现需要先红后修的真实 Rust 功能差异。
+
+验证：动态生成过滤器运行 `pnpm run test:rust -- --no-fail-fast -E`（底层 `node scripts/quality/cargo-nextest.mjs run --workspace --all-targets --locked`），29/29 通过。
+
+下一片：继续 P2 MarketData/Quote、Storage/SQLite、Settings/Watchlist、API transport/MCP 与 Pine/Strategy runtime 条目，再回补 Backtest/Calendar 尾项；helper/type-only、`optional_bool_strict`、`session_context_snapshot` 及其他无独立 Rust 测试条目仍保持未验证结论。
