@@ -1987,3 +1987,17 @@ ADK/Assistant 功能差异，先补失败回归测试再修改领域 owner。
 验证：动态生成过滤器运行 `pnpm run test:rust -- --no-fail-fast -E`（底层 `node scripts/quality/cargo-nextest.mjs run --workspace --all-targets --locked`），29/29 通过。
 
 下一片：继续 P2 MarketData/Quote、Storage/SQLite、Settings/Watchlist、API transport/MCP 与 Pine/Strategy runtime 条目，再回补 Backtest/Calendar 尾项；helper/type-only、`optional_bool_strict`、`session_context_snapshot` 及其他无独立 Rust 测试条目仍保持未验证结论。
+
+## 第 223 批：K 线多级聚合、交易费用、Futu 生命周期与安全详情投影（2026-09-26）
+
+| 复核 | Go 测试范围 | Rust 证据 | P | 结论 |
+| :---: | --- | --- | :---: | --- |
+| [x] | `store_test.go:584,652,738`; `sync_progress_test.go:10` | five-minute source synthesis/priority for fifteen-minute bars, interval storage round-trip and sync progress CAS ownership | P2 | partial：Rust SQLite aggregation/sync-store owners 覆盖 source selection、multi-period synthesis、interval encoding 与 revision guard；Go Futu store introspection、snapshot copy 与 GORM wrapper 组合保持 partial。 |
+| [x] | `trading_cost_replay_boundaries_test.go:15,86,150,255`; `trading_costs_test.go:14,60,75,133,195,248,275,301` | fee mode/basis/side normalization, rounding/caps, replay command guards, market presets, inclusive ranges, HK/US fees, per-order minimums and commission mapping | P2 | partial/boundary：Rust backtest trading-cost/Pine adapter owners 覆盖 fee normalization、market rules、rounding、caps 与 replay validation；Go helper nil receivers、metadata facade、custom schedule clone 与 fee aggregation 保持 partial。 |
+| [x] | `marketdata_runtime_opend_test.go:275`; `marketdata_runtime_test.go:27,85,116,196,318,432,655,712`; `order_updates_test.go:105,137,159`; `security_details_test.go:12,160` | subscription-required lease translation, runtime close/shutdown/recovery, HK/US tick sessions, unavailable helpers, extended quote fields, order-update lifecycle and broker-neutral security wire shape | P2 | partial/boundary：Rust Futu provider/runtime, quote tick, trading session 与 engine projection owners 覆盖 lifecycle、fallback、session classification、subscription errors 和 wire DTO；Go goroutine timing、fake OpenD exchange、callback registration 与 full broker model projection 保持 partial/boundary。 |
+
+本批 30 条 P2 Go 映射对应 **27 个证据过滤器**；因 `shutdown`、`start` 等通用过滤器和 engine production binaries 宽匹配，Rust nextest 实际 **203/203** 通过（3270 skipped）。K 线五分钟/十五分钟聚合、交易费规则与 HK/US 费用、Pine replay guards、Futu runtime close/recovery、tick session/extended quote、order update cleanup 与 security detail wire shape 均有 owner 证据；结论保持 `partial`/`boundary`，未把宽过滤器、多 binary 或跨 facade 投影升级为 exact。未发现需要先红后修的真实 Rust 功能差异。
+
+验证：动态生成过滤器运行 `pnpm run test:rust -- --no-fail-fast -E`（底层 `node scripts/quality/cargo-nextest.mjs run --workspace --all-targets --locked`），203/203 通过。
+
+下一片：继续 P2 MarketData/Quote、Futu/OpenD、Storage/SQLite、Settings/Watchlist、API transport/MCP 与 Pine/Strategy runtime 条目，再回补 Backtest/Calendar 尾项；helper/type-only、`optional_bool_strict`、`session_context_snapshot` 及其他无独立 Rust 测试条目仍保持未验证结论。
