@@ -1089,6 +1089,37 @@ if close > fast and close < band.upper and daily > 0
         );
     }
 
+    /// Parity: pkg/strategy/pine/compiler_and_security_diagnostics_test.go:44
+    /// TestRequestSecurityPurityCoversOptionalAndBuiltinRecovery.
+    #[test]
+    fn compile_accepts_pure_min_request_security_expression() {
+        let script = r#"//@version=6
+strategy("pure helpers", overlay=true)
+daily = request.security(syminfo.tickerid, "D", min(close, open))"#;
+        let compilation = compile(script);
+        assert!(
+            compilation.ok,
+            "diagnostics = {:?}",
+            compilation.diagnostics
+        );
+    }
+
+    /// Parity: pkg/strategy/pine/runtime_and_parser_boundaries_test.go:46
+    /// TestDynamicForBoundsUseRuntimeFallback.
+    #[test]
+    fn compile_accepts_dynamic_integer_for_step() {
+        let script = r#"//@version=6
+strategy("dynamic loop", overlay=true)
+for i = close to 5 by int(close)
+    strategy.entry("Long", strategy.long, qty=1)"#;
+        let compilation = compile(script);
+        assert!(
+            compilation.ok,
+            "diagnostics = {:?}",
+            compilation.diagnostics
+        );
+    }
+
     /// Parity: pkg/strategy/pine/parse_test.go:202
     /// TestValidateScriptRejectsUnsupportedPineRuntimeFeature
     ///

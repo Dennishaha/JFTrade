@@ -580,10 +580,8 @@ impl SharedTradeReadRuntime {
         if missing.is_empty() {
             return Ok(results);
         }
-        // Go asks the delayed adapter capability before the tick cache, so a
-        // symbol without the BasicQot entitlement still answers inside this
-        // request instead of reporting "not returned".
-        let missing = self.resolve_delayed_snapshots(&mut results, missing);
+        // Go asks delayed fallback before the tick cache for unentitled symbols.
+        let (missing, delayed_error) = self.resolve_delayed_snapshots(&mut results, missing);
         if missing.is_empty() {
             return Ok(results);
         }
@@ -594,9 +592,9 @@ impl SharedTradeReadRuntime {
             .clone()
         {
             Some(r) => r,
-            None if results.is_empty() => {
-                return Err("Futu market-data router is unavailable".to_owned());
-            }
+            None if results.is_empty() => return Err(delayed_error.unwrap_or_else(|| {
+                "Futu market-data router is unavailable".to_owned()
+            })),
             None => return Ok(results),
         };
         let now_ms = current_unix_millis();
@@ -616,9 +614,11 @@ impl SharedTradeReadRuntime {
                 results.push(val);
             }
         }
+        if results.is_empty() && let Some(error) = delayed_error {
+            return Err(error);
+        }
         Ok(results)
     }
-
     pub(crate) fn quote_snapshot(
         &self,
         securities: &[TradeSecurity],

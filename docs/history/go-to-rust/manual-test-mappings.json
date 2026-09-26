@@ -34667,10 +34667,10 @@
         "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
+        "status": "passed",
+        "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": null,
+        "verifiedAt": "2026-09-26T05:02:11Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -37935,10 +37935,10 @@
         "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
+        "status": "passed",
+        "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": null,
+        "verifiedAt": "2026-09-26T05:02:11Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -41112,9 +41112,9 @@
     },
     "internal/app/apiserver/runtime/environment_fallbacks_test.go:14:TestRuntimeFallbacksAndEnvironmentOverridesRemainUsable": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_production_calendar.rs; crates/jftrade-engine/src/product_production_ports_adk_mutation_skill.rs",
-      "conclusion": "partial：Rust 保留 JFTRADE_EXCHANGE_CALENDAR_DIR、JFTRADE_ADK_SECRETS 覆盖与相对回退，但没有 Go 的 JFTRADE_ADK_SKILLS_DIR/JFTRADE_ADK_SESSION_DB 同名变量（Rust 用 JFTRADE_ADK_SKILLS 与 JFTRADE_ADK_SESSION_DB），也没有 envOrDefault/firstNonEmpty/besteffort 工具族，属实现形态差异。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+      "rust_entry": "crates/jftrade-engine/src/product_runtime_resources_tests.rs::runtime_resources_declare_go_owners_and_derived_paths; crates/jftrade-engine/src/product_runtime_resources_tests.rs::runtime_resources_keep_the_settings_directory_for_relative_paths",
+      "conclusion": "partial：Rust 保留 JFTRADE_EXCHANGE_CALENDAR_DIR、JFTRADE_ADK_SECRETS 覆盖与相对回退，并由 runtime resource tests 覆盖 owner/derived path 与相对 settings 目录；没有 Go 的 JFTRADE_ADK_SKILLS_DIR/JFTRADE_ADK_SESSION_DB 同名变量（Rust 用 JFTRADE_ADK_SKILLS 与 JFTRADE_ADK_SESSION_DB），也没有 envOrDefault/firstNonEmpty/besteffort 工具族，属实现形态差异。",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(runtime_resources_declare_go_owners_and_derived_paths) or test(runtime_resources_keep_the_settings_directory_for_relative_paths)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/runtime/environment_fallbacks_test.go",
@@ -41122,13 +41122,27 @@
         "test": "TestRuntimeFallbacksAndEnvironmentOverridesRemainUsable",
         "blobSha": "761c8192c8cae6c9d145c9f7a09dd99b1e5fc8fd"
       },
-      "rustEvidence": [],
+      "rustEvidence": [
+        {
+          "file": "crates/jftrade-engine/src/product_runtime_resources_tests.rs",
+          "test": "runtime_resources_declare_go_owners_and_derived_paths",
+          "crate": "jftrade-engine"
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_runtime_resources_tests.rs",
+          "test": "runtime_resources_keep_the_settings_directory_for_relative_paths",
+          "crate": "jftrade-engine"
+        }
+      ],
       "assertionCoverage": {
-        "covered": [],
-        "uncovered": [
-          "partial：Rust 保留 JFTRADE_EXCHANGE_CALENDAR_DIR、JFTRADE_ADK_SECRETS 覆盖与相对回退，但没有 Go 的 JFTRADE_ADK_SKILLS_DIR/JFTRADE_ADK_SESSION_DB 同名变量（Rust 用 JFTRADE_ADK_SKILLS 与 JFTRADE_ADK_SESSION_DB），也没有 envOrDefault/firstNonEmpty/besteffort 工具族，属实现形态差异。"
+        "covered": [
+          "runtime resource owners and derived paths",
+          "relative settings directory fallback"
         ],
-        "source": "legacy-conclusion"
+        "uncovered": [
+          "Go-specific envOrDefault/firstNonEmpty/besteffort helpers and legacy variable names"
+        ],
+        "source": "manual-review"
       },
       "verification": {
         "argv": [
@@ -41138,30 +41152,36 @@
           "-p",
           "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(runtime_resources_declare_go_owners_and_derived_paths) or test(runtime_resources_keep_the_settings_directory_for_relative_paths)"
         ],
-        "testFilter": [],
+        "testFilter": [
+          "runtime_resources_declare_go_owners_and_derived_paths",
+          "runtime_resources_keep_the_settings_directory_for_relative_paths"
+        ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
+        "status": "passed",
+        "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": null,
+        "verifiedAt": "2026-09-26T05:02:11Z",
         "receiptDigest": null
       },
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
       "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "blockedBy": [],
       "waiverExpiresAt": null,
-      "coveredAssertions": [],
-      "uncoveredAssertions": [
-        "partial：Rust 保留 JFTRADE_EXCHANGE_CALENDAR_DIR、JFTRADE_ADK_SECRETS 覆盖与相对回退，但没有 Go 的 JFTRADE_ADK_SKILLS_DIR/JFTRADE_ADK_SESSION_DB 同名变量（Rust 用 JFTRADE_ADK_SKILLS 与 JFTRADE_ADK_SESSION_DB），也没有 envOrDefault/firstNonEmpty/besteffort 工具族，属实现形态差异。"
+      "coveredAssertions": [
+        "runtime resource owners and derived paths",
+        "relative settings directory fallback"
       ],
-      "boundaryReason": null
+      "uncoveredAssertions": [
+        "Go-specific envOrDefault/firstNonEmpty/besteffort helpers and legacy variable names"
+      ],
+      "boundaryReason": "Go-specific environment helper names and legacy variables have no Rust equivalent."
     },
     "internal/app/apiserver/runtime/research_runtime_test.go:9:TestResearchDatabasePathAndRuntimeResource": {
       "status": "[x]",
@@ -46225,10 +46245,10 @@
         "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
+        "status": "passed",
+        "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": null,
+        "verifiedAt": "2026-09-26T05:02:11Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -47079,10 +47099,10 @@
         "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
+        "status": "passed",
+        "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": null,
+        "verifiedAt": "2026-09-26T05:02:11Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -49255,10 +49275,10 @@
         "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
+        "status": "passed",
+        "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": null,
+        "verifiedAt": "2026-09-26T05:02:11Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -51098,10 +51118,10 @@
         "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
+        "status": "passed",
+        "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": null,
+        "verifiedAt": "2026-09-26T05:02:11Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -63019,10 +63039,10 @@
         "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
+        "status": "passed",
+        "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": null,
+        "verifiedAt": "2026-09-26T05:02:11Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -71874,10 +71894,10 @@
         "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
+        "status": "passed",
+        "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": null,
+        "verifiedAt": "2026-09-26T05:02:11Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -72122,10 +72142,10 @@
         "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
+        "status": "passed",
+        "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": null,
+        "verifiedAt": "2026-09-26T05:02:11Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -75734,10 +75754,10 @@
         "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
+        "status": "passed",
+        "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": null,
+        "verifiedAt": "2026-09-26T05:02:11Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -76176,10 +76196,10 @@
         "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
+        "status": "passed",
+        "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": null,
+        "verifiedAt": "2026-09-26T05:02:11Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -84705,10 +84725,10 @@
         "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
+        "status": "passed",
+        "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": null,
+        "verifiedAt": "2026-09-26T05:02:11Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -91124,10 +91144,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
+        "status": "passed",
+        "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": null,
+        "verifiedAt": "2026-09-26T05:02:11Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -93130,10 +93150,10 @@
         "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
+        "status": "passed",
+        "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": null,
+        "verifiedAt": "2026-09-26T05:02:11Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -107660,10 +107680,10 @@
         "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
+        "status": "passed",
+        "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": null,
+        "verifiedAt": "2026-09-26T05:02:11Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -138591,24 +138611,31 @@
       "boundaryReason": "boundary：Rust 的查询/订阅包装由各领域 adapter（basic_quote_query、kline_query、security_snapshot_query）与 fake framed OpenD runtime 测试覆盖；Go 该测试编排的「无 lease 查询→SubscriptionRequiredError、订阅后放行、无效/零价/空结果报错、SubscriptionState desiredCount」在 Rust 中分散到各有界 adapter，且错误为结构化枚举而非 errors.As 链，故不迁移为单一等价测试"
     },
     "internal/integration/futu/marketdata_runtime_opend_test.go:226:TestMarketDataRuntimePreservesRealtimeTicksWhenDelayedFallbackFails": {
-      "status": "[~]",
-      "rust_entry": "",
-      "conclusion": "Rust 功能缺失：Go 断言混合查询时延迟 fallback 失败不得丢弃已成功的实时报价（只有 fallback 标的单独失败时才把原始错误上抛）。Rust 尚无 mixed realtime/delayed 查询编排与 SnapshotFallbackSource port，缺少可观测的失败恢复语义，故保留为功能缺失而非测试缺口。分区契约已由 fallback_instruments_are_filtered_from_the_push_stream 覆盖",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(fallback_instruments_are_filtered_from_the_push_stream)'",
-      "evidence_type": "boundary",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::trade_runtime_security_snapshots_preserves_realtime_when_delayed_fallback_fails",
+      "conclusion": "function_exact：Go 混合 QueryTickers 在 delayed fallback 失败时保留已成功的 realtime quote；fallback-only 请求继续返回原始 StockScreen 错误。Rust SharedTradeReadRuntime 现在保留已有结果、保存 delayed 错误并在没有任何可用结果时上抛；回归测试同时断言 mixed 与 fallback-only 两条路径。",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(trade_runtime_security_snapshots_preserves_realtime_when_delayed_fallback_fails)'",
+      "evidence_type": "function_exact",
       "source": {
         "file": "internal/integration/futu/marketdata_runtime_opend_test.go",
         "line": 226,
         "test": "TestMarketDataRuntimePreservesRealtimeTicksWhenDelayedFallbackFails",
         "blobSha": "c5eed01177e39546c3d5708b284de2018140bee1"
       },
-      "rustEvidence": [],
+      "rustEvidence": [
+        {
+          "file": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs",
+          "test": "trade_runtime_security_snapshots_preserves_realtime_when_delayed_fallback_fails",
+          "crate": "jftrade-engine"
+        }
+      ],
       "assertionCoverage": {
-        "covered": [],
-        "uncovered": [
-          "Rust 功能缺失：Go 断言混合查询时延迟 fallback 失败不得丢弃已成功的实时报价（只有 fallback 标的单独失败时才把原始错误上抛）。Rust 尚无 mixed realtime/delayed 查询编排与 SnapshotFallbackSource port，缺少可观测的失败恢复语义，故保留为功能缺失而非测试缺口。分区契约已由 fallback_instruments_are_filtered_from_the_push_stream 覆盖"
+        "covered": [
+          "mixed realtime rows are preserved when delayed fallback errors",
+          "fallback-only query surfaces the original StockScreen error"
         ],
-        "source": "legacy-conclusion"
+        "uncovered": [],
+        "source": "manual-review"
       },
       "verification": {
         "argv": [
@@ -138616,32 +138643,35 @@
           "scripts/quality/cargo-nextest.mjs",
           "run",
           "-p",
-          "jftrade-integration-futu",
+          "jftrade-engine",
+          "--all-targets",
+          "--locked",
           "-E",
-          "test(fallback_instruments_are_filtered_from_the_push_stream)"
+          "test(trade_runtime_security_snapshots_preserves_realtime_when_delayed_fallback_fails)"
         ],
-        "testFilter": [],
+        "testFilter": [
+          "trade_runtime_security_snapshots_preserves_realtime_when_delayed_fallback_fails"
+        ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
+        "status": "passed",
+        "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": null,
+        "verifiedAt": "2026-09-26T05:02:11Z",
         "receiptDigest": null
       },
       "risk": "high",
       "owner": "futu_opend",
       "priority": "P1",
       "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "blockedBy": [],
       "waiverExpiresAt": null,
-      "coveredAssertions": [],
-      "uncoveredAssertions": [
-        "Rust 功能缺失：Go 断言混合查询时延迟 fallback 失败不得丢弃已成功的实时报价（只有 fallback 标的单独失败时才把原始错误上抛）。Rust 尚无 mixed realtime/delayed 查询编排与 SnapshotFallbackSource port，缺少可观测的失败恢复语义，故保留为功能缺失而非测试缺口。分区契约已由 fallback_instruments_are_filtered_from_the_push_stream 覆盖"
+      "coveredAssertions": [
+        "mixed realtime rows are preserved when delayed fallback errors",
+        "fallback-only query surfaces the original StockScreen error"
       ],
-      "boundaryReason": "Rust 功能缺失：Go 断言混合查询时延迟 fallback 失败不得丢弃已成功的实时报价（只有 fallback 标的单独失败时才把原始错误上抛）。Rust 尚无 mixed realtime/delayed 查询编排与 SnapshotFallbackSource port，缺少可观测的失败恢复语义，故保留为功能缺失而非测试缺口。分区契约已由 fallback_instruments_are_filtered_from_the_push_stream 覆盖"
+      "uncoveredAssertions": [],
+      "boundaryReason": null
     },
     "internal/integration/futu/marketdata_runtime_opend_test.go:275:TestTranslateSubscriptionRequiredErrorPreservesBrokerNeutralLeaseDetails": {
       "status": "[~]",
@@ -139563,10 +139593,10 @@
         "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
+        "status": "passed",
+        "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": null,
+        "verifiedAt": "2026-09-26T05:02:11Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -180591,10 +180621,10 @@
         "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
+        "status": "passed",
+        "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": null,
+        "verifiedAt": "2026-09-26T05:02:11Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -180715,10 +180745,10 @@
         "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
+        "status": "passed",
+        "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": null,
+        "verifiedAt": "2026-09-26T05:02:11Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -186782,10 +186812,10 @@
         "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
+        "status": "passed",
+        "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": null,
+        "verifiedAt": "2026-09-26T05:02:11Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -186929,10 +186959,10 @@
         "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
+        "status": "passed",
+        "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": null,
+        "verifiedAt": "2026-09-26T05:02:11Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -187287,10 +187317,10 @@
         "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
+        "status": "passed",
+        "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": null,
+        "verifiedAt": "2026-09-26T05:02:11Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -187340,10 +187370,10 @@
         "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
+        "status": "passed",
+        "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": null,
+        "verifiedAt": "2026-09-26T05:02:11Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -187393,10 +187423,10 @@
         "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
+        "status": "passed",
+        "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": null,
+        "verifiedAt": "2026-09-26T05:02:11Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -191393,10 +191423,10 @@
         "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
+        "status": "passed",
+        "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": null,
+        "verifiedAt": "2026-09-26T05:02:11Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -192862,10 +192892,10 @@
         "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
+        "status": "passed",
+        "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": null,
+        "verifiedAt": "2026-09-26T05:02:11Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -268399,9 +268429,9 @@
     },
     "pkg/strategy/pine/compiler_and_security_diagnostics_test.go:44:TestRequestSecurityPurityCoversOptionalAndBuiltinRecovery": {
       "status": "[~]",
-      "rust_entry": "",
-      "conclusion": "partial：Go 断言 request-security 纯度助手（stoch 参数不足拒绝、未解析 token 拒绝、len/collection_array_get/元组判定为非纯、可选成员链 market?.snapshot.close 与 min(close, open) 判定为纯）。Rust 探针：market?.snapshot.close 在解析层报 PINE_EXPRESSION_INVALID（可选链语法未实现）、min(close, open) 被 PINE_CALL_UNSUPPORTED 拒绝（Go 视其为允许的纯内建）、market.snapshot.close 被接受并退化为 security: 兜底键。缺口（P1）：security 内允许的纯内建白名单与可选成员链，owner crates/jftrade-strategy/src/pine/semantic.rs 与 planner.rs；回归要求：先加失败回归测试。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
+      "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs::compile_accepts_pure_min_request_security_expression; crates/jftrade-strategy/src/pine/semantic.rs",
+      "conclusion": "partial：Rust 已接受 min(close, open) 作为 request.security 的纯内建表达式，并有回归测试；Go 的 market?.snapshot.close 可选成员链与编辑器 lowering/purity helper 仍无 Rust 等价解析面，故保留 partial。",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked -E 'test(compile_accepts_pure_min_request_security_expression)'",
       "evidence_type": "partial",
       "source": {
         "file": "pkg/strategy/pine/compiler_and_security_diagnostics_test.go",
@@ -268409,13 +268439,21 @@
         "test": "TestRequestSecurityPurityCoversOptionalAndBuiltinRecovery",
         "blobSha": "aec0e046f2e2d6491268063f219d0c28d62b0126"
       },
-      "rustEvidence": [],
+      "rustEvidence": [
+        {
+          "file": "crates/jftrade-strategy/src/pine/mod.rs",
+          "test": "compile_accepts_pure_min_request_security_expression",
+          "crate": "jftrade-strategy"
+        }
+      ],
       "assertionCoverage": {
-        "covered": [],
-        "uncovered": [
-          "partial：Go 断言 request-security 纯度助手（stoch 参数不足拒绝、未解析 token 拒绝、len/collection_array_get/元组判定为非纯、可选成员链 market?.snapshot.close 与 min(close, open) 判定为纯）。Rust 探针：market?.snapshot.close 在解析层报 PINE_EXPRESSION_INVALID（可选链语法未实现）、min(close, open) 被 PINE_CALL_UNSUPPORTED 拒绝（Go 视其为允许的纯内建）、market.snapshot.close 被接受并退化为 security: 兜底键。缺口（P1）：security 内允许的纯内建白名单与可选成员链，owner crates/jftrade-strategy/src/pine/semantic.rs 与 planner.rs；回归要求：先加失败回归测试。"
+        "covered": [
+          "min(close, open) is accepted as a pure request.security expression"
         ],
-        "source": "legacy-conclusion"
+        "uncovered": [
+          "optional member-chain purity and editor lowering helpers"
+        ],
+        "source": "manual-review"
       },
       "verification": {
         "argv": [
@@ -268425,30 +268463,34 @@
           "-p",
           "jftrade-strategy",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(compile_accepts_pure_min_request_security_expression)"
         ],
-        "testFilter": [],
+        "testFilter": [
+          "compile_accepts_pure_min_request_security_expression"
+        ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
+        "status": "passed",
+        "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": null,
+        "verifiedAt": "2026-09-26T05:02:11Z",
         "receiptDigest": null
       },
       "risk": "high",
       "owner": "strategy_pine",
       "priority": "P1",
       "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "blockedBy": [],
       "waiverExpiresAt": null,
-      "coveredAssertions": [],
-      "uncoveredAssertions": [
-        "partial：Go 断言 request-security 纯度助手（stoch 参数不足拒绝、未解析 token 拒绝、len/collection_array_get/元组判定为非纯、可选成员链 market?.snapshot.close 与 min(close, open) 判定为纯）。Rust 探针：market?.snapshot.close 在解析层报 PINE_EXPRESSION_INVALID（可选链语法未实现）、min(close, open) 被 PINE_CALL_UNSUPPORTED 拒绝（Go 视其为允许的纯内建）、market.snapshot.close 被接受并退化为 security: 兜底键。缺口（P1）：security 内允许的纯内建白名单与可选成员链，owner crates/jftrade-strategy/src/pine/semantic.rs 与 planner.rs；回归要求：先加失败回归测试。"
+      "coveredAssertions": [
+        "min(close, open) is accepted as a pure request.security expression"
       ],
-      "boundaryReason": null
+      "uncoveredAssertions": [
+        "optional member-chain purity and editor lowering helpers"
+      ],
+      "boundaryReason": "Optional member-chain and editor helper behavior has no Rust parser equivalent."
     },
     "pkg/strategy/pine/compiler_and_security_diagnostics_test.go:70:TestPineEditorRecoveryAndCapabilityEvidenceContracts": {
       "status": "[~]",
@@ -268483,10 +268525,10 @@
         "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
+        "status": "passed",
+        "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": null,
+        "verifiedAt": "2026-09-26T05:02:11Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -277697,9 +277739,9 @@
     },
     "pkg/strategy/pine/runtime_and_parser_boundaries_test.go:46:TestDynamicForBoundsUseRuntimeFallback": {
       "status": "[~]",
-      "rust_entry": "",
-      "conclusion": "partial：Go 断言动态 for 边界（close 下界、int(close) 步长）触发 errStaticForRuntimeFallback 交给运行时。Rust 把 for i = close to 5 降为 For 语句交由运行时执行（探针 ok=true，stmts=[for]），无哨兵错误对象。缺口（P2）：by int(close) 步长在 Rust 被 PINE_CALL_UNSUPPORTED 拒绝（int() 转换未支持），Go 走运行时回退；修复位置：crates/jftrade-strategy/src/pine/semantic.rs 内建转换表与 parser for 头解析；回归：动态步长 for 用例。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
+      "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs::compile_accepts_dynamic_integer_for_step; crates/jftrade-strategy/src/pine/semantic.rs",
+      "conclusion": "partial：Rust 已接受动态 int(close) for 步长并将非常量边界保留为运行时 For，有回归测试；Go 的 errStaticForRuntimeFallback 哨兵与 parseStaticForLoopSpec helper 没有 Rust 同形错误对象，仍保留 partial。",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked -E 'test(compile_accepts_dynamic_integer_for_step)'",
       "evidence_type": "partial",
       "source": {
         "file": "pkg/strategy/pine/runtime_and_parser_boundaries_test.go",
@@ -277707,13 +277749,21 @@
         "test": "TestDynamicForBoundsUseRuntimeFallback",
         "blobSha": "34454e46a7bc858a33bd4f4a7affac4fe027f9c9"
       },
-      "rustEvidence": [],
+      "rustEvidence": [
+        {
+          "file": "crates/jftrade-strategy/src/pine/mod.rs",
+          "test": "compile_accepts_dynamic_integer_for_step",
+          "crate": "jftrade-strategy"
+        }
+      ],
       "assertionCoverage": {
-        "covered": [],
-        "uncovered": [
-          "partial：Go 断言动态 for 边界（close 下界、int(close) 步长）触发 errStaticForRuntimeFallback 交给运行时。Rust 把 for i = close to 5 降为 For 语句交由运行时执行（探针 ok=true，stmts=[for]），无哨兵错误对象。缺口（P2）：by int(close) 步长在 Rust 被 PINE_CALL_UNSUPPORTED 拒绝（int() 转换未支持），Go 走运行时回退；修复位置：crates/jftrade-strategy/src/pine/semantic.rs 内建转换表与 parser for 头解析；回归：动态步长 for 用例。"
+        "covered": [
+          "dynamic int(close) step remains a runtime For statement"
         ],
-        "source": "legacy-conclusion"
+        "uncovered": [
+          "Go errStaticForRuntimeFallback sentinel and parseStaticForLoopSpec helper shape"
+        ],
+        "source": "manual-review"
       },
       "verification": {
         "argv": [
@@ -277723,30 +277773,34 @@
           "-p",
           "jftrade-strategy",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(compile_accepts_dynamic_integer_for_step)"
         ],
-        "testFilter": [],
+        "testFilter": [
+          "compile_accepts_dynamic_integer_for_step"
+        ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
+        "status": "passed",
+        "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": null,
+        "verifiedAt": "2026-09-26T05:02:11Z",
         "receiptDigest": null
       },
       "risk": "high",
       "owner": "strategy_pine",
       "priority": "P1",
       "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "blockedBy": [],
       "waiverExpiresAt": null,
-      "coveredAssertions": [],
-      "uncoveredAssertions": [
-        "partial：Go 断言动态 for 边界（close 下界、int(close) 步长）触发 errStaticForRuntimeFallback 交给运行时。Rust 把 for i = close to 5 降为 For 语句交由运行时执行（探针 ok=true，stmts=[for]），无哨兵错误对象。缺口（P2）：by int(close) 步长在 Rust 被 PINE_CALL_UNSUPPORTED 拒绝（int() 转换未支持），Go 走运行时回退；修复位置：crates/jftrade-strategy/src/pine/semantic.rs 内建转换表与 parser for 头解析；回归：动态步长 for 用例。"
+      "coveredAssertions": [
+        "dynamic int(close) step remains a runtime For statement"
       ],
-      "boundaryReason": null
+      "uncoveredAssertions": [
+        "Go errStaticForRuntimeFallback sentinel and parseStaticForLoopSpec helper shape"
+      ],
+      "boundaryReason": "Rust preserves runtime control flow without the Go sentinel error/helper object."
     },
     "pkg/strategy/pine/runtime_and_parser_boundaries_test.go:62:TestNormalizationPreservesInvalidUserSyntaxAndErrors": {
       "status": "[~]",
@@ -306306,13 +306360,14 @@
       "reviewStatus": "single"
     },
     "crates/jftrade-engine/src/product_runtime_resources_tests.rs::runtime_resources_declare_go_owners_and_derived_paths": {
-      "referenceCount": 5,
+      "referenceCount": 6,
       "referenceKeys": [
         "internal/app/apiserver/runtime/research_runtime_test.go:9:TestResearchDatabasePathAndRuntimeResource",
         "internal/app/apiserver/runtime/resources_test.go:9:TestRuntimeResourcesDeclareOwnersAndDerivedPaths",
         "internal/app/apiserver/servercore/server_runtime_side_effects_test.go:143:TestServerSettingsSideEffectsPropagateRuntimeChanges",
         "internal/app/apiserver/servercore/server_test.go:50:TestNewServerUsesStrategyRuntimeDBEnvOverride",
-        "internal/app/apiserver/servercoretest/frontend_test.go:157:TestStartForRunArgsInitializesRuntimeLayout"
+        "internal/app/apiserver/servercoretest/frontend_test.go:157:TestStartForRunArgsInitializesRuntimeLayout",
+        "internal/app/apiserver/runtime/environment_fallbacks_test.go:14:TestRuntimeFallbacksAndEnvironmentOverridesRemainUsable"
       ],
       "allowed": false,
       "reviewStatus": "unreviewed"
@@ -306326,12 +306381,13 @@
       "reviewStatus": "single"
     },
     "crates/jftrade-engine/src/product_runtime_resources_tests.rs::runtime_resources_keep_the_settings_directory_for_relative_paths": {
-      "referenceCount": 1,
+      "referenceCount": 2,
       "referenceKeys": [
-        "internal/app/apiserver/runtime/runtime_test.go:116:TestRuntimePathDerivationFallsBackForRelativeSettings"
+        "internal/app/apiserver/runtime/runtime_test.go:116:TestRuntimePathDerivationFallsBackForRelativeSettings",
+        "internal/app/apiserver/runtime/environment_fallbacks_test.go:14:TestRuntimeFallbacksAndEnvironmentOverridesRemainUsable"
       ],
-      "allowed": true,
-      "reviewStatus": "single"
+      "allowed": false,
+      "reviewStatus": "unreviewed"
     },
     "crates/jftrade-engine/src/product_runtime_supervisor.rs::ProductShutdownSupervisor": {
       "referenceCount": 1,
@@ -316891,6 +316947,30 @@
       "referenceCount": 1,
       "referenceKeys": [
         "pkg/futu/opend/new_methods_test.go:768:TestGetKLNullS2C"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::trade_runtime_security_snapshots_preserves_realtime_when_delayed_fallback_fails": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/integration/futu/marketdata_runtime_opend_test.go:226:TestMarketDataRuntimePreservesRealtimeTicksWhenDelayedFallbackFails"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-strategy/src/pine/mod.rs::compile_accepts_pure_min_request_security_expression": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "pkg/strategy/pine/compiler_and_security_diagnostics_test.go:44:TestRequestSecurityPurityCoversOptionalAndBuiltinRecovery"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-strategy/src/pine/mod.rs::compile_accepts_dynamic_integer_for_step": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "pkg/strategy/pine/runtime_and_parser_boundaries_test.go:46:TestDynamicForBoundsUseRuntimeFallback"
       ],
       "allowed": true,
       "reviewStatus": "single"

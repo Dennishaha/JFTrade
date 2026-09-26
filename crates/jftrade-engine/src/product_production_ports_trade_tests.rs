@@ -3443,6 +3443,46 @@ impl jftrade_integration_futu::SecuritySnapshotReadPort for FailingSecuritySnaps
     }
 }
 
+#[derive(Debug)]
+struct PartialSecuritySnapshotReader;
+
+impl jftrade_integration_futu::SecuritySnapshotReadPort for PartialSecuritySnapshotReader {
+    fn query(
+        &self,
+        instruments: &[String],
+    ) -> Result<Vec<jftrade_marketdata::BrokerSecuritySnapshot>, String> {
+        if !instruments.iter().any(|instrument| instrument == "US.AAPL") {
+            return Ok(Vec::new());
+        }
+        Ok(vec![jftrade_marketdata::BrokerSecuritySnapshot {
+            symbol: Some("US.AAPL".to_owned()),
+            market: Some("US".to_owned()),
+            last_price: Some("200".parse().expect("last price")),
+            ..Default::default()
+        }])
+    }
+}
+
+#[derive(Debug)]
+struct FailingSnapshotFallbackFetch;
+
+impl jftrade_integration_futu::SnapshotFallbackFetchPort for FailingSnapshotFallbackFetch {
+    fn static_info_ids(
+        &self,
+        _: &[String],
+    ) -> Result<Vec<jftrade_integration_futu::StockIdentity>, String> {
+        Err("StockScreen unavailable".to_owned())
+    }
+
+    fn stock_screen_page(
+        &self,
+        _: i64,
+        _: &[u64],
+    ) -> Result<Vec<jftrade_integration_futu::ScreenRow>, String> {
+        Err("StockScreen unavailable".to_owned())
+    }
+}
+
 #[test]
 fn trade_runtime_security_snapshots_falls_through_to_tick_cache_on_failure() {
     use jftrade_marketdata::Tick;
@@ -3482,6 +3522,48 @@ fn trade_runtime_security_snapshots_falls_through_to_tick_cache_on_failure() {
         .expect("should fall through to tick cache without aborting on reader error");
     assert_eq!(snapshots.len(), 1);
     assert_eq!(snapshots[0]["symbol"], "HK.00700");
+}
+
+#[test]
+fn trade_runtime_security_snapshots_preserves_realtime_when_delayed_fallback_fails() {
+    // Parity: go:452dea11:internal/integration/futu/marketdata_runtime_opend_test.go:226
+    // A delayed fallback failure must not discard a successful realtime row,
+    // while a fallback-only request keeps the original failure visible.
+    let runtime = SharedTradeReadRuntime::default();
+    runtime.set_security_snapshots(Some(Arc::new(PartialSecuritySnapshotReader)));
+    let coordinator = loopback_coordinator_for_snapshot_fallback();
+    runtime.set_snapshot_fallback(Some(Arc::new(
+        jftrade_integration_futu::StockScreenSnapshotFallback::with_reader(
+            Arc::new(FailingSnapshotFallbackFetch),
+            jftrade_integration_futu::StockScreenSnapshotCoordinator::new(),
+            Arc::clone(&coordinator),
+        ),
+    )));
+
+    let mixed = runtime
+        .security_snapshots(&[
+            TradeSecurity {
+                market: 11,
+                code: "AAPL".to_owned(),
+            },
+            TradeSecurity {
+                market: 21,
+                code: "600519".to_owned(),
+            },
+        ])
+        .expect("realtime result survives delayed failure");
+    assert_eq!(mixed.len(), 1);
+    assert_eq!(mixed[0]["symbol"], "US.AAPL");
+
+    let fallback_only = runtime
+        .security_snapshots(&[TradeSecurity {
+            market: 21,
+            code: "600519".to_owned(),
+        }])
+        .expect_err("fallback-only request preserves delayed failure");
+    assert!(fallback_only.contains("StockScreen unavailable"));
+
+    coordinator.lock().expect("lock").close().expect("close");
 }
 
 

@@ -110,9 +110,9 @@ impl SharedTradeReadRuntime {
         &self,
         results: &mut Vec<Value>,
         missing: Vec<&'a TradeSecurity>,
-    ) -> Vec<&'a TradeSecurity> {
+    ) -> (Vec<&'a TradeSecurity>, Option<String>) {
         if missing.is_empty() {
-            return missing;
+            return (missing, None);
         }
         let instruments = missing
             .iter()
@@ -122,12 +122,15 @@ impl SharedTradeReadRuntime {
             })
             .collect::<Vec<_>>();
         let Some(fallback) = self.snapshot_fallback() else {
-            return missing;
+            return (missing, None);
         };
-        let Ok(items) = fallback.query(&instruments) else {
-            // The primary read already failed for these instruments; a delayed
-            // failure must not replace that outcome with a different error.
-            return missing;
+        let items = match fallback.query(&instruments) {
+            Ok(items) => items,
+            Err(error) => {
+                // Keep successful realtime rows in mixed requests, while
+                // preserving the delayed error for fallback-only requests.
+                return (missing, Some(error.to_string()));
+            }
         };
         let resolved = items
             .iter()
@@ -136,13 +139,16 @@ impl SharedTradeReadRuntime {
         for item in &items {
             results.push(delayed_snapshot_value(item));
         }
-        missing
-            .into_iter()
-            .filter(|security| {
-                let code = security.code.trim().to_ascii_uppercase();
-                qot_market_label(security.market)
-                    .is_none_or(|market| !resolved.contains(&format!("{market}.{code}")))
-            })
-            .collect()
+        (
+            missing
+                .into_iter()
+                .filter(|security| {
+                    let code = security.code.trim().to_ascii_uppercase();
+                    qot_market_label(security.market)
+                        .is_none_or(|market| !resolved.contains(&format!("{market}.{code}")))
+                })
+                .collect(),
+            None,
+        )
     }
 }

@@ -2029,3 +2029,14 @@ ADK/Assistant 功能差异，先补失败回归测试再修改领域 owner。
 验证：动态生成过滤器运行 `pnpm run test:rust -- --no-fail-fast -E`（底层 `node scripts/quality/cargo-nextest.mjs run --workspace --all-targets --locked`），31/31 通过。
 
 下一片：改为优先 P1 高风险未验证条目，先处理明确缺少 Rust 独立测试或功能差异的项目，再回补剩余 P2 Futu/OpenD、MarketData/Quote、Storage/SQLite、Settings/Watchlist、API transport/MCP、Pine/Strategy 与 Backtest/Calendar 条目。
+
+## 第 226 批：P1 高风险 Futu fallback、运行时资源与 Pine 语义缺口
+
+| 复核 | Go 测试范围 | Rust 证据 | P | 结论 |
+| :---: | --- | --- | :---: | --- |
+| [x] | `internal/integration/futu/marketdata_runtime_opend_test.go:226:TestMarketDataRuntimePreservesRealtimeTicksWhenDelayedFallbackFails` | `trade_runtime_security_snapshots_preserves_realtime_when_delayed_fallback_fails` | P1 | function_exact：先红后修确认混合查询保留成功 realtime 行，fallback-only 请求保留原始 delayed 错误；修复 SharedTradeReadRuntime 的错误保存与空结果上抛。 |
+| [x] | `internal/app/apiserver/runtime/environment_fallbacks_test.go:14`; `internal/app/apiserver/servercore/notification_market_workflow_contracts_test.go:84`; `internal/app/apiserver/webaccess/auth_boundaries_test.go:195` | runtime resource/path owners and existing route/auth owners | P1 | partial：资源环境覆盖与相对路径有 Rust owner 证据；行情 payload helper 形态、登录期间设置代际栅栏仍保留差异，未升级 exact。 |
+| [x] | `pkg/strategy/pine/compiler_and_security_diagnostics_test.go:44`; `pkg/strategy/pine/runtime_and_parser_boundaries_test.go:46` | `compile_accepts_pure_min_request_security_expression`; `compile_accepts_dynamic_integer_for_step` | P1 | partial：先红后修补 `min`、`max`、`int` 内建并验证动态 for 可编译；可选成员链、Go sentinel/helper 仍无 Rust 同形解析面。 |
+| [x] | `cmd/check-go-coverage/changed_lines_analysis_test.go:71`; `cmd/check-go-coverage/profile_analysis_test.go:109`; `pkg/strategy/pine/compiler_and_security_diagnostics_test.go:70`; 其余本批 21 条 assistant、Futu、marketdataassets、instrument-cache 与旧 owner 边界 | Node policy checks、Rust runtime/resource/ADK/Futu boundary owners | P1 | boundary/partial：逐条复核并运行声明的命令；旧 Go/Wails helper、缓存目录、进程内单飞、ADK 轮询与 provider probe 等没有可迁移 Rust owner，继续保留 partial 或边界结论。 |
+
+本批共 30 条 P1 高风险映射；新增 Rust 测试 3 条，Futu fallback 与 Pine semantic 两处真实差异均执行先红后修。受影响 crate nextest 的专测通过；engine 全量 nextest 首次受既有并行 ADK approval 用例波动影响，单测重跑通过。审计完成后报告显示 1481 条 function_exact，0 duplicate exact、0 nonexistent crate、0 stale/unrecorded anchor；2 条历史 partial unresolved 仍保留为已知缺口。剩余 P1 高风险未验证项转入下一批，优先 auth generation fence、provider timeout、workflow wait 与 market query payload 的可补测试 owner。
