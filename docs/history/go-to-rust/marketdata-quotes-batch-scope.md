@@ -1840,3 +1840,19 @@ ADK/Assistant 功能差异，先补失败回归测试再修改领域 owner。
 验证：动态生成的 30 个过滤器运行 `pnpm run test:rust -- --no-fail-fast -E`（底层 `node scripts/quality/cargo-nextest.mjs run --workspace --all-targets --locked`），30/30 通过。
 
 下一片：继续剩余 P2 workflowexec/provider/runtime 条目，再转 API transport、MarketData/Quote、Storage/SQLite、Settings/Watchlist 与 Backtest/Calendar；helper/type-only、`optional_bool_strict`、P1 `session_context_snapshot` 及其他无独立 Rust 测试条目仍保持未验证结论。
+
+## 第 213 批：workflowexec、task tools、service facade 与 runtime 边界（2026-09-26）
+
+| 复核 | Go 测试范围 | Rust 证据 | P | 结论 |
+| :---: | --- | --- | :---: | --- |
+| [x] | `workflowexec/workflow_persistence_test.go:96`; `workflow_resume_approval_boundaries_test.go:13`; `workflow_resume_executor_boundaries_test.go:10,35,106,173` | iteration-limit pause persistence failure、delegated approval blocking、user pause fencing、delta sink/child provider failure 与 post-child pause | P2 | partial/boundary：Rust approval/run-CAS/chat-stream owners 覆盖 durable pause、pending approval 与 child failure；Go executor orchestration、SQLite trigger injection 和 callback sink 组合保持 partial。 |
+| [x] | `workflow_task_state_contracts_test.go:11,49`; `workflow_task_tools_boundaries_test.go:69`; `workflow_task_tools_lookup_test.go:10`; `workflow_task_tools_persistence_test.go:13,112` | interrupted workflow tool pruning、pending child/task state、task/memory CRUD and normalization、durable store failure propagation | P2 | partial：Rust task/memory/production-port owners 覆盖状态与校验；Go task tool registry、parent-plan refresh 和 injected persistence failures 仍是 facade 组合。 |
+| [x] | `runtime_test.go:48`; `timeline_helper_test.go:5`; `workflow_graph_resume_identity_test.go:5`; `workflow_plan_test.go:8,31,100`; `workflow_task_tools_test.go:8` | project-bound builtin catalog、pre-tool timeline projection、graph resume identity, deterministic ordering/readiness/cycle and approval policy | P2 | partial/boundary：Rust workflow/model/tool-policy owners 覆盖图语义、timeline 与低风险 gate；Go runtime assembly helper、presentation formatting 与 plan wrapper 不升级为 exact。 |
+| [x] | `service_builtin_agent_edit_test.go:10`; `service_business_helpers_test.go:22,145,189`; `service_business_test.go:12,169` | merged agent validation、skill error codes、unready runtime rejection、persisted metrics、failed-tool chat replay、snapshot fail-closed | P2 | partial：Rust production-port/assembly/tool-failure owners 覆盖业务校验、runtime readiness、metrics 与 replay；Go service method aggregation、provider/chat wrappers 和 test harness wiring 保持 partial。 |
+| [x] | `service_business_test.go:230,433`; `service_contract_boundaries_test.go:12,224,312` | CRUD/list/query snapshots、run cancel/pause/resume/approval wrappers、catalog audit, unavailable runtime boundary and idempotent close | P2 | partial/boundary：Rust read/assembly/store/shutdown owners 覆盖持久化、错误 fail-closed 与资源释放；Go service facade、GORM query pagination、audit aggregation 与 nil-runtime behavior 明确保留边界。 |
+
+本批 30 条 P2 Go 映射对应 **29 个去重后的证据过滤器**；其中 `test(approvals)` 为宽匹配，Rust nextest 实际 **39/39** 通过（3434 skipped）。workflowexec pause/approval/child failure、task/memory tools、graph/timeline/plan、service validation/readiness/metrics、CRUD/approval wrappers 与 shutdown boundaries 均有 owner 证据；结论保持 `partial`/`boundary`，未把宽匹配或聚合测试升级为 exact。未发现需要先红后修的真实 Rust 功能差异。
+
+验证：动态生成过滤器运行 `pnpm run test:rust -- --no-fail-fast -E`（底层 `node scripts/quality/cargo-nextest.mjs run --workspace --all-targets --locked`），39/39 通过。
+
+下一片：继续剩余 P2 Assistant/Workflow provider、runtime 与 API transport 条目，再覆盖 MarketData/Quote、Storage/SQLite、Settings/Watchlist、Backtest/Calendar 与 Strategy/Pine；helper/type-only、`optional_bool_strict`、P1 `session_context_snapshot` 及其他无独立 Rust 测试条目仍保持未验证结论。
