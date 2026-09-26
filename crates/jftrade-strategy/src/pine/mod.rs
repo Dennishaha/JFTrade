@@ -964,6 +964,10 @@ strategy.exit("Exit", "Long", stop=close - 2, trail_points=close * 4 / 100, trai
                 r#"strategy.exit("Exit", "Long")"#,
                 "PINE_ORDER_EXIT_ADVANCED_UNSUPPORTED",
             ),
+            (
+                r#"strategy.entry("Long", strategy.long, risk=1)"#,
+                "PINE_COMPILE_ERROR",
+            ),
             (r#"strategy.close_all(foo=1)"#, "PINE_COMPILE_ERROR"),
         ] {
             let source =
@@ -1147,6 +1151,11 @@ for i = close to 5 by int(close)
                 r#"x = request.security(syminfo.tickerid, "D", close, gaps=barmerge.gaps_on)"#,
                 "PINE_REQUEST_SECURITY_GAPS",
                 "gaps_on",
+            ),
+            (
+                r#"x = request.security(syminfo.tickerid, "D", ta.sum(close, 5))"#,
+                "PINE_REQUEST_SECURITY_EXPRESSION_UNSUPPORTED",
+                "ta.sum",
             ),
         ] {
             let source = format!("//@version=6\nstrategy(\"MTF\", overlay=true)\n{body}");

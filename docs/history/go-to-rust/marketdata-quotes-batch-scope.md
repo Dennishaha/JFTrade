@@ -2055,3 +2055,17 @@ ADK/Assistant 功能差异，先补失败回归测试再修改领域 owner。
 本批 15 条 P1 高风险条目全部完成 Go 断言与 Rust owner 复核，维持 `[~]` boundary/partial，不把旧 Wails、sidecar helper、nil receiver、PineTS object/collection 或 Go 内存 cache 行为宣称为 Rust 功能等价。相关 crate nextest：marketdata-helper 22/22、desktop 30/30、engine 75/75、strategy 108/108；架构检查通过。未发现需要先红后修的真实 Rust 功能差异。
 
 下一片：继续 P1/P2 中仍有真实 owner 缺口的 API transport、Assistant workflow/provider、Trading/Broker 与 MarketData/Quote 条目，再处理 Storage/SQLite、Settings/Watchlist 与 Backtest/Calendar 尾项。
+
+## 第 228 批：P1 策略生命周期与 Pine/Backtest 输入约束（2026-09-26）
+
+| 复核 | Go 测试范围 | Rust 证据 | P | 结论 |
+| :---: | --- | --- | :---: | --- |
+| [x] | `internal/strategy/catalog/activity_degraded_test.go:65`; `catalog_boundary_behavior_test.go:34,192`; `runtime_reconciliation_business_test.go:12,80,113` | strategy runtime activity, mutation and startup reconcile owners | P1 | partial/boundary：活动存储失败降级、旧 catalog 空值 helper、转换计数与观测富化仍按 Rust SQLite owner / fail-closed 语义登记，未把不同错误策略或聚合断言升为 exact。 |
+| [x] | `internal/strategy/live_command_business_boundaries_test.go:468,545`; `liveruntime/order_risk_business_test.go:135,216`; `pine_live_executor_test.go:428,443,601,648` | strategy runtime execution/cancel, order store and market-day owners | P1 | partial：撤单失败保留跟踪、别名去重、warning 身份回退、cancel-all 计数与美股扩展时段交易日边界仍有未复刻断言；Rust 继续以执行存储、审计与 calendar owner 表达，不宣称完全等价。 |
+| [x] | `internal/strategy/liveruntime/manager_boundaries_test.go:155`; `manager_close_test.go:86,188`; `nil_boundaries_test.go:10`; `subscription_lifecycle_test.go:14`; `symbol_failure_business_test.go:57` | provider selection, lifecycle bounded shutdown, strategy demand and cancellation owners | P1 | partial/boundary：精确 broker 选择、关闭错误聚合、后台同步先于 Pine session 的顺序、租约失败回滚、迟到回调与 Go nil receiver 形态逐条复核；Rust 有类型系统/有界停机/owner demand 证据，旧注入 seam 保持 partial。 |
+| [x] | `internal/strategy/pineruntime/recovery_contracts_test.go:9`; `runner_lifecycle_test.go:41,59,110,157`; `runtime_failure_contracts_test.go:30,146`; `runtime_test.go:165,278,344` | Pine process/readiness pool and live-session lifecycle owners | P1 | partial/boundary：取消 watcher、注册竞态、容量回滚、配置 fallback 与 runner close 有 Rust 专测；Go nil manager、launcher 注入与 session watcher 对象不在 Rust owner 中，未将相邻池测试提升为 exact。 |
+| [x] | `internal/api/backtest/routes_test.go:21`; `pkg/strategy/pine/parser_and_lowering_recovery_test.go:206`; `pkg/strategy/pine/validation_semantics_boundaries_test.go:29` | `sync_request_rejects_invalid_ranges_and_intervals`; `analyze_script_reports_v40_broker_boundary_diagnostics`; `request_security_rejects_unsupported_inner_ta_contracts` | P1/P2 | partial（本批先红后修）：Backtest 修复无市场前缀且含空白 symbol 错误回退默认 HK.00700；Pine 锁定未知下单命名参数与 request.security `ta.sum`/advanced TA 拒绝。HTTP route envelope 与 Go 私有 helper 仍保留 partial。 |
+
+本批共 **33 条映射**（30 条 P1 高风险策略生命周期/运行时，3 条输入约束回归）。真实差异先红后修：Backtest `normalize_sync_instrument` 收紧无市场 symbol；Pine 下单参数白名单与 request.security TA 子集均补回归。其余条目逐条复核 Rust owner、保留 partial/boundary 结论，不把跨 owner 或聚合测试升级为 exact。
+
+下一片：继续 P1 中 API transport、Assistant workflow/provider、Trading/Broker 与 MarketData/Quote 的真实 owner 缺口，再回补 Storage/SQLite、Settings/Watchlist 与 Backtest/Calendar 尾项。

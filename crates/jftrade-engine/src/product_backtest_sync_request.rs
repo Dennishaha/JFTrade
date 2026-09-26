@@ -266,7 +266,12 @@ fn normalize_sync_instrument(
         symbol_market.clone()
     } else if market.is_empty() {
         if code.is_empty() {
-            return Ok(("HK".to_owned(), "HK.00700".to_owned()));
+            if symbol.is_empty() {
+                return Ok(("HK".to_owned(), "HK.00700".to_owned()));
+            }
+            return Err(BacktestsWritePortError::BadRequest(
+                "market is required when symbol has no market prefix".to_owned(),
+            ));
         }
         return Err(BacktestsWritePortError::BadRequest(
             "market is required when symbol has no market prefix".to_owned(),

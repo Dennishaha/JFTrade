@@ -6991,7 +6991,7 @@
     "internal/api/backtest/routes_test.go:21:TestSyncRouteClassifiesRequestErrorsAsBadRequest": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_backtest_sync_start_tests.rs::sync_request_rejects_invalid_ranges_and_intervals",
-      "conclusion": "partial：Go 三条请求体（symbol 无市场前缀 `bad symbol`、since=\"bad\"、since>until）全部→400 BAD_REQUEST。Rust 该用例本批扩展后断言 since=\"bad\" 与倒置区间→BadRequest；缺口：`{\"symbol\":\"bad symbol\"}` 在 Rust 静默回退 HK.00700（normalize_sync_instrument 在 market/code 皆空时忽略传入 symbol），Go 返回 400，owner = product_backtest_sync_request.rs，需按 Go 收紧并补 400 回归。",
+      "conclusion": "partial：Rust 端口回归现已覆盖三条 Go 请求错误（symbol 无市场前缀且含空白、since=\"bad\"、since>until）并统一返回 BadRequest；本批修复了 symbol 非空时错误回退 HK.00700 的 owner 差异。仍保留 partial：Go 断言的是 HTTP route envelope（400/BAD_REQUEST），Rust 当前证据在请求解析 owner，未把同一断言提升为 route exact。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --locked -E 'test(sync_request_rejects_invalid_ranges_and_intervals)'",
       "evidence_type": "partial",
       "source": {
@@ -7005,18 +7005,13 @@
           "file": "crates/jftrade-engine/src/product_backtest_sync_start_tests.rs",
           "test": "sync_request_rejects_invalid_ranges_and_intervals",
           "crate": "jftrade-engine",
-          "anchor": {
-            "goFile": "internal/api/backtest/routes_test.go",
-            "goLine": 21,
-            "rustFile": "crates/jftrade-engine/src/product_backtest_sync_start_tests.rs",
-            "rustLine": 97
-          }
+          "anchor": null
         }
       ],
       "assertionCoverage": {
         "covered": [],
         "uncovered": [
-          "partial：Go 三条请求体（symbol 无市场前缀 `bad symbol`、since=\"bad\"、since>until）全部→400 BAD_REQUEST。Rust 该用例本批扩展后断言 since=\"bad\" 与倒置区间→BadRequest；缺口：`{\"symbol\":\"bad symbol\"}` 在 Rust 静默回退 HK.00700（normalize_sync_instrument 在 market/code 皆空时忽略传入 symbol），Go 返回 400，owner = product_backtest_sync_request.rs，需按 Go 收紧并补 400 回归。"
+          "partial：Rust 端口回归现已覆盖三条 Go 请求错误（symbol 无市场前缀且含空白、since=\"bad\"、since>until）并统一返回 BadRequest；本批修复了 symbol 非空时错误回退 HK.00700 的 owner 差异。仍保留 partial：Go 断言的是 HTTP route envelope（400/BAD_REQUEST），Rust 当前证据在请求解析 owner，未把同一断言提升为 route exact。"
         ],
         "source": "legacy-conclusion"
       },
@@ -7027,6 +7022,7 @@
           "run",
           "-p",
           "jftrade-engine",
+          "--all-targets",
           "--locked",
           "-E",
           "test(sync_request_rejects_invalid_ranges_and_intervals)"
@@ -7038,21 +7034,19 @@
         "toolchain": null,
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "f99b0b203c37999cfe65ceecaccb5fda3177d7ba",
-        "verifiedAt": "2026-09-25T14:47:25Z",
+        "verifiedCommit": null,
+        "verifiedAt": "2026-09-26T05:36:54Z",
         "receiptDigest": null
       },
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "route_envelope_review",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
-        "partial：Go 三条请求体（symbol 无市场前缀 `bad symbol`、since=\"bad\"、since>until）全部→400 BAD_REQUEST。Rust 该用例本批扩展后断言 since=\"bad\" 与倒置区间→BadRequest；缺口：`{\"symbol\":\"bad symbol\"}` 在 Rust 静默回退 HK.00700（normalize_sync_instrument 在 market/code 皆空时忽略传入 symbol），Go 返回 400，owner = product_backtest_sync_request.rs，需按 Go 收紧并补 400 回归。"
+        "partial：Rust 端口回归现已覆盖三条 Go 请求错误（symbol 无市场前缀且含空白、since=\"bad\"、since>until）并统一返回 BadRequest；本批修复了 symbol 非空时错误回退 HK.00700 的 owner 差异。仍保留 partial：Go 断言的是 HTTP route envelope（400/BAD_REQUEST），Rust 当前证据在请求解析 owner，未把同一断言提升为 route exact。"
       ],
       "boundaryReason": null
     },
@@ -251802,24 +251796,20 @@
           "-E",
           "test(exclusive_lock_conflicts_and_file_survives_release) or test(payload_and_session_event_commit_or_rollback_together) or test(test_p1_06_downgrade_strictly_rejected_at_all_layers) or test(catalog_activity_paging_and_filters_match_go_boundaries) or test(reconciliation_discovers_external_order_into_empty_ledger) or test(conformance_partial_full_fill_average_and_out_of_order_updates_hold) or test(reconciliation_snapshot_coverage_prevents_duplicate_fill_quantity) or test(reconciliation_snapshot_coverage_caps_partial_and_exhausted_credit) or test(reconciliation_rejects_terminal_and_partial_status_regressions) or test(reconciliation_cancel_submitted_resolves_fill_and_cancel_confirmation) or test(execution_order_concurrent_writes_and_reads_survive_reopen) or test(reconciliation_older_snapshot_fill_progress_is_accepted_with_monotonic_updated_at) or test(reconciliation_duplicate_terminal_snapshot_is_idempotent) or test(watchlist_group_mutations_are_revision_fenced_and_survive_restart) or test(watchlist_membership_mutations_and_preview_commit_lifecycle) or test(watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog) or test(watchlist_store_rejects_missing_drifted_and_corrupted_go_databases) or test(test_select_from_fs_treats_missing_and_empty_bundles_as_unavailable) or test(test_catalog_activity_returns_empty_pages_when_activity_store_is_unavailable) or test(binding_normalization_validates_execution_enums_and_nested_account) or test(sqlite_test_cutover_preserves_repeated_transitions_rollback_and_restart) or test(recovery_failure_converges_the_running_instance_to_stopped) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log) or test(startup_reconcile_resets_stale_paused_state_and_keeps_stopped_instances) or test(test_classified_strategy_errors_match_sentinel_kinds)"
         ],
-        "testFilter": [
-          "test_catalog_activity_returns_empty_pages_when_activity_store_is_unavailable"
-        ],
+        "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "ddefc0d6ab16dd454c8c12810aab6554386db9d7",
-        "verifiedAt": "2026-09-25T14:22:50Z",
+        "verifiedCommit": null,
+        "verifiedAt": "2026-09-26T05:36:54Z",
         "receiptDigest": null
       },
       "risk": "high",
       "owner": "strategy_pine",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "implement_or_document_boundary",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
@@ -251864,24 +251854,20 @@
           "-E",
           "test(exclusive_lock_conflicts_and_file_survives_release) or test(payload_and_session_event_commit_or_rollback_together) or test(test_p1_06_downgrade_strictly_rejected_at_all_layers) or test(catalog_activity_paging_and_filters_match_go_boundaries) or test(reconciliation_discovers_external_order_into_empty_ledger) or test(conformance_partial_full_fill_average_and_out_of_order_updates_hold) or test(reconciliation_snapshot_coverage_prevents_duplicate_fill_quantity) or test(reconciliation_snapshot_coverage_caps_partial_and_exhausted_credit) or test(reconciliation_rejects_terminal_and_partial_status_regressions) or test(reconciliation_cancel_submitted_resolves_fill_and_cancel_confirmation) or test(execution_order_concurrent_writes_and_reads_survive_reopen) or test(reconciliation_older_snapshot_fill_progress_is_accepted_with_monotonic_updated_at) or test(reconciliation_duplicate_terminal_snapshot_is_idempotent) or test(watchlist_group_mutations_are_revision_fenced_and_survive_restart) or test(watchlist_membership_mutations_and_preview_commit_lifecycle) or test(watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog) or test(watchlist_store_rejects_missing_drifted_and_corrupted_go_databases) or test(test_select_from_fs_treats_missing_and_empty_bundles_as_unavailable) or test(test_catalog_activity_returns_empty_pages_when_activity_store_is_unavailable) or test(binding_normalization_validates_execution_enums_and_nested_account) or test(sqlite_test_cutover_preserves_repeated_transitions_rollback_and_restart) or test(recovery_failure_converges_the_running_instance_to_stopped) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log) or test(startup_reconcile_resets_stale_paused_state_and_keeps_stopped_instances) or test(test_classified_strategy_errors_match_sentinel_kinds)"
         ],
-        "testFilter": [
-          "test_catalog_activity_returns_empty_pages_when_activity_store_is_unavailable"
-        ],
+        "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "ddefc0d6ab16dd454c8c12810aab6554386db9d7",
-        "verifiedAt": "2026-09-25T14:22:50Z",
+        "verifiedCommit": null,
+        "verifiedAt": "2026-09-26T05:36:54Z",
         "receiptDigest": null
       },
       "risk": "high",
       "owner": "strategy_pine",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "implement_or_document_boundary",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
@@ -252112,24 +252098,20 @@
           "-E",
           "test(exclusive_lock_conflicts_and_file_survives_release) or test(payload_and_session_event_commit_or_rollback_together) or test(test_p1_06_downgrade_strictly_rejected_at_all_layers) or test(catalog_activity_paging_and_filters_match_go_boundaries) or test(reconciliation_discovers_external_order_into_empty_ledger) or test(conformance_partial_full_fill_average_and_out_of_order_updates_hold) or test(reconciliation_snapshot_coverage_prevents_duplicate_fill_quantity) or test(reconciliation_snapshot_coverage_caps_partial_and_exhausted_credit) or test(reconciliation_rejects_terminal_and_partial_status_regressions) or test(reconciliation_cancel_submitted_resolves_fill_and_cancel_confirmation) or test(execution_order_concurrent_writes_and_reads_survive_reopen) or test(reconciliation_older_snapshot_fill_progress_is_accepted_with_monotonic_updated_at) or test(reconciliation_duplicate_terminal_snapshot_is_idempotent) or test(watchlist_group_mutations_are_revision_fenced_and_survive_restart) or test(watchlist_membership_mutations_and_preview_commit_lifecycle) or test(watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog) or test(watchlist_store_rejects_missing_drifted_and_corrupted_go_databases) or test(test_select_from_fs_treats_missing_and_empty_bundles_as_unavailable) or test(test_catalog_activity_returns_empty_pages_when_activity_store_is_unavailable) or test(binding_normalization_validates_execution_enums_and_nested_account) or test(sqlite_test_cutover_preserves_repeated_transitions_rollback_and_restart) or test(recovery_failure_converges_the_running_instance_to_stopped) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log) or test(startup_reconcile_resets_stale_paused_state_and_keeps_stopped_instances) or test(test_classified_strategy_errors_match_sentinel_kinds)"
         ],
-        "testFilter": [
-          "binding_normalization_validates_execution_enums_and_nested_account"
-        ],
+        "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "ddefc0d6ab16dd454c8c12810aab6554386db9d7",
-        "verifiedAt": "2026-09-25T14:22:50Z",
+        "verifiedCommit": null,
+        "verifiedAt": "2026-09-26T05:36:54Z",
         "receiptDigest": null
       },
       "risk": "high",
       "owner": "strategy_pine",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "implement_or_document_boundary",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
@@ -252918,24 +252900,20 @@
           "-E",
           "test(exclusive_lock_conflicts_and_file_survives_release) or test(payload_and_session_event_commit_or_rollback_together) or test(test_p1_06_downgrade_strictly_rejected_at_all_layers) or test(catalog_activity_paging_and_filters_match_go_boundaries) or test(reconciliation_discovers_external_order_into_empty_ledger) or test(conformance_partial_full_fill_average_and_out_of_order_updates_hold) or test(reconciliation_snapshot_coverage_prevents_duplicate_fill_quantity) or test(reconciliation_snapshot_coverage_caps_partial_and_exhausted_credit) or test(reconciliation_rejects_terminal_and_partial_status_regressions) or test(reconciliation_cancel_submitted_resolves_fill_and_cancel_confirmation) or test(execution_order_concurrent_writes_and_reads_survive_reopen) or test(reconciliation_older_snapshot_fill_progress_is_accepted_with_monotonic_updated_at) or test(reconciliation_duplicate_terminal_snapshot_is_idempotent) or test(watchlist_group_mutations_are_revision_fenced_and_survive_restart) or test(watchlist_membership_mutations_and_preview_commit_lifecycle) or test(watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog) or test(watchlist_store_rejects_missing_drifted_and_corrupted_go_databases) or test(test_select_from_fs_treats_missing_and_empty_bundles_as_unavailable) or test(test_catalog_activity_returns_empty_pages_when_activity_store_is_unavailable) or test(binding_normalization_validates_execution_enums_and_nested_account) or test(sqlite_test_cutover_preserves_repeated_transitions_rollback_and_restart) or test(recovery_failure_converges_the_running_instance_to_stopped) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log) or test(startup_reconcile_resets_stale_paused_state_and_keeps_stopped_instances) or test(test_classified_strategy_errors_match_sentinel_kinds)"
         ],
-        "testFilter": [
-          "sqlite_test_cutover_preserves_repeated_transitions_rollback_and_restart"
-        ],
+        "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "ddefc0d6ab16dd454c8c12810aab6554386db9d7",
-        "verifiedAt": "2026-09-25T14:22:50Z",
+        "verifiedCommit": null,
+        "verifiedAt": "2026-09-26T05:36:54Z",
         "receiptDigest": null
       },
       "risk": "high",
       "owner": "strategy_pine",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "implement_or_document_boundary",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
@@ -253064,24 +253042,20 @@
           "-E",
           "test(exclusive_lock_conflicts_and_file_survives_release) or test(payload_and_session_event_commit_or_rollback_together) or test(test_p1_06_downgrade_strictly_rejected_at_all_layers) or test(catalog_activity_paging_and_filters_match_go_boundaries) or test(reconciliation_discovers_external_order_into_empty_ledger) or test(conformance_partial_full_fill_average_and_out_of_order_updates_hold) or test(reconciliation_snapshot_coverage_prevents_duplicate_fill_quantity) or test(reconciliation_snapshot_coverage_caps_partial_and_exhausted_credit) or test(reconciliation_rejects_terminal_and_partial_status_regressions) or test(reconciliation_cancel_submitted_resolves_fill_and_cancel_confirmation) or test(execution_order_concurrent_writes_and_reads_survive_reopen) or test(reconciliation_older_snapshot_fill_progress_is_accepted_with_monotonic_updated_at) or test(reconciliation_duplicate_terminal_snapshot_is_idempotent) or test(watchlist_group_mutations_are_revision_fenced_and_survive_restart) or test(watchlist_membership_mutations_and_preview_commit_lifecycle) or test(watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog) or test(watchlist_store_rejects_missing_drifted_and_corrupted_go_databases) or test(test_select_from_fs_treats_missing_and_empty_bundles_as_unavailable) or test(test_catalog_activity_returns_empty_pages_when_activity_store_is_unavailable) or test(binding_normalization_validates_execution_enums_and_nested_account) or test(sqlite_test_cutover_preserves_repeated_transitions_rollback_and_restart) or test(recovery_failure_converges_the_running_instance_to_stopped) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log) or test(startup_reconcile_resets_stale_paused_state_and_keeps_stopped_instances) or test(test_classified_strategy_errors_match_sentinel_kinds)"
         ],
-        "testFilter": [
-          "startup_reconcile_resets_stale_paused_state_and_keeps_stopped_instances"
-        ],
+        "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "ddefc0d6ab16dd454c8c12810aab6554386db9d7",
-        "verifiedAt": "2026-09-25T14:22:50Z",
+        "verifiedCommit": null,
+        "verifiedAt": "2026-09-26T05:36:54Z",
         "receiptDigest": null
       },
       "risk": "high",
       "owner": "strategy_pine",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "implement_or_document_boundary",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
@@ -253131,24 +253105,20 @@
           "-E",
           "test(exclusive_lock_conflicts_and_file_survives_release) or test(payload_and_session_event_commit_or_rollback_together) or test(test_p1_06_downgrade_strictly_rejected_at_all_layers) or test(catalog_activity_paging_and_filters_match_go_boundaries) or test(reconciliation_discovers_external_order_into_empty_ledger) or test(conformance_partial_full_fill_average_and_out_of_order_updates_hold) or test(reconciliation_snapshot_coverage_prevents_duplicate_fill_quantity) or test(reconciliation_snapshot_coverage_caps_partial_and_exhausted_credit) or test(reconciliation_rejects_terminal_and_partial_status_regressions) or test(reconciliation_cancel_submitted_resolves_fill_and_cancel_confirmation) or test(execution_order_concurrent_writes_and_reads_survive_reopen) or test(reconciliation_older_snapshot_fill_progress_is_accepted_with_monotonic_updated_at) or test(reconciliation_duplicate_terminal_snapshot_is_idempotent) or test(watchlist_group_mutations_are_revision_fenced_and_survive_restart) or test(watchlist_membership_mutations_and_preview_commit_lifecycle) or test(watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog) or test(watchlist_store_rejects_missing_drifted_and_corrupted_go_databases) or test(test_select_from_fs_treats_missing_and_empty_bundles_as_unavailable) or test(test_catalog_activity_returns_empty_pages_when_activity_store_is_unavailable) or test(binding_normalization_validates_execution_enums_and_nested_account) or test(sqlite_test_cutover_preserves_repeated_transitions_rollback_and_restart) or test(recovery_failure_converges_the_running_instance_to_stopped) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log) or test(startup_reconcile_resets_stale_paused_state_and_keeps_stopped_instances) or test(test_classified_strategy_errors_match_sentinel_kinds)"
         ],
-        "testFilter": [
-          "catalog_activity_paging_and_filters_match_go_boundaries"
-        ],
+        "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "ddefc0d6ab16dd454c8c12810aab6554386db9d7",
-        "verifiedAt": "2026-09-25T14:22:50Z",
+        "verifiedCommit": null,
+        "verifiedAt": "2026-09-26T05:36:54Z",
         "receiptDigest": null
       },
       "risk": "high",
       "owner": "strategy_pine",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "implement_or_document_boundary",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
@@ -254699,24 +254669,20 @@
           "-E",
           "test(test_normalize_broker_account_drops_empty_input) or test(market_rules_ignore_missing_non_positive_and_non_finite_constraints) or test(test_execute_strategy_intents_cancel_all_queries_and_cancels_active_orders) or test(explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback) or test(test_strategy_runtime_idempotent_lifecycle_operations) or test(test_strategy_stop_bounded_timeout_on_synchronously_blocking_task) or test(strategy_market_day_start_follows_the_order_market_timezone) or test(pine_runtime_checkpoint_restores_latest_bar_and_intent_keys) or test(close_rejects_a_different_session_or_a_stale_explicit_revision) or test(start_request_accepts_explicit_market_and_code_without_symbol) or test(strategy_runtime_holds_exact_kline_demand_until_stop_and_shutdown) or test(timed_out_stop_keeps_owner_and_releases_store_during_blocking_quote_io) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(test_execute_strategy_intents_success_calls_execution_and_audits) or test(monitor_shutdown_marks_state_and_joins_task) or test(live_sessions_are_pinned_and_open_failure_rolls_back) or test(closing_a_live_session_releases_its_pin) or test(runtime_path_precedence_prefers_settings_then_worker_env_then_legacy_binary) or test(stopped_state_ignores_late_health_success) or test(test_select_from_fs_returns_embedded_bundle_metadata) or test(live_session_contract_requires_identity_mode_and_revisions) or test(validates_loopback_worker_boundary_before_spawn) or test(strategy_market_day_start_follows_dst_transition) or test(validation_payload_matches_go_owner_field_set_and_defaults_requirements)"
         ],
-        "testFilter": [
-          "market_rules_ignore_missing_non_positive_and_non_finite_constraints"
-        ],
+        "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "69eb6c90291cb93f07cd9cc0038ea1f793eb1a62",
-        "verifiedAt": "2026-09-25T14:24:29Z",
+        "verifiedCommit": null,
+        "verifiedAt": "2026-09-26T05:36:54Z",
         "receiptDigest": null
       },
       "risk": "high",
       "owner": "strategy_pine",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "implement_or_document_boundary",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
@@ -254823,24 +254789,20 @@
           "-E",
           "test(test_normalize_broker_account_drops_empty_input) or test(market_rules_ignore_missing_non_positive_and_non_finite_constraints) or test(test_execute_strategy_intents_cancel_all_queries_and_cancels_active_orders) or test(explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback) or test(test_strategy_runtime_idempotent_lifecycle_operations) or test(test_strategy_stop_bounded_timeout_on_synchronously_blocking_task) or test(strategy_market_day_start_follows_the_order_market_timezone) or test(pine_runtime_checkpoint_restores_latest_bar_and_intent_keys) or test(close_rejects_a_different_session_or_a_stale_explicit_revision) or test(start_request_accepts_explicit_market_and_code_without_symbol) or test(strategy_runtime_holds_exact_kline_demand_until_stop_and_shutdown) or test(timed_out_stop_keeps_owner_and_releases_store_during_blocking_quote_io) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(test_execute_strategy_intents_success_calls_execution_and_audits) or test(monitor_shutdown_marks_state_and_joins_task) or test(live_sessions_are_pinned_and_open_failure_rolls_back) or test(closing_a_live_session_releases_its_pin) or test(runtime_path_precedence_prefers_settings_then_worker_env_then_legacy_binary) or test(stopped_state_ignores_late_health_success) or test(test_select_from_fs_returns_embedded_bundle_metadata) or test(live_session_contract_requires_identity_mode_and_revisions) or test(validates_loopback_worker_boundary_before_spawn) or test(strategy_market_day_start_follows_dst_transition) or test(validation_payload_matches_go_owner_field_set_and_defaults_requirements)"
         ],
-        "testFilter": [
-          "test_execute_strategy_intents_cancel_all_queries_and_cancels_active_orders"
-        ],
+        "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "69eb6c90291cb93f07cd9cc0038ea1f793eb1a62",
-        "verifiedAt": "2026-09-25T14:24:29Z",
+        "verifiedCommit": null,
+        "verifiedAt": "2026-09-26T05:36:54Z",
         "receiptDigest": null
       },
       "risk": "high",
       "owner": "strategy_pine",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "implement_or_document_boundary",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
@@ -255133,24 +255095,20 @@
           "-E",
           "test(test_normalize_broker_account_drops_empty_input) or test(market_rules_ignore_missing_non_positive_and_non_finite_constraints) or test(test_execute_strategy_intents_cancel_all_queries_and_cancels_active_orders) or test(explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback) or test(test_strategy_runtime_idempotent_lifecycle_operations) or test(test_strategy_stop_bounded_timeout_on_synchronously_blocking_task) or test(strategy_market_day_start_follows_the_order_market_timezone) or test(pine_runtime_checkpoint_restores_latest_bar_and_intent_keys) or test(close_rejects_a_different_session_or_a_stale_explicit_revision) or test(start_request_accepts_explicit_market_and_code_without_symbol) or test(strategy_runtime_holds_exact_kline_demand_until_stop_and_shutdown) or test(timed_out_stop_keeps_owner_and_releases_store_during_blocking_quote_io) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(test_execute_strategy_intents_success_calls_execution_and_audits) or test(monitor_shutdown_marks_state_and_joins_task) or test(live_sessions_are_pinned_and_open_failure_rolls_back) or test(closing_a_live_session_releases_its_pin) or test(runtime_path_precedence_prefers_settings_then_worker_env_then_legacy_binary) or test(stopped_state_ignores_late_health_success) or test(test_select_from_fs_returns_embedded_bundle_metadata) or test(live_session_contract_requires_identity_mode_and_revisions) or test(validates_loopback_worker_boundary_before_spawn) or test(strategy_market_day_start_follows_dst_transition) or test(validation_payload_matches_go_owner_field_set_and_defaults_requirements)"
         ],
-        "testFilter": [
-          "explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback"
-        ],
+        "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "69eb6c90291cb93f07cd9cc0038ea1f793eb1a62",
-        "verifiedAt": "2026-09-25T14:24:29Z",
+        "verifiedCommit": null,
+        "verifiedAt": "2026-09-26T05:36:54Z",
         "receiptDigest": null
       },
       "risk": "high",
       "owner": "strategy_pine",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "implement_or_document_boundary",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
@@ -255567,24 +255525,20 @@
           "-E",
           "test(test_normalize_broker_account_drops_empty_input) or test(market_rules_ignore_missing_non_positive_and_non_finite_constraints) or test(test_execute_strategy_intents_cancel_all_queries_and_cancels_active_orders) or test(explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback) or test(test_strategy_runtime_idempotent_lifecycle_operations) or test(test_strategy_stop_bounded_timeout_on_synchronously_blocking_task) or test(strategy_market_day_start_follows_the_order_market_timezone) or test(pine_runtime_checkpoint_restores_latest_bar_and_intent_keys) or test(close_rejects_a_different_session_or_a_stale_explicit_revision) or test(start_request_accepts_explicit_market_and_code_without_symbol) or test(strategy_runtime_holds_exact_kline_demand_until_stop_and_shutdown) or test(timed_out_stop_keeps_owner_and_releases_store_during_blocking_quote_io) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(test_execute_strategy_intents_success_calls_execution_and_audits) or test(monitor_shutdown_marks_state_and_joins_task) or test(live_sessions_are_pinned_and_open_failure_rolls_back) or test(closing_a_live_session_releases_its_pin) or test(runtime_path_precedence_prefers_settings_then_worker_env_then_legacy_binary) or test(stopped_state_ignores_late_health_success) or test(test_select_from_fs_returns_embedded_bundle_metadata) or test(live_session_contract_requires_identity_mode_and_revisions) or test(validates_loopback_worker_boundary_before_spawn) or test(strategy_market_day_start_follows_dst_transition) or test(validation_payload_matches_go_owner_field_set_and_defaults_requirements)"
         ],
-        "testFilter": [
-          "test_strategy_runtime_idempotent_lifecycle_operations"
-        ],
+        "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "69eb6c90291cb93f07cd9cc0038ea1f793eb1a62",
-        "verifiedAt": "2026-09-25T14:24:29Z",
+        "verifiedCommit": null,
+        "verifiedAt": "2026-09-26T05:36:54Z",
         "receiptDigest": null
       },
       "risk": "high",
       "owner": "strategy_pine",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "implement_or_document_boundary",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
@@ -255691,24 +255645,20 @@
           "-E",
           "test(test_normalize_broker_account_drops_empty_input) or test(market_rules_ignore_missing_non_positive_and_non_finite_constraints) or test(test_execute_strategy_intents_cancel_all_queries_and_cancels_active_orders) or test(explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback) or test(test_strategy_runtime_idempotent_lifecycle_operations) or test(test_strategy_stop_bounded_timeout_on_synchronously_blocking_task) or test(strategy_market_day_start_follows_the_order_market_timezone) or test(pine_runtime_checkpoint_restores_latest_bar_and_intent_keys) or test(close_rejects_a_different_session_or_a_stale_explicit_revision) or test(start_request_accepts_explicit_market_and_code_without_symbol) or test(strategy_runtime_holds_exact_kline_demand_until_stop_and_shutdown) or test(timed_out_stop_keeps_owner_and_releases_store_during_blocking_quote_io) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(test_execute_strategy_intents_success_calls_execution_and_audits) or test(monitor_shutdown_marks_state_and_joins_task) or test(live_sessions_are_pinned_and_open_failure_rolls_back) or test(closing_a_live_session_releases_its_pin) or test(runtime_path_precedence_prefers_settings_then_worker_env_then_legacy_binary) or test(stopped_state_ignores_late_health_success) or test(test_select_from_fs_returns_embedded_bundle_metadata) or test(live_session_contract_requires_identity_mode_and_revisions) or test(validates_loopback_worker_boundary_before_spawn) or test(strategy_market_day_start_follows_dst_transition) or test(validation_payload_matches_go_owner_field_set_and_defaults_requirements)"
         ],
-        "testFilter": [
-          "test_strategy_stop_bounded_timeout_on_synchronously_blocking_task"
-        ],
+        "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "69eb6c90291cb93f07cd9cc0038ea1f793eb1a62",
-        "verifiedAt": "2026-09-25T14:24:29Z",
+        "verifiedCommit": null,
+        "verifiedAt": "2026-09-26T05:36:54Z",
         "receiptDigest": null
       },
       "risk": "high",
       "owner": "strategy_pine",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "implement_or_document_boundary",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
@@ -255752,13 +255702,13 @@
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": "2026-09-26T05:09:37Z",
+        "verifiedAt": "2026-09-26T05:36:54Z",
         "receiptDigest": null
       },
       "risk": "high",
       "owner": "strategy_pine",
       "priority": "P1",
-      "nextAction": "documented_boundary",
+      "nextAction": "implement_or_document_boundary",
       "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [],
@@ -256004,24 +255954,20 @@
           "-E",
           "test(test_normalize_broker_account_drops_empty_input) or test(market_rules_ignore_missing_non_positive_and_non_finite_constraints) or test(test_execute_strategy_intents_cancel_all_queries_and_cancels_active_orders) or test(explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback) or test(test_strategy_runtime_idempotent_lifecycle_operations) or test(test_strategy_stop_bounded_timeout_on_synchronously_blocking_task) or test(strategy_market_day_start_follows_the_order_market_timezone) or test(pine_runtime_checkpoint_restores_latest_bar_and_intent_keys) or test(close_rejects_a_different_session_or_a_stale_explicit_revision) or test(start_request_accepts_explicit_market_and_code_without_symbol) or test(strategy_runtime_holds_exact_kline_demand_until_stop_and_shutdown) or test(timed_out_stop_keeps_owner_and_releases_store_during_blocking_quote_io) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(test_execute_strategy_intents_success_calls_execution_and_audits) or test(monitor_shutdown_marks_state_and_joins_task) or test(live_sessions_are_pinned_and_open_failure_rolls_back) or test(closing_a_live_session_releases_its_pin) or test(runtime_path_precedence_prefers_settings_then_worker_env_then_legacy_binary) or test(stopped_state_ignores_late_health_success) or test(test_select_from_fs_returns_embedded_bundle_metadata) or test(live_session_contract_requires_identity_mode_and_revisions) or test(validates_loopback_worker_boundary_before_spawn) or test(strategy_market_day_start_follows_dst_transition) or test(validation_payload_matches_go_owner_field_set_and_defaults_requirements)"
         ],
-        "testFilter": [
-          "test_execute_strategy_intents_cancel_all_queries_and_cancels_active_orders"
-        ],
+        "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "69eb6c90291cb93f07cd9cc0038ea1f793eb1a62",
-        "verifiedAt": "2026-09-25T14:24:29Z",
+        "verifiedCommit": null,
+        "verifiedAt": "2026-09-26T05:36:54Z",
         "receiptDigest": null
       },
       "risk": "high",
       "owner": "strategy_pine",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "implement_or_document_boundary",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
@@ -256066,24 +256012,20 @@
           "-E",
           "test(test_normalize_broker_account_drops_empty_input) or test(market_rules_ignore_missing_non_positive_and_non_finite_constraints) or test(test_execute_strategy_intents_cancel_all_queries_and_cancels_active_orders) or test(explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback) or test(test_strategy_runtime_idempotent_lifecycle_operations) or test(test_strategy_stop_bounded_timeout_on_synchronously_blocking_task) or test(strategy_market_day_start_follows_the_order_market_timezone) or test(pine_runtime_checkpoint_restores_latest_bar_and_intent_keys) or test(close_rejects_a_different_session_or_a_stale_explicit_revision) or test(start_request_accepts_explicit_market_and_code_without_symbol) or test(strategy_runtime_holds_exact_kline_demand_until_stop_and_shutdown) or test(timed_out_stop_keeps_owner_and_releases_store_during_blocking_quote_io) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(test_execute_strategy_intents_success_calls_execution_and_audits) or test(monitor_shutdown_marks_state_and_joins_task) or test(live_sessions_are_pinned_and_open_failure_rolls_back) or test(closing_a_live_session_releases_its_pin) or test(runtime_path_precedence_prefers_settings_then_worker_env_then_legacy_binary) or test(stopped_state_ignores_late_health_success) or test(test_select_from_fs_returns_embedded_bundle_metadata) or test(live_session_contract_requires_identity_mode_and_revisions) or test(validates_loopback_worker_boundary_before_spawn) or test(strategy_market_day_start_follows_dst_transition) or test(validation_payload_matches_go_owner_field_set_and_defaults_requirements)"
         ],
-        "testFilter": [
-          "strategy_market_day_start_follows_the_order_market_timezone"
-        ],
+        "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "69eb6c90291cb93f07cd9cc0038ea1f793eb1a62",
-        "verifiedAt": "2026-09-25T14:24:29Z",
+        "verifiedCommit": null,
+        "verifiedAt": "2026-09-26T05:36:54Z",
         "receiptDigest": null
       },
       "risk": "high",
       "owner": "strategy_pine",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "implement_or_document_boundary",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
@@ -256195,24 +256137,20 @@
           "-E",
           "test(test_normalize_broker_account_drops_empty_input) or test(market_rules_ignore_missing_non_positive_and_non_finite_constraints) or test(test_execute_strategy_intents_cancel_all_queries_and_cancels_active_orders) or test(explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback) or test(test_strategy_runtime_idempotent_lifecycle_operations) or test(test_strategy_stop_bounded_timeout_on_synchronously_blocking_task) or test(strategy_market_day_start_follows_the_order_market_timezone) or test(pine_runtime_checkpoint_restores_latest_bar_and_intent_keys) or test(close_rejects_a_different_session_or_a_stale_explicit_revision) or test(start_request_accepts_explicit_market_and_code_without_symbol) or test(strategy_runtime_holds_exact_kline_demand_until_stop_and_shutdown) or test(timed_out_stop_keeps_owner_and_releases_store_during_blocking_quote_io) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(test_execute_strategy_intents_success_calls_execution_and_audits) or test(monitor_shutdown_marks_state_and_joins_task) or test(live_sessions_are_pinned_and_open_failure_rolls_back) or test(closing_a_live_session_releases_its_pin) or test(runtime_path_precedence_prefers_settings_then_worker_env_then_legacy_binary) or test(stopped_state_ignores_late_health_success) or test(test_select_from_fs_returns_embedded_bundle_metadata) or test(live_session_contract_requires_identity_mode_and_revisions) or test(validates_loopback_worker_boundary_before_spawn) or test(strategy_market_day_start_follows_dst_transition) or test(validation_payload_matches_go_owner_field_set_and_defaults_requirements)"
         ],
-        "testFilter": [
-          "pine_runtime_checkpoint_restores_latest_bar_and_intent_keys"
-        ],
+        "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "69eb6c90291cb93f07cd9cc0038ea1f793eb1a62",
-        "verifiedAt": "2026-09-25T14:24:29Z",
+        "verifiedCommit": null,
+        "verifiedAt": "2026-09-26T05:36:54Z",
         "receiptDigest": null
       },
       "risk": "high",
       "owner": "strategy_pine",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "implement_or_document_boundary",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
@@ -256443,24 +256381,20 @@
           "-E",
           "test(test_normalize_broker_account_drops_empty_input) or test(market_rules_ignore_missing_non_positive_and_non_finite_constraints) or test(test_execute_strategy_intents_cancel_all_queries_and_cancels_active_orders) or test(explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback) or test(test_strategy_runtime_idempotent_lifecycle_operations) or test(test_strategy_stop_bounded_timeout_on_synchronously_blocking_task) or test(strategy_market_day_start_follows_the_order_market_timezone) or test(pine_runtime_checkpoint_restores_latest_bar_and_intent_keys) or test(close_rejects_a_different_session_or_a_stale_explicit_revision) or test(start_request_accepts_explicit_market_and_code_without_symbol) or test(strategy_runtime_holds_exact_kline_demand_until_stop_and_shutdown) or test(timed_out_stop_keeps_owner_and_releases_store_during_blocking_quote_io) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(test_execute_strategy_intents_success_calls_execution_and_audits) or test(monitor_shutdown_marks_state_and_joins_task) or test(live_sessions_are_pinned_and_open_failure_rolls_back) or test(closing_a_live_session_releases_its_pin) or test(runtime_path_precedence_prefers_settings_then_worker_env_then_legacy_binary) or test(stopped_state_ignores_late_health_success) or test(test_select_from_fs_returns_embedded_bundle_metadata) or test(live_session_contract_requires_identity_mode_and_revisions) or test(validates_loopback_worker_boundary_before_spawn) or test(strategy_market_day_start_follows_dst_transition) or test(validation_payload_matches_go_owner_field_set_and_defaults_requirements)"
         ],
-        "testFilter": [
-          "close_rejects_a_different_session_or_a_stale_explicit_revision"
-        ],
+        "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "69eb6c90291cb93f07cd9cc0038ea1f793eb1a62",
-        "verifiedAt": "2026-09-25T14:24:29Z",
+        "verifiedCommit": null,
+        "verifiedAt": "2026-09-26T05:36:54Z",
         "receiptDigest": null
       },
       "risk": "high",
       "owner": "strategy_pine",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "implement_or_document_boundary",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
@@ -257054,24 +256988,20 @@
           "-E",
           "test(test_normalize_broker_account_drops_empty_input) or test(market_rules_ignore_missing_non_positive_and_non_finite_constraints) or test(test_execute_strategy_intents_cancel_all_queries_and_cancels_active_orders) or test(explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback) or test(test_strategy_runtime_idempotent_lifecycle_operations) or test(test_strategy_stop_bounded_timeout_on_synchronously_blocking_task) or test(strategy_market_day_start_follows_the_order_market_timezone) or test(pine_runtime_checkpoint_restores_latest_bar_and_intent_keys) or test(close_rejects_a_different_session_or_a_stale_explicit_revision) or test(start_request_accepts_explicit_market_and_code_without_symbol) or test(strategy_runtime_holds_exact_kline_demand_until_stop_and_shutdown) or test(timed_out_stop_keeps_owner_and_releases_store_during_blocking_quote_io) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(test_execute_strategy_intents_success_calls_execution_and_audits) or test(monitor_shutdown_marks_state_and_joins_task) or test(live_sessions_are_pinned_and_open_failure_rolls_back) or test(closing_a_live_session_releases_its_pin) or test(runtime_path_precedence_prefers_settings_then_worker_env_then_legacy_binary) or test(stopped_state_ignores_late_health_success) or test(test_select_from_fs_returns_embedded_bundle_metadata) or test(live_session_contract_requires_identity_mode_and_revisions) or test(validates_loopback_worker_boundary_before_spawn) or test(strategy_market_day_start_follows_dst_transition) or test(validation_payload_matches_go_owner_field_set_and_defaults_requirements)"
         ],
-        "testFilter": [
-          "start_request_accepts_explicit_market_and_code_without_symbol"
-        ],
+        "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "69eb6c90291cb93f07cd9cc0038ea1f793eb1a62",
-        "verifiedAt": "2026-09-25T14:24:29Z",
+        "verifiedCommit": null,
+        "verifiedAt": "2026-09-26T05:36:54Z",
         "receiptDigest": null
       },
       "risk": "high",
       "owner": "strategy_pine",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "implement_or_document_boundary",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
@@ -257240,24 +257170,20 @@
           "-E",
           "test(test_normalize_broker_account_drops_empty_input) or test(market_rules_ignore_missing_non_positive_and_non_finite_constraints) or test(test_execute_strategy_intents_cancel_all_queries_and_cancels_active_orders) or test(explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback) or test(test_strategy_runtime_idempotent_lifecycle_operations) or test(test_strategy_stop_bounded_timeout_on_synchronously_blocking_task) or test(strategy_market_day_start_follows_the_order_market_timezone) or test(pine_runtime_checkpoint_restores_latest_bar_and_intent_keys) or test(close_rejects_a_different_session_or_a_stale_explicit_revision) or test(start_request_accepts_explicit_market_and_code_without_symbol) or test(strategy_runtime_holds_exact_kline_demand_until_stop_and_shutdown) or test(timed_out_stop_keeps_owner_and_releases_store_during_blocking_quote_io) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(test_execute_strategy_intents_success_calls_execution_and_audits) or test(monitor_shutdown_marks_state_and_joins_task) or test(live_sessions_are_pinned_and_open_failure_rolls_back) or test(closing_a_live_session_releases_its_pin) or test(runtime_path_precedence_prefers_settings_then_worker_env_then_legacy_binary) or test(stopped_state_ignores_late_health_success) or test(test_select_from_fs_returns_embedded_bundle_metadata) or test(live_session_contract_requires_identity_mode_and_revisions) or test(validates_loopback_worker_boundary_before_spawn) or test(strategy_market_day_start_follows_dst_transition) or test(validation_payload_matches_go_owner_field_set_and_defaults_requirements)"
         ],
-        "testFilter": [
-          "strategy_runtime_holds_exact_kline_demand_until_stop_and_shutdown"
-        ],
+        "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "69eb6c90291cb93f07cd9cc0038ea1f793eb1a62",
-        "verifiedAt": "2026-09-25T14:24:29Z",
+        "verifiedCommit": null,
+        "verifiedAt": "2026-09-26T05:36:54Z",
         "receiptDigest": null
       },
       "risk": "high",
       "owner": "strategy_pine",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "implement_or_document_boundary",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
@@ -257488,24 +257414,20 @@
           "-E",
           "test(test_normalize_broker_account_drops_empty_input) or test(market_rules_ignore_missing_non_positive_and_non_finite_constraints) or test(test_execute_strategy_intents_cancel_all_queries_and_cancels_active_orders) or test(explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback) or test(test_strategy_runtime_idempotent_lifecycle_operations) or test(test_strategy_stop_bounded_timeout_on_synchronously_blocking_task) or test(strategy_market_day_start_follows_the_order_market_timezone) or test(pine_runtime_checkpoint_restores_latest_bar_and_intent_keys) or test(close_rejects_a_different_session_or_a_stale_explicit_revision) or test(start_request_accepts_explicit_market_and_code_without_symbol) or test(strategy_runtime_holds_exact_kline_demand_until_stop_and_shutdown) or test(timed_out_stop_keeps_owner_and_releases_store_during_blocking_quote_io) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(test_execute_strategy_intents_success_calls_execution_and_audits) or test(monitor_shutdown_marks_state_and_joins_task) or test(live_sessions_are_pinned_and_open_failure_rolls_back) or test(closing_a_live_session_releases_its_pin) or test(runtime_path_precedence_prefers_settings_then_worker_env_then_legacy_binary) or test(stopped_state_ignores_late_health_success) or test(test_select_from_fs_returns_embedded_bundle_metadata) or test(live_session_contract_requires_identity_mode_and_revisions) or test(validates_loopback_worker_boundary_before_spawn) or test(strategy_market_day_start_follows_dst_transition) or test(validation_payload_matches_go_owner_field_set_and_defaults_requirements)"
         ],
-        "testFilter": [
-          "timed_out_stop_keeps_owner_and_releases_store_during_blocking_quote_io"
-        ],
+        "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "69eb6c90291cb93f07cd9cc0038ea1f793eb1a62",
-        "verifiedAt": "2026-09-25T14:24:29Z",
+        "verifiedCommit": null,
+        "verifiedAt": "2026-09-26T05:36:54Z",
         "receiptDigest": null
       },
       "risk": "high",
       "owner": "strategy_pine",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "implement_or_document_boundary",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
@@ -259190,24 +259112,20 @@
           "-E",
           "test(test_normalize_broker_account_drops_empty_input) or test(market_rules_ignore_missing_non_positive_and_non_finite_constraints) or test(test_execute_strategy_intents_cancel_all_queries_and_cancels_active_orders) or test(explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback) or test(test_strategy_runtime_idempotent_lifecycle_operations) or test(test_strategy_stop_bounded_timeout_on_synchronously_blocking_task) or test(strategy_market_day_start_follows_the_order_market_timezone) or test(pine_runtime_checkpoint_restores_latest_bar_and_intent_keys) or test(close_rejects_a_different_session_or_a_stale_explicit_revision) or test(start_request_accepts_explicit_market_and_code_without_symbol) or test(strategy_runtime_holds_exact_kline_demand_until_stop_and_shutdown) or test(timed_out_stop_keeps_owner_and_releases_store_during_blocking_quote_io) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(test_execute_strategy_intents_success_calls_execution_and_audits) or test(monitor_shutdown_marks_state_and_joins_task) or test(live_sessions_are_pinned_and_open_failure_rolls_back) or test(closing_a_live_session_releases_its_pin) or test(runtime_path_precedence_prefers_settings_then_worker_env_then_legacy_binary) or test(stopped_state_ignores_late_health_success) or test(test_select_from_fs_returns_embedded_bundle_metadata) or test(live_session_contract_requires_identity_mode_and_revisions) or test(validates_loopback_worker_boundary_before_spawn) or test(strategy_market_day_start_follows_dst_transition) or test(validation_payload_matches_go_owner_field_set_and_defaults_requirements)"
         ],
-        "testFilter": [
-          "test_execute_strategy_intents_cancel_dispatches_order_cancel"
-        ],
+        "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "69eb6c90291cb93f07cd9cc0038ea1f793eb1a62",
-        "verifiedAt": "2026-09-25T14:24:29Z",
+        "verifiedCommit": null,
+        "verifiedAt": "2026-09-26T05:36:54Z",
         "receiptDigest": null
       },
       "risk": "high",
       "owner": "strategy_pine",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "implement_or_document_boundary",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
@@ -259252,24 +259170,20 @@
           "-E",
           "test(test_normalize_broker_account_drops_empty_input) or test(market_rules_ignore_missing_non_positive_and_non_finite_constraints) or test(test_execute_strategy_intents_cancel_all_queries_and_cancels_active_orders) or test(explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback) or test(test_strategy_runtime_idempotent_lifecycle_operations) or test(test_strategy_stop_bounded_timeout_on_synchronously_blocking_task) or test(strategy_market_day_start_follows_the_order_market_timezone) or test(pine_runtime_checkpoint_restores_latest_bar_and_intent_keys) or test(close_rejects_a_different_session_or_a_stale_explicit_revision) or test(start_request_accepts_explicit_market_and_code_without_symbol) or test(strategy_runtime_holds_exact_kline_demand_until_stop_and_shutdown) or test(timed_out_stop_keeps_owner_and_releases_store_during_blocking_quote_io) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(test_execute_strategy_intents_success_calls_execution_and_audits) or test(monitor_shutdown_marks_state_and_joins_task) or test(live_sessions_are_pinned_and_open_failure_rolls_back) or test(closing_a_live_session_releases_its_pin) or test(runtime_path_precedence_prefers_settings_then_worker_env_then_legacy_binary) or test(stopped_state_ignores_late_health_success) or test(test_select_from_fs_returns_embedded_bundle_metadata) or test(live_session_contract_requires_identity_mode_and_revisions) or test(validates_loopback_worker_boundary_before_spawn) or test(strategy_market_day_start_follows_dst_transition) or test(validation_payload_matches_go_owner_field_set_and_defaults_requirements)"
         ],
-        "testFilter": [
-          "test_execute_strategy_intents_cancel_all_queries_and_cancels_active_orders"
-        ],
+        "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "69eb6c90291cb93f07cd9cc0038ea1f793eb1a62",
-        "verifiedAt": "2026-09-25T14:24:29Z",
+        "verifiedCommit": null,
+        "verifiedAt": "2026-09-26T05:36:54Z",
         "receiptDigest": null
       },
       "risk": "high",
       "owner": "strategy_pine",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "implement_or_document_boundary",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
@@ -259624,24 +259538,20 @@
           "-E",
           "test(test_normalize_broker_account_drops_empty_input) or test(market_rules_ignore_missing_non_positive_and_non_finite_constraints) or test(test_execute_strategy_intents_cancel_all_queries_and_cancels_active_orders) or test(explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback) or test(test_strategy_runtime_idempotent_lifecycle_operations) or test(test_strategy_stop_bounded_timeout_on_synchronously_blocking_task) or test(strategy_market_day_start_follows_the_order_market_timezone) or test(pine_runtime_checkpoint_restores_latest_bar_and_intent_keys) or test(close_rejects_a_different_session_or_a_stale_explicit_revision) or test(start_request_accepts_explicit_market_and_code_without_symbol) or test(strategy_runtime_holds_exact_kline_demand_until_stop_and_shutdown) or test(timed_out_stop_keeps_owner_and_releases_store_during_blocking_quote_io) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(test_execute_strategy_intents_success_calls_execution_and_audits) or test(monitor_shutdown_marks_state_and_joins_task) or test(live_sessions_are_pinned_and_open_failure_rolls_back) or test(closing_a_live_session_releases_its_pin) or test(runtime_path_precedence_prefers_settings_then_worker_env_then_legacy_binary) or test(stopped_state_ignores_late_health_success) or test(test_select_from_fs_returns_embedded_bundle_metadata) or test(live_session_contract_requires_identity_mode_and_revisions) or test(validates_loopback_worker_boundary_before_spawn) or test(strategy_market_day_start_follows_dst_transition) or test(validation_payload_matches_go_owner_field_set_and_defaults_requirements)"
         ],
-        "testFilter": [
-          "test_execute_strategy_intents_success_calls_execution_and_audits"
-        ],
+        "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "69eb6c90291cb93f07cd9cc0038ea1f793eb1a62",
-        "verifiedAt": "2026-09-25T14:24:29Z",
+        "verifiedCommit": null,
+        "verifiedAt": "2026-09-26T05:36:54Z",
         "receiptDigest": null
       },
       "risk": "high",
       "owner": "strategy_pine",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "implement_or_document_boundary",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
@@ -259686,24 +259596,20 @@
           "-E",
           "test(test_normalize_broker_account_drops_empty_input) or test(market_rules_ignore_missing_non_positive_and_non_finite_constraints) or test(test_execute_strategy_intents_cancel_all_queries_and_cancels_active_orders) or test(explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback) or test(test_strategy_runtime_idempotent_lifecycle_operations) or test(test_strategy_stop_bounded_timeout_on_synchronously_blocking_task) or test(strategy_market_day_start_follows_the_order_market_timezone) or test(pine_runtime_checkpoint_restores_latest_bar_and_intent_keys) or test(close_rejects_a_different_session_or_a_stale_explicit_revision) or test(start_request_accepts_explicit_market_and_code_without_symbol) or test(strategy_runtime_holds_exact_kline_demand_until_stop_and_shutdown) or test(timed_out_stop_keeps_owner_and_releases_store_during_blocking_quote_io) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(test_execute_strategy_intents_success_calls_execution_and_audits) or test(monitor_shutdown_marks_state_and_joins_task) or test(live_sessions_are_pinned_and_open_failure_rolls_back) or test(closing_a_live_session_releases_its_pin) or test(runtime_path_precedence_prefers_settings_then_worker_env_then_legacy_binary) or test(stopped_state_ignores_late_health_success) or test(test_select_from_fs_returns_embedded_bundle_metadata) or test(live_session_contract_requires_identity_mode_and_revisions) or test(validates_loopback_worker_boundary_before_spawn) or test(strategy_market_day_start_follows_dst_transition) or test(validation_payload_matches_go_owner_field_set_and_defaults_requirements)"
         ],
-        "testFilter": [
-          "test_execute_strategy_intents_cancel_dispatches_order_cancel"
-        ],
+        "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "69eb6c90291cb93f07cd9cc0038ea1f793eb1a62",
-        "verifiedAt": "2026-09-25T14:24:29Z",
+        "verifiedCommit": null,
+        "verifiedAt": "2026-09-26T05:36:54Z",
         "receiptDigest": null
       },
       "risk": "high",
       "owner": "strategy_pine",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "implement_or_document_boundary",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
@@ -259747,13 +259653,13 @@
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": "2026-09-26T05:09:37Z",
+        "verifiedAt": "2026-09-26T05:36:54Z",
         "receiptDigest": null
       },
       "risk": "high",
       "owner": "strategy_pine",
       "priority": "P1",
-      "nextAction": "documented_boundary",
+      "nextAction": "implement_or_document_boundary",
       "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [],
@@ -259799,24 +259705,20 @@
           "-E",
           "test(test_normalize_broker_account_drops_empty_input) or test(market_rules_ignore_missing_non_positive_and_non_finite_constraints) or test(test_execute_strategy_intents_cancel_all_queries_and_cancels_active_orders) or test(explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback) or test(test_strategy_runtime_idempotent_lifecycle_operations) or test(test_strategy_stop_bounded_timeout_on_synchronously_blocking_task) or test(strategy_market_day_start_follows_the_order_market_timezone) or test(pine_runtime_checkpoint_restores_latest_bar_and_intent_keys) or test(close_rejects_a_different_session_or_a_stale_explicit_revision) or test(start_request_accepts_explicit_market_and_code_without_symbol) or test(strategy_runtime_holds_exact_kline_demand_until_stop_and_shutdown) or test(timed_out_stop_keeps_owner_and_releases_store_during_blocking_quote_io) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(test_execute_strategy_intents_success_calls_execution_and_audits) or test(monitor_shutdown_marks_state_and_joins_task) or test(live_sessions_are_pinned_and_open_failure_rolls_back) or test(closing_a_live_session_releases_its_pin) or test(runtime_path_precedence_prefers_settings_then_worker_env_then_legacy_binary) or test(stopped_state_ignores_late_health_success) or test(test_select_from_fs_returns_embedded_bundle_metadata) or test(live_session_contract_requires_identity_mode_and_revisions) or test(validates_loopback_worker_boundary_before_spawn) or test(strategy_market_day_start_follows_dst_transition) or test(validation_payload_matches_go_owner_field_set_and_defaults_requirements)"
         ],
-        "testFilter": [
-          "monitor_shutdown_marks_state_and_joins_task"
-        ],
+        "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "69eb6c90291cb93f07cd9cc0038ea1f793eb1a62",
-        "verifiedAt": "2026-09-25T14:24:29Z",
+        "verifiedCommit": null,
+        "verifiedAt": "2026-09-26T05:36:54Z",
         "receiptDigest": null
       },
       "risk": "high",
       "owner": "strategy_pine",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "implement_or_document_boundary",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
@@ -259861,24 +259763,20 @@
           "-E",
           "test(test_normalize_broker_account_drops_empty_input) or test(market_rules_ignore_missing_non_positive_and_non_finite_constraints) or test(test_execute_strategy_intents_cancel_all_queries_and_cancels_active_orders) or test(explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback) or test(test_strategy_runtime_idempotent_lifecycle_operations) or test(test_strategy_stop_bounded_timeout_on_synchronously_blocking_task) or test(strategy_market_day_start_follows_the_order_market_timezone) or test(pine_runtime_checkpoint_restores_latest_bar_and_intent_keys) or test(close_rejects_a_different_session_or_a_stale_explicit_revision) or test(start_request_accepts_explicit_market_and_code_without_symbol) or test(strategy_runtime_holds_exact_kline_demand_until_stop_and_shutdown) or test(timed_out_stop_keeps_owner_and_releases_store_during_blocking_quote_io) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(test_execute_strategy_intents_success_calls_execution_and_audits) or test(monitor_shutdown_marks_state_and_joins_task) or test(live_sessions_are_pinned_and_open_failure_rolls_back) or test(closing_a_live_session_releases_its_pin) or test(runtime_path_precedence_prefers_settings_then_worker_env_then_legacy_binary) or test(stopped_state_ignores_late_health_success) or test(test_select_from_fs_returns_embedded_bundle_metadata) or test(live_session_contract_requires_identity_mode_and_revisions) or test(validates_loopback_worker_boundary_before_spawn) or test(strategy_market_day_start_follows_dst_transition) or test(validation_payload_matches_go_owner_field_set_and_defaults_requirements)"
         ],
-        "testFilter": [
-          "live_sessions_are_pinned_and_open_failure_rolls_back"
-        ],
+        "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "69eb6c90291cb93f07cd9cc0038ea1f793eb1a62",
-        "verifiedAt": "2026-09-25T14:24:29Z",
+        "verifiedCommit": null,
+        "verifiedAt": "2026-09-26T05:36:54Z",
         "receiptDigest": null
       },
       "risk": "high",
       "owner": "strategy_pine",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "implement_or_document_boundary",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
@@ -259923,24 +259821,20 @@
           "-E",
           "test(test_normalize_broker_account_drops_empty_input) or test(market_rules_ignore_missing_non_positive_and_non_finite_constraints) or test(test_execute_strategy_intents_cancel_all_queries_and_cancels_active_orders) or test(explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback) or test(test_strategy_runtime_idempotent_lifecycle_operations) or test(test_strategy_stop_bounded_timeout_on_synchronously_blocking_task) or test(strategy_market_day_start_follows_the_order_market_timezone) or test(pine_runtime_checkpoint_restores_latest_bar_and_intent_keys) or test(close_rejects_a_different_session_or_a_stale_explicit_revision) or test(start_request_accepts_explicit_market_and_code_without_symbol) or test(strategy_runtime_holds_exact_kline_demand_until_stop_and_shutdown) or test(timed_out_stop_keeps_owner_and_releases_store_during_blocking_quote_io) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(test_execute_strategy_intents_success_calls_execution_and_audits) or test(monitor_shutdown_marks_state_and_joins_task) or test(live_sessions_are_pinned_and_open_failure_rolls_back) or test(closing_a_live_session_releases_its_pin) or test(runtime_path_precedence_prefers_settings_then_worker_env_then_legacy_binary) or test(stopped_state_ignores_late_health_success) or test(test_select_from_fs_returns_embedded_bundle_metadata) or test(live_session_contract_requires_identity_mode_and_revisions) or test(validates_loopback_worker_boundary_before_spawn) or test(strategy_market_day_start_follows_dst_transition) or test(validation_payload_matches_go_owner_field_set_and_defaults_requirements)"
         ],
-        "testFilter": [
-          "monitor_shutdown_marks_state_and_joins_task"
-        ],
+        "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "69eb6c90291cb93f07cd9cc0038ea1f793eb1a62",
-        "verifiedAt": "2026-09-25T14:24:29Z",
+        "verifiedCommit": null,
+        "verifiedAt": "2026-09-26T05:36:54Z",
         "receiptDigest": null
       },
       "risk": "high",
       "owner": "strategy_pine",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "implement_or_document_boundary",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
@@ -259985,24 +259879,20 @@
           "-E",
           "test(test_normalize_broker_account_drops_empty_input) or test(market_rules_ignore_missing_non_positive_and_non_finite_constraints) or test(test_execute_strategy_intents_cancel_all_queries_and_cancels_active_orders) or test(explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback) or test(test_strategy_runtime_idempotent_lifecycle_operations) or test(test_strategy_stop_bounded_timeout_on_synchronously_blocking_task) or test(strategy_market_day_start_follows_the_order_market_timezone) or test(pine_runtime_checkpoint_restores_latest_bar_and_intent_keys) or test(close_rejects_a_different_session_or_a_stale_explicit_revision) or test(start_request_accepts_explicit_market_and_code_without_symbol) or test(strategy_runtime_holds_exact_kline_demand_until_stop_and_shutdown) or test(timed_out_stop_keeps_owner_and_releases_store_during_blocking_quote_io) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(test_execute_strategy_intents_success_calls_execution_and_audits) or test(monitor_shutdown_marks_state_and_joins_task) or test(live_sessions_are_pinned_and_open_failure_rolls_back) or test(closing_a_live_session_releases_its_pin) or test(runtime_path_precedence_prefers_settings_then_worker_env_then_legacy_binary) or test(stopped_state_ignores_late_health_success) or test(test_select_from_fs_returns_embedded_bundle_metadata) or test(live_session_contract_requires_identity_mode_and_revisions) or test(validates_loopback_worker_boundary_before_spawn) or test(strategy_market_day_start_follows_dst_transition) or test(validation_payload_matches_go_owner_field_set_and_defaults_requirements)"
         ],
-        "testFilter": [
-          "closing_a_live_session_releases_its_pin"
-        ],
+        "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "69eb6c90291cb93f07cd9cc0038ea1f793eb1a62",
-        "verifiedAt": "2026-09-25T14:24:29Z",
+        "verifiedCommit": null,
+        "verifiedAt": "2026-09-26T05:36:54Z",
         "receiptDigest": null
       },
       "risk": "high",
       "owner": "strategy_pine",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "implement_or_document_boundary",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
@@ -260109,24 +259999,20 @@
           "-E",
           "test(test_normalize_broker_account_drops_empty_input) or test(market_rules_ignore_missing_non_positive_and_non_finite_constraints) or test(test_execute_strategy_intents_cancel_all_queries_and_cancels_active_orders) or test(explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback) or test(test_strategy_runtime_idempotent_lifecycle_operations) or test(test_strategy_stop_bounded_timeout_on_synchronously_blocking_task) or test(strategy_market_day_start_follows_the_order_market_timezone) or test(pine_runtime_checkpoint_restores_latest_bar_and_intent_keys) or test(close_rejects_a_different_session_or_a_stale_explicit_revision) or test(start_request_accepts_explicit_market_and_code_without_symbol) or test(strategy_runtime_holds_exact_kline_demand_until_stop_and_shutdown) or test(timed_out_stop_keeps_owner_and_releases_store_during_blocking_quote_io) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(test_execute_strategy_intents_success_calls_execution_and_audits) or test(monitor_shutdown_marks_state_and_joins_task) or test(live_sessions_are_pinned_and_open_failure_rolls_back) or test(closing_a_live_session_releases_its_pin) or test(runtime_path_precedence_prefers_settings_then_worker_env_then_legacy_binary) or test(stopped_state_ignores_late_health_success) or test(test_select_from_fs_returns_embedded_bundle_metadata) or test(live_session_contract_requires_identity_mode_and_revisions) or test(validates_loopback_worker_boundary_before_spawn) or test(strategy_market_day_start_follows_dst_transition) or test(validation_payload_matches_go_owner_field_set_and_defaults_requirements)"
         ],
-        "testFilter": [
-          "runtime_path_precedence_prefers_settings_then_worker_env_then_legacy_binary"
-        ],
+        "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "69eb6c90291cb93f07cd9cc0038ea1f793eb1a62",
-        "verifiedAt": "2026-09-25T14:24:29Z",
+        "verifiedCommit": null,
+        "verifiedAt": "2026-09-26T05:36:54Z",
         "receiptDigest": null
       },
       "risk": "high",
       "owner": "strategy_pine",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "implement_or_document_boundary",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
@@ -260357,24 +260243,20 @@
           "-E",
           "test(test_normalize_broker_account_drops_empty_input) or test(market_rules_ignore_missing_non_positive_and_non_finite_constraints) or test(test_execute_strategy_intents_cancel_all_queries_and_cancels_active_orders) or test(explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback) or test(test_strategy_runtime_idempotent_lifecycle_operations) or test(test_strategy_stop_bounded_timeout_on_synchronously_blocking_task) or test(strategy_market_day_start_follows_the_order_market_timezone) or test(pine_runtime_checkpoint_restores_latest_bar_and_intent_keys) or test(close_rejects_a_different_session_or_a_stale_explicit_revision) or test(start_request_accepts_explicit_market_and_code_without_symbol) or test(strategy_runtime_holds_exact_kline_demand_until_stop_and_shutdown) or test(timed_out_stop_keeps_owner_and_releases_store_during_blocking_quote_io) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(test_execute_strategy_intents_success_calls_execution_and_audits) or test(monitor_shutdown_marks_state_and_joins_task) or test(live_sessions_are_pinned_and_open_failure_rolls_back) or test(closing_a_live_session_releases_its_pin) or test(runtime_path_precedence_prefers_settings_then_worker_env_then_legacy_binary) or test(stopped_state_ignores_late_health_success) or test(test_select_from_fs_returns_embedded_bundle_metadata) or test(live_session_contract_requires_identity_mode_and_revisions) or test(validates_loopback_worker_boundary_before_spawn) or test(strategy_market_day_start_follows_dst_transition) or test(validation_payload_matches_go_owner_field_set_and_defaults_requirements)"
         ],
-        "testFilter": [
-          "stopped_state_ignores_late_health_success"
-        ],
+        "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "69eb6c90291cb93f07cd9cc0038ea1f793eb1a62",
-        "verifiedAt": "2026-09-25T14:24:29Z",
+        "verifiedCommit": null,
+        "verifiedAt": "2026-09-26T05:36:54Z",
         "receiptDigest": null
       },
       "risk": "high",
       "owner": "strategy_pine",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "implement_or_document_boundary",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
@@ -276252,8 +276134,8 @@
     },
     "pkg/strategy/pine/parser_and_lowering_recovery_test.go:206:TestOrderCallsRejectUnknownNamedArgumentsBeforePlanning": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-strategy/tests/pine_mcp_contract.rs::validation_payload_matches_save_hint_and_rejection_contract",
-      "conclusion": "partial：Go 断言下单调用的未知命名参数在计划前被拒绝。Rust 有顺序参数白名单校验（PINE_ORDER_OCA_UNSUPPORTED、PINE_ORDER_QTY_CONFLICT、PINE_ORDER_EXIT_* 及 strategy.close_all/cancel_all 参数面），但未实现通用未知命名参数拒绝：探针 strategy.entry(..., risk=1) 仍编译通过。缺口（P1）：owner crates/jftrade-strategy/src/pine/semantic.rs；回归要求：先加 risk=1 失败回归用例。",
+      "rust_entry": "crates/jftrade-strategy/tests/pine_order_metadata_and_security_rejections.rs::compile_rejects_ambiguous_order_metadata_and_missing_ids",
+      "conclusion": "partial（本批修复）：Rust 现通过 strategy_order_diagnostic 的白名单拒绝未知命名参数，并新增 strategy.entry(..., risk=1) 回归；现有 public compile regression 同时覆盖 entry/exit 的 mystery 参数。保留 partial：Go 测试直接调用 parseStrategyEntry/Exit helper，Rust 证据走 public compile pipeline，调用层对象不同，禁止把聚合回归升为 exact。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
       "evidence_type": "partial",
       "source": {
@@ -276264,8 +276146,14 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-strategy/tests/pine_mcp_contract.rs",
-          "test": "validation_payload_matches_save_hint_and_rejection_contract",
+          "file": "crates/jftrade-strategy/src/pine/mod.rs",
+          "test": "analyze_script_reports_v40_broker_boundary_diagnostics",
+          "crate": "jftrade-strategy",
+          "anchor": null
+        },
+        {
+          "file": "crates/jftrade-strategy/tests/pine_order_metadata_and_security_rejections.rs",
+          "test": "compile_rejects_ambiguous_order_metadata_and_missing_ids",
           "crate": "jftrade-strategy",
           "anchor": null
         }
@@ -276273,7 +276161,7 @@
       "assertionCoverage": {
         "covered": [],
         "uncovered": [
-          "partial：Go 断言下单调用的未知命名参数在计划前被拒绝。Rust 有顺序参数白名单校验（PINE_ORDER_OCA_UNSUPPORTED、PINE_ORDER_QTY_CONFLICT、PINE_ORDER_EXIT_* 及 strategy.close_all/cancel_all 参数面），但未实现通用未知命名参数拒绝：探针 strategy.entry(..., risk=1) 仍编译通过。缺口（P1）：owner crates/jftrade-strategy/src/pine/semantic.rs；回归要求：先加 risk=1 失败回归用例。"
+          "partial（本批修复）：Rust 现通过 strategy_order_diagnostic 的白名单拒绝未知命名参数，并新增 strategy.entry(..., risk=1) 回归；现有 public compile regression 同时覆盖 entry/exit 的 mystery 参数。保留 partial：Go 测试直接调用 parseStrategyEntry/Exit helper，Rust 证据走 public compile pipeline，调用层对象不同，禁止把聚合回归升为 exact。"
         ],
         "source": "legacy-conclusion"
       },
@@ -276282,33 +276170,34 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
+          "-p",
+          "jftrade-strategy",
           "--all-targets",
           "--locked",
           "-E",
-          "test(pine_indicators_reject_zero_periods_without_partial_results) or test(test_resolve_interval_minutes_supports_broker_intervals_and_safe_fallbacks) or test(native_pipeline_parses_lowers_and_plans_strategy_requirements) or test(compile_supports_framework_language_features) or test(compile_v14_window_momentum_fixture_keeps_go_requirement_keys) or test(compile_accepts_strategy_order_subset_scripts) or test(compile_accepts_expression_udf_and_static_for_unroll) or test(validate_script_reports_supported_udf_and_static_for_boundaries) or test(parser_handles_strings_history_and_nested_calls_without_regex) or test(semantic_checker_rejects_non_boolean_conditions_and_unsupported_declarations) or test(validation_payload_matches_save_hint_and_rejection_contract) or test(history_references_ignore_string_literals) or test(compile_warns_when_strategy_constants_fall_back_to_defaults) or test(pine_shadow_error_payload_keeps_the_worker_failure_message) or test(validates_loopback_worker_boundary_before_spawn) or test(command_error_summary_keeps_output_tail_within_wire_budget) or test(pine_spec_freezes_go_owner_sections_and_key_payload_fields) or test(endpoint_and_token_boundaries_fail_closed) or test(monitor_shutdown_marks_state_and_joins_task) or test(closing_a_live_session_releases_its_pin) or test(reserving_an_open_session_blocks_a_second_open)"
+          "test(analyze_script_reports_v40_broker_boundary_diagnostics) or test(compile_rejects_ambiguous_order_metadata_and_missing_ids)"
         ],
         "testFilter": [
-          "validation_payload_matches_save_hint_and_rejection_contract"
+          "analyze_script_reports_v40_broker_boundary_diagnostics",
+          "compile_rejects_ambiguous_order_metadata_and_missing_ids"
         ],
         "runnerVersion": null,
         "toolchain": null,
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "c907706c228a053f19a6a38eb979b2028082802a",
-        "verifiedAt": "2026-09-25T14:26:02Z",
+        "verifiedCommit": null,
+        "verifiedAt": "2026-09-26T05:36:54Z",
         "receiptDigest": null
       },
       "risk": "high",
       "owner": "strategy_pine",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "helper_owner_boundary_review",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
-        "partial：Go 断言下单调用的未知命名参数在计划前被拒绝。Rust 有顺序参数白名单校验（PINE_ORDER_OCA_UNSUPPORTED、PINE_ORDER_QTY_CONFLICT、PINE_ORDER_EXIT_* 及 strategy.close_all/cancel_all 参数面），但未实现通用未知命名参数拒绝：探针 strategy.entry(..., risk=1) 仍编译通过。缺口（P1）：owner crates/jftrade-strategy/src/pine/semantic.rs；回归要求：先加 risk=1 失败回归用例。"
+        "partial（本批修复）：Rust 现通过 strategy_order_diagnostic 的白名单拒绝未知命名参数，并新增 strategy.entry(..., risk=1) 回归；现有 public compile regression 同时覆盖 entry/exit 的 mystery 参数。保留 partial：Go 测试直接调用 parseStrategyEntry/Exit helper，Rust 证据走 public compile pipeline，调用层对象不同，禁止把聚合回归升为 exact。"
       ],
       "boundaryReason": null
     },
@@ -279141,8 +279030,8 @@
     },
     "pkg/strategy/pine/validation_semantics_boundaries_test.go:29:TestRequestSecurityExpressionTASubsetValidation": {
       "status": "[~]",
-      "rust_entry": "",
-      "conclusion": "partial：Go 的白名单面（close + open 通过、ta.sma/ta.ema 通过、ta.not_supported 与未闭合 ta.sma(close, 20 拒绝）。Rust 对齐允许面（静态 MA/RSI 等），但缺少白名单拒绝面：ta.sum 等白名单外调用被接受（探针 x = request.security(syminfo.tickerid, \"D\", ta.sum(close, 5)) ok=true）→ P1 缺口，修复位置同 request_security_diagnostics_test.go:52 行（semantic.rs::request_security_diagnostic + lower_request_security.go::lowerRequestSecurityTACall 接受面）；未闭合调用在 Rust 由解析层拒绝。",
+      "rust_entry": "crates/jftrade-strategy/tests/pine_order_metadata_and_security_rejections.rs::request_security_rejects_unsupported_inner_ta_contracts",
+      "conclusion": "partial（本批修复）：Rust request.security owner 已拒绝 ta.sum，并由 semantic.rs 递归校验 advanced TA 参数；新增 public compile 回归覆盖 ta.sum、ta.bb、ta.correlation、ta.obv。保留 partial：Go 测试还直接覆盖字符串 helper 的 ta.not_supported 与未闭合输入，Rust 对应行为由 parser/compile pipeline 表达，断言对象不同。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
       "evidence_type": "partial",
       "source": {
@@ -279151,11 +279040,24 @@
         "test": "TestRequestSecurityExpressionTASubsetValidation",
         "blobSha": "3e6047748bfc86d771e605eb675dee8650fa61a3"
       },
-      "rustEvidence": [],
+      "rustEvidence": [
+        {
+          "file": "crates/jftrade-strategy/src/pine/mod.rs",
+          "test": "validate_script_rejects_unsupported_pine_runtime_feature",
+          "crate": "jftrade-strategy",
+          "anchor": null
+        },
+        {
+          "file": "crates/jftrade-strategy/tests/pine_order_metadata_and_security_rejections.rs",
+          "test": "request_security_rejects_unsupported_inner_ta_contracts",
+          "crate": "jftrade-strategy",
+          "anchor": null
+        }
+      ],
       "assertionCoverage": {
         "covered": [],
         "uncovered": [
-          "partial：Go 的白名单面（close + open 通过、ta.sma/ta.ema 通过、ta.not_supported 与未闭合 ta.sma(close, 20 拒绝）。Rust 对齐允许面（静态 MA/RSI 等），但缺少白名单拒绝面：ta.sum 等白名单外调用被接受（探针 x = request.security(syminfo.tickerid, \"D\", ta.sum(close, 5)) ok=true）→ P1 缺口，修复位置同 request_security_diagnostics_test.go:52 行（semantic.rs::request_security_diagnostic + lower_request_security.go::lowerRequestSecurityTACall 接受面）；未闭合调用在 Rust 由解析层拒绝。"
+          "partial（本批修复）：Rust request.security owner 已拒绝 ta.sum，并由 semantic.rs 递归校验 advanced TA 参数；新增 public compile 回归覆盖 ta.sum、ta.bb、ta.correlation、ta.obv。保留 partial：Go 测试还直接覆盖字符串 helper 的 ta.not_supported 与未闭合输入，Rust 对应行为由 parser/compile pipeline 表达，断言对象不同。"
         ],
         "source": "legacy-conclusion"
       },
@@ -279167,28 +279069,31 @@
           "-p",
           "jftrade-strategy",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(validate_script_rejects_unsupported_pine_runtime_feature) or test(request_security_rejects_unsupported_inner_ta_contracts)"
         ],
-        "testFilter": [],
+        "testFilter": [
+          "validate_script_rejects_unsupported_pine_runtime_feature",
+          "request_security_rejects_unsupported_inner_ta_contracts"
+        ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
+        "status": "passed",
+        "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": null,
+        "verifiedAt": "2026-09-26T05:36:54Z",
         "receiptDigest": null
       },
       "risk": "normal",
       "owner": "strategy_pine",
       "priority": "P2",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "helper_owner_boundary_review",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
-        "partial：Go 的白名单面（close + open 通过、ta.sma/ta.ema 通过、ta.not_supported 与未闭合 ta.sma(close, 20 拒绝）。Rust 对齐允许面（静态 MA/RSI 等），但缺少白名单拒绝面：ta.sum 等白名单外调用被接受（探针 x = request.security(syminfo.tickerid, \"D\", ta.sum(close, 5)) ok=true）→ P1 缺口，修复位置同 request_security_diagnostics_test.go:52 行（semantic.rs::request_security_diagnostic + lower_request_security.go::lowerRequestSecurityTACall 接受面）；未闭合调用在 Rust 由解析层拒绝。"
+        "partial（本批修复）：Rust request.security owner 已拒绝 ta.sum，并由 semantic.rs 递归校验 advanced TA 参数；新增 public compile 回归覆盖 ta.sum、ta.bb、ta.correlation、ta.obv。保留 partial：Go 测试还直接覆盖字符串 helper 的 ta.not_supported 与未闭合输入，Rust 对应行为由 parser/compile pipeline 表达，断言对象不同。"
       ],
       "boundaryReason": null
     },
@@ -315490,10 +315395,11 @@
       "reviewStatus": "unreviewed"
     },
     "crates/jftrade-strategy/src/pine/mod.rs::analyze_script_reports_v40_broker_boundary_diagnostics": {
-      "referenceCount": 2,
+      "referenceCount": 3,
       "referenceKeys": [
         "pkg/strategy/pine/parse_test.go:488:TestAnalyzeScriptReportsV40BrokerBoundaryDiagnostics",
-        "pkg/strategy/pinespec/spec_test.go:248:TestBuildToolPayloadIncludesBrokerBoundary"
+        "pkg/strategy/pinespec/spec_test.go:248:TestBuildToolPayloadIncludesBrokerBoundary",
+        "pkg/strategy/pine/parser_and_lowering_recovery_test.go:206:TestOrderCallsRejectUnknownNamedArgumentsBeforePlanning"
       ],
       "allowed": false,
       "reviewStatus": "unreviewed"
@@ -315730,12 +315636,13 @@
       "reviewStatus": "single"
     },
     "crates/jftrade-strategy/src/pine/mod.rs::validate_script_rejects_unsupported_pine_runtime_feature": {
-      "referenceCount": 1,
+      "referenceCount": 2,
       "referenceKeys": [
-        "pkg/strategy/pine/parse_test.go:202:TestValidateScriptRejectsUnsupportedPineRuntimeFeature"
+        "pkg/strategy/pine/parse_test.go:202:TestValidateScriptRejectsUnsupportedPineRuntimeFeature",
+        "pkg/strategy/pine/validation_semantics_boundaries_test.go:29:TestRequestSecurityExpressionTASubsetValidation"
       ],
-      "allowed": true,
-      "reviewStatus": "single"
+      "allowed": false,
+      "reviewStatus": "unreviewed"
     },
     "crates/jftrade-strategy/src/pine/mod.rs::validate_script_reports_supported_udf_and_static_for_boundaries": {
       "referenceCount": 4,
@@ -316048,7 +315955,7 @@
       "reviewStatus": "unreviewed"
     },
     "crates/jftrade-strategy/tests/pine_mcp_contract.rs::validation_payload_matches_save_hint_and_rejection_contract": {
-      "referenceCount": 9,
+      "referenceCount": 8,
       "referenceKeys": [
         "pkg/strategy/definition/source_format_test.go:17:TestValidateScriptAndSupportsInstantiation",
         "pkg/strategy/indicatorwarmup/parser_validation_test.go:5:TestAdvancedRequirementParserRejectsMalformedShapes",
@@ -316057,8 +315964,7 @@
         "pkg/strategy/indicatorwarmup/spec_parse_invalid_test.go:60:TestParseIndicatorRequirementKeysRejectsMalformedVariants",
         "pkg/strategy/indicatorwarmup/warmup_script_test.go:96:TestWarmupBarsFromScriptRejectsInvalidScript",
         "pkg/strategy/indicatorwarmup/warmup_script_test.go:103:TestWarmupBarsFromPlanRejectsInvalidIndicatorKeys",
-        "pkg/strategy/pine/object_declaration_contracts_test.go:10:TestObjectDeclarationContractsRejectMalformedDomainTypesAndMethods",
-        "pkg/strategy/pine/parser_and_lowering_recovery_test.go:206:TestOrderCallsRejectUnknownNamedArgumentsBeforePlanning"
+        "pkg/strategy/pine/object_declaration_contracts_test.go:10:TestObjectDeclarationContractsRejectMalformedDomainTypesAndMethods"
       ],
       "allowed": false,
       "reviewStatus": "unreviewed"
@@ -316082,9 +315988,10 @@
       "reviewStatus": "single"
     },
     "crates/jftrade-strategy/tests/pine_order_metadata_and_security_rejections.rs::compile_rejects_ambiguous_order_metadata_and_missing_ids": {
-      "referenceCount": 2,
+      "referenceCount": 3,
       "referenceKeys": [
         "pkg/strategy/pine/language_failure_contracts_test.go:239:TestOrderAndTupleHelperContractsKeepTradeInstructionsUnambiguous",
+        "pkg/strategy/pine/parser_and_lowering_recovery_test.go:206:TestOrderCallsRejectUnknownNamedArgumentsBeforePlanning",
         "pkg/strategy/pine/strategy_call_bounds_test.go:98:TestParseStrategyCallRejectsUnsupportedOrderBoundaries"
       ],
       "allowed": false,
@@ -316128,12 +316035,13 @@
       "reviewStatus": "unreviewed"
     },
     "crates/jftrade-strategy/tests/pine_order_metadata_and_security_rejections.rs::request_security_rejects_unsupported_inner_ta_contracts": {
-      "referenceCount": 1,
+      "referenceCount": 2,
       "referenceKeys": [
-        "pkg/strategy/pine/language_failure_contracts_test.go:149:TestRequestSecurityAndTupleContractsRejectUnsafeExpressions"
+        "pkg/strategy/pine/language_failure_contracts_test.go:149:TestRequestSecurityAndTupleContractsRejectUnsafeExpressions",
+        "pkg/strategy/pine/validation_semantics_boundaries_test.go:29:TestRequestSecurityExpressionTASubsetValidation"
       ],
-      "allowed": true,
-      "reviewStatus": "single"
+      "allowed": false,
+      "reviewStatus": "unreviewed"
     },
     "crates/jftrade-strategy/tests/pine_parse_diagnostics.rs::blank_lines_before_the_script_keep_later_diagnostic_lines": {
       "referenceCount": 1,

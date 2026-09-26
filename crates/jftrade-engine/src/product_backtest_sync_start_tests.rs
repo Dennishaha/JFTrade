@@ -97,6 +97,16 @@ fn sync_request_plans_intervals_like_go() {
 #[test]
 // Parity: go:452dea11:internal/api/backtest/routes_test.go:21 TestSyncRouteClassifiesRequestErrorsAsBadRequest
 fn sync_request_rejects_invalid_ranges_and_intervals() {
+    let invalid_symbol = json!({
+        "symbol": "bad symbol",
+        "since": "2026-08-01T00:00:00Z",
+        "until": "2026-08-02T00:00:00Z"
+    });
+    assert!(matches!(
+        parse_sync_request(&invalid_symbol),
+        Err(BacktestsWritePortError::BadRequest(_))
+    ));
+
     let malformed_since = json!({
         "market": "HK",
         "code": "00700",
