@@ -14,6 +14,82 @@ use jftrade_integration_futu::{
 use serde_json::json;
 use std::sync::{Arc, Mutex};
 
+#[test]
+fn execution_trade_errors_preserve_go_request_connectivity_and_command_codes() {
+    let account_missing = execution_order_helpers::map_trade_error(
+        jftrade_integration_futu::TradeSessionError::Response(
+            jftrade_integration_futu::ResponseError::ReturnCode {
+                ret_type: 1,
+                err_code: 1001,
+                message: "account not found".to_owned(),
+            },
+        ),
+    );
+    assert!(matches!(
+        account_missing,
+        ExecutionWritePortError::Failed { status: 400, code, .. } if code == "BAD_REQUEST"
+    ));
+
+    let disconnected = execution_order_helpers::map_trade_error(
+        jftrade_integration_futu::TradeSessionError::Coordinator(
+            jftrade_integration_futu::OpenDSessionCoordinatorError::Closed,
+        ),
+    );
+    assert!(matches!(
+        disconnected,
+        ExecutionWritePortError::Failed { status: 502, code, .. } if code == "BROKER_NOT_CONNECTED"
+    ));
+
+    let command_failed = execution_order_helpers::map_trade_error(
+        jftrade_integration_futu::TradeSessionError::Response(
+            jftrade_integration_futu::ResponseError::ReturnCode {
+                ret_type: 1,
+                err_code: 9001,
+                message: "order rejected".to_owned(),
+            },
+        ),
+    );
+    assert!(matches!(
+        command_failed,
+        ExecutionWritePortError::Failed { status: 502, code, .. } if code == "BROKER_COMMAND_FAILED"
+    ));
+
+    let timeout = execution_order_helpers::map_trade_error(
+        jftrade_integration_futu::TradeSessionError::Session(
+            jftrade_integration_futu::OpenDManagedSessionError::RequestTimeout {
+                protocol: 2001,
+                serial: 7,
+            },
+        ),
+    );
+    assert!(matches!(
+        timeout,
+        ExecutionWritePortError::Failed { status: 504, code, .. } if code == "BROKER_TIMEOUT"
+    ));
+
+    let rate_limited = execution_order_helpers::map_trade_error(
+        jftrade_integration_futu::TradeSessionError::RateLimited,
+    );
+    assert!(matches!(
+        rate_limited,
+        ExecutionWritePortError::Failed { status: 429, code, .. } if code == "BROKER_RATE_LIMITED"
+    ));
+
+    let unsupported_market = execution_order_helpers::map_trade_error(
+        jftrade_integration_futu::TradeSessionError::Response(
+            jftrade_integration_futu::ResponseError::ReturnCode {
+                ret_type: 1,
+                err_code: 9002,
+                message: "market not supported".to_owned(),
+            },
+        ),
+    );
+    assert!(matches!(
+        unsupported_market,
+        ExecutionWritePortError::Failed { status: 400, code, .. } if code == "BAD_REQUEST"
+    ));
+}
+
 use crate::product::product_brokers_write_port::{
     BrokersWriteContext, BrokersWriteInput, BrokersWriteOperation, BrokersWritePort,
     BrokersWritePortError, BrokersWriteQuery,
@@ -1537,7 +1613,7 @@ fn accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel() {
         matches!(
             failure,
             ExecutionWritePortError::Failed { status: 502, ref code, .. }
-                if code == "BROKER_UNAVAILABLE"
+                if code == "BROKER_NOT_CONNECTED"
         ),
         "broker cancel failure = {failure:?}"
     );

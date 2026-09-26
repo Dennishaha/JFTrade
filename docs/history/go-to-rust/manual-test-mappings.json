@@ -7,7 +7,7 @@
     "treeSha": "0ee26444be21c15d9760f358a34649f78402f0fb"
   },
   "generatorVersion": "v2_writer.py@slice24",
-  "generatedAt": "2026-09-25T06:08:05Z",
+  "generatedAt": "2026-09-26T08:38:17Z",
   "mappings": {
     "cmd/jftrade-api/main_test.go:13:TestValidateArgsAllowsNoArgs": {
       "status": "[~]",
@@ -3744,7 +3744,7 @@
     "internal/api/assistant/chat_stream_recovery_contracts_test.go:41:TestChatStreamExecutionReusesKnownContextAndRecoversTerminalRun": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_recovery_tests.rs::persisted_terminal_run_is_published_as_final_instead_of_a_second_error; crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::production_live_chat_stream_reuses_existing_session_preview_once",
-      "conclusion": "partial：已覆盖持久化终态 run 只发 final 不伪造第二个 error，并以真实生产流验证请求复用已有 session 时只发布一帧 preview、随后进入 run。Go 的 contextSent 内存 execution seam 与“不重新抓取 context”仍无 Rust 同形断言，保持 partial。",
+      "conclusion": "partial：已覆盖持久化终态 run 只发 final 不伪造第二个 error，并以真实生产流验证请求复用已有 session 时只发布一帧 preview、随后进入 run。Go 的 contextSent 内存 execution seam 与“不重新抓取 context”仍无 Rust 同形断言，保持 partial。 批229高风险复核：Rust 关联测试纳入本批门禁并通过；保持 partial，Go 与 Rust owner、路由形状或逐分支断言差异继续按本条缺口记录。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E test(persisted_terminal_run_is_published_as_final_instead_of_a_second_error) or test(production_live_chat_stream_emits_session_before_run_and_terminal_frame) or test(production_live_chat_stream_reuses_existing_session_preview_once)",
       "evidence_type": "partial",
       "source": {
@@ -3808,16 +3808,14 @@
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": "2026-09-25T07:43:09Z",
+        "verifiedAt": "2026-09-26T08:38:17Z",
         "receiptDigest": null
       },
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "preserve_partial_and_track_residual",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "Rust 已验证持久化终态 run 恢复为 final 而不追加第二个 error，并以真实生产流验证已有 session 只发布一次 preview 且位于 run 之前。"
@@ -3912,7 +3910,7 @@
     "internal/api/assistant/chat_transport_disconnect_test.go:110:TestChatStreamReconnectAndReplayRespectClientDisconnect": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart",
-      "conclusion": "partial：已覆盖重连路由的 replay 标记、after 游标切片、未知 stream/run fail-closed（adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed）与 499 断线后保留终态、重放过滤（引用用例）。Go 的“重连时 retry 指令写失败只写一次并立即退出”在 Rust 无同形 socket 写循环——SSE 响应体在引擎侧一次性物化后交传输层，写失败传播由 jftrade-api SseWriter 用例断言（write_failures_are_reported_with_their_source_message、write_event_propagates_serialization_and_write_failures）。缺口 owner：crates/jftrade-api sse/router；回归要求：若改为流式写回，需补一次写失败即退出的传输用例。",
+      "conclusion": "partial：已覆盖重连路由的 replay 标记、after 游标切片、未知 stream/run fail-closed（adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed）与 499 断线后保留终态、重放过滤（引用用例）。Go 的“重连时 retry 指令写失败只写一次并立即退出”在 Rust 无同形 socket 写循环——SSE 响应体在引擎侧一次性物化后交传输层，写失败传播由 jftrade-api SseWriter 用例断言（write_failures_are_reported_with_their_source_message、write_event_propagates_serialization_and_write_failures）。缺口 owner：crates/jftrade-api sse/router；回归要求：若改为流式写回，需补一次写失败即退出的传输用例。 批229高风险复核：Rust 关联测试纳入本批门禁并通过；保持 partial，Go 与 Rust owner、路由形状或逐分支断言差异继续按本条缺口记录。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-api --all-targets --locked -E test(adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart) or test(adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed) or test(write_failures_are_reported_with_their_source_message) or test(write_event_propagates_serialization_and_write_failures)",
       "evidence_type": "partial",
       "source": {
@@ -3968,16 +3966,14 @@
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": "2026-09-25T07:44:10Z",
+        "verifiedAt": "2026-09-26T08:38:17Z",
         "receiptDigest": null
       },
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "preserve_partial_and_track_residual",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "Rust 已验证断线后保留终态并按 after 游标重放、stream/run 重连的 replay 标记与未知标识 fail-closed，以及 SSE writer 对写入/序列化错误的来源传播。"
@@ -5252,7 +5248,7 @@
     "internal/api/assistant/routes_resource_contracts_test.go:159:TestProviderAndAgentValidationContracts": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_agent_write_reports_the_go_validation_messages、adk_provider_delete_reports_the_in_use_agent_and_keeps_the_go_projection、adk_provider_delete_is_idempotent_and_matches_the_go_success_envelope；crates/jftrade-engine/src/product_adk_store_parity_tests.rs::snapshot_and_provider_test_boundaries_fail_closed",
-      "conclusion": "partial：已覆盖 agent 写入 400 BAD_REQUEST 文案（missing/disabled/no-key provider、unknown tool）、被引用 provider 删除 409（含 used by agent 与引用 agent 名）、未知 provider 删除幂等 200。缺口：参考同一用例还断言 POST /api/v1/adk/providers/{id}/test 的 mode 语义（无 body → quick 与 requestField reasoning.effort、mode=full 回显、mode=slow → 400、已移除的 reasoning 路由 404、未知 provider → 502 provider not found）；Rust 的 test_provider 对未知 provider 返回 404 ADK_PROVIDER_NOT_FOUND（参考为 502 provider not found，属公开路由状态码差异），且 quick/full/invalid mode 无 wire 断言。修复位置：crates/jftrade-engine/src/product_production_ports_adk_mutation_runtime.rs::test_provider。回归要求：先按参考把未知 provider 对齐为 502 并更新 port 断言，再补 quick/full/invalid 的 wire 用例。",
+      "conclusion": "partial：已覆盖 agent 写入 400 BAD_REQUEST 文案（missing/disabled/no-key provider、unknown tool）、被引用 provider 删除 409（含 used by agent 与引用 agent 名）、未知 provider 删除幂等 200。缺口：参考同一用例还断言 POST /api/v1/adk/providers/{id}/test 的 mode 语义（无 body → quick 与 requestField reasoning.effort、mode=full 回显、mode=slow → 400、已移除的 reasoning 路由 404、未知 provider → 502 provider not found）；Rust 的 test_provider 对未知 provider 返回 404 ADK_PROVIDER_NOT_FOUND（参考为 502 provider not found，属公开路由状态码差异），且 quick/full/invalid mode 无 wire 断言。修复位置：crates/jftrade-engine/src/product_production_ports_adk_mutation_runtime.rs::test_provider。回归要求：先按参考把未知 provider 对齐为 502 并更新 port 断言，再补 quick/full/invalid 的 wire 用例。 批229高风险复核：Rust 关联测试纳入本批门禁并通过；保持 partial，Go 与 Rust owner、路由形状或逐分支断言差异继续按本条缺口记录。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(provider)'",
       "evidence_type": "partial",
       "source": {
@@ -5302,17 +5298,15 @@
         "toolchain": null,
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "f99b0b203c37999cfe65ceecaccb5fda3177d7ba",
-        "verifiedAt": "2026-09-25T14:47:25Z",
+        "verifiedCommit": null,
+        "verifiedAt": "2026-09-26T08:38:17Z",
         "receiptDigest": null
       },
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "preserve_partial_and_track_residual",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
@@ -7569,7 +7563,7 @@
     "internal/api/httpserver/bindings_boundaries_test.go:61:TestParseQueryTimeReturnsCallerFallback": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_query.rs::optional_query_time_normalizes_to_utc_and_blank_means_absent",
-      "conclusion": "partial：Go 断言空串与不可解析文本都返回调用方 fallback（不报错）。Rust 空串返回 Ok(None)（等价“交给调用方”，已断言），但不可解析文本返回 Err，路由映射为 400 \"time must be a valid timestamp\"（product_production_ports_market_data_quote_reads.rs:149/165）。缺口 owner：crates/jftrade-engine 查询时间解析与 candles/trade 路由；回归要求：产品或契约确认“非法时间 → 400”是否为目标语义，如保留则把该差异登记为有意收紧，否则改为 fallback 并补断言。",
+      "conclusion": "partial：Go 断言空串与不可解析文本都返回调用方 fallback（不报错）。Rust 空串返回 Ok(None)（等价“交给调用方”，已断言），但不可解析文本返回 Err，路由映射为 400 \"time must be a valid timestamp\"（product_production_ports_market_data_quote_reads.rs:149/165）。缺口 owner：crates/jftrade-engine 查询时间解析与 candles/trade 路由；回归要求：产品或契约确认“非法时间 → 400”是否为目标语义，如保留则把该差异登记为有意收紧，否则改为 fallback 并补断言。 批229高风险复核：Rust 关联测试纳入本批门禁并通过；保持 partial，Go 与 Rust owner、路由形状或逐分支断言差异继续按本条缺口记录。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-api --all-targets --locked -E test(optional_query_time_normalizes_to_utc_and_blank_means_absent)",
       "evidence_type": "partial",
       "source": {
@@ -7622,16 +7616,14 @@
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": "2026-09-25T07:53:25Z",
+        "verifiedAt": "2026-09-26T08:38:17Z",
         "receiptDigest": null
       },
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "preserve_partial_and_track_residual",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "Rust 已验证 query time 的 UTC 归一和 blank 输入表示 absent。"
@@ -7644,7 +7636,7 @@
     "internal/api/httpserver/bindings_boundaries_test.go:70:TestBindURIHandlesBindingAndFallbackEscapeValidation": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_query.rs::uri_escape_validation_accepts_literal_percent_and_rejects_malformed; crates/jftrade-api/src/route.rs::exact_method_and_single_segment_parameters_are_required",
-      "conclusion": "partial：Go 的三个子用例中“合法/非法 params 转义”已由新用例覆盖（%20 接受、%ZZ/%2 拒绝）；剩余“必需参数缺失报错”在 Rust 无同名对象——路由模板不匹配即 404 NOT_FOUND（route.rs 要求精确方法+单段参数，引用测试）。缺口 owner：crates/jftrade-api router/route；回归要求：补一条“缺少路径参数 → 404 JSON 信封”的 wire 断言，或把 gin 绑定错误语义登记为边界差异。",
+      "conclusion": "partial：Go 的三个子用例中“合法/非法 params 转义”已由新用例覆盖（%20 接受、%ZZ/%2 拒绝）；剩余“必需参数缺失报错”在 Rust 无同名对象——路由模板不匹配即 404 NOT_FOUND（route.rs 要求精确方法+单段参数，引用测试）。缺口 owner：crates/jftrade-api router/route；回归要求：补一条“缺少路径参数 → 404 JSON 信封”的 wire 断言，或把 gin 绑定错误语义登记为边界差异。 批229高风险复核：Rust 关联测试纳入本批门禁并通过；保持 partial，Go 与 Rust owner、路由形状或逐分支断言差异继续按本条缺口记录。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-api --all-targets --locked -E test(uri_escape_validation_accepts_literal_percent_and_rejects_malformed) or test(exact_method_and_single_segment_parameters_are_required)",
       "evidence_type": "partial",
       "source": {
@@ -7704,16 +7696,14 @@
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": "2026-09-25T07:54:21Z",
+        "verifiedAt": "2026-09-26T08:38:17Z",
         "receiptDigest": null
       },
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "preserve_partial_and_track_residual",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "Rust 已验证 malformed/literal percent URI escape 规则，以及路由 method 与单段参数约束。"
@@ -8099,7 +8089,7 @@
     "internal/api/httpserver/bindings_test.go:186:TestCandlePeriodAndPaginationNormalization": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_query.rs::candle_period_normalizes_aliases_and_rejects_unsupported; crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::candle_route_treats_blank_period_as_unset_and_rejects_unsupported",
-      "conclusion": "partial：周期半已逐项对齐（带空白的 60m→1h、k_day→1d、2h 拒绝，且 blank period 在 candle route 上按 unset 处理）；分页半无同签名 helper——Go NormalizeBoundPage(limit, offset, default, max) 在 Rust 由各路由 clamp 表达（candle route 的 blank/非整数 limit 与默认窗口已有独立回归），且 Go 的 limit=-3→1 与负 offset→0 在 Rust usize/入参校验下不可达，登记为结构边界。缺口 owner：crates/jftrade-engine product_query 与各读路由。",
+      "conclusion": "partial：周期半已逐项对齐（带空白的 60m→1h、k_day→1d、2h 拒绝，且 blank period 在 candle route 上按 unset 处理）；分页半无同签名 helper——Go NormalizeBoundPage(limit, offset, default, max) 在 Rust 由各路由 clamp 表达（candle route 的 blank/非整数 limit 与默认窗口已有独立回归），且 Go 的 limit=-3→1 与负 offset→0 在 Rust usize/入参校验下不可达，登记为结构边界。缺口 owner：crates/jftrade-engine product_query 与各读路由。 批229高风险复核：Rust 关联测试纳入本批门禁并通过；保持 partial，Go 与 Rust owner、路由形状或逐分支断言差异继续按本条缺口记录。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-api --all-targets --locked -E test(candle_period_normalizes_aliases_and_rejects_unsupported) or test(candle_route_treats_blank_period_as_unset_and_rejects_unsupported)",
       "evidence_type": "partial",
       "source": {
@@ -8159,16 +8149,14 @@
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": "2026-09-25T07:57:47Z",
+        "verifiedAt": "2026-09-26T08:38:17Z",
         "receiptDigest": null
       },
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "preserve_partial_and_track_residual",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "Rust 已验证 candle period alias→canonical、unsupported reject 与 blank period 在 candle route 上视为 unset。"
@@ -9267,7 +9255,7 @@
     "internal/api/live/dispatcher_boundaries_test.go:205:TestDispatcherEnvelopeDefaultsAndMapFallback": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-api/src/sse.rs::frames_preserve_go_retry_id_data_and_comment_shape",
-      "conclusion": "partial：Go 断言 writeEnvelope 默认字段（entityId 回退 eventType、eventId 非空）与 mapString 非字符串回退。Rust 帧形状（retry/id/data/comment）由 sse 单测断言，WebSocket/事件生产者则直接生成完整 typed JSON envelope；mapString 回退在 Rust 由类型化取值替代，无等价分支。缺口：没有 Go helper 对应的通用缺省字段 envelope owner，不能把帧格式测试升级为 exact。owner：crates/jftrade-api sse/websocket 与各事件生产者。",
+      "conclusion": "partial：Go 断言 writeEnvelope 默认字段（entityId 回退 eventType、eventId 非空）与 mapString 非字符串回退。Rust 帧形状（retry/id/data/comment）由 sse 单测断言，WebSocket/事件生产者则直接生成完整 typed JSON envelope；mapString 回退在 Rust 由类型化取值替代，无等价分支。缺口：没有 Go helper 对应的通用缺省字段 envelope owner，不能把帧格式测试升级为 exact。owner：crates/jftrade-api sse/websocket 与各事件生产者。 批229高风险复核：Rust 关联测试纳入本批门禁并通过；保持 partial，Go 与 Rust owner、路由形状或逐分支断言差异继续按本条缺口记录。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --all-targets --locked -E test(frames_preserve_go_retry_id_data_and_comment_shape)",
       "evidence_type": "partial",
       "source": {
@@ -9313,16 +9301,14 @@
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": "2026-09-25T08:08:48Z",
+        "verifiedAt": "2026-09-26T08:38:17Z",
         "receiptDigest": null
       },
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "preserve_partial_and_track_residual",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "Rust 已验证 SSE frame 的 retry/id/data/comment 形状与序列化输出约束。"
@@ -11882,7 +11868,7 @@
     "internal/api/marketdata/routes_test.go:147:TestExplicitBrokerRoutesUseBrokerReaderAndNeverLegacyFallback": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_news_tests.rs::explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback; crates/jftrade-engine/src/product_production_ports_market_data_news_tests.rs::news_route_serves_an_explicit_broker_id_for_the_active_provider",
-      "conclusion": "partial：本批复核 Go 显式 brokerId 的 securities/snapshots/candles/depth 四路 reader 调用序列、legacy 禁止回退和无 reader 时四路 409。Rust 通过 active-provider owner 验证显式非活动 broker 在 helper/OpenD 读取前返回 409 MARKET_DATA_CAPABILITY_UNSUPPORTED，并验证显式活动 provider 进入其 helper；Rust 没有 Go 同形的独立 broker reader 列表，按路由调用参数序列保留为架构边界，不伪装为 exact。",
+      "conclusion": "partial：本批复核 Go 显式 brokerId 的 securities/snapshots/candles/depth 四路 reader 调用序列、legacy 禁止回退和无 reader 时四路 409。Rust 通过 active-provider owner 验证显式非活动 broker 在 helper/OpenD 读取前返回 409 MARKET_DATA_CAPABILITY_UNSUPPORTED，并验证显式活动 provider 进入其 helper；Rust 没有 Go 同形的独立 broker reader 列表，按路由调用参数序列保留为架构边界，不伪装为 exact。 批229高风险复核：Rust 关联测试纳入本批门禁并通过；保持 partial，Go 与 Rust owner、路由形状或逐分支断言差异继续按本条缺口记录。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E test(explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback) or test(news_route_serves_an_explicit_broker_id_for_the_active_provider)",
       "evidence_type": "partial",
       "source": {
@@ -11945,16 +11931,14 @@
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": "2026-09-25T08:18:39Z",
+        "verifiedAt": "2026-09-26T08:38:17Z",
         "receiptDigest": null
       },
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "preserve_partial_and_track_residual",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "Rust 已验证显式非活动 broker 在触达 legacy/helper 前 fail closed，以及显式活动 provider 的 broker identity 路由保持归属。"
@@ -19964,7 +19948,7 @@
     "internal/api/system/routes_test.go:102:TestSystemRouteBoundaryValidatorsRejectMissingHardStopAndNonPositiveLimits": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/tests/system_write_compatibility.rs::system_write_validator_boundaries_keep_go_non_positive_rejection_and_missing_id_semantics",
-      "conclusion": "partial：Rust 专用回归直接断言 maxOrderQuantity=0 和 maxOrderNotional=0 在端口调用前返回 400/BAD_REQUEST；缺 hard-stop id 的 Go DELETE 路径在 Rust system-write 路由表中不是可匹配模板，保持 404/NOT_FOUND，记录为 HTTP 路由边界差异。未发现需要修复的 Rust 生产功能缺口。",
+      "conclusion": "partial：Rust 专用回归直接断言 maxOrderQuantity=0 和 maxOrderNotional=0 在端口调用前返回 400/BAD_REQUEST；缺 hard-stop id 的 Go DELETE 路径在 Rust system-write 路由表中不是可匹配模板，保持 404/NOT_FOUND，记录为 HTTP 路由边界差异。未发现需要修复的 Rust 生产功能缺口。 批229高风险复核：Rust 关联测试纳入本批门禁并通过；保持 partial，Go 与 Rust owner、路由形状或逐分支断言差异继续按本条缺口记录。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(system_write_validator_boundaries_keep_go_non_positive_rejection_and_missing_id_semantics) or test(system_write_leaf_fails_closed_after_shape_validation)'",
       "evidence_type": "partial",
       "source": {
@@ -20017,16 +20001,14 @@
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": "2026-09-25T03:59:10Z",
+        "verifiedAt": "2026-09-26T08:38:17Z",
         "receiptDigest": null
       },
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
-      "nextAction": "preserve_partial_and_track_route_template_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "preserve_partial_and_track_residual",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "partial：maxOrderQuantity=0 与 maxOrderNotional=0 在端口调用前返回 400/BAD_REQUEST。",
@@ -20598,7 +20580,7 @@
     "internal/api/trading/execution_test.go:19:TestExecutionCommandErrorMapsRequestAndBrokerFailures": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_order_helpers.rs::map_trade_error; crates/jftrade-engine/tests/execution_write_compatibility.rs::execution_write_fixture_replays_all_seven_go_owned_mutations",
-      "conclusion": "partial：Go 单测 executionCommandError 九项映射（400 BAD_REQUEST、409 PRE_TRADE_RISK_REJECTED/PRE_TRADE_APPROVAL_REQUIRED、账户缺失→400、504 BROKER_TIMEOUT、429 BROKER_RATE_LIMITED、502 BROKER_NOT_CONNECTED/ BROKER_COMMAND_FAILED）。Rust map_trade_error 只区分 timeout→504 BROKER_TIMEOUT、rate→429 BROKER_RATE_LIMITED、其余→502 BROKER_UNAVAILABLE；语料断言 504/429/502 三态。缺口：BROKER_NOT_CONNECTED、BROKER_COMMAND_FAILED 与账户缺失→400 的细分码未复刻，owner = 交易错误映射层，需按 Go 表补回归。",
+      "conclusion": "部分覆盖：Go executionCommandError 九项映射包含请求/风险（400/409）、账户/市场/订单参数错误→400 BAD_REQUEST、超时→504 BROKER_TIMEOUT、限流→429 BROKER_RATE_LIMITED、未连接→502 BROKER_NOT_CONNECTED、未知券商/普通错误→502 BROKER_COMMAND_FAILED。Rust 现已在 execution_order_helpers::map_trade_error 对 TradeSessionError::Response、Session、Coordinator、RateLimited 分支做同等状态/码细分，新增回归覆盖账户缺失、未连接、命令失败、超时、限流和市场不支持；请求/风险错误仍由上游 typed validation/risk owner 负责，保留 partial。owner：crates/jftrade-engine/src/product_production_ports_execution_order_helpers.rs。批229高风险复核：Rust 关联测试纳入本批门禁并通过；保持 partial，Go 与 Rust owner、路由形状或逐分支断言差异继续按本条缺口记录。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --locked -E 'test(execution_write_fixture_replays_all_seven_go_owned_mutations)'",
       "evidence_type": "partial",
       "source": {
@@ -20624,6 +20606,12 @@
           "test": "execution_write_fixture_replays_all_seven_go_owned_mutations",
           "crate": "jftrade-engine",
           "anchor": null
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs",
+          "test": "execution_trade_errors_preserve_go_request_connectivity_and_command_codes",
+          "crate": "jftrade-engine",
+          "anchor": null
         }
       ],
       "assertionCoverage": {
@@ -20640,29 +20628,27 @@
           "run",
           "-p",
           "jftrade-engine",
+          "--all-targets",
           "--locked",
           "-E",
-          "test(execution_write_fixture_replays_all_seven_go_owned_mutations)"
+          "test(execution_trade_errors_preserve_go_request_connectivity_and_command_codes)"
         ],
         "testFilter": [
-          "map_trade_error",
-          "execution_write_fixture_replays_all_seven_go_owned_mutations"
+          "execution_trade_errors_preserve_go_request_connectivity_and_command_codes"
         ],
         "runnerVersion": null,
         "toolchain": null,
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "af6ce73200bedc5e125aef5d654fdbad62ef35d3",
-        "verifiedAt": "2026-09-25T15:19:09Z",
+        "verifiedCommit": null,
+        "verifiedAt": "2026-09-26T08:38:17Z",
         "receiptDigest": null
       },
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "preserve_partial_and_track_residual",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
@@ -21129,7 +21115,7 @@
     "internal/api/trading/execution_test.go:249:TestHandleExecutionOrderDetailsReturnsCanonicalReceiptAndNotFound": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_execution_read_tests.rs::execution_read_routes_match_group_fixture_in_cutover_only",
-      "conclusion": "partial：Go 断言订单详情 200 且 status=PARTIALLY_FILLED、rawBrokerStatus=FILLED_PART，缺失→404 ORDER_NOT_FOUND。Rust 读语料断言 order-details 200（冻结 data 为 status=BROKER_ACCEPTED/rawBrokerStatus=SUBMITTED）与 order-missing 404 ORDER_NOT_FOUND；状态映射函数（order_status_label/storage_status）存在但部分成交对未进入语料，缺口：补 PARTIALLY_FILLED+FILLED_PART 的详情投影断言。",
+      "conclusion": "partial：Go 断言订单详情 200 且 status=PARTIALLY_FILLED、rawBrokerStatus=FILLED_PART，缺失→404 ORDER_NOT_FOUND。Rust 读语料断言 order-details 200（冻结 data 为 status=BROKER_ACCEPTED/rawBrokerStatus=SUBMITTED）与 order-missing 404 ORDER_NOT_FOUND；状态映射函数（order_status_label/storage_status）存在但部分成交对未进入语料，缺口：补 PARTIALLY_FILLED+FILLED_PART 的详情投影断言。 批229高风险复核：Rust 关联测试纳入本批门禁并通过；保持 partial，Go 与 Rust owner、路由形状或逐分支断言差异继续按本条缺口记录。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --locked -E 'test(execution_read_routes_match_group_fixture_in_cutover_only)'",
       "evidence_type": "partial",
       "source": {
@@ -21176,17 +21162,15 @@
         "toolchain": null,
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "af6ce73200bedc5e125aef5d654fdbad62ef35d3",
-        "verifiedAt": "2026-09-25T15:19:09Z",
+        "verifiedCommit": null,
+        "verifiedAt": "2026-09-26T08:38:17Z",
         "receiptDigest": null
       },
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "preserve_partial_and_track_residual",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
@@ -21415,7 +21399,7 @@
     "internal/api/trading/execution_validation_contracts_test.go:238:TestExecutionOrderDetailsRouteMapsMissingAndStoreFailures": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_execution_read_tests.rs::execution_read_routes_match_group_fixture_in_cutover_only；crates/jftrade-engine/src/product_execution_read_tests.rs::execution_read_routes_preserve_the_port_failure_code_and_message",
-      "conclusion": "partial：Go 断言订单详情缺失→404 ORDER_NOT_FOUND、store 失败→500 GET_ORDER_FAILED、缺 id→400。Rust execution-read 冻结语料逐条断言 order-missing→404 ORDER_NOT_FOUND 与 order-details-failed→500 GET_ORDER_FAILED，端口失败回归再断言上游 code/message 原样透传；缺口：缺 id 的 400 分支（Rust typed route 在空 segment 时以 404 路由不匹配结束）是路由形状边界，已登记。",
+      "conclusion": "partial：Go 断言订单详情缺失→404 ORDER_NOT_FOUND、store 失败→500 GET_ORDER_FAILED、缺 id→400。Rust execution-read 冻结语料逐条断言 order-missing→404 ORDER_NOT_FOUND 与 order-details-failed→500 GET_ORDER_FAILED，端口失败回归再断言上游 code/message 原样透传；缺口：缺 id 的 400 分支（Rust typed route 在空 segment 时以 404 路由不匹配结束）是路由形状边界，已登记。 批229高风险复核：Rust 关联测试纳入本批门禁并通过；保持 partial，Go 与 Rust owner、路由形状或逐分支断言差异继续按本条缺口记录。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(execution_read_routes_match_group_fixture_in_cutover_only) or test(execution_read_routes_preserve_the_port_failure_code_and_message)'",
       "evidence_type": "partial",
       "source": {
@@ -21465,17 +21449,15 @@
         "toolchain": null,
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "68cc0eee",
-        "verifiedAt": "2026-09-25T08:36:03Z",
+        "verifiedCommit": null,
+        "verifiedAt": "2026-09-26T08:38:17Z",
         "receiptDigest": null
       },
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "preserve_partial_and_track_residual",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
@@ -32917,7 +32899,7 @@
       "status": "[~]",
       "evidence_type": "partial",
       "rust_entry": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::candle_route_skips_session_classification_for_unannotated_requests",
-      "conclusion": "部分覆盖：Go 断言日线蜡烛在 candle 与 meta 中均省略 session 且 extendedHours==false。Rust 的 candle_route_skips_session_classification_for_unannotated_requests 仅断言日线免 session 分类、可正常返回且 candle 无 session 字段；差异是 meta.session 省略与 extendedHours==false 无测试断言（仅实现层 annotate_session 条件覆盖，未逐项断言）。",
+      "conclusion": "部分覆盖：Go 断言日线蜡烛在 candle 与 meta 中均省略 session 且 extendedHours==false。Rust 的 candle_route_skips_session_classification_for_unannotated_requests 仅断言日线免 session 分类、可正常返回且 candle 无 session 字段；差异是 meta.session 省略与 extendedHours==false 无测试断言（仅实现层 annotate_session 条件覆盖，未逐项断言）。 批229高风险复核：Rust 关联测试纳入本批门禁并通过；保持 partial，Go 与 Rust owner、路由形状或逐分支断言差异继续按本条缺口记录。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(candle_route_skips_session_classification_for_unannotated_requests)'",
       "source": {
         "file": "internal/app/apiserver/marketdataapp/market_http_test.go",
@@ -32964,17 +32946,15 @@
         "toolchain": null,
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "7df2e82b",
-        "verifiedAt": "2026-09-25T12:13:32Z",
+        "verifiedCommit": null,
+        "verifiedAt": "2026-09-26T08:38:17Z",
         "receiptDigest": null
       },
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "preserve_partial_and_track_residual",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
@@ -69282,7 +69262,7 @@
     "internal/assistant/assembly/portfolio_tools_test.go:15:TestPortfolioSummaryScansAllRealAccountsAndRanksNonEmptyFirst": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::test_portfolio_funds_overview_and_sorting_and_unsupported_market；crates/jftrade-engine/src/product_mcp_server_tests.rs::portfolio_summary_merges_positions_balances_and_orders_and_rejects_unknown_brokers",
-      "conclusion": "partial：Go 的 portfolio.summary 逐账户聚合 accountSummaries（按市场权威挑选 queryMarket、并发读取后 hasAssetsOrPositions 优先再按 accountId 稳定排序、多账户时不暴露顶层 funds）。Rust 的 portfolio.summary 是三个单账户快照的合并（positions/balances/orders + connectivity/checkedAt 一致性校验），没有 accountSummaries、排序与 partial 语义。已覆盖部分：相同排序规则在 overview 层由 test_portfolio_funds_overview_and_sorting_and_unsupported_market 断言（账户 100 资产优先、排序稳定、非法市场报错），合并契约与 brokerId 守卫由 portfolio_summary_merges_positions_balances_and_orders_and_rejects_unknown_brokers 固定（无顶层 funds）。缺口登记 P1：多账户摘要聚合 + 排序（见第四十六批文档）。不得视为行为等价。",
+      "conclusion": "partial：Go 的 portfolio.summary 逐账户聚合 accountSummaries（按市场权威挑选 queryMarket、并发读取后 hasAssetsOrPositions 优先再按 accountId 稳定排序、多账户时不暴露顶层 funds）。Rust 的 portfolio.summary 是三个单账户快照的合并（positions/balances/orders + connectivity/checkedAt 一致性校验），没有 accountSummaries、排序与 partial 语义。已覆盖部分：相同排序规则在 overview 层由 test_portfolio_funds_overview_and_sorting_and_unsupported_market 断言（账户 100 资产优先、排序稳定、非法市场报错），合并契约与 brokerId 守卫由 portfolio_summary_merges_positions_balances_and_orders_and_rejects_unknown_brokers 固定（无顶层 funds）。缺口登记 P1：多账户摘要聚合 + 排序（见第四十六批文档）。不得视为行为等价。 批229高风险复核：Rust 关联测试纳入本批门禁并通过；保持 partial，Go 与 Rust owner、路由形状或逐分支断言差异继续按本条缺口记录。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(test_portfolio_funds_overview_and_sorting_and_unsupported_market) | test(portfolio_summary_merges_positions_balances_and_orders_and_rejects_unknown_brokers)'",
       "evidence_type": "partial",
       "source": {
@@ -69330,17 +69310,15 @@
         "toolchain": null,
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "3d356b9a",
-        "verifiedAt": "2026-09-25T13:47:02Z",
+        "verifiedCommit": null,
+        "verifiedAt": "2026-09-26T08:38:17Z",
         "receiptDigest": null
       },
       "risk": "high",
       "owner": "assistant_workflow",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "preserve_partial_and_track_residual",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
@@ -69420,7 +69398,7 @@
     "internal/assistant/assembly/portfolio_tools_test.go:155:TestPortfolioLayeredToolsReportValidationDiscoveryAndPartialReadStates": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_portfolio_parity_tests.rs::portfolio_layered_tools_report_discovery_failure_and_partial_read_states；crates/jftrade-engine/src/product_mcp_server_tests.rs::portfolio_tools_require_trading_environment_and_fail_closed_without_a_broker_reader",
-      "conclusion": "partial：四个子场景中三个已闭环——(1) 缺 tradingEnvironment 时三个工具都以 \"tradingEnvironment is required\" 拒绝（product_mcp_server_tests；未挂端口时 fail-closed 为 \"broker trade reader is unavailable\"）；(2) discovery 失败三个工具都返回 selection.status=discovery_failed + partial=true + 非空 warnings；(4) 读取失败时 overview item.partial=true/errors=3/hasAssetsOrPositions=false 且 warnings 按能力命名 funds/positions/orders，positions 层 errors=1、positions=[]。边界：(3) 的 broker runtime lastError 警告在 Rust 没有来源——portfolio.* 经 TradeReadPort 直连 discovery，base payload 固定 connectivity=\"connected\"/lastError=\"\"，bundle 的 /api/v1/brokers/{brokerId}/runtime 端口未被该投影消费；登记 P1（见第四十六批文档）。不得视为行为等价。",
+      "conclusion": "partial：四个子场景中三个已闭环——(1) 缺 tradingEnvironment 时三个工具都以 \"tradingEnvironment is required\" 拒绝（product_mcp_server_tests；未挂端口时 fail-closed 为 \"broker trade reader is unavailable\"）；(2) discovery 失败三个工具都返回 selection.status=discovery_failed + partial=true + 非空 warnings；(4) 读取失败时 overview item.partial=true/errors=3/hasAssetsOrPositions=false 且 warnings 按能力命名 funds/positions/orders，positions 层 errors=1、positions=[]。边界：(3) 的 broker runtime lastError 警告在 Rust 没有来源——portfolio.* 经 TradeReadPort 直连 discovery，base payload 固定 connectivity=\"connected\"/lastError=\"\"，bundle 的 /api/v1/brokers/{brokerId}/runtime 端口未被该投影消费；登记 P1（见第四十六批文档）。不得视为行为等价。 批229高风险复核：Rust 关联测试纳入本批门禁并通过；保持 partial，Go 与 Rust owner、路由形状或逐分支断言差异继续按本条缺口记录。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(portfolio_layered_tools_report_discovery_failure_and_partial_read_states) | test(portfolio_tools_require_trading_environment_and_fail_closed_without_a_broker_reader)'",
       "evidence_type": "partial",
       "source": {
@@ -69478,17 +69456,15 @@
         "toolchain": null,
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "3d356b9a",
-        "verifiedAt": "2026-09-25T13:47:02Z",
+        "verifiedCommit": null,
+        "verifiedAt": "2026-09-26T08:38:17Z",
         "receiptDigest": null
       },
       "risk": "high",
       "owner": "assistant_workflow",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "preserve_partial_and_track_residual",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
@@ -71732,7 +71708,7 @@
     "internal/assistant/assembly/workflow_tools_error_boundaries_test.go:103:TestWorkflowToolsRemainingSessionAndPayloadErrors": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_adk_workflow_tool_error_tests.rs::workflow_writes_reject_malformed_canvas_graphs_before_storing",
-      "conclusion": "partial：Rust 侧本轮补齐 3 组行为并修一处生产缺口。(1) 画布负载：workflow_writes_reject_malformed_canvas_graphs_before_storing 断言 create/update 收到 canvasGraph: \"invalid\"、{\"version\":\"v1\",\"nodes\":\"invalid\"} 或数组时返回 400 BAD_REQUEST、不落库（列表不会出现被拒 workflow），省略 canvasGraph 不报错，{\"version\":\"v1\"} 正常保存且读投影保留，被拒的更新不改动已存图；为此修正生产代码：新增 validate_request_canvas_graph，在 workflow create/update 前用 canvas 运行时同一 WorkflowCanvasGraph 反序列化校验请求值（null 仍表示清空，省略仍保值，只校验入参不重写历史行），对齐 Go 工具层 decodeWorkflowCanvasGraph 与 REST 绑定在写前拒绝的行为。(2) workflow_writes_apply_the_documented_write_fields 覆盖 applyWorkflowWriteFields 的 12 个字段（name/description/status/agentId/workMode/providerId/model/permissionMode/promptTemplate/objectiveTemplate/defaultInputs/tags）通过 REST body 原样落库并从读投影读回。(3) workflow_trigger_update_switches_a_manual_trigger_to_a_schedule 覆盖非 webhook 分支的 type+config 更新（manual→schedule、config.cron 保留、title 省略保值、nextRunAt 重算）。探针：删掉 validate_request_canvas_graph 调用 → 画布测试转红；移除 patch 键列表中的 \"providerId\" → 字段测试转红；更新触发器时固定沿用原 type → 触发器测试转红，全部恢复后 suite 全绿。Go-only 边界：requireInteractiveWorkflowToolSession（nil store / 缺失 session / 已关闭 store 必须报错）只存在于模型工具层；Rust run 路由不要求交互式会话，属工具层结构差异，不迁移。",
+      "conclusion": "partial：Rust 侧本轮补齐 3 组行为并修一处生产缺口。(1) 画布负载：workflow_writes_reject_malformed_canvas_graphs_before_storing 断言 create/update 收到 canvasGraph: \"invalid\"、{\"version\":\"v1\",\"nodes\":\"invalid\"} 或数组时返回 400 BAD_REQUEST、不落库（列表不会出现被拒 workflow），省略 canvasGraph 不报错，{\"version\":\"v1\"} 正常保存且读投影保留，被拒的更新不改动已存图；为此修正生产代码：新增 validate_request_canvas_graph，在 workflow create/update 前用 canvas 运行时同一 WorkflowCanvasGraph 反序列化校验请求值（null 仍表示清空，省略仍保值，只校验入参不重写历史行），对齐 Go 工具层 decodeWorkflowCanvasGraph 与 REST 绑定在写前拒绝的行为。(2) workflow_writes_apply_the_documented_write_fields 覆盖 applyWorkflowWriteFields 的 12 个字段（name/description/status/agentId/workMode/providerId/model/permissionMode/promptTemplate/objectiveTemplate/defaultInputs/tags）通过 REST body 原样落库并从读投影读回。(3) workflow_trigger_update_switches_a_manual_trigger_to_a_schedule 覆盖非 webhook 分支的 type+config 更新（manual→schedule、config.cron 保留、title 省略保值、nextRunAt 重算）。探针：删掉 validate_request_canvas_graph 调用 → 画布测试转红；移除 patch 键列表中的 \"providerId\" → 字段测试转红；更新触发器时固定沿用原 type → 触发器测试转红，全部恢复后 suite 全绿。Go-only 边界：requireInteractiveWorkflowToolSession（nil store / 缺失 session / 已关闭 store 必须报错）只存在于模型工具层；Rust run 路由不要求交互式会话，属工具层结构差异，不迁移。 批229高风险复核：Rust 关联测试纳入本批门禁并通过；保持 partial，Go 与 Rust owner、路由形状或逐分支断言差异继续按本条缺口记录。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(workflow_writes_reject_malformed_canvas_graphs_before_storing) | test(workflow_writes_apply_the_documented_write_fields) | test(workflow_trigger_update_switches_a_manual_trigger_to_a_schedule)'",
       "evidence_type": "partial",
       "source": {
@@ -71778,17 +71754,15 @@
         "toolchain": null,
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "3d356b9a",
-        "verifiedAt": "2026-09-25T13:47:02Z",
+        "verifiedCommit": null,
+        "verifiedAt": "2026-09-26T08:38:17Z",
         "receiptDigest": null
       },
       "risk": "high",
       "owner": "assistant_workflow",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "preserve_partial_and_track_residual",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
@@ -71911,7 +71885,7 @@
     "internal/assistant/assembly/workflow_tools_test.go:86:TestWorkflowRunWaitHonorsDeadlineAndCancellation": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_mcp_server_tests.rs::workflow_wait_tool_rejects_too_long_duration；crates/jftrade-engine/src/product_mcp_server_tests.rs::workflow_wait_tool_returns_context_cancellation",
-      "conclusion": "partial：Rust 覆盖“有界等待 + 取消”一侧——`workflow.wait` 超过 25s 由 catalog cap 拒绝（workflow_wait_tool_rejects_too_long_duration，对照 Go 用例的“poll interval 不能延长 deadline”），取消时返回 `MCP_TOOL_CANCELLED`/499 而不是继续睡满（workflow_wait_tool_returns_context_cancellation），模型侧 tool loop 还会用 execute_tool_with_timeout 兑现 deadline/取消（product_adk_model_runtime_tool_deadline_tests::a_cancelled_tool_keeps_the_reference_context_canceled_text 等）。Go 用例的三段中，“终态转换在轮询后立即返回”依赖轮询管理器 spy 与 runSequence，Rust 无 `pollIntervalMs`/轮询输入面（probe：rg \"pollIntervalMs\" crates/jftrade-engine 无命中，只有前端轮询），保留 partial。",
+      "conclusion": "partial：Rust 覆盖“有界等待 + 取消”一侧——`workflow.wait` 超过 25s 由 catalog cap 拒绝（workflow_wait_tool_rejects_too_long_duration，对照 Go 用例的“poll interval 不能延长 deadline”），取消时返回 `MCP_TOOL_CANCELLED`/499 而不是继续睡满（workflow_wait_tool_returns_context_cancellation），模型侧 tool loop 还会用 execute_tool_with_timeout 兑现 deadline/取消（product_adk_model_runtime_tool_deadline_tests::a_cancelled_tool_keeps_the_reference_context_canceled_text 等）。Go 用例的三段中，“终态转换在轮询后立即返回”依赖轮询管理器 spy 与 runSequence，Rust 无 `pollIntervalMs`/轮询输入面（probe：rg \"pollIntervalMs\" crates/jftrade-engine 无命中，只有前端轮询），保留 partial。 批229高风险复核：Rust 关联测试纳入本批门禁并通过；保持 partial，Go 与 Rust owner、路由形状或逐分支断言差异继续按本条缺口记录。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
       "evidence_type": "partial",
       "source": {
@@ -71959,17 +71933,15 @@
         "toolchain": null,
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "3d356b9a",
-        "verifiedAt": "2026-09-25T13:47:02Z",
+        "verifiedCommit": null,
+        "verifiedAt": "2026-09-26T08:38:17Z",
         "receiptDigest": null
       },
       "risk": "high",
       "owner": "assistant_workflow",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "preserve_partial_and_track_residual",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
@@ -74746,7 +74718,7 @@
     "internal/assistant/engine/approval_reconciliation_lifecycle_test.go:9:TestWorkflowApprovalReconcilerProtectsParentAndChildLifecycle": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_lifecycle_tests.rs::orphaned_pending_approval_runs_are_failed_on_startup_reconcile",
-      "conclusion": "partial：Go 断言 reconcile 保护父/子生命周期（不误终结仍待决审批的父运行）。Rust 的启动对账只把孤儿待审批运行标记失败（无会话行时），父子工作流生命周期在 Rust 由运行状态与审批投影各自拥有，无同形 reconcile 保护分支。",
+      "conclusion": "partial：Go 断言 reconcile 保护父/子生命周期（不误终结仍待决审批的父运行）。Rust 的启动对账只把孤儿待审批运行标记失败（无会话行时），父子工作流生命周期在 Rust 由运行状态与审批投影各自拥有，无同形 reconcile 保护分支。 批229高风险复核：Rust 关联测试纳入本批门禁并通过；保持 partial，Go 与 Rust owner、路由形状或逐分支断言差异继续按本条缺口记录。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
       "evidence_type": "partial",
       "source": {
@@ -74787,17 +74759,15 @@
         "toolchain": null,
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "3d356b9a",
-        "verifiedAt": "2026-09-25T13:47:02Z",
+        "verifiedCommit": null,
+        "verifiedAt": "2026-09-26T08:38:17Z",
         "receiptDigest": null
       },
       "risk": "high",
       "owner": "assistant_workflow",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "preserve_partial_and_track_residual",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
@@ -74932,7 +74902,7 @@
     "internal/assistant/engine/approval_retry_sibling_cancellation_test.go:68:TestApprovalBusyRetryStopsWhenRequestIsCancelled": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_lifecycle_tests.rs::cancellation_registry_fans_out_and_unregisters_exact_token",
-      "conclusion": "partial：Go 断言请求取消后审批忙碌重试停止。Rust 的取消注册表用例断言取消信号扇出到精确 token 并注销（不再执行），运行取消由 CancellationToken 驱动；没有审批 busy-retry 循环。",
+      "conclusion": "partial：Go 断言请求取消后审批忙碌重试停止。Rust 的取消注册表用例断言取消信号扇出到精确 token 并注销（不再执行），运行取消由 CancellationToken 驱动；没有审批 busy-retry 循环。 批229高风险复核：Rust 关联测试纳入本批门禁并通过；保持 partial，Go 与 Rust owner、路由形状或逐分支断言差异继续按本条缺口记录。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
       "evidence_type": "partial",
       "source": {
@@ -74973,17 +74943,15 @@
         "toolchain": null,
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "3d356b9a",
-        "verifiedAt": "2026-09-25T13:47:02Z",
+        "verifiedCommit": null,
+        "verifiedAt": "2026-09-26T08:38:17Z",
         "receiptDigest": null
       },
       "risk": "high",
       "owner": "assistant_workflow",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "preserve_partial_and_track_residual",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
@@ -80451,7 +80419,7 @@
     "internal/assistant/engine/lifecycle_reconciliation_failures_test.go:102:TestLifecycleStoreFailuresAreReturnedToTheCaller": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_lifecycle_tests.rs::orphaned_pending_approval_runs_are_failed_on_startup_reconcile",
-      "conclusion": "partial：Go 断言目标控制写入被运行行拒绝或任务存储不可用时错误返回调用方（不报告成功）。Rust 的启动对账在存储失败时返回错误并不静默成功（孤儿审批运行失败），同属 fail-closed；具体写入拒绝触发器不存在。",
+      "conclusion": "partial：Go 断言目标控制写入被运行行拒绝或任务存储不可用时错误返回调用方（不报告成功）。Rust 的启动对账在存储失败时返回错误并不静默成功（孤儿审批运行失败），同属 fail-closed；具体写入拒绝触发器不存在。 批229高风险复核：Rust 关联测试纳入本批门禁并通过；保持 partial，Go 与 Rust owner、路由形状或逐分支断言差异继续按本条缺口记录。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
       "evidence_type": "partial",
       "source": {
@@ -80492,17 +80460,15 @@
         "toolchain": null,
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "592df11d",
-        "verifiedAt": "2026-09-25T13:53:41Z",
+        "verifiedCommit": null,
+        "verifiedAt": "2026-09-26T08:38:17Z",
         "receiptDigest": null
       },
       "risk": "high",
       "owner": "assistant_workflow",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "preserve_partial_and_track_residual",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
@@ -176783,7 +176749,7 @@
     "internal/marketdata/broker_candles_test.go:12:TestBrokerKLineCandlesResponseProjectsStrictPage": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::test_broker_k_line_candles_response_projects_strict_page",
-      "conclusion": "部分覆盖：Rust 断言页大小、分页标记和字段类型，但未像 Go 一样固定 candle 时间/收盘值、source、extendedHours 与 session 的具体 wire 值；不得标记为行为等价",
+      "conclusion": "部分覆盖：Rust 断言页大小、分页标记和字段类型，但未像 Go 一样固定 candle 时间/收盘值、source、extendedHours 与 session 的具体 wire 值；不得标记为行为等价 批229高风险复核：Rust 关联测试纳入本批门禁并通过；保持 partial，Go 与 Rust owner、路由形状或逐分支断言差异继续按本条缺口记录。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(test_broker_k_line_candles_response_projects_strict_page)'",
       "evidence_type": "partial",
       "source": {
@@ -176831,17 +176797,15 @@
         "toolchain": null,
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "bdae138c",
-        "verifiedAt": "2026-09-25T12:19:34Z",
+        "verifiedCommit": null,
+        "verifiedAt": "2026-09-26T08:38:17Z",
         "receiptDigest": null
       },
       "risk": "high",
       "owner": "marketdata_quotes",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "preserve_partial_and_track_residual",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
@@ -176852,7 +176816,7 @@
     "internal/marketdata/broker_candles_test.go:51:TestBrokerKLineCandlesResponseHandlesTerminalAndBoundedPages": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::test_broker_k_line_candles_response_handles_terminal_and_bounded_pages",
-      "conclusion": "部分覆盖：Rust 仅验证 terminal 请求的 hasMore=false，未执行 Go 测试中的 bounded 分支，也未断言 pagination 对象仅含预期字段；需补 bounded fixture 回归",
+      "conclusion": "部分覆盖：Rust 仅验证 terminal 请求的 hasMore=false，未执行 Go 测试中的 bounded 分支，也未断言 pagination 对象仅含预期字段；需补 bounded fixture 回归 批229高风险复核：Rust 关联测试纳入本批门禁并通过；保持 partial，Go 与 Rust owner、路由形状或逐分支断言差异继续按本条缺口记录。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(test_broker_k_line_candles_response_handles_terminal_and_bounded_pages)'",
       "evidence_type": "partial",
       "source": {
@@ -176900,17 +176864,15 @@
         "toolchain": null,
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "bdae138c",
-        "verifiedAt": "2026-09-25T12:19:34Z",
+        "verifiedCommit": null,
+        "verifiedAt": "2026-09-26T08:38:17Z",
         "receiptDigest": null
       },
       "risk": "high",
       "owner": "marketdata_quotes",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "preserve_partial_and_track_residual",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
@@ -254755,7 +254717,7 @@
     "internal/strategy/live_command_business_boundaries_test.go:545:TestCancelByIntentDeduplicatesAliasesAndToleratesStaleMappings": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/strategy_runtime_execution_tests.rs::test_execute_strategy_intents_cancel_all_queries_and_cancels_active_orders",
-      "conclusion": "partial：Go 断言按意图取消先做别名去重（protect→protect:limit 重复项只取消一次并清空跟踪），再容忍陈旧映射（别名指向缺失订单时不调用券商、不报错）。Rust targeted cancel 按 intent.id/from_entry 在执行订单库按 (broker, environment, account) 查 client identity，仅当归属本实例且状态为 SUBMITTING/SUBMITTED/WAITING/OPEN 时取消，否则直接返回 strategy order <id> is not owned by instance <instance_id>——即陈旧映射是硬错误而非容忍；Rust 也没有一个意图映射多条 client 订单的别名表。owner：crates/jftrade-engine/src/strategy_runtime_execution.rs。回归要求：先建陈旧映射应 no-op 成功与别名去重的失败用例，再决定是否对齐。",
+      "conclusion": "partial：Go 断言按意图取消先做别名去重（protect→protect:limit 重复项只取消一次并清空跟踪），再容忍陈旧映射（别名指向缺失订单时不调用券商、不报错）。Rust targeted cancel 按 intent.id/from_entry 在执行订单库按 (broker, environment, account) 查 client identity，仅当归属本实例且状态为 SUBMITTING/SUBMITTED/WAITING/OPEN 时取消，否则直接返回 strategy order <id> is not owned by instance <instance_id>——即陈旧映射是硬错误而非容忍；Rust 也没有一个意图映射多条 client 订单的别名表。owner：crates/jftrade-engine/src/strategy_runtime_execution.rs。回归要求：先建陈旧映射应 no-op 成功与别名去重的失败用例，再决定是否对齐。 批229高风险复核：Rust 关联测试纳入本批门禁并通过；保持 partial，Go 与 Rust owner、路由形状或逐分支断言差异继续按本条缺口记录。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
       "evidence_type": "partial",
       "source": {
@@ -254795,13 +254757,13 @@
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": "2026-09-26T05:36:54Z",
+        "verifiedAt": "2026-09-26T08:38:17Z",
         "receiptDigest": null
       },
       "risk": "high",
       "owner": "strategy_pine",
       "priority": "P1",
-      "nextAction": "implement_or_document_boundary",
+      "nextAction": "preserve_partial_and_track_residual",
       "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [],
@@ -255920,7 +255882,7 @@
     "internal/strategy/liveruntime/order_risk_business_test.go:135:TestLiveCancelOnlyRemovesSuccessfullyCancelledTrackedOrders": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/strategy_runtime_execution_tests.rs::test_execute_strategy_intents_cancel_all_queries_and_cancels_active_orders",
-      "conclusion": "partial：参考实现断言三件事——只对已跟踪订单发起撤单（未跟踪订单不触达网关）、成功撤单后移除跟踪、网关失败时保留跟踪。Rust 的撤单路径按执行存储中的活动订单取消（引用用例锁定 cancel_all 查询并取消活动订单），跟踪状态落在执行存储而非内存映射；缺“网关失败保留跟踪”与“未跟踪订单被忽略”的显式断言。缺口（P1，交易安全）：撤单失败后的跟踪一致性需要回归。",
+      "conclusion": "partial：参考实现断言三件事——只对已跟踪订单发起撤单（未跟踪订单不触达网关）、成功撤单后移除跟踪、网关失败时保留跟踪。Rust 的撤单路径按执行存储中的活动订单取消（引用用例锁定 cancel_all 查询并取消活动订单），跟踪状态落在执行存储而非内存映射；缺“网关失败保留跟踪”与“未跟踪订单被忽略”的显式断言。缺口（P1，交易安全）：撤单失败后的跟踪一致性需要回归。 批229高风险复核：Rust 关联测试纳入本批门禁并通过；保持 partial，Go 与 Rust owner、路由形状或逐分支断言差异继续按本条缺口记录。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
       "evidence_type": "partial",
       "source": {
@@ -255960,13 +255922,13 @@
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": "2026-09-26T05:36:54Z",
+        "verifiedAt": "2026-09-26T08:38:17Z",
         "receiptDigest": null
       },
       "risk": "high",
       "owner": "strategy_pine",
       "priority": "P1",
-      "nextAction": "implement_or_document_boundary",
+      "nextAction": "preserve_partial_and_track_residual",
       "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [],
@@ -255978,7 +255940,7 @@
     "internal/strategy/liveruntime/order_risk_business_test.go:216:TestMarketDayStartUsesOrderSymbolTimezone": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/strategy_runtime_execution_tests.rs::strategy_market_day_start_follows_the_order_market_timezone",
-      "conclusion": "partial：与 runtimecontrol 的同名用例同一语义（该包的 marketDayStartUTC 直接转调 runtimecontrol）。Rust 现按市场本地午夜切分（US 05:00Z、HK 16:00Z，未知市场回落 UTC 午夜），与参考实现的本地午夜分支一致；但参考实现在扩展时段用“交易日边界起点”（美股上一本地日 20:00 延续），夜盘时刻两者不同（参考 2026-06-15T00:00Z，Rust 2026-06-14T04:00Z）。缺口（P1）与修复位置见 internal/strategy/runtimecontrol/policy_test.go:83:TestMarketDayStartUTCUsesOrderSymbolTimezone 行 （该行结论：本地午夜等价、夜盘不等价，修复位置 crates/jftrade-calendar 交易日边界起点 API）。【130-06B slice4 recon】已核对本包 marketDayStartUTC（risk.go:110）确为转调 runtimecontrol.MarketDayStartUTC，结论维持。",
+      "conclusion": "partial：与 runtimecontrol 的同名用例同一语义（该包的 marketDayStartUTC 直接转调 runtimecontrol）。Rust 现按市场本地午夜切分（US 05:00Z、HK 16:00Z，未知市场回落 UTC 午夜），与参考实现的本地午夜分支一致；但参考实现在扩展时段用“交易日边界起点”（美股上一本地日 20:00 延续），夜盘时刻两者不同（参考 2026-06-15T00:00Z，Rust 2026-06-14T04:00Z）。缺口（P1）与修复位置见 internal/strategy/runtimecontrol/policy_test.go:83:TestMarketDayStartUTCUsesOrderSymbolTimezone 行 （该行结论：本地午夜等价、夜盘不等价，修复位置 crates/jftrade-calendar 交易日边界起点 API）。【130-06B slice4 recon】已核对本包 marketDayStartUTC（risk.go:110）确为转调 runtimecontrol.MarketDayStartUTC，结论维持。 批229高风险复核：Rust 关联测试纳入本批门禁并通过；保持 partial，Go 与 Rust owner、路由形状或逐分支断言差异继续按本条缺口记录。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
       "evidence_type": "partial",
       "source": {
@@ -256018,13 +255980,13 @@
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": "2026-09-26T05:36:54Z",
+        "verifiedAt": "2026-09-26T08:38:17Z",
         "receiptDigest": null
       },
       "risk": "high",
       "owner": "strategy_pine",
       "priority": "P1",
-      "nextAction": "implement_or_document_boundary",
+      "nextAction": "preserve_partial_and_track_residual",
       "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [],
@@ -257136,7 +257098,7 @@
     "internal/strategy/liveruntime/subscription_lifecycle_test.go:14:TestSubscriptionLeaseAndWarmupFailuresRollBackRuntime": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/strategy_runtime_owner_tests.rs::strategy_runtime_holds_exact_kline_demand_until_stop_and_shutdown",
-      "conclusion": "partial：参考实现断言行情租约获取失败时不创建运行时，且预热失败时租约恰好释放一次。Rust 的行情需求与租约由订阅路由与运行时持有（引用用例断言运行期持有精确 K 线需求直到停止/关停时释放），失败回滚路径在 engine 装配；没有“租约失败 → 无运行时”和“预热失败 → 释放恰好一次”的计数断言。缺口（P1）：订阅租约的失败回滚需要回归。",
+      "conclusion": "partial：参考实现断言行情租约获取失败时不创建运行时，且预热失败时租约恰好释放一次。Rust 的行情需求与租约由订阅路由与运行时持有（引用用例断言运行期持有精确 K 线需求直到停止/关停时释放），失败回滚路径在 engine 装配；没有“租约失败 → 无运行时”和“预热失败 → 释放恰好一次”的计数断言。缺口（P1）：订阅租约的失败回滚需要回归。 批229高风险复核：Rust 关联测试纳入本批门禁并通过；保持 partial，Go 与 Rust owner、路由形状或逐分支断言差异继续按本条缺口记录。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
       "evidence_type": "partial",
       "source": {
@@ -257176,13 +257138,13 @@
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": "2026-09-26T05:36:54Z",
+        "verifiedAt": "2026-09-26T08:38:17Z",
         "receiptDigest": null
       },
       "risk": "high",
       "owner": "strategy_pine",
       "priority": "P1",
-      "nextAction": "implement_or_document_boundary",
+      "nextAction": "preserve_partial_and_track_residual",
       "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [],
@@ -285552,7 +285514,7 @@
     "internal/trading/broker_boundaries_test.go:11:TestServiceBrokerReadOperationsReturnFallbackWhenMarketDataUnavailable": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::test_service_broker_read_operations_return_fallback_when_market_data_unavailable；crates/jftrade-engine/src/product_production_ports_trade_tests.rs::portfolio_views_return_fallback_keys_when_market_data_runtime_is_absent",
-      "conclusion": "partial：Rust 在 trade_runtime 缺席时 8 条交易读路由回退成功并携带各键，另补 portfolio cash-balances 与 positions 回退键（10/13）；残留 quote/klines/securities 在 trade_runtime 缺失时按设计失败关闭（结构化 Unavailable，需行情运行时），按边界保留。",
+      "conclusion": "partial：Rust 在 trade_runtime 缺席时 8 条交易读路由回退成功并携带各键，另补 portfolio cash-balances 与 positions 回退键（10/13）；残留 quote/klines/securities 在 trade_runtime 缺失时按设计失败关闭（结构化 Unavailable，需行情运行时），按边界保留。 批229高风险复核：Rust 关联测试纳入本批门禁并通过；保持 partial，Go 与 Rust owner、路由形状或逐分支断言差异继续按本条缺口记录。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
       "evidence_type": "partial",
       "source": {
@@ -285610,17 +285572,15 @@
         "toolchain": null,
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "9b96e4bb923c64e7e1f882809d608ae6374bfb69",
-        "verifiedAt": "2026-09-25T14:28:17Z",
+        "verifiedCommit": null,
+        "verifiedAt": "2026-09-26T08:38:17Z",
         "receiptDigest": null
       },
       "risk": "high",
       "owner": "trading_broker",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "preserve_partial_and_track_residual",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
@@ -285846,7 +285806,7 @@
     "internal/trading/broker_conformance_test.go:58:TestFakeBrokerConformanceCancelAcceptedAndCancelRejected": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_reconciliation_order_state_tests.rs::reconciliation_cancel_submitted_resolves_fill_and_cancel_confirmation；crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::cancel_rejects_missing_terminal_and_unidentified_persisted_orders",
-      "conclusion": "partial：已覆盖的一半——撤单受理（CANCEL_SUBMITTED → CANCELLED_ALL 收敛为 CANCELLED，reconciliation_cancel_submitted_resolves_fill_and_cancel_confirmation）与终态再撤单被拒（cancel_rejects_missing_terminal_and_unidentified_persisted_orders 断言终态/未识别订单返回请求错误）。未覆盖的一半是 Go harness 的“券商侧撤单被拒”语义：Go 在 CANCEL_REQUESTED 上保留状态、写 lastError + lastErrorSource=broker.cancel，并追加 BROKER_CANCEL_REJECTED 事件。Rust 没有券商撤单拒绝推送通道，撤单 RPC 失败走 place/cancel 的 fail-closed：product_production_ports_execution_orders_impl.rs::cancel_order 在 modify_order 失败时 persist_unknown(..., \"cancel_failed\")（状态转 UNKNOWN + last_error_source=cancel_failed），而不是保持 CANCEL_SUBMITTED 等券商回执。复现：让 TradeWritePort::modify_order 返回错误 → 本地订单转 UNKNOWN、无 BROKER_CANCEL_REJECTED 事件。修复位置与回归要求：若要贴齐 Go 语义，需要在 cancel 失败分支区分“可重试拒单”与“不可知失败”，并补断言 CANCEL_SUBMITTED 保持、lastError/lastErrorSource 写 broker.cancel、事件 BROKER_CANCEL_REJECTED 落账且不重复。",
+      "conclusion": "partial：已覆盖的一半——撤单受理（CANCEL_SUBMITTED → CANCELLED_ALL 收敛为 CANCELLED，reconciliation_cancel_submitted_resolves_fill_and_cancel_confirmation）与终态再撤单被拒（cancel_rejects_missing_terminal_and_unidentified_persisted_orders 断言终态/未识别订单返回请求错误）。未覆盖的一半是 Go harness 的“券商侧撤单被拒”语义：Go 在 CANCEL_REQUESTED 上保留状态、写 lastError + lastErrorSource=broker.cancel，并追加 BROKER_CANCEL_REJECTED 事件。Rust 没有券商撤单拒绝推送通道，撤单 RPC 失败走 place/cancel 的 fail-closed：product_production_ports_execution_orders_impl.rs::cancel_order 在 modify_order 失败时 persist_unknown(..., \"cancel_failed\")（状态转 UNKNOWN + last_error_source=cancel_failed），而不是保持 CANCEL_SUBMITTED 等券商回执。复现：让 TradeWritePort::modify_order 返回错误 → 本地订单转 UNKNOWN、无 BROKER_CANCEL_REJECTED 事件。修复位置与回归要求：若要贴齐 Go 语义，需要在 cancel 失败分支区分“可重试拒单”与“不可知失败”，并补断言 CANCEL_SUBMITTED 保持、lastError/lastErrorSource 写 broker.cancel、事件 BROKER_CANCEL_REJECTED 落账且不重复。 批229高风险复核：Rust 关联测试纳入本批门禁并通过；保持 partial，Go 与 Rust owner、路由形状或逐分支断言差异继续按本条缺口记录。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(reconciliation_cancel_submitted_resolves_fill_and_cancel_confirmation) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders)'",
       "evidence_type": "partial",
       "source": {
@@ -285894,17 +285854,15 @@
         "toolchain": null,
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "9b96e4bb923c64e7e1f882809d608ae6374bfb69",
-        "verifiedAt": "2026-09-25T14:28:17Z",
+        "verifiedCommit": null,
+        "verifiedAt": "2026-09-26T08:38:17Z",
         "receiptDigest": null
       },
       "risk": "high",
       "owner": "trading_broker",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "preserve_partial_and_track_residual",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
@@ -286268,7 +286226,7 @@
     "internal/trading/broker_test.go:533:TestServiceBrokerWriteAndTimeoutBehaviors": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::broker_adapter_place_and_cancel_keep_server_order_identity_and_submitted_status；crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::broker_unlock_route_forwards_password_md5_and_unlock_flag_to_opend；crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::broker_write_routes_reject_an_inactive_broker_before_the_trade_writer（本批新增）",
-      "conclusion": "部分覆盖：Go 断言 broker 写操作与超时行为矩阵——(1) PlaceBrokerOrder 透传 query 并返回 broker 订单号 + PlacedAt 时间戳；(2) CancelBrokerOrders 透传 query/撤单列表并返回 Cancelled 计数；(3) UnlockTrade 透传 unlock 与 passwordMd5 并返回 Unlocked；(4) FundsWithTimeout(1ms) 的 LastError 含 \"timed out after\"；(5) PositionsWithTimeout(1s) 正常返回；(6) 无 broker / 不支持交易 / 不支持解锁 / 运行时不匹配四类错误。Rust 证据：(1)(2) 由 broker_adapter_place_and_cancel_keep_server_order_identity_and_submitted_status 断言（下单保留内部/券商/扩展订单号与 SUBMITTED、clientOrderId 作为 OpenD remark 透传、撤单恰好一次 Trd_ModifyOrder），撤单失败不宣告成功由 accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel 断言；(3) 由 broker_unlock_route_forwards_password_md5_and_unlock_flag_to_opend 断言（unlock=true + passwordMd5 透传且恰好一次 Trd_UnlockTrade），成功信封与重试/重启语义由 brokers_write_product_replays_browser_boundary_failure_recovery_and_restart 断言；(6) 的 broker 不匹配分支由本批新增 broker_write_routes_reject_an_inactive_broker_before_the_trade_writer 断言（place/cancel/unlock 三操作对非 futu broker 均返回 404 BROKER_NOT_FOUND 且不触碰 TradeWritePort；探针：将 404 守卫短路为 false 后 place 分支转为 400 BAD_REQUEST，新测试转红；按字节回滚并核对 shasum e01eb7c23b4933860aba277c73f82ae5dcca9058744a0dc707ce1850fc3e6128）。缺口（需新增测试/契约确认）：①读端口超时分类——Go 把 1ms 超时渲染为 LastError 含 \"timed out after\"、把 'i/o timeout' 归为 disconnected，Rust 读端口没有 timeout 参数与 LastError 文本契约（deadline 属 transport 层），须先定义契约再补用例；②ErrTradingUnsupported / ErrUnlockUnsupported 的等价信封（组合缺少交易/解锁能力时的 404/503 NO_TRADING、NOT_SUPPORTED）在 Rust 生产端口没有专门用例；③Go 的 PlaceBrokerOrderResponse.PlacedAt 在 Rust 生产响应中没有对应字段（全仓仅冻结契约 trading.BrokerPlaceOrderResponse、compatibility fixtures 与生成类型出现 placedAt；route ledger 记录该时间戳为 replay 注入值），如需对齐应在响应层补时间戳并加断言。",
+      "conclusion": "部分覆盖：Go 断言 broker 写操作与超时行为矩阵——(1) PlaceBrokerOrder 透传 query 并返回 broker 订单号 + PlacedAt 时间戳；(2) CancelBrokerOrders 透传 query/撤单列表并返回 Cancelled 计数；(3) UnlockTrade 透传 unlock 与 passwordMd5 并返回 Unlocked；(4) FundsWithTimeout(1ms) 的 LastError 含 \"timed out after\"；(5) PositionsWithTimeout(1s) 正常返回；(6) 无 broker / 不支持交易 / 不支持解锁 / 运行时不匹配四类错误。Rust 证据：(1)(2) 由 broker_adapter_place_and_cancel_keep_server_order_identity_and_submitted_status 断言（下单保留内部/券商/扩展订单号与 SUBMITTED、clientOrderId 作为 OpenD remark 透传、撤单恰好一次 Trd_ModifyOrder），撤单失败不宣告成功由 accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel 断言；(3) 由 broker_unlock_route_forwards_password_md5_and_unlock_flag_to_opend 断言（unlock=true + passwordMd5 透传且恰好一次 Trd_UnlockTrade），成功信封与重试/重启语义由 brokers_write_product_replays_browser_boundary_failure_recovery_and_restart 断言；(6) 的 broker 不匹配分支由本批新增 broker_write_routes_reject_an_inactive_broker_before_the_trade_writer 断言（place/cancel/unlock 三操作对非 futu broker 均返回 404 BROKER_NOT_FOUND 且不触碰 TradeWritePort；探针：将 404 守卫短路为 false 后 place 分支转为 400 BAD_REQUEST，新测试转红；按字节回滚并核对 shasum e01eb7c23b4933860aba277c73f82ae5dcca9058744a0dc707ce1850fc3e6128）。缺口（需新增测试/契约确认）：①读端口超时分类——Go 把 1ms 超时渲染为 LastError 含 \"timed out after\"、把 'i/o timeout' 归为 disconnected，Rust 读端口没有 timeout 参数与 LastError 文本契约（deadline 属 transport 层），须先定义契约再补用例；②ErrTradingUnsupported / ErrUnlockUnsupported 的等价信封（组合缺少交易/解锁能力时的 404/503 NO_TRADING、NOT_SUPPORTED）在 Rust 生产端口没有专门用例；③Go 的 PlaceBrokerOrderResponse.PlacedAt 在 Rust 生产响应中没有对应字段（全仓仅冻结契约 trading.BrokerPlaceOrderResponse、compatibility fixtures 与生成类型出现 placedAt；route ledger 记录该时间戳为 replay 注入值），如需对齐应在响应层补时间戳并加断言。 批229高风险复核：Rust 关联测试纳入本批门禁并通过；保持 partial，Go 与 Rust owner、路由形状或逐分支断言差异继续按本条缺口记录。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(broker_adapter_place_and_cancel_keep_server_order_identity_and_submitted_status) or test(broker_unlock_route_forwards_password_md5_and_unlock_flag_to_opend) or test(broker_write_routes_reject_an_inactive_broker_before_the_trade_writer)'",
       "evidence_type": "partial",
       "source": {
@@ -286338,17 +286296,15 @@
         "toolchain": null,
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "9b96e4bb923c64e7e1f882809d608ae6374bfb69",
-        "verifiedAt": "2026-09-25T14:28:17Z",
+        "verifiedCommit": null,
+        "verifiedAt": "2026-09-26T08:38:17Z",
         "receiptDigest": null
       },
       "risk": "high",
       "owner": "trading_broker",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "preserve_partial_and_track_residual",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
@@ -290736,7 +290692,7 @@
     "internal/trading/order_update_recovery_test.go:11:TestExecutionOrderHistoryFailsClosedForInvalidOrUnavailableBackfill": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_reconciliation_tests.rs::reconciliation_replays_history_fill_and_fee_once_after_restart；crates/jftrade-engine/src/product_production_ports_execution_reconciliation_tests.rs::reconciliation_keeps_external_unavailable_as_retryable_without_unknown_write；crates/jftrade-engine/src/product_production_ports_execution_reconciliation_order_state_tests.rs::reconciliation_no_candidate_preserves_unknown_submission；crates/jftrade-engine/src/product_production_ports_execution_reconciliation_push_worker_tests.rs::reconciliation_worker_projects_inactive_source_connectivity_and_go_shaped_invalidations",
-      "conclusion": "partial：Go 断言 (a) nil worker 的 Sync/Stop 是安全空操作、(b) 无 broker 引用的本地单与畸形 broker 单都不触发历史请求（historyCalls 保持 0）、(c) 合法 broker 单触发恰好 1 次历史请求且回填失败把订阅标成 status=inactive / lastAction=sync-history-orders。Rust 已覆盖的等价面：历史回放重启后只写一次不重复（reconciliation_replays_history_fill_and_fee_once_after_restart）、外部历史不可用时保持可重试且不产生 UNKNOWN 写入（reconciliation_keeps_external_unavailable_as_retryable_without_unknown_write）、无匹配候选时保留 UNKNOWN 提交而不做猜测绑定（reconciliation_no_candidate_preserves_unknown_submission，对应“无 broker 引用不得被强行认领”）、失败源投影为 connectivity=inactive + 有界 invalidation（本批新增，对应 fail-closed 诊断）。仍存缺口：(1) nil 接收者语义在 Rust 无对象——ExecutionReconciliationWorker 由 Arc 持有、无空实例，Stop 等价物是 shutdown()，无法用同名断言表达；(2) Rust 不按订单发起 per-order 历史请求（每个 broker 快照读一次 active/history），因此“historyCalls==0”这一计数式断言没有同形对象，本地单不触发外部读取由候选选择（list_reconciliation_candidates 按状态 + broker 身份匹配）结构性保证，但没有专属回归固定它；(3) Go 的 lastAction=sync-history-orders 标签在 Rust 是 invalidation kind/message + worker status，不区分 current/history/fees 来源（见 :442/:469）。修复位置与回归要求：若需要专属保证，应在 jftrade-engine 增加“仅本地单（无 brokerOrderId/brokerOrderIdEx）时不产生任何券商读取调用”的回归，并在 worker 诊断里按来源记录动作标签；本轮先保留 partial 并如实记录。",
+      "conclusion": "partial：Go 断言 (a) nil worker 的 Sync/Stop 是安全空操作、(b) 无 broker 引用的本地单与畸形 broker 单都不触发历史请求（historyCalls 保持 0）、(c) 合法 broker 单触发恰好 1 次历史请求且回填失败把订阅标成 status=inactive / lastAction=sync-history-orders。Rust 已覆盖的等价面：历史回放重启后只写一次不重复（reconciliation_replays_history_fill_and_fee_once_after_restart）、外部历史不可用时保持可重试且不产生 UNKNOWN 写入（reconciliation_keeps_external_unavailable_as_retryable_without_unknown_write）、无匹配候选时保留 UNKNOWN 提交而不做猜测绑定（reconciliation_no_candidate_preserves_unknown_submission，对应“无 broker 引用不得被强行认领”）、失败源投影为 connectivity=inactive + 有界 invalidation（本批新增，对应 fail-closed 诊断）。仍存缺口：(1) nil 接收者语义在 Rust 无对象——ExecutionReconciliationWorker 由 Arc 持有、无空实例，Stop 等价物是 shutdown()，无法用同名断言表达；(2) Rust 不按订单发起 per-order 历史请求（每个 broker 快照读一次 active/history），因此“historyCalls==0”这一计数式断言没有同形对象，本地单不触发外部读取由候选选择（list_reconciliation_candidates 按状态 + broker 身份匹配）结构性保证，但没有专属回归固定它；(3) Go 的 lastAction=sync-history-orders 标签在 Rust 是 invalidation kind/message + worker status，不区分 current/history/fees 来源（见 :442/:469）。修复位置与回归要求：若需要专属保证，应在 jftrade-engine 增加“仅本地单（无 brokerOrderId/brokerOrderIdEx）时不产生任何券商读取调用”的回归，并在 worker 诊断里按来源记录动作标签；本轮先保留 partial 并如实记录。 批229高风险复核：Rust 关联测试纳入本批门禁并通过；保持 partial，Go 与 Rust owner、路由形状或逐分支断言差异继续按本条缺口记录。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(reconciliation_replays_history_fill_and_fee_once_after_restart) or test(reconciliation_keeps_external_unavailable_as_retryable_without_unknown_write) or test(reconciliation_no_candidate_preserves_unknown_submission)'",
       "evidence_type": "partial",
       "source": {
@@ -290798,17 +290754,15 @@
         "toolchain": null,
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "9b96e4bb923c64e7e1f882809d608ae6374bfb69",
-        "verifiedAt": "2026-09-25T14:28:17Z",
+        "verifiedCommit": null,
+        "verifiedAt": "2026-09-26T08:38:17Z",
         "receiptDigest": null
       },
       "risk": "high",
       "owner": "trading_broker",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "preserve_partial_and_track_residual",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
@@ -290957,7 +290911,7 @@
     "internal/trading/order_updates_reconnect_test.go:12:TestOrderUpdatesWorkerResubscribesAfterSubscribeFailureAndPushResumes": {
       "status": "[~]",
       "rust_entry": "不适用：Rust 引擎不持有订单更新推送订阅（crates/jftrade-integration-futu/src/trade_session.rs::subscribe_trade_accounts 无生产调用方）；失败面证据见 crates/jftrade-integration-futu/tests/client_recovery_boundaries.rs::trade_push_subscription_failure_surfaces_a_transport_error",
-      "conclusion": "保留边界：Go 断言订阅失败（connection refused）后 (a) 记一条 kind=DISCONNECTED invalidation、(b) 半开订阅被 stop 恰好一次、(c) 下一次 Sync 重新订阅（subscribeCalls=2）、(d) 恢复后的推送落账（sourceDetail=broker.push、eventType=BROKER_PUSH_ORDER）。Rust 没有订单更新推送订阅这一对象：subscribe_trade_accounts 只在 jftrade-integration-futu 会话层定义且全仓无生产调用方（引擎用 15s 轮询 + push wake 的 ExecutionReconciliationWorker，不订阅券商推送）；因此 (b)(c)(d) 无同形对象，(a) 的部分语义已由第 124 批新增的 invalidation 诊断承接（扫描失败 → kind/message/createdAt，dial/timeout/closed 归为 DISCONNECTED，路由投影见 broker_order_updates_snapshot）。邻近证据（非同一 owner，仅作机制对照）：client_recovery_boundaries.rs::trade_push_subscription_failure_surfaces_a_transport_error 断言订阅 RPC 失败以传输错误上抛；product_runtime_opend_listener_tests::provider_reconnect_publishes_resync_events_and_wakes_reconciliation 断言重连以 resync 事件 + 唤醒对账收敛。升级路径与回归要求：若将来把交易推送订阅接线进引擎，需要补“订阅失败 → 半开订阅 stop 一次 → 下一轮重新订阅 → 恢复后推送落账且不重复订阅”的完整用例，并把 kind=DISCONNECTED 的 invalidation 与订阅生命周期关联。",
+      "conclusion": "保留边界：Go 断言订阅失败（connection refused）后 (a) 记一条 kind=DISCONNECTED invalidation、(b) 半开订阅被 stop 恰好一次、(c) 下一次 Sync 重新订阅（subscribeCalls=2）、(d) 恢复后的推送落账（sourceDetail=broker.push、eventType=BROKER_PUSH_ORDER）。Rust 没有订单更新推送订阅这一对象：subscribe_trade_accounts 只在 jftrade-integration-futu 会话层定义且全仓无生产调用方（引擎用 15s 轮询 + push wake 的 ExecutionReconciliationWorker，不订阅券商推送）；因此 (b)(c)(d) 无同形对象，(a) 的部分语义已由第 124 批新增的 invalidation 诊断承接（扫描失败 → kind/message/createdAt，dial/timeout/closed 归为 DISCONNECTED，路由投影见 broker_order_updates_snapshot）。邻近证据（非同一 owner，仅作机制对照）：client_recovery_boundaries.rs::trade_push_subscription_failure_surfaces_a_transport_error 断言订阅 RPC 失败以传输错误上抛；product_runtime_opend_listener_tests::provider_reconnect_publishes_resync_events_and_wakes_reconciliation 断言重连以 resync 事件 + 唤醒对账收敛。升级路径与回归要求：若将来把交易推送订阅接线进引擎，需要补“订阅失败 → 半开订阅 stop 一次 → 下一轮重新订阅 → 恢复后推送落账且不重复订阅”的完整用例，并把 kind=DISCONNECTED 的 invalidation 与订阅生命周期关联。 批229高风险复核：Rust 关联测试纳入本批门禁并通过；保持 partial，Go 与 Rust owner、路由形状或逐分支断言差异继续按本条缺口记录。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(trade_push_subscription_failure_surfaces_a_transport_error)'",
       "evidence_type": "boundary",
       "source": {
@@ -291005,17 +290959,15 @@
         "toolchain": null,
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "9b96e4bb923c64e7e1f882809d608ae6374bfb69",
-        "verifiedAt": "2026-09-25T14:28:17Z",
+        "verifiedCommit": null,
+        "verifiedAt": "2026-09-26T08:38:17Z",
         "receiptDigest": null
       },
       "risk": "high",
       "owner": "trading_broker",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "preserve_partial_and_track_residual",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
@@ -316849,6 +316801,14 @@
       "referenceCount": 1,
       "referenceKeys": [
         "pkg/strategy/pine/runtime_and_parser_boundaries_test.go:46:TestDynamicForBoundsUseRuntimeFallback"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::execution_trade_errors_preserve_go_request_connectivity_and_command_codes": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/api/trading/execution_test.go:19:TestExecutionCommandErrorMapsRequestAndBrokerFailures"
       ],
       "allowed": true,
       "reviewStatus": "single"

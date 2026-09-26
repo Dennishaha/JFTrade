@@ -547,22 +547,49 @@ pub(crate) fn execution_error_details(error: &ExecutionWritePortError) -> (Strin
 }
 
 // Parity: internal/api/trading/execution_test.go:19 TestExecutionCommandErrorMapsRequestAndBrokerFailures
-// Maps broker errors to canonical HTTP statuses and structured codes:
-// timeout -> 504 BROKER_TIMEOUT, rate limited -> 429 BROKER_RATE_LIMITED, unavailable -> 502 BROKER_UNAVAILABLE
+// Maps broker errors to the canonical execution command statuses and codes.
 pub(crate) fn map_trade_error(error: TradeSessionError) -> ExecutionWritePortError {
-    let message = match error {
-        TradeSessionError::Unsupported(message) => {
-            return ExecutionWritePortError::Unavailable(message);
+    match error {
+        TradeSessionError::Unsupported(message) => ExecutionWritePortError::Unavailable(message),
+        TradeSessionError::RateLimited => {
+            failed(429, "BROKER_RATE_LIMITED", "OpenD trade rate limit exceeded")
         }
-        error => error.to_string(),
-    };
-    let lower = message.to_ascii_lowercase();
-    if lower.contains("timeout") || lower.contains("timed out") {
-        failed(504, "BROKER_TIMEOUT", message)
-    } else if lower.contains("rate") || lower.contains("quota") {
-        failed(429, "BROKER_RATE_LIMITED", message)
-    } else {
-        failed(502, "BROKER_UNAVAILABLE", message)
+        TradeSessionError::Session(session_error) => {
+            let message = session_error.to_string();
+            let lower = message.to_ascii_lowercase();
+            if lower.contains("timeout") || lower.contains("timed out") {
+                failed(504, "BROKER_TIMEOUT", message)
+            } else {
+                failed(502, "BROKER_NOT_CONNECTED", message)
+            }
+        }
+        TradeSessionError::Coordinator(coordinator_error) => {
+            let message = coordinator_error.to_string();
+            if message.to_ascii_lowercase().contains("timed out") {
+                failed(504, "BROKER_TIMEOUT", message)
+            } else {
+                failed(502, "BROKER_NOT_CONNECTED", message)
+            }
+        }
+        TradeSessionError::Response(response_error) => {
+            let message = response_error.to_string();
+            let lower = message.to_ascii_lowercase();
+            if lower.contains("account")
+                && (lower.contains("not found")
+                    || lower.contains("not exist")
+                    || lower.contains("missing"))
+                || lower.contains("market not supported")
+                || lower.contains("order not found")
+            {
+                failed(400, "BAD_REQUEST", message)
+            } else if lower.contains("timeout") || lower.contains("timed out") {
+                failed(504, "BROKER_TIMEOUT", message)
+            } else if lower.contains("rate") || lower.contains("quota") {
+                failed(429, "BROKER_RATE_LIMITED", message)
+            } else {
+                failed(502, "BROKER_COMMAND_FAILED", message)
+            }
+        }
     }
 }
 
