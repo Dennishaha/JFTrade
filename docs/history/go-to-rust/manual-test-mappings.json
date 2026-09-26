@@ -187446,7 +187446,7 @@
     "internal/marketdataassets/cache_test.go:207:TestEnsurePrivateCacheRootReportsUninspectablePath": {
       "status": "[~]",
       "rust_entry": "",
-      "conclusion": "boundary：Rust 无 ensurePrivateCacheRoot（私有目录创建与 Lstat/chmod 校验），目录创建失败以 create_dir_all 的 io 错误直接上抛，错误分类与文案不同；保留为边界差异。",
+      "conclusion": "boundary：Rust 无 ensurePrivateCacheRoot（私有目录创建与 Lstat/chmod 校验），目录创建失败以 create_dir_all 的 io 错误直接上抛，错误分类与文案不同；保留为边界差异。 已复核 Rust owner 为 content-addressed AssetBundle 单文件物化；相关 helper nextest 通过，但 Go 的目录检查/删除/非常规文件错误分类没有 Rust 同形入口，保留 boundary。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper --all-targets --locked",
       "evidence_type": "boundary",
       "source": {
@@ -187461,7 +187461,7 @@
         "uncovered": [
           "boundary：Rust 无 ensurePrivateCacheRoot（私有目录创建与 Lstat/chmod 校验），目录创建失败以 create_dir_all 的 io 错误直接上抛，错误分类与文案不同；保留为边界差异。"
         ],
-        "source": "legacy-conclusion"
+        "source": "manual-review"
       },
       "verification": {
         "argv": [
@@ -187476,30 +187476,28 @@
         "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
+        "status": "passed",
+        "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": null,
+        "verifiedAt": "2026-09-26T05:09:37Z",
         "receiptDigest": null
       },
       "risk": "high",
       "owner": "other",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "documented_boundary",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
         "boundary：Rust 无 ensurePrivateCacheRoot（私有目录创建与 Lstat/chmod 校验），目录创建失败以 create_dir_all 的 io 错误直接上抛，错误分类与文案不同；保留为边界差异。"
       ],
-      "boundaryReason": "boundary：Rust 无 ensurePrivateCacheRoot（私有目录创建与 Lstat/chmod 校验），目录创建失败以 create_dir_all 的 io 错误直接上抛，错误分类与文案不同；保留为边界差异。"
+      "boundaryReason": "Go market-data sidecar cache tree inspection/removal helpers are retired; Rust AssetBundle owns single-file materialization."
     },
     "internal/marketdataassets/cache_test.go:218:TestRemoveInvalidCacheTargetReportsInspectionFailure": {
       "status": "[~]",
       "rust_entry": "",
-      "conclusion": "boundary：Rust 没有 removeInvalidCacheTarget——无效缓存目标不会被删除重建，AssetBundle::materialize 通过覆盖写修复目标，因此“检查失败时报 inspect 错误”没有对应分支。",
+      "conclusion": "boundary：Rust 没有 removeInvalidCacheTarget——无效缓存目标不会被删除重建，AssetBundle::materialize 通过覆盖写修复目标，因此“检查失败时报 inspect 错误”没有对应分支。 已复核 Rust owner 为 content-addressed AssetBundle 单文件物化；相关 helper nextest 通过，但 Go 的目录检查/删除/非常规文件错误分类没有 Rust 同形入口，保留 boundary。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper --all-targets --locked",
       "evidence_type": "boundary",
       "source": {
@@ -187514,7 +187512,7 @@
         "uncovered": [
           "boundary：Rust 没有 removeInvalidCacheTarget——无效缓存目标不会被删除重建，AssetBundle::materialize 通过覆盖写修复目标，因此“检查失败时报 inspect 错误”没有对应分支。"
         ],
-        "source": "legacy-conclusion"
+        "source": "manual-review"
       },
       "verification": {
         "argv": [
@@ -187529,30 +187527,28 @@
         "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
+        "status": "passed",
+        "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": null,
+        "verifiedAt": "2026-09-26T05:09:37Z",
         "receiptDigest": null
       },
       "risk": "high",
       "owner": "other",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "documented_boundary",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
         "boundary：Rust 没有 removeInvalidCacheTarget——无效缓存目标不会被删除重建，AssetBundle::materialize 通过覆盖写修复目标，因此“检查失败时报 inspect 错误”没有对应分支。"
       ],
-      "boundaryReason": "boundary：Rust 没有 removeInvalidCacheTarget——无效缓存目标不会被删除重建，AssetBundle::materialize 通过覆盖写修复目标，因此“检查失败时报 inspect 错误”没有对应分支。"
+      "boundaryReason": "Go market-data sidecar cache tree inspection/removal helpers are retired; Rust AssetBundle owns single-file materialization."
     },
     "internal/marketdataassets/cache_test.go:229:TestRemoveInvalidCacheTargetReportsRemovalFailure": {
       "status": "[~]",
       "rust_entry": "",
-      "conclusion": "boundary：同上，Rust 无缓存目标删除路径（无可保留/可删除的缓存目录），POSIX 目录权限导致的删除失败不可复现。",
+      "conclusion": "boundary：同上，Rust 无缓存目标删除路径（无可保留/可删除的缓存目录），POSIX 目录权限导致的删除失败不可复现。 已复核 Rust owner 为 content-addressed AssetBundle 单文件物化；相关 helper nextest 通过，但 Go 的目录检查/删除/非常规文件错误分类没有 Rust 同形入口，保留 boundary。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper --all-targets --locked",
       "evidence_type": "boundary",
       "source": {
@@ -187567,7 +187563,7 @@
         "uncovered": [
           "boundary：同上，Rust 无缓存目标删除路径（无可保留/可删除的缓存目录），POSIX 目录权限导致的删除失败不可复现。"
         ],
-        "source": "legacy-conclusion"
+        "source": "manual-review"
       },
       "verification": {
         "argv": [
@@ -187582,25 +187578,23 @@
         "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
+        "status": "passed",
+        "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": null,
+        "verifiedAt": "2026-09-26T05:09:37Z",
         "receiptDigest": null
       },
       "risk": "high",
       "owner": "other",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "documented_boundary",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
         "boundary：同上，Rust 无缓存目标删除路径（无可保留/可删除的缓存目录），POSIX 目录权限导致的删除失败不可复现。"
       ],
-      "boundaryReason": "boundary：同上，Rust 无缓存目标删除路径（无可保留/可删除的缓存目录），POSIX 目录权限导致的删除失败不可复现。"
+      "boundaryReason": "Go market-data sidecar cache tree inspection/removal helpers are retired; Rust AssetBundle owns single-file materialization."
     },
     "internal/marketdataassets/cache_test.go:249:TestMaterializeCachedAssetRejectsInvalidAssetAndRootInputs": {
       "status": "[~]",
@@ -187797,7 +187791,7 @@
     "internal/marketdataassets/cache_test.go:407:TestValidateCachedAssetRejectsSocket": {
       "status": "[~]",
       "rust_entry": "",
-      "conclusion": "boundary：Rust 没有缓存目录树校验，也没有“非常规文件”判定；单文件物化在遇到 socket/FIFO 时会以读写 io 错误失败而不是形状校验错误，保留该边界差异。",
+      "conclusion": "boundary：Rust 没有缓存目录树校验，也没有“非常规文件”判定；单文件物化在遇到 socket/FIFO 时会以读写 io 错误失败而不是形状校验错误，保留该边界差异。 已复核 Rust owner 为 content-addressed AssetBundle 单文件物化；相关 helper nextest 通过，但 Go 的目录检查/删除/非常规文件错误分类没有 Rust 同形入口，保留 boundary。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper --all-targets --locked",
       "evidence_type": "boundary",
       "source": {
@@ -187812,7 +187806,7 @@
         "uncovered": [
           "boundary：Rust 没有缓存目录树校验，也没有“非常规文件”判定；单文件物化在遇到 socket/FIFO 时会以读写 io 错误失败而不是形状校验错误，保留该边界差异。"
         ],
-        "source": "legacy-conclusion"
+        "source": "manual-review"
       },
       "verification": {
         "argv": [
@@ -187827,25 +187821,23 @@
         "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
+        "status": "passed",
+        "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": null,
+        "verifiedAt": "2026-09-26T05:09:37Z",
         "receiptDigest": null
       },
       "risk": "high",
       "owner": "other",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "documented_boundary",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
         "boundary：Rust 没有缓存目录树校验，也没有“非常规文件”判定；单文件物化在遇到 socket/FIFO 时会以读写 io 错误失败而不是形状校验错误，保留该边界差异。"
       ],
-      "boundaryReason": "boundary：Rust 没有缓存目录树校验，也没有“非常规文件”判定；单文件物化在遇到 socket/FIFO 时会以读写 io 错误失败而不是形状校验错误，保留该边界差异。"
+      "boundaryReason": "Go market-data sidecar cache tree inspection/removal helpers are retired; Rust AssetBundle owns single-file materialization."
     },
     "pkg/market/calendar/builtin_test.go:8:TestBuiltinResolverUSHolidayAndEarlyClose": {
       "status": "[~]",
@@ -196529,8 +196521,8 @@
     },
     "cmd/jftrade-desktop/desktop_startup_test.go:93:TestDesktopShutdownCancelsStartupAndReclaimsLateResources": {
       "status": "[~]",
-      "rust_entry": "边界保留：Tauri async setup cancellation 与 late ProductRuntimeHandle 回收",
-      "conclusion": "不适用/待补：Go 测试依赖 Wails startup goroutine 可注入取消；当前 Rust 仅有同步 stop_product 入口，尚无可注入的异步 starter 测试，不能宣称等价。",
+      "rust_entry": "apps/desktop/src-tauri/src/native_tests.rs::stop_product_is_idempotent_across_concurrent_invocations; apps/desktop/src-tauri/tests/desktop_contracts.rs::readiness_failure_reclaims_every_started_process_without_starting_dependents",
+      "conclusion": "boundary：Go 测试依赖可注入的 Wails async starter，在 shutdown 期间等待 late resource 并断言 shutdown 恰好一次；Rust Tauri 生产 setup 不暴露同形 starter，已有 stop_product 幂等与 readiness rollback 测试覆盖可观察的资源回收边界，不能宣称等价。",
       "command": "`node scripts/quality/cargo-nextest.mjs run -p jftrade-desktop --all-targets --locked`",
       "evidence_type": "boundary",
       "source": {
@@ -196545,7 +196537,7 @@
         "uncovered": [
           "不适用/待补：Go 测试依赖 Wails startup goroutine 可注入取消；当前 Rust 仅有同步 stop_product 入口，尚无可注入的异步 starter 测试，不能宣称等价。"
         ],
-        "source": "legacy-conclusion"
+        "source": "manual-review"
       },
       "verification": {
         "argv": [
@@ -196560,25 +196552,23 @@
         "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
+        "status": "passed",
+        "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": null,
+        "verifiedAt": "2026-09-26T05:09:37Z",
         "receiptDigest": null
       },
       "risk": "high",
       "owner": "other",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "documented_boundary",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
         "不适用/待补：Go 测试依赖 Wails startup goroutine 可注入取消；当前 Rust 仅有同步 stop_product 入口，尚无可注入的异步 starter 测试，不能宣称等价。"
       ],
-      "boundaryReason": "不适用/待补：Go 测试依赖 Wails startup goroutine 可注入取消；当前 Rust 仅有同步 stop_product 入口，尚无可注入的异步 starter 测试，不能宣称等价。"
+      "boundaryReason": "Wails async startup injection is a retired desktop owner boundary; Rust owns synchronous Tauri setup and product shutdown."
     },
     "cmd/jftrade-desktop/desktop_startup_test.go:124:TestDesktopShutdownIsIdempotent": {
       "status": "[~]",
@@ -220732,8 +220722,8 @@
     },
     "internal/system/service_status_defaults_test.go:137:TestFutuDefaultsExposeEmptyGuideAndSnapshot": {
       "status": "[~]",
-      "rust_entry": "不适用：无「未注入回调」的服务默认分支（Rust 组合根始终装配 owner）",
-      "conclusion": "boundary（owner 退场，保留）：Go 该测试只覆盖「没有任何注入回调」时的占位分支：install guide 返回空 map、broker order snapshot 返回空 map、RuntimeDependencies 返回 {allRequiredSatisfied:true, dependencies:[]}。Rust 产品始终由组合根装配 owner：install guide 由产品渲染完整指南（system_control_reads_are_authenticated_and_do_not_create_control_state 断言 settings.host/minimumVersion 且读取不落盘），订单更新 Worker 快照需要真实 worker，未装配时 503 fail-closed（production_system_read_reports_unavailable_opend_without_fake_health），runtime dependencies 始终执行真实探测（runtime_dependencies_use_the_normalized_settings_node_candidate 断言 allRequiredSatisfied=true 与 node 依赖条目）。空 map 占位语义在 Rust 不迁移。",
+      "rust_entry": "crates/jftrade-engine/src/product_production_ports_system.rs::production_system_read_reports_unavailable_opend_without_fake_health",
+      "conclusion": "boundary：Go 测试覆盖未注入回调时的空 guide、空 order snapshot 和默认 RuntimeDependencies；Rust 组合根始终装配 owner，不存在该 nil/default service branch。Rust system read owner 的 unavailable OpenD/fail-closed test 已通过，保留 Go 注入形态边界。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(production_system_read_reports_unavailable_opend_without_fake_health)'",
       "evidence_type": "boundary",
       "source": {
@@ -220748,7 +220738,7 @@
         "uncovered": [
           "boundary（owner 退场，保留）：Go 该测试只覆盖「没有任何注入回调」时的占位分支：install guide 返回空 map、broker order snapshot 返回空 map、RuntimeDependencies 返回 {allRequiredSatisfied:true, dependencies:[]}。Rust 产品始终由组合根装配 owner：install guide 由产品渲染完整指南（system_control_reads_are_authenticated_and_do_not_create_control_state 断言 settings.host/minimumVersion 且读取不落盘），订单更新 Worker 快照需要真实 worker，未装配时 503 fail-closed（production_system_read_reports_unavailable_opend_without_fake_health），runtime dependencies 始终执行真实探测（runtime_dependencies_use_the_normalized_settings_node_candidate 断言 allRequiredSatisfied=true 与 node 依赖条目）。空 map 占位语义在 Rust 不迁移。"
         ],
-        "source": "legacy-conclusion"
+        "source": "manual-review"
       },
       "verification": {
         "argv": [
@@ -220765,25 +220755,23 @@
         "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
+        "status": "passed",
+        "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": null,
+        "verifiedAt": "2026-09-26T05:09:37Z",
         "receiptDigest": null
       },
       "risk": "high",
       "owner": "other",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "documented_boundary",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
         "boundary（owner 退场，保留）：Go 该测试只覆盖「没有任何注入回调」时的占位分支：install guide 返回空 map、broker order snapshot 返回空 map、RuntimeDependencies 返回 {allRequiredSatisfied:true, dependencies:[]}。Rust 产品始终由组合根装配 owner：install guide 由产品渲染完整指南（system_control_reads_are_authenticated_and_do_not_create_control_state 断言 settings.host/minimumVersion 且读取不落盘），订单更新 Worker 快照需要真实 worker，未装配时 503 fail-closed（production_system_read_reports_unavailable_opend_without_fake_health），runtime dependencies 始终执行真实探测（runtime_dependencies_use_the_normalized_settings_node_candidate 断言 allRequiredSatisfied=true 与 node 依赖条目）。空 map 占位语义在 Rust 不迁移。"
       ],
-      "boundaryReason": "boundary（owner 退场，保留）：Go 该测试只覆盖「没有任何注入回调」时的占位分支：install guide 返回空 map、broker order snapshot 返回空 map、RuntimeDependencies 返回 {allRequiredSatisfied:true, dependencies:[]}。Rust 产品始终由组合根装配 owner：install guide 由产品渲染完整指南（system_control_reads_are_authenticated_and_do_not_create_control_state 断言 settings.host/minimumVersion 且读取不落盘），订单更新 Worker 快照需要真实 worker，未装配时 503 fail-closed（production_system_read_reports_unavailable_opend_without_fake_health），runtime dependencies 始终执行真实探测（runtime_dependencies_use_the_normalized_settings_node_candidate 断言 allRequiredSatisfied=true 与 node 依赖条目）。空 map 占位语义在 Rust 不迁移。"
+      "boundaryReason": "Rust composition root always installs system owners; Go NewService nil callback defaults are not a production Rust state."
     },
     "internal/system/service_status_defaults_test.go:151:TestRuntimeDependenciesDelegates": {
       "status": "[~]",
@@ -230388,8 +230376,8 @@
     },
     "pkg/observability/observability_test.go:148:TestDetachPreservesCorrelationWithoutParentCancellation": {
       "status": "[~]",
-      "rust_entry": "不适用：Rust 无 observability 上下文值载体（关联字段按参数传递）",
-      "conclusion": "boundary：Go 的 Detach(base,parent) 把 parent 的 observability 状态（Fields+Recorder）搬到 base 上，在 parent 取消后仍保留关联字段。Rust 不把观测状态挂进 context：HTTP 关联 ID 由 router 中间件生成并显式传给 finish_request，OpenD 关联由 kernel OpenDCallRecord 显式携带 operation/requestId/error，取消由 tokio 任务结构承担，因此「保留关联但不继承取消」没有对应对象与断言面。",
+      "rust_entry": "crates/jftrade-api/src/observability.rs::recorder_bounds_errors_slow_requests_and_open_d_correlation_like_go; crates/jftrade-api/src/router.rs::current_request_context",
+      "conclusion": "boundary：Go Detach(base,parent) 搬运 context Fields/Recorder 且屏蔽 parent cancellation；Rust 不把 observability 状态挂进 context，request/OpenD correlation 通过 router 与显式参数传递。相关 recorder/router tests 通过，但无同形 context detach 对象。",
       "command": "pnpm run check:rust:architecture",
       "evidence_type": "boundary",
       "source": {
@@ -230404,7 +230392,7 @@
         "uncovered": [
           "boundary：Go 的 Detach(base,parent) 把 parent 的 observability 状态（Fields+Recorder）搬到 base 上，在 parent 取消后仍保留关联字段。Rust 不把观测状态挂进 context：HTTP 关联 ID 由 router 中间件生成并显式传给 finish_request，OpenD 关联由 kernel OpenDCallRecord 显式携带 operation/requestId/error，取消由 tokio 任务结构承担，因此「保留关联但不继承取消」没有对应对象与断言面。"
         ],
-        "source": "legacy-conclusion"
+        "source": "manual-review"
       },
       "verification": {
         "argv": [
@@ -230415,25 +230403,23 @@
         "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
+        "status": "passed",
+        "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": null,
+        "verifiedAt": "2026-09-26T05:09:37Z",
         "receiptDigest": null
       },
       "risk": "high",
       "owner": "other",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "documented_boundary",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
         "boundary：Go 的 Detach(base,parent) 把 parent 的 observability 状态（Fields+Recorder）搬到 base 上，在 parent 取消后仍保留关联字段。Rust 不把观测状态挂进 context：HTTP 关联 ID 由 router 中间件生成并显式传给 finish_request，OpenD 关联由 kernel OpenDCallRecord 显式携带 operation/requestId/error，取消由 tokio 任务结构承担，因此「保留关联但不继承取消」没有对应对象与断言面。"
       ],
-      "boundaryReason": "boundary：Go 的 Detach(base,parent) 把 parent 的 observability 状态（Fields+Recorder）搬到 base 上，在 parent 取消后仍保留关联字段。Rust 不把观测状态挂进 context：HTTP 关联 ID 由 router 中间件生成并显式传给 finish_request，OpenD 关联由 kernel OpenDCallRecord 显式携带 operation/requestId/error，取消由 tokio 任务结构承担，因此「保留关联但不继承取消」没有对应对象与断言面。"
+      "boundaryReason": "Rust correlation state is explicit request data, not a detachable Go context value."
     },
     "pkg/observability/observability_test.go:163:TestObservabilityBoundaryDefaultsAndGlobalOpenDLogging": {
       "status": "[~]",
@@ -255733,7 +255719,7 @@
     "internal/strategy/liveruntime/nil_boundaries_test.go:10:TestNilRuntimeBoundariesReturnEmptyState": {
       "status": "[~]",
       "rust_entry": "不适用：Go nil 接收者的空状态边界（Rust 无空指针接收者，且下单入口必须有端口）",
-      "conclusion": "boundary：参考实现对 nil Manager/运行时断言取空状态、事件与转换调用不报错、下单与撤单报错、Close 不报错。Rust 无 nil 接收者；等价约束由类型系统与端口必需性表达（执行写端口缺省时下单路径直接报错，产品路由用例覆盖失败关闭）。升级路径：若引入可失效的运行期句柄，应改用状态机并补“关停后空状态 + 下单报错”的回归。",
+      "conclusion": "boundary：参考实现对 nil Manager/运行时断言取空状态、事件与转换调用不报错、下单与撤单报错、Close 不报错。Rust 无 nil 接收者；等价约束由类型系统与端口必需性表达（执行写端口缺省时下单路径直接报错，产品路由用例覆盖失败关闭）。升级路径：若引入可失效的运行期句柄，应改用状态机并补“关停后空状态 + 下单报错”的回归。 已复核为 Go nil receiver 防御分支；Rust 以 Option/Result 与所有权约束排除空接收者，相关 engine/strategy nextest 通过，保留 boundary。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
       "evidence_type": "boundary",
       "source": {
@@ -255748,7 +255734,7 @@
         "uncovered": [
           "boundary：参考实现对 nil Manager/运行时断言取空状态、事件与转换调用不报错、下单与撤单报错、Close 不报错。Rust 无 nil 接收者；等价约束由类型系统与端口必需性表达（执行写端口缺省时下单路径直接报错，产品路由用例覆盖失败关闭）。升级路径：若引入可失效的运行期句柄，应改用状态机并补“关停后空状态 + 下单报错”的回归。"
         ],
-        "source": "legacy-conclusion"
+        "source": "manual-review"
       },
       "verification": {
         "argv": [
@@ -255763,25 +255749,23 @@
         "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
+        "status": "passed",
+        "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": null,
+        "verifiedAt": "2026-09-26T05:09:37Z",
         "receiptDigest": null
       },
       "risk": "high",
       "owner": "strategy_pine",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "documented_boundary",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
         "boundary：参考实现对 nil Manager/运行时断言取空状态、事件与转换调用不报错、下单与撤单报错、Close 不报错。Rust 无 nil 接收者；等价约束由类型系统与端口必需性表达（执行写端口缺省时下单路径直接报错，产品路由用例覆盖失败关闭）。升级路径：若引入可失效的运行期句柄，应改用状态机并补“关停后空状态 + 下单报错”的回归。"
       ],
-      "boundaryReason": "boundary：参考实现对 nil Manager/运行时断言取空状态、事件与转换调用不报错、下单与撤单报错、Close 不报错。Rust 无 nil 接收者；等价约束由类型系统与端口必需性表达（执行写端口缺省时下单路径直接报错，产品路由用例覆盖失败关闭）。升级路径：若引入可失效的运行期句柄，应改用状态机并补“关停后空状态 + 下单报错”的回归。"
+      "boundaryReason": "Rust has no nil receiver semantics; absence is represented by typed Option/Result construction and fail-closed ports."
     },
     "internal/strategy/liveruntime/nil_boundaries_test.go:43:TestTradeCommandFuncsRequireCallbacksAndDelegateCommands": {
       "status": "[~]",
@@ -259730,7 +259714,7 @@
     "internal/strategy/pineruntime/recovery_contracts_test.go:9:TestManagerReconfigureRejectsNilManager": {
       "status": "[~]",
       "rust_entry": "不适用：Go nil 接收者的 Reconfigure 防御分支（Rust 无空指针接收者）",
-      "conclusion": "boundary：Go 对 `var manager *Manager` 调用 Reconfigure 断言返回错误且 enabled=false。Rust 的方法调用必须有有效接收者，空指针防御分支不存在（编译器与类型系统排除），也不该为对齐而引入可空包装；工程内的“未初始化即拒绝”表达是 Option/Result 构造期校验（如 WorkerPool::new 空池报 PoolError::Empty）。升级路径：若未来出现运行期失效的运行时句柄，应在 engine 装配层用状态机（未初始化/运行中/已关停）表达并补关停后拒绝的回归用例。",
+      "conclusion": "boundary：Go 对 `var manager *Manager` 调用 Reconfigure 断言返回错误且 enabled=false。Rust 的方法调用必须有有效接收者，空指针防御分支不存在（编译器与类型系统排除），也不该为对齐而引入可空包装；工程内的“未初始化即拒绝”表达是 Option/Result 构造期校验（如 WorkerPool::new 空池报 PoolError::Empty）。升级路径：若未来出现运行期失效的运行时句柄，应在 engine 装配层用状态机（未初始化/运行中/已关停）表达并补关停后拒绝的回归用例。 已复核为 Go nil receiver 防御分支；Rust 以 Option/Result 与所有权约束排除空接收者，相关 engine/strategy nextest 通过，保留 boundary。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
       "evidence_type": "boundary",
       "source": {
@@ -259745,7 +259729,7 @@
         "uncovered": [
           "boundary：Go 对 `var manager *Manager` 调用 Reconfigure 断言返回错误且 enabled=false。Rust 的方法调用必须有有效接收者，空指针防御分支不存在（编译器与类型系统排除），也不该为对齐而引入可空包装；工程内的“未初始化即拒绝”表达是 Option/Result 构造期校验（如 WorkerPool::new 空池报 PoolError::Empty）。升级路径：若未来出现运行期失效的运行时句柄，应在 engine 装配层用状态机（未初始化/运行中/已关停）表达并补关停后拒绝的回归用例。"
         ],
-        "source": "legacy-conclusion"
+        "source": "manual-review"
       },
       "verification": {
         "argv": [
@@ -259760,25 +259744,23 @@
         "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
+        "status": "passed",
+        "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": null,
+        "verifiedAt": "2026-09-26T05:09:37Z",
         "receiptDigest": null
       },
       "risk": "high",
       "owner": "strategy_pine",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "documented_boundary",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
         "boundary：Go 对 `var manager *Manager` 调用 Reconfigure 断言返回错误且 enabled=false。Rust 的方法调用必须有有效接收者，空指针防御分支不存在（编译器与类型系统排除），也不该为对齐而引入可空包装；工程内的“未初始化即拒绝”表达是 Option/Result 构造期校验（如 WorkerPool::new 空池报 PoolError::Empty）。升级路径：若未来出现运行期失效的运行时句柄，应在 engine 装配层用状态机（未初始化/运行中/已关停）表达并补关停后拒绝的回归用例。"
       ],
-      "boundaryReason": "boundary：Go 对 `var manager *Manager` 调用 Reconfigure 断言返回错误且 enabled=false。Rust 的方法调用必须有有效接收者，空指针防御分支不存在（编译器与类型系统排除），也不该为对齐而引入可空包装；工程内的“未初始化即拒绝”表达是 Option/Result 构造期校验（如 WorkerPool::new 空池报 PoolError::Empty）。升级路径：若未来出现运行期失效的运行时句柄，应在 engine 装配层用状态机（未初始化/运行中/已关停）表达并补关停后拒绝的回归用例。"
+      "boundaryReason": "Rust has no nil receiver semantics; absence is represented by typed Option/Result construction and fail-closed ports."
     },
     "internal/strategy/pineruntime/runner_lifecycle_test.go:41:TestLiveSessionContextWatcherExitsWhenSessionCloses": {
       "status": "[~]",
@@ -263184,7 +263166,7 @@
     "pkg/strategy/indicatorbinding/parse_semantics_test.go:155:TestNormalizeFallbackHelpersCoverDefaultBranches": {
       "status": "[~]",
       "rust_entry": "不适用：Go 侧绑定 DSL 的归一缺省助手（数量模式/保护模式/方向/窗口策略）",
-      "conclusion": "boundary（结构差异）：Go 断言四个归一助手的缺省分支（positionpercent→symbol_position_percent、trailing_stop→trailingStop、both→auto、session→session）。Rust 的对应概念分别落在数量（quantity/quantityPct）、风险声明（off/monitor/enforce + allow_entry）上，均无这些别名归一的缺省表，属已退役 DSL 专属。升级路径：兼容导入 DSL 时按四张表移植并复刻缺省断言。",
+      "conclusion": "boundary（结构差异）：Go 断言四个归一助手的缺省分支（positionpercent→symbol_position_percent、trailing_stop→trailingStop、both→auto、session→session）。Rust 的对应概念分别落在数量（quantity/quantityPct）、风险声明（off/monitor/enforce + allow_entry）上，均无这些别名归一的缺省表，属已退役 DSL 专属。升级路径：兼容导入 DSL 时按四张表移植并复刻缺省断言。 已复核 Rust Pine strategy/risk quantity owner 与 indicator binding tests；Go 绑定 DSL 别名归一 helper 已退役，保留 boundary。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
       "evidence_type": "boundary",
       "source": {
@@ -263199,7 +263181,7 @@
         "uncovered": [
           "boundary（结构差异）：Go 断言四个归一助手的缺省分支（positionpercent→symbol_position_percent、trailing_stop→trailingStop、both→auto、session→session）。Rust 的对应概念分别落在数量（quantity/quantityPct）、风险声明（off/monitor/enforce + allow_entry）上，均无这些别名归一的缺省表，属已退役 DSL 专属。升级路径：兼容导入 DSL 时按四张表移植并复刻缺省断言。"
         ],
-        "source": "legacy-conclusion"
+        "source": "manual-review"
       },
       "verification": {
         "argv": [
@@ -263214,25 +263196,23 @@
         "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
+        "status": "passed",
+        "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": null,
+        "verifiedAt": "2026-09-26T05:09:37Z",
         "receiptDigest": null
       },
       "risk": "high",
       "owner": "strategy_pine",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "documented_boundary",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
         "boundary（结构差异）：Go 断言四个归一助手的缺省分支（positionpercent→symbol_position_percent、trailing_stop→trailingStop、both→auto、session→session）。Rust 的对应概念分别落在数量（quantity/quantityPct）、风险声明（off/monitor/enforce + allow_entry）上，均无这些别名归一的缺省表，属已退役 DSL 专属。升级路径：兼容导入 DSL 时按四张表移植并复刻缺省断言。"
       ],
-      "boundaryReason": "boundary（结构差异）：Go 断言四个归一助手的缺省分支（positionpercent→symbol_position_percent、trailing_stop→trailingStop、both→auto、session→session）。Rust 的对应概念分别落在数量（quantity/quantityPct）、风险声明（off/monitor/enforce + allow_entry）上，均无这些别名归一的缺省表，属已退役 DSL 专属。升级路径：兼容导入 DSL 时按四张表移植并复刻缺省断言。"
+      "boundaryReason": "The Go indicator-binding alias normalizer is an internal DSL helper without a Rust runtime counterpart."
     },
     "pkg/strategy/indicatorbinding/parse_test.go:10:TestParseFunctionCall": {
       "status": "[~]",
@@ -276889,7 +276869,7 @@
     "pkg/strategy/pine/parser_recovery_boundaries_test.go:104:TestObjectArgumentRecoveryRejectsOverrunAndPreservesDefaults": {
       "status": "[~]",
       "rust_entry": "",
-      "conclusion": "boundary：Go 断言对象与 UDT 构造/方法参数（默认值填充、超参拒绝 too many、normalizationErr 传播、nextObjectMethodCall 等）。Rust 没有 Pine 对象（UDT）执行面，调用直接以 PINE_CALL_UNSUPPORTED/PINE_STATEMENT_UNSUPPORTED 拒绝，这些助手属旧 owner 内部对象。升级路径：实现 UDT 后按本用例迁移参数默认值与超参契约。",
+      "conclusion": "boundary：Go 断言对象与 UDT 构造/方法参数（默认值填充、超参拒绝 too many、normalizationErr 传播、nextObjectMethodCall 等）。Rust 没有 Pine 对象（UDT）执行面，调用直接以 PINE_CALL_UNSUPPORTED/PINE_STATEMENT_UNSUPPORTED 拒绝，这些助手属旧 owner 内部对象。升级路径：实现 UDT 后按本用例迁移参数默认值与超参契约。 已复核 Rust Pine parser/semantic owner 与 framework/visual boundary tests；对象/集合注册表与 editor recovery helper 属旧 owner，Rust 只对不可执行形态给稳定诊断，保留 boundary。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
       "evidence_type": "boundary",
       "source": {
@@ -276904,7 +276884,7 @@
         "uncovered": [
           "boundary：Go 断言对象与 UDT 构造/方法参数（默认值填充、超参拒绝 too many、normalizationErr 传播、nextObjectMethodCall 等）。Rust 没有 Pine 对象（UDT）执行面，调用直接以 PINE_CALL_UNSUPPORTED/PINE_STATEMENT_UNSUPPORTED 拒绝，这些助手属旧 owner 内部对象。升级路径：实现 UDT 后按本用例迁移参数默认值与超参契约。"
         ],
-        "source": "legacy-conclusion"
+        "source": "manual-review"
       },
       "verification": {
         "argv": [
@@ -276919,30 +276899,28 @@
         "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
+        "status": "passed",
+        "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": null,
+        "verifiedAt": "2026-09-26T05:09:37Z",
         "receiptDigest": null
       },
       "risk": "high",
       "owner": "strategy_pine",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "documented_boundary",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
         "boundary：Go 断言对象与 UDT 构造/方法参数（默认值填充、超参拒绝 too many、normalizationErr 传播、nextObjectMethodCall 等）。Rust 没有 Pine 对象（UDT）执行面，调用直接以 PINE_CALL_UNSUPPORTED/PINE_STATEMENT_UNSUPPORTED 拒绝，这些助手属旧 owner 内部对象。升级路径：实现 UDT 后按本用例迁移参数默认值与超参契约。"
       ],
-      "boundaryReason": "boundary：Go 断言对象与 UDT 构造/方法参数（默认值填充、超参拒绝 too many、normalizationErr 传播、nextObjectMethodCall 等）。Rust 没有 Pine 对象（UDT）执行面，调用直接以 PINE_CALL_UNSUPPORTED/PINE_STATEMENT_UNSUPPORTED 拒绝，这些助手属旧 owner 内部对象。升级路径：实现 UDT 后按本用例迁移参数默认值与超参契约。"
+      "boundaryReason": "Pine object/collection recovery helpers are legacy execution-owner internals; Rust exposes stable diagnostics/metadata instead."
     },
     "pkg/strategy/pine/parser_recovery_boundaries_test.go:151:TestCollectionScannerRejectsDamagedAndUnknownCalls": {
       "status": "[~]",
       "rust_entry": "",
-      "conclusion": "boundary：Go 断言集合扫描助手（findCollectionHistoryCall/collectionHistoryCallArgs/resolveExecutableCollectionCall/nextCollectionReadCall）对损坏与未知调用的判定。Rust 无集合执行面，属旧 owner 内部对象。升级路径：实现集合执行面后迁移损坏调用不可执行的判定契约。",
+      "conclusion": "boundary：Go 断言集合扫描助手（findCollectionHistoryCall/collectionHistoryCallArgs/resolveExecutableCollectionCall/nextCollectionReadCall）对损坏与未知调用的判定。Rust 无集合执行面，属旧 owner 内部对象。升级路径：实现集合执行面后迁移损坏调用不可执行的判定契约。 已复核 Rust Pine parser/semantic owner 与 framework/visual boundary tests；对象/集合注册表与 editor recovery helper 属旧 owner，Rust 只对不可执行形态给稳定诊断，保留 boundary。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
       "evidence_type": "boundary",
       "source": {
@@ -276957,7 +276935,7 @@
         "uncovered": [
           "boundary：Go 断言集合扫描助手（findCollectionHistoryCall/collectionHistoryCallArgs/resolveExecutableCollectionCall/nextCollectionReadCall）对损坏与未知调用的判定。Rust 无集合执行面，属旧 owner 内部对象。升级路径：实现集合执行面后迁移损坏调用不可执行的判定契约。"
         ],
-        "source": "legacy-conclusion"
+        "source": "manual-review"
       },
       "verification": {
         "argv": [
@@ -276972,25 +276950,23 @@
         "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
+        "status": "passed",
+        "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": null,
+        "verifiedAt": "2026-09-26T05:09:37Z",
         "receiptDigest": null
       },
       "risk": "high",
       "owner": "strategy_pine",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "documented_boundary",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
         "boundary：Go 断言集合扫描助手（findCollectionHistoryCall/collectionHistoryCallArgs/resolveExecutableCollectionCall/nextCollectionReadCall）对损坏与未知调用的判定。Rust 无集合执行面，属旧 owner 内部对象。升级路径：实现集合执行面后迁移损坏调用不可执行的判定契约。"
       ],
-      "boundaryReason": "boundary：Go 断言集合扫描助手（findCollectionHistoryCall/collectionHistoryCallArgs/resolveExecutableCollectionCall/nextCollectionReadCall）对损坏与未知调用的判定。Rust 无集合执行面，属旧 owner 内部对象。升级路径：实现集合执行面后迁移损坏调用不可执行的判定契约。"
+      "boundaryReason": "Pine object/collection recovery helpers are legacy execution-owner internals; Rust exposes stable diagnostics/metadata instead."
     },
     "pkg/strategy/pine/public_lowering_test.go:10:TestParseScriptPublicEntryReturnsProgramAndPropagatesErrors": {
       "status": "[x]",
@@ -278318,7 +278294,7 @@
     "pkg/strategy/pine/semantic_helper_boundaries_test.go:128:TestSemanticHelpersCoverObjectAndVisualFallbacks": {
       "status": "[~]",
       "rust_entry": "",
-      "conclusion": "boundary（结构差异）：Go 断言对象/集合泛型与视觉回退助手（isCollectionGenericOpen、semanticCollectionMethodOperations、semanticObjectOperations、semanticMethodSignatureKey、objectOperationArgBounds/Diagnostics）。Rust 无对象/集合注册表与视觉回退注册；视觉调用统一以 PINE_VISUAL_IGNORED 警告 + VisualMetadata 表达，无同形对象。升级路径同 import/method 注册表项。",
+      "conclusion": "boundary（结构差异）：Go 断言对象/集合泛型与视觉回退助手（isCollectionGenericOpen、semanticCollectionMethodOperations、semanticObjectOperations、semanticMethodSignatureKey、objectOperationArgBounds/Diagnostics）。Rust 无对象/集合注册表与视觉回退注册；视觉调用统一以 PINE_VISUAL_IGNORED 警告 + VisualMetadata 表达，无同形对象。升级路径同 import/method 注册表项。 已复核 Rust Pine parser/semantic owner 与 framework/visual boundary tests；对象/集合注册表与 editor recovery helper 属旧 owner，Rust 只对不可执行形态给稳定诊断，保留 boundary。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
       "evidence_type": "boundary",
       "source": {
@@ -278333,7 +278309,7 @@
         "uncovered": [
           "boundary（结构差异）：Go 断言对象/集合泛型与视觉回退助手（isCollectionGenericOpen、semanticCollectionMethodOperations、semanticObjectOperations、semanticMethodSignatureKey、objectOperationArgBounds/Diagnostics）。Rust 无对象/集合注册表与视觉回退注册；视觉调用统一以 PINE_VISUAL_IGNORED 警告 + VisualMetadata 表达，无同形对象。升级路径同 import/method 注册表项。"
         ],
-        "source": "legacy-conclusion"
+        "source": "manual-review"
       },
       "verification": {
         "argv": [
@@ -278348,25 +278324,23 @@
         "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
+        "status": "passed",
+        "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": null,
+        "verifiedAt": "2026-09-26T05:09:37Z",
         "receiptDigest": null
       },
       "risk": "high",
       "owner": "strategy_pine",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "documented_boundary",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
         "boundary（结构差异）：Go 断言对象/集合泛型与视觉回退助手（isCollectionGenericOpen、semanticCollectionMethodOperations、semanticObjectOperations、semanticMethodSignatureKey、objectOperationArgBounds/Diagnostics）。Rust 无对象/集合注册表与视觉回退注册；视觉调用统一以 PINE_VISUAL_IGNORED 警告 + VisualMetadata 表达，无同形对象。升级路径同 import/method 注册表项。"
       ],
-      "boundaryReason": "boundary（结构差异）：Go 断言对象/集合泛型与视觉回退助手（isCollectionGenericOpen、semanticCollectionMethodOperations、semanticObjectOperations、semanticMethodSignatureKey、objectOperationArgBounds/Diagnostics）。Rust 无对象/集合注册表与视觉回退注册；视觉调用统一以 PINE_VISUAL_IGNORED 警告 + VisualMetadata 表达，无同形对象。升级路径同 import/method 注册表项。"
+      "boundaryReason": "Pine object/collection recovery helpers are legacy execution-owner internals; Rust exposes stable diagnostics/metadata instead."
     },
     "pkg/strategy/pine/shared_structure_corpus_test.go:35:TestSharedPineStructureCorpusMatchesBackendIR": {
       "status": "[~]",
@@ -291263,8 +291237,8 @@
     },
     "internal/trading/order_updates_test.go:180:TestOrderUpdatesWorkerCacheTTLTerminalRemovalAndDefensiveCopy": {
       "status": "[~]",
-      "rust_entry": "不适用：Rust 以 SQLite 为唯一真相，无内存订单缓存（TTL 命中/终态移除/防御性拷贝均无同形对象）",
-      "conclusion": "保留边界：Go 断言 (a) TTL 内命中缓存（currentCalls=1）、(b) 返回防御性拷贝（消费者改价不污染缓存）、(c) 终态订单从缓存移除、TTL 过期后重新拉取（currentCalls=2）。Rust 没有内存订单缓存：状态由 ExecutionOrderStore（SQLite）唯一持有，(b) 的等价面是每次 store.get_order/list_orders 都反序列化出独立结构（所有权拷贝），(c) 的等价面是终态订单不再进入对账候选（execution_reconciliation_discovery.rs::reconciliation_candidates 只取 list_reconciliation_candidates + 缺费用的终态费用候选；回归证据 product_production_ports_execution_reconciliation_read_boundaries_tests.rs 的 terminal page retry 断言第二次扫描 0 变更），(a) 在 Rust 结构上不存在——worker 每次扫描都重新读 broker（由 15s 节奏节流，见 :158/:263 的新增测试）。保留差异：若将来重新引入内存缓存，需要补 TTL/拷贝/终态清理三条断言。",
+      "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_reconciliation_push_worker_tests.rs",
+      "conclusion": "保留边界：Go 断言 (a) TTL 内命中缓存（currentCalls=1）、(b) 返回防御性拷贝（消费者改价不污染缓存）、(c) 终态订单从缓存移除、TTL 过期后重新拉取（currentCalls=2）。Rust 没有内存订单缓存：状态由 ExecutionOrderStore（SQLite）唯一持有，(b) 的等价面是每次 store.get_order/list_orders 都反序列化出独立结构（所有权拷贝），(c) 的等价面是终态订单不再进入对账候选（execution_reconciliation_discovery.rs::reconciliation_candidates 只取 list_reconciliation_candidates + 缺费用的终态费用候选；回归证据 product_production_ports_execution_reconciliation_read_boundaries_tests.rs 的 terminal page retry 断言第二次扫描 0 变更），(a) 在 Rust 结构上不存在——worker 每次扫描都重新读 broker（由 15s 节奏节流，见 :158/:263 的新增测试）。保留差异：若将来重新引入内存缓存，需要补 TTL/拷贝/终态清理三条断言。 已复核 ExecutionOrderStore/reconciliation owner 与 push-worker nextest；Rust 以 SQLite durable order state 取代 Go 内存 TTL/cache metadata，保留 boundary。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(reconciliation)' --all-targets --locked",
       "evidence_type": "boundary",
       "source": {
@@ -291279,7 +291253,7 @@
         "uncovered": [
           "保留边界：Go 断言 (a) TTL 内命中缓存（currentCalls=1）、(b) 返回防御性拷贝（消费者改价不污染缓存）、(c) 终态订单从缓存移除、TTL 过期后重新拉取（currentCalls=2）。Rust 没有内存订单缓存：状态由 ExecutionOrderStore（SQLite）唯一持有，(b) 的等价面是每次 store.get_order/list_orders 都反序列化出独立结构（所有权拷贝），(c) 的等价面是终态订单不再进入对账候选（execution_reconciliation_discovery.rs::reconciliation_candidates 只取 list_reconciliation_candidates + 缺费用的终态费用候选；回归证据 product_production_ports_execution_reconciliation_read_boundaries_tests.rs 的 terminal page retry 断言第二次扫描 0 变更），(a) 在 Rust 结构上不存在——worker 每次扫描都重新读 broker（由 15s 节奏节流，见 :158/:263 的新增测试）。保留差异：若将来重新引入内存缓存，需要补 TTL/拷贝/终态清理三条断言。"
         ],
-        "source": "legacy-conclusion"
+        "source": "manual-review"
       },
       "verification": {
         "argv": [
@@ -291296,30 +291270,28 @@
         "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
+        "status": "passed",
+        "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": null,
+        "verifiedAt": "2026-09-26T05:09:37Z",
         "receiptDigest": null
       },
       "risk": "high",
       "owner": "trading_broker",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "documented_boundary",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
         "保留边界：Go 断言 (a) TTL 内命中缓存（currentCalls=1）、(b) 返回防御性拷贝（消费者改价不污染缓存）、(c) 终态订单从缓存移除、TTL 过期后重新拉取（currentCalls=2）。Rust 没有内存订单缓存：状态由 ExecutionOrderStore（SQLite）唯一持有，(b) 的等价面是每次 store.get_order/list_orders 都反序列化出独立结构（所有权拷贝），(c) 的等价面是终态订单不再进入对账候选（execution_reconciliation_discovery.rs::reconciliation_candidates 只取 list_reconciliation_candidates + 缺费用的终态费用候选；回归证据 product_production_ports_execution_reconciliation_read_boundaries_tests.rs 的 terminal page retry 断言第二次扫描 0 变更），(a) 在 Rust 结构上不存在——worker 每次扫描都重新读 broker（由 15s 节奏节流，见 :158/:263 的新增测试）。保留差异：若将来重新引入内存缓存，需要补 TTL/拷贝/终态清理三条断言。"
       ],
-      "boundaryReason": "保留边界：Go 断言 (a) TTL 内命中缓存（currentCalls=1）、(b) 返回防御性拷贝（消费者改价不污染缓存）、(c) 终态订单从缓存移除、TTL 过期后重新拉取（currentCalls=2）。Rust 没有内存订单缓存：状态由 ExecutionOrderStore（SQLite）唯一持有，(b) 的等价面是每次 store.get_order/list_orders 都反序列化出独立结构（所有权拷贝），(c) 的等价面是终态订单不再进入对账候选（execution_reconciliation_discovery.rs::reconciliation_candidates 只取 list_reconciliation_candidates + 缺费用的终态费用候选；回归证据 product_production_ports_execution_reconciliation_read_boundaries_tests.rs 的 terminal page retry 断言第二次扫描 0 变更），(a) 在 Rust 结构上不存在——worker 每次扫描都重新读 broker（由 15s 节奏节流，见 :158/:263 的新增测试）。保留差异：若将来重新引入内存缓存，需要补 TTL/拷贝/终态清理三条断言。"
+      "boundaryReason": "Rust execution order state is durably owned by SQLite reconciliation, without the Go in-memory cache and metadata families."
     },
     "internal/trading/order_updates_test.go:228:TestOrderUpdatesWorkerCurrentHistoryCacheAndPushMetadata": {
       "status": "[~]",
-      "rust_entry": "不适用：Rust 无 BROKER_CACHE_*/BROKER_HISTORY_*/BROKER_PUSH_* 元数据类型（仅 BROKER_SYNC_DISCOVERED 与状态转移事件）",
-      "conclusion": "保留边界：Go 断言当前+历史缓存合并后逐条写回的 metadata（BROKER_SYNC_DISCOVERED/UPDATED、BROKER_HISTORY_*、BROKER_CACHE_*、BROKER_PUSH_*，sourceDetail=broker.current/history/cache/push）以及一笔 fill 投影。Rust 对账写回只有 BROKER_SYNC_DISCOVERED（execution_reconciliation_discovery.rs:170，外部账本发现）与状态转移事件；全仓 grep BROKER_CACHE_/BROKER_HISTORY_/BROKER_PUSH_ 0 命中，因此 cache/push 元数据面不存在。推送触发路径本身由 product_production_ports_execution_reconciliation_push_worker_tests.rs 覆盖（wake→扫描→持久化），但事件类型与 sourceDetail 与 Go 不同；属旧 owner 边界。",
+      "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_reconciliation_push_worker_tests.rs",
+      "conclusion": "保留边界：Go 断言当前+历史缓存合并后逐条写回的 metadata（BROKER_SYNC_DISCOVERED/UPDATED、BROKER_HISTORY_*、BROKER_CACHE_*、BROKER_PUSH_*，sourceDetail=broker.current/history/cache/push）以及一笔 fill 投影。Rust 对账写回只有 BROKER_SYNC_DISCOVERED（execution_reconciliation_discovery.rs:170，外部账本发现）与状态转移事件；全仓 grep BROKER_CACHE_/BROKER_HISTORY_/BROKER_PUSH_ 0 命中，因此 cache/push 元数据面不存在。推送触发路径本身由 product_production_ports_execution_reconciliation_push_worker_tests.rs 覆盖（wake→扫描→持久化），但事件类型与 sourceDetail 与 Go 不同；属旧 owner 边界。 已复核 ExecutionOrderStore/reconciliation owner 与 push-worker nextest；Rust 以 SQLite durable order state 取代 Go 内存 TTL/cache metadata，保留 boundary。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(push_worker_tests)' --all-targets --locked",
       "evidence_type": "boundary",
       "source": {
@@ -291334,7 +291306,7 @@
         "uncovered": [
           "保留边界：Go 断言当前+历史缓存合并后逐条写回的 metadata（BROKER_SYNC_DISCOVERED/UPDATED、BROKER_HISTORY_*、BROKER_CACHE_*、BROKER_PUSH_*，sourceDetail=broker.current/history/cache/push）以及一笔 fill 投影。Rust 对账写回只有 BROKER_SYNC_DISCOVERED（execution_reconciliation_discovery.rs:170，外部账本发现）与状态转移事件；全仓 grep BROKER_CACHE_/BROKER_HISTORY_/BROKER_PUSH_ 0 命中，因此 cache/push 元数据面不存在。推送触发路径本身由 product_production_ports_execution_reconciliation_push_worker_tests.rs 覆盖（wake→扫描→持久化），但事件类型与 sourceDetail 与 Go 不同；属旧 owner 边界。"
         ],
-        "source": "legacy-conclusion"
+        "source": "manual-review"
       },
       "verification": {
         "argv": [
@@ -291351,25 +291323,23 @@
         "testFilter": [],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
+        "status": "passed",
+        "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": null,
+        "verifiedAt": "2026-09-26T05:09:37Z",
         "receiptDigest": null
       },
       "risk": "high",
       "owner": "trading_broker",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "documented_boundary",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [],
       "uncoveredAssertions": [
         "保留边界：Go 断言当前+历史缓存合并后逐条写回的 metadata（BROKER_SYNC_DISCOVERED/UPDATED、BROKER_HISTORY_*、BROKER_CACHE_*、BROKER_PUSH_*，sourceDetail=broker.current/history/cache/push）以及一笔 fill 投影。Rust 对账写回只有 BROKER_SYNC_DISCOVERED（execution_reconciliation_discovery.rs:170，外部账本发现）与状态转移事件；全仓 grep BROKER_CACHE_/BROKER_HISTORY_/BROKER_PUSH_ 0 命中，因此 cache/push 元数据面不存在。推送触发路径本身由 product_production_ports_execution_reconciliation_push_worker_tests.rs 覆盖（wake→扫描→持久化），但事件类型与 sourceDetail 与 Go 不同；属旧 owner 边界。"
       ],
-      "boundaryReason": "保留边界：Go 断言当前+历史缓存合并后逐条写回的 metadata（BROKER_SYNC_DISCOVERED/UPDATED、BROKER_HISTORY_*、BROKER_CACHE_*、BROKER_PUSH_*，sourceDetail=broker.current/history/cache/push）以及一笔 fill 投影。Rust 对账写回只有 BROKER_SYNC_DISCOVERED（execution_reconciliation_discovery.rs:170，外部账本发现）与状态转移事件；全仓 grep BROKER_CACHE_/BROKER_HISTORY_/BROKER_PUSH_ 0 命中，因此 cache/push 元数据面不存在。推送触发路径本身由 product_production_ports_execution_reconciliation_push_worker_tests.rs 覆盖（wake→扫描→持久化），但事件类型与 sourceDetail 与 Go 不同；属旧 owner 边界。"
+      "boundaryReason": "Rust execution order state is durably owned by SQLite reconciliation, without the Go in-memory cache and metadata families."
     },
     "internal/trading/order_updates_test.go:263:TestOrderUpdatesWorkerForcedActiveSyncBypassesCache": {
       "status": "[x]",

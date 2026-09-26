@@ -2040,3 +2040,18 @@ ADK/Assistant 功能差异，先补失败回归测试再修改领域 owner。
 | [x] | `cmd/check-go-coverage/changed_lines_analysis_test.go:71`; `cmd/check-go-coverage/profile_analysis_test.go:109`; `pkg/strategy/pine/compiler_and_security_diagnostics_test.go:70`; 其余本批 21 条 assistant、Futu、marketdataassets、instrument-cache 与旧 owner 边界 | Node policy checks、Rust runtime/resource/ADK/Futu boundary owners | P1 | boundary/partial：逐条复核并运行声明的命令；旧 Go/Wails helper、缓存目录、进程内单飞、ADK 轮询与 provider probe 等没有可迁移 Rust owner，继续保留 partial 或边界结论。 |
 
 本批共 30 条 P1 高风险映射；新增 Rust 测试 3 条，Futu fallback 与 Pine semantic 两处真实差异均执行先红后修。受影响 crate nextest 的专测通过；engine 全量 nextest 首次受既有并行 ADK approval 用例波动影响，单测重跑通过。审计完成后报告显示 1481 条 function_exact，0 duplicate exact、0 nonexistent crate、0 stale/unrecorded anchor；2 条历史 partial unresolved 仍保留为已知缺口。剩余 P1 高风险未验证项转入下一批，优先 auth generation fence、provider timeout、workflow wait 与 market query payload 的可补测试 owner。
+
+## 第 227 批：P1 高风险边界与旧 owner 复核（2026-09-26）
+
+| 复核 | Go 测试范围 | Rust 证据 | P | 结论 |
+| :---: | --- | --- | :---: | --- |
+| [x] | `internal/marketdataassets/cache_test.go:207,218,229,407` | `jftrade-integration-marketdata-helper` asset owner nextest 22/22 | P1 | boundary：Go 的私有缓存根检查、无效目录删除和 socket/非常规文件校验属于 sidecar cache tree helper；Rust `AssetBundle` 只负责 content-addressed 单文件物化，错误分类与删除重建分支没有同形 owner，保持边界。 |
+| [x] | `cmd/jftrade-desktop/desktop_startup_test.go:93` | `stop_product_is_idempotent_across_concurrent_invocations`; `readiness_failure_reclaims_every_started_process_without_starting_dependents` | P1 | boundary：Go 可注入 Wails async starter 后在 shutdown 中回收 late resource；Rust Tauri setup 不暴露该 starter seam，已有同步 stop 与 readiness rollback 覆盖可观察回收行为，不宣称等价。 |
+| [x] | `internal/system/service_status_defaults_test.go:137`; `pkg/observability/observability_test.go:148` | system read owner、API observability recorder/router tests | P1 | boundary：Go nil callback 默认 service 与 `Detach` context 搬运是旧 owner 形态；Rust 组合根始终装配 system owner，correlation 通过显式请求字段传递，保留结构边界。 |
+| [x] | `internal/strategy/liveruntime/nil_boundaries_test.go:10`; `internal/strategy/pineruntime/recovery_contracts_test.go:9`; `pkg/strategy/indicatorbinding/parse_semantics_test.go:155` | strategy/indicator binding nextest 108/108 | P1 | boundary：Go nil receiver 和绑定 DSL alias normalizer 不能在 Rust 类型/owner 模型中表达；Option/Result、strategy/risk quantity 与 indicator tests 提供相邻证据，未升级 exact。 |
+| [x] | `pkg/strategy/pine/parser_recovery_boundaries_test.go:104,151`; `pkg/strategy/pine/semantic_helper_boundaries_test.go:128` | Pine parser/semantic framework and visual boundary tests | P1 | boundary：对象/集合恢复、注册表与视觉 fallback 是 PineTS/旧执行 owner 内部 helper；Rust 对不可执行形态输出稳定诊断或 metadata，不存在同形 helper。 |
+| [x] | `internal/trading/order_updates_test.go:180,228` | reconciliation/push-worker filtered nextest 75/75 | P1 | boundary：Go 内存 TTL/current-history/push metadata cache 已由 Rust SQLite `ExecutionOrderStore` 与 reconciliation owner 取代；持久化状态、幂等回放和资源回收有证据，但 cache metadata 形态不迁移。 |
+
+本批 15 条 P1 高风险条目全部完成 Go 断言与 Rust owner 复核，维持 `[~]` boundary/partial，不把旧 Wails、sidecar helper、nil receiver、PineTS object/collection 或 Go 内存 cache 行为宣称为 Rust 功能等价。相关 crate nextest：marketdata-helper 22/22、desktop 30/30、engine 75/75、strategy 108/108；架构检查通过。未发现需要先红后修的真实 Rust 功能差异。
+
+下一片：继续 P1/P2 中仍有真实 owner 缺口的 API transport、Assistant workflow/provider、Trading/Broker 与 MarketData/Quote 条目，再处理 Storage/SQLite、Settings/Watchlist 与 Backtest/Calendar 尾项。
