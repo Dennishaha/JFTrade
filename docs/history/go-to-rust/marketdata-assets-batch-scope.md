@@ -106,3 +106,15 @@
 **RUSTSEC-2026-0285**（rustls 0.23.44，修复 >=0.23.45；根 `Cargo.toml` 精确锁定 `=0.23.44`，解除需一次显式的依赖升级批次并复核 `deny.toml`），
 同次输出另有 8 条 `warning[advisory-not-detected]`（deny.toml 陈旧 ignore 条目）为警告而非错误。
 该次运行中 `check:rust:target-health`、`check:rust:architecture`、`check:rust:production-policy`、`format:rust:check`、`check:clippy` 均已通过。
+
+## 第九十二批：P1 缓存安全与并发物化收口（10 条）
+
+本批先处理高风险缓存差异，读取 Go `cache_test.go` / `assets_release_test.go` 实现并核对 Rust `AssetBundle` owner。新增 Rust 回归覆盖：
+
+- `cache_test.go:45:TestMaterializeCachedAssetRepairsTamperAndSymlink` → `repairs_tampered_asset_and_symlink_targets`：单文件篡改与符号链接目标会被校验后原子修复；onedir 依赖树与权限仍是 partial。
+- `cache_test.go:83:TestMaterializeCachedAssetPublishesConcurrently`、`:118:TestPublishCachedAssetAcceptsOnlyAValidConcurrentWinner` → `concurrent_materialization_publishes_one_verified_file`：并发物化收敛到同一已校验目标；多文件 staging/无效赢家仍是 partial。
+- `cache_test.go:159:TestMaterializeCachedAssetPrunesOnlyExpiredDigests`、`:185:TestPruneCachedAssetsIgnoresMissingCacheRoot` → `prunes_only_expired_cache_directories_and_ignores_missing_root`：缺失根不创建、过期目录清理、当前项保留；Rust retention 由调用方传入，仍是 partial。
+- `cache_test.go:193:TestMaterializeCachedAssetRejectsUnsafeCacheRoot` → `rejects_a_cache_root_that_is_a_file`：普通文件 cache root fail-closed；私有模式和 onedir 形状仍是 partial。
+- `assets_release_test.go:72:TestMaterializeCachedReleaseAssetReusesBundleAndFallsBack`：复用/修复/根目录校验已有 Rust owner；release 资源目录没有 Go 的临时 fallback，保留 partial。
+
+先红后修探针：移除 cache-root 类型检查、并发赢家复用或篡改重写分支时，对应 helper nextest 会失败；恢复后 `jftrade-integration-marketdata-helper` 26/26 通过。该批没有把多文件 onedir 行为升级为 exact。

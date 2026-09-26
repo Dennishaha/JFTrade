@@ -2136,3 +2136,14 @@ ADK/Assistant 功能差异，先补失败回归测试再修改领域 owner。
 验证：`node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked`（542/542，1 skipped）；`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked`（1958/1958）。
 
 下一片：继续 P1 Assistant provider/workflow 与 API transport 的真实功能缺口，再回补 Trading/Broker、MarketData/Quote、Storage/SQLite、Settings/Watchlist 和剩余 Futu/OpenD；无同形 owner 的 helper/旧运行时继续维持边界结论。
+
+## 批次 231：高风险 sidecar cache 与跨域 P1 复核（30 条）
+
+本批选择 30 条 P1/high partial：`internal/marketdataassets` 缓存与 release 10 条、Assistant workflow/provider 5 条、Futu/OpenD 7 条、Trading/Broker 8 条。
+
+- sidecar cache 10 条已补 Rust `AssetBundle` 的篡改/符号链接修复、并发物化、过期目录清理、缺失根 no-op 与不安全根拒绝；这些条目按 Go 多文件 onedir、权限和 fallback 差异保持 `partial`。
+- Assistant workflow 的 `workflow_runs.wait`、interactive session 门禁与 provider payload 排序仍分别是 Rust `workflow.wait`/REST console owner 或 projection owner；未把不同接口聚合升级为 exact。
+- Futu/OpenD runtime reset、订阅代际、quota acknowledgement、严格请求参数与交易 fills 继续由 integration/engine typed owner 覆盖；BBGO callback/adapter 聚合保持 `partial`。
+- Trading/Broker fallback、cancel conformance、portfolio degraded response、execution detail/cache failure 与 order update history 逐项复核；HTTP facade、旧 worker 订阅和错误 envelope 仍按边界保留。
+
+验证证据：helper crate nextest `26/26`；当前批次映射统一记录 `pnpm run check:rust` 门禁，报告/inventory 重生成后再复核锚点，未把测试数量比例视为功能等价。
