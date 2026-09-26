@@ -1872,3 +1872,18 @@ ADK/Assistant 功能差异，先补失败回归测试再修改领域 owner。
 验证：动态生成过滤器运行 `pnpm run test:rust -- --no-fail-fast -E`（底层 `node scripts/quality/cargo-nextest.mjs run --workspace --all-targets --locked`），21/21 通过。
 
 下一片：继续剩余 P2 Assistant/Workflow provider、runtime、API transport 与 MCP 条目，再覆盖 MarketData/Quote、Storage/SQLite、Settings/Watchlist、Backtest/Calendar 与 Strategy/Pine；helper/type-only、`optional_bool_strict`、P1 `session_context_snapshot` 及其他无独立 Rust 测试条目仍保持未验证结论。
+
+## 第 215 批：workflow service、trigger rules 与 scheduler lifecycle（2026-09-26）
+
+| 复核 | Go 测试范围 | Rust 证据 | P | 结论 |
+| :---: | --- | --- | :---: | --- |
+| [x] | `service_lifecycle_boundaries_test.go:25,95`; `service_persistence_runtime_boundaries_test.go:119,164,180,228`; `service_test.go:24,38,49` | approval wait/audit timing, terminal snapshot replay, node-run schema, webhook secret/input boundaries, unavailable runtime, timeout defaults and builtin catalog | P2 | partial/boundary：Rust terminal-audit/chat-stream/canvas/store/production-port owners 覆盖持久化、认证、runtime readiness 与 defaults；Go service facade、nil-runtime and helper aggregation 保持边界。 |
+| [x] | `workflow/rules_test.go:40,89,135`; `workflows_test.go:39`; `workflows_extended_test.go:14` | threshold cross-up/above/below/cooldown, event matching/normalization, cron parsing and trigger validation | P2 | partial：Rust workflow threshold/cron/scheduler owners 覆盖数学边界与配置校验；Go map normalization、localized titles 与 service helper 组合未升级为 exact。 |
+| [x] | `workflow_async_tools_test.go:12,49,86`; `workflow_crud_test.go:116,228,314,455,497,555,616,671` | queue/trigger atomic claims, CAS winner preservation, worker shutdown, route error codes, malformed graph/context interpolation, log persistence and active-run guards | P2 | partial/boundary：Rust queue/jobs/canvas/scheduler owners 覆盖 durable claims、worker stop、route errors 与 graph safety；Go GORM/HTTP facade、background goroutine 和 log aggregation 保持 partial。 |
+| [x] | `workflow_lifecycle_test.go:58`; `workflows_extended_test.go:135,208,278,631` | shutdown resource ownership, builtin template/watchlist/schedule setup, scheduler tick/market polling, event background runs, trigger update and result status projection | P2 | partial：Rust production assembly/scheduler/threshold owners 覆盖生命周期、schedule、polling、event dispatch 与 log status；Go Service.Close admission、fixture snapshot provider、background wait helpers保持 boundary。 |
+
+本批 30 条 P2 Go 映射对应 **28 个去重后的 nextest 过滤器**，Rust nextest 实际 **28/28** 通过（3445 skipped）。service lifecycle/runtime、threshold/event/cron rules、queue/CAS/worker、CRUD/secret/context、scheduler tick/event/background 与 result projection 均有 owner 证据；所有结论保持 `partial`/`boundary`，未把 workflow 聚合或 facade 测试升级为 exact。未发现需要先红后修的真实 Rust 功能差异。
+
+验证：动态生成过滤器运行 `pnpm run test:rust -- --no-fail-fast -E`（底层 `node scripts/quality/cargo-nextest.mjs run --workspace --all-targets --locked`），28/28 通过。
+
+下一片：继续剩余 P2 workflow CRUD/scheduler/provider/runtime 与 API transport/MCP 条目，再转 MarketData/Quote、Storage/SQLite、Settings/Watchlist、Backtest/Calendar 与 Strategy/Pine；helper/type-only、`optional_bool_strict`、P1 `session_context_snapshot` 及其他无独立 Rust 测试条目仍保持未验证结论。

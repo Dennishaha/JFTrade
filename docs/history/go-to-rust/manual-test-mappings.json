@@ -114144,20 +114144,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(lifecycle_audit_helpers_match_the_reference_table) or test(adk_chat_stream_replays_nonterminal_snapshot_without_fabricating_terminal_event) or test(test_sqlite_persistence_noderuns_strict_openapi_schema_compliance) or test(workflow_webhook_secret_lifecycle_stays_sanitized_and_authenticated) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(adk_agent_update_revalidates_the_merged_payload) or test(chat_dispatch_rejects_an_installed_but_unready_runtime) or test(assistant_run_timeout_falls_back_to_the_reference_default_window) or test(production_builtin_skills_project_bound_tool_catalog) or test(evaluate_cross_up_transitions) or test(evaluate_above_and_below_levels) or test(test_market_threshold_trigger_cross_up_and_cooldown) or test(parse_valid_cron_expressions) or test(trigger_schedule_and_queue_commit_together_and_reject_stale_claims) or test(failure_cas_loser_returns_durable_failed_winner_without_overwriting_it) or test(stop_blocks_new_dispatch_and_join_reports_active_owners) or test(disabled_workflow_and_webhook_routes_keep_the_go_error_codes) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(test_context_interpolation_preserves_special_characters_and_json_payloads) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(test_market_threshold_cross_down_and_operators) or test(workflow_run_and_trigger_routes_keep_the_go_error_codes) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(test_market_threshold_quote_error_resilience) or test(test_schedule_trigger_creation_and_next_run_calculation) or test(test_schedule_trigger_tick_advances_and_fires) or test(test_workflow_scheduler_worker_start_stop_and_status) or test(workflow_trigger_update_switches_a_manual_trigger_to_a_schedule)"
         ],
         "testFilter": [
           "lifecycle_audit_helpers_match_the_reference_table"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "c2502784f1e23cfa65926640baa53d9b1df70365",
+        "verifiedAt": "2026-09-26T02:46:53Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -114268,20 +114269,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(lifecycle_audit_helpers_match_the_reference_table) or test(adk_chat_stream_replays_nonterminal_snapshot_without_fabricating_terminal_event) or test(test_sqlite_persistence_noderuns_strict_openapi_schema_compliance) or test(workflow_webhook_secret_lifecycle_stays_sanitized_and_authenticated) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(adk_agent_update_revalidates_the_merged_payload) or test(chat_dispatch_rejects_an_installed_but_unready_runtime) or test(assistant_run_timeout_falls_back_to_the_reference_default_window) or test(production_builtin_skills_project_bound_tool_catalog) or test(evaluate_cross_up_transitions) or test(evaluate_above_and_below_levels) or test(test_market_threshold_trigger_cross_up_and_cooldown) or test(parse_valid_cron_expressions) or test(trigger_schedule_and_queue_commit_together_and_reject_stale_claims) or test(failure_cas_loser_returns_durable_failed_winner_without_overwriting_it) or test(stop_blocks_new_dispatch_and_join_reports_active_owners) or test(disabled_workflow_and_webhook_routes_keep_the_go_error_codes) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(test_context_interpolation_preserves_special_characters_and_json_payloads) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(test_market_threshold_cross_down_and_operators) or test(workflow_run_and_trigger_routes_keep_the_go_error_codes) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(test_market_threshold_quote_error_resilience) or test(test_schedule_trigger_creation_and_next_run_calculation) or test(test_schedule_trigger_tick_advances_and_fires) or test(test_workflow_scheduler_worker_start_stop_and_status) or test(workflow_trigger_update_switches_a_manual_trigger_to_a_schedule)"
         ],
         "testFilter": [
           "adk_chat_stream_replays_nonterminal_snapshot_without_fabricating_terminal_event"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "c2502784f1e23cfa65926640baa53d9b1df70365",
+        "verifiedAt": "2026-09-26T02:46:53Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -114392,20 +114394,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(lifecycle_audit_helpers_match_the_reference_table) or test(adk_chat_stream_replays_nonterminal_snapshot_without_fabricating_terminal_event) or test(test_sqlite_persistence_noderuns_strict_openapi_schema_compliance) or test(workflow_webhook_secret_lifecycle_stays_sanitized_and_authenticated) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(adk_agent_update_revalidates_the_merged_payload) or test(chat_dispatch_rejects_an_installed_but_unready_runtime) or test(assistant_run_timeout_falls_back_to_the_reference_default_window) or test(production_builtin_skills_project_bound_tool_catalog) or test(evaluate_cross_up_transitions) or test(evaluate_above_and_below_levels) or test(test_market_threshold_trigger_cross_up_and_cooldown) or test(parse_valid_cron_expressions) or test(trigger_schedule_and_queue_commit_together_and_reject_stale_claims) or test(failure_cas_loser_returns_durable_failed_winner_without_overwriting_it) or test(stop_blocks_new_dispatch_and_join_reports_active_owners) or test(disabled_workflow_and_webhook_routes_keep_the_go_error_codes) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(test_context_interpolation_preserves_special_characters_and_json_payloads) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(test_market_threshold_cross_down_and_operators) or test(workflow_run_and_trigger_routes_keep_the_go_error_codes) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(test_market_threshold_quote_error_resilience) or test(test_schedule_trigger_creation_and_next_run_calculation) or test(test_schedule_trigger_tick_advances_and_fires) or test(test_workflow_scheduler_worker_start_stop_and_status) or test(workflow_trigger_update_switches_a_manual_trigger_to_a_schedule)"
         ],
         "testFilter": [
           "test_sqlite_persistence_noderuns_strict_openapi_schema_compliance"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "c2502784f1e23cfa65926640baa53d9b1df70365",
+        "verifiedAt": "2026-09-26T02:46:53Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -114454,20 +114457,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(lifecycle_audit_helpers_match_the_reference_table) or test(adk_chat_stream_replays_nonterminal_snapshot_without_fabricating_terminal_event) or test(test_sqlite_persistence_noderuns_strict_openapi_schema_compliance) or test(workflow_webhook_secret_lifecycle_stays_sanitized_and_authenticated) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(adk_agent_update_revalidates_the_merged_payload) or test(chat_dispatch_rejects_an_installed_but_unready_runtime) or test(assistant_run_timeout_falls_back_to_the_reference_default_window) or test(production_builtin_skills_project_bound_tool_catalog) or test(evaluate_cross_up_transitions) or test(evaluate_above_and_below_levels) or test(test_market_threshold_trigger_cross_up_and_cooldown) or test(parse_valid_cron_expressions) or test(trigger_schedule_and_queue_commit_together_and_reject_stale_claims) or test(failure_cas_loser_returns_durable_failed_winner_without_overwriting_it) or test(stop_blocks_new_dispatch_and_join_reports_active_owners) or test(disabled_workflow_and_webhook_routes_keep_the_go_error_codes) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(test_context_interpolation_preserves_special_characters_and_json_payloads) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(test_market_threshold_cross_down_and_operators) or test(workflow_run_and_trigger_routes_keep_the_go_error_codes) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(test_market_threshold_quote_error_resilience) or test(test_schedule_trigger_creation_and_next_run_calculation) or test(test_schedule_trigger_tick_advances_and_fires) or test(test_workflow_scheduler_worker_start_stop_and_status) or test(workflow_trigger_update_switches_a_manual_trigger_to_a_schedule)"
         ],
         "testFilter": [
           "workflow_webhook_secret_lifecycle_stays_sanitized_and_authenticated"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "c2502784f1e23cfa65926640baa53d9b1df70365",
+        "verifiedAt": "2026-09-26T02:46:53Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -114516,20 +114520,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(lifecycle_audit_helpers_match_the_reference_table) or test(adk_chat_stream_replays_nonterminal_snapshot_without_fabricating_terminal_event) or test(test_sqlite_persistence_noderuns_strict_openapi_schema_compliance) or test(workflow_webhook_secret_lifecycle_stays_sanitized_and_authenticated) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(adk_agent_update_revalidates_the_merged_payload) or test(chat_dispatch_rejects_an_installed_but_unready_runtime) or test(assistant_run_timeout_falls_back_to_the_reference_default_window) or test(production_builtin_skills_project_bound_tool_catalog) or test(evaluate_cross_up_transitions) or test(evaluate_above_and_below_levels) or test(test_market_threshold_trigger_cross_up_and_cooldown) or test(parse_valid_cron_expressions) or test(trigger_schedule_and_queue_commit_together_and_reject_stale_claims) or test(failure_cas_loser_returns_durable_failed_winner_without_overwriting_it) or test(stop_blocks_new_dispatch_and_join_reports_active_owners) or test(disabled_workflow_and_webhook_routes_keep_the_go_error_codes) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(test_context_interpolation_preserves_special_characters_and_json_payloads) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(test_market_threshold_cross_down_and_operators) or test(workflow_run_and_trigger_routes_keep_the_go_error_codes) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(test_market_threshold_quote_error_resilience) or test(test_schedule_trigger_creation_and_next_run_calculation) or test(test_schedule_trigger_tick_advances_and_fires) or test(test_workflow_scheduler_worker_start_stop_and_status) or test(workflow_trigger_update_switches_a_manual_trigger_to_a_schedule)"
         ],
         "testFilter": [
           "workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "c2502784f1e23cfa65926640baa53d9b1df70365",
+        "verifiedAt": "2026-09-26T02:46:53Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -114578,20 +114583,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(lifecycle_audit_helpers_match_the_reference_table) or test(adk_chat_stream_replays_nonterminal_snapshot_without_fabricating_terminal_event) or test(test_sqlite_persistence_noderuns_strict_openapi_schema_compliance) or test(workflow_webhook_secret_lifecycle_stays_sanitized_and_authenticated) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(adk_agent_update_revalidates_the_merged_payload) or test(chat_dispatch_rejects_an_installed_but_unready_runtime) or test(assistant_run_timeout_falls_back_to_the_reference_default_window) or test(production_builtin_skills_project_bound_tool_catalog) or test(evaluate_cross_up_transitions) or test(evaluate_above_and_below_levels) or test(test_market_threshold_trigger_cross_up_and_cooldown) or test(parse_valid_cron_expressions) or test(trigger_schedule_and_queue_commit_together_and_reject_stale_claims) or test(failure_cas_loser_returns_durable_failed_winner_without_overwriting_it) or test(stop_blocks_new_dispatch_and_join_reports_active_owners) or test(disabled_workflow_and_webhook_routes_keep_the_go_error_codes) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(test_context_interpolation_preserves_special_characters_and_json_payloads) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(test_market_threshold_cross_down_and_operators) or test(workflow_run_and_trigger_routes_keep_the_go_error_codes) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(test_market_threshold_quote_error_resilience) or test(test_schedule_trigger_creation_and_next_run_calculation) or test(test_schedule_trigger_tick_advances_and_fires) or test(test_workflow_scheduler_worker_start_stop_and_status) or test(workflow_trigger_update_switches_a_manual_trigger_to_a_schedule)"
         ],
         "testFilter": [
           "adk_agent_update_revalidates_the_merged_payload"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "c2502784f1e23cfa65926640baa53d9b1df70365",
+        "verifiedAt": "2026-09-26T02:46:53Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -114950,20 +114956,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(lifecycle_audit_helpers_match_the_reference_table) or test(adk_chat_stream_replays_nonterminal_snapshot_without_fabricating_terminal_event) or test(test_sqlite_persistence_noderuns_strict_openapi_schema_compliance) or test(workflow_webhook_secret_lifecycle_stays_sanitized_and_authenticated) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(adk_agent_update_revalidates_the_merged_payload) or test(chat_dispatch_rejects_an_installed_but_unready_runtime) or test(assistant_run_timeout_falls_back_to_the_reference_default_window) or test(production_builtin_skills_project_bound_tool_catalog) or test(evaluate_cross_up_transitions) or test(evaluate_above_and_below_levels) or test(test_market_threshold_trigger_cross_up_and_cooldown) or test(parse_valid_cron_expressions) or test(trigger_schedule_and_queue_commit_together_and_reject_stale_claims) or test(failure_cas_loser_returns_durable_failed_winner_without_overwriting_it) or test(stop_blocks_new_dispatch_and_join_reports_active_owners) or test(disabled_workflow_and_webhook_routes_keep_the_go_error_codes) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(test_context_interpolation_preserves_special_characters_and_json_payloads) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(test_market_threshold_cross_down_and_operators) or test(workflow_run_and_trigger_routes_keep_the_go_error_codes) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(test_market_threshold_quote_error_resilience) or test(test_schedule_trigger_creation_and_next_run_calculation) or test(test_schedule_trigger_tick_advances_and_fires) or test(test_workflow_scheduler_worker_start_stop_and_status) or test(workflow_trigger_update_switches_a_manual_trigger_to_a_schedule)"
         ],
         "testFilter": [
           "chat_dispatch_rejects_an_installed_but_unready_runtime"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "c2502784f1e23cfa65926640baa53d9b1df70365",
+        "verifiedAt": "2026-09-26T02:46:53Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -115012,20 +115019,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(lifecycle_audit_helpers_match_the_reference_table) or test(adk_chat_stream_replays_nonterminal_snapshot_without_fabricating_terminal_event) or test(test_sqlite_persistence_noderuns_strict_openapi_schema_compliance) or test(workflow_webhook_secret_lifecycle_stays_sanitized_and_authenticated) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(adk_agent_update_revalidates_the_merged_payload) or test(chat_dispatch_rejects_an_installed_but_unready_runtime) or test(assistant_run_timeout_falls_back_to_the_reference_default_window) or test(production_builtin_skills_project_bound_tool_catalog) or test(evaluate_cross_up_transitions) or test(evaluate_above_and_below_levels) or test(test_market_threshold_trigger_cross_up_and_cooldown) or test(parse_valid_cron_expressions) or test(trigger_schedule_and_queue_commit_together_and_reject_stale_claims) or test(failure_cas_loser_returns_durable_failed_winner_without_overwriting_it) or test(stop_blocks_new_dispatch_and_join_reports_active_owners) or test(disabled_workflow_and_webhook_routes_keep_the_go_error_codes) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(test_context_interpolation_preserves_special_characters_and_json_payloads) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(test_market_threshold_cross_down_and_operators) or test(workflow_run_and_trigger_routes_keep_the_go_error_codes) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(test_market_threshold_quote_error_resilience) or test(test_schedule_trigger_creation_and_next_run_calculation) or test(test_schedule_trigger_tick_advances_and_fires) or test(test_workflow_scheduler_worker_start_stop_and_status) or test(workflow_trigger_update_switches_a_manual_trigger_to_a_schedule)"
         ],
         "testFilter": [
           "assistant_run_timeout_falls_back_to_the_reference_default_window"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "c2502784f1e23cfa65926640baa53d9b1df70365",
+        "verifiedAt": "2026-09-26T02:46:53Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -115074,20 +115082,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(lifecycle_audit_helpers_match_the_reference_table) or test(adk_chat_stream_replays_nonterminal_snapshot_without_fabricating_terminal_event) or test(test_sqlite_persistence_noderuns_strict_openapi_schema_compliance) or test(workflow_webhook_secret_lifecycle_stays_sanitized_and_authenticated) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(adk_agent_update_revalidates_the_merged_payload) or test(chat_dispatch_rejects_an_installed_but_unready_runtime) or test(assistant_run_timeout_falls_back_to_the_reference_default_window) or test(production_builtin_skills_project_bound_tool_catalog) or test(evaluate_cross_up_transitions) or test(evaluate_above_and_below_levels) or test(test_market_threshold_trigger_cross_up_and_cooldown) or test(parse_valid_cron_expressions) or test(trigger_schedule_and_queue_commit_together_and_reject_stale_claims) or test(failure_cas_loser_returns_durable_failed_winner_without_overwriting_it) or test(stop_blocks_new_dispatch_and_join_reports_active_owners) or test(disabled_workflow_and_webhook_routes_keep_the_go_error_codes) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(test_context_interpolation_preserves_special_characters_and_json_payloads) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(test_market_threshold_cross_down_and_operators) or test(workflow_run_and_trigger_routes_keep_the_go_error_codes) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(test_market_threshold_quote_error_resilience) or test(test_schedule_trigger_creation_and_next_run_calculation) or test(test_schedule_trigger_tick_advances_and_fires) or test(test_workflow_scheduler_worker_start_stop_and_status) or test(workflow_trigger_update_switches_a_manual_trigger_to_a_schedule)"
         ],
         "testFilter": [
           "production_builtin_skills_project_bound_tool_catalog"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "c2502784f1e23cfa65926640baa53d9b1df70365",
+        "verifiedAt": "2026-09-26T02:46:53Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -115243,12 +115252,11 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
-          "--lib",
+          "--workspace",
+          "--all-targets",
           "--locked",
           "-E",
-          "test(evaluate_cross_up_transitions) or test(evaluate_above_and_below_levels)"
+          "test(lifecycle_audit_helpers_match_the_reference_table) or test(adk_chat_stream_replays_nonterminal_snapshot_without_fabricating_terminal_event) or test(test_sqlite_persistence_noderuns_strict_openapi_schema_compliance) or test(workflow_webhook_secret_lifecycle_stays_sanitized_and_authenticated) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(adk_agent_update_revalidates_the_merged_payload) or test(chat_dispatch_rejects_an_installed_but_unready_runtime) or test(assistant_run_timeout_falls_back_to_the_reference_default_window) or test(production_builtin_skills_project_bound_tool_catalog) or test(evaluate_cross_up_transitions) or test(evaluate_above_and_below_levels) or test(test_market_threshold_trigger_cross_up_and_cooldown) or test(parse_valid_cron_expressions) or test(trigger_schedule_and_queue_commit_together_and_reject_stale_claims) or test(failure_cas_loser_returns_durable_failed_winner_without_overwriting_it) or test(stop_blocks_new_dispatch_and_join_reports_active_owners) or test(disabled_workflow_and_webhook_routes_keep_the_go_error_codes) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(test_context_interpolation_preserves_special_characters_and_json_payloads) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(test_market_threshold_cross_down_and_operators) or test(workflow_run_and_trigger_routes_keep_the_go_error_codes) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(test_market_threshold_quote_error_resilience) or test(test_schedule_trigger_creation_and_next_run_calculation) or test(test_schedule_trigger_tick_advances_and_fires) or test(test_workflow_scheduler_worker_start_stop_and_status) or test(workflow_trigger_update_switches_a_manual_trigger_to_a_schedule)"
         ],
         "testFilter": [
           "evaluate_cross_up_transitions",
@@ -115256,10 +115264,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "c2502784f1e23cfa65926640baa53d9b1df70365",
+        "verifiedAt": "2026-09-26T02:46:53Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -115308,20 +115316,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(lifecycle_audit_helpers_match_the_reference_table) or test(adk_chat_stream_replays_nonterminal_snapshot_without_fabricating_terminal_event) or test(test_sqlite_persistence_noderuns_strict_openapi_schema_compliance) or test(workflow_webhook_secret_lifecycle_stays_sanitized_and_authenticated) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(adk_agent_update_revalidates_the_merged_payload) or test(chat_dispatch_rejects_an_installed_but_unready_runtime) or test(assistant_run_timeout_falls_back_to_the_reference_default_window) or test(production_builtin_skills_project_bound_tool_catalog) or test(evaluate_cross_up_transitions) or test(evaluate_above_and_below_levels) or test(test_market_threshold_trigger_cross_up_and_cooldown) or test(parse_valid_cron_expressions) or test(trigger_schedule_and_queue_commit_together_and_reject_stale_claims) or test(failure_cas_loser_returns_durable_failed_winner_without_overwriting_it) or test(stop_blocks_new_dispatch_and_join_reports_active_owners) or test(disabled_workflow_and_webhook_routes_keep_the_go_error_codes) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(test_context_interpolation_preserves_special_characters_and_json_payloads) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(test_market_threshold_cross_down_and_operators) or test(workflow_run_and_trigger_routes_keep_the_go_error_codes) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(test_market_threshold_quote_error_resilience) or test(test_schedule_trigger_creation_and_next_run_calculation) or test(test_schedule_trigger_tick_advances_and_fires) or test(test_workflow_scheduler_worker_start_stop_and_status) or test(workflow_trigger_update_switches_a_manual_trigger_to_a_schedule)"
         ],
         "testFilter": [
           "test_market_threshold_trigger_cross_up_and_cooldown"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "c2502784f1e23cfa65926640baa53d9b1df70365",
+        "verifiedAt": "2026-09-26T02:46:53Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -115370,20 +115379,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(lifecycle_audit_helpers_match_the_reference_table) or test(adk_chat_stream_replays_nonterminal_snapshot_without_fabricating_terminal_event) or test(test_sqlite_persistence_noderuns_strict_openapi_schema_compliance) or test(workflow_webhook_secret_lifecycle_stays_sanitized_and_authenticated) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(adk_agent_update_revalidates_the_merged_payload) or test(chat_dispatch_rejects_an_installed_but_unready_runtime) or test(assistant_run_timeout_falls_back_to_the_reference_default_window) or test(production_builtin_skills_project_bound_tool_catalog) or test(evaluate_cross_up_transitions) or test(evaluate_above_and_below_levels) or test(test_market_threshold_trigger_cross_up_and_cooldown) or test(parse_valid_cron_expressions) or test(trigger_schedule_and_queue_commit_together_and_reject_stale_claims) or test(failure_cas_loser_returns_durable_failed_winner_without_overwriting_it) or test(stop_blocks_new_dispatch_and_join_reports_active_owners) or test(disabled_workflow_and_webhook_routes_keep_the_go_error_codes) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(test_context_interpolation_preserves_special_characters_and_json_payloads) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(test_market_threshold_cross_down_and_operators) or test(workflow_run_and_trigger_routes_keep_the_go_error_codes) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(test_market_threshold_quote_error_resilience) or test(test_schedule_trigger_creation_and_next_run_calculation) or test(test_schedule_trigger_tick_advances_and_fires) or test(test_workflow_scheduler_worker_start_stop_and_status) or test(workflow_trigger_update_switches_a_manual_trigger_to_a_schedule)"
         ],
         "testFilter": [
           "parse_valid_cron_expressions"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "c2502784f1e23cfa65926640baa53d9b1df70365",
+        "verifiedAt": "2026-09-26T02:46:53Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -115494,20 +115504,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(lifecycle_audit_helpers_match_the_reference_table) or test(adk_chat_stream_replays_nonterminal_snapshot_without_fabricating_terminal_event) or test(test_sqlite_persistence_noderuns_strict_openapi_schema_compliance) or test(workflow_webhook_secret_lifecycle_stays_sanitized_and_authenticated) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(adk_agent_update_revalidates_the_merged_payload) or test(chat_dispatch_rejects_an_installed_but_unready_runtime) or test(assistant_run_timeout_falls_back_to_the_reference_default_window) or test(production_builtin_skills_project_bound_tool_catalog) or test(evaluate_cross_up_transitions) or test(evaluate_above_and_below_levels) or test(test_market_threshold_trigger_cross_up_and_cooldown) or test(parse_valid_cron_expressions) or test(trigger_schedule_and_queue_commit_together_and_reject_stale_claims) or test(failure_cas_loser_returns_durable_failed_winner_without_overwriting_it) or test(stop_blocks_new_dispatch_and_join_reports_active_owners) or test(disabled_workflow_and_webhook_routes_keep_the_go_error_codes) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(test_context_interpolation_preserves_special_characters_and_json_payloads) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(test_market_threshold_cross_down_and_operators) or test(workflow_run_and_trigger_routes_keep_the_go_error_codes) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(test_market_threshold_quote_error_resilience) or test(test_schedule_trigger_creation_and_next_run_calculation) or test(test_schedule_trigger_tick_advances_and_fires) or test(test_workflow_scheduler_worker_start_stop_and_status) or test(workflow_trigger_update_switches_a_manual_trigger_to_a_schedule)"
         ],
         "testFilter": [
           "trigger_schedule_and_queue_commit_together_and_reject_stale_claims"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "c2502784f1e23cfa65926640baa53d9b1df70365",
+        "verifiedAt": "2026-09-26T02:46:53Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -115556,20 +115567,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(lifecycle_audit_helpers_match_the_reference_table) or test(adk_chat_stream_replays_nonterminal_snapshot_without_fabricating_terminal_event) or test(test_sqlite_persistence_noderuns_strict_openapi_schema_compliance) or test(workflow_webhook_secret_lifecycle_stays_sanitized_and_authenticated) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(adk_agent_update_revalidates_the_merged_payload) or test(chat_dispatch_rejects_an_installed_but_unready_runtime) or test(assistant_run_timeout_falls_back_to_the_reference_default_window) or test(production_builtin_skills_project_bound_tool_catalog) or test(evaluate_cross_up_transitions) or test(evaluate_above_and_below_levels) or test(test_market_threshold_trigger_cross_up_and_cooldown) or test(parse_valid_cron_expressions) or test(trigger_schedule_and_queue_commit_together_and_reject_stale_claims) or test(failure_cas_loser_returns_durable_failed_winner_without_overwriting_it) or test(stop_blocks_new_dispatch_and_join_reports_active_owners) or test(disabled_workflow_and_webhook_routes_keep_the_go_error_codes) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(test_context_interpolation_preserves_special_characters_and_json_payloads) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(test_market_threshold_cross_down_and_operators) or test(workflow_run_and_trigger_routes_keep_the_go_error_codes) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(test_market_threshold_quote_error_resilience) or test(test_schedule_trigger_creation_and_next_run_calculation) or test(test_schedule_trigger_tick_advances_and_fires) or test(test_workflow_scheduler_worker_start_stop_and_status) or test(workflow_trigger_update_switches_a_manual_trigger_to_a_schedule)"
         ],
         "testFilter": [
           "failure_cas_loser_returns_durable_failed_winner_without_overwriting_it"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "c2502784f1e23cfa65926640baa53d9b1df70365",
+        "verifiedAt": "2026-09-26T02:46:53Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -115618,20 +115630,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(lifecycle_audit_helpers_match_the_reference_table) or test(adk_chat_stream_replays_nonterminal_snapshot_without_fabricating_terminal_event) or test(test_sqlite_persistence_noderuns_strict_openapi_schema_compliance) or test(workflow_webhook_secret_lifecycle_stays_sanitized_and_authenticated) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(adk_agent_update_revalidates_the_merged_payload) or test(chat_dispatch_rejects_an_installed_but_unready_runtime) or test(assistant_run_timeout_falls_back_to_the_reference_default_window) or test(production_builtin_skills_project_bound_tool_catalog) or test(evaluate_cross_up_transitions) or test(evaluate_above_and_below_levels) or test(test_market_threshold_trigger_cross_up_and_cooldown) or test(parse_valid_cron_expressions) or test(trigger_schedule_and_queue_commit_together_and_reject_stale_claims) or test(failure_cas_loser_returns_durable_failed_winner_without_overwriting_it) or test(stop_blocks_new_dispatch_and_join_reports_active_owners) or test(disabled_workflow_and_webhook_routes_keep_the_go_error_codes) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(test_context_interpolation_preserves_special_characters_and_json_payloads) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(test_market_threshold_cross_down_and_operators) or test(workflow_run_and_trigger_routes_keep_the_go_error_codes) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(test_market_threshold_quote_error_resilience) or test(test_schedule_trigger_creation_and_next_run_calculation) or test(test_schedule_trigger_tick_advances_and_fires) or test(test_workflow_scheduler_worker_start_stop_and_status) or test(workflow_trigger_update_switches_a_manual_trigger_to_a_schedule)"
         ],
         "testFilter": [
           "stop_blocks_new_dispatch_and_join_reports_active_owners"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "c2502784f1e23cfa65926640baa53d9b1df70365",
+        "verifiedAt": "2026-09-26T02:46:53Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -115742,20 +115755,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(lifecycle_audit_helpers_match_the_reference_table) or test(adk_chat_stream_replays_nonterminal_snapshot_without_fabricating_terminal_event) or test(test_sqlite_persistence_noderuns_strict_openapi_schema_compliance) or test(workflow_webhook_secret_lifecycle_stays_sanitized_and_authenticated) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(adk_agent_update_revalidates_the_merged_payload) or test(chat_dispatch_rejects_an_installed_but_unready_runtime) or test(assistant_run_timeout_falls_back_to_the_reference_default_window) or test(production_builtin_skills_project_bound_tool_catalog) or test(evaluate_cross_up_transitions) or test(evaluate_above_and_below_levels) or test(test_market_threshold_trigger_cross_up_and_cooldown) or test(parse_valid_cron_expressions) or test(trigger_schedule_and_queue_commit_together_and_reject_stale_claims) or test(failure_cas_loser_returns_durable_failed_winner_without_overwriting_it) or test(stop_blocks_new_dispatch_and_join_reports_active_owners) or test(disabled_workflow_and_webhook_routes_keep_the_go_error_codes) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(test_context_interpolation_preserves_special_characters_and_json_payloads) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(test_market_threshold_cross_down_and_operators) or test(workflow_run_and_trigger_routes_keep_the_go_error_codes) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(test_market_threshold_quote_error_resilience) or test(test_schedule_trigger_creation_and_next_run_calculation) or test(test_schedule_trigger_tick_advances_and_fires) or test(test_workflow_scheduler_worker_start_stop_and_status) or test(workflow_trigger_update_switches_a_manual_trigger_to_a_schedule)"
         ],
         "testFilter": [
           "disabled_workflow_and_webhook_routes_keep_the_go_error_codes"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "c2502784f1e23cfa65926640baa53d9b1df70365",
+        "verifiedAt": "2026-09-26T02:46:53Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -115804,20 +115818,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(lifecycle_audit_helpers_match_the_reference_table) or test(adk_chat_stream_replays_nonterminal_snapshot_without_fabricating_terminal_event) or test(test_sqlite_persistence_noderuns_strict_openapi_schema_compliance) or test(workflow_webhook_secret_lifecycle_stays_sanitized_and_authenticated) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(adk_agent_update_revalidates_the_merged_payload) or test(chat_dispatch_rejects_an_installed_but_unready_runtime) or test(assistant_run_timeout_falls_back_to_the_reference_default_window) or test(production_builtin_skills_project_bound_tool_catalog) or test(evaluate_cross_up_transitions) or test(evaluate_above_and_below_levels) or test(test_market_threshold_trigger_cross_up_and_cooldown) or test(parse_valid_cron_expressions) or test(trigger_schedule_and_queue_commit_together_and_reject_stale_claims) or test(failure_cas_loser_returns_durable_failed_winner_without_overwriting_it) or test(stop_blocks_new_dispatch_and_join_reports_active_owners) or test(disabled_workflow_and_webhook_routes_keep_the_go_error_codes) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(test_context_interpolation_preserves_special_characters_and_json_payloads) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(test_market_threshold_cross_down_and_operators) or test(workflow_run_and_trigger_routes_keep_the_go_error_codes) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(test_market_threshold_quote_error_resilience) or test(test_schedule_trigger_creation_and_next_run_calculation) or test(test_schedule_trigger_tick_advances_and_fires) or test(test_workflow_scheduler_worker_start_stop_and_status) or test(workflow_trigger_update_switches_a_manual_trigger_to_a_schedule)"
         ],
         "testFilter": [
           "workflow_writes_reject_malformed_canvas_graphs_before_storing"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "c2502784f1e23cfa65926640baa53d9b1df70365",
+        "verifiedAt": "2026-09-26T02:46:53Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -115866,20 +115881,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(lifecycle_audit_helpers_match_the_reference_table) or test(adk_chat_stream_replays_nonterminal_snapshot_without_fabricating_terminal_event) or test(test_sqlite_persistence_noderuns_strict_openapi_schema_compliance) or test(workflow_webhook_secret_lifecycle_stays_sanitized_and_authenticated) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(adk_agent_update_revalidates_the_merged_payload) or test(chat_dispatch_rejects_an_installed_but_unready_runtime) or test(assistant_run_timeout_falls_back_to_the_reference_default_window) or test(production_builtin_skills_project_bound_tool_catalog) or test(evaluate_cross_up_transitions) or test(evaluate_above_and_below_levels) or test(test_market_threshold_trigger_cross_up_and_cooldown) or test(parse_valid_cron_expressions) or test(trigger_schedule_and_queue_commit_together_and_reject_stale_claims) or test(failure_cas_loser_returns_durable_failed_winner_without_overwriting_it) or test(stop_blocks_new_dispatch_and_join_reports_active_owners) or test(disabled_workflow_and_webhook_routes_keep_the_go_error_codes) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(test_context_interpolation_preserves_special_characters_and_json_payloads) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(test_market_threshold_cross_down_and_operators) or test(workflow_run_and_trigger_routes_keep_the_go_error_codes) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(test_market_threshold_quote_error_resilience) or test(test_schedule_trigger_creation_and_next_run_calculation) or test(test_schedule_trigger_tick_advances_and_fires) or test(test_workflow_scheduler_worker_start_stop_and_status) or test(workflow_trigger_update_switches_a_manual_trigger_to_a_schedule)"
         ],
         "testFilter": [
           "test_context_interpolation_preserves_special_characters_and_json_payloads"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "c2502784f1e23cfa65926640baa53d9b1df70365",
+        "verifiedAt": "2026-09-26T02:46:53Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -115990,20 +116006,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(lifecycle_audit_helpers_match_the_reference_table) or test(adk_chat_stream_replays_nonterminal_snapshot_without_fabricating_terminal_event) or test(test_sqlite_persistence_noderuns_strict_openapi_schema_compliance) or test(workflow_webhook_secret_lifecycle_stays_sanitized_and_authenticated) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(adk_agent_update_revalidates_the_merged_payload) or test(chat_dispatch_rejects_an_installed_but_unready_runtime) or test(assistant_run_timeout_falls_back_to_the_reference_default_window) or test(production_builtin_skills_project_bound_tool_catalog) or test(evaluate_cross_up_transitions) or test(evaluate_above_and_below_levels) or test(test_market_threshold_trigger_cross_up_and_cooldown) or test(parse_valid_cron_expressions) or test(trigger_schedule_and_queue_commit_together_and_reject_stale_claims) or test(failure_cas_loser_returns_durable_failed_winner_without_overwriting_it) or test(stop_blocks_new_dispatch_and_join_reports_active_owners) or test(disabled_workflow_and_webhook_routes_keep_the_go_error_codes) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(test_context_interpolation_preserves_special_characters_and_json_payloads) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(test_market_threshold_cross_down_and_operators) or test(workflow_run_and_trigger_routes_keep_the_go_error_codes) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(test_market_threshold_quote_error_resilience) or test(test_schedule_trigger_creation_and_next_run_calculation) or test(test_schedule_trigger_tick_advances_and_fires) or test(test_workflow_scheduler_worker_start_stop_and_status) or test(workflow_trigger_update_switches_a_manual_trigger_to_a_schedule)"
         ],
         "testFilter": [
           "workflow_manager_failures_surface_verbatim_on_every_workflow_route"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "c2502784f1e23cfa65926640baa53d9b1df70365",
+        "verifiedAt": "2026-09-26T02:46:53Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -116052,20 +116069,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(lifecycle_audit_helpers_match_the_reference_table) or test(adk_chat_stream_replays_nonterminal_snapshot_without_fabricating_terminal_event) or test(test_sqlite_persistence_noderuns_strict_openapi_schema_compliance) or test(workflow_webhook_secret_lifecycle_stays_sanitized_and_authenticated) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(adk_agent_update_revalidates_the_merged_payload) or test(chat_dispatch_rejects_an_installed_but_unready_runtime) or test(assistant_run_timeout_falls_back_to_the_reference_default_window) or test(production_builtin_skills_project_bound_tool_catalog) or test(evaluate_cross_up_transitions) or test(evaluate_above_and_below_levels) or test(test_market_threshold_trigger_cross_up_and_cooldown) or test(parse_valid_cron_expressions) or test(trigger_schedule_and_queue_commit_together_and_reject_stale_claims) or test(failure_cas_loser_returns_durable_failed_winner_without_overwriting_it) or test(stop_blocks_new_dispatch_and_join_reports_active_owners) or test(disabled_workflow_and_webhook_routes_keep_the_go_error_codes) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(test_context_interpolation_preserves_special_characters_and_json_payloads) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(test_market_threshold_cross_down_and_operators) or test(workflow_run_and_trigger_routes_keep_the_go_error_codes) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(test_market_threshold_quote_error_resilience) or test(test_schedule_trigger_creation_and_next_run_calculation) or test(test_schedule_trigger_tick_advances_and_fires) or test(test_workflow_scheduler_worker_start_stop_and_status) or test(workflow_trigger_update_switches_a_manual_trigger_to_a_schedule)"
         ],
         "testFilter": [
           "trigger_schedule_and_queue_commit_together_and_reject_stale_claims"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "c2502784f1e23cfa65926640baa53d9b1df70365",
+        "verifiedAt": "2026-09-26T02:46:53Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -116114,20 +116132,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(lifecycle_audit_helpers_match_the_reference_table) or test(adk_chat_stream_replays_nonterminal_snapshot_without_fabricating_terminal_event) or test(test_sqlite_persistence_noderuns_strict_openapi_schema_compliance) or test(workflow_webhook_secret_lifecycle_stays_sanitized_and_authenticated) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(adk_agent_update_revalidates_the_merged_payload) or test(chat_dispatch_rejects_an_installed_but_unready_runtime) or test(assistant_run_timeout_falls_back_to_the_reference_default_window) or test(production_builtin_skills_project_bound_tool_catalog) or test(evaluate_cross_up_transitions) or test(evaluate_above_and_below_levels) or test(test_market_threshold_trigger_cross_up_and_cooldown) or test(parse_valid_cron_expressions) or test(trigger_schedule_and_queue_commit_together_and_reject_stale_claims) or test(failure_cas_loser_returns_durable_failed_winner_without_overwriting_it) or test(stop_blocks_new_dispatch_and_join_reports_active_owners) or test(disabled_workflow_and_webhook_routes_keep_the_go_error_codes) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(test_context_interpolation_preserves_special_characters_and_json_payloads) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(test_market_threshold_cross_down_and_operators) or test(workflow_run_and_trigger_routes_keep_the_go_error_codes) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(test_market_threshold_quote_error_resilience) or test(test_schedule_trigger_creation_and_next_run_calculation) or test(test_schedule_trigger_tick_advances_and_fires) or test(test_workflow_scheduler_worker_start_stop_and_status) or test(workflow_trigger_update_switches_a_manual_trigger_to_a_schedule)"
         ],
         "testFilter": [
           "test_market_threshold_trigger_cross_up_and_cooldown"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "c2502784f1e23cfa65926640baa53d9b1df70365",
+        "verifiedAt": "2026-09-26T02:46:53Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -116176,20 +116195,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(lifecycle_audit_helpers_match_the_reference_table) or test(adk_chat_stream_replays_nonterminal_snapshot_without_fabricating_terminal_event) or test(test_sqlite_persistence_noderuns_strict_openapi_schema_compliance) or test(workflow_webhook_secret_lifecycle_stays_sanitized_and_authenticated) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(adk_agent_update_revalidates_the_merged_payload) or test(chat_dispatch_rejects_an_installed_but_unready_runtime) or test(assistant_run_timeout_falls_back_to_the_reference_default_window) or test(production_builtin_skills_project_bound_tool_catalog) or test(evaluate_cross_up_transitions) or test(evaluate_above_and_below_levels) or test(test_market_threshold_trigger_cross_up_and_cooldown) or test(parse_valid_cron_expressions) or test(trigger_schedule_and_queue_commit_together_and_reject_stale_claims) or test(failure_cas_loser_returns_durable_failed_winner_without_overwriting_it) or test(stop_blocks_new_dispatch_and_join_reports_active_owners) or test(disabled_workflow_and_webhook_routes_keep_the_go_error_codes) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(test_context_interpolation_preserves_special_characters_and_json_payloads) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(test_market_threshold_cross_down_and_operators) or test(workflow_run_and_trigger_routes_keep_the_go_error_codes) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(test_market_threshold_quote_error_resilience) or test(test_schedule_trigger_creation_and_next_run_calculation) or test(test_schedule_trigger_tick_advances_and_fires) or test(test_workflow_scheduler_worker_start_stop_and_status) or test(workflow_trigger_update_switches_a_manual_trigger_to_a_schedule)"
         ],
         "testFilter": [
           "test_market_threshold_cross_down_and_operators"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "c2502784f1e23cfa65926640baa53d9b1df70365",
+        "verifiedAt": "2026-09-26T02:46:53Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -116238,20 +116258,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(lifecycle_audit_helpers_match_the_reference_table) or test(adk_chat_stream_replays_nonterminal_snapshot_without_fabricating_terminal_event) or test(test_sqlite_persistence_noderuns_strict_openapi_schema_compliance) or test(workflow_webhook_secret_lifecycle_stays_sanitized_and_authenticated) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(adk_agent_update_revalidates_the_merged_payload) or test(chat_dispatch_rejects_an_installed_but_unready_runtime) or test(assistant_run_timeout_falls_back_to_the_reference_default_window) or test(production_builtin_skills_project_bound_tool_catalog) or test(evaluate_cross_up_transitions) or test(evaluate_above_and_below_levels) or test(test_market_threshold_trigger_cross_up_and_cooldown) or test(parse_valid_cron_expressions) or test(trigger_schedule_and_queue_commit_together_and_reject_stale_claims) or test(failure_cas_loser_returns_durable_failed_winner_without_overwriting_it) or test(stop_blocks_new_dispatch_and_join_reports_active_owners) or test(disabled_workflow_and_webhook_routes_keep_the_go_error_codes) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(test_context_interpolation_preserves_special_characters_and_json_payloads) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(test_market_threshold_cross_down_and_operators) or test(workflow_run_and_trigger_routes_keep_the_go_error_codes) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(test_market_threshold_quote_error_resilience) or test(test_schedule_trigger_creation_and_next_run_calculation) or test(test_schedule_trigger_tick_advances_and_fires) or test(test_workflow_scheduler_worker_start_stop_and_status) or test(workflow_trigger_update_switches_a_manual_trigger_to_a_schedule)"
         ],
         "testFilter": [
           "workflow_run_and_trigger_routes_keep_the_go_error_codes"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "c2502784f1e23cfa65926640baa53d9b1df70365",
+        "verifiedAt": "2026-09-26T02:46:53Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -116362,20 +116383,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(lifecycle_audit_helpers_match_the_reference_table) or test(adk_chat_stream_replays_nonterminal_snapshot_without_fabricating_terminal_event) or test(test_sqlite_persistence_noderuns_strict_openapi_schema_compliance) or test(workflow_webhook_secret_lifecycle_stays_sanitized_and_authenticated) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(adk_agent_update_revalidates_the_merged_payload) or test(chat_dispatch_rejects_an_installed_but_unready_runtime) or test(assistant_run_timeout_falls_back_to_the_reference_default_window) or test(production_builtin_skills_project_bound_tool_catalog) or test(evaluate_cross_up_transitions) or test(evaluate_above_and_below_levels) or test(test_market_threshold_trigger_cross_up_and_cooldown) or test(parse_valid_cron_expressions) or test(trigger_schedule_and_queue_commit_together_and_reject_stale_claims) or test(failure_cas_loser_returns_durable_failed_winner_without_overwriting_it) or test(stop_blocks_new_dispatch_and_join_reports_active_owners) or test(disabled_workflow_and_webhook_routes_keep_the_go_error_codes) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(test_context_interpolation_preserves_special_characters_and_json_payloads) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(test_market_threshold_cross_down_and_operators) or test(workflow_run_and_trigger_routes_keep_the_go_error_codes) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(test_market_threshold_quote_error_resilience) or test(test_schedule_trigger_creation_and_next_run_calculation) or test(test_schedule_trigger_tick_advances_and_fires) or test(test_workflow_scheduler_worker_start_stop_and_status) or test(workflow_trigger_update_switches_a_manual_trigger_to_a_schedule)"
         ],
         "testFilter": [
           "direct_product_shutdown_stops_reconciliation_before_releasing_leases"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "c2502784f1e23cfa65926640baa53d9b1df70365",
+        "verifiedAt": "2026-09-26T02:46:53Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -116548,20 +116570,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(lifecycle_audit_helpers_match_the_reference_table) or test(adk_chat_stream_replays_nonterminal_snapshot_without_fabricating_terminal_event) or test(test_sqlite_persistence_noderuns_strict_openapi_schema_compliance) or test(workflow_webhook_secret_lifecycle_stays_sanitized_and_authenticated) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(adk_agent_update_revalidates_the_merged_payload) or test(chat_dispatch_rejects_an_installed_but_unready_runtime) or test(assistant_run_timeout_falls_back_to_the_reference_default_window) or test(production_builtin_skills_project_bound_tool_catalog) or test(evaluate_cross_up_transitions) or test(evaluate_above_and_below_levels) or test(test_market_threshold_trigger_cross_up_and_cooldown) or test(parse_valid_cron_expressions) or test(trigger_schedule_and_queue_commit_together_and_reject_stale_claims) or test(failure_cas_loser_returns_durable_failed_winner_without_overwriting_it) or test(stop_blocks_new_dispatch_and_join_reports_active_owners) or test(disabled_workflow_and_webhook_routes_keep_the_go_error_codes) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(test_context_interpolation_preserves_special_characters_and_json_payloads) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(test_market_threshold_cross_down_and_operators) or test(workflow_run_and_trigger_routes_keep_the_go_error_codes) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(test_market_threshold_quote_error_resilience) or test(test_schedule_trigger_creation_and_next_run_calculation) or test(test_schedule_trigger_tick_advances_and_fires) or test(test_workflow_scheduler_worker_start_stop_and_status) or test(workflow_trigger_update_switches_a_manual_trigger_to_a_schedule)"
         ],
         "testFilter": [
           "test_market_threshold_quote_error_resilience"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "c2502784f1e23cfa65926640baa53d9b1df70365",
+        "verifiedAt": "2026-09-26T02:46:53Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -116610,20 +116633,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(lifecycle_audit_helpers_match_the_reference_table) or test(adk_chat_stream_replays_nonterminal_snapshot_without_fabricating_terminal_event) or test(test_sqlite_persistence_noderuns_strict_openapi_schema_compliance) or test(workflow_webhook_secret_lifecycle_stays_sanitized_and_authenticated) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(adk_agent_update_revalidates_the_merged_payload) or test(chat_dispatch_rejects_an_installed_but_unready_runtime) or test(assistant_run_timeout_falls_back_to_the_reference_default_window) or test(production_builtin_skills_project_bound_tool_catalog) or test(evaluate_cross_up_transitions) or test(evaluate_above_and_below_levels) or test(test_market_threshold_trigger_cross_up_and_cooldown) or test(parse_valid_cron_expressions) or test(trigger_schedule_and_queue_commit_together_and_reject_stale_claims) or test(failure_cas_loser_returns_durable_failed_winner_without_overwriting_it) or test(stop_blocks_new_dispatch_and_join_reports_active_owners) or test(disabled_workflow_and_webhook_routes_keep_the_go_error_codes) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(test_context_interpolation_preserves_special_characters_and_json_payloads) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(test_market_threshold_cross_down_and_operators) or test(workflow_run_and_trigger_routes_keep_the_go_error_codes) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(test_market_threshold_quote_error_resilience) or test(test_schedule_trigger_creation_and_next_run_calculation) or test(test_schedule_trigger_tick_advances_and_fires) or test(test_workflow_scheduler_worker_start_stop_and_status) or test(workflow_trigger_update_switches_a_manual_trigger_to_a_schedule)"
         ],
         "testFilter": [
           "test_schedule_trigger_creation_and_next_run_calculation"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "c2502784f1e23cfa65926640baa53d9b1df70365",
+        "verifiedAt": "2026-09-26T02:46:53Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -116672,20 +116696,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(lifecycle_audit_helpers_match_the_reference_table) or test(adk_chat_stream_replays_nonterminal_snapshot_without_fabricating_terminal_event) or test(test_sqlite_persistence_noderuns_strict_openapi_schema_compliance) or test(workflow_webhook_secret_lifecycle_stays_sanitized_and_authenticated) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(adk_agent_update_revalidates_the_merged_payload) or test(chat_dispatch_rejects_an_installed_but_unready_runtime) or test(assistant_run_timeout_falls_back_to_the_reference_default_window) or test(production_builtin_skills_project_bound_tool_catalog) or test(evaluate_cross_up_transitions) or test(evaluate_above_and_below_levels) or test(test_market_threshold_trigger_cross_up_and_cooldown) or test(parse_valid_cron_expressions) or test(trigger_schedule_and_queue_commit_together_and_reject_stale_claims) or test(failure_cas_loser_returns_durable_failed_winner_without_overwriting_it) or test(stop_blocks_new_dispatch_and_join_reports_active_owners) or test(disabled_workflow_and_webhook_routes_keep_the_go_error_codes) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(test_context_interpolation_preserves_special_characters_and_json_payloads) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(test_market_threshold_cross_down_and_operators) or test(workflow_run_and_trigger_routes_keep_the_go_error_codes) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(test_market_threshold_quote_error_resilience) or test(test_schedule_trigger_creation_and_next_run_calculation) or test(test_schedule_trigger_tick_advances_and_fires) or test(test_workflow_scheduler_worker_start_stop_and_status) or test(workflow_trigger_update_switches_a_manual_trigger_to_a_schedule)"
         ],
         "testFilter": [
           "test_schedule_trigger_tick_advances_and_fires"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "c2502784f1e23cfa65926640baa53d9b1df70365",
+        "verifiedAt": "2026-09-26T02:46:53Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -116734,20 +116759,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(lifecycle_audit_helpers_match_the_reference_table) or test(adk_chat_stream_replays_nonterminal_snapshot_without_fabricating_terminal_event) or test(test_sqlite_persistence_noderuns_strict_openapi_schema_compliance) or test(workflow_webhook_secret_lifecycle_stays_sanitized_and_authenticated) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(adk_agent_update_revalidates_the_merged_payload) or test(chat_dispatch_rejects_an_installed_but_unready_runtime) or test(assistant_run_timeout_falls_back_to_the_reference_default_window) or test(production_builtin_skills_project_bound_tool_catalog) or test(evaluate_cross_up_transitions) or test(evaluate_above_and_below_levels) or test(test_market_threshold_trigger_cross_up_and_cooldown) or test(parse_valid_cron_expressions) or test(trigger_schedule_and_queue_commit_together_and_reject_stale_claims) or test(failure_cas_loser_returns_durable_failed_winner_without_overwriting_it) or test(stop_blocks_new_dispatch_and_join_reports_active_owners) or test(disabled_workflow_and_webhook_routes_keep_the_go_error_codes) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(test_context_interpolation_preserves_special_characters_and_json_payloads) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(test_market_threshold_cross_down_and_operators) or test(workflow_run_and_trigger_routes_keep_the_go_error_codes) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(test_market_threshold_quote_error_resilience) or test(test_schedule_trigger_creation_and_next_run_calculation) or test(test_schedule_trigger_tick_advances_and_fires) or test(test_workflow_scheduler_worker_start_stop_and_status) or test(workflow_trigger_update_switches_a_manual_trigger_to_a_schedule)"
         ],
         "testFilter": [
           "test_workflow_scheduler_worker_start_stop_and_status"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "c2502784f1e23cfa65926640baa53d9b1df70365",
+        "verifiedAt": "2026-09-26T02:46:53Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -116858,20 +116884,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(lifecycle_audit_helpers_match_the_reference_table) or test(adk_chat_stream_replays_nonterminal_snapshot_without_fabricating_terminal_event) or test(test_sqlite_persistence_noderuns_strict_openapi_schema_compliance) or test(workflow_webhook_secret_lifecycle_stays_sanitized_and_authenticated) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(adk_agent_update_revalidates_the_merged_payload) or test(chat_dispatch_rejects_an_installed_but_unready_runtime) or test(assistant_run_timeout_falls_back_to_the_reference_default_window) or test(production_builtin_skills_project_bound_tool_catalog) or test(evaluate_cross_up_transitions) or test(evaluate_above_and_below_levels) or test(test_market_threshold_trigger_cross_up_and_cooldown) or test(parse_valid_cron_expressions) or test(trigger_schedule_and_queue_commit_together_and_reject_stale_claims) or test(failure_cas_loser_returns_durable_failed_winner_without_overwriting_it) or test(stop_blocks_new_dispatch_and_join_reports_active_owners) or test(disabled_workflow_and_webhook_routes_keep_the_go_error_codes) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(test_context_interpolation_preserves_special_characters_and_json_payloads) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(test_market_threshold_cross_down_and_operators) or test(workflow_run_and_trigger_routes_keep_the_go_error_codes) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(test_market_threshold_quote_error_resilience) or test(test_schedule_trigger_creation_and_next_run_calculation) or test(test_schedule_trigger_tick_advances_and_fires) or test(test_workflow_scheduler_worker_start_stop_and_status) or test(workflow_trigger_update_switches_a_manual_trigger_to_a_schedule)"
         ],
         "testFilter": [
           "workflow_trigger_update_switches_a_manual_trigger_to_a_schedule"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "c2502784f1e23cfa65926640baa53d9b1df70365",
+        "verifiedAt": "2026-09-26T02:46:53Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -117213,12 +117240,11 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
-          "--lib",
+          "--workspace",
+          "--all-targets",
           "--locked",
           "-E",
-          "test(evaluate_cross_up_transitions) or test(evaluate_above_and_below_levels)"
+          "test(lifecycle_audit_helpers_match_the_reference_table) or test(adk_chat_stream_replays_nonterminal_snapshot_without_fabricating_terminal_event) or test(test_sqlite_persistence_noderuns_strict_openapi_schema_compliance) or test(workflow_webhook_secret_lifecycle_stays_sanitized_and_authenticated) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(adk_agent_update_revalidates_the_merged_payload) or test(chat_dispatch_rejects_an_installed_but_unready_runtime) or test(assistant_run_timeout_falls_back_to_the_reference_default_window) or test(production_builtin_skills_project_bound_tool_catalog) or test(evaluate_cross_up_transitions) or test(evaluate_above_and_below_levels) or test(test_market_threshold_trigger_cross_up_and_cooldown) or test(parse_valid_cron_expressions) or test(trigger_schedule_and_queue_commit_together_and_reject_stale_claims) or test(failure_cas_loser_returns_durable_failed_winner_without_overwriting_it) or test(stop_blocks_new_dispatch_and_join_reports_active_owners) or test(disabled_workflow_and_webhook_routes_keep_the_go_error_codes) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(test_context_interpolation_preserves_special_characters_and_json_payloads) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(test_market_threshold_cross_down_and_operators) or test(workflow_run_and_trigger_routes_keep_the_go_error_codes) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(test_market_threshold_quote_error_resilience) or test(test_schedule_trigger_creation_and_next_run_calculation) or test(test_schedule_trigger_tick_advances_and_fires) or test(test_workflow_scheduler_worker_start_stop_and_status) or test(workflow_trigger_update_switches_a_manual_trigger_to_a_schedule)"
         ],
         "testFilter": [
           "evaluate_cross_up_transitions",
@@ -117226,10 +117252,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "c2502784f1e23cfa65926640baa53d9b1df70365",
+        "verifiedAt": "2026-09-26T02:46:53Z",
         "receiptDigest": null
       },
       "risk": "normal",
