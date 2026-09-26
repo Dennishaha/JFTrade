@@ -1959,3 +1959,17 @@ ADK/Assistant 功能差异，先补失败回归测试再修改领域 owner。
 验证：动态生成过滤器运行 `pnpm run test:rust -- --no-fail-fast -E`（底层 `node scripts/quality/cargo-nextest.mjs run --workspace --all-targets --locked`），29/29 通过。
 
 下一片：继续 P2 Pine/Strategy runtime、MarketData/Quote、Storage/SQLite、Settings/Watchlist 与 API transport/MCP 条目，再回补 Backtest/Calendar 尾项；helper/type-only、`optional_bool_strict`、P1 `session_context_snapshot` 及其他无独立 Rust 测试条目仍保持未验证结论。
+
+## 第 221 批：Pine replay pump、source/planner、runner 边界与结果收集（2026-09-26）
+
+| 复核 | Go 测试范围 | Rust 证据 | P | 结论 |
+| :---: | --- | --- | :---: | --- |
+| [x] | `pineworker_replay_pump_test.go:15,59,89,118`; `pineworker_replay_source_test.go:12,36,51` | deterministic worker intent matching, replay identity/error handling, K-line interval paging and missing-table recovery | P2 | partial/boundary：Rust Pine execution、SQLite replay source owners 覆盖 consume/finish、identity、paging 与 recovery；Go pump consumer、stream callback 与 chunk container 组合保持 partial。 |
+| [x] | `pineworker_replay_test.go:18,47,66,111,129,144`; `pineworker_runner_boundaries_test.go:14,37,75`; `pineworker_runner_failure_boundaries_test.go:16,57,94` | request/candle validation, command grouping/order, worker error mapping, source/history/readiness guards and fail-closed replay integrity | P2 | partial：Rust Pine adapter/execution/backtest owners 覆盖 request validation、command normalization、worker errors 与 replay guards；Go RunConfig/store setup、callback injection 和 exact error aggregation 保持 partial/boundary。 |
+| [x] | `pineworker_runner_test.go:19,91,163,234,293,381`; `replay_sizer_bounds_test.go:13,35,88,135`; `result_collector_test.go:19` | deterministic matcher fills, warmup equity/Heikin-Ashi seed, quantity-percent sizing, lot/market fallback, incremental fills, precision and weighted results | P2 | partial：Rust matcher/result-reporting/broker-rule owners 覆盖 warmup、sizing、fees/precision、lot guards 与 result seed；Go account/order callbacks、Pine worker runner facade 与 warning collection 继续保持 partial。 |
+
+本批 30 条 P2 Go 映射对应 **19 个证据过滤器**，因 strategy runtime、simulate closed-loop 与 matcher 多 binary 重复，Rust nextest 实际 **23/23** 通过（3450 skipped）。Pine replay consume/finish、source paging/recovery、request/command validation、runner fail-closed、warmup/Heikin-Ashi、quantity-percent sizing、market/lot fallback、incremental fills 与 result seed 均有 owner 证据；结论保持 `partial`/`boundary`，未把跨 binary 重复或 facade/聚合测试升级为 exact。未发现需要先红后修的真实 Rust 功能差异。
+
+验证：动态生成过滤器运行 `pnpm run test:rust -- --no-fail-fast -E`（底层 `node scripts/quality/cargo-nextest.mjs run --workspace --all-targets --locked`），23/23 通过。
+
+下一片：继续 P2 Pine/Strategy runtime、MarketData/Quote、Storage/SQLite、Settings/Watchlist 与 API transport/MCP 条目，再回补 Backtest/Calendar 尾项；helper/type-only、`optional_bool_strict`、`session_context_snapshot` 及其他无独立 Rust 测试条目仍保持未验证结论。
