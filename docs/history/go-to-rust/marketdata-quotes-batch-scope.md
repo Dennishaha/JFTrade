@@ -1932,3 +1932,17 @@ ADK/Assistant 功能差异，先补失败回归测试再修改领域 owner。
 验证：动态生成过滤器运行 `pnpm run test:rust -- --no-fail-fast -E`（底层 `node scripts/quality/cargo-nextest.mjs run --workspace --all-targets --locked`），21/21 通过。
 
 下一片：继续 P2 Backtest/Calendar 存储与 execution 条目，再转 MarketData/Quote、Storage/SQLite、Settings/Watchlist、API transport/MCP 与 Strategy/Pine；helper/type-only、`optional_bool_strict`、P1 `session_context_snapshot` 及其他无独立 Rust 测试条目仍保持未验证结论。
+
+## 第 219 批：K 线连接/失败边界、聚合查询与 Pine shadow/adapter（2026-09-26）
+
+| 复核 | Go 测试范围 | Rust 证据 | P | 结论 |
+| :---: | --- | --- | :---: | --- |
+| [x] | `internal/storage/store_connection_test.go:14,30,96,156`; `store_failure_boundaries_test.go:13,68,163` | writer lease/concurrent WAL ordering, read/write serialization, closed database propagation, schema damage refusal/recovery and legacy table rejection | P2 | partial：Rust SQLite market-data/maintenance owners 覆盖 lease、schema fail-closed 与 recovery；Go GORM connection controller、test timing 和 legacy fixture 组合保持 partial。 |
+| [x] | `store_query_aggregation_contracts_test.go:12,81,158`; `store_runtime_invariants_test.go:15,59,81,132,179,208,236,306,380,431`; `stream_query_failure_sorting_test.go:47` | scoped session reads, interval/daily/weekly aggregation, backup/compact, deterministic paging, cutoff/coverage invariants, table/session validation and stable symbol sorting | P2 | partial/boundary：Rust aggregation/calendar/session owners 覆盖 source priority、cutoff、coverage 与 deterministic reads；Go storage helper、SQLite table fixtures 和 multi-symbol stream facade 保持 boundary。 |
+| [x] | `pine_costs_test.go:14,27`; `pine_ts_corpus_test.go:31`; `pine_ts_shadow_reference_test.go:8,21`; `pine_ts_smoke_test.go:20`; `pineworker_adapter_test.go:17,41,57` | fee text normalization, initial-balance precedence, byte-deterministic corpus, EMA/MACD warmup, bundled PineTS worker and order-intent adapter mapping | P2 | partial：Rust backtest/Pine integration owners 覆盖 fee, corpus, indicators, worker and short-direction mapping；Go PineTS shadow corpus/worker process and adapter callback boundaries remain partial. |
+
+本批 30 条 P2 Go 映射对应 **24 个证据过滤器**；`test_execute_strategy_intents_close_short_maps_to_buy` 在多个 binary 重复，Rust nextest 实际 **25/25** 通过（3448 skipped）。K 线连接/失败、schema/lease、session/interval/calendar aggregation、stable sorting、Pine costs/corpus/indicators/worker 与 adapter direction 均有 owner 证据；结论保持 `partial`/`boundary`，没有把跨 binary 聚合测试升级为 exact。未发现需要先红后修的真实 Rust 功能差异。
+
+验证：动态生成过滤器运行 `pnpm run test:rust -- --no-fail-fast -E`（底层 `node scripts/quality/cargo-nextest.mjs run --workspace --all-targets --locked`），25/25 通过。
+
+下一片：继续 P2 Pine/Strategy 与 MarketData/Quote、Storage/SQLite、Settings/Watchlist、API transport/MCP 条目，再回补 Backtest/Calendar 尾项；helper/type-only、`optional_bool_strict`、P1 `session_context_snapshot` 及其他无独立 Rust 测试条目仍保持未验证结论。

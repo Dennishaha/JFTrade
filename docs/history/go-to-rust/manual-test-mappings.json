@@ -126032,20 +126032,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(production_store_rejects_a_second_writer_lease) or test(production_store_lists_manifest_catalog) or test(reopening_after_store_drop_releases_writer_and_preserves_empty_table) or test(damaged_dynamic_schema_is_rejected_without_overwriting_and_recovers_after_repair) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(aggregates_complete_one_minute_coverage_into_canonical_five_and_fifteen_minute_bars) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries) or test(backup_and_compact_fail_closed_when_the_source_database_is_missing) or test(interval_aliases_share_a_canonical_storage_table) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(aggregate_reads_use_only_the_requested_session_scope) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(query_cutoff_does_not_turn_an_unclosed_hour_into_a_closed_short_bar) or test(schema_kline_table_name_and_session_scope_validation_contracts) or test(fee_rule_text_is_case_insensitive_and_trimmed_before_calculation) or test(run_json_adapter_fills_validated_history_into_empty_corpus_case) or test(corpus_output_is_byte_deterministic_across_replays) or test(pine_ema_seeds_from_sma_after_nan_warmup) or test(pine_macd_delays_signal_until_valid_macd_values_exist) or test(rust_client_executes_bundled_pinets_worker) or test(pine_adapter_runs_worker_intent_through_deterministic_matcher) or test(test_execute_strategy_intents_close_short_maps_to_buy)"
         ],
         "testFilter": [
           "production_store_rejects_a_second_writer_lease"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "724fdfe5d054a20b24750e2b1547c5f07eed52b4",
+        "verifiedAt": "2026-09-26T03:14:43Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -126094,20 +126095,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(production_store_rejects_a_second_writer_lease) or test(production_store_lists_manifest_catalog) or test(reopening_after_store_drop_releases_writer_and_preserves_empty_table) or test(damaged_dynamic_schema_is_rejected_without_overwriting_and_recovers_after_repair) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(aggregates_complete_one_minute_coverage_into_canonical_five_and_fifteen_minute_bars) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries) or test(backup_and_compact_fail_closed_when_the_source_database_is_missing) or test(interval_aliases_share_a_canonical_storage_table) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(aggregate_reads_use_only_the_requested_session_scope) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(query_cutoff_does_not_turn_an_unclosed_hour_into_a_closed_short_bar) or test(schema_kline_table_name_and_session_scope_validation_contracts) or test(fee_rule_text_is_case_insensitive_and_trimmed_before_calculation) or test(run_json_adapter_fills_validated_history_into_empty_corpus_case) or test(corpus_output_is_byte_deterministic_across_replays) or test(pine_ema_seeds_from_sma_after_nan_warmup) or test(pine_macd_delays_signal_until_valid_macd_values_exist) or test(rust_client_executes_bundled_pinets_worker) or test(pine_adapter_runs_worker_intent_through_deterministic_matcher) or test(test_execute_strategy_intents_close_short_maps_to_buy)"
         ],
         "testFilter": [
           "production_store_rejects_a_second_writer_lease"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "724fdfe5d054a20b24750e2b1547c5f07eed52b4",
+        "verifiedAt": "2026-09-26T03:14:43Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -126156,20 +126158,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(production_store_rejects_a_second_writer_lease) or test(production_store_lists_manifest_catalog) or test(reopening_after_store_drop_releases_writer_and_preserves_empty_table) or test(damaged_dynamic_schema_is_rejected_without_overwriting_and_recovers_after_repair) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(aggregates_complete_one_minute_coverage_into_canonical_five_and_fifteen_minute_bars) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries) or test(backup_and_compact_fail_closed_when_the_source_database_is_missing) or test(interval_aliases_share_a_canonical_storage_table) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(aggregate_reads_use_only_the_requested_session_scope) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(query_cutoff_does_not_turn_an_unclosed_hour_into_a_closed_short_bar) or test(schema_kline_table_name_and_session_scope_validation_contracts) or test(fee_rule_text_is_case_insensitive_and_trimmed_before_calculation) or test(run_json_adapter_fills_validated_history_into_empty_corpus_case) or test(corpus_output_is_byte_deterministic_across_replays) or test(pine_ema_seeds_from_sma_after_nan_warmup) or test(pine_macd_delays_signal_until_valid_macd_values_exist) or test(rust_client_executes_bundled_pinets_worker) or test(pine_adapter_runs_worker_intent_through_deterministic_matcher) or test(test_execute_strategy_intents_close_short_maps_to_buy)"
         ],
         "testFilter": [
           "production_store_lists_manifest_catalog"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "724fdfe5d054a20b24750e2b1547c5f07eed52b4",
+        "verifiedAt": "2026-09-26T03:14:43Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -126218,20 +126221,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(production_store_rejects_a_second_writer_lease) or test(production_store_lists_manifest_catalog) or test(reopening_after_store_drop_releases_writer_and_preserves_empty_table) or test(damaged_dynamic_schema_is_rejected_without_overwriting_and_recovers_after_repair) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(aggregates_complete_one_minute_coverage_into_canonical_five_and_fifteen_minute_bars) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries) or test(backup_and_compact_fail_closed_when_the_source_database_is_missing) or test(interval_aliases_share_a_canonical_storage_table) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(aggregate_reads_use_only_the_requested_session_scope) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(query_cutoff_does_not_turn_an_unclosed_hour_into_a_closed_short_bar) or test(schema_kline_table_name_and_session_scope_validation_contracts) or test(fee_rule_text_is_case_insensitive_and_trimmed_before_calculation) or test(run_json_adapter_fills_validated_history_into_empty_corpus_case) or test(corpus_output_is_byte_deterministic_across_replays) or test(pine_ema_seeds_from_sma_after_nan_warmup) or test(pine_macd_delays_signal_until_valid_macd_values_exist) or test(rust_client_executes_bundled_pinets_worker) or test(pine_adapter_runs_worker_intent_through_deterministic_matcher) or test(test_execute_strategy_intents_close_short_maps_to_buy)"
         ],
         "testFilter": [
           "production_store_rejects_a_second_writer_lease"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "724fdfe5d054a20b24750e2b1547c5f07eed52b4",
+        "verifiedAt": "2026-09-26T03:14:43Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -126280,20 +126284,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(production_store_rejects_a_second_writer_lease) or test(production_store_lists_manifest_catalog) or test(reopening_after_store_drop_releases_writer_and_preserves_empty_table) or test(damaged_dynamic_schema_is_rejected_without_overwriting_and_recovers_after_repair) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(aggregates_complete_one_minute_coverage_into_canonical_five_and_fifteen_minute_bars) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries) or test(backup_and_compact_fail_closed_when_the_source_database_is_missing) or test(interval_aliases_share_a_canonical_storage_table) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(aggregate_reads_use_only_the_requested_session_scope) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(query_cutoff_does_not_turn_an_unclosed_hour_into_a_closed_short_bar) or test(schema_kline_table_name_and_session_scope_validation_contracts) or test(fee_rule_text_is_case_insensitive_and_trimmed_before_calculation) or test(run_json_adapter_fills_validated_history_into_empty_corpus_case) or test(corpus_output_is_byte_deterministic_across_replays) or test(pine_ema_seeds_from_sma_after_nan_warmup) or test(pine_macd_delays_signal_until_valid_macd_values_exist) or test(rust_client_executes_bundled_pinets_worker) or test(pine_adapter_runs_worker_intent_through_deterministic_matcher) or test(test_execute_strategy_intents_close_short_maps_to_buy)"
         ],
         "testFilter": [
           "reopening_after_store_drop_releases_writer_and_preserves_empty_table"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "724fdfe5d054a20b24750e2b1547c5f07eed52b4",
+        "verifiedAt": "2026-09-26T03:14:43Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -126342,20 +126347,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(production_store_rejects_a_second_writer_lease) or test(production_store_lists_manifest_catalog) or test(reopening_after_store_drop_releases_writer_and_preserves_empty_table) or test(damaged_dynamic_schema_is_rejected_without_overwriting_and_recovers_after_repair) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(aggregates_complete_one_minute_coverage_into_canonical_five_and_fifteen_minute_bars) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries) or test(backup_and_compact_fail_closed_when_the_source_database_is_missing) or test(interval_aliases_share_a_canonical_storage_table) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(aggregate_reads_use_only_the_requested_session_scope) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(query_cutoff_does_not_turn_an_unclosed_hour_into_a_closed_short_bar) or test(schema_kline_table_name_and_session_scope_validation_contracts) or test(fee_rule_text_is_case_insensitive_and_trimmed_before_calculation) or test(run_json_adapter_fills_validated_history_into_empty_corpus_case) or test(corpus_output_is_byte_deterministic_across_replays) or test(pine_ema_seeds_from_sma_after_nan_warmup) or test(pine_macd_delays_signal_until_valid_macd_values_exist) or test(rust_client_executes_bundled_pinets_worker) or test(pine_adapter_runs_worker_intent_through_deterministic_matcher) or test(test_execute_strategy_intents_close_short_maps_to_buy)"
         ],
         "testFilter": [
           "damaged_dynamic_schema_is_rejected_without_overwriting_and_recovers_after_repair"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "724fdfe5d054a20b24750e2b1547c5f07eed52b4",
+        "verifiedAt": "2026-09-26T03:14:43Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -126404,20 +126410,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(production_store_rejects_a_second_writer_lease) or test(production_store_lists_manifest_catalog) or test(reopening_after_store_drop_releases_writer_and_preserves_empty_table) or test(damaged_dynamic_schema_is_rejected_without_overwriting_and_recovers_after_repair) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(aggregates_complete_one_minute_coverage_into_canonical_five_and_fifteen_minute_bars) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries) or test(backup_and_compact_fail_closed_when_the_source_database_is_missing) or test(interval_aliases_share_a_canonical_storage_table) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(aggregate_reads_use_only_the_requested_session_scope) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(query_cutoff_does_not_turn_an_unclosed_hour_into_a_closed_short_bar) or test(schema_kline_table_name_and_session_scope_validation_contracts) or test(fee_rule_text_is_case_insensitive_and_trimmed_before_calculation) or test(run_json_adapter_fills_validated_history_into_empty_corpus_case) or test(corpus_output_is_byte_deterministic_across_replays) or test(pine_ema_seeds_from_sma_after_nan_warmup) or test(pine_macd_delays_signal_until_valid_macd_values_exist) or test(rust_client_executes_bundled_pinets_worker) or test(pine_adapter_runs_worker_intent_through_deterministic_matcher) or test(test_execute_strategy_intents_close_short_maps_to_buy)"
         ],
         "testFilter": [
           "opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "724fdfe5d054a20b24750e2b1547c5f07eed52b4",
+        "verifiedAt": "2026-09-26T03:14:43Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -126590,20 +126597,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(production_store_rejects_a_second_writer_lease) or test(production_store_lists_manifest_catalog) or test(reopening_after_store_drop_releases_writer_and_preserves_empty_table) or test(damaged_dynamic_schema_is_rejected_without_overwriting_and_recovers_after_repair) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(aggregates_complete_one_minute_coverage_into_canonical_five_and_fifteen_minute_bars) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries) or test(backup_and_compact_fail_closed_when_the_source_database_is_missing) or test(interval_aliases_share_a_canonical_storage_table) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(aggregate_reads_use_only_the_requested_session_scope) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(query_cutoff_does_not_turn_an_unclosed_hour_into_a_closed_short_bar) or test(schema_kline_table_name_and_session_scope_validation_contracts) or test(fee_rule_text_is_case_insensitive_and_trimmed_before_calculation) or test(run_json_adapter_fills_validated_history_into_empty_corpus_case) or test(corpus_output_is_byte_deterministic_across_replays) or test(pine_ema_seeds_from_sma_after_nan_warmup) or test(pine_macd_delays_signal_until_valid_macd_values_exist) or test(rust_client_executes_bundled_pinets_worker) or test(pine_adapter_runs_worker_intent_through_deterministic_matcher) or test(test_execute_strategy_intents_close_short_maps_to_buy)"
         ],
         "testFilter": [
           "regular_and_extended_session_tables_keep_direct_reads_isolated"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "724fdfe5d054a20b24750e2b1547c5f07eed52b4",
+        "verifiedAt": "2026-09-26T03:14:43Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -126652,20 +126660,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(production_store_rejects_a_second_writer_lease) or test(production_store_lists_manifest_catalog) or test(reopening_after_store_drop_releases_writer_and_preserves_empty_table) or test(damaged_dynamic_schema_is_rejected_without_overwriting_and_recovers_after_repair) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(aggregates_complete_one_minute_coverage_into_canonical_five_and_fifteen_minute_bars) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries) or test(backup_and_compact_fail_closed_when_the_source_database_is_missing) or test(interval_aliases_share_a_canonical_storage_table) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(aggregate_reads_use_only_the_requested_session_scope) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(query_cutoff_does_not_turn_an_unclosed_hour_into_a_closed_short_bar) or test(schema_kline_table_name_and_session_scope_validation_contracts) or test(fee_rule_text_is_case_insensitive_and_trimmed_before_calculation) or test(run_json_adapter_fills_validated_history_into_empty_corpus_case) or test(corpus_output_is_byte_deterministic_across_replays) or test(pine_ema_seeds_from_sma_after_nan_warmup) or test(pine_macd_delays_signal_until_valid_macd_values_exist) or test(rust_client_executes_bundled_pinets_worker) or test(pine_adapter_runs_worker_intent_through_deterministic_matcher) or test(test_execute_strategy_intents_close_short_maps_to_buy)"
         ],
         "testFilter": [
           "aggregates_complete_one_minute_coverage_into_canonical_five_and_fifteen_minute_bars"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "724fdfe5d054a20b24750e2b1547c5f07eed52b4",
+        "verifiedAt": "2026-09-26T03:14:43Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -126714,20 +126723,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(production_store_rejects_a_second_writer_lease) or test(production_store_lists_manifest_catalog) or test(reopening_after_store_drop_releases_writer_and_preserves_empty_table) or test(damaged_dynamic_schema_is_rejected_without_overwriting_and_recovers_after_repair) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(aggregates_complete_one_minute_coverage_into_canonical_five_and_fifteen_minute_bars) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries) or test(backup_and_compact_fail_closed_when_the_source_database_is_missing) or test(interval_aliases_share_a_canonical_storage_table) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(aggregate_reads_use_only_the_requested_session_scope) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(query_cutoff_does_not_turn_an_unclosed_hour_into_a_closed_short_bar) or test(schema_kline_table_name_and_session_scope_validation_contracts) or test(fee_rule_text_is_case_insensitive_and_trimmed_before_calculation) or test(run_json_adapter_fills_validated_history_into_empty_corpus_case) or test(corpus_output_is_byte_deterministic_across_replays) or test(pine_ema_seeds_from_sma_after_nan_warmup) or test(pine_macd_delays_signal_until_valid_macd_values_exist) or test(rust_client_executes_bundled_pinets_worker) or test(pine_adapter_runs_worker_intent_through_deterministic_matcher) or test(test_execute_strategy_intents_close_short_maps_to_buy)"
         ],
         "testFilter": [
           "weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "724fdfe5d054a20b24750e2b1547c5f07eed52b4",
+        "verifiedAt": "2026-09-26T03:14:43Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -126776,20 +126786,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(production_store_rejects_a_second_writer_lease) or test(production_store_lists_manifest_catalog) or test(reopening_after_store_drop_releases_writer_and_preserves_empty_table) or test(damaged_dynamic_schema_is_rejected_without_overwriting_and_recovers_after_repair) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(aggregates_complete_one_minute_coverage_into_canonical_five_and_fifteen_minute_bars) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries) or test(backup_and_compact_fail_closed_when_the_source_database_is_missing) or test(interval_aliases_share_a_canonical_storage_table) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(aggregate_reads_use_only_the_requested_session_scope) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(query_cutoff_does_not_turn_an_unclosed_hour_into_a_closed_short_bar) or test(schema_kline_table_name_and_session_scope_validation_contracts) or test(fee_rule_text_is_case_insensitive_and_trimmed_before_calculation) or test(run_json_adapter_fills_validated_history_into_empty_corpus_case) or test(corpus_output_is_byte_deterministic_across_replays) or test(pine_ema_seeds_from_sma_after_nan_warmup) or test(pine_macd_delays_signal_until_valid_macd_values_exist) or test(rust_client_executes_bundled_pinets_worker) or test(pine_adapter_runs_worker_intent_through_deterministic_matcher) or test(test_execute_strategy_intents_close_short_maps_to_buy)"
         ],
         "testFilter": [
           "backup_and_compact_fail_closed_when_the_source_database_is_missing"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "724fdfe5d054a20b24750e2b1547c5f07eed52b4",
+        "verifiedAt": "2026-09-26T03:14:43Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -126900,20 +126911,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(production_store_rejects_a_second_writer_lease) or test(production_store_lists_manifest_catalog) or test(reopening_after_store_drop_releases_writer_and_preserves_empty_table) or test(damaged_dynamic_schema_is_rejected_without_overwriting_and_recovers_after_repair) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(aggregates_complete_one_minute_coverage_into_canonical_five_and_fifteen_minute_bars) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries) or test(backup_and_compact_fail_closed_when_the_source_database_is_missing) or test(interval_aliases_share_a_canonical_storage_table) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(aggregate_reads_use_only_the_requested_session_scope) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(query_cutoff_does_not_turn_an_unclosed_hour_into_a_closed_short_bar) or test(schema_kline_table_name_and_session_scope_validation_contracts) or test(fee_rule_text_is_case_insensitive_and_trimmed_before_calculation) or test(run_json_adapter_fills_validated_history_into_empty_corpus_case) or test(corpus_output_is_byte_deterministic_across_replays) or test(pine_ema_seeds_from_sma_after_nan_warmup) or test(pine_macd_delays_signal_until_valid_macd_values_exist) or test(rust_client_executes_bundled_pinets_worker) or test(pine_adapter_runs_worker_intent_through_deterministic_matcher) or test(test_execute_strategy_intents_close_short_maps_to_buy)"
         ],
         "testFilter": [
           "interval_aliases_share_a_canonical_storage_table"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "724fdfe5d054a20b24750e2b1547c5f07eed52b4",
+        "verifiedAt": "2026-09-26T03:14:43Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -126962,20 +126974,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(production_store_rejects_a_second_writer_lease) or test(production_store_lists_manifest_catalog) or test(reopening_after_store_drop_releases_writer_and_preserves_empty_table) or test(damaged_dynamic_schema_is_rejected_without_overwriting_and_recovers_after_repair) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(aggregates_complete_one_minute_coverage_into_canonical_five_and_fifteen_minute_bars) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries) or test(backup_and_compact_fail_closed_when_the_source_database_is_missing) or test(interval_aliases_share_a_canonical_storage_table) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(aggregate_reads_use_only_the_requested_session_scope) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(query_cutoff_does_not_turn_an_unclosed_hour_into_a_closed_short_bar) or test(schema_kline_table_name_and_session_scope_validation_contracts) or test(fee_rule_text_is_case_insensitive_and_trimmed_before_calculation) or test(run_json_adapter_fills_validated_history_into_empty_corpus_case) or test(corpus_output_is_byte_deterministic_across_replays) or test(pine_ema_seeds_from_sma_after_nan_warmup) or test(pine_macd_delays_signal_until_valid_macd_values_exist) or test(rust_client_executes_bundled_pinets_worker) or test(pine_adapter_runs_worker_intent_through_deterministic_matcher) or test(test_execute_strategy_intents_close_short_maps_to_buy)"
         ],
         "testFilter": [
           "extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "724fdfe5d054a20b24750e2b1547c5f07eed52b4",
+        "verifiedAt": "2026-09-26T03:14:43Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -127024,20 +127037,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(production_store_rejects_a_second_writer_lease) or test(production_store_lists_manifest_catalog) or test(reopening_after_store_drop_releases_writer_and_preserves_empty_table) or test(damaged_dynamic_schema_is_rejected_without_overwriting_and_recovers_after_repair) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(aggregates_complete_one_minute_coverage_into_canonical_five_and_fifteen_minute_bars) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries) or test(backup_and_compact_fail_closed_when_the_source_database_is_missing) or test(interval_aliases_share_a_canonical_storage_table) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(aggregate_reads_use_only_the_requested_session_scope) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(query_cutoff_does_not_turn_an_unclosed_hour_into_a_closed_short_bar) or test(schema_kline_table_name_and_session_scope_validation_contracts) or test(fee_rule_text_is_case_insensitive_and_trimmed_before_calculation) or test(run_json_adapter_fills_validated_history_into_empty_corpus_case) or test(corpus_output_is_byte_deterministic_across_replays) or test(pine_ema_seeds_from_sma_after_nan_warmup) or test(pine_macd_delays_signal_until_valid_macd_values_exist) or test(rust_client_executes_bundled_pinets_worker) or test(pine_adapter_runs_worker_intent_through_deterministic_matcher) or test(test_execute_strategy_intents_close_short_maps_to_buy)"
         ],
         "testFilter": [
           "direct_interval_rows_win_and_paging_is_deterministic"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "724fdfe5d054a20b24750e2b1547c5f07eed52b4",
+        "verifiedAt": "2026-09-26T03:14:43Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -127086,20 +127100,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(production_store_rejects_a_second_writer_lease) or test(production_store_lists_manifest_catalog) or test(reopening_after_store_drop_releases_writer_and_preserves_empty_table) or test(damaged_dynamic_schema_is_rejected_without_overwriting_and_recovers_after_repair) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(aggregates_complete_one_minute_coverage_into_canonical_five_and_fifteen_minute_bars) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries) or test(backup_and_compact_fail_closed_when_the_source_database_is_missing) or test(interval_aliases_share_a_canonical_storage_table) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(aggregate_reads_use_only_the_requested_session_scope) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(query_cutoff_does_not_turn_an_unclosed_hour_into_a_closed_short_bar) or test(schema_kline_table_name_and_session_scope_validation_contracts) or test(fee_rule_text_is_case_insensitive_and_trimmed_before_calculation) or test(run_json_adapter_fills_validated_history_into_empty_corpus_case) or test(corpus_output_is_byte_deterministic_across_replays) or test(pine_ema_seeds_from_sma_after_nan_warmup) or test(pine_macd_delays_signal_until_valid_macd_values_exist) or test(rust_client_executes_bundled_pinets_worker) or test(pine_adapter_runs_worker_intent_through_deterministic_matcher) or test(test_execute_strategy_intents_close_short_maps_to_buy)"
         ],
         "testFilter": [
           "aggregate_reads_use_only_the_requested_session_scope"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "724fdfe5d054a20b24750e2b1547c5f07eed52b4",
+        "verifiedAt": "2026-09-26T03:14:43Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -127148,20 +127163,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(production_store_rejects_a_second_writer_lease) or test(production_store_lists_manifest_catalog) or test(reopening_after_store_drop_releases_writer_and_preserves_empty_table) or test(damaged_dynamic_schema_is_rejected_without_overwriting_and_recovers_after_repair) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(aggregates_complete_one_minute_coverage_into_canonical_five_and_fifteen_minute_bars) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries) or test(backup_and_compact_fail_closed_when_the_source_database_is_missing) or test(interval_aliases_share_a_canonical_storage_table) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(aggregate_reads_use_only_the_requested_session_scope) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(query_cutoff_does_not_turn_an_unclosed_hour_into_a_closed_short_bar) or test(schema_kline_table_name_and_session_scope_validation_contracts) or test(fee_rule_text_is_case_insensitive_and_trimmed_before_calculation) or test(run_json_adapter_fills_validated_history_into_empty_corpus_case) or test(corpus_output_is_byte_deterministic_across_replays) or test(pine_ema_seeds_from_sma_after_nan_warmup) or test(pine_macd_delays_signal_until_valid_macd_values_exist) or test(rust_client_executes_bundled_pinets_worker) or test(pine_adapter_runs_worker_intent_through_deterministic_matcher) or test(test_execute_strategy_intents_close_short_maps_to_buy)"
         ],
         "testFilter": [
           "damaged_dynamic_schema_is_rejected_without_overwriting_and_recovers_after_repair"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "724fdfe5d054a20b24750e2b1547c5f07eed52b4",
+        "verifiedAt": "2026-09-26T03:14:43Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -127210,20 +127226,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(production_store_rejects_a_second_writer_lease) or test(production_store_lists_manifest_catalog) or test(reopening_after_store_drop_releases_writer_and_preserves_empty_table) or test(damaged_dynamic_schema_is_rejected_without_overwriting_and_recovers_after_repair) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(aggregates_complete_one_minute_coverage_into_canonical_five_and_fifteen_minute_bars) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries) or test(backup_and_compact_fail_closed_when_the_source_database_is_missing) or test(interval_aliases_share_a_canonical_storage_table) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(aggregate_reads_use_only_the_requested_session_scope) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(query_cutoff_does_not_turn_an_unclosed_hour_into_a_closed_short_bar) or test(schema_kline_table_name_and_session_scope_validation_contracts) or test(fee_rule_text_is_case_insensitive_and_trimmed_before_calculation) or test(run_json_adapter_fills_validated_history_into_empty_corpus_case) or test(corpus_output_is_byte_deterministic_across_replays) or test(pine_ema_seeds_from_sma_after_nan_warmup) or test(pine_macd_delays_signal_until_valid_macd_values_exist) or test(rust_client_executes_bundled_pinets_worker) or test(pine_adapter_runs_worker_intent_through_deterministic_matcher) or test(test_execute_strategy_intents_close_short_maps_to_buy)"
         ],
         "testFilter": [
           "missing_empty_partial_and_corrupt_lower_coverage_fail_closed"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "724fdfe5d054a20b24750e2b1547c5f07eed52b4",
+        "verifiedAt": "2026-09-26T03:14:43Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -127272,20 +127289,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(production_store_rejects_a_second_writer_lease) or test(production_store_lists_manifest_catalog) or test(reopening_after_store_drop_releases_writer_and_preserves_empty_table) or test(damaged_dynamic_schema_is_rejected_without_overwriting_and_recovers_after_repair) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(aggregates_complete_one_minute_coverage_into_canonical_five_and_fifteen_minute_bars) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries) or test(backup_and_compact_fail_closed_when_the_source_database_is_missing) or test(interval_aliases_share_a_canonical_storage_table) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(aggregate_reads_use_only_the_requested_session_scope) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(query_cutoff_does_not_turn_an_unclosed_hour_into_a_closed_short_bar) or test(schema_kline_table_name_and_session_scope_validation_contracts) or test(fee_rule_text_is_case_insensitive_and_trimmed_before_calculation) or test(run_json_adapter_fills_validated_history_into_empty_corpus_case) or test(corpus_output_is_byte_deterministic_across_replays) or test(pine_ema_seeds_from_sma_after_nan_warmup) or test(pine_macd_delays_signal_until_valid_macd_values_exist) or test(rust_client_executes_bundled_pinets_worker) or test(pine_adapter_runs_worker_intent_through_deterministic_matcher) or test(test_execute_strategy_intents_close_short_maps_to_buy)"
         ],
         "testFilter": [
           "query_cutoff_does_not_turn_an_unclosed_hour_into_a_closed_short_bar"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "724fdfe5d054a20b24750e2b1547c5f07eed52b4",
+        "verifiedAt": "2026-09-26T03:14:43Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -127396,20 +127414,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(production_store_rejects_a_second_writer_lease) or test(production_store_lists_manifest_catalog) or test(reopening_after_store_drop_releases_writer_and_preserves_empty_table) or test(damaged_dynamic_schema_is_rejected_without_overwriting_and_recovers_after_repair) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(aggregates_complete_one_minute_coverage_into_canonical_five_and_fifteen_minute_bars) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries) or test(backup_and_compact_fail_closed_when_the_source_database_is_missing) or test(interval_aliases_share_a_canonical_storage_table) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(aggregate_reads_use_only_the_requested_session_scope) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(query_cutoff_does_not_turn_an_unclosed_hour_into_a_closed_short_bar) or test(schema_kline_table_name_and_session_scope_validation_contracts) or test(fee_rule_text_is_case_insensitive_and_trimmed_before_calculation) or test(run_json_adapter_fills_validated_history_into_empty_corpus_case) or test(corpus_output_is_byte_deterministic_across_replays) or test(pine_ema_seeds_from_sma_after_nan_warmup) or test(pine_macd_delays_signal_until_valid_macd_values_exist) or test(rust_client_executes_bundled_pinets_worker) or test(pine_adapter_runs_worker_intent_through_deterministic_matcher) or test(test_execute_strategy_intents_close_short_maps_to_buy)"
         ],
         "testFilter": [
           "missing_empty_partial_and_corrupt_lower_coverage_fail_closed"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "724fdfe5d054a20b24750e2b1547c5f07eed52b4",
+        "verifiedAt": "2026-09-26T03:14:43Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -127458,20 +127477,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(production_store_rejects_a_second_writer_lease) or test(production_store_lists_manifest_catalog) or test(reopening_after_store_drop_releases_writer_and_preserves_empty_table) or test(damaged_dynamic_schema_is_rejected_without_overwriting_and_recovers_after_repair) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(aggregates_complete_one_minute_coverage_into_canonical_five_and_fifteen_minute_bars) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries) or test(backup_and_compact_fail_closed_when_the_source_database_is_missing) or test(interval_aliases_share_a_canonical_storage_table) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(aggregate_reads_use_only_the_requested_session_scope) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(query_cutoff_does_not_turn_an_unclosed_hour_into_a_closed_short_bar) or test(schema_kline_table_name_and_session_scope_validation_contracts) or test(fee_rule_text_is_case_insensitive_and_trimmed_before_calculation) or test(run_json_adapter_fills_validated_history_into_empty_corpus_case) or test(corpus_output_is_byte_deterministic_across_replays) or test(pine_ema_seeds_from_sma_after_nan_warmup) or test(pine_macd_delays_signal_until_valid_macd_values_exist) or test(rust_client_executes_bundled_pinets_worker) or test(pine_adapter_runs_worker_intent_through_deterministic_matcher) or test(test_execute_strategy_intents_close_short_maps_to_buy)"
         ],
         "testFilter": [
           "schema_kline_table_name_and_session_scope_validation_contracts"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "724fdfe5d054a20b24750e2b1547c5f07eed52b4",
+        "verifiedAt": "2026-09-26T03:14:43Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -127954,20 +127974,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(production_store_rejects_a_second_writer_lease) or test(production_store_lists_manifest_catalog) or test(reopening_after_store_drop_releases_writer_and_preserves_empty_table) or test(damaged_dynamic_schema_is_rejected_without_overwriting_and_recovers_after_repair) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(aggregates_complete_one_minute_coverage_into_canonical_five_and_fifteen_minute_bars) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries) or test(backup_and_compact_fail_closed_when_the_source_database_is_missing) or test(interval_aliases_share_a_canonical_storage_table) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(aggregate_reads_use_only_the_requested_session_scope) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(query_cutoff_does_not_turn_an_unclosed_hour_into_a_closed_short_bar) or test(schema_kline_table_name_and_session_scope_validation_contracts) or test(fee_rule_text_is_case_insensitive_and_trimmed_before_calculation) or test(run_json_adapter_fills_validated_history_into_empty_corpus_case) or test(corpus_output_is_byte_deterministic_across_replays) or test(pine_ema_seeds_from_sma_after_nan_warmup) or test(pine_macd_delays_signal_until_valid_macd_values_exist) or test(rust_client_executes_bundled_pinets_worker) or test(pine_adapter_runs_worker_intent_through_deterministic_matcher) or test(test_execute_strategy_intents_close_short_maps_to_buy)"
         ],
         "testFilter": [
           "direct_interval_rows_win_and_paging_is_deterministic"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "724fdfe5d054a20b24750e2b1547c5f07eed52b4",
+        "verifiedAt": "2026-09-26T03:14:43Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -128016,20 +128037,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-backtest",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(production_store_rejects_a_second_writer_lease) or test(production_store_lists_manifest_catalog) or test(reopening_after_store_drop_releases_writer_and_preserves_empty_table) or test(damaged_dynamic_schema_is_rejected_without_overwriting_and_recovers_after_repair) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(aggregates_complete_one_minute_coverage_into_canonical_five_and_fifteen_minute_bars) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries) or test(backup_and_compact_fail_closed_when_the_source_database_is_missing) or test(interval_aliases_share_a_canonical_storage_table) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(aggregate_reads_use_only_the_requested_session_scope) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(query_cutoff_does_not_turn_an_unclosed_hour_into_a_closed_short_bar) or test(schema_kline_table_name_and_session_scope_validation_contracts) or test(fee_rule_text_is_case_insensitive_and_trimmed_before_calculation) or test(run_json_adapter_fills_validated_history_into_empty_corpus_case) or test(corpus_output_is_byte_deterministic_across_replays) or test(pine_ema_seeds_from_sma_after_nan_warmup) or test(pine_macd_delays_signal_until_valid_macd_values_exist) or test(rust_client_executes_bundled_pinets_worker) or test(pine_adapter_runs_worker_intent_through_deterministic_matcher) or test(test_execute_strategy_intents_close_short_maps_to_buy)"
         ],
         "testFilter": [
           "fee_rule_text_is_case_insensitive_and_trimmed_before_calculation"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "724fdfe5d054a20b24750e2b1547c5f07eed52b4",
+        "verifiedAt": "2026-09-26T03:14:43Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -128078,20 +128100,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-integration-pine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(production_store_rejects_a_second_writer_lease) or test(production_store_lists_manifest_catalog) or test(reopening_after_store_drop_releases_writer_and_preserves_empty_table) or test(damaged_dynamic_schema_is_rejected_without_overwriting_and_recovers_after_repair) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(aggregates_complete_one_minute_coverage_into_canonical_five_and_fifteen_minute_bars) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries) or test(backup_and_compact_fail_closed_when_the_source_database_is_missing) or test(interval_aliases_share_a_canonical_storage_table) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(aggregate_reads_use_only_the_requested_session_scope) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(query_cutoff_does_not_turn_an_unclosed_hour_into_a_closed_short_bar) or test(schema_kline_table_name_and_session_scope_validation_contracts) or test(fee_rule_text_is_case_insensitive_and_trimmed_before_calculation) or test(run_json_adapter_fills_validated_history_into_empty_corpus_case) or test(corpus_output_is_byte_deterministic_across_replays) or test(pine_ema_seeds_from_sma_after_nan_warmup) or test(pine_macd_delays_signal_until_valid_macd_values_exist) or test(rust_client_executes_bundled_pinets_worker) or test(pine_adapter_runs_worker_intent_through_deterministic_matcher) or test(test_execute_strategy_intents_close_short_maps_to_buy)"
         ],
         "testFilter": [
           "run_json_adapter_fills_validated_history_into_empty_corpus_case"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "724fdfe5d054a20b24750e2b1547c5f07eed52b4",
+        "verifiedAt": "2026-09-26T03:14:43Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -128264,20 +128287,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-backtest",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(production_store_rejects_a_second_writer_lease) or test(production_store_lists_manifest_catalog) or test(reopening_after_store_drop_releases_writer_and_preserves_empty_table) or test(damaged_dynamic_schema_is_rejected_without_overwriting_and_recovers_after_repair) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(aggregates_complete_one_minute_coverage_into_canonical_five_and_fifteen_minute_bars) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries) or test(backup_and_compact_fail_closed_when_the_source_database_is_missing) or test(interval_aliases_share_a_canonical_storage_table) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(aggregate_reads_use_only_the_requested_session_scope) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(query_cutoff_does_not_turn_an_unclosed_hour_into_a_closed_short_bar) or test(schema_kline_table_name_and_session_scope_validation_contracts) or test(fee_rule_text_is_case_insensitive_and_trimmed_before_calculation) or test(run_json_adapter_fills_validated_history_into_empty_corpus_case) or test(corpus_output_is_byte_deterministic_across_replays) or test(pine_ema_seeds_from_sma_after_nan_warmup) or test(pine_macd_delays_signal_until_valid_macd_values_exist) or test(rust_client_executes_bundled_pinets_worker) or test(pine_adapter_runs_worker_intent_through_deterministic_matcher) or test(test_execute_strategy_intents_close_short_maps_to_buy)"
         ],
         "testFilter": [
           "corpus_output_is_byte_deterministic_across_replays"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "724fdfe5d054a20b24750e2b1547c5f07eed52b4",
+        "verifiedAt": "2026-09-26T03:14:43Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -128331,20 +128355,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-backtest",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(production_store_rejects_a_second_writer_lease) or test(production_store_lists_manifest_catalog) or test(reopening_after_store_drop_releases_writer_and_preserves_empty_table) or test(damaged_dynamic_schema_is_rejected_without_overwriting_and_recovers_after_repair) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(aggregates_complete_one_minute_coverage_into_canonical_five_and_fifteen_minute_bars) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries) or test(backup_and_compact_fail_closed_when_the_source_database_is_missing) or test(interval_aliases_share_a_canonical_storage_table) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(aggregate_reads_use_only_the_requested_session_scope) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(query_cutoff_does_not_turn_an_unclosed_hour_into_a_closed_short_bar) or test(schema_kline_table_name_and_session_scope_validation_contracts) or test(fee_rule_text_is_case_insensitive_and_trimmed_before_calculation) or test(run_json_adapter_fills_validated_history_into_empty_corpus_case) or test(corpus_output_is_byte_deterministic_across_replays) or test(pine_ema_seeds_from_sma_after_nan_warmup) or test(pine_macd_delays_signal_until_valid_macd_values_exist) or test(rust_client_executes_bundled_pinets_worker) or test(pine_adapter_runs_worker_intent_through_deterministic_matcher) or test(test_execute_strategy_intents_close_short_maps_to_buy)"
         ],
         "testFilter": [
           "pine_ema_seeds_from_sma_after_nan_warmup"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "724fdfe5d054a20b24750e2b1547c5f07eed52b4",
+        "verifiedAt": "2026-09-26T03:14:43Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -128398,20 +128423,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-backtest",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(production_store_rejects_a_second_writer_lease) or test(production_store_lists_manifest_catalog) or test(reopening_after_store_drop_releases_writer_and_preserves_empty_table) or test(damaged_dynamic_schema_is_rejected_without_overwriting_and_recovers_after_repair) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(aggregates_complete_one_minute_coverage_into_canonical_five_and_fifteen_minute_bars) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries) or test(backup_and_compact_fail_closed_when_the_source_database_is_missing) or test(interval_aliases_share_a_canonical_storage_table) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(aggregate_reads_use_only_the_requested_session_scope) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(query_cutoff_does_not_turn_an_unclosed_hour_into_a_closed_short_bar) or test(schema_kline_table_name_and_session_scope_validation_contracts) or test(fee_rule_text_is_case_insensitive_and_trimmed_before_calculation) or test(run_json_adapter_fills_validated_history_into_empty_corpus_case) or test(corpus_output_is_byte_deterministic_across_replays) or test(pine_ema_seeds_from_sma_after_nan_warmup) or test(pine_macd_delays_signal_until_valid_macd_values_exist) or test(rust_client_executes_bundled_pinets_worker) or test(pine_adapter_runs_worker_intent_through_deterministic_matcher) or test(test_execute_strategy_intents_close_short_maps_to_buy)"
         ],
         "testFilter": [
           "pine_macd_delays_signal_until_valid_macd_values_exist"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "724fdfe5d054a20b24750e2b1547c5f07eed52b4",
+        "verifiedAt": "2026-09-26T03:14:43Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -128460,20 +128486,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-integration-pine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(production_store_rejects_a_second_writer_lease) or test(production_store_lists_manifest_catalog) or test(reopening_after_store_drop_releases_writer_and_preserves_empty_table) or test(damaged_dynamic_schema_is_rejected_without_overwriting_and_recovers_after_repair) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(aggregates_complete_one_minute_coverage_into_canonical_five_and_fifteen_minute_bars) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries) or test(backup_and_compact_fail_closed_when_the_source_database_is_missing) or test(interval_aliases_share_a_canonical_storage_table) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(aggregate_reads_use_only_the_requested_session_scope) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(query_cutoff_does_not_turn_an_unclosed_hour_into_a_closed_short_bar) or test(schema_kline_table_name_and_session_scope_validation_contracts) or test(fee_rule_text_is_case_insensitive_and_trimmed_before_calculation) or test(run_json_adapter_fills_validated_history_into_empty_corpus_case) or test(corpus_output_is_byte_deterministic_across_replays) or test(pine_ema_seeds_from_sma_after_nan_warmup) or test(pine_macd_delays_signal_until_valid_macd_values_exist) or test(rust_client_executes_bundled_pinets_worker) or test(pine_adapter_runs_worker_intent_through_deterministic_matcher) or test(test_execute_strategy_intents_close_short_maps_to_buy)"
         ],
         "testFilter": [
           "rust_client_executes_bundled_pinets_worker"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "724fdfe5d054a20b24750e2b1547c5f07eed52b4",
+        "verifiedAt": "2026-09-26T03:14:43Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -128522,20 +128549,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-integration-pine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(production_store_rejects_a_second_writer_lease) or test(production_store_lists_manifest_catalog) or test(reopening_after_store_drop_releases_writer_and_preserves_empty_table) or test(damaged_dynamic_schema_is_rejected_without_overwriting_and_recovers_after_repair) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(aggregates_complete_one_minute_coverage_into_canonical_five_and_fifteen_minute_bars) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries) or test(backup_and_compact_fail_closed_when_the_source_database_is_missing) or test(interval_aliases_share_a_canonical_storage_table) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(aggregate_reads_use_only_the_requested_session_scope) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(query_cutoff_does_not_turn_an_unclosed_hour_into_a_closed_short_bar) or test(schema_kline_table_name_and_session_scope_validation_contracts) or test(fee_rule_text_is_case_insensitive_and_trimmed_before_calculation) or test(run_json_adapter_fills_validated_history_into_empty_corpus_case) or test(corpus_output_is_byte_deterministic_across_replays) or test(pine_ema_seeds_from_sma_after_nan_warmup) or test(pine_macd_delays_signal_until_valid_macd_values_exist) or test(rust_client_executes_bundled_pinets_worker) or test(pine_adapter_runs_worker_intent_through_deterministic_matcher) or test(test_execute_strategy_intents_close_short_maps_to_buy)"
         ],
         "testFilter": [
           "pine_adapter_runs_worker_intent_through_deterministic_matcher"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "724fdfe5d054a20b24750e2b1547c5f07eed52b4",
+        "verifiedAt": "2026-09-26T03:14:43Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -128584,20 +128612,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(production_store_rejects_a_second_writer_lease) or test(production_store_lists_manifest_catalog) or test(reopening_after_store_drop_releases_writer_and_preserves_empty_table) or test(damaged_dynamic_schema_is_rejected_without_overwriting_and_recovers_after_repair) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(aggregates_complete_one_minute_coverage_into_canonical_five_and_fifteen_minute_bars) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries) or test(backup_and_compact_fail_closed_when_the_source_database_is_missing) or test(interval_aliases_share_a_canonical_storage_table) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(aggregate_reads_use_only_the_requested_session_scope) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(query_cutoff_does_not_turn_an_unclosed_hour_into_a_closed_short_bar) or test(schema_kline_table_name_and_session_scope_validation_contracts) or test(fee_rule_text_is_case_insensitive_and_trimmed_before_calculation) or test(run_json_adapter_fills_validated_history_into_empty_corpus_case) or test(corpus_output_is_byte_deterministic_across_replays) or test(pine_ema_seeds_from_sma_after_nan_warmup) or test(pine_macd_delays_signal_until_valid_macd_values_exist) or test(rust_client_executes_bundled_pinets_worker) or test(pine_adapter_runs_worker_intent_through_deterministic_matcher) or test(test_execute_strategy_intents_close_short_maps_to_buy)"
         ],
         "testFilter": [
           "test_execute_strategy_intents_close_short_maps_to_buy"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "724fdfe5d054a20b24750e2b1547c5f07eed52b4",
+        "verifiedAt": "2026-09-26T03:14:43Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -128646,20 +128675,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(production_store_rejects_a_second_writer_lease) or test(production_store_lists_manifest_catalog) or test(reopening_after_store_drop_releases_writer_and_preserves_empty_table) or test(damaged_dynamic_schema_is_rejected_without_overwriting_and_recovers_after_repair) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(aggregates_complete_one_minute_coverage_into_canonical_five_and_fifteen_minute_bars) or test(weekly_and_monthly_targets_synthesize_from_daily_rows_with_calendar_boundaries) or test(backup_and_compact_fail_closed_when_the_source_database_is_missing) or test(interval_aliases_share_a_canonical_storage_table) or test(extended_daily_aggregation_uses_intraday_source_before_stored_daily_fallback) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(aggregate_reads_use_only_the_requested_session_scope) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(query_cutoff_does_not_turn_an_unclosed_hour_into_a_closed_short_bar) or test(schema_kline_table_name_and_session_scope_validation_contracts) or test(fee_rule_text_is_case_insensitive_and_trimmed_before_calculation) or test(run_json_adapter_fills_validated_history_into_empty_corpus_case) or test(corpus_output_is_byte_deterministic_across_replays) or test(pine_ema_seeds_from_sma_after_nan_warmup) or test(pine_macd_delays_signal_until_valid_macd_values_exist) or test(rust_client_executes_bundled_pinets_worker) or test(pine_adapter_runs_worker_intent_through_deterministic_matcher) or test(test_execute_strategy_intents_close_short_maps_to_buy)"
         ],
         "testFilter": [
           "test_execute_strategy_intents_close_short_maps_to_buy"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "724fdfe5d054a20b24750e2b1547c5f07eed52b4",
+        "verifiedAt": "2026-09-26T03:14:43Z",
         "receiptDigest": null
       },
       "risk": "normal",
