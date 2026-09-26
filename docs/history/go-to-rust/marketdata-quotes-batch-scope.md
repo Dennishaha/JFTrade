@@ -1903,3 +1903,17 @@ ADK/Assistant 功能差异，先补失败回归测试再修改领域 owner。
 验证：动态生成过滤器运行 `pnpm run test:rust -- --no-fail-fast -E`（底层 `node scripts/quality/cargo-nextest.mjs run --workspace --all-targets --locked`），25/25 通过。
 
 下一片：继续 P2 Backtest/Calendar 与 MarketData/Quote、Storage/SQLite、Settings/Watchlist，再处理 API transport/MCP、Strategy/Pine 与剩余 Assistant/provider 条目；helper/type-only、`optional_bool_strict`、P1 `session_context_snapshot` 及其他无独立 Rust 测试条目仍保持未验证结论。
+
+## 第 217 批：backtest data readiness、sync store、calendar 与 conservative-bar execution（2026-09-26）
+
+| 复核 | Go 测试范围 | Rust 证据 | P | 结论 |
+| :---: | --- | --- | :---: | --- |
+| [x] | `service_test.go:221,253,295,332,365,406,439,512,628,680,732` | script/definition readiness warmup, deduplicated/pending/failed/completed sync, result view projection, start/runner failure and run-store lifecycle | P2 | partial：Rust production backtest/ADK/store owners 覆盖 readiness/sync/runner/CAS；Go injected service callbacks、in-memory store and fallback update facade 保持 partial。 |
+| [x] | `sync_test.go:38,106,191,221,244,275,298,332,367` | Futu/OpenD sync persistence, restart recovery, task lease/IDs, missing task store cleanup, provider validation, request defaults and interval planning | P2 | partial/boundary：Rust sync-start/store owners 覆盖 durable task/lease、provider guard 与 interval planner；Go adapter lifecycle injection、progress callbacks 和 exact error text 未升级为 exact。 |
+| [x] | `time_test.go:33,55`; `conservative_bar_executor_test.go:21,53,89,196,214,302,383,447` | Hong Kong/calendar range and legacy timestamp normalization; execution model defaults, validation, next-open/close fills, atomic brackets, reduce-only cap and limit gap improvement | P2 | partial：Rust backtest execution/time owners 覆盖撮合价位、 bracket/CAS、reduce-only 与时区归一化；Go exchange account/stream fixtures与事件收集组合保持 partial。 |
+
+本批 30 条 P2 Go 映射对应 **24 个去重后的 nextest 过滤器**，Rust nextest 实际 **24/24** 通过（3449 skipped）。backtest readiness/sync lifecycle、run store/lease、OpenD persistence、calendar normalization 与 conservative-bar execution 均有 owner 证据；结论保持 `partial`/`boundary`，未把 service facade、fixture 或聚合测试升级为 exact。未发现需要先红后修的真实 Rust 功能差异。
+
+验证：动态生成过滤器运行 `pnpm run test:rust -- --no-fail-fast -E`（底层 `node scripts/quality/cargo-nextest.mjs run --workspace --all-targets --locked`），24/24 通过。
+
+下一片：继续 P2 Backtest/Calendar 后续与 MarketData/Quote、Storage/SQLite、Settings/Watchlist，再处理 API transport/MCP、Strategy/Pine 与剩余 Assistant/provider 条目；helper/type-only、`optional_bool_strict`、P1 `session_context_snapshot` 及其他无独立 Rust 测试条目仍保持未验证结论。
