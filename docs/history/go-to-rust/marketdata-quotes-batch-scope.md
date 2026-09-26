@@ -2015,3 +2015,17 @@ ADK/Assistant 功能差异，先补失败回归测试再修改领域 owner。
 验证：动态生成过滤器运行 `pnpm run test:rust -- --no-fail-fast -E`（底层 `node scripts/quality/cargo-nextest.mjs run --workspace --all-targets --locked`），36/36 通过。
 
 下一片：继续 P2 Futu/OpenD、MarketData/Quote、Storage/SQLite、Settings/Watchlist、API transport/MCP 与 Pine/Strategy runtime 条目，再回补 Backtest/Calendar 尾项；helper/type-only、`optional_bool_strict`、`session_context_snapshot` 及其他无独立 Rust 测试条目仍保持未验证结论。
+
+## 第 225 批：收益日历、Futu 失败边界、搜索与账户/订单簿投影（2026-09-26）
+
+| 复核 | Go 测试范围 | Rust 证据 | P | 结论 |
+| :---: | --- | --- | :---: | --- |
+| [x] | `adapter_earnings_calendar_test.go:12,51,61,79,96,110,137,164,190,217` | earnings parameter semantics/market guards, seven-day and thirty-five-day chunking, deduplication, ordered collection, whole-range failure and validation edges | P2 | partial：Rust earnings-calendar query owner 覆盖参数、日期、分片、去重与失败传播；Go map mutation、OpenD callback fixture 与 response aggregation 保持 partial。 |
+| [x] | `adapter_failure_boundaries_test.go:19,64,77`; `adapter_marketdata_search_test.go:12,38,58` | unavailable OpenD read-route propagation, subscription parsing/decimal boundaries, price/tick fallback and search market/symbol/cross-market normalization | P2 | partial/boundary：Rust trade/quote/subscription/search owners 覆盖 external-unavailable、输入校验、tick fallback 与 canonical symbols；Go fake exchange、多 route adapter 与 protobuf conversion 组合保持 partial/boundary。 |
+| [x] | `adapter_new_methods_test.go:14,78,112,140,156,175,182,191,228,257,344,358,431,465` | funds margin/PDT/exposure and currency projections, normalized instruments/security identity, interval mapping/rejection, nil funds and order-book level conversion | P2 | partial：Rust trade session/basic quote/kline/microstructure owners 覆盖 funds fields、symbol/interval validation、nil normalization 与 order-book projection；Go pointer helper、protobuf fixture、round-trip adapter seam 保持 partial。 |
+
+本批 30 条 P2 Go 映射对应 **31 个证据过滤器**，Rust nextest 实际 **31/31** 通过（3442 skipped）。收益日历分片/去重/失败、OpenD unavailable propagation、subscription/decimal/tick/search normalization、funds margin/currency、security/interval mapping 与 order-book projection 均有 owner 证据；结论保持 `partial`/`boundary`，未把 map mutation、protobuf fixture 或跨 adapter round-trip 升级为 exact。未发现需要先红后修的真实 Rust 功能差异。
+
+验证：动态生成过滤器运行 `pnpm run test:rust -- --no-fail-fast -E`（底层 `node scripts/quality/cargo-nextest.mjs run --workspace --all-targets --locked`），31/31 通过。
+
+下一片：改为优先 P1 高风险未验证条目，先处理明确缺少 Rust 独立测试或功能差异的项目，再回补剩余 P2 Futu/OpenD、MarketData/Quote、Storage/SQLite、Settings/Watchlist、API transport/MCP、Pine/Strategy 与 Backtest/Calendar 条目。
