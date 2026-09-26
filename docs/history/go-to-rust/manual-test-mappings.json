@@ -108519,20 +108519,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(workflow_bridge_operations_fail_closed_without_their_ports) or test(durable_error_classification_keeps_invariants_fatal) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(production_adk_goal_pause_and_resume_are_persisted_atomically) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(models_list_tool_projects_providers_with_reference_boolean_rules) or test(graph_exposes_one_deterministic_ready_task) or test(adk_approval_resolution_stages_continuation_and_denial_cas) or test(chat_resolution_reports_missing_agents_and_unusable_providers) or test(expired_runs_use_each_runs_own_timeout_window) or test(a_fresh_foreign_run_lease_shields_a_run_from_expiry) or test(adk_routes_surface_durable_store_failures_instead_of_empty_success) or test(adk_task_normalization_and_validation_match_go) or test(a_completed_run_links_its_final_assistant_message_across_the_transcript) or test(workflow_management_catalog_keeps_the_skill_and_approval_boundaries) or test(a_top_level_follow_up_reply_keeps_its_run_completed) or test(production_live_chat_stream_emits_session_run_and_final_events) or test(goal_pause_rejects_child_runs_and_resume_reports_missing_runs) or test(graph_orders_equal_rank_tasks_by_id_and_reports_graph_faults)"
         ],
         "testFilter": [
           "workflow_bridge_operations_fail_closed_without_their_ports"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "2ef7070707a97843f2aa642afeb2b77b5b4bfd84",
+        "verifiedAt": "2026-09-26T02:40:48Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -108581,20 +108582,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(workflow_bridge_operations_fail_closed_without_their_ports) or test(durable_error_classification_keeps_invariants_fatal) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(production_adk_goal_pause_and_resume_are_persisted_atomically) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(models_list_tool_projects_providers_with_reference_boolean_rules) or test(graph_exposes_one_deterministic_ready_task) or test(adk_approval_resolution_stages_continuation_and_denial_cas) or test(chat_resolution_reports_missing_agents_and_unusable_providers) or test(expired_runs_use_each_runs_own_timeout_window) or test(a_fresh_foreign_run_lease_shields_a_run_from_expiry) or test(adk_routes_surface_durable_store_failures_instead_of_empty_success) or test(adk_task_normalization_and_validation_match_go) or test(a_completed_run_links_its_final_assistant_message_across_the_transcript) or test(workflow_management_catalog_keeps_the_skill_and_approval_boundaries) or test(a_top_level_follow_up_reply_keeps_its_run_completed) or test(production_live_chat_stream_emits_session_run_and_final_events) or test(goal_pause_rejects_child_runs_and_resume_reports_missing_runs) or test(graph_orders_equal_rank_tasks_by_id_and_reports_graph_faults)"
         ],
         "testFilter": [
           "durable_error_classification_keeps_invariants_fatal"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "2ef7070707a97843f2aa642afeb2b77b5b4bfd84",
+        "verifiedAt": "2026-09-26T02:40:48Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -108643,20 +108645,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(workflow_bridge_operations_fail_closed_without_their_ports) or test(durable_error_classification_keeps_invariants_fatal) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(production_adk_goal_pause_and_resume_are_persisted_atomically) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(models_list_tool_projects_providers_with_reference_boolean_rules) or test(graph_exposes_one_deterministic_ready_task) or test(adk_approval_resolution_stages_continuation_and_denial_cas) or test(chat_resolution_reports_missing_agents_and_unusable_providers) or test(expired_runs_use_each_runs_own_timeout_window) or test(a_fresh_foreign_run_lease_shields_a_run_from_expiry) or test(adk_routes_surface_durable_store_failures_instead_of_empty_success) or test(adk_task_normalization_and_validation_match_go) or test(a_completed_run_links_its_final_assistant_message_across_the_transcript) or test(workflow_management_catalog_keeps_the_skill_and_approval_boundaries) or test(a_top_level_follow_up_reply_keeps_its_run_completed) or test(production_live_chat_stream_emits_session_run_and_final_events) or test(goal_pause_rejects_child_runs_and_resume_reports_missing_runs) or test(graph_orders_equal_rank_tasks_by_id_and_reports_graph_faults)"
         ],
         "testFilter": [
           "run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "2ef7070707a97843f2aa642afeb2b77b5b4bfd84",
+        "verifiedAt": "2026-09-26T02:40:48Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -108705,20 +108708,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(workflow_bridge_operations_fail_closed_without_their_ports) or test(durable_error_classification_keeps_invariants_fatal) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(production_adk_goal_pause_and_resume_are_persisted_atomically) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(models_list_tool_projects_providers_with_reference_boolean_rules) or test(graph_exposes_one_deterministic_ready_task) or test(adk_approval_resolution_stages_continuation_and_denial_cas) or test(chat_resolution_reports_missing_agents_and_unusable_providers) or test(expired_runs_use_each_runs_own_timeout_window) or test(a_fresh_foreign_run_lease_shields_a_run_from_expiry) or test(adk_routes_surface_durable_store_failures_instead_of_empty_success) or test(adk_task_normalization_and_validation_match_go) or test(a_completed_run_links_its_final_assistant_message_across_the_transcript) or test(workflow_management_catalog_keeps_the_skill_and_approval_boundaries) or test(a_top_level_follow_up_reply_keeps_its_run_completed) or test(production_live_chat_stream_emits_session_run_and_final_events) or test(goal_pause_rejects_child_runs_and_resume_reports_missing_runs) or test(graph_orders_equal_rank_tasks_by_id_and_reports_graph_faults)"
         ],
         "testFilter": [
           "workflow_manager_failures_surface_verbatim_on_every_workflow_route"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "2ef7070707a97843f2aa642afeb2b77b5b4bfd84",
+        "verifiedAt": "2026-09-26T02:40:48Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -108767,20 +108771,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(workflow_bridge_operations_fail_closed_without_their_ports) or test(durable_error_classification_keeps_invariants_fatal) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(production_adk_goal_pause_and_resume_are_persisted_atomically) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(models_list_tool_projects_providers_with_reference_boolean_rules) or test(graph_exposes_one_deterministic_ready_task) or test(adk_approval_resolution_stages_continuation_and_denial_cas) or test(chat_resolution_reports_missing_agents_and_unusable_providers) or test(expired_runs_use_each_runs_own_timeout_window) or test(a_fresh_foreign_run_lease_shields_a_run_from_expiry) or test(adk_routes_surface_durable_store_failures_instead_of_empty_success) or test(adk_task_normalization_and_validation_match_go) or test(a_completed_run_links_its_final_assistant_message_across_the_transcript) or test(workflow_management_catalog_keeps_the_skill_and_approval_boundaries) or test(a_top_level_follow_up_reply_keeps_its_run_completed) or test(production_live_chat_stream_emits_session_run_and_final_events) or test(goal_pause_rejects_child_runs_and_resume_reports_missing_runs) or test(graph_orders_equal_rank_tasks_by_id_and_reports_graph_faults)"
         ],
         "testFilter": [
           "goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "2ef7070707a97843f2aa642afeb2b77b5b4bfd84",
+        "verifiedAt": "2026-09-26T02:40:48Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -108829,20 +108834,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(workflow_bridge_operations_fail_closed_without_their_ports) or test(durable_error_classification_keeps_invariants_fatal) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(production_adk_goal_pause_and_resume_are_persisted_atomically) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(models_list_tool_projects_providers_with_reference_boolean_rules) or test(graph_exposes_one_deterministic_ready_task) or test(adk_approval_resolution_stages_continuation_and_denial_cas) or test(chat_resolution_reports_missing_agents_and_unusable_providers) or test(expired_runs_use_each_runs_own_timeout_window) or test(a_fresh_foreign_run_lease_shields_a_run_from_expiry) or test(adk_routes_surface_durable_store_failures_instead_of_empty_success) or test(adk_task_normalization_and_validation_match_go) or test(a_completed_run_links_its_final_assistant_message_across_the_transcript) or test(workflow_management_catalog_keeps_the_skill_and_approval_boundaries) or test(a_top_level_follow_up_reply_keeps_its_run_completed) or test(production_live_chat_stream_emits_session_run_and_final_events) or test(goal_pause_rejects_child_runs_and_resume_reports_missing_runs) or test(graph_orders_equal_rank_tasks_by_id_and_reports_graph_faults)"
         ],
         "testFilter": [
           "production_adk_goal_pause_and_resume_are_persisted_atomically"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "2ef7070707a97843f2aa642afeb2b77b5b4bfd84",
+        "verifiedAt": "2026-09-26T02:40:48Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -108891,20 +108897,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(workflow_bridge_operations_fail_closed_without_their_ports) or test(durable_error_classification_keeps_invariants_fatal) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(production_adk_goal_pause_and_resume_are_persisted_atomically) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(models_list_tool_projects_providers_with_reference_boolean_rules) or test(graph_exposes_one_deterministic_ready_task) or test(adk_approval_resolution_stages_continuation_and_denial_cas) or test(chat_resolution_reports_missing_agents_and_unusable_providers) or test(expired_runs_use_each_runs_own_timeout_window) or test(a_fresh_foreign_run_lease_shields_a_run_from_expiry) or test(adk_routes_surface_durable_store_failures_instead_of_empty_success) or test(adk_task_normalization_and_validation_match_go) or test(a_completed_run_links_its_final_assistant_message_across_the_transcript) or test(workflow_management_catalog_keeps_the_skill_and_approval_boundaries) or test(a_top_level_follow_up_reply_keeps_its_run_completed) or test(production_live_chat_stream_emits_session_run_and_final_events) or test(goal_pause_rejects_child_runs_and_resume_reports_missing_runs) or test(graph_orders_equal_rank_tasks_by_id_and_reports_graph_faults)"
         ],
         "testFilter": [
           "run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "2ef7070707a97843f2aa642afeb2b77b5b4bfd84",
+        "verifiedAt": "2026-09-26T02:40:48Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -108953,20 +108960,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(workflow_bridge_operations_fail_closed_without_their_ports) or test(durable_error_classification_keeps_invariants_fatal) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(production_adk_goal_pause_and_resume_are_persisted_atomically) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(models_list_tool_projects_providers_with_reference_boolean_rules) or test(graph_exposes_one_deterministic_ready_task) or test(adk_approval_resolution_stages_continuation_and_denial_cas) or test(chat_resolution_reports_missing_agents_and_unusable_providers) or test(expired_runs_use_each_runs_own_timeout_window) or test(a_fresh_foreign_run_lease_shields_a_run_from_expiry) or test(adk_routes_surface_durable_store_failures_instead_of_empty_success) or test(adk_task_normalization_and_validation_match_go) or test(a_completed_run_links_its_final_assistant_message_across_the_transcript) or test(workflow_management_catalog_keeps_the_skill_and_approval_boundaries) or test(a_top_level_follow_up_reply_keeps_its_run_completed) or test(production_live_chat_stream_emits_session_run_and_final_events) or test(goal_pause_rejects_child_runs_and_resume_reports_missing_runs) or test(graph_orders_equal_rank_tasks_by_id_and_reports_graph_faults)"
         ],
         "testFilter": [
           "workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "2ef7070707a97843f2aa642afeb2b77b5b4bfd84",
+        "verifiedAt": "2026-09-26T02:40:48Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -109015,20 +109023,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(workflow_bridge_operations_fail_closed_without_their_ports) or test(durable_error_classification_keeps_invariants_fatal) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(production_adk_goal_pause_and_resume_are_persisted_atomically) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(models_list_tool_projects_providers_with_reference_boolean_rules) or test(graph_exposes_one_deterministic_ready_task) or test(adk_approval_resolution_stages_continuation_and_denial_cas) or test(chat_resolution_reports_missing_agents_and_unusable_providers) or test(expired_runs_use_each_runs_own_timeout_window) or test(a_fresh_foreign_run_lease_shields_a_run_from_expiry) or test(adk_routes_surface_durable_store_failures_instead_of_empty_success) or test(adk_task_normalization_and_validation_match_go) or test(a_completed_run_links_its_final_assistant_message_across_the_transcript) or test(workflow_management_catalog_keeps_the_skill_and_approval_boundaries) or test(a_top_level_follow_up_reply_keeps_its_run_completed) or test(production_live_chat_stream_emits_session_run_and_final_events) or test(goal_pause_rejects_child_runs_and_resume_reports_missing_runs) or test(graph_orders_equal_rank_tasks_by_id_and_reports_graph_faults)"
         ],
         "testFilter": [
           "models_list_tool_projects_providers_with_reference_boolean_rules"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "2ef7070707a97843f2aa642afeb2b77b5b4bfd84",
+        "verifiedAt": "2026-09-26T02:40:48Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -109077,20 +109086,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(workflow_bridge_operations_fail_closed_without_their_ports) or test(durable_error_classification_keeps_invariants_fatal) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(production_adk_goal_pause_and_resume_are_persisted_atomically) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(models_list_tool_projects_providers_with_reference_boolean_rules) or test(graph_exposes_one_deterministic_ready_task) or test(adk_approval_resolution_stages_continuation_and_denial_cas) or test(chat_resolution_reports_missing_agents_and_unusable_providers) or test(expired_runs_use_each_runs_own_timeout_window) or test(a_fresh_foreign_run_lease_shields_a_run_from_expiry) or test(adk_routes_surface_durable_store_failures_instead_of_empty_success) or test(adk_task_normalization_and_validation_match_go) or test(a_completed_run_links_its_final_assistant_message_across_the_transcript) or test(workflow_management_catalog_keeps_the_skill_and_approval_boundaries) or test(a_top_level_follow_up_reply_keeps_its_run_completed) or test(production_live_chat_stream_emits_session_run_and_final_events) or test(goal_pause_rejects_child_runs_and_resume_reports_missing_runs) or test(graph_orders_equal_rank_tasks_by_id_and_reports_graph_faults)"
         ],
         "testFilter": [
           "workflow_manager_failures_surface_verbatim_on_every_workflow_route"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "2ef7070707a97843f2aa642afeb2b77b5b4bfd84",
+        "verifiedAt": "2026-09-26T02:40:48Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -109192,20 +109202,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-assistant",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(workflow_bridge_operations_fail_closed_without_their_ports) or test(durable_error_classification_keeps_invariants_fatal) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(production_adk_goal_pause_and_resume_are_persisted_atomically) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(models_list_tool_projects_providers_with_reference_boolean_rules) or test(graph_exposes_one_deterministic_ready_task) or test(adk_approval_resolution_stages_continuation_and_denial_cas) or test(chat_resolution_reports_missing_agents_and_unusable_providers) or test(expired_runs_use_each_runs_own_timeout_window) or test(a_fresh_foreign_run_lease_shields_a_run_from_expiry) or test(adk_routes_surface_durable_store_failures_instead_of_empty_success) or test(adk_task_normalization_and_validation_match_go) or test(a_completed_run_links_its_final_assistant_message_across_the_transcript) or test(workflow_management_catalog_keeps_the_skill_and_approval_boundaries) or test(a_top_level_follow_up_reply_keeps_its_run_completed) or test(production_live_chat_stream_emits_session_run_and_final_events) or test(goal_pause_rejects_child_runs_and_resume_reports_missing_runs) or test(graph_orders_equal_rank_tasks_by_id_and_reports_graph_faults)"
         ],
         "testFilter": [
           "graph_exposes_one_deterministic_ready_task"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "2ef7070707a97843f2aa642afeb2b77b5b4bfd84",
+        "verifiedAt": "2026-09-26T02:40:48Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -109254,20 +109265,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-assistant",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(workflow_bridge_operations_fail_closed_without_their_ports) or test(durable_error_classification_keeps_invariants_fatal) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(production_adk_goal_pause_and_resume_are_persisted_atomically) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(models_list_tool_projects_providers_with_reference_boolean_rules) or test(graph_exposes_one_deterministic_ready_task) or test(adk_approval_resolution_stages_continuation_and_denial_cas) or test(chat_resolution_reports_missing_agents_and_unusable_providers) or test(expired_runs_use_each_runs_own_timeout_window) or test(a_fresh_foreign_run_lease_shields_a_run_from_expiry) or test(adk_routes_surface_durable_store_failures_instead_of_empty_success) or test(adk_task_normalization_and_validation_match_go) or test(a_completed_run_links_its_final_assistant_message_across_the_transcript) or test(workflow_management_catalog_keeps_the_skill_and_approval_boundaries) or test(a_top_level_follow_up_reply_keeps_its_run_completed) or test(production_live_chat_stream_emits_session_run_and_final_events) or test(goal_pause_rejects_child_runs_and_resume_reports_missing_runs) or test(graph_orders_equal_rank_tasks_by_id_and_reports_graph_faults)"
         ],
         "testFilter": [
           "graph_exposes_one_deterministic_ready_task"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "2ef7070707a97843f2aa642afeb2b77b5b4bfd84",
+        "verifiedAt": "2026-09-26T02:40:48Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -109369,20 +109381,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(workflow_bridge_operations_fail_closed_without_their_ports) or test(durable_error_classification_keeps_invariants_fatal) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(production_adk_goal_pause_and_resume_are_persisted_atomically) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(models_list_tool_projects_providers_with_reference_boolean_rules) or test(graph_exposes_one_deterministic_ready_task) or test(adk_approval_resolution_stages_continuation_and_denial_cas) or test(chat_resolution_reports_missing_agents_and_unusable_providers) or test(expired_runs_use_each_runs_own_timeout_window) or test(a_fresh_foreign_run_lease_shields_a_run_from_expiry) or test(adk_routes_surface_durable_store_failures_instead_of_empty_success) or test(adk_task_normalization_and_validation_match_go) or test(a_completed_run_links_its_final_assistant_message_across_the_transcript) or test(workflow_management_catalog_keeps_the_skill_and_approval_boundaries) or test(a_top_level_follow_up_reply_keeps_its_run_completed) or test(production_live_chat_stream_emits_session_run_and_final_events) or test(goal_pause_rejects_child_runs_and_resume_reports_missing_runs) or test(graph_orders_equal_rank_tasks_by_id_and_reports_graph_faults)"
         ],
         "testFilter": [
           "adk_approval_resolution_stages_continuation_and_denial_cas"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "2ef7070707a97843f2aa642afeb2b77b5b4bfd84",
+        "verifiedAt": "2026-09-26T02:40:48Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -109617,20 +109630,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(workflow_bridge_operations_fail_closed_without_their_ports) or test(durable_error_classification_keeps_invariants_fatal) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(production_adk_goal_pause_and_resume_are_persisted_atomically) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(models_list_tool_projects_providers_with_reference_boolean_rules) or test(graph_exposes_one_deterministic_ready_task) or test(adk_approval_resolution_stages_continuation_and_denial_cas) or test(chat_resolution_reports_missing_agents_and_unusable_providers) or test(expired_runs_use_each_runs_own_timeout_window) or test(a_fresh_foreign_run_lease_shields_a_run_from_expiry) or test(adk_routes_surface_durable_store_failures_instead_of_empty_success) or test(adk_task_normalization_and_validation_match_go) or test(a_completed_run_links_its_final_assistant_message_across_the_transcript) or test(workflow_management_catalog_keeps_the_skill_and_approval_boundaries) or test(a_top_level_follow_up_reply_keeps_its_run_completed) or test(production_live_chat_stream_emits_session_run_and_final_events) or test(goal_pause_rejects_child_runs_and_resume_reports_missing_runs) or test(graph_orders_equal_rank_tasks_by_id_and_reports_graph_faults)"
         ],
         "testFilter": [
           "chat_resolution_reports_missing_agents_and_unusable_providers"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "2ef7070707a97843f2aa642afeb2b77b5b4bfd84",
+        "verifiedAt": "2026-09-26T02:40:48Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -109679,20 +109693,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(workflow_bridge_operations_fail_closed_without_their_ports) or test(durable_error_classification_keeps_invariants_fatal) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(production_adk_goal_pause_and_resume_are_persisted_atomically) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(models_list_tool_projects_providers_with_reference_boolean_rules) or test(graph_exposes_one_deterministic_ready_task) or test(adk_approval_resolution_stages_continuation_and_denial_cas) or test(chat_resolution_reports_missing_agents_and_unusable_providers) or test(expired_runs_use_each_runs_own_timeout_window) or test(a_fresh_foreign_run_lease_shields_a_run_from_expiry) or test(adk_routes_surface_durable_store_failures_instead_of_empty_success) or test(adk_task_normalization_and_validation_match_go) or test(a_completed_run_links_its_final_assistant_message_across_the_transcript) or test(workflow_management_catalog_keeps_the_skill_and_approval_boundaries) or test(a_top_level_follow_up_reply_keeps_its_run_completed) or test(production_live_chat_stream_emits_session_run_and_final_events) or test(goal_pause_rejects_child_runs_and_resume_reports_missing_runs) or test(graph_orders_equal_rank_tasks_by_id_and_reports_graph_faults)"
         ],
         "testFilter": [
           "expired_runs_use_each_runs_own_timeout_window"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "2ef7070707a97843f2aa642afeb2b77b5b4bfd84",
+        "verifiedAt": "2026-09-26T02:40:48Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -109741,20 +109756,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(workflow_bridge_operations_fail_closed_without_their_ports) or test(durable_error_classification_keeps_invariants_fatal) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(production_adk_goal_pause_and_resume_are_persisted_atomically) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(models_list_tool_projects_providers_with_reference_boolean_rules) or test(graph_exposes_one_deterministic_ready_task) or test(adk_approval_resolution_stages_continuation_and_denial_cas) or test(chat_resolution_reports_missing_agents_and_unusable_providers) or test(expired_runs_use_each_runs_own_timeout_window) or test(a_fresh_foreign_run_lease_shields_a_run_from_expiry) or test(adk_routes_surface_durable_store_failures_instead_of_empty_success) or test(adk_task_normalization_and_validation_match_go) or test(a_completed_run_links_its_final_assistant_message_across_the_transcript) or test(workflow_management_catalog_keeps_the_skill_and_approval_boundaries) or test(a_top_level_follow_up_reply_keeps_its_run_completed) or test(production_live_chat_stream_emits_session_run_and_final_events) or test(goal_pause_rejects_child_runs_and_resume_reports_missing_runs) or test(graph_orders_equal_rank_tasks_by_id_and_reports_graph_faults)"
         ],
         "testFilter": [
           "a_fresh_foreign_run_lease_shields_a_run_from_expiry"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "2ef7070707a97843f2aa642afeb2b77b5b4bfd84",
+        "verifiedAt": "2026-09-26T02:40:48Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -109803,20 +109819,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(workflow_bridge_operations_fail_closed_without_their_ports) or test(durable_error_classification_keeps_invariants_fatal) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(production_adk_goal_pause_and_resume_are_persisted_atomically) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(models_list_tool_projects_providers_with_reference_boolean_rules) or test(graph_exposes_one_deterministic_ready_task) or test(adk_approval_resolution_stages_continuation_and_denial_cas) or test(chat_resolution_reports_missing_agents_and_unusable_providers) or test(expired_runs_use_each_runs_own_timeout_window) or test(a_fresh_foreign_run_lease_shields_a_run_from_expiry) or test(adk_routes_surface_durable_store_failures_instead_of_empty_success) or test(adk_task_normalization_and_validation_match_go) or test(a_completed_run_links_its_final_assistant_message_across_the_transcript) or test(workflow_management_catalog_keeps_the_skill_and_approval_boundaries) or test(a_top_level_follow_up_reply_keeps_its_run_completed) or test(production_live_chat_stream_emits_session_run_and_final_events) or test(goal_pause_rejects_child_runs_and_resume_reports_missing_runs) or test(graph_orders_equal_rank_tasks_by_id_and_reports_graph_faults)"
         ],
         "testFilter": [
           "adk_routes_surface_durable_store_failures_instead_of_empty_success"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "2ef7070707a97843f2aa642afeb2b77b5b4bfd84",
+        "verifiedAt": "2026-09-26T02:40:48Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -109865,20 +109882,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(workflow_bridge_operations_fail_closed_without_their_ports) or test(durable_error_classification_keeps_invariants_fatal) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(production_adk_goal_pause_and_resume_are_persisted_atomically) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(models_list_tool_projects_providers_with_reference_boolean_rules) or test(graph_exposes_one_deterministic_ready_task) or test(adk_approval_resolution_stages_continuation_and_denial_cas) or test(chat_resolution_reports_missing_agents_and_unusable_providers) or test(expired_runs_use_each_runs_own_timeout_window) or test(a_fresh_foreign_run_lease_shields_a_run_from_expiry) or test(adk_routes_surface_durable_store_failures_instead_of_empty_success) or test(adk_task_normalization_and_validation_match_go) or test(a_completed_run_links_its_final_assistant_message_across_the_transcript) or test(workflow_management_catalog_keeps_the_skill_and_approval_boundaries) or test(a_top_level_follow_up_reply_keeps_its_run_completed) or test(production_live_chat_stream_emits_session_run_and_final_events) or test(goal_pause_rejects_child_runs_and_resume_reports_missing_runs) or test(graph_orders_equal_rank_tasks_by_id_and_reports_graph_faults)"
         ],
         "testFilter": [
           "adk_task_normalization_and_validation_match_go"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "2ef7070707a97843f2aa642afeb2b77b5b4bfd84",
+        "verifiedAt": "2026-09-26T02:40:48Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -109927,20 +109945,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(workflow_bridge_operations_fail_closed_without_their_ports) or test(durable_error_classification_keeps_invariants_fatal) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(production_adk_goal_pause_and_resume_are_persisted_atomically) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(models_list_tool_projects_providers_with_reference_boolean_rules) or test(graph_exposes_one_deterministic_ready_task) or test(adk_approval_resolution_stages_continuation_and_denial_cas) or test(chat_resolution_reports_missing_agents_and_unusable_providers) or test(expired_runs_use_each_runs_own_timeout_window) or test(a_fresh_foreign_run_lease_shields_a_run_from_expiry) or test(adk_routes_surface_durable_store_failures_instead_of_empty_success) or test(adk_task_normalization_and_validation_match_go) or test(a_completed_run_links_its_final_assistant_message_across_the_transcript) or test(workflow_management_catalog_keeps_the_skill_and_approval_boundaries) or test(a_top_level_follow_up_reply_keeps_its_run_completed) or test(production_live_chat_stream_emits_session_run_and_final_events) or test(goal_pause_rejects_child_runs_and_resume_reports_missing_runs) or test(graph_orders_equal_rank_tasks_by_id_and_reports_graph_faults)"
         ],
         "testFilter": [
           "workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "2ef7070707a97843f2aa642afeb2b77b5b4bfd84",
+        "verifiedAt": "2026-09-26T02:40:48Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -109989,20 +110008,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(workflow_bridge_operations_fail_closed_without_their_ports) or test(durable_error_classification_keeps_invariants_fatal) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(production_adk_goal_pause_and_resume_are_persisted_atomically) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(models_list_tool_projects_providers_with_reference_boolean_rules) or test(graph_exposes_one_deterministic_ready_task) or test(adk_approval_resolution_stages_continuation_and_denial_cas) or test(chat_resolution_reports_missing_agents_and_unusable_providers) or test(expired_runs_use_each_runs_own_timeout_window) or test(a_fresh_foreign_run_lease_shields_a_run_from_expiry) or test(adk_routes_surface_durable_store_failures_instead_of_empty_success) or test(adk_task_normalization_and_validation_match_go) or test(a_completed_run_links_its_final_assistant_message_across_the_transcript) or test(workflow_management_catalog_keeps_the_skill_and_approval_boundaries) or test(a_top_level_follow_up_reply_keeps_its_run_completed) or test(production_live_chat_stream_emits_session_run_and_final_events) or test(goal_pause_rejects_child_runs_and_resume_reports_missing_runs) or test(graph_orders_equal_rank_tasks_by_id_and_reports_graph_faults)"
         ],
         "testFilter": [
           "a_completed_run_links_its_final_assistant_message_across_the_transcript"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "2ef7070707a97843f2aa642afeb2b77b5b4bfd84",
+        "verifiedAt": "2026-09-26T02:40:48Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -110113,20 +110133,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(workflow_bridge_operations_fail_closed_without_their_ports) or test(durable_error_classification_keeps_invariants_fatal) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(production_adk_goal_pause_and_resume_are_persisted_atomically) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(models_list_tool_projects_providers_with_reference_boolean_rules) or test(graph_exposes_one_deterministic_ready_task) or test(adk_approval_resolution_stages_continuation_and_denial_cas) or test(chat_resolution_reports_missing_agents_and_unusable_providers) or test(expired_runs_use_each_runs_own_timeout_window) or test(a_fresh_foreign_run_lease_shields_a_run_from_expiry) or test(adk_routes_surface_durable_store_failures_instead_of_empty_success) or test(adk_task_normalization_and_validation_match_go) or test(a_completed_run_links_its_final_assistant_message_across_the_transcript) or test(workflow_management_catalog_keeps_the_skill_and_approval_boundaries) or test(a_top_level_follow_up_reply_keeps_its_run_completed) or test(production_live_chat_stream_emits_session_run_and_final_events) or test(goal_pause_rejects_child_runs_and_resume_reports_missing_runs) or test(graph_orders_equal_rank_tasks_by_id_and_reports_graph_faults)"
         ],
         "testFilter": [
           "workflow_bridge_operations_fail_closed_without_their_ports"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "2ef7070707a97843f2aa642afeb2b77b5b4bfd84",
+        "verifiedAt": "2026-09-26T02:40:48Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -110175,20 +110196,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(workflow_bridge_operations_fail_closed_without_their_ports) or test(durable_error_classification_keeps_invariants_fatal) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(production_adk_goal_pause_and_resume_are_persisted_atomically) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(models_list_tool_projects_providers_with_reference_boolean_rules) or test(graph_exposes_one_deterministic_ready_task) or test(adk_approval_resolution_stages_continuation_and_denial_cas) or test(chat_resolution_reports_missing_agents_and_unusable_providers) or test(expired_runs_use_each_runs_own_timeout_window) or test(a_fresh_foreign_run_lease_shields_a_run_from_expiry) or test(adk_routes_surface_durable_store_failures_instead_of_empty_success) or test(adk_task_normalization_and_validation_match_go) or test(a_completed_run_links_its_final_assistant_message_across_the_transcript) or test(workflow_management_catalog_keeps_the_skill_and_approval_boundaries) or test(a_top_level_follow_up_reply_keeps_its_run_completed) or test(production_live_chat_stream_emits_session_run_and_final_events) or test(goal_pause_rejects_child_runs_and_resume_reports_missing_runs) or test(graph_orders_equal_rank_tasks_by_id_and_reports_graph_faults)"
         ],
         "testFilter": [
           "workflow_management_catalog_keeps_the_skill_and_approval_boundaries"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "2ef7070707a97843f2aa642afeb2b77b5b4bfd84",
+        "verifiedAt": "2026-09-26T02:40:48Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -110237,20 +110259,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(workflow_bridge_operations_fail_closed_without_their_ports) or test(durable_error_classification_keeps_invariants_fatal) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(production_adk_goal_pause_and_resume_are_persisted_atomically) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(models_list_tool_projects_providers_with_reference_boolean_rules) or test(graph_exposes_one_deterministic_ready_task) or test(adk_approval_resolution_stages_continuation_and_denial_cas) or test(chat_resolution_reports_missing_agents_and_unusable_providers) or test(expired_runs_use_each_runs_own_timeout_window) or test(a_fresh_foreign_run_lease_shields_a_run_from_expiry) or test(adk_routes_surface_durable_store_failures_instead_of_empty_success) or test(adk_task_normalization_and_validation_match_go) or test(a_completed_run_links_its_final_assistant_message_across_the_transcript) or test(workflow_management_catalog_keeps_the_skill_and_approval_boundaries) or test(a_top_level_follow_up_reply_keeps_its_run_completed) or test(production_live_chat_stream_emits_session_run_and_final_events) or test(goal_pause_rejects_child_runs_and_resume_reports_missing_runs) or test(graph_orders_equal_rank_tasks_by_id_and_reports_graph_faults)"
         ],
         "testFilter": [
           "models_list_tool_projects_providers_with_reference_boolean_rules"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "2ef7070707a97843f2aa642afeb2b77b5b4bfd84",
+        "verifiedAt": "2026-09-26T02:40:48Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -110299,20 +110322,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(workflow_bridge_operations_fail_closed_without_their_ports) or test(durable_error_classification_keeps_invariants_fatal) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(production_adk_goal_pause_and_resume_are_persisted_atomically) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(models_list_tool_projects_providers_with_reference_boolean_rules) or test(graph_exposes_one_deterministic_ready_task) or test(adk_approval_resolution_stages_continuation_and_denial_cas) or test(chat_resolution_reports_missing_agents_and_unusable_providers) or test(expired_runs_use_each_runs_own_timeout_window) or test(a_fresh_foreign_run_lease_shields_a_run_from_expiry) or test(adk_routes_surface_durable_store_failures_instead_of_empty_success) or test(adk_task_normalization_and_validation_match_go) or test(a_completed_run_links_its_final_assistant_message_across_the_transcript) or test(workflow_management_catalog_keeps_the_skill_and_approval_boundaries) or test(a_top_level_follow_up_reply_keeps_its_run_completed) or test(production_live_chat_stream_emits_session_run_and_final_events) or test(goal_pause_rejects_child_runs_and_resume_reports_missing_runs) or test(graph_orders_equal_rank_tasks_by_id_and_reports_graph_faults)"
         ],
         "testFilter": [
           "a_top_level_follow_up_reply_keeps_its_run_completed"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "2ef7070707a97843f2aa642afeb2b77b5b4bfd84",
+        "verifiedAt": "2026-09-26T02:40:48Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -110361,20 +110385,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(workflow_bridge_operations_fail_closed_without_their_ports) or test(durable_error_classification_keeps_invariants_fatal) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(production_adk_goal_pause_and_resume_are_persisted_atomically) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(models_list_tool_projects_providers_with_reference_boolean_rules) or test(graph_exposes_one_deterministic_ready_task) or test(adk_approval_resolution_stages_continuation_and_denial_cas) or test(chat_resolution_reports_missing_agents_and_unusable_providers) or test(expired_runs_use_each_runs_own_timeout_window) or test(a_fresh_foreign_run_lease_shields_a_run_from_expiry) or test(adk_routes_surface_durable_store_failures_instead_of_empty_success) or test(adk_task_normalization_and_validation_match_go) or test(a_completed_run_links_its_final_assistant_message_across_the_transcript) or test(workflow_management_catalog_keeps_the_skill_and_approval_boundaries) or test(a_top_level_follow_up_reply_keeps_its_run_completed) or test(production_live_chat_stream_emits_session_run_and_final_events) or test(goal_pause_rejects_child_runs_and_resume_reports_missing_runs) or test(graph_orders_equal_rank_tasks_by_id_and_reports_graph_faults)"
         ],
         "testFilter": [
           "production_live_chat_stream_emits_session_run_and_final_events"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "2ef7070707a97843f2aa642afeb2b77b5b4bfd84",
+        "verifiedAt": "2026-09-26T02:40:48Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -110423,20 +110448,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(workflow_bridge_operations_fail_closed_without_their_ports) or test(durable_error_classification_keeps_invariants_fatal) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(production_adk_goal_pause_and_resume_are_persisted_atomically) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(models_list_tool_projects_providers_with_reference_boolean_rules) or test(graph_exposes_one_deterministic_ready_task) or test(adk_approval_resolution_stages_continuation_and_denial_cas) or test(chat_resolution_reports_missing_agents_and_unusable_providers) or test(expired_runs_use_each_runs_own_timeout_window) or test(a_fresh_foreign_run_lease_shields_a_run_from_expiry) or test(adk_routes_surface_durable_store_failures_instead_of_empty_success) or test(adk_task_normalization_and_validation_match_go) or test(a_completed_run_links_its_final_assistant_message_across_the_transcript) or test(workflow_management_catalog_keeps_the_skill_and_approval_boundaries) or test(a_top_level_follow_up_reply_keeps_its_run_completed) or test(production_live_chat_stream_emits_session_run_and_final_events) or test(goal_pause_rejects_child_runs_and_resume_reports_missing_runs) or test(graph_orders_equal_rank_tasks_by_id_and_reports_graph_faults)"
         ],
         "testFilter": [
           "goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "2ef7070707a97843f2aa642afeb2b77b5b4bfd84",
+        "verifiedAt": "2026-09-26T02:40:48Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -110485,20 +110511,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(workflow_bridge_operations_fail_closed_without_their_ports) or test(durable_error_classification_keeps_invariants_fatal) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(production_adk_goal_pause_and_resume_are_persisted_atomically) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(models_list_tool_projects_providers_with_reference_boolean_rules) or test(graph_exposes_one_deterministic_ready_task) or test(adk_approval_resolution_stages_continuation_and_denial_cas) or test(chat_resolution_reports_missing_agents_and_unusable_providers) or test(expired_runs_use_each_runs_own_timeout_window) or test(a_fresh_foreign_run_lease_shields_a_run_from_expiry) or test(adk_routes_surface_durable_store_failures_instead_of_empty_success) or test(adk_task_normalization_and_validation_match_go) or test(a_completed_run_links_its_final_assistant_message_across_the_transcript) or test(workflow_management_catalog_keeps_the_skill_and_approval_boundaries) or test(a_top_level_follow_up_reply_keeps_its_run_completed) or test(production_live_chat_stream_emits_session_run_and_final_events) or test(goal_pause_rejects_child_runs_and_resume_reports_missing_runs) or test(graph_orders_equal_rank_tasks_by_id_and_reports_graph_faults)"
         ],
         "testFilter": [
           "goal_pause_rejects_child_runs_and_resume_reports_missing_runs"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "2ef7070707a97843f2aa642afeb2b77b5b4bfd84",
+        "verifiedAt": "2026-09-26T02:40:48Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -110614,20 +110641,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-assistant",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(workflow_bridge_operations_fail_closed_without_their_ports) or test(durable_error_classification_keeps_invariants_fatal) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(production_adk_goal_pause_and_resume_are_persisted_atomically) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(models_list_tool_projects_providers_with_reference_boolean_rules) or test(graph_exposes_one_deterministic_ready_task) or test(adk_approval_resolution_stages_continuation_and_denial_cas) or test(chat_resolution_reports_missing_agents_and_unusable_providers) or test(expired_runs_use_each_runs_own_timeout_window) or test(a_fresh_foreign_run_lease_shields_a_run_from_expiry) or test(adk_routes_surface_durable_store_failures_instead_of_empty_success) or test(adk_task_normalization_and_validation_match_go) or test(a_completed_run_links_its_final_assistant_message_across_the_transcript) or test(workflow_management_catalog_keeps_the_skill_and_approval_boundaries) or test(a_top_level_follow_up_reply_keeps_its_run_completed) or test(production_live_chat_stream_emits_session_run_and_final_events) or test(goal_pause_rejects_child_runs_and_resume_reports_missing_runs) or test(graph_orders_equal_rank_tasks_by_id_and_reports_graph_faults)"
         ],
         "testFilter": [
           "graph_orders_equal_rank_tasks_by_id_and_reports_graph_faults"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "2ef7070707a97843f2aa642afeb2b77b5b4bfd84",
+        "verifiedAt": "2026-09-26T02:40:48Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -110738,20 +110766,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(workflow_bridge_operations_fail_closed_without_their_ports) or test(durable_error_classification_keeps_invariants_fatal) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(production_adk_goal_pause_and_resume_are_persisted_atomically) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(models_list_tool_projects_providers_with_reference_boolean_rules) or test(graph_exposes_one_deterministic_ready_task) or test(adk_approval_resolution_stages_continuation_and_denial_cas) or test(chat_resolution_reports_missing_agents_and_unusable_providers) or test(expired_runs_use_each_runs_own_timeout_window) or test(a_fresh_foreign_run_lease_shields_a_run_from_expiry) or test(adk_routes_surface_durable_store_failures_instead_of_empty_success) or test(adk_task_normalization_and_validation_match_go) or test(a_completed_run_links_its_final_assistant_message_across_the_transcript) or test(workflow_management_catalog_keeps_the_skill_and_approval_boundaries) or test(a_top_level_follow_up_reply_keeps_its_run_completed) or test(production_live_chat_stream_emits_session_run_and_final_events) or test(goal_pause_rejects_child_runs_and_resume_reports_missing_runs) or test(graph_orders_equal_rank_tasks_by_id_and_reports_graph_faults)"
         ],
         "testFilter": [
           "adk_routes_surface_durable_store_failures_instead_of_empty_success"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "2ef7070707a97843f2aa642afeb2b77b5b4bfd84",
+        "verifiedAt": "2026-09-26T02:40:48Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -110800,20 +110829,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(workflow_bridge_operations_fail_closed_without_their_ports) or test(durable_error_classification_keeps_invariants_fatal) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(production_adk_goal_pause_and_resume_are_persisted_atomically) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(models_list_tool_projects_providers_with_reference_boolean_rules) or test(graph_exposes_one_deterministic_ready_task) or test(adk_approval_resolution_stages_continuation_and_denial_cas) or test(chat_resolution_reports_missing_agents_and_unusable_providers) or test(expired_runs_use_each_runs_own_timeout_window) or test(a_fresh_foreign_run_lease_shields_a_run_from_expiry) or test(adk_routes_surface_durable_store_failures_instead_of_empty_success) or test(adk_task_normalization_and_validation_match_go) or test(a_completed_run_links_its_final_assistant_message_across_the_transcript) or test(workflow_management_catalog_keeps_the_skill_and_approval_boundaries) or test(a_top_level_follow_up_reply_keeps_its_run_completed) or test(production_live_chat_stream_emits_session_run_and_final_events) or test(goal_pause_rejects_child_runs_and_resume_reports_missing_runs) or test(graph_orders_equal_rank_tasks_by_id_and_reports_graph_faults)"
         ],
         "testFilter": [
           "run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "2ef7070707a97843f2aa642afeb2b77b5b4bfd84",
+        "verifiedAt": "2026-09-26T02:40:48Z",
         "receiptDigest": null
       },
       "risk": "normal",
