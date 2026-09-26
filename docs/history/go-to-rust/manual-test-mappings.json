@@ -128738,20 +128738,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-integration-pine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(intent_with_has_quantity_pct_and_resolved_quantity_executes_successfully) or test(stop_market_and_stop_limit_orders_execution) or test(input_and_atomic_bracket_validation_errors) or test(parent_bracket_runs_atomically_with_stop_first_protection) or test(test_execute_strategy_intents_close_short_maps_to_buy) or test(pine_adapter_runs_worker_intent_through_deterministic_matcher) or test(pine_adapter_rejects_invalid_worker_intent) or test(pine_adapter_maps_worker_unavailability_without_fabricating_result) or test(test_execute_strategy_intents_success_calls_execution_and_audits) or test(test_execute_strategy_intents_resolves_quantity_pct_and_close_intent) or test(non_positive_signal_quantity_is_rejected_before_planning) or test(parameterless_close_normalized_exit_intent_flattens_named_entry) or test(test_execute_strategy_intents_parameterless_close_skips_when_no_position) or test(broker_lot_size_initializes_minimum_and_step_quantity) or test(snapshot_availability_kinds_control_fallback_eligibility) or test(warnings_emitted_and_deduplicated_for_zero_volume_and_unsupported_order) or test(close_all_normalized_exit_intent_flattens_multi_entry_position_in_matcher) or test(broker_unavailability_does_not_create_a_virtual_fill) or test(unsupported_signal_side_is_rejected_before_planning)"
         ],
         "testFilter": [
           "intent_with_has_quantity_pct_and_resolved_quantity_executes_successfully"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "d95e27ccd58bf2b5d7bd0a7e7d3273daf7d258fc",
+        "verifiedAt": "2026-09-26T03:19:44Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -128800,20 +128801,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-backtest",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(intent_with_has_quantity_pct_and_resolved_quantity_executes_successfully) or test(stop_market_and_stop_limit_orders_execution) or test(input_and_atomic_bracket_validation_errors) or test(parent_bracket_runs_atomically_with_stop_first_protection) or test(test_execute_strategy_intents_close_short_maps_to_buy) or test(pine_adapter_runs_worker_intent_through_deterministic_matcher) or test(pine_adapter_rejects_invalid_worker_intent) or test(pine_adapter_maps_worker_unavailability_without_fabricating_result) or test(test_execute_strategy_intents_success_calls_execution_and_audits) or test(test_execute_strategy_intents_resolves_quantity_pct_and_close_intent) or test(non_positive_signal_quantity_is_rejected_before_planning) or test(parameterless_close_normalized_exit_intent_flattens_named_entry) or test(test_execute_strategy_intents_parameterless_close_skips_when_no_position) or test(broker_lot_size_initializes_minimum_and_step_quantity) or test(snapshot_availability_kinds_control_fallback_eligibility) or test(warnings_emitted_and_deduplicated_for_zero_volume_and_unsupported_order) or test(close_all_normalized_exit_intent_flattens_multi_entry_position_in_matcher) or test(broker_unavailability_does_not_create_a_virtual_fill) or test(unsupported_signal_side_is_rejected_before_planning)"
         ],
         "testFilter": [
           "stop_market_and_stop_limit_orders_execution"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "d95e27ccd58bf2b5d7bd0a7e7d3273daf7d258fc",
+        "verifiedAt": "2026-09-26T03:19:44Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -128862,20 +128864,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-backtest",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(intent_with_has_quantity_pct_and_resolved_quantity_executes_successfully) or test(stop_market_and_stop_limit_orders_execution) or test(input_and_atomic_bracket_validation_errors) or test(parent_bracket_runs_atomically_with_stop_first_protection) or test(test_execute_strategy_intents_close_short_maps_to_buy) or test(pine_adapter_runs_worker_intent_through_deterministic_matcher) or test(pine_adapter_rejects_invalid_worker_intent) or test(pine_adapter_maps_worker_unavailability_without_fabricating_result) or test(test_execute_strategy_intents_success_calls_execution_and_audits) or test(test_execute_strategy_intents_resolves_quantity_pct_and_close_intent) or test(non_positive_signal_quantity_is_rejected_before_planning) or test(parameterless_close_normalized_exit_intent_flattens_named_entry) or test(test_execute_strategy_intents_parameterless_close_skips_when_no_position) or test(broker_lot_size_initializes_minimum_and_step_quantity) or test(snapshot_availability_kinds_control_fallback_eligibility) or test(warnings_emitted_and_deduplicated_for_zero_volume_and_unsupported_order) or test(close_all_normalized_exit_intent_flattens_multi_entry_position_in_matcher) or test(broker_unavailability_does_not_create_a_virtual_fill) or test(unsupported_signal_side_is_rejected_before_planning)"
         ],
         "testFilter": [
           "input_and_atomic_bracket_validation_errors"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "d95e27ccd58bf2b5d7bd0a7e7d3273daf7d258fc",
+        "verifiedAt": "2026-09-26T03:19:44Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -128924,20 +128927,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-backtest",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(intent_with_has_quantity_pct_and_resolved_quantity_executes_successfully) or test(stop_market_and_stop_limit_orders_execution) or test(input_and_atomic_bracket_validation_errors) or test(parent_bracket_runs_atomically_with_stop_first_protection) or test(test_execute_strategy_intents_close_short_maps_to_buy) or test(pine_adapter_runs_worker_intent_through_deterministic_matcher) or test(pine_adapter_rejects_invalid_worker_intent) or test(pine_adapter_maps_worker_unavailability_without_fabricating_result) or test(test_execute_strategy_intents_success_calls_execution_and_audits) or test(test_execute_strategy_intents_resolves_quantity_pct_and_close_intent) or test(non_positive_signal_quantity_is_rejected_before_planning) or test(parameterless_close_normalized_exit_intent_flattens_named_entry) or test(test_execute_strategy_intents_parameterless_close_skips_when_no_position) or test(broker_lot_size_initializes_minimum_and_step_quantity) or test(snapshot_availability_kinds_control_fallback_eligibility) or test(warnings_emitted_and_deduplicated_for_zero_volume_and_unsupported_order) or test(close_all_normalized_exit_intent_flattens_multi_entry_position_in_matcher) or test(broker_unavailability_does_not_create_a_virtual_fill) or test(unsupported_signal_side_is_rejected_before_planning)"
         ],
         "testFilter": [
           "parent_bracket_runs_atomically_with_stop_first_protection"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "d95e27ccd58bf2b5d7bd0a7e7d3273daf7d258fc",
+        "verifiedAt": "2026-09-26T03:19:44Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -128986,20 +128990,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(intent_with_has_quantity_pct_and_resolved_quantity_executes_successfully) or test(stop_market_and_stop_limit_orders_execution) or test(input_and_atomic_bracket_validation_errors) or test(parent_bracket_runs_atomically_with_stop_first_protection) or test(test_execute_strategy_intents_close_short_maps_to_buy) or test(pine_adapter_runs_worker_intent_through_deterministic_matcher) or test(pine_adapter_rejects_invalid_worker_intent) or test(pine_adapter_maps_worker_unavailability_without_fabricating_result) or test(test_execute_strategy_intents_success_calls_execution_and_audits) or test(test_execute_strategy_intents_resolves_quantity_pct_and_close_intent) or test(non_positive_signal_quantity_is_rejected_before_planning) or test(parameterless_close_normalized_exit_intent_flattens_named_entry) or test(test_execute_strategy_intents_parameterless_close_skips_when_no_position) or test(broker_lot_size_initializes_minimum_and_step_quantity) or test(snapshot_availability_kinds_control_fallback_eligibility) or test(warnings_emitted_and_deduplicated_for_zero_volume_and_unsupported_order) or test(close_all_normalized_exit_intent_flattens_multi_entry_position_in_matcher) or test(broker_unavailability_does_not_create_a_virtual_fill) or test(unsupported_signal_side_is_rejected_before_planning)"
         ],
         "testFilter": [
           "test_execute_strategy_intents_close_short_maps_to_buy"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "d95e27ccd58bf2b5d7bd0a7e7d3273daf7d258fc",
+        "verifiedAt": "2026-09-26T03:19:44Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -129048,20 +129053,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-integration-pine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(intent_with_has_quantity_pct_and_resolved_quantity_executes_successfully) or test(stop_market_and_stop_limit_orders_execution) or test(input_and_atomic_bracket_validation_errors) or test(parent_bracket_runs_atomically_with_stop_first_protection) or test(test_execute_strategy_intents_close_short_maps_to_buy) or test(pine_adapter_runs_worker_intent_through_deterministic_matcher) or test(pine_adapter_rejects_invalid_worker_intent) or test(pine_adapter_maps_worker_unavailability_without_fabricating_result) or test(test_execute_strategy_intents_success_calls_execution_and_audits) or test(test_execute_strategy_intents_resolves_quantity_pct_and_close_intent) or test(non_positive_signal_quantity_is_rejected_before_planning) or test(parameterless_close_normalized_exit_intent_flattens_named_entry) or test(test_execute_strategy_intents_parameterless_close_skips_when_no_position) or test(broker_lot_size_initializes_minimum_and_step_quantity) or test(snapshot_availability_kinds_control_fallback_eligibility) or test(warnings_emitted_and_deduplicated_for_zero_volume_and_unsupported_order) or test(close_all_normalized_exit_intent_flattens_multi_entry_position_in_matcher) or test(broker_unavailability_does_not_create_a_virtual_fill) or test(unsupported_signal_side_is_rejected_before_planning)"
         ],
         "testFilter": [
           "pine_adapter_runs_worker_intent_through_deterministic_matcher"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "d95e27ccd58bf2b5d7bd0a7e7d3273daf7d258fc",
+        "verifiedAt": "2026-09-26T03:19:44Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -129110,20 +129116,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-integration-pine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(intent_with_has_quantity_pct_and_resolved_quantity_executes_successfully) or test(stop_market_and_stop_limit_orders_execution) or test(input_and_atomic_bracket_validation_errors) or test(parent_bracket_runs_atomically_with_stop_first_protection) or test(test_execute_strategy_intents_close_short_maps_to_buy) or test(pine_adapter_runs_worker_intent_through_deterministic_matcher) or test(pine_adapter_rejects_invalid_worker_intent) or test(pine_adapter_maps_worker_unavailability_without_fabricating_result) or test(test_execute_strategy_intents_success_calls_execution_and_audits) or test(test_execute_strategy_intents_resolves_quantity_pct_and_close_intent) or test(non_positive_signal_quantity_is_rejected_before_planning) or test(parameterless_close_normalized_exit_intent_flattens_named_entry) or test(test_execute_strategy_intents_parameterless_close_skips_when_no_position) or test(broker_lot_size_initializes_minimum_and_step_quantity) or test(snapshot_availability_kinds_control_fallback_eligibility) or test(warnings_emitted_and_deduplicated_for_zero_volume_and_unsupported_order) or test(close_all_normalized_exit_intent_flattens_multi_entry_position_in_matcher) or test(broker_unavailability_does_not_create_a_virtual_fill) or test(unsupported_signal_side_is_rejected_before_planning)"
         ],
         "testFilter": [
           "pine_adapter_rejects_invalid_worker_intent"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "d95e27ccd58bf2b5d7bd0a7e7d3273daf7d258fc",
+        "verifiedAt": "2026-09-26T03:19:44Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -129172,20 +129179,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-integration-pine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(intent_with_has_quantity_pct_and_resolved_quantity_executes_successfully) or test(stop_market_and_stop_limit_orders_execution) or test(input_and_atomic_bracket_validation_errors) or test(parent_bracket_runs_atomically_with_stop_first_protection) or test(test_execute_strategy_intents_close_short_maps_to_buy) or test(pine_adapter_runs_worker_intent_through_deterministic_matcher) or test(pine_adapter_rejects_invalid_worker_intent) or test(pine_adapter_maps_worker_unavailability_without_fabricating_result) or test(test_execute_strategy_intents_success_calls_execution_and_audits) or test(test_execute_strategy_intents_resolves_quantity_pct_and_close_intent) or test(non_positive_signal_quantity_is_rejected_before_planning) or test(parameterless_close_normalized_exit_intent_flattens_named_entry) or test(test_execute_strategy_intents_parameterless_close_skips_when_no_position) or test(broker_lot_size_initializes_minimum_and_step_quantity) or test(snapshot_availability_kinds_control_fallback_eligibility) or test(warnings_emitted_and_deduplicated_for_zero_volume_and_unsupported_order) or test(close_all_normalized_exit_intent_flattens_multi_entry_position_in_matcher) or test(broker_unavailability_does_not_create_a_virtual_fill) or test(unsupported_signal_side_is_rejected_before_planning)"
         ],
         "testFilter": [
           "pine_adapter_runs_worker_intent_through_deterministic_matcher"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "d95e27ccd58bf2b5d7bd0a7e7d3273daf7d258fc",
+        "verifiedAt": "2026-09-26T03:19:44Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -129234,20 +129242,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-integration-pine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(intent_with_has_quantity_pct_and_resolved_quantity_executes_successfully) or test(stop_market_and_stop_limit_orders_execution) or test(input_and_atomic_bracket_validation_errors) or test(parent_bracket_runs_atomically_with_stop_first_protection) or test(test_execute_strategy_intents_close_short_maps_to_buy) or test(pine_adapter_runs_worker_intent_through_deterministic_matcher) or test(pine_adapter_rejects_invalid_worker_intent) or test(pine_adapter_maps_worker_unavailability_without_fabricating_result) or test(test_execute_strategy_intents_success_calls_execution_and_audits) or test(test_execute_strategy_intents_resolves_quantity_pct_and_close_intent) or test(non_positive_signal_quantity_is_rejected_before_planning) or test(parameterless_close_normalized_exit_intent_flattens_named_entry) or test(test_execute_strategy_intents_parameterless_close_skips_when_no_position) or test(broker_lot_size_initializes_minimum_and_step_quantity) or test(snapshot_availability_kinds_control_fallback_eligibility) or test(warnings_emitted_and_deduplicated_for_zero_volume_and_unsupported_order) or test(close_all_normalized_exit_intent_flattens_multi_entry_position_in_matcher) or test(broker_unavailability_does_not_create_a_virtual_fill) or test(unsupported_signal_side_is_rejected_before_planning)"
         ],
         "testFilter": [
           "pine_adapter_maps_worker_unavailability_without_fabricating_result"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "d95e27ccd58bf2b5d7bd0a7e7d3273daf7d258fc",
+        "verifiedAt": "2026-09-26T03:19:44Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -129296,20 +129305,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-backtest",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(intent_with_has_quantity_pct_and_resolved_quantity_executes_successfully) or test(stop_market_and_stop_limit_orders_execution) or test(input_and_atomic_bracket_validation_errors) or test(parent_bracket_runs_atomically_with_stop_first_protection) or test(test_execute_strategy_intents_close_short_maps_to_buy) or test(pine_adapter_runs_worker_intent_through_deterministic_matcher) or test(pine_adapter_rejects_invalid_worker_intent) or test(pine_adapter_maps_worker_unavailability_without_fabricating_result) or test(test_execute_strategy_intents_success_calls_execution_and_audits) or test(test_execute_strategy_intents_resolves_quantity_pct_and_close_intent) or test(non_positive_signal_quantity_is_rejected_before_planning) or test(parameterless_close_normalized_exit_intent_flattens_named_entry) or test(test_execute_strategy_intents_parameterless_close_skips_when_no_position) or test(broker_lot_size_initializes_minimum_and_step_quantity) or test(snapshot_availability_kinds_control_fallback_eligibility) or test(warnings_emitted_and_deduplicated_for_zero_volume_and_unsupported_order) or test(close_all_normalized_exit_intent_flattens_multi_entry_position_in_matcher) or test(broker_unavailability_does_not_create_a_virtual_fill) or test(unsupported_signal_side_is_rejected_before_planning)"
         ],
         "testFilter": [
           "input_and_atomic_bracket_validation_errors"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "d95e27ccd58bf2b5d7bd0a7e7d3273daf7d258fc",
+        "verifiedAt": "2026-09-26T03:19:44Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -129358,20 +129368,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-backtest",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(intent_with_has_quantity_pct_and_resolved_quantity_executes_successfully) or test(stop_market_and_stop_limit_orders_execution) or test(input_and_atomic_bracket_validation_errors) or test(parent_bracket_runs_atomically_with_stop_first_protection) or test(test_execute_strategy_intents_close_short_maps_to_buy) or test(pine_adapter_runs_worker_intent_through_deterministic_matcher) or test(pine_adapter_rejects_invalid_worker_intent) or test(pine_adapter_maps_worker_unavailability_without_fabricating_result) or test(test_execute_strategy_intents_success_calls_execution_and_audits) or test(test_execute_strategy_intents_resolves_quantity_pct_and_close_intent) or test(non_positive_signal_quantity_is_rejected_before_planning) or test(parameterless_close_normalized_exit_intent_flattens_named_entry) or test(test_execute_strategy_intents_parameterless_close_skips_when_no_position) or test(broker_lot_size_initializes_minimum_and_step_quantity) or test(snapshot_availability_kinds_control_fallback_eligibility) or test(warnings_emitted_and_deduplicated_for_zero_volume_and_unsupported_order) or test(close_all_normalized_exit_intent_flattens_multi_entry_position_in_matcher) or test(broker_unavailability_does_not_create_a_virtual_fill) or test(unsupported_signal_side_is_rejected_before_planning)"
         ],
         "testFilter": [
           "parent_bracket_runs_atomically_with_stop_first_protection"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "d95e27ccd58bf2b5d7bd0a7e7d3273daf7d258fc",
+        "verifiedAt": "2026-09-26T03:19:44Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -129420,20 +129431,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(intent_with_has_quantity_pct_and_resolved_quantity_executes_successfully) or test(stop_market_and_stop_limit_orders_execution) or test(input_and_atomic_bracket_validation_errors) or test(parent_bracket_runs_atomically_with_stop_first_protection) or test(test_execute_strategy_intents_close_short_maps_to_buy) or test(pine_adapter_runs_worker_intent_through_deterministic_matcher) or test(pine_adapter_rejects_invalid_worker_intent) or test(pine_adapter_maps_worker_unavailability_without_fabricating_result) or test(test_execute_strategy_intents_success_calls_execution_and_audits) or test(test_execute_strategy_intents_resolves_quantity_pct_and_close_intent) or test(non_positive_signal_quantity_is_rejected_before_planning) or test(parameterless_close_normalized_exit_intent_flattens_named_entry) or test(test_execute_strategy_intents_parameterless_close_skips_when_no_position) or test(broker_lot_size_initializes_minimum_and_step_quantity) or test(snapshot_availability_kinds_control_fallback_eligibility) or test(warnings_emitted_and_deduplicated_for_zero_volume_and_unsupported_order) or test(close_all_normalized_exit_intent_flattens_multi_entry_position_in_matcher) or test(broker_unavailability_does_not_create_a_virtual_fill) or test(unsupported_signal_side_is_rejected_before_planning)"
         ],
         "testFilter": [
           "test_execute_strategy_intents_success_calls_execution_and_audits"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "d95e27ccd58bf2b5d7bd0a7e7d3273daf7d258fc",
+        "verifiedAt": "2026-09-26T03:19:44Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -129482,20 +129494,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(intent_with_has_quantity_pct_and_resolved_quantity_executes_successfully) or test(stop_market_and_stop_limit_orders_execution) or test(input_and_atomic_bracket_validation_errors) or test(parent_bracket_runs_atomically_with_stop_first_protection) or test(test_execute_strategy_intents_close_short_maps_to_buy) or test(pine_adapter_runs_worker_intent_through_deterministic_matcher) or test(pine_adapter_rejects_invalid_worker_intent) or test(pine_adapter_maps_worker_unavailability_without_fabricating_result) or test(test_execute_strategy_intents_success_calls_execution_and_audits) or test(test_execute_strategy_intents_resolves_quantity_pct_and_close_intent) or test(non_positive_signal_quantity_is_rejected_before_planning) or test(parameterless_close_normalized_exit_intent_flattens_named_entry) or test(test_execute_strategy_intents_parameterless_close_skips_when_no_position) or test(broker_lot_size_initializes_minimum_and_step_quantity) or test(snapshot_availability_kinds_control_fallback_eligibility) or test(warnings_emitted_and_deduplicated_for_zero_volume_and_unsupported_order) or test(close_all_normalized_exit_intent_flattens_multi_entry_position_in_matcher) or test(broker_unavailability_does_not_create_a_virtual_fill) or test(unsupported_signal_side_is_rejected_before_planning)"
         ],
         "testFilter": [
           "test_execute_strategy_intents_resolves_quantity_pct_and_close_intent"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "d95e27ccd58bf2b5d7bd0a7e7d3273daf7d258fc",
+        "verifiedAt": "2026-09-26T03:19:44Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -129544,20 +129557,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(intent_with_has_quantity_pct_and_resolved_quantity_executes_successfully) or test(stop_market_and_stop_limit_orders_execution) or test(input_and_atomic_bracket_validation_errors) or test(parent_bracket_runs_atomically_with_stop_first_protection) or test(test_execute_strategy_intents_close_short_maps_to_buy) or test(pine_adapter_runs_worker_intent_through_deterministic_matcher) or test(pine_adapter_rejects_invalid_worker_intent) or test(pine_adapter_maps_worker_unavailability_without_fabricating_result) or test(test_execute_strategy_intents_success_calls_execution_and_audits) or test(test_execute_strategy_intents_resolves_quantity_pct_and_close_intent) or test(non_positive_signal_quantity_is_rejected_before_planning) or test(parameterless_close_normalized_exit_intent_flattens_named_entry) or test(test_execute_strategy_intents_parameterless_close_skips_when_no_position) or test(broker_lot_size_initializes_minimum_and_step_quantity) or test(snapshot_availability_kinds_control_fallback_eligibility) or test(warnings_emitted_and_deduplicated_for_zero_volume_and_unsupported_order) or test(close_all_normalized_exit_intent_flattens_multi_entry_position_in_matcher) or test(broker_unavailability_does_not_create_a_virtual_fill) or test(unsupported_signal_side_is_rejected_before_planning)"
         ],
         "testFilter": [
           "non_positive_signal_quantity_is_rejected_before_planning"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "d95e27ccd58bf2b5d7bd0a7e7d3273daf7d258fc",
+        "verifiedAt": "2026-09-26T03:19:44Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -129606,20 +129620,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(intent_with_has_quantity_pct_and_resolved_quantity_executes_successfully) or test(stop_market_and_stop_limit_orders_execution) or test(input_and_atomic_bracket_validation_errors) or test(parent_bracket_runs_atomically_with_stop_first_protection) or test(test_execute_strategy_intents_close_short_maps_to_buy) or test(pine_adapter_runs_worker_intent_through_deterministic_matcher) or test(pine_adapter_rejects_invalid_worker_intent) or test(pine_adapter_maps_worker_unavailability_without_fabricating_result) or test(test_execute_strategy_intents_success_calls_execution_and_audits) or test(test_execute_strategy_intents_resolves_quantity_pct_and_close_intent) or test(non_positive_signal_quantity_is_rejected_before_planning) or test(parameterless_close_normalized_exit_intent_flattens_named_entry) or test(test_execute_strategy_intents_parameterless_close_skips_when_no_position) or test(broker_lot_size_initializes_minimum_and_step_quantity) or test(snapshot_availability_kinds_control_fallback_eligibility) or test(warnings_emitted_and_deduplicated_for_zero_volume_and_unsupported_order) or test(close_all_normalized_exit_intent_flattens_multi_entry_position_in_matcher) or test(broker_unavailability_does_not_create_a_virtual_fill) or test(unsupported_signal_side_is_rejected_before_planning)"
         ],
         "testFilter": [
           "test_execute_strategy_intents_resolves_quantity_pct_and_close_intent"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "d95e27ccd58bf2b5d7bd0a7e7d3273daf7d258fc",
+        "verifiedAt": "2026-09-26T03:19:44Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -129668,20 +129683,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(intent_with_has_quantity_pct_and_resolved_quantity_executes_successfully) or test(stop_market_and_stop_limit_orders_execution) or test(input_and_atomic_bracket_validation_errors) or test(parent_bracket_runs_atomically_with_stop_first_protection) or test(test_execute_strategy_intents_close_short_maps_to_buy) or test(pine_adapter_runs_worker_intent_through_deterministic_matcher) or test(pine_adapter_rejects_invalid_worker_intent) or test(pine_adapter_maps_worker_unavailability_without_fabricating_result) or test(test_execute_strategy_intents_success_calls_execution_and_audits) or test(test_execute_strategy_intents_resolves_quantity_pct_and_close_intent) or test(non_positive_signal_quantity_is_rejected_before_planning) or test(parameterless_close_normalized_exit_intent_flattens_named_entry) or test(test_execute_strategy_intents_parameterless_close_skips_when_no_position) or test(broker_lot_size_initializes_minimum_and_step_quantity) or test(snapshot_availability_kinds_control_fallback_eligibility) or test(warnings_emitted_and_deduplicated_for_zero_volume_and_unsupported_order) or test(close_all_normalized_exit_intent_flattens_multi_entry_position_in_matcher) or test(broker_unavailability_does_not_create_a_virtual_fill) or test(unsupported_signal_side_is_rejected_before_planning)"
         ],
         "testFilter": [
           "test_execute_strategy_intents_resolves_quantity_pct_and_close_intent"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "d95e27ccd58bf2b5d7bd0a7e7d3273daf7d258fc",
+        "verifiedAt": "2026-09-26T03:19:44Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -129730,20 +129746,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-integration-pine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(intent_with_has_quantity_pct_and_resolved_quantity_executes_successfully) or test(stop_market_and_stop_limit_orders_execution) or test(input_and_atomic_bracket_validation_errors) or test(parent_bracket_runs_atomically_with_stop_first_protection) or test(test_execute_strategy_intents_close_short_maps_to_buy) or test(pine_adapter_runs_worker_intent_through_deterministic_matcher) or test(pine_adapter_rejects_invalid_worker_intent) or test(pine_adapter_maps_worker_unavailability_without_fabricating_result) or test(test_execute_strategy_intents_success_calls_execution_and_audits) or test(test_execute_strategy_intents_resolves_quantity_pct_and_close_intent) or test(non_positive_signal_quantity_is_rejected_before_planning) or test(parameterless_close_normalized_exit_intent_flattens_named_entry) or test(test_execute_strategy_intents_parameterless_close_skips_when_no_position) or test(broker_lot_size_initializes_minimum_and_step_quantity) or test(snapshot_availability_kinds_control_fallback_eligibility) or test(warnings_emitted_and_deduplicated_for_zero_volume_and_unsupported_order) or test(close_all_normalized_exit_intent_flattens_multi_entry_position_in_matcher) or test(broker_unavailability_does_not_create_a_virtual_fill) or test(unsupported_signal_side_is_rejected_before_planning)"
         ],
         "testFilter": [
           "parameterless_close_normalized_exit_intent_flattens_named_entry"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "d95e27ccd58bf2b5d7bd0a7e7d3273daf7d258fc",
+        "verifiedAt": "2026-09-26T03:19:44Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -129792,20 +129809,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(intent_with_has_quantity_pct_and_resolved_quantity_executes_successfully) or test(stop_market_and_stop_limit_orders_execution) or test(input_and_atomic_bracket_validation_errors) or test(parent_bracket_runs_atomically_with_stop_first_protection) or test(test_execute_strategy_intents_close_short_maps_to_buy) or test(pine_adapter_runs_worker_intent_through_deterministic_matcher) or test(pine_adapter_rejects_invalid_worker_intent) or test(pine_adapter_maps_worker_unavailability_without_fabricating_result) or test(test_execute_strategy_intents_success_calls_execution_and_audits) or test(test_execute_strategy_intents_resolves_quantity_pct_and_close_intent) or test(non_positive_signal_quantity_is_rejected_before_planning) or test(parameterless_close_normalized_exit_intent_flattens_named_entry) or test(test_execute_strategy_intents_parameterless_close_skips_when_no_position) or test(broker_lot_size_initializes_minimum_and_step_quantity) or test(snapshot_availability_kinds_control_fallback_eligibility) or test(warnings_emitted_and_deduplicated_for_zero_volume_and_unsupported_order) or test(close_all_normalized_exit_intent_flattens_multi_entry_position_in_matcher) or test(broker_unavailability_does_not_create_a_virtual_fill) or test(unsupported_signal_side_is_rejected_before_planning)"
         ],
         "testFilter": [
           "test_execute_strategy_intents_close_short_maps_to_buy"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "d95e27ccd58bf2b5d7bd0a7e7d3273daf7d258fc",
+        "verifiedAt": "2026-09-26T03:19:44Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -129854,20 +129872,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(intent_with_has_quantity_pct_and_resolved_quantity_executes_successfully) or test(stop_market_and_stop_limit_orders_execution) or test(input_and_atomic_bracket_validation_errors) or test(parent_bracket_runs_atomically_with_stop_first_protection) or test(test_execute_strategy_intents_close_short_maps_to_buy) or test(pine_adapter_runs_worker_intent_through_deterministic_matcher) or test(pine_adapter_rejects_invalid_worker_intent) or test(pine_adapter_maps_worker_unavailability_without_fabricating_result) or test(test_execute_strategy_intents_success_calls_execution_and_audits) or test(test_execute_strategy_intents_resolves_quantity_pct_and_close_intent) or test(non_positive_signal_quantity_is_rejected_before_planning) or test(parameterless_close_normalized_exit_intent_flattens_named_entry) or test(test_execute_strategy_intents_parameterless_close_skips_when_no_position) or test(broker_lot_size_initializes_minimum_and_step_quantity) or test(snapshot_availability_kinds_control_fallback_eligibility) or test(warnings_emitted_and_deduplicated_for_zero_volume_and_unsupported_order) or test(close_all_normalized_exit_intent_flattens_multi_entry_position_in_matcher) or test(broker_unavailability_does_not_create_a_virtual_fill) or test(unsupported_signal_side_is_rejected_before_planning)"
         ],
         "testFilter": [
           "test_execute_strategy_intents_parameterless_close_skips_when_no_position"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "d95e27ccd58bf2b5d7bd0a7e7d3273daf7d258fc",
+        "verifiedAt": "2026-09-26T03:19:44Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -129916,20 +129935,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-broker",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(intent_with_has_quantity_pct_and_resolved_quantity_executes_successfully) or test(stop_market_and_stop_limit_orders_execution) or test(input_and_atomic_bracket_validation_errors) or test(parent_bracket_runs_atomically_with_stop_first_protection) or test(test_execute_strategy_intents_close_short_maps_to_buy) or test(pine_adapter_runs_worker_intent_through_deterministic_matcher) or test(pine_adapter_rejects_invalid_worker_intent) or test(pine_adapter_maps_worker_unavailability_without_fabricating_result) or test(test_execute_strategy_intents_success_calls_execution_and_audits) or test(test_execute_strategy_intents_resolves_quantity_pct_and_close_intent) or test(non_positive_signal_quantity_is_rejected_before_planning) or test(parameterless_close_normalized_exit_intent_flattens_named_entry) or test(test_execute_strategy_intents_parameterless_close_skips_when_no_position) or test(broker_lot_size_initializes_minimum_and_step_quantity) or test(snapshot_availability_kinds_control_fallback_eligibility) or test(warnings_emitted_and_deduplicated_for_zero_volume_and_unsupported_order) or test(close_all_normalized_exit_intent_flattens_multi_entry_position_in_matcher) or test(broker_unavailability_does_not_create_a_virtual_fill) or test(unsupported_signal_side_is_rejected_before_planning)"
         ],
         "testFilter": [
           "broker_lot_size_initializes_minimum_and_step_quantity"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "d95e27ccd58bf2b5d7bd0a7e7d3273daf7d258fc",
+        "verifiedAt": "2026-09-26T03:19:44Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -129978,20 +129998,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-broker",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(intent_with_has_quantity_pct_and_resolved_quantity_executes_successfully) or test(stop_market_and_stop_limit_orders_execution) or test(input_and_atomic_bracket_validation_errors) or test(parent_bracket_runs_atomically_with_stop_first_protection) or test(test_execute_strategy_intents_close_short_maps_to_buy) or test(pine_adapter_runs_worker_intent_through_deterministic_matcher) or test(pine_adapter_rejects_invalid_worker_intent) or test(pine_adapter_maps_worker_unavailability_without_fabricating_result) or test(test_execute_strategy_intents_success_calls_execution_and_audits) or test(test_execute_strategy_intents_resolves_quantity_pct_and_close_intent) or test(non_positive_signal_quantity_is_rejected_before_planning) or test(parameterless_close_normalized_exit_intent_flattens_named_entry) or test(test_execute_strategy_intents_parameterless_close_skips_when_no_position) or test(broker_lot_size_initializes_minimum_and_step_quantity) or test(snapshot_availability_kinds_control_fallback_eligibility) or test(warnings_emitted_and_deduplicated_for_zero_volume_and_unsupported_order) or test(close_all_normalized_exit_intent_flattens_multi_entry_position_in_matcher) or test(broker_unavailability_does_not_create_a_virtual_fill) or test(unsupported_signal_side_is_rejected_before_planning)"
         ],
         "testFilter": [
           "broker_lot_size_initializes_minimum_and_step_quantity"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "d95e27ccd58bf2b5d7bd0a7e7d3273daf7d258fc",
+        "verifiedAt": "2026-09-26T03:19:44Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -130040,20 +130061,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-broker",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(intent_with_has_quantity_pct_and_resolved_quantity_executes_successfully) or test(stop_market_and_stop_limit_orders_execution) or test(input_and_atomic_bracket_validation_errors) or test(parent_bracket_runs_atomically_with_stop_first_protection) or test(test_execute_strategy_intents_close_short_maps_to_buy) or test(pine_adapter_runs_worker_intent_through_deterministic_matcher) or test(pine_adapter_rejects_invalid_worker_intent) or test(pine_adapter_maps_worker_unavailability_without_fabricating_result) or test(test_execute_strategy_intents_success_calls_execution_and_audits) or test(test_execute_strategy_intents_resolves_quantity_pct_and_close_intent) or test(non_positive_signal_quantity_is_rejected_before_planning) or test(parameterless_close_normalized_exit_intent_flattens_named_entry) or test(test_execute_strategy_intents_parameterless_close_skips_when_no_position) or test(broker_lot_size_initializes_minimum_and_step_quantity) or test(snapshot_availability_kinds_control_fallback_eligibility) or test(warnings_emitted_and_deduplicated_for_zero_volume_and_unsupported_order) or test(close_all_normalized_exit_intent_flattens_multi_entry_position_in_matcher) or test(broker_unavailability_does_not_create_a_virtual_fill) or test(unsupported_signal_side_is_rejected_before_planning)"
         ],
         "testFilter": [
           "snapshot_availability_kinds_control_fallback_eligibility"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "d95e27ccd58bf2b5d7bd0a7e7d3273daf7d258fc",
+        "verifiedAt": "2026-09-26T03:19:44Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -130102,20 +130124,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-backtest",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(intent_with_has_quantity_pct_and_resolved_quantity_executes_successfully) or test(stop_market_and_stop_limit_orders_execution) or test(input_and_atomic_bracket_validation_errors) or test(parent_bracket_runs_atomically_with_stop_first_protection) or test(test_execute_strategy_intents_close_short_maps_to_buy) or test(pine_adapter_runs_worker_intent_through_deterministic_matcher) or test(pine_adapter_rejects_invalid_worker_intent) or test(pine_adapter_maps_worker_unavailability_without_fabricating_result) or test(test_execute_strategy_intents_success_calls_execution_and_audits) or test(test_execute_strategy_intents_resolves_quantity_pct_and_close_intent) or test(non_positive_signal_quantity_is_rejected_before_planning) or test(parameterless_close_normalized_exit_intent_flattens_named_entry) or test(test_execute_strategy_intents_parameterless_close_skips_when_no_position) or test(broker_lot_size_initializes_minimum_and_step_quantity) or test(snapshot_availability_kinds_control_fallback_eligibility) or test(warnings_emitted_and_deduplicated_for_zero_volume_and_unsupported_order) or test(close_all_normalized_exit_intent_flattens_multi_entry_position_in_matcher) or test(broker_unavailability_does_not_create_a_virtual_fill) or test(unsupported_signal_side_is_rejected_before_planning)"
         ],
         "testFilter": [
           "warnings_emitted_and_deduplicated_for_zero_volume_and_unsupported_order"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "d95e27ccd58bf2b5d7bd0a7e7d3273daf7d258fc",
+        "verifiedAt": "2026-09-26T03:19:44Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -130164,20 +130187,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(intent_with_has_quantity_pct_and_resolved_quantity_executes_successfully) or test(stop_market_and_stop_limit_orders_execution) or test(input_and_atomic_bracket_validation_errors) or test(parent_bracket_runs_atomically_with_stop_first_protection) or test(test_execute_strategy_intents_close_short_maps_to_buy) or test(pine_adapter_runs_worker_intent_through_deterministic_matcher) or test(pine_adapter_rejects_invalid_worker_intent) or test(pine_adapter_maps_worker_unavailability_without_fabricating_result) or test(test_execute_strategy_intents_success_calls_execution_and_audits) or test(test_execute_strategy_intents_resolves_quantity_pct_and_close_intent) or test(non_positive_signal_quantity_is_rejected_before_planning) or test(parameterless_close_normalized_exit_intent_flattens_named_entry) or test(test_execute_strategy_intents_parameterless_close_skips_when_no_position) or test(broker_lot_size_initializes_minimum_and_step_quantity) or test(snapshot_availability_kinds_control_fallback_eligibility) or test(warnings_emitted_and_deduplicated_for_zero_volume_and_unsupported_order) or test(close_all_normalized_exit_intent_flattens_multi_entry_position_in_matcher) or test(broker_unavailability_does_not_create_a_virtual_fill) or test(unsupported_signal_side_is_rejected_before_planning)"
         ],
         "testFilter": [
           "test_execute_strategy_intents_close_short_maps_to_buy"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "d95e27ccd58bf2b5d7bd0a7e7d3273daf7d258fc",
+        "verifiedAt": "2026-09-26T03:19:44Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -130226,20 +130250,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-integration-pine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(intent_with_has_quantity_pct_and_resolved_quantity_executes_successfully) or test(stop_market_and_stop_limit_orders_execution) or test(input_and_atomic_bracket_validation_errors) or test(parent_bracket_runs_atomically_with_stop_first_protection) or test(test_execute_strategy_intents_close_short_maps_to_buy) or test(pine_adapter_runs_worker_intent_through_deterministic_matcher) or test(pine_adapter_rejects_invalid_worker_intent) or test(pine_adapter_maps_worker_unavailability_without_fabricating_result) or test(test_execute_strategy_intents_success_calls_execution_and_audits) or test(test_execute_strategy_intents_resolves_quantity_pct_and_close_intent) or test(non_positive_signal_quantity_is_rejected_before_planning) or test(parameterless_close_normalized_exit_intent_flattens_named_entry) or test(test_execute_strategy_intents_parameterless_close_skips_when_no_position) or test(broker_lot_size_initializes_minimum_and_step_quantity) or test(snapshot_availability_kinds_control_fallback_eligibility) or test(warnings_emitted_and_deduplicated_for_zero_volume_and_unsupported_order) or test(close_all_normalized_exit_intent_flattens_multi_entry_position_in_matcher) or test(broker_unavailability_does_not_create_a_virtual_fill) or test(unsupported_signal_side_is_rejected_before_planning)"
         ],
         "testFilter": [
           "close_all_normalized_exit_intent_flattens_multi_entry_position_in_matcher"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "d95e27ccd58bf2b5d7bd0a7e7d3273daf7d258fc",
+        "verifiedAt": "2026-09-26T03:19:44Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -130412,20 +130437,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-backtest",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(intent_with_has_quantity_pct_and_resolved_quantity_executes_successfully) or test(stop_market_and_stop_limit_orders_execution) or test(input_and_atomic_bracket_validation_errors) or test(parent_bracket_runs_atomically_with_stop_first_protection) or test(test_execute_strategy_intents_close_short_maps_to_buy) or test(pine_adapter_runs_worker_intent_through_deterministic_matcher) or test(pine_adapter_rejects_invalid_worker_intent) or test(pine_adapter_maps_worker_unavailability_without_fabricating_result) or test(test_execute_strategy_intents_success_calls_execution_and_audits) or test(test_execute_strategy_intents_resolves_quantity_pct_and_close_intent) or test(non_positive_signal_quantity_is_rejected_before_planning) or test(parameterless_close_normalized_exit_intent_flattens_named_entry) or test(test_execute_strategy_intents_parameterless_close_skips_when_no_position) or test(broker_lot_size_initializes_minimum_and_step_quantity) or test(snapshot_availability_kinds_control_fallback_eligibility) or test(warnings_emitted_and_deduplicated_for_zero_volume_and_unsupported_order) or test(close_all_normalized_exit_intent_flattens_multi_entry_position_in_matcher) or test(broker_unavailability_does_not_create_a_virtual_fill) or test(unsupported_signal_side_is_rejected_before_planning)"
         ],
         "testFilter": [
           "input_and_atomic_bracket_validation_errors"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "d95e27ccd58bf2b5d7bd0a7e7d3273daf7d258fc",
+        "verifiedAt": "2026-09-26T03:19:44Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -130474,20 +130500,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-backtest",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(intent_with_has_quantity_pct_and_resolved_quantity_executes_successfully) or test(stop_market_and_stop_limit_orders_execution) or test(input_and_atomic_bracket_validation_errors) or test(parent_bracket_runs_atomically_with_stop_first_protection) or test(test_execute_strategy_intents_close_short_maps_to_buy) or test(pine_adapter_runs_worker_intent_through_deterministic_matcher) or test(pine_adapter_rejects_invalid_worker_intent) or test(pine_adapter_maps_worker_unavailability_without_fabricating_result) or test(test_execute_strategy_intents_success_calls_execution_and_audits) or test(test_execute_strategy_intents_resolves_quantity_pct_and_close_intent) or test(non_positive_signal_quantity_is_rejected_before_planning) or test(parameterless_close_normalized_exit_intent_flattens_named_entry) or test(test_execute_strategy_intents_parameterless_close_skips_when_no_position) or test(broker_lot_size_initializes_minimum_and_step_quantity) or test(snapshot_availability_kinds_control_fallback_eligibility) or test(warnings_emitted_and_deduplicated_for_zero_volume_and_unsupported_order) or test(close_all_normalized_exit_intent_flattens_multi_entry_position_in_matcher) or test(broker_unavailability_does_not_create_a_virtual_fill) or test(unsupported_signal_side_is_rejected_before_planning)"
         ],
         "testFilter": [
           "parent_bracket_runs_atomically_with_stop_first_protection"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "d95e27ccd58bf2b5d7bd0a7e7d3273daf7d258fc",
+        "verifiedAt": "2026-09-26T03:19:44Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -130536,20 +130563,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-backtest",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(intent_with_has_quantity_pct_and_resolved_quantity_executes_successfully) or test(stop_market_and_stop_limit_orders_execution) or test(input_and_atomic_bracket_validation_errors) or test(parent_bracket_runs_atomically_with_stop_first_protection) or test(test_execute_strategy_intents_close_short_maps_to_buy) or test(pine_adapter_runs_worker_intent_through_deterministic_matcher) or test(pine_adapter_rejects_invalid_worker_intent) or test(pine_adapter_maps_worker_unavailability_without_fabricating_result) or test(test_execute_strategy_intents_success_calls_execution_and_audits) or test(test_execute_strategy_intents_resolves_quantity_pct_and_close_intent) or test(non_positive_signal_quantity_is_rejected_before_planning) or test(parameterless_close_normalized_exit_intent_flattens_named_entry) or test(test_execute_strategy_intents_parameterless_close_skips_when_no_position) or test(broker_lot_size_initializes_minimum_and_step_quantity) or test(snapshot_availability_kinds_control_fallback_eligibility) or test(warnings_emitted_and_deduplicated_for_zero_volume_and_unsupported_order) or test(close_all_normalized_exit_intent_flattens_multi_entry_position_in_matcher) or test(broker_unavailability_does_not_create_a_virtual_fill) or test(unsupported_signal_side_is_rejected_before_planning)"
         ],
         "testFilter": [
           "input_and_atomic_bracket_validation_errors"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "d95e27ccd58bf2b5d7bd0a7e7d3273daf7d258fc",
+        "verifiedAt": "2026-09-26T03:19:44Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -130598,20 +130626,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(intent_with_has_quantity_pct_and_resolved_quantity_executes_successfully) or test(stop_market_and_stop_limit_orders_execution) or test(input_and_atomic_bracket_validation_errors) or test(parent_bracket_runs_atomically_with_stop_first_protection) or test(test_execute_strategy_intents_close_short_maps_to_buy) or test(pine_adapter_runs_worker_intent_through_deterministic_matcher) or test(pine_adapter_rejects_invalid_worker_intent) or test(pine_adapter_maps_worker_unavailability_without_fabricating_result) or test(test_execute_strategy_intents_success_calls_execution_and_audits) or test(test_execute_strategy_intents_resolves_quantity_pct_and_close_intent) or test(non_positive_signal_quantity_is_rejected_before_planning) or test(parameterless_close_normalized_exit_intent_flattens_named_entry) or test(test_execute_strategy_intents_parameterless_close_skips_when_no_position) or test(broker_lot_size_initializes_minimum_and_step_quantity) or test(snapshot_availability_kinds_control_fallback_eligibility) or test(warnings_emitted_and_deduplicated_for_zero_volume_and_unsupported_order) or test(close_all_normalized_exit_intent_flattens_multi_entry_position_in_matcher) or test(broker_unavailability_does_not_create_a_virtual_fill) or test(unsupported_signal_side_is_rejected_before_planning)"
         ],
         "testFilter": [
           "broker_unavailability_does_not_create_a_virtual_fill"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "d95e27ccd58bf2b5d7bd0a7e7d3273daf7d258fc",
+        "verifiedAt": "2026-09-26T03:19:44Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -130660,20 +130689,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(intent_with_has_quantity_pct_and_resolved_quantity_executes_successfully) or test(stop_market_and_stop_limit_orders_execution) or test(input_and_atomic_bracket_validation_errors) or test(parent_bracket_runs_atomically_with_stop_first_protection) or test(test_execute_strategy_intents_close_short_maps_to_buy) or test(pine_adapter_runs_worker_intent_through_deterministic_matcher) or test(pine_adapter_rejects_invalid_worker_intent) or test(pine_adapter_maps_worker_unavailability_without_fabricating_result) or test(test_execute_strategy_intents_success_calls_execution_and_audits) or test(test_execute_strategy_intents_resolves_quantity_pct_and_close_intent) or test(non_positive_signal_quantity_is_rejected_before_planning) or test(parameterless_close_normalized_exit_intent_flattens_named_entry) or test(test_execute_strategy_intents_parameterless_close_skips_when_no_position) or test(broker_lot_size_initializes_minimum_and_step_quantity) or test(snapshot_availability_kinds_control_fallback_eligibility) or test(warnings_emitted_and_deduplicated_for_zero_volume_and_unsupported_order) or test(close_all_normalized_exit_intent_flattens_multi_entry_position_in_matcher) or test(broker_unavailability_does_not_create_a_virtual_fill) or test(unsupported_signal_side_is_rejected_before_planning)"
         ],
         "testFilter": [
           "unsupported_signal_side_is_rejected_before_planning"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "d95e27ccd58bf2b5d7bd0a7e7d3273daf7d258fc",
+        "verifiedAt": "2026-09-26T03:19:44Z",
         "receiptDigest": null
       },
       "risk": "normal",

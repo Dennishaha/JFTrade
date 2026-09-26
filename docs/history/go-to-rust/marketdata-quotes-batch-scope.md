@@ -1946,3 +1946,16 @@ ADK/Assistant 功能差异，先补失败回归测试再修改领域 owner。
 验证：动态生成过滤器运行 `pnpm run test:rust -- --no-fail-fast -E`（底层 `node scripts/quality/cargo-nextest.mjs run --workspace --all-targets --locked`），25/25 通过。
 
 下一片：继续 P2 Pine/Strategy 与 MarketData/Quote、Storage/SQLite、Settings/Watchlist、API transport/MCP 条目，再回补 Backtest/Calendar 尾项；helper/type-only、`optional_bool_strict`、P1 `session_context_snapshot` 及其他无独立 Rust 测试条目仍保持未验证结论。
+
+## 第 220 批：Pine worker intent、atomic bracket 与 strategy execution adapter（2026-09-26）
+
+| 复核 | Go 测试范围 | Rust 证据 | P | 结论 |
+| :---: | --- | --- | :---: | --- |
+| [x] | `pineworker_adapter_test.go:74,111,161,175,208,238,248,293,323`; `pineworker_atomic_boundaries_test.go:26,67` | quantity-percent/exit intent resolution, conditional/short order mapping, unsupported intents, atomic OCO expansion/failure and worker errors | P2 | partial：Rust Pine matcher/execution/conservative-bar owners 覆盖 intent normalization、bracket safety 与 worker-unavailable projection；Go adapter command construction、callback and worker process seams 保持 partial。 |
+| [x] | `pineworker_command_executor_test.go:14,44,58,71,97,128,158,176,204,233,262,292,327,361,440,452,486,510,534` | order submission/audit, quantity pct sizing, full-position close, lot/step guards, snapshot availability, warning grouping, OCO atomicity, broker errors and signal-side validation | P2 | partial/boundary：Rust strategy runtime/broker-rule/signal-validation owners 覆盖 sizing、lot rules、fallback and no-virtual-fill；Go command executor account/position fixtures 与 multi-stage audit aggregation 保持 boundary。 |
+
+本批 30 条 P2 Go 映射对应 **19 个证据过滤器**，因 strategy runtime、simulate closed-loop 与 matcher 多 binary 重复，Rust nextest 实际 **29/29** 通过（3444 skipped）。Pine intent/worker、quantity/close sizing、atomic brackets、lot/snapshot guards、warning/audit、broker failure 与 signal validation 均有 owner 证据；结论保持 `partial`/`boundary`，未把跨 binary 重复或聚合测试升级为 exact。未发现需要先红后修的真实 Rust 功能差异。
+
+验证：动态生成过滤器运行 `pnpm run test:rust -- --no-fail-fast -E`（底层 `node scripts/quality/cargo-nextest.mjs run --workspace --all-targets --locked`），29/29 通过。
+
+下一片：继续 P2 Pine/Strategy runtime、MarketData/Quote、Storage/SQLite、Settings/Watchlist 与 API transport/MCP 条目，再回补 Backtest/Calendar 尾项；helper/type-only、`optional_bool_strict`、P1 `session_context_snapshot` 及其他无独立 Rust 测试条目仍保持未验证结论。
