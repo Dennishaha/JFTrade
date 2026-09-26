@@ -105700,13 +105700,11 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-assistant",
+          "--workspace",
           "--all-targets",
           "--locked",
-          "--no-fail-fast",
           "-E",
-          "test(canvas)"
+          "test(test_canvas_invalid_node_and_edge_inputs) or test(test_canvas_duplicate_edges_are_deduplicated) or test(test_canvas_workflow_self_loop_and_invalid_edges_rejected) or test(workflow_writes_apply_the_documented_write_fields) or test(test_schedule_trigger_disabled_parent_workflow_safely_advances) or test(workflow_updates_keep_omitted_fields_and_apply_explicit_clears) or test(assistant_run_mutation_routes_enforce_goal_lifecycle_rules) or test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(production_adk_goal_pause_and_resume_are_persisted_atomically) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(workflow_management_catalog_keeps_the_skill_and_approval_boundaries) or test(test_partial_failure_cascade_records_skipped_nodes_in_sqlite) or test(test_sqlite_persistence_noderuns_strict_openapi_schema_compliance) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(unknown_model_status_is_not_a_successful_canvas_node) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(workflow_and_trigger_lists_hide_deleted_rows_after_create_and_delete) or test(a_structured_tool_failure_is_persisted_as_a_failed_call_and_the_loop_continues) or test(tool_declarations_stay_complete_for_every_callable_tool) or test(a_failed_tool_result_is_persisted_on_the_call_not_the_run) or test(strict_tool_schemas_reject_invalid_arguments_before_the_executor_runs) or test(modern_tool_call_rejects_arguments_outside_the_advertised_schema) or test(structured_tool_response_failures_match_the_reference_helpers) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(workflow_trigger_soft_delete_and_log_lookup_keep_the_reference_boundaries) or test(workflow_mutation_routes_keep_the_go_not_found_codes) or test(a_failed_workflow_execution_surfaces_on_the_loop_chat_path)"
         ],
         "testFilter": [
           "test_canvas_invalid_node_and_edge_inputs",
@@ -105714,10 +105712,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "b14342a3f20c14d3ad2206286427ac71e6546624",
+        "verifiedAt": "2026-09-26T02:26:33Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -105771,20 +105769,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(test_canvas_invalid_node_and_edge_inputs) or test(test_canvas_duplicate_edges_are_deduplicated) or test(test_canvas_workflow_self_loop_and_invalid_edges_rejected) or test(workflow_writes_apply_the_documented_write_fields) or test(test_schedule_trigger_disabled_parent_workflow_safely_advances) or test(workflow_updates_keep_omitted_fields_and_apply_explicit_clears) or test(assistant_run_mutation_routes_enforce_goal_lifecycle_rules) or test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(production_adk_goal_pause_and_resume_are_persisted_atomically) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(workflow_management_catalog_keeps_the_skill_and_approval_boundaries) or test(test_partial_failure_cascade_records_skipped_nodes_in_sqlite) or test(test_sqlite_persistence_noderuns_strict_openapi_schema_compliance) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(unknown_model_status_is_not_a_successful_canvas_node) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(workflow_and_trigger_lists_hide_deleted_rows_after_create_and_delete) or test(a_structured_tool_failure_is_persisted_as_a_failed_call_and_the_loop_continues) or test(tool_declarations_stay_complete_for_every_callable_tool) or test(a_failed_tool_result_is_persisted_on_the_call_not_the_run) or test(strict_tool_schemas_reject_invalid_arguments_before_the_executor_runs) or test(modern_tool_call_rejects_arguments_outside_the_advertised_schema) or test(structured_tool_response_failures_match_the_reference_helpers) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(workflow_trigger_soft_delete_and_log_lookup_keep_the_reference_boundaries) or test(workflow_mutation_routes_keep_the_go_not_found_codes) or test(a_failed_workflow_execution_surfaces_on_the_loop_chat_path)"
         ],
         "testFilter": [
           "test_canvas_workflow_self_loop_and_invalid_edges_rejected"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "b14342a3f20c14d3ad2206286427ac71e6546624",
+        "verifiedAt": "2026-09-26T02:26:33Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -105833,20 +105832,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(test_canvas_invalid_node_and_edge_inputs) or test(test_canvas_duplicate_edges_are_deduplicated) or test(test_canvas_workflow_self_loop_and_invalid_edges_rejected) or test(workflow_writes_apply_the_documented_write_fields) or test(test_schedule_trigger_disabled_parent_workflow_safely_advances) or test(workflow_updates_keep_omitted_fields_and_apply_explicit_clears) or test(assistant_run_mutation_routes_enforce_goal_lifecycle_rules) or test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(production_adk_goal_pause_and_resume_are_persisted_atomically) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(workflow_management_catalog_keeps_the_skill_and_approval_boundaries) or test(test_partial_failure_cascade_records_skipped_nodes_in_sqlite) or test(test_sqlite_persistence_noderuns_strict_openapi_schema_compliance) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(unknown_model_status_is_not_a_successful_canvas_node) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(workflow_and_trigger_lists_hide_deleted_rows_after_create_and_delete) or test(a_structured_tool_failure_is_persisted_as_a_failed_call_and_the_loop_continues) or test(tool_declarations_stay_complete_for_every_callable_tool) or test(a_failed_tool_result_is_persisted_on_the_call_not_the_run) or test(strict_tool_schemas_reject_invalid_arguments_before_the_executor_runs) or test(modern_tool_call_rejects_arguments_outside_the_advertised_schema) or test(structured_tool_response_failures_match_the_reference_helpers) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(workflow_trigger_soft_delete_and_log_lookup_keep_the_reference_boundaries) or test(workflow_mutation_routes_keep_the_go_not_found_codes) or test(a_failed_workflow_execution_surfaces_on_the_loop_chat_path)"
         ],
         "testFilter": [
           "workflow_writes_apply_the_documented_write_fields"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "b14342a3f20c14d3ad2206286427ac71e6546624",
+        "verifiedAt": "2026-09-26T02:26:33Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -105895,20 +105895,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(test_canvas_invalid_node_and_edge_inputs) or test(test_canvas_duplicate_edges_are_deduplicated) or test(test_canvas_workflow_self_loop_and_invalid_edges_rejected) or test(workflow_writes_apply_the_documented_write_fields) or test(test_schedule_trigger_disabled_parent_workflow_safely_advances) or test(workflow_updates_keep_omitted_fields_and_apply_explicit_clears) or test(assistant_run_mutation_routes_enforce_goal_lifecycle_rules) or test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(production_adk_goal_pause_and_resume_are_persisted_atomically) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(workflow_management_catalog_keeps_the_skill_and_approval_boundaries) or test(test_partial_failure_cascade_records_skipped_nodes_in_sqlite) or test(test_sqlite_persistence_noderuns_strict_openapi_schema_compliance) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(unknown_model_status_is_not_a_successful_canvas_node) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(workflow_and_trigger_lists_hide_deleted_rows_after_create_and_delete) or test(a_structured_tool_failure_is_persisted_as_a_failed_call_and_the_loop_continues) or test(tool_declarations_stay_complete_for_every_callable_tool) or test(a_failed_tool_result_is_persisted_on_the_call_not_the_run) or test(strict_tool_schemas_reject_invalid_arguments_before_the_executor_runs) or test(modern_tool_call_rejects_arguments_outside_the_advertised_schema) or test(structured_tool_response_failures_match_the_reference_helpers) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(workflow_trigger_soft_delete_and_log_lookup_keep_the_reference_boundaries) or test(workflow_mutation_routes_keep_the_go_not_found_codes) or test(a_failed_workflow_execution_surfaces_on_the_loop_chat_path)"
         ],
         "testFilter": [
           "test_schedule_trigger_disabled_parent_workflow_safely_advances"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "b14342a3f20c14d3ad2206286427ac71e6546624",
+        "verifiedAt": "2026-09-26T02:26:33Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -105957,20 +105958,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(test_canvas_invalid_node_and_edge_inputs) or test(test_canvas_duplicate_edges_are_deduplicated) or test(test_canvas_workflow_self_loop_and_invalid_edges_rejected) or test(workflow_writes_apply_the_documented_write_fields) or test(test_schedule_trigger_disabled_parent_workflow_safely_advances) or test(workflow_updates_keep_omitted_fields_and_apply_explicit_clears) or test(assistant_run_mutation_routes_enforce_goal_lifecycle_rules) or test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(production_adk_goal_pause_and_resume_are_persisted_atomically) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(workflow_management_catalog_keeps_the_skill_and_approval_boundaries) or test(test_partial_failure_cascade_records_skipped_nodes_in_sqlite) or test(test_sqlite_persistence_noderuns_strict_openapi_schema_compliance) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(unknown_model_status_is_not_a_successful_canvas_node) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(workflow_and_trigger_lists_hide_deleted_rows_after_create_and_delete) or test(a_structured_tool_failure_is_persisted_as_a_failed_call_and_the_loop_continues) or test(tool_declarations_stay_complete_for_every_callable_tool) or test(a_failed_tool_result_is_persisted_on_the_call_not_the_run) or test(strict_tool_schemas_reject_invalid_arguments_before_the_executor_runs) or test(modern_tool_call_rejects_arguments_outside_the_advertised_schema) or test(structured_tool_response_failures_match_the_reference_helpers) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(workflow_trigger_soft_delete_and_log_lookup_keep_the_reference_boundaries) or test(workflow_mutation_routes_keep_the_go_not_found_codes) or test(a_failed_workflow_execution_surfaces_on_the_loop_chat_path)"
         ],
         "testFilter": [
           "workflow_updates_keep_omitted_fields_and_apply_explicit_clears"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "b14342a3f20c14d3ad2206286427ac71e6546624",
+        "verifiedAt": "2026-09-26T02:26:33Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -106019,20 +106021,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(test_canvas_invalid_node_and_edge_inputs) or test(test_canvas_duplicate_edges_are_deduplicated) or test(test_canvas_workflow_self_loop_and_invalid_edges_rejected) or test(workflow_writes_apply_the_documented_write_fields) or test(test_schedule_trigger_disabled_parent_workflow_safely_advances) or test(workflow_updates_keep_omitted_fields_and_apply_explicit_clears) or test(assistant_run_mutation_routes_enforce_goal_lifecycle_rules) or test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(production_adk_goal_pause_and_resume_are_persisted_atomically) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(workflow_management_catalog_keeps_the_skill_and_approval_boundaries) or test(test_partial_failure_cascade_records_skipped_nodes_in_sqlite) or test(test_sqlite_persistence_noderuns_strict_openapi_schema_compliance) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(unknown_model_status_is_not_a_successful_canvas_node) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(workflow_and_trigger_lists_hide_deleted_rows_after_create_and_delete) or test(a_structured_tool_failure_is_persisted_as_a_failed_call_and_the_loop_continues) or test(tool_declarations_stay_complete_for_every_callable_tool) or test(a_failed_tool_result_is_persisted_on_the_call_not_the_run) or test(strict_tool_schemas_reject_invalid_arguments_before_the_executor_runs) or test(modern_tool_call_rejects_arguments_outside_the_advertised_schema) or test(structured_tool_response_failures_match_the_reference_helpers) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(workflow_trigger_soft_delete_and_log_lookup_keep_the_reference_boundaries) or test(workflow_mutation_routes_keep_the_go_not_found_codes) or test(a_failed_workflow_execution_surfaces_on_the_loop_chat_path)"
         ],
         "testFilter": [
           "assistant_run_mutation_routes_enforce_goal_lifecycle_rules"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "b14342a3f20c14d3ad2206286427ac71e6546624",
+        "verifiedAt": "2026-09-26T02:26:33Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -106081,20 +106084,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(test_canvas_invalid_node_and_edge_inputs) or test(test_canvas_duplicate_edges_are_deduplicated) or test(test_canvas_workflow_self_loop_and_invalid_edges_rejected) or test(workflow_writes_apply_the_documented_write_fields) or test(test_schedule_trigger_disabled_parent_workflow_safely_advances) or test(workflow_updates_keep_omitted_fields_and_apply_explicit_clears) or test(assistant_run_mutation_routes_enforce_goal_lifecycle_rules) or test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(production_adk_goal_pause_and_resume_are_persisted_atomically) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(workflow_management_catalog_keeps_the_skill_and_approval_boundaries) or test(test_partial_failure_cascade_records_skipped_nodes_in_sqlite) or test(test_sqlite_persistence_noderuns_strict_openapi_schema_compliance) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(unknown_model_status_is_not_a_successful_canvas_node) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(workflow_and_trigger_lists_hide_deleted_rows_after_create_and_delete) or test(a_structured_tool_failure_is_persisted_as_a_failed_call_and_the_loop_continues) or test(tool_declarations_stay_complete_for_every_callable_tool) or test(a_failed_tool_result_is_persisted_on_the_call_not_the_run) or test(strict_tool_schemas_reject_invalid_arguments_before_the_executor_runs) or test(modern_tool_call_rejects_arguments_outside_the_advertised_schema) or test(structured_tool_response_failures_match_the_reference_helpers) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(workflow_trigger_soft_delete_and_log_lookup_keep_the_reference_boundaries) or test(workflow_mutation_routes_keep_the_go_not_found_codes) or test(a_failed_workflow_execution_surfaces_on_the_loop_chat_path)"
         ],
         "testFilter": [
           "resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "b14342a3f20c14d3ad2206286427ac71e6546624",
+        "verifiedAt": "2026-09-26T02:26:33Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -106148,20 +106152,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(test_canvas_invalid_node_and_edge_inputs) or test(test_canvas_duplicate_edges_are_deduplicated) or test(test_canvas_workflow_self_loop_and_invalid_edges_rejected) or test(workflow_writes_apply_the_documented_write_fields) or test(test_schedule_trigger_disabled_parent_workflow_safely_advances) or test(workflow_updates_keep_omitted_fields_and_apply_explicit_clears) or test(assistant_run_mutation_routes_enforce_goal_lifecycle_rules) or test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(production_adk_goal_pause_and_resume_are_persisted_atomically) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(workflow_management_catalog_keeps_the_skill_and_approval_boundaries) or test(test_partial_failure_cascade_records_skipped_nodes_in_sqlite) or test(test_sqlite_persistence_noderuns_strict_openapi_schema_compliance) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(unknown_model_status_is_not_a_successful_canvas_node) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(workflow_and_trigger_lists_hide_deleted_rows_after_create_and_delete) or test(a_structured_tool_failure_is_persisted_as_a_failed_call_and_the_loop_continues) or test(tool_declarations_stay_complete_for_every_callable_tool) or test(a_failed_tool_result_is_persisted_on_the_call_not_the_run) or test(strict_tool_schemas_reject_invalid_arguments_before_the_executor_runs) or test(modern_tool_call_rejects_arguments_outside_the_advertised_schema) or test(structured_tool_response_failures_match_the_reference_helpers) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(workflow_trigger_soft_delete_and_log_lookup_keep_the_reference_boundaries) or test(workflow_mutation_routes_keep_the_go_not_found_codes) or test(a_failed_workflow_execution_surfaces_on_the_loop_chat_path)"
         ],
         "testFilter": [
           "production_adk_goal_pause_and_resume_are_persisted_atomically"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "b14342a3f20c14d3ad2206286427ac71e6546624",
+        "verifiedAt": "2026-09-26T02:26:33Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -106215,20 +106220,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(test_canvas_invalid_node_and_edge_inputs) or test(test_canvas_duplicate_edges_are_deduplicated) or test(test_canvas_workflow_self_loop_and_invalid_edges_rejected) or test(workflow_writes_apply_the_documented_write_fields) or test(test_schedule_trigger_disabled_parent_workflow_safely_advances) or test(workflow_updates_keep_omitted_fields_and_apply_explicit_clears) or test(assistant_run_mutation_routes_enforce_goal_lifecycle_rules) or test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(production_adk_goal_pause_and_resume_are_persisted_atomically) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(workflow_management_catalog_keeps_the_skill_and_approval_boundaries) or test(test_partial_failure_cascade_records_skipped_nodes_in_sqlite) or test(test_sqlite_persistence_noderuns_strict_openapi_schema_compliance) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(unknown_model_status_is_not_a_successful_canvas_node) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(workflow_and_trigger_lists_hide_deleted_rows_after_create_and_delete) or test(a_structured_tool_failure_is_persisted_as_a_failed_call_and_the_loop_continues) or test(tool_declarations_stay_complete_for_every_callable_tool) or test(a_failed_tool_result_is_persisted_on_the_call_not_the_run) or test(strict_tool_schemas_reject_invalid_arguments_before_the_executor_runs) or test(modern_tool_call_rejects_arguments_outside_the_advertised_schema) or test(structured_tool_response_failures_match_the_reference_helpers) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(workflow_trigger_soft_delete_and_log_lookup_keep_the_reference_boundaries) or test(workflow_mutation_routes_keep_the_go_not_found_codes) or test(a_failed_workflow_execution_surfaces_on_the_loop_chat_path)"
         ],
         "testFilter": [
           "user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "b14342a3f20c14d3ad2206286427ac71e6546624",
+        "verifiedAt": "2026-09-26T02:26:33Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -106277,20 +106283,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(test_canvas_invalid_node_and_edge_inputs) or test(test_canvas_duplicate_edges_are_deduplicated) or test(test_canvas_workflow_self_loop_and_invalid_edges_rejected) or test(workflow_writes_apply_the_documented_write_fields) or test(test_schedule_trigger_disabled_parent_workflow_safely_advances) or test(workflow_updates_keep_omitted_fields_and_apply_explicit_clears) or test(assistant_run_mutation_routes_enforce_goal_lifecycle_rules) or test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(production_adk_goal_pause_and_resume_are_persisted_atomically) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(workflow_management_catalog_keeps_the_skill_and_approval_boundaries) or test(test_partial_failure_cascade_records_skipped_nodes_in_sqlite) or test(test_sqlite_persistence_noderuns_strict_openapi_schema_compliance) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(unknown_model_status_is_not_a_successful_canvas_node) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(workflow_and_trigger_lists_hide_deleted_rows_after_create_and_delete) or test(a_structured_tool_failure_is_persisted_as_a_failed_call_and_the_loop_continues) or test(tool_declarations_stay_complete_for_every_callable_tool) or test(a_failed_tool_result_is_persisted_on_the_call_not_the_run) or test(strict_tool_schemas_reject_invalid_arguments_before_the_executor_runs) or test(modern_tool_call_rejects_arguments_outside_the_advertised_schema) or test(structured_tool_response_failures_match_the_reference_helpers) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(workflow_trigger_soft_delete_and_log_lookup_keep_the_reference_boundaries) or test(workflow_mutation_routes_keep_the_go_not_found_codes) or test(a_failed_workflow_execution_surfaces_on_the_loop_chat_path)"
         ],
         "testFilter": [
           "goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "b14342a3f20c14d3ad2206286427ac71e6546624",
+        "verifiedAt": "2026-09-26T02:26:33Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -106344,20 +106351,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(test_canvas_invalid_node_and_edge_inputs) or test(test_canvas_duplicate_edges_are_deduplicated) or test(test_canvas_workflow_self_loop_and_invalid_edges_rejected) or test(workflow_writes_apply_the_documented_write_fields) or test(test_schedule_trigger_disabled_parent_workflow_safely_advances) or test(workflow_updates_keep_omitted_fields_and_apply_explicit_clears) or test(assistant_run_mutation_routes_enforce_goal_lifecycle_rules) or test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(production_adk_goal_pause_and_resume_are_persisted_atomically) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(workflow_management_catalog_keeps_the_skill_and_approval_boundaries) or test(test_partial_failure_cascade_records_skipped_nodes_in_sqlite) or test(test_sqlite_persistence_noderuns_strict_openapi_schema_compliance) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(unknown_model_status_is_not_a_successful_canvas_node) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(workflow_and_trigger_lists_hide_deleted_rows_after_create_and_delete) or test(a_structured_tool_failure_is_persisted_as_a_failed_call_and_the_loop_continues) or test(tool_declarations_stay_complete_for_every_callable_tool) or test(a_failed_tool_result_is_persisted_on_the_call_not_the_run) or test(strict_tool_schemas_reject_invalid_arguments_before_the_executor_runs) or test(modern_tool_call_rejects_arguments_outside_the_advertised_schema) or test(structured_tool_response_failures_match_the_reference_helpers) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(workflow_trigger_soft_delete_and_log_lookup_keep_the_reference_boundaries) or test(workflow_mutation_routes_keep_the_go_not_found_codes) or test(a_failed_workflow_execution_surfaces_on_the_loop_chat_path)"
         ],
         "testFilter": [
           "run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "b14342a3f20c14d3ad2206286427ac71e6546624",
+        "verifiedAt": "2026-09-26T02:26:33Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -106406,20 +106414,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(test_canvas_invalid_node_and_edge_inputs) or test(test_canvas_duplicate_edges_are_deduplicated) or test(test_canvas_workflow_self_loop_and_invalid_edges_rejected) or test(workflow_writes_apply_the_documented_write_fields) or test(test_schedule_trigger_disabled_parent_workflow_safely_advances) or test(workflow_updates_keep_omitted_fields_and_apply_explicit_clears) or test(assistant_run_mutation_routes_enforce_goal_lifecycle_rules) or test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(production_adk_goal_pause_and_resume_are_persisted_atomically) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(workflow_management_catalog_keeps_the_skill_and_approval_boundaries) or test(test_partial_failure_cascade_records_skipped_nodes_in_sqlite) or test(test_sqlite_persistence_noderuns_strict_openapi_schema_compliance) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(unknown_model_status_is_not_a_successful_canvas_node) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(workflow_and_trigger_lists_hide_deleted_rows_after_create_and_delete) or test(a_structured_tool_failure_is_persisted_as_a_failed_call_and_the_loop_continues) or test(tool_declarations_stay_complete_for_every_callable_tool) or test(a_failed_tool_result_is_persisted_on_the_call_not_the_run) or test(strict_tool_schemas_reject_invalid_arguments_before_the_executor_runs) or test(modern_tool_call_rejects_arguments_outside_the_advertised_schema) or test(structured_tool_response_failures_match_the_reference_helpers) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(workflow_trigger_soft_delete_and_log_lookup_keep_the_reference_boundaries) or test(workflow_mutation_routes_keep_the_go_not_found_codes) or test(a_failed_workflow_execution_surfaces_on_the_loop_chat_path)"
         ],
         "testFilter": [
           "goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "b14342a3f20c14d3ad2206286427ac71e6546624",
+        "verifiedAt": "2026-09-26T02:26:33Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -106468,20 +106477,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(test_canvas_invalid_node_and_edge_inputs) or test(test_canvas_duplicate_edges_are_deduplicated) or test(test_canvas_workflow_self_loop_and_invalid_edges_rejected) or test(workflow_writes_apply_the_documented_write_fields) or test(test_schedule_trigger_disabled_parent_workflow_safely_advances) or test(workflow_updates_keep_omitted_fields_and_apply_explicit_clears) or test(assistant_run_mutation_routes_enforce_goal_lifecycle_rules) or test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(production_adk_goal_pause_and_resume_are_persisted_atomically) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(workflow_management_catalog_keeps_the_skill_and_approval_boundaries) or test(test_partial_failure_cascade_records_skipped_nodes_in_sqlite) or test(test_sqlite_persistence_noderuns_strict_openapi_schema_compliance) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(unknown_model_status_is_not_a_successful_canvas_node) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(workflow_and_trigger_lists_hide_deleted_rows_after_create_and_delete) or test(a_structured_tool_failure_is_persisted_as_a_failed_call_and_the_loop_continues) or test(tool_declarations_stay_complete_for_every_callable_tool) or test(a_failed_tool_result_is_persisted_on_the_call_not_the_run) or test(strict_tool_schemas_reject_invalid_arguments_before_the_executor_runs) or test(modern_tool_call_rejects_arguments_outside_the_advertised_schema) or test(structured_tool_response_failures_match_the_reference_helpers) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(workflow_trigger_soft_delete_and_log_lookup_keep_the_reference_boundaries) or test(workflow_mutation_routes_keep_the_go_not_found_codes) or test(a_failed_workflow_execution_surfaces_on_the_loop_chat_path)"
         ],
         "testFilter": [
           "assistant_run_mutation_routes_enforce_goal_lifecycle_rules"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "b14342a3f20c14d3ad2206286427ac71e6546624",
+        "verifiedAt": "2026-09-26T02:26:33Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -106530,20 +106540,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(test_canvas_invalid_node_and_edge_inputs) or test(test_canvas_duplicate_edges_are_deduplicated) or test(test_canvas_workflow_self_loop_and_invalid_edges_rejected) or test(workflow_writes_apply_the_documented_write_fields) or test(test_schedule_trigger_disabled_parent_workflow_safely_advances) or test(workflow_updates_keep_omitted_fields_and_apply_explicit_clears) or test(assistant_run_mutation_routes_enforce_goal_lifecycle_rules) or test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(production_adk_goal_pause_and_resume_are_persisted_atomically) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(workflow_management_catalog_keeps_the_skill_and_approval_boundaries) or test(test_partial_failure_cascade_records_skipped_nodes_in_sqlite) or test(test_sqlite_persistence_noderuns_strict_openapi_schema_compliance) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(unknown_model_status_is_not_a_successful_canvas_node) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(workflow_and_trigger_lists_hide_deleted_rows_after_create_and_delete) or test(a_structured_tool_failure_is_persisted_as_a_failed_call_and_the_loop_continues) or test(tool_declarations_stay_complete_for_every_callable_tool) or test(a_failed_tool_result_is_persisted_on_the_call_not_the_run) or test(strict_tool_schemas_reject_invalid_arguments_before_the_executor_runs) or test(modern_tool_call_rejects_arguments_outside_the_advertised_schema) or test(structured_tool_response_failures_match_the_reference_helpers) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(workflow_trigger_soft_delete_and_log_lookup_keep_the_reference_boundaries) or test(workflow_mutation_routes_keep_the_go_not_found_codes) or test(a_failed_workflow_execution_surfaces_on_the_loop_chat_path)"
         ],
         "testFilter": [
           "workflow_management_catalog_keeps_the_skill_and_approval_boundaries"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "b14342a3f20c14d3ad2206286427ac71e6546624",
+        "verifiedAt": "2026-09-26T02:26:33Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -106592,20 +106603,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(test_canvas_invalid_node_and_edge_inputs) or test(test_canvas_duplicate_edges_are_deduplicated) or test(test_canvas_workflow_self_loop_and_invalid_edges_rejected) or test(workflow_writes_apply_the_documented_write_fields) or test(test_schedule_trigger_disabled_parent_workflow_safely_advances) or test(workflow_updates_keep_omitted_fields_and_apply_explicit_clears) or test(assistant_run_mutation_routes_enforce_goal_lifecycle_rules) or test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(production_adk_goal_pause_and_resume_are_persisted_atomically) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(workflow_management_catalog_keeps_the_skill_and_approval_boundaries) or test(test_partial_failure_cascade_records_skipped_nodes_in_sqlite) or test(test_sqlite_persistence_noderuns_strict_openapi_schema_compliance) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(unknown_model_status_is_not_a_successful_canvas_node) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(workflow_and_trigger_lists_hide_deleted_rows_after_create_and_delete) or test(a_structured_tool_failure_is_persisted_as_a_failed_call_and_the_loop_continues) or test(tool_declarations_stay_complete_for_every_callable_tool) or test(a_failed_tool_result_is_persisted_on_the_call_not_the_run) or test(strict_tool_schemas_reject_invalid_arguments_before_the_executor_runs) or test(modern_tool_call_rejects_arguments_outside_the_advertised_schema) or test(structured_tool_response_failures_match_the_reference_helpers) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(workflow_trigger_soft_delete_and_log_lookup_keep_the_reference_boundaries) or test(workflow_mutation_routes_keep_the_go_not_found_codes) or test(a_failed_workflow_execution_surfaces_on_the_loop_chat_path)"
         ],
         "testFilter": [
           "test_partial_failure_cascade_records_skipped_nodes_in_sqlite"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "b14342a3f20c14d3ad2206286427ac71e6546624",
+        "verifiedAt": "2026-09-26T02:26:33Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -106654,20 +106666,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(test_canvas_invalid_node_and_edge_inputs) or test(test_canvas_duplicate_edges_are_deduplicated) or test(test_canvas_workflow_self_loop_and_invalid_edges_rejected) or test(workflow_writes_apply_the_documented_write_fields) or test(test_schedule_trigger_disabled_parent_workflow_safely_advances) or test(workflow_updates_keep_omitted_fields_and_apply_explicit_clears) or test(assistant_run_mutation_routes_enforce_goal_lifecycle_rules) or test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(production_adk_goal_pause_and_resume_are_persisted_atomically) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(workflow_management_catalog_keeps_the_skill_and_approval_boundaries) or test(test_partial_failure_cascade_records_skipped_nodes_in_sqlite) or test(test_sqlite_persistence_noderuns_strict_openapi_schema_compliance) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(unknown_model_status_is_not_a_successful_canvas_node) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(workflow_and_trigger_lists_hide_deleted_rows_after_create_and_delete) or test(a_structured_tool_failure_is_persisted_as_a_failed_call_and_the_loop_continues) or test(tool_declarations_stay_complete_for_every_callable_tool) or test(a_failed_tool_result_is_persisted_on_the_call_not_the_run) or test(strict_tool_schemas_reject_invalid_arguments_before_the_executor_runs) or test(modern_tool_call_rejects_arguments_outside_the_advertised_schema) or test(structured_tool_response_failures_match_the_reference_helpers) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(workflow_trigger_soft_delete_and_log_lookup_keep_the_reference_boundaries) or test(workflow_mutation_routes_keep_the_go_not_found_codes) or test(a_failed_workflow_execution_surfaces_on_the_loop_chat_path)"
         ],
         "testFilter": [
           "test_sqlite_persistence_noderuns_strict_openapi_schema_compliance"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "b14342a3f20c14d3ad2206286427ac71e6546624",
+        "verifiedAt": "2026-09-26T02:26:33Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -106778,20 +106791,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(test_canvas_invalid_node_and_edge_inputs) or test(test_canvas_duplicate_edges_are_deduplicated) or test(test_canvas_workflow_self_loop_and_invalid_edges_rejected) or test(workflow_writes_apply_the_documented_write_fields) or test(test_schedule_trigger_disabled_parent_workflow_safely_advances) or test(workflow_updates_keep_omitted_fields_and_apply_explicit_clears) or test(assistant_run_mutation_routes_enforce_goal_lifecycle_rules) or test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(production_adk_goal_pause_and_resume_are_persisted_atomically) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(workflow_management_catalog_keeps_the_skill_and_approval_boundaries) or test(test_partial_failure_cascade_records_skipped_nodes_in_sqlite) or test(test_sqlite_persistence_noderuns_strict_openapi_schema_compliance) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(unknown_model_status_is_not_a_successful_canvas_node) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(workflow_and_trigger_lists_hide_deleted_rows_after_create_and_delete) or test(a_structured_tool_failure_is_persisted_as_a_failed_call_and_the_loop_continues) or test(tool_declarations_stay_complete_for_every_callable_tool) or test(a_failed_tool_result_is_persisted_on_the_call_not_the_run) or test(strict_tool_schemas_reject_invalid_arguments_before_the_executor_runs) or test(modern_tool_call_rejects_arguments_outside_the_advertised_schema) or test(structured_tool_response_failures_match_the_reference_helpers) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(workflow_trigger_soft_delete_and_log_lookup_keep_the_reference_boundaries) or test(workflow_mutation_routes_keep_the_go_not_found_codes) or test(a_failed_workflow_execution_surfaces_on_the_loop_chat_path)"
         ],
         "testFilter": [
           "workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "b14342a3f20c14d3ad2206286427ac71e6546624",
+        "verifiedAt": "2026-09-26T02:26:33Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -106840,20 +106854,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(test_canvas_invalid_node_and_edge_inputs) or test(test_canvas_duplicate_edges_are_deduplicated) or test(test_canvas_workflow_self_loop_and_invalid_edges_rejected) or test(workflow_writes_apply_the_documented_write_fields) or test(test_schedule_trigger_disabled_parent_workflow_safely_advances) or test(workflow_updates_keep_omitted_fields_and_apply_explicit_clears) or test(assistant_run_mutation_routes_enforce_goal_lifecycle_rules) or test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(production_adk_goal_pause_and_resume_are_persisted_atomically) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(workflow_management_catalog_keeps_the_skill_and_approval_boundaries) or test(test_partial_failure_cascade_records_skipped_nodes_in_sqlite) or test(test_sqlite_persistence_noderuns_strict_openapi_schema_compliance) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(unknown_model_status_is_not_a_successful_canvas_node) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(workflow_and_trigger_lists_hide_deleted_rows_after_create_and_delete) or test(a_structured_tool_failure_is_persisted_as_a_failed_call_and_the_loop_continues) or test(tool_declarations_stay_complete_for_every_callable_tool) or test(a_failed_tool_result_is_persisted_on_the_call_not_the_run) or test(strict_tool_schemas_reject_invalid_arguments_before_the_executor_runs) or test(modern_tool_call_rejects_arguments_outside_the_advertised_schema) or test(structured_tool_response_failures_match_the_reference_helpers) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(workflow_trigger_soft_delete_and_log_lookup_keep_the_reference_boundaries) or test(workflow_mutation_routes_keep_the_go_not_found_codes) or test(a_failed_workflow_execution_surfaces_on_the_loop_chat_path)"
         ],
         "testFilter": [
           "workflow_writes_reject_malformed_canvas_graphs_before_storing"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "b14342a3f20c14d3ad2206286427ac71e6546624",
+        "verifiedAt": "2026-09-26T02:26:33Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -107172,20 +107187,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(test_canvas_invalid_node_and_edge_inputs) or test(test_canvas_duplicate_edges_are_deduplicated) or test(test_canvas_workflow_self_loop_and_invalid_edges_rejected) or test(workflow_writes_apply_the_documented_write_fields) or test(test_schedule_trigger_disabled_parent_workflow_safely_advances) or test(workflow_updates_keep_omitted_fields_and_apply_explicit_clears) or test(assistant_run_mutation_routes_enforce_goal_lifecycle_rules) or test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(production_adk_goal_pause_and_resume_are_persisted_atomically) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(workflow_management_catalog_keeps_the_skill_and_approval_boundaries) or test(test_partial_failure_cascade_records_skipped_nodes_in_sqlite) or test(test_sqlite_persistence_noderuns_strict_openapi_schema_compliance) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(unknown_model_status_is_not_a_successful_canvas_node) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(workflow_and_trigger_lists_hide_deleted_rows_after_create_and_delete) or test(a_structured_tool_failure_is_persisted_as_a_failed_call_and_the_loop_continues) or test(tool_declarations_stay_complete_for_every_callable_tool) or test(a_failed_tool_result_is_persisted_on_the_call_not_the_run) or test(strict_tool_schemas_reject_invalid_arguments_before_the_executor_runs) or test(modern_tool_call_rejects_arguments_outside_the_advertised_schema) or test(structured_tool_response_failures_match_the_reference_helpers) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(workflow_trigger_soft_delete_and_log_lookup_keep_the_reference_boundaries) or test(workflow_mutation_routes_keep_the_go_not_found_codes) or test(a_failed_workflow_execution_surfaces_on_the_loop_chat_path)"
         ],
         "testFilter": [
           "test_schedule_trigger_disabled_parent_workflow_safely_advances"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "b14342a3f20c14d3ad2206286427ac71e6546624",
+        "verifiedAt": "2026-09-26T02:26:33Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -107234,20 +107250,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(test_canvas_invalid_node_and_edge_inputs) or test(test_canvas_duplicate_edges_are_deduplicated) or test(test_canvas_workflow_self_loop_and_invalid_edges_rejected) or test(workflow_writes_apply_the_documented_write_fields) or test(test_schedule_trigger_disabled_parent_workflow_safely_advances) or test(workflow_updates_keep_omitted_fields_and_apply_explicit_clears) or test(assistant_run_mutation_routes_enforce_goal_lifecycle_rules) or test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(production_adk_goal_pause_and_resume_are_persisted_atomically) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(workflow_management_catalog_keeps_the_skill_and_approval_boundaries) or test(test_partial_failure_cascade_records_skipped_nodes_in_sqlite) or test(test_sqlite_persistence_noderuns_strict_openapi_schema_compliance) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(unknown_model_status_is_not_a_successful_canvas_node) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(workflow_and_trigger_lists_hide_deleted_rows_after_create_and_delete) or test(a_structured_tool_failure_is_persisted_as_a_failed_call_and_the_loop_continues) or test(tool_declarations_stay_complete_for_every_callable_tool) or test(a_failed_tool_result_is_persisted_on_the_call_not_the_run) or test(strict_tool_schemas_reject_invalid_arguments_before_the_executor_runs) or test(modern_tool_call_rejects_arguments_outside_the_advertised_schema) or test(structured_tool_response_failures_match_the_reference_helpers) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(workflow_trigger_soft_delete_and_log_lookup_keep_the_reference_boundaries) or test(workflow_mutation_routes_keep_the_go_not_found_codes) or test(a_failed_workflow_execution_surfaces_on_the_loop_chat_path)"
         ],
         "testFilter": [
           "unknown_model_status_is_not_a_successful_canvas_node"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "b14342a3f20c14d3ad2206286427ac71e6546624",
+        "verifiedAt": "2026-09-26T02:26:33Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -107296,20 +107313,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(test_canvas_invalid_node_and_edge_inputs) or test(test_canvas_duplicate_edges_are_deduplicated) or test(test_canvas_workflow_self_loop_and_invalid_edges_rejected) or test(workflow_writes_apply_the_documented_write_fields) or test(test_schedule_trigger_disabled_parent_workflow_safely_advances) or test(workflow_updates_keep_omitted_fields_and_apply_explicit_clears) or test(assistant_run_mutation_routes_enforce_goal_lifecycle_rules) or test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(production_adk_goal_pause_and_resume_are_persisted_atomically) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(workflow_management_catalog_keeps_the_skill_and_approval_boundaries) or test(test_partial_failure_cascade_records_skipped_nodes_in_sqlite) or test(test_sqlite_persistence_noderuns_strict_openapi_schema_compliance) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(unknown_model_status_is_not_a_successful_canvas_node) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(workflow_and_trigger_lists_hide_deleted_rows_after_create_and_delete) or test(a_structured_tool_failure_is_persisted_as_a_failed_call_and_the_loop_continues) or test(tool_declarations_stay_complete_for_every_callable_tool) or test(a_failed_tool_result_is_persisted_on_the_call_not_the_run) or test(strict_tool_schemas_reject_invalid_arguments_before_the_executor_runs) or test(modern_tool_call_rejects_arguments_outside_the_advertised_schema) or test(structured_tool_response_failures_match_the_reference_helpers) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(workflow_trigger_soft_delete_and_log_lookup_keep_the_reference_boundaries) or test(workflow_mutation_routes_keep_the_go_not_found_codes) or test(a_failed_workflow_execution_surfaces_on_the_loop_chat_path)"
         ],
         "testFilter": [
           "workflow_manager_failures_surface_verbatim_on_every_workflow_route"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "b14342a3f20c14d3ad2206286427ac71e6546624",
+        "verifiedAt": "2026-09-26T02:26:33Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -107358,20 +107376,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(test_canvas_invalid_node_and_edge_inputs) or test(test_canvas_duplicate_edges_are_deduplicated) or test(test_canvas_workflow_self_loop_and_invalid_edges_rejected) or test(workflow_writes_apply_the_documented_write_fields) or test(test_schedule_trigger_disabled_parent_workflow_safely_advances) or test(workflow_updates_keep_omitted_fields_and_apply_explicit_clears) or test(assistant_run_mutation_routes_enforce_goal_lifecycle_rules) or test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(production_adk_goal_pause_and_resume_are_persisted_atomically) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(workflow_management_catalog_keeps_the_skill_and_approval_boundaries) or test(test_partial_failure_cascade_records_skipped_nodes_in_sqlite) or test(test_sqlite_persistence_noderuns_strict_openapi_schema_compliance) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(unknown_model_status_is_not_a_successful_canvas_node) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(workflow_and_trigger_lists_hide_deleted_rows_after_create_and_delete) or test(a_structured_tool_failure_is_persisted_as_a_failed_call_and_the_loop_continues) or test(tool_declarations_stay_complete_for_every_callable_tool) or test(a_failed_tool_result_is_persisted_on_the_call_not_the_run) or test(strict_tool_schemas_reject_invalid_arguments_before_the_executor_runs) or test(modern_tool_call_rejects_arguments_outside_the_advertised_schema) or test(structured_tool_response_failures_match_the_reference_helpers) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(workflow_trigger_soft_delete_and_log_lookup_keep_the_reference_boundaries) or test(workflow_mutation_routes_keep_the_go_not_found_codes) or test(a_failed_workflow_execution_surfaces_on_the_loop_chat_path)"
         ],
         "testFilter": [
           "workflow_and_trigger_lists_hide_deleted_rows_after_create_and_delete"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "b14342a3f20c14d3ad2206286427ac71e6546624",
+        "verifiedAt": "2026-09-26T02:26:33Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -107442,10 +107461,11 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(test_canvas_invalid_node_and_edge_inputs) or test(test_canvas_duplicate_edges_are_deduplicated) or test(test_canvas_workflow_self_loop_and_invalid_edges_rejected) or test(workflow_writes_apply_the_documented_write_fields) or test(test_schedule_trigger_disabled_parent_workflow_safely_advances) or test(workflow_updates_keep_omitted_fields_and_apply_explicit_clears) or test(assistant_run_mutation_routes_enforce_goal_lifecycle_rules) or test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(production_adk_goal_pause_and_resume_are_persisted_atomically) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(workflow_management_catalog_keeps_the_skill_and_approval_boundaries) or test(test_partial_failure_cascade_records_skipped_nodes_in_sqlite) or test(test_sqlite_persistence_noderuns_strict_openapi_schema_compliance) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(unknown_model_status_is_not_a_successful_canvas_node) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(workflow_and_trigger_lists_hide_deleted_rows_after_create_and_delete) or test(a_structured_tool_failure_is_persisted_as_a_failed_call_and_the_loop_continues) or test(tool_declarations_stay_complete_for_every_callable_tool) or test(a_failed_tool_result_is_persisted_on_the_call_not_the_run) or test(strict_tool_schemas_reject_invalid_arguments_before_the_executor_runs) or test(modern_tool_call_rejects_arguments_outside_the_advertised_schema) or test(structured_tool_response_failures_match_the_reference_helpers) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(workflow_trigger_soft_delete_and_log_lookup_keep_the_reference_boundaries) or test(workflow_mutation_routes_keep_the_go_not_found_codes) or test(a_failed_workflow_execution_surfaces_on_the_loop_chat_path)"
         ],
         "testFilter": [
           "a_structured_tool_failure_is_persisted_as_a_failed_call_and_the_loop_continues",
@@ -107454,10 +107474,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "b14342a3f20c14d3ad2206286427ac71e6546624",
+        "verifiedAt": "2026-09-26T02:26:33Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -107522,10 +107542,11 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(test_canvas_invalid_node_and_edge_inputs) or test(test_canvas_duplicate_edges_are_deduplicated) or test(test_canvas_workflow_self_loop_and_invalid_edges_rejected) or test(workflow_writes_apply_the_documented_write_fields) or test(test_schedule_trigger_disabled_parent_workflow_safely_advances) or test(workflow_updates_keep_omitted_fields_and_apply_explicit_clears) or test(assistant_run_mutation_routes_enforce_goal_lifecycle_rules) or test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(production_adk_goal_pause_and_resume_are_persisted_atomically) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(workflow_management_catalog_keeps_the_skill_and_approval_boundaries) or test(test_partial_failure_cascade_records_skipped_nodes_in_sqlite) or test(test_sqlite_persistence_noderuns_strict_openapi_schema_compliance) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(unknown_model_status_is_not_a_successful_canvas_node) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(workflow_and_trigger_lists_hide_deleted_rows_after_create_and_delete) or test(a_structured_tool_failure_is_persisted_as_a_failed_call_and_the_loop_continues) or test(tool_declarations_stay_complete_for_every_callable_tool) or test(a_failed_tool_result_is_persisted_on_the_call_not_the_run) or test(strict_tool_schemas_reject_invalid_arguments_before_the_executor_runs) or test(modern_tool_call_rejects_arguments_outside_the_advertised_schema) or test(structured_tool_response_failures_match_the_reference_helpers) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(workflow_trigger_soft_delete_and_log_lookup_keep_the_reference_boundaries) or test(workflow_mutation_routes_keep_the_go_not_found_codes) or test(a_failed_workflow_execution_surfaces_on_the_loop_chat_path)"
         ],
         "testFilter": [
           "strict_tool_schemas_reject_invalid_arguments_before_the_executor_runs",
@@ -107533,10 +107554,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "b14342a3f20c14d3ad2206286427ac71e6546624",
+        "verifiedAt": "2026-09-26T02:26:33Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -107696,20 +107717,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(test_canvas_invalid_node_and_edge_inputs) or test(test_canvas_duplicate_edges_are_deduplicated) or test(test_canvas_workflow_self_loop_and_invalid_edges_rejected) or test(workflow_writes_apply_the_documented_write_fields) or test(test_schedule_trigger_disabled_parent_workflow_safely_advances) or test(workflow_updates_keep_omitted_fields_and_apply_explicit_clears) or test(assistant_run_mutation_routes_enforce_goal_lifecycle_rules) or test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(production_adk_goal_pause_and_resume_are_persisted_atomically) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(workflow_management_catalog_keeps_the_skill_and_approval_boundaries) or test(test_partial_failure_cascade_records_skipped_nodes_in_sqlite) or test(test_sqlite_persistence_noderuns_strict_openapi_schema_compliance) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(unknown_model_status_is_not_a_successful_canvas_node) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(workflow_and_trigger_lists_hide_deleted_rows_after_create_and_delete) or test(a_structured_tool_failure_is_persisted_as_a_failed_call_and_the_loop_continues) or test(tool_declarations_stay_complete_for_every_callable_tool) or test(a_failed_tool_result_is_persisted_on_the_call_not_the_run) or test(strict_tool_schemas_reject_invalid_arguments_before_the_executor_runs) or test(modern_tool_call_rejects_arguments_outside_the_advertised_schema) or test(structured_tool_response_failures_match_the_reference_helpers) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(workflow_trigger_soft_delete_and_log_lookup_keep_the_reference_boundaries) or test(workflow_mutation_routes_keep_the_go_not_found_codes) or test(a_failed_workflow_execution_surfaces_on_the_loop_chat_path)"
         ],
         "testFilter": [
           "structured_tool_response_failures_match_the_reference_helpers"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "b14342a3f20c14d3ad2206286427ac71e6546624",
+        "verifiedAt": "2026-09-26T02:26:33Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -107825,20 +107847,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(test_canvas_invalid_node_and_edge_inputs) or test(test_canvas_duplicate_edges_are_deduplicated) or test(test_canvas_workflow_self_loop_and_invalid_edges_rejected) or test(workflow_writes_apply_the_documented_write_fields) or test(test_schedule_trigger_disabled_parent_workflow_safely_advances) or test(workflow_updates_keep_omitted_fields_and_apply_explicit_clears) or test(assistant_run_mutation_routes_enforce_goal_lifecycle_rules) or test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(production_adk_goal_pause_and_resume_are_persisted_atomically) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(workflow_management_catalog_keeps_the_skill_and_approval_boundaries) or test(test_partial_failure_cascade_records_skipped_nodes_in_sqlite) or test(test_sqlite_persistence_noderuns_strict_openapi_schema_compliance) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(unknown_model_status_is_not_a_successful_canvas_node) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(workflow_and_trigger_lists_hide_deleted_rows_after_create_and_delete) or test(a_structured_tool_failure_is_persisted_as_a_failed_call_and_the_loop_continues) or test(tool_declarations_stay_complete_for_every_callable_tool) or test(a_failed_tool_result_is_persisted_on_the_call_not_the_run) or test(strict_tool_schemas_reject_invalid_arguments_before_the_executor_runs) or test(modern_tool_call_rejects_arguments_outside_the_advertised_schema) or test(structured_tool_response_failures_match_the_reference_helpers) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(workflow_trigger_soft_delete_and_log_lookup_keep_the_reference_boundaries) or test(workflow_mutation_routes_keep_the_go_not_found_codes) or test(a_failed_workflow_execution_surfaces_on_the_loop_chat_path)"
         ],
         "testFilter": [
           "adk_builtin_strategy_skills_publish_the_curated_tool_split"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "b14342a3f20c14d3ad2206286427ac71e6546624",
+        "verifiedAt": "2026-09-26T02:26:33Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -108057,18 +108080,11 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-store-sqlite",
+          "--workspace",
           "--all-targets",
           "--locked",
-          "&&",
-          "node",
-          "scripts/quality/cargo-nextest.mjs",
-          "run",
-          "-p",
-          "jftrade-engine",
-          "--all-targets",
-          "--locked"
+          "-E",
+          "test(test_canvas_invalid_node_and_edge_inputs) or test(test_canvas_duplicate_edges_are_deduplicated) or test(test_canvas_workflow_self_loop_and_invalid_edges_rejected) or test(workflow_writes_apply_the_documented_write_fields) or test(test_schedule_trigger_disabled_parent_workflow_safely_advances) or test(workflow_updates_keep_omitted_fields_and_apply_explicit_clears) or test(assistant_run_mutation_routes_enforce_goal_lifecycle_rules) or test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(production_adk_goal_pause_and_resume_are_persisted_atomically) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(workflow_management_catalog_keeps_the_skill_and_approval_boundaries) or test(test_partial_failure_cascade_records_skipped_nodes_in_sqlite) or test(test_sqlite_persistence_noderuns_strict_openapi_schema_compliance) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(unknown_model_status_is_not_a_successful_canvas_node) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(workflow_and_trigger_lists_hide_deleted_rows_after_create_and_delete) or test(a_structured_tool_failure_is_persisted_as_a_failed_call_and_the_loop_continues) or test(tool_declarations_stay_complete_for_every_callable_tool) or test(a_failed_tool_result_is_persisted_on_the_call_not_the_run) or test(strict_tool_schemas_reject_invalid_arguments_before_the_executor_runs) or test(modern_tool_call_rejects_arguments_outside_the_advertised_schema) or test(structured_tool_response_failures_match_the_reference_helpers) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(workflow_trigger_soft_delete_and_log_lookup_keep_the_reference_boundaries) or test(workflow_mutation_routes_keep_the_go_not_found_codes) or test(a_failed_workflow_execution_surfaces_on_the_loop_chat_path)"
         ],
         "testFilter": [
           "workflow_trigger_soft_delete_and_log_lookup_keep_the_reference_boundaries",
@@ -108076,10 +108092,10 @@
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "b14342a3f20c14d3ad2206286427ac71e6546624",
+        "verifiedAt": "2026-09-26T02:26:33Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -108128,20 +108144,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(test_canvas_invalid_node_and_edge_inputs) or test(test_canvas_duplicate_edges_are_deduplicated) or test(test_canvas_workflow_self_loop_and_invalid_edges_rejected) or test(workflow_writes_apply_the_documented_write_fields) or test(test_schedule_trigger_disabled_parent_workflow_safely_advances) or test(workflow_updates_keep_omitted_fields_and_apply_explicit_clears) or test(assistant_run_mutation_routes_enforce_goal_lifecycle_rules) or test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(production_adk_goal_pause_and_resume_are_persisted_atomically) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(workflow_management_catalog_keeps_the_skill_and_approval_boundaries) or test(test_partial_failure_cascade_records_skipped_nodes_in_sqlite) or test(test_sqlite_persistence_noderuns_strict_openapi_schema_compliance) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(unknown_model_status_is_not_a_successful_canvas_node) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(workflow_and_trigger_lists_hide_deleted_rows_after_create_and_delete) or test(a_structured_tool_failure_is_persisted_as_a_failed_call_and_the_loop_continues) or test(tool_declarations_stay_complete_for_every_callable_tool) or test(a_failed_tool_result_is_persisted_on_the_call_not_the_run) or test(strict_tool_schemas_reject_invalid_arguments_before_the_executor_runs) or test(modern_tool_call_rejects_arguments_outside_the_advertised_schema) or test(structured_tool_response_failures_match_the_reference_helpers) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(workflow_trigger_soft_delete_and_log_lookup_keep_the_reference_boundaries) or test(workflow_mutation_routes_keep_the_go_not_found_codes) or test(a_failed_workflow_execution_surfaces_on_the_loop_chat_path)"
         ],
         "testFilter": [
           "a_failed_workflow_execution_surfaces_on_the_loop_chat_path"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "b14342a3f20c14d3ad2206286427ac71e6546624",
+        "verifiedAt": "2026-09-26T02:26:33Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -108314,20 +108331,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(test_canvas_invalid_node_and_edge_inputs) or test(test_canvas_duplicate_edges_are_deduplicated) or test(test_canvas_workflow_self_loop_and_invalid_edges_rejected) or test(workflow_writes_apply_the_documented_write_fields) or test(test_schedule_trigger_disabled_parent_workflow_safely_advances) or test(workflow_updates_keep_omitted_fields_and_apply_explicit_clears) or test(assistant_run_mutation_routes_enforce_goal_lifecycle_rules) or test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(production_adk_goal_pause_and_resume_are_persisted_atomically) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(workflow_management_catalog_keeps_the_skill_and_approval_boundaries) or test(test_partial_failure_cascade_records_skipped_nodes_in_sqlite) or test(test_sqlite_persistence_noderuns_strict_openapi_schema_compliance) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(unknown_model_status_is_not_a_successful_canvas_node) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(workflow_and_trigger_lists_hide_deleted_rows_after_create_and_delete) or test(a_structured_tool_failure_is_persisted_as_a_failed_call_and_the_loop_continues) or test(tool_declarations_stay_complete_for_every_callable_tool) or test(a_failed_tool_result_is_persisted_on_the_call_not_the_run) or test(strict_tool_schemas_reject_invalid_arguments_before_the_executor_runs) or test(modern_tool_call_rejects_arguments_outside_the_advertised_schema) or test(structured_tool_response_failures_match_the_reference_helpers) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(workflow_trigger_soft_delete_and_log_lookup_keep_the_reference_boundaries) or test(workflow_mutation_routes_keep_the_go_not_found_codes) or test(a_failed_workflow_execution_surfaces_on_the_loop_chat_path)"
         ],
         "testFilter": [
           "assistant_run_mutation_routes_enforce_goal_lifecycle_rules"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "b14342a3f20c14d3ad2206286427ac71e6546624",
+        "verifiedAt": "2026-09-26T02:26:33Z",
         "receiptDigest": null
       },
       "risk": "normal",
@@ -108438,20 +108456,21 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "-p",
-          "jftrade-engine",
+          "--workspace",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "-E",
+          "test(test_canvas_invalid_node_and_edge_inputs) or test(test_canvas_duplicate_edges_are_deduplicated) or test(test_canvas_workflow_self_loop_and_invalid_edges_rejected) or test(workflow_writes_apply_the_documented_write_fields) or test(test_schedule_trigger_disabled_parent_workflow_safely_advances) or test(workflow_updates_keep_omitted_fields_and_apply_explicit_clears) or test(assistant_run_mutation_routes_enforce_goal_lifecycle_rules) or test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(production_adk_goal_pause_and_resume_are_persisted_atomically) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields) or test(run_terminal_state_cannot_be_regressed_by_a_stale_running_snapshot) or test(workflow_management_catalog_keeps_the_skill_and_approval_boundaries) or test(test_partial_failure_cascade_records_skipped_nodes_in_sqlite) or test(test_sqlite_persistence_noderuns_strict_openapi_schema_compliance) or test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(unknown_model_status_is_not_a_successful_canvas_node) or test(workflow_manager_failures_surface_verbatim_on_every_workflow_route) or test(workflow_and_trigger_lists_hide_deleted_rows_after_create_and_delete) or test(a_structured_tool_failure_is_persisted_as_a_failed_call_and_the_loop_continues) or test(tool_declarations_stay_complete_for_every_callable_tool) or test(a_failed_tool_result_is_persisted_on_the_call_not_the_run) or test(strict_tool_schemas_reject_invalid_arguments_before_the_executor_runs) or test(modern_tool_call_rejects_arguments_outside_the_advertised_schema) or test(structured_tool_response_failures_match_the_reference_helpers) or test(adk_builtin_strategy_skills_publish_the_curated_tool_split) or test(workflow_trigger_soft_delete_and_log_lookup_keep_the_reference_boundaries) or test(workflow_mutation_routes_keep_the_go_not_found_codes) or test(a_failed_workflow_execution_surfaces_on_the_loop_chat_path)"
         ],
         "testFilter": [
           "goal_pause_and_resume_mutations_own_the_pause_lifecycle_fields"
         ],
         "runnerVersion": null,
         "toolchain": null,
-        "status": "unverified",
-        "exitCode": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "b14342a3f20c14d3ad2206286427ac71e6546624",
+        "verifiedAt": "2026-09-26T02:26:33Z",
         "receiptDigest": null
       },
       "risk": "normal",
