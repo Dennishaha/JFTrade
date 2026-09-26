@@ -1286,14 +1286,23 @@ fn strategy_market_day_start_follows_dst_transition() {
         &time::format_description::well_known::Rfc3339,
     )
     .expect("instant");
-    // 2026-06-14T20:30 in New York (EDT), so the US day started at
-    // 2026-06-14T04:00Z (New York local midnight), not at the previous UTC
-    // midnight. The reference implementation still differs here: with
-    // extended hours it uses the trading-day boundary start, which for a US
-    // symbol at that instant is 2026-06-15T00:00Z.
+    // 2026-06-14T20:30 in New York (EDT), so the US extended-hours trading
+    // day starts at the 20:00 carry boundary on 2026-06-14: 2026-06-15T00:00Z.
     assert_eq!(
         strategy_market_day_start_ms("US", overnight),
-        1_781_409_600_000
+        1_781_481_600_000
+    );
+
+    let holiday_overnight = time::OffsetDateTime::parse(
+        "2026-01-02T01:30:00Z",
+        &time::format_description::well_known::Rfc3339,
+    )
+    .expect("holiday overnight");
+    // The next local date is open, so the Go session resolver still rolls the
+    // holiday evening into the Jan 1 20:00 carry boundary.
+    assert_eq!(
+        strategy_market_day_start_ms("US", holiday_overnight),
+        1_767_315_600_000
     );
 }
 

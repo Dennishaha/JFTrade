@@ -1,5 +1,5 @@
 use jftrade_kernel::WireTimestamp;
-use jiff::{Timestamp, civil::Date as CivilDate, tz::TimeZone};
+use jiff::{Timestamp, ToSpan, civil::Date as CivilDate, tz::TimeZone};
 use time::{Date, Duration, Month, OffsetDateTime, Time, UtcOffset, Weekday};
 
 use crate::{
@@ -103,6 +103,82 @@ pub fn market_day_start_for_market(
     at: WireTimestamp,
 ) -> Result<WireTimestamp, crate::CalendarManagerError> {
     market_day_start(&normalize_market(market), at)
+}
+
+/// Resolve the start instant of the trading day used by strategy daily limits.
+///
+/// US extended hours roll at 20:00 exchange-local time.  The calendar day
+/// helper above intentionally remains civil-midnight based for provider and
+/// candle callers, so strategy code uses this separate policy entry point.
+pub fn trading_day_boundary_start_for_market(
+    market: &str,
+    at: WireTimestamp,
+) -> Result<WireTimestamp, crate::CalendarManagerError> {
+    let market = normalize_market(market);
+    if market != "US" {
+        return market_day_start(&market, at);
+    }
+    let timezone = crate::manager_calendar::market_timezone(&market)
+        .ok_or_else(|| crate::CalendarManagerError::UnsupportedMarket(market.clone()))?;
+    let timestamp = at
+        .to_string()
+        .parse::<Timestamp>()
+        .map_err(|error| crate::CalendarManagerError::InvalidSettings(error.to_string()))?;
+    let zone = TimeZone::get(timezone)
+        .map_err(|error| crate::CalendarManagerError::InvalidSettings(error.to_string()))?;
+    let local = timestamp.to_zoned(zone.clone());
+    let local_date = local.date();
+    let minute = i32::from(local.hour()) * 60 + i32::from(local.minute());
+    let current_schedule = builtin_schedule(&market, market_midnight(&market, local_date)?);
+    let in_current_session = current_schedule.status != "closed"
+        && current_schedule
+            .sessions
+            .iter()
+            .any(|session| (session.start_minute..session.end_minute).contains(&minute));
+    let trading_date = if in_current_session {
+        local_date
+    } else if minute >= 20 * 60 {
+        let next_date = local_date
+            .checked_add(1.days())
+            .map_err(|error| crate::CalendarManagerError::InvalidSettings(error.to_string()))?;
+        let next_schedule = builtin_schedule(&market, market_midnight(&market, next_date)?);
+        if next_schedule.status != "closed" && !next_schedule.sessions.is_empty() {
+            next_date
+        } else {
+            return market_day_start(&market, at);
+        }
+    } else {
+        return market_day_start(&market, at);
+    };
+    let boundary_date = trading_date
+        .checked_add((-1).days())
+        .map_err(|error| crate::CalendarManagerError::InvalidSettings(error.to_string()))?;
+    let boundary = boundary_date
+        .at(20, 0, 0, 0)
+        .to_zoned(zone)
+        .map_err(|error| crate::CalendarManagerError::InvalidSettings(error.to_string()))?;
+    let instant =
+        OffsetDateTime::from_unix_timestamp_nanos(boundary.timestamp().as_nanosecond())
+            .map_err(|error| crate::CalendarManagerError::InvalidSettings(error.to_string()))?;
+    let offset = UtcOffset::from_whole_seconds(boundary.offset().seconds())
+        .map_err(|error| crate::CalendarManagerError::InvalidSettings(error.to_string()))?;
+    Ok(WireTimestamp::from_offset_datetime(
+        instant.to_offset(offset),
+    ))
+}
+
+fn market_midnight(
+    market: &str,
+    date: CivilDate,
+) -> Result<WireTimestamp, crate::CalendarManagerError> {
+    market_local_midnight(
+        market,
+        i32::from(date.year()),
+        u8::try_from(date.month())
+            .map_err(|error| crate::CalendarManagerError::InvalidSettings(error.to_string()))?,
+        u8::try_from(date.day())
+            .map_err(|error| crate::CalendarManagerError::InvalidSettings(error.to_string()))?,
+    )
 }
 
 /// Midnight of a civil date in the market's own exchange timezone.

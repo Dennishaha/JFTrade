@@ -367,7 +367,7 @@ fn strategy_market_day_start_ms(market: &str, now_utc: OffsetDateTime) -> i64 {
     if !matches!(market.as_str(), "US" | "HK" | "CN" | "SH" | "SZ") {
         return utc_midnight;
     }
-    jftrade_calendar::market_day_start_for_market(
+    jftrade_calendar::trading_day_boundary_start_for_market(
         &market,
         WireTimestamp::from_offset_datetime(now_utc),
     )

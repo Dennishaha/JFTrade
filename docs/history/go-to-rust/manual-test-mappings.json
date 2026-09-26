@@ -34611,7 +34611,7 @@
     "internal/app/apiserver/marketdataapp/python_runtime_test.go:13:TestResolveSourcePythonRuntimeHonorsEnvironmentAndFallbacks": {
       "status": "[~]",
       "rust_entry": "不适用：Rust 生产不解析 Python 解释器（冻结 sidecar 二进制 + 内容寻址资产），无 env/venv/PATH 解析对象",
-      "conclusion": "边界保留：Go 的源运行解析（仅 release-assets 之外可用）按 DevPython→workspace venv→PATH 顺序解析解释器并记录 Source。Rust 生产用冻结的 helper 二进制与内容寻址资产（crates/jftrade-integration-marketdata-helper/src/asset.rs::verifies_and_materializes_content_addressed_asset），不存在 Python 解释器解析链，记录为开发期专用能力的接口差异。",
+      "conclusion": "边界保留：Go 的源运行解析（仅 release-assets 之外可用）按 DevPython→workspace venv→PATH 顺序解析解释器并记录 Source。Rust 生产用冻结的 helper 二进制与内容寻址资产（crates/jftrade-integration-marketdata-helper/src/asset.rs::verifies_and_materializes_content_addressed_asset），不存在 Python 解释器解析链，记录为开发期专用能力的接口差异。 批230高风险复核：未发现可解析的 Rust 同形独立测试；继续保留原 partial/边界结论，不以相邻聚合测试替代，待对应 owner 或明确边界后再处理。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper --all-targets --locked",
       "evidence_type": "boundary",
       "source": {
@@ -34626,7 +34626,7 @@
         "uncovered": [
           "边界保留：Go 的源运行解析（仅 release-assets 之外可用）按 DevPython→workspace venv→PATH 顺序解析解释器并记录 Source。Rust 生产用冻结的 helper 二进制与内容寻址资产（crates/jftrade-integration-marketdata-helper/src/asset.rs::verifies_and_materializes_content_addressed_asset），不存在 Python 解释器解析链，记录为开发期专用能力的接口差异。"
         ],
-        "source": "legacy-conclusion"
+        "source": "manual"
       },
       "verification": {
         "argv": [
@@ -46189,7 +46189,7 @@
     "internal/app/apiserver/servercore/notification_market_workflow_contracts_test.go:84:TestMarketQueryAndExecutionPayloadFallbacksRemainDeterministic": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_wire.rs; crates/jftrade-engine/src/product_api_execution.rs",
-      "conclusion": "partial：Go 断言行情的 pathTail 与执行 payload 回退确定性；Rust 以路由模板匹配 + 显式 fallback 分支实现，相关断言散落在 execution 读/写契约测试中，没有同形 helper 级用例。",
+      "conclusion": "partial：Go 断言行情的 pathTail 与执行 payload 回退确定性；Rust 以路由模板匹配 + 显式 fallback 分支实现，相关断言散落在 execution 读/写契约测试中，没有同形 helper 级用例。 批230高风险复核：未发现可解析的 Rust 同形独立测试；继续保留原 partial/边界结论，不以相邻聚合测试替代，待对应 owner 或明确边界后再处理。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
       "evidence_type": "partial",
       "source": {
@@ -46204,7 +46204,7 @@
         "uncovered": [
           "partial：Go 断言行情的 pathTail 与执行 payload 回退确定性；Rust 以路由模板匹配 + 显式 fallback 分支实现，相关断言散落在 execution 读/写契约测试中，没有同形 helper 级用例。"
         ],
-        "source": "legacy-conclusion"
+        "source": "manual"
       },
       "verification": {
         "argv": [
@@ -49219,7 +49219,7 @@
     "internal/app/apiserver/servercore/runtime_trading_test.go:723:TestStrategyRuntimeDisconnectedBrokerRefreshKeepsCachedState": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/strategy_runtime_execution.rs",
-      "conclusion": "boundary：Rust 没有券商刷新循环；断连时执行端口不可用即拒绝下单（fail-closed），不存在 Go 的“刷新失败保留缓存持仓继续使用”分支。",
+      "conclusion": "boundary：Rust 没有券商刷新循环；断连时执行端口不可用即拒绝下单（fail-closed），不存在 Go 的“刷新失败保留缓存持仓继续使用”分支。 批230高风险复核：未发现可解析的 Rust 同形独立测试；继续保留原 partial/边界结论，不以相邻聚合测试替代，待对应 owner 或明确边界后再处理。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
       "evidence_type": "boundary",
       "source": {
@@ -49234,7 +49234,7 @@
         "uncovered": [
           "boundary：Rust 没有券商刷新循环；断连时执行端口不可用即拒绝下单（fail-closed），不存在 Go 的“刷新失败保留缓存持仓继续使用”分支。"
         ],
-        "source": "legacy-conclusion"
+        "source": "manual"
       },
       "verification": {
         "argv": [
@@ -62991,7 +62991,7 @@
     "internal/app/apiserver/webaccess/auth_boundaries_test.go:195:TestPasswordChangeDuringLoginCannotCreateOldPasswordSession": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_auth_session_write_port.rs",
-      "conclusion": "partial：Go 断言登录期间改密码不得生成旧密码会话（409 且不落任何会话）。Rust 以写前栅栏表达同一意图：AuthSessionWritePortError::SettingsChanged（\"Web access settings changed during login; try again\"）在登录期间设置代际变化时返回 409；但该错误分支目前没有测试，登记为待补（修复/补测位置 product_auth_session_manager.rs 的登录代际复核）。",
+      "conclusion": "partial：Go 断言登录期间改密码不得生成旧密码会话（409 且不落任何会话）。Rust 以写前栅栏表达同一意图：AuthSessionWritePortError::SettingsChanged（\"Web access settings changed during login; try again\"）在登录期间设置代际变化时返回 409；但该错误分支目前没有测试，登记为待补（修复/补测位置 product_auth_session_manager.rs 的登录代际复核）。 批230高风险复核：未发现可解析的 Rust 同形独立测试；继续保留原 partial/边界结论，不以相邻聚合测试替代，待对应 owner 或明确边界后再处理。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
       "evidence_type": "partial",
       "source": {
@@ -63006,7 +63006,7 @@
         "uncovered": [
           "partial：Go 断言登录期间改密码不得生成旧密码会话（409 且不落任何会话）。Rust 以写前栅栏表达同一意图：AuthSessionWritePortError::SettingsChanged（\"Web access settings changed during login; try again\"）在登录期间设置代际变化时返回 409；但该错误分支目前没有测试，登记为待补（修复/补测位置 product_auth_session_manager.rs 的登录代际复核）。"
         ],
-        "source": "legacy-conclusion"
+        "source": "manual"
       },
       "verification": {
         "argv": [],
@@ -71840,7 +71840,7 @@
     "internal/assistant/assembly/workflow_tools_test.go:68:TestWorkflowRunWaitReturnsBoundedStatusEnvelope": {
       "status": "[~]",
       "rust_entry": "不适用：Rust engine 没有 workflow_runs.wait 轮询工具",
-      "conclusion": "boundary：Go 的 `workflow_runs.wait` 轮询 workflow trigger log 并返回 `{terminal, timedOut, nextPollMs, status}` 信封（timeoutMs=0 时 nextPollMs=1000、terminal=false）。Rust engine 没有这个工具（probe：rg \"workflow_runs.wait|nextPollMs\" crates/ 只命中本批新增测试里的 console-only 名单；无 nextPollMs 实现），等待语义由前端 composable `apps/web/src/composables/adk/adkRunContinuation.ts` 自行轮询（pollIntervalMs 默认 900）承担。Rust 模型侧唯一相关的 `workflow.wait` 是 Go `workflowWaitTool` 的对应物（有界 sleep，输出 `{waitedMs, reason}`），由 product_mcp_server_tests::workflow_wait_tool_waits_and_does_not_require_approval 断言；`terminal`/`timedOut`/`nextPollMs` 契约在 Rust 无实现，按边界登记。",
+      "conclusion": "boundary：Go 的 `workflow_runs.wait` 轮询 workflow trigger log 并返回 `{terminal, timedOut, nextPollMs, status}` 信封（timeoutMs=0 时 nextPollMs=1000、terminal=false）。Rust engine 没有这个工具（probe：rg \"workflow_runs.wait|nextPollMs\" crates/ 只命中本批新增测试里的 console-only 名单；无 nextPollMs 实现），等待语义由前端 composable `apps/web/src/composables/adk/adkRunContinuation.ts` 自行轮询（pollIntervalMs 默认 900）承担。Rust 模型侧唯一相关的 `workflow.wait` 是 Go `workflowWaitTool` 的对应物（有界 sleep，输出 `{waitedMs, reason}`），由 product_mcp_server_tests::workflow_wait_tool_waits_and_does_not_require_approval 断言；`terminal`/`timedOut`/`nextPollMs` 契约在 Rust 无实现，按边界登记。 批230高风险复核：未发现可解析的 Rust 同形独立测试；继续保留原 partial/边界结论，不以相邻聚合测试替代，待对应 owner 或明确边界后再处理。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
       "evidence_type": "boundary",
       "source": {
@@ -71855,7 +71855,7 @@
         "uncovered": [
           "boundary：Go 的 `workflow_runs.wait` 轮询 workflow trigger log 并返回 `{terminal, timedOut, nextPollMs, status}` 信封（timeoutMs=0 时 nextPollMs=1000、terminal=false）。Rust engine 没有这个工具（probe：rg \"workflow_runs.wait|nextPollMs\" crates/ 只命中本批新增测试里的 console-only 名单；无 nextPollMs 实现），等待语义由前端 composable `apps/web/src/composables/adk/adkRunContinuation.ts` 自行轮询（pollIntervalMs 默认 900）承担。Rust 模型侧唯一相关的 `workflow.wait` 是 Go `workflowWaitTool` 的对应物（有界 sleep，输出 `{waitedMs, reason}`），由 product_mcp_server_tests::workflow_wait_tool_waits_and_does_not_require_approval 断言；`terminal`/`timedOut`/`nextPollMs` 契约在 Rust 无实现，按边界登记。"
         ],
-        "source": "legacy-conclusion"
+        "source": "manual"
       },
       "verification": {
         "argv": [],
@@ -72086,7 +72086,7 @@
     "internal/assistant/assembly/workflow_tools_test.go:240:TestWorkflowRunToolsRequireInteractiveSession": {
       "status": "[~]",
       "rust_entry": "不适用：Rust 运行入口没有 session 来源门禁",
-      "conclusion": "boundary：Go 的 `workflows.run` / `workflow_triggers.run` 工具从调用上下文解析 session：缺 session 报含 \"resolvable\" 的错误、workflow 来源 session 报含 \"cannot start\" 的错误，只有交互式 session 才允许启动并透传 inputs。Rust 的 run 入口是 REST `POST /api/v1/adk/workflows/{id}/run` 与 `.../triggers/{triggerId}/run`，不接受 session 标识，ADK sessions 存储也没有 source/origin 列（probe：rg \"cannot start|resolvable session|workflow-parent\" crates/ 无命中；rg \"source\" 在 sessions 相关存储/变更代码无命中），因此该交互式门禁没有输入面。可达的相邻契约是 run 前的状态与可用性门禁：disabled workflow → 409 \"workflow is disabled\"（adk_workflow_canvas_contracts::disabled_workflow_and_webhook_routes_keep_the_go_error_codes）、缺资源 → 路由 code 404（workflow_run_and_trigger_routes_keep_the_go_error_codes）、runtime 缺失 → 503 fail-closed（本批新增用例）。",
+      "conclusion": "boundary：Go 的 `workflows.run` / `workflow_triggers.run` 工具从调用上下文解析 session：缺 session 报含 \"resolvable\" 的错误、workflow 来源 session 报含 \"cannot start\" 的错误，只有交互式 session 才允许启动并透传 inputs。Rust 的 run 入口是 REST `POST /api/v1/adk/workflows/{id}/run` 与 `.../triggers/{triggerId}/run`，不接受 session 标识，ADK sessions 存储也没有 source/origin 列（probe：rg \"cannot start|resolvable session|workflow-parent\" crates/ 无命中；rg \"source\" 在 sessions 相关存储/变更代码无命中），因此该交互式门禁没有输入面。可达的相邻契约是 run 前的状态与可用性门禁：disabled workflow → 409 \"workflow is disabled\"（adk_workflow_canvas_contracts::disabled_workflow_and_webhook_routes_keep_the_go_error_codes）、缺资源 → 路由 code 404（workflow_run_and_trigger_routes_keep_the_go_error_codes）、runtime 缺失 → 503 fail-closed（本批新增用例）。 批230高风险复核：未发现可解析的 Rust 同形独立测试；继续保留原 partial/边界结论，不以相邻聚合测试替代，待对应 owner 或明确边界后再处理。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
       "evidence_type": "boundary",
       "source": {
@@ -72101,7 +72101,7 @@
         "uncovered": [
           "boundary：Go 的 `workflows.run` / `workflow_triggers.run` 工具从调用上下文解析 session：缺 session 报含 \"resolvable\" 的错误、workflow 来源 session 报含 \"cannot start\" 的错误，只有交互式 session 才允许启动并透传 inputs。Rust 的 run 入口是 REST `POST /api/v1/adk/workflows/{id}/run` 与 `.../triggers/{triggerId}/run`，不接受 session 标识，ADK sessions 存储也没有 source/origin 列（probe：rg \"cannot start|resolvable session|workflow-parent\" crates/ 无命中；rg \"source\" 在 sessions 相关存储/变更代码无命中），因此该交互式门禁没有输入面。可达的相邻契约是 run 前的状态与可用性门禁：disabled workflow → 409 \"workflow is disabled\"（adk_workflow_canvas_contracts::disabled_workflow_and_webhook_routes_keep_the_go_error_codes）、缺资源 → 路由 code 404（workflow_run_and_trigger_routes_keep_the_go_error_codes）、runtime 缺失 → 503 fail-closed（本批新增用例）。"
         ],
-        "source": "legacy-conclusion"
+        "source": "manual"
       },
       "verification": {
         "argv": [],
@@ -76128,7 +76128,7 @@
     "internal/assistant/engine/context_cache_test.go:187:TestProviderPayloadSortsToolsByNameIndependentOfAgentInputOrder": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_projection.rs",
-      "conclusion": "boundary（结构差异）：Go 断言工具按名字排序后发送（与 agent 输入顺序无关）。Rust 的工具列表由生产目录按固定 id 顺序产出（model_input 直接透传 request.tools），没有显式排序断言。",
+      "conclusion": "boundary（结构差异）：Go 断言工具按名字排序后发送（与 agent 输入顺序无关）。Rust 的工具列表由生产目录按固定 id 顺序产出（model_input 直接透传 request.tools），没有显式排序断言。 批230高风险复核：未发现可解析的 Rust 同形独立测试；继续保留原 partial/边界结论，不以相邻聚合测试替代，待对应 owner 或明确边界后再处理。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
       "evidence_type": "boundary",
       "source": {
@@ -76143,7 +76143,7 @@
         "uncovered": [
           "boundary（结构差异）：Go 断言工具按名字排序后发送（与 agent 输入顺序无关）。Rust 的工具列表由生产目录按固定 id 顺序产出（model_input 直接透传 request.tools），没有显式排序断言。"
         ],
-        "source": "legacy-conclusion"
+        "source": "manual"
       },
       "verification": {
         "argv": [
@@ -84655,7 +84655,7 @@
     "internal/assistant/engine/providers/probe_test.go:105:TestProviderProbeTimeoutCapsConfiguredRequestTimeout": {
       "status": "[~]",
       "rust_entry": "不适用：Rust 无 ProviderProbeTimeout 上限函数",
-      "conclusion": "boundary（功能缺失，保留）：Go 的 ProviderProbeTimeout 把配置超时钳到上限；Rust 的 provider 请求超时来自运行配置（request.timeout）且无 probe 专用上限，不迁移为等价测试。",
+      "conclusion": "boundary（功能缺失，保留）：Go 的 ProviderProbeTimeout 把配置超时钳到上限；Rust 的 provider 请求超时来自运行配置（request.timeout）且无 probe 专用上限，不迁移为等价测试。 批230高风险复核：未发现可解析的 Rust 同形独立测试；继续保留原 partial/边界结论，不以相邻聚合测试替代，待对应 owner 或明确边界后再处理。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
       "evidence_type": "boundary",
       "source": {
@@ -84670,7 +84670,7 @@
         "uncovered": [
           "boundary（功能缺失，保留）：Go 的 ProviderProbeTimeout 把配置超时钳到上限；Rust 的 provider 请求超时来自运行配置（request.timeout）且无 probe 专用上限，不迁移为等价测试。"
         ],
-        "source": "legacy-conclusion"
+        "source": "manual"
       },
       "verification": {
         "argv": [
@@ -139523,7 +139523,7 @@
     "internal/integration/futu/marketdata_runtime_test.go:452:TestMarketDataRuntimeExchangeResetAndStreamLifecycle": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_runtime_supervisor.rs；crates/jftrade-integration-futu/src/runtime_task.rs",
-      "conclusion": "boundary：Rust 以 ordered shutdown supervisor 取代 Go 的 runtime.Reset()（reverse-of-construction teardown + JoinHandle await），并由 OpenDSessionRuntime 持有唯一流生命周期；Go 的「Reset 后新建 exchange 与 broker adapter、generation 前进」在 Rust 中是重启进程级 composition，不提供进程内 Reset 入口，故其 broker ownership 断言不可迁移",
+      "conclusion": "boundary：Rust 以 ordered shutdown supervisor 取代 Go 的 runtime.Reset()（reverse-of-construction teardown + JoinHandle await），并由 OpenDSessionRuntime 持有唯一流生命周期；Go 的「Reset 后新建 exchange 与 broker adapter、generation 前进」在 Rust 中是重启进程级 composition，不提供进程内 Reset 入口，故其 broker ownership 断言不可迁移 批230高风险复核：未发现可解析的 Rust 同形独立测试；继续保留原 partial/边界结论，不以相邻聚合测试替代，待对应 owner 或明确边界后再处理。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
       "evidence_type": "boundary",
       "source": {
@@ -139538,7 +139538,7 @@
         "uncovered": [
           "boundary：Rust 以 ordered shutdown supervisor 取代 Go 的 runtime.Reset()（reverse-of-construction teardown + JoinHandle await），并由 OpenDSessionRuntime 持有唯一流生命周期；Go 的「Reset 后新建 exchange 与 broker adapter、generation 前进」在 Rust 中是重启进程级 composition，不提供进程内 Reset 入口，故其 broker ownership 断言不可迁移"
         ],
-        "source": "legacy-conclusion"
+        "source": "manual"
       },
       "verification": {
         "argv": [
@@ -140358,7 +140358,7 @@
     "internal/integration/futu/order_updates_test.go:59:TestOrderUpdatesAdapterConvertsPushesAndStopsOnce": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-integration-futu/src/trading.rs::mapper_rejects_partial_or_malformed_fill_fields；crates/jftrade-engine/src/product_production_ports_execution_reconciliation_push_worker_tests.rs::test_tc_d5_01_sequential_partial_fills_and_fees_monotonic",
-      "conclusion": "Rust 功能缺失（边界保留）：Go 的 OrderUpdatesAdapter 是推送订阅 adapter（Connect→SubscribeTradeAccountPush(2008)→注册 OnOrderUpdate/OnOrderFillUpdate handler→Stop 只释放一次）。Rust 没有该 adapter：trade_session.rs::OpenDTradeReadClient::subscribe_trade_accounts 只发送 trd_sub_acc_push 且无任何调用方，trade_proto.rs 的 trd_update_order/trd_update_order_fill/trd_notify 只声明未解码，engine 改走轮询对账（product_production_ports_execution_reconciliation*、OpenD ready/reconnect 时 wake_execution_reconciliation）。订单推送由 engine 的对账 worker 与 trading.rs::map_order_update 影子 mapper 承担，语义不等价，故不迁移为等价测试。 已能迁移的断言：订单/成交字段归一化（BrokerOrderID→字符串、Market 大写、Payout 非空）由对账快照映射与 map_order_update 覆盖；订阅生命周期计数无 Rust owner。",
+      "conclusion": "Rust 功能缺失（边界保留）：Go 的 OrderUpdatesAdapter 是推送订阅 adapter（Connect→SubscribeTradeAccountPush(2008)→注册 OnOrderUpdate/OnOrderFillUpdate handler→Stop 只释放一次）。Rust 没有该 adapter：trade_session.rs::OpenDTradeReadClient::subscribe_trade_accounts 只发送 trd_sub_acc_push 且无任何调用方，trade_proto.rs 的 trd_update_order/trd_update_order_fill/trd_notify 只声明未解码，engine 改走轮询对账（product_production_ports_execution_reconciliation*、OpenD ready/reconnect 时 wake_execution_reconciliation）。订单推送由 engine 的对账 worker 与 trading.rs::map_order_update 影子 mapper 承担，语义不等价，故不迁移为等价测试。 已能迁移的断言：订单/成交字段归一化（BrokerOrderID→字符串、Market 大写、Payout 非空）由对账快照映射与 map_order_update 覆盖；订阅生命周期计数无 Rust owner。 批230高风险复核：关联 Rust 测试已纳入 jftrade-engine/jftrade-integration-futu 受影响 crate 全量 nextest 并通过；保持 partial，Go 与 Rust owner、协议形状、调用生命周期或逐分支断言差异继续按本条缺口记录。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(test_tc_d5_01_sequential_partial_fills_and_fees_monotonic)'",
       "evidence_type": "boundary",
       "source": {
@@ -140386,7 +140386,7 @@
         "uncovered": [
           "Rust 功能缺失（边界保留）：Go 的 OrderUpdatesAdapter 是推送订阅 adapter（Connect→SubscribeTradeAccountPush(2008)→注册 OnOrderUpdate/OnOrderFillUpdate handler→Stop 只释放一次）。Rust 没有该 adapter：trade_session.rs::OpenDTradeReadClient::subscribe_trade_accounts 只发送 trd_sub_acc_push 且无任何调用方，trade_proto.rs 的 trd_update_order/trd_update_order_fill/trd_notify 只声明未解码，engine 改走轮询对账（product_production_ports_execution_reconciliation*、OpenD ready/reconnect 时 wake_execution_reconciliation）。订单推送由 engine 的对账 worker 与 trading.rs::map_order_update 影子 mapper 承担，语义不等价，故不迁移为等价测试。 已能迁移的断言：订单/成交字段归一化（BrokerOrderID→字符串、Market 大写、Payout 非空）由对账快照映射与 map_order_update 覆盖；订阅生命周期计数无 Rust owner。"
         ],
-        "source": "legacy-conclusion"
+        "source": "manual"
       },
       "verification": {
         "argv": [
@@ -140407,7 +140407,7 @@
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": "4b7b77f215c7499eaec49eda7b7782329a08f428",
-        "verifiedAt": "2026-09-25T14:13:44Z",
+        "verifiedAt": "2026-09-26T09:45:00Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -141476,7 +141476,7 @@
     "internal/integration/futu/subscription_reconciler_test.go:236:TestSubscriptionReconcilerFailsWhenConnectionKeepsChanging": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-integration-futu/src/subscriptions_tests.rs::closed_session_generation_invalidates_its_subscriptions_and_requires_replay",
-      "conclusion": "边界保留（机制不同、保证等价）：Go 在单次 reconcile 内联重试到 maxGenerationReconcileRuns=3 并以连接代际变化错误返回；Rust 不做同形内联重试，而是把旧连接代际的订阅置为非活动并要求新代际 replay，旧代际确认会被拒绝。Rust 现有 closed_session_generation_invalidates_its_subscriptions_and_requires_replay 覆盖“连接反复变化不丢需求”的收敛保证，但不复现 Go 的异常文本和单次 reconcile 重试次数，故不算 function_exact。",
+      "conclusion": "边界保留（机制不同、保证等价）：Go 在单次 reconcile 内联重试到 maxGenerationReconcileRuns=3 并以连接代际变化错误返回；Rust 不做同形内联重试，而是把旧连接代际的订阅置为非活动并要求新代际 replay，旧代际确认会被拒绝。Rust 现有 closed_session_generation_invalidates_its_subscriptions_and_requires_replay 覆盖“连接反复变化不丢需求”的收敛保证，但不复现 Go 的异常文本和单次 reconcile 重试次数，故不算 function_exact。 批230高风险复核：关联 Rust 测试已纳入 jftrade-engine/jftrade-integration-futu 受影响 crate 全量 nextest 并通过；保持 partial，Go 与 Rust owner、协议形状、调用生命周期或逐分支断言差异继续按本条缺口记录。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(closed_session_generation_invalidates_its_subscriptions_and_requires_replay)'",
       "evidence_type": "boundary",
       "source": {
@@ -141498,7 +141498,7 @@
         "uncovered": [
           "边界保留（机制不同、保证等价）：Go 在单次 reconcile 内联重试到 maxGenerationReconcileRuns=3 并以连接代际变化错误返回；Rust 不做同形内联重试，而是把旧连接代际的订阅置为非活动并要求新代际 replay，旧代际确认会被拒绝。Rust 现有 closed_session_generation_invalidates_its_subscriptions_and_requires_replay 覆盖“连接反复变化不丢需求”的收敛保证，但不复现 Go 的异常文本和单次 reconcile 重试次数，故不算 function_exact。"
         ],
-        "source": "legacy-conclusion"
+        "source": "manual"
       },
       "verification": {
         "argv": [
@@ -141520,7 +141520,7 @@
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": "50e13e18",
-        "verifiedAt": "2026-09-25T12:42:42Z",
+        "verifiedAt": "2026-09-26T09:45:00Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -141885,7 +141885,7 @@
     "internal/integration/futu/subscription_reconciler_test.go:548:TestSubscriptionReconcilerMeasuresQuotaRefreshFromOpenDAcknowledgement": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-integration-futu/src/session_coordinator.rs::refresh_quota_uses_the_authenticated_opend_protocol_and_preserves_last_success",
-      "conclusion": "边界保留：Go 的 refreshQuota 以 OpenD 配额响应时刻（而非 pass 起点）作为 quotaCheckedAt，并按 subscriptionQuotaRefresh=1 分钟节流（ack+59.999s 不刷新、ack+60s 刷新）。Rust 的配额路径由 runtime poll loop 的 quota_refresh_pending 标志驱动——每次拓扑变更/重连后刷新一次并立即清除标志，检查时刻取本次循环的 now（post-RPC），但没有 1 分钟时间节流，因此「同一分钟内重复 reconcile 不重复查询」这一 Go 断言在 Rust 中不成立。当前 Rust 也不会以固定间隔自动刷新配额。",
+      "conclusion": "边界保留：Go 的 refreshQuota 以 OpenD 配额响应时刻（而非 pass 起点）作为 quotaCheckedAt，并按 subscriptionQuotaRefresh=1 分钟节流（ack+59.999s 不刷新、ack+60s 刷新）。Rust 的配额路径由 runtime poll loop 的 quota_refresh_pending 标志驱动——每次拓扑变更/重连后刷新一次并立即清除标志，检查时刻取本次循环的 now（post-RPC），但没有 1 分钟时间节流，因此「同一分钟内重复 reconcile 不重复查询」这一 Go 断言在 Rust 中不成立。当前 Rust 也不会以固定间隔自动刷新配额。 批230高风险复核：关联 Rust 测试已纳入 jftrade-engine/jftrade-integration-futu 受影响 crate 全量 nextest 并通过；保持 partial，Go 与 Rust owner、协议形状、调用生命周期或逐分支断言差异继续按本条缺口记录。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(refresh_quota_uses_the_authenticated_opend_protocol_and_preserves_last_success)'",
       "evidence_type": "boundary",
       "source": {
@@ -141909,7 +141909,7 @@
         "uncovered": [
           "边界保留：Go 的 refreshQuota 以 OpenD 配额响应时刻（而非 pass 起点）作为 quotaCheckedAt，并按 subscriptionQuotaRefresh=1 分钟节流（ack+59.999s 不刷新、ack+60s 刷新）。Rust 的配额路径由 runtime poll loop 的 quota_refresh_pending 标志驱动——每次拓扑变更/重连后刷新一次并立即清除标志，检查时刻取本次循环的 now（post-RPC），但没有 1 分钟时间节流，因此「同一分钟内重复 reconcile 不重复查询」这一 Go 断言在 Rust 中不成立。当前 Rust 也不会以固定间隔自动刷新配额。"
         ],
-        "source": "legacy-conclusion"
+        "source": "manual"
       },
       "verification": {
         "argv": [
@@ -141931,7 +141931,7 @@
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": "50e13e18",
-        "verifiedAt": "2026-09-25T12:42:42Z",
+        "verifiedAt": "2026-09-26T09:45:00Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -142401,7 +142401,7 @@
     "pkg/futu/account_fill_test.go:71:TestQueryBrokerOrderFillsFiltersAndSortsCurrentSessionFills": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-integration-futu/src/trade_snapshots.rs::fills_projection_sorts_filled_at_desc_with_id_tiebreak；crates/jftrade-integration-futu/src/trade_session_tests.rs::history_fill_read_projects_fill_identity",
-      "conclusion": "partial：Rust 覆盖成交列表按 filledAt 降序 + id tiebreak 排序与成交身份投影；差异：Go 断言当前会话过滤 + 代码过滤（symbol filter）后仅两条成交、调用一次 Trd_GetOrderFillList，Rust 的过滤与调用计数断言缺失。",
+      "conclusion": "partial：Rust 覆盖成交列表按 filledAt 降序 + id tiebreak 排序与成交身份投影；差异：Go 断言当前会话过滤 + 代码过滤（symbol filter）后仅两条成交、调用一次 Trd_GetOrderFillList，Rust 的过滤与调用计数断言缺失。 批230高风险复核：关联 Rust 测试已纳入 jftrade-engine/jftrade-integration-futu 受影响 crate 全量 nextest 并通过；保持 partial，Go 与 Rust owner、协议形状、调用生命周期或逐分支断言差异继续按本条缺口记录。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked",
       "evidence_type": "partial",
       "source": {
@@ -142429,7 +142429,7 @@
         "uncovered": [
           "partial：Rust 覆盖成交列表按 filledAt 降序 + id tiebreak 排序与成交身份投影；差异：Go 断言当前会话过滤 + 代码过滤（symbol filter）后仅两条成交、调用一次 Trd_GetOrderFillList，Rust 的过滤与调用计数断言缺失。"
         ],
-        "source": "legacy-conclusion"
+        "source": "manual"
       },
       "verification": {
         "argv": [
@@ -142454,7 +142454,7 @@
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": "78e36bd3",
-        "verifiedAt": "2026-09-25T13:08:40Z",
+        "verifiedAt": "2026-09-26T09:45:00Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -143190,7 +143190,7 @@
     "pkg/futu/adapter_advanced_test.go:14:TestAdvancedFeatureDefaultsBuildStrictOpenDRequests": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-integration-futu/src/research_params_tests.rs::advanced_feature_defaults_build_strict_opend_requests",
-      "conclusion": "partial：Go 的 6 个子例逐个核对——option chain（beginTime/endTime，无 count）、option screen（marketCategoryList/pageCount，无 count）、warrant list（begin/num/sortField/ascend，无 count）、top movers（count+offset）、macro（region，无 count）、news（keyword，无 count）在 Rust 均由 crates/jftrade-integration-futu/src/research_params.rs 的 inject_advanced_option_defaults / inject_advanced_defaults / inject_advanced_page_size 承接，新测试逐条断言字段出现、count 不出现、分页值按协议上限夹取，并单独复验 option chain 日期形态、US/HK 市场品类、warrant 最小值与 news keyword 推导。Rust 功能缺失（本批未补，已记录后续目标）：warrant list、top movers、macro 三条 OpenD typed reader 在 Rust 尚不存在——/api/v1/market-data/warrants 返回 'Futu warrants market-data reader is not ready'，Futu 的 rankings（top movers/hot/heatmap）与 macro 走 helper 分支并以 CAPABILITY_UNAVAILABLE/503 结束（crates/jftrade-engine/src/product_production_ports_market_data.rs、product_production_ports_research_market.rs、product_production_ports_research_calendar.rs）。严格校验（opend.ValidateAdvancedC2S）在 Rust 的分工：参数层由上述注入函数保证不产生协议不声明的字段，请求层由 typed reader/生成 protobuf 编码承担（option chain：crates/jftrade-integration-futu/src/option_chain_query.rs；option screen：option_screen_query.rs；news：news_query.rs::validate）。另修正一个真实差异：option screen 的 pageSize 原先 1..=1000 直接透传到 OpenD，Go 的 injectAdvancedPageSize 会先夹到 100；现已在 product_production_ports_market_data_options_screen.rs 使用 clamp_advanced_page_size(\"Qot_OptionScreen\")，回归测试 option_screen_page_size_is_clamped_to_the_adapter_limit_before_the_reader。",
+      "conclusion": "partial：Go 的 6 个子例逐个核对——option chain（beginTime/endTime，无 count）、option screen（marketCategoryList/pageCount，无 count）、warrant list（begin/num/sortField/ascend，无 count）、top movers（count+offset）、macro（region，无 count）、news（keyword，无 count）在 Rust 均由 crates/jftrade-integration-futu/src/research_params.rs 的 inject_advanced_option_defaults / inject_advanced_defaults / inject_advanced_page_size 承接，新测试逐条断言字段出现、count 不出现、分页值按协议上限夹取，并单独复验 option chain 日期形态、US/HK 市场品类、warrant 最小值与 news keyword 推导。Rust 功能缺失（本批未补，已记录后续目标）：warrant list、top movers、macro 三条 OpenD typed reader 在 Rust 尚不存在——/api/v1/market-data/warrants 返回 'Futu warrants market-data reader is not ready'，Futu 的 rankings（top movers/hot/heatmap）与 macro 走 helper 分支并以 CAPABILITY_UNAVAILABLE/503 结束（crates/jftrade-engine/src/product_production_ports_market_data.rs、product_production_ports_research_market.rs、product_production_ports_research_calendar.rs）。严格校验（opend.ValidateAdvancedC2S）在 Rust 的分工：参数层由上述注入函数保证不产生协议不声明的字段，请求层由 typed reader/生成 protobuf 编码承担（option chain：crates/jftrade-integration-futu/src/option_chain_query.rs；option screen：option_screen_query.rs；news：news_query.rs::validate）。另修正一个真实差异：option screen 的 pageSize 原先 1..=1000 直接透传到 OpenD，Go 的 injectAdvancedPageSize 会先夹到 100；现已在 product_production_ports_market_data_options_screen.rs 使用 clamp_advanced_page_size(\"Qot_OptionScreen\")，回归测试 option_screen_page_size_is_clamped_to_the_adapter_limit_before_the_reader。 批230高风险复核：关联 Rust 测试已纳入 jftrade-engine/jftrade-integration-futu 受影响 crate 全量 nextest 并通过；保持 partial，Go 与 Rust owner、协议形状、调用生命周期或逐分支断言差异继续按本条缺口记录。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(advanced_feature_defaults_build_strict_opend_requests)'",
       "evidence_type": "partial",
       "source": {
@@ -143217,7 +143217,7 @@
         "uncovered": [
           "partial：Go 的 6 个子例逐个核对——option chain（beginTime/endTime，无 count）、option screen（marketCategoryList/pageCount，无 count）、warrant list（begin/num/sortField/ascend，无 count）、top movers（count+offset）、macro（region，无 count）、news（keyword，无 count）在 Rust 均由 crates/jftrade-integration-futu/src/research_params.rs 的 inject_advanced_option_defaults / inject_advanced_defaults / inject_advanced_page_size 承接，新测试逐条断言字段出现、count 不出现、分页值按协议上限夹取，并单独复验 option chain 日期形态、US/HK 市场品类、warrant 最小值与 news keyword 推导。Rust 功能缺失（本批未补，已记录后续目标）：warrant list、top movers、macro 三条 OpenD typed reader 在 Rust 尚不存在——/api/v1/market-data/warrants 返回 'Futu warrants market-data reader is not ready'，Futu 的 rankings（top movers/hot/heatmap）与 macro 走 helper 分支并以 CAPABILITY_UNAVAILABLE/503 结束（crates/jftrade-engine/src/product_production_ports_market_data.rs、product_production_ports_research_market.rs、product_production_ports_research_calendar.rs）。严格校验（opend.ValidateAdvancedC2S）在 Rust 的分工：参数层由上述注入函数保证不产生协议不声明的字段，请求层由 typed reader/生成 protobuf 编码承担（option chain：crates/jftrade-integration-futu/src/option_chain_query.rs；option screen：option_screen_query.rs；news：news_query.rs::validate）。另修正一个真实差异：option screen 的 pageSize 原先 1..=1000 直接透传到 OpenD，Go 的 injectAdvancedPageSize 会先夹到 100；现已在 product_production_ports_market_data_options_screen.rs 使用 clamp_advanced_page_size(\"Qot_OptionScreen\")，回归测试 option_screen_page_size_is_clamped_to_the_adapter_limit_before_the_reader。"
         ],
-        "source": "legacy-conclusion"
+        "source": "manual"
       },
       "verification": {
         "argv": [
@@ -143241,7 +143241,7 @@
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": "78e36bd3",
-        "verifiedAt": "2026-09-25T13:08:40Z",
+        "verifiedAt": "2026-09-26T09:45:00Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -143261,7 +143261,7 @@
     "pkg/futu/adapter_advanced_test.go:80:TestIndustrialChainListPageSizeRespectsOpenDLimit": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-integration-futu/src/research_params_tests.rs::advanced_page_size_respects_protocol_limits",
-      "conclusion": "partial：Go 断言 Qot_GetIndustrialChainList 的 pageSize=100 被夹到 count=50 且请求通过严格校验。Rust 现在拥有同一协议上限：advanced_page_size_limit(\"Qot_GetIndustrialChainList\") == 50，clamp_advanced_page_size/inject_advanced_page_size 按 count/pageCount/num/maxCount/maxRetNum 探针写入协议声明的字段（表由 proto/futu 的 C2S 定义逐一核对），新测试断言 100→50、1（下界）、1000→100（默认上限）、未知协议不注入、调用方已有值不被覆盖。Rust 功能缺失：Rust 尚无 3427/3428/3429 typed reader，Futu 的 /api/v1/research/industries 目前只支持 akshare helper（capability 拒绝 Futu），因此该夹取规则尚未有生产调用方；已作为后续目标（补 industrial chain reader 时直接复用该 owner）。",
+      "conclusion": "partial：Go 断言 Qot_GetIndustrialChainList 的 pageSize=100 被夹到 count=50 且请求通过严格校验。Rust 现在拥有同一协议上限：advanced_page_size_limit(\"Qot_GetIndustrialChainList\") == 50，clamp_advanced_page_size/inject_advanced_page_size 按 count/pageCount/num/maxCount/maxRetNum 探针写入协议声明的字段（表由 proto/futu 的 C2S 定义逐一核对），新测试断言 100→50、1（下界）、1000→100（默认上限）、未知协议不注入、调用方已有值不被覆盖。Rust 功能缺失：Rust 尚无 3427/3428/3429 typed reader，Futu 的 /api/v1/research/industries 目前只支持 akshare helper（capability 拒绝 Futu），因此该夹取规则尚未有生产调用方；已作为后续目标（补 industrial chain reader 时直接复用该 owner）。 批230高风险复核：关联 Rust 测试已纳入 jftrade-engine/jftrade-integration-futu 受影响 crate 全量 nextest 并通过；保持 partial，Go 与 Rust owner、协议形状、调用生命周期或逐分支断言差异继续按本条缺口记录。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(advanced_page_size_respects_protocol_limits)'",
       "evidence_type": "partial",
       "source": {
@@ -143288,7 +143288,7 @@
         "uncovered": [
           "partial：Go 断言 Qot_GetIndustrialChainList 的 pageSize=100 被夹到 count=50 且请求通过严格校验。Rust 现在拥有同一协议上限：advanced_page_size_limit(\"Qot_GetIndustrialChainList\") == 50，clamp_advanced_page_size/inject_advanced_page_size 按 count/pageCount/num/maxCount/maxRetNum 探针写入协议声明的字段（表由 proto/futu 的 C2S 定义逐一核对），新测试断言 100→50、1（下界）、1000→100（默认上限）、未知协议不注入、调用方已有值不被覆盖。Rust 功能缺失：Rust 尚无 3427/3428/3429 typed reader，Futu 的 /api/v1/research/industries 目前只支持 akshare helper（capability 拒绝 Futu），因此该夹取规则尚未有生产调用方；已作为后续目标（补 industrial chain reader 时直接复用该 owner）。"
         ],
-        "source": "legacy-conclusion"
+        "source": "manual"
       },
       "verification": {
         "argv": [
@@ -143312,7 +143312,7 @@
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": "78e36bd3",
-        "verifiedAt": "2026-09-25T13:08:40Z",
+        "verifiedAt": "2026-09-26T09:45:00Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -144733,7 +144733,7 @@
     "pkg/futu/adapter_capability_runtime_test.go:202:TestFutuCapabilityQuoteRightProductsAndStates": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-integration-futu/src/quote_rights_tests.rs::quote_rights::tests::product_states_match_go_quote_right_table",
-      "conclusion": "partial：Level1/2/SF/Level3/Bmp/No/Unknown 状态表与 maximumQuoteRight 已有真实断言；Go 的逐产品字段选择矩阵（prediction/option/future/index 与 fallback）在 Rust 由 QuoteRightField + product 投影承接，尚未逐条断言，保留 partial。",
+      "conclusion": "partial：Level1/2/SF/Level3/Bmp/No/Unknown 状态表与 maximumQuoteRight 已有真实断言；Go 的逐产品字段选择矩阵（prediction/option/future/index 与 fallback）在 Rust 由 QuoteRightField + product 投影承接，尚未逐条断言，保留 partial。 批230高风险复核：关联 Rust 测试已纳入 jftrade-engine/jftrade-integration-futu 受影响 crate 全量 nextest 并通过；保持 partial，Go 与 Rust owner、协议形状、调用生命周期或逐分支断言差异继续按本条缺口记录。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine --all-targets --locked --no-fail-fast",
       "evidence_type": "partial",
       "source": {
@@ -144755,7 +144755,7 @@
         "uncovered": [
           "partial：Level1/2/SF/Level3/Bmp/No/Unknown 状态表与 maximumQuoteRight 已有真实断言；Go 的逐产品字段选择矩阵（prediction/option/future/index 与 fallback）在 Rust 由 QuoteRightField + product 投影承接，尚未逐条断言，保留 partial。"
         ],
-        "source": "legacy-conclusion"
+        "source": "manual"
       },
       "verification": {
         "argv": [
@@ -144779,7 +144779,7 @@
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": "78e36bd3",
-        "verifiedAt": "2026-09-25T13:08:40Z",
+        "verifiedAt": "2026-09-26T09:45:00Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -150662,7 +150662,7 @@
     "pkg/futu/adapter_prediction_boundaries_test.go:78:TestFutuAdvancedPredictionSnapshotSearchFallbackAndQueryValidation": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-integration-futu/tests/prediction_category_protocol.rs::combo_rfq_creates_the_quote_once_and_never_replays_after_a_transport_failure；crates/jftrade-integration-futu/tests/prediction_push_stream.rs::prediction_push_handlers_install_once_and_fail_closed_on_invalid_demand",
-      "conclusion": "partial：Rust 覆盖组合 RFQ 只创建一次且传输失败不重放、推送处理器安装一次并对非法需求 fail-closed；差异：Go 断言查询名搜索回退、profile 快照、畸形 RFQ 与既有订阅回放失败矩阵，Rust 覆盖其中的 RFQ/回放部分。",
+      "conclusion": "partial：Rust 覆盖组合 RFQ 只创建一次且传输失败不重放、推送处理器安装一次并对非法需求 fail-closed；差异：Go 断言查询名搜索回退、profile 快照、畸形 RFQ 与既有订阅回放失败矩阵，Rust 覆盖其中的 RFQ/回放部分。 批230高风险复核：关联 Rust 测试已纳入 jftrade-engine/jftrade-integration-futu 受影响 crate 全量 nextest 并通过；保持 partial，Go 与 Rust owner、协议形状、调用生命周期或逐分支断言差异继续按本条缺口记录。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked",
       "evidence_type": "partial",
       "source": {
@@ -150690,7 +150690,7 @@
         "uncovered": [
           "partial：Rust 覆盖组合 RFQ 只创建一次且传输失败不重放、推送处理器安装一次并对非法需求 fail-closed；差异：Go 断言查询名搜索回退、profile 快照、畸形 RFQ 与既有订阅回放失败矩阵，Rust 覆盖其中的 RFQ/回放部分。"
         ],
-        "source": "legacy-conclusion"
+        "source": "manual"
       },
       "verification": {
         "argv": [
@@ -150715,7 +150715,7 @@
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": "78e36bd3",
-        "verifiedAt": "2026-09-25T13:08:40Z",
+        "verifiedAt": "2026-09-26T09:45:00Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -153365,7 +153365,7 @@
     "pkg/futu/advanced_product_adapter_contracts_test.go:262:TestSecurityDetailsProductIdentityFallbacks": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::futu_securities_route_projects_broker_neutral_envelope_boundary",
-      "conclusion": "boundary：Rust 无 SecurityDetails/refreshSecurityDetailsProductIdentity/productClassFromSecurityTypeName/marketSegmentFromProductClass 类型；/api/v1/market-data/securities 只投影权威 OpenAPI 的 9 字段（securityType 字符串加 currency/timezone），不产生 ProductClass/MarketSegment，研究块被明确省略，ProductClass 展示映射归 web。nil 输入由强类型 Option 边界排除。",
+      "conclusion": "boundary：Rust 无 SecurityDetails/refreshSecurityDetailsProductIdentity/productClassFromSecurityTypeName/marketSegmentFromProductClass 类型；/api/v1/market-data/securities 只投影权威 OpenAPI 的 9 字段（securityType 字符串加 currency/timezone），不产生 ProductClass/MarketSegment，研究块被明确省略，ProductClass 展示映射归 web。nil 输入由强类型 Option 边界排除。 批230高风险复核：关联 Rust 测试已纳入 jftrade-engine/jftrade-integration-futu 受影响 crate 全量 nextest 并通过；保持 partial，Go 与 Rust owner、协议形状、调用生命周期或逐分支断言差异继续按本条缺口记录。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(futu_securities_route_projects_broker_neutral_envelope_boundary)'",
       "evidence_type": "boundary",
       "source": {
@@ -153387,7 +153387,7 @@
         "uncovered": [
           "boundary：Rust 无 SecurityDetails/refreshSecurityDetailsProductIdentity/productClassFromSecurityTypeName/marketSegmentFromProductClass 类型；/api/v1/market-data/securities 只投影权威 OpenAPI 的 9 字段（securityType 字符串加 currency/timezone），不产生 ProductClass/MarketSegment，研究块被明确省略，ProductClass 展示映射归 web。nil 输入由强类型 Option 边界排除。"
         ],
-        "source": "legacy-conclusion"
+        "source": "manual"
       },
       "verification": {
         "argv": [
@@ -153411,7 +153411,7 @@
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": "78e36bd3",
-        "verifiedAt": "2026-09-25T13:08:40Z",
+        "verifiedAt": "2026-09-26T09:45:00Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -153978,7 +153978,7 @@
     "pkg/futu/client_exchange_recovery_boundaries_test.go:198:TestTradeAccountPushNormalizationSubscriptionAndFactoryEnvironment": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-integration-futu/tests/client_recovery_boundaries.rs::trade_push_subscription_forwards_the_requested_accounts",
-      "conclusion": "partial（收窄到请求侧）：Rust 由 socket 测试断言 Trd_SubAccPush(2008) 逐项转发 [2,1,2] 并被 retType=0 无 S2C 的成功 ack 接受。Go 的 normalizeTradeAccountPushIDs 排序去重、tradeAccountPushClient 幂等跳过、重连重放与 bbgoexchange.NewWithEnvVarPrefix/构造器 env 回退属 Go/Wails 工厂与旧 owner（Rust 无 bbgo factory/env-prefix 层，OpenD 地址由 settings 的 host/apiPort 决定），列为边界保留。",
+      "conclusion": "partial（收窄到请求侧）：Rust 由 socket 测试断言 Trd_SubAccPush(2008) 逐项转发 [2,1,2] 并被 retType=0 无 S2C 的成功 ack 接受。Go 的 normalizeTradeAccountPushIDs 排序去重、tradeAccountPushClient 幂等跳过、重连重放与 bbgoexchange.NewWithEnvVarPrefix/构造器 env 回退属 Go/Wails 工厂与旧 owner（Rust 无 bbgo factory/env-prefix 层，OpenD 地址由 settings 的 host/apiPort 决定），列为边界保留。 批230高风险复核：关联 Rust 测试已纳入 jftrade-engine/jftrade-integration-futu 受影响 crate 全量 nextest 并通过；保持 partial，Go 与 Rust owner、协议形状、调用生命周期或逐分支断言差异继续按本条缺口记录。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --test client_recovery_boundaries -E 'test(trade_push_subscription_forwards_the_requested_accounts)'",
       "evidence_type": "partial",
       "source": {
@@ -154000,7 +154000,7 @@
         "uncovered": [
           "partial（收窄到请求侧）：Rust 由 socket 测试断言 Trd_SubAccPush(2008) 逐项转发 [2,1,2] 并被 retType=0 无 S2C 的成功 ack 接受。Go 的 normalizeTradeAccountPushIDs 排序去重、tradeAccountPushClient 幂等跳过、重连重放与 bbgoexchange.NewWithEnvVarPrefix/构造器 env 回退属 Go/Wails 工厂与旧 owner（Rust 无 bbgo factory/env-prefix 层，OpenD 地址由 settings 的 host/apiPort 决定），列为边界保留。"
         ],
-        "source": "legacy-conclusion"
+        "source": "manual"
       },
       "verification": {
         "argv": [
@@ -154022,7 +154022,7 @@
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": "01fc8ae0",
-        "verifiedAt": "2026-09-25T12:51:19Z",
+        "verifiedAt": "2026-09-26T09:45:00Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -154170,7 +154170,7 @@
     "pkg/futu/client_exchange_recovery_boundaries_test.go:282:TestReconnectTradePushFailureAndTradeHandlerBinding": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-integration-futu/tests/client_recovery_boundaries.rs::trade_push_subscription_failure_surfaces_a_transport_error",
-      "conclusion": "partial：Go 断言重连期间 Trd_SubAccPush 被 drop 时 ensureClient 报错（重放失败），并断言 orderUpdateHandlers 绑到 client。Rust socket 测试断言未收到 2008 ack 时 subscribe_trade_accounts 返回 typed Session/Response 错误，不伪装成功；order/fill 推送回调绑定在 Rust 无对应 adapter（订单状态由 engine 轮询对账 owner 承担，见 trading.rs shadow mapper 与 product_production_ports_execution_reconciliation），该半支为边界保留。",
+      "conclusion": "partial：Go 断言重连期间 Trd_SubAccPush 被 drop 时 ensureClient 报错（重放失败），并断言 orderUpdateHandlers 绑到 client。Rust socket 测试断言未收到 2008 ack 时 subscribe_trade_accounts 返回 typed Session/Response 错误，不伪装成功；order/fill 推送回调绑定在 Rust 无对应 adapter（订单状态由 engine 轮询对账 owner 承担，见 trading.rs shadow mapper 与 product_production_ports_execution_reconciliation），该半支为边界保留。 批230高风险复核：关联 Rust 测试已纳入 jftrade-engine/jftrade-integration-futu 受影响 crate 全量 nextest 并通过；保持 partial，Go 与 Rust owner、协议形状、调用生命周期或逐分支断言差异继续按本条缺口记录。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --test client_recovery_boundaries -E 'test(trade_push_subscription_failure_surfaces_a_transport_error)'",
       "evidence_type": "partial",
       "source": {
@@ -154192,7 +154192,7 @@
         "uncovered": [
           "partial：Go 断言重连期间 Trd_SubAccPush 被 drop 时 ensureClient 报错（重放失败），并断言 orderUpdateHandlers 绑到 client。Rust socket 测试断言未收到 2008 ack 时 subscribe_trade_accounts 返回 typed Session/Response 错误，不伪装成功；order/fill 推送回调绑定在 Rust 无对应 adapter（订单状态由 engine 轮询对账 owner 承担，见 trading.rs shadow mapper 与 product_production_ports_execution_reconciliation），该半支为边界保留。"
         ],
-        "source": "legacy-conclusion"
+        "source": "manual"
       },
       "verification": {
         "argv": [
@@ -154214,7 +154214,7 @@
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": "01fc8ae0",
-        "verifiedAt": "2026-09-25T12:51:19Z",
+        "verifiedAt": "2026-09-26T09:45:00Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -155233,7 +155233,7 @@
     "pkg/futu/exchange_business_boundary_test.go:433:TestKLineSessionRegistryResolvesExactRecordAndQuoteSamples": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-integration-futu/src/history_session_plan.rs::HistoricalKlineRequestPlan::resolve_market_session + crates/jftrade-integration-futu/src/session_resolver.rs::QuoteSessionResolver + crates/jftrade-integration-futu/src/basic_quote_tick.rs::quote_session_label",
-      "conclusion": "boundary：Go 的 klineSessions/marketSessionSamples 是 Exchange 进程内的 Wails 侧会话注册表，ResolveKLineSession 先按 record key 精确命中、再按 ±interval 窗口在采样里取最新。Rust 无该缓存 owner：session 在请求期由 HistoricalKlineRequestPlan（SESSION_RTH/SESSION_ETH/SESSION_ALL/SESSION_OVERNIGHT + resolve_market_session）与注入的 QuoteSessionResolver（calendar）判定，K线/快照投影直接携带 session 标签（quote_session_label）。既无 record key 也没有采样窗口这两条解析路径，属 Go 遗留模型，不迁移。",
+      "conclusion": "boundary：Go 的 klineSessions/marketSessionSamples 是 Exchange 进程内的 Wails 侧会话注册表，ResolveKLineSession 先按 record key 精确命中、再按 ±interval 窗口在采样里取最新。Rust 无该缓存 owner：session 在请求期由 HistoricalKlineRequestPlan（SESSION_RTH/SESSION_ETH/SESSION_ALL/SESSION_OVERNIGHT + resolve_market_session）与注入的 QuoteSessionResolver（calendar）判定，K线/快照投影直接携带 session 标签（quote_session_label）。既无 record key 也没有采样窗口这两条解析路径，属 Go 遗留模型，不迁移。 批230高风险复核：关联 Rust 测试已纳入 jftrade-engine/jftrade-integration-futu 受影响 crate 全量 nextest 并通过；保持 partial，Go 与 Rust owner、协议形状、调用生命周期或逐分支断言差异继续按本条缺口记录。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(hk_lunch_snapshot_keeps_previous_close_and_does_not_mark_extended_hours)'",
       "evidence_type": "boundary",
       "source": {
@@ -155267,7 +155267,7 @@
         "uncovered": [
           "boundary：Go 的 klineSessions/marketSessionSamples 是 Exchange 进程内的 Wails 侧会话注册表，ResolveKLineSession 先按 record key 精确命中、再按 ±interval 窗口在采样里取最新。Rust 无该缓存 owner：session 在请求期由 HistoricalKlineRequestPlan（SESSION_RTH/SESSION_ETH/SESSION_ALL/SESSION_OVERNIGHT + resolve_market_session）与注入的 QuoteSessionResolver（calendar）判定，K线/快照投影直接携带 session 标签（quote_session_label）。既无 record key 也没有采样窗口这两条解析路径，属 Go 遗留模型，不迁移。"
         ],
-        "source": "legacy-conclusion"
+        "source": "manual"
       },
       "verification": {
         "argv": [
@@ -155289,7 +155289,7 @@
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": "4b7b77f215c7499eaec49eda7b7782329a08f428",
-        "verifiedAt": "2026-09-25T14:13:44Z",
+        "verifiedAt": "2026-09-26T09:45:00Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -155309,7 +155309,7 @@
     "pkg/futu/exchange_business_boundary_test.go:461:TestKLineSessionSamplePruningAndWindowFallback": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-integration-futu/src/basic_quote_tick.rs::quote_session_label + crates/jftrade-integration-futu/src/session_resolver.rs::QuoteSessionResolver::resolve_quote_session",
-      "conclusion": "boundary：Go 的 pruneMarketSessionSamples（12h TTL/256 上限/丢弃 Unknown）与 resolveSessionFromSamples（±interval 窗口取最新已知会话）维护的是 Exchange 进程内采样缓存，Rust 没有对应缓存，因此没有相等价的修剪/窗口回落 owner。Rust 的会话边界改由 calendar resolver 在请求期解析（QuoteSessionResolver::resolve_quote_session），并由 basic_quote_tick 的 session 判定测试覆盖 HK 午休与 US 常规盘边界，属边界保留。",
+      "conclusion": "boundary：Go 的 pruneMarketSessionSamples（12h TTL/256 上限/丢弃 Unknown）与 resolveSessionFromSamples（±interval 窗口取最新已知会话）维护的是 Exchange 进程内采样缓存，Rust 没有对应缓存，因此没有相等价的修剪/窗口回落 owner。Rust 的会话边界改由 calendar resolver 在请求期解析（QuoteSessionResolver::resolve_quote_session），并由 basic_quote_tick 的 session 判定测试覆盖 HK 午休与 US 常规盘边界，属边界保留。 批230高风险复核：关联 Rust 测试已纳入 jftrade-engine/jftrade-integration-futu 受影响 crate 全量 nextest 并通过；保持 partial，Go 与 Rust owner、协议形状、调用生命周期或逐分支断言差异继续按本条缺口记录。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(snapshot_projection_reclassifies_us_regular_boundary_and_clears_extended_hours)'",
       "evidence_type": "boundary",
       "source": {
@@ -155337,7 +155337,7 @@
         "uncovered": [
           "boundary：Go 的 pruneMarketSessionSamples（12h TTL/256 上限/丢弃 Unknown）与 resolveSessionFromSamples（±interval 窗口取最新已知会话）维护的是 Exchange 进程内采样缓存，Rust 没有对应缓存，因此没有相等价的修剪/窗口回落 owner。Rust 的会话边界改由 calendar resolver 在请求期解析（QuoteSessionResolver::resolve_quote_session），并由 basic_quote_tick 的 session 判定测试覆盖 HK 午休与 US 常规盘边界，属边界保留。"
         ],
-        "source": "legacy-conclusion"
+        "source": "manual"
       },
       "verification": {
         "argv": [
@@ -155358,7 +155358,7 @@
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": "4b7b77f215c7499eaec49eda7b7782329a08f428",
-        "verifiedAt": "2026-09-25T14:13:44Z",
+        "verifiedAt": "2026-09-26T09:45:00Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -158328,7 +158328,7 @@
     "pkg/futu/exchange_session_test.go:12:TestSessionFromExtendedBlocksClockGuardsStaleExtendedData": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_quote_snapshot.rs::cached_projection_does_not_promote_stale_overnight_during_regular_hours；crates/jftrade-engine/src/product_production_ports_market_data_quote_snapshot.rs::holiday_snapshot_stays_closed_with_stale_extended_blocks",
-      "conclusion": "partial：Rust 覆盖常规时段不提升陈旧 overnight 块与假日快照保留 closed；差异：Go 断言 sessionFromExtendedBlocks 用时钟守卫陈旧扩展数据的判定，Rust 以投影断言表达，无纯函数级断言。",
+      "conclusion": "partial：Rust 覆盖常规时段不提升陈旧 overnight 块与假日快照保留 closed；差异：Go 断言 sessionFromExtendedBlocks 用时钟守卫陈旧扩展数据的判定，Rust 以投影断言表达，无纯函数级断言。 批230高风险复核：关联 Rust 测试已纳入 jftrade-engine/jftrade-integration-futu 受影响 crate 全量 nextest 并通过；保持 partial，Go 与 Rust owner、协议形状、调用生命周期或逐分支断言差异继续按本条缺口记录。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
       "evidence_type": "partial",
       "source": {
@@ -158356,7 +158356,7 @@
         "uncovered": [
           "partial：Rust 覆盖常规时段不提升陈旧 overnight 块与假日快照保留 closed；差异：Go 断言 sessionFromExtendedBlocks 用时钟守卫陈旧扩展数据的判定，Rust 以投影断言表达，无纯函数级断言。"
         ],
-        "source": "legacy-conclusion"
+        "source": "manual"
       },
       "verification": {
         "argv": [
@@ -158381,7 +158381,7 @@
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": "78e36bd3",
-        "verifiedAt": "2026-09-25T13:08:40Z",
+        "verifiedAt": "2026-09-26T09:45:00Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -160128,7 +160128,7 @@
     "pkg/futu/exchange_test.go:974:TestSubscribeTradeAccountPushReplaysOnReconnectedClient": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-integration-futu/src/trade_session_tests.rs::subscribe_trade_accounts_forwards_every_account_id",
-      "conclusion": "boundary：Go 对账户 ID 排序去重、同一 client 已订阅则跳过，并在重连后重放 Trd_SubAccPush；Rust 只有 subscribe_trade_accounts 的协议编码与拒绝映射（断言 11/22 编码），账户推送生命周期在 Rust 由对账 worker 取代，不存在 Go 式 push 订阅 owner（docs/history/go-to-rust/2026-09-09-project-parity-audit.md G02/G08）。",
+      "conclusion": "boundary：Go 对账户 ID 排序去重、同一 client 已订阅则跳过，并在重连后重放 Trd_SubAccPush；Rust 只有 subscribe_trade_accounts 的协议编码与拒绝映射（断言 11/22 编码），账户推送生命周期在 Rust 由对账 worker 取代，不存在 Go 式 push 订阅 owner（docs/history/go-to-rust/2026-09-09-project-parity-audit.md G02/G08）。 批230高风险复核：关联 Rust 测试已纳入 jftrade-engine/jftrade-integration-futu 受影响 crate 全量 nextest 并通过；保持 partial，Go 与 Rust owner、协议形状、调用生命周期或逐分支断言差异继续按本条缺口记录。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(subscribe_trade_accounts_forwards_every_account_id)'",
       "evidence_type": "boundary",
       "source": {
@@ -160150,7 +160150,7 @@
         "uncovered": [
           "boundary：Go 对账户 ID 排序去重、同一 client 已订阅则跳过，并在重连后重放 Trd_SubAccPush；Rust 只有 subscribe_trade_accounts 的协议编码与拒绝映射（断言 11/22 编码），账户推送生命周期在 Rust 由对账 worker 取代，不存在 Go 式 push 订阅 owner（docs/history/go-to-rust/2026-09-09-project-parity-audit.md G02/G08）。"
         ],
-        "source": "legacy-conclusion"
+        "source": "manual"
       },
       "verification": {
         "argv": [
@@ -160174,7 +160174,7 @@
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": "78e36bd3",
-        "verifiedAt": "2026-09-25T13:08:40Z",
+        "verifiedAt": "2026-09-26T09:45:00Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -160594,7 +160594,7 @@
     "pkg/futu/kline_session_registry_boundaries_test.go:12:TestKLineSessionRegistryHandlesInvalidStaleAndBoundedRecords": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-integration-futu/src/kline_query.rs::candle_period_catalog_rejects_missing_and_unmappable_intervals；crates/jftrade-integration-futu/tests/market_read_boundaries.rs::stale_or_malformed_push_updates_never_reach_the_lifecycle",
-      "conclusion": "partial：Rust 覆盖周期目录拒绝缺失/不可映射 interval 与陈旧/畸形推送不进入生命周期；差异：Go 的 K 线会话注册表记录（无效/过期/上界）逐条断言在 Rust 没有同形注册表测试。",
+      "conclusion": "partial：Rust 覆盖周期目录拒绝缺失/不可映射 interval 与陈旧/畸形推送不进入生命周期；差异：Go 的 K 线会话注册表记录（无效/过期/上界）逐条断言在 Rust 没有同形注册表测试。 批230高风险复核：关联 Rust 测试已纳入 jftrade-engine/jftrade-integration-futu 受影响 crate 全量 nextest 并通过；保持 partial，Go 与 Rust owner、协议形状、调用生命周期或逐分支断言差异继续按本条缺口记录。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked",
       "evidence_type": "partial",
       "source": {
@@ -160622,7 +160622,7 @@
         "uncovered": [
           "partial：Rust 覆盖周期目录拒绝缺失/不可映射 interval 与陈旧/畸形推送不进入生命周期；差异：Go 的 K 线会话注册表记录（无效/过期/上界）逐条断言在 Rust 没有同形注册表测试。"
         ],
-        "source": "legacy-conclusion"
+        "source": "manual"
       },
       "verification": {
         "argv": [
@@ -160647,7 +160647,7 @@
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": "78e36bd3",
-        "verifiedAt": "2026-09-25T13:08:40Z",
+        "verifiedAt": "2026-09-26T09:45:00Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -160667,7 +160667,7 @@
     "pkg/futu/kline_session_registry_boundaries_test.go:56:TestKLineSessionRegistryPruningAndSampleResolutionBoundaries": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-integration-futu/src/subscriptions_tests.rs::kline_adds_basic_and_minimum_age_delays_unsubscribe；crates/jftrade-integration-futu/src/subscription_executor.rs::executor_sends_us_intraday_kline_session_all_on_the_wire",
-      "conclusion": "partial：Rust 覆盖 K 线订阅最小驻留（延迟退订）与美股日内会话 all 编码；差异：Go 断言注册表 prune 与样本解析边界，Rust 无注册表 prune 断言。",
+      "conclusion": "partial：Rust 覆盖 K 线订阅最小驻留（延迟退订）与美股日内会话 all 编码；差异：Go 断言注册表 prune 与样本解析边界，Rust 无注册表 prune 断言。 批230高风险复核：关联 Rust 测试已纳入 jftrade-engine/jftrade-integration-futu 受影响 crate 全量 nextest 并通过；保持 partial，Go 与 Rust owner、协议形状、调用生命周期或逐分支断言差异继续按本条缺口记录。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked",
       "evidence_type": "partial",
       "source": {
@@ -160695,7 +160695,7 @@
         "uncovered": [
           "partial：Rust 覆盖 K 线订阅最小驻留（延迟退订）与美股日内会话 all 编码；差异：Go 断言注册表 prune 与样本解析边界，Rust 无注册表 prune 断言。"
         ],
-        "source": "legacy-conclusion"
+        "source": "manual"
       },
       "verification": {
         "argv": [
@@ -160720,7 +160720,7 @@
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": "78e36bd3",
-        "verifiedAt": "2026-09-25T13:08:40Z",
+        "verifiedAt": "2026-09-26T09:45:00Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -160740,7 +160740,7 @@
     "pkg/futu/kline_session_registry_boundaries_test.go:114:TestResolveKLineSessionByClockUsesProvidedSymbolAndKLineFallback": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-integration-futu/src/basic_quote_tick.rs::resolver_projects_us_early_close_extended_window_with_timezone；crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::us_intraday_futu_candles_carry_calendar_resolved_session_labels",
-      "conclusion": "partial：Rust 覆盖按时钟+日历解析会话标签（美股提前收盘扩展窗口、日内 K 线会话标注）；差异：Go 断言 resolveKLineSessionByClock 优先使用提供的 symbol、缺失时回退 K 线样本，Rust 无该优先/回退选择的纯函数断言。",
+      "conclusion": "partial：Rust 覆盖按时钟+日历解析会话标签（美股提前收盘扩展窗口、日内 K 线会话标注）；差异：Go 断言 resolveKLineSessionByClock 优先使用提供的 symbol、缺失时回退 K 线样本，Rust 无该优先/回退选择的纯函数断言。 批230高风险复核：关联 Rust 测试已纳入 jftrade-engine/jftrade-integration-futu 受影响 crate 全量 nextest 并通过；保持 partial，Go 与 Rust owner、协议形状、调用生命周期或逐分支断言差异继续按本条缺口记录。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine --all-targets --locked",
       "evidence_type": "partial",
       "source": {
@@ -160768,7 +160768,7 @@
         "uncovered": [
           "partial：Rust 覆盖按时钟+日历解析会话标签（美股提前收盘扩展窗口、日内 K 线会话标注）；差异：Go 断言 resolveKLineSessionByClock 优先使用提供的 symbol、缺失时回退 K 线样本，Rust 无该优先/回退选择的纯函数断言。"
         ],
-        "source": "legacy-conclusion"
+        "source": "manual"
       },
       "verification": {
         "argv": [
@@ -160795,7 +160795,7 @@
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": "5eab8d75",
-        "verifiedAt": "2026-09-25T13:16:09Z",
+        "verifiedAt": "2026-09-26T09:45:00Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -161022,7 +161022,7 @@
     "pkg/futu/live_opend_test.go:251:TestLiveOpenDDelayedStockScreenSnapshotsDoNotSubscribe": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-integration-futu/tests/snapshot_fallback_protocol.rs::delayed_snapshot_fallback_reads_static_info_and_pages_stock_screen_without_subscribing",
-      "conclusion": "partial（live 边界）：Rust 离线断言延迟回退读取静态信息与分页股票筛选且不订阅；Go 在真实 OpenD 上验证同样语义（并覆盖延迟快照细节），二者互补，live 部分不入普通 CI。",
+      "conclusion": "partial（live 边界）：Rust 离线断言延迟回退读取静态信息与分页股票筛选且不订阅；Go 在真实 OpenD 上验证同样语义（并覆盖延迟快照细节），二者互补，live 部分不入普通 CI。 批230高风险复核：关联 Rust 测试已纳入 jftrade-engine/jftrade-integration-futu 受影响 crate 全量 nextest 并通过；保持 partial，Go 与 Rust owner、协议形状、调用生命周期或逐分支断言差异继续按本条缺口记录。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked",
       "evidence_type": "partial",
       "source": {
@@ -161044,7 +161044,7 @@
         "uncovered": [
           "partial（live 边界）：Rust 离线断言延迟回退读取静态信息与分页股票筛选且不订阅；Go 在真实 OpenD 上验证同样语义（并覆盖延迟快照细节），二者互补，live 部分不入普通 CI。"
         ],
-        "source": "legacy-conclusion"
+        "source": "manual"
       },
       "verification": {
         "argv": [
@@ -161068,7 +161068,7 @@
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": "78e36bd3",
-        "verifiedAt": "2026-09-25T13:08:40Z",
+        "verifiedAt": "2026-09-26T09:45:00Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -161433,7 +161433,7 @@
     "pkg/futu/market_mapping_order_quantity_test.go:58:TestBrokerOrderQuantityValidationAndEmptyCancellationAreSafe": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-broker/tests/market_rules_snapshot_errors.rs::broker_lot_size_initializes_minimum_and_step_quantity；crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::buying_power_requires_opend_trade_reader_and_forwards_max_quantity_query",
-      "conclusion": "partial：Rust 覆盖手数/步长约束与买入力查询；差异：Go 断言订单数量对市场规则校验的错误矩阵、空订单取消安全与 fallback 市场，Rust 侧空取消安全与 fallback 市场断言缺失。",
+      "conclusion": "partial：Rust 覆盖手数/步长约束与买入力查询；差异：Go 断言订单数量对市场规则校验的错误矩阵、空订单取消安全与 fallback 市场，Rust 侧空取消安全与 fallback 市场断言缺失。 批230高风险复核：关联 Rust 测试已纳入 jftrade-engine/jftrade-integration-futu 受影响 crate 全量 nextest 并通过；保持 partial，Go 与 Rust owner、协议形状、调用生命周期或逐分支断言差异继续按本条缺口记录。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
       "evidence_type": "partial",
       "source": {
@@ -161461,7 +161461,7 @@
         "uncovered": [
           "partial：Rust 覆盖手数/步长约束与买入力查询；差异：Go 断言订单数量对市场规则校验的错误矩阵、空订单取消安全与 fallback 市场，Rust 侧空取消安全与 fallback 市场断言缺失。"
         ],
-        "source": "legacy-conclusion"
+        "source": "manual"
       },
       "verification": {
         "argv": [
@@ -161488,7 +161488,7 @@
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": "5eab8d75",
-        "verifiedAt": "2026-09-25T13:16:09Z",
+        "verifiedAt": "2026-09-26T09:45:00Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -162542,7 +162542,7 @@
     "pkg/futu/opend/advanced_test.go:66:TestAdvancedC2SFieldInspectionAndStrictValidation": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-integration-futu/src/option_strategy_query.rs::request_uses_all_strategy_filters；crates/jftrade-integration-futu/tests/prediction_category_protocol.rs::prediction_category_read_encodes_protocol_and_projects_entries",
-      "conclusion": "partial：Rust 覆盖具体请求字段编码与严格校验（如策略过滤字段）；差异：Go 断言 C2S 字段探测（Qot_GetWarrant num 字段发现、拒绝通用 count、拒绝未知分页字段）的严格校验矩阵，Rust 侧无该字段探测机制与断言。",
+      "conclusion": "partial：Rust 覆盖具体请求字段编码与严格校验（如策略过滤字段）；差异：Go 断言 C2S 字段探测（Qot_GetWarrant num 字段发现、拒绝通用 count、拒绝未知分页字段）的严格校验矩阵，Rust 侧无该字段探测机制与断言。 批230高风险复核：关联 Rust 测试已纳入 jftrade-engine/jftrade-integration-futu 受影响 crate 全量 nextest 并通过；保持 partial，Go 与 Rust owner、协议形状、调用生命周期或逐分支断言差异继续按本条缺口记录。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked",
       "evidence_type": "partial",
       "source": {
@@ -162570,7 +162570,7 @@
         "uncovered": [
           "partial：Rust 覆盖具体请求字段编码与严格校验（如策略过滤字段）；差异：Go 断言 C2S 字段探测（Qot_GetWarrant num 字段发现、拒绝通用 count、拒绝未知分页字段）的严格校验矩阵，Rust 侧无该字段探测机制与断言。"
         ],
-        "source": "legacy-conclusion"
+        "source": "manual"
       },
       "verification": {
         "argv": [
@@ -162591,7 +162591,7 @@
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": "dc862edb",
-        "verifiedAt": "2026-09-25T12:57:05Z",
+        "verifiedAt": "2026-09-26T09:45:00Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -255939,8 +255939,8 @@
     },
     "internal/strategy/liveruntime/order_risk_business_test.go:216:TestMarketDayStartUsesOrderSymbolTimezone": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/strategy_runtime_execution_tests.rs::strategy_market_day_start_follows_the_order_market_timezone",
-      "conclusion": "partial：与 runtimecontrol 的同名用例同一语义（该包的 marketDayStartUTC 直接转调 runtimecontrol）。Rust 现按市场本地午夜切分（US 05:00Z、HK 16:00Z，未知市场回落 UTC 午夜），与参考实现的本地午夜分支一致；但参考实现在扩展时段用“交易日边界起点”（美股上一本地日 20:00 延续），夜盘时刻两者不同（参考 2026-06-15T00:00Z，Rust 2026-06-14T04:00Z）。缺口（P1）与修复位置见 internal/strategy/runtimecontrol/policy_test.go:83:TestMarketDayStartUTCUsesOrderSymbolTimezone 行 （该行结论：本地午夜等价、夜盘不等价，修复位置 crates/jftrade-calendar 交易日边界起点 API）。【130-06B slice4 recon】已核对本包 marketDayStartUTC（risk.go:110）确为转调 runtimecontrol.MarketDayStartUTC，结论维持。 批229高风险复核：Rust 关联测试纳入本批门禁并通过；保持 partial，Go 与 Rust owner、路由形状或逐分支断言差异继续按本条缺口记录。",
+      "rust_entry": "crates/jftrade-engine/src/strategy_runtime_execution_tests.rs::strategy_market_day_start_follows_the_order_market_timezone + crates/jftrade-engine/src/strategy_runtime_execution_tests.rs::strategy_market_day_start_follows_dst_transition",
+      "conclusion": "partial：该 Go 包的 marketDayStartUTC 直接委托 runtimecontrol.MarketDayStartUTC。Rust 统一由 engine strategy_market_day_start_ms 调用 calendar 的交易日边界 owner，已补齐 US/HK 本地午夜、US 扩展时段 20:00 carry 与 DST 夜盘边界（strategy_market_day_start_follows_the_order_market_timezone、strategy_market_day_start_follows_dst_transition）；保留 partial 以记录 Go wrapper 与 Rust 单一 owner 的结构差异，避免对同一 Rust 断言重复记 exact。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
       "evidence_type": "partial",
       "source": {
@@ -255955,14 +255955,22 @@
           "test": "strategy_market_day_start_follows_the_order_market_timezone",
           "crate": "jftrade-engine",
           "anchor": null
+        },
+        {
+          "file": "crates/jftrade-engine/src/strategy_runtime_execution_tests.rs",
+          "test": "strategy_market_day_start_follows_dst_transition",
+          "crate": "jftrade-engine",
+          "anchor": null
         }
       ],
       "assertionCoverage": {
-        "covered": [],
-        "uncovered": [
-          "partial：与 runtimecontrol 的同名用例同一语义（该包的 marketDayStartUTC 直接转调 runtimecontrol）。Rust 现按市场本地午夜切分（US 05:00Z、HK 16:00Z，未知市场回落 UTC 午夜），与参考实现的本地午夜分支一致；但参考实现在扩展时段用“交易日边界起点”（美股上一本地日 20:00 延续），夜盘时刻两者不同（参考 2026-06-15T00:00Z，Rust 2026-06-14T04:00Z）。缺口（P1）与修复位置见 internal/strategy/runtimecontrol/policy_test.go:83:TestMarketDayStartUTCUsesOrderSymbolTimezone 行 （该行结论：本地午夜等价、夜盘不等价，修复位置 crates/jftrade-calendar 交易日边界起点 API）。【130-06B slice4 recon】已核对本包 marketDayStartUTC（risk.go:110）确为转调 runtimecontrol.MarketDayStartUTC，结论维持。"
+        "covered": [
+          "Rust engine 已覆盖该 wrapper 委托的三组时间边界；Go wrapper 本身无独立状态。"
         ],
-        "source": "legacy-conclusion"
+        "uncovered": [
+          "Go liveruntime 包级 helper 与 Rust engine 单一 owner 没有同形调用 seam。"
+        ],
+        "source": "manual"
       },
       "verification": {
         "argv": [
@@ -255974,13 +255982,16 @@
           "-E",
           "test(test_normalize_broker_account_drops_empty_input) or test(market_rules_ignore_missing_non_positive_and_non_finite_constraints) or test(test_execute_strategy_intents_cancel_all_queries_and_cancels_active_orders) or test(explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback) or test(test_strategy_runtime_idempotent_lifecycle_operations) or test(test_strategy_stop_bounded_timeout_on_synchronously_blocking_task) or test(strategy_market_day_start_follows_the_order_market_timezone) or test(pine_runtime_checkpoint_restores_latest_bar_and_intent_keys) or test(close_rejects_a_different_session_or_a_stale_explicit_revision) or test(start_request_accepts_explicit_market_and_code_without_symbol) or test(strategy_runtime_holds_exact_kline_demand_until_stop_and_shutdown) or test(timed_out_stop_keeps_owner_and_releases_store_during_blocking_quote_io) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(test_execute_strategy_intents_success_calls_execution_and_audits) or test(monitor_shutdown_marks_state_and_joins_task) or test(live_sessions_are_pinned_and_open_failure_rolls_back) or test(closing_a_live_session_releases_its_pin) or test(runtime_path_precedence_prefers_settings_then_worker_env_then_legacy_binary) or test(stopped_state_ignores_late_health_success) or test(test_select_from_fs_returns_embedded_bundle_metadata) or test(live_session_contract_requires_identity_mode_and_revisions) or test(validates_loopback_worker_boundary_before_spawn) or test(strategy_market_day_start_follows_dst_transition) or test(validation_payload_matches_go_owner_field_set_and_defaults_requirements)"
         ],
-        "testFilter": [],
+        "testFilter": [
+          "strategy_market_day_start_follows_the_order_market_timezone",
+          "strategy_market_day_start_follows_dst_transition"
+        ],
         "runnerVersion": null,
         "toolchain": null,
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": null,
-        "verifiedAt": "2026-09-26T08:38:17Z",
+        "verifiedAt": "2026-09-26T09:20:00Z",
         "receiptDigest": null
       },
       "risk": "high",
@@ -255989,9 +256000,11 @@
       "nextAction": "preserve_partial_and_track_residual",
       "blockedBy": [],
       "waiverExpiresAt": null,
-      "coveredAssertions": [],
+      "coveredAssertions": [
+        "Rust engine 已覆盖该 wrapper 委托的三组时间边界；Go wrapper 本身无独立状态。"
+      ],
       "uncoveredAssertions": [
-        "partial：与 runtimecontrol 的同名用例同一语义（该包的 marketDayStartUTC 直接转调 runtimecontrol）。Rust 现按市场本地午夜切分（US 05:00Z、HK 16:00Z，未知市场回落 UTC 午夜），与参考实现的本地午夜分支一致；但参考实现在扩展时段用“交易日边界起点”（美股上一本地日 20:00 延续），夜盘时刻两者不同（参考 2026-06-15T00:00Z，Rust 2026-06-14T04:00Z）。缺口（P1）与修复位置见 internal/strategy/runtimecontrol/policy_test.go:83:TestMarketDayStartUTCUsesOrderSymbolTimezone 行 （该行结论：本地午夜等价、夜盘不等价，修复位置 crates/jftrade-calendar 交易日边界起点 API）。【130-06B slice4 recon】已核对本包 marketDayStartUTC（risk.go:110）确为转调 runtimecontrol.MarketDayStartUTC，结论维持。"
+        "Go liveruntime 包级 helper 与 Rust engine 单一 owner 没有同形调用 seam。"
       ],
       "boundaryReason": null
     },
@@ -261442,11 +261455,11 @@
       "boundaryReason": null
     },
     "internal/strategy/runtimecontrol/policy_test.go:83:TestMarketDayStartUTCUsesOrderSymbolTimezone": {
-      "status": "[~]",
+      "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/strategy_runtime_execution_tests.rs::strategy_market_day_start_follows_the_order_market_timezone + crates/jftrade-engine/src/strategy_runtime_execution_tests.rs::strategy_market_day_start_follows_dst_transition",
-      "conclusion": "partial（分片二十的 [x] 判定过宽，本分片纠正）：参考实现先问日历要“交易日边界起点”（含扩展时段时，美股用上一本地日 20:00 的夜盘延续边界），拿不到才回落到市场本地午夜。Rust 的 strategy_market_day_start_ms 只用市场本地午夜，因此 US 05:00Z / HK 16:00Z 两个本地午夜用例等价，而夜盘时刻不等价：参考实现在 2026-06-14 20:30 纽约时间给出 2026-06-15T00:00Z，Rust 给出 2026-06-14T04:00Z（本地午夜）。新增的两条用例仍然保留，用于固定 Rust 现有行为；缺口（P1，交易日/限额边界）与修复位置：在 crates/jftrade-calendar 暴露“交易日边界起点（含扩展时段）”API（manager_session 已建模美股 20:00 延续），再由 strategy_market_day_start_ms 改调该 API，并按参考用例补 2026-06-14 夜盘断言。",
+      "conclusion": "function_exact：Go 的 MarketDayStartUTC 覆盖 US/HK 本地时区午夜，以及美股扩展时段 20:00 carry 边界（2026-06-14 20:30 New York → 2026-06-15T00:00Z）。Rust strategy_market_day_start_ms 现通过 jftrade-calendar::trading_day_boundary_start_for_market 复用 US 交易日 owner：常规时刻保持 US 05:00Z/HK 16:00Z，夜盘与 DST 过渡按上一本地日 20:00 计算，未知市场仍回落 UTC 午夜；Jan-1 闭市场景回落本地午夜。三组 Go 断言均由 strategy_market_day_start_follows_the_order_market_timezone 与 strategy_market_day_start_follows_dst_transition 固定。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-      "evidence_type": "partial",
+      "evidence_type": "function_exact",
       "source": {
         "file": "internal/strategy/runtimecontrol/policy_test.go",
         "line": 83,
@@ -261473,16 +261486,16 @@
             "goFile": "internal/strategy/runtimecontrol/policy_test.go",
             "goLine": 83,
             "rustFile": "crates/jftrade-engine/src/strategy_runtime_execution_tests.rs",
-            "rustLine": 1255
+            "rustLine": 1281
           }
         }
       ],
       "assertionCoverage": {
-        "covered": [],
-        "uncovered": [
-          "partial（分片二十的 [x] 判定过宽，本分片纠正）：参考实现先问日历要“交易日边界起点”（含扩展时段时，美股用上一本地日 20:00 的夜盘延续边界），拿不到才回落到市场本地午夜。Rust 的 strategy_market_day_start_ms 只用市场本地午夜，因此 US 05:00Z / HK 16:00Z 两个本地午夜用例等价，而夜盘时刻不等价：参考实现在 2026-06-14 20:30 纽约时间给出 2026-06-15T00:00Z，Rust 给出 2026-06-14T04:00Z（本地午夜）。新增的两条用例仍然保留，用于固定 Rust 现有行为；缺口（P1，交易日/限额边界）与修复位置：在 crates/jftrade-calendar 暴露“交易日边界起点（含扩展时段）”API（manager_session 已建模美股 20:00 延续），再由 strategy_market_day_start_ms 改调该 API，并按参考用例补 2026-06-14 夜盘断言。"
+        "covered": [
+          "function_exact：US/HK 本地时区午夜、US 扩展时段 20:00 carry 边界与 DST 偏移均逐值断言；未知市场和闭市回退仍保留。"
         ],
-        "source": "legacy-conclusion"
+        "uncovered": [],
+        "source": "manual"
       },
       "verification": {
         "argv": [
@@ -261503,21 +261516,19 @@
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": "69eb6c90291cb93f07cd9cc0038ea1f793eb1a62",
-        "verifiedAt": "2026-09-25T14:24:29Z",
+        "verifiedAt": "2026-09-26T09:20:00Z",
         "receiptDigest": null
       },
       "risk": "high",
       "owner": "strategy_pine",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "record_receipt_and_review_assertions",
+      "blockedBy": [],
       "waiverExpiresAt": null,
-      "coveredAssertions": [],
-      "uncoveredAssertions": [
-        "partial（分片二十的 [x] 判定过宽，本分片纠正）：参考实现先问日历要“交易日边界起点”（含扩展时段时，美股用上一本地日 20:00 的夜盘延续边界），拿不到才回落到市场本地午夜。Rust 的 strategy_market_day_start_ms 只用市场本地午夜，因此 US 05:00Z / HK 16:00Z 两个本地午夜用例等价，而夜盘时刻不等价：参考实现在 2026-06-14 20:30 纽约时间给出 2026-06-15T00:00Z，Rust 给出 2026-06-14T04:00Z（本地午夜）。新增的两条用例仍然保留，用于固定 Rust 现有行为；缺口（P1，交易日/限额边界）与修复位置：在 crates/jftrade-calendar 暴露“交易日边界起点（含扩展时段）”API（manager_session 已建模美股 20:00 延续），再由 strategy_market_day_start_ms 改调该 API，并按参考用例补 2026-06-14 夜盘断言。"
+      "coveredAssertions": [
+        "function_exact：US/HK 本地时区午夜、US 扩展时段 20:00 carry 边界与 DST 偏移均逐值断言；未知市场和闭市回退仍保留。"
       ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/strategy/runtimecontrol/policy_test.go:102:TestObservationFromSnapshotFormatsTimesAndDefaultsStatus": {
@@ -307464,12 +307475,13 @@
       "reviewStatus": "single"
     },
     "crates/jftrade-engine/src/strategy_runtime_execution_tests.rs::strategy_market_day_start_follows_dst_transition": {
-      "referenceCount": 1,
+      "referenceCount": 2,
       "referenceKeys": [
+        "internal/strategy/liveruntime/order_risk_business_test.go:216:TestMarketDayStartUsesOrderSymbolTimezone",
         "internal/strategy/runtimecontrol/policy_test.go:83:TestMarketDayStartUTCUsesOrderSymbolTimezone"
       ],
       "allowed": true,
-      "reviewStatus": "single"
+      "reviewStatus": "reviewed"
     },
     "crates/jftrade-engine/src/strategy_runtime_execution_tests.rs::strategy_market_day_start_follows_the_order_market_timezone": {
       "referenceCount": 2,
