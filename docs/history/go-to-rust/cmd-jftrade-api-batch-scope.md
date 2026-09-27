@@ -36,10 +36,10 @@ Go 侧 2 个文件、2 条 `missing`：
 - **DISABLE_MARKETS_CACHE 无对应物**：该变量用于关闭 bbgo 的磁盘行情缓存；Rust 引擎不存在
   bbgo 缓存，行情缓存由 `ProviderRouter`/设置承担，启动过程不写任何进程环境变量。Go 的
   「不得覆盖既有配置」在 Rust 侧以「运维显式配置的 bind/settings 被逐字采用」承载。
-- **锚点例外**：`cmd/jftrade-api` 字面量命中 `scripts/check-zero-go.mjs` 的 `activeTextPattern`，
-  活跃文件（crates/、scripts/、apps/、.github/）一律不得出现，因此本批 2 条 `[x]` 行**不写**
-  `// Parity:` 锚点（先例：第 106 批 internal/frontendassets），audit 未锚定 function_exact
-  由 200 增至 202。
+- **锚点**：两条端到端测试均写入 `// Parity: go:452dea11:cmd/jftrade-api/main_test.go:<line>`。
+  `scripts/check-zero-go.mjs` 只对这两个明确的测试 provenance 注释做窄例外，其他
+  `cmd/jftrade-api`/Go/Wails 活跃引用仍然 fail-closed；`parity_anchor_reconcile.py` 已核对
+  两条为 already-recorded。
 
 ### 逐条结论
 
@@ -97,10 +97,13 @@ Go 侧 2 个文件、2 条 `missing`：
   端口占用时启动 → 退出码 1、stdout 空、stderr `Error: Product(Bind(Os { code: 48, kind:
   AddrInUse, ... }))`。
 - `python3 scripts/compatibility/audit_test_parity.py`：4451 Go / 3052 Rust、`[x]` 1320（+2）、
-  `missing` 11 → 9、0 破坏引用、0 重复 rust_entry、0 条 `[x]` 缺少 function_exact；
-  未锚定 200 → 202（本批锚点例外，见上文）、partial 无解析引用 7（既有基线）、无断言 2（既有基线）。
-- `python3.12 scripts/compatibility/parity_anchor_reconcile.py`：1321 唯一引用（未锚定新增 2 条不计入；
-  已记账 1266、unrecorded 0、unknown 55、stale 0）。
+  `missing` 11 → 9、0 破坏引用、0 重复 rust_entry、0 条 `[x]` 缺少 `function_exact`；历史运行将两条
+  launcher 映射按锚点例外计入未锚定 200 → 202。2026-09-27 已为两条真实子进程测试补写源码锚点，
+  并以 receipt `sha256:bb5be96baa9877eba7e6d5f9f0f3455fd7d3608f5912999bd6e53cfc8f3bd757` 复核，
+  当前不再把 launcher 计为未锚定。
+- `python3.12 scripts/compatibility/parity_anchor_reconcile.py`：该历史运行记录为 1321 唯一引用、已记账
+  1266、unrecorded 0、unknown 55、stale 0；2026-09-27 复核已确认两条为 already-recorded，当前全局
+  对账为 `1788/1742/0/0/46`（unique/recorded/unrecorded/stale/unknown）。
 - `pnpm run check:rust:architecture` EXIT=0；`pnpm run check:compatibility` EXIT=0；
   `node scripts/check-zero-go.mjs` EXIT=0（2916 tracked files，含本批新文档；新测试文件不含被禁
   字面量）；`pnpm run check:ai-context` EXIT=0；`git diff --check` 干净。

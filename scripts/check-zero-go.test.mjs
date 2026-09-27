@@ -32,6 +32,23 @@ test("historical docs and fixtures may preserve Go provenance", () => {
   assert.deepEqual(errors, []);
 });
 
+test("API launcher parity anchors preserve only the approved baseline paths", () => {
+  const sources = new Map([
+    ["crates/jftrade-engine/tests/product_api_launcher_lifecycle.rs", [
+      "// Parity: go:452dea11:cmd/jftrade-api/main_test.go:86 TestRunAPICommandStartsAndStopsAPI",
+      "// Parity: go:452dea11:cmd/jftrade-api/main_test.go:121 TestRunAPICommandPreservesConfiguredCacheAndWrapsStartupErrors",
+      "// cmd/jftrade-api/main.go is not an approved test anchor",
+    ].join("\n")],
+  ]);
+  const errors = validateSourceInventory(
+    [...sources.keys()],
+    (file) => sources.get(file),
+  );
+  assert.deepEqual(errors, [
+    "active Go/Wails reference: crates/jftrade-engine/tests/product_api_launcher_lifecycle.rs:3: // cmd/jftrade-api/main.go is not an approved test anchor",
+  ]);
+});
+
 test("artifact scan rejects Go build info, Wails metadata, and Go source", (context) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "jftrade-zero-go-"));
   context.after(() => fs.rmSync(root, { force: true, recursive: true }));

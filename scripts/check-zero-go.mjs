@@ -61,7 +61,14 @@ export function validateSourceInventory(files, readText) {
     }
     for (const [index, line] of source.split(/\r?\n/u).entries()) {
       activeTextPattern.lastIndex = 0;
-      if (activeTextPattern.test(line)) {
+      // A parity anchor is executable-test provenance, not a production
+      // dependency.  Keep the exception deliberately narrow: only the two
+      // retired API-launcher baseline tests may retain their source path, and
+      // only on a `Parity:` comment line.  All other Go/Wails references stay
+      // rejected by this gate.
+      const apiLauncherParityAnchor =
+        /Parity:\s*(?:go:[0-9a-f]{6,40}:)?cmd\/jftrade-api\/main_test\.go:(?:86|121)(?:\s|$)/u.test(line);
+      if (activeTextPattern.test(line) && !apiLauncherParityAnchor) {
         errors.push(`active Go/Wails reference: ${file}:${index + 1}: ${line.trim()}`);
       }
     }

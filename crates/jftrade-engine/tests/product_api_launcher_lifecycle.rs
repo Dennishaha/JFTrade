@@ -6,9 +6,6 @@
 //! equivalent guarantee is proven by spawning the real binary, observing its
 //! ready record, and stopping it with the signals a service supervisor sends.
 //!
-//! Anchor exception: the Go package path of this launcher is banned text for
-//! `scripts/check-zero-go.mjs`, so these tests carry no `// Parity:` marker and
-//! record the mapping in `docs/history/go-to-rust/cmd-jftrade-api-batch-scope.md`.
 #![cfg(unix)]
 
 use std::io::Read;
@@ -132,6 +129,7 @@ fn startup_record(stdout: &str) -> Value {
 }
 
 #[test]
+// Parity: go:452dea11:cmd/jftrade-api/main_test.go:86 TestRunAPICommandStartsAndStopsAPI
 fn api_launcher_serves_on_the_configured_address_and_stops_on_termination_signal() {
     let directory = tempfile::tempdir().expect("temporary directory");
     let settings_path = directory.path().join("settings.json");
@@ -164,6 +162,7 @@ fn api_launcher_serves_on_the_configured_address_and_stops_on_termination_signal
 }
 
 #[test]
+// Parity: go:452dea11:cmd/jftrade-api/main_test.go:121 TestRunAPICommandPreservesConfiguredCacheAndWrapsStartupErrors
 fn api_launcher_reports_startup_failure_when_the_configured_address_is_taken() {
     let directory = tempfile::tempdir().expect("temporary directory");
     let settings_path = directory.path().join("settings.json");
