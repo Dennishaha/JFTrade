@@ -37,6 +37,24 @@ impl BacktestSyncWorkerRegistry {
             });
     }
 
+    /// Signal a live sync worker to stop its provider request.  The durable
+    /// task row is cancelled by the caller; this method only forwards the
+    /// in-process cancellation signal so an in-flight HTTP/OpenD operation
+    /// does not wait for its request timeout.
+    pub(crate) fn request_cancel(&self, task_id: &str) -> bool {
+        let mut workers = self
+            .workers
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        let Some(worker) = workers.iter_mut().find(|worker| worker.task_id == task_id) else {
+            return false;
+        };
+        worker
+            .cancel
+            .take()
+            .is_some_and(|cancel| cancel.send(()).is_ok())
+    }
+
     /// Remove completed worker handles. If a worker exited without reaching a
     /// terminal task state (for example after an unexpected panic), mark the
     /// durable task cancelled before dropping its handle so no running/queued

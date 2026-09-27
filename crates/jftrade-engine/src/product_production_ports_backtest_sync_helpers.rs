@@ -44,7 +44,7 @@ pub(super) fn persist_task(
 #[cfg(test)]
 mod tests {
     use jftrade_integration_marketdata_helper::HelperCandlesResponse;
-    use super::super::validate_helper_page;
+    use super::super::source_helpers::validate_helper_page;
 
     // Parity: go:452dea11:internal/app/apiserver/backtestapp/historical_source_test.go:310 TestBacktestProviderSyncerPinsFutuAndClosesOnFailures
     #[test]

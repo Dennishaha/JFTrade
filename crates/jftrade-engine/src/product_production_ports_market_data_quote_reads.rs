@@ -83,10 +83,12 @@ impl ProductionMarketDataQuotePort {
             }
         })?;
 
-        // Go binds `limit` through `OptionalIntValue`, whose empty/blank text is
-        // a valid zero, and the candle service maps `limit <= 0` to its 200-row
-        // default. A blank value therefore keeps the default window instead of
-        // failing the request; only non-integer text is a 400.
+        // Go's decoder leaves an empty/blank value unset, so it keeps the
+        // route's default (200). An explicitly parsed zero/negative value is
+        // clamped by `CandlesQuery.LimitOrDefault` to one; provider adapters
+        // may still widen their transport page to a minimum batch, but the
+        // public response must retain this caller-facing limit. Only
+        // non-integer text is a 400.
         let raw_limit: Option<i64> = match query_map
             .get_first("limit")
             .map(str::trim)
@@ -103,7 +105,7 @@ impl ProductionMarketDataQuotePort {
             None => None,
         };
         let limit: usize = match raw_limit {
-            Some(n) if n <= 0 => 200,
+            Some(n) if n <= 0 => 1,
             Some(n) if n > 1000 => 1000,
             Some(n) => usize::try_from(n).unwrap_or(200),
             None => 200,
@@ -219,6 +221,7 @@ impl ProductionMarketDataQuotePort {
         quote_reads_futu::reject_reversed_time_window(from_time.as_deref(), to_time.as_deref())?;
 
         let provider = self.active_provider()?;
+        super::quote_broker::validate_explicit_broker(&query_map, provider)?;
 
         // Poll-only providers do not implement tick candles or broker depth;
         // Go returns 409 MARKET_DATA_CAPABILITY_UNSUPPORTED before any

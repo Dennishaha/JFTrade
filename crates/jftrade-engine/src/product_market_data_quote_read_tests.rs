@@ -2066,6 +2066,76 @@ async fn workspace_read_envelopes_preserve_provider_and_response_shape() {
     );
 }
 
+/// Parity: go:452dea11:internal/api/marketdata/routes_test.go:147
+/// TestExplicitBrokerRoutesUseBrokerReaderAndNeverLegacyFallback
+///
+/// An explicit broker selection must never silently fall back to the active
+/// provider.  The Go route table returns a capability conflict when no reader
+/// exists for the requested broker; the Rust quote owner keeps the same
+/// fail-closed behavior across securities, snapshots, candles, and depth.
+#[tokio::test]
+async fn explicit_broker_selection_rejects_non_active_provider_before_reads() {
+    let (helper, requests) = spawn_market_data_helper_fixture(Vec::new()).await;
+    let state = Arc::new(ActiveProviderState::new(Some(MarketDataProvider::Yfinance)));
+    let port = ProductionMarketDataQuotePort::new(state, None, Some(helper), None);
+    for (path, query) in [
+        ("/api/v1/market-data/securities/US/AAPL", "brokerId=futu"),
+        (
+            "/api/v1/market-data/snapshots/US/AAPL",
+            "brokerId=futu&refresh=true",
+        ),
+        (
+            "/api/v1/market-data/candles/US/AAPL",
+            "brokerId=futu&period=5m&limit=20",
+        ),
+        ("/api/v1/market-data/depth/US/AAPL", "brokerId=futu&num=12"),
+    ] {
+        let error = port
+            .read(path, query)
+            .await
+            .expect_err("non-active explicit broker must fail closed");
+        assert!(
+            matches!(
+                error,
+                MarketDataQuoteReadSnapshotError::Failed {
+                    status: 409,
+                    ref code,
+                    ..
+                } if code == "MARKET_DATA_CAPABILITY_UNSUPPORTED"
+            ),
+            "{path} returned {error:?}"
+        );
+    }
+    assert!(
+        requests.lock().expect("helper requests").is_empty(),
+        "a rejected explicit broker must not reach the active helper"
+    );
+}
+
+#[tokio::test]
+async fn explicit_active_broker_selection_reaches_its_provider_owner() {
+    let (helper, requests) = spawn_market_data_helper_fixture(vec![
+        (
+            200,
+            r#"{"market":"US","symbol":"AAPL","instrument_id":"US.AAPL","price":"215.5","observed_at":"2026-07-18T13:36:00Z","source":"yfinance"}"#,
+        ),
+    ])
+    .await;
+    let state = Arc::new(ActiveProviderState::new(Some(MarketDataProvider::Yfinance)));
+    let port = ProductionMarketDataQuotePort::new(state, None, Some(helper), None);
+    let response = port
+        .read(
+            "/api/v1/market-data/snapshots/US/AAPL",
+            "brokerId=yahoo-finance&refresh=true",
+        )
+        .await
+        .expect("active provider alias should be served");
+    assert_eq!(response["meta"]["brokerId"], "yfinance");
+    let paths = requests.lock().expect("helper requests").clone();
+    assert_eq!(paths.len(), 1);
+    assert!(paths[0].contains("/providers/yfinance/snapshot/US/AAPL"));
+}
+
 /// Parity: go:452dea11:internal/productfeatures/market_data_reads_test.go:116
 /// TestWorkspaceMarketDataReadsRejectInvalidInstrument
 ///

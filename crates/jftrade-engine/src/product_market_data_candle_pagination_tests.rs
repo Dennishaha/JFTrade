@@ -1487,6 +1487,31 @@ async fn candle_route_treats_blank_limit_as_unset_and_rejects_non_integer() {
 }
 
 #[tokio::test]
+async fn candle_route_clamps_zero_limit_to_one_like_go_query_helper() {
+    // Parity: go:452dea11:internal/app/apiserver/servercore/
+    // notification_market_workflow_contracts_test.go:84
+    // TestMarketQueryAndExecutionPayloadFallbacksRemainDeterministic.
+    // `CandlesQuery.LimitOrDefault` clamps a parsed zero to one.  The Futu
+    // provider may still request its minimum page size (200), but the public
+    // response and request metadata must retain the caller-facing limit so the
+    // route returns at most one candle.
+    let reader = Arc::new(PagedHistory {
+        series: vec![candle(0), candle(1), candle(2)],
+        single_page: true,
+        ..PagedHistory::default()
+    });
+    let result = port(reader)
+        .read(
+            "/api/v1/market-data/candles/HK/00700",
+            "period=1m&limit=0&from=2026-01-05T02:00:00Z&to=2026-01-05T02:10:00Z",
+        )
+        .await
+        .expect("zero limit should be clamped, not rejected");
+    assert_eq!(result["request"]["limit"], 1);
+    assert_eq!(result["candles"].as_array().expect("candles").len(), 1);
+}
+
+#[tokio::test]
 async fn candle_route_rejects_invalid_limit() {
     // Parity: internal/api/marketdata/routes_test.go:387 TestCandlesRouteRejectsInvalidLimit
     let reader = Arc::new(PagedHistory::default());

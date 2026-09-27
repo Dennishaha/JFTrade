@@ -171,13 +171,43 @@ impl BrokerReadSnapshotPort for ProductionBrokerPort {
                 // list and its count must reflect the deduplicated projection.
                 let accounts = accounts_value(accounts);
                 let accounts_discovered = accounts.len();
+                let global_state = runtime
+                    .global_state_snapshot()
+                    .map(|probe| {
+                        json!({
+                            "quoteLoggedIn": probe.quote_logged_in.unwrap_or(false),
+                            "tradeLoggedIn": probe.trade_logged_in.unwrap_or(false),
+                            "serverVersion": probe.server_version,
+                            "programStatus": probe.program_status,
+                            "timestamp": probe.program_timestamp,
+                            "markets": probe.markets.into_iter().map(|market| json!({
+                                "market": market.market,
+                                "state": market.state.to_string(),
+                            })).collect::<Vec<_>>(),
+                        })
+                    })
+                    .or_else(|| {
+                        runtime
+                            .server_version_snapshot()
+                            .map(|server_version| {
+                                json!({
+                                    "quoteLoggedIn": false,
+                                    "tradeLoggedIn": false,
+                                    "serverVersion": server_version,
+                                    "programStatus": Value::Null,
+                                    "timestamp": Value::Null,
+                                    "markets": Vec::<Value>::new(),
+                                })
+                            })
+                    })
+                    .unwrap_or(Value::Null);
                 let descriptor =
                     serde_json::to_value(jftrade_integration_futu::broker_descriptor())
                         .map_err(|error| unavailable(error.to_string()))?;
                 Ok(json!({
                     "accounts": accounts,
                     "descriptor": descriptor,
-                    "session": {"brokerId": request.broker_id, "displayName": "Futu", "accountsDiscovered": accounts_discovered, "tradeLoggedIn": runtime.snapshot().trade_logged_in == Some(true), "connectivity": "connected", "checkedAt": checked_at(), "connection": {"host": connection.host, "apiPort": connection.api_port, "websocketPort": connection.websocket_port, "port": connection.api_port, "useEncryption": connection.use_encryption, "marketDataTransport": "bbgo-opend-tcp-api"}, "globalState": null, "lastError": null, "liveWebSocketClients": {"connected": live_clients.0, "limit": live_clients.1, "atLimit": live_clients.0 >= live_clients.1}}
+                    "session": {"brokerId": request.broker_id, "displayName": "Futu", "accountsDiscovered": accounts_discovered, "tradeLoggedIn": runtime.snapshot().trade_logged_in == Some(true), "connectivity": "connected", "checkedAt": checked_at(), "connection": {"host": connection.host, "apiPort": connection.api_port, "websocketPort": connection.websocket_port, "port": connection.api_port, "useEncryption": connection.use_encryption, "marketDataTransport": "bbgo-opend-tcp-api"}, "globalState": global_state, "lastError": null, "liveWebSocketClients": {"connected": live_clients.0, "limit": live_clients.1, "atLimit": live_clients.0 >= live_clients.1}}
                 }))
             }
             "securities" => self.read_securities_route(&request),

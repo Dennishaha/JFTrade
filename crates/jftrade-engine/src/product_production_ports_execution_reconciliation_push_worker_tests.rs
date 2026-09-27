@@ -407,9 +407,17 @@ async fn test_p1_02_single_writer_lease_and_concurrency_fencing() {
     for _ in 0..10 {
         worker.wake();
     }
-    tokio::time::sleep(Duration::from_millis(60)).await;
-
-    let saved = store.get_order("rust-order-reconcile").unwrap().unwrap();
+    let saved = tokio::time::timeout(Duration::from_secs(5), async {
+        loop {
+            let saved = store.get_order("rust-order-reconcile").unwrap().unwrap();
+            if saved.status == "PARTIALLY_FILLED" {
+                break saved;
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .expect("reconciliation worker must project the partial fill within 5s");
     assert_eq!(saved.status, "PARTIALLY_FILLED");
     assert_eq!(saved.filled_quantity, Some(2.0));
     assert_eq!(worker.status().failures, 0);

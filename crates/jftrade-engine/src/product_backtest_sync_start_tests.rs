@@ -1,6 +1,6 @@
 use super::product_backtest_sync_request::parse_sync_request;
-use super::product_backtest_sync_request::validate_sync_provider_capabilities;
 use super::product_backtest_sync_request::validate_sync_lookback_window;
+use super::product_backtest_sync_request::validate_sync_provider_capabilities;
 use super::*;
 use crate::product::product_backtest_execution::BacktestExecutionTaskRegistry;
 use crate::product::{BacktestExecutionError, BacktestExecutionPort, BacktestExecutionRequest};
@@ -20,6 +20,25 @@ impl BacktestExecutionPort for FixtureExecution {
         Ok(json!({
             "runId": request.run_id,
             "bars": request.candles.len(),
+            "marketDataProvider": request.market_data_provider,
+        }))
+    }
+}
+
+#[derive(Debug, Default)]
+struct RecordingExecution {
+    request: Mutex<Option<BacktestExecutionRequest>>,
+}
+
+impl BacktestExecutionPort for RecordingExecution {
+    fn execute(&self, request: BacktestExecutionRequest) -> Result<Value, BacktestExecutionError> {
+        let bars = request.candles.len();
+        self.request
+            .lock()
+            .expect("record execution request")
+            .replace(request.clone());
+        Ok(json!({
+            "bars": bars,
             "marketDataProvider": request.market_data_provider,
         }))
     }
@@ -163,9 +182,9 @@ fn akshare_sync_rejects_history_beyond_the_intraday_lookback_window() {
     let error = validate_sync_lookback_window("akshare", &request)
         .expect_err("one-year 5m AKShare sync must be rejected");
     match error {
-        BacktestsWritePortError::BadRequest(message) => assert_eq!(
-            message, "provider akshare limits 5m history to 5 days"
-        ),
+        BacktestsWritePortError::BadRequest(message) => {
+            assert_eq!(message, "provider akshare limits 5m history to 5 days")
+        }
         other => panic!("expected 400 BAD_REQUEST, got {other:?}"),
     }
 
@@ -289,7 +308,9 @@ fn sync_request_rejects_extended_session_scope_outside_us_intraday() {
     });
     let error = parse_sync_request(&payload)
         .expect_err("HK extended session sync must be rejected before provider work");
-    assert!(matches!(error, BacktestsWritePortError::BadRequest(message) if message.contains("US intraday")));
+    assert!(
+        matches!(error, BacktestsWritePortError::BadRequest(message) if message.contains("US intraday"))
+    );
 }
 
 #[test]
@@ -308,7 +329,9 @@ fn sync_request_validates_provider_adjustment_and_lookback_capabilities() {
     .expect("parse yfinance adjustment request");
     let error = validate_sync_provider_capabilities("yfinance", &backward)
         .expect_err("yfinance must reject backward adjustment");
-    assert!(matches!(error, BacktestsWritePortError::BadRequest(message) if message.contains("backward price adjustment")));
+    assert!(
+        matches!(error, BacktestsWritePortError::BadRequest(message) if message.contains("backward price adjustment"))
+    );
 
     let beyond_lookback = parse_sync_request(&json!({
         "market": "US",
@@ -322,7 +345,9 @@ fn sync_request_validates_provider_adjustment_and_lookback_capabilities() {
     .expect("parse yfinance lookback request");
     let error = validate_sync_provider_capabilities("yfinance", &beyond_lookback)
         .expect_err("yfinance 1m history beyond seven days must be rejected");
-    assert!(matches!(error, BacktestsWritePortError::BadRequest(message) if message.contains("limits 1m history to 7 days")));
+    assert!(
+        matches!(error, BacktestsWritePortError::BadRequest(message) if message.contains("limits 1m history to 7 days"))
+    );
 
     let supported = parse_sync_request(&json!({
         "market": "US",
@@ -370,16 +395,30 @@ fn production_sync_rejects_provider_capability_before_queuing() {
             }),
         })
         .expect_err("unsupported yfinance adjustment must fail before queueing");
-    assert!(matches!(error, BacktestsWritePortError::BadRequest(message) if message.contains("backward price adjustment")));
-    assert!(port.sync_tasks.list_active().expect("active sync tasks").is_empty());
+    assert!(
+        matches!(error, BacktestsWritePortError::BadRequest(message) if message.contains("backward price adjustment"))
+    );
+    assert!(
+        port.sync_tasks
+            .list_active()
+            .expect("active sync tasks")
+            .is_empty()
+    );
 
     let error = port
         .mutate(&BacktestsWriteInput::Sync {
             payload: json!({"marketDataProvider": "unknown"}),
         })
         .expect_err("unknown provider must fail before queueing");
-    assert!(matches!(error, BacktestsWritePortError::BadRequest(message) if message.contains("unsupported marketDataProvider")));
-    assert!(port.sync_tasks.list_active().expect("active sync tasks").is_empty());
+    assert!(
+        matches!(error, BacktestsWritePortError::BadRequest(message) if message.contains("unsupported marketDataProvider"))
+    );
+    assert!(
+        port.sync_tasks
+            .list_active()
+            .expect("active sync tasks")
+            .is_empty()
+    );
 }
 
 fn production_port() -> (ProductionBacktestPort, tempfile::TempDir) {
@@ -431,9 +470,7 @@ fn production_port() -> (ProductionBacktestPort, tempfile::TempDir) {
             helper: None,
             trade_runtime: None,
             backtest_market_data_provider_state: std::sync::Arc::new(
-                crate::product::BacktestMarketDataProviderState::new(
-                    MarketDataProvider::Yfinance,
-                ),
+                crate::product::BacktestMarketDataProviderState::new(MarketDataProvider::Yfinance),
             ),
             sync_workers: std::sync::Arc::new(BacktestSyncWorkerRegistry::default()),
             execution: None,
@@ -449,7 +486,9 @@ fn production_port() -> (ProductionBacktestPort, tempfile::TempDir) {
 // Parity: go:452dea11:internal/app/apiserver/servercoretest/backtest_provider_runtime_test.go:27 TestBacktestSyncUsesAssembledMarketDataRuntime
 async fn production_futu_sync_uses_opend_reader_and_persists_candles() {
     let (mut port, _directory) = production_port();
-    let runtime = std::sync::Arc::new(crate::product::product_production_ports::SharedTradeReadRuntime::default());
+    let runtime = std::sync::Arc::new(
+        crate::product::product_production_ports::SharedTradeReadRuntime::default(),
+    );
     let fixture = std::sync::Arc::new(FutuHistoryFixture::default());
     runtime.set_historical_klines(Some(fixture.clone()));
     port.trade_runtime = Some(runtime);
@@ -612,7 +651,10 @@ async fn production_helper_sync_forwards_page_query_and_persists_provider_values
                 .clone()
                 .expect("captured helper request");
             assert!(request.contains("period=1m"), "request = {request}");
-            assert!(request.contains("adjustment=forward"), "request = {request}");
+            assert!(
+                request.contains("adjustment=forward"),
+                "request = {request}"
+            );
             assert!(request.contains("limit=1000"), "request = {request}");
             assert!(request.contains("sessions=regular"), "request = {request}");
             return;
@@ -620,6 +662,339 @@ async fn production_helper_sync_forwards_page_query_and_persists_provider_values
         tokio::time::sleep(std::time::Duration::from_millis(5)).await;
     }
     panic!("helper sync did not complete");
+}
+
+#[tokio::test]
+// Parity: go:452dea11:internal/backtest/historical_source_test.go:147 TestHistoricalKLineSyncerRetriesTransientPageAndRejectsCapabilitiesDuringPreflight
+async fn production_helper_sync_retries_transient_page_and_records_retry() {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("bind retry helper fixture");
+    let helper_address = listener.local_addr().expect("retry helper address");
+    let attempts = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let attempts_for_server = std::sync::Arc::clone(&attempts);
+    let helper_task = tokio::spawn(async move {
+        for _ in 0..2 {
+            let (mut stream, _) = listener.accept().await.expect("retry helper connection");
+            let mut request = Vec::new();
+            loop {
+                let mut chunk = [0_u8; 1024];
+                let read = tokio::io::AsyncReadExt::read(&mut stream, &mut chunk)
+                    .await
+                    .expect("read retry helper request");
+                request.extend_from_slice(&chunk[..read]);
+                if request.windows(4).any(|window| window == b"\r\n\r\n") {
+                    break;
+                }
+            }
+            let attempt = attempts_for_server.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            let (status, body) = if attempt == 0 {
+                (
+                    "503 Service Unavailable",
+                    r#"{"error":{"code":"UPSTREAM","message":"temporary provider failure"}}"#
+                        .to_owned(),
+                )
+            } else {
+                (
+                    "200 OK",
+                    serde_json::to_string(&json!({
+                        "market": "US",
+                        "symbol": "AAPL",
+                        "instrumentId": "US.AAPL",
+                        "period": "1m",
+                        "extendedHours": false,
+                        "candles": [{
+                            "at": "2026-09-24T12:00:00Z",
+                            "open": "100.25",
+                            "high": 102.5,
+                            "low": 99.5,
+                            "close": 101.75,
+                            "volume": 1200,
+                            "session": "regular"
+                        }],
+                        "totalReturned": 1,
+                        "hasMore": false,
+                        "source": "yfinance",
+                        "adjustment": "forward"
+                    }))
+                    .expect("serialize retry helper page"),
+                )
+            };
+            let response = format!(
+                "HTTP/1.1 {status}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                body.len()
+            );
+            tokio::io::AsyncWriteExt::write_all(&mut stream, response.as_bytes())
+                .await
+                .expect("write retry helper response");
+        }
+    });
+
+    let (mut port, _directory) = production_port();
+    port.helper = Some(
+        jftrade_integration_marketdata_helper::HelperClient::new(
+            jftrade_integration_marketdata_helper::HelperClientConfig {
+                base_url: format!("http://{helper_address}"),
+                bearer_token: None,
+                request_timeout: std::time::Duration::from_secs(2),
+                max_attempts: 1,
+                retry_delay: std::time::Duration::ZERO,
+            },
+        )
+        .expect("helper client"),
+    );
+    let response = port
+        .mutate(&BacktestsWriteInput::Sync {
+            payload: json!({
+                "market": "US",
+                "code": "AAPL",
+                "intervals": ["1m"],
+                "since": "2026-09-24T00:00:00Z",
+                "until": "2026-09-25T00:00:00Z",
+                "rehabType": "forward",
+                "sessionScope": "regular",
+                "marketDataProvider": "yfinance"
+            }),
+        })
+        .expect("start retrying helper sync");
+    let BacktestsWritePortResult::Data(data) = response else {
+        panic!("unexpected sync response");
+    };
+    let task_id = data["taskId"].as_str().expect("task id").to_owned();
+    for _ in 0..600 {
+        if let Some(task) = port.sync_tasks.get(&task_id).expect("task")
+            && matches!(task.status.as_str(), "completed" | "failed")
+        {
+            assert_eq!(task.status, "completed", "task error: {:?}", task.error);
+            assert_eq!(task.retries, 1);
+            assert_eq!(attempts.load(std::sync::atomic::Ordering::SeqCst), 2);
+            helper_task.await.expect("retry helper task");
+            return;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+    }
+    panic!("retrying helper sync did not complete");
+}
+
+#[tokio::test]
+// Parity: go:452dea11:internal/backtest/historical_source_test.go:268 TestHistoricalKLineSyncerRejectsBrokenPagination
+async fn production_helper_sync_rejects_broken_pagination_cursors() {
+    let cases = [
+        ("missing cursor", None, false),
+        ("forward cursor", Some("2026-09-26T00:00:00Z"), false),
+        ("cursor reaches boundary", Some("2026-09-24T00:00:00Z"), true),
+    ];
+
+    for (name, next_before, expected_success) in cases {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+            .await
+            .expect("bind pagination helper fixture");
+        let helper_address = listener.local_addr().expect("pagination helper address");
+        let response_next_before = next_before.map(str::to_owned);
+        let helper_task = tokio::spawn(async move {
+            let (mut stream, _) = listener
+                .accept()
+                .await
+                .expect("pagination helper connection");
+            let mut request = Vec::new();
+            loop {
+                let mut chunk = [0_u8; 1024];
+                let read = tokio::io::AsyncReadExt::read(&mut stream, &mut chunk)
+                    .await
+                    .expect("read pagination helper request");
+                if read == 0 {
+                    break;
+                }
+                request.extend_from_slice(&chunk[..read]);
+                if request.windows(4).any(|window| window == b"\r\n\r\n") {
+                    break;
+                }
+            }
+            let body = serde_json::to_string(&json!({
+                "market": "US",
+                "symbol": "AAPL",
+                "instrumentId": "US.AAPL",
+                "period": "1m",
+                "extendedHours": false,
+                "candles": [{
+                    "at": "2026-09-24T12:00:00Z",
+                    "open": "100.25",
+                    "high": 102.5,
+                    "low": 99.5,
+                    "close": 101.75,
+                    "volume": 1200,
+                    "session": "regular"
+                }],
+                "totalReturned": 1,
+                "hasMore": true,
+                "nextBefore": response_next_before,
+                "source": "yfinance",
+                "adjustment": "forward"
+            }))
+            .expect("serialize pagination helper page");
+            let response = format!(
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                body.len()
+            );
+            tokio::io::AsyncWriteExt::write_all(&mut stream, response.as_bytes())
+                .await
+                .expect("write pagination helper response");
+        });
+
+        let (mut port, _directory) = production_port();
+        port.helper = Some(
+            jftrade_integration_marketdata_helper::HelperClient::new(
+                jftrade_integration_marketdata_helper::HelperClientConfig {
+                    base_url: format!("http://{helper_address}"),
+                    bearer_token: None,
+                    request_timeout: std::time::Duration::from_secs(2),
+                    max_attempts: 1,
+                    retry_delay: std::time::Duration::ZERO,
+                },
+            )
+            .expect("helper client"),
+        );
+        let response = port
+            .mutate(&BacktestsWriteInput::Sync {
+                payload: json!({
+                    "market": "US",
+                    "code": "AAPL",
+                    "intervals": ["1m"],
+                    "since": "2026-09-24T00:00:00Z",
+                    "until": "2026-09-25T00:00:00Z",
+                    "rehabType": "forward",
+                    "sessionScope": "regular",
+                    "marketDataProvider": "yfinance"
+                }),
+            })
+            .expect("start pagination sync");
+        let BacktestsWritePortResult::Data(data) = response else {
+            panic!("unexpected pagination sync response for {name}");
+        };
+        let task_id = data["taskId"].as_str().expect("pagination task id");
+        let mut terminal = false;
+        for _ in 0..600 {
+            if let Some(task) = port.sync_tasks.get(task_id).expect("pagination task")
+                && matches!(task.status.as_str(), "completed" | "failed")
+            {
+                terminal = true;
+                assert_eq!(task.status == "completed", expected_success, "{name}: {task:?}");
+                if expected_success {
+                    assert_eq!(task.error, None, "{name}: successful task has an error");
+                    let candles = port
+                        ._market_data_store
+                        .read_candles(
+                            "yfinance",
+                            "US.AAPL",
+                            "1m",
+                            "forward",
+                            "regular",
+                            0,
+                            i64::MAX,
+                        )
+                        .expect("read boundary cursor candles");
+                    assert_eq!(candles.len(), 1, "{name}: boundary page must persist one candle");
+                } else {
+                    assert!(
+                        task.error.as_deref().is_some_and(|error| {
+                            error.contains("nextBefore") || error.contains("pagination")
+                        }),
+                        "{name}: expected pagination error, got {:?}",
+                        task.error
+                    );
+                }
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+        }
+        assert!(terminal, "{name}: pagination sync did not reach a terminal state");
+        helper_task.await.expect("pagination helper task");
+    }
+}
+
+#[tokio::test]
+// Parity: go:452dea11:internal/backtest/historical_source_test.go:111 TestHistoricalKLineSyncerCancelsInFlightProviderPage
+async fn production_helper_sync_cancel_aborts_in_flight_request() {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("bind blocking helper fixture");
+    let helper_address = listener.local_addr().expect("blocking helper address");
+    let (request_started_tx, request_started_rx) = tokio::sync::oneshot::channel();
+    let (connection_closed_tx, connection_closed_rx) = tokio::sync::oneshot::channel();
+    let helper_task = tokio::spawn(async move {
+        let (mut stream, _) = listener.accept().await.expect("accept helper request");
+        let mut request = Vec::new();
+        loop {
+            let mut chunk = [0_u8; 1024];
+            let read = tokio::io::AsyncReadExt::read(&mut stream, &mut chunk)
+                .await
+                .expect("read helper request");
+            request.extend_from_slice(&chunk[..read]);
+            if request.windows(4).any(|window| window == b"\r\n\r\n") {
+                break;
+            }
+        }
+        request_started_tx.send(()).expect("signal request start");
+        let mut probe = [0_u8; 1];
+        let read = tokio::io::AsyncReadExt::read(&mut stream, &mut probe)
+            .await
+            .expect("observe helper connection close");
+        connection_closed_tx
+            .send(read)
+            .expect("signal helper connection close");
+    });
+
+    let (mut port, _directory) = production_port();
+    port.helper = Some(
+        jftrade_integration_marketdata_helper::HelperClient::new(
+            jftrade_integration_marketdata_helper::HelperClientConfig {
+                base_url: format!("http://{helper_address}"),
+                bearer_token: None,
+                request_timeout: std::time::Duration::from_secs(30),
+                max_attempts: 1,
+                retry_delay: std::time::Duration::ZERO,
+            },
+        )
+        .expect("helper client"),
+    );
+    let response = port
+        .mutate(&BacktestsWriteInput::Sync {
+            payload: json!({
+                "market": "US",
+                "code": "AAPL",
+                "intervals": ["1m"],
+                "since": "2026-09-24T00:00:00Z",
+                "until": "2026-09-25T00:00:00Z",
+                "rehabType": "forward",
+                "sessionScope": "regular",
+                "marketDataProvider": "yfinance"
+            }),
+        })
+        .expect("start helper sync");
+    let BacktestsWritePortResult::Data(data) = response else {
+        panic!("unexpected sync response");
+    };
+    let task_id = data["taskId"].as_str().expect("task id").to_owned();
+    tokio::time::timeout(std::time::Duration::from_secs(2), request_started_rx)
+        .await
+        .expect("helper request did not start")
+        .expect("request-start signal dropped");
+
+    let cancelled = port
+        .mutate(&BacktestsWriteInput::CancelSync {
+            task_id: task_id.clone(),
+        })
+        .expect("cancel helper sync");
+    assert_eq!(cancelled, BacktestsWritePortResult::SyncCancelled(true));
+    let read = tokio::time::timeout(std::time::Duration::from_secs(2), connection_closed_rx)
+        .await
+        .expect("in-flight helper request was not aborted")
+        .expect("connection-close signal dropped");
+    assert_eq!(
+        read, 0,
+        "provider connection should close after cancellation"
+    );
+    helper_task.await.expect("helper task");
 }
 
 #[test]
@@ -936,6 +1311,102 @@ async fn production_backtest_start_executes_fixture_and_persists_terminal_result
         tokio::time::sleep(std::time::Duration::from_millis(5)).await;
     }
     panic!("fixture backtest did not complete");
+}
+
+#[tokio::test]
+// Parity: go:452dea11:internal/app/apiserver/servercore/server_warmup_test.go:20 TestBacktestRouteUsesDerivedStrategyWarmup
+async fn production_backtest_start_uses_derived_strategy_warmup_for_definition_route() {
+    let (mut port, _directory) = production_port();
+    let execution = std::sync::Arc::new(RecordingExecution::default());
+    port.execution = Some(execution.clone());
+
+    let script = r#"//@version=6
+strategy("Auto Warmup Route", overlay=true)
+slow = ta.sma(close, 20)
+strategy.entry("Long", strategy.long, qty=1)
+"#;
+    port.strategy_definitions
+        .save_definition(
+            jftrade_store_sqlite::StoredStrategyDefinition {
+                id: "dsl-auto-warmup-route".to_owned(),
+                name: "Auto Warmup Route".to_owned(),
+                version: "0.1.0".to_owned(),
+                description: "definition-backed warmup route".to_owned(),
+                runtime: "pine-pinets".to_owned(),
+                source_format: "pine-v6".to_owned(),
+                symbol: "US.AAPL".to_owned(),
+                interval: "1m".to_owned(),
+                script: script.to_owned(),
+                visual_model_json: "{}".to_owned(),
+                created_at: "2026-08-29T00:00:00Z".to_owned(),
+                updated_at: "2026-08-29T00:00:00Z".to_owned(),
+                deleted_at: None,
+            },
+            "2026-08-29T00:00:00Z",
+        )
+        .expect("save definition");
+
+    let base_start = 1_780_272_000_000_i64;
+    let candles = (0..25)
+        .map(|index| {
+            let start_time = base_start + index * 60_000;
+            StoredBacktestCandle {
+                start_time,
+                end_time: start_time + 59_999,
+                open: "100".to_owned(),
+                high: "101".to_owned(),
+                low: "99".to_owned(),
+                close: "100".to_owned(),
+                volume: "1000".to_owned(),
+            }
+        })
+        .collect::<Vec<_>>();
+    port._market_data_store
+        .insert_candles("yfinance", "US.AAPL", "1m", "forward", "regular", &candles)
+        .expect("seed route candles");
+
+    let response = port
+        .mutate(&BacktestsWriteInput::Start {
+            payload: json!({
+                "definitionId": "dsl-auto-warmup-route",
+                "symbol": "US.AAPL",
+                "interval": "1m",
+                "startTime": "2026-06-01T00:20:00Z",
+                "endTime": "2026-06-01T00:24:59Z",
+                "initialBalance": 10_000,
+                "rehabType": "forward",
+            }),
+        })
+        .expect("start definition-backed backtest");
+    let BacktestsWritePortResult::Data(data) = response else {
+        panic!("unexpected start response");
+    };
+    let run_id = data["id"].as_str().expect("run id").to_owned();
+
+    for _ in 0..100 {
+        if let Some(run) = port.store.get_run(&run_id).expect("load run")
+            && run.status == "completed"
+        {
+            let request = execution
+                .request
+                .lock()
+                .expect("record execution request")
+                .clone()
+                .expect("worker request");
+            assert_eq!(request.payload["warmupBars"], json!(20));
+            assert_eq!(request.candles.len(), 25);
+            assert_eq!(request.candles[0].start_time, base_start);
+            assert_eq!(request.candles[19].start_time, base_start + 19 * 60_000);
+            assert_eq!(request.candles[20].start_time, base_start + 20 * 60_000);
+            assert_eq!(request.candles[24].start_time, base_start + 24 * 60_000);
+            assert_eq!(request.payload["strategyScript"], json!(script));
+            let result: Value = serde_json::from_str(&run.result_json).expect("result json");
+            assert_eq!(result["bars"], json!(25));
+            return;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+    }
+    panic!("definition-backed warmup backtest did not complete");
 }
 
 #[tokio::test]

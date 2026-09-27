@@ -435,4 +435,17 @@ mod tests {
             } if code == "RATE_LIMITED"
         ));
     }
+
+    #[test]
+    fn market_symbol_path_tail_matches_go_split_and_empty_guard() {
+        // Parity: go:452dea11:internal/app/apiserver/servercore/
+        // notification_market_workflow_contracts_test.go:84
+        // PathTail returns the two route segments only when both are present;
+        // the Rust read owner receives the same suffix after route matching.
+        assert_eq!(
+            parse_market_symbol_path("HK/00700").expect("market/symbol tail"),
+            ("HK".to_owned(), "00700".to_owned())
+        );
+        assert!(parse_market_symbol_path("HK").is_err());
+    }
 }

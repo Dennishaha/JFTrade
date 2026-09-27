@@ -24,7 +24,10 @@ mod quote_snapshot;
 mod quote_snapshot_reads;
 #[path = "product_production_ports_market_data_quote_lease.rs"]
 mod quote_lease;
+#[path = "product_production_ports_market_data_quote_broker.rs"]
+mod quote_broker;
 use quote_lease::capability_unsupported_error;
+use quote_broker::validate_explicit_broker;
 use super::super::product_production_ports_trade::{canonical_candle_time, quote_market_code};
 use std::sync::{Arc, Mutex};
 
@@ -126,6 +129,7 @@ impl ProductionMarketDataQuotePort {
             .and_then(|runtime| runtime.market_microstructure_reader())
             .or_else(|| self.microstructure.clone())
     }
+
 }
 
 impl MarketDataQuoteReadSnapshotPort for ProductionMarketDataQuotePort {
@@ -229,10 +233,19 @@ impl ProductionMarketDataQuotePort {
     async fn read_securities(
         &self,
         suffix: &str,
-        _query: &str,
+        query: &str,
     ) -> Result<Value, MarketDataQuoteReadSnapshotError> {
         let (market, symbol) = parse_market_symbol_path(suffix)?;
+        let query_map = QueryMap::parse(query).map_err(|_| {
+            MarketDataQuoteReadSnapshotError::Failed {
+                status: 400,
+                code: "BAD_REQUEST".to_owned(),
+                message: "invalid URL escape".to_owned(),
+                retry_after_seconds: None,
+            }
+        })?;
         let provider = self.active_provider()?;
+        validate_explicit_broker(&query_map, provider)?;
 
         if let Some(helper) = &self.helper
             && (provider == MarketDataProvider::Yfinance || provider == MarketDataProvider::Akshare)
@@ -415,6 +428,7 @@ impl ProductionMarketDataQuotePort {
         let num = parse_clamped_query_i64(&query_map, "num", 10, Self::DEPTH_NUM_MAX)?;
 
         let provider = self.active_provider()?;
+        validate_explicit_broker(&query_map, provider)?;
         if provider == MarketDataProvider::Futu {
             let instrument_id = format!(
                 "{}.{}",

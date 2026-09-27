@@ -40,6 +40,7 @@ impl ProductionMarketDataQuotePort {
         };
 
         let provider = self.active_provider()?;
+        super::quote_broker::validate_explicit_broker(&query_map, provider)?;
 
         // Go gates live reads behind `requireBasicSubscriptionDemand` once a
         // subscription reconciler exists; the router is the Rust owner of that

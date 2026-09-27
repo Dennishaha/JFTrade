@@ -715,6 +715,10 @@ async def test_candles_route_maps_cn_markets_and_disables_yahoo_extended_hours(
             "regularMarketPrice": 10.0,
         },
     )
+    recent_candle_at = (datetime.now(timezone.utc) - timedelta(days=1)).replace(
+        second=0,
+        microsecond=0,
+    )
     monkeypatch.setattr(
         upstream,
         "ticker_history",
@@ -727,7 +731,7 @@ async def test_candles_route_maps_cn_markets_and_disables_yahoo_extended_hours(
                 "Close": [10.5],
                 "Volume": [100],
             },
-            index=pd.DatetimeIndex(["2026-07-28T01:30:00Z"]),
+            index=pd.DatetimeIndex([recent_candle_at]),
         ),
     )
 
