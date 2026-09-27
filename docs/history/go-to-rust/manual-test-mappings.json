@@ -38209,7 +38209,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/product_active_provider_state.rs::tests::switch_retires_the_previous_provider_before_publishing_the_next_one",
       "conclusion": "function_exact：Go 断言切换时通过 broker reconciler 退役上一 provider 订阅（reconcile 调用 1 次、desired 清空）。Rust 的 switch_retires_the_previous_provider_before_publishing_the_next_one 断言切换回调收到的 previous 恰为已提交的 Futu（只出现一次）、切换后 provider=Yfinance 且 generation==1，并对已提交 provider 重复激活断言不会二次退役（避免误删活跃订阅）。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-marketdata --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(switch_retires_the_previous_provider_before_publishing_the_next_one) or test(runtime_status_wire_drops_absent_and_blank_values_and_normalizes_utc) or test(ws_live_transport_upgrades_with_a_browser_session_cookie_alone) or test(tick_candles_use_explicit_volume_delta_across_trading_days) or test(workspace_candle_pagination_rejects_the_go_metadata_table)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/app/apiserver/marketdataapp/runtime_test.go",
@@ -38235,36 +38235,47 @@
           "function_exact：Go 断言切换时通过 broker reconciler 退役上一 provider 订阅（reconcile 调用 1 次、desired 清空）。Rust 的 switch_retires_the_previous_provider_before_publishing_the_next_one 断言切换回调收到的 previous 恰为已提交的 Futu（只出现一次）、切换后 provider=Yfinance 且 generation==1，并对已提交 provider 重复激活断言不会二次退役（避免误删活跃订阅）。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
+          "-p",
+          "jftrade-engine",
+          "-p",
+          "jftrade-marketdata",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(depth_read_returns_empty_arrays_for_empty_s2c_lists) or test(switch_retires_the_previous_provider_before_publishing_the_next_one) or test(unsubscribe_retry_ladder_escalates_and_reacquire_clears_retry_state) or test(queued_transitions_observe_the_committed_provider_as_their_previous_owner) or test(start_rejects_a_second_launch_of_a_live_process) or test(stop_escalates_to_kill_when_the_child_outlives_the_grace_period) or test(managed_process_is_reused_until_an_explicit_stop_releases_it) or test(unknown_provider_activation_is_rejected_without_touching_the_active_selection) or test(activation_after_shutdown_is_rejected_and_leaves_the_snapshot_committed) or test(node_candidates_prefer_path_then_macos_common_installs) or test(runtime_dependencies_flag_unsatisfied_required_entries) or test(stop_product_is_idempotent_across_concurrent_invocations) or test(web_shutdown_does_not_hold_runtime_lock_while_joining_server) or test(auth_session_route_matches_go_fixture_in_cutover_only) or test(test_normalize_execution_order_preserves_broker_abstraction) or test(provider_switch_does_not_disconnect_an_existing_futu_trade_session) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(disabled_web_access_does_not_start_a_listener) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable) or test(test_product_runtime_ordered_shutdown_explicit) or test(production_startup_exposes_degraded_api_when_external_runtimes_are_unavailable) or test(earnings_calendar_route_maps_frontend_keys) or test(strategy_definition_preview_derives_warmup_bars_and_overrides_preview_parameters) or test(browser_authenticated_request_cannot_change_desktop_only_security_settings) or test(cached_projection_does_not_promote_stale_overnight_during_regular_hours) or test(startup_reconcile_resets_stale_paused_state_and_keeps_stopped_instances) or test(recovery_failure_converges_the_running_instance_to_stopped) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel) or test(broker_klines_valid_request_fails_closed_without_historical_source) or test(broker_securities_returns_real_empty_result_when_cache_has_no_symbol)"
+          "test(switch_retires_the_previous_provider_before_publishing_the_next_one) or test(runtime_status_wire_drops_absent_and_blank_values_and_normalizes_utc) or test(ws_live_transport_upgrades_with_a_browser_session_cookie_alone) or test(tick_candles_use_explicit_volume_delta_across_trading_days) or test(workspace_candle_pagination_rejects_the_go_metadata_table)"
         ],
         "testFilter": [
-          "switch_retires_the_previous_provider_before_publishing_the_next_one"
+          "switch_retires_the_previous_provider_before_publishing_the_next_one",
+          "runtime_status_wire_drops_absent_and_blank_values_and_normalizes_utc",
+          "ws_live_transport_upgrades_with_a_browser_session_cookie_alone",
+          "tick_candles_use_explicit_volume_delta_across_trading_days",
+          "workspace_candle_pagination_rejects_the_go_metadata_table"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "0896c4ab",
-        "verifiedAt": "2026-09-25T13:35:20Z",
-        "receiptDigest": null
+        "verifiedCommit": "f51013d9f2df21c6b73a179aba24621aa3f0984e",
+        "verifiedAt": "2026-09-27T18:16:44Z",
+        "receiptDigest": "sha256:7612368c8b4ebc983e552ba11b03a5ede9cad29575c83c5728c8578411901a69"
       },
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：Go 断言切换时通过 broker reconciler 退役上一 provider 订阅（reconcile 调用 1 次、desired 清空）。Rust 的 switch_retires_the_previous_provider_before_publishing_the_next_one 断言切换回调收到的 previous 恰为已提交的 Futu（只出现一次）、切换后 provider=Yfinance 且 generation==1，并对已提交 provider 重复激活断言不会二次退役（避免误删活跃订阅）。"
@@ -61130,7 +61141,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/product_market_data_runtime_status.rs::runtime_status_wire_drops_absent_and_blank_values_and_normalizes_utc",
       "conclusion": "function_exact：Go 断言 OptionalTimeString 对零值时间返回 nil、对 +08:00 时间归一为 UTC（RFC3339，含毫秒），StringPointerOrNil 对空白串返回 nil 并对两侧空白 trim。Rust 新增用例断言同一组语义：+08:00 的 lastRefreshAt 在 wire 中为 2026-06-01T04:00:00.123Z、空白 quoteLastError 为 null、带空格错误串被 trim 保留、缺省状态的全部时间与错误字段为 null；Rust 以 Option 表达 nil，零值时间不可构造，故按缺省→null 对应（该用例带本行 // Parity: 锚点）。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-marketdata --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(switch_retires_the_previous_provider_before_publishing_the_next_one) or test(runtime_status_wire_drops_absent_and_blank_values_and_normalizes_utc) or test(ws_live_transport_upgrades_with_a_browser_session_cookie_alone) or test(tick_candles_use_explicit_volume_delta_across_trading_days) or test(workspace_candle_pagination_rejects_the_go_metadata_table)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/app/apiserver/status/status_test.go",
@@ -61156,36 +61167,47 @@
           "function_exact：Go 断言 OptionalTimeString 对零值时间返回 nil、对 +08:00 时间归一为 UTC（RFC3339，含毫秒），StringPointerOrNil 对空白串返回 nil 并对两侧空白 trim。Rust 新增用例断言同一组语义：+08:00 的 lastRefreshAt 在 wire 中为 2026-06-01T04:00:00.123Z、空白 quoteLastError 为 null、带空格错误串被 trim 保留、缺省状态的全部时间与错误字段为 null；Rust 以 Option 表达 nil，零值时间不可构造，故按缺省→null 对应（该用例带本行 // Parity: 锚点）。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
+          "-p",
+          "jftrade-engine",
+          "-p",
+          "jftrade-marketdata",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(broker_securities_returns_real_empty_result_when_cache_has_no_symbol) or test(broker_quote_projects_real_futu_tick_cache_for_all_symbols) or test(trade_write_methods_propagate_write_disconnects) or test(broker_unlock_route_forwards_password_md5_and_unlock_flag_to_opend) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(funds_projection_keeps_missing_margin_fields_absent) or test(broker_read_fails_closed_without_trade_client) or test(execution_write_fixture_replays_all_seven_go_owned_mutations) or test(accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel) or test(us_limit_route_orders_keep_price_session_and_explicit_market_code) or test(test_normalize_execution_order_supports_extended_us_limit_sessions) or test(place_order_rounds_us_prices_to_the_venue_tick_before_encoding) or test(unknown_api_is_json_but_frontend_uses_spa_fallback) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(enabled_web_access_binds_and_shutdown_releases_port) or test(production_startup_fails_closed_when_database_is_corrupted) or test(production_startup_exposes_degraded_api_when_external_runtimes_are_unavailable) or test(portfolio_cash_balances_fall_back_to_summary_currency_when_breakdown_is_empty) or test(unknown_portfolio_reconciliation_route_returns_json_not_found) or test(portfolio_read_routes_match_group_fixture_in_cutover_only) or test(unsaved_broker_settings_expose_null_integration_and_go_defaults) or test(strategy_instance_read_routes_match_group_fixture_in_cutover_only) or test(runtime_status_wire_drops_absent_and_blank_values_and_normalizes_utc) or test(test_product_runtime_ordered_shutdown_explicit) or test(startup_acquires_all_writer_leases_in_stable_order_before_migrating) or test(startup_failure_restores_previously_migrated_descriptor_files) or test(test_product_runtime_startup_failure_rollback) or test(execution_write_product_replays_browser_boundary_failure_recovery_and_restart) or test(combo_place_rejects_invalid_legs_accounts_and_hidden_transport_failures) or test(combo_intent_rejects_missing_kind_legs_and_account) or test(option_combo_preview_place_and_cancel_keep_server_identity) or test(helper_market_data_providers_reconcile_futu_account_order_fill_and_fee) or test(reconciliation_replays_history_fill_and_fee_once_after_restart) or test(reconciliation_scope_accepts_only_stock_trade_markets) or test(execution_orders_lifecycle_events_and_restart_durability) or test(auth_session_store_corruption_fails_closed_without_rewrite) or test(auth_rejects_untrusted_origin_before_authentication) or test(desktop_missing_static_assets_do_not_use_spa_fallback)"
+          "test(switch_retires_the_previous_provider_before_publishing_the_next_one) or test(runtime_status_wire_drops_absent_and_blank_values_and_normalizes_utc) or test(ws_live_transport_upgrades_with_a_browser_session_cookie_alone) or test(tick_candles_use_explicit_volume_delta_across_trading_days) or test(workspace_candle_pagination_rejects_the_go_metadata_table)"
         ],
         "testFilter": [
-          "runtime_status_wire_drops_absent_and_blank_values_and_normalizes_utc"
+          "switch_retires_the_previous_provider_before_publishing_the_next_one",
+          "runtime_status_wire_drops_absent_and_blank_values_and_normalizes_utc",
+          "ws_live_transport_upgrades_with_a_browser_session_cookie_alone",
+          "tick_candles_use_explicit_volume_delta_across_trading_days",
+          "workspace_candle_pagination_rejects_the_go_metadata_table"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "538d15d0",
-        "verifiedAt": "2026-09-25T13:41:05Z",
-        "receiptDigest": null
+        "verifiedCommit": "f51013d9f2df21c6b73a179aba24621aa3f0984e",
+        "verifiedAt": "2026-09-27T18:16:44Z",
+        "receiptDigest": "sha256:7612368c8b4ebc983e552ba11b03a5ede9cad29575c83c5728c8578411901a69"
       },
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：Go 断言 OptionalTimeString 对零值时间返回 nil、对 +08:00 时间归一为 UTC（RFC3339，含毫秒），StringPointerOrNil 对空白串返回 nil 并对两侧空白 trim。Rust 新增用例断言同一组语义：+08:00 的 lastRefreshAt 在 wire 中为 2026-06-01T04:00:00.123Z、空白 quoteLastError 为 null、带空格错误串被 trim 保留、缺省状态的全部时间与错误字段为 null；Rust 以 Option 表达 nil，零值时间不可构造，故按缺省→null 对应（该用例带本行 // Parity: 锚点）。"
@@ -65082,7 +65104,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/product_ws_live_tests.rs::ws_live_transport_upgrades_with_a_browser_session_cookie_alone",
       "conclusion": "function_exact：Go 断言仅携带 Web 会话 cookie（无桌面 token）即可升级 /api/v1/ws/live。Rust 新增端到端用例在 enforce_access 且只配置 session_token 的产品实例上做真实 WebSocket 握手：无凭据 401 WEB_AUTH_REQUIRED、仅 session cookie 升级 101，桌面 token 不参与该通道；该用例带本行 // Parity: 锚点。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-marketdata --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(switch_retires_the_previous_provider_before_publishing_the_next_one) or test(runtime_status_wire_drops_absent_and_blank_values_and_normalizes_utc) or test(ws_live_transport_upgrades_with_a_browser_session_cookie_alone) or test(tick_candles_use_explicit_volume_delta_across_trading_days) or test(workspace_candle_pagination_rejects_the_go_metadata_table)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/app/apiserver/webaccess/security_integration_test.go",
@@ -65108,36 +65130,47 @@
           "function_exact：Go 断言仅携带 Web 会话 cookie（无桌面 token）即可升级 /api/v1/ws/live。Rust 新增端到端用例在 enforce_access 且只配置 session_token 的产品实例上做真实 WebSocket 握手：无凭据 401 WEB_AUTH_REQUIRED、仅 session cookie 升级 101，桌面 token 不参与该通道；该用例带本行 // Parity: 锚点。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
+          "-p",
+          "jftrade-engine",
+          "-p",
+          "jftrade-marketdata",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(auth_manager_login_validate_and_logout_flow) or test(session_cookie_reads_and_csrf_protected_writes_share_one_browser_flow) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable) or test(auth_session_route_matches_go_fixture_in_cutover_only) or test(ws_live_transport_upgrades_with_a_browser_session_cookie_alone) or test(backtest_and_strategy_tools_reject_missing_identifiers_and_unknown_targets) or test(strategy_optimize_enqueues_every_candidate_and_persists_the_task) or test(screen_catalog_normalizes_padded_lowercase_markets_and_rejects_unsupported_labels) or test(production_backtest_cancel_reports_false_without_a_cancellable_run) or test(disabled_runtime_has_stopped_status_and_releases_listener) or test(token_auth_and_tools_list_use_reviewed_catalog) or test(test_portfolio_funds_overview_and_sorting_and_unsupported_market) or test(portfolio_summary_merges_positions_balances_and_orders_and_rejects_unknown_brokers) or test(portfolio_layered_tools_report_discovery_failure_and_partial_read_states) or test(portfolio_tools_require_trading_environment_and_fail_closed_without_a_broker_reader) or test(screen_query_rejects_wrong_catalog_and_schema_versions) or test(product_runtime_without_optional_workers_starts_and_stops_cleanly) or test(test_product_runtime_ordered_shutdown_explicit) or test(test_product_runtime_ordered_shutdown_direct_drop) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(workflow_wait_tool_rejects_too_long_duration) or test(workflow_wait_tool_returns_context_cancellation) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(session_context_overrides_fall_back_to_the_agent_provider_window) or test(chat_resolution_reports_missing_agents_and_unusable_providers) or test(run_gate_is_shared_across_runtime_facades) or test(session_context_read_reports_pressure_without_compacting) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(infrastructure_resume_error_degrades_until_a_successful_scan) or test(sibling_approvals_resume_once_after_every_decision)"
+          "test(switch_retires_the_previous_provider_before_publishing_the_next_one) or test(runtime_status_wire_drops_absent_and_blank_values_and_normalizes_utc) or test(ws_live_transport_upgrades_with_a_browser_session_cookie_alone) or test(tick_candles_use_explicit_volume_delta_across_trading_days) or test(workspace_candle_pagination_rejects_the_go_metadata_table)"
         ],
         "testFilter": [
-          "ws_live_transport_upgrades_with_a_browser_session_cookie_alone"
+          "switch_retires_the_previous_provider_before_publishing_the_next_one",
+          "runtime_status_wire_drops_absent_and_blank_values_and_normalizes_utc",
+          "ws_live_transport_upgrades_with_a_browser_session_cookie_alone",
+          "tick_candles_use_explicit_volume_delta_across_trading_days",
+          "workspace_candle_pagination_rejects_the_go_metadata_table"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "3d356b9a",
-        "verifiedAt": "2026-09-25T13:47:02Z",
-        "receiptDigest": null
+        "verifiedCommit": "f51013d9f2df21c6b73a179aba24621aa3f0984e",
+        "verifiedAt": "2026-09-27T18:16:44Z",
+        "receiptDigest": "sha256:7612368c8b4ebc983e552ba11b03a5ede9cad29575c83c5728c8578411901a69"
       },
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：Go 断言仅携带 Web 会话 cookie（无桌面 token）即可升级 /api/v1/ws/live。Rust 新增端到端用例在 enforce_access 且只配置 session_token 的产品实例上做真实 WebSocket 握手：无凭据 401 WEB_AUTH_REQUIRED、仅 session cookie 升级 101，桌面 token 不参与该通道；该用例带本行 // Parity: 锚点。"
@@ -178167,7 +178200,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-marketdata/src/tick_candles.rs::tick_candles_use_explicit_volume_delta_across_trading_days",
       "conclusion": "function_exact：跨交易日显式 delta 场景（前日 10000/次日 250 累计计数，VolumeDelta 12/7）逐项断言 volume 为 \"12\"/\"7\" 且长度为 2，与 Go 断言一致；Rust 测试注释已带 :241 锚点。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --all-targets --locked -E 'test(tick_candles_use_explicit_volume_delta_across_trading_days)'",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-marketdata --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(switch_retires_the_previous_provider_before_publishing_the_next_one) or test(runtime_status_wire_drops_absent_and_blank_values_and_normalizes_utc) or test(ws_live_transport_upgrades_with_a_browser_session_cookie_alone) or test(tick_candles_use_explicit_volume_delta_across_trading_days) or test(workspace_candle_pagination_rejects_the_go_metadata_table)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/marketdata/cache_test.go",
@@ -178193,38 +178226,47 @@
           "function_exact：跨交易日显式 delta 场景（前日 10000/次日 250 累计计数，VolumeDelta 12/7）逐项断言 volume 为 \"12\"/\"7\" 且长度为 2，与 Go 断言一致；Rust 测试注释已带 :241 锚点。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
           "-p",
+          "jftrade-engine",
+          "-p",
           "jftrade-marketdata",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(tick_candles_use_explicit_volume_delta_across_trading_days)"
+          "test(switch_retires_the_previous_provider_before_publishing_the_next_one) or test(runtime_status_wire_drops_absent_and_blank_values_and_normalizes_utc) or test(ws_live_transport_upgrades_with_a_browser_session_cookie_alone) or test(tick_candles_use_explicit_volume_delta_across_trading_days) or test(workspace_candle_pagination_rejects_the_go_metadata_table)"
         ],
         "testFilter": [
-          "tick_candles_use_explicit_volume_delta_across_trading_days"
+          "switch_retires_the_previous_provider_before_publishing_the_next_one",
+          "runtime_status_wire_drops_absent_and_blank_values_and_normalizes_utc",
+          "ws_live_transport_upgrades_with_a_browser_session_cookie_alone",
+          "tick_candles_use_explicit_volume_delta_across_trading_days",
+          "workspace_candle_pagination_rejects_the_go_metadata_table"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "bdae138c",
-        "verifiedAt": "2026-09-25T12:19:34Z",
-        "receiptDigest": null
+        "verifiedCommit": "f51013d9f2df21c6b73a179aba24621aa3f0984e",
+        "verifiedAt": "2026-09-27T18:16:44Z",
+        "receiptDigest": "sha256:7612368c8b4ebc983e552ba11b03a5ede9cad29575c83c5728c8578411901a69"
       },
       "risk": "high",
       "owner": "marketdata_quotes",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：跨交易日显式 delta 场景（前日 10000/次日 250 累计计数，VolumeDelta 12/7）逐项断言 volume 为 \"12\"/\"7\" 且长度为 2，与 Go 断言一致；Rust 测试注释已带 :241 锚点。"
@@ -214633,7 +214675,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::workspace_candle_pagination_rejects_the_go_metadata_table",
       "conclusion": "function_exact：Go 的分页元数据表在 Rust 由 product_candle_converter::validate_pagination 与 validate_timestamp_order 承担；新增测试逐行断言 terminal cursor、continued page 缺游标、游标与最早 K 线不一致、时间戳非严格有序、超 limit、bounded 页 hasMore、bounded 页游标各报对应错误，并断言合法页产出 hasMore=true/nextBefore=最早 K 线的 canonical 值。Go 的 \"missing hasMore\" 行在 Rust 由 typed HelperCandlesResponse 承接：has_more 为非可选字段，缺失即反序列化失败（测试内断言），不会退化成终页。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(workspace_candle_pagination_rejects_the_go_metadata_table)'",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-marketdata --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(switch_retires_the_previous_provider_before_publishing_the_next_one) or test(runtime_status_wire_drops_absent_and_blank_values_and_normalizes_utc) or test(ws_live_transport_upgrades_with_a_browser_session_cookie_alone) or test(tick_candles_use_explicit_volume_delta_across_trading_days) or test(workspace_candle_pagination_rejects_the_go_metadata_table)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/productfeatures/market_data_reads_test.go",
@@ -214659,38 +214701,47 @@
           "function_exact：Go 的分页元数据表在 Rust 由 product_candle_converter::validate_pagination 与 validate_timestamp_order 承担；新增测试逐行断言 terminal cursor、continued page 缺游标、游标与最早 K 线不一致、时间戳非严格有序、超 limit、bounded 页 hasMore、bounded 页游标各报对应错误，并断言合法页产出 hasMore=true/nextBefore=最早 K 线的 canonical 值。Go 的 \"missing hasMore\" 行在 Rust 由 typed HelperCandlesResponse 承接：has_more 为非可选字段，缺失即反序列化失败（测试内断言），不会退化成终页。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
           "-p",
           "jftrade-engine",
+          "-p",
+          "jftrade-marketdata",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(workspace_candle_pagination_rejects_the_go_metadata_table)"
+          "test(switch_retires_the_previous_provider_before_publishing_the_next_one) or test(runtime_status_wire_drops_absent_and_blank_values_and_normalizes_utc) or test(ws_live_transport_upgrades_with_a_browser_session_cookie_alone) or test(tick_candles_use_explicit_volume_delta_across_trading_days) or test(workspace_candle_pagination_rejects_the_go_metadata_table)"
         ],
         "testFilter": [
+          "switch_retires_the_previous_provider_before_publishing_the_next_one",
+          "runtime_status_wire_drops_absent_and_blank_values_and_normalizes_utc",
+          "ws_live_transport_upgrades_with_a_browser_session_cookie_alone",
+          "tick_candles_use_explicit_volume_delta_across_trading_days",
           "workspace_candle_pagination_rejects_the_go_metadata_table"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "aa59fa61",
-        "verifiedAt": "2026-09-25T12:26:24Z",
-        "receiptDigest": null
+        "verifiedCommit": "f51013d9f2df21c6b73a179aba24621aa3f0984e",
+        "verifiedAt": "2026-09-27T18:16:44Z",
+        "receiptDigest": "sha256:7612368c8b4ebc983e552ba11b03a5ede9cad29575c83c5728c8578411901a69"
       },
       "risk": "high",
       "owner": "marketdata_quotes",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：Go 的分页元数据表在 Rust 由 product_candle_converter::validate_pagination 与 validate_timestamp_order 承担；新增测试逐行断言 terminal cursor、continued page 缺游标、游标与最早 K 线不一致、时间戳非严格有序、超 limit、bounded 页 hasMore、bounded 页游标各报对应错误，并断言合法页产出 hasMore=true/nextBefore=最早 K 线的 canonical 值。Go 的 \"missing hasMore\" 行在 Rust 由 typed HelperCandlesResponse 承接：has_more 为非可选字段，缺失即反序列化失败（测试内断言），不会退化成终页。"
