@@ -3070,7 +3070,7 @@
         "uncovered": [
           "Go 的 adkTimelineStreamState sequence、toolGroup 最早时间、reasoning/message 拼接属于进程内 helper 状态机；Rust 直接写入 durable streamEvents，没有同形状态对象。"
         ],
-        "source": "manual-batch-review"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -3091,9 +3091,7 @@
       "owner": "api_transport",
       "priority": "P1",
       "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "Rust 已验证 durable stream 重放与 production session→run→final 顺序，覆盖该 helper 对应的外部事件契约。"
@@ -3176,7 +3174,7 @@
         "uncovered": [
           "Go 的 appendReasoning/appendMessage clone 防别名、defaultTimelineRunID 与 firstTimelineToolTime fallback 只服务内存 hub；Rust serde 值没有共享指针别名或同形缺省 helper。"
         ],
-        "source": "manual-batch-review"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -3197,9 +3195,7 @@
       "owner": "api_transport",
       "priority": "P1",
       "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "Rust 已验证 timeline/context durable frame 在 live stream 与 replay 中保留，空内容不会伪造 narrative frame。"
@@ -6485,7 +6481,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/product_backtest_sync_start_tests.rs::sync_request_session_scope_parity_with_go; crates/jftrade-engine/tests/backtests_write_compatibility.rs::backtests_write_fixture_replays_all_four_go_owned_mutations",
       "conclusion": "function_exact：Go 断言 sessionScope=legacy → 400 BAD_REQUEST 且不打开 sync 适配器。Rust 解析用例断言 legacy/unknown/带空格/大写等取值全部 BadRequest（合法值 regular/extended/缺省），语料 case sync-invalid-session-scope 断言 400 + BAD_REQUEST 且无适配器调用。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --locked -E 'test(sync_request_session_scope_parity_with_go) | test(backtests_write_fixture_replays_all_four_go_owned_mutations)'",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(sync_request_session_scope_parity_with_go) or test(backtests_sync_read_route_matches_group_fixture_in_cutover_only) or test(backtests_sqlite_test_cutover_replays_transport_and_restart) or test(production_backtest_sync_endpoints_project_missing_tasks_and_unavailable_start) or test(production_sync_cancel_matches_not_found_for_terminal_task) or test(production_sync_read_projects_persisted_task) or test(backtests_read_routes_match_group_fixture_in_cutover_only) or test(backtests_write_fixture_replays_all_four_go_owned_mutations) or test(helper_candle_conversion_rejects_malformed_provider_values) or test(test_start_script_rejects_blank_research_script)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/api/backtest/routes_boundaries_test.go",
@@ -6522,7 +6518,7 @@
           "function_exact：Go 断言 sessionScope=legacy → 400 BAD_REQUEST 且不打开 sync 适配器。Rust 解析用例断言 legacy/unknown/带空格/大写等取值全部 BadRequest（合法值 regular/extended/缺省），语料 case sync-invalid-session-scope 断言 400 + BAD_REQUEST 且无适配器调用。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -6536,23 +6532,29 @@
         ],
         "testFilter": [
           "sync_request_session_scope_parity_with_go",
-          "backtests_write_fixture_replays_all_four_go_owned_mutations"
+          "backtests_sync_read_route_matches_group_fixture_in_cutover_only",
+          "backtests_sqlite_test_cutover_replays_transport_and_restart",
+          "production_backtest_sync_endpoints_project_missing_tasks_and_unavailable_start",
+          "production_sync_cancel_matches_not_found_for_terminal_task",
+          "production_sync_read_projects_persisted_task",
+          "backtests_read_routes_match_group_fixture_in_cutover_only",
+          "backtests_write_fixture_replays_all_four_go_owned_mutations",
+          "helper_candle_conversion_rejects_malformed_provider_values",
+          "test_start_script_rejects_blank_research_script"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "f632beb7",
-        "verifiedAt": "2026-09-25T13:29:58Z",
-        "receiptDigest": null
+        "verifiedCommit": "d1938767",
+        "verifiedAt": "2026-09-27T17:03:09Z",
+        "receiptDigest": "sha256:fda37329aa034a644056012e122883e27d99a6586ad7bf82003d3af39f110f6a"
       },
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：Go 断言 sessionScope=legacy → 400 BAD_REQUEST 且不打开 sync 适配器。Rust 解析用例断言 legacy/unknown/带空格/大写等取值全部 BadRequest（合法值 regular/extended/缺省），语料 case sync-invalid-session-scope 断言 400 + BAD_REQUEST 且无适配器调用。"
@@ -6627,7 +6629,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/product_backtests_sync_tests.rs::backtests_sync_read_route_matches_group_fixture_in_cutover_only；crates/jftrade-engine/src/product_backtests_write_product_tests.rs::backtests_sqlite_test_cutover_replays_transport_and_restart；crates/jftrade-engine/src/product_production_assembly_tests.rs::production_backtest_sync_endpoints_project_missing_tasks_and_unavailable_start；crates/jftrade-engine/src/product_backtest_sync_start_tests.rs::production_sync_cancel_matches_not_found_for_terminal_task；crates/jftrade-engine/src/product_backtest_sync_start_tests.rs::production_sync_read_projects_persisted_task",
       "conclusion": "function_exact：Rust route fixture 逐项覆盖 sync progress 成功/缺失的 HTTP 200/404 与 NOT_FOUND envelope；SQLite test-cutover 覆盖 cancel 成功 200，production assembly 覆盖 cancel 缺失 404，production sync owner 测试补充持久化读回与 terminal cancel 语义。五条证据合并覆盖 Go 测试的四个 route assertions，未保留未覆盖断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E test(backtests_sync_read_route_matches_group_fixture_in_cutover_only) or test(backtests_sqlite_test_cutover_replays_transport_and_restart) or test(production_backtest_sync_endpoints_project_missing_tasks_and_unavailable_start) or test(production_sync_cancel_matches_not_found_for_terminal_task) or test(production_sync_read_projects_persisted_task)",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(sync_request_session_scope_parity_with_go) or test(backtests_sync_read_route_matches_group_fixture_in_cutover_only) or test(backtests_sqlite_test_cutover_replays_transport_and_restart) or test(production_backtest_sync_endpoints_project_missing_tasks_and_unavailable_start) or test(production_sync_cancel_matches_not_found_for_terminal_task) or test(production_sync_read_projects_persisted_task) or test(backtests_read_routes_match_group_fixture_in_cutover_only) or test(backtests_write_fixture_replays_all_four_go_owned_mutations) or test(helper_candle_conversion_rejects_malformed_provider_values) or test(test_start_script_rejects_blank_research_script)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/api/backtest/routes_progress_test.go",
@@ -6675,7 +6677,7 @@
           "Sync cancel returns HTTP 404 with NOT_FOUND for a missing task."
         ],
         "uncovered": [],
-        "source": "manual-batch-review"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -6690,27 +6692,30 @@
           "test(production_sync_cancel_matches_not_found_for_terminal_task) or test(production_sync_read_projects_persisted_task)"
         ],
         "testFilter": [
+          "sync_request_session_scope_parity_with_go",
           "backtests_sync_read_route_matches_group_fixture_in_cutover_only",
           "backtests_sqlite_test_cutover_replays_transport_and_restart",
           "production_backtest_sync_endpoints_project_missing_tasks_and_unavailable_start",
           "production_sync_cancel_matches_not_found_for_terminal_task",
-          "production_sync_read_projects_persisted_task"
+          "production_sync_read_projects_persisted_task",
+          "backtests_read_routes_match_group_fixture_in_cutover_only",
+          "backtests_write_fixture_replays_all_four_go_owned_mutations",
+          "helper_candle_conversion_rejects_malformed_provider_values",
+          "test_start_script_rejects_blank_research_script"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": null,
-        "verifiedAt": "2026-09-25T07:44:57Z",
-        "receiptDigest": null
+        "verifiedCommit": "d1938767",
+        "verifiedAt": "2026-09-27T17:03:09Z",
+        "receiptDigest": "sha256:fda37329aa034a644056012e122883e27d99a6586ad7bf82003d3af39f110f6a"
       },
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "Sync progress succeeds with HTTP 200 for a stored task.",
@@ -6725,7 +6730,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/product_backtests_tests.rs::backtests_read_routes_match_group_fixture_in_cutover_only; crates/jftrade-engine/tests/backtests_write_compatibility.rs::backtests_write_fixture_replays_all_four_go_owned_mutations",
       "conclusion": "function_exact：Go 断言 status/result/delete 的终态行为与 store 失败。Rust 读语料断言 status/result 存在与缺失（404 NOT_FOUND），写语料断言 delete 运行中→400、completed/failed/cancelled→200、缺失→404 与 store 失败→500。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --locked -E 'test(backtests_read_routes_match_group_fixture_in_cutover_only) | test(backtests_write_fixture_replays_all_four_go_owned_mutations)'",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(sync_request_session_scope_parity_with_go) or test(backtests_sync_read_route_matches_group_fixture_in_cutover_only) or test(backtests_sqlite_test_cutover_replays_transport_and_restart) or test(production_backtest_sync_endpoints_project_missing_tasks_and_unavailable_start) or test(production_sync_cancel_matches_not_found_for_terminal_task) or test(production_sync_read_projects_persisted_task) or test(backtests_read_routes_match_group_fixture_in_cutover_only) or test(backtests_write_fixture_replays_all_four_go_owned_mutations) or test(helper_candle_conversion_rejects_malformed_provider_values) or test(test_start_script_rejects_blank_research_script)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/api/backtest/routes_progress_test.go",
@@ -6762,7 +6767,7 @@
           "function_exact：Go 断言 status/result/delete 的终态行为与 store 失败。Rust 读语料断言 status/result 存在与缺失（404 NOT_FOUND），写语料断言 delete 运行中→400、completed/failed/cancelled→200、缺失→404 与 store 失败→500。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -6775,24 +6780,30 @@
           "test(adk_missing_mutation_targets_keep_the_go_classification) or test(adk_session_run_and_optimization_route_contracts_match_go) or test(adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed) or test(replayed_stream_payloads_carry_the_go_replay_marker) or test(catalog_session_run_and_observability_routes_answer_ok) or test(session_timeline_failure_keeps_the_legacy_messages_error_code) or test(sync_request_session_scope_parity_with_go) or test(backtests_write_fixture_replays_all_four_go_owned_mutations) or test(backtests_read_routes_match_group_fixture_in_cutover_only) or test(candle_route_treats_blank_period_as_unset_and_rejects_unsupported) or test(candle_period_normalizes_aliases_and_rejects_unsupported) or test(auth_requires_origin_and_csrf_for_session_writes) or test(auth_treats_patch_as_session_write_requiring_csrf) or test(managed_account_write_routes_map_missing_records_to_not_found) or test(broker_settings_writes_replay_frozen_compatibility_cases) or test(catalog_activity_paging_and_filters_match_go_boundaries) or test(strategy_instance_read_routes_match_group_fixture_in_cutover_only) or test(execution_write_fixture_replays_all_seven_go_owned_mutations) or test(execution_write_product_replays_browser_boundary_failure_recovery_and_restart) or test(production_http_broker_reads_serialize_empty_collections_as_arrays) or test(watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog) or test(watchlist_write_fixture_matches_go_owner_for_all_eight_routes) or test(malformed_membership_and_commit_bodies_are_rejected) or test(watchlist_read_routes_match_group_fixture_in_cutover_only) or test(test_product_runtime_startup_failure_rollback) or test(readiness_failure_reclaims_every_started_process_without_starting_dependents) or test(startup_failure_restores_previously_migrated_descriptor_files) or test(backup_snapshot_rejects_an_unusable_backup_directory_and_an_empty_source_path) or test(cleanup_and_compaction_report_the_reclaimed_bytes_measured_on_disk) or test(a_held_lease_on_one_database_rolls_back_the_batch_rebuild_locks) or test(runtime_readiness_allows_external_degradation_but_rejects_incomplete_startup) or test(production_opend_health_diagnoses_enabled_but_unreachable_opend) or test(production_system_read_reports_unavailable_opend_without_fake_health) or test(market_data_health_requires_a_known_logged_in_quote_session) or test(helper_market_data_providers_reconcile_futu_account_order_fill_and_fee) or test(reconciliation_discovers_external_order_into_empty_ledger) or test(production_opend_health_rejects_old_build_and_guides_upgrade) or test(probe_opend_reports_closed_port_as_disconnected) or test(probe_from_global_state_enforces_minimum_version_and_maps_neutral_state) or test(disconnected_probe_keeps_its_transport_error_for_manual_retry) or test(web_shutdown_does_not_hold_runtime_lock_while_joining_server) or test(provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update) or test(cache_rejects_stale_generation_and_classifies_freshness)"
         ],
         "testFilter": [
+          "sync_request_session_scope_parity_with_go",
+          "backtests_sync_read_route_matches_group_fixture_in_cutover_only",
+          "backtests_sqlite_test_cutover_replays_transport_and_restart",
+          "production_backtest_sync_endpoints_project_missing_tasks_and_unavailable_start",
+          "production_sync_cancel_matches_not_found_for_terminal_task",
+          "production_sync_read_projects_persisted_task",
           "backtests_read_routes_match_group_fixture_in_cutover_only",
-          "backtests_write_fixture_replays_all_four_go_owned_mutations"
+          "backtests_write_fixture_replays_all_four_go_owned_mutations",
+          "helper_candle_conversion_rejects_malformed_provider_values",
+          "test_start_script_rejects_blank_research_script"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "f632beb7",
-        "verifiedAt": "2026-09-25T13:29:58Z",
-        "receiptDigest": null
+        "verifiedCommit": "d1938767",
+        "verifiedAt": "2026-09-27T17:03:09Z",
+        "receiptDigest": "sha256:fda37329aa034a644056012e122883e27d99a6586ad7bf82003d3af39f110f6a"
       },
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：Go 断言 status/result/delete 的终态行为与 store 失败。Rust 读语料断言 status/result 存在与缺失（404 NOT_FOUND），写语料断言 delete 运行中→400、completed/failed/cancelled→200、缺失→404 与 store 失败→500。"
@@ -24881,7 +24892,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::helper_candle_conversion_rejects_malformed_provider_values",
       "conclusion": "function_exact：Go 表驱动断言 provider 页中 candles envelope、时间戳、价格、成交量和分页 cursor 的非法值被拒绝。Rust 的 helper_candle_conversion_rejects_malformed_provider_values 通过 typed helper DTO 与生产 converter 逐项拒绝同一组 malformed provider values，并额外锁定 OHLC bounds。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(helper_candle_conversion_rejects_malformed_provider_values)'",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(sync_request_session_scope_parity_with_go) or test(backtests_sync_read_route_matches_group_fixture_in_cutover_only) or test(backtests_sqlite_test_cutover_replays_transport_and_restart) or test(production_backtest_sync_endpoints_project_missing_tasks_and_unavailable_start) or test(production_sync_cancel_matches_not_found_for_terminal_task) or test(production_sync_read_projects_persisted_task) or test(backtests_read_routes_match_group_fixture_in_cutover_only) or test(backtests_write_fixture_replays_all_four_go_owned_mutations) or test(helper_candle_conversion_rejects_malformed_provider_values) or test(test_start_script_rejects_blank_research_script)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/app/apiserver/backtestapp/historical_source_test.go",
@@ -24907,7 +24918,7 @@
           "function_exact：Go 表驱动断言 provider 页中 candles envelope、时间戳、价格、成交量和分页 cursor 的非法值被拒绝。Rust 的 helper_candle_conversion_rejects_malformed_provider_values 通过 typed helper DTO 与生产 converter 逐项拒绝同一组 malformed provider values，并额外锁定 OHLC bounds。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -24920,23 +24931,30 @@
           "--locked"
         ],
         "testFilter": [
-          "helper_candle_conversion_rejects_malformed_provider_values"
+          "sync_request_session_scope_parity_with_go",
+          "backtests_sync_read_route_matches_group_fixture_in_cutover_only",
+          "backtests_sqlite_test_cutover_replays_transport_and_restart",
+          "production_backtest_sync_endpoints_project_missing_tasks_and_unavailable_start",
+          "production_sync_cancel_matches_not_found_for_terminal_task",
+          "production_sync_read_projects_persisted_task",
+          "backtests_read_routes_match_group_fixture_in_cutover_only",
+          "backtests_write_fixture_replays_all_four_go_owned_mutations",
+          "helper_candle_conversion_rejects_malformed_provider_values",
+          "test_start_script_rejects_blank_research_script"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "b40aeafb",
-        "verifiedAt": "2026-09-25T10:53:01Z",
-        "receiptDigest": null
+        "verifiedCommit": "d1938767",
+        "verifiedAt": "2026-09-27T17:03:09Z",
+        "receiptDigest": "sha256:fda37329aa034a644056012e122883e27d99a6586ad7bf82003d3af39f110f6a"
       },
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：Go 表驱动断言 provider 页中 candles envelope、时间戳、价格、成交量和分页 cursor 的非法值被拒绝。Rust 的 helper_candle_conversion_rejects_malformed_provider_values 通过 typed helper DTO 与生产 converter 逐项拒绝同一组 malformed provider values，并额外锁定 OHLC bounds。"
@@ -119336,7 +119354,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/product_research_backtest_execution.rs::test_start_script_rejects_blank_research_script",
       "conclusion": "已覆盖：Go 断言 StartScript 空白脚本报请求错误且文案含 script is required。Rust 在 research 后端执行入口前由 validate_research_script 承担同一校验，本行引用用例断言空白与空串均返回 Err(script is required)（短式 Parity 锚点在位）；请求错误分类由调用层按 Err 映射，语义等价。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(sync_request_session_scope_parity_with_go) or test(backtests_sync_read_route_matches_group_fixture_in_cutover_only) or test(backtests_sqlite_test_cutover_replays_transport_and_restart) or test(production_backtest_sync_endpoints_project_missing_tasks_and_unavailable_start) or test(production_sync_cancel_matches_not_found_for_terminal_task) or test(production_sync_read_projects_persisted_task) or test(backtests_read_routes_match_group_fixture_in_cutover_only) or test(backtests_write_fixture_replays_all_four_go_owned_mutations) or test(helper_candle_conversion_rejects_malformed_provider_values) or test(test_start_script_rejects_blank_research_script)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/backtest/recovery_test.go",
@@ -119362,7 +119380,7 @@
           "已覆盖：Go 断言 StartScript 空白脚本报请求错误且文案含 script is required。Rust 在 research 后端执行入口前由 validate_research_script 承担同一校验，本行引用用例断言空白与空串均返回 Err(script is required)（短式 Parity 锚点在位）；请求错误分类由调用层按 Err 映射，语义等价。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -119375,23 +119393,30 @@
           "test(test_historical_k_line_syncer_rejects_broken_pagination) or test(production_futu_sync_uses_opend_reader_and_persists_candles) or test(reap_finished_marks_nonterminal_worker_failed) or test(test_start_script_rejects_blank_research_script) or test(test_result_view_contract_alignment_and_edge_cases) or test(production_backtest_start_without_worker_fails_before_persisting_run) or test(definition_resolution_rejects_missing_definition_and_version_conflict) or test(backtest_runs_lifecycle_and_restart_durability) or test(shutdown_persists_cancelled_state_before_joining_workers) or test(production_sync_read_projects_persisted_task) or test(reap_finished_removes_completed_join_handles) or test(sync_request_session_scope_parity_with_go) or test(backtest_start_resolves_market_dates_with_dst) or test(parent_bracket_runs_atomically_with_stop_first_protection) or test(canceling_parent_order_cancels_all_protective_children) or test(reduce_only_order_without_position_is_canceled) or test(explicit_cancel_orders_and_unmatched_target_handling) or test(sell_market_order_applies_downward_slippage) or test(cancel_skips_unmatched_pending_orders_without_side_effects) or test(provided_fee_rules_apply_and_empty_rules_charge_nothing) or test(aggregate_reads_use_only_the_requested_session_scope) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(test_tc_d4_04_extended_session_pre_market_does_not_pollute_regular_open) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(missing_symbol_table_reports_storage_error_then_recovers_after_insert)"
         ],
         "testFilter": [
+          "sync_request_session_scope_parity_with_go",
+          "backtests_sync_read_route_matches_group_fixture_in_cutover_only",
+          "backtests_sqlite_test_cutover_replays_transport_and_restart",
+          "production_backtest_sync_endpoints_project_missing_tasks_and_unavailable_start",
+          "production_sync_cancel_matches_not_found_for_terminal_task",
+          "production_sync_read_projects_persisted_task",
+          "backtests_read_routes_match_group_fixture_in_cutover_only",
+          "backtests_write_fixture_replays_all_four_go_owned_mutations",
+          "helper_candle_conversion_rejects_malformed_provider_values",
           "test_start_script_rejects_blank_research_script"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "b9b2b48870a813e5f6411439bef617195b866b0e",
-        "verifiedAt": "2026-09-25T14:10:34Z",
-        "receiptDigest": null
+        "verifiedCommit": "d1938767",
+        "verifiedAt": "2026-09-27T17:03:09Z",
+        "receiptDigest": "sha256:fda37329aa034a644056012e122883e27d99a6586ad7bf82003d3af39f110f6a"
       },
       "risk": "high",
       "owner": "backtest_calendar",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "已覆盖：Go 断言 StartScript 空白脚本报请求错误且文案含 script is required。Rust 在 research 后端执行入口前由 validate_research_script 承担同一校验，本行引用用例断言空白与空串均返回 Err(script is required)（短式 Parity 锚点在位）；请求错误分类由调用层按 Err 映射，语义等价。"
