@@ -160961,7 +160961,7 @@
       "evidence_type": "function_exact",
       "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::mainland_trade_market_falls_back_to_the_shanghai_request_location",
       "conclusion": "function_exact：Rust 的等价链是 trade_market_authority(3)==\"CN\" 再经 normalize_history_time 用 Asia/Shanghai，2026-01-01T00:00:00Z 渲染为 08:00 墙钟，对应 Go futuRequestLocation 的 TrdMarket_CN→SH profile→UTC+8 回退。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(mainland_trade_market_falls_back_to_the_shanghai_request_location)'",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(session_selection_normalizes_aliases_and_rejects_unsupported_ones) or test(broker_kline_snapshot_session_fields_follow_go_classification_helpers) or test(sessions_default_and_validation_follow_go_extended_hours_rules) or test(previous_close_condition_switches_on_session_type) or test(previous_close_condition_does_not_rewrite_non_us_unknown_sessions) or test(resolve_account_honors_requested_authority_and_falls_back_like_go) or test(mainland_trade_market_falls_back_to_the_shanghai_request_location)'",
       "source": {
         "file": "pkg/futu/exchange_trade_price_test.go",
         "line": 13,
@@ -160986,10 +160986,12 @@
           "function_exact：Rust 的等价链是 trade_market_authority(3)==\"CN\" 再经 normalize_history_time 用 Asia/Shanghai，2026-01-01T00:00:00Z 渲染为 08:00 墙钟，对应 Go futuRequestLocation 的 TrdMarket_CN→SH profile→UTC+8 回退。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
@@ -160999,27 +161001,34 @@
           "jftrade-engine",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(fills_projection_sorts_filled_at_desc_with_id_tiebreak) or test(history_fill_read_projects_fill_identity) or test(advanced_feature_defaults_build_strict_opend_requests) or test(advanced_page_size_respects_protocol_limits) or test(high_dividend_state_is_hk_only) or test(product_states_match_go_quote_right_table) or test(entitlement_failure_is_cached_and_refreshed_after_reconnect) or test(fallback_requires_the_same_route_and_an_unsupported_marker) or test(test_adjust_kline_time_semantics) or test(helper_boundaries_return_the_input_unchanged) or test(broker_adapter_forwards_unavailable_opend_errors_on_every_read_route) or test(candle_period_catalog_rejects_missing_and_unmappable_intervals) or test(combo_rfq_creates_the_quote_once_and_never_replays_after_a_transport_failure) or test(prediction_push_handlers_install_once_and_fail_closed_on_invalid_demand) or test(prediction_catalog_pagination_and_identity_follow_the_go_rules) or test(catalog_operations_build_strict_opend_requests_like_go) or test(local_pagination_never_leaks_into_the_opend_request) or test(local_pagination_walks_plate_and_catalog_windows) or test(economic_calendar_pagination_honors_explicit_has_more_and_empty_rows) or test(payload_envelope_picks_the_first_sorted_entry_list_like_go) or test(futu_securities_route_projects_broker_neutral_envelope_boundary) or test(portfolio_cash_balances_prefer_currency_rows_over_summary_fallback) or test(public_coordinator_polls_basic_quotes_into_a_generation_fenced_cache) or test(subscribe_trade_accounts_propagates_opend_rejection) or test(executor_rejects_invalid_instrument_and_unsupported_interval) or test(market_rules_fall_back_to_security_snapshot_lot_size_and_report_the_primary_error) or test(basic_quote_query_requires_subscription_and_maps_success_rejection_and_empty) or test(maps_normalized_requested_rows_and_keeps_the_last_duplicate) or test(basic_quote_query_returns_an_empty_list_when_the_success_s2c_is_absent) or test(snapshot_reader_rejects_a_present_s2c_with_no_mappable_rows) or test(snapshot_reader_keeps_mappable_rows_and_drops_invalid_ones) or test(snapshot_reader_rejects_invalid_symbols_before_any_opend_call) or test(snapshot_reader_keeps_a_payload_less_ack_as_an_empty_collection) or test(cached_projection_does_not_promote_stale_overnight_during_regular_hours) or test(holiday_snapshot_stays_closed_with_stale_extended_blocks) or test(margin_ratios_reuse_a_recent_success_within_the_ttl) or test(cancel_order_uses_modify_order_cancel_operation) or test(subscribe_trade_accounts_forwards_every_account_id) or test(mainland_trade_market_falls_back_to_the_shanghai_request_location) or test(stale_or_malformed_push_updates_never_reach_the_lifecycle) or test(kline_adds_basic_and_minimum_age_delays_unsubscribe) or test(executor_sends_us_intraday_kline_session_all_on_the_wire)"
+          "test(session_selection_normalizes_aliases_and_rejects_unsupported_ones) or test(broker_kline_snapshot_session_fields_follow_go_classification_helpers) or test(sessions_default_and_validation_follow_go_extended_hours_rules) or test(previous_close_condition_switches_on_session_type) or test(previous_close_condition_does_not_rewrite_non_us_unknown_sessions) or test(resolve_account_honors_requested_authority_and_falls_back_like_go) or test(mainland_trade_market_falls_back_to_the_shanghai_request_location)"
         ],
         "testFilter": [
+          "session_selection_normalizes_aliases_and_rejects_unsupported_ones",
+          "broker_kline_snapshot_session_fields_follow_go_classification_helpers",
+          "sessions_default_and_validation_follow_go_extended_hours_rules",
+          "previous_close_condition_switches_on_session_type",
+          "previous_close_condition_does_not_rewrite_non_us_unknown_sessions",
+          "resolve_account_honors_requested_authority_and_falls_back_like_go",
           "mainland_trade_market_falls_back_to_the_shanghai_request_location"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "78e36bd3",
-        "verifiedAt": "2026-09-25T13:08:40Z",
-        "receiptDigest": null
+        "verifiedCommit": "b384b936661fa4ca112f88016c27f838fffe5cbf",
+        "verifiedAt": "2026-09-27T23:58:03Z",
+        "receiptDigest": "sha256:9b9427f38df767a2d63f217953fd27bae053fda603622c86d9a7ef33d51b3814"
       },
       "risk": "high",
       "owner": "futu_opend",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：Rust 的等价链是 trade_market_authority(3)==\"CN\" 再经 normalize_history_time 用 Asia/Shanghai，2026-01-01T00:00:00Z 渲染为 08:00 墙钟，对应 Go futuRequestLocation 的 TrdMarket_CN→SH profile→UTC+8 回退。"
@@ -162568,7 +162577,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/product_trade_runtime_projection_tests.rs::session_selection_normalizes_aliases_and_rejects_unsupported_ones + crates/jftrade-engine/src/product_trade_runtime_projection_tests.rs::broker_kline_snapshot_session_fields_follow_go_classification_helpers + crates/jftrade-engine/src/product_trade_runtime_projection_tests.rs::sessions_default_and_validation_follow_go_extended_hours_rules",
       "conclusion": "function_exact：默认 US 会话四段、逗号切分与 trim、固定顺序 regular→extended→overnight、非扩展市场拒绝 extended/overnight、未知 token 拒绝均已覆盖。本批修复了两处真实缺口：(1) parse_requested_sessions 原先保留调用方顺序，改为 BTreeSet + 固定顺序；(2) historical_snapshot 原先用 market 能力推导 extendedHours/session，违反 hasNonRegularBrokerSession/brokerKLineSessionLabel——现在 regular-only 选择在 US 上返回 extendedHours=false、单独 extended/overnight 折叠为 session=\"all\"。探针把 extendedHours 改回旧式能力推导即复现 left=true/right=false，已回滚。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(session_selection_normalizes_aliases_and_rejects_unsupported_ones) or test(broker_kline_snapshot_session_fields_follow_go_classification_helpers) or test(sessions_default_and_validation_follow_go_extended_hours_rules)'",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(session_selection_normalizes_aliases_and_rejects_unsupported_ones) or test(broker_kline_snapshot_session_fields_follow_go_classification_helpers) or test(sessions_default_and_validation_follow_go_extended_hours_rules) or test(previous_close_condition_switches_on_session_type) or test(previous_close_condition_does_not_rewrite_non_us_unknown_sessions) or test(resolve_account_honors_requested_authority_and_falls_back_like_go) or test(mainland_trade_market_falls_back_to_the_shanghai_request_location)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "pkg/futu/marketdata_reader_boundaries_test.go",
@@ -162616,40 +162625,49 @@
           "function_exact：默认 US 会话四段、逗号切分与 trim、固定顺序 regular→extended→overnight、非扩展市场拒绝 extended/overnight、未知 token 拒绝均已覆盖。本批修复了两处真实缺口：(1) parse_requested_sessions 原先保留调用方顺序，改为 BTreeSet + 固定顺序；(2) historical_snapshot 原先用 market 能力推导 extendedHours/session，违反 hasNonRegularBrokerSession/brokerKLineSessionLabel——现在 regular-only 选择在 US 上返回 extendedHours=false、单独 extended/overnight 折叠为 session=\"all\"。探针把 extendedHours 改回旧式能力推导即复现 left=true/right=false，已回滚。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
           "-p",
+          "jftrade-integration-futu",
+          "-p",
           "jftrade-engine",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(session_selection_normalizes_aliases_and_rejects_unsupported_ones) or test(broker_kline_snapshot_session_fields_follow_go_classification_helpers) or test(sessions_default_and_validation_follow_go_extended_hours_rules)"
+          "test(session_selection_normalizes_aliases_and_rejects_unsupported_ones) or test(broker_kline_snapshot_session_fields_follow_go_classification_helpers) or test(sessions_default_and_validation_follow_go_extended_hours_rules) or test(previous_close_condition_switches_on_session_type) or test(previous_close_condition_does_not_rewrite_non_us_unknown_sessions) or test(resolve_account_honors_requested_authority_and_falls_back_like_go) or test(mainland_trade_market_falls_back_to_the_shanghai_request_location)"
         ],
         "testFilter": [
           "session_selection_normalizes_aliases_and_rejects_unsupported_ones",
           "broker_kline_snapshot_session_fields_follow_go_classification_helpers",
-          "sessions_default_and_validation_follow_go_extended_hours_rules"
+          "sessions_default_and_validation_follow_go_extended_hours_rules",
+          "previous_close_condition_switches_on_session_type",
+          "previous_close_condition_does_not_rewrite_non_us_unknown_sessions",
+          "resolve_account_honors_requested_authority_and_falls_back_like_go",
+          "mainland_trade_market_falls_back_to_the_shanghai_request_location"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "71edf50b",
-        "verifiedAt": "2026-09-25T12:21:12Z",
-        "receiptDigest": null
+        "verifiedCommit": "b384b936661fa4ca112f88016c27f838fffe5cbf",
+        "verifiedAt": "2026-09-27T23:58:03Z",
+        "receiptDigest": "sha256:9b9427f38df767a2d63f217953fd27bae053fda603622c86d9a7ef33d51b3814"
       },
       "risk": "high",
       "owner": "futu_opend",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：默认 US 会话四段、逗号切分与 trim、固定顺序 regular→extended→overnight、非扩展市场拒绝 extended/overnight、未知 token 拒绝均已覆盖。本批修复了两处真实缺口：(1) parse_requested_sessions 原先保留调用方顺序，改为 BTreeSet + 固定顺序；(2) historical_snapshot 原先用 market 能力推导 extendedHours/session，违反 hasNonRegularBrokerSession/brokerKLineSessionLabel——现在 regular-only 选择在 US 上返回 extendedHours=false、单独 extended/overnight 折叠为 session=\"all\"。探针把 extendedHours 改回旧式能力推导即复现 left=true/right=false，已回滚。"
@@ -170641,7 +170659,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_quote_snapshot.rs::tests::previous_close_condition_switches_on_session_type; crates/jftrade-engine/src/product_production_ports_market_data_quote_snapshot_tests.rs::previous_close_condition_switches_on_session_type",
       "conclusion": "function_exact：US regular 保留 LastClosePrice；pre/after/overnight/closed/unknown 均使用最近常规收盘价；常规收盘价 <= 0 时不改写。修复：Rust 此前用 allow-list（pre/after/overnight/closed）漏掉 unknown，与 Go 的 session != regular 语义不一致。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine --all-targets --locked",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(session_selection_normalizes_aliases_and_rejects_unsupported_ones) or test(broker_kline_snapshot_session_fields_follow_go_classification_helpers) or test(sessions_default_and_validation_follow_go_extended_hours_rules) or test(previous_close_condition_switches_on_session_type) or test(previous_close_condition_does_not_rewrite_non_us_unknown_sessions) or test(resolve_account_honors_requested_authority_and_falls_back_like_go) or test(mainland_trade_market_falls_back_to_the_shanghai_request_location)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "pkg/futu/quote_snapshot_test.go",
@@ -170667,10 +170685,12 @@
           "function_exact：US regular 保留 LastClosePrice；pre/after/overnight/closed/unknown 均使用最近常规收盘价；常规收盘价 <= 0 时不改写。修复：Rust 此前用 allow-list（pre/after/overnight/closed）漏掉 unknown，与 Go 的 session != regular 语义不一致。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
@@ -170678,31 +170698,36 @@
           "jftrade-integration-futu",
           "-p",
           "jftrade-engine",
-          "-p",
-          "jftrade-broker",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(resolver_projects_us_early_close_extended_window_with_timezone) or test(us_intraday_futu_candles_carry_calendar_resolved_session_labels) or test(broker_lot_size_initializes_minimum_and_step_quantity) or test(buying_power_requires_opend_trade_reader_and_forwards_max_quantity_query) or test(previous_close_condition_switches_on_session_type) or test(previous_close_condition_does_not_rewrite_non_us_unknown_sessions) or test(resolve_account_honors_requested_authority_and_falls_back_like_go) or test(security_snapshot_coordinator_caches_clones_and_uses_market_batches) or test(security_snapshot_coordinator_enforces_sliding_budget_and_does_not_cache_failures) or test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(security_snapshot_coordinator_handles_empty_and_unexpected_results) or test(symbol_scoped_snapshot_errors_are_detectable_through_context) or test(closed_ready_session_is_replaced_on_peer_close) or test(stock_screen_fallback_wire_value_helpers_match_go_coercions) or test(stock_screen_fallback_parses_rows_and_market_groups) or test(stock_screen_fallback_cancellation_and_adapter_entry_point) or test(stock_screen_fallback_coordinates_copies_and_errors) or test(snapshot_fallback_params_use_strict_delayed_quote_fields) or test(futu_stock_screen_snapshot_fallback_uses_static_ids_without_subscription) or test(stock_screen_snapshot_coordinator_caches_rows_and_negative_results) or test(futu_stock_screen_snapshot_fallback_reports_screen_errors) or test(runtime_shutdown_cancels_then_joins_its_worker) or test(basic_quote_pushes_drop_rows_without_a_usable_security_or_price) or test(provider_reconnect_publishes_resync_events_and_wakes_reconciliation) or test(coordinator_close_is_terminal_and_prevents_orphaned_reconnect) or test(failed_or_replayed_subscriptions_are_not_active_until_opend_confirms) or test(closed_session_generation_invalidates_its_subscriptions_and_requires_replay) or test(failed_connection_does_not_advance_the_established_session_generation) or test(hk_lunch_snapshot_keeps_previous_close_and_does_not_mark_extended_hours) or test(history_query_converts_supported_trade_markets_to_local_wall_clock) or test(history_fill_call_uses_history_protocol_and_forwards_time_filter) or test(history_query_converts_hk_rfc3339_to_local_wall_clock) or test(history_fill_read_projects_fill_identity) or test(resolve_trade_market_covers_requested_and_fallback_branches_like_go) or test(broker_read_projects_max_trade_quantity_snapshot) or test(max_trade_quantity_call_preserves_serial_and_projects_optional_fields) or test(margin_ratio_unknown_stock_code_extraction_matches_go_boundaries) or test(margin_ratio_unknown_stock_recovery_keeps_nil_security_rows_and_code_forms) or test(margin_ratio_server_throttling_maps_to_the_typed_rate_limit) or test(margin_ratio_wire_throttling_reaches_the_typed_rate_limit_variant)"
+          "test(session_selection_normalizes_aliases_and_rejects_unsupported_ones) or test(broker_kline_snapshot_session_fields_follow_go_classification_helpers) or test(sessions_default_and_validation_follow_go_extended_hours_rules) or test(previous_close_condition_switches_on_session_type) or test(previous_close_condition_does_not_rewrite_non_us_unknown_sessions) or test(resolve_account_honors_requested_authority_and_falls_back_like_go) or test(mainland_trade_market_falls_back_to_the_shanghai_request_location)"
         ],
         "testFilter": [
-          "previous_close_condition_switches_on_session_type"
+          "session_selection_normalizes_aliases_and_rejects_unsupported_ones",
+          "broker_kline_snapshot_session_fields_follow_go_classification_helpers",
+          "sessions_default_and_validation_follow_go_extended_hours_rules",
+          "previous_close_condition_switches_on_session_type",
+          "previous_close_condition_does_not_rewrite_non_us_unknown_sessions",
+          "resolve_account_honors_requested_authority_and_falls_back_like_go",
+          "mainland_trade_market_falls_back_to_the_shanghai_request_location"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "5eab8d75",
-        "verifiedAt": "2026-09-25T13:16:09Z",
-        "receiptDigest": null
+        "verifiedCommit": "b384b936661fa4ca112f88016c27f838fffe5cbf",
+        "verifiedAt": "2026-09-27T23:58:03Z",
+        "receiptDigest": "sha256:9b9427f38df767a2d63f217953fd27bae053fda603622c86d9a7ef33d51b3814"
       },
       "risk": "high",
       "owner": "futu_opend",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：US regular 保留 LastClosePrice；pre/after/overnight/closed/unknown 均使用最近常规收盘价；常规收盘价 <= 0 时不改写。修复：Rust 此前用 allow-list（pre/after/overnight/closed）漏掉 unknown，与 Go 的 session != regular 语义不一致。"
@@ -170714,7 +170739,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_quote_snapshot.rs::tests::previous_close_condition_does_not_rewrite_non_us_unknown_sessions; crates/jftrade-engine/src/product_production_ports_market_data_quote_snapshot_tests.rs::previous_close_condition_does_not_rewrite_non_us_unknown_sessions",
       "conclusion": "function_exact：HK/SH/SZ/CN 的 unknown 与 closed 会话都不改写 previousClosePrice，仅 US 适用该规则。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine --all-targets --locked",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(session_selection_normalizes_aliases_and_rejects_unsupported_ones) or test(broker_kline_snapshot_session_fields_follow_go_classification_helpers) or test(sessions_default_and_validation_follow_go_extended_hours_rules) or test(previous_close_condition_switches_on_session_type) or test(previous_close_condition_does_not_rewrite_non_us_unknown_sessions) or test(resolve_account_honors_requested_authority_and_falls_back_like_go) or test(mainland_trade_market_falls_back_to_the_shanghai_request_location)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "pkg/futu/quote_snapshot_test.go",
@@ -170740,10 +170765,12 @@
           "function_exact：HK/SH/SZ/CN 的 unknown 与 closed 会话都不改写 previousClosePrice，仅 US 适用该规则。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
@@ -170751,31 +170778,36 @@
           "jftrade-integration-futu",
           "-p",
           "jftrade-engine",
-          "-p",
-          "jftrade-broker",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(resolver_projects_us_early_close_extended_window_with_timezone) or test(us_intraday_futu_candles_carry_calendar_resolved_session_labels) or test(broker_lot_size_initializes_minimum_and_step_quantity) or test(buying_power_requires_opend_trade_reader_and_forwards_max_quantity_query) or test(previous_close_condition_switches_on_session_type) or test(previous_close_condition_does_not_rewrite_non_us_unknown_sessions) or test(resolve_account_honors_requested_authority_and_falls_back_like_go) or test(security_snapshot_coordinator_caches_clones_and_uses_market_batches) or test(security_snapshot_coordinator_enforces_sliding_budget_and_does_not_cache_failures) or test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(security_snapshot_coordinator_handles_empty_and_unexpected_results) or test(symbol_scoped_snapshot_errors_are_detectable_through_context) or test(closed_ready_session_is_replaced_on_peer_close) or test(stock_screen_fallback_wire_value_helpers_match_go_coercions) or test(stock_screen_fallback_parses_rows_and_market_groups) or test(stock_screen_fallback_cancellation_and_adapter_entry_point) or test(stock_screen_fallback_coordinates_copies_and_errors) or test(snapshot_fallback_params_use_strict_delayed_quote_fields) or test(futu_stock_screen_snapshot_fallback_uses_static_ids_without_subscription) or test(stock_screen_snapshot_coordinator_caches_rows_and_negative_results) or test(futu_stock_screen_snapshot_fallback_reports_screen_errors) or test(runtime_shutdown_cancels_then_joins_its_worker) or test(basic_quote_pushes_drop_rows_without_a_usable_security_or_price) or test(provider_reconnect_publishes_resync_events_and_wakes_reconciliation) or test(coordinator_close_is_terminal_and_prevents_orphaned_reconnect) or test(failed_or_replayed_subscriptions_are_not_active_until_opend_confirms) or test(closed_session_generation_invalidates_its_subscriptions_and_requires_replay) or test(failed_connection_does_not_advance_the_established_session_generation) or test(hk_lunch_snapshot_keeps_previous_close_and_does_not_mark_extended_hours) or test(history_query_converts_supported_trade_markets_to_local_wall_clock) or test(history_fill_call_uses_history_protocol_and_forwards_time_filter) or test(history_query_converts_hk_rfc3339_to_local_wall_clock) or test(history_fill_read_projects_fill_identity) or test(resolve_trade_market_covers_requested_and_fallback_branches_like_go) or test(broker_read_projects_max_trade_quantity_snapshot) or test(max_trade_quantity_call_preserves_serial_and_projects_optional_fields) or test(margin_ratio_unknown_stock_code_extraction_matches_go_boundaries) or test(margin_ratio_unknown_stock_recovery_keeps_nil_security_rows_and_code_forms) or test(margin_ratio_server_throttling_maps_to_the_typed_rate_limit) or test(margin_ratio_wire_throttling_reaches_the_typed_rate_limit_variant)"
+          "test(session_selection_normalizes_aliases_and_rejects_unsupported_ones) or test(broker_kline_snapshot_session_fields_follow_go_classification_helpers) or test(sessions_default_and_validation_follow_go_extended_hours_rules) or test(previous_close_condition_switches_on_session_type) or test(previous_close_condition_does_not_rewrite_non_us_unknown_sessions) or test(resolve_account_honors_requested_authority_and_falls_back_like_go) or test(mainland_trade_market_falls_back_to_the_shanghai_request_location)"
         ],
         "testFilter": [
-          "previous_close_condition_does_not_rewrite_non_us_unknown_sessions"
+          "session_selection_normalizes_aliases_and_rejects_unsupported_ones",
+          "broker_kline_snapshot_session_fields_follow_go_classification_helpers",
+          "sessions_default_and_validation_follow_go_extended_hours_rules",
+          "previous_close_condition_switches_on_session_type",
+          "previous_close_condition_does_not_rewrite_non_us_unknown_sessions",
+          "resolve_account_honors_requested_authority_and_falls_back_like_go",
+          "mainland_trade_market_falls_back_to_the_shanghai_request_location"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "5eab8d75",
-        "verifiedAt": "2026-09-25T13:16:09Z",
-        "receiptDigest": null
+        "verifiedCommit": "b384b936661fa4ca112f88016c27f838fffe5cbf",
+        "verifiedAt": "2026-09-27T23:58:03Z",
+        "receiptDigest": "sha256:9b9427f38df767a2d63f217953fd27bae053fda603622c86d9a7ef33d51b3814"
       },
       "risk": "high",
       "owner": "futu_opend",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：HK/SH/SZ/CN 的 unknown 与 closed 会话都不改写 previousClosePrice，仅 US 适用该规则。"
@@ -170859,7 +170891,7 @@
       "evidence_type": "function_exact",
       "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::resolve_account_honors_requested_authority_and_falls_back_like_go",
       "conclusion": "function_exact（含真实功能修复）：Go 的 resolveTradeMarket 有三分支——请求市场命中授权列表则返回该 raw 市场码；授权列表非空但不含请求市场则返回 ok=false（非错误）；授权列表为空时按请求市场直接映射，未支持则报 unsupported market；请求为空时取第一个有效授权，全无则默认 HK，nil 账户亦然。修复前 Rust 的 resolve_account_with_environment 把“授权列表为空 + 请求市场”的账户直接过滤掉，导致 JP 这类合法直映射请求报 “no Futu trading account matched”，与 Go 语义不符。修复后按 Go 三分支处理（空授权列表走 market_code 直映射，未支持名报错），header_market 回退改用 selected_market。探针（已回滚）：恢复过滤分支 → no-authority JP 断言失败。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(resolve_account_honors_requested_authority_and_falls_back_like_go)'",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(session_selection_normalizes_aliases_and_rejects_unsupported_ones) or test(broker_kline_snapshot_session_fields_follow_go_classification_helpers) or test(sessions_default_and_validation_follow_go_extended_hours_rules) or test(previous_close_condition_switches_on_session_type) or test(previous_close_condition_does_not_rewrite_non_us_unknown_sessions) or test(resolve_account_honors_requested_authority_and_falls_back_like_go) or test(mainland_trade_market_falls_back_to_the_shanghai_request_location)'",
       "source": {
         "file": "pkg/futu/read_account_test.go",
         "line": 37,
@@ -170884,10 +170916,12 @@
           "function_exact（含真实功能修复）：Go 的 resolveTradeMarket 有三分支——请求市场命中授权列表则返回该 raw 市场码；授权列表非空但不含请求市场则返回 ok=false（非错误）；授权列表为空时按请求市场直接映射，未支持则报 unsupported market；请求为空时取第一个有效授权，全无则默认 HK，nil 账户亦然。修复前 Rust 的 resolve_account_with_environment 把“授权列表为空 + 请求市场”的账户直接过滤掉，导致 JP 这类合法直映射请求报 “no Futu trading account matched”，与 Go 语义不符。修复后按 Go 三分支处理（空授权列表走 market_code 直映射，未支持名报错），header_market 回退改用 selected_market。探针（已回滚）：恢复过滤分支 → no-authority JP 断言失败。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
@@ -170895,31 +170929,36 @@
           "jftrade-integration-futu",
           "-p",
           "jftrade-engine",
-          "-p",
-          "jftrade-broker",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(resolver_projects_us_early_close_extended_window_with_timezone) or test(us_intraday_futu_candles_carry_calendar_resolved_session_labels) or test(broker_lot_size_initializes_minimum_and_step_quantity) or test(buying_power_requires_opend_trade_reader_and_forwards_max_quantity_query) or test(previous_close_condition_switches_on_session_type) or test(previous_close_condition_does_not_rewrite_non_us_unknown_sessions) or test(resolve_account_honors_requested_authority_and_falls_back_like_go) or test(security_snapshot_coordinator_caches_clones_and_uses_market_batches) or test(security_snapshot_coordinator_enforces_sliding_budget_and_does_not_cache_failures) or test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(security_snapshot_coordinator_handles_empty_and_unexpected_results) or test(symbol_scoped_snapshot_errors_are_detectable_through_context) or test(closed_ready_session_is_replaced_on_peer_close) or test(stock_screen_fallback_wire_value_helpers_match_go_coercions) or test(stock_screen_fallback_parses_rows_and_market_groups) or test(stock_screen_fallback_cancellation_and_adapter_entry_point) or test(stock_screen_fallback_coordinates_copies_and_errors) or test(snapshot_fallback_params_use_strict_delayed_quote_fields) or test(futu_stock_screen_snapshot_fallback_uses_static_ids_without_subscription) or test(stock_screen_snapshot_coordinator_caches_rows_and_negative_results) or test(futu_stock_screen_snapshot_fallback_reports_screen_errors) or test(runtime_shutdown_cancels_then_joins_its_worker) or test(basic_quote_pushes_drop_rows_without_a_usable_security_or_price) or test(provider_reconnect_publishes_resync_events_and_wakes_reconciliation) or test(coordinator_close_is_terminal_and_prevents_orphaned_reconnect) or test(failed_or_replayed_subscriptions_are_not_active_until_opend_confirms) or test(closed_session_generation_invalidates_its_subscriptions_and_requires_replay) or test(failed_connection_does_not_advance_the_established_session_generation) or test(hk_lunch_snapshot_keeps_previous_close_and_does_not_mark_extended_hours) or test(history_query_converts_supported_trade_markets_to_local_wall_clock) or test(history_fill_call_uses_history_protocol_and_forwards_time_filter) or test(history_query_converts_hk_rfc3339_to_local_wall_clock) or test(history_fill_read_projects_fill_identity) or test(resolve_trade_market_covers_requested_and_fallback_branches_like_go) or test(broker_read_projects_max_trade_quantity_snapshot) or test(max_trade_quantity_call_preserves_serial_and_projects_optional_fields) or test(margin_ratio_unknown_stock_code_extraction_matches_go_boundaries) or test(margin_ratio_unknown_stock_recovery_keeps_nil_security_rows_and_code_forms) or test(margin_ratio_server_throttling_maps_to_the_typed_rate_limit) or test(margin_ratio_wire_throttling_reaches_the_typed_rate_limit_variant)"
+          "test(session_selection_normalizes_aliases_and_rejects_unsupported_ones) or test(broker_kline_snapshot_session_fields_follow_go_classification_helpers) or test(sessions_default_and_validation_follow_go_extended_hours_rules) or test(previous_close_condition_switches_on_session_type) or test(previous_close_condition_does_not_rewrite_non_us_unknown_sessions) or test(resolve_account_honors_requested_authority_and_falls_back_like_go) or test(mainland_trade_market_falls_back_to_the_shanghai_request_location)"
         ],
         "testFilter": [
-          "resolve_account_honors_requested_authority_and_falls_back_like_go"
+          "session_selection_normalizes_aliases_and_rejects_unsupported_ones",
+          "broker_kline_snapshot_session_fields_follow_go_classification_helpers",
+          "sessions_default_and_validation_follow_go_extended_hours_rules",
+          "previous_close_condition_switches_on_session_type",
+          "previous_close_condition_does_not_rewrite_non_us_unknown_sessions",
+          "resolve_account_honors_requested_authority_and_falls_back_like_go",
+          "mainland_trade_market_falls_back_to_the_shanghai_request_location"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "5eab8d75",
-        "verifiedAt": "2026-09-25T13:16:09Z",
-        "receiptDigest": null
+        "verifiedCommit": "b384b936661fa4ca112f88016c27f838fffe5cbf",
+        "verifiedAt": "2026-09-27T23:58:03Z",
+        "receiptDigest": "sha256:9b9427f38df767a2d63f217953fd27bae053fda603622c86d9a7ef33d51b3814"
       },
       "risk": "high",
       "owner": "futu_opend",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact（含真实功能修复）：Go 的 resolveTradeMarket 有三分支——请求市场命中授权列表则返回该 raw 市场码；授权列表非空但不含请求市场则返回 ok=false（非错误）；授权列表为空时按请求市场直接映射，未支持则报 unsupported market；请求为空时取第一个有效授权，全无则默认 HK，nil 账户亦然。修复前 Rust 的 resolve_account_with_environment 把“授权列表为空 + 请求市场”的账户直接过滤掉，导致 JP 这类合法直映射请求报 “no Futu trading account matched”，与 Go 语义不符。修复后按 Go 三分支处理（空授权列表走 market_code 直映射，未支持名报错），header_market 回退改用 selected_market。探针（已回滚）：恢复过滤分支 → no-authority JP 断言失败。"

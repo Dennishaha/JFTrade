@@ -1,0 +1,95 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-integration-futu",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(session_selection_normalizes_aliases_and_rejects_unsupported_ones) or test(broker_kline_snapshot_session_fields_follow_go_classification_helpers) or test(sessions_default_and_validation_follow_go_extended_hours_rules) or test(previous_close_condition_switches_on_session_type) or test(previous_close_condition_does_not_rewrite_non_us_unknown_sessions) or test(resolve_account_honors_requested_authority_and_falls_back_like_go) or test(mainland_trade_market_falls_back_to_the_shanghai_request_location)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-27T23:58:03Z",
+  "sourceState": {
+    "verifiedCommit": "b384b936661fa4ca112f88016c27f838fffe5cbf",
+    "trackedDiffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "untrackedFiles": []
+  },
+  "rawOutputSha256": "a0b1bec6ddd610bdbb54abc70b77fcebc08fc13220291d6dabf3be0a9efd19c4",
+  "passedTests": [
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_market_data::product_production_ports_market_data_quote::quote_snapshot::tests::previous_close_condition_does_not_rewrite_non_us_unknown_sessions",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_market_data::product_production_ports_market_data_quote::quote_snapshot::tests::previous_close_condition_switches_on_session_type",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_trade::product_trade_runtime_projection::tests::broker_kline_snapshot_session_fields_follow_go_classification_helpers",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_trade::product_trade_runtime_projection::tests::session_selection_normalizes_aliases_and_rejects_unsupported_ones",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_trade::product_trade_runtime_projection::tests::sessions_default_and_validation_follow_go_extended_hours_rules",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_trade::tests::mainland_trade_market_falls_back_to_the_shanghai_request_location",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_trade::tests::resolve_account_honors_requested_authority_and_falls_back_like_go"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 7,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1,
+      "nextest": {
+        "crate": "jftrade-integration-futu",
+        "test_binary": "live_opend_provider_runtime",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1627,
+      "exec_time": 0.290760207,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 1,
+      "measured": 0,
+      "filtered_out": 18446744073709551615,
+      "exec_time": 0,
+      "nextest": {
+        "crate": "jftrade-integration-futu",
+        "test_binary": "live_opend_provider_runtime",
+        "kind": "test"
+      }
+    }
+  ]
+}
