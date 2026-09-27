@@ -123,3 +123,11 @@
    因 5 秒轮询期限内未到 COMPLETED 失败（`product_adk_input_response_parity_tests.rs:708`）；
    该用例单独重跑与独立重跑 `check:rust:workspace` 均通过（3044 passed / 2 skipped），
    判定为并发饱和下的既有 flaky 时限问题，列入后续清理候选。
+
+## 2026-09-27 P1：Trading/Broker strict evidence C 批
+
+范围：`internal/trading/execution_products_test.go:12`、`internal/trading/execution_test.go:939`、`internal/trading/execution_test.go:965`。
+
+逐条复核 Go 与 Rust 断言并保持三条既有 `function_exact`：衍生品单腿预览锁定 `clientOrderId`/`previewId` 且券商写端口零调用；不可读 real-trade control plane 通过严格 `open` 错误、REAL fail-closed、snapshot 错误可见与 mutation 拒绝；`env=real` 回退 REAL，US MARKET+OVERNIGHT 映射 `session=4` 且非 LIMIT 不设置 `fillOutsideRTH`。Rust control-plane 使用 500 `CONTROL_PLANE_UNAVAILABLE`，与 Go 的 `REAL_TRADE_KILL_SWITCH_ACTIVE` 错误码不同，但失败关闭语义一致。本批无生产代码变更，三条均已有单引用 reuse 与 `Parity:` anchor。
+
+验证：联合定向 nextest 3/3 passed，receipt `sha256:77f918d03712f238ef42d3340f4cc5c73f951a0406e534d74b4c3ad251cfe258`（[receipt](verification-receipts/strict-trading-c-p1-2026-09-27.json)）；`audit_test_parity.py --write-report`、`parity_anchor_reconcile.py`、JSON 校验通过。最新扫描 Go 4451、Rust 3382、`function_exact=1500`、`partial=2317`、`boundary=634`、`missing=0`；anchor `1792/1746/0/0/46`；strict 仍真实失败 3915 个历史 evidence/receipt gaps。

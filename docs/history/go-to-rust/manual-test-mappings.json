@@ -288248,8 +288248,8 @@
     "internal/trading/execution_products_test.go:12:TestDerivativeSingleLegRequiresBrokerPreviewAndStableClientID": {
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::derivative_single_leg_preview_requires_client_order_id_and_locks_the_place（本批新增）",
-      "conclusion": "已覆盖：Go 三段行为逐项命中——(a) 衍生品单腿预览缺 clientOrderId → 请求错误且错误文本含 clientOrderId；(b) 带上 clientOrderId 后预览成功、productClass 保持 option、预览返回 previewId；(c) 用该预览下单但去掉 previewId → 请求错误文本含 previewId，且券商写端口零调用。Rust 生产侧对应 product_production_ports_execution_order_previews.rs::order_preview（requires_locked_preview 且缺 clientOrderId → 400 BAD_REQUEST \"clientOrderId is required for derivative and event-contract previews\"）与 product_production_ports_execution_orders_impl.rs::place_order（缺 previewId → 400 \"previewId is required for derivative and event-contract orders\"）。探针：删掉 order_preview 的 clientOrderId 守卫后新用例转红（预览直接返回 previewValid=true），按字节回滚并核对 shasum 397da3e5926666799ea7dd328464330806712e55a88968187839b50f942f8a9e。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(derivative_single_leg_preview_requires_client_order_id_and_locks_the_place)'",
+      "conclusion": "已覆盖：Go 三段行为逐项命中——(a) 衍生品单腿预览缺 clientOrderId → 请求错误且错误文本含 clientOrderId；(b) 带上 clientOrderId 后预览成功、productClass 保持 option、预览返回 previewId；(c) 用该预览下单但去掉 previewId → 请求错误文本含 previewId，且券商写端口零调用。Rust 生产侧对应 product_production_ports_execution_order_previews.rs::order_preview（requires_locked_preview 且缺 clientOrderId → 400 BAD_REQUEST \"clientOrderId is required for derivative and event-contract previews\"）与 product_production_ports_execution_orders_impl.rs::place_order（缺 previewId → 400 \"previewId is required for derivative and event-contract orders\"）。探针：删掉 order_preview 的 clientOrderId 守卫后新用例转红（预览直接返回 previewValid=true），按字节回滚并核对 shasum 397da3e5926666799ea7dd328464330806712e55a88968187839b50f942f8a9e。本批 strict follow-up 已人工复核 Go/Rust 断言并通过三项联合定向 nextest，receipt sha256:77f918d03712f238ef42d3340f4cc5c73f951a0406e534d74b4c3ad251cfe258。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(derivative_single_leg_preview_requires_client_order_id_and_locks_the_place) or test(unreadable_persisted_state_fails_closed_and_blocks_mutations) or test(test_normalize_execution_order_uses_env_fallback_and_supports_non_limit_us_sessions)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/trading/execution_products_test.go",
@@ -288275,7 +288275,7 @@
           "已覆盖：Go 三段行为逐项命中——(a) 衍生品单腿预览缺 clientOrderId → 请求错误且错误文本含 clientOrderId；(b) 带上 clientOrderId 后预览成功、productClass 保持 option、预览返回 previewId；(c) 用该预览下单但去掉 previewId → 请求错误文本含 previewId，且券商写端口零调用。Rust 生产侧对应 product_production_ports_execution_order_previews.rs::order_preview（requires_locked_preview 且缺 clientOrderId → 400 BAD_REQUEST \"clientOrderId is required for derivative and event-contract previews\"）与 product_production_ports_execution_orders_impl.rs::place_order（缺 previewId → 400 \"previewId is required for derivative and event-contract orders\"）。探针：删掉 order_preview 的 clientOrderId 守卫后新用例转红（预览直接返回 previewValid=true），按字节回滚并核对 shasum 397da3e5926666799ea7dd328464330806712e55a88968187839b50f942f8a9e。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -288290,21 +288290,19 @@
         "testFilter": [
           "derivative_single_leg_preview_requires_client_order_id_and_locks_the_place"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "9b96e4bb923c64e7e1f882809d608ae6374bfb69",
-        "verifiedAt": "2026-09-25T14:28:17Z",
-        "receiptDigest": null
+        "verifiedCommit": "59d205f3f27324d37ff6456d62448c4dd9a708f7",
+        "verifiedAt": "2026-09-27T15:05:00Z",
+        "receiptDigest": "sha256:77f918d03712f238ef42d3340f4cc5c73f951a0406e534d74b4c3ad251cfe258"
       },
       "risk": "high",
       "owner": "trading_broker",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "已覆盖：Go 三段行为逐项命中——(a) 衍生品单腿预览缺 clientOrderId → 请求错误且错误文本含 clientOrderId；(b) 带上 clientOrderId 后预览成功、productClass 保持 option、预览返回 previewId；(c) 用该预览下单但去掉 previewId → 请求错误文本含 previewId，且券商写端口零调用。Rust 生产侧对应 product_production_ports_execution_order_previews.rs::order_preview（requires_locked_preview 且缺 clientOrderId → 400 BAD_REQUEST \"clientOrderId is required for derivative and event-contract previews\"）与 product_production_ports_execution_orders_impl.rs::place_order（缺 previewId → 400 \"previewId is required for derivative and event-contract orders\"）。探针：删掉 order_preview 的 clientOrderId 守卫后新用例转红（预览直接返回 previewValid=true），按字节回滚并核对 shasum 397da3e5926666799ea7dd328464330806712e55a88968187839b50f942f8a9e。"
@@ -290224,8 +290222,8 @@
     "internal/trading/execution_test.go:939:TestRealTradeControlPlaneFailsClosedWhenPersistedStateCannotLoad": {
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/product_execution_risk_coordinator_tests.rs::unreadable_persisted_state_fails_closed_and_blocks_mutations",
-      "conclusion": "function_exact：Go 用内容为 `{` 的状态文件构造控制面，要求构造函数返回可用但 fail-closed 的对象：REAL 单被拒、snapshot 报告 ControlPlaneAvailable=false 且带错误、变更被拒。Rust 对应两条路径：严格 open() 返回 Err，而 new() 保留可用协调器并把错误放进 control_plane_error。新增测试断言 ① ExecutionRiskCoordinator::open(&path).is_err()；② REAL 单经 execute_with_risk_guard 得到 Failed{500, CONTROL_PLANE_UNAVAILABLE}（未执行券商闭包）；③ snapshot.control_plane_available == false、control_plane_error.is_some()、kill_switch_active == true；④ mutate_with 被拒（CONTROL_PLANE_READ_FAILED）。探针：把逐次重读失败分支改为 (current_state, None)（吞掉控制面错误）→ 测试转红（fail-closed error = Failed{403, REAL_TRADING_DISABLED}），按字节回滚（shasum 48307de8… 一致）。差异：Go 的错误码是 REAL_TRADE_KILL_SWITCH_ACTIVE（其快照把不可用视为 kill switch 生效），Rust 使用更明确的 500 CONTROL_PLANE_UNAVAILABLE，但失败关闭语义一致（拒绝下单 + 拒绝变更 + 快照可见错误）。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+      "conclusion": "function_exact：Go 用内容为 `{` 的状态文件构造控制面，要求构造函数返回可用但 fail-closed 的对象：REAL 单被拒、snapshot 报告 ControlPlaneAvailable=false 且带错误、变更被拒。Rust 对应两条路径：严格 open() 返回 Err，而 new() 保留可用协调器并把错误放进 control_plane_error。新增测试断言 ① ExecutionRiskCoordinator::open(&path).is_err()；② REAL 单经 execute_with_risk_guard 得到 Failed{500, CONTROL_PLANE_UNAVAILABLE}（未执行券商闭包）；③ snapshot.control_plane_available == false、control_plane_error.is_some()、kill_switch_active == true；④ mutate_with 被拒（CONTROL_PLANE_READ_FAILED）。探针：把逐次重读失败分支改为 (current_state, None)（吞掉控制面错误）→ 测试转红（fail-closed error = Failed{403, REAL_TRADING_DISABLED}），按字节回滚（shasum 48307de8… 一致）。差异：Go 的错误码是 REAL_TRADE_KILL_SWITCH_ACTIVE（其快照把不可用视为 kill switch 生效），Rust 使用更明确的 500 CONTROL_PLANE_UNAVAILABLE，但失败关闭语义一致（拒绝下单 + 拒绝变更 + 快照可见错误）。本批 strict follow-up 已人工复核 Go/Rust 断言并通过三项联合定向 nextest，receipt sha256:77f918d03712f238ef42d3340f4cc5c73f951a0406e534d74b4c3ad251cfe258。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(derivative_single_leg_preview_requires_client_order_id_and_locks_the_place) or test(unreadable_persisted_state_fails_closed_and_blocks_mutations) or test(test_normalize_execution_order_uses_env_fallback_and_supports_non_limit_us_sessions)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/trading/execution_test.go",
@@ -290251,7 +290249,7 @@
           "function_exact：Go 用内容为 `{` 的状态文件构造控制面，要求构造函数返回可用但 fail-closed 的对象：REAL 单被拒、snapshot 报告 ControlPlaneAvailable=false 且带错误、变更被拒。Rust 对应两条路径：严格 open() 返回 Err，而 new() 保留可用协调器并把错误放进 control_plane_error。新增测试断言 ① ExecutionRiskCoordinator::open(&path).is_err()；② REAL 单经 execute_with_risk_guard 得到 Failed{500, CONTROL_PLANE_UNAVAILABLE}（未执行券商闭包）；③ snapshot.control_plane_available == false、control_plane_error.is_some()、kill_switch_active == true；④ mutate_with 被拒（CONTROL_PLANE_READ_FAILED）。探针：把逐次重读失败分支改为 (current_state, None)（吞掉控制面错误）→ 测试转红（fail-closed error = Failed{403, REAL_TRADING_DISABLED}），按字节回滚（shasum 48307de8… 一致）。差异：Go 的错误码是 REAL_TRADE_KILL_SWITCH_ACTIVE（其快照把不可用视为 kill switch 生效），Rust 使用更明确的 500 CONTROL_PLANE_UNAVAILABLE，但失败关闭语义一致（拒绝下单 + 拒绝变更 + 快照可见错误）。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -290266,21 +290264,19 @@
         "testFilter": [
           "unreadable_persisted_state_fails_closed_and_blocks_mutations"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "9b96e4bb923c64e7e1f882809d608ae6374bfb69",
-        "verifiedAt": "2026-09-25T14:28:17Z",
-        "receiptDigest": null
+        "verifiedCommit": "59d205f3f27324d37ff6456d62448c4dd9a708f7",
+        "verifiedAt": "2026-09-27T15:05:00Z",
+        "receiptDigest": "sha256:77f918d03712f238ef42d3340f4cc5c73f951a0406e534d74b4c3ad251cfe258"
       },
       "risk": "high",
       "owner": "trading_broker",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：Go 用内容为 `{` 的状态文件构造控制面，要求构造函数返回可用但 fail-closed 的对象：REAL 单被拒、snapshot 报告 ControlPlaneAvailable=false 且带错误、变更被拒。Rust 对应两条路径：严格 open() 返回 Err，而 new() 保留可用协调器并把错误放进 control_plane_error。新增测试断言 ① ExecutionRiskCoordinator::open(&path).is_err()；② REAL 单经 execute_with_risk_guard 得到 Failed{500, CONTROL_PLANE_UNAVAILABLE}（未执行券商闭包）；③ snapshot.control_plane_available == false、control_plane_error.is_some()、kill_switch_active == true；④ mutate_with 被拒（CONTROL_PLANE_READ_FAILED）。探针：把逐次重读失败分支改为 (current_state, None)（吞掉控制面错误）→ 测试转红（fail-closed error = Failed{403, REAL_TRADING_DISABLED}），按字节回滚（shasum 48307de8… 一致）。差异：Go 的错误码是 REAL_TRADE_KILL_SWITCH_ACTIVE（其快照把不可用视为 kill switch 生效），Rust 使用更明确的 500 CONTROL_PLANE_UNAVAILABLE，但失败关闭语义一致（拒绝下单 + 拒绝变更 + 快照可见错误）。"
@@ -290292,8 +290288,8 @@
       "status": "[x]",
       "evidence_type": "function_exact",
       "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_order_validation_tests.rs::test_normalize_execution_order_uses_env_fallback_and_supports_non_limit_us_sessions",
-      "conclusion": "function_exact：env=real 回退为 REAL(trd_env=1)，US MARKET+OVERNIGHT 得到 session=4 且 fillOutsideRTH=None，与 Go 一致。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(test_normalize_execution_order_uses_env_fallback_and_supports_non_limit_us_sessions)'",
+      "conclusion": "function_exact：env=real 回退为 REAL(trd_env=1)，US MARKET+OVERNIGHT 得到 session=4 且 fillOutsideRTH=None，与 Go 一致。本批 strict follow-up 已人工复核 Go/Rust 断言并通过三项联合定向 nextest，receipt sha256:77f918d03712f238ef42d3340f4cc5c73f951a0406e534d74b4c3ad251cfe258。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(derivative_single_leg_preview_requires_client_order_id_and_locks_the_place) or test(unreadable_persisted_state_fails_closed_and_blocks_mutations) or test(test_normalize_execution_order_uses_env_fallback_and_supports_non_limit_us_sessions)'",
       "source": {
         "file": "internal/trading/execution_test.go",
         "line": 965,
@@ -290318,7 +290314,7 @@
           "function_exact：env=real 回退为 REAL(trd_env=1)，US MARKET+OVERNIGHT 得到 session=4 且 fillOutsideRTH=None，与 Go 一致。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -290333,21 +290329,19 @@
         "testFilter": [
           "test_normalize_execution_order_uses_env_fallback_and_supports_non_limit_us_sessions"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "9b96e4bb923c64e7e1f882809d608ae6374bfb69",
-        "verifiedAt": "2026-09-25T14:28:17Z",
-        "receiptDigest": null
+        "verifiedCommit": "59d205f3f27324d37ff6456d62448c4dd9a708f7",
+        "verifiedAt": "2026-09-27T15:05:00Z",
+        "receiptDigest": "sha256:77f918d03712f238ef42d3340f4cc5c73f951a0406e534d74b4c3ad251cfe258"
       },
       "risk": "high",
       "owner": "trading_broker",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：env=real 回退为 REAL(trd_env=1)，US MARKET+OVERNIGHT 得到 session=4 且 fillOutsideRTH=None，与 Go 一致。"
