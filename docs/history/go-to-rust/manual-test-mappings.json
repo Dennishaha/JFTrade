@@ -7400,7 +7400,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::candle_route_treats_blank_period_as_unset_and_rejects_unsupported; crates/jftrade-engine/src/product_query.rs::candle_period_normalizes_aliases_and_rejects_unsupported",
       "conclusion": "function_exact：period=、period=%20、period=+ 视作未设置并保持默认 1m（本批修复前返回 400），2h 等未支持周期仍 400 BAD_REQUEST 且不触碰 provider；别名表由 product_query 用例逐项固定。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(candle_route_treats_blank_period_as_unset_and_rejects_unsupported) or test(candle_period_normalizes_aliases_and_rejects_unsupported) or test(snapshot_read_fences_provider_generation_switch_during_helper_query) or test(candles_and_search_validation_rules) or test(subscription_mutations_map_canceled_context_to_failed) or test(release_and_clear_map_snapshot_failure_after_logical_cleanup)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/api/httpserver/bindings_boundaries_test.go",
@@ -7432,7 +7432,7 @@
           "function_exact：period=、period=%20、period=+ 视作未设置并保持默认 1m（本批修复前返回 400），2h 等未支持周期仍 400 BAD_REQUEST 且不触碰 provider；别名表由 product_query 用例逐项固定。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -7446,23 +7446,25 @@
         ],
         "testFilter": [
           "candle_route_treats_blank_period_as_unset_and_rejects_unsupported",
-          "candle_period_normalizes_aliases_and_rejects_unsupported"
+          "candle_period_normalizes_aliases_and_rejects_unsupported",
+          "snapshot_read_fences_provider_generation_switch_during_helper_query",
+          "candles_and_search_validation_rules",
+          "subscription_mutations_map_canceled_context_to_failed",
+          "release_and_clear_map_snapshot_failure_after_logical_cleanup"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "f632beb7",
-        "verifiedAt": "2026-09-25T13:29:58Z",
-        "receiptDigest": null
+        "verifiedCommit": "605906bc",
+        "verifiedAt": "2026-09-27T17:32:26Z",
+        "receiptDigest": "sha256:baa66579a6a1866149f08707d9e80790638ec1fb29f48ed34962a50ae5f17478"
       },
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：period=、period=%20、period=+ 视作未设置并保持默认 1m（本批修复前返回 400），2h 等未支持周期仍 400 BAD_REQUEST 且不触碰 provider；别名表由 product_query 用例逐项固定。"
@@ -10682,7 +10684,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::snapshot_read_fences_provider_generation_switch_during_helper_query",
       "conclusion": "function_exact：Go 的 GetSnapshot 读取前记录 providerGeneration、返回后复核并在切换时返回 ErrProviderChanged（409 MARKET_DATA_PROVIDER_CHANGED）。Rust 原先没有该栅栏，快照会带着已退役 provider 的数据返回；本轮在 read_snapshots 的 helper 分支与 Futu fallback 分支补上 generation 复核。回归测试让 helper 在响应前 activate(Akshare)，断言 409 + MARKET_DATA_PROVIDER_CHANGED。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(snapshot_read_fences_provider_generation_switch_during_helper_query)'",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(candle_route_treats_blank_period_as_unset_and_rejects_unsupported) or test(candle_period_normalizes_aliases_and_rejects_unsupported) or test(snapshot_read_fences_provider_generation_switch_during_helper_query) or test(candles_and_search_validation_rules) or test(subscription_mutations_map_canceled_context_to_failed) or test(release_and_clear_map_snapshot_failure_after_logical_cleanup)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/api/marketdata/routes_boundaries_test.go",
@@ -10708,7 +10710,7 @@
           "function_exact：Go 的 GetSnapshot 读取前记录 providerGeneration、返回后复核并在切换时返回 ErrProviderChanged（409 MARKET_DATA_PROVIDER_CHANGED）。Rust 原先没有该栅栏，快照会带着已退役 provider 的数据返回；本轮在 read_snapshots 的 helper 分支与 Futu fallback 分支补上 generation 复核。回归测试让 helper 在响应前 activate(Akshare)，断言 409 + MARKET_DATA_PROVIDER_CHANGED。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -10723,23 +10725,26 @@
           "test(snapshot_read_fences_provider_generation_switch_during_helper_query)"
         ],
         "testFilter": [
-          "snapshot_read_fences_provider_generation_switch_during_helper_query"
+          "candle_route_treats_blank_period_as_unset_and_rejects_unsupported",
+          "candle_period_normalizes_aliases_and_rejects_unsupported",
+          "snapshot_read_fences_provider_generation_switch_during_helper_query",
+          "candles_and_search_validation_rules",
+          "subscription_mutations_map_canceled_context_to_failed",
+          "release_and_clear_map_snapshot_failure_after_logical_cleanup"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "7df2e82b",
-        "verifiedAt": "2026-09-25T12:13:32Z",
-        "receiptDigest": null
+        "verifiedCommit": "605906bc",
+        "verifiedAt": "2026-09-27T17:32:26Z",
+        "receiptDigest": "sha256:baa66579a6a1866149f08707d9e80790638ec1fb29f48ed34962a50ae5f17478"
       },
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：Go 的 GetSnapshot 读取前记录 providerGeneration、返回后复核并在切换时返回 ErrProviderChanged（409 MARKET_DATA_PROVIDER_CHANGED）。Rust 原先没有该栅栏，快照会带着已退役 provider 的数据返回；本轮在 read_snapshots 的 helper 分支与 Futu fallback 分支补上 generation 复核。回归测试让 helper 在响应前 activate(Akshare)，断言 409 + MARKET_DATA_PROVIDER_CHANGED。"
@@ -10885,7 +10890,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/product_production_assembly_tests.rs::candles_and_search_validation_rules",
       "conclusion": "function_exact：Go 断言 ErrInvalidCandleSessions 映射为 400 MARKET_CANDLE_SESSIONS_INVALID。Rust 的 candles_and_search_validation_rules 对 sessions=all 与 sessions=（空）两条路径断言 400 + MARKET_CANDLE_SESSIONS_INVALID，并带 go:452dea11 parity 注释；另由 candle_route_rejects_invalid_sessions 覆盖路由前置拒绝，本条使用 assembly 级证据以保持入口唯一。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(candles_and_search_validation_rules)'",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(candle_route_treats_blank_period_as_unset_and_rejects_unsupported) or test(candle_period_normalizes_aliases_and_rejects_unsupported) or test(snapshot_read_fences_provider_generation_switch_during_helper_query) or test(candles_and_search_validation_rules) or test(subscription_mutations_map_canceled_context_to_failed) or test(release_and_clear_map_snapshot_failure_after_logical_cleanup)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/api/marketdata/routes_boundaries_test.go",
@@ -10906,7 +10911,7 @@
           "function_exact：Go 断言 ErrInvalidCandleSessions 映射为 400 MARKET_CANDLE_SESSIONS_INVALID。Rust 的 candles_and_search_validation_rules 对 sessions=all 与 sessions=（空）两条路径断言 400 + MARKET_CANDLE_SESSIONS_INVALID，并带 go:452dea11 parity 注释；另由 candle_route_rejects_invalid_sessions 覆盖路由前置拒绝，本条使用 assembly 级证据以保持入口唯一。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -10921,23 +10926,26 @@
           "test(candles_and_search_validation_rules)"
         ],
         "testFilter": [
-          "candles_and_search_validation_rules"
+          "candle_route_treats_blank_period_as_unset_and_rejects_unsupported",
+          "candle_period_normalizes_aliases_and_rejects_unsupported",
+          "snapshot_read_fences_provider_generation_switch_during_helper_query",
+          "candles_and_search_validation_rules",
+          "subscription_mutations_map_canceled_context_to_failed",
+          "release_and_clear_map_snapshot_failure_after_logical_cleanup"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "7df2e82b",
-        "verifiedAt": "2026-09-25T12:13:32Z",
-        "receiptDigest": null
+        "verifiedCommit": "605906bc",
+        "verifiedAt": "2026-09-27T17:32:26Z",
+        "receiptDigest": "sha256:baa66579a6a1866149f08707d9e80790638ec1fb29f48ed34962a50ae5f17478"
       },
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：Go 断言 ErrInvalidCandleSessions 映射为 400 MARKET_CANDLE_SESSIONS_INVALID。Rust 的 candles_and_search_validation_rules 对 sessions=all 与 sessions=（空）两条路径断言 400 + MARKET_CANDLE_SESSIONS_INVALID，并带 go:452dea11 parity 注释；另由 candle_route_rejects_invalid_sessions 覆盖路由前置拒绝，本条使用 assembly 级证据以保持入口唯一。"
@@ -11263,7 +11271,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/tests/market_data_subscription_mutation_compatibility.rs::subscription_mutations_map_canceled_context_to_failed",
       "conclusion": "function_exact：Go 对 get/acquire/release/clear/heartbeat 五条路由在 canceled service context 下统一返回 500 SUBSCRIPTION_FAILED。Rust 新增独立回归测试按 fixture 顺序回放 acquire/release/heartbeat/clear 四条 contextError=canceled 用例，逐条断言 500 + SUBSCRIPTION_FAILED + context canceled。GET 快照路径在 Rust 走只读端口（无 context 参数），属 owner 边界差异，已在结论中标注。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(subscription_mutations_map_canceled_context_to_failed)'",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(candle_route_treats_blank_period_as_unset_and_rejects_unsupported) or test(candle_period_normalizes_aliases_and_rejects_unsupported) or test(snapshot_read_fences_provider_generation_switch_during_helper_query) or test(candles_and_search_validation_rules) or test(subscription_mutations_map_canceled_context_to_failed) or test(release_and_clear_map_snapshot_failure_after_logical_cleanup)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/api/marketdata/routes_boundaries_test.go",
@@ -11289,7 +11297,7 @@
           "function_exact：Go 对 get/acquire/release/clear/heartbeat 五条路由在 canceled service context 下统一返回 500 SUBSCRIPTION_FAILED。Rust 新增独立回归测试按 fixture 顺序回放 acquire/release/heartbeat/clear 四条 contextError=canceled 用例，逐条断言 500 + SUBSCRIPTION_FAILED + context canceled。GET 快照路径在 Rust 走只读端口（无 context 参数），属 owner 边界差异，已在结论中标注。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -11304,23 +11312,26 @@
           "test(subscription_mutations_map_canceled_context_to_failed)"
         ],
         "testFilter": [
-          "subscription_mutations_map_canceled_context_to_failed"
+          "candle_route_treats_blank_period_as_unset_and_rejects_unsupported",
+          "candle_period_normalizes_aliases_and_rejects_unsupported",
+          "snapshot_read_fences_provider_generation_switch_during_helper_query",
+          "candles_and_search_validation_rules",
+          "subscription_mutations_map_canceled_context_to_failed",
+          "release_and_clear_map_snapshot_failure_after_logical_cleanup"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "7df2e82b",
-        "verifiedAt": "2026-09-25T12:13:32Z",
-        "receiptDigest": null
+        "verifiedCommit": "605906bc",
+        "verifiedAt": "2026-09-27T17:32:26Z",
+        "receiptDigest": "sha256:baa66579a6a1866149f08707d9e80790638ec1fb29f48ed34962a50ae5f17478"
       },
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：Go 对 get/acquire/release/clear/heartbeat 五条路由在 canceled service context 下统一返回 500 SUBSCRIPTION_FAILED。Rust 新增独立回归测试按 fixture 顺序回放 acquire/release/heartbeat/clear 四条 contextError=canceled 用例，逐条断言 500 + SUBSCRIPTION_FAILED + context canceled。GET 快照路径在 Rust 走只读端口（无 context 参数），属 owner 边界差异，已在结论中标注。"
@@ -11332,7 +11343,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_subscription_tests.rs::release_and_clear_map_snapshot_failure_after_logical_cleanup",
       "conclusion": "function_exact：Go 的 cancellingSubscriptionReconciler 在逻辑清理完成后取消 snapshot 协调器，release 与 clear 仍必须返回 500 SUBSCRIPTION_FAILED。Rust 用可切换失败的 PhysicalSubscriptionSnapshotPort 复现同一时序：acquire 成功后让物理快照读取失败，release 与 clear 均返回 500 SUBSCRIPTION_FAILED，同时在断言中证明逻辑 demand 已先被清空（logical_count 从 1 归零）。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(release_and_clear_map_snapshot_failure_after_logical_cleanup)'",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(candle_route_treats_blank_period_as_unset_and_rejects_unsupported) or test(candle_period_normalizes_aliases_and_rejects_unsupported) or test(snapshot_read_fences_provider_generation_switch_during_helper_query) or test(candles_and_search_validation_rules) or test(subscription_mutations_map_canceled_context_to_failed) or test(release_and_clear_map_snapshot_failure_after_logical_cleanup)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/api/marketdata/routes_boundaries_test.go",
@@ -11358,7 +11369,7 @@
           "function_exact：Go 的 cancellingSubscriptionReconciler 在逻辑清理完成后取消 snapshot 协调器，release 与 clear 仍必须返回 500 SUBSCRIPTION_FAILED。Rust 用可切换失败的 PhysicalSubscriptionSnapshotPort 复现同一时序：acquire 成功后让物理快照读取失败，release 与 clear 均返回 500 SUBSCRIPTION_FAILED，同时在断言中证明逻辑 demand 已先被清空（logical_count 从 1 归零）。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -11373,23 +11384,26 @@
           "test(release_and_clear_map_snapshot_failure_after_logical_cleanup)"
         ],
         "testFilter": [
+          "candle_route_treats_blank_period_as_unset_and_rejects_unsupported",
+          "candle_period_normalizes_aliases_and_rejects_unsupported",
+          "snapshot_read_fences_provider_generation_switch_during_helper_query",
+          "candles_and_search_validation_rules",
+          "subscription_mutations_map_canceled_context_to_failed",
           "release_and_clear_map_snapshot_failure_after_logical_cleanup"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "7df2e82b",
-        "verifiedAt": "2026-09-25T12:13:32Z",
-        "receiptDigest": null
+        "verifiedCommit": "605906bc",
+        "verifiedAt": "2026-09-27T17:32:26Z",
+        "receiptDigest": "sha256:baa66579a6a1866149f08707d9e80790638ec1fb29f48ed34962a50ae5f17478"
       },
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：Go 的 cancellingSubscriptionReconciler 在逻辑清理完成后取消 snapshot 协调器，release 与 clear 仍必须返回 500 SUBSCRIPTION_FAILED。Rust 用可切换失败的 PhysicalSubscriptionSnapshotPort 复现同一时序：acquire 成功后让物理快照读取失败，release 与 clear 均返回 500 SUBSCRIPTION_FAILED，同时在断言中证明逻辑 demand 已先被清空（logical_count 从 1 归零）。"
