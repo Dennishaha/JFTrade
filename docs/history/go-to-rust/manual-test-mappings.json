@@ -142376,7 +142376,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-integration-futu/src/subscriptions_tests.rs::provider_switch_defers_physical_release_until_opend_eligible",
       "conclusion": "完整覆盖（含两处生产修复）：停用 Futu（desired→空）在最小保留期内不释放物理订阅，ownActiveCount=3、pendingReleaseCount=3、每条 entry 的 brokerState 为 pending_unsubscribe；窗口内重新激活复用 pending 且不重复订阅；再次停用并超过最小年龄后释放三条订阅并回到计数全 0。修复点一：ownActiveCount 过去把 pending 释放的订阅排除，而 Go 只把「已建立」作为 active 条件并额外计数 pending——该字段经 /api/v1 投影为 ownActiveCount，少算会让 UI 误判订阅已释放。修复点二：brokerState 过去输出 pending_release，而 Go 与 apps/web/src/composables/market-data/marketDataContract.ts 只承认 pending_unsubscribe，未知取值会被前端丢弃，故改为 Go 拼写",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(provider_switch_defers_physical_release_until_opend_eligible)'",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(provider_switch_defers_physical_release_until_opend_eligible) or test(retention_is_measured_from_the_opend_acknowledgement) or test(retry_is_measured_from_the_opend_failure_acknowledgement) or test(pending_provider_cleanup_drops_closed_connection_ownership) or test(released_never_established_records_are_dropped_without_fallback_leakage)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/integration/futu/subscription_reconciler_test.go",
@@ -142402,10 +142402,12 @@
           "完整覆盖（含两处生产修复）：停用 Futu（desired→空）在最小保留期内不释放物理订阅，ownActiveCount=3、pendingReleaseCount=3、每条 entry 的 brokerState 为 pending_unsubscribe；窗口内重新激活复用 pending 且不重复订阅；再次停用并超过最小年龄后释放三条订阅并回到计数全 0。修复点一：ownActiveCount 过去把 pending 释放的订阅排除，而 Go 只把「已建立」作为 active 条件并额外计数 pending——该字段经 /api/v1 投影为 ownActiveCount，少算会让 UI 误判订阅已释放。修复点二：brokerState 过去输出 pending_release，而 Go 与 apps/web/src/composables/market-data/marketDataContract.ts 只承认 pending_unsubscribe，未知取值会被前端丢弃，故改为 Go 拼写"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
@@ -142413,27 +142415,32 @@
           "jftrade-integration-futu",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(provider_switch_defers_physical_release_until_opend_eligible)"
+          "test(provider_switch_defers_physical_release_until_opend_eligible) or test(retention_is_measured_from_the_opend_acknowledgement) or test(retry_is_measured_from_the_opend_failure_acknowledgement) or test(pending_provider_cleanup_drops_closed_connection_ownership) or test(released_never_established_records_are_dropped_without_fallback_leakage)"
         ],
         "testFilter": [
-          "provider_switch_defers_physical_release_until_opend_eligible"
+          "provider_switch_defers_physical_release_until_opend_eligible",
+          "retention_is_measured_from_the_opend_acknowledgement",
+          "retry_is_measured_from_the_opend_failure_acknowledgement",
+          "pending_provider_cleanup_drops_closed_connection_ownership",
+          "released_never_established_records_are_dropped_without_fallback_leakage"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "50e13e18",
-        "verifiedAt": "2026-09-25T12:42:42Z",
-        "receiptDigest": null
+        "verifiedCommit": "5bcc30a8f0165f926ff1d022e546a12267327a4a",
+        "verifiedAt": "2026-09-27T18:33:54Z",
+        "receiptDigest": "sha256:c4734a37b0151e32c4e87c9b949f9ae10fa286364e4e337484fd9eb1b2bb1577"
       },
       "risk": "high",
       "owner": "futu_opend",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "完整覆盖（含两处生产修复）：停用 Futu（desired→空）在最小保留期内不释放物理订阅，ownActiveCount=3、pendingReleaseCount=3、每条 entry 的 brokerState 为 pending_unsubscribe；窗口内重新激活复用 pending 且不重复订阅；再次停用并超过最小年龄后释放三条订阅并回到计数全 0。修复点一：ownActiveCount 过去把 pending 释放的订阅排除，而 Go 只把「已建立」作为 active 条件并额外计数 pending——该字段经 /api/v1 投影为 ownActiveCount，少算会让 UI 误判订阅已释放。修复点二：brokerState 过去输出 pending_release，而 Go 与 apps/web/src/composables/market-data/marketDataContract.ts 只承认 pending_unsubscribe，未知取值会被前端丢弃，故改为 Go 拼写"
@@ -142445,7 +142452,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-integration-futu/src/subscriptions_tests.rs::retention_is_measured_from_the_opend_acknowledgement",
       "conclusion": "完整覆盖：record_success 的 now_ms 即 OpenD 确认时刻，subscribedAt 与 unsubscribeEligibleAt 由该时刻派生（ack=10s → subscribedAt=00:00:10Z、eligibleAt=00:01:10Z）；在 pass 起点+minimum_age（60s）释放不被允许，只有 ack+minimum_age（70s）才产出 unsubscribe。与 Go 以 post-RPC 时间戳打标一致，避免慢 reconcile pass 提前释放订阅",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(retention_is_measured_from_the_opend_acknowledgement)'",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(provider_switch_defers_physical_release_until_opend_eligible) or test(retention_is_measured_from_the_opend_acknowledgement) or test(retry_is_measured_from_the_opend_failure_acknowledgement) or test(pending_provider_cleanup_drops_closed_connection_ownership) or test(released_never_established_records_are_dropped_without_fallback_leakage)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/integration/futu/subscription_reconciler_test.go",
@@ -142471,10 +142478,12 @@
           "完整覆盖：record_success 的 now_ms 即 OpenD 确认时刻，subscribedAt 与 unsubscribeEligibleAt 由该时刻派生（ack=10s → subscribedAt=00:00:10Z、eligibleAt=00:01:10Z）；在 pass 起点+minimum_age（60s）释放不被允许，只有 ack+minimum_age（70s）才产出 unsubscribe。与 Go 以 post-RPC 时间戳打标一致，避免慢 reconcile pass 提前释放订阅"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
@@ -142482,27 +142491,32 @@
           "jftrade-integration-futu",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(retention_is_measured_from_the_opend_acknowledgement)"
+          "test(provider_switch_defers_physical_release_until_opend_eligible) or test(retention_is_measured_from_the_opend_acknowledgement) or test(retry_is_measured_from_the_opend_failure_acknowledgement) or test(pending_provider_cleanup_drops_closed_connection_ownership) or test(released_never_established_records_are_dropped_without_fallback_leakage)"
         ],
         "testFilter": [
-          "retention_is_measured_from_the_opend_acknowledgement"
+          "provider_switch_defers_physical_release_until_opend_eligible",
+          "retention_is_measured_from_the_opend_acknowledgement",
+          "retry_is_measured_from_the_opend_failure_acknowledgement",
+          "pending_provider_cleanup_drops_closed_connection_ownership",
+          "released_never_established_records_are_dropped_without_fallback_leakage"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "50e13e18",
-        "verifiedAt": "2026-09-25T12:42:42Z",
-        "receiptDigest": null
+        "verifiedCommit": "5bcc30a8f0165f926ff1d022e546a12267327a4a",
+        "verifiedAt": "2026-09-27T18:33:54Z",
+        "receiptDigest": "sha256:c4734a37b0151e32c4e87c9b949f9ae10fa286364e4e337484fd9eb1b2bb1577"
       },
       "risk": "high",
       "owner": "futu_opend",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "完整覆盖：record_success 的 now_ms 即 OpenD 确认时刻，subscribedAt 与 unsubscribeEligibleAt 由该时刻派生（ack=10s → subscribedAt=00:00:10Z、eligibleAt=00:01:10Z）；在 pass 起点+minimum_age（60s）释放不被允许，只有 ack+minimum_age（70s）才产出 unsubscribe。与 Go 以 post-RPC 时间戳打标一致，避免慢 reconcile pass 提前释放订阅"
@@ -142514,7 +142528,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-integration-futu/src/subscriptions_tests.rs::retry_is_measured_from_the_opend_failure_acknowledgement",
       "conclusion": "完整覆盖：record_unsubscribe_failure 的 now_ms 即失败确认时刻，5s 重试窗口从 70s 起算（74_999 推迟、75_000 刚好重试），而不是从 reconcile pass 起点 60s 起算。与 Go recordSubscriptionFailure 以失败确认时间计算 retryAt 一致",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(retry_is_measured_from_the_opend_failure_acknowledgement)'",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(provider_switch_defers_physical_release_until_opend_eligible) or test(retention_is_measured_from_the_opend_acknowledgement) or test(retry_is_measured_from_the_opend_failure_acknowledgement) or test(pending_provider_cleanup_drops_closed_connection_ownership) or test(released_never_established_records_are_dropped_without_fallback_leakage)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/integration/futu/subscription_reconciler_test.go",
@@ -142540,10 +142554,12 @@
           "完整覆盖：record_unsubscribe_failure 的 now_ms 即失败确认时刻，5s 重试窗口从 70s 起算（74_999 推迟、75_000 刚好重试），而不是从 reconcile pass 起点 60s 起算。与 Go recordSubscriptionFailure 以失败确认时间计算 retryAt 一致"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
@@ -142551,27 +142567,32 @@
           "jftrade-integration-futu",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(retry_is_measured_from_the_opend_failure_acknowledgement)"
+          "test(provider_switch_defers_physical_release_until_opend_eligible) or test(retention_is_measured_from_the_opend_acknowledgement) or test(retry_is_measured_from_the_opend_failure_acknowledgement) or test(pending_provider_cleanup_drops_closed_connection_ownership) or test(released_never_established_records_are_dropped_without_fallback_leakage)"
         ],
         "testFilter": [
-          "retry_is_measured_from_the_opend_failure_acknowledgement"
+          "provider_switch_defers_physical_release_until_opend_eligible",
+          "retention_is_measured_from_the_opend_acknowledgement",
+          "retry_is_measured_from_the_opend_failure_acknowledgement",
+          "pending_provider_cleanup_drops_closed_connection_ownership",
+          "released_never_established_records_are_dropped_without_fallback_leakage"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "50e13e18",
-        "verifiedAt": "2026-09-25T12:42:42Z",
-        "receiptDigest": null
+        "verifiedCommit": "5bcc30a8f0165f926ff1d022e546a12267327a4a",
+        "verifiedAt": "2026-09-27T18:33:54Z",
+        "receiptDigest": "sha256:c4734a37b0151e32c4e87c9b949f9ae10fa286364e4e337484fd9eb1b2bb1577"
       },
       "risk": "high",
       "owner": "futu_opend",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "完整覆盖：record_unsubscribe_failure 的 now_ms 即失败确认时刻，5s 重试窗口从 70s 起算（74_999 推迟、75_000 刚好重试），而不是从 reconcile pass 起点 60s 起算。与 Go recordSubscriptionFailure 以失败确认时间计算 retryAt 一致"
@@ -142643,7 +142664,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-integration-futu/src/subscriptions_tests.rs::pending_provider_cleanup_drops_closed_connection_ownership",
       "conclusion": "完整覆盖：provider 清理待定时（demand 归零但仍在最小保留期内）pendingReleaseCount=3；连接被替换为代际 2 时，代际 1 建立的订阅所有权随连接一起丢弃——replay 为空、ownActiveCount=0、pendingReleaseCount=0、entries 为空，且在保留期到点后也不会通过新连接发出 unsubscribe（不会误退订本连接从未建立的订阅）。与 Go resetConnectionStateLocked 语义一致",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(pending_provider_cleanup_drops_closed_connection_ownership)'",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(provider_switch_defers_physical_release_until_opend_eligible) or test(retention_is_measured_from_the_opend_acknowledgement) or test(retry_is_measured_from_the_opend_failure_acknowledgement) or test(pending_provider_cleanup_drops_closed_connection_ownership) or test(released_never_established_records_are_dropped_without_fallback_leakage)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/integration/futu/subscription_reconciler_test.go",
@@ -142669,10 +142690,12 @@
           "完整覆盖：provider 清理待定时（demand 归零但仍在最小保留期内）pendingReleaseCount=3；连接被替换为代际 2 时，代际 1 建立的订阅所有权随连接一起丢弃——replay 为空、ownActiveCount=0、pendingReleaseCount=0、entries 为空，且在保留期到点后也不会通过新连接发出 unsubscribe（不会误退订本连接从未建立的订阅）。与 Go resetConnectionStateLocked 语义一致"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
@@ -142680,27 +142703,32 @@
           "jftrade-integration-futu",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(pending_provider_cleanup_drops_closed_connection_ownership)"
+          "test(provider_switch_defers_physical_release_until_opend_eligible) or test(retention_is_measured_from_the_opend_acknowledgement) or test(retry_is_measured_from_the_opend_failure_acknowledgement) or test(pending_provider_cleanup_drops_closed_connection_ownership) or test(released_never_established_records_are_dropped_without_fallback_leakage)"
         ],
         "testFilter": [
-          "pending_provider_cleanup_drops_closed_connection_ownership"
+          "provider_switch_defers_physical_release_until_opend_eligible",
+          "retention_is_measured_from_the_opend_acknowledgement",
+          "retry_is_measured_from_the_opend_failure_acknowledgement",
+          "pending_provider_cleanup_drops_closed_connection_ownership",
+          "released_never_established_records_are_dropped_without_fallback_leakage"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "50e13e18",
-        "verifiedAt": "2026-09-25T12:42:42Z",
-        "receiptDigest": null
+        "verifiedCommit": "5bcc30a8f0165f926ff1d022e546a12267327a4a",
+        "verifiedAt": "2026-09-27T18:33:54Z",
+        "receiptDigest": "sha256:c4734a37b0151e32c4e87c9b949f9ae10fa286364e4e337484fd9eb1b2bb1577"
       },
       "risk": "high",
       "owner": "futu_opend",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "完整覆盖：provider 清理待定时（demand 归零但仍在最小保留期内）pendingReleaseCount=3；连接被替换为代际 2 时，代际 1 建立的订阅所有权随连接一起丢弃——replay 为空、ownActiveCount=0、pendingReleaseCount=0、entries 为空，且在保留期到点后也不会通过新连接发出 unsubscribe（不会误退订本连接从未建立的订阅）。与 Go resetConnectionStateLocked 语义一致"
@@ -142781,7 +142809,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-integration-futu/src/subscriptions_tests.rs::released_never_established_records_are_dropped_without_fallback_leakage",
       "conclusion": "完整覆盖：订阅被拒后释放需求会立即删除从未建立的记录（无物理订阅可释放、无 retry 状态残留），fallback 记录同样被删除并同步回退 fallback_count；与 Go subscribeDesiredLocked/unsubscribeUndesiredLocked 语义一致",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(released_never_established_records_are_dropped_without_fallback_leakage)'",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(provider_switch_defers_physical_release_until_opend_eligible) or test(retention_is_measured_from_the_opend_acknowledgement) or test(retry_is_measured_from_the_opend_failure_acknowledgement) or test(pending_provider_cleanup_drops_closed_connection_ownership) or test(released_never_established_records_are_dropped_without_fallback_leakage)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/integration/futu/subscription_reconciler_test.go",
@@ -142807,10 +142835,12 @@
           "完整覆盖：订阅被拒后释放需求会立即删除从未建立的记录（无物理订阅可释放、无 retry 状态残留），fallback 记录同样被删除并同步回退 fallback_count；与 Go subscribeDesiredLocked/unsubscribeUndesiredLocked 语义一致"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
@@ -142818,27 +142848,32 @@
           "jftrade-integration-futu",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(released_never_established_records_are_dropped_without_fallback_leakage)"
+          "test(provider_switch_defers_physical_release_until_opend_eligible) or test(retention_is_measured_from_the_opend_acknowledgement) or test(retry_is_measured_from_the_opend_failure_acknowledgement) or test(pending_provider_cleanup_drops_closed_connection_ownership) or test(released_never_established_records_are_dropped_without_fallback_leakage)"
         ],
         "testFilter": [
+          "provider_switch_defers_physical_release_until_opend_eligible",
+          "retention_is_measured_from_the_opend_acknowledgement",
+          "retry_is_measured_from_the_opend_failure_acknowledgement",
+          "pending_provider_cleanup_drops_closed_connection_ownership",
           "released_never_established_records_are_dropped_without_fallback_leakage"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "50e13e18",
-        "verifiedAt": "2026-09-25T12:42:42Z",
-        "receiptDigest": null
+        "verifiedCommit": "5bcc30a8f0165f926ff1d022e546a12267327a4a",
+        "verifiedAt": "2026-09-27T18:33:54Z",
+        "receiptDigest": "sha256:c4734a37b0151e32c4e87c9b949f9ae10fa286364e4e337484fd9eb1b2bb1577"
       },
       "risk": "high",
       "owner": "futu_opend",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "完整覆盖：订阅被拒后释放需求会立即删除从未建立的记录（无物理订阅可释放、无 retry 状态残留），fallback 记录同样被删除并同步回退 fallback_count；与 Go subscribeDesiredLocked/unsubscribeUndesiredLocked 语义一致"
