@@ -1389,6 +1389,7 @@ async fn candle_route_preserves_legacy_query_parsing() {
 #[tokio::test]
 async fn candle_route_normalizes_repeated_sessions() {
     // Parity: internal/api/marketdata/routes_test.go:302 TestCandlesRouteNormalizesRepeatedSessions
+    use jftrade_integration_futu::{SESSION_ALL, SESSION_ETH, SESSION_RTH};
     let reader = Arc::new(PagedHistory::default());
     let result = port(reader.clone())
         .read(
@@ -1398,7 +1399,33 @@ async fn candle_route_normalizes_repeated_sessions() {
         .await
         .expect("repeated sessions");
     assert!(result["candles"].is_array());
-    assert!(!reader.requests.lock().unwrap().is_empty());
+    let routed_sessions = reader
+        .requests
+        .lock()
+        .unwrap()
+        .iter()
+        .map(|request| request.session)
+        .collect::<Vec<_>>();
+    assert_eq!(
+        routed_sessions,
+        vec![
+            Some(SESSION_RTH),
+            Some(SESSION_RTH),
+            Some(SESSION_ETH),
+            Some(SESSION_ETH),
+            Some(SESSION_ALL),
+            Some(SESSION_ALL),
+        ],
+        "repeated sessions must be normalized before OpenD routing"
+    );
+    let unique_routes = routed_sessions
+        .chunks_exact(2)
+        .map(|requests| requests[0])
+        .collect::<Vec<_>>();
+    assert_eq!(
+        unique_routes,
+        vec![Some(SESSION_RTH), Some(SESSION_ETH), Some(SESSION_ALL)]
+    );
 }
 
 #[tokio::test]

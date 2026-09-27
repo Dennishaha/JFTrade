@@ -433,11 +433,11 @@ mod tests {
         );
     }
 
+    // Parity: go:452dea11:internal/app/apiserver/marketdataapp/query_test.go:45 TestDecodeMarketCandlesQueryParsesRepeatedSessions
     #[test]
     fn candle_sessions_parse_dedup_order_and_reject_invalid() {
         // Parity: go:452dea11:internal/marketdata/candle_sessions_test.go:8
         // TestParseCandleSessionsNormalizesCSVAndRepeatedValues
-        // Parity: go:452dea11:internal/app/apiserver/marketdataapp/query_test.go:45 TestDecodeMarketCandlesQueryParsesRepeatedSessions
         let multi = vec![
             "overnight,regular".to_owned(),
             "extended".to_owned(),
@@ -507,6 +507,7 @@ mod tests {
         }
     }
 
+    // Parity: go:452dea11:internal/api/marketdata/routes_boundaries_test.go:229 TestNormalizeOptionalQueryTimeAcceptsEmptyAndRejectsMalformedValues
     #[test]
     fn query_time_parses_rfc3339_datetime_and_date() {
         assert_eq!(

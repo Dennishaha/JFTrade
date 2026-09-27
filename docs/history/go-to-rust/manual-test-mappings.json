@@ -10518,7 +10518,12 @@
           "file": "crates/jftrade-engine/src/product_query.rs",
           "test": "query_time_parses_rfc3339_datetime_and_date",
           "crate": "jftrade-engine",
-          "anchor": null
+          "anchor": {
+            "goFile": "internal/api/marketdata/routes_boundaries_test.go",
+            "goLine": 229,
+            "rustFile": "crates/jftrade-engine/src/product_query.rs",
+            "rustLine": 510
+          }
         }
       ],
       "assertionCoverage": {
@@ -10526,10 +10531,12 @@
           "function_exact：Go 断言空白时间返回空值、非法时间返回错误。Rust 的 normalize_optional_query_time 单测断言 \"  \" -> None 与 \"not-a-time\" -> Err，并额外覆盖 RFC3339、空格分隔与纯日期三种合法格式，等价覆盖 Go 的两条边界断言。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
@@ -10537,27 +10544,30 @@
           "jftrade-engine",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(query_time_parses_rfc3339_datetime_and_date)"
+          "test(query_time_parses_rfc3339_datetime_and_date) or test(candle_sessions_parse_dedup_order_and_reject_invalid) or test(candle_route_normalizes_repeated_sessions)"
         ],
         "testFilter": [
-          "query_time_parses_rfc3339_datetime_and_date"
+          "query_time_parses_rfc3339_datetime_and_date",
+          "candle_sessions_parse_dedup_order_and_reject_invalid",
+          "candle_route_normalizes_repeated_sessions"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "7df2e82b",
-        "verifiedAt": "2026-09-25T12:13:32Z",
-        "receiptDigest": null
+        "verifiedCommit": "9ba1629096d14961e99d51ac0e9adc170e8fa89d",
+        "verifiedAt": "2026-09-27T00:00:00Z",
+        "receiptDigest": "sha256:6d383be156db7803a762e52849c2d20b09d245fe42aac931543f27d95ee59496"
       },
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：Go 断言空白时间返回空值、非法时间返回错误。Rust 的 normalize_optional_query_time 单测断言 \"  \" -> None 与 \"not-a-time\" -> Err，并额外覆盖 RFC3339、空格分隔与纯日期三种合法格式，等价覆盖 Go 的两条边界断言。"
@@ -12084,7 +12094,7 @@
     "internal/api/marketdata/routes_test.go:302:TestCandlesRouteNormalizesRepeatedSessions": {
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::candle_route_normalizes_repeated_sessions",
-      "conclusion": "function_exact：Rust 接受 sessions=overnight,regular&sessions=extended&sessions=regular 的重复参数并完成渲染窗口解析，与 Go 的去重/稳定排序断言等价。",
+      "conclusion": "function_exact：Rust 接受 sessions=overnight,regular&sessions=extended&sessions=regular 的重复参数，断言去重后仅路由 RTH/ETH/ALL 三个 OpenD session 标记（每个分页路由两次请求），与 Go 的去重/稳定排序断言等价。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(candle_route_normalizes_repeated_sessions)'",
       "evidence_type": "function_exact",
       "source": {
@@ -12102,19 +12112,21 @@
             "goFile": "internal/api/marketdata/routes_test.go",
             "goLine": 302,
             "rustFile": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs",
-            "rustLine": 1226
+            "rustLine": 1391
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "function_exact：Rust 接受 sessions=overnight,regular&sessions=extended&sessions=regular 的重复参数并完成渲染窗口解析，与 Go 的去重/稳定排序断言等价。"
+          "function_exact：Rust 接受 sessions=overnight,regular&sessions=extended&sessions=regular 的重复参数，断言去重后仅路由 RTH/ETH/ALL 三个 OpenD session 标记（每个分页路由两次请求），与 Go 的去重/稳定排序断言等价。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
@@ -12122,30 +12134,33 @@
           "jftrade-engine",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(candle_route_normalizes_repeated_sessions)"
+          "test(query_time_parses_rfc3339_datetime_and_date) or test(candle_sessions_parse_dedup_order_and_reject_invalid) or test(candle_route_normalizes_repeated_sessions)"
         ],
         "testFilter": [
+          "query_time_parses_rfc3339_datetime_and_date",
+          "candle_sessions_parse_dedup_order_and_reject_invalid",
           "candle_route_normalizes_repeated_sessions"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "7df2e82b",
-        "verifiedAt": "2026-09-25T12:13:32Z",
-        "receiptDigest": null
+        "verifiedCommit": "9ba1629096d14961e99d51ac0e9adc170e8fa89d",
+        "verifiedAt": "2026-09-27T00:00:00Z",
+        "receiptDigest": "sha256:6d383be156db7803a762e52849c2d20b09d245fe42aac931543f27d95ee59496"
       },
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "function_exact：Rust 接受 sessions=overnight,regular&sessions=extended&sessions=regular 的重复参数并完成渲染窗口解析，与 Go 的去重/稳定排序断言等价。"
+        "function_exact：Rust 接受 sessions=overnight,regular&sessions=extended&sessions=regular 的重复参数，断言去重后仅路由 RTH/ETH/ALL 三个 OpenD session 标记（每个分页路由两次请求），与 Go 的去重/稳定排序断言等价。"
       ],
       "uncoveredAssertions": [],
       "boundaryReason": null
@@ -34974,7 +34989,12 @@
           "file": "crates/jftrade-engine/src/product_query.rs",
           "test": "candle_sessions_parse_dedup_order_and_reject_invalid",
           "crate": "jftrade-engine",
-          "anchor": null
+          "anchor": {
+            "goFile": "internal/app/apiserver/marketdataapp/query_test.go",
+            "goLine": 45,
+            "rustFile": "crates/jftrade-engine/src/product_query.rs",
+            "rustLine": 436
+          }
         }
       ],
       "assertionCoverage": {
@@ -34982,10 +35002,12 @@
           "function_exact：Go 断言 repeated sessions 值 \"overnight,regular\" 与 \"extended,regular\" 被解析、去重并稳定排序为 regular/extended/overnight。Rust 的 candle_sessions_parse_dedup_order_and_reject_invalid 传入 [\"overnight,regular\",\"extended\",\"regular\"]，断言解析结果为 [\"regular\",\"extended\",\"overnight\"]，并额外覆盖空值 Empty 与非法 token 拒绝、None 透传，逐条对应“重复/CSV 值解析、去重与稳定顺序”。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
@@ -34993,27 +35015,30 @@
           "jftrade-engine",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(candle_sessions_parse_dedup_order_and_reject_invalid)"
+          "test(query_time_parses_rfc3339_datetime_and_date) or test(candle_sessions_parse_dedup_order_and_reject_invalid) or test(candle_route_normalizes_repeated_sessions)"
         ],
         "testFilter": [
-          "candle_sessions_parse_dedup_order_and_reject_invalid"
+          "query_time_parses_rfc3339_datetime_and_date",
+          "candle_sessions_parse_dedup_order_and_reject_invalid",
+          "candle_route_normalizes_repeated_sessions"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "7df2e82b",
-        "verifiedAt": "2026-09-25T12:13:32Z",
-        "receiptDigest": null
+        "verifiedCommit": "9ba1629096d14961e99d51ac0e9adc170e8fa89d",
+        "verifiedAt": "2026-09-27T00:00:00Z",
+        "receiptDigest": "sha256:6d383be156db7803a762e52849c2d20b09d245fe42aac931543f27d95ee59496"
       },
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：Go 断言 repeated sessions 值 \"overnight,regular\" 与 \"extended,regular\" 被解析、去重并稳定排序为 regular/extended/overnight。Rust 的 candle_sessions_parse_dedup_order_and_reject_invalid 传入 [\"overnight,regular\",\"extended\",\"regular\"]，断言解析结果为 [\"regular\",\"extended\",\"overnight\"]，并额外覆盖空值 Empty 与非法 token 拒绝、None 透传，逐条对应“重复/CSV 值解析、去重与稳定顺序”。"
@@ -300035,8 +300060,8 @@
         "internal/api/marketdata/routes_test.go:302:TestCandlesRouteNormalizesRepeatedSessions",
         "internal/productfeatures/prediction_quote_candle_bridge_test.go:202:TestCoreCandleBridgeValidatesBoundariesAndProductSemantics"
       ],
-      "allowed": false,
-      "reviewStatus": "unreviewed"
+      "allowed": true,
+      "reviewStatus": "reviewed"
     },
     "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::candle_route_preserves_legacy_query_parsing": {
       "referenceCount": 2,
@@ -305995,8 +306020,8 @@
         "internal/marketdata/candle_sessions_test.go:18:TestParseCandleSessionsRejectsEmptyAndUnknownValues",
         "internal/productfeatures/candle_query_options_test.go:8:TestNormalizeCandleOptionsAcceptsSessionsAndAdjustments"
       ],
-      "allowed": false,
-      "reviewStatus": "unreviewed"
+      "allowed": true,
+      "reviewStatus": "reviewed"
     },
     "crates/jftrade-engine/src/product_query.rs::documented_candle_period_families_match_the_go_table": {
       "referenceCount": 1,
@@ -306041,8 +306066,8 @@
         "internal/api/httpserver/bindings_test.go:14:TestParseQueryTimeNormalizesToUTC",
         "internal/api/marketdata/routes_boundaries_test.go:229:TestNormalizeOptionalQueryTimeAcceptsEmptyAndRejectsMalformedValues"
       ],
-      "allowed": false,
-      "reviewStatus": "unreviewed"
+      "allowed": true,
+      "reviewStatus": "reviewed"
     },
     "crates/jftrade-engine/src/product_query.rs::uri_escape_validation_accepts_literal_percent_and_rejects_malformed": {
       "referenceCount": 3,

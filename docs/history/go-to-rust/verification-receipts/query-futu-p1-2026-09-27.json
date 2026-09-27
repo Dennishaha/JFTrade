@@ -1,0 +1,64 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(query_time_parses_rfc3339_datetime_and_date) or test(candle_sessions_parse_dedup_order_and_reject_invalid) or test(candle_route_normalizes_repeated_sessions)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-27T00:00:00Z",
+  "sourceState": {
+    "verifiedCommit": "9ba1629096d14961e99d51ac0e9adc170e8fa89d",
+    "trackedDiffSha256": "3d6ddcfb90c6823f5c73fd4c6eb5e87c17c41d7d913cece8c2fbe568e00a092c",
+    "untrackedFiles": []
+  },
+  "rawOutputSha256": "a84428892feecd3cd00287727fd2c93ede5c9a4954bbb187483b2aa9fa9f4d80",
+  "passedTests": [
+    "jftrade-engine::jftrade_engine$product::product_query::tests::candle_sessions_parse_dedup_order_and_reject_invalid",
+    "jftrade-engine::jftrade_engine$product::product_query::tests::query_time_parses_rfc3339_datetime_and_date",
+    "jftrade-engine::jftrade_engine$product::tests::market_data_quote_read_tests::candle_pagination_tests::candle_route_normalizes_repeated_sessions"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 3,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1631,
+      "exec_time": 0.076504541,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    }
+  ]
+}
