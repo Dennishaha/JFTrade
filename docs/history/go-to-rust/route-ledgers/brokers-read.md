@@ -10,7 +10,7 @@
 - Fixture: `tests/fixtures/rust-migration/stage9/broker-read.json`
 - Differential: `TestStage9BrokerReadFixtureMatchesCurrentGoOwner` plus parameterized Rust route tests.
 
-The thirteen GET operations preserve the current Go envelopes and degraded/no-provider fallback. `GET /api/v1/brokers/capabilities` preserves the capability catalog; runtime, funds, positions, orders, fills, cash flows, order fees, margin ratios, max trade quantities, quote, K-lines and securities preserve their broker-neutral response projections and query-bearing paths.
+The thirteen GET operations preserve the current Go envelopes and query-bearing projections when an explicit snapshot port is supplied (the compatibility fixture therefore still replays the Go degraded/no-provider fallback). In the production engine, an unavailable broker/session/source is fail-closed as `503 BROKER_READ_UNAVAILABLE`; the fixture's 200 degraded response is not a production no-provider promise. `GET /api/v1/brokers/capabilities` preserves the capability catalog; runtime, funds, positions, orders, fills, cash flows, order fees, margin ratios, max trade quantities, quote, K-lines and securities preserve their broker-neutral response projections and query-bearing paths.
 
 Snapshot adapter failures map to `503 BROKER_READ_UNAVAILABLE`; malformed snapshot requests map to `400 BAD_REQUEST`. The Go fixture freezes clock-dependent `checkedAt`, `observedAt`, and `quoteAt` fields to `fixture-time` without changing any other wire field.
 

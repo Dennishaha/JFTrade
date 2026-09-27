@@ -932,3 +932,19 @@ integration-pine 无 commission 引用（rg 空）。
 cargo fmt --check 与 git diff --check 干净；无 Rust 生产代码改动、无新增测试。
 
 下一域：strategy_pine（459 partial，为最大关键域缺口，见 automation s17 首片）。
+
+## 2026-09-27 P1：同步分页 cursor 生产路径补测
+
+范围：`internal/backtest/historical_source_test.go:268` / `TestHistoricalKLineSyncerRejectsBrokenPagination`。
+
+本批新增 `production_helper_sync_rejects_broken_pagination_cursors`，使用真实
+`ProductionBacktestPort` 与 HTTP helper 夹具逐项覆盖 missing `nextBefore`、向前
+cursor、以及 cursor 到达 `since` 边界三种路径；前两者必须将 durable task 置为
+failed 并保留 pagination 错误，边界路径成功且落库一根 candle。修复前后未发现
+生产实现差异，故映射保持 `partial`：Go 使用可注入 `HistoricalKLineSyncer/source`
+与 futu provider，Rust 生产路径使用 yfinance helper 与 durable task，无法声称
+同形 provider/progress seam。
+
+映射、reuse 与 Parity anchor 已同步；未填充 receiptDigest。
+
+验证：`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(production_helper_sync_rejects_broken_pagination_cursors)'`（1/1 passed）；`audit_test_parity.py --write-report`、`parity_anchor_reconcile.py`、JSON 校验、`cargo fmt --all -- --check` 与 `git diff --check` 通过；strict 审计仍保留历史 evidence/receipt 缺口。

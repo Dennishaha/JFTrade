@@ -79,3 +79,7 @@ Rust 把这些职责拆成 Python sidecar（`crates/jftrade-integration-marketda
   `pkg/researchscreen` 24、`internal/settings` 24，直至 4451 条清单全部完成。
 
 验证：`cargo fmt --all -- --check`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper -p jftrade-research --all-targets --locked --no-fail-fast`（**28 passed / 0 skipped**；本批只改文档与清单，未改任何 crate 代码）、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **2925 Rust** / **1204 `[x]`**；missing 674、partial 2043、boundary 526、module_only 4；0 破坏引用、0 重复 rust_entry、未锚定告警 193 = 前批基线，7 条 partial 无解析引用与 2 条无断言为前批已登记缺口）、`pnpm run check:compatibility`（EXIT=0）、`node scripts/check-zero-go.mjs`（2890 tracked files / 0 release artifact）、`pnpm run check:rust:architecture`、`git diff --check`、`pnpm run check:quick`（EXIT=0）、`pnpm run check:ai-context`。
+
+### 2026-09-26 parity baseline correction（历史批次不回写）
+
+本批 integration/provider 的逐域结论仍按原文保留；上方 2925 Rust / 1204 `[x]` 仅是该批完成时快照。后续 provider probe、strategy activity、workflow invalid-input 与 auth ABA evidence 已合并到当前工作树，最新全局基线为 Go 4451、Rust 3366、`function_exact` 1491、`partial` 2332、`boundary` 628，Parity 锚点 1780/1734/0/0/46。该基线更新不改变本文件关于 sidecar 解码/转换职责边界的结论。

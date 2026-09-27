@@ -15,6 +15,6 @@
 | GET | `/api/v1/portfolio/{brokerId}/cash-balances` | Preserves Go `balances`, `checkedAt`, `connectivity`, and nullable `lastError` fields. | Snapshot failure is `503 PORTFOLIO_UNAVAILABLE`; route is absent without the explicit port. |
 | GET | `/api/v1/portfolio/{brokerId}/positions` | Preserves Go `positions`, `checkedAt`, `connectivity`, and nullable `lastError` fields. | Snapshot failure is `503 PORTFOLIO_UNAVAILABLE`; route is absent without the explicit port. |
 
-Known quirk: the Go no-provider fallback reports a degraded connection and empty arrays; the fixture freezes only the clock-dependent `checkedAt` value to `fixture-time`. This is reproduced without correction.
+Known quirk: the Go no-provider fallback reports a degraded connection and empty arrays; the cutover fixture freezes only the clock-dependent `checkedAt` value to `fixture-time` and reproduces that shape. The production Rust portfolio owner returns `503 PORTFOLIO_UNAVAILABLE` when its explicit snapshot source is absent or unavailable, so the fixture replay must not be read as a production degraded-response guarantee.
 
 Both operations are now `cutover-qualified`, `productionOwner=go`, and `goRemovalStatus=retained`, based on the authenticated sidecar wire/error/timeout/crash/restart rehearsal. Go remains the sole portfolio and broker-runtime owner; Rust only replays the explicit snapshot port.

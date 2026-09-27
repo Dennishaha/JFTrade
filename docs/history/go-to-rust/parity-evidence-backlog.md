@@ -2,80 +2,83 @@
 
 本清单只统计缺少函数级 Rust 证据的 `[~]` 项；不代表功能缺失，也不代表已覆盖。每项需要人工对照 Go 断言并补充真实 Rust 测试函数、命令或边界结论。
 
-当前积压：**3688 项**（按当前 `manual-test-mappings.json` 的 `[~]` 条目重算）。
+当前积压：**2955 项**（按当前 `manual-test-mappings.json` 的 `[~]` 条目重算）。
+
+最新审计快照（2026-09-27 Assistant/session-context strict follow-up）：Go `4451`、Rust `3377`，`function_exact=1496`、`partial=2321`、`boundary=634`、`missing=0`；Parity anchor reconcile 为 `1788/1742/0/0/46`（unique/recorded/unrecorded/stale/unknown）。严格审计仍有 **3948 个 function_exact evidence/receipt gaps**（需 reviewed assertions、Parity anchor、reuse relation 与 passed receipt）；严格审计未通过。
 
 ## 按领域
 
 | 领域 | 条目数 |
 |---|---:|
-| assistant_workflow | 798 |
-| api_transport | 784 |
-| other | 536 |
-| strategy_pine | 520 |
-| backtest_calendar | 303 |
-| marketdata_quotes | 214 |
-| storage_sqlite | 214 |
+| assistant_workflow | 571 |
+| api_transport | 517 |
+| other | 503 |
+| strategy_pine | 454 |
+| backtest_calendar | 313 |
+| marketdata_quotes | 162 |
+| storage_sqlite | 198 |
 | futu_opend | 142 |
-| trading_broker | 117 |
-| settings_watchlist | 60 |
+| trading_broker | 58 |
+| settings_watchlist | 39 |
 
 ## 按 Go 文件（Top 50）
 
 | Go 文件 | 条目数 |
 |---|---:|
-| `internal/assistant/engine/store_ops_test.go` | 26 |
 | `cmd/jftrade-desktop/main_test.go` | 24 |
-| `internal/strategy/pine_live_executor_test.go` | 24 |
 | `pkg/backtest/pineworker_command_executor_test.go` | 23 |
 | `pkg/bbgo/types/indicator_test.go` | 23 |
 | `pkg/strategy/indicatorbinding/parse_test.go` | 22 |
-| `internal/assistant/engine/runner_chat_test.go` | 20 |
-| `internal/assistant/engine/store_test.go` | 20 |
-| `internal/assistant/engine/tools_test.go` | 20 |
-| `cmd/check-go-coverage/changed_lines_analysis_test.go` | 19 |
-| `internal/assistant/engine/session_context_test.go` | 19 |
+| `internal/strategy/pine_live_executor_test.go` | 20 |
 | `pkg/backtest/conservative_bar_executor_test.go` | 19 |
-| `internal/app/apiserver/servercoretest/broker_new_test.go` | 18 |
+| `cmd/check-go-coverage/changed_lines_analysis_test.go` | 19 |
 | `internal/integration/yfinance/conversion_test.go` | 18 |
-| `internal/app/apiserver/lifecycle/lifecycle_test.go` | 17 |
-| `internal/app/apiserver/webaccess/security_integration_test.go` | 17 |
-| `internal/assistant/engine/store_lifecycle_test.go` | 17 |
+| `internal/app/apiserver/marketdataapp/runtime_test.go` | 17 |
 | `internal/store/sqliteschema/catalog_test.go` | 17 |
-| `internal/trading/execution_test.go` | 17 |
 | `pkg/strategy/pine/parse_collection_test.go` | 17 |
-| `internal/app/apiserver/datamigration/maintenance_failure_paths_test.go` | 16 |
-| `internal/assistant/engine/input_request_test.go` | 16 |
-| `cmd/check-go-coverage/profile_analysis_test.go` | 15 |
-| `internal/backtest/service_test.go` | 15 |
 | `internal/marketdata/instrument_resolver_test.go` | 15 |
-| `internal/marketdataassets/asset_selection_boundaries_test.go` | 15 |
-| `internal/trading/order_updates_test.go` | 15 |
-| `internal/app/apiserver/backtestapp/historical_source_test.go` | 14 |
+| `cmd/check-go-coverage/profile_analysis_test.go` | 15 |
 | `internal/app/apiserver/server_test.go` | 14 |
-| `internal/integration/akshare/boundaries_test.go` | 14 |
-| `internal/marketdataassets/cache_test.go` | 14 |
+| `internal/backtest/service_test.go` | 14 |
 | `pkg/backtest/internal/storage/store_runtime_invariants_test.go` | 14 |
 | `pkg/backtest/store_test.go` | 14 |
+| `internal/integration/akshare/boundaries_test.go` | 14 |
 | `pkg/strategy/pine/parse_test.go` | 14 |
-| `internal/app/apiserver/marketdataapp/runtime_test.go` | 13 |
-| `internal/app/apiserver/servercore/runtime_trading_test.go` | 13 |
-| `internal/assistant/engine/mcp_server_test.go` | 13 |
-| `internal/marketdata/collector_test.go` | 13 |
+| `internal/app/apiserver/lifecycle/lifecycle_test.go` | 13 |
+| `internal/app/apiserver/servercoretest/broker_new_test.go` | 13 |
+| `internal/marketdataassets/asset_selection_boundaries_test.go` | 13 |
+| `internal/marketdataassets/cache_test.go` | 13 |
 | `internal/store/strategy/store_test.go` | 13 |
 | `internal/strategy/pineruntime/runtime_test.go` | 13 |
-| `pkg/strategy/pineworker/manager_test.go` | 13 |
-| `internal/api/settings/routes_test.go` | 12 |
-| `internal/app/apiserver/runtimes/handle_lifecycle_test.go` | 12 |
-| `internal/assistant/engine/adk_edges_test.go` | 12 |
-| `internal/assistant/engine/runner_continuation_boundaries_test.go` | 12 |
-| `internal/backtest/sync_test.go` | 12 |
+| `pkg/backtest/pineworker_adapter_test.go` | 12 |
+| `internal/marketdata/collector_test.go` | 12 |
+| `internal/marketdata/subscription_lifecycle_test.go` | 12 |
 | `internal/integration/akshare/provider_company_research_test.go` | 12 |
 | `internal/integration/yfinance/client_test.go` | 12 |
-| `internal/marketdata/subscription_lifecycle_test.go` | 12 |
-| `internal/trading/execution_combo_lifecycle_test.go` | 12 |
+| `internal/trading/order_updates_test.go` | 12 |
+| `internal/app/apiserver/backtestapp/historical_source_test.go` | 11 |
+| `internal/app/apiserver/runtimes/handle_lifecycle_test.go` | 11 |
+| `pkg/backtest/filter_store_session_queries_test.go` | 11 |
+| `internal/integration/futu/marketdata_runtime_test.go` | 11 |
+| `pkg/market/market_normalization_test.go` | 11 |
+| `pkg/market/market_test.go` | 11 |
+| `internal/integration/yfinance/provider_test.go` | 11 |
+| `internal/watchlist/futu/source_test.go` | 11 |
+| `internal/strategy/liveruntime/manager_boundaries_test.go` | 11 |
+| `internal/strategy/pine_live_command_test.go` | 11 |
+| `pkg/strategy/pine/parse_object_test.go` | 11 |
+| `pkg/strategy/pine/parse_semantic_test.go` | 11 |
+| `internal/assistant/workflow_crud_test.go` | 10 |
+| `internal/backtest/input_and_readiness_validation_test.go` | 10 |
+| `internal/backtest/sync_test.go` | 10 |
+| `internal/marketdata/service_facade_test.go` | 10 |
+| `pkg/bbgo/types/rbtree_test.go` | 10 |
+| `scripts/go-test-quality/main_test.go` | 10 |
+| `internal/store/sqliteconn/conn_test.go` | 10 |
 
 ## 最近验证
 
+- 2026-09-26：Backtest/Calendar P1 取消边界先红后修；`production_helper_sync_cancel_aborts_in_flight_request` 在修复前 2 秒超时，补 worker cancel signal 后由 `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(production_helper_sync_cancel_aborts_in_flight_request)'` 通过。映射仍为 `[~]`，因为 Rust 尚未直接断言 Go 的 `context.Canceled` 与内存 progress 快照。
 - `node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked`：20/20 通过（nextest run `ba80ce7b-485a-4c2d-9ea1-08011ea97730`）。
 - 该结果仅证明 `jftrade-strategy` 当前测试集合可执行，不会自动提升未建立函数级映射的 `[~]` 条目。
 
@@ -84,3 +87,17 @@
 - `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked`：1,066/1,066 通过，0 跳过（日志 `/tmp/jftrade-engine-nextest.log`，汇总耗时 120.745s）。
 
 - `pnpm run check:rust`：workspace nextest 1,862 项中 1,862 通过、2 跳过（摘要耗时 125.259s）；SQLite/backtest/provider/trading-strategy/assistant/API/desktop compatibility replay 全部通过。完整日志：`/tmp/check-rust.log`。
+- 2026-09-27 strategy_pine P1：`TestEstimateTradingPeriodBarsHandlesFallbackAndInvalidInputs` 先红后修（未修复实现 hour 预期 180、实际 1170），新增 planner `estimate_security_source_bars_handles_period_and_timeframe_fallbacks` 后 nextest 1/1 通过；修复 `resolve_timeframe_minutes` 的 hour canonical alias，mapping/reuse/anchor 已同步。当前全局审计为 Go 4451、Rust 3370、`function_exact=1493`、`partial=2332`、`boundary=628`、`missing=0`；`parity_anchor_reconcile.py` 为 1783/1737/0/0/46。`audit_test_parity.py --strict` 仍因 evidence/receipt gaps 失败，未伪造 receiptDigest。
+- 2026-09-27 API transport P1：`TestExplicitBrokerRoutesUseBrokerReaderAndNeverLegacyFallback` 先红后修，新增 quote-read 四路显式 brokerId guard 与 active alias 正向回归。active=yfinance + `brokerId=futu` 现在在 provider/helper/OpenD 读取前返回 409 `MARKET_DATA_CAPABILITY_UNSUPPORTED`，且 helper 请求数为 0；该条因 Rust 无 Go 同形 broker reader registry 仍是 partial。mapping/reuse/anchor 已同步，receiptDigest 保持空。
+- 2026-09-27 API transport P1：`TestMarketQueryAndExecutionPayloadFallbacksRemainDeterministic` 补齐可迁移行情断言。新增 pathTail 正常/短路径回归与 `limit=0`/负数→1 的真实路由回归；旧实现先红为 `request.limit=200`，修复后 6/6 精准 nextest 通过。blank limit→默认 200、非法输入拒绝和反向时间窗 fallback 已有证据；execution payload/helper 语义因 Rust 无同形 seam 继续列为 partial，未伪造 receiptDigest。
+- 2026-09-27 Backtest/Calendar P1：`TestHistoricalKLineSyncerRejectsBrokenPagination` 新增生产同步回归 `production_helper_sync_rejects_broken_pagination_cursors`，覆盖 missing `nextBefore`、向前 cursor 失败及到达 `since` 边界成功落库，定向 nextest 1/1 通过。映射保持 partial（Rust yfinance helper/durable task 与 Go 可注入 HistoricalKLineSyncer/source、futu provider、内存 progress seam 不同形），mapping/reuse/anchor 已同步，未伪造 receiptDigest。
+- 2026-09-27 Broker disconnected/degraded P1：Go `broker-read.json` 与 servercore 断连测试冻结 13 路 200 degraded；Rust 生产 broker-read owner 由 `broker_read_routes_fail_closed_when_snapshot_port_is_unavailable`、`broker_read_fails_closed_without_trade_client`、`broker_klines_valid_request_fails_closed_without_historical_source` 与 securities missing-router 测试固定为 503 `BROKER_READ_UNAVAILABLE` 并保留上游错误。显式 test-cutover fixture 仍回放旧 200 envelope；不改生产 wire。相关 servercore/read-failure mapping 已改为 `boundary`，混合 service fallback 行保留 `partial` 并注明 source-gated 三路边界，receiptDigest 继续为空。
+- 2026-09-27 Futu/OpenD runtime P1：`TestCoordinatorProjectsConnectedRuntimeAndDiscoveredAccounts` 已由真实 OpenD mock 覆盖 global-state probe → `SharedTradeReadRuntime` → production broker runtime route，断言 connected startup、`serverVersion=10.9.7000`、markets/health、2 个 discovered accounts 及 REAL 优先排序。`product_runtime_composes_opend_provider_and_fences_shutdown_ownership` 定向 nextest 1/1 通过，映射已由旧 account/order reconciliation 证据行升级为 `function_exact`；真实 receipt 为 `sha256:10e0f6f0303126574a56bb913fce6b78e03ef69a359136b6a92d3d6be3eb5bf8`（[workspace receipt](verification-receipts/workspace-nextest-2026-09-27T061100Z.json)）。strict audit 当前仍有 4085 个历史 evidence/receipt gaps，未伪造其他 digest。
+
+- 2026-09-27 provider health backoff P1：`TestProviderHealthRetryDelayBacksOffAndCaps` 先红后修。新回归 `helper_restart_policy_defaults_match_go_provider_health_retry_delays` 发现默认 500ms 与 Go 首次 100ms 不一致；修复 `HelperRestartPolicy` 与 managed helper restart policy 为 100ms 初始、1s 上限后，定向 engine nextest 2/2 与 sidecar 回归 3/3 通过，mapping 升为 `function_exact`。同文件 cancellation/error 透传条目仍为 partial；receiptDigest 保持为空。当前 `[~]` 积压按映射重算为 2955 条，严格审计 evidence/receipt gaps 仍未收口。
+
+- 2026-09-27 strict evidence batch：人工逐条复核 17 条单引用 `function_exact`（Assistant/ADK 11 条，Strategy/Pine warmup 与 error normalization 6 条）的 Go 与 Rust 测试体；17 条均已有 `// Parity:` anchor、workspace receipt `sha256:10e0f6f0303126574a56bb913fce6b78e03ef69a359136b6a92d3d6be3eb5bf8` 中的 passed test，且 `assertionCoverage.source=reviewed`。未覆盖子断言的 session-negative、空数组与 stream transport 条目未纳入本批。严格审计缺口由 4085 降至 4021，仍不能宣称整体 strict 通过。
+- 2026-09-27 全量验证收尾：当前工作树 workspace nextest 3504/3504 passed、0 failed、2 suite skipped；七类 compatibility replay 全部通过。结构化 receipt 为 `sha256:2f7422488ce7addc2b81ad38563b3b7662345283896be959843301f2b609d66f`（[receipt](verification-receipts/workspace-nextest-2026-09-27T071942Z.json)）。当前 `[~]` 积压 2955 条；strict evidence/receipt gaps 为 4019，仍按缺口推进，不宣称严格审计完成。
+
+- 2026-09-27 最新积压快照：API launcher 两条 `[x]` 已有源码锚点与 receipt `sha256:bb5be96baa9877eba7e6d5f9f0f3455fd7d3608f5912999bd6e53cfc8f3bd757`；MarketData/Calendar 三条单引用 `[x]` 使用 receipt `sha256:9d3a85b571117001d7de7cb3a4badbf5f9825c308f243b51763b87426dc22115`。`audit_test_parity.py --strict` 当前真实失败为 3957 个 gap，不能把 workspace nextest 全绿当作 strict parity 完成。
+- 2026-09-27 Assistant session-context 最新收口：三条单引用 `[x]` 均已关联 receipt `sha256:917fa4ba6a8484f68cb156733271d11cc5da94a702b60e52d1f91229a1ea5078`（3/3 passed），strict gap 进一步降至 3948；其余历史 function_exact 仍逐条等待 reviewed/reuse/receipt 证据。

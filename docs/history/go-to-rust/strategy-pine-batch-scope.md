@@ -375,8 +375,8 @@ node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --l
 
 - **`definitionSync` 缺 `blockedReason`**：Rust 投影 `definitionId/appliedVersion/latestVersion/isLatest/canApplyLatest`，
   运行中实例的阻断原因未投影。驱动行 `catalog_boundary_behavior_test.go:84`。
-- **活动流读失败 fail-closed**：Go 的 activity store 查询失败降级为空页（found=true），Rust 返回
-  `StrategyReadSnapshotError::Unavailable` 由 API 层 fail-closed。驱动行 `catalog_boundary_behavior_test.go:34`。
+- **活动流读失败 fail-closed（2026-09-24 历史结论，已由 2026-09-26 回归修正）**：当时 Go 的 activity store 查询失败降级为空页（found=true），Rust 返回
+  `StrategyReadSnapshotError::Unavailable` 由 API 层 fail-closed；后续回归已将 Rust 日志/审计查询失败对齐为空页。驱动行 `catalog_boundary_behavior_test.go:34`。
 - **活动流写失败整笔回滚**：Go 允许活动流写入失败而控制状态前进；Rust 与实例状态同库同事务。驱动行
   `catalog_boundary_behavior_test.go:58`。
 - **RUNNING 启动语义**：Rust 走恢复路径且不返回 `changed`/`saveCount`，Go 的 servercore 用例断言重启后
@@ -1493,3 +1493,36 @@ python3 scripts/compatibility/parity_anchor_reconcile.py
 
 下一片固定为其他领域的 P0/P1 队列；strategy_pine 的 385 条 partial 已全部逐项核对，
 本片不重复复核已完成的切片。
+
+## 2026-09-26 activity store failure completion
+
+本节更新第八十三批的历史差异：策略 activity 日志与审计查询在存储不可用时现按 Go 契约降级为已知空页，保留 `instanceId`，并返回空条目、`total=0`、`returned=0`、`hasMore=false`，不再把该故障映射为 `STRATEGY_FAILED`。
+
+- `TestCatalogActivityReturnsEmptyPagesWhenActivityStoreIsUnavailable` 对应 `activity_store_log_query_failure_returns_known_empty_page`，`TestCatalogActivityQueryFailureReturnsKnownEmptyPage` 对应 `activity_store_audit_query_failure_returns_known_empty_page`；两条映射现为 `[x]`/`function_exact`。
+- 修复后回归由 nextest wrapper 运行；engine 目标中因双装配目标重复执行的 8 项全部通过（1959 项跳过）。当前审计基线为 Go 4451、Rust 3366、`function_exact` 1491、`partial` 2332、`boundary` 628；Parity 锚点 1780/1734/0/0/46。
+
+其余 `definitionSync.blockedReason`、activity 写失败容忍、运行中恢复计数与 PineTS worker/UDT/collection 等差异仍按第八十三批历史结论保留，未因本次两条读失败回归而扩大完成范围。
+
+## 2026-09-27 P1 indicator warmup fallback completion
+
+`pkg/strategy/indicatorwarmup/warmup_internal_test.go:38:TestEstimateTradingPeriodBarsHandlesFallbackAndInvalidInputs` 已完成先红后修并升级为 `[x]`/`function_exact`。新增 `jftrade-strategy::pine::planner::estimate_security_source_bars_handles_period_and_timeframe_fallbacks`，以 `security_source:day/hour/week` 三种真实 requirement key 逐例锁定 period=0→0、canonical `hour` 且空 interval 回退为 180、未知标的 `week` 在 5m 下为 780；修复 `resolve_timeframe_minutes` 缺少 `hour`/`hours` canonical label 导致错误回退至 390 分钟交易日的真实差异。
+
+未修复实现的专测先红（hour 预期 180，实际 1170），补齐 hour alias 后定向 nextest 1/1 通过。映射、reuse 与 Parity anchor 已同步；`receiptDigest` 仍为空，严格 evidence/receipt 审计不因本条伪造通过。
+## 2026-09-27 P1：趋势与状态 TA 分析回归纠偏
+
+`pkg/strategy/pine/parse_semantic_test.go:287` 的 `TestAnalyzeScriptSupportsTrendAndStatefulTAFunctions`
+原映射沿用了过时的 “PINE_CALL_UNSUPPORTED” 结论。当前 Rust semantic/parser/planner
+已支持同一脚本中的 `ta.supertrend`、`ta.dmi` tuple、`ta.vwap`、`ta.mfi`、
+`ta.barssince`、`ta.valuewhen` 与 `ta.cross`；新增
+`trend_stateful_ta_tests::analyze_script_supports_trend_and_stateful_ta_functions`
+逐字复用 Go 脚本并断言 `analysis.ok=true`。真实定向 nextest 1/1 通过后，映射由
+`partial` 升级为 `function_exact`，reuse 与 Parity anchor 同步；receiptDigest 保持空，
+strict 审计仍不宣称通过。
+
+验证：`node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked -E 'test(analyze_script_supports_trend_and_stateful_ta_functions)'`（1/1 passed）；`audit_test_parity.py --write-report`、`parity_anchor_reconcile.py`、JSON 校验、fmt 与 diff 检查通过。
+
+## 2026-09-27 strict evidence batch
+
+本批人工逐条复核 Strategy/Pine 的 6 条单引用 `function_exact`：分类错误 sentinel、broker account 空值归一化，以及四条 indicator warmup plan 的最大 lookback、市场 trading profile、extended session 和 runtime floor 语义。每条均已有 Parity anchor，并关联真实 workspace receipt `sha256:10e0f6f0303126574a56bb913fce6b78e03ef69a359136b6a92d3d6be3eb5bf8`；receiptDigest 未扩散到未复核的脚本/运行时条目。
+
+全量验证收尾（2026-09-27）：workspace nextest 当前 3504/3504 passed、0 failed、2 suite skipped，含 strategy/Pine 全部目标；结构化 receipt 为 `sha256:2f7422488ce7addc2b81ad38563b3b7662345283896be959843301f2b609d66f`（[receipt](verification-receipts/workspace-nextest-2026-09-27T071942Z.json)）。strict 审计仍剩 4019 个全局 evidence/receipt gaps，未将全量通过误报为 parity strict 完成。

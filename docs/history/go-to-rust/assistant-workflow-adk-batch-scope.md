@@ -180,6 +180,13 @@ webhook 改回 `invalid_mutation_input` 后
 `function_exact`）：`adk_workflow_routes_test.go:15`、`:262`、
 `workflow_routes_test.go:14`、`workflow_routes_test.go:185`。
 
+其中 `adk_workflow_routes_test.go:262` 的三条 malformed-body 文案现由
+`adk_mutations_compatibility::adk_workflow_routes_reject_invalid_payloads_with_reference_messages`
+在真实 mutation wire boundary 逐条断言：workflow create 为
+`invalid workflow payload`、workflow run 为 `invalid workflow inputs`、trigger
+create 为 `invalid workflow trigger payload`；与既有 read-resource miss、mutation
+not-found 两条 owner 测试合并后，映射不再保留未覆盖断言。
+
 验证：`cargo fmt --all`；`node scripts/quality/cargo-nextest.mjs run -p
 jftrade-engine -p jftrade-store-sqlite --all-targets --locked --no-fail-fast`
 （1485 passed）；`-p jftrade-api`（54 passed）；`pnpm run check:quick`；
@@ -3294,3 +3301,16 @@ Go 这两条把 workflow bridge 钉在两件事上：manager 的 CRUD/分页/run
 - 下一批（第七十九批）范围：按域余量排序的下一块 **`pkg/strategy` 333 条**——先按文件分组 recon（`pkg/strategy/*` 与 `pkg/strategy/pine*` 等），再按 P0（策略实例/定义写入所有权、运行期状态与取消）→ P1（Pine 编译/校验、回测分页与超时）→ P2 顺序分片。其后：`pkg/backtest` 237、`internal/store` 206、`internal/api` 180、`internal/strategy` 169、`pkg/bbgo` 145、`internal/integration` 141、`internal/marketdata` 112、`pkg/futu` 86、`internal/trading` 80，直至 4451 条清单全部完成。
 
 验证：`cargo fmt --all -- --check`、`cargo clippy -p jftrade-engine -p jftrade-assistant -p jftrade-store-sqlite --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-assistant -p jftrade-store-sqlite --all-targets --locked --no-fail-fast`（**1930 passed / 0 skipped**）、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **2925 Rust** / **1196 `[x]`**；missing 2085、partial 846、boundary 320、module_only 4；0 破坏引用、0 重复 rust_entry、未锚定告警 193 = 前批基线，7 条 partial 无解析引用为前批已登记缺口）、`pnpm run check:compatibility`、`node scripts/check-zero-go.mjs`（2888 tracked files / 0 release artifact）、`pnpm run check:rust:architecture`、`git diff --check`、`pnpm run check:quick`。
+## 2026-09-26 provider probe completion
+
+本节更新第七十八批的历史 follow-up：当时登记为 P1 的 provider 工具探测回写缺口现已由真实生产端口与 loopback provider 回归关闭；此前批次中关于 ProbeProvider quick/full 未实现的表述仅保留为历史状态。
+
+- `TestProbeProviderQuickAndFullRequestCounts`、`TestProbeProviderWithoutMappingsSendsNoReasoningField` 与 `TestProviderProbeTimeoutCapsConfiguredRequestTimeout` 现为 `[x]`/`function_exact`；Rust 覆盖 full 的 low/medium/high 采样、quick 的 canonical effort、空 mappings 不发送 reasoning，以及 30 秒 timeout cap。
+- `TestRuntimeTestProviderMarksToolsUnsupportedWhenSelectionFails` 现为 `[x]`/`function_exact`；TestProvider 将 streaming/tools/reasoning 能力投影并持久化，工具探测失败时 `capabilities.tools=false` 不再停留在旧值。
+- 受影响 engine 回归经 nextest wrapper 运行 8/8 通过（1959 项跳过）。当前审计基线为 Go 4451、Rust 3366、`function_exact` 1491、`partial` 2332、`boundary` 628；Parity 锚点 1780/1734/0/0/46。
+
+仍未完成的 provider safe-HTTP、completion-review 与 workflow executor 编排层条目不受本节影响，继续按清单中的 P1/P2 owner 与边界结论推进。
+
+## 2026-09-27 strict evidence batch
+
+本批人工复核 Assistant/ADK 的 11 条单引用 `function_exact`：approval resolution、metrics query、optimization cancellation、legacy route、resolved approval projection、pagination、approval idempotency、malformed query、missing mutation targets 与 catalog fault contracts。每条均引用已有 Parity anchor 和真实 workspace receipt `sha256:10e0f6f0303126574a56bb913fce6b78e03ef69a359136b6a92d3d6be3eb5bf8`；session-negative、空数组与 stream transport 因子断言未覆盖而未纳入。

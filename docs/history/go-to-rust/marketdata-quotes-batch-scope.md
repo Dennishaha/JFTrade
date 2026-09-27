@@ -624,7 +624,7 @@ ADK/Assistant 功能差异，先补失败回归测试再修改领域 owner。
 
 | 复核 | Go 测试 | Rust 证据 | P | 结论 |
 | :---: | --- | --- | :---: | --- |
-| [x] | `runtime_health_test.go:222:TestProviderHealthRetryDelayBacksOffAndCaps` | `compute_helper_backoff_doubles_and_caps_at_max` | P1 | partial：Rust 断言 helper restart backoff 倍增并封顶，但默认序列为 500ms→…→10s，Go `waitForProviderHealth` 为 100ms→…→1s；两者 owner/数值都不同。 |
+| [x] | `runtime_health_test.go:222:TestProviderHealthRetryDelayBacksOffAndCaps` | `helper_restart_policy_defaults_match_go_provider_health_retry_delays` | P1 | function_exact：先红复现旧默认 500ms，再将 managed helper restart policy 调整为 Go 对齐的 100ms→200→400→800→1s 封顶序列；取消与 probeErr 透传仍由 `runtime_health_test.go:240` 单独保持 partial。 |
 | [x] | `runtime_health_test.go:240:TestWaitForProviderHealthPreservesLastFailureOnCancellation` | `disconnected_provider_reports_its_reason_and_keeps_the_previous_selection` | P1 | partial：Rust 覆盖 disconnected reason 和保持既有 provider selection；Go 的 context cancellation、底层 probeErr 原样返回及单次探测次数没有 Rust 同形 monitor API。 |
 
 本批没有发现可安全直接修复的 Rust 生产差异：backoff 属于 Rust helper restart policy，取消路径属于 Go wait helper 与 Rust router/monitor owner 形状差异。精准 nextest 2/2 通过。
@@ -2104,7 +2104,7 @@ ADK/Assistant 功能差异，先补失败回归测试再修改领域 owner。
 | [x] | `internal/assistant/assembly/workflow_tools_test.go:240:TestWorkflowRunToolsRequireInteractiveSession` | `无可解析 Rust 同形测试；保留 owner/边界记录` | P1 | partial/边界：高风险缺口已复核；未用相邻聚合测试冒充覆盖，等待 owner 或明确边界。 |
 | [x] | `internal/assistant/engine/context_cache_test.go:187:TestProviderPayloadSortsToolsByNameIndependentOfAgentInputOrder` | `无可解析 Rust 同形测试；保留 owner/边界记录` | P1 | partial/边界：高风险缺口已复核；未用相邻聚合测试冒充覆盖，等待 owner 或明确边界。 |
 | [x] | `internal/app/apiserver/marketdataapp/python_runtime_test.go:13:TestResolveSourcePythonRuntimeHonorsEnvironmentAndFallbacks` | `无可解析 Rust 同形测试；保留 owner/边界记录` | P1 | partial/边界：高风险缺口已复核；未用相邻聚合测试冒充覆盖，等待 owner 或明确边界。 |
-| [x] | `internal/app/apiserver/servercore/notification_market_workflow_contracts_test.go:84:TestMarketQueryAndExecutionPayloadFallbacksRemainDeterministic` | `无可解析 Rust 同形测试；保留 owner/边界记录` | P1 | partial/边界：高风险缺口已复核；未用相邻聚合测试冒充覆盖，等待 owner 或明确边界。 |
+| [x] | `internal/app/apiserver/servercore/notification_market_workflow_contracts_test.go:84:TestMarketQueryAndExecutionPayloadFallbacksRemainDeterministic` | `product_production_ports_market_data_projection.rs::market_symbol_path_tail_matches_go_split_and_empty_guard`; `product_market_data_candle_pagination_tests.rs::candle_route_clamps_zero_limit_to_one_like_go_query_helper`; `product_production_ports_market_data_quote_reads_futu.rs::test_futu_kline_query_window_resets_invalid_begin_to_default_lookback` | P1 | partial：已补 pathTail、limit/period/time 校验与反向窗口 fallback；显式 limit=0 先红为 200，修复后→1。execution payload nil/不可编码回退与字符串 helper 仍无同形 Rust seam，继续保留 partial。 |
 | [x] | `internal/app/apiserver/servercore/runtime_trading_test.go:723:TestStrategyRuntimeDisconnectedBrokerRefreshKeepsCachedState` | `无可解析 Rust 同形测试；保留 owner/边界记录` | P1 | partial/边界：高风险缺口已复核；未用相邻聚合测试冒充覆盖，等待 owner 或明确边界。 |
 | [x] | `internal/app/apiserver/webaccess/auth_boundaries_test.go:195:TestPasswordChangeDuringLoginCannotCreateOldPasswordSession` | `无可解析 Rust 同形测试；保留 owner/边界记录` | P1 | partial/边界：高风险缺口已复核；未用相邻聚合测试冒充覆盖，等待 owner 或明确边界。 |
 | [x] | `internal/integration/futu/marketdata_runtime_test.go:452:TestMarketDataRuntimeExchangeResetAndStreamLifecycle` | `无可解析 Rust 同形测试；保留 owner/边界记录` | P1 | partial/边界：高风险缺口已复核；未用相邻聚合测试冒充覆盖，等待 owner 或明确边界。 |
@@ -2158,3 +2158,13 @@ ADK/Assistant 功能差异，先补失败回归测试再修改领域 owner。
 - Trading order-update cache/reconnect/backfill、broker fallback/cancel conformance 与 MarketData singleflight resolver 继续保留 Go worker/cache seam 差异；清单记录实际 Rust owner 与门禁命令。
 
 验证：provider timeout 定向回归 1/1；quick affected nextest 2014/2014；workspace nextest 3479/3479（2 skipped）；7 条 compatibility replay 全部通过；映射审计与锚点复核在提交前重新生成。
+
+## 2026-09-26 parity correction（历史结论保留）
+
+批次 232 中“ProbeProvider quick/full 能力探测仍未实现、状态保持 `partial`”是当时的历史结论。本批已补齐真实 loopback provider probe：full 的 low/medium/high reasoning 采样、quick 的 canonical effort、无 mappings 时不发送 reasoning、30 秒 timeout cap，以及 TestProvider 工具探测失败后的 `capabilities.tools=false` 回写；对应映射现为 `function_exact`。原批次记录不回写，当前条目与验证收口以 `parity-progress-summary.md`、`assistant-workflow-adk-batch-scope.md` 和 `manual-test-mappings.json` 为准。
+
+当前全局审计基线（2026-09-26）：Go 4451、Rust 3366，`function_exact` 1491、`partial` 2332、`boundary` 628；Parity 锚点为 1780/1734/0/0/46。上述 provider probe、workflow evidence 与 auth ABA 回归属于 engine/settings 内部行为与测试证据补齐，未改变公开行情/API 契约。
+
+## 2026-09-27 P1 provider health backoff 对齐
+
+`runtime_health_test.go:222:TestProviderHealthRetryDelayBacksOffAndCaps` 先以默认策略回归复现 Rust 500ms 首次退避与 Go 100ms 的差异；`HelperRestartPolicy` 及 managed market-data helper 的生产 restart policy 已修复为 initial=100ms、max=1s。新增 `helper_restart_policy_defaults_match_go_provider_health_retry_delays` 逐档断言 100→200→400→800→1000→1000→1000ms，engine 定向 nextest 2/2、sidecar 回归 3/3 通过，映射升为 `function_exact`。`:240` 的 cancellation/error 透传仍保持 partial，receiptDigest 留空；当前全局扫描 Go 4451、Rust 3376、`function_exact=1496`、`partial=2321`、`boundary=634`，anchor 1786/1740/0/0/46。

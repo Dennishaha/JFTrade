@@ -126,3 +126,7 @@ Rust（1 条新增 + 4 个锚点）：
   的 RUSTSEC-2026-0285（rustls 0.23.44，修复需 >=0.23.45）与 8 条
   `warning[advisory-not-detected]` 陈旧 ignore；run 停在静态阶段、未执行 workspace/all-targets
   阶段，等价测试面由上面的 nextest wrapper 覆盖。**不记为通过**，与干净 HEAD 行为一致。
+
+### 2026-09-26 parity baseline correction（历史批次不回写）
+
+本文件前述审计数字和门禁收据属于 retry 批次完成时的历史快照。后续 assistant provider probe、strategy activity 与 workflow invalid-input 批次新增 7 条 `function_exact`，并同步减少 3 条 `partial`、4 条 `boundary`；当前全局基线为 Go 4451、Rust 3366、`function_exact` 1491、`partial` 2332、`boundary` 628，Parity 锚点 1780/1734/0/0/46。retry 域自身的历史结论（包括 `cargo deny` advisory 阻塞）保持不变，不应与当前工作树门禁结果混用。
