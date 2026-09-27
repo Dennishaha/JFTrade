@@ -71,8 +71,8 @@ Go 的 watchlist quote 缓存是**读穿透缓存**，并以 `ChangeQuoteProvide
 
 | Go 测试 | Rust 入口 | 结论 |
 | --- | --- | --- |
-| `service_quotes_test.go:174 TestChangeQuoteProviderRejectsPreviousProviderInflightResults` | `jftrade-engine/src/product_production_ports_watchlist_quotes.rs::tests::in_flight_snapshot_does_not_repopulate_the_cache_after_a_provider_switch` | `[x]`：provider 在快照读取期间完成切换时，旧代际结果不得回填缓存；配套测试断言切换后必须重新读取源而不是命中旧代际缓存。 |
-| `service_quotes_test.go:210 TestChangeQuoteProviderFailurePreservesCurrentCache` | `jftrade-engine/src/product_production_ports_watchlist_quotes.rs::tests::rejected_provider_switch_preserves_the_current_quote_cache` | `[x]`：激活失败时 generation 不变，缓存继续命中且不再访问源（源调用次数保持 1）。 |
+| `service_quotes_test.go:174 TestChangeQuoteProviderRejectsPreviousProviderInflightResults` | `jftrade-engine/src/product_production_ports_watchlist_quotes_tests.rs::tests::in_flight_snapshot_does_not_repopulate_the_cache_after_a_provider_switch` | `[x]`：provider 在快照读取期间完成切换时，旧代际结果不得回填缓存；配套测试断言切换后必须重新读取源而不是命中旧代际缓存。 |
+| `service_quotes_test.go:210 TestChangeQuoteProviderFailurePreservesCurrentCache` | `jftrade-engine/src/product_production_ports_watchlist_quotes_tests.rs::tests::rejected_provider_switch_preserves_the_current_quote_cache` | `[x]`：激活失败时 generation 不变，缓存继续命中且不再访问源（源调用次数保持 1）。 |
 | `futu/source_test.go:83 TestRemoteMembersKeepBrokerCodeAndSecurityIDAsSeparateAliases` | `jftrade-integration-futu/src/watchlist_reader_tests.rs::tests::watchlist_member_conversion_preserves_canonical_id_and_broker_alias` | `[x]`：canonical instrumentId 与 brokerCode/brokerSecurityId 两个独立别名保持分离且互不相等（既有 `partial` 核验后升级，并补该 Go 行的锚点）。 |
 
 ### 保留差异候选（保持 partial 的理由）
