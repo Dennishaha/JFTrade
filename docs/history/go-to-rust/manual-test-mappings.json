@@ -23713,7 +23713,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/product_runtime_tests.rs::test_product_runtime_startup_failure_rollback; apps/desktop/src-tauri/tests/desktop_contracts.rs::readiness_failure_reclaims_every_started_process_without_starting_dependents; crates/jftrade-engine/src/product_data_management_batch_atomic_startup_tests.rs::startup_failure_restores_previously_migrated_descriptor_files",
       "conclusion": "function_exact：Go 断言初始化中途失败时按逆序回滚已初始化阶段且不执行后续阶段；Rust 组合根注入故障后回滚已完成阶段、返回首个错误，未进入的后续阶段没有副作用。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(test_product_runtime_startup_failure_rollback)'",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-store-sqlite -p jftrade-integration-futu -p jftrade-marketdata -p jftrade-desktop --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test_product_runtime_startup_failure_rollback or readiness_failure_reclaims_every_started_process_without_starting_dependents or startup_failure_restores_previously_migrated_descriptor_files or backup_snapshot_rejects_an_unusable_backup_directory_and_an_empty_source_path or cleanup_and_compaction_report_the_reclaimed_bytes_measured_on_disk or market_data_health_requires_a_known_logged_in_quote_session or probe_opend_reports_closed_port_as_disconnected or disconnected_probe_keeps_its_transport_error_for_manual_retry or production_opend_health_diagnoses_enabled_but_unreachable_opend or provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/app/apiserver/application/installers_test.go",
@@ -23751,7 +23751,7 @@
           "function_exact：Go 断言初始化中途失败时按逆序回滚已初始化阶段且不执行后续阶段；Rust 组合根注入故障后回滚已完成阶段、返回首个错误，未进入的后续阶段没有副作用。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -23766,23 +23766,28 @@
         "testFilter": [
           "test_product_runtime_startup_failure_rollback",
           "readiness_failure_reclaims_every_started_process_without_starting_dependents",
-          "startup_failure_restores_previously_migrated_descriptor_files"
+          "startup_failure_restores_previously_migrated_descriptor_files",
+          "backup_snapshot_rejects_an_unusable_backup_directory_and_an_empty_source_path",
+          "cleanup_and_compaction_report_the_reclaimed_bytes_measured_on_disk",
+          "market_data_health_requires_a_known_logged_in_quote_session",
+          "probe_opend_reports_closed_port_as_disconnected",
+          "disconnected_probe_keeps_its_transport_error_for_manual_retry",
+          "production_opend_health_diagnoses_enabled_but_unreachable_opend",
+          "provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "f632beb7",
-        "verifiedAt": "2026-09-25T13:29:58Z",
-        "receiptDigest": null
+        "verifiedCommit": "301135f0",
+        "verifiedAt": "2026-09-27T17:43:11Z",
+        "receiptDigest": "sha256:b58fc1c29238f5349c80b07263e7375b665440d25cbe46ae45201a4903967df6"
       },
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：Go 断言初始化中途失败时按逆序回滚已初始化阶段且不执行后续阶段；Rust 组合根注入故障后回滚已完成阶段、返回首个错误，未进入的后续阶段没有副作用。"
@@ -26224,7 +26229,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-store-sqlite/tests/maintenance_backup_and_rebuild_contracts.rs::backup_snapshot_rejects_an_unusable_backup_directory_and_an_empty_source_path",
       "conclusion": "function_exact：settings 父路径是普通文件时备份目录无法创建 → backup 报错；descriptor.path=\"\" 时 backup 报错；两种失败都不留任何备份文件。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-datamanagement --all-targets --locked",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-store-sqlite -p jftrade-integration-futu -p jftrade-marketdata -p jftrade-desktop --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test_product_runtime_startup_failure_rollback or readiness_failure_reclaims_every_started_process_without_starting_dependents or startup_failure_restores_previously_migrated_descriptor_files or backup_snapshot_rejects_an_unusable_backup_directory_and_an_empty_source_path or cleanup_and_compaction_report_the_reclaimed_bytes_measured_on_disk or market_data_health_requires_a_known_logged_in_quote_session or probe_opend_reports_closed_port_as_disconnected or disconnected_probe_keeps_its_transport_error_for_manual_retry or production_opend_health_diagnoses_enabled_but_unreachable_opend or provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/app/apiserver/datamigration/maintenance_failure_paths_test.go",
@@ -26250,7 +26255,7 @@
           "function_exact：settings 父路径是普通文件时备份目录无法创建 → backup 报错；descriptor.path=\"\" 时 backup 报错；两种失败都不留任何备份文件。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -26263,23 +26268,30 @@
           "test(adk_missing_mutation_targets_keep_the_go_classification) or test(adk_session_run_and_optimization_route_contracts_match_go) or test(adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed) or test(replayed_stream_payloads_carry_the_go_replay_marker) or test(catalog_session_run_and_observability_routes_answer_ok) or test(session_timeline_failure_keeps_the_legacy_messages_error_code) or test(sync_request_session_scope_parity_with_go) or test(backtests_write_fixture_replays_all_four_go_owned_mutations) or test(backtests_read_routes_match_group_fixture_in_cutover_only) or test(candle_route_treats_blank_period_as_unset_and_rejects_unsupported) or test(candle_period_normalizes_aliases_and_rejects_unsupported) or test(auth_requires_origin_and_csrf_for_session_writes) or test(auth_treats_patch_as_session_write_requiring_csrf) or test(managed_account_write_routes_map_missing_records_to_not_found) or test(broker_settings_writes_replay_frozen_compatibility_cases) or test(catalog_activity_paging_and_filters_match_go_boundaries) or test(strategy_instance_read_routes_match_group_fixture_in_cutover_only) or test(execution_write_fixture_replays_all_seven_go_owned_mutations) or test(execution_write_product_replays_browser_boundary_failure_recovery_and_restart) or test(production_http_broker_reads_serialize_empty_collections_as_arrays) or test(watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog) or test(watchlist_write_fixture_matches_go_owner_for_all_eight_routes) or test(malformed_membership_and_commit_bodies_are_rejected) or test(watchlist_read_routes_match_group_fixture_in_cutover_only) or test(test_product_runtime_startup_failure_rollback) or test(readiness_failure_reclaims_every_started_process_without_starting_dependents) or test(startup_failure_restores_previously_migrated_descriptor_files) or test(backup_snapshot_rejects_an_unusable_backup_directory_and_an_empty_source_path) or test(cleanup_and_compaction_report_the_reclaimed_bytes_measured_on_disk) or test(a_held_lease_on_one_database_rolls_back_the_batch_rebuild_locks) or test(runtime_readiness_allows_external_degradation_but_rejects_incomplete_startup) or test(production_opend_health_diagnoses_enabled_but_unreachable_opend) or test(production_system_read_reports_unavailable_opend_without_fake_health) or test(market_data_health_requires_a_known_logged_in_quote_session) or test(helper_market_data_providers_reconcile_futu_account_order_fill_and_fee) or test(reconciliation_discovers_external_order_into_empty_ledger) or test(production_opend_health_rejects_old_build_and_guides_upgrade) or test(probe_opend_reports_closed_port_as_disconnected) or test(probe_from_global_state_enforces_minimum_version_and_maps_neutral_state) or test(disconnected_probe_keeps_its_transport_error_for_manual_retry) or test(web_shutdown_does_not_hold_runtime_lock_while_joining_server) or test(provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update) or test(cache_rejects_stale_generation_and_classifies_freshness)"
         ],
         "testFilter": [
-          "backup_snapshot_rejects_an_unusable_backup_directory_and_an_empty_source_path"
+          "test_product_runtime_startup_failure_rollback",
+          "readiness_failure_reclaims_every_started_process_without_starting_dependents",
+          "startup_failure_restores_previously_migrated_descriptor_files",
+          "backup_snapshot_rejects_an_unusable_backup_directory_and_an_empty_source_path",
+          "cleanup_and_compaction_report_the_reclaimed_bytes_measured_on_disk",
+          "market_data_health_requires_a_known_logged_in_quote_session",
+          "probe_opend_reports_closed_port_as_disconnected",
+          "disconnected_probe_keeps_its_transport_error_for_manual_retry",
+          "production_opend_health_diagnoses_enabled_but_unreachable_opend",
+          "provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "f632beb7",
-        "verifiedAt": "2026-09-25T13:29:58Z",
-        "receiptDigest": null
+        "verifiedCommit": "301135f0",
+        "verifiedAt": "2026-09-27T17:43:11Z",
+        "receiptDigest": "sha256:b58fc1c29238f5349c80b07263e7375b665440d25cbe46ae45201a4903967df6"
       },
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：settings 父路径是普通文件时备份目录无法创建 → backup 报错；descriptor.path=\"\" 时 backup 报错；两种失败都不留任何备份文件。"
@@ -26727,7 +26739,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-store-sqlite/tests/maintenance_overview_and_cleanup_contracts.rs::cleanup_and_compaction_report_the_reclaimed_bytes_measured_on_disk",
       "conclusion": "function_exact：strategy 插入 2MiB 软删脚本后执行清理 → deletedCount=1、compacted=true、reclaimedBytes>0、afterBytes<beforeBytes；watchlist 插入 2MiB 后删除再 compact → reclaimedBytes>0、afterBytes<beforeBytes，均为磁盘实测值。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-datamanagement --all-targets --locked",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-store-sqlite -p jftrade-integration-futu -p jftrade-marketdata -p jftrade-desktop --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test_product_runtime_startup_failure_rollback or readiness_failure_reclaims_every_started_process_without_starting_dependents or startup_failure_restores_previously_migrated_descriptor_files or backup_snapshot_rejects_an_unusable_backup_directory_and_an_empty_source_path or cleanup_and_compaction_report_the_reclaimed_bytes_measured_on_disk or market_data_health_requires_a_known_logged_in_quote_session or probe_opend_reports_closed_port_as_disconnected or disconnected_probe_keeps_its_transport_error_for_manual_retry or production_opend_health_diagnoses_enabled_but_unreachable_opend or provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/app/apiserver/datamigration/maintenance_failure_paths_test.go",
@@ -26753,7 +26765,7 @@
           "function_exact：strategy 插入 2MiB 软删脚本后执行清理 → deletedCount=1、compacted=true、reclaimedBytes>0、afterBytes<beforeBytes；watchlist 插入 2MiB 后删除再 compact → reclaimedBytes>0、afterBytes<beforeBytes，均为磁盘实测值。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -26766,23 +26778,30 @@
           "test(adk_missing_mutation_targets_keep_the_go_classification) or test(adk_session_run_and_optimization_route_contracts_match_go) or test(adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed) or test(replayed_stream_payloads_carry_the_go_replay_marker) or test(catalog_session_run_and_observability_routes_answer_ok) or test(session_timeline_failure_keeps_the_legacy_messages_error_code) or test(sync_request_session_scope_parity_with_go) or test(backtests_write_fixture_replays_all_four_go_owned_mutations) or test(backtests_read_routes_match_group_fixture_in_cutover_only) or test(candle_route_treats_blank_period_as_unset_and_rejects_unsupported) or test(candle_period_normalizes_aliases_and_rejects_unsupported) or test(auth_requires_origin_and_csrf_for_session_writes) or test(auth_treats_patch_as_session_write_requiring_csrf) or test(managed_account_write_routes_map_missing_records_to_not_found) or test(broker_settings_writes_replay_frozen_compatibility_cases) or test(catalog_activity_paging_and_filters_match_go_boundaries) or test(strategy_instance_read_routes_match_group_fixture_in_cutover_only) or test(execution_write_fixture_replays_all_seven_go_owned_mutations) or test(execution_write_product_replays_browser_boundary_failure_recovery_and_restart) or test(production_http_broker_reads_serialize_empty_collections_as_arrays) or test(watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog) or test(watchlist_write_fixture_matches_go_owner_for_all_eight_routes) or test(malformed_membership_and_commit_bodies_are_rejected) or test(watchlist_read_routes_match_group_fixture_in_cutover_only) or test(test_product_runtime_startup_failure_rollback) or test(readiness_failure_reclaims_every_started_process_without_starting_dependents) or test(startup_failure_restores_previously_migrated_descriptor_files) or test(backup_snapshot_rejects_an_unusable_backup_directory_and_an_empty_source_path) or test(cleanup_and_compaction_report_the_reclaimed_bytes_measured_on_disk) or test(a_held_lease_on_one_database_rolls_back_the_batch_rebuild_locks) or test(runtime_readiness_allows_external_degradation_but_rejects_incomplete_startup) or test(production_opend_health_diagnoses_enabled_but_unreachable_opend) or test(production_system_read_reports_unavailable_opend_without_fake_health) or test(market_data_health_requires_a_known_logged_in_quote_session) or test(helper_market_data_providers_reconcile_futu_account_order_fill_and_fee) or test(reconciliation_discovers_external_order_into_empty_ledger) or test(production_opend_health_rejects_old_build_and_guides_upgrade) or test(probe_opend_reports_closed_port_as_disconnected) or test(probe_from_global_state_enforces_minimum_version_and_maps_neutral_state) or test(disconnected_probe_keeps_its_transport_error_for_manual_retry) or test(web_shutdown_does_not_hold_runtime_lock_while_joining_server) or test(provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update) or test(cache_rejects_stale_generation_and_classifies_freshness)"
         ],
         "testFilter": [
-          "cleanup_and_compaction_report_the_reclaimed_bytes_measured_on_disk"
+          "test_product_runtime_startup_failure_rollback",
+          "readiness_failure_reclaims_every_started_process_without_starting_dependents",
+          "startup_failure_restores_previously_migrated_descriptor_files",
+          "backup_snapshot_rejects_an_unusable_backup_directory_and_an_empty_source_path",
+          "cleanup_and_compaction_report_the_reclaimed_bytes_measured_on_disk",
+          "market_data_health_requires_a_known_logged_in_quote_session",
+          "probe_opend_reports_closed_port_as_disconnected",
+          "disconnected_probe_keeps_its_transport_error_for_manual_retry",
+          "production_opend_health_diagnoses_enabled_but_unreachable_opend",
+          "provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "f632beb7",
-        "verifiedAt": "2026-09-25T13:29:58Z",
-        "receiptDigest": null
+        "verifiedCommit": "301135f0",
+        "verifiedAt": "2026-09-27T17:43:11Z",
+        "receiptDigest": "sha256:b58fc1c29238f5349c80b07263e7375b665440d25cbe46ae45201a4903967df6"
       },
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：strategy 插入 2MiB 软删脚本后执行清理 → deletedCount=1、compacted=true、reclaimedBytes>0、afterBytes<beforeBytes；watchlist 插入 2MiB 后删除再 compact → reclaimedBytes>0、afterBytes<beforeBytes，均为磁盘实测值。"
@@ -29494,7 +29513,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-integration-futu/src/health.rs::market_data_health_requires_a_known_logged_in_quote_session",
       "conclusion": "function_exact：Go 的 marketDataHealthFromProbe 四条分支：quote session 未知→不健康且 LastError=\"Futu OpenD quote session status is unavailable\"；已登出→\"Futu OpenD quote session is not logged in\"；degraded 且带探针错误→原错误透传；connected+healthy+已登入→Connected 且无错误。Rust 新增用例逐条断言同一四分支与 readiness=Failed/Ready，错误文案逐字符一致（该用例带本行 // Parity: 锚点）。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-store-sqlite -p jftrade-integration-futu -p jftrade-marketdata -p jftrade-desktop --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test_product_runtime_startup_failure_rollback or readiness_failure_reclaims_every_started_process_without_starting_dependents or startup_failure_restores_previously_migrated_descriptor_files or backup_snapshot_rejects_an_unusable_backup_directory_and_an_empty_source_path or cleanup_and_compaction_report_the_reclaimed_bytes_measured_on_disk or market_data_health_requires_a_known_logged_in_quote_session or probe_opend_reports_closed_port_as_disconnected or disconnected_probe_keeps_its_transport_error_for_manual_retry or production_opend_health_diagnoses_enabled_but_unreachable_opend or provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/app/apiserver/futuapp/coordinator_test.go",
@@ -29520,7 +29539,7 @@
           "function_exact：Go 的 marketDataHealthFromProbe 四条分支：quote session 未知→不健康且 LastError=\"Futu OpenD quote session status is unavailable\"；已登出→\"Futu OpenD quote session is not logged in\"；degraded 且带探针错误→原错误透传；connected+healthy+已登入→Connected 且无错误。Rust 新增用例逐条断言同一四分支与 readiness=Failed/Ready，错误文案逐字符一致（该用例带本行 // Parity: 锚点）。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -29533,23 +29552,30 @@
           "test(adk_missing_mutation_targets_keep_the_go_classification) or test(adk_session_run_and_optimization_route_contracts_match_go) or test(adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed) or test(replayed_stream_payloads_carry_the_go_replay_marker) or test(catalog_session_run_and_observability_routes_answer_ok) or test(session_timeline_failure_keeps_the_legacy_messages_error_code) or test(sync_request_session_scope_parity_with_go) or test(backtests_write_fixture_replays_all_four_go_owned_mutations) or test(backtests_read_routes_match_group_fixture_in_cutover_only) or test(candle_route_treats_blank_period_as_unset_and_rejects_unsupported) or test(candle_period_normalizes_aliases_and_rejects_unsupported) or test(auth_requires_origin_and_csrf_for_session_writes) or test(auth_treats_patch_as_session_write_requiring_csrf) or test(managed_account_write_routes_map_missing_records_to_not_found) or test(broker_settings_writes_replay_frozen_compatibility_cases) or test(catalog_activity_paging_and_filters_match_go_boundaries) or test(strategy_instance_read_routes_match_group_fixture_in_cutover_only) or test(execution_write_fixture_replays_all_seven_go_owned_mutations) or test(execution_write_product_replays_browser_boundary_failure_recovery_and_restart) or test(production_http_broker_reads_serialize_empty_collections_as_arrays) or test(watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog) or test(watchlist_write_fixture_matches_go_owner_for_all_eight_routes) or test(malformed_membership_and_commit_bodies_are_rejected) or test(watchlist_read_routes_match_group_fixture_in_cutover_only) or test(test_product_runtime_startup_failure_rollback) or test(readiness_failure_reclaims_every_started_process_without_starting_dependents) or test(startup_failure_restores_previously_migrated_descriptor_files) or test(backup_snapshot_rejects_an_unusable_backup_directory_and_an_empty_source_path) or test(cleanup_and_compaction_report_the_reclaimed_bytes_measured_on_disk) or test(a_held_lease_on_one_database_rolls_back_the_batch_rebuild_locks) or test(runtime_readiness_allows_external_degradation_but_rejects_incomplete_startup) or test(production_opend_health_diagnoses_enabled_but_unreachable_opend) or test(production_system_read_reports_unavailable_opend_without_fake_health) or test(market_data_health_requires_a_known_logged_in_quote_session) or test(helper_market_data_providers_reconcile_futu_account_order_fill_and_fee) or test(reconciliation_discovers_external_order_into_empty_ledger) or test(production_opend_health_rejects_old_build_and_guides_upgrade) or test(probe_opend_reports_closed_port_as_disconnected) or test(probe_from_global_state_enforces_minimum_version_and_maps_neutral_state) or test(disconnected_probe_keeps_its_transport_error_for_manual_retry) or test(web_shutdown_does_not_hold_runtime_lock_while_joining_server) or test(provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update) or test(cache_rejects_stale_generation_and_classifies_freshness)"
         ],
         "testFilter": [
-          "market_data_health_requires_a_known_logged_in_quote_session"
+          "test_product_runtime_startup_failure_rollback",
+          "readiness_failure_reclaims_every_started_process_without_starting_dependents",
+          "startup_failure_restores_previously_migrated_descriptor_files",
+          "backup_snapshot_rejects_an_unusable_backup_directory_and_an_empty_source_path",
+          "cleanup_and_compaction_report_the_reclaimed_bytes_measured_on_disk",
+          "market_data_health_requires_a_known_logged_in_quote_session",
+          "probe_opend_reports_closed_port_as_disconnected",
+          "disconnected_probe_keeps_its_transport_error_for_manual_retry",
+          "production_opend_health_diagnoses_enabled_but_unreachable_opend",
+          "provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "f632beb7",
-        "verifiedAt": "2026-09-25T13:29:58Z",
-        "receiptDigest": null
+        "verifiedCommit": "301135f0",
+        "verifiedAt": "2026-09-27T17:43:11Z",
+        "receiptDigest": "sha256:b58fc1c29238f5349c80b07263e7375b665440d25cbe46ae45201a4903967df6"
       },
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：Go 的 marketDataHealthFromProbe 四条分支：quote session 未知→不健康且 LastError=\"Futu OpenD quote session status is unavailable\"；已登出→\"Futu OpenD quote session is not logged in\"；degraded 且带探针错误→原错误透传；connected+healthy+已登入→Connected 且无错误。Rust 新增用例逐条断言同一四分支与 readiness=Failed/Ready，错误文案逐字符一致（该用例带本行 // Parity: 锚点）。"
@@ -29932,7 +29958,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-integration-futu/src/probe.rs::probe_opend_reports_closed_port_as_disconnected; crates/jftrade-integration-futu/src/health.rs::disconnected_probe_keeps_its_transport_error_for_manual_retry; crates/jftrade-engine/src/product_production_assembly_tests.rs::production_opend_health_diagnoses_enabled_but_unreachable_opend",
       "conclusion": "function_exact：Go 断言关闭端口探测 connectivity=disconnected 且 LastError 非空、BrokerRuntime 会话同样 disconnected、OpenD health 的 diagnosis.code=OPEND_API_CONNECTIVITY 且 manualRetryRequired=true（Reset 仅调用无断言）。Rust 的 probe_opend_reports_closed_port_as_disconnected 断言离线探针 connectivity=disconnected、last_error 非空、issue_code=OPEND_DISCONNECTED；disconnected_probe_keeps_its_transport_error_for_manual_retry 断言同一错误进入健康投影（Failed + 原错误文本）；engine 侧 production_opend_health_diagnoses_enabled_but_unreachable_opend 断言离线投影 runtime.connectivity=disconnected、diagnosis.code=OPEND_API_CONNECTIVITY、manualRetryRequired=true（并额外给出 restartOpenDRecommended 指引）。原引用 tcp_probe_maps_login_global_state_and_market_readiness 属健康路径，已改由 TestFutuRuntimeHealthyProbeAndGlobalStateBoundaries 行引用。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked 与 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-store-sqlite -p jftrade-integration-futu -p jftrade-marketdata -p jftrade-desktop --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test_product_runtime_startup_failure_rollback or readiness_failure_reclaims_every_started_process_without_starting_dependents or startup_failure_restores_previously_migrated_descriptor_files or backup_snapshot_rejects_an_unusable_backup_directory_and_an_empty_source_path or cleanup_and_compaction_report_the_reclaimed_bytes_measured_on_disk or market_data_health_requires_a_known_logged_in_quote_session or probe_opend_reports_closed_port_as_disconnected or disconnected_probe_keeps_its_transport_error_for_manual_retry or production_opend_health_diagnoses_enabled_but_unreachable_opend or provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/app/apiserver/futuapp/runtime_state_boundaries_test.go",
@@ -29970,7 +29996,7 @@
           "function_exact：Go 断言关闭端口探测 connectivity=disconnected 且 LastError 非空、BrokerRuntime 会话同样 disconnected、OpenD health 的 diagnosis.code=OPEND_API_CONNECTIVITY 且 manualRetryRequired=true（Reset 仅调用无断言）。Rust 的 probe_opend_reports_closed_port_as_disconnected 断言离线探针 connectivity=disconnected、last_error 非空、issue_code=OPEND_DISCONNECTED；disconnected_probe_keeps_its_transport_error_for_manual_retry 断言同一错误进入健康投影（Failed + 原错误文本）；engine 侧 production_opend_health_diagnoses_enabled_but_unreachable_opend 断言离线投影 runtime.connectivity=disconnected、diagnosis.code=OPEND_API_CONNECTIVITY、manualRetryRequired=true（并额外给出 restartOpenDRecommended 指引）。原引用 tcp_probe_maps_login_global_state_and_market_readiness 属健康路径，已改由 TestFutuRuntimeHealthyProbeAndGlobalStateBoundaries 行引用。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -29983,25 +30009,30 @@
           "test(adk_missing_mutation_targets_keep_the_go_classification) or test(adk_session_run_and_optimization_route_contracts_match_go) or test(adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed) or test(replayed_stream_payloads_carry_the_go_replay_marker) or test(catalog_session_run_and_observability_routes_answer_ok) or test(session_timeline_failure_keeps_the_legacy_messages_error_code) or test(sync_request_session_scope_parity_with_go) or test(backtests_write_fixture_replays_all_four_go_owned_mutations) or test(backtests_read_routes_match_group_fixture_in_cutover_only) or test(candle_route_treats_blank_period_as_unset_and_rejects_unsupported) or test(candle_period_normalizes_aliases_and_rejects_unsupported) or test(auth_requires_origin_and_csrf_for_session_writes) or test(auth_treats_patch_as_session_write_requiring_csrf) or test(managed_account_write_routes_map_missing_records_to_not_found) or test(broker_settings_writes_replay_frozen_compatibility_cases) or test(catalog_activity_paging_and_filters_match_go_boundaries) or test(strategy_instance_read_routes_match_group_fixture_in_cutover_only) or test(execution_write_fixture_replays_all_seven_go_owned_mutations) or test(execution_write_product_replays_browser_boundary_failure_recovery_and_restart) or test(production_http_broker_reads_serialize_empty_collections_as_arrays) or test(watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog) or test(watchlist_write_fixture_matches_go_owner_for_all_eight_routes) or test(malformed_membership_and_commit_bodies_are_rejected) or test(watchlist_read_routes_match_group_fixture_in_cutover_only) or test(test_product_runtime_startup_failure_rollback) or test(readiness_failure_reclaims_every_started_process_without_starting_dependents) or test(startup_failure_restores_previously_migrated_descriptor_files) or test(backup_snapshot_rejects_an_unusable_backup_directory_and_an_empty_source_path) or test(cleanup_and_compaction_report_the_reclaimed_bytes_measured_on_disk) or test(a_held_lease_on_one_database_rolls_back_the_batch_rebuild_locks) or test(runtime_readiness_allows_external_degradation_but_rejects_incomplete_startup) or test(production_opend_health_diagnoses_enabled_but_unreachable_opend) or test(production_system_read_reports_unavailable_opend_without_fake_health) or test(market_data_health_requires_a_known_logged_in_quote_session) or test(helper_market_data_providers_reconcile_futu_account_order_fill_and_fee) or test(reconciliation_discovers_external_order_into_empty_ledger) or test(production_opend_health_rejects_old_build_and_guides_upgrade) or test(probe_opend_reports_closed_port_as_disconnected) or test(probe_from_global_state_enforces_minimum_version_and_maps_neutral_state) or test(disconnected_probe_keeps_its_transport_error_for_manual_retry) or test(web_shutdown_does_not_hold_runtime_lock_while_joining_server) or test(provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update) or test(cache_rejects_stale_generation_and_classifies_freshness)"
         ],
         "testFilter": [
+          "test_product_runtime_startup_failure_rollback",
+          "readiness_failure_reclaims_every_started_process_without_starting_dependents",
+          "startup_failure_restores_previously_migrated_descriptor_files",
+          "backup_snapshot_rejects_an_unusable_backup_directory_and_an_empty_source_path",
+          "cleanup_and_compaction_report_the_reclaimed_bytes_measured_on_disk",
+          "market_data_health_requires_a_known_logged_in_quote_session",
           "probe_opend_reports_closed_port_as_disconnected",
           "disconnected_probe_keeps_its_transport_error_for_manual_retry",
-          "production_opend_health_diagnoses_enabled_but_unreachable_opend"
+          "production_opend_health_diagnoses_enabled_but_unreachable_opend",
+          "provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "f632beb7",
-        "verifiedAt": "2026-09-25T13:29:58Z",
-        "receiptDigest": null
+        "verifiedCommit": "301135f0",
+        "verifiedAt": "2026-09-27T17:43:11Z",
+        "receiptDigest": "sha256:b58fc1c29238f5349c80b07263e7375b665440d25cbe46ae45201a4903967df6"
       },
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：Go 断言关闭端口探测 connectivity=disconnected 且 LastError 非空、BrokerRuntime 会话同样 disconnected、OpenD health 的 diagnosis.code=OPEND_API_CONNECTIVITY 且 manualRetryRequired=true（Reset 仅调用无断言）。Rust 的 probe_opend_reports_closed_port_as_disconnected 断言离线探针 connectivity=disconnected、last_error 非空、issue_code=OPEND_DISCONNECTED；disconnected_probe_keeps_its_transport_error_for_manual_retry 断言同一错误进入健康投影（Failed + 原错误文本）；engine 侧 production_opend_health_diagnoses_enabled_but_unreachable_opend 断言离线投影 runtime.connectivity=disconnected、diagnosis.code=OPEND_API_CONNECTIVITY、manualRetryRequired=true（并额外给出 restartOpenDRecommended 指引）。原引用 tcp_probe_maps_login_global_state_and_market_readiness 属健康路径，已改由 TestFutuRuntimeHealthyProbeAndGlobalStateBoundaries 行引用。"
@@ -31866,7 +31897,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-marketdata/tests/provider_activation_recovery.rs::provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update; crates/jftrade-marketdata/src/cache.rs::cache_rejects_stale_generation_and_classifies_freshness",
       "conclusion": "function_exact：Go 断言 sidecar 启动失败时 ApplyProviderSettings 返回原错误且 cache 边界保持 futu→futu。Rust 同形断言：健康门失败的 activate(yfinance) 返回 ProviderUnavailable，active_provider 与 generation 都不前进，旧代际缓存仍 Fresh（lookup → Fresh）；健康恢复后再次切换才提交 generation+1 且旧缓存变为 Missing。逐条对应“失败不发布、不丢旧缓存，恢复后可提交”；补充证据：cache_rejects_stale_generation_and_classifies_freshness。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --all-targets --locked",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-store-sqlite -p jftrade-integration-futu -p jftrade-marketdata -p jftrade-desktop --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test_product_runtime_startup_failure_rollback or readiness_failure_reclaims_every_started_process_without_starting_dependents or startup_failure_restores_previously_migrated_descriptor_files or backup_snapshot_rejects_an_unusable_backup_directory_and_an_empty_source_path or cleanup_and_compaction_report_the_reclaimed_bytes_measured_on_disk or market_data_health_requires_a_known_logged_in_quote_session or probe_opend_reports_closed_port_as_disconnected or disconnected_probe_keeps_its_transport_error_for_manual_retry or production_opend_health_diagnoses_enabled_but_unreachable_opend or provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/app/apiserver/marketdataapp/data_plane_switch_test.go",
@@ -31898,7 +31929,7 @@
           "function_exact：Go 断言 sidecar 启动失败时 ApplyProviderSettings 返回原错误且 cache 边界保持 futu→futu。Rust 同形断言：健康门失败的 activate(yfinance) 返回 ProviderUnavailable，active_provider 与 generation 都不前进，旧代际缓存仍 Fresh（lookup → Fresh）；健康恢复后再次切换才提交 generation+1 且旧缓存变为 Missing。逐条对应“失败不发布、不丢旧缓存，恢复后可提交”；补充证据：cache_rejects_stale_generation_and_classifies_freshness。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -31911,24 +31942,30 @@
           "test(adk_missing_mutation_targets_keep_the_go_classification) or test(adk_session_run_and_optimization_route_contracts_match_go) or test(adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed) or test(replayed_stream_payloads_carry_the_go_replay_marker) or test(catalog_session_run_and_observability_routes_answer_ok) or test(session_timeline_failure_keeps_the_legacy_messages_error_code) or test(sync_request_session_scope_parity_with_go) or test(backtests_write_fixture_replays_all_four_go_owned_mutations) or test(backtests_read_routes_match_group_fixture_in_cutover_only) or test(candle_route_treats_blank_period_as_unset_and_rejects_unsupported) or test(candle_period_normalizes_aliases_and_rejects_unsupported) or test(auth_requires_origin_and_csrf_for_session_writes) or test(auth_treats_patch_as_session_write_requiring_csrf) or test(managed_account_write_routes_map_missing_records_to_not_found) or test(broker_settings_writes_replay_frozen_compatibility_cases) or test(catalog_activity_paging_and_filters_match_go_boundaries) or test(strategy_instance_read_routes_match_group_fixture_in_cutover_only) or test(execution_write_fixture_replays_all_seven_go_owned_mutations) or test(execution_write_product_replays_browser_boundary_failure_recovery_and_restart) or test(production_http_broker_reads_serialize_empty_collections_as_arrays) or test(watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog) or test(watchlist_write_fixture_matches_go_owner_for_all_eight_routes) or test(malformed_membership_and_commit_bodies_are_rejected) or test(watchlist_read_routes_match_group_fixture_in_cutover_only) or test(test_product_runtime_startup_failure_rollback) or test(readiness_failure_reclaims_every_started_process_without_starting_dependents) or test(startup_failure_restores_previously_migrated_descriptor_files) or test(backup_snapshot_rejects_an_unusable_backup_directory_and_an_empty_source_path) or test(cleanup_and_compaction_report_the_reclaimed_bytes_measured_on_disk) or test(a_held_lease_on_one_database_rolls_back_the_batch_rebuild_locks) or test(runtime_readiness_allows_external_degradation_but_rejects_incomplete_startup) or test(production_opend_health_diagnoses_enabled_but_unreachable_opend) or test(production_system_read_reports_unavailable_opend_without_fake_health) or test(market_data_health_requires_a_known_logged_in_quote_session) or test(helper_market_data_providers_reconcile_futu_account_order_fill_and_fee) or test(reconciliation_discovers_external_order_into_empty_ledger) or test(production_opend_health_rejects_old_build_and_guides_upgrade) or test(probe_opend_reports_closed_port_as_disconnected) or test(probe_from_global_state_enforces_minimum_version_and_maps_neutral_state) or test(disconnected_probe_keeps_its_transport_error_for_manual_retry) or test(web_shutdown_does_not_hold_runtime_lock_while_joining_server) or test(provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update) or test(cache_rejects_stale_generation_and_classifies_freshness)"
         ],
         "testFilter": [
-          "provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update",
-          "cache_rejects_stale_generation_and_classifies_freshness"
+          "test_product_runtime_startup_failure_rollback",
+          "readiness_failure_reclaims_every_started_process_without_starting_dependents",
+          "startup_failure_restores_previously_migrated_descriptor_files",
+          "backup_snapshot_rejects_an_unusable_backup_directory_and_an_empty_source_path",
+          "cleanup_and_compaction_report_the_reclaimed_bytes_measured_on_disk",
+          "market_data_health_requires_a_known_logged_in_quote_session",
+          "probe_opend_reports_closed_port_as_disconnected",
+          "disconnected_probe_keeps_its_transport_error_for_manual_retry",
+          "production_opend_health_diagnoses_enabled_but_unreachable_opend",
+          "provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "f632beb7",
-        "verifiedAt": "2026-09-25T13:29:58Z",
-        "receiptDigest": null
+        "verifiedCommit": "301135f0",
+        "verifiedAt": "2026-09-27T17:43:11Z",
+        "receiptDigest": "sha256:b58fc1c29238f5349c80b07263e7375b665440d25cbe46ae45201a4903967df6"
       },
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：Go 断言 sidecar 启动失败时 ApplyProviderSettings 返回原错误且 cache 边界保持 futu→futu。Rust 同形断言：健康门失败的 activate(yfinance) 返回 ProviderUnavailable，active_provider 与 generation 都不前进，旧代际缓存仍 Fresh（lookup → Fresh）；健康恢复后再次切换才提交 generation+1 且旧缓存变为 Missing。逐条对应“失败不发布、不丢旧缓存，恢复后可提交”；补充证据：cache_rejects_stale_generation_and_classifies_freshness。"

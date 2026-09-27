@@ -1,0 +1,60 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "-p",
+    "jftrade-store-sqlite",
+    "-p",
+    "jftrade-integration-futu",
+    "-p",
+    "jftrade-marketdata",
+    "-p",
+    "jftrade-desktop",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(test_product_runtime_startup_failure_rollback) or test(startup_failure_restores_previously_migrated_descriptor_files) or test(backup_snapshot_rejects_an_unusable_backup_directory_and_an_empty_source_path) or test(cleanup_and_compaction_report_the_reclaimed_bytes_measured_on_disk) or test(market_data_health_requires_a_known_logged_in_quote_session) or test(probe_opend_reports_closed_port_as_disconnected) or test(disconnected_probe_keeps_its_transport_error_for_manual_retry) or test(production_opend_health_diagnoses_enabled_but_unreachable_opend) or test(provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-27T17:43:11Z",
+  "sourceState": {
+    "verifiedCommit": "301135f0",
+    "trackedDiffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "untrackedFiles": []
+  },
+  "rawOutputSha256": "b58fc1c29238f5349c80b07263e7375b665440d25cbe46ae45201a4903967df6",
+  "passedTests": [
+    "jftrade-engine::jftrade_engine$product_runtime::product_runtime_tests::test_product_runtime_startup_failure_rollback",
+    "jftrade-engine::jftrade_engine$product_data_management::tests::batch_atomic_startup_tests::startup_failure_restores_previously_migrated_descriptor_files",
+    "jftrade-store-sqlite::maintenance_backup_and_rebuild_contracts$backup_snapshot_rejects_an_unusable_backup_directory_and_an_empty_source_path",
+    "jftrade-store-sqlite::maintenance_overview_and_cleanup_contracts$cleanup_and_compaction_report_the_reclaimed_bytes_measured_on_disk",
+    "jftrade-integration-futu::jftrade_integration_futu$health::tests::market_data_health_requires_a_known_logged_in_quote_session",
+    "jftrade-integration-futu::jftrade_integration_futu$probe::tests::probe_opend_reports_closed_port_as_disconnected",
+    "jftrade-integration-futu::jftrade_integration_futu$health::tests::disconnected_probe_keeps_its_transport_error_for_manual_retry",
+    "jftrade-engine::jftrade_engine$product::tests::production_assembly_tests::product_production_assembly_tests::production_opend_health_diagnoses_enabled_but_unreachable_opend",
+    "jftrade-marketdata::provider_activation_recovery$provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update",
+    "jftrade-desktop::desktop_contracts$readiness_failure_reclaims_every_started_process_without_starting_dependents"
+  ],
+  "failedTests": [],
+  "ignoredTests": ["jftrade-integration-futu::live_opend_provider_runtime"],
+  "suites": [
+    {"type":"suite","event":"ok","passed":3,"failed":0,"ignored":0,"filtered_out":1631,"nextest":{"crate":"jftrade-engine","test_binary":"jftrade_engine","kind":"lib"}},
+    {"type":"suite","event":"ok","passed":3,"failed":0,"ignored":0,"filtered_out":477,"nextest":{"crate":"jftrade-integration-futu","test_binary":"jftrade_integration_futu","kind":"lib"}},
+    {"type":"suite","event":"ok","passed":1,"failed":0,"ignored":0,"filtered_out":2,"nextest":{"crate":"jftrade-marketdata","test_binary":"provider_activation_recovery","kind":"test"}},
+    {"type":"suite","event":"ok","passed":1,"failed":0,"ignored":0,"filtered_out":14,"nextest":{"crate":"jftrade-store-sqlite","test_binary":"maintenance_backup_and_rebuild_contracts","kind":"test"}},
+    {"type":"suite","event":"ok","passed":1,"failed":0,"ignored":0,"filtered_out":12,"nextest":{"crate":"jftrade-store-sqlite","test_binary":"maintenance_overview_and_cleanup_contracts","kind":"test"}},
+    {"type":"suite","event":"ok","passed":1,"failed":0,"ignored":0,"filtered_out":7,"nextest":{"crate":"jftrade-desktop","test_binary":"desktop_contracts","kind":"test"}}
+  ]
+}
