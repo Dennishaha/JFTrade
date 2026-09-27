@@ -163547,7 +163547,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-integration-futu/src/managed_session_tests.rs::response_after_request_timeout_is_not_delivered_to_a_stale_waiter",
       "conclusion": "function_exact：Go 在对端不回包时按 RequestTimeout 返回错误；Rust 超时返回 RequestTimeout{protocol,serial}，且迟到响应被降级为 UnsolicitedFrame 而不是投递给已超时的 waiter。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(response_after_request_timeout_is_not_delivered_to_a_stale_waiter)'",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(response_after_request_timeout_is_not_delivered_to_a_stale_waiter) or test(keep_alive_worker_sends_frames_and_stops_on_close) or test(history_optional_fields_round_trip_and_missing_s2c_is_an_empty_result) or test(depth_read_rejects_a_closed_session_before_any_projection) or test(trading_reads_reject_a_disconnected_session)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "pkg/futu/opend/client_test.go",
@@ -163568,10 +163568,12 @@
           "function_exact：Go 在对端不回包时按 RequestTimeout 返回错误；Rust 超时返回 RequestTimeout{protocol,serial}，且迟到响应被降级为 UnsolicitedFrame 而不是投递给已超时的 waiter。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
@@ -163579,27 +163581,32 @@
           "jftrade-integration-futu",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(response_after_request_timeout_is_not_delivered_to_a_stale_waiter)"
+          "test(response_after_request_timeout_is_not_delivered_to_a_stale_waiter) or test(keep_alive_worker_sends_frames_and_stops_on_close) or test(history_optional_fields_round_trip_and_missing_s2c_is_an_empty_result) or test(depth_read_rejects_a_closed_session_before_any_projection) or test(trading_reads_reject_a_disconnected_session)"
         ],
         "testFilter": [
-          "response_after_request_timeout_is_not_delivered_to_a_stale_waiter"
+          "response_after_request_timeout_is_not_delivered_to_a_stale_waiter",
+          "keep_alive_worker_sends_frames_and_stops_on_close",
+          "history_optional_fields_round_trip_and_missing_s2c_is_an_empty_result",
+          "depth_read_rejects_a_closed_session_before_any_projection",
+          "trading_reads_reject_a_disconnected_session"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "dc862edb",
-        "verifiedAt": "2026-09-25T12:57:05Z",
-        "receiptDigest": null
+        "verifiedCommit": "0cf47b4b8f0165f926ff1d022e546a12267327a4a",
+        "verifiedAt": "2026-09-27T23:54:50Z",
+        "receiptDigest": "sha256:b10f6c20a8a268cddbaed2a56114e7e63c4a24caad8e1cd6a856d6c70d17c420"
       },
       "risk": "high",
       "owner": "futu_opend",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：Go 在对端不回包时按 RequestTimeout 返回错误；Rust 超时返回 RequestTimeout{protocol,serial}，且迟到响应被降级为 UnsolicitedFrame 而不是投递给已超时的 waiter。"
@@ -164009,7 +164016,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-integration-futu/src/managed_session_tests.rs::keep_alive_worker_sends_frames_and_stops_on_close",
       "conclusion": "function_exact（含功能补齐）：Rust 新增 OpenDManagedSession::start_keep_alive（Go StartKeepAlive 缺失实现）。测试断言 1004 KeepAlive 帧真的发出、重复 start 不产生第二个 worker、close 后停止发送；keep_alive_tick 断言 >1s 间隔折半。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(keep_alive_worker_sends_frames_and_stops_on_close)'",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(response_after_request_timeout_is_not_delivered_to_a_stale_waiter) or test(keep_alive_worker_sends_frames_and_stops_on_close) or test(history_optional_fields_round_trip_and_missing_s2c_is_an_empty_result) or test(depth_read_rejects_a_closed_session_before_any_projection) or test(trading_reads_reject_a_disconnected_session)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "pkg/futu/opend/client_transport_boundaries_test.go",
@@ -164035,36 +164042,45 @@
           "function_exact（含功能补齐）：Rust 新增 OpenDManagedSession::start_keep_alive（Go StartKeepAlive 缺失实现）。测试断言 1004 KeepAlive 帧真的发出、重复 start 不产生第二个 worker、close 后停止发送；keep_alive_tick 断言 >1s 间隔折半。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
           "-p",
           "jftrade-integration-futu",
+          "--all-targets",
+          "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(keep_alive_worker_sends_frames_and_stops_on_close)"
+          "test(response_after_request_timeout_is_not_delivered_to_a_stale_waiter) or test(keep_alive_worker_sends_frames_and_stops_on_close) or test(history_optional_fields_round_trip_and_missing_s2c_is_an_empty_result) or test(depth_read_rejects_a_closed_session_before_any_projection) or test(trading_reads_reject_a_disconnected_session)"
         ],
         "testFilter": [
-          "keep_alive_worker_sends_frames_and_stops_on_close"
+          "response_after_request_timeout_is_not_delivered_to_a_stale_waiter",
+          "keep_alive_worker_sends_frames_and_stops_on_close",
+          "history_optional_fields_round_trip_and_missing_s2c_is_an_empty_result",
+          "depth_read_rejects_a_closed_session_before_any_projection",
+          "trading_reads_reject_a_disconnected_session"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "dc862edb",
-        "verifiedAt": "2026-09-25T12:57:05Z",
-        "receiptDigest": null
+        "verifiedCommit": "0cf47b4b8f0165f926ff1d022e546a12267327a4a",
+        "verifiedAt": "2026-09-27T23:54:50Z",
+        "receiptDigest": "sha256:b10f6c20a8a268cddbaed2a56114e7e63c4a24caad8e1cd6a856d6c70d17c420"
       },
       "risk": "high",
       "owner": "futu_opend",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact（含功能补齐）：Rust 新增 OpenDManagedSession::start_keep_alive（Go StartKeepAlive 缺失实现）。测试断言 1004 KeepAlive 帧真的发出、重复 start 不产生第二个 worker、close 后停止发送；keep_alive_tick 断言 >1s 间隔折半。"
@@ -164746,7 +164762,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-integration-futu/tests/market_read_boundaries.rs::history_optional_fields_round_trip_and_missing_s2c_is_an_empty_result",
       "conclusion": "function_exact：socket 级断言 maxAckKLNum/needKLFields 位、nextReqKey=page-2、extendedTime/session 原样上线；成功但缺 S2C 返回带请求 identity 的空结果（本轮修复：原先报 MissingS2c 错误）；非零 retType=-2/errCode=429 保留业务错误。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(history_optional_fields_round_trip_and_missing_s2c_is_an_empty_result)'",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(response_after_request_timeout_is_not_delivered_to_a_stale_waiter) or test(keep_alive_worker_sends_frames_and_stops_on_close) or test(history_optional_fields_round_trip_and_missing_s2c_is_an_empty_result) or test(depth_read_rejects_a_closed_session_before_any_projection) or test(trading_reads_reject_a_disconnected_session)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "pkg/futu/opend/market_read_boundaries_test.go",
@@ -164772,36 +164788,45 @@
           "function_exact：socket 级断言 maxAckKLNum/needKLFields 位、nextReqKey=page-2、extendedTime/session 原样上线；成功但缺 S2C 返回带请求 identity 的空结果（本轮修复：原先报 MissingS2c 错误）；非零 retType=-2/errCode=429 保留业务错误。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
           "-p",
           "jftrade-integration-futu",
+          "--all-targets",
+          "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(history_optional_fields_round_trip_and_missing_s2c_is_an_empty_result)"
+          "test(response_after_request_timeout_is_not_delivered_to_a_stale_waiter) or test(keep_alive_worker_sends_frames_and_stops_on_close) or test(history_optional_fields_round_trip_and_missing_s2c_is_an_empty_result) or test(depth_read_rejects_a_closed_session_before_any_projection) or test(trading_reads_reject_a_disconnected_session)"
         ],
         "testFilter": [
-          "history_optional_fields_round_trip_and_missing_s2c_is_an_empty_result"
+          "response_after_request_timeout_is_not_delivered_to_a_stale_waiter",
+          "keep_alive_worker_sends_frames_and_stops_on_close",
+          "history_optional_fields_round_trip_and_missing_s2c_is_an_empty_result",
+          "depth_read_rejects_a_closed_session_before_any_projection",
+          "trading_reads_reject_a_disconnected_session"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "01fc8ae0",
-        "verifiedAt": "2026-09-25T12:51:19Z",
-        "receiptDigest": null
+        "verifiedCommit": "0cf47b4b8f0165f926ff1d022e546a12267327a4a",
+        "verifiedAt": "2026-09-27T23:54:50Z",
+        "receiptDigest": "sha256:b10f6c20a8a268cddbaed2a56114e7e63c4a24caad8e1cd6a856d6c70d17c420"
       },
       "risk": "high",
       "owner": "futu_opend",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：socket 级断言 maxAckKLNum/needKLFields 位、nextReqKey=page-2、extendedTime/session 原样上线；成功但缺 S2C 返回带请求 identity 的空结果（本轮修复：原先报 MissingS2c 错误）；非零 retType=-2/errCode=429 保留业务错误。"
@@ -166741,7 +166766,7 @@
       "evidence_type": "function_exact",
       "rust_entry": "crates/jftrade-integration-futu/src/market_microstructure_query.rs::tests::depth_read_rejects_a_closed_session_before_any_projection",
       "conclusion": "function_exact：Go 在无活跃连接时 GetOrderBook 返回 ErrClosed，绝不以空结果成功。Rust 的 owner 是 coordinator 的会话门：close 之后 session() 返回 Closed，depth 读取映射为 typed Session 错误而非空 depth。新增测试先关闭 coordinator 再读取，断言 Session 错误且消息含 closed。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(depth_read_rejects_a_closed_session_before_any_projection)'",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(response_after_request_timeout_is_not_delivered_to_a_stale_waiter) or test(keep_alive_worker_sends_frames_and_stops_on_close) or test(history_optional_fields_round_trip_and_missing_s2c_is_an_empty_result) or test(depth_read_rejects_a_closed_session_before_any_projection) or test(trading_reads_reject_a_disconnected_session)'",
       "source": {
         "file": "pkg/futu/opend/orderbook_boundaries_test.go",
         "line": 14,
@@ -166766,10 +166791,12 @@
           "function_exact：Go 在无活跃连接时 GetOrderBook 返回 ErrClosed，绝不以空结果成功。Rust 的 owner 是 coordinator 的会话门：close 之后 session() 返回 Closed，depth 读取映射为 typed Session 错误而非空 depth。新增测试先关闭 coordinator 再读取，断言 Session 错误且消息含 closed。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
@@ -166777,27 +166804,32 @@
           "jftrade-integration-futu",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(depth_read_rejects_a_closed_session_before_any_projection)"
+          "test(response_after_request_timeout_is_not_delivered_to_a_stale_waiter) or test(keep_alive_worker_sends_frames_and_stops_on_close) or test(history_optional_fields_round_trip_and_missing_s2c_is_an_empty_result) or test(depth_read_rejects_a_closed_session_before_any_projection) or test(trading_reads_reject_a_disconnected_session)"
         ],
         "testFilter": [
-          "depth_read_rejects_a_closed_session_before_any_projection"
+          "response_after_request_timeout_is_not_delivered_to_a_stale_waiter",
+          "keep_alive_worker_sends_frames_and_stops_on_close",
+          "history_optional_fields_round_trip_and_missing_s2c_is_an_empty_result",
+          "depth_read_rejects_a_closed_session_before_any_projection",
+          "trading_reads_reject_a_disconnected_session"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "dc862edb",
-        "verifiedAt": "2026-09-25T12:57:05Z",
-        "receiptDigest": null
+        "verifiedCommit": "0cf47b4b8f0165f926ff1d022e546a12267327a4a",
+        "verifiedAt": "2026-09-27T23:54:50Z",
+        "receiptDigest": "sha256:b10f6c20a8a268cddbaed2a56114e7e63c4a24caad8e1cd6a856d6c70d17c420"
       },
       "risk": "high",
       "owner": "futu_opend",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：Go 在无活跃连接时 GetOrderBook 返回 ErrClosed，绝不以空结果成功。Rust 的 owner 是 coordinator 的会话门：close 之后 session() 返回 Closed，depth 读取映射为 typed Session 错误而非空 depth。新增测试先关闭 coordinator 再读取，断言 Session 错误且消息含 closed。"
@@ -168237,7 +168269,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-integration-futu/src/trade_session_tests.rs::trading_reads_reject_a_disconnected_session",
       "conclusion": "function_exact：会话关闭后 funds/positions/orders/history orders 四条读取路径全部返回 typed Session 错误。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(trading_reads_reject_a_disconnected_session)'",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(response_after_request_timeout_is_not_delivered_to_a_stale_waiter) or test(keep_alive_worker_sends_frames_and_stops_on_close) or test(history_optional_fields_round_trip_and_missing_s2c_is_an_empty_result) or test(depth_read_rejects_a_closed_session_before_any_projection) or test(trading_reads_reject_a_disconnected_session)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "pkg/futu/opend/trading_error_boundaries_test.go",
@@ -168263,36 +168295,45 @@
           "function_exact：会话关闭后 funds/positions/orders/history orders 四条读取路径全部返回 typed Session 错误。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
           "-p",
           "jftrade-integration-futu",
+          "--all-targets",
+          "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(trading_reads_reject_a_disconnected_session)"
+          "test(response_after_request_timeout_is_not_delivered_to_a_stale_waiter) or test(keep_alive_worker_sends_frames_and_stops_on_close) or test(history_optional_fields_round_trip_and_missing_s2c_is_an_empty_result) or test(depth_read_rejects_a_closed_session_before_any_projection) or test(trading_reads_reject_a_disconnected_session)"
         ],
         "testFilter": [
+          "response_after_request_timeout_is_not_delivered_to_a_stale_waiter",
+          "keep_alive_worker_sends_frames_and_stops_on_close",
+          "history_optional_fields_round_trip_and_missing_s2c_is_an_empty_result",
+          "depth_read_rejects_a_closed_session_before_any_projection",
           "trading_reads_reject_a_disconnected_session"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "01fc8ae0",
-        "verifiedAt": "2026-09-25T12:51:19Z",
-        "receiptDigest": null
+        "verifiedCommit": "0cf47b4b8f0165f926ff1d022e546a12267327a4a",
+        "verifiedAt": "2026-09-27T23:54:50Z",
+        "receiptDigest": "sha256:b10f6c20a8a268cddbaed2a56114e7e63c4a24caad8e1cd6a856d6c70d17c420"
       },
       "risk": "high",
       "owner": "futu_opend",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：会话关闭后 funds/positions/orders/history orders 四条读取路径全部返回 typed Session 错误。"
