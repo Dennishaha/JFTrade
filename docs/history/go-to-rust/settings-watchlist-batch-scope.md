@@ -98,12 +98,36 @@ Go 的 watchlist quote 缓存是**读穿透缓存**，并以 `ChangeQuoteProvide
 
 ### 后续待办（下一个 watchlist 批次候选）
 
-1. quote single-flight：并发同 id 折叠为一次源读取 + waiter 取消（对应
-   `service_quotes_test.go:62`、`quote_preview_boundaries_test.go:12` 的未覆盖断言）。
-2. provider 协商 TTL（`QuoteCacheTTL()` 等价端口）与 instrument metadata 回写
-   （`service_quotes_test.go:117`、`:145`）。
+1. **已完成（本批）**：quote single-flight 的并发同标的折叠（`service_quotes_test.go:62`）。
+2. **已完成（本批）**：按 provider polling policy 选择 quote TTL（`service_quotes_test.go:117`）；
+   instrument metadata 回写（`:145`）仍因 Rust 没有同形副作用而保持 partial。
 3. watchlist 端口级的 delayed fallback / 逐市场权限 / 未知与 OTC 单项隔离端到端测试
-   （`futu/source_test.go:221`、`:267`、`:316`、`:357`）。
+   （`futu/source_test.go:221`、`:267`、`:316`、`:357`），以及 SG.D05 未知市场时区保护
+   （`futu/source_test.go:396`）仍保持 partial，等待 Rust 端口级 seam。
+
+## 第九十三批：Watchlist quote session、single-flight 与 provider TTL（2026-09-27）
+
+本批聚焦 3 条 P1/high 映射，均先以重叠请求、扩展 session 与 TTL 边界回归复现，再修复
+`ProductionWatchlistPort` 的真实行为：
+
+- Futu `pre`/`after`/`overnight` session 现在优先投影扩展价，change 仍以 regular
+  previous close 计算，volume/turnover 保留 regular snapshot 语义；
+- overlapping batch quote 请求在物理 snapshot read 前使用共享 gate，后续请求观察首个
+  请求写入的缓存，不再重复访问源；
+- Futu 默认缓存 TTL 为 2.5 秒，helper provider（Akshare/Yfinance）按 15 秒 polling
+  policy 缓存；provider generation 仍构成缓存命中与迟到写回的 fence。
+
+新增并通过 `batch_quotes_selects_extended_session_price_and_change`、
+`overlapping_batch_quotes_share_one_snapshot_read`、
+`batch_quote_cache_uses_provider_ttl_before_refetching`（nextest 3/3）；Watchlist 相关
+nextest 56/56 通过。对应 `source_test.go:418`、`service_quotes_test.go:62`、`:117`
+升级为 `[x]`/`function_exact`，均引用 receipt
+`sha256:ae6267da865221f941864dca401b67519a51c0a38b9c0069be36bd4010bad7e3`。
+
+本批未升级 SG.D05 unknown-market timezone、metadata 回写、delayed fallback 或逐市场
+permission/unknown/OTC 隔离；这些是真实结构差异，继续保留 partial，不以相邻测试代替。
+
+验证：`cargo fmt --all -- --check`；`env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib --locked --message-format libtest-json-plus --no-fail-fast -E 'test(batch_quotes_selects_extended_session_price_and_change) or test(overlapping_batch_quotes_share_one_snapshot_read) or test(batch_quote_cache_uses_provider_ttl_before_refetching)'`（3/3）；`python3 scripts/compatibility/audit_test_parity.py --write-report`（Go 4451、Rust 3380、function_exact 1499、partial 2318、boundary 634、missing 0）；`python3 scripts/compatibility/parity_anchor_reconcile.py`（1791/1745/0/0/46）；`node scripts/check-zero-go.mjs`；`pnpm run check:ai-context`；`git diff --check`。`audit_test_parity.py --strict` 仍真实失败 3927 个历史 evidence/receipt gaps，不宣称严格审计完成。
 
 验证：`cargo fmt --all`；`cargo clippy -p jftrade-engine -p jftrade-integration-futu --all-targets --locked`；
 `node scripts/quality/cargo-nextest.mjs run -p jftrade-watchlist -p jftrade-engine -p jftrade-integration-futu -p jftrade-store-sqlite --all-targets --locked --no-fail-fast`；

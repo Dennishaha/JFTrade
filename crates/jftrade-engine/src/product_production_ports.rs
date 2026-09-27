@@ -184,6 +184,7 @@ pub(crate) fn production_ports(
         active_provider_state: Some(Arc::clone(&active_provider_state)),
         helper: config.market_data_helper.clone(),
         quote_cache: Arc::new(std::sync::Mutex::new(std::collections::HashMap::new())),
+        quote_fetch_lock: Arc::new(std::sync::Mutex::new(())),
     });
     let backtest_market_data_provider_state = if let Some(state) =
         config.backtest_market_data_provider_state.as_ref()

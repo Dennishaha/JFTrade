@@ -235461,11 +235461,11 @@
       "boundaryReason": null
     },
     "internal/watchlist/futu/source_test.go:418:TestWatchlistQuoteSelectsExtendedSessionPriceAndChange": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::futu_snapshot_route_projects_cached_extended_quote_contract",
-      "conclusion": "partial：Rust 的 Futu 快照路由断言扩展时段（pre/after/overnight）报价契约投影；差异：Go 断言 watchlistQuoteFromBrokerSnapshot 在 session=pre/after/overnight 时 price 取扩展价、change=扩展价-常规收盘、changePercent 非空；Rust 的 watchlist 批量投影当前只取常规价（lastPrice/previousClose），未按 session 提升扩展价。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-      "evidence_type": "partial",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-engine/src/product_production_ports_watchlist_quotes.rs::tests::batch_quotes_selects_extended_session_price_and_change",
+      "conclusion": "function_exact：Rust watchlist batch-quotes 逐一覆盖 Go 的 pre/after/overnight 三种 session，扩展价分别替代 regular lastPrice，change 以常规 previousClose 计算且 changePercent 非空；regular volume/turnover 展示字段保持来源快照值。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib --locked --message-format libtest-json-plus --no-fail-fast -E test(batch_quotes_selects_extended_session_price_and_change) or test(overlapping_batch_quotes_share_one_snapshot_read) or test(batch_quote_cache_uses_provider_ttl_before_refetching)",
+      "evidence_type": "function_exact",
       "source": {
         "file": "internal/watchlist/futu/source_test.go",
         "line": 418,
@@ -235474,52 +235474,62 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs",
-          "test": "futu_snapshot_route_projects_cached_extended_quote_contract",
+          "file": "crates/jftrade-engine/src/product_production_ports_watchlist_quotes.rs",
+          "test": "batch_quotes_selects_extended_session_price_and_change",
           "crate": "jftrade-engine",
-          "anchor": null
+          "anchor": {
+            "goFile": "internal/watchlist/futu/source_test.go",
+            "goLine": 418,
+            "rustFile": "crates/jftrade-engine/src/product_production_ports_watchlist_quotes.rs",
+            "rustLine": 752
+          }
         }
       ],
       "assertionCoverage": {
-        "covered": [],
-        "uncovered": [
-          "partial：Rust 的 Futu 快照路由断言扩展时段（pre/after/overnight）报价契约投影；差异：Go 断言 watchlistQuoteFromBrokerSnapshot 在 session=pre/after/overnight 时 price 取扩展价、change=扩展价-常规收盘、changePercent 非空；Rust 的 watchlist 批量投影当前只取常规价（lastPrice/previousClose），未按 session 提升扩展价。"
+        "covered": [
+          "function_exact：Rust watchlist batch-quotes 逐一覆盖 Go 的 pre/after/overnight 三种 session，扩展价分别替代 regular lastPrice，change 以常规 previousClose 计算且 changePercent 非空；regular volume/turnover 展示字段保持来源快照值。"
         ],
-        "source": "legacy-conclusion"
+        "uncovered": [],
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--all-targets",
+          "-p",
+          "jftrade-engine",
+          "--lib",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(test_basic_quote_availability_rejection_enters_delayed_fallback_and_reconcile_succeeds) or test(quote_cache_serves_repeat_reads_within_one_provider_generation) or test(futu_snapshot_route_projects_cached_extended_quote_contract) or test(malformed_identity_and_unbounded_pages_fail_closed) or test(test_quote_cache_and_import_helpers_keep_absent_data_explicit) or test(rejected_provider_switch_preserves_the_current_quote_cache) or test(provider_switch_drops_quotes_cached_under_the_previous_provider) or test(concurrent_group_updates_commit_with_revision_fence) or test(test_store_canceled_maintenance_does_not_mutate_runs) or test(test_in_memory_store_implements_run_lifecycle_and_cancellation) or test(sync_task_cancel_distinguishes_missing_active_and_terminal) or test(test_calendar_store_empty_load_and_delete_are_idempotent) or test(test_save_snapshot_validates_inputs_and_resolves_year_fallbacks) or test(test_settings_normalization_handles_fallbacks_and_boundaries) or test(test_failed_setting_saves_rollback_all_runtime_state) or test(test_failed_bootstrap_and_migration_rollback_runtime_state) or test(test_failed_managed_account_crud_rolls_back_backing_array) or test(missing_empty_and_corrupted_documents_have_distinct_behavior) or test(product_corpus_replays_frozen_compatibility_and_preserves_unknown_fields) or test(appearance_round_trip_preserves_unknown_go_owned_fields) or test(security_settings_writes_match_frozen_compatibility_expectations) or test(listener_failure_rolls_back_the_persisted_settings) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(exclusive_lock_conflicts_and_file_survives_release)"
+          "test(batch_quotes_selects_extended_session_price_and_change) or test(overlapping_batch_quotes_share_one_snapshot_read) or test(batch_quote_cache_uses_provider_ttl_before_refetching)"
         ],
-        "testFilter": [
-          "futu_snapshot_route_projects_cached_extended_quote_contract"
-        ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "3132b60290fd9e70004b73805342636497ac2f27",
-        "verifiedAt": "2026-09-25T14:21:18Z",
-        "receiptDigest": null
+        "verifiedCommit": "298642cf5f7bf05d2df7b861e29b4f05d15bc02c",
+        "verifiedAt": "2026-09-27T12:49:18Z",
+        "receiptDigest": "sha256:ae6267da865221f941864dca401b67519a51c0a38b9c0069be36bd4010bad7e3",
+        "testFilter": [
+          "batch_quotes_selects_extended_session_price_and_change"
+        ]
       },
       "risk": "high",
       "owner": "settings_watchlist",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
-      "coveredAssertions": [],
-      "uncoveredAssertions": [
-        "partial：Rust 的 Futu 快照路由断言扩展时段（pre/after/overnight）报价契约投影；差异：Go 断言 watchlistQuoteFromBrokerSnapshot 在 session=pre/after/overnight 时 price 取扩展价、change=扩展价-常规收盘、changePercent 非空；Rust 的 watchlist 批量投影当前只取常规价（lastPrice/previousClose），未按 session 提升扩展价。"
+      "coveredAssertions": [
+        "function_exact：Rust watchlist batch-quotes 逐一覆盖 Go 的 pre/after/overnight 三种 session，扩展价分别替代 regular lastPrice，change 以常规 previousClose 计算且 changePercent 非空；regular volume/turnover 展示字段保持来源快照值。"
       ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/watchlist/futu/source_test.go:445:TestFutuWatchlistSourceIdentityDoesNotUseTradingAccount": {
@@ -235904,11 +235914,11 @@
       "boundaryReason": null
     },
     "internal/watchlist/service_quotes_test.go:62:TestBatchQuotesCachesAndSingleflightsOverlappingRequests": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_production_ports_watchlist_quotes.rs::tests::quote_cache_serves_repeat_reads_within_one_provider_generation",
-      "conclusion": "partial：本批修复后 Rust 在同一 provider generation 内命中 quote 缓存不再访问快照源（测试断言两次调用只发起 1 次源读取）；差异：Go 还断言并发重叠请求被 single-flight 折叠为 1 次源调用（第二个 goroutine 共享首个 flight）；Rust 未实现 in-flight 预约/等待，并发同 id 请求仍会各自访问源（已知缺口）。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-      "evidence_type": "partial",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-engine/src/product_production_ports_watchlist_quotes.rs::tests::overlapping_batch_quotes_share_one_snapshot_read",
+      "conclusion": "function_exact：Rust 以重叠的双标的 leader、单标的 follower 复现 Go single-flight 场景，逐一断言 leader 返回 2 条、follower 返回 1 条、合并读取命中缓存且物理快照源只调用 1 次。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib --locked --message-format libtest-json-plus --no-fail-fast -E test(batch_quotes_selects_extended_session_price_and_change) or test(overlapping_batch_quotes_share_one_snapshot_read) or test(batch_quote_cache_uses_provider_ttl_before_refetching)",
+      "evidence_type": "function_exact",
       "source": {
         "file": "internal/watchlist/service_quotes_test.go",
         "line": 62,
@@ -235918,51 +235928,61 @@
       "rustEvidence": [
         {
           "file": "crates/jftrade-engine/src/product_production_ports_watchlist_quotes.rs",
-          "test": "quote_cache_serves_repeat_reads_within_one_provider_generation",
+          "test": "overlapping_batch_quotes_share_one_snapshot_read",
           "crate": "jftrade-engine",
-          "anchor": null
+          "anchor": {
+            "goFile": "internal/watchlist/service_quotes_test.go",
+            "goLine": 62,
+            "rustFile": "crates/jftrade-engine/src/product_production_ports_watchlist_quotes.rs",
+            "rustLine": 781
+          }
         }
       ],
       "assertionCoverage": {
-        "covered": [],
-        "uncovered": [
-          "partial：本批修复后 Rust 在同一 provider generation 内命中 quote 缓存不再访问快照源（测试断言两次调用只发起 1 次源读取）；差异：Go 还断言并发重叠请求被 single-flight 折叠为 1 次源调用（第二个 goroutine 共享首个 flight）；Rust 未实现 in-flight 预约/等待，并发同 id 请求仍会各自访问源（已知缺口）。"
+        "covered": [
+          "function_exact：Rust 以重叠的双标的 leader、单标的 follower 复现 Go single-flight 场景，逐一断言 leader 返回 2 条、follower 返回 1 条、合并读取命中缓存且物理快照源只调用 1 次。"
         ],
-        "source": "legacy-conclusion"
+        "uncovered": [],
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--all-targets",
+          "-p",
+          "jftrade-engine",
+          "--lib",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(test_basic_quote_availability_rejection_enters_delayed_fallback_and_reconcile_succeeds) or test(quote_cache_serves_repeat_reads_within_one_provider_generation) or test(futu_snapshot_route_projects_cached_extended_quote_contract) or test(malformed_identity_and_unbounded_pages_fail_closed) or test(test_quote_cache_and_import_helpers_keep_absent_data_explicit) or test(rejected_provider_switch_preserves_the_current_quote_cache) or test(provider_switch_drops_quotes_cached_under_the_previous_provider) or test(concurrent_group_updates_commit_with_revision_fence) or test(test_store_canceled_maintenance_does_not_mutate_runs) or test(test_in_memory_store_implements_run_lifecycle_and_cancellation) or test(sync_task_cancel_distinguishes_missing_active_and_terminal) or test(test_calendar_store_empty_load_and_delete_are_idempotent) or test(test_save_snapshot_validates_inputs_and_resolves_year_fallbacks) or test(test_settings_normalization_handles_fallbacks_and_boundaries) or test(test_failed_setting_saves_rollback_all_runtime_state) or test(test_failed_bootstrap_and_migration_rollback_runtime_state) or test(test_failed_managed_account_crud_rolls_back_backing_array) or test(missing_empty_and_corrupted_documents_have_distinct_behavior) or test(product_corpus_replays_frozen_compatibility_and_preserves_unknown_fields) or test(appearance_round_trip_preserves_unknown_go_owned_fields) or test(security_settings_writes_match_frozen_compatibility_expectations) or test(listener_failure_rolls_back_the_persisted_settings) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(exclusive_lock_conflicts_and_file_survives_release)"
+          "test(batch_quotes_selects_extended_session_price_and_change) or test(overlapping_batch_quotes_share_one_snapshot_read) or test(batch_quote_cache_uses_provider_ttl_before_refetching)"
         ],
-        "testFilter": [
-          "quote_cache_serves_repeat_reads_within_one_provider_generation"
-        ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "3132b60290fd9e70004b73805342636497ac2f27",
-        "verifiedAt": "2026-09-25T14:21:18Z",
-        "receiptDigest": null
+        "verifiedCommit": "298642cf5f7bf05d2df7b861e29b4f05d15bc02c",
+        "verifiedAt": "2026-09-27T12:49:18Z",
+        "receiptDigest": "sha256:ae6267da865221f941864dca401b67519a51c0a38b9c0069be36bd4010bad7e3",
+        "testFilter": [
+          "overlapping_batch_quotes_share_one_snapshot_read"
+        ]
       },
       "risk": "high",
       "owner": "settings_watchlist",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
-      "coveredAssertions": [],
-      "uncoveredAssertions": [
-        "partial：本批修复后 Rust 在同一 provider generation 内命中 quote 缓存不再访问快照源（测试断言两次调用只发起 1 次源读取）；差异：Go 还断言并发重叠请求被 single-flight 折叠为 1 次源调用（第二个 goroutine 共享首个 flight）；Rust 未实现 in-flight 预约/等待，并发同 id 请求仍会各自访问源（已知缺口）。"
+      "coveredAssertions": [
+        "function_exact：Rust 以重叠的双标的 leader、单标的 follower 复现 Go single-flight 场景，逐一断言 leader 返回 2 条、follower 返回 1 条、合并读取命中缓存且物理快照源只调用 1 次。"
       ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/watchlist/service_quotes_test.go:100:TestBatchQuotesTurnsBatchFailureIntoPerItemErrors": {
@@ -236028,11 +236048,11 @@
       "boundaryReason": null
     },
     "internal/watchlist/service_quotes_test.go:117:TestBatchQuotesHonorsProviderCachePolicy": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_production_ports_watchlist_quotes.rs::tests::quote_cache_serves_repeat_reads_within_one_provider_generation",
-      "conclusion": "partial：Rust 在固定 30 秒 TTL（WATCHLIST_QUOTE_CACHE_TTL）内命中缓存、超时后重新读取源；差异：Go 的 TTL 由 provider 提供（QuoteCacheTTL()，fixture 为 15s），断言 provider TTL 之前只调源 1 次、之后调 2 次；Rust 未实现按 provider 协商 TTL。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-      "evidence_type": "partial",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-engine/src/product_production_ports_watchlist_quotes.rs::tests::batch_quote_cache_uses_provider_ttl_before_refetching",
+      "conclusion": "function_exact：Rust provider TTL 选择器对 helper provider 使用 15 秒 polling policy；批量 quote 在缓存龄 10 秒时仍只读源 1 次，龄 16 秒时重新读取并达到 2 次，匹配 Go 的 QuoteCacheTTL 合约。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib --locked --message-format libtest-json-plus --no-fail-fast -E test(batch_quotes_selects_extended_session_price_and_change) or test(overlapping_batch_quotes_share_one_snapshot_read) or test(batch_quote_cache_uses_provider_ttl_before_refetching)",
+      "evidence_type": "function_exact",
       "source": {
         "file": "internal/watchlist/service_quotes_test.go",
         "line": 117,
@@ -236042,51 +236062,61 @@
       "rustEvidence": [
         {
           "file": "crates/jftrade-engine/src/product_production_ports_watchlist_quotes.rs",
-          "test": "quote_cache_serves_repeat_reads_within_one_provider_generation",
+          "test": "batch_quote_cache_uses_provider_ttl_before_refetching",
           "crate": "jftrade-engine",
-          "anchor": null
+          "anchor": {
+            "goFile": "internal/watchlist/service_quotes_test.go",
+            "goLine": 117,
+            "rustFile": "crates/jftrade-engine/src/product_production_ports_watchlist_quotes.rs",
+            "rustLine": 813
+          }
         }
       ],
       "assertionCoverage": {
-        "covered": [],
-        "uncovered": [
-          "partial：Rust 在固定 30 秒 TTL（WATCHLIST_QUOTE_CACHE_TTL）内命中缓存、超时后重新读取源；差异：Go 的 TTL 由 provider 提供（QuoteCacheTTL()，fixture 为 15s），断言 provider TTL 之前只调源 1 次、之后调 2 次；Rust 未实现按 provider 协商 TTL。"
+        "covered": [
+          "function_exact：Rust provider TTL 选择器对 helper provider 使用 15 秒 polling policy；批量 quote 在缓存龄 10 秒时仍只读源 1 次，龄 16 秒时重新读取并达到 2 次，匹配 Go 的 QuoteCacheTTL 合约。"
         ],
-        "source": "legacy-conclusion"
+        "uncovered": [],
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--all-targets",
+          "-p",
+          "jftrade-engine",
+          "--lib",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(test_basic_quote_availability_rejection_enters_delayed_fallback_and_reconcile_succeeds) or test(quote_cache_serves_repeat_reads_within_one_provider_generation) or test(futu_snapshot_route_projects_cached_extended_quote_contract) or test(malformed_identity_and_unbounded_pages_fail_closed) or test(test_quote_cache_and_import_helpers_keep_absent_data_explicit) or test(rejected_provider_switch_preserves_the_current_quote_cache) or test(provider_switch_drops_quotes_cached_under_the_previous_provider) or test(concurrent_group_updates_commit_with_revision_fence) or test(test_store_canceled_maintenance_does_not_mutate_runs) or test(test_in_memory_store_implements_run_lifecycle_and_cancellation) or test(sync_task_cancel_distinguishes_missing_active_and_terminal) or test(test_calendar_store_empty_load_and_delete_are_idempotent) or test(test_save_snapshot_validates_inputs_and_resolves_year_fallbacks) or test(test_settings_normalization_handles_fallbacks_and_boundaries) or test(test_failed_setting_saves_rollback_all_runtime_state) or test(test_failed_bootstrap_and_migration_rollback_runtime_state) or test(test_failed_managed_account_crud_rolls_back_backing_array) or test(missing_empty_and_corrupted_documents_have_distinct_behavior) or test(product_corpus_replays_frozen_compatibility_and_preserves_unknown_fields) or test(appearance_round_trip_preserves_unknown_go_owned_fields) or test(security_settings_writes_match_frozen_compatibility_expectations) or test(listener_failure_rolls_back_the_persisted_settings) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(exclusive_lock_conflicts_and_file_survives_release)"
+          "test(batch_quotes_selects_extended_session_price_and_change) or test(overlapping_batch_quotes_share_one_snapshot_read) or test(batch_quote_cache_uses_provider_ttl_before_refetching)"
         ],
-        "testFilter": [
-          "quote_cache_serves_repeat_reads_within_one_provider_generation"
-        ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "3132b60290fd9e70004b73805342636497ac2f27",
-        "verifiedAt": "2026-09-25T14:21:18Z",
-        "receiptDigest": null
+        "verifiedCommit": "298642cf5f7bf05d2df7b861e29b4f05d15bc02c",
+        "verifiedAt": "2026-09-27T12:49:18Z",
+        "receiptDigest": "sha256:ae6267da865221f941864dca401b67519a51c0a38b9c0069be36bd4010bad7e3",
+        "testFilter": [
+          "batch_quote_cache_uses_provider_ttl_before_refetching"
+        ]
       },
       "risk": "high",
       "owner": "settings_watchlist",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
-      "coveredAssertions": [],
-      "uncoveredAssertions": [
-        "partial：Rust 在固定 30 秒 TTL（WATCHLIST_QUOTE_CACHE_TTL）内命中缓存、超时后重新读取源；差异：Go 的 TTL 由 provider 提供（QuoteCacheTTL()，fixture 为 15s），断言 provider TTL 之前只调源 1 次、之后调 2 次；Rust 未实现按 provider 协商 TTL。"
+      "coveredAssertions": [
+        "function_exact：Rust provider TTL 选择器对 helper provider 使用 15 秒 polling policy；批量 quote 在缓存龄 10 秒时仍只读源 1 次，龄 16 秒时重新读取并达到 2 次，匹配 Go 的 QuoteCacheTTL 合约。"
       ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/watchlist/service_quotes_test.go:145:TestBatchQuotesPreservesPartialResultsAndUpdatesKnownMetadata": {
@@ -300372,15 +300402,14 @@
       "reviewStatus": "unreviewed"
     },
     "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::futu_snapshot_route_projects_cached_extended_quote_contract": {
-      "referenceCount": 7,
+      "referenceCount": 6,
       "referenceKeys": [
         "internal/marketdata/cache_test.go:261:TestSerializationPreservesNullExtendedAndStringPrices",
         "internal/marketdata/quote_availability_test.go:9:TestSnapshotSerializationPreservesAuthoritativeMissingQuoteFields",
         "internal/marketdata/quote_availability_test.go:35:TestSnapshotSerializationKeepsLegacyZeroValuesAvailable",
         "internal/marketdata/service_facade_test.go:83:TestServiceSnapshotResolvesChinaAggregateToExchangeLeaf",
         "internal/integration/yfinance/conversion_test.go:45:TestSnapshotConversionPreservesRegularChangeWhenPreMarketQuoteIsUnavailable",
-        "internal/integration/yfinance/conversion_test.go:77:TestSnapshotConversionUsesRegularCloseForValidPreMarketQuote",
-        "internal/watchlist/futu/source_test.go:418:TestWatchlistQuoteSelectsExtendedSessionPriceAndChange"
+        "internal/integration/yfinance/conversion_test.go:77:TestSnapshotConversionUsesRegularCloseForValidPreMarketQuote"
       ],
       "allowed": false,
       "reviewStatus": "unreviewed"
@@ -305889,12 +305918,10 @@
       "reviewStatus": "unreviewed"
     },
     "crates/jftrade-engine/src/product_production_ports_watchlist_quotes.rs::quote_cache_serves_repeat_reads_within_one_provider_generation": {
-      "referenceCount": 6,
+      "referenceCount": 4,
       "referenceKeys": [
         "internal/watchlist/futu/source_test.go:396:TestWatchlistQuotePreservesSnapshotDisplayMetadataAndAvoidsUnknownTimezoneGuess",
-        "internal/watchlist/service_quotes_test.go:62:TestBatchQuotesCachesAndSingleflightsOverlappingRequests",
         "internal/watchlist/service_quotes_test.go:100:TestBatchQuotesTurnsBatchFailureIntoPerItemErrors",
-        "internal/watchlist/service_quotes_test.go:117:TestBatchQuotesHonorsProviderCachePolicy",
         "internal/watchlist/service_quotes_test.go:145:TestBatchQuotesPreservesPartialResultsAndUpdatesKnownMetadata",
         "internal/watchlist/service_quotes_test.go:270:TestQuoteResultHelpersReturnEmptySlicesForNilValues"
       ],
@@ -317016,6 +317043,30 @@
       "referenceCount": 1,
       "referenceKeys": [
         "internal/app/apiserver/webaccess/auth_boundaries_test.go:195:TestPasswordChangeDuringLoginCannotCreateOldPasswordSession"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_production_ports_watchlist_quotes.rs::batch_quotes_selects_extended_session_price_and_change": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/watchlist/futu/source_test.go:418:TestWatchlistQuoteSelectsExtendedSessionPriceAndChange"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_production_ports_watchlist_quotes.rs::overlapping_batch_quotes_share_one_snapshot_read": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/watchlist/service_quotes_test.go:62:TestBatchQuotesCachesAndSingleflightsOverlappingRequests"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_production_ports_watchlist_quotes.rs::batch_quote_cache_uses_provider_ttl_before_refetching": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/watchlist/service_quotes_test.go:117:TestBatchQuotesHonorsProviderCachePolicy"
       ],
       "allowed": true,
       "reviewStatus": "single"

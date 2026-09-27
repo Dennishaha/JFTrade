@@ -34,6 +34,7 @@ pub(crate) struct ProductionWatchlistPort {
     pub(crate) active_provider_state: Option<Arc<ActiveProviderState>>,
     pub(crate) helper: Option<jftrade_integration_marketdata_helper::HelperClient>,
     pub(crate) quote_cache: Arc<std::sync::Mutex<std::collections::HashMap<String, WatchlistQuoteCacheEntry>>>,
+    pub(crate) quote_fetch_lock: Arc<std::sync::Mutex<()>>,
 }
 
 const DEFAULT_PAGE_LIMIT: usize = 100;

@@ -5,9 +5,17 @@ use jftrade_settings::MarketDataProvider;
 use jftrade_watchlist::normalize_instrument_id;
 use serde_json::{json, Value};
 
-/// Go `WithQuoteCacheTTL` default: a batch-quote read inside this window is
-/// served from the watchlist cache without touching the provider.
-const WATCHLIST_QUOTE_CACHE_TTL: std::time::Duration = std::time::Duration::from_secs(30);
+/// Go's service fallback when a provider does not expose a quote cache TTL.
+const DEFAULT_QUOTE_CACHE_TTL: std::time::Duration = std::time::Duration::from_millis(2500);
+/// Helper providers expose their polling interval as the quote cache TTL.
+const HELPER_QUOTE_CACHE_TTL: std::time::Duration = std::time::Duration::from_secs(15);
+
+fn quote_cache_ttl(provider: MarketDataProvider) -> std::time::Duration {
+    match provider {
+        MarketDataProvider::Futu => DEFAULT_QUOTE_CACHE_TTL,
+        MarketDataProvider::Akshare | MarketDataProvider::Yfinance => HELPER_QUOTE_CACHE_TTL,
+    }
+}
 
 use super::{
     string_array, ProductionWatchlistPort, WatchlistWritePortError, MAX_PAGE_LIMIT,
@@ -149,12 +157,20 @@ impl ProductionWatchlistPort {
             }
         }
 
+        // Serialize physical reads for overlapping requests. The cache is
+        // checked only after acquiring this gate, so a follower observes the
+        // leader's result and does not issue a duplicate provider call.
+        let _quote_fetch_guard = self
+            .quote_fetch_lock
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
         let active_provider = self
             .active_provider_state
             .as_ref()
             .and_then(|s| s.get())
             .unwrap_or(MarketDataProvider::Futu);
         let provider_generation = self.provider_generation();
+        let cache_ttl = quote_cache_ttl(active_provider);
 
         let now = provider_now_rfc3339();
         let mut quotes_map: HashMap<String, Value> = HashMap::new();
@@ -169,7 +185,7 @@ impl ProductionWatchlistPort {
             for id in &normalized {
                 let fresh = cache_guard.get(id).filter(|entry| {
                     entry.provider_generation == provider_generation
-                        && entry.cached_at.elapsed() <= WATCHLIST_QUOTE_CACHE_TTL
+                        && entry.cached_at.elapsed() <= cache_ttl
                 });
                 if let Some(entry) = fresh {
                     quotes_map.insert(id.clone(), entry.quote.clone());
@@ -282,14 +298,31 @@ impl ProductionWatchlistPort {
                             };
                             let canonical_id = normalize_instrument_id(&id).unwrap_or(id);
 
-                            let last_price = snap.get("lastPrice").and_then(Value::as_f64);
-                            let prev_close = snap.get("previousClose").and_then(Value::as_f64);
-                            let volume = snap.get("volume").and_then(|v| {
-                                v.as_f64().or_else(|| v.as_i64().map(|i| i as f64))
+                            let session = snap
+                                .get("session")
+                                .and_then(Value::as_str)
+                                .map(str::to_ascii_lowercase)
+                                .filter(|value| {
+                                    matches!(
+                                        value.as_str(),
+                                        "pre" | "regular" | "after" | "overnight"
+                                    )
+                                })
+                                .unwrap_or_else(|| "regular".to_owned());
+                            let active = match session.as_str() {
+                                "pre" => snap.get("preMarket"),
+                                "after" => snap.get("afterMarket"),
+                                "overnight" => snap.get("overnight"),
+                                _ => None,
+                            };
+                            let active_price = active.and_then(|value| {
+                                val_to_f64(value.get("price")).filter(|price| *price > 0.0)
                             });
-                            let turnover = snap.get("turnover").and_then(|v| {
-                                v.as_f64().or_else(|| v.as_i64().map(|i| i as f64))
-                            });
+                            let last_price = active_price
+                                .or_else(|| val_to_f64(snap.get("lastPrice")));
+                            let prev_close = val_to_f64(snap.get("previousClose"));
+                            let volume = val_to_f64(snap.get("volume"));
+                            let turnover = val_to_f64(snap.get("turnover"));
                             let name = snap
                                 .get("name")
                                 .and_then(Value::as_str)
@@ -321,7 +354,7 @@ impl ProductionWatchlistPort {
                             );
                             quote_obj.insert("type".to_owned(), json!(sec_type));
                             quote_obj.insert("observedAt".to_owned(), json!(observed_at));
-                            quote_obj.insert("session".to_owned(), json!("regular"));
+                            quote_obj.insert("session".to_owned(), json!(session));
 
                             if let Some(p) = last_price {
                                 quote_obj.insert("price".to_owned(), json!(p));
@@ -462,7 +495,7 @@ impl ProductionWatchlistPort {
                 quotes.push(quote);
             } else if let Some(entry) = cache_guard.get(id).filter(|entry| {
                 entry.provider_generation == current_generation
-                    && entry.cached_at.elapsed() <= WATCHLIST_QUOTE_CACHE_TTL
+                    && entry.cached_at.elapsed() <= quote_cache_ttl(active_provider)
             }) {
                 quotes.push(entry.quote.clone());
             } else if let Some(msg) = error_messages.get(id) {
@@ -498,7 +531,9 @@ mod tests {
     use jftrade_settings::MarketDataProviderRuntimePort;
     use jftrade_store_sqlite::WatchlistStore;
     use std::sync::atomic::{AtomicUsize, Ordering};
-    use std::sync::{Arc, Mutex};
+    use std::sync::{Arc, Condvar, Mutex};
+    use std::thread;
+    use std::time::{Duration, Instant};
 
     fn snapshot(symbol: &str) -> jftrade_marketdata::BrokerSecuritySnapshot {
         jftrade_marketdata::BrokerSecuritySnapshot {
@@ -513,6 +548,47 @@ mod tests {
             last_price: Some("101".parse().expect("last price")),
             previous_close: Some("100".parse().expect("previous close")),
             security_type: Some("stock".to_owned()),
+            ..Default::default()
+        }
+    }
+
+    fn extended_snapshot(
+        symbol: &str,
+        session: &str,
+    ) -> jftrade_marketdata::BrokerSecuritySnapshot {
+        let extended = |price: &str, volume: &str, turnover: &str| {
+            jftrade_marketdata::ExtendedQuoteSnapshot {
+                price: Some(price.parse().expect("extended price")),
+                quote_time: Some("2026-07-18T20:00:00Z".to_owned()),
+                volume: Some(volume.parse().expect("extended volume")),
+                turnover: Some(turnover.parse().expect("extended turnover")),
+                ..Default::default()
+            }
+        };
+        let (pre_market, after_market, overnight) = match session {
+            "pre" => (Some(extended("113.20", "10", "700")), None, None),
+            "after" => (None, Some(extended("118.40", "12", "900")), None),
+            "overnight" => (None, None, Some(extended("110.70", "8", "500"))),
+            _ => (None, None, None),
+        };
+        jftrade_marketdata::BrokerSecuritySnapshot {
+            symbol: Some(symbol.to_owned()),
+            market: Some(
+                symbol
+                    .split('.')
+                    .next()
+                    .unwrap_or_default()
+                    .to_ascii_uppercase(),
+            ),
+            last_price: Some("114.97".parse().expect("regular price")),
+            previous_close: Some("112.50".parse().expect("previous close")),
+            volume: Some("42".parse().expect("regular volume")),
+            turnover: Some("1200".parse().expect("regular turnover")),
+            security_type: Some("stock".to_owned()),
+            session: Some(session.to_owned()),
+            pre_market,
+            after_market,
+            overnight,
             ..Default::default()
         }
     }
@@ -556,6 +632,68 @@ mod tests {
         }
     }
 
+    struct ExtendedSnapshotReader {
+        calls: AtomicUsize,
+        session: &'static str,
+    }
+
+    impl SecuritySnapshotReadPort for ExtendedSnapshotReader {
+        fn query(
+            &self,
+            symbols: &[String],
+        ) -> Result<Vec<jftrade_marketdata::BrokerSecuritySnapshot>, String> {
+            self.calls.fetch_add(1, Ordering::SeqCst);
+            Ok(symbols
+                .iter()
+                .map(|symbol| extended_snapshot(symbol, self.session))
+                .collect())
+        }
+    }
+
+    struct BlockingSnapshotReader {
+        calls: AtomicUsize,
+        started: (Mutex<bool>, Condvar),
+        release: (Mutex<bool>, Condvar),
+    }
+
+    impl BlockingSnapshotReader {
+        fn new() -> Self {
+            Self {
+                calls: AtomicUsize::new(0),
+                started: (Mutex::new(false), Condvar::new()),
+                release: (Mutex::new(false), Condvar::new()),
+            }
+        }
+
+        fn wait_started(&self) {
+            let mut started = self.started.0.lock().expect("started lock");
+            while !*started {
+                started = self.started.1.wait(started).expect("started wait");
+            }
+        }
+
+        fn release(&self) {
+            *self.release.0.lock().expect("release lock") = true;
+            self.release.1.notify_all();
+        }
+    }
+
+    impl SecuritySnapshotReadPort for BlockingSnapshotReader {
+        fn query(
+            &self,
+            symbols: &[String],
+        ) -> Result<Vec<jftrade_marketdata::BrokerSecuritySnapshot>, String> {
+            self.calls.fetch_add(1, Ordering::SeqCst);
+            *self.started.0.lock().expect("started lock") = true;
+            self.started.1.notify_all();
+            let mut release = self.release.0.lock().expect("release lock");
+            while !*release {
+                release = self.release.1.wait(release).expect("release wait");
+            }
+            Ok(symbols.iter().map(|symbol| snapshot(symbol)).collect())
+        }
+    }
+
     fn watchlist_store(directory: &tempfile::TempDir) -> Arc<WatchlistStore> {
         let path = directory.path().join("watchlist.db");
         let connection = rusqlite::Connection::open(&path).expect("create watchlist database");
@@ -565,10 +703,13 @@ mod tests {
         Arc::new(WatchlistStore::open(&path).expect("watchlist store"))
     }
 
-    fn watchlist_port(
-        reader: Arc<CountingSnapshotReader>,
+    fn watchlist_port<R>(
+        reader: Arc<R>,
         state: Arc<ActiveProviderState>,
-    ) -> (ProductionWatchlistPort, tempfile::TempDir) {
+    ) -> (ProductionWatchlistPort, tempfile::TempDir)
+    where
+        R: SecuritySnapshotReadPort + 'static,
+    {
         let directory = tempfile::tempdir().expect("temporary directory");
         let runtime = SharedTradeReadRuntime::default();
         runtime.set_security_snapshots(Some(reader));
@@ -578,12 +719,17 @@ mod tests {
             active_provider_state: Some(state),
             helper: None,
             quote_cache: Arc::new(Mutex::new(std::collections::HashMap::new())),
+            quote_fetch_lock: Arc::new(Mutex::new(())),
         };
         (port, directory)
     }
 
     fn batch(port: &ProductionWatchlistPort) -> Value {
-        port.handle_batch_quotes(&json!({ "instrumentIds": ["HK.00700"] }))
+        batch_for(port, &["HK.00700"])
+    }
+
+    fn batch_for(port: &ProductionWatchlistPort, instrument_ids: &[&str]) -> Value {
+        port.handle_batch_quotes(&json!({ "instrumentIds": instrument_ids }))
             .expect("batch quotes")
     }
 
@@ -599,6 +745,107 @@ mod tests {
         assert_eq!(reader.calls.load(Ordering::SeqCst), 1);
         assert_eq!(first["quotes"], cached["quotes"]);
         assert!(cached["errors"].as_array().expect("errors").is_empty());
+    }
+
+    #[test]
+    fn batch_quotes_selects_extended_session_price_and_change() {
+        // Parity: go:452dea11:internal/watchlist/futu/source_test.go:418
+        // TestWatchlistQuoteSelectsExtendedSessionPriceAndChange.
+        for (session, expected_price, expected_change, expected_volume, expected_turnover) in [
+            ("pre", 113.2, 0.7, 42.0, 1200.0),
+            ("after", 118.4, 5.9, 42.0, 1200.0),
+            ("overnight", 110.7, -1.8, 42.0, 1200.0),
+        ] {
+            let reader = Arc::new(ExtendedSnapshotReader {
+                calls: AtomicUsize::new(0),
+                session,
+            });
+            let state = Arc::new(ActiveProviderState::new(Some(MarketDataProvider::Futu)));
+            let (port, _directory) = watchlist_port(Arc::clone(&reader), state);
+
+            let response = batch(&port);
+            let quote = &response["quotes"][0];
+            assert_eq!(quote["session"], session);
+            assert_eq!(quote["price"], expected_price);
+            let change = quote["change"].as_f64().expect("change");
+            assert!((change - expected_change).abs() < 1e-9);
+            assert!(quote["changePercent"].as_f64().is_some());
+            assert_eq!(quote["volume"], expected_volume);
+            assert_eq!(quote["turnover"], expected_turnover);
+            assert_eq!(reader.calls.load(Ordering::SeqCst), 1);
+        }
+    }
+
+    #[test]
+    fn overlapping_batch_quotes_share_one_snapshot_read() {
+        // Parity: go:452dea11:internal/watchlist/service_quotes_test.go:62
+        // TestBatchQuotesCachesAndSingleflightsOverlappingRequests.
+        let reader = Arc::new(BlockingSnapshotReader::new());
+        let state = Arc::new(ActiveProviderState::new(Some(MarketDataProvider::Futu)));
+        let (port, _directory) = watchlist_port(Arc::clone(&reader), state);
+        let port = Arc::new(port);
+        let leader_port = Arc::clone(&port);
+        let leader = thread::spawn(move || batch_for(&leader_port, &["HK.00700", "HK.09988"]));
+        reader.wait_started();
+
+        let follower_port = Arc::clone(&port);
+        let follower = thread::spawn(move || batch_for(&follower_port, &["HK.00700"]));
+        let deadline = Instant::now() + Duration::from_secs(1);
+        while reader.calls.load(Ordering::SeqCst) < 2 && Instant::now() < deadline {
+            thread::yield_now();
+        }
+        reader.release();
+        let leader_response = leader.join().expect("leader join");
+        let follower_response = follower.join().expect("follower join");
+        assert_eq!(leader_response["quotes"].as_array().map(Vec::len), Some(2));
+        assert_eq!(follower_response["quotes"].as_array().map(Vec::len), Some(1));
+        let combined = batch_for(&port, &["HK.00700", "HK.09988"]);
+        assert_eq!(combined["quotes"].as_array().map(Vec::len), Some(2));
+        assert_eq!(
+            reader.calls.load(Ordering::SeqCst),
+            1,
+            "overlapping requests must share one physical snapshot read"
+        );
+    }
+
+    #[test]
+    fn batch_quote_cache_uses_provider_ttl_before_refetching() {
+        // Parity: go:452dea11:internal/watchlist/service_quotes_test.go:117
+        // TestBatchQuotesHonorsProviderCachePolicy. Helper-backed providers
+        // publish a 15-second polling interval; the cache is still fresh at
+        // 10 seconds and must be refetched after 16 seconds.
+        let reader = Arc::new(CountingSnapshotReader::new());
+        let state = Arc::new(ActiveProviderState::new(Some(MarketDataProvider::Akshare)));
+        let (port, _directory) = watchlist_port(Arc::clone(&reader), state);
+        batch(&port);
+        port.quote_cache
+            .lock()
+            .expect("quote cache")
+            .get_mut("HK.00700")
+            .expect("cached quote")
+            .cached_at = Instant::now()
+            .checked_sub(Duration::from_secs(10))
+            .expect("instant subtraction");
+        batch(&port);
+        assert_eq!(
+            reader.calls.load(Ordering::SeqCst),
+            1,
+            "provider TTL must keep this quote cached before expiry"
+        );
+        port.quote_cache
+            .lock()
+            .expect("quote cache")
+            .get_mut("HK.00700")
+            .expect("cached quote")
+            .cached_at = Instant::now()
+            .checked_sub(Duration::from_secs(16))
+            .expect("instant subtraction");
+        batch(&port);
+        assert_eq!(
+            reader.calls.load(Ordering::SeqCst),
+            2,
+            "provider TTL must expire this quote before refetching"
+        );
     }
 
     #[test]
