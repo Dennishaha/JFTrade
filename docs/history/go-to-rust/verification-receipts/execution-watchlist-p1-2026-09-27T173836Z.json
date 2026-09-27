@@ -1,0 +1,100 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "-p",
+    "jftrade-store-sqlite",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(catalog_activity_paging_and_filters_match_go_boundaries) or test(execution_write_fixture_replays_all_seven_go_owned_mutations) or test(execution_write_product_replays_browser_boundary_failure_recovery_and_restart) or test(production_http_broker_reads_serialize_empty_collections_as_arrays) or test(watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog) or test(watchlist_write_fixture_matches_go_owner_for_all_eight_routes) or test(malformed_membership_and_commit_bodies_are_rejected) or test(watchlist_read_routes_match_group_fixture_in_cutover_only)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-27T17:38:36Z",
+  "sourceState": {
+    "verifiedCommit": "091f5b02",
+    "trackedDiffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "untrackedFiles": []
+  },
+  "rawOutputSha256": "1b38fb1e8e8f82dc63195f58de9306538c0163f8a0c2e5883749205fd64d5bc3",
+  "passedTests": [
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_strategy::product_production_ports_strategy_runtime::strategy_runtime_activity::tests::catalog_activity_paging_and_filters_match_go_boundaries",
+    "jftrade-engine::strategy_runtime_lifecycle_bounded_tests$strategy_runtime::strategy_runtime_activity::tests::catalog_activity_paging_and_filters_match_go_boundaries",
+    "jftrade-engine::execution_write_compatibility$execution_write_fixture_replays_all_seven_go_owned_mutations",
+    "jftrade-engine::jftrade_engine$product::tests::execution_write_product_tests::execution_write_product_replays_browser_boundary_failure_recovery_and_restart",
+    "jftrade-engine::jftrade_engine$product::tests::production_assembly_tests::product_production_assembly_tests::production_http_broker_reads_serialize_empty_collections_as_arrays",
+    "jftrade-store-sqlite::watchlist_store_contracts$watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog",
+    "jftrade-engine::watchlist_write_compatibility$product_watchlist_write_port::tests::malformed_membership_and_commit_bodies_are_rejected",
+    "jftrade-engine::watchlist_write_compatibility$watchlist_write_fixture_matches_go_owner_for_all_eight_routes",
+    "jftrade-engine::jftrade_engine$product::tests::watchlist_read_tests::watchlist_read_routes_match_group_fixture_in_cutover_only",
+    "jftrade-engine::jftrade_engine$product::product_watchlist_write_port::tests::malformed_membership_and_commit_bodies_are_rejected"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "filtered_out": 1629,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered_out": 7,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "watchlist_write_compatibility",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "filtered_out": 57,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "strategy_runtime_lifecycle_bounded_tests",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "filtered_out": 4,
+      "nextest": {
+        "crate": "jftrade-store-sqlite",
+        "test_binary": "watchlist_store_contracts",
+        "kind": "test"
+      }
+    }
+  ]
+}
