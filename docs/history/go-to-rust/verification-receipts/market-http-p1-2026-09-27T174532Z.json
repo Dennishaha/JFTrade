@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": ["env","NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1","node","scripts/quality/cargo-nextest.mjs","run","-p","jftrade-engine","--all-targets","--locked","--message-format","libtest-json-plus","--no-fail-fast","-E","test(us_intraday_futu_candles_carry_calendar_resolved_session_labels) or test(candle_route_classifies_unknown_us_session_as_a_data_error) or test(snapshot_route_serves_a_fresh_cache_hit_without_provider_access) or test(snapshot_route_queries_the_provider_once_on_cache_miss) or test(snapshot_route_force_refresh_bypasses_the_cache)"],
+  "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-27T17:45:32Z",
+  "sourceState": {"verifiedCommit":"47f4ea33","trackedDiffSha256":"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855","untrackedFiles":[]},
+  "rawOutputSha256": "af28b6881f007b20b5e96f4d2f35ac2fedff459ec4ae65158bef3fa2c720260f",
+  "passedTests": [
+    "jftrade-engine::jftrade_engine$product::tests::market_data_quote_read_tests::candle_pagination_tests::us_intraday_futu_candles_carry_calendar_resolved_session_labels",
+    "jftrade-engine::jftrade_engine$product::tests::market_data_quote_read_tests::candle_pagination_tests::candle_route_classifies_unknown_us_session_as_a_data_error",
+    "jftrade-engine::jftrade_engine$product::tests::market_data_quote_read_tests::snapshot_route_serves_a_fresh_cache_hit_without_provider_access",
+    "jftrade-engine::jftrade_engine$product::tests::market_data_quote_read_tests::snapshot_route_queries_the_provider_once_on_cache_miss",
+    "jftrade-engine::jftrade_engine$product::tests::market_data_quote_read_tests::snapshot_route_force_refresh_bypasses_the_cache"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [{"type":"suite","event":"ok","passed":5,"failed":0,"ignored":0,"filtered_out":1629,"nextest":{"crate":"jftrade-engine","test_binary":"jftrade_engine","kind":"lib"}}]
+}

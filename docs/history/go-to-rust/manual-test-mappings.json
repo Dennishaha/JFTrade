@@ -32954,7 +32954,7 @@
       "evidence_type": "function_exact",
       "rust_entry": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::us_intraday_futu_candles_carry_calendar_resolved_session_labels",
       "conclusion": "function_exact：无 sessions 参数时按 Go 的 US 日内默认 regular+extended+overnight 解析，逐根 K 线由交易所日历标注 pre/regular/after/overnight，meta.session=all、extendedHours=true。本轮修复读取 owner 的默认会话集合。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(us_intraday_futu_candles_carry_calendar_resolved_session_labels)'",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(us_intraday_futu_candles_carry_calendar_resolved_session_labels) or test(candle_route_classifies_unknown_us_session_as_a_data_error) or test(snapshot_route_serves_a_fresh_cache_hit_without_provider_access) or test(snapshot_route_queries_the_provider_once_on_cache_miss) or test(snapshot_route_force_refresh_bypasses_the_cache)'",
       "source": {
         "file": "internal/app/apiserver/marketdataapp/market_http_test.go",
         "line": 18,
@@ -32979,7 +32979,7 @@
           "function_exact：无 sessions 参数时按 Go 的 US 日内默认 regular+extended+overnight 解析，逐根 K 线由交易所日历标注 pre/regular/after/overnight，meta.session=all、extendedHours=true。本轮修复读取 owner 的默认会话集合。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -32994,23 +32994,25 @@
           "test(us_intraday_futu_candles_carry_calendar_resolved_session_labels)"
         ],
         "testFilter": [
-          "us_intraday_futu_candles_carry_calendar_resolved_session_labels"
+          "us_intraday_futu_candles_carry_calendar_resolved_session_labels",
+          "candle_route_classifies_unknown_us_session_as_a_data_error",
+          "snapshot_route_serves_a_fresh_cache_hit_without_provider_access",
+          "snapshot_route_queries_the_provider_once_on_cache_miss",
+          "snapshot_route_force_refresh_bypasses_the_cache"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "7df2e82b",
-        "verifiedAt": "2026-09-25T12:13:32Z",
-        "receiptDigest": null
+        "verifiedCommit": "47f4ea33",
+        "verifiedAt": "2026-09-27T17:45:32Z",
+        "receiptDigest": "sha256:4c4bec4be84d55d241713c361ec13c8feb7011c4863b51821d1b51df8c679a80"
       },
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：无 sessions 参数时按 Go 的 US 日内默认 regular+extended+overnight 解析，逐根 K 线由交易所日历标注 pre/regular/after/overnight，meta.session=all、extendedHours=true。本轮修复读取 owner 的默认会话集合。"
@@ -33157,7 +33159,7 @@
       "evidence_type": "function_exact",
       "rust_entry": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::candle_route_classifies_unknown_us_session_as_a_data_error",
       "conclusion": "function_exact：Unbounded US intraday 读取走 Go 的 adaptive 路径（QueryAllKLinesForSessions），路由计划对 RTH/OVERNIGHT 强制 session 标签，落在所有 session 之外的 bar 因此会穿过路由过滤、在逐根标注时被 market.ClassifySession 判为 closed，返回 `candle 0: unable to classify K-line session at <ts>` 而不是静默省略 session 字段。冻结 Go 探针确认：周日 bar（2026-05-24）与周六 bar 都以该错误失败，显式 sessions=regular 亦然，而 bounded from/to + 可分类的 after-hours bar → candles=[] 且 err=nil（见 exchange_kline_test.go:150 行）。Rust 修复：filter_routed_page 保留无法分类的 bar（否则静默返回空页），由 futu_candle_session_checked 在 annotate_session 为真时报 Unavailable；merge_current_bucket 的 bounded_window 门保证 adaptive 路径不再二次过滤。探针回退 filter_routed_page 的保留分支即转红。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(candle_route_classifies_unknown_us_session_as_a_data_error)'",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(us_intraday_futu_candles_carry_calendar_resolved_session_labels) or test(candle_route_classifies_unknown_us_session_as_a_data_error) or test(snapshot_route_serves_a_fresh_cache_hit_without_provider_access) or test(snapshot_route_queries_the_provider_once_on_cache_miss) or test(snapshot_route_force_refresh_bypasses_the_cache)'",
       "source": {
         "file": "internal/app/apiserver/marketdataapp/market_http_test.go",
         "line": 150,
@@ -33182,7 +33184,7 @@
           "function_exact：Unbounded US intraday 读取走 Go 的 adaptive 路径（QueryAllKLinesForSessions），路由计划对 RTH/OVERNIGHT 强制 session 标签，落在所有 session 之外的 bar 因此会穿过路由过滤、在逐根标注时被 market.ClassifySession 判为 closed，返回 `candle 0: unable to classify K-line session at <ts>` 而不是静默省略 session 字段。冻结 Go 探针确认：周日 bar（2026-05-24）与周六 bar 都以该错误失败，显式 sessions=regular 亦然，而 bounded from/to + 可分类的 after-hours bar → candles=[] 且 err=nil（见 exchange_kline_test.go:150 行）。Rust 修复：filter_routed_page 保留无法分类的 bar（否则静默返回空页），由 futu_candle_session_checked 在 annotate_session 为真时报 Unavailable；merge_current_bucket 的 bounded_window 门保证 adaptive 路径不再二次过滤。探针回退 filter_routed_page 的保留分支即转红。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -33197,23 +33199,25 @@
           "test(candle_route_classifies_unknown_us_session_as_a_data_error)"
         ],
         "testFilter": [
-          "candle_route_classifies_unknown_us_session_as_a_data_error"
+          "us_intraday_futu_candles_carry_calendar_resolved_session_labels",
+          "candle_route_classifies_unknown_us_session_as_a_data_error",
+          "snapshot_route_serves_a_fresh_cache_hit_without_provider_access",
+          "snapshot_route_queries_the_provider_once_on_cache_miss",
+          "snapshot_route_force_refresh_bypasses_the_cache"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "7df2e82b",
-        "verifiedAt": "2026-09-25T12:13:32Z",
-        "receiptDigest": null
+        "verifiedCommit": "47f4ea33",
+        "verifiedAt": "2026-09-27T17:45:32Z",
+        "receiptDigest": "sha256:4c4bec4be84d55d241713c361ec13c8feb7011c4863b51821d1b51df8c679a80"
       },
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：Unbounded US intraday 读取走 Go 的 adaptive 路径（QueryAllKLinesForSessions），路由计划对 RTH/OVERNIGHT 强制 session 标签，落在所有 session 之外的 bar 因此会穿过路由过滤、在逐根标注时被 market.ClassifySession 判为 closed，返回 `candle 0: unable to classify K-line session at <ts>` 而不是静默省略 session 字段。冻结 Go 探针确认：周日 bar（2026-05-24）与周六 bar 都以该错误失败，显式 sessions=regular 亦然，而 bounded from/to + 可分类的 after-hours bar → candles=[] 且 err=nil（见 exchange_kline_test.go:150 行）。Rust 修复：filter_routed_page 保留无法分类的 bar（否则静默返回空页），由 futu_candle_session_checked 在 annotate_session 为真时报 Unavailable；merge_current_bucket 的 bounded_window 门保证 adaptive 路径不再二次过滤。探针回退 filter_routed_page 的保留分支即转红。"
@@ -33226,7 +33230,7 @@
       "evidence_type": "function_exact",
       "rust_entry": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::snapshot_route_serves_a_fresh_cache_hit_without_provider_access",
       "conclusion": "Go 以 Service.Seed 注入 HK.00700 tick 后读快照，断言 meta.fromCache=true、source 为缓存样本来源、snapshot.at 等于样本 ObservedAt，并保留 turnover/volume 字符串。Rust 用同一 router 缓存 + SNAPSHOT lease 复现：断言 fromCache=true、price/bid/ask/previousClosePrice/turnover/volume 与 at 全部来自缓存样本。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(snapshot_route_serves_a_fresh_cache_hit_without_provider_access)'",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(us_intraday_futu_candles_carry_calendar_resolved_session_labels) or test(candle_route_classifies_unknown_us_session_as_a_data_error) or test(snapshot_route_serves_a_fresh_cache_hit_without_provider_access) or test(snapshot_route_queries_the_provider_once_on_cache_miss) or test(snapshot_route_force_refresh_bypasses_the_cache)'",
       "source": {
         "file": "internal/app/apiserver/marketdataapp/market_http_test.go",
         "line": 245,
@@ -33251,7 +33255,7 @@
           "Go 以 Service.Seed 注入 HK.00700 tick 后读快照，断言 meta.fromCache=true、source 为缓存样本来源、snapshot.at 等于样本 ObservedAt，并保留 turnover/volume 字符串。Rust 用同一 router 缓存 + SNAPSHOT lease 复现：断言 fromCache=true、price/bid/ask/previousClosePrice/turnover/volume 与 at 全部来自缓存样本。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -33266,23 +33270,25 @@
           "test(snapshot_route_serves_a_fresh_cache_hit_without_provider_access)"
         ],
         "testFilter": [
-          "snapshot_route_serves_a_fresh_cache_hit_without_provider_access"
+          "us_intraday_futu_candles_carry_calendar_resolved_session_labels",
+          "candle_route_classifies_unknown_us_session_as_a_data_error",
+          "snapshot_route_serves_a_fresh_cache_hit_without_provider_access",
+          "snapshot_route_queries_the_provider_once_on_cache_miss",
+          "snapshot_route_force_refresh_bypasses_the_cache"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "7df2e82b",
-        "verifiedAt": "2026-09-25T12:13:32Z",
-        "receiptDigest": null
+        "verifiedCommit": "47f4ea33",
+        "verifiedAt": "2026-09-27T17:45:32Z",
+        "receiptDigest": "sha256:4c4bec4be84d55d241713c361ec13c8feb7011c4863b51821d1b51df8c679a80"
       },
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "Go 以 Service.Seed 注入 HK.00700 tick 后读快照，断言 meta.fromCache=true、source 为缓存样本来源、snapshot.at 等于样本 ObservedAt，并保留 turnover/volume 字符串。Rust 用同一 router 缓存 + SNAPSHOT lease 复现：断言 fromCache=true、price/bid/ask/previousClosePrice/turnover/volume 与 at 全部来自缓存样本。"
@@ -33295,7 +33301,7 @@
       "evidence_type": "function_exact",
       "rust_entry": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::snapshot_route_queries_the_provider_once_on_cache_miss",
       "conclusion": "function_exact：无缓存样本时恰好调用一次 provider 快照（计数 fixture 断言 calls==1 且 instrument=HK.00700），返回 meta.fromCache=false 与实时价格/成交量。本轮同时修复快照缓存新鲜度：Go 只接受 TickFreshness(1.5s) 内的 Fresh，Rust 此前把 30s 内 Stale 也当命中，导致 cache miss 不查 provider。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(snapshot_route_queries_the_provider_once_on_cache_miss)'",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(us_intraday_futu_candles_carry_calendar_resolved_session_labels) or test(candle_route_classifies_unknown_us_session_as_a_data_error) or test(snapshot_route_serves_a_fresh_cache_hit_without_provider_access) or test(snapshot_route_queries_the_provider_once_on_cache_miss) or test(snapshot_route_force_refresh_bypasses_the_cache)'",
       "source": {
         "file": "internal/app/apiserver/marketdataapp/market_http_test.go",
         "line": 306,
@@ -33320,7 +33326,7 @@
           "function_exact：无缓存样本时恰好调用一次 provider 快照（计数 fixture 断言 calls==1 且 instrument=HK.00700），返回 meta.fromCache=false 与实时价格/成交量。本轮同时修复快照缓存新鲜度：Go 只接受 TickFreshness(1.5s) 内的 Fresh，Rust 此前把 30s 内 Stale 也当命中，导致 cache miss 不查 provider。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -33335,23 +33341,25 @@
           "test(snapshot_route_queries_the_provider_once_on_cache_miss)"
         ],
         "testFilter": [
-          "snapshot_route_queries_the_provider_once_on_cache_miss"
+          "us_intraday_futu_candles_carry_calendar_resolved_session_labels",
+          "candle_route_classifies_unknown_us_session_as_a_data_error",
+          "snapshot_route_serves_a_fresh_cache_hit_without_provider_access",
+          "snapshot_route_queries_the_provider_once_on_cache_miss",
+          "snapshot_route_force_refresh_bypasses_the_cache"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "7df2e82b",
-        "verifiedAt": "2026-09-25T12:13:32Z",
-        "receiptDigest": null
+        "verifiedCommit": "47f4ea33",
+        "verifiedAt": "2026-09-27T17:45:32Z",
+        "receiptDigest": "sha256:4c4bec4be84d55d241713c361ec13c8feb7011c4863b51821d1b51df8c679a80"
       },
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：无缓存样本时恰好调用一次 provider 快照（计数 fixture 断言 calls==1 且 instrument=HK.00700），返回 meta.fromCache=false 与实时价格/成交量。本轮同时修复快照缓存新鲜度：Go 只接受 TickFreshness(1.5s) 内的 Fresh，Rust 此前把 30s 内 Stale 也当命中，导致 cache miss 不查 provider。"
@@ -33364,7 +33372,7 @@
       "evidence_type": "function_exact",
       "rust_entry": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::snapshot_route_force_refresh_bypasses_the_cache",
       "conclusion": "Go 在缓存中 Seed 999.9 后请求 refresh=true，断言仍调用一次 GetBasicQot 并返回 provider 价 321.4（fromCache=false）。Rust 修复了真实差异：read_snapshots 之前忽略 refresh 直接命中缓存，现在 refresh=true 跳过 cache.Lookup；测试断言强制刷新不会泄漏缓存价 999.9，refresh=false 仍返回缓存样本。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(snapshot_route_force_refresh_bypasses_the_cache)'",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(us_intraday_futu_candles_carry_calendar_resolved_session_labels) or test(candle_route_classifies_unknown_us_session_as_a_data_error) or test(snapshot_route_serves_a_fresh_cache_hit_without_provider_access) or test(snapshot_route_queries_the_provider_once_on_cache_miss) or test(snapshot_route_force_refresh_bypasses_the_cache)'",
       "source": {
         "file": "internal/app/apiserver/marketdataapp/market_http_test.go",
         "line": 330,
@@ -33389,7 +33397,7 @@
           "Go 在缓存中 Seed 999.9 后请求 refresh=true，断言仍调用一次 GetBasicQot 并返回 provider 价 321.4（fromCache=false）。Rust 修复了真实差异：read_snapshots 之前忽略 refresh 直接命中缓存，现在 refresh=true 跳过 cache.Lookup；测试断言强制刷新不会泄漏缓存价 999.9，refresh=false 仍返回缓存样本。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -33404,23 +33412,25 @@
           "test(snapshot_route_force_refresh_bypasses_the_cache)"
         ],
         "testFilter": [
+          "us_intraday_futu_candles_carry_calendar_resolved_session_labels",
+          "candle_route_classifies_unknown_us_session_as_a_data_error",
+          "snapshot_route_serves_a_fresh_cache_hit_without_provider_access",
+          "snapshot_route_queries_the_provider_once_on_cache_miss",
           "snapshot_route_force_refresh_bypasses_the_cache"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "7df2e82b",
-        "verifiedAt": "2026-09-25T12:13:32Z",
-        "receiptDigest": null
+        "verifiedCommit": "47f4ea33",
+        "verifiedAt": "2026-09-27T17:45:32Z",
+        "receiptDigest": "sha256:4c4bec4be84d55d241713c361ec13c8feb7011c4863b51821d1b51df8c679a80"
       },
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "Go 在缓存中 Seed 999.9 后请求 refresh=true，断言仍调用一次 GetBasicQot 并返回 provider 价 321.4（fromCache=false）。Rust 修复了真实差异：read_snapshots 之前忽略 refresh 直接命中缓存，现在 refresh=true 跳过 cache.Lookup；测试断言强制刷新不会泄漏缓存价 999.9，refresh=false 仍返回缓存样本。"
