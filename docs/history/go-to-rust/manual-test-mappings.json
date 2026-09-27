@@ -298472,8 +298472,9 @@
         "internal/assistant/engine/workflowexec/goal_state_boundaries_test.go:16:TestGoalWorkflowStateBoundariesFailClosedAndRemainResumable",
         "internal/assistant/engine/workflowexec/workflow_approval_recovery_boundaries_test.go:11:TestWorkflowApprovalRecoveryReturnsPausedSaveFailure"
       ],
-      "allowed": false,
-      "reviewStatus": "unreviewed"
+      "allowed": true,
+      "reviewStatus": "reviewed",
+      "reviewNote": "Exact reference internal/api/assistant/routes_payload_pagination_test.go:80 is equivalent: the Rust production HTTP test asserts goal-loop pause 200 with user_pause_requested, chat pause/resume 400 with their Go error codes, and chat objective update rejection. The five engine/workflow references remain partial: root-goal boundaries, missing-decision continuation, active-parent objective checks, iteration/interruption recovery, and paused-save failure are not claimed by this route test."
     },
     "crates/jftrade-engine/src/product_adk_mutation_product_tests.rs::goal_pause_rejects_child_runs_and_resume_reports_missing_runs": {
       "referenceCount": 3,
@@ -298601,8 +298602,9 @@
         "internal/api/assistant/adk_approval_test.go:335:TestADKRunCancelAndFilteredList",
         "internal/assistant/service_business_test.go:433:TestServiceRunLifecycleAndApprovalWrappers"
       ],
-      "allowed": false,
-      "reviewStatus": "unreviewed"
+      "allowed": true,
+      "reviewStatus": "reviewed",
+      "reviewNote": "Exact reference internal/api/assistant/adk_approval_test.go:335 is equivalent: the Rust owner seeds CANCELLED/agent-1 and COMPLETED/agent-2, applies status+agentId before pagination, and asserts total, cardinality, id, and status. The service_business reference remains partial: its lifecycle/approval wrapper assertions are not claimed by this shared read test."
     },
     "crates/jftrade-engine/src/product_adk_run_timeout.rs::assistant_run_timeout_falls_back_to_the_reference_default_window": {
       "referenceCount": 3,
@@ -302170,8 +302172,9 @@
         "internal/api/assistant/input_response_test.go:12:TestRunInputResponseErrorAndRetryContracts",
         "internal/assistant/engine/input_request_test.go:225:TestResolveRunInputStoreErrors"
       ],
-      "allowed": false,
-      "reviewStatus": "unreviewed"
+      "allowed": true,
+      "reviewStatus": "reviewed",
+      "reviewNote": "Exact reference internal/api/assistant/input_response_test.go:12 is equivalent: the Rust owner asserts missing-run 404/NOT_FOUND, requestId mismatch 409/ADK_INPUT_RESPONSE_CONFLICT, invalid answers, and retry behavior. The input_request reference remains partial: nil-store, empty-id, closed-store, missing-table, and corrupt-payload branches are not claimed by this production port test."
     },
     "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_respond_to_input_strict_validation_idempotency_and_conflict": {
       "referenceCount": 1,
