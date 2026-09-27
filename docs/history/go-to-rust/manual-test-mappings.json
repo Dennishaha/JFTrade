@@ -755,7 +755,7 @@
     "internal/api/assistant/adk_approval_test.go:335:TestADKRunCancelAndFilteredList": {
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/product_adk_read_tests.rs::tests::adk_runs_route_filters_by_status_and_agent_id",
-      "conclusion": "function_exact：CANCELLED/agent-1 与 COMPLETED/agent-2 两条 run，GET /api/v1/adk/runs?status=CANCELLED&agentId=agent-1&limit=1 断言 page.total=1 且仅返回 run-cancel；本轮修复 read owner 的 runs status/agentId/sessionId 过滤。",
+      "conclusion": "function_exact：CANCELLED/agent-1 与 COMPLETED/agent-2 两条 run，GET /api/v1/adk/runs?status=CANCELLED&agentId=agent-1&limit=1 断言 page.total=1 且仅返回 run-cancel；本轮修复 read owner 的 runs status/agentId/sessionId 过滤。 本批 strict follow-up 已人工复核 Go/Rust 断言，使用 9 条联合 nextest receipt sha256:957567912dd2892f7ce3e171ed47e16f78f8ce32d08eb1e9aeac39197c3b73b1。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
       "evidence_type": "function_exact",
       "source": {
@@ -782,44 +782,41 @@
           "function_exact：CANCELLED/agent-1 与 COMPLETED/agent-2 两条 run，GET /api/v1/adk/runs?status=CANCELLED&agentId=agent-1&limit=1 断言 page.total=1 且仅返回 run-cancel；本轮修复 read owner 的 runs status/agentId/sessionId 过滤。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
           "-p",
-          "jftrade-integration-futu",
-          "-p",
           "jftrade-engine",
-          "-p",
-          "jftrade-broker",
-          "-p",
-          "jftrade-api",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(cache_returns_cloned_snapshots_only_within_requested_age) or test(margin_ratio_cache_returns_defensive_clones_and_ignores_empty_keys) or test(margin_ratios_fall_back_to_recent_cache_only_for_rate_limit_errors) or test(margin_ratios_surface_invalid_symbol_and_missing_account_input_failures) or test(margin_ratios_use_recent_cache_only_for_rate_limit_errors) or test(normalized_instruments_accepts_empty_symbol_list) or test(basic_quote_query_requires_subscription_and_maps_success_rejection_and_empty) or test(basic_quote_query_returns_an_empty_list_when_the_success_s2c_is_absent) or test(maps_normalized_requested_rows_and_keeps_the_last_duplicate) or test(tick_candles_report_an_empty_page_when_the_ticker_returns_no_sample) or test(margin_ratio_empty_requests_and_duplicate_symbols_match_go) or test(margin_ratio_unknown_stock_code_extraction_matches_go_boundaries) or test(margin_ratio_projection_sorts_by_symbol_and_reports_market_labels) or test(trade_read_methods_propagate_target_protocol_disconnects) or test(quote_kline_and_order_book_propagate_target_disconnects) or test(trade_write_methods_propagate_write_disconnects) or test(watchlist_reader_cache_expires_at_the_ttl_boundary) or test(watchlist_fresh_read_bypasses_and_replaces_group_and_member_caches) or test(watchlist_fresh_member_read_rechecks_remote_ambiguity) or test(watchlist_reader_rate_limit_applies_only_to_physical_reads) or test(groups_encode_group_type_all_and_project_custom_and_system) or test(watchlist_reader_cache_uses_ttl_and_returns_copies) or test(adk_runs_route_filters_by_status_and_agent_id) or test(adk_read_fixture_preserves_empty_collections_as_json_arrays) or test(optimization_task_http_cancellation_persists_through_production_port_restart) or test(adk_session_detail_omits_resolved_approval_groups) or test(adk_read_pagination_rejects_non_positive_limits_and_negative_offsets) or test(production_live_chat_stream_emits_session_run_and_final_events) or test(adk_provider_save_preserves_request_timeout_ms) or test(adk_session_negative_routes_keep_the_go_error_envelopes) or test(production_adk_public_sessions_use_main_store_and_support_crud) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(challenge_continuation_supervisor_shutdown_blocks_for_all_tasks) or test(test_client_disconnect_returns_499_within_250ms) or test(adk_respond_to_input_maps_the_go_error_codes_and_retries) or test(adk_catalog_session_and_observability_success_contracts_hold) or test(adk_session_run_boundary_status_codes_match_the_go_matrix) or test(adk_chat_route_reports_the_go_error_classification) or test(adk_mutation_routes_reject_malformed_mutation_payloads) or test(adk_read_routes_clamp_pagination_beyond_available_items) or test(assistant_run_mutation_routes_enforce_goal_lifecycle_rules)"
+          "test(adk_runs_route_filters_by_status_and_agent_id) or test(adk_read_fixture_preserves_empty_collections_as_json_arrays) or test(production_live_chat_stream_emits_session_run_and_final_events) or test(adk_session_negative_routes_keep_the_go_error_envelopes) or test(challenge_continuation_supervisor_shutdown_blocks_for_all_tasks) or test(adk_respond_to_input_maps_the_go_error_codes_and_retries) or test(adk_catalog_session_and_observability_success_contracts_hold) or test(adk_chat_route_reports_the_go_error_classification) or test(assistant_run_mutation_routes_enforce_goal_lifecycle_rules)"
         ],
         "testFilter": [
           "adk_runs_route_filters_by_status_and_agent_id"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "70b81662",
-        "verifiedAt": "2026-09-25T13:24:04Z",
-        "receiptDigest": null
+        "verifiedCommit": "2adb2014921973dbd734600549afbd5941c509c2",
+        "verifiedAt": "2026-09-27T11:41:29Z",
+        "receiptDigest": "sha256:957567912dd2892f7ce3e171ed47e16f78f8ce32d08eb1e9aeac39197c3b73b1"
       },
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：CANCELLED/agent-1 与 COMPLETED/agent-2 两条 run，GET /api/v1/adk/runs?status=CANCELLED&agentId=agent-1&limit=1 断言 page.total=1 且仅返回 run-cancel；本轮修复 read owner 的 runs status/agentId/sessionId 过滤。"
@@ -1016,7 +1013,7 @@
     "internal/api/assistant/adk_normalize_test.go:15:TestADKRoutesSerializeEmptySlicesAsArrays": {
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/product_adk_read_tests.rs::tests::adk_read_fixture_preserves_empty_collections_as_json_arrays",
-      "conclusion": "function_exact：runs/sessions 空集合序列化为 JSON 数组（非 null），run detail 的 toolCalls/pendingApprovals 与 session timeline 由同批 fixture 覆盖。",
+      "conclusion": "function_exact：runs/sessions 空集合序列化为 JSON 数组（非 null），run detail 的 toolCalls/pendingApprovals 与 session timeline 由同批 fixture 覆盖。 本批 strict follow-up 已人工复核 Go/Rust 断言，使用 9 条联合 nextest receipt sha256:957567912dd2892f7ce3e171ed47e16f78f8ce32d08eb1e9aeac39197c3b73b1。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
       "evidence_type": "function_exact",
       "source": {
@@ -1043,44 +1040,41 @@
           "function_exact：runs/sessions 空集合序列化为 JSON 数组（非 null），run detail 的 toolCalls/pendingApprovals 与 session timeline 由同批 fixture 覆盖。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
           "-p",
-          "jftrade-integration-futu",
-          "-p",
           "jftrade-engine",
-          "-p",
-          "jftrade-broker",
-          "-p",
-          "jftrade-api",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(cache_returns_cloned_snapshots_only_within_requested_age) or test(margin_ratio_cache_returns_defensive_clones_and_ignores_empty_keys) or test(margin_ratios_fall_back_to_recent_cache_only_for_rate_limit_errors) or test(margin_ratios_surface_invalid_symbol_and_missing_account_input_failures) or test(margin_ratios_use_recent_cache_only_for_rate_limit_errors) or test(normalized_instruments_accepts_empty_symbol_list) or test(basic_quote_query_requires_subscription_and_maps_success_rejection_and_empty) or test(basic_quote_query_returns_an_empty_list_when_the_success_s2c_is_absent) or test(maps_normalized_requested_rows_and_keeps_the_last_duplicate) or test(tick_candles_report_an_empty_page_when_the_ticker_returns_no_sample) or test(margin_ratio_empty_requests_and_duplicate_symbols_match_go) or test(margin_ratio_unknown_stock_code_extraction_matches_go_boundaries) or test(margin_ratio_projection_sorts_by_symbol_and_reports_market_labels) or test(trade_read_methods_propagate_target_protocol_disconnects) or test(quote_kline_and_order_book_propagate_target_disconnects) or test(trade_write_methods_propagate_write_disconnects) or test(watchlist_reader_cache_expires_at_the_ttl_boundary) or test(watchlist_fresh_read_bypasses_and_replaces_group_and_member_caches) or test(watchlist_fresh_member_read_rechecks_remote_ambiguity) or test(watchlist_reader_rate_limit_applies_only_to_physical_reads) or test(groups_encode_group_type_all_and_project_custom_and_system) or test(watchlist_reader_cache_uses_ttl_and_returns_copies) or test(adk_runs_route_filters_by_status_and_agent_id) or test(adk_read_fixture_preserves_empty_collections_as_json_arrays) or test(optimization_task_http_cancellation_persists_through_production_port_restart) or test(adk_session_detail_omits_resolved_approval_groups) or test(adk_read_pagination_rejects_non_positive_limits_and_negative_offsets) or test(production_live_chat_stream_emits_session_run_and_final_events) or test(adk_provider_save_preserves_request_timeout_ms) or test(adk_session_negative_routes_keep_the_go_error_envelopes) or test(production_adk_public_sessions_use_main_store_and_support_crud) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(challenge_continuation_supervisor_shutdown_blocks_for_all_tasks) or test(test_client_disconnect_returns_499_within_250ms) or test(adk_respond_to_input_maps_the_go_error_codes_and_retries) or test(adk_catalog_session_and_observability_success_contracts_hold) or test(adk_session_run_boundary_status_codes_match_the_go_matrix) or test(adk_chat_route_reports_the_go_error_classification) or test(adk_mutation_routes_reject_malformed_mutation_payloads) or test(adk_read_routes_clamp_pagination_beyond_available_items) or test(assistant_run_mutation_routes_enforce_goal_lifecycle_rules)"
+          "test(adk_runs_route_filters_by_status_and_agent_id) or test(adk_read_fixture_preserves_empty_collections_as_json_arrays) or test(production_live_chat_stream_emits_session_run_and_final_events) or test(adk_session_negative_routes_keep_the_go_error_envelopes) or test(challenge_continuation_supervisor_shutdown_blocks_for_all_tasks) or test(adk_respond_to_input_maps_the_go_error_codes_and_retries) or test(adk_catalog_session_and_observability_success_contracts_hold) or test(adk_chat_route_reports_the_go_error_classification) or test(assistant_run_mutation_routes_enforce_goal_lifecycle_rules)"
         ],
         "testFilter": [
           "adk_read_fixture_preserves_empty_collections_as_json_arrays"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "70b81662",
-        "verifiedAt": "2026-09-25T13:24:04Z",
-        "receiptDigest": null
+        "verifiedCommit": "2adb2014921973dbd734600549afbd5941c509c2",
+        "verifiedAt": "2026-09-27T11:41:29Z",
+        "receiptDigest": "sha256:957567912dd2892f7ce3e171ed47e16f78f8ce32d08eb1e9aeac39197c3b73b1"
       },
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：runs/sessions 空集合序列化为 JSON 数组（非 null），run detail 的 toolCalls/pendingApprovals 与 session timeline 由同批 fixture 覆盖。"
@@ -1777,7 +1771,7 @@
     "internal/api/assistant/adk_routes_test.go:245:TestADKChatStreamEmitsSessionRunAndFinalEvents": {
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::production_live_chat_stream_emits_session_run_and_final_events",
-      "conclusion": "function_exact：用 loopback AI Platform 兼容模型端点驱动真实 ProductionAdkChatRuntime + 真实 HTTP 路由，断言 live /api/v1/adk/chat/stream 依次发出 session→run→final，final.response.run.agentId 为已解析 agent，且 final 携带模型回复。本测试暴露并修复了一个 P0 缺陷：ApiStreamSender::send 在 Tokio 运行时内调用 blocking_send 会 panic，导致成功流在 run 之后中止、永远发不出 final；现改为 try_send + 运行时内带 30s 上限的让渡重试（运行时外仍阻塞以保留背压契约）。探针：把 send 还原成 blocking_send → 该测试转红（缺少 final），还原后通过。",
+      "conclusion": "function_exact：用 loopback AI Platform 兼容模型端点驱动真实 ProductionAdkChatRuntime + 真实 HTTP 路由，断言 live /api/v1/adk/chat/stream 依次发出 session→run→final，final.response.run.agentId 为已解析 agent，且 final 携带模型回复。本测试暴露并修复了一个 P0 缺陷：ApiStreamSender::send 在 Tokio 运行时内调用 blocking_send 会 panic，导致成功流在 run 之后中止、永远发不出 final；现改为 try_send + 运行时内带 30s 上限的让渡重试（运行时外仍阻塞以保留背压契约）。探针：把 send 还原成 blocking_send → 该测试转红（缺少 final），还原后通过。 本批 strict follow-up 已人工复核 Go/Rust 断言，使用 9 条联合 nextest receipt sha256:957567912dd2892f7ce3e171ed47e16f78f8ce32d08eb1e9aeac39197c3b73b1。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk)'",
       "evidence_type": "function_exact",
       "source": {
@@ -1804,44 +1798,41 @@
           "function_exact：用 loopback AI Platform 兼容模型端点驱动真实 ProductionAdkChatRuntime + 真实 HTTP 路由，断言 live /api/v1/adk/chat/stream 依次发出 session→run→final，final.response.run.agentId 为已解析 agent，且 final 携带模型回复。本测试暴露并修复了一个 P0 缺陷：ApiStreamSender::send 在 Tokio 运行时内调用 blocking_send 会 panic，导致成功流在 run 之后中止、永远发不出 final；现改为 try_send + 运行时内带 30s 上限的让渡重试（运行时外仍阻塞以保留背压契约）。探针：把 send 还原成 blocking_send → 该测试转红（缺少 final），还原后通过。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
           "-p",
-          "jftrade-integration-futu",
-          "-p",
           "jftrade-engine",
-          "-p",
-          "jftrade-broker",
-          "-p",
-          "jftrade-api",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(cache_returns_cloned_snapshots_only_within_requested_age) or test(margin_ratio_cache_returns_defensive_clones_and_ignores_empty_keys) or test(margin_ratios_fall_back_to_recent_cache_only_for_rate_limit_errors) or test(margin_ratios_surface_invalid_symbol_and_missing_account_input_failures) or test(margin_ratios_use_recent_cache_only_for_rate_limit_errors) or test(normalized_instruments_accepts_empty_symbol_list) or test(basic_quote_query_requires_subscription_and_maps_success_rejection_and_empty) or test(basic_quote_query_returns_an_empty_list_when_the_success_s2c_is_absent) or test(maps_normalized_requested_rows_and_keeps_the_last_duplicate) or test(tick_candles_report_an_empty_page_when_the_ticker_returns_no_sample) or test(margin_ratio_empty_requests_and_duplicate_symbols_match_go) or test(margin_ratio_unknown_stock_code_extraction_matches_go_boundaries) or test(margin_ratio_projection_sorts_by_symbol_and_reports_market_labels) or test(trade_read_methods_propagate_target_protocol_disconnects) or test(quote_kline_and_order_book_propagate_target_disconnects) or test(trade_write_methods_propagate_write_disconnects) or test(watchlist_reader_cache_expires_at_the_ttl_boundary) or test(watchlist_fresh_read_bypasses_and_replaces_group_and_member_caches) or test(watchlist_fresh_member_read_rechecks_remote_ambiguity) or test(watchlist_reader_rate_limit_applies_only_to_physical_reads) or test(groups_encode_group_type_all_and_project_custom_and_system) or test(watchlist_reader_cache_uses_ttl_and_returns_copies) or test(adk_runs_route_filters_by_status_and_agent_id) or test(adk_read_fixture_preserves_empty_collections_as_json_arrays) or test(optimization_task_http_cancellation_persists_through_production_port_restart) or test(adk_session_detail_omits_resolved_approval_groups) or test(adk_read_pagination_rejects_non_positive_limits_and_negative_offsets) or test(production_live_chat_stream_emits_session_run_and_final_events) or test(adk_provider_save_preserves_request_timeout_ms) or test(adk_session_negative_routes_keep_the_go_error_envelopes) or test(production_adk_public_sessions_use_main_store_and_support_crud) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(challenge_continuation_supervisor_shutdown_blocks_for_all_tasks) or test(test_client_disconnect_returns_499_within_250ms) or test(adk_respond_to_input_maps_the_go_error_codes_and_retries) or test(adk_catalog_session_and_observability_success_contracts_hold) or test(adk_session_run_boundary_status_codes_match_the_go_matrix) or test(adk_chat_route_reports_the_go_error_classification) or test(adk_mutation_routes_reject_malformed_mutation_payloads) or test(adk_read_routes_clamp_pagination_beyond_available_items) or test(assistant_run_mutation_routes_enforce_goal_lifecycle_rules)"
+          "test(adk_runs_route_filters_by_status_and_agent_id) or test(adk_read_fixture_preserves_empty_collections_as_json_arrays) or test(production_live_chat_stream_emits_session_run_and_final_events) or test(adk_session_negative_routes_keep_the_go_error_envelopes) or test(challenge_continuation_supervisor_shutdown_blocks_for_all_tasks) or test(adk_respond_to_input_maps_the_go_error_codes_and_retries) or test(adk_catalog_session_and_observability_success_contracts_hold) or test(adk_chat_route_reports_the_go_error_classification) or test(assistant_run_mutation_routes_enforce_goal_lifecycle_rules)"
         ],
         "testFilter": [
           "production_live_chat_stream_emits_session_run_and_final_events"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "70b81662",
-        "verifiedAt": "2026-09-25T13:24:04Z",
-        "receiptDigest": null
+        "verifiedCommit": "2adb2014921973dbd734600549afbd5941c509c2",
+        "verifiedAt": "2026-09-27T11:41:29Z",
+        "receiptDigest": "sha256:957567912dd2892f7ce3e171ed47e16f78f8ce32d08eb1e9aeac39197c3b73b1"
       },
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：用 loopback AI Platform 兼容模型端点驱动真实 ProductionAdkChatRuntime + 真实 HTTP 路由，断言 live /api/v1/adk/chat/stream 依次发出 session→run→final，final.response.run.agentId 为已解析 agent，且 final 携带模型回复。本测试暴露并修复了一个 P0 缺陷：ApiStreamSender::send 在 Tokio 运行时内调用 blocking_send 会 panic，导致成功流在 run 之后中止、永远发不出 final；现改为 try_send + 运行时内带 30s 上限的让渡重试（运行时外仍阻塞以保留背压契约）。探针：把 send 还原成 blocking_send → 该测试转红（缺少 final），还原后通过。"
@@ -2469,7 +2460,7 @@
     "internal/api/assistant/adk_routes_test.go:787:TestADKSessionNegativeRoutes": {
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_session_negative_routes_keep_the_go_error_envelopes",
-      "conclusion": "function_exact：逐条断言 Go 的四个 session 负路径 envelope：missing/disabled agent create 400 BAD_REQUEST/\"enabled agent is required\"、missing session detail 404 NOT_FOUND/\"session not found\"、对已存在 session 的 malformed rename payload 400 BAD_REQUEST/\"invalid session payload\"。非法 %zz 标识符分支由 product_adk_read_tests::adk_read_routes_reject_blank_decoded_identifiers 覆盖。",
+      "conclusion": "function_exact：逐条断言 Go 的四个 session 负路径 envelope：missing/disabled agent create 400 BAD_REQUEST/\"enabled agent is required\"、missing session detail 404 NOT_FOUND/\"session not found\"、对已存在 session 的 malformed rename payload 400 BAD_REQUEST/\"invalid session payload\"。非法 %zz 标识符分支由 product_adk_read_tests::adk_read_routes_reject_blank_decoded_identifiers 覆盖。 本批 strict follow-up 已人工复核 Go/Rust 断言，使用 9 条联合 nextest receipt sha256:957567912dd2892f7ce3e171ed47e16f78f8ce32d08eb1e9aeac39197c3b73b1。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
       "evidence_type": "function_exact",
       "source": {
@@ -2496,44 +2487,41 @@
           "function_exact：逐条断言 Go 的四个 session 负路径 envelope：missing/disabled agent create 400 BAD_REQUEST/\"enabled agent is required\"、missing session detail 404 NOT_FOUND/\"session not found\"、对已存在 session 的 malformed rename payload 400 BAD_REQUEST/\"invalid session payload\"。非法 %zz 标识符分支由 product_adk_read_tests::adk_read_routes_reject_blank_decoded_identifiers 覆盖。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
           "-p",
-          "jftrade-integration-futu",
-          "-p",
           "jftrade-engine",
-          "-p",
-          "jftrade-broker",
-          "-p",
-          "jftrade-api",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(cache_returns_cloned_snapshots_only_within_requested_age) or test(margin_ratio_cache_returns_defensive_clones_and_ignores_empty_keys) or test(margin_ratios_fall_back_to_recent_cache_only_for_rate_limit_errors) or test(margin_ratios_surface_invalid_symbol_and_missing_account_input_failures) or test(margin_ratios_use_recent_cache_only_for_rate_limit_errors) or test(normalized_instruments_accepts_empty_symbol_list) or test(basic_quote_query_requires_subscription_and_maps_success_rejection_and_empty) or test(basic_quote_query_returns_an_empty_list_when_the_success_s2c_is_absent) or test(maps_normalized_requested_rows_and_keeps_the_last_duplicate) or test(tick_candles_report_an_empty_page_when_the_ticker_returns_no_sample) or test(margin_ratio_empty_requests_and_duplicate_symbols_match_go) or test(margin_ratio_unknown_stock_code_extraction_matches_go_boundaries) or test(margin_ratio_projection_sorts_by_symbol_and_reports_market_labels) or test(trade_read_methods_propagate_target_protocol_disconnects) or test(quote_kline_and_order_book_propagate_target_disconnects) or test(trade_write_methods_propagate_write_disconnects) or test(watchlist_reader_cache_expires_at_the_ttl_boundary) or test(watchlist_fresh_read_bypasses_and_replaces_group_and_member_caches) or test(watchlist_fresh_member_read_rechecks_remote_ambiguity) or test(watchlist_reader_rate_limit_applies_only_to_physical_reads) or test(groups_encode_group_type_all_and_project_custom_and_system) or test(watchlist_reader_cache_uses_ttl_and_returns_copies) or test(adk_runs_route_filters_by_status_and_agent_id) or test(adk_read_fixture_preserves_empty_collections_as_json_arrays) or test(optimization_task_http_cancellation_persists_through_production_port_restart) or test(adk_session_detail_omits_resolved_approval_groups) or test(adk_read_pagination_rejects_non_positive_limits_and_negative_offsets) or test(production_live_chat_stream_emits_session_run_and_final_events) or test(adk_provider_save_preserves_request_timeout_ms) or test(adk_session_negative_routes_keep_the_go_error_envelopes) or test(production_adk_public_sessions_use_main_store_and_support_crud) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(challenge_continuation_supervisor_shutdown_blocks_for_all_tasks) or test(test_client_disconnect_returns_499_within_250ms) or test(adk_respond_to_input_maps_the_go_error_codes_and_retries) or test(adk_catalog_session_and_observability_success_contracts_hold) or test(adk_session_run_boundary_status_codes_match_the_go_matrix) or test(adk_chat_route_reports_the_go_error_classification) or test(adk_mutation_routes_reject_malformed_mutation_payloads) or test(adk_read_routes_clamp_pagination_beyond_available_items) or test(assistant_run_mutation_routes_enforce_goal_lifecycle_rules)"
+          "test(adk_runs_route_filters_by_status_and_agent_id) or test(adk_read_fixture_preserves_empty_collections_as_json_arrays) or test(production_live_chat_stream_emits_session_run_and_final_events) or test(adk_session_negative_routes_keep_the_go_error_envelopes) or test(challenge_continuation_supervisor_shutdown_blocks_for_all_tasks) or test(adk_respond_to_input_maps_the_go_error_codes_and_retries) or test(adk_catalog_session_and_observability_success_contracts_hold) or test(adk_chat_route_reports_the_go_error_classification) or test(assistant_run_mutation_routes_enforce_goal_lifecycle_rules)"
         ],
         "testFilter": [
           "adk_session_negative_routes_keep_the_go_error_envelopes"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "70b81662",
-        "verifiedAt": "2026-09-25T13:24:04Z",
-        "receiptDigest": null
+        "verifiedCommit": "2adb2014921973dbd734600549afbd5941c509c2",
+        "verifiedAt": "2026-09-27T11:41:29Z",
+        "receiptDigest": "sha256:957567912dd2892f7ce3e171ed47e16f78f8ce32d08eb1e9aeac39197c3b73b1"
       },
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：逐条断言 Go 的四个 session 负路径 envelope：missing/disabled agent create 400 BAD_REQUEST/\"enabled agent is required\"、missing session detail 404 NOT_FOUND/\"session not found\"、对已存在 session 的 malformed rename payload 400 BAD_REQUEST/\"invalid session payload\"。非法 %zz 标识符分支由 product_adk_read_tests::adk_read_routes_reject_blank_decoded_identifiers 覆盖。"
@@ -3599,7 +3587,7 @@
     "internal/api/assistant/chat_stream_lifecycle_test.go:9:TestHandlerCloseCancelsAndJoinsBackgroundExecutions": {
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_fencing_tests.rs::challenge_continuation_supervisor_shutdown_blocks_for_all_tasks",
-      "conclusion": "function_exact：Go 的 Handler.Close 语义（取消后台执行、等待其退出、关闭后拒绝再启动、重复 Close 幂等）在 Rust 由 ContinuationSupervisor 承接：shutdown 阻塞到全部任务完成、所有任务观测取消信号、关闭后 spawn 失败、并发 spawn/shutdown 竞态不泄漏；配套 witness 为 challenge_continuation_supervisor_cancellation_signal_propagates 与 challenge_continuation_supervisor_concurrent_spawn_shutdown_race。Rust 没有 Go 的独立 background context/WaitGroup 结构，等价保证落在 supervisor 的 stopping 闸门 + CompletionBarrier join。",
+      "conclusion": "function_exact：Go 的 Handler.Close 语义（取消后台执行、等待其退出、关闭后拒绝再启动、重复 Close 幂等）在 Rust 由 ContinuationSupervisor 承接：shutdown 阻塞到全部任务完成、所有任务观测取消信号、关闭后 spawn 失败、并发 spawn/shutdown 竞态不泄漏；配套 witness 为 challenge_continuation_supervisor_cancellation_signal_propagates 与 challenge_continuation_supervisor_concurrent_spawn_shutdown_race。Rust 没有 Go 的独立 background context/WaitGroup 结构，等价保证落在 supervisor 的 stopping 闸门 + CompletionBarrier join。 本批 strict follow-up 已人工复核 Go/Rust 断言，使用 9 条联合 nextest receipt sha256:957567912dd2892f7ce3e171ed47e16f78f8ce32d08eb1e9aeac39197c3b73b1。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
       "evidence_type": "function_exact",
       "source": {
@@ -3626,44 +3614,41 @@
           "function_exact：Go 的 Handler.Close 语义（取消后台执行、等待其退出、关闭后拒绝再启动、重复 Close 幂等）在 Rust 由 ContinuationSupervisor 承接：shutdown 阻塞到全部任务完成、所有任务观测取消信号、关闭后 spawn 失败、并发 spawn/shutdown 竞态不泄漏；配套 witness 为 challenge_continuation_supervisor_cancellation_signal_propagates 与 challenge_continuation_supervisor_concurrent_spawn_shutdown_race。Rust 没有 Go 的独立 background context/WaitGroup 结构，等价保证落在 supervisor 的 stopping 闸门 + CompletionBarrier join。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
           "-p",
-          "jftrade-integration-futu",
-          "-p",
           "jftrade-engine",
-          "-p",
-          "jftrade-broker",
-          "-p",
-          "jftrade-api",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(cache_returns_cloned_snapshots_only_within_requested_age) or test(margin_ratio_cache_returns_defensive_clones_and_ignores_empty_keys) or test(margin_ratios_fall_back_to_recent_cache_only_for_rate_limit_errors) or test(margin_ratios_surface_invalid_symbol_and_missing_account_input_failures) or test(margin_ratios_use_recent_cache_only_for_rate_limit_errors) or test(normalized_instruments_accepts_empty_symbol_list) or test(basic_quote_query_requires_subscription_and_maps_success_rejection_and_empty) or test(basic_quote_query_returns_an_empty_list_when_the_success_s2c_is_absent) or test(maps_normalized_requested_rows_and_keeps_the_last_duplicate) or test(tick_candles_report_an_empty_page_when_the_ticker_returns_no_sample) or test(margin_ratio_empty_requests_and_duplicate_symbols_match_go) or test(margin_ratio_unknown_stock_code_extraction_matches_go_boundaries) or test(margin_ratio_projection_sorts_by_symbol_and_reports_market_labels) or test(trade_read_methods_propagate_target_protocol_disconnects) or test(quote_kline_and_order_book_propagate_target_disconnects) or test(trade_write_methods_propagate_write_disconnects) or test(watchlist_reader_cache_expires_at_the_ttl_boundary) or test(watchlist_fresh_read_bypasses_and_replaces_group_and_member_caches) or test(watchlist_fresh_member_read_rechecks_remote_ambiguity) or test(watchlist_reader_rate_limit_applies_only_to_physical_reads) or test(groups_encode_group_type_all_and_project_custom_and_system) or test(watchlist_reader_cache_uses_ttl_and_returns_copies) or test(adk_runs_route_filters_by_status_and_agent_id) or test(adk_read_fixture_preserves_empty_collections_as_json_arrays) or test(optimization_task_http_cancellation_persists_through_production_port_restart) or test(adk_session_detail_omits_resolved_approval_groups) or test(adk_read_pagination_rejects_non_positive_limits_and_negative_offsets) or test(production_live_chat_stream_emits_session_run_and_final_events) or test(adk_provider_save_preserves_request_timeout_ms) or test(adk_session_negative_routes_keep_the_go_error_envelopes) or test(production_adk_public_sessions_use_main_store_and_support_crud) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(challenge_continuation_supervisor_shutdown_blocks_for_all_tasks) or test(test_client_disconnect_returns_499_within_250ms) or test(adk_respond_to_input_maps_the_go_error_codes_and_retries) or test(adk_catalog_session_and_observability_success_contracts_hold) or test(adk_session_run_boundary_status_codes_match_the_go_matrix) or test(adk_chat_route_reports_the_go_error_classification) or test(adk_mutation_routes_reject_malformed_mutation_payloads) or test(adk_read_routes_clamp_pagination_beyond_available_items) or test(assistant_run_mutation_routes_enforce_goal_lifecycle_rules)"
+          "test(adk_runs_route_filters_by_status_and_agent_id) or test(adk_read_fixture_preserves_empty_collections_as_json_arrays) or test(production_live_chat_stream_emits_session_run_and_final_events) or test(adk_session_negative_routes_keep_the_go_error_envelopes) or test(challenge_continuation_supervisor_shutdown_blocks_for_all_tasks) or test(adk_respond_to_input_maps_the_go_error_codes_and_retries) or test(adk_catalog_session_and_observability_success_contracts_hold) or test(adk_chat_route_reports_the_go_error_classification) or test(assistant_run_mutation_routes_enforce_goal_lifecycle_rules)"
         ],
         "testFilter": [
           "challenge_continuation_supervisor_shutdown_blocks_for_all_tasks"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "70b81662",
-        "verifiedAt": "2026-09-25T13:24:04Z",
-        "receiptDigest": null
+        "verifiedCommit": "2adb2014921973dbd734600549afbd5941c509c2",
+        "verifiedAt": "2026-09-27T11:41:29Z",
+        "receiptDigest": "sha256:957567912dd2892f7ce3e171ed47e16f78f8ce32d08eb1e9aeac39197c3b73b1"
       },
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：Go 的 Handler.Close 语义（取消后台执行、等待其退出、关闭后拒绝再启动、重复 Close 幂等）在 Rust 由 ContinuationSupervisor 承接：shutdown 阻塞到全部任务完成、所有任务观测取消信号、关闭后 spawn 失败、并发 spawn/shutdown 竞态不泄漏；配套 witness 为 challenge_continuation_supervisor_cancellation_signal_propagates 与 challenge_continuation_supervisor_concurrent_spawn_shutdown_race。Rust 没有 Go 的独立 background context/WaitGroup 结构，等价保证落在 supervisor 的 stopping 闸门 + CompletionBarrier join。"
@@ -3946,7 +3931,7 @@
     "internal/api/assistant/input_response_test.go:12:TestRunInputResponseErrorAndRetryContracts": {
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_respond_to_input_maps_the_go_error_codes_and_retries",
-      "conclusion": "function_exact：原 Rust 在 run 缺失与 requestId 不匹配时都返回 ADK_INPUT_REQUEST_NOT_FOUND，与 Go 的 InputRequestErrorKind 分派不一致。修复 product_production_ports_adk_mutation_runtime.rs::respond_to_input：run 缺失改为 404 NOT_FOUND/\"input request not found: {runId}\"，requestId 不匹配改为 409 ADK_INPUT_RESPONSE_CONFLICT；同测试覆盖 400 ADK_INPUT_RESPONSE_INVALID（q1 does not allow other text）与相同答案重试幂等 200。探针回滚两处分支均使测试失败。",
+      "conclusion": "function_exact：原 Rust 在 run 缺失与 requestId 不匹配时都返回 ADK_INPUT_REQUEST_NOT_FOUND，与 Go 的 InputRequestErrorKind 分派不一致。修复 product_production_ports_adk_mutation_runtime.rs::respond_to_input：run 缺失改为 404 NOT_FOUND/\"input request not found: {runId}\"，requestId 不匹配改为 409 ADK_INPUT_RESPONSE_CONFLICT；同测试覆盖 400 ADK_INPUT_RESPONSE_INVALID（q1 does not allow other text）与相同答案重试幂等 200。探针回滚两处分支均使测试失败。 本批 strict follow-up 已人工复核 Go/Rust 断言，使用 9 条联合 nextest receipt sha256:957567912dd2892f7ce3e171ed47e16f78f8ce32d08eb1e9aeac39197c3b73b1。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
       "evidence_type": "function_exact",
       "source": {
@@ -3973,44 +3958,41 @@
           "function_exact：原 Rust 在 run 缺失与 requestId 不匹配时都返回 ADK_INPUT_REQUEST_NOT_FOUND，与 Go 的 InputRequestErrorKind 分派不一致。修复 product_production_ports_adk_mutation_runtime.rs::respond_to_input：run 缺失改为 404 NOT_FOUND/\"input request not found: {runId}\"，requestId 不匹配改为 409 ADK_INPUT_RESPONSE_CONFLICT；同测试覆盖 400 ADK_INPUT_RESPONSE_INVALID（q1 does not allow other text）与相同答案重试幂等 200。探针回滚两处分支均使测试失败。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
           "-p",
-          "jftrade-integration-futu",
-          "-p",
           "jftrade-engine",
-          "-p",
-          "jftrade-broker",
-          "-p",
-          "jftrade-api",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(cache_returns_cloned_snapshots_only_within_requested_age) or test(margin_ratio_cache_returns_defensive_clones_and_ignores_empty_keys) or test(margin_ratios_fall_back_to_recent_cache_only_for_rate_limit_errors) or test(margin_ratios_surface_invalid_symbol_and_missing_account_input_failures) or test(margin_ratios_use_recent_cache_only_for_rate_limit_errors) or test(normalized_instruments_accepts_empty_symbol_list) or test(basic_quote_query_requires_subscription_and_maps_success_rejection_and_empty) or test(basic_quote_query_returns_an_empty_list_when_the_success_s2c_is_absent) or test(maps_normalized_requested_rows_and_keeps_the_last_duplicate) or test(tick_candles_report_an_empty_page_when_the_ticker_returns_no_sample) or test(margin_ratio_empty_requests_and_duplicate_symbols_match_go) or test(margin_ratio_unknown_stock_code_extraction_matches_go_boundaries) or test(margin_ratio_projection_sorts_by_symbol_and_reports_market_labels) or test(trade_read_methods_propagate_target_protocol_disconnects) or test(quote_kline_and_order_book_propagate_target_disconnects) or test(trade_write_methods_propagate_write_disconnects) or test(watchlist_reader_cache_expires_at_the_ttl_boundary) or test(watchlist_fresh_read_bypasses_and_replaces_group_and_member_caches) or test(watchlist_fresh_member_read_rechecks_remote_ambiguity) or test(watchlist_reader_rate_limit_applies_only_to_physical_reads) or test(groups_encode_group_type_all_and_project_custom_and_system) or test(watchlist_reader_cache_uses_ttl_and_returns_copies) or test(adk_runs_route_filters_by_status_and_agent_id) or test(adk_read_fixture_preserves_empty_collections_as_json_arrays) or test(optimization_task_http_cancellation_persists_through_production_port_restart) or test(adk_session_detail_omits_resolved_approval_groups) or test(adk_read_pagination_rejects_non_positive_limits_and_negative_offsets) or test(production_live_chat_stream_emits_session_run_and_final_events) or test(adk_provider_save_preserves_request_timeout_ms) or test(adk_session_negative_routes_keep_the_go_error_envelopes) or test(production_adk_public_sessions_use_main_store_and_support_crud) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(challenge_continuation_supervisor_shutdown_blocks_for_all_tasks) or test(test_client_disconnect_returns_499_within_250ms) or test(adk_respond_to_input_maps_the_go_error_codes_and_retries) or test(adk_catalog_session_and_observability_success_contracts_hold) or test(adk_session_run_boundary_status_codes_match_the_go_matrix) or test(adk_chat_route_reports_the_go_error_classification) or test(adk_mutation_routes_reject_malformed_mutation_payloads) or test(adk_read_routes_clamp_pagination_beyond_available_items) or test(assistant_run_mutation_routes_enforce_goal_lifecycle_rules)"
+          "test(adk_runs_route_filters_by_status_and_agent_id) or test(adk_read_fixture_preserves_empty_collections_as_json_arrays) or test(production_live_chat_stream_emits_session_run_and_final_events) or test(adk_session_negative_routes_keep_the_go_error_envelopes) or test(challenge_continuation_supervisor_shutdown_blocks_for_all_tasks) or test(adk_respond_to_input_maps_the_go_error_codes_and_retries) or test(adk_catalog_session_and_observability_success_contracts_hold) or test(adk_chat_route_reports_the_go_error_classification) or test(assistant_run_mutation_routes_enforce_goal_lifecycle_rules)"
         ],
         "testFilter": [
           "adk_respond_to_input_maps_the_go_error_codes_and_retries"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "70b81662",
-        "verifiedAt": "2026-09-25T13:24:04Z",
-        "receiptDigest": null
+        "verifiedCommit": "2adb2014921973dbd734600549afbd5941c509c2",
+        "verifiedAt": "2026-09-27T11:41:29Z",
+        "receiptDigest": "sha256:957567912dd2892f7ce3e171ed47e16f78f8ce32d08eb1e9aeac39197c3b73b1"
       },
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：原 Rust 在 run 缺失与 requestId 不匹配时都返回 ADK_INPUT_REQUEST_NOT_FOUND，与 Go 的 InputRequestErrorKind 分派不一致。修复 product_production_ports_adk_mutation_runtime.rs::respond_to_input：run 缺失改为 404 NOT_FOUND/\"input request not found: {runId}\"，requestId 不匹配改为 409 ADK_INPUT_RESPONSE_CONFLICT；同测试覆盖 400 ADK_INPUT_RESPONSE_INVALID（q1 does not allow other text）与相同答案重试幂等 200。探针回滚两处分支均使测试失败。"
@@ -4224,7 +4206,7 @@
     "internal/api/assistant/routes_boundary_contracts_test.go:178:TestAssistantCatalogSessionAndObservabilitySuccessContracts": {
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_catalog_session_and_observability_success_contracts_hold",
-      "conclusion": "function_exact：真实生产端口预置 provider/agent/session/run/approval/task/memory/optimization/audit 后，逐条断言 16 条读路由返回 JSON 对象（snapshot/providers/agents/skills/sessions/session detail/runs/run detail/approvals/tasks/task detail/memory/audit/metrics/optimization list+detail），并对 11 条写路由（provider/agent update、session rename、objective、task create/update/delete、memory create/delete、provider delete、session delete）断言成功且返回对象。",
+      "conclusion": "function_exact：真实生产端口预置 provider/agent/session/run/approval/task/memory/optimization/audit 后，逐条断言 16 条读路由返回 JSON 对象（snapshot/providers/agents/skills/sessions/session detail/runs/run detail/approvals/tasks/task detail/memory/audit/metrics/optimization list+detail），并对 11 条写路由（provider/agent update、session rename、objective、task create/update/delete、memory create/delete、provider delete、session delete）断言成功且返回对象。 本批 strict follow-up 已人工复核 Go/Rust 断言，使用 9 条联合 nextest receipt sha256:957567912dd2892f7ce3e171ed47e16f78f8ce32d08eb1e9aeac39197c3b73b1。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
       "evidence_type": "function_exact",
       "source": {
@@ -4251,44 +4233,41 @@
           "function_exact：真实生产端口预置 provider/agent/session/run/approval/task/memory/optimization/audit 后，逐条断言 16 条读路由返回 JSON 对象（snapshot/providers/agents/skills/sessions/session detail/runs/run detail/approvals/tasks/task detail/memory/audit/metrics/optimization list+detail），并对 11 条写路由（provider/agent update、session rename、objective、task create/update/delete、memory create/delete、provider delete、session delete）断言成功且返回对象。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
           "-p",
-          "jftrade-integration-futu",
-          "-p",
           "jftrade-engine",
-          "-p",
-          "jftrade-broker",
-          "-p",
-          "jftrade-api",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(cache_returns_cloned_snapshots_only_within_requested_age) or test(margin_ratio_cache_returns_defensive_clones_and_ignores_empty_keys) or test(margin_ratios_fall_back_to_recent_cache_only_for_rate_limit_errors) or test(margin_ratios_surface_invalid_symbol_and_missing_account_input_failures) or test(margin_ratios_use_recent_cache_only_for_rate_limit_errors) or test(normalized_instruments_accepts_empty_symbol_list) or test(basic_quote_query_requires_subscription_and_maps_success_rejection_and_empty) or test(basic_quote_query_returns_an_empty_list_when_the_success_s2c_is_absent) or test(maps_normalized_requested_rows_and_keeps_the_last_duplicate) or test(tick_candles_report_an_empty_page_when_the_ticker_returns_no_sample) or test(margin_ratio_empty_requests_and_duplicate_symbols_match_go) or test(margin_ratio_unknown_stock_code_extraction_matches_go_boundaries) or test(margin_ratio_projection_sorts_by_symbol_and_reports_market_labels) or test(trade_read_methods_propagate_target_protocol_disconnects) or test(quote_kline_and_order_book_propagate_target_disconnects) or test(trade_write_methods_propagate_write_disconnects) or test(watchlist_reader_cache_expires_at_the_ttl_boundary) or test(watchlist_fresh_read_bypasses_and_replaces_group_and_member_caches) or test(watchlist_fresh_member_read_rechecks_remote_ambiguity) or test(watchlist_reader_rate_limit_applies_only_to_physical_reads) or test(groups_encode_group_type_all_and_project_custom_and_system) or test(watchlist_reader_cache_uses_ttl_and_returns_copies) or test(adk_runs_route_filters_by_status_and_agent_id) or test(adk_read_fixture_preserves_empty_collections_as_json_arrays) or test(optimization_task_http_cancellation_persists_through_production_port_restart) or test(adk_session_detail_omits_resolved_approval_groups) or test(adk_read_pagination_rejects_non_positive_limits_and_negative_offsets) or test(production_live_chat_stream_emits_session_run_and_final_events) or test(adk_provider_save_preserves_request_timeout_ms) or test(adk_session_negative_routes_keep_the_go_error_envelopes) or test(production_adk_public_sessions_use_main_store_and_support_crud) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(challenge_continuation_supervisor_shutdown_blocks_for_all_tasks) or test(test_client_disconnect_returns_499_within_250ms) or test(adk_respond_to_input_maps_the_go_error_codes_and_retries) or test(adk_catalog_session_and_observability_success_contracts_hold) or test(adk_session_run_boundary_status_codes_match_the_go_matrix) or test(adk_chat_route_reports_the_go_error_classification) or test(adk_mutation_routes_reject_malformed_mutation_payloads) or test(adk_read_routes_clamp_pagination_beyond_available_items) or test(assistant_run_mutation_routes_enforce_goal_lifecycle_rules)"
+          "test(adk_runs_route_filters_by_status_and_agent_id) or test(adk_read_fixture_preserves_empty_collections_as_json_arrays) or test(production_live_chat_stream_emits_session_run_and_final_events) or test(adk_session_negative_routes_keep_the_go_error_envelopes) or test(challenge_continuation_supervisor_shutdown_blocks_for_all_tasks) or test(adk_respond_to_input_maps_the_go_error_codes_and_retries) or test(adk_catalog_session_and_observability_success_contracts_hold) or test(adk_chat_route_reports_the_go_error_classification) or test(assistant_run_mutation_routes_enforce_goal_lifecycle_rules)"
         ],
         "testFilter": [
           "adk_catalog_session_and_observability_success_contracts_hold"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "70b81662",
-        "verifiedAt": "2026-09-25T13:24:04Z",
-        "receiptDigest": null
+        "verifiedCommit": "2adb2014921973dbd734600549afbd5941c509c2",
+        "verifiedAt": "2026-09-27T11:41:29Z",
+        "receiptDigest": "sha256:957567912dd2892f7ce3e171ed47e16f78f8ce32d08eb1e9aeac39197c3b73b1"
       },
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：真实生产端口预置 provider/agent/session/run/approval/task/memory/optimization/audit 后，逐条断言 16 条读路由返回 JSON 对象（snapshot/providers/agents/skills/sessions/session detail/runs/run detail/approvals/tasks/task detail/memory/audit/metrics/optimization list+detail），并对 11 条写路由（provider/agent update、session rename、objective、task create/update/delete、memory create/delete、provider delete、session delete）断言成功且返回对象。"
@@ -4707,7 +4686,7 @@
     "internal/api/assistant/routes_payload_pagination_test.go:12:TestAssistantChatRoutesRejectMalformedOrUnresolvableRequests": {
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_chat_route_reports_the_go_error_classification",
-      "conclusion": "function_exact：agentId 缺失时走内建 agent 的 Provider 回退（Go DefaultProvider 取第一个 Provider），空 message 报 400 ADK_CHAT_FAILED/message is required，未知 agent 报 agent not found，DISABLED 与 deletedAt 组合按 Go 先判 status 报 agent is disabled，只有 deletedAt 报 agent is deleted；provider 禁用 / 无 key 分别报 agent provider is unavailable 与 agent provider API keys is not configured；50000 rune 边界按 rune 计数。probe A 证明移除长度校验后该测试转红。",
+      "conclusion": "function_exact：agentId 缺失时走内建 agent 的 Provider 回退（Go DefaultProvider 取第一个 Provider），空 message 报 400 ADK_CHAT_FAILED/message is required，未知 agent 报 agent not found，DISABLED 与 deletedAt 组合按 Go 先判 status 报 agent is disabled，只有 deletedAt 报 agent is deleted；provider 禁用 / 无 key 分别报 agent provider is unavailable 与 agent provider API keys is not configured；50000 rune 边界按 rune 计数。probe A 证明移除长度校验后该测试转红。 本批 strict follow-up 已人工复核 Go/Rust 断言，使用 9 条联合 nextest receipt sha256:957567912dd2892f7ce3e171ed47e16f78f8ce32d08eb1e9aeac39197c3b73b1。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(adk_chat_route_reports_the_go_error_classification)'",
       "evidence_type": "function_exact",
       "source": {
@@ -4734,44 +4713,41 @@
           "function_exact：agentId 缺失时走内建 agent 的 Provider 回退（Go DefaultProvider 取第一个 Provider），空 message 报 400 ADK_CHAT_FAILED/message is required，未知 agent 报 agent not found，DISABLED 与 deletedAt 组合按 Go 先判 status 报 agent is disabled，只有 deletedAt 报 agent is deleted；provider 禁用 / 无 key 分别报 agent provider is unavailable 与 agent provider API keys is not configured；50000 rune 边界按 rune 计数。probe A 证明移除长度校验后该测试转红。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
           "-p",
-          "jftrade-integration-futu",
-          "-p",
           "jftrade-engine",
-          "-p",
-          "jftrade-broker",
-          "-p",
-          "jftrade-api",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(cache_returns_cloned_snapshots_only_within_requested_age) or test(margin_ratio_cache_returns_defensive_clones_and_ignores_empty_keys) or test(margin_ratios_fall_back_to_recent_cache_only_for_rate_limit_errors) or test(margin_ratios_surface_invalid_symbol_and_missing_account_input_failures) or test(margin_ratios_use_recent_cache_only_for_rate_limit_errors) or test(normalized_instruments_accepts_empty_symbol_list) or test(basic_quote_query_requires_subscription_and_maps_success_rejection_and_empty) or test(basic_quote_query_returns_an_empty_list_when_the_success_s2c_is_absent) or test(maps_normalized_requested_rows_and_keeps_the_last_duplicate) or test(tick_candles_report_an_empty_page_when_the_ticker_returns_no_sample) or test(margin_ratio_empty_requests_and_duplicate_symbols_match_go) or test(margin_ratio_unknown_stock_code_extraction_matches_go_boundaries) or test(margin_ratio_projection_sorts_by_symbol_and_reports_market_labels) or test(trade_read_methods_propagate_target_protocol_disconnects) or test(quote_kline_and_order_book_propagate_target_disconnects) or test(trade_write_methods_propagate_write_disconnects) or test(watchlist_reader_cache_expires_at_the_ttl_boundary) or test(watchlist_fresh_read_bypasses_and_replaces_group_and_member_caches) or test(watchlist_fresh_member_read_rechecks_remote_ambiguity) or test(watchlist_reader_rate_limit_applies_only_to_physical_reads) or test(groups_encode_group_type_all_and_project_custom_and_system) or test(watchlist_reader_cache_uses_ttl_and_returns_copies) or test(adk_runs_route_filters_by_status_and_agent_id) or test(adk_read_fixture_preserves_empty_collections_as_json_arrays) or test(optimization_task_http_cancellation_persists_through_production_port_restart) or test(adk_session_detail_omits_resolved_approval_groups) or test(adk_read_pagination_rejects_non_positive_limits_and_negative_offsets) or test(production_live_chat_stream_emits_session_run_and_final_events) or test(adk_provider_save_preserves_request_timeout_ms) or test(adk_session_negative_routes_keep_the_go_error_envelopes) or test(production_adk_public_sessions_use_main_store_and_support_crud) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(challenge_continuation_supervisor_shutdown_blocks_for_all_tasks) or test(test_client_disconnect_returns_499_within_250ms) or test(adk_respond_to_input_maps_the_go_error_codes_and_retries) or test(adk_catalog_session_and_observability_success_contracts_hold) or test(adk_session_run_boundary_status_codes_match_the_go_matrix) or test(adk_chat_route_reports_the_go_error_classification) or test(adk_mutation_routes_reject_malformed_mutation_payloads) or test(adk_read_routes_clamp_pagination_beyond_available_items) or test(assistant_run_mutation_routes_enforce_goal_lifecycle_rules)"
+          "test(adk_runs_route_filters_by_status_and_agent_id) or test(adk_read_fixture_preserves_empty_collections_as_json_arrays) or test(production_live_chat_stream_emits_session_run_and_final_events) or test(adk_session_negative_routes_keep_the_go_error_envelopes) or test(challenge_continuation_supervisor_shutdown_blocks_for_all_tasks) or test(adk_respond_to_input_maps_the_go_error_codes_and_retries) or test(adk_catalog_session_and_observability_success_contracts_hold) or test(adk_chat_route_reports_the_go_error_classification) or test(assistant_run_mutation_routes_enforce_goal_lifecycle_rules)"
         ],
         "testFilter": [
           "adk_chat_route_reports_the_go_error_classification"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "70b81662",
-        "verifiedAt": "2026-09-25T13:24:04Z",
-        "receiptDigest": null
+        "verifiedCommit": "2adb2014921973dbd734600549afbd5941c509c2",
+        "verifiedAt": "2026-09-27T11:41:29Z",
+        "receiptDigest": "sha256:957567912dd2892f7ce3e171ed47e16f78f8ce32d08eb1e9aeac39197c3b73b1"
       },
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：agentId 缺失时走内建 agent 的 Provider 回退（Go DefaultProvider 取第一个 Provider），空 message 报 400 ADK_CHAT_FAILED/message is required，未知 agent 报 agent not found，DISABLED 与 deletedAt 组合按 Go 先判 status 报 agent is disabled，只有 deletedAt 报 agent is deleted；provider 禁用 / 无 key 分别报 agent provider is unavailable 与 agent provider API keys is not configured；50000 rune 边界按 rune 计数。probe A 证明移除长度校验后该测试转红。"
@@ -4924,7 +4900,7 @@
     "internal/api/assistant/routes_payload_pagination_test.go:80:TestAssistantRunMutationRoutesEnforceGoalLifecycleRules": {
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/product_adk_mutation_product_tests.rs::assistant_run_mutation_routes_enforce_goal_lifecycle_rules",
-      "conclusion": "function_exact：真实生产端口 + HTTP 分发逐条断言 Go 的四个分支：goal RUNNING loop run pause 返回 200 且 resumeState=user_pause_requested；chat run 的 pause/resume 分别 400 ADK_RUN_PAUSE_FAILED / ADK_RUN_RESUME_FAILED；chat run objective 更新 400 ADK_RUN_OBJECTIVE_UPDATE_FAILED。",
+      "conclusion": "function_exact：真实生产端口 + HTTP 分发逐条断言 Go 的四个分支：goal RUNNING loop run pause 返回 200 且 resumeState=user_pause_requested；chat run 的 pause/resume 分别 400 ADK_RUN_PAUSE_FAILED / ADK_RUN_RESUME_FAILED；chat run objective 更新 400 ADK_RUN_OBJECTIVE_UPDATE_FAILED。 本批 strict follow-up 已人工复核 Go/Rust 断言，使用 9 条联合 nextest receipt sha256:957567912dd2892f7ce3e171ed47e16f78f8ce32d08eb1e9aeac39197c3b73b1。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
       "evidence_type": "function_exact",
       "source": {
@@ -4951,44 +4927,41 @@
           "function_exact：真实生产端口 + HTTP 分发逐条断言 Go 的四个分支：goal RUNNING loop run pause 返回 200 且 resumeState=user_pause_requested；chat run 的 pause/resume 分别 400 ADK_RUN_PAUSE_FAILED / ADK_RUN_RESUME_FAILED；chat run objective 更新 400 ADK_RUN_OBJECTIVE_UPDATE_FAILED。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
           "-p",
-          "jftrade-integration-futu",
-          "-p",
           "jftrade-engine",
-          "-p",
-          "jftrade-broker",
-          "-p",
-          "jftrade-api",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(cache_returns_cloned_snapshots_only_within_requested_age) or test(margin_ratio_cache_returns_defensive_clones_and_ignores_empty_keys) or test(margin_ratios_fall_back_to_recent_cache_only_for_rate_limit_errors) or test(margin_ratios_surface_invalid_symbol_and_missing_account_input_failures) or test(margin_ratios_use_recent_cache_only_for_rate_limit_errors) or test(normalized_instruments_accepts_empty_symbol_list) or test(basic_quote_query_requires_subscription_and_maps_success_rejection_and_empty) or test(basic_quote_query_returns_an_empty_list_when_the_success_s2c_is_absent) or test(maps_normalized_requested_rows_and_keeps_the_last_duplicate) or test(tick_candles_report_an_empty_page_when_the_ticker_returns_no_sample) or test(margin_ratio_empty_requests_and_duplicate_symbols_match_go) or test(margin_ratio_unknown_stock_code_extraction_matches_go_boundaries) or test(margin_ratio_projection_sorts_by_symbol_and_reports_market_labels) or test(trade_read_methods_propagate_target_protocol_disconnects) or test(quote_kline_and_order_book_propagate_target_disconnects) or test(trade_write_methods_propagate_write_disconnects) or test(watchlist_reader_cache_expires_at_the_ttl_boundary) or test(watchlist_fresh_read_bypasses_and_replaces_group_and_member_caches) or test(watchlist_fresh_member_read_rechecks_remote_ambiguity) or test(watchlist_reader_rate_limit_applies_only_to_physical_reads) or test(groups_encode_group_type_all_and_project_custom_and_system) or test(watchlist_reader_cache_uses_ttl_and_returns_copies) or test(adk_runs_route_filters_by_status_and_agent_id) or test(adk_read_fixture_preserves_empty_collections_as_json_arrays) or test(optimization_task_http_cancellation_persists_through_production_port_restart) or test(adk_session_detail_omits_resolved_approval_groups) or test(adk_read_pagination_rejects_non_positive_limits_and_negative_offsets) or test(production_live_chat_stream_emits_session_run_and_final_events) or test(adk_provider_save_preserves_request_timeout_ms) or test(adk_session_negative_routes_keep_the_go_error_envelopes) or test(production_adk_public_sessions_use_main_store_and_support_crud) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(challenge_continuation_supervisor_shutdown_blocks_for_all_tasks) or test(test_client_disconnect_returns_499_within_250ms) or test(adk_respond_to_input_maps_the_go_error_codes_and_retries) or test(adk_catalog_session_and_observability_success_contracts_hold) or test(adk_session_run_boundary_status_codes_match_the_go_matrix) or test(adk_chat_route_reports_the_go_error_classification) or test(adk_mutation_routes_reject_malformed_mutation_payloads) or test(adk_read_routes_clamp_pagination_beyond_available_items) or test(assistant_run_mutation_routes_enforce_goal_lifecycle_rules)"
+          "test(adk_runs_route_filters_by_status_and_agent_id) or test(adk_read_fixture_preserves_empty_collections_as_json_arrays) or test(production_live_chat_stream_emits_session_run_and_final_events) or test(adk_session_negative_routes_keep_the_go_error_envelopes) or test(challenge_continuation_supervisor_shutdown_blocks_for_all_tasks) or test(adk_respond_to_input_maps_the_go_error_codes_and_retries) or test(adk_catalog_session_and_observability_success_contracts_hold) or test(adk_chat_route_reports_the_go_error_classification) or test(assistant_run_mutation_routes_enforce_goal_lifecycle_rules)"
         ],
         "testFilter": [
           "assistant_run_mutation_routes_enforce_goal_lifecycle_rules"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "70b81662",
-        "verifiedAt": "2026-09-25T13:24:04Z",
-        "receiptDigest": null
+        "verifiedCommit": "2adb2014921973dbd734600549afbd5941c509c2",
+        "verifiedAt": "2026-09-27T11:41:29Z",
+        "receiptDigest": "sha256:957567912dd2892f7ce3e171ed47e16f78f8ce32d08eb1e9aeac39197c3b73b1"
       },
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：真实生产端口 + HTTP 分发逐条断言 Go 的四个分支：goal RUNNING loop run pause 返回 200 且 resumeState=user_pause_requested；chat run 的 pause/resume 分别 400 ADK_RUN_PAUSE_FAILED / ADK_RUN_RESUME_FAILED；chat run objective 更新 400 ADK_RUN_OBJECTIVE_UPDATE_FAILED。"
