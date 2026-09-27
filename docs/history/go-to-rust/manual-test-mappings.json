@@ -139941,7 +139941,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-marketdata/tests/cache_boundaries.rs::test_tick_from_trade_inherits_latest_quote_fields_through_cache",
       "conclusion": "已找到 Rust 源码中的对应 Parity 测试证据",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata --all-targets --locked -E 'test(test_tick_from_trade_inherits_latest_quote_fields_through_cache)'",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-marketdata --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(test_tick_from_trade_inherits_latest_quote_fields_through_cache) or test(fallback_instruments_are_filtered_from_the_push_stream) or test(test_fallback_ticker_map_projects_only_requested_usable_snapshots) or test(test_fallback_snapshot_conversion_rejects_invalid_values_and_uses_classification) or test(stale_observed_generation_reports_pending_reconnect_instead_of_active)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/integration/futu/marketdata_runtime_test.go",
@@ -139967,38 +139967,47 @@
           "已找到 Rust 源码中的对应 Parity 测试证据"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
           "-p",
+          "jftrade-integration-futu",
+          "-p",
           "jftrade-marketdata",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(test_tick_from_trade_inherits_latest_quote_fields_through_cache)"
+          "test(test_tick_from_trade_inherits_latest_quote_fields_through_cache) or test(fallback_instruments_are_filtered_from_the_push_stream) or test(test_fallback_ticker_map_projects_only_requested_usable_snapshots) or test(test_fallback_snapshot_conversion_rejects_invalid_values_and_uses_classification) or test(stale_observed_generation_reports_pending_reconnect_instead_of_active)"
         ],
         "testFilter": [
-          "test_tick_from_trade_inherits_latest_quote_fields_through_cache"
+          "test_tick_from_trade_inherits_latest_quote_fields_through_cache",
+          "fallback_instruments_are_filtered_from_the_push_stream",
+          "test_fallback_ticker_map_projects_only_requested_usable_snapshots",
+          "test_fallback_snapshot_conversion_rejects_invalid_values_and_uses_classification",
+          "stale_observed_generation_reports_pending_reconnect_instead_of_active"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "71edf50b",
-        "verifiedAt": "2026-09-25T12:21:12Z",
-        "receiptDigest": null
+        "verifiedCommit": "82988ae04d0a1dd1f500410ffc45ac065f664bbb",
+        "verifiedAt": "2026-09-27T18:00:12Z",
+        "receiptDigest": "sha256:57f5e6283bc3618f2b76411d6374d775dc85c6a8e939d6512d8c0615c06b4899"
       },
       "risk": "high",
       "owner": "futu_opend",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "已找到 Rust 源码中的对应 Parity 测试证据"
@@ -140205,7 +140214,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-integration-futu/src/subscriptions_tests.rs::fallback_instruments_are_filtered_from_the_push_stream",
       "conclusion": "完整覆盖：Rust 在唯一 owner（SubscriptionReconciler，对应 Go reconciler 的 IsFallbackInstrument/HasFallbackSubscriptions）实现并断言 push 流过滤——fallback 标的下 FilterPushInstruments 只保留健康标的、恢复后重新放行、输入 trim+大写化、空串/空白丢弃、无法解析的标的留在流上、无 fallback 记录时不过滤。新增生产方法 SubscriptionReconciler::filter_push_instruments（此前 Rust 完全没有该能力）。配额拒绝经由 ReconcileSubscriptions 真实进入 fallback 的端到端路径另由 fake_framed_opend_runtime_tests::test_basic_quote_availability_rejection_enters_delayed_fallback_and_reconcile_succeeds 覆盖",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(fallback_instruments_are_filtered_from_the_push_stream)'",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-marketdata --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(test_tick_from_trade_inherits_latest_quote_fields_through_cache) or test(fallback_instruments_are_filtered_from_the_push_stream) or test(test_fallback_ticker_map_projects_only_requested_usable_snapshots) or test(test_fallback_snapshot_conversion_rejects_invalid_values_and_uses_classification) or test(stale_observed_generation_reports_pending_reconnect_instead_of_active)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/integration/futu/marketdata_runtime_test.go",
@@ -140231,38 +140240,47 @@
           "完整覆盖：Rust 在唯一 owner（SubscriptionReconciler，对应 Go reconciler 的 IsFallbackInstrument/HasFallbackSubscriptions）实现并断言 push 流过滤——fallback 标的下 FilterPushInstruments 只保留健康标的、恢复后重新放行、输入 trim+大写化、空串/空白丢弃、无法解析的标的留在流上、无 fallback 记录时不过滤。新增生产方法 SubscriptionReconciler::filter_push_instruments（此前 Rust 完全没有该能力）。配额拒绝经由 ReconcileSubscriptions 真实进入 fallback 的端到端路径另由 fake_framed_opend_runtime_tests::test_basic_quote_availability_rejection_enters_delayed_fallback_and_reconcile_succeeds 覆盖"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
           "-p",
           "jftrade-integration-futu",
+          "-p",
+          "jftrade-marketdata",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(fallback_instruments_are_filtered_from_the_push_stream)"
+          "test(test_tick_from_trade_inherits_latest_quote_fields_through_cache) or test(fallback_instruments_are_filtered_from_the_push_stream) or test(test_fallback_ticker_map_projects_only_requested_usable_snapshots) or test(test_fallback_snapshot_conversion_rejects_invalid_values_and_uses_classification) or test(stale_observed_generation_reports_pending_reconnect_instead_of_active)"
         ],
         "testFilter": [
-          "fallback_instruments_are_filtered_from_the_push_stream"
+          "test_tick_from_trade_inherits_latest_quote_fields_through_cache",
+          "fallback_instruments_are_filtered_from_the_push_stream",
+          "test_fallback_ticker_map_projects_only_requested_usable_snapshots",
+          "test_fallback_snapshot_conversion_rejects_invalid_values_and_uses_classification",
+          "stale_observed_generation_reports_pending_reconnect_instead_of_active"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "71edf50b",
-        "verifiedAt": "2026-09-25T12:21:12Z",
-        "receiptDigest": null
+        "verifiedCommit": "82988ae04d0a1dd1f500410ffc45ac065f664bbb",
+        "verifiedAt": "2026-09-27T18:00:12Z",
+        "receiptDigest": "sha256:57f5e6283bc3618f2b76411d6374d775dc85c6a8e939d6512d8c0615c06b4899"
       },
       "risk": "high",
       "owner": "futu_opend",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "完整覆盖：Rust 在唯一 owner（SubscriptionReconciler，对应 Go reconciler 的 IsFallbackInstrument/HasFallbackSubscriptions）实现并断言 push 流过滤——fallback 标的下 FilterPushInstruments 只保留健康标的、恢复后重新放行、输入 trim+大写化、空串/空白丢弃、无法解析的标的留在流上、无 fallback 记录时不过滤。新增生产方法 SubscriptionReconciler::filter_push_instruments（此前 Rust 完全没有该能力）。配额拒绝经由 ReconcileSubscriptions 真实进入 fallback 的端到端路径另由 fake_framed_opend_runtime_tests::test_basic_quote_availability_rejection_enters_delayed_fallback_and_reconcile_succeeds 覆盖"
@@ -140477,7 +140495,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-integration-futu/src/session_resolver.rs::test_fallback_ticker_map_projects_only_requested_usable_snapshots",
       "conclusion": "完整覆盖：Rust 测试对降级快照只映射请求中可用数据的行为进行了完整断言，逻辑等价",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(test_fallback_ticker_map_projects_only_requested_usable_snapshots)'",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-marketdata --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(test_tick_from_trade_inherits_latest_quote_fields_through_cache) or test(fallback_instruments_are_filtered_from_the_push_stream) or test(test_fallback_ticker_map_projects_only_requested_usable_snapshots) or test(test_fallback_snapshot_conversion_rejects_invalid_values_and_uses_classification) or test(stale_observed_generation_reports_pending_reconnect_instead_of_active)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/integration/futu/marketdata_runtime_test.go",
@@ -140503,38 +140521,47 @@
           "完整覆盖：Rust 测试对降级快照只映射请求中可用数据的行为进行了完整断言，逻辑等价"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
           "-p",
           "jftrade-integration-futu",
+          "-p",
+          "jftrade-marketdata",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(test_fallback_ticker_map_projects_only_requested_usable_snapshots)"
+          "test(test_tick_from_trade_inherits_latest_quote_fields_through_cache) or test(fallback_instruments_are_filtered_from_the_push_stream) or test(test_fallback_ticker_map_projects_only_requested_usable_snapshots) or test(test_fallback_snapshot_conversion_rejects_invalid_values_and_uses_classification) or test(stale_observed_generation_reports_pending_reconnect_instead_of_active)"
         ],
         "testFilter": [
-          "test_fallback_ticker_map_projects_only_requested_usable_snapshots"
+          "test_tick_from_trade_inherits_latest_quote_fields_through_cache",
+          "fallback_instruments_are_filtered_from_the_push_stream",
+          "test_fallback_ticker_map_projects_only_requested_usable_snapshots",
+          "test_fallback_snapshot_conversion_rejects_invalid_values_and_uses_classification",
+          "stale_observed_generation_reports_pending_reconnect_instead_of_active"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "71edf50b",
-        "verifiedAt": "2026-09-25T12:21:12Z",
-        "receiptDigest": null
+        "verifiedCommit": "82988ae04d0a1dd1f500410ffc45ac065f664bbb",
+        "verifiedAt": "2026-09-27T18:00:12Z",
+        "receiptDigest": "sha256:57f5e6283bc3618f2b76411d6374d775dc85c6a8e939d6512d8c0615c06b4899"
       },
       "risk": "high",
       "owner": "futu_opend",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "完整覆盖：Rust 测试对降级快照只映射请求中可用数据的行为进行了完整断言，逻辑等价"
@@ -140546,7 +140573,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-integration-futu/src/session_resolver.rs::test_fallback_snapshot_conversion_rejects_invalid_values_and_uses_classification",
       "conclusion": "完整覆盖：Rust 测试覆盖了非法字段值拒绝和按品种分类生成行情快照的校验逻辑，与 Go 测试等价",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(test_fallback_snapshot_conversion_rejects_invalid_values_and_uses_classification)'",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-marketdata --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(test_tick_from_trade_inherits_latest_quote_fields_through_cache) or test(fallback_instruments_are_filtered_from_the_push_stream) or test(test_fallback_ticker_map_projects_only_requested_usable_snapshots) or test(test_fallback_snapshot_conversion_rejects_invalid_values_and_uses_classification) or test(stale_observed_generation_reports_pending_reconnect_instead_of_active)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/integration/futu/marketdata_runtime_test.go",
@@ -140572,38 +140599,47 @@
           "完整覆盖：Rust 测试覆盖了非法字段值拒绝和按品种分类生成行情快照的校验逻辑，与 Go 测试等价"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
           "-p",
           "jftrade-integration-futu",
+          "-p",
+          "jftrade-marketdata",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(test_fallback_snapshot_conversion_rejects_invalid_values_and_uses_classification)"
+          "test(test_tick_from_trade_inherits_latest_quote_fields_through_cache) or test(fallback_instruments_are_filtered_from_the_push_stream) or test(test_fallback_ticker_map_projects_only_requested_usable_snapshots) or test(test_fallback_snapshot_conversion_rejects_invalid_values_and_uses_classification) or test(stale_observed_generation_reports_pending_reconnect_instead_of_active)"
         ],
         "testFilter": [
-          "test_fallback_snapshot_conversion_rejects_invalid_values_and_uses_classification"
+          "test_tick_from_trade_inherits_latest_quote_fields_through_cache",
+          "fallback_instruments_are_filtered_from_the_push_stream",
+          "test_fallback_ticker_map_projects_only_requested_usable_snapshots",
+          "test_fallback_snapshot_conversion_rejects_invalid_values_and_uses_classification",
+          "stale_observed_generation_reports_pending_reconnect_instead_of_active"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "71edf50b",
-        "verifiedAt": "2026-09-25T12:21:12Z",
-        "receiptDigest": null
+        "verifiedCommit": "82988ae04d0a1dd1f500410ffc45ac065f664bbb",
+        "verifiedAt": "2026-09-27T18:00:12Z",
+        "receiptDigest": "sha256:57f5e6283bc3618f2b76411d6374d775dc85c6a8e939d6512d8c0615c06b4899"
       },
       "risk": "high",
       "owner": "futu_opend",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "完整覆盖：Rust 测试覆盖了非法字段值拒绝和按品种分类生成行情快照的校验逻辑，与 Go 测试等价"
@@ -141976,7 +142012,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-integration-futu/src/subscriptions_tests.rs::stale_observed_generation_reports_pending_reconnect_instead_of_active",
       "conclusion": "完整覆盖：观察到的连接代际与本地不一致时（observed=3、local=2），Rust 现在报告 connectionGeneration=2、observedConnectionGeneration=3、ownActiveCount=0、pendingReleaseCount=0，且每条 entry 的 brokerState 为 pending_reconnect——与 Go connectionChangedLocked 一致；一致时仍报告 active 并计数。修复点：physical_snapshot 过去忽略 observed_generation，把过期代际的订阅继续算作 active（唯一写入所有权/并发 fencing 风险）。代际变化后的重放编排另见 provider_runtime_recovery::latest_demand_replaces_stale_replay_while_reconnect_is_pending",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu --all-targets --locked -E 'test(stale_observed_generation_reports_pending_reconnect_instead_of_active)'",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-marketdata --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(test_tick_from_trade_inherits_latest_quote_fields_through_cache) or test(fallback_instruments_are_filtered_from_the_push_stream) or test(test_fallback_ticker_map_projects_only_requested_usable_snapshots) or test(test_fallback_snapshot_conversion_rejects_invalid_values_and_uses_classification) or test(stale_observed_generation_reports_pending_reconnect_instead_of_active)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/integration/futu/subscription_reconciler_test.go",
@@ -142002,38 +142038,47 @@
           "完整覆盖：观察到的连接代际与本地不一致时（observed=3、local=2），Rust 现在报告 connectionGeneration=2、observedConnectionGeneration=3、ownActiveCount=0、pendingReleaseCount=0，且每条 entry 的 brokerState 为 pending_reconnect——与 Go connectionChangedLocked 一致；一致时仍报告 active 并计数。修复点：physical_snapshot 过去忽略 observed_generation，把过期代际的订阅继续算作 active（唯一写入所有权/并发 fencing 风险）。代际变化后的重放编排另见 provider_runtime_recovery::latest_demand_replaces_stale_replay_while_reconnect_is_pending"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
           "-p",
           "jftrade-integration-futu",
+          "-p",
+          "jftrade-marketdata",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(stale_observed_generation_reports_pending_reconnect_instead_of_active)"
+          "test(test_tick_from_trade_inherits_latest_quote_fields_through_cache) or test(fallback_instruments_are_filtered_from_the_push_stream) or test(test_fallback_ticker_map_projects_only_requested_usable_snapshots) or test(test_fallback_snapshot_conversion_rejects_invalid_values_and_uses_classification) or test(stale_observed_generation_reports_pending_reconnect_instead_of_active)"
         ],
         "testFilter": [
+          "test_tick_from_trade_inherits_latest_quote_fields_through_cache",
+          "fallback_instruments_are_filtered_from_the_push_stream",
+          "test_fallback_ticker_map_projects_only_requested_usable_snapshots",
+          "test_fallback_snapshot_conversion_rejects_invalid_values_and_uses_classification",
           "stale_observed_generation_reports_pending_reconnect_instead_of_active"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "50e13e18",
-        "verifiedAt": "2026-09-25T12:42:42Z",
-        "receiptDigest": null
+        "verifiedCommit": "82988ae04d0a1dd1f500410ffc45ac065f664bbb",
+        "verifiedAt": "2026-09-27T18:00:12Z",
+        "receiptDigest": "sha256:57f5e6283bc3618f2b76411d6374d775dc85c6a8e939d6512d8c0615c06b4899"
       },
       "risk": "high",
       "owner": "futu_opend",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "完整覆盖：观察到的连接代际与本地不一致时（observed=3、local=2），Rust 现在报告 connectionGeneration=2、observedConnectionGeneration=3、ownActiveCount=0、pendingReleaseCount=0，且每条 entry 的 brokerState 为 pending_reconnect——与 Go connectionChangedLocked 一致；一致时仍报告 active 并计数。修复点：physical_snapshot 过去忽略 observed_generation，把过期代际的订阅继续算作 active（唯一写入所有权/并发 fencing 风险）。代际变化后的重放编排另见 provider_runtime_recovery::latest_demand_replaces_stale_replay_while_reconnect_is_pending"
