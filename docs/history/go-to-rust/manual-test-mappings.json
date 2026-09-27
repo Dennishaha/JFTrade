@@ -11491,7 +11491,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_news_tests.rs::production_news_actions_port_forwards_yfinance_news_request; crates/jftrade-engine/src/product_production_ports_market_data_news_tests.rs::production_news_actions_port_maps_helper_failure_and_rejects_bad_limit",
       "conclusion": "function_exact（本批补齐 limit 三段）：Go 断言 limit=abc/0/51→400、limit=5→200 且服务收到 market/symbol/limit=5、载荷 instrumentId/source/entries。Rust 转发用例以真实本地 mock 断言上游请求路径含 ?limit=5 与投影字段（instrumentId、entries.publishedAt）；limit 校验用例本批扩展为 abc/0/51 三者均 400 BAD_REQUEST。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(production_news_actions_port_forwards_yfinance_news_request) or test(production_news_actions_port_maps_helper_failure_and_rejects_bad_limit)'",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(production_news_actions_port_forwards_yfinance_news_request) or test(production_news_actions_port_maps_helper_failure_and_rejects_bad_limit) or test(production_news_actions_port_forwards_corporate_actions_window) or test(corporate_actions_query_requires_rfc3339_and_ascending_range) or test(tick_candles_use_fresh_cache_without_querying_the_provider) or test(candle_route_forwards_strict_before_window) or test(managed_account_write_routes_map_missing_records_to_not_found) or test(broker_settings_writes_replay_frozen_compatibility_cases) or test(catalog_activity_paging_and_filters_match_go_boundaries) or test(strategy_instance_read_routes_match_group_fixture_in_cutover_only)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/api/marketdata/routes_news_actions_test.go",
@@ -11528,7 +11528,7 @@
           "function_exact（本批补齐 limit 三段）：Go 断言 limit=abc/0/51→400、limit=5→200 且服务收到 market/symbol/limit=5、载荷 instrumentId/source/entries。Rust 转发用例以真实本地 mock 断言上游请求路径含 ?limit=5 与投影字段（instrumentId、entries.publishedAt）；limit 校验用例本批扩展为 abc/0/51 三者均 400 BAD_REQUEST。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -11544,23 +11544,29 @@
         ],
         "testFilter": [
           "production_news_actions_port_forwards_yfinance_news_request",
-          "production_news_actions_port_maps_helper_failure_and_rejects_bad_limit"
+          "production_news_actions_port_maps_helper_failure_and_rejects_bad_limit",
+          "production_news_actions_port_forwards_corporate_actions_window",
+          "corporate_actions_query_requires_rfc3339_and_ascending_range",
+          "tick_candles_use_fresh_cache_without_querying_the_provider",
+          "candle_route_forwards_strict_before_window",
+          "managed_account_write_routes_map_missing_records_to_not_found",
+          "broker_settings_writes_replay_frozen_compatibility_cases",
+          "catalog_activity_paging_and_filters_match_go_boundaries",
+          "strategy_instance_read_routes_match_group_fixture_in_cutover_only"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "7df2e82b",
-        "verifiedAt": "2026-09-25T12:13:32Z",
-        "receiptDigest": null
+        "verifiedCommit": "1ec4d1c5",
+        "verifiedAt": "2026-09-27T17:35:28Z",
+        "receiptDigest": "sha256:a583ff41724cfc3bcd259fcf9627a7c8594e6a9aa5c4a79e0082cf332a71c622"
       },
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact（本批补齐 limit 三段）：Go 断言 limit=abc/0/51→400、limit=5→200 且服务收到 market/symbol/limit=5、载荷 instrumentId/source/entries。Rust 转发用例以真实本地 mock 断言上游请求路径含 ?limit=5 与投影字段（instrumentId、entries.publishedAt）；limit 校验用例本批扩展为 abc/0/51 三者均 400 BAD_REQUEST。"
@@ -11572,7 +11578,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_news_tests.rs::production_news_actions_port_forwards_corporate_actions_window; crates/jftrade-engine/src/product_production_ports_market_data_news_tests.rs::corporate_actions_query_requires_rfc3339_and_ascending_range",
       "conclusion": "function_exact：Go 断言 from/to 非法或降序→400、合法窗口→200 且服务参数 from/to 精确、载荷 events[0].kind=dividend。Rust 转发用例断言上游 URL 携带 from/to（RFC3339 编码）并投影 kind；校验用例断言非法时间 400 与 from>to 400。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(production_news_actions_port_forwards_corporate_actions_window) or test(corporate_actions_query_requires_rfc3339_and_ascending_range)'",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(production_news_actions_port_forwards_yfinance_news_request) or test(production_news_actions_port_maps_helper_failure_and_rejects_bad_limit) or test(production_news_actions_port_forwards_corporate_actions_window) or test(corporate_actions_query_requires_rfc3339_and_ascending_range) or test(tick_candles_use_fresh_cache_without_querying_the_provider) or test(candle_route_forwards_strict_before_window) or test(managed_account_write_routes_map_missing_records_to_not_found) or test(broker_settings_writes_replay_frozen_compatibility_cases) or test(catalog_activity_paging_and_filters_match_go_boundaries) or test(strategy_instance_read_routes_match_group_fixture_in_cutover_only)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/api/marketdata/routes_news_actions_test.go",
@@ -11609,7 +11615,7 @@
           "function_exact：Go 断言 from/to 非法或降序→400、合法窗口→200 且服务参数 from/to 精确、载荷 events[0].kind=dividend。Rust 转发用例断言上游 URL 携带 from/to（RFC3339 编码）并投影 kind；校验用例断言非法时间 400 与 from>to 400。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -11624,24 +11630,30 @@
           "test(production_news_actions_port_forwards_corporate_actions_window) or test(corporate_actions_query_requires_rfc3339_and_ascending_range)"
         ],
         "testFilter": [
+          "production_news_actions_port_forwards_yfinance_news_request",
+          "production_news_actions_port_maps_helper_failure_and_rejects_bad_limit",
           "production_news_actions_port_forwards_corporate_actions_window",
-          "corporate_actions_query_requires_rfc3339_and_ascending_range"
+          "corporate_actions_query_requires_rfc3339_and_ascending_range",
+          "tick_candles_use_fresh_cache_without_querying_the_provider",
+          "candle_route_forwards_strict_before_window",
+          "managed_account_write_routes_map_missing_records_to_not_found",
+          "broker_settings_writes_replay_frozen_compatibility_cases",
+          "catalog_activity_paging_and_filters_match_go_boundaries",
+          "strategy_instance_read_routes_match_group_fixture_in_cutover_only"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "7df2e82b",
-        "verifiedAt": "2026-09-25T12:13:32Z",
-        "receiptDigest": null
+        "verifiedCommit": "1ec4d1c5",
+        "verifiedAt": "2026-09-27T17:35:28Z",
+        "receiptDigest": "sha256:a583ff41724cfc3bcd259fcf9627a7c8594e6a9aa5c4a79e0082cf332a71c622"
       },
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：Go 断言 from/to 非法或降序→400、合法窗口→200 且服务参数 from/to 精确、载荷 events[0].kind=dividend。Rust 转发用例断言上游 URL 携带 from/to（RFC3339 编码）并投影 kind；校验用例断言非法时间 400 与 from>to 400。"
@@ -12503,7 +12515,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::tick_candles_use_fresh_cache_without_querying_the_provider + crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::candle_route_forwards_strict_before_window",
       "conclusion": "function_exact：Go 断言 period=tick 走缓存成功返回且 before 有值、to 为空时作为 provider 窗口 end。Rust 拆为两个 owner 测试：tick_candles_use_fresh_cache_without_querying_the_provider 断言新鲜 tick 缓存直接应答且不下发历史查询；candle_route_forwards_strict_before_window 断言 before=2026-07-18T13:40:00Z 被转换为美东会话时间 2026-07-18 09:40:00 作为窗口 end 且 to 为空。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(tick_candles_use_fresh_cache_without_querying_the_provider) or test(candle_route_forwards_strict_before_window)'",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(production_news_actions_port_forwards_yfinance_news_request) or test(production_news_actions_port_maps_helper_failure_and_rejects_bad_limit) or test(production_news_actions_port_forwards_corporate_actions_window) or test(corporate_actions_query_requires_rfc3339_and_ascending_range) or test(tick_candles_use_fresh_cache_without_querying_the_provider) or test(candle_route_forwards_strict_before_window) or test(managed_account_write_routes_map_missing_records_to_not_found) or test(broker_settings_writes_replay_frozen_compatibility_cases) or test(catalog_activity_paging_and_filters_match_go_boundaries) or test(strategy_instance_read_routes_match_group_fixture_in_cutover_only)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/api/marketdata/routes_test.go",
@@ -12540,7 +12552,7 @@
           "function_exact：Go 断言 period=tick 走缓存成功返回且 before 有值、to 为空时作为 provider 窗口 end。Rust 拆为两个 owner 测试：tick_candles_use_fresh_cache_without_querying_the_provider 断言新鲜 tick 缓存直接应答且不下发历史查询；candle_route_forwards_strict_before_window 断言 before=2026-07-18T13:40:00Z 被转换为美东会话时间 2026-07-18 09:40:00 作为窗口 end 且 to 为空。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -12555,24 +12567,30 @@
           "test(tick_candles_use_fresh_cache_without_querying_the_provider) or test(candle_route_forwards_strict_before_window)"
         ],
         "testFilter": [
+          "production_news_actions_port_forwards_yfinance_news_request",
+          "production_news_actions_port_maps_helper_failure_and_rejects_bad_limit",
+          "production_news_actions_port_forwards_corporate_actions_window",
+          "corporate_actions_query_requires_rfc3339_and_ascending_range",
           "tick_candles_use_fresh_cache_without_querying_the_provider",
-          "candle_route_forwards_strict_before_window"
+          "candle_route_forwards_strict_before_window",
+          "managed_account_write_routes_map_missing_records_to_not_found",
+          "broker_settings_writes_replay_frozen_compatibility_cases",
+          "catalog_activity_paging_and_filters_match_go_boundaries",
+          "strategy_instance_read_routes_match_group_fixture_in_cutover_only"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "7df2e82b",
-        "verifiedAt": "2026-09-25T12:13:32Z",
-        "receiptDigest": null
+        "verifiedCommit": "1ec4d1c5",
+        "verifiedAt": "2026-09-27T17:35:28Z",
+        "receiptDigest": "sha256:a583ff41724cfc3bcd259fcf9627a7c8594e6a9aa5c4a79e0082cf332a71c622"
       },
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：Go 断言 period=tick 走缓存成功返回且 before 有值、to 为空时作为 provider 窗口 end。Rust 拆为两个 owner 测试：tick_candles_use_fresh_cache_without_querying_the_provider 断言新鲜 tick 缓存直接应答且不下发历史查询；candle_route_forwards_strict_before_window 断言 before=2026-07-18T13:40:00Z 被转换为美东会话时间 2026-07-18 09:40:00 作为窗口 end 且 to 为空。"
@@ -17080,7 +17098,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/product_tests.rs::managed_account_write_routes_map_missing_records_to_not_found; crates/jftrade-engine/src/product_tests.rs::broker_settings_writes_replay_frozen_compatibility_cases",
       "conclusion": "已覆盖：新增生产 HTTP 用例断言 PUT/DELETE /api/v1/settings/broker-accounts/missing-account → 404 + ok=false + NOT_FOUND 族错误码（不再隐式创建或落成 500）；引用测试保留服务层 AccountNotFound 语义。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(production_news_actions_port_forwards_yfinance_news_request) or test(production_news_actions_port_maps_helper_failure_and_rejects_bad_limit) or test(production_news_actions_port_forwards_corporate_actions_window) or test(corporate_actions_query_requires_rfc3339_and_ascending_range) or test(tick_candles_use_fresh_cache_without_querying_the_provider) or test(candle_route_forwards_strict_before_window) or test(managed_account_write_routes_map_missing_records_to_not_found) or test(broker_settings_writes_replay_frozen_compatibility_cases) or test(catalog_activity_paging_and_filters_match_go_boundaries) or test(strategy_instance_read_routes_match_group_fixture_in_cutover_only)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/api/settings/routes_test.go",
@@ -17117,7 +17135,7 @@
           "已覆盖：新增生产 HTTP 用例断言 PUT/DELETE /api/v1/settings/broker-accounts/missing-account → 404 + ok=false + NOT_FOUND 族错误码（不再隐式创建或落成 500）；引用测试保留服务层 AccountNotFound 语义。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -17130,24 +17148,30 @@
           "test(adk_missing_mutation_targets_keep_the_go_classification) or test(adk_session_run_and_optimization_route_contracts_match_go) or test(adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed) or test(replayed_stream_payloads_carry_the_go_replay_marker) or test(catalog_session_run_and_observability_routes_answer_ok) or test(session_timeline_failure_keeps_the_legacy_messages_error_code) or test(sync_request_session_scope_parity_with_go) or test(backtests_write_fixture_replays_all_four_go_owned_mutations) or test(backtests_read_routes_match_group_fixture_in_cutover_only) or test(candle_route_treats_blank_period_as_unset_and_rejects_unsupported) or test(candle_period_normalizes_aliases_and_rejects_unsupported) or test(auth_requires_origin_and_csrf_for_session_writes) or test(auth_treats_patch_as_session_write_requiring_csrf) or test(managed_account_write_routes_map_missing_records_to_not_found) or test(broker_settings_writes_replay_frozen_compatibility_cases) or test(catalog_activity_paging_and_filters_match_go_boundaries) or test(strategy_instance_read_routes_match_group_fixture_in_cutover_only) or test(execution_write_fixture_replays_all_seven_go_owned_mutations) or test(execution_write_product_replays_browser_boundary_failure_recovery_and_restart) or test(production_http_broker_reads_serialize_empty_collections_as_arrays) or test(watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog) or test(watchlist_write_fixture_matches_go_owner_for_all_eight_routes) or test(malformed_membership_and_commit_bodies_are_rejected) or test(watchlist_read_routes_match_group_fixture_in_cutover_only) or test(test_product_runtime_startup_failure_rollback) or test(readiness_failure_reclaims_every_started_process_without_starting_dependents) or test(startup_failure_restores_previously_migrated_descriptor_files) or test(backup_snapshot_rejects_an_unusable_backup_directory_and_an_empty_source_path) or test(cleanup_and_compaction_report_the_reclaimed_bytes_measured_on_disk) or test(a_held_lease_on_one_database_rolls_back_the_batch_rebuild_locks) or test(runtime_readiness_allows_external_degradation_but_rejects_incomplete_startup) or test(production_opend_health_diagnoses_enabled_but_unreachable_opend) or test(production_system_read_reports_unavailable_opend_without_fake_health) or test(market_data_health_requires_a_known_logged_in_quote_session) or test(helper_market_data_providers_reconcile_futu_account_order_fill_and_fee) or test(reconciliation_discovers_external_order_into_empty_ledger) or test(production_opend_health_rejects_old_build_and_guides_upgrade) or test(probe_opend_reports_closed_port_as_disconnected) or test(probe_from_global_state_enforces_minimum_version_and_maps_neutral_state) or test(disconnected_probe_keeps_its_transport_error_for_manual_retry) or test(web_shutdown_does_not_hold_runtime_lock_while_joining_server) or test(provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update) or test(cache_rejects_stale_generation_and_classifies_freshness)"
         ],
         "testFilter": [
+          "production_news_actions_port_forwards_yfinance_news_request",
+          "production_news_actions_port_maps_helper_failure_and_rejects_bad_limit",
+          "production_news_actions_port_forwards_corporate_actions_window",
+          "corporate_actions_query_requires_rfc3339_and_ascending_range",
+          "tick_candles_use_fresh_cache_without_querying_the_provider",
+          "candle_route_forwards_strict_before_window",
           "managed_account_write_routes_map_missing_records_to_not_found",
-          "broker_settings_writes_replay_frozen_compatibility_cases"
+          "broker_settings_writes_replay_frozen_compatibility_cases",
+          "catalog_activity_paging_and_filters_match_go_boundaries",
+          "strategy_instance_read_routes_match_group_fixture_in_cutover_only"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "f632beb7",
-        "verifiedAt": "2026-09-25T13:29:58Z",
-        "receiptDigest": null
+        "verifiedCommit": "1ec4d1c5",
+        "verifiedAt": "2026-09-27T17:35:28Z",
+        "receiptDigest": "sha256:a583ff41724cfc3bcd259fcf9627a7c8594e6a9aa5c4a79e0082cf332a71c622"
       },
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "已覆盖：新增生产 HTTP 用例断言 PUT/DELETE /api/v1/settings/broker-accounts/missing-account → 404 + ok=false + NOT_FOUND 族错误码（不再隐式创建或落成 500）；引用测试保留服务层 AccountNotFound 语义。"
@@ -18505,7 +18529,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/strategy_runtime_activity.rs::catalog_activity_paging_and_filters_match_go_boundaries; crates/jftrade-engine/src/product_strategies_tests.rs::strategy_instance_read_routes_match_group_fixture_in_cutover_only",
       "conclusion": "function_exact：Go 断言 logs?limit=bogus 与 audit?offset=bogus → 400 且不触达活动 store。Rust 解析层用例新增断言畸形 limit/offset 在读取活动 store 前返回 Invalid(\"invalid <kind> query\")，HTTP fixture 用例断言 /logs?limit=bad → 400 BAD_REQUEST（audit 非法值同样 400），组合覆盖 Go 两条路径。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --locked -E 'test(catalog_activity_paging_and_filters_match_go_boundaries) | test(strategy_instance_read_routes_match_group_fixture_in_cutover_only)'",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(production_news_actions_port_forwards_yfinance_news_request) or test(production_news_actions_port_maps_helper_failure_and_rejects_bad_limit) or test(production_news_actions_port_forwards_corporate_actions_window) or test(corporate_actions_query_requires_rfc3339_and_ascending_range) or test(tick_candles_use_fresh_cache_without_querying_the_provider) or test(candle_route_forwards_strict_before_window) or test(managed_account_write_routes_map_missing_records_to_not_found) or test(broker_settings_writes_replay_frozen_compatibility_cases) or test(catalog_activity_paging_and_filters_match_go_boundaries) or test(strategy_instance_read_routes_match_group_fixture_in_cutover_only)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/api/strategy/routes_boundary_contracts_test.go",
@@ -18542,7 +18566,7 @@
           "function_exact：Go 断言 logs?limit=bogus 与 audit?offset=bogus → 400 且不触达活动 store。Rust 解析层用例新增断言畸形 limit/offset 在读取活动 store 前返回 Invalid(\"invalid <kind> query\")，HTTP fixture 用例断言 /logs?limit=bad → 400 BAD_REQUEST（audit 非法值同样 400），组合覆盖 Go 两条路径。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -18555,24 +18579,30 @@
           "test(adk_missing_mutation_targets_keep_the_go_classification) or test(adk_session_run_and_optimization_route_contracts_match_go) or test(adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed) or test(replayed_stream_payloads_carry_the_go_replay_marker) or test(catalog_session_run_and_observability_routes_answer_ok) or test(session_timeline_failure_keeps_the_legacy_messages_error_code) or test(sync_request_session_scope_parity_with_go) or test(backtests_write_fixture_replays_all_four_go_owned_mutations) or test(backtests_read_routes_match_group_fixture_in_cutover_only) or test(candle_route_treats_blank_period_as_unset_and_rejects_unsupported) or test(candle_period_normalizes_aliases_and_rejects_unsupported) or test(auth_requires_origin_and_csrf_for_session_writes) or test(auth_treats_patch_as_session_write_requiring_csrf) or test(managed_account_write_routes_map_missing_records_to_not_found) or test(broker_settings_writes_replay_frozen_compatibility_cases) or test(catalog_activity_paging_and_filters_match_go_boundaries) or test(strategy_instance_read_routes_match_group_fixture_in_cutover_only) or test(execution_write_fixture_replays_all_seven_go_owned_mutations) or test(execution_write_product_replays_browser_boundary_failure_recovery_and_restart) or test(production_http_broker_reads_serialize_empty_collections_as_arrays) or test(watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog) or test(watchlist_write_fixture_matches_go_owner_for_all_eight_routes) or test(malformed_membership_and_commit_bodies_are_rejected) or test(watchlist_read_routes_match_group_fixture_in_cutover_only) or test(test_product_runtime_startup_failure_rollback) or test(readiness_failure_reclaims_every_started_process_without_starting_dependents) or test(startup_failure_restores_previously_migrated_descriptor_files) or test(backup_snapshot_rejects_an_unusable_backup_directory_and_an_empty_source_path) or test(cleanup_and_compaction_report_the_reclaimed_bytes_measured_on_disk) or test(a_held_lease_on_one_database_rolls_back_the_batch_rebuild_locks) or test(runtime_readiness_allows_external_degradation_but_rejects_incomplete_startup) or test(production_opend_health_diagnoses_enabled_but_unreachable_opend) or test(production_system_read_reports_unavailable_opend_without_fake_health) or test(market_data_health_requires_a_known_logged_in_quote_session) or test(helper_market_data_providers_reconcile_futu_account_order_fill_and_fee) or test(reconciliation_discovers_external_order_into_empty_ledger) or test(production_opend_health_rejects_old_build_and_guides_upgrade) or test(probe_opend_reports_closed_port_as_disconnected) or test(probe_from_global_state_enforces_minimum_version_and_maps_neutral_state) or test(disconnected_probe_keeps_its_transport_error_for_manual_retry) or test(web_shutdown_does_not_hold_runtime_lock_while_joining_server) or test(provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update) or test(cache_rejects_stale_generation_and_classifies_freshness)"
         ],
         "testFilter": [
+          "production_news_actions_port_forwards_yfinance_news_request",
+          "production_news_actions_port_maps_helper_failure_and_rejects_bad_limit",
+          "production_news_actions_port_forwards_corporate_actions_window",
+          "corporate_actions_query_requires_rfc3339_and_ascending_range",
+          "tick_candles_use_fresh_cache_without_querying_the_provider",
+          "candle_route_forwards_strict_before_window",
+          "managed_account_write_routes_map_missing_records_to_not_found",
+          "broker_settings_writes_replay_frozen_compatibility_cases",
           "catalog_activity_paging_and_filters_match_go_boundaries",
           "strategy_instance_read_routes_match_group_fixture_in_cutover_only"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "f632beb7",
-        "verifiedAt": "2026-09-25T13:29:58Z",
-        "receiptDigest": null
+        "verifiedCommit": "1ec4d1c5",
+        "verifiedAt": "2026-09-27T17:35:28Z",
+        "receiptDigest": "sha256:a583ff41724cfc3bcd259fcf9627a7c8594e6a9aa5c4a79e0082cf332a71c622"
       },
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：Go 断言 logs?limit=bogus 与 audit?offset=bogus → 400 且不触达活动 store。Rust 解析层用例新增断言畸形 limit/offset 在读取活动 store 前返回 Invalid(\"invalid <kind> query\")，HTTP fixture 用例断言 /logs?limit=bad → 400 BAD_REQUEST（audit 非法值同样 400），组合覆盖 Go 两条路径。"
