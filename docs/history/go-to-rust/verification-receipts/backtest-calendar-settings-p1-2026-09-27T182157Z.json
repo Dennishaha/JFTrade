@@ -1,0 +1,171 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "-p",
+    "jftrade-calendar",
+    "-p",
+    "jftrade-settings",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(backtest_start_resolves_market_dates_with_dst) or test(validate_snapshot_rejects_the_go_boundary_table) or test(corrupt_cached_snapshots_are_rejected_with_the_go_conditions) or test(cross_year_snapshot_is_cached_for_every_covered_year_and_summarised_once) or test(empty_store_projects_an_empty_broker_surface) or test(rejected_provider_switch_preserves_the_current_quote_cache)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-27T18:21:57Z",
+  "sourceState": {
+    "verifiedCommit": "805f909ac0629fe7882e7c5ccf3c615cbe5eb9b0",
+    "trackedDiffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "untrackedFiles": []
+  },
+  "rawOutputSha256": "f4a6ab7e06bc2f29a18f6bd6fc5d374190a030fc65ab3c8481761a0cef7977e6",
+  "passedTests": [
+    "jftrade-calendar::jftrade_calendar$manager_calendar::tests::validate_snapshot_rejects_the_go_boundary_table",
+    "jftrade-calendar::manager_boundaries$corrupt_cached_snapshots_are_rejected_with_the_go_conditions",
+    "jftrade-calendar::manager_lifecycle$cross_year_snapshot_is_cached_for_every_covered_year_and_summarised_once",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_execution::product_production_ports_backtest_strategy::time_range_tests::backtest_start_resolves_market_dates_with_dst",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_watchlist::quotes::tests::rejected_provider_switch_preserves_the_current_quote_cache",
+    "jftrade-settings::jftrade_settings$broker::tests::empty_store_projects_an_empty_broker_surface"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 2,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1,
+      "nextest": {
+        "crate": "jftrade-calendar",
+        "test_binary": "manager_boundaries",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1,
+      "nextest": {
+        "crate": "jftrade-calendar",
+        "test_binary": "jftrade_calendar",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1,
+      "nextest": {
+        "crate": "jftrade-calendar",
+        "test_binary": "manager_lifecycle",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1,
+      "nextest": {
+        "crate": "jftrade-settings",
+        "test_binary": "jftrade_settings",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 51,
+      "exec_time": 0.012836916,
+      "nextest": {
+        "crate": "jftrade-settings",
+        "test_binary": "jftrade_settings",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 35,
+      "exec_time": 0.022356959,
+      "nextest": {
+        "crate": "jftrade-calendar",
+        "test_binary": "jftrade_calendar",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 37,
+      "exec_time": 0.022561708,
+      "nextest": {
+        "crate": "jftrade-calendar",
+        "test_binary": "manager_lifecycle",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 8,
+      "exec_time": 0.045667166,
+      "nextest": {
+        "crate": "jftrade-calendar",
+        "test_binary": "manager_boundaries",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1632,
+      "exec_time": 0.153700583,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    }
+  ]
+}

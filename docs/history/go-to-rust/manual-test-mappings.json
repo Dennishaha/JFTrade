@@ -122282,7 +122282,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/product_production_ports_backtest_strategy_time_range_tests.rs::backtest_start_resolves_market_dates_with_dst",
       "conclusion": "[x]：US 2026-03-08 市场日解析为 05:00:00Z 起、次日 03:59:59.999999999Z 止（23 小时），归一化载荷带 startDate/endDate 标签与 marketTimezone=America/New_York；修复了 Rust 原先把日期当作 UTC 零点（00:00:00Z）的差异，并新增 Parity 锚点。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-calendar -p jftrade-settings --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(backtest_start_resolves_market_dates_with_dst) or test(validate_snapshot_rejects_the_go_boundary_table) or test(corrupt_cached_snapshots_are_rejected_with_the_go_conditions) or test(cross_year_snapshot_is_cached_for_every_covered_year_and_summarised_once) or test(empty_store_projects_an_empty_broker_surface) or test(rejected_provider_switch_preserves_the_current_quote_cache)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/backtest/time_test.go",
@@ -122308,36 +122308,50 @@
           "[x]：US 2026-03-08 市场日解析为 05:00:00Z 起、次日 03:59:59.999999999Z 止（23 小时），归一化载荷带 startDate/endDate 标签与 marketTimezone=America/New_York；修复了 Rust 原先把日期当作 UTC 零点（00:00:00Z）的差异，并新增 Parity 锚点。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
+          "-p",
+          "jftrade-engine",
+          "-p",
+          "jftrade-calendar",
+          "-p",
+          "jftrade-settings",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(test_historical_k_line_syncer_rejects_broken_pagination) or test(production_futu_sync_uses_opend_reader_and_persists_candles) or test(reap_finished_marks_nonterminal_worker_failed) or test(test_start_script_rejects_blank_research_script) or test(test_result_view_contract_alignment_and_edge_cases) or test(production_backtest_start_without_worker_fails_before_persisting_run) or test(definition_resolution_rejects_missing_definition_and_version_conflict) or test(backtest_runs_lifecycle_and_restart_durability) or test(shutdown_persists_cancelled_state_before_joining_workers) or test(production_sync_read_projects_persisted_task) or test(reap_finished_removes_completed_join_handles) or test(sync_request_session_scope_parity_with_go) or test(backtest_start_resolves_market_dates_with_dst) or test(parent_bracket_runs_atomically_with_stop_first_protection) or test(canceling_parent_order_cancels_all_protective_children) or test(reduce_only_order_without_position_is_canceled) or test(explicit_cancel_orders_and_unmatched_target_handling) or test(sell_market_order_applies_downward_slippage) or test(cancel_skips_unmatched_pending_orders_without_side_effects) or test(provided_fee_rules_apply_and_empty_rules_charge_nothing) or test(aggregate_reads_use_only_the_requested_session_scope) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(test_tc_d4_04_extended_session_pre_market_does_not_pollute_regular_open) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(missing_symbol_table_reports_storage_error_then_recovers_after_insert)"
+          "test(backtest_start_resolves_market_dates_with_dst) or test(validate_snapshot_rejects_the_go_boundary_table) or test(corrupt_cached_snapshots_are_rejected_with_the_go_conditions) or test(cross_year_snapshot_is_cached_for_every_covered_year_and_summarised_once) or test(empty_store_projects_an_empty_broker_surface) or test(rejected_provider_switch_preserves_the_current_quote_cache)"
         ],
         "testFilter": [
-          "backtest_start_resolves_market_dates_with_dst"
+          "backtest_start_resolves_market_dates_with_dst",
+          "validate_snapshot_rejects_the_go_boundary_table",
+          "corrupt_cached_snapshots_are_rejected_with_the_go_conditions",
+          "cross_year_snapshot_is_cached_for_every_covered_year_and_summarised_once",
+          "empty_store_projects_an_empty_broker_surface",
+          "rejected_provider_switch_preserves_the_current_quote_cache"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "b9b2b48870a813e5f6411439bef617195b866b0e",
-        "verifiedAt": "2026-09-25T14:10:34Z",
-        "receiptDigest": null
+        "verifiedCommit": "805f909ac0629fe7882e7c5ccf3c615cbe5eb9b0",
+        "verifiedAt": "2026-09-27T18:21:57Z",
+        "receiptDigest": "sha256:e2ffadfff2d2d62a4d697f5bf9a65f47f446f2b60316848ed77cac4d6517ae34"
       },
       "risk": "high",
       "owner": "backtest_calendar",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "[x]：US 2026-03-08 市场日解析为 05:00:00Z 起、次日 03:59:59.999999999Z 止（23 小时），归一化载荷带 startDate/endDate 标签与 marketTimezone=America/New_York；修复了 Rust 原先把日期当作 UTC 零点（00:00:00Z）的差异，并新增 Parity 锚点。"
@@ -201606,7 +201620,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-calendar/src/manager_calendar.rs::tests::validate_snapshot_rejects_the_go_boundary_table + crates/jftrade-calendar/tests/manager_boundaries.rs::corrupt_cached_snapshots_are_rejected_with_the_go_conditions",
       "conclusion": "function_exact：Go 直接调 validateCachedSnapshot 并逐条断言 7 个坏快照的报错文案（missing sourceId / missing marketCode / unsupported market \"MARS\" / missing snapshot range / invalid snapshot range / schedule has empty date / outside snapshot range）与有效快照通过。Rust 的同一 owner 是 manager_calendar.rs::validate_snapshot，新增单元测试逐条断言这 7 个条件（措辞不同：identity 合并为一条消息，range 用 \"outside its market or range\"，故按条件而非字符串断言）。恢复路径的可见效果由集成测试锚定：7 个坏快照经真实 store 落盘后 restore 均不写缓存、schedule 一律回退 builtin_rules，有效快照在启用策略下被正常服务。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-calendar -p jftrade-settings --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(backtest_start_resolves_market_dates_with_dst) or test(validate_snapshot_rejects_the_go_boundary_table) or test(corrupt_cached_snapshots_are_rejected_with_the_go_conditions) or test(cross_year_snapshot_is_cached_for_every_covered_year_and_summarised_once) or test(empty_store_projects_an_empty_broker_surface) or test(rejected_provider_switch_preserves_the_current_quote_cache)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/exchangecalendar/manager_boundaries_test.go",
@@ -201643,37 +201657,50 @@
           "function_exact：Go 直接调 validateCachedSnapshot 并逐条断言 7 个坏快照的报错文案（missing sourceId / missing marketCode / unsupported market \"MARS\" / missing snapshot range / invalid snapshot range / schedule has empty date / outside snapshot range）与有效快照通过。Rust 的同一 owner 是 manager_calendar.rs::validate_snapshot，新增单元测试逐条断言这 7 个条件（措辞不同：identity 合并为一条消息，range 用 \"outside its market or range\"，故按条件而非字符串断言）。恢复路径的可见效果由集成测试锚定：7 个坏快照经真实 store 落盘后 restore 均不写缓存、schedule 一律回退 builtin_rules，有效快照在启用策略下被正常服务。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
+          "-p",
+          "jftrade-engine",
+          "-p",
+          "jftrade-calendar",
+          "-p",
+          "jftrade-settings",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(default_registry_client_uses_the_calendar_fetch_timeout) or test(manual_override_status_and_session_window_boundaries_match_go) or test(validate_snapshot_rejects_the_go_boundary_table) or test(corrupt_cached_snapshots_are_rejected_with_the_go_conditions) or test(registered_provider_snapshots_pass_domain_validation_before_caching) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go) or test(restore_reports_malformed_cached_snapshot_with_its_path) or test(probe_budget_bounds_one_provider_call_without_hanging_the_manager) or test(invalid_cached_snapshot_is_discarded_deleted_and_replaced_by_builtin_rules) or test(probe_treats_an_empty_parse_as_structure_changed_unhealthy) or test(refresh_treats_an_empty_parse_as_structure_changed_failure) or test(network_timeout_variants_share_one_alert_fingerprint) or test(successful_probe_recovery_clears_the_recorded_fetch_failure) or test(probe_uses_market_local_year_when_us_crosses_utc_new_year) or test(cross_year_snapshot_is_cached_for_every_covered_year_and_summarised_once) or test(retries_transient_readiness_and_sends_optional_bearer) or test(test_research_screen_route_uses_production_helper_and_preserves_upstream_rate_limit) or test(candle_route_excludes_before_boundary_and_can_continue_loading_older_pages) or test(index_constituents_read_forwards_the_normalized_leaf_and_limit) or test(market_data_news_search_read_route_matches_group_fixture_in_cutover_only) or test(calendar_and_macro_propagate_capability_and_busy_errors) or test(economic_calendar_route_derives_date_and_time) or test(company_financials_forwards_market_symbol_and_statement) or test(research_screen_definition_rejects_unsupported_market_and_stable_keys) or test(rankings_limit_falls_back_to_legacy_limit_and_default) or test(candle_route_classifies_unknown_us_session_as_a_data_error) or test(research_screen_leaf_maps_invalid_provider_rows_to_bad_gateway) or test(decoder_rejects_unknown_and_trailing_json_before_the_port)"
+          "test(backtest_start_resolves_market_dates_with_dst) or test(validate_snapshot_rejects_the_go_boundary_table) or test(corrupt_cached_snapshots_are_rejected_with_the_go_conditions) or test(cross_year_snapshot_is_cached_for_every_covered_year_and_summarised_once) or test(empty_store_projects_an_empty_broker_surface) or test(rejected_provider_switch_preserves_the_current_quote_cache)"
         ],
         "testFilter": [
+          "backtest_start_resolves_market_dates_with_dst",
           "validate_snapshot_rejects_the_go_boundary_table",
-          "corrupt_cached_snapshots_are_rejected_with_the_go_conditions"
+          "corrupt_cached_snapshots_are_rejected_with_the_go_conditions",
+          "cross_year_snapshot_is_cached_for_every_covered_year_and_summarised_once",
+          "empty_store_projects_an_empty_broker_surface",
+          "rejected_provider_switch_preserves_the_current_quote_cache"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "fe9ee7fa5fe27dc89d21a8a33694d44ec4aa09e0",
-        "verifiedAt": "2026-09-25T14:17:13Z",
-        "receiptDigest": null
+        "verifiedCommit": "805f909ac0629fe7882e7c5ccf3c615cbe5eb9b0",
+        "verifiedAt": "2026-09-27T18:21:57Z",
+        "receiptDigest": "sha256:e2ffadfff2d2d62a4d697f5bf9a65f47f446f2b60316848ed77cac4d6517ae34"
       },
       "risk": "high",
       "owner": "backtest_calendar",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：Go 直接调 validateCachedSnapshot 并逐条断言 7 个坏快照的报错文案（missing sourceId / missing marketCode / unsupported market \"MARS\" / missing snapshot range / invalid snapshot range / schedule has empty date / outside snapshot range）与有效快照通过。Rust 的同一 owner 是 manager_calendar.rs::validate_snapshot，新增单元测试逐条断言这 7 个条件（措辞不同：identity 合并为一条消息，range 用 \"outside its market or range\"，故按条件而非字符串断言）。恢复路径的可见效果由集成测试锚定：7 个坏快照经真实 store 落盘后 restore 均不写缓存、schedule 一律回退 builtin_rules，有效快照在启用策略下被正常服务。"
@@ -203560,7 +203587,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-calendar/tests/manager_lifecycle.rs::cross_year_snapshot_is_cached_for_every_covered_year_and_summarised_once",
       "conclusion": "function_exact：Go 按覆盖到的 market-local 年份建立多个缓存索引条目，使 2026-01-01..2027-12-31 的快照能回答第二年（2027-01-02）的查询，同时 snapshotSummaries() 仍只返回一条逻辑快照。Rust 的 CalendarStore 以 market_local_year 为覆盖年份建索引，manager_lifecycle.rs 用一条 from=2026-01-01 / to=2027-12-31 的快照断言 2026-06-19 与 2027-01-02 两天都命中同一 source_id=cross-year 的规则，并断言 status.snapshots 长度为 1、checksum 一致、schedules_parsed=2（比 Go 多断言第一年命中，作为跨年索引的双向证据）。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-calendar -p jftrade-settings --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(backtest_start_resolves_market_dates_with_dst) or test(validate_snapshot_rejects_the_go_boundary_table) or test(corrupt_cached_snapshots_are_rejected_with_the_go_conditions) or test(cross_year_snapshot_is_cached_for_every_covered_year_and_summarised_once) or test(empty_store_projects_an_empty_broker_surface) or test(rejected_provider_switch_preserves_the_current_quote_cache)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/exchangecalendar/manager_test.go",
@@ -203586,36 +203613,50 @@
           "function_exact：Go 按覆盖到的 market-local 年份建立多个缓存索引条目，使 2026-01-01..2027-12-31 的快照能回答第二年（2027-01-02）的查询，同时 snapshotSummaries() 仍只返回一条逻辑快照。Rust 的 CalendarStore 以 market_local_year 为覆盖年份建索引，manager_lifecycle.rs 用一条 from=2026-01-01 / to=2027-12-31 的快照断言 2026-06-19 与 2027-01-02 两天都命中同一 source_id=cross-year 的规则，并断言 status.snapshots 长度为 1、checksum 一致、schedules_parsed=2（比 Go 多断言第一年命中，作为跨年索引的双向证据）。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
+          "-p",
+          "jftrade-engine",
+          "-p",
+          "jftrade-calendar",
+          "-p",
+          "jftrade-settings",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(default_registry_client_uses_the_calendar_fetch_timeout) or test(manual_override_status_and_session_window_boundaries_match_go) or test(validate_snapshot_rejects_the_go_boundary_table) or test(corrupt_cached_snapshots_are_rejected_with_the_go_conditions) or test(registered_provider_snapshots_pass_domain_validation_before_caching) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go) or test(restore_reports_malformed_cached_snapshot_with_its_path) or test(probe_budget_bounds_one_provider_call_without_hanging_the_manager) or test(invalid_cached_snapshot_is_discarded_deleted_and_replaced_by_builtin_rules) or test(probe_treats_an_empty_parse_as_structure_changed_unhealthy) or test(refresh_treats_an_empty_parse_as_structure_changed_failure) or test(network_timeout_variants_share_one_alert_fingerprint) or test(successful_probe_recovery_clears_the_recorded_fetch_failure) or test(probe_uses_market_local_year_when_us_crosses_utc_new_year) or test(cross_year_snapshot_is_cached_for_every_covered_year_and_summarised_once) or test(retries_transient_readiness_and_sends_optional_bearer) or test(test_research_screen_route_uses_production_helper_and_preserves_upstream_rate_limit) or test(candle_route_excludes_before_boundary_and_can_continue_loading_older_pages) or test(index_constituents_read_forwards_the_normalized_leaf_and_limit) or test(market_data_news_search_read_route_matches_group_fixture_in_cutover_only) or test(calendar_and_macro_propagate_capability_and_busy_errors) or test(economic_calendar_route_derives_date_and_time) or test(company_financials_forwards_market_symbol_and_statement) or test(research_screen_definition_rejects_unsupported_market_and_stable_keys) or test(rankings_limit_falls_back_to_legacy_limit_and_default) or test(candle_route_classifies_unknown_us_session_as_a_data_error) or test(research_screen_leaf_maps_invalid_provider_rows_to_bad_gateway) or test(decoder_rejects_unknown_and_trailing_json_before_the_port)"
+          "test(backtest_start_resolves_market_dates_with_dst) or test(validate_snapshot_rejects_the_go_boundary_table) or test(corrupt_cached_snapshots_are_rejected_with_the_go_conditions) or test(cross_year_snapshot_is_cached_for_every_covered_year_and_summarised_once) or test(empty_store_projects_an_empty_broker_surface) or test(rejected_provider_switch_preserves_the_current_quote_cache)"
         ],
         "testFilter": [
-          "cross_year_snapshot_is_cached_for_every_covered_year_and_summarised_once"
+          "backtest_start_resolves_market_dates_with_dst",
+          "validate_snapshot_rejects_the_go_boundary_table",
+          "corrupt_cached_snapshots_are_rejected_with_the_go_conditions",
+          "cross_year_snapshot_is_cached_for_every_covered_year_and_summarised_once",
+          "empty_store_projects_an_empty_broker_surface",
+          "rejected_provider_switch_preserves_the_current_quote_cache"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "fe9ee7fa5fe27dc89d21a8a33694d44ec4aa09e0",
-        "verifiedAt": "2026-09-25T14:17:13Z",
-        "receiptDigest": null
+        "verifiedCommit": "805f909ac0629fe7882e7c5ccf3c615cbe5eb9b0",
+        "verifiedAt": "2026-09-27T18:21:57Z",
+        "receiptDigest": "sha256:e2ffadfff2d2d62a4d697f5bf9a65f47f446f2b60316848ed77cac4d6517ae34"
       },
       "risk": "high",
       "owner": "backtest_calendar",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：Go 按覆盖到的 market-local 年份建立多个缓存索引条目，使 2026-01-01..2027-12-31 的快照能回答第二年（2027-01-02）的查询，同时 snapshotSummaries() 仍只返回一条逻辑快照。Rust 的 CalendarStore 以 market_local_year 为覆盖年份建索引，manager_lifecycle.rs 用一条 from=2026-01-01 / to=2027-12-31 的快照断言 2026-06-19 与 2027-01-02 两天都命中同一 source_id=cross-year 的规则，并断言 status.snapshots 长度为 1、checksum 一致、schedules_parsed=2（比 Go 多断言第一年命中，作为跨年索引的双向证据）。"
@@ -235028,7 +235069,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-settings/src/onboarding.rs::default_onboarding_inputs_and_settings_return_empty_values；crates/jftrade-settings/src/broker.rs::empty_store_projects_an_empty_broker_surface",
       "conclusion": "function_exact（本批新增 broker 侧断言）：Go 断言默认 OnboardingState(ctx) 与 BrokerSettings() 回调返回空 map。Rust 对应用户面默认投影：onboarding 默认输入为空、readiness 仅含 NO_MANAGED_ACCOUNTS 且时间戳为空；broker 空 store 投影 saved_integration=None、accounts 为空、effective_config 为默认值（本批新增 empty_store_projects_an_empty_broker_surface，锚点同步写入 broker.rs）。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings --all-targets --locked -E 'test(empty_store_projects_an_empty_broker_surface)'",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-calendar -p jftrade-settings --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(backtest_start_resolves_market_dates_with_dst) or test(validate_snapshot_rejects_the_go_boundary_table) or test(corrupt_cached_snapshots_are_rejected_with_the_go_conditions) or test(cross_year_snapshot_is_cached_for_every_covered_year_and_summarised_once) or test(empty_store_projects_an_empty_broker_surface) or test(rejected_provider_switch_preserves_the_current_quote_cache)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/settings/service_test.go",
@@ -235065,37 +235106,50 @@
           "function_exact（本批新增 broker 侧断言）：Go 断言默认 OnboardingState(ctx) 与 BrokerSettings() 回调返回空 map。Rust 对应用户面默认投影：onboarding 默认输入为空、readiness 仅含 NO_MANAGED_ACCOUNTS 且时间戳为空；broker 空 store 投影 saved_integration=None、accounts 为空、effective_config 为默认值（本批新增 empty_store_projects_an_empty_broker_surface，锚点同步写入 broker.rs）。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
+          "-p",
+          "jftrade-engine",
+          "-p",
+          "jftrade-calendar",
+          "-p",
+          "jftrade-settings",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(calendar_and_macro_propagate_capability_and_busy_errors) or test(retries_transient_readiness_and_sends_optional_bearer) or test(snapshot_route_queries_the_provider_once_on_cache_miss) or test(resolver_projects_us_early_close_extended_window_with_timezone) or test(candle_route_excludes_before_boundary_and_can_continue_loading_older_pages) or test(candle_route_forwards_strict_before_window) or test(candle_route_skips_session_classification_for_unannotated_requests) or test(candle_route_classifies_unknown_us_session_as_a_data_error) or test(company_financials_forwards_market_symbol_and_statement) or test(provider_company_profile_projection_maps_frontend_keys) or test(provider_financial_statements_projection_maps_frontend_keys) or test(recoverable_errors_match_go_is_recoverable_opend_err) or test(runtime_task_backoff_replays_after_a_failed_reconnect_attempt) or test(test_exponential_backoff_progression_and_upper_bound_capping) or test(basic_quote_query_replays_once_after_recoverable_session_timeout) or test(basic_quote_query_returns_non_recoverable_rejection_without_replaying) or test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(margin_ratio_server_throttling_maps_to_the_typed_rate_limit) or test(calendar_control_plane_routes_share_the_real_manager_in_cutover_only) or test(calendar_control_plane_routes_fail_closed_without_a_manager) or test(order_book_levels_project_price_volume_count_and_details) or test(frame_size_guards_cover_encode_and_decode) or test(lifecycle_accepts_active_push_preserves_recorder_failures_and_rejects_stale_push) or test(closed_session_rejects_connect_like_rpcs_before_touching_the_transport) or test(start_keep_alive_ignores_non_positive_intervals) or test(close_is_idempotent_and_joins_the_single_reader) or test(request_observability_snapshot_serializes_empty_collections_as_arrays) or test(rollback_and_disabled_fallbacks_preserve_the_stored_projection) or test(writes_validate_password_port_and_public_access_like_go) or test(default_onboarding_inputs_and_settings_return_empty_values) or test(empty_store_projects_an_empty_broker_surface) or test(watchlist_group_conversion_marks_every_normalized_duplicate_ambiguous)"
+          "test(backtest_start_resolves_market_dates_with_dst) or test(validate_snapshot_rejects_the_go_boundary_table) or test(corrupt_cached_snapshots_are_rejected_with_the_go_conditions) or test(cross_year_snapshot_is_cached_for_every_covered_year_and_summarised_once) or test(empty_store_projects_an_empty_broker_surface) or test(rejected_provider_switch_preserves_the_current_quote_cache)"
         ],
         "testFilter": [
-          "default_onboarding_inputs_and_settings_return_empty_values",
-          "empty_store_projects_an_empty_broker_surface"
+          "backtest_start_resolves_market_dates_with_dst",
+          "validate_snapshot_rejects_the_go_boundary_table",
+          "corrupt_cached_snapshots_are_rejected_with_the_go_conditions",
+          "cross_year_snapshot_is_cached_for_every_covered_year_and_summarised_once",
+          "empty_store_projects_an_empty_broker_surface",
+          "rejected_provider_switch_preserves_the_current_quote_cache"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "139b4209a45727353d237d9596313c128a32b8d2",
-        "verifiedAt": "2026-09-25T14:19:12Z",
-        "receiptDigest": null
+        "verifiedCommit": "805f909ac0629fe7882e7c5ccf3c615cbe5eb9b0",
+        "verifiedAt": "2026-09-27T18:21:57Z",
+        "receiptDigest": "sha256:e2ffadfff2d2d62a4d697f5bf9a65f47f446f2b60316848ed77cac4d6517ae34"
       },
       "risk": "high",
       "owner": "settings_watchlist",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact（本批新增 broker 侧断言）：Go 断言默认 OnboardingState(ctx) 与 BrokerSettings() 回调返回空 map。Rust 对应用户面默认投影：onboarding 默认输入为空、readiness 仅含 NO_MANAGED_ACCOUNTS 且时间戳为空；broker 空 store 投影 saved_integration=None、accounts 为空、effective_config 为默认值（本批新增 empty_store_projects_an_empty_broker_surface，锚点同步写入 broker.rs）。"
@@ -236876,7 +236930,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/product_production_ports_watchlist_quotes_tests.rs::tests::rejected_provider_switch_preserves_the_current_quote_cache",
       "conclusion": "[x]：本批新增——激活回调返回错误时 provider 与 generation 不变，已缓存 quote 继续命中且不再访问源（测试断言切换被拒后源调用次数仍为 1），与 Go 的 ChangeQuoteProvider 失败保留当前缓存一致。本批新增回归测试与 `// Parity: go:452dea11:internal/watchlist/service_quotes_test.go:210` 锚点。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-calendar -p jftrade-settings --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(backtest_start_resolves_market_dates_with_dst) or test(validate_snapshot_rejects_the_go_boundary_table) or test(corrupt_cached_snapshots_are_rejected_with_the_go_conditions) or test(cross_year_snapshot_is_cached_for_every_covered_year_and_summarised_once) or test(empty_store_projects_an_empty_broker_surface) or test(rejected_provider_switch_preserves_the_current_quote_cache)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/watchlist/service_quotes_test.go",
@@ -236902,36 +236956,50 @@
           "[x]：本批新增——激活回调返回错误时 provider 与 generation 不变，已缓存 quote 继续命中且不再访问源（测试断言切换被拒后源调用次数仍为 1），与 Go 的 ChangeQuoteProvider 失败保留当前缓存一致。本批新增回归测试与 `// Parity: go:452dea11:internal/watchlist/service_quotes_test.go:210` 锚点。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
+          "-p",
+          "jftrade-engine",
+          "-p",
+          "jftrade-calendar",
+          "-p",
+          "jftrade-settings",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(test_basic_quote_availability_rejection_enters_delayed_fallback_and_reconcile_succeeds) or test(quote_cache_serves_repeat_reads_within_one_provider_generation) or test(futu_snapshot_route_projects_cached_extended_quote_contract) or test(malformed_identity_and_unbounded_pages_fail_closed) or test(test_quote_cache_and_import_helpers_keep_absent_data_explicit) or test(rejected_provider_switch_preserves_the_current_quote_cache) or test(provider_switch_drops_quotes_cached_under_the_previous_provider) or test(concurrent_group_updates_commit_with_revision_fence) or test(test_store_canceled_maintenance_does_not_mutate_runs) or test(test_in_memory_store_implements_run_lifecycle_and_cancellation) or test(sync_task_cancel_distinguishes_missing_active_and_terminal) or test(test_calendar_store_empty_load_and_delete_are_idempotent) or test(test_save_snapshot_validates_inputs_and_resolves_year_fallbacks) or test(test_settings_normalization_handles_fallbacks_and_boundaries) or test(test_failed_setting_saves_rollback_all_runtime_state) or test(test_failed_bootstrap_and_migration_rollback_runtime_state) or test(test_failed_managed_account_crud_rolls_back_backing_array) or test(missing_empty_and_corrupted_documents_have_distinct_behavior) or test(product_corpus_replays_frozen_compatibility_and_preserves_unknown_fields) or test(appearance_round_trip_preserves_unknown_go_owned_fields) or test(security_settings_writes_match_frozen_compatibility_expectations) or test(listener_failure_rolls_back_the_persisted_settings) or test(opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_file) or test(exclusive_lock_conflicts_and_file_survives_release)"
+          "test(backtest_start_resolves_market_dates_with_dst) or test(validate_snapshot_rejects_the_go_boundary_table) or test(corrupt_cached_snapshots_are_rejected_with_the_go_conditions) or test(cross_year_snapshot_is_cached_for_every_covered_year_and_summarised_once) or test(empty_store_projects_an_empty_broker_surface) or test(rejected_provider_switch_preserves_the_current_quote_cache)"
         ],
         "testFilter": [
+          "backtest_start_resolves_market_dates_with_dst",
+          "validate_snapshot_rejects_the_go_boundary_table",
+          "corrupt_cached_snapshots_are_rejected_with_the_go_conditions",
+          "cross_year_snapshot_is_cached_for_every_covered_year_and_summarised_once",
+          "empty_store_projects_an_empty_broker_surface",
           "rejected_provider_switch_preserves_the_current_quote_cache"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "3132b60290fd9e70004b73805342636497ac2f27",
-        "verifiedAt": "2026-09-25T14:21:18Z",
-        "receiptDigest": null
+        "verifiedCommit": "805f909ac0629fe7882e7c5ccf3c615cbe5eb9b0",
+        "verifiedAt": "2026-09-27T18:21:57Z",
+        "receiptDigest": "sha256:e2ffadfff2d2d62a4d697f5bf9a65f47f446f2b60316848ed77cac4d6517ae34"
       },
       "risk": "high",
       "owner": "settings_watchlist",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "[x]：本批新增——激活回调返回错误时 provider 与 generation 不变，已缓存 quote 继续命中且不再访问源（测试断言切换被拒后源调用次数仍为 1），与 Go 的 ChangeQuoteProvider 失败保留当前缓存一致。本批新增回归测试与 `// Parity: go:452dea11:internal/watchlist/service_quotes_test.go:210` 锚点。"
