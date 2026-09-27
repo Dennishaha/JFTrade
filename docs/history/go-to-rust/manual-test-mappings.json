@@ -39430,7 +39430,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-integration-marketdata-helper/src/process.rs::tests::stop_escalates_to_kill_when_the_child_outlives_the_grace_period",
       "conclusion": "function_exact：Go 断言优雅停止受有界超时约束、超时后升级为 kill 并回收。Rust 的 stop_escalates_to_kill_when_the_child_outlives_the_grace_period 启动忽略 SIGTERM 的真实子进程并把 stop_timeout 设为 200ms，断言 stop 在有界时间内返回、state==Stopped、pid 为空且 is_alive()==false，逐条对应“有界停止 + 强杀升级 + 必然回收”。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper --all-targets --locked",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(managed_process_is_reused_until_an_explicit_stop_releases_it) or test(stop_escalates_to_kill_when_the_child_outlives_the_grace_period) or test(node_candidates_prefer_path_then_macos_common_installs) or test(runtime_dependencies_flag_unsatisfied_required_entries) or test(auth_session_route_matches_go_fixture_in_cutover_only) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/app/apiserver/marketdataapp/sidecar_os_process_test.go",
@@ -39456,36 +39456,48 @@
           "function_exact：Go 断言优雅停止受有界超时约束、超时后升级为 kill 并回收。Rust 的 stop_escalates_to_kill_when_the_child_outlives_the_grace_period 启动忽略 SIGTERM 的真实子进程并把 stop_timeout 设为 200ms，断言 stop 在有界时间内返回、state==Stopped、pid 为空且 is_alive()==false，逐条对应“有界停止 + 强杀升级 + 必然回收”。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
+          "-p",
+          "jftrade-integration-marketdata-helper",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(depth_read_returns_empty_arrays_for_empty_s2c_lists) or test(switch_retires_the_previous_provider_before_publishing_the_next_one) or test(unsubscribe_retry_ladder_escalates_and_reacquire_clears_retry_state) or test(queued_transitions_observe_the_committed_provider_as_their_previous_owner) or test(start_rejects_a_second_launch_of_a_live_process) or test(stop_escalates_to_kill_when_the_child_outlives_the_grace_period) or test(managed_process_is_reused_until_an_explicit_stop_releases_it) or test(unknown_provider_activation_is_rejected_without_touching_the_active_selection) or test(activation_after_shutdown_is_rejected_and_leaves_the_snapshot_committed) or test(node_candidates_prefer_path_then_macos_common_installs) or test(runtime_dependencies_flag_unsatisfied_required_entries) or test(stop_product_is_idempotent_across_concurrent_invocations) or test(web_shutdown_does_not_hold_runtime_lock_while_joining_server) or test(auth_session_route_matches_go_fixture_in_cutover_only) or test(test_normalize_execution_order_preserves_broker_abstraction) or test(provider_switch_does_not_disconnect_an_existing_futu_trade_session) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(disabled_web_access_does_not_start_a_listener) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable) or test(test_product_runtime_ordered_shutdown_explicit) or test(production_startup_exposes_degraded_api_when_external_runtimes_are_unavailable) or test(earnings_calendar_route_maps_frontend_keys) or test(strategy_definition_preview_derives_warmup_bars_and_overrides_preview_parameters) or test(browser_authenticated_request_cannot_change_desktop_only_security_settings) or test(cached_projection_does_not_promote_stale_overnight_during_regular_hours) or test(startup_reconcile_resets_stale_paused_state_and_keeps_stopped_instances) or test(recovery_failure_converges_the_running_instance_to_stopped) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel) or test(broker_klines_valid_request_fails_closed_without_historical_source) or test(broker_securities_returns_real_empty_result_when_cache_has_no_symbol)"
+          "test(managed_process_is_reused_until_an_explicit_stop_releases_it) or test(stop_escalates_to_kill_when_the_child_outlives_the_grace_period) or test(node_candidates_prefer_path_then_macos_common_installs) or test(runtime_dependencies_flag_unsatisfied_required_entries) or test(auth_session_route_matches_go_fixture_in_cutover_only) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log)"
         ],
         "testFilter": [
-          "stop_escalates_to_kill_when_the_child_outlives_the_grace_period"
+          "managed_process_is_reused_until_an_explicit_stop_releases_it",
+          "stop_escalates_to_kill_when_the_child_outlives_the_grace_period",
+          "node_candidates_prefer_path_then_macos_common_installs",
+          "runtime_dependencies_flag_unsatisfied_required_entries",
+          "auth_session_route_matches_go_fixture_in_cutover_only",
+          "runtime_exit_converges_to_stopped_with_audit_notification_and_error_log"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "0896c4ab",
-        "verifiedAt": "2026-09-25T13:35:20Z",
-        "receiptDigest": null
+        "verifiedCommit": "4e3eb65c2789c59979b4d0560ec0f7cbca0c516d",
+        "verifiedAt": "2026-09-27T17:48:53Z",
+        "receiptDigest": "sha256:52ef8cc1e2ccf7d57130269388da3d90544630132116f3cc4cf9c431d7de2c51"
       },
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：Go 断言优雅停止受有界超时约束、超时后升级为 kill 并回收。Rust 的 stop_escalates_to_kill_when_the_child_outlives_the_grace_period 启动忽略 SIGTERM 的真实子进程并把 stop_timeout 设为 200ms，断言 stop 在有界时间内返回、state==Stopped、pid 为空且 is_alive()==false，逐条对应“有界停止 + 强杀升级 + 必然回收”。"
@@ -39626,7 +39638,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-integration-marketdata-helper/src/process.rs::tests::managed_process_is_reused_until_an_explicit_stop_releases_it",
       "conclusion": "function_exact：Go 断言 sidecar manager 首次 EnsureStarted 产出 endpoint/端口/可执行文件，第二次调用复用同一进程（不重复启动），Stop 后进程关闭且状态清空（Close 空态也成功）。Rust 的 managed_process_is_reused_until_an_explicit_stop_releases_it 断言启动后 endpoint 与 pid 稳定不变、restarts==0（同一 endpoint 只有一个 owner）、restart 才产生新 child 且计数为 1、endpoint 跨重启稳定，最后 stop 后 state==Stopped 且 pid 为空。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper --all-targets --locked",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(managed_process_is_reused_until_an_explicit_stop_releases_it) or test(stop_escalates_to_kill_when_the_child_outlives_the_grace_period) or test(node_candidates_prefer_path_then_macos_common_installs) or test(runtime_dependencies_flag_unsatisfied_required_entries) or test(auth_session_route_matches_go_fixture_in_cutover_only) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/app/apiserver/marketdataapp/sidecar_process_test.go",
@@ -39652,36 +39664,48 @@
           "function_exact：Go 断言 sidecar manager 首次 EnsureStarted 产出 endpoint/端口/可执行文件，第二次调用复用同一进程（不重复启动），Stop 后进程关闭且状态清空（Close 空态也成功）。Rust 的 managed_process_is_reused_until_an_explicit_stop_releases_it 断言启动后 endpoint 与 pid 稳定不变、restarts==0（同一 endpoint 只有一个 owner）、restart 才产生新 child 且计数为 1、endpoint 跨重启稳定，最后 stop 后 state==Stopped 且 pid 为空。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
+          "-p",
+          "jftrade-integration-marketdata-helper",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(depth_read_returns_empty_arrays_for_empty_s2c_lists) or test(switch_retires_the_previous_provider_before_publishing_the_next_one) or test(unsubscribe_retry_ladder_escalates_and_reacquire_clears_retry_state) or test(queued_transitions_observe_the_committed_provider_as_their_previous_owner) or test(start_rejects_a_second_launch_of_a_live_process) or test(stop_escalates_to_kill_when_the_child_outlives_the_grace_period) or test(managed_process_is_reused_until_an_explicit_stop_releases_it) or test(unknown_provider_activation_is_rejected_without_touching_the_active_selection) or test(activation_after_shutdown_is_rejected_and_leaves_the_snapshot_committed) or test(node_candidates_prefer_path_then_macos_common_installs) or test(runtime_dependencies_flag_unsatisfied_required_entries) or test(stop_product_is_idempotent_across_concurrent_invocations) or test(web_shutdown_does_not_hold_runtime_lock_while_joining_server) or test(auth_session_route_matches_go_fixture_in_cutover_only) or test(test_normalize_execution_order_preserves_broker_abstraction) or test(provider_switch_does_not_disconnect_an_existing_futu_trade_session) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(disabled_web_access_does_not_start_a_listener) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable) or test(test_product_runtime_ordered_shutdown_explicit) or test(production_startup_exposes_degraded_api_when_external_runtimes_are_unavailable) or test(earnings_calendar_route_maps_frontend_keys) or test(strategy_definition_preview_derives_warmup_bars_and_overrides_preview_parameters) or test(browser_authenticated_request_cannot_change_desktop_only_security_settings) or test(cached_projection_does_not_promote_stale_overnight_during_regular_hours) or test(startup_reconcile_resets_stale_paused_state_and_keeps_stopped_instances) or test(recovery_failure_converges_the_running_instance_to_stopped) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel) or test(broker_klines_valid_request_fails_closed_without_historical_source) or test(broker_securities_returns_real_empty_result_when_cache_has_no_symbol)"
+          "test(managed_process_is_reused_until_an_explicit_stop_releases_it) or test(stop_escalates_to_kill_when_the_child_outlives_the_grace_period) or test(node_candidates_prefer_path_then_macos_common_installs) or test(runtime_dependencies_flag_unsatisfied_required_entries) or test(auth_session_route_matches_go_fixture_in_cutover_only) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log)"
         ],
         "testFilter": [
-          "managed_process_is_reused_until_an_explicit_stop_releases_it"
+          "managed_process_is_reused_until_an_explicit_stop_releases_it",
+          "stop_escalates_to_kill_when_the_child_outlives_the_grace_period",
+          "node_candidates_prefer_path_then_macos_common_installs",
+          "runtime_dependencies_flag_unsatisfied_required_entries",
+          "auth_session_route_matches_go_fixture_in_cutover_only",
+          "runtime_exit_converges_to_stopped_with_audit_notification_and_error_log"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "0896c4ab",
-        "verifiedAt": "2026-09-25T13:35:20Z",
-        "receiptDigest": null
+        "verifiedCommit": "4e3eb65c2789c59979b4d0560ec0f7cbca0c516d",
+        "verifiedAt": "2026-09-27T17:48:53Z",
+        "receiptDigest": "sha256:52ef8cc1e2ccf7d57130269388da3d90544630132116f3cc4cf9c431d7de2c51"
       },
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：Go 断言 sidecar manager 首次 EnsureStarted 产出 endpoint/端口/可执行文件，第二次调用复用同一进程（不重复启动），Stop 后进程关闭且状态清空（Close 空态也成功）。Rust 的 managed_process_is_reused_until_an_explicit_stop_releases_it 断言启动后 endpoint 与 pid 稳定不变、restarts==0（同一 endpoint 只有一个 owner）、restart 才产生新 child 且计数为 1、endpoint 跨重启稳定，最后 stop 后 state==Stopped 且 pid 为空。"
@@ -40888,7 +40912,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/runtime_dependencies.rs::node_candidates_prefer_path_then_macos_common_installs",
       "conclusion": "function_exact：Go 断言 macOS 下按 node→/opt/homebrew/bin/node→/usr/local/bin/node→/opt/homebrew/opt/node/bin/node→/usr/local/opt/node/bin/node 顺序查找且 source=common:<path>；Rust 测试断言同一候选顺序与 source 标签（非 macOS 平台只保留 PATH 候选）。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(node_candidates_prefer_path_then_macos_common_installs)'",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(managed_process_is_reused_until_an_explicit_stop_releases_it) or test(stop_escalates_to_kill_when_the_child_outlives_the_grace_period) or test(node_candidates_prefer_path_then_macos_common_installs) or test(runtime_dependencies_flag_unsatisfied_required_entries) or test(auth_session_route_matches_go_fixture_in_cutover_only) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/app/apiserver/runtime/dependencies_test.go",
@@ -40914,36 +40938,48 @@
           "function_exact：Go 断言 macOS 下按 node→/opt/homebrew/bin/node→/usr/local/bin/node→/opt/homebrew/opt/node/bin/node→/usr/local/opt/node/bin/node 顺序查找且 source=common:<path>；Rust 测试断言同一候选顺序与 source 标签（非 macOS 平台只保留 PATH 候选）。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
+          "-p",
+          "jftrade-integration-marketdata-helper",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(depth_read_returns_empty_arrays_for_empty_s2c_lists) or test(switch_retires_the_previous_provider_before_publishing_the_next_one) or test(unsubscribe_retry_ladder_escalates_and_reacquire_clears_retry_state) or test(queued_transitions_observe_the_committed_provider_as_their_previous_owner) or test(start_rejects_a_second_launch_of_a_live_process) or test(stop_escalates_to_kill_when_the_child_outlives_the_grace_period) or test(managed_process_is_reused_until_an_explicit_stop_releases_it) or test(unknown_provider_activation_is_rejected_without_touching_the_active_selection) or test(activation_after_shutdown_is_rejected_and_leaves_the_snapshot_committed) or test(node_candidates_prefer_path_then_macos_common_installs) or test(runtime_dependencies_flag_unsatisfied_required_entries) or test(stop_product_is_idempotent_across_concurrent_invocations) or test(web_shutdown_does_not_hold_runtime_lock_while_joining_server) or test(auth_session_route_matches_go_fixture_in_cutover_only) or test(test_normalize_execution_order_preserves_broker_abstraction) or test(provider_switch_does_not_disconnect_an_existing_futu_trade_session) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(disabled_web_access_does_not_start_a_listener) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable) or test(test_product_runtime_ordered_shutdown_explicit) or test(production_startup_exposes_degraded_api_when_external_runtimes_are_unavailable) or test(earnings_calendar_route_maps_frontend_keys) or test(strategy_definition_preview_derives_warmup_bars_and_overrides_preview_parameters) or test(browser_authenticated_request_cannot_change_desktop_only_security_settings) or test(cached_projection_does_not_promote_stale_overnight_during_regular_hours) or test(startup_reconcile_resets_stale_paused_state_and_keeps_stopped_instances) or test(recovery_failure_converges_the_running_instance_to_stopped) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel) or test(broker_klines_valid_request_fails_closed_without_historical_source) or test(broker_securities_returns_real_empty_result_when_cache_has_no_symbol)"
+          "test(managed_process_is_reused_until_an_explicit_stop_releases_it) or test(stop_escalates_to_kill_when_the_child_outlives_the_grace_period) or test(node_candidates_prefer_path_then_macos_common_installs) or test(runtime_dependencies_flag_unsatisfied_required_entries) or test(auth_session_route_matches_go_fixture_in_cutover_only) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log)"
         ],
         "testFilter": [
-          "node_candidates_prefer_path_then_macos_common_installs"
+          "managed_process_is_reused_until_an_explicit_stop_releases_it",
+          "stop_escalates_to_kill_when_the_child_outlives_the_grace_period",
+          "node_candidates_prefer_path_then_macos_common_installs",
+          "runtime_dependencies_flag_unsatisfied_required_entries",
+          "auth_session_route_matches_go_fixture_in_cutover_only",
+          "runtime_exit_converges_to_stopped_with_audit_notification_and_error_log"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "0896c4ab",
-        "verifiedAt": "2026-09-25T13:35:20Z",
-        "receiptDigest": null
+        "verifiedCommit": "4e3eb65c2789c59979b4d0560ec0f7cbca0c516d",
+        "verifiedAt": "2026-09-27T17:48:53Z",
+        "receiptDigest": "sha256:52ef8cc1e2ccf7d57130269388da3d90544630132116f3cc4cf9c431d7de2c51"
       },
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：Go 断言 macOS 下按 node→/opt/homebrew/bin/node→/usr/local/bin/node→/opt/homebrew/opt/node/bin/node→/usr/local/opt/node/bin/node 顺序查找且 source=common:<path>；Rust 测试断言同一候选顺序与 source 标签（非 macOS 平台只保留 PATH 候选）。"
@@ -41089,7 +41125,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/runtime_dependencies.rs::runtime_dependencies_flag_unsatisfied_required_entries",
       "conclusion": "function_exact：Go 断言 v21 时 allRequiredSatisfied=false 且 dependencies 只含 node；Rust 提取 all_required_satisfied 聚合函数并断言必需项 outdated→false、必需项 ok→true、可选 outdated→true。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(runtime_dependencies_flag_unsatisfied_required_entries)'",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(managed_process_is_reused_until_an_explicit_stop_releases_it) or test(stop_escalates_to_kill_when_the_child_outlives_the_grace_period) or test(node_candidates_prefer_path_then_macos_common_installs) or test(runtime_dependencies_flag_unsatisfied_required_entries) or test(auth_session_route_matches_go_fixture_in_cutover_only) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/app/apiserver/runtime/dependencies_test.go",
@@ -41115,36 +41151,48 @@
           "function_exact：Go 断言 v21 时 allRequiredSatisfied=false 且 dependencies 只含 node；Rust 提取 all_required_satisfied 聚合函数并断言必需项 outdated→false、必需项 ok→true、可选 outdated→true。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
+          "-p",
+          "jftrade-integration-marketdata-helper",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(depth_read_returns_empty_arrays_for_empty_s2c_lists) or test(switch_retires_the_previous_provider_before_publishing_the_next_one) or test(unsubscribe_retry_ladder_escalates_and_reacquire_clears_retry_state) or test(queued_transitions_observe_the_committed_provider_as_their_previous_owner) or test(start_rejects_a_second_launch_of_a_live_process) or test(stop_escalates_to_kill_when_the_child_outlives_the_grace_period) or test(managed_process_is_reused_until_an_explicit_stop_releases_it) or test(unknown_provider_activation_is_rejected_without_touching_the_active_selection) or test(activation_after_shutdown_is_rejected_and_leaves_the_snapshot_committed) or test(node_candidates_prefer_path_then_macos_common_installs) or test(runtime_dependencies_flag_unsatisfied_required_entries) or test(stop_product_is_idempotent_across_concurrent_invocations) or test(web_shutdown_does_not_hold_runtime_lock_while_joining_server) or test(auth_session_route_matches_go_fixture_in_cutover_only) or test(test_normalize_execution_order_preserves_broker_abstraction) or test(provider_switch_does_not_disconnect_an_existing_futu_trade_session) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(disabled_web_access_does_not_start_a_listener) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable) or test(test_product_runtime_ordered_shutdown_explicit) or test(production_startup_exposes_degraded_api_when_external_runtimes_are_unavailable) or test(earnings_calendar_route_maps_frontend_keys) or test(strategy_definition_preview_derives_warmup_bars_and_overrides_preview_parameters) or test(browser_authenticated_request_cannot_change_desktop_only_security_settings) or test(cached_projection_does_not_promote_stale_overnight_during_regular_hours) or test(startup_reconcile_resets_stale_paused_state_and_keeps_stopped_instances) or test(recovery_failure_converges_the_running_instance_to_stopped) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel) or test(broker_klines_valid_request_fails_closed_without_historical_source) or test(broker_securities_returns_real_empty_result_when_cache_has_no_symbol)"
+          "test(managed_process_is_reused_until_an_explicit_stop_releases_it) or test(stop_escalates_to_kill_when_the_child_outlives_the_grace_period) or test(node_candidates_prefer_path_then_macos_common_installs) or test(runtime_dependencies_flag_unsatisfied_required_entries) or test(auth_session_route_matches_go_fixture_in_cutover_only) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log)"
         ],
         "testFilter": [
-          "runtime_dependencies_flag_unsatisfied_required_entries"
+          "managed_process_is_reused_until_an_explicit_stop_releases_it",
+          "stop_escalates_to_kill_when_the_child_outlives_the_grace_period",
+          "node_candidates_prefer_path_then_macos_common_installs",
+          "runtime_dependencies_flag_unsatisfied_required_entries",
+          "auth_session_route_matches_go_fixture_in_cutover_only",
+          "runtime_exit_converges_to_stopped_with_audit_notification_and_error_log"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "0896c4ab",
-        "verifiedAt": "2026-09-25T13:35:20Z",
-        "receiptDigest": null
+        "verifiedCommit": "4e3eb65c2789c59979b4d0560ec0f7cbca0c516d",
+        "verifiedAt": "2026-09-27T17:48:53Z",
+        "receiptDigest": "sha256:52ef8cc1e2ccf7d57130269388da3d90544630132116f3cc4cf9c431d7de2c51"
       },
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：Go 断言 v21 时 allRequiredSatisfied=false 且 dependencies 只含 node；Rust 提取 all_required_satisfied 聚合函数并断言必需项 outdated→false、必需项 ok→true、可选 outdated→true。"
@@ -44946,7 +44994,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/product_auth_session_tests.rs::auth_session_route_matches_go_fixture_in_cutover_only",
       "conclusion": "function_exact：Go 断言开发模式下 Web listener 仍要求密码会话；Rust 认证会话 fixture 覆盖 browser_authenticated=false/true 与 cookie 绑定判定（桌面受信不替代浏览器会话）。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(auth_session_route_matches_go_fixture_in_cutover_only)'",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(managed_process_is_reused_until_an_explicit_stop_releases_it) or test(stop_escalates_to_kill_when_the_child_outlives_the_grace_period) or test(node_candidates_prefer_path_then_macos_common_installs) or test(runtime_dependencies_flag_unsatisfied_required_entries) or test(auth_session_route_matches_go_fixture_in_cutover_only) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/app/apiserver/servercore/desktop_token_test.go",
@@ -44972,36 +45020,48 @@
           "function_exact：Go 断言开发模式下 Web listener 仍要求密码会话；Rust 认证会话 fixture 覆盖 browser_authenticated=false/true 与 cookie 绑定判定（桌面受信不替代浏览器会话）。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
+          "-p",
+          "jftrade-integration-marketdata-helper",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(depth_read_returns_empty_arrays_for_empty_s2c_lists) or test(switch_retires_the_previous_provider_before_publishing_the_next_one) or test(unsubscribe_retry_ladder_escalates_and_reacquire_clears_retry_state) or test(queued_transitions_observe_the_committed_provider_as_their_previous_owner) or test(start_rejects_a_second_launch_of_a_live_process) or test(stop_escalates_to_kill_when_the_child_outlives_the_grace_period) or test(managed_process_is_reused_until_an_explicit_stop_releases_it) or test(unknown_provider_activation_is_rejected_without_touching_the_active_selection) or test(activation_after_shutdown_is_rejected_and_leaves_the_snapshot_committed) or test(node_candidates_prefer_path_then_macos_common_installs) or test(runtime_dependencies_flag_unsatisfied_required_entries) or test(stop_product_is_idempotent_across_concurrent_invocations) or test(web_shutdown_does_not_hold_runtime_lock_while_joining_server) or test(auth_session_route_matches_go_fixture_in_cutover_only) or test(test_normalize_execution_order_preserves_broker_abstraction) or test(provider_switch_does_not_disconnect_an_existing_futu_trade_session) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(disabled_web_access_does_not_start_a_listener) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable) or test(test_product_runtime_ordered_shutdown_explicit) or test(production_startup_exposes_degraded_api_when_external_runtimes_are_unavailable) or test(earnings_calendar_route_maps_frontend_keys) or test(strategy_definition_preview_derives_warmup_bars_and_overrides_preview_parameters) or test(browser_authenticated_request_cannot_change_desktop_only_security_settings) or test(cached_projection_does_not_promote_stale_overnight_during_regular_hours) or test(startup_reconcile_resets_stale_paused_state_and_keeps_stopped_instances) or test(recovery_failure_converges_the_running_instance_to_stopped) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel) or test(broker_klines_valid_request_fails_closed_without_historical_source) or test(broker_securities_returns_real_empty_result_when_cache_has_no_symbol)"
+          "test(managed_process_is_reused_until_an_explicit_stop_releases_it) or test(stop_escalates_to_kill_when_the_child_outlives_the_grace_period) or test(node_candidates_prefer_path_then_macos_common_installs) or test(runtime_dependencies_flag_unsatisfied_required_entries) or test(auth_session_route_matches_go_fixture_in_cutover_only) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log)"
         ],
         "testFilter": [
-          "auth_session_route_matches_go_fixture_in_cutover_only"
+          "managed_process_is_reused_until_an_explicit_stop_releases_it",
+          "stop_escalates_to_kill_when_the_child_outlives_the_grace_period",
+          "node_candidates_prefer_path_then_macos_common_installs",
+          "runtime_dependencies_flag_unsatisfied_required_entries",
+          "auth_session_route_matches_go_fixture_in_cutover_only",
+          "runtime_exit_converges_to_stopped_with_audit_notification_and_error_log"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "0896c4ab",
-        "verifiedAt": "2026-09-25T13:35:20Z",
-        "receiptDigest": null
+        "verifiedCommit": "4e3eb65c2789c59979b4d0560ec0f7cbca0c516d",
+        "verifiedAt": "2026-09-27T17:48:53Z",
+        "receiptDigest": "sha256:52ef8cc1e2ccf7d57130269388da3d90544630132116f3cc4cf9c431d7de2c51"
       },
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：Go 断言开发模式下 Web listener 仍要求密码会话；Rust 认证会话 fixture 覆盖 browser_authenticated=false/true 与 cookie 绑定判定（桌面受信不替代浏览器会话）。"
@@ -48175,7 +48235,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/strategy_runtime_owner_tests.rs::runtime_exit_converges_to_stopped_with_audit_notification_and_error_log",
       "conclusion": "function_exact：Go 断言策略运行崩溃后实例收敛为 STOPPED、活动标的清空、发“策略运行异常退出”通知并写 runtime_exited 审计（detail 含崩溃消息）。Rust 同路径现在写 STOPPED 观察（保留 lastError）+ STOPPED 实例状态 + RUNTIME_EXITED 审计 + `strategy runtime exited unexpectedly: ` 错误日志 + 同名通知，并释放该实例的行情需求（引用测试逐项断言 logical_count 归零）。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log)'",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-marketdata-helper -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(managed_process_is_reused_until_an_explicit_stop_releases_it) or test(stop_escalates_to_kill_when_the_child_outlives_the_grace_period) or test(node_candidates_prefer_path_then_macos_common_installs) or test(runtime_dependencies_flag_unsatisfied_required_entries) or test(auth_session_route_matches_go_fixture_in_cutover_only) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/app/apiserver/servercore/runtime_observation_test.go",
@@ -48201,36 +48261,48 @@
           "function_exact：Go 断言策略运行崩溃后实例收敛为 STOPPED、活动标的清空、发“策略运行异常退出”通知并写 runtime_exited 审计（detail 含崩溃消息）。Rust 同路径现在写 STOPPED 观察（保留 lastError）+ STOPPED 实例状态 + RUNTIME_EXITED 审计 + `strategy runtime exited unexpectedly: ` 错误日志 + 同名通知，并释放该实例的行情需求（引用测试逐项断言 logical_count 归零）。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
+          "-p",
+          "jftrade-integration-marketdata-helper",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(depth_read_returns_empty_arrays_for_empty_s2c_lists) or test(switch_retires_the_previous_provider_before_publishing_the_next_one) or test(unsubscribe_retry_ladder_escalates_and_reacquire_clears_retry_state) or test(queued_transitions_observe_the_committed_provider_as_their_previous_owner) or test(start_rejects_a_second_launch_of_a_live_process) or test(stop_escalates_to_kill_when_the_child_outlives_the_grace_period) or test(managed_process_is_reused_until_an_explicit_stop_releases_it) or test(unknown_provider_activation_is_rejected_without_touching_the_active_selection) or test(activation_after_shutdown_is_rejected_and_leaves_the_snapshot_committed) or test(node_candidates_prefer_path_then_macos_common_installs) or test(runtime_dependencies_flag_unsatisfied_required_entries) or test(stop_product_is_idempotent_across_concurrent_invocations) or test(web_shutdown_does_not_hold_runtime_lock_while_joining_server) or test(auth_session_route_matches_go_fixture_in_cutover_only) or test(test_normalize_execution_order_preserves_broker_abstraction) or test(provider_switch_does_not_disconnect_an_existing_futu_trade_session) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(disabled_web_access_does_not_start_a_listener) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable) or test(test_product_runtime_ordered_shutdown_explicit) or test(production_startup_exposes_degraded_api_when_external_runtimes_are_unavailable) or test(earnings_calendar_route_maps_frontend_keys) or test(strategy_definition_preview_derives_warmup_bars_and_overrides_preview_parameters) or test(browser_authenticated_request_cannot_change_desktop_only_security_settings) or test(cached_projection_does_not_promote_stale_overnight_during_regular_hours) or test(startup_reconcile_resets_stale_paused_state_and_keeps_stopped_instances) or test(recovery_failure_converges_the_running_instance_to_stopped) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel) or test(broker_klines_valid_request_fails_closed_without_historical_source) or test(broker_securities_returns_real_empty_result_when_cache_has_no_symbol)"
+          "test(managed_process_is_reused_until_an_explicit_stop_releases_it) or test(stop_escalates_to_kill_when_the_child_outlives_the_grace_period) or test(node_candidates_prefer_path_then_macos_common_installs) or test(runtime_dependencies_flag_unsatisfied_required_entries) or test(auth_session_route_matches_go_fixture_in_cutover_only) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log)"
         ],
         "testFilter": [
+          "managed_process_is_reused_until_an_explicit_stop_releases_it",
+          "stop_escalates_to_kill_when_the_child_outlives_the_grace_period",
+          "node_candidates_prefer_path_then_macos_common_installs",
+          "runtime_dependencies_flag_unsatisfied_required_entries",
+          "auth_session_route_matches_go_fixture_in_cutover_only",
           "runtime_exit_converges_to_stopped_with_audit_notification_and_error_log"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "0896c4ab",
-        "verifiedAt": "2026-09-25T13:35:20Z",
-        "receiptDigest": null
+        "verifiedCommit": "4e3eb65c2789c59979b4d0560ec0f7cbca0c516d",
+        "verifiedAt": "2026-09-27T17:48:53Z",
+        "receiptDigest": "sha256:52ef8cc1e2ccf7d57130269388da3d90544630132116f3cc4cf9c431d7de2c51"
       },
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：Go 断言策略运行崩溃后实例收敛为 STOPPED、活动标的清空、发“策略运行异常退出”通知并写 runtime_exited 审计（detail 含崩溃消息）。Rust 同路径现在写 STOPPED 观察（保留 lastError）+ STOPPED 实例状态 + RUNTIME_EXITED 审计 + `strategy runtime exited unexpectedly: ` 错误日志 + 同名通知，并释放该实例的行情需求（引用测试逐项断言 logical_count 归零）。"
