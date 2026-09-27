@@ -1,0 +1,70 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(blank_persisted_state_loads_as_available_fresh_plane) or test(directory_state_path_reports_unavailable_plane_with_load_error) or test(unavailable_plane_mutations_report_control_plane_unavailable) or test(port_update_risk_validates_limits_before_mutating) or test(port_release_missing_hard_stop_reports_not_found) or test(hard_stop_rejection_audit_failure_degrades_the_snapshot_and_blocks_later_mutations) or test(option_combo_lifecycle_preview_place_cancel_and_buying_power_keep_go_contract) or test(reconciliation_polling_throttles_scans_until_a_push_wake_forces_one) or test(ui_surface_ids_and_operation_overrides_follow_the_catalog_route_table)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-27T18:27:19Z",
+  "sourceState": {
+    "verifiedCommit": "d54b569d35f96cf5dc368d2a956c36a360356237",
+    "trackedDiffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "untrackedFiles": []
+  },
+  "rawOutputSha256": "eff1bff549b74feedf0096b5f74b4c68f4745b9884b8381699ebd2deb53e45d5",
+  "passedTests": [
+    "jftrade-engine::jftrade_engine$product::product_execution_risk_coordinator::tests::blank_persisted_state_loads_as_available_fresh_plane",
+    "jftrade-engine::jftrade_engine$product::product_execution_risk_coordinator::tests::directory_state_path_reports_unavailable_plane_with_load_error",
+    "jftrade-engine::jftrade_engine$product::product_execution_risk_coordinator::tests::hard_stop_rejection_audit_failure_degrades_the_snapshot_and_blocks_later_mutations",
+    "jftrade-engine::jftrade_engine$product::product_execution_risk_coordinator::tests::port_release_missing_hard_stop_reports_not_found",
+    "jftrade-engine::jftrade_engine$product::product_execution_risk_coordinator::tests::port_update_risk_validates_limits_before_mutating",
+    "jftrade-engine::jftrade_engine$product::product_execution_risk_coordinator::tests::unavailable_plane_mutations_report_control_plane_unavailable",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_execution::product_production_ports_execution_orders::execution_preview_tests::option_combo_lifecycle_preview_place_cancel_and_buying_power_keep_go_contract",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_execution::product_production_ports_execution_orders::execution_reconciliation::tests::push_worker_tests::reconciliation_polling_throttles_scans_until_a_push_wake_forces_one",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_trade::product_broker_capabilities_projection::tests::ui_surface_ids_and_operation_overrides_follow_the_catalog_route_table"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 9,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1625,
+      "exec_time": 0.753247748,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    }
+  ]
+}
