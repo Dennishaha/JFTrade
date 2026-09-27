@@ -202301,7 +202301,7 @@
           "function_exact：Go 对「抓取成功但零日程」判为 structure_changed 不健康，错误文本固定为 no schedules parsed。测试断言 failures=1/healthy=0、结果 status=unhealthy 且 error=no schedules parsed、last_probe_status=unhealthy、last_probe_error=no schedules parsed、health_state=unhealthy、health_fingerprint=hk_gov_1823_ical|HK|structure_changed|structure_changed、last_alert_status=triggered。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -202316,21 +202316,19 @@
         "testFilter": [
           "probe_treats_an_empty_parse_as_structure_changed_unhealthy"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "fe9ee7fa5fe27dc89d21a8a33694d44ec4aa09e0",
-        "verifiedAt": "2026-09-25T14:17:13Z",
-        "receiptDigest": null
+        "verifiedCommit": "57ce5666a11be3e7f35c55547d933ddbcef1d9d0",
+        "verifiedAt": "2026-09-27T13:37:56Z",
+        "receiptDigest": "sha256:27d4c070d9bbff94444923e57d51a73b4f62069b70fc6dd5fe357382c0e87bcc"
       },
       "risk": "high",
       "owner": "backtest_calendar",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：Go 对「抓取成功但零日程」判为 structure_changed 不健康，错误文本固定为 no schedules parsed。测试断言 failures=1/healthy=0、结果 status=unhealthy 且 error=no schedules parsed、last_probe_status=unhealthy、last_probe_error=no schedules parsed、health_state=unhealthy、health_fingerprint=hk_gov_1823_ical|HK|structure_changed|structure_changed、last_alert_status=triggered。"
@@ -202368,7 +202366,7 @@
           "function_exact（真实修复）：Go 的 refresh 路径对零日程按 structure_changed 处理：failures=1、provider 置 unhealthy、并发 structure_changed 告警（WithAlertSink）。Rust 原先只有一个 record_failure，抓取/结构失败只写 last_error 与退避，**从不写 health_state/health_fingerprint/last_alert***。现按 Go 拆成 record_operation_failure（只记错误+退避，store/恢复类失败，如 Go 的 recordOperationFailure）与 record_source_failure（额外置 unhealthy 并按 sourceAlertFingerprint 去重告警），并新增 source_alert_fingerprint helper（structure_changed → 固定详情；含 context canceled/deadline/client.timeout exceeded 归并为 network_timeout_or_cancelled）。测试断言 failures=1、last_error=no schedules parsed、health_state=unhealthy、health_fingerprint=nyse_official|US|structure_changed|structure_changed、last_alert_status=triggered、last_alert_fingerprint 与 health_fingerprint 相同、快照未入缓存且当天回退 builtin。探针：把 kind 固定成 fetch_failed → 失败并已回滚。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -202383,21 +202381,19 @@
         "testFilter": [
           "refresh_treats_an_empty_parse_as_structure_changed_failure"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "fe9ee7fa5fe27dc89d21a8a33694d44ec4aa09e0",
-        "verifiedAt": "2026-09-25T14:17:13Z",
-        "receiptDigest": null
+        "verifiedCommit": "57ce5666a11be3e7f35c55547d933ddbcef1d9d0",
+        "verifiedAt": "2026-09-27T13:37:56Z",
+        "receiptDigest": "sha256:27d4c070d9bbff94444923e57d51a73b4f62069b70fc6dd5fe357382c0e87bcc"
       },
       "risk": "high",
       "owner": "backtest_calendar",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact（真实修复）：Go 的 refresh 路径对零日程按 structure_changed 处理：failures=1、provider 置 unhealthy、并发 structure_changed 告警（WithAlertSink）。Rust 原先只有一个 record_failure，抓取/结构失败只写 last_error 与退避，**从不写 health_state/health_fingerprint/last_alert***。现按 Go 拆成 record_operation_failure（只记错误+退避，store/恢复类失败，如 Go 的 recordOperationFailure）与 record_source_failure（额外置 unhealthy 并按 sourceAlertFingerprint 去重告警），并新增 source_alert_fingerprint helper（structure_changed → 固定详情；含 context canceled/deadline/client.timeout exceeded 归并为 network_timeout_or_cancelled）。测试断言 failures=1、last_error=no schedules parsed、health_state=unhealthy、health_fingerprint=nyse_official|US|structure_changed|structure_changed、last_alert_status=triggered、last_alert_fingerprint 与 health_fingerprint 相同、快照未入缓存且当天回退 builtin。探针：把 kind 固定成 fetch_failed → 失败并已回滚。"
@@ -202569,7 +202565,7 @@
           "function_exact：Go 的抓取失败留下 unhealthy+lastError+NextRefreshAt，随后成功的 probe 必须把 health 置 healthy、清空 LastError/LastProbeError、ConsecutiveFailures 归零、NextRefreshAt 归零。测试逐项断言这套恢复语义（并在失败阶段先断言 last_error 非空且 next_refresh_at 存在）。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -202584,21 +202580,19 @@
         "testFilter": [
           "successful_probe_recovery_clears_the_recorded_fetch_failure"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "fe9ee7fa5fe27dc89d21a8a33694d44ec4aa09e0",
-        "verifiedAt": "2026-09-25T14:17:13Z",
-        "receiptDigest": null
+        "verifiedCommit": "57ce5666a11be3e7f35c55547d933ddbcef1d9d0",
+        "verifiedAt": "2026-09-27T13:37:56Z",
+        "receiptDigest": "sha256:27d4c070d9bbff94444923e57d51a73b4f62069b70fc6dd5fe357382c0e87bcc"
       },
       "risk": "high",
       "owner": "backtest_calendar",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：Go 的抓取失败留下 unhealthy+lastError+NextRefreshAt，随后成功的 probe 必须把 health 置 healthy、清空 LastError/LastProbeError、ConsecutiveFailures 归零、NextRefreshAt 归零。测试逐项断言这套恢复语义（并在失败阶段先断言 last_error 非空且 next_refresh_at 存在）。"

@@ -948,3 +948,14 @@ failed 并保留 pagination 错误，边界路径成功且落库一根 candle。
 映射、reuse 与 Parity anchor 已同步；未填充 receiptDigest。
 
 验证：`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(production_helper_sync_rejects_broken_pagination_cursors)'`（1/1 passed）；`audit_test_parity.py --write-report`、`parity_anchor_reconcile.py`、JSON 校验、`cargo fmt --all -- --check` 与 `git diff --check` 通过；strict 审计仍保留历史 evidence/receipt 缺口。
+
+## 2026-09-27 P1：Calendar health strict evidence 收口
+
+本批不改生产实现，复核 3 条已有 `function_exact` 的高风险 calendar 映射：
+`TestManagerProbeMarksEmptyParsesUnhealthy`、`TestManagerRefreshTreatsEmptyParsesAsFailureAndAlerts`
+与 `TestManagerProbeRecoveryClearsCurrentFetchError`。逐项对照 Go 的 zero-schedule
+structure-changed、health/alert fingerprint、失败后成功恢复清空 error/failure state
+断言，Rust `manager_lifecycle` 对应测试的断言范围一致；三条均已有单引用 reuse 与
+Parity anchor，补齐 `assertionCoverage.source=reviewed` 及 receipt。
+
+验证：`env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar --test manager_lifecycle --locked --message-format libtest-json-plus --no-fail-fast -E 'test(probe_treats_an_empty_parse_as_structure_changed_unhealthy) or test(refresh_treats_an_empty_parse_as_structure_changed_failure) or test(successful_probe_recovery_clears_the_recorded_fetch_failure)'`（3/3 passed）；receipt `sha256:27d4c070d9bbff94444923e57d51a73b4f62069b70fc6dd5fe357382c0e87bcc`；`audit_test_parity.py --write-report`、`parity_anchor_reconcile.py`、JSON 校验、`cargo fmt --all -- --check` 与 `git diff --check` 通过。strict gap 由 3927 降至 3921，仍不宣称严格审计完成。
