@@ -959,3 +959,13 @@ structure-changed、health/alert fingerprint、失败后成功恢复清空 error
 Parity anchor，补齐 `assertionCoverage.source=reviewed` 及 receipt。
 
 验证：`env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar --test manager_lifecycle --locked --message-format libtest-json-plus --no-fail-fast -E 'test(probe_treats_an_empty_parse_as_structure_changed_unhealthy) or test(refresh_treats_an_empty_parse_as_structure_changed_failure) or test(successful_probe_recovery_clears_the_recorded_fetch_failure)'`（3/3 passed）；receipt `sha256:27d4c070d9bbff94444923e57d51a73b4f62069b70fc6dd5fe357382c0e87bcc`；`audit_test_parity.py --write-report`、`parity_anchor_reconcile.py`、JSON 校验、`cargo fmt --all -- --check` 与 `git diff --check` 通过。strict gap 由 3927 降至 3921，仍不宣称严格审计完成。
+
+## 2026-09-27 P1：Provider retry exhaustion 与 timer cancellation 对齐
+
+范围：`internal/backtest/historical_source_test.go:341` / `TestHistoricalProviderRetryExhaustionAndTimerCancellation`。
+
+先红后修：新增 helper HTTP 夹具，固定 transient 503 在四次尝试后返回最终错误，并在第一次退避期间取消 durable sync task；修复前取消测试因固定 `sleep` 等待完整退避而超时。生产 Futu/helper 两条重试路径改用共享的取消感知退避轮询，取消在退避窗口内返回 `sync cancelled`，不改变四次尝试与重试计数语义。新增 Rust 证据为 `helper_retry_backoff_honors_cancelled_task_promptly` 与 `helper_retry_exhaustion_attempts_four_times`，两条均写入同一 Go `Parity:` anchor。
+
+映射从 `partial` 升为 `function_exact`；两个 Rust evidence、单引用 reuse、reviewed assertion 与 receipt 已同步。定向 nextest 2/2 通过，receipt `sha256:26dc42121e439058156a76cfe41acd1d0c041eb7104b2f320d99861e119019dc`。本批最新只读审计为 Go 4451、Rust 3382、`function_exact=1500`、`partial=2317`、`boundary=634`、`missing=0`；anchor `1792/1746/0/0/46`；strict 仍真实失败 3921 个历史 evidence/receipt gaps，未宣称整体严格审计完成。
+
+验证：`cargo fmt --all -- --check`、`node scripts/quality/check-workspace-architecture.mjs`、定向 `cargo-nextest` 2/2、`pnpm run check:rust`（workspace nextest 3510/3510 passed、2 skipped，7 类 compatibility replay 全部 passed）、`audit_test_parity.py --write-report`、`parity_anchor_reconcile.py` 与 JSON 校验均通过；`audit_test_parity.py --strict` 继续保留 3921 个历史 evidence/receipt 缺口。

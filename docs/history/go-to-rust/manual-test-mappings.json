@@ -118382,11 +118382,11 @@
       "boundaryReason": null
     },
     "internal/backtest/historical_source_test.go:341:TestHistoricalProviderRetryExhaustionAndTimerCancellation": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_backtest_sync_start_tests.rs::production_futu_sync_uses_opend_reader_and_persists_candles",
-      "conclusion": "partial：Rust 覆盖 Futu provider 读取并持久化 K 线的成功路径；差异：Go 断言重试耗尽与计时器取消的错误分类，Rust 未覆盖重试耗尽/取消组合。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(backtest)'",
-      "evidence_type": "partial",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-engine/src/product_production_ports_backtest_sync_source_helpers.rs::tests::helper_retry_backoff_honors_cancelled_task_promptly；crates/jftrade-engine/src/product_production_ports_backtest_sync_source_helpers.rs::tests::helper_retry_exhaustion_attempts_four_times",
+      "conclusion": "function_exact：Rust helper 重试测试逐项覆盖 Go 的两条核心断言：可重试 503 连续失败时恰好发出 4 次请求并返回最终错误；重试退避期间任务被取消时在退避结束前返回 sync cancelled。生产 Futu 与 helper 两条重试路径共用可取消等待，取消不再被固定 timer 阻塞。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib --locked --message-format libtest-json-plus --no-fail-fast -E 'test(helper_retry_backoff_honors_cancelled_task_promptly) or test(helper_retry_exhaustion_attempts_four_times)'",
+      "evidence_type": "function_exact",
       "source": {
         "file": "internal/backtest/historical_source_test.go",
         "line": 341,
@@ -118395,52 +118395,78 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_backtest_sync_start_tests.rs",
-          "test": "production_futu_sync_uses_opend_reader_and_persists_candles",
+          "file": "crates/jftrade-engine/src/product_production_ports_backtest_sync_source_helpers.rs",
+          "test": "helper_retry_backoff_honors_cancelled_task_promptly",
           "crate": "jftrade-engine",
-          "anchor": null
+          "anchor": {
+            "goFile": "internal/backtest/historical_source_test.go",
+            "goLine": 341,
+            "rustFile": "crates/jftrade-engine/src/product_production_ports_backtest_sync_source_helpers.rs",
+            "rustLine": 342
+          }
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_production_ports_backtest_sync_source_helpers.rs",
+          "test": "helper_retry_exhaustion_attempts_four_times",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/backtest/historical_source_test.go",
+            "goLine": 341,
+            "rustFile": "crates/jftrade-engine/src/product_production_ports_backtest_sync_source_helpers.rs",
+            "rustLine": 413
+          }
         }
       ],
       "assertionCoverage": {
-        "covered": [],
-        "uncovered": [
-          "partial：Rust 覆盖 Futu provider 读取并持久化 K 线的成功路径；差异：Go 断言重试耗尽与计时器取消的错误分类，Rust 未覆盖重试耗尽/取消组合。"
+        "covered": [
+          "Go 的 transient provider error 重试耗尽：Rust mock helper 返回 503，断言四次物理请求、retries 持久化递增并返回最终错误。",
+          "Go 的 timer cancellation：Rust 在首次退避中取消 durable sync task，断言不等待完整退避且返回 sync cancelled。",
+          "生产重试路径：Futu 与 helper 都通过共享可取消退避检查任务状态，取消不会被固定 timer 阻塞。"
         ],
-        "source": "legacy-conclusion"
+        "uncovered": [],
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--all-targets",
+          "-p",
+          "jftrade-engine",
+          "--lib",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(test_historical_k_line_syncer_rejects_broken_pagination) or test(production_futu_sync_uses_opend_reader_and_persists_candles) or test(reap_finished_marks_nonterminal_worker_failed) or test(test_start_script_rejects_blank_research_script) or test(test_result_view_contract_alignment_and_edge_cases) or test(production_backtest_start_without_worker_fails_before_persisting_run) or test(definition_resolution_rejects_missing_definition_and_version_conflict) or test(backtest_runs_lifecycle_and_restart_durability) or test(shutdown_persists_cancelled_state_before_joining_workers) or test(production_sync_read_projects_persisted_task) or test(reap_finished_removes_completed_join_handles) or test(sync_request_session_scope_parity_with_go) or test(backtest_start_resolves_market_dates_with_dst) or test(parent_bracket_runs_atomically_with_stop_first_protection) or test(canceling_parent_order_cancels_all_protective_children) or test(reduce_only_order_without_position_is_canceled) or test(explicit_cancel_orders_and_unmatched_target_handling) or test(sell_market_order_applies_downward_slippage) or test(cancel_skips_unmatched_pending_orders_without_side_effects) or test(provided_fee_rules_apply_and_empty_rules_charge_nothing) or test(aggregate_reads_use_only_the_requested_session_scope) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(test_tc_d4_04_extended_session_pre_market_does_not_pollute_regular_open) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(missing_symbol_table_reports_storage_error_then_recovers_after_insert)"
+          "test(helper_retry_backoff_honors_cancelled_task_promptly) or test(helper_retry_exhaustion_attempts_four_times)"
         ],
         "testFilter": [
-          "production_futu_sync_uses_opend_reader_and_persists_candles"
+          "helper_retry_backoff_honors_cancelled_task_promptly",
+          "helper_retry_exhaustion_attempts_four_times"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "b9b2b48870a813e5f6411439bef617195b866b0e",
-        "verifiedAt": "2026-09-25T14:10:34Z",
-        "receiptDigest": null
+        "verifiedCommit": "7daed40d35575aaba0c4295b1475b9ca2a08250a",
+        "verifiedAt": "2026-09-27T14:07:47Z",
+        "receiptDigest": "sha256:26dc42121e439058156a76cfe41acd1d0c041eb7104b2f320d99861e119019dc"
       },
       "risk": "high",
       "owner": "backtest_calendar",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "keep_retry_cancellation_regression",
+      "blockedBy": [],
       "waiverExpiresAt": null,
-      "coveredAssertions": [],
-      "uncoveredAssertions": [
-        "partial：Rust 覆盖 Futu provider 读取并持久化 K 线的成功路径；差异：Go 断言重试耗尽与计时器取消的错误分类，Rust 未覆盖重试耗尽/取消组合。"
+      "coveredAssertions": [
+        "retry exhaustion sends exactly four transient requests and returns the final error",
+        "cancellation during retry backoff returns sync cancelled before the full timer elapses",
+        "Futu and helper retry waits share cancellation-aware task polling"
       ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/backtest/input_and_readiness_validation_test.go:14:TestBacktestDateRangeRejectsIncompleteAndInvalidMarketInputs": {
@@ -299261,10 +299287,9 @@
       "reviewStatus": "unreviewed"
     },
     "crates/jftrade-engine/src/product_backtest_sync_start_tests.rs::production_futu_sync_uses_opend_reader_and_persists_candles": {
-      "referenceCount": 4,
+      "referenceCount": 3,
       "referenceKeys": [
         "internal/app/apiserver/servercoretest/backtest_provider_runtime_test.go:27:TestBacktestSyncUsesAssembledMarketDataRuntime",
-        "internal/backtest/historical_source_test.go:341:TestHistoricalProviderRetryExhaustionAndTimerCancellation",
         "internal/backtest/sync_test.go:38:TestSyncConvertsParamsAndClosesAdapter",
         "internal/backtest/sync_test.go:275:TestSyncRetainsConstructedAdapterValidation"
       ],
@@ -317061,6 +317086,22 @@
       "referenceCount": 1,
       "referenceKeys": [
         "internal/watchlist/service_quotes_test.go:117:TestBatchQuotesHonorsProviderCachePolicy"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_production_ports_backtest_sync_source_helpers.rs::helper_retry_backoff_honors_cancelled_task_promptly": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/backtest/historical_source_test.go:341:TestHistoricalProviderRetryExhaustionAndTimerCancellation"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_production_ports_backtest_sync_source_helpers.rs::helper_retry_exhaustion_attempts_four_times": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/backtest/historical_source_test.go:341:TestHistoricalProviderRetryExhaustionAndTimerCancellation"
       ],
       "allowed": true,
       "reviewStatus": "single"
