@@ -13524,7 +13524,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-api/tests/transport_contracts.rs::auth_requires_origin_and_csrf_for_session_writes",
       "conclusion": "function_exact：Rust 断言会话写无 Origin 或错误 CSRF 均 403，正确 Origin+CSRF 放行且 port 只被调用一次。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(auth_requires_origin_and_csrf_for_session_writes)'",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-api -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(auth_requires_origin_and_csrf_for_session_writes) or test(auth_treats_patch_as_session_write_requiring_csrf) or test(browser_navigation_gets_the_friendly_disabled_page_while_web_access_is_off) or test(web_runtime_reports_browser_access_state_for_the_desktop_listener) or test(session_cookie_reads_and_csrf_protected_writes_share_one_browser_flow)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/api/middleware/auth_test.go",
@@ -13550,36 +13550,47 @@
           "function_exact：Rust 断言会话写无 Origin 或错误 CSRF 均 403，正确 Origin+CSRF 放行且 port 只被调用一次。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
+          "-p",
+          "jftrade-api",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(adk_missing_mutation_targets_keep_the_go_classification) or test(adk_session_run_and_optimization_route_contracts_match_go) or test(adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed) or test(replayed_stream_payloads_carry_the_go_replay_marker) or test(catalog_session_run_and_observability_routes_answer_ok) or test(session_timeline_failure_keeps_the_legacy_messages_error_code) or test(sync_request_session_scope_parity_with_go) or test(backtests_write_fixture_replays_all_four_go_owned_mutations) or test(backtests_read_routes_match_group_fixture_in_cutover_only) or test(candle_route_treats_blank_period_as_unset_and_rejects_unsupported) or test(candle_period_normalizes_aliases_and_rejects_unsupported) or test(auth_requires_origin_and_csrf_for_session_writes) or test(auth_treats_patch_as_session_write_requiring_csrf) or test(managed_account_write_routes_map_missing_records_to_not_found) or test(broker_settings_writes_replay_frozen_compatibility_cases) or test(catalog_activity_paging_and_filters_match_go_boundaries) or test(strategy_instance_read_routes_match_group_fixture_in_cutover_only) or test(execution_write_fixture_replays_all_seven_go_owned_mutations) or test(execution_write_product_replays_browser_boundary_failure_recovery_and_restart) or test(production_http_broker_reads_serialize_empty_collections_as_arrays) or test(watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog) or test(watchlist_write_fixture_matches_go_owner_for_all_eight_routes) or test(malformed_membership_and_commit_bodies_are_rejected) or test(watchlist_read_routes_match_group_fixture_in_cutover_only) or test(test_product_runtime_startup_failure_rollback) or test(readiness_failure_reclaims_every_started_process_without_starting_dependents) or test(startup_failure_restores_previously_migrated_descriptor_files) or test(backup_snapshot_rejects_an_unusable_backup_directory_and_an_empty_source_path) or test(cleanup_and_compaction_report_the_reclaimed_bytes_measured_on_disk) or test(a_held_lease_on_one_database_rolls_back_the_batch_rebuild_locks) or test(runtime_readiness_allows_external_degradation_but_rejects_incomplete_startup) or test(production_opend_health_diagnoses_enabled_but_unreachable_opend) or test(production_system_read_reports_unavailable_opend_without_fake_health) or test(market_data_health_requires_a_known_logged_in_quote_session) or test(helper_market_data_providers_reconcile_futu_account_order_fill_and_fee) or test(reconciliation_discovers_external_order_into_empty_ledger) or test(production_opend_health_rejects_old_build_and_guides_upgrade) or test(probe_opend_reports_closed_port_as_disconnected) or test(probe_from_global_state_enforces_minimum_version_and_maps_neutral_state) or test(disconnected_probe_keeps_its_transport_error_for_manual_retry) or test(web_shutdown_does_not_hold_runtime_lock_while_joining_server) or test(provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update) or test(cache_rejects_stale_generation_and_classifies_freshness)"
+          "test(auth_requires_origin_and_csrf_for_session_writes) or test(auth_treats_patch_as_session_write_requiring_csrf) or test(browser_navigation_gets_the_friendly_disabled_page_while_web_access_is_off) or test(web_runtime_reports_browser_access_state_for_the_desktop_listener) or test(session_cookie_reads_and_csrf_protected_writes_share_one_browser_flow)"
         ],
         "testFilter": [
-          "auth_requires_origin_and_csrf_for_session_writes"
+          "auth_requires_origin_and_csrf_for_session_writes",
+          "auth_treats_patch_as_session_write_requiring_csrf",
+          "browser_navigation_gets_the_friendly_disabled_page_while_web_access_is_off",
+          "web_runtime_reports_browser_access_state_for_the_desktop_listener",
+          "session_cookie_reads_and_csrf_protected_writes_share_one_browser_flow"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "f632beb7",
-        "verifiedAt": "2026-09-25T13:29:58Z",
-        "receiptDigest": null
+        "verifiedCommit": "1314df3f5f726306aac8666c09421db520fdc221",
+        "verifiedAt": "2026-09-27T16:29:42Z",
+        "receiptDigest": "sha256:c5457db228673e47ae252a104992aa8c261fce3df081f60dfd28cf7c6682cc17"
       },
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：Rust 断言会话写无 Origin 或错误 CSRF 均 403，正确 Origin+CSRF 放行且 port 只被调用一次。"
@@ -13591,7 +13602,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-api/tests/transport_contracts.rs::auth_treats_patch_as_session_write_requiring_csrf",
       "conclusion": "function_exact：Rust 断言 PATCH /api/v1/settings/ui 属会话写：缺 CSRF 403，带 Origin+CSRF 放行且请求标记为非 desktop_trusted。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(auth_treats_patch_as_session_write_requiring_csrf)'",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-api -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(auth_requires_origin_and_csrf_for_session_writes) or test(auth_treats_patch_as_session_write_requiring_csrf) or test(browser_navigation_gets_the_friendly_disabled_page_while_web_access_is_off) or test(web_runtime_reports_browser_access_state_for_the_desktop_listener) or test(session_cookie_reads_and_csrf_protected_writes_share_one_browser_flow)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/api/middleware/auth_test.go",
@@ -13617,36 +13628,47 @@
           "function_exact：Rust 断言 PATCH /api/v1/settings/ui 属会话写：缺 CSRF 403，带 Origin+CSRF 放行且请求标记为非 desktop_trusted。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
+          "-p",
+          "jftrade-api",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(adk_missing_mutation_targets_keep_the_go_classification) or test(adk_session_run_and_optimization_route_contracts_match_go) or test(adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed) or test(replayed_stream_payloads_carry_the_go_replay_marker) or test(catalog_session_run_and_observability_routes_answer_ok) or test(session_timeline_failure_keeps_the_legacy_messages_error_code) or test(sync_request_session_scope_parity_with_go) or test(backtests_write_fixture_replays_all_four_go_owned_mutations) or test(backtests_read_routes_match_group_fixture_in_cutover_only) or test(candle_route_treats_blank_period_as_unset_and_rejects_unsupported) or test(candle_period_normalizes_aliases_and_rejects_unsupported) or test(auth_requires_origin_and_csrf_for_session_writes) or test(auth_treats_patch_as_session_write_requiring_csrf) or test(managed_account_write_routes_map_missing_records_to_not_found) or test(broker_settings_writes_replay_frozen_compatibility_cases) or test(catalog_activity_paging_and_filters_match_go_boundaries) or test(strategy_instance_read_routes_match_group_fixture_in_cutover_only) or test(execution_write_fixture_replays_all_seven_go_owned_mutations) or test(execution_write_product_replays_browser_boundary_failure_recovery_and_restart) or test(production_http_broker_reads_serialize_empty_collections_as_arrays) or test(watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog) or test(watchlist_write_fixture_matches_go_owner_for_all_eight_routes) or test(malformed_membership_and_commit_bodies_are_rejected) or test(watchlist_read_routes_match_group_fixture_in_cutover_only) or test(test_product_runtime_startup_failure_rollback) or test(readiness_failure_reclaims_every_started_process_without_starting_dependents) or test(startup_failure_restores_previously_migrated_descriptor_files) or test(backup_snapshot_rejects_an_unusable_backup_directory_and_an_empty_source_path) or test(cleanup_and_compaction_report_the_reclaimed_bytes_measured_on_disk) or test(a_held_lease_on_one_database_rolls_back_the_batch_rebuild_locks) or test(runtime_readiness_allows_external_degradation_but_rejects_incomplete_startup) or test(production_opend_health_diagnoses_enabled_but_unreachable_opend) or test(production_system_read_reports_unavailable_opend_without_fake_health) or test(market_data_health_requires_a_known_logged_in_quote_session) or test(helper_market_data_providers_reconcile_futu_account_order_fill_and_fee) or test(reconciliation_discovers_external_order_into_empty_ledger) or test(production_opend_health_rejects_old_build_and_guides_upgrade) or test(probe_opend_reports_closed_port_as_disconnected) or test(probe_from_global_state_enforces_minimum_version_and_maps_neutral_state) or test(disconnected_probe_keeps_its_transport_error_for_manual_retry) or test(web_shutdown_does_not_hold_runtime_lock_while_joining_server) or test(provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update) or test(cache_rejects_stale_generation_and_classifies_freshness)"
+          "test(auth_requires_origin_and_csrf_for_session_writes) or test(auth_treats_patch_as_session_write_requiring_csrf) or test(browser_navigation_gets_the_friendly_disabled_page_while_web_access_is_off) or test(web_runtime_reports_browser_access_state_for_the_desktop_listener) or test(session_cookie_reads_and_csrf_protected_writes_share_one_browser_flow)"
         ],
         "testFilter": [
-          "auth_treats_patch_as_session_write_requiring_csrf"
+          "auth_requires_origin_and_csrf_for_session_writes",
+          "auth_treats_patch_as_session_write_requiring_csrf",
+          "browser_navigation_gets_the_friendly_disabled_page_while_web_access_is_off",
+          "web_runtime_reports_browser_access_state_for_the_desktop_listener",
+          "session_cookie_reads_and_csrf_protected_writes_share_one_browser_flow"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "f632beb7",
-        "verifiedAt": "2026-09-25T13:29:58Z",
-        "receiptDigest": null
+        "verifiedCommit": "1314df3f5f726306aac8666c09421db520fdc221",
+        "verifiedAt": "2026-09-27T16:29:42Z",
+        "receiptDigest": "sha256:c5457db228673e47ae252a104992aa8c261fce3df081f60dfd28cf7c6682cc17"
       },
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：Rust 断言 PATCH /api/v1/settings/ui 属会话写：缺 CSRF 403，带 Origin+CSRF 放行且请求标记为非 desktop_trusted。"
@@ -63787,7 +63809,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-api/tests/browser_access_contracts.rs::browser_navigation_gets_the_friendly_disabled_page_while_web_access_is_off; crates/jftrade-engine/src/product_server_tests.rs::web_runtime_reports_browser_access_state_for_the_desktop_listener; crates/jftrade-api/src/browser_access.rs; crates/jftrade-api/src/router.rs; crates/jftrade-engine/src/product_server_runtime.rs",
       "conclusion": "function_exact：本批修复真实缺口——此前 Rust 只在授权层返回 JSON 错误，浏览器直接导航到常驻桌面 API 端口会得到空 404，没有 Go 的友好禁用页。Go 基线（server_auth.go 的 webAccessMiddleware + acceptsWebAccessStatusPage + writeWebAccessStatusPage）：Web 未开启时，GET/HEAD、Accept 含 text/html、路径不以 /api/ 或 /swagger 开头的导航请求返回 403 + text/html; charset=utf-8 + Cache-Control: no-store + X-Content-Type-Options: nosniff，正文含「Web 访问尚未开启」与「设置 → Web 访问」。Rust 现在等价实现：新增 crates/jftrade-api/src/browser_access.rs（WebAccessState/WebAccessStatePort 与同一张禁用页），transport_middleware 在授权分流前对导航请求渲染该页，状态由 engine 的 ProductWebServerRuntime 按持久化安全设置动态上报（product_server_runtime.rs 记录 web_access_enabled，product_server.rs 组装时注入 ApiState::with_browser_access）。测试断言 403、三个响应头、两段中文文案、HEAD 无正文，并覆盖边界：/api/v1/system/status 与 /swagger/** 仍走 JSON 信封（401 WEB_AUTH_REQUIRED）、Accept 非 text/html、非 GET/HEAD、带桌面令牌或已登录会话、Web 已开启五类请求都不会看到该页。探针（改坏→转红→按字节回滚）：① 删除中间件分支→403 变 404；② 去掉 /api/ 排除→API 面返回 403 HTML；③ engine 不记录开启状态→Available 断言转红；④ 去掉桌面令牌豁免→受信导航被渲染成提示页。回滚后 8 个文件 shasum 与探测前一致。保留差异：Rust 没有 Go 的「当前仅允许本机访问」页——公开访问关闭时 Web 监听器只绑 127.0.0.1，远端浏览器连不上而非收到 403 页（比提示页更强）；Web 关闭时 Rust 根本不创建该监听器，提示页由常驻桌面监听器承担；非生产（test cutover）配置不创建 Web runtime，因此不注入该状态。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --all-targets --locked",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-api -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(auth_requires_origin_and_csrf_for_session_writes) or test(auth_treats_patch_as_session_write_requiring_csrf) or test(browser_navigation_gets_the_friendly_disabled_page_while_web_access_is_off) or test(web_runtime_reports_browser_access_state_for_the_desktop_listener) or test(session_cookie_reads_and_csrf_protected_writes_share_one_browser_flow)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/app/apiserver/webaccess/security_integration_test.go",
@@ -63824,37 +63846,47 @@
           "function_exact：本批修复真实缺口——此前 Rust 只在授权层返回 JSON 错误，浏览器直接导航到常驻桌面 API 端口会得到空 404，没有 Go 的友好禁用页。Go 基线（server_auth.go 的 webAccessMiddleware + acceptsWebAccessStatusPage + writeWebAccessStatusPage）：Web 未开启时，GET/HEAD、Accept 含 text/html、路径不以 /api/ 或 /swagger 开头的导航请求返回 403 + text/html; charset=utf-8 + Cache-Control: no-store + X-Content-Type-Options: nosniff，正文含「Web 访问尚未开启」与「设置 → Web 访问」。Rust 现在等价实现：新增 crates/jftrade-api/src/browser_access.rs（WebAccessState/WebAccessStatePort 与同一张禁用页），transport_middleware 在授权分流前对导航请求渲染该页，状态由 engine 的 ProductWebServerRuntime 按持久化安全设置动态上报（product_server_runtime.rs 记录 web_access_enabled，product_server.rs 组装时注入 ApiState::with_browser_access）。测试断言 403、三个响应头、两段中文文案、HEAD 无正文，并覆盖边界：/api/v1/system/status 与 /swagger/** 仍走 JSON 信封（401 WEB_AUTH_REQUIRED）、Accept 非 text/html、非 GET/HEAD、带桌面令牌或已登录会话、Web 已开启五类请求都不会看到该页。探针（改坏→转红→按字节回滚）：① 删除中间件分支→403 变 404；② 去掉 /api/ 排除→API 面返回 403 HTML；③ engine 不记录开启状态→Available 断言转红；④ 去掉桌面令牌豁免→受信导航被渲染成提示页。回滚后 8 个文件 shasum 与探测前一致。保留差异：Rust 没有 Go 的「当前仅允许本机访问」页——公开访问关闭时 Web 监听器只绑 127.0.0.1，远端浏览器连不上而非收到 403 页（比提示页更强）；Web 关闭时 Rust 根本不创建该监听器，提示页由常驻桌面监听器承担；非生产（test cutover）配置不创建 Web runtime，因此不注入该状态。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
+          "-p",
+          "jftrade-api",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(browser_navigation_gets_the_friendly_disabled_page_while_web_access_is_off) or test(web_runtime_reports_browser_access_state_for_the_desktop_listener)"
+          "test(auth_requires_origin_and_csrf_for_session_writes) or test(auth_treats_patch_as_session_write_requiring_csrf) or test(browser_navigation_gets_the_friendly_disabled_page_while_web_access_is_off) or test(web_runtime_reports_browser_access_state_for_the_desktop_listener) or test(session_cookie_reads_and_csrf_protected_writes_share_one_browser_flow)"
         ],
         "testFilter": [
+          "auth_requires_origin_and_csrf_for_session_writes",
+          "auth_treats_patch_as_session_write_requiring_csrf",
           "browser_navigation_gets_the_friendly_disabled_page_while_web_access_is_off",
-          "web_runtime_reports_browser_access_state_for_the_desktop_listener"
+          "web_runtime_reports_browser_access_state_for_the_desktop_listener",
+          "session_cookie_reads_and_csrf_protected_writes_share_one_browser_flow"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "538d15d0",
-        "verifiedAt": "2026-09-25T13:41:05Z",
-        "receiptDigest": null
+        "verifiedCommit": "1314df3f5f726306aac8666c09421db520fdc221",
+        "verifiedAt": "2026-09-27T16:29:42Z",
+        "receiptDigest": "sha256:c5457db228673e47ae252a104992aa8c261fce3df081f60dfd28cf7c6682cc17"
       },
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：本批修复真实缺口——此前 Rust 只在授权层返回 JSON 错误，浏览器直接导航到常驻桌面 API 端口会得到空 404，没有 Go 的友好禁用页。Go 基线（server_auth.go 的 webAccessMiddleware + acceptsWebAccessStatusPage + writeWebAccessStatusPage）：Web 未开启时，GET/HEAD、Accept 含 text/html、路径不以 /api/ 或 /swagger 开头的导航请求返回 403 + text/html; charset=utf-8 + Cache-Control: no-store + X-Content-Type-Options: nosniff，正文含「Web 访问尚未开启」与「设置 → Web 访问」。Rust 现在等价实现：新增 crates/jftrade-api/src/browser_access.rs（WebAccessState/WebAccessStatePort 与同一张禁用页），transport_middleware 在授权分流前对导航请求渲染该页，状态由 engine 的 ProductWebServerRuntime 按持久化安全设置动态上报（product_server_runtime.rs 记录 web_access_enabled，product_server.rs 组装时注入 ApiState::with_browser_access）。测试断言 403、三个响应头、两段中文文案、HEAD 无正文，并覆盖边界：/api/v1/system/status 与 /swagger/** 仍走 JSON 信封（401 WEB_AUTH_REQUIRED）、Accept 非 text/html、非 GET/HEAD、带桌面令牌或已登录会话、Web 已开启五类请求都不会看到该页。探针（改坏→转红→按字节回滚）：① 删除中间件分支→403 变 404；② 去掉 /api/ 排除→API 面返回 403 HTML；③ engine 不记录开启状态→Available 断言转红；④ 去掉桌面令牌豁免→受信导航被渲染成提示页。回滚后 8 个文件 shasum 与探测前一致。保留差异：Rust 没有 Go 的「当前仅允许本机访问」页——公开访问关闭时 Web 监听器只绑 127.0.0.1，远端浏览器连不上而非收到 403 页（比提示页更强）；Web 关闭时 Rust 根本不创建该监听器，提示页由常驻桌面监听器承担；非生产（test cutover）配置不创建 Web runtime，因此不注入该状态。"
@@ -64105,7 +64137,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-api/tests/transport_contracts.rs::session_cookie_reads_and_csrf_protected_writes_share_one_browser_flow",
       "conclusion": "function_exact：Go 断言密码登录后的同一条浏览器会话可自由读、写请求缺 CSRF 时 403、带 CSRF 时不被拒绝。Rust 新增用例在同一条 cookie 会话上串联读（200）→无 CSRF 写（403）→带 CSRF 写（200），并断言端口恰好收到两次调用（读与成功写各一次），与参照的读/写断言一一对应；该用例带本行 // Parity: 锚点。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --all-targets --locked",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-api -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(auth_requires_origin_and_csrf_for_session_writes) or test(auth_treats_patch_as_session_write_requiring_csrf) or test(browser_navigation_gets_the_friendly_disabled_page_while_web_access_is_off) or test(web_runtime_reports_browser_access_state_for_the_desktop_listener) or test(session_cookie_reads_and_csrf_protected_writes_share_one_browser_flow)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/app/apiserver/webaccess/security_integration_test.go",
@@ -64131,36 +64163,47 @@
           "function_exact：Go 断言密码登录后的同一条浏览器会话可自由读、写请求缺 CSRF 时 403、带 CSRF 时不被拒绝。Rust 新增用例在同一条 cookie 会话上串联读（200）→无 CSRF 写（403）→带 CSRF 写（200），并断言端口恰好收到两次调用（读与成功写各一次），与参照的读/写断言一一对应；该用例带本行 // Parity: 锚点。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
+          "-p",
+          "jftrade-api",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(auth_manager_login_validate_and_logout_flow) or test(session_cookie_reads_and_csrf_protected_writes_share_one_browser_flow) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable) or test(auth_session_route_matches_go_fixture_in_cutover_only) or test(ws_live_transport_upgrades_with_a_browser_session_cookie_alone) or test(backtest_and_strategy_tools_reject_missing_identifiers_and_unknown_targets) or test(strategy_optimize_enqueues_every_candidate_and_persists_the_task) or test(screen_catalog_normalizes_padded_lowercase_markets_and_rejects_unsupported_labels) or test(production_backtest_cancel_reports_false_without_a_cancellable_run) or test(disabled_runtime_has_stopped_status_and_releases_listener) or test(token_auth_and_tools_list_use_reviewed_catalog) or test(test_portfolio_funds_overview_and_sorting_and_unsupported_market) or test(portfolio_summary_merges_positions_balances_and_orders_and_rejects_unknown_brokers) or test(portfolio_layered_tools_report_discovery_failure_and_partial_read_states) or test(portfolio_tools_require_trading_environment_and_fail_closed_without_a_broker_reader) or test(screen_query_rejects_wrong_catalog_and_schema_versions) or test(product_runtime_without_optional_workers_starts_and_stops_cleanly) or test(test_product_runtime_ordered_shutdown_explicit) or test(test_product_runtime_ordered_shutdown_direct_drop) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(workflow_wait_tool_rejects_too_long_duration) or test(workflow_wait_tool_returns_context_cancellation) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(session_context_overrides_fall_back_to_the_agent_provider_window) or test(chat_resolution_reports_missing_agents_and_unusable_providers) or test(run_gate_is_shared_across_runtime_facades) or test(session_context_read_reports_pressure_without_compacting) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(infrastructure_resume_error_degrades_until_a_successful_scan) or test(sibling_approvals_resume_once_after_every_decision)"
+          "test(auth_requires_origin_and_csrf_for_session_writes) or test(auth_treats_patch_as_session_write_requiring_csrf) or test(browser_navigation_gets_the_friendly_disabled_page_while_web_access_is_off) or test(web_runtime_reports_browser_access_state_for_the_desktop_listener) or test(session_cookie_reads_and_csrf_protected_writes_share_one_browser_flow)"
         ],
         "testFilter": [
+          "auth_requires_origin_and_csrf_for_session_writes",
+          "auth_treats_patch_as_session_write_requiring_csrf",
+          "browser_navigation_gets_the_friendly_disabled_page_while_web_access_is_off",
+          "web_runtime_reports_browser_access_state_for_the_desktop_listener",
           "session_cookie_reads_and_csrf_protected_writes_share_one_browser_flow"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "3d356b9a",
-        "verifiedAt": "2026-09-25T13:47:02Z",
-        "receiptDigest": null
+        "verifiedCommit": "1314df3f5f726306aac8666c09421db520fdc221",
+        "verifiedAt": "2026-09-27T16:29:42Z",
+        "receiptDigest": "sha256:c5457db228673e47ae252a104992aa8c261fce3df081f60dfd28cf7c6682cc17"
       },
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：Go 断言密码登录后的同一条浏览器会话可自由读、写请求缺 CSRF 时 403、带 CSRF 时不被拒绝。Rust 新增用例在同一条 cookie 会话上串联读（200）→无 CSRF 写（403）→带 CSRF 写（200），并断言端口恰好收到两次调用（读与成功写各一次），与参照的读/写断言一一对应；该用例带本行 // Parity: 锚点。"
@@ -236065,7 +236108,7 @@
       "uncoveredAssertions": [],
       "boundaryReason": null
     },
-        "internal/watchlist/service_quotes_test.go:100:TestBatchQuotesTurnsBatchFailureIntoPerItemErrors": {
+    "internal/watchlist/service_quotes_test.go:100:TestBatchQuotesTurnsBatchFailureIntoPerItemErrors": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_production_ports_watchlist_quotes_tests.rs::tests::quote_cache_serves_repeat_reads_within_one_provider_generation",
       "conclusion": "partial：Rust 把源失败降级为 per-item 错误（SNAPSHOT_FAILED 携带上游错误、无结果时 NO_SNAPSHOT），响应仍为 200 且 quotes/errors 数组齐备；差异：Go 断言整批失败时 result.Quotes 为空、每个 id 一条 Code=SNAPSHOT_FAILED 且 Message 保留 \"provider down\" 原文；Rust 没有该整批失败场景的定向断言（现有测试断言 errors 为空数组）。",
