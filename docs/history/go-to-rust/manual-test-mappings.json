@@ -147766,7 +147766,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::candle_pagination_tests::broker_klines_return_latest_page_and_use_exclusive_before_cursor",
       "conclusion": "function_exact：limit=2 时返回最新两根（close 102.5/103.5），pagination.hasMore=true 且 nextBefore==candles[0].at；拿该 cursor 再读时 provider end_time 精确为 08:01 HK 秒值，边界 bar 被本地排除，剩余 1 根且 hasMore=false。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine --all-targets --locked",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(broker_klines_return_latest_page_and_use_exclusive_before_cursor) or test(broker_kline_query_formats_opend_window_in_market_time_and_returns_utc) or test(broker_kline_cursor_preserves_exact_second_window_and_excludes_boundary_locally) or test(normalize_broker_kline_page_deduplicates_sorts_and_keeps_latest) or test(normalize_broker_kline_range_keeps_inclusive_boundaries)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "pkg/futu/adapter_kline_pagination_test.go",
@@ -147792,10 +147792,12 @@
           "function_exact：limit=2 时返回最新两根（close 102.5/103.5），pagination.hasMore=true 且 nextBefore==candles[0].at；拿该 cursor 再读时 provider end_time 精确为 08:01 HK 秒值，边界 bar 被本地排除，剩余 1 根且 hasMore=false。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
@@ -147804,26 +147806,33 @@
           "-p",
           "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
+          "-E",
+          "test(broker_klines_return_latest_page_and_use_exclusive_before_cursor) or test(broker_kline_query_formats_opend_window_in_market_time_and_returns_utc) or test(broker_kline_cursor_preserves_exact_second_window_and_excludes_boundary_locally) or test(normalize_broker_kline_page_deduplicates_sorts_and_keeps_latest) or test(normalize_broker_kline_range_keeps_inclusive_boundaries)"
         ],
         "testFilter": [
-          "broker_klines_return_latest_page_and_use_exclusive_before_cursor"
+          "broker_klines_return_latest_page_and_use_exclusive_before_cursor",
+          "broker_kline_query_formats_opend_window_in_market_time_and_returns_utc",
+          "broker_kline_cursor_preserves_exact_second_window_and_excludes_boundary_locally",
+          "normalize_broker_kline_page_deduplicates_sorts_and_keeps_latest",
+          "normalize_broker_kline_range_keeps_inclusive_boundaries"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "dc862edb",
-        "verifiedAt": "2026-09-25T12:57:05Z",
-        "receiptDigest": null
+        "verifiedCommit": "174eec6f424839aa579ef3b7ded76061c462b14d",
+        "verifiedAt": "2026-09-27T18:11:41Z",
+        "receiptDigest": "sha256:489957b0b5e2b5d8f04047abee16c357751def89d390ec871a2016be66b24c70"
       },
       "risk": "high",
       "owner": "futu_opend",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：limit=2 时返回最新两根（close 102.5/103.5），pagination.hasMore=true 且 nextBefore==candles[0].at；拿该 cursor 再读时 provider end_time 精确为 08:01 HK 秒值，边界 bar 被本地排除，剩余 1 根且 hasMore=false。"
@@ -147904,7 +147913,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::candle_pagination_tests::broker_kline_query_formats_opend_window_in_market_time_and_returns_utc",
       "conclusion": "function_exact：from=00:00Z/to=01:00Z 在 HK 市场被格式化为 OpenD 本地窗口 08:00:00..09:00:00，返回的 candle at 为 UTC 00:00:00Z。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine --all-targets --locked",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(broker_klines_return_latest_page_and_use_exclusive_before_cursor) or test(broker_kline_query_formats_opend_window_in_market_time_and_returns_utc) or test(broker_kline_cursor_preserves_exact_second_window_and_excludes_boundary_locally) or test(normalize_broker_kline_page_deduplicates_sorts_and_keeps_latest) or test(normalize_broker_kline_range_keeps_inclusive_boundaries)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "pkg/futu/adapter_kline_pagination_test.go",
@@ -147930,10 +147939,12 @@
           "function_exact：from=00:00Z/to=01:00Z 在 HK 市场被格式化为 OpenD 本地窗口 08:00:00..09:00:00，返回的 candle at 为 UTC 00:00:00Z。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
@@ -147942,26 +147953,33 @@
           "-p",
           "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
+          "-E",
+          "test(broker_klines_return_latest_page_and_use_exclusive_before_cursor) or test(broker_kline_query_formats_opend_window_in_market_time_and_returns_utc) or test(broker_kline_cursor_preserves_exact_second_window_and_excludes_boundary_locally) or test(normalize_broker_kline_page_deduplicates_sorts_and_keeps_latest) or test(normalize_broker_kline_range_keeps_inclusive_boundaries)"
         ],
         "testFilter": [
-          "broker_kline_query_formats_opend_window_in_market_time_and_returns_utc"
+          "broker_klines_return_latest_page_and_use_exclusive_before_cursor",
+          "broker_kline_query_formats_opend_window_in_market_time_and_returns_utc",
+          "broker_kline_cursor_preserves_exact_second_window_and_excludes_boundary_locally",
+          "normalize_broker_kline_page_deduplicates_sorts_and_keeps_latest",
+          "normalize_broker_kline_range_keeps_inclusive_boundaries"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "dc862edb",
-        "verifiedAt": "2026-09-25T12:57:05Z",
-        "receiptDigest": null
+        "verifiedCommit": "174eec6f424839aa579ef3b7ded76061c462b14d",
+        "verifiedAt": "2026-09-27T18:11:41Z",
+        "receiptDigest": "sha256:489957b0b5e2b5d8f04047abee16c357751def89d390ec871a2016be66b24c70"
       },
       "risk": "high",
       "owner": "futu_opend",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：from=00:00Z/to=01:00Z 在 HK 市场被格式化为 OpenD 本地窗口 08:00:00..09:00:00，返回的 candle at 为 UTC 00:00:00Z。"
@@ -147973,7 +147991,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::candle_pagination_tests::broker_kline_cursor_preserves_exact_second_window_and_excludes_boundary_locally",
       "conclusion": "function_exact：before=2026-05-20T00:01:00Z 时 provider end_time 保持 08:01:00 精确秒（不推进也不截断），窗口起始非空；返回的 08:00 bucket 严格早于 cursor，08:01 边界 bar 被本地排除。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine --all-targets --locked",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(broker_klines_return_latest_page_and_use_exclusive_before_cursor) or test(broker_kline_query_formats_opend_window_in_market_time_and_returns_utc) or test(broker_kline_cursor_preserves_exact_second_window_and_excludes_boundary_locally) or test(normalize_broker_kline_page_deduplicates_sorts_and_keeps_latest) or test(normalize_broker_kline_range_keeps_inclusive_boundaries)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "pkg/futu/adapter_kline_pagination_test.go",
@@ -147999,10 +148017,12 @@
           "function_exact：before=2026-05-20T00:01:00Z 时 provider end_time 保持 08:01:00 精确秒（不推进也不截断），窗口起始非空；返回的 08:00 bucket 严格早于 cursor，08:01 边界 bar 被本地排除。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
@@ -148011,26 +148031,33 @@
           "-p",
           "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
+          "-E",
+          "test(broker_klines_return_latest_page_and_use_exclusive_before_cursor) or test(broker_kline_query_formats_opend_window_in_market_time_and_returns_utc) or test(broker_kline_cursor_preserves_exact_second_window_and_excludes_boundary_locally) or test(normalize_broker_kline_page_deduplicates_sorts_and_keeps_latest) or test(normalize_broker_kline_range_keeps_inclusive_boundaries)"
         ],
         "testFilter": [
-          "broker_kline_cursor_preserves_exact_second_window_and_excludes_boundary_locally"
+          "broker_klines_return_latest_page_and_use_exclusive_before_cursor",
+          "broker_kline_query_formats_opend_window_in_market_time_and_returns_utc",
+          "broker_kline_cursor_preserves_exact_second_window_and_excludes_boundary_locally",
+          "normalize_broker_kline_page_deduplicates_sorts_and_keeps_latest",
+          "normalize_broker_kline_range_keeps_inclusive_boundaries"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "dc862edb",
-        "verifiedAt": "2026-09-25T12:57:05Z",
-        "receiptDigest": null
+        "verifiedCommit": "174eec6f424839aa579ef3b7ded76061c462b14d",
+        "verifiedAt": "2026-09-27T18:11:41Z",
+        "receiptDigest": "sha256:489957b0b5e2b5d8f04047abee16c357751def89d390ec871a2016be66b24c70"
       },
       "risk": "high",
       "owner": "futu_opend",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：before=2026-05-20T00:01:00Z 时 provider end_time 保持 08:01:00 精确秒（不推进也不截断），窗口起始非空；返回的 08:00 bucket 严格早于 cursor，08:01 边界 bar 被本地排除。"
@@ -148042,7 +148069,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::candle_pagination_tests::normalize_broker_kline_page_deduplicates_sorts_and_keeps_latest",
       "conclusion": "function_exact：同 bucket 重复原始 K 线合并为后到值（201），输出按时间升序；截取尾部得到 latest 页（12:01/12:02），截取头部得到 earliest 页（12:00/12:01）。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine --all-targets --locked",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(broker_klines_return_latest_page_and_use_exclusive_before_cursor) or test(broker_kline_query_formats_opend_window_in_market_time_and_returns_utc) or test(broker_kline_cursor_preserves_exact_second_window_and_excludes_boundary_locally) or test(normalize_broker_kline_page_deduplicates_sorts_and_keeps_latest) or test(normalize_broker_kline_range_keeps_inclusive_boundaries)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "pkg/futu/adapter_kline_pagination_test.go",
@@ -148068,10 +148095,12 @@
           "function_exact：同 bucket 重复原始 K 线合并为后到值（201），输出按时间升序；截取尾部得到 latest 页（12:01/12:02），截取头部得到 earliest 页（12:00/12:01）。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
@@ -148080,26 +148109,33 @@
           "-p",
           "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
+          "-E",
+          "test(broker_klines_return_latest_page_and_use_exclusive_before_cursor) or test(broker_kline_query_formats_opend_window_in_market_time_and_returns_utc) or test(broker_kline_cursor_preserves_exact_second_window_and_excludes_boundary_locally) or test(normalize_broker_kline_page_deduplicates_sorts_and_keeps_latest) or test(normalize_broker_kline_range_keeps_inclusive_boundaries)"
         ],
         "testFilter": [
-          "normalize_broker_kline_page_deduplicates_sorts_and_keeps_latest"
+          "broker_klines_return_latest_page_and_use_exclusive_before_cursor",
+          "broker_kline_query_formats_opend_window_in_market_time_and_returns_utc",
+          "broker_kline_cursor_preserves_exact_second_window_and_excludes_boundary_locally",
+          "normalize_broker_kline_page_deduplicates_sorts_and_keeps_latest",
+          "normalize_broker_kline_range_keeps_inclusive_boundaries"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "dc862edb",
-        "verifiedAt": "2026-09-25T12:57:05Z",
-        "receiptDigest": null
+        "verifiedCommit": "174eec6f424839aa579ef3b7ded76061c462b14d",
+        "verifiedAt": "2026-09-27T18:11:41Z",
+        "receiptDigest": "sha256:489957b0b5e2b5d8f04047abee16c357751def89d390ec871a2016be66b24c70"
       },
       "risk": "high",
       "owner": "futu_opend",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：同 bucket 重复原始 K 线合并为后到值（201），输出按时间升序；截取尾部得到 latest 页（12:01/12:02），截取头部得到 earliest 页（12:00/12:01）。"
@@ -148111,7 +148147,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::candle_pagination_tests::normalize_broker_kline_range_keeps_inclusive_boundaries",
       "conclusion": "function_exact：from==12:00、to==12:02 两端都包含，重复的 12:01 保留最新 201；limit 截取后保留范围内最早的 2 根。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine --all-targets --locked",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(broker_klines_return_latest_page_and_use_exclusive_before_cursor) or test(broker_kline_query_formats_opend_window_in_market_time_and_returns_utc) or test(broker_kline_cursor_preserves_exact_second_window_and_excludes_boundary_locally) or test(normalize_broker_kline_page_deduplicates_sorts_and_keeps_latest) or test(normalize_broker_kline_range_keeps_inclusive_boundaries)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "pkg/futu/adapter_kline_pagination_test.go",
@@ -148137,10 +148173,12 @@
           "function_exact：from==12:00、to==12:02 两端都包含，重复的 12:01 保留最新 201；limit 截取后保留范围内最早的 2 根。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
@@ -148149,26 +148187,33 @@
           "-p",
           "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
+          "-E",
+          "test(broker_klines_return_latest_page_and_use_exclusive_before_cursor) or test(broker_kline_query_formats_opend_window_in_market_time_and_returns_utc) or test(broker_kline_cursor_preserves_exact_second_window_and_excludes_boundary_locally) or test(normalize_broker_kline_page_deduplicates_sorts_and_keeps_latest) or test(normalize_broker_kline_range_keeps_inclusive_boundaries)"
         ],
         "testFilter": [
+          "broker_klines_return_latest_page_and_use_exclusive_before_cursor",
+          "broker_kline_query_formats_opend_window_in_market_time_and_returns_utc",
+          "broker_kline_cursor_preserves_exact_second_window_and_excludes_boundary_locally",
+          "normalize_broker_kline_page_deduplicates_sorts_and_keeps_latest",
           "normalize_broker_kline_range_keeps_inclusive_boundaries"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "dc862edb",
-        "verifiedAt": "2026-09-25T12:57:05Z",
-        "receiptDigest": null
+        "verifiedCommit": "174eec6f424839aa579ef3b7ded76061c462b14d",
+        "verifiedAt": "2026-09-27T18:11:41Z",
+        "receiptDigest": "sha256:489957b0b5e2b5d8f04047abee16c357751def89d390ec871a2016be66b24c70"
       },
       "risk": "high",
       "owner": "futu_opend",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：from==12:00、to==12:02 两端都包含，重复的 12:01 保留最新 201；limit 截取后保留范围内最早的 2 根。"
