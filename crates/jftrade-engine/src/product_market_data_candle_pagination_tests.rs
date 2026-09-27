@@ -465,6 +465,13 @@ async fn us_intraday_history_fans_out_across_opend_session_routes() {
         routes,
         vec![Some(SESSION_RTH), Some(SESSION_ETH), Some(SESSION_ALL)]
     );
+    let requests = reader.requests.lock().unwrap();
+    assert!(
+        requests
+            .iter()
+            .all(|request| request.extended_time.is_some_and(|value| value)),
+        "US intraday routed requests must set extendedTime=true"
+    );
     let candles = result["candles"].as_array().expect("candles");
     // Duplicate buckets resolve to the more specific route's candle.
     let by_at: std::collections::BTreeMap<&str, f64> = candles
@@ -479,6 +486,18 @@ async fn us_intraday_history_fans_out_across_opend_session_routes() {
     assert_eq!(by_at.get("2026-05-20T10:00:00Z"), Some(&100.0));
     assert_eq!(by_at.get("2026-05-20T15:30:00Z"), Some(&110.0));
     assert_eq!(by_at.get("2026-05-20T02:00:00Z"), Some(&90.0));
+    let labels: std::collections::BTreeMap<&str, &str> = candles
+        .iter()
+        .filter_map(|candle| {
+            Some((
+                candle.get("at")?.as_str()?,
+                candle.get("session")?.as_str()?,
+            ))
+        })
+        .collect();
+    assert_eq!(labels.get("2026-05-20T10:00:00Z"), Some(&"pre"));
+    assert_eq!(labels.get("2026-05-20T15:30:00Z"), Some(&"regular"));
+    assert_eq!(labels.get("2026-05-20T02:00:00Z"), Some(&"overnight"));
     assert_eq!(candles.len(), 3, "one bar per routed session: {result}");
 }
 

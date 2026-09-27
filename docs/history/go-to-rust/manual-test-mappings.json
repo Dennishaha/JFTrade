@@ -155663,8 +155663,8 @@
       "status": "[x]",
       "evidence_type": "function_exact",
       "rust_entry": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::us_intraday_history_fans_out_across_opend_session_routes",
-      "conclusion": "function_exact：US 日线以下窗口按 RTH→ETH→ALL 三条路由扇出（请求 session 顺序断言一致），重复 bucket 由更具体的路由覆盖（ETH 100 / RTH 110 覆盖 ALL 的 95/105）。规划逻辑在 crates/jftrade-integration-futu/src/history_session_plan.rs::build_request_plans。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(us_intraday_history_fans_out_across_opend_session_routes)'",
+      "conclusion": "function_exact：US 日线以下窗口按 RTH→ETH→ALL 三条路由扇出，三条请求均携带 extendedTime=true；重复 bucket 由更具体的路由覆盖（ETH 100 / RTH 110 覆盖 ALL 的 95/105），并按交易所日历标记为 pre、regular、overnight。规划逻辑在 crates/jftrade-integration-futu/src/history_session_plan.rs::build_request_plans。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-integration-futu --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(us_intraday_history_fans_out_across_opend_session_routes) or test(us_regular_only_history_uses_a_single_rth_route) or test(session_planner_selects_explicit_routes_and_keep_sets) or test(routed_sessions_override_the_clock_classification) or test(chinese_supported_session_message_triggers_the_all_fallback)'",
       "source": {
         "file": "pkg/futu/exchange_kline_test.go",
         "line": 50,
@@ -155680,48 +155680,59 @@
             "goFile": "pkg/futu/exchange_kline_test.go",
             "goLine": 50,
             "rustFile": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs",
-            "rustLine": 422
+            "rustLine": 428
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "function_exact：US 日线以下窗口按 RTH→ETH→ALL 三条路由扇出（请求 session 顺序断言一致），重复 bucket 由更具体的路由覆盖（ETH 100 / RTH 110 覆盖 ALL 的 95/105）。规划逻辑在 crates/jftrade-integration-futu/src/history_session_plan.rs::build_request_plans。"
+          "function_exact：US 日线以下窗口按 RTH→ETH→ALL 三条路由扇出，三条请求均携带 extendedTime=true；重复 bucket 由更具体的路由覆盖（ETH 100 / RTH 110 覆盖 ALL 的 95/105），并按交易所日历标记为 pre、regular、overnight。规划逻辑在 crates/jftrade-integration-futu/src/history_session_plan.rs::build_request_plans。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
           "-p",
           "jftrade-engine",
+          "-p",
+          "jftrade-integration-futu",
+          "--all-targets",
+          "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(us_intraday_history_fans_out_across_opend_session_routes)"
+          "test(us_intraday_history_fans_out_across_opend_session_routes) or test(us_regular_only_history_uses_a_single_rth_route) or test(session_planner_selects_explicit_routes_and_keep_sets) or test(routed_sessions_override_the_clock_classification) or test(chinese_supported_session_message_triggers_the_all_fallback)"
         ],
         "testFilter": [
-          "us_intraday_history_fans_out_across_opend_session_routes"
+          "us_intraday_history_fans_out_across_opend_session_routes",
+          "us_regular_only_history_uses_a_single_rth_route",
+          "session_planner_selects_explicit_routes_and_keep_sets",
+          "routed_sessions_override_the_clock_classification",
+          "chinese_supported_session_message_triggers_the_all_fallback"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "dc862edb",
-        "verifiedAt": "2026-09-25T12:57:05Z",
-        "receiptDigest": null
+        "verifiedCommit": "d3620fd06bcff849663184f7e25efb054c950a72",
+        "verifiedAt": "2026-09-27T00:00:00Z",
+        "receiptDigest": "sha256:cad7100b896a7aab3714ef4187d68e428db7e84f5585bef76c92fa807e593cfb"
       },
       "risk": "high",
       "owner": "futu_opend",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "function_exact：US 日线以下窗口按 RTH→ETH→ALL 三条路由扇出（请求 session 顺序断言一致），重复 bucket 由更具体的路由覆盖（ETH 100 / RTH 110 覆盖 ALL 的 95/105）。规划逻辑在 crates/jftrade-integration-futu/src/history_session_plan.rs::build_request_plans。"
+        "function_exact：US 日线以下窗口按 RTH→ETH→ALL 三条路由扇出，三条请求均携带 extendedTime=true；重复 bucket 由更具体的路由覆盖（ETH 100 / RTH 110 覆盖 ALL 的 95/105），并按交易所日历标记为 pre、regular、overnight。规划逻辑在 crates/jftrade-integration-futu/src/history_session_plan.rs::build_request_plans。"
       ],
       "uncoveredAssertions": [],
       "boundaryReason": null
@@ -155731,7 +155742,7 @@
       "evidence_type": "function_exact",
       "rust_entry": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::us_regular_only_history_uses_a_single_rth_route",
       "conclusion": "function_exact：sessions=regular 只发起一条 RTH 路由并只保留 regular bar（1 条 candle）。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(us_regular_only_history_uses_a_single_rth_route)'",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-integration-futu --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(us_intraday_history_fans_out_across_opend_session_routes) or test(us_regular_only_history_uses_a_single_rth_route) or test(session_planner_selects_explicit_routes_and_keep_sets) or test(routed_sessions_override_the_clock_classification) or test(chinese_supported_session_message_triggers_the_all_fallback)'",
       "source": {
         "file": "pkg/futu/exchange_kline_test.go",
         "line": 106,
@@ -155747,7 +155758,7 @@
             "goFile": "pkg/futu/exchange_kline_test.go",
             "goLine": 106,
             "rustFile": "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs",
-            "rustLine": 485
+            "rustLine": 507
           }
         }
       ],
@@ -155756,36 +155767,47 @@
           "function_exact：sessions=regular 只发起一条 RTH 路由并只保留 regular bar（1 条 candle）。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
           "-p",
           "jftrade-engine",
+          "-p",
+          "jftrade-integration-futu",
+          "--all-targets",
+          "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(us_regular_only_history_uses_a_single_rth_route)"
+          "test(us_intraday_history_fans_out_across_opend_session_routes) or test(us_regular_only_history_uses_a_single_rth_route) or test(session_planner_selects_explicit_routes_and_keep_sets) or test(routed_sessions_override_the_clock_classification) or test(chinese_supported_session_message_triggers_the_all_fallback)"
         ],
         "testFilter": [
-          "us_regular_only_history_uses_a_single_rth_route"
+          "us_intraday_history_fans_out_across_opend_session_routes",
+          "us_regular_only_history_uses_a_single_rth_route",
+          "session_planner_selects_explicit_routes_and_keep_sets",
+          "routed_sessions_override_the_clock_classification",
+          "chinese_supported_session_message_triggers_the_all_fallback"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "dc862edb",
-        "verifiedAt": "2026-09-25T12:57:05Z",
-        "receiptDigest": null
+        "verifiedCommit": "d3620fd06bcff849663184f7e25efb054c950a72",
+        "verifiedAt": "2026-09-27T00:00:00Z",
+        "receiptDigest": "sha256:cad7100b896a7aab3714ef4187d68e428db7e84f5585bef76c92fa807e593cfb"
       },
       "risk": "high",
       "owner": "futu_opend",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：sessions=regular 只发起一条 RTH 路由并只保留 regular bar（1 条 candle）。"
@@ -155946,7 +155968,7 @@
       "evidence_type": "function_exact",
       "rust_entry": "crates/jftrade-integration-futu/src/history_session_plan.rs::tests::routed_sessions_override_the_clock_classification",
       "conclusion": "function_exact：RTH 路由强制 regular、OVERNIGHT 路由强制 overnight，且 keep-filter 丢弃不属于该路由的 pre bar。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(history_session_plan)'",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-integration-futu --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(us_intraday_history_fans_out_across_opend_session_routes) or test(us_regular_only_history_uses_a_single_rth_route) or test(session_planner_selects_explicit_routes_and_keep_sets) or test(routed_sessions_override_the_clock_classification) or test(chinese_supported_session_message_triggers_the_all_fallback)'",
       "source": {
         "file": "pkg/futu/exchange_kline_test.go",
         "line": 178,
@@ -155962,7 +155984,7 @@
             "goFile": "pkg/futu/exchange_kline_test.go",
             "goLine": 178,
             "rustFile": "crates/jftrade-integration-futu/src/history_session_plan.rs",
-            "rustLine": 252
+            "rustLine": 255
           }
         }
       ],
@@ -155971,7 +155993,7 @@
           "function_exact：RTH 路由强制 regular、OVERNIGHT 路由强制 overnight，且 keep-filter 丢弃不属于该路由的 pre bar。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -155984,23 +156006,25 @@
           "test(history_session_plan)"
         ],
         "testFilter": [
-          "routed_sessions_override_the_clock_classification"
+          "us_intraday_history_fans_out_across_opend_session_routes",
+          "us_regular_only_history_uses_a_single_rth_route",
+          "session_planner_selects_explicit_routes_and_keep_sets",
+          "routed_sessions_override_the_clock_classification",
+          "chinese_supported_session_message_triggers_the_all_fallback"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "dc862edb",
-        "verifiedAt": "2026-09-25T12:57:05Z",
-        "receiptDigest": null
+        "verifiedCommit": "d3620fd06bcff849663184f7e25efb054c950a72",
+        "verifiedAt": "2026-09-27T00:00:00Z",
+        "receiptDigest": "sha256:cad7100b896a7aab3714ef4187d68e428db7e84f5585bef76c92fa807e593cfb"
       },
       "risk": "high",
       "owner": "futu_opend",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：RTH 路由强制 regular、OVERNIGHT 路由强制 overnight，且 keep-filter 丢弃不属于该路由的 pre bar。"
@@ -156080,7 +156104,7 @@
       "evidence_type": "function_exact",
       "rust_entry": "crates/jftrade-integration-futu/src/history_session_plan.rs::tests::chinese_supported_session_message_triggers_the_all_fallback",
       "conclusion": "function_exact：中文“获取历史K线的时段仅支持设置 RTH，ETH，ALL”触发 Session_ALL fallback；另有同路由/异路由与无关消息的负例。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -E 'test(history_session_plan)'",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-integration-futu --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(us_intraday_history_fans_out_across_opend_session_routes) or test(us_regular_only_history_uses_a_single_rth_route) or test(session_planner_selects_explicit_routes_and_keep_sets) or test(routed_sessions_override_the_clock_classification) or test(chinese_supported_session_message_triggers_the_all_fallback)'",
       "source": {
         "file": "pkg/futu/exchange_kline_test.go",
         "line": 228,
@@ -156096,7 +156120,7 @@
             "goFile": "pkg/futu/exchange_kline_test.go",
             "goLine": 228,
             "rustFile": "crates/jftrade-integration-futu/src/history_session_plan.rs",
-            "rustLine": 278
+            "rustLine": 281
           }
         }
       ],
@@ -156105,36 +156129,47 @@
           "function_exact：中文“获取历史K线的时段仅支持设置 RTH，ETH，ALL”触发 Session_ALL fallback；另有同路由/异路由与无关消息的负例。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
           "-p",
+          "jftrade-engine",
+          "-p",
           "jftrade-integration-futu",
+          "--all-targets",
+          "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(history_session_plan)"
+          "test(us_intraday_history_fans_out_across_opend_session_routes) or test(us_regular_only_history_uses_a_single_rth_route) or test(session_planner_selects_explicit_routes_and_keep_sets) or test(routed_sessions_override_the_clock_classification) or test(chinese_supported_session_message_triggers_the_all_fallback)"
         ],
         "testFilter": [
+          "us_intraday_history_fans_out_across_opend_session_routes",
+          "us_regular_only_history_uses_a_single_rth_route",
+          "session_planner_selects_explicit_routes_and_keep_sets",
+          "routed_sessions_override_the_clock_classification",
           "chinese_supported_session_message_triggers_the_all_fallback"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "dc862edb",
-        "verifiedAt": "2026-09-25T12:57:05Z",
-        "receiptDigest": null
+        "verifiedCommit": "d3620fd06bcff849663184f7e25efb054c950a72",
+        "verifiedAt": "2026-09-27T00:00:00Z",
+        "receiptDigest": "sha256:cad7100b896a7aab3714ef4187d68e428db7e84f5585bef76c92fa807e593cfb"
       },
       "risk": "high",
       "owner": "futu_opend",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：中文“获取历史K线的时段仅支持设置 RTH，ETH，ALL”触发 Session_ALL fallback；另有同路由/异路由与无关消息的负例。"
