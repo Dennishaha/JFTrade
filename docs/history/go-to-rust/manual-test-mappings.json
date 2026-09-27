@@ -69328,7 +69328,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/product_mcp_server_tests.rs::token_auth_and_tools_list_use_reviewed_catalog",
       "conclusion": "已对齐：token 模式下无/错 token 的 tools/list 返回 401，携带正确 Bearer 的返回 200 并列出 reviewed 目录（含 system.status）。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'test(token_auth_and_tools_list_use_reviewed_catalog)'",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(token_auth_and_tools_list_use_reviewed_catalog) or test(session_context_overrides_fall_back_to_the_agent_provider_window) or test(cancelling_a_pending_input_run_cancels_the_request_and_rejects_a_late_answer) or test(production_approval_resume_after_the_stream_closed_completes_without_late_frames) or test(a_continuation_for_a_missing_run_is_a_silent_no_op)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/assistant/assembly/mcp_server_test.go",
@@ -69354,36 +69354,45 @@
           "已对齐：token 模式下无/错 token 的 tools/list 返回 401，携带正确 Bearer 的返回 200 并列出 reviewed 目录（含 system.status）。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(auth_manager_login_validate_and_logout_flow) or test(session_cookie_reads_and_csrf_protected_writes_share_one_browser_flow) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable) or test(auth_session_route_matches_go_fixture_in_cutover_only) or test(ws_live_transport_upgrades_with_a_browser_session_cookie_alone) or test(backtest_and_strategy_tools_reject_missing_identifiers_and_unknown_targets) or test(strategy_optimize_enqueues_every_candidate_and_persists_the_task) or test(screen_catalog_normalizes_padded_lowercase_markets_and_rejects_unsupported_labels) or test(production_backtest_cancel_reports_false_without_a_cancellable_run) or test(disabled_runtime_has_stopped_status_and_releases_listener) or test(token_auth_and_tools_list_use_reviewed_catalog) or test(test_portfolio_funds_overview_and_sorting_and_unsupported_market) or test(portfolio_summary_merges_positions_balances_and_orders_and_rejects_unknown_brokers) or test(portfolio_layered_tools_report_discovery_failure_and_partial_read_states) or test(portfolio_tools_require_trading_environment_and_fail_closed_without_a_broker_reader) or test(screen_query_rejects_wrong_catalog_and_schema_versions) or test(product_runtime_without_optional_workers_starts_and_stops_cleanly) or test(test_product_runtime_ordered_shutdown_explicit) or test(test_product_runtime_ordered_shutdown_direct_drop) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(workflow_wait_tool_rejects_too_long_duration) or test(workflow_wait_tool_returns_context_cancellation) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(session_context_overrides_fall_back_to_the_agent_provider_window) or test(chat_resolution_reports_missing_agents_and_unusable_providers) or test(run_gate_is_shared_across_runtime_facades) or test(session_context_read_reports_pressure_without_compacting) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(infrastructure_resume_error_degrades_until_a_successful_scan) or test(sibling_approvals_resume_once_after_every_decision)"
+          "test(token_auth_and_tools_list_use_reviewed_catalog) or test(session_context_overrides_fall_back_to_the_agent_provider_window) or test(cancelling_a_pending_input_run_cancels_the_request_and_rejects_a_late_answer) or test(production_approval_resume_after_the_stream_closed_completes_without_late_frames) or test(a_continuation_for_a_missing_run_is_a_silent_no_op)"
         ],
         "testFilter": [
-          "token_auth_and_tools_list_use_reviewed_catalog"
+          "token_auth_and_tools_list_use_reviewed_catalog",
+          "session_context_overrides_fall_back_to_the_agent_provider_window",
+          "cancelling_a_pending_input_run_cancels_the_request_and_rejects_a_late_answer",
+          "production_approval_resume_after_the_stream_closed_completes_without_late_frames",
+          "a_continuation_for_a_missing_run_is_a_silent_no_op"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "3d356b9a",
-        "verifiedAt": "2026-09-25T13:47:02Z",
-        "receiptDigest": null
+        "verifiedCommit": "21b45b4a9c8a435084bb62990c7f5c533c4e4e7f",
+        "verifiedAt": "2026-09-27T18:04:26Z",
+        "receiptDigest": "sha256:7f97c2a3cc83a59db7c1bfa55be2233314f69e89bf29de08c35c2ba56592506d"
       },
       "risk": "high",
       "owner": "assistant_workflow",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "已对齐：token 模式下无/错 token 的 tools/list 返回 401，携带正确 Bearer 的返回 200 并列出 reviewed 目录（含 system.status）。"
@@ -73434,7 +73443,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/product_adk_session_context_tests.rs::session_context_overrides_fall_back_to_the_agent_provider_window",
       "conclusion": "已对齐 + 本批修复：缺失 session 在读与手动压缩两个入口都报 `session not found`；composer 覆盖指向不存在 provider 时窗口保持 agent 自身 provider 的窗口（4000）且状态不再 unknown。修复前 Rust 无条件套用 override，窗口退化为 0/`unknown`；Go `resolveSessionContextAgent` 在 override 解析失败且 base provider 存在时回落 base（`crates/jftrade-engine/src/product_production_ports_adk_context_window.rs`）。gate 冲突（已运行/活动 run）由 `a_second_compaction_is_rejected_while_the_session_gate_is_held` 与 `manual_context_compaction_writes_the_done_notice_into_the_timeline` 覆盖。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'test(session_context_overrides_fall_back_to_the_agent_provider_window)'",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(token_auth_and_tools_list_use_reviewed_catalog) or test(session_context_overrides_fall_back_to_the_agent_provider_window) or test(cancelling_a_pending_input_run_cancels_the_request_and_rejects_a_late_answer) or test(production_approval_resume_after_the_stream_closed_completes_without_late_frames) or test(a_continuation_for_a_missing_run_is_a_silent_no_op)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/assistant/engine/adk_edges_test.go",
@@ -73460,36 +73469,45 @@
           "已对齐 + 本批修复：缺失 session 在读与手动压缩两个入口都报 `session not found`；composer 覆盖指向不存在 provider 时窗口保持 agent 自身 provider 的窗口（4000）且状态不再 unknown。修复前 Rust 无条件套用 override，窗口退化为 0/`unknown`；Go `resolveSessionContextAgent` 在 override 解析失败且 base provider 存在时回落 base（`crates/jftrade-engine/src/product_production_ports_adk_context_window.rs`）。gate 冲突（已运行/活动 run）由 `a_second_compaction_is_rejected_while_the_session_gate_is_held` 与 `manual_context_compaction_writes_the_done_notice_into_the_timeline` 覆盖。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(auth_manager_login_validate_and_logout_flow) or test(session_cookie_reads_and_csrf_protected_writes_share_one_browser_flow) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable) or test(auth_session_route_matches_go_fixture_in_cutover_only) or test(ws_live_transport_upgrades_with_a_browser_session_cookie_alone) or test(backtest_and_strategy_tools_reject_missing_identifiers_and_unknown_targets) or test(strategy_optimize_enqueues_every_candidate_and_persists_the_task) or test(screen_catalog_normalizes_padded_lowercase_markets_and_rejects_unsupported_labels) or test(production_backtest_cancel_reports_false_without_a_cancellable_run) or test(disabled_runtime_has_stopped_status_and_releases_listener) or test(token_auth_and_tools_list_use_reviewed_catalog) or test(test_portfolio_funds_overview_and_sorting_and_unsupported_market) or test(portfolio_summary_merges_positions_balances_and_orders_and_rejects_unknown_brokers) or test(portfolio_layered_tools_report_discovery_failure_and_partial_read_states) or test(portfolio_tools_require_trading_environment_and_fail_closed_without_a_broker_reader) or test(screen_query_rejects_wrong_catalog_and_schema_versions) or test(product_runtime_without_optional_workers_starts_and_stops_cleanly) or test(test_product_runtime_ordered_shutdown_explicit) or test(test_product_runtime_ordered_shutdown_direct_drop) or test(workflow_writes_reject_malformed_canvas_graphs_before_storing) or test(workflow_wait_tool_rejects_too_long_duration) or test(workflow_wait_tool_returns_context_cancellation) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(session_context_overrides_fall_back_to_the_agent_provider_window) or test(chat_resolution_reports_missing_agents_and_unusable_providers) or test(run_gate_is_shared_across_runtime_facades) or test(session_context_read_reports_pressure_without_compacting) or test(adk_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(infrastructure_resume_error_degrades_until_a_successful_scan) or test(sibling_approvals_resume_once_after_every_decision)"
+          "test(token_auth_and_tools_list_use_reviewed_catalog) or test(session_context_overrides_fall_back_to_the_agent_provider_window) or test(cancelling_a_pending_input_run_cancels_the_request_and_rejects_a_late_answer) or test(production_approval_resume_after_the_stream_closed_completes_without_late_frames) or test(a_continuation_for_a_missing_run_is_a_silent_no_op)"
         ],
         "testFilter": [
-          "session_context_overrides_fall_back_to_the_agent_provider_window"
+          "token_auth_and_tools_list_use_reviewed_catalog",
+          "session_context_overrides_fall_back_to_the_agent_provider_window",
+          "cancelling_a_pending_input_run_cancels_the_request_and_rejects_a_late_answer",
+          "production_approval_resume_after_the_stream_closed_completes_without_late_frames",
+          "a_continuation_for_a_missing_run_is_a_silent_no_op"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "3d356b9a",
-        "verifiedAt": "2026-09-25T13:47:02Z",
-        "receiptDigest": null
+        "verifiedCommit": "21b45b4a9c8a435084bb62990c7f5c533c4e4e7f",
+        "verifiedAt": "2026-09-27T18:04:26Z",
+        "receiptDigest": "sha256:7f97c2a3cc83a59db7c1bfa55be2233314f69e89bf29de08c35c2ba56592506d"
       },
       "risk": "high",
       "owner": "assistant_workflow",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "已对齐 + 本批修复：缺失 session 在读与手动压缩两个入口都报 `session not found`；composer 覆盖指向不存在 provider 时窗口保持 agent 自身 provider 的窗口（4000）且状态不再 unknown。修复前 Rust 无条件套用 override，窗口退化为 0/`unknown`；Go `resolveSessionContextAgent` 在 override 解析失败且 base provider 存在时回落 base（`crates/jftrade-engine/src/product_production_ports_adk_context_window.rs`）。gate 冲突（已运行/活动 run）由 `a_second_compaction_is_rejected_while_the_session_gate_is_held` 与 `manual_context_compaction_writes_the_done_notice_into_the_timeline` 覆盖。"
@@ -80133,7 +80151,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/product_adk_input_response_parity_tests.rs::cancelling_a_pending_input_run_cancels_the_request_and_rejects_a_late_answer",
       "conclusion": "已对齐：取消 PENDING_INPUT run 后 inputRequest/inputRequests/toolCalls 全部 CANCELLED，迟到的回答返回 409 ADK_INPUT_RESPONSE_CONFLICT 且 run 仍为 CANCELLED。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'test(cancelling_a_pending_input_run_cancels_the_request_and_rejects_a_late_answer)'",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(token_auth_and_tools_list_use_reviewed_catalog) or test(session_context_overrides_fall_back_to_the_agent_provider_window) or test(cancelling_a_pending_input_run_cancels_the_request_and_rejects_a_late_answer) or test(production_approval_resume_after_the_stream_closed_completes_without_late_frames) or test(a_continuation_for_a_missing_run_is_a_silent_no_op)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/assistant/engine/input_request_test.go",
@@ -80159,36 +80177,45 @@
           "已对齐：取消 PENDING_INPUT run 后 inputRequest/inputRequests/toolCalls 全部 CANCELLED，迟到的回答返回 409 ADK_INPUT_RESPONSE_CONFLICT 且 run 仍为 CANCELLED。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(compacted_context_survives_restart_and_precedes_current_user_message) or test(context_compaction_shrinks_the_projected_session_view) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(session_context_read_reports_pressure_without_compacting) or test(chat_creates_the_session_once_and_reuses_its_stored_title) or test(a_cancelled_tool_call_reports_the_context_cancellation) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(stale_replay_safe_claim_takes_over_with_fencing) or test(expired_tool_invocation_takeover_fences_old_ticket_with_live_run_lease) or test(infrastructure_resume_error_degrades_until_a_successful_scan) or test(context_notices_are_best_effort_and_keep_one_identity_across_updates) or test(an_unrecoverable_input_continuation_fails_the_run_with_the_reference_resume_state) or test(input_response_payload_anchors_the_resumed_run_to_the_original_request) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(cancelling_a_pending_input_run_cancels_the_request_and_rejects_a_late_answer) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(adk_task_normalization_and_validation_match_go) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_store_fences_a_second_writer_and_serializes_concurrent_access) or test(paths_follow_go_environment_overrides_and_adk_artifact_lifecycle) or test(adk_session_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_v2_migration_rebuilds_runs_without_losing_payload) or test(adk_session_store_lifecycle_and_restart_durability) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success)"
+          "test(token_auth_and_tools_list_use_reviewed_catalog) or test(session_context_overrides_fall_back_to_the_agent_provider_window) or test(cancelling_a_pending_input_run_cancels_the_request_and_rejects_a_late_answer) or test(production_approval_resume_after_the_stream_closed_completes_without_late_frames) or test(a_continuation_for_a_missing_run_is_a_silent_no_op)"
         ],
         "testFilter": [
-          "cancelling_a_pending_input_run_cancels_the_request_and_rejects_a_late_answer"
+          "token_auth_and_tools_list_use_reviewed_catalog",
+          "session_context_overrides_fall_back_to_the_agent_provider_window",
+          "cancelling_a_pending_input_run_cancels_the_request_and_rejects_a_late_answer",
+          "production_approval_resume_after_the_stream_closed_completes_without_late_frames",
+          "a_continuation_for_a_missing_run_is_a_silent_no_op"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "592df11d",
-        "verifiedAt": "2026-09-25T13:53:41Z",
-        "receiptDigest": null
+        "verifiedCommit": "21b45b4a9c8a435084bb62990c7f5c533c4e4e7f",
+        "verifiedAt": "2026-09-27T18:04:26Z",
+        "receiptDigest": "sha256:7f97c2a3cc83a59db7c1bfa55be2233314f69e89bf29de08c35c2ba56592506d"
       },
       "risk": "high",
       "owner": "assistant_workflow",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "已对齐：取消 PENDING_INPUT run 后 inputRequest/inputRequests/toolCalls 全部 CANCELLED，迟到的回答返回 409 ADK_INPUT_RESPONSE_CONFLICT 且 run 仍为 CANCELLED。"
@@ -88404,7 +88431,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::production_approval_resume_after_the_stream_closed_completes_without_late_frames",
       "conclusion": "function_exact：Go 用 `streamClosed` 标志证明 ChatStream 的 delta 回调在响应完成后已被 detach，后台 ResolveApprovalAsync 续跑不得再回调它。Rust 的等价 sink 是 live 响应的 `ApiStream`：本回归用真实 product server 加注入 GateToolExecutor 的 approval 模式 runtime，把停泊的 SSE 响应保持连接、在其上批准工具、再持续读到 EOF，若有 late frame 就会被同一连接读到。断言：approve=200、批准与后台续跑期间连接上没有额外 data 帧、run 落到 COMPLETED、resumeState=adk_confirmation_resolved、reply 含第二轮文本、工具恰好执行一次。探针证据：临时在停泊分支的 final 帧之后补一次延迟 400ms 的 delta 发送（模拟保留 sink 的 bug）后测试立即失败（读到 `data: {\"probe\":\"late frame after terminal\"...}`），回滚后通过。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(production_approval_resume_after_the_stream_closed_completes_without_late_frames)'",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(token_auth_and_tools_list_use_reviewed_catalog) or test(session_context_overrides_fall_back_to_the_agent_provider_window) or test(cancelling_a_pending_input_run_cancels_the_request_and_rejects_a_late_answer) or test(production_approval_resume_after_the_stream_closed_completes_without_late_frames) or test(a_continuation_for_a_missing_run_is_a_silent_no_op)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/assistant/engine/runner_chat_test.go",
@@ -88430,36 +88457,45 @@
           "function_exact：Go 用 `streamClosed` 标志证明 ChatStream 的 delta 回调在响应完成后已被 detach，后台 ResolveApprovalAsync 续跑不得再回调它。Rust 的等价 sink 是 live 响应的 `ApiStream`：本回归用真实 product server 加注入 GateToolExecutor 的 approval 模式 runtime，把停泊的 SSE 响应保持连接、在其上批准工具、再持续读到 EOF，若有 late frame 就会被同一连接读到。断言：approve=200、批准与后台续跑期间连接上没有额外 data 帧、run 落到 COMPLETED、resumeState=adk_confirmation_resolved、reply 含第二轮文本、工具恰好执行一次。探针证据：临时在停泊分支的 final 帧之后补一次延迟 400ms 的 delta 发送（模拟保留 sink 的 bug）后测试立即失败（读到 `data: {\"probe\":\"late frame after terminal\"...}`），回滚后通过。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(adk_approval_resolution_stages_continuation_and_denial_cas) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(cascade_deletion_fences_stale_writer_and_session_recovery) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(terminal_failure_mapping_matches_the_reference_table) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(adk_read_routes_reject_blank_decoded_identifiers) or test(challenge_continuation_supervisor_cancellation_signal_propagates) or test(running_stream_payload_replays_all_nonterminal_events) or test(production_approval_resume_after_the_stream_closed_completes_without_late_frames) or test(chat_creates_the_session_once_and_reuses_its_stored_title) or test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(a_continuation_for_a_missing_run_is_a_silent_no_op) or test(challenge_continuation_supervisor_rejects_new_work_once_stopping) or test(the_run_read_routes_reconcile_expired_runs_before_serving) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(non_resumable_running_run_does_not_make_runtime_unready) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(graph_exposes_one_deterministic_ready_task) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success) or test(challenge_continuation_supervisor_concurrent_spawn_shutdown_race) or test(challenge_continuation_supervisor_claims_are_exclusive_and_released) or test(production_adk_updates_do_not_create_missing_agents_or_providers) or test(snapshot_and_provider_test_boundaries_fail_closed) or test(adk_session_delete_missing_is_reported_with_the_session_error_code) or test(a_second_compaction_is_rejected_while_the_session_gate_is_held)"
+          "test(token_auth_and_tools_list_use_reviewed_catalog) or test(session_context_overrides_fall_back_to_the_agent_provider_window) or test(cancelling_a_pending_input_run_cancels_the_request_and_rejects_a_late_answer) or test(production_approval_resume_after_the_stream_closed_completes_without_late_frames) or test(a_continuation_for_a_missing_run_is_a_silent_no_op)"
         ],
         "testFilter": [
-          "production_approval_resume_after_the_stream_closed_completes_without_late_frames"
+          "token_auth_and_tools_list_use_reviewed_catalog",
+          "session_context_overrides_fall_back_to_the_agent_provider_window",
+          "cancelling_a_pending_input_run_cancels_the_request_and_rejects_a_late_answer",
+          "production_approval_resume_after_the_stream_closed_completes_without_late_frames",
+          "a_continuation_for_a_missing_run_is_a_silent_no_op"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "f6a6c5f6",
-        "verifiedAt": "2026-09-25T14:00:05Z",
-        "receiptDigest": null
+        "verifiedCommit": "21b45b4a9c8a435084bb62990c7f5c533c4e4e7f",
+        "verifiedAt": "2026-09-27T18:04:26Z",
+        "receiptDigest": "sha256:7f97c2a3cc83a59db7c1bfa55be2233314f69e89bf29de08c35c2ba56592506d"
       },
       "risk": "high",
       "owner": "assistant_workflow",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：Go 用 `streamClosed` 标志证明 ChatStream 的 delta 回调在响应完成后已被 detach，后台 ResolveApprovalAsync 续跑不得再回调它。Rust 的等价 sink 是 live 响应的 `ApiStream`：本回归用真实 product server 加注入 GateToolExecutor 的 approval 模式 runtime，把停泊的 SSE 响应保持连接、在其上批准工具、再持续读到 EOF，若有 late frame 就会被同一连接读到。断言：approve=200、批准与后台续跑期间连接上没有额外 data 帧、run 落到 COMPLETED、resumeState=adk_confirmation_resolved、reply 含第二轮文本、工具恰好执行一次。探针证据：临时在停泊分支的 final 帧之后补一次延迟 400ms 的 delta 发送（模拟保留 sink 的 bug）后测试立即失败（读到 `data: {\"probe\":\"late frame after terminal\"...}`），回滚后通过。"
@@ -88880,7 +88916,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_terminal_audit_tests.rs::a_continuation_for_a_missing_run_is_a_silent_no_op",
       "conclusion": "function_exact（本批修复的真实缺口）：①missing-run continuation 必须静默 no-op —— Go 的 continueResolvedApprovalRun/continueResolvedInput 读不到 run 时返回 store 的 nil，Rust resume_approval 之前报 Unavailable(\"persisted ADK run disappeared\")，会让审批/输入路由回滚已 staged 的审批并回 503 ADK_CONTINUATION_UNAVAILABLE；已改为 `let Some(run) = ... else { return Ok(()) }`（product_adk_model_runtime_events.rs），新回归 a_continuation_for_a_missing_run_is_a_silent_no_op 断言返回 Ok 且不物化 run、不写审计行。②不可续跑 run 静默 no-op —— 已由 79c973f8 修复并由同一测试族的既有断言覆盖。③foreign unexpired lease 不被 steal —— Rust 的 resume_approval 先读 run 再校验状态，真正执行前必须拿到 RunLeaseGuard（compare-and-claim，fresh foreign lease 会 Conflict），worker 抢到租约后还会重读 run 并要求 RUNNING 才继续（product_adk_model_runtime_tool_loop.rs 的 run_tool_loop），因此不偷 foreign owner；证据为 challenge_continuation_supervisor_claims_are_exclusive_and_released、adk_approval_wakeup_accepts_an_already_claimed_continuation 与 product_adk_model_runtime_takeover_tests.rs 的 fencing/takeover 断言。④empty-state 分支（stageResolvedApproval(missing)/markApprovalContinuationFailed(missing)/attachParentWorkflowResolution(empty)/nil-runtime Reconcile）在 Go 是纯无副作用边界：Rust 侧没有这几个同名入口，对应职责由 store 的 resolve_and_stage_approval 返回 None + 路由的 `Ok(json!({\"approval\": {\"id\": \"\"}}))` 空 envelope 承担，已由 adk_resolve_approval_missing_returns_the_idempotent_empty_envelope 断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(token_auth_and_tools_list_use_reviewed_catalog) or test(session_context_overrides_fall_back_to_the_agent_provider_window) or test(cancelling_a_pending_input_run_cancels_the_request_and_rejects_a_late_answer) or test(production_approval_resume_after_the_stream_closed_completes_without_late_frames) or test(a_continuation_for_a_missing_run_is_a_silent_no_op)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/assistant/engine/runner_continuation_boundaries_test.go",
@@ -88906,36 +88942,45 @@
           "function_exact（本批修复的真实缺口）：①missing-run continuation 必须静默 no-op —— Go 的 continueResolvedApprovalRun/continueResolvedInput 读不到 run 时返回 store 的 nil，Rust resume_approval 之前报 Unavailable(\"persisted ADK run disappeared\")，会让审批/输入路由回滚已 staged 的审批并回 503 ADK_CONTINUATION_UNAVAILABLE；已改为 `let Some(run) = ... else { return Ok(()) }`（product_adk_model_runtime_events.rs），新回归 a_continuation_for_a_missing_run_is_a_silent_no_op 断言返回 Ok 且不物化 run、不写审计行。②不可续跑 run 静默 no-op —— 已由 79c973f8 修复并由同一测试族的既有断言覆盖。③foreign unexpired lease 不被 steal —— Rust 的 resume_approval 先读 run 再校验状态，真正执行前必须拿到 RunLeaseGuard（compare-and-claim，fresh foreign lease 会 Conflict），worker 抢到租约后还会重读 run 并要求 RUNNING 才继续（product_adk_model_runtime_tool_loop.rs 的 run_tool_loop），因此不偷 foreign owner；证据为 challenge_continuation_supervisor_claims_are_exclusive_and_released、adk_approval_wakeup_accepts_an_already_claimed_continuation 与 product_adk_model_runtime_takeover_tests.rs 的 fencing/takeover 断言。④empty-state 分支（stageResolvedApproval(missing)/markApprovalContinuationFailed(missing)/attachParentWorkflowResolution(empty)/nil-runtime Reconcile）在 Go 是纯无副作用边界：Rust 侧没有这几个同名入口，对应职责由 store 的 resolve_and_stage_approval 返回 None + 路由的 `Ok(json!({\"approval\": {\"id\": \"\"}}))` 空 envelope 承担，已由 adk_resolve_approval_missing_returns_the_idempotent_empty_envelope 断言。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(adk_approval_resolution_stages_continuation_and_denial_cas) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(cascade_deletion_fences_stale_writer_and_session_recovery) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(terminal_failure_mapping_matches_the_reference_table) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(adk_read_routes_reject_blank_decoded_identifiers) or test(challenge_continuation_supervisor_cancellation_signal_propagates) or test(running_stream_payload_replays_all_nonterminal_events) or test(production_approval_resume_after_the_stream_closed_completes_without_late_frames) or test(chat_creates_the_session_once_and_reuses_its_stored_title) or test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(a_continuation_for_a_missing_run_is_a_silent_no_op) or test(challenge_continuation_supervisor_rejects_new_work_once_stopping) or test(the_run_read_routes_reconcile_expired_runs_before_serving) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(non_resumable_running_run_does_not_make_runtime_unready) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(graph_exposes_one_deterministic_ready_task) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success) or test(challenge_continuation_supervisor_concurrent_spawn_shutdown_race) or test(challenge_continuation_supervisor_claims_are_exclusive_and_released) or test(production_adk_updates_do_not_create_missing_agents_or_providers) or test(snapshot_and_provider_test_boundaries_fail_closed) or test(adk_session_delete_missing_is_reported_with_the_session_error_code) or test(a_second_compaction_is_rejected_while_the_session_gate_is_held)"
+          "test(token_auth_and_tools_list_use_reviewed_catalog) or test(session_context_overrides_fall_back_to_the_agent_provider_window) or test(cancelling_a_pending_input_run_cancels_the_request_and_rejects_a_late_answer) or test(production_approval_resume_after_the_stream_closed_completes_without_late_frames) or test(a_continuation_for_a_missing_run_is_a_silent_no_op)"
         ],
         "testFilter": [
+          "token_auth_and_tools_list_use_reviewed_catalog",
+          "session_context_overrides_fall_back_to_the_agent_provider_window",
+          "cancelling_a_pending_input_run_cancels_the_request_and_rejects_a_late_answer",
+          "production_approval_resume_after_the_stream_closed_completes_without_late_frames",
           "a_continuation_for_a_missing_run_is_a_silent_no_op"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "f6a6c5f6",
-        "verifiedAt": "2026-09-25T14:00:05Z",
-        "receiptDigest": null
+        "verifiedCommit": "21b45b4a9c8a435084bb62990c7f5c533c4e4e7f",
+        "verifiedAt": "2026-09-27T18:04:26Z",
+        "receiptDigest": "sha256:7f97c2a3cc83a59db7c1bfa55be2233314f69e89bf29de08c35c2ba56592506d"
       },
       "risk": "high",
       "owner": "assistant_workflow",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact（本批修复的真实缺口）：①missing-run continuation 必须静默 no-op —— Go 的 continueResolvedApprovalRun/continueResolvedInput 读不到 run 时返回 store 的 nil，Rust resume_approval 之前报 Unavailable(\"persisted ADK run disappeared\")，会让审批/输入路由回滚已 staged 的审批并回 503 ADK_CONTINUATION_UNAVAILABLE；已改为 `let Some(run) = ... else { return Ok(()) }`（product_adk_model_runtime_events.rs），新回归 a_continuation_for_a_missing_run_is_a_silent_no_op 断言返回 Ok 且不物化 run、不写审计行。②不可续跑 run 静默 no-op —— 已由 79c973f8 修复并由同一测试族的既有断言覆盖。③foreign unexpired lease 不被 steal —— Rust 的 resume_approval 先读 run 再校验状态，真正执行前必须拿到 RunLeaseGuard（compare-and-claim，fresh foreign lease 会 Conflict），worker 抢到租约后还会重读 run 并要求 RUNNING 才继续（product_adk_model_runtime_tool_loop.rs 的 run_tool_loop），因此不偷 foreign owner；证据为 challenge_continuation_supervisor_claims_are_exclusive_and_released、adk_approval_wakeup_accepts_an_already_claimed_continuation 与 product_adk_model_runtime_takeover_tests.rs 的 fencing/takeover 断言。④empty-state 分支（stageResolvedApproval(missing)/markApprovalContinuationFailed(missing)/attachParentWorkflowResolution(empty)/nil-runtime Reconcile）在 Go 是纯无副作用边界：Rust 侧没有这几个同名入口，对应职责由 store 的 resolve_and_stage_approval 返回 None + 路由的 `Ok(json!({\"approval\": {\"id\": \"\"}}))` 空 envelope 承担，已由 adk_resolve_approval_missing_returns_the_idempotent_empty_envelope 断言。"
