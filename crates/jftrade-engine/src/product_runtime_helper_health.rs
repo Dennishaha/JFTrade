@@ -56,8 +56,8 @@ pub struct HelperRestartPolicy {
 impl Default for HelperRestartPolicy {
     fn default() -> Self {
         Self {
-            initial_backoff: Duration::from_millis(500),
-            max_backoff: Duration::from_millis(10000),
+            initial_backoff: Duration::from_millis(100),
+            max_backoff: Duration::from_secs(1),
             multiplier: 2.0,
             startup_timeout: Duration::from_secs(5),
             initial_retry_delay: Duration::from_millis(50),
@@ -492,6 +492,28 @@ mod tests {
             compute_helper_backoff(initial, max, multiplier, 10),
             Duration::from_millis(10000)
         );
+    }
+
+    // Parity: go:452dea11:internal/app/apiserver/marketdataapp/runtime_health_test.go:222 TestProviderHealthRetryDelayBacksOffAndCaps
+    #[test]
+    fn helper_restart_policy_defaults_match_go_provider_health_retry_delays() {
+        let policy = HelperRestartPolicy::default();
+        assert_eq!(policy.initial_backoff, Duration::from_millis(100));
+        assert_eq!(policy.max_backoff, Duration::from_secs(1));
+
+        let expected = [100_u64, 200, 400, 800, 1_000, 1_000, 1_000];
+        for (attempt, expected_millis) in (1_u32..=7).zip(expected) {
+            assert_eq!(
+                compute_helper_backoff(
+                    policy.initial_backoff,
+                    policy.max_backoff,
+                    policy.multiplier,
+                    attempt,
+                ),
+                Duration::from_millis(expected_millis),
+                "attempt {attempt} should preserve Go provider health backoff",
+            );
+        }
     }
 
     #[test]

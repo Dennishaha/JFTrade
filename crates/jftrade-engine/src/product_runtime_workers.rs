@@ -222,8 +222,8 @@ pub(crate) async fn start_marketdata_helper(
         .await?;
     let process_arc = Arc::new(std::sync::Mutex::new(Some(process)));
     let restart_policy = super::product_runtime_helper_health::HelperRestartPolicy {
-        initial_backoff: Duration::from_millis(500),
-        max_backoff: Duration::from_millis(10000),
+        initial_backoff: Duration::from_millis(100),
+        max_backoff: Duration::from_secs(1),
         multiplier: 2.0,
         startup_timeout: config.startup_timeout,
         initial_retry_delay: config.initial_retry_delay,

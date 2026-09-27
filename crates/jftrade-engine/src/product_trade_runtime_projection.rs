@@ -42,13 +42,14 @@ mod delayed_snapshot;
 mod product_trade_runtime_futures;
 #[path = "product_trade_runtime_projection_values.rs"]
 mod product_trade_runtime_projection_values;
+#[path = "product_trade_runtime_open_state.rs"]
+mod product_trade_runtime_open_state;
 #[path = "product_trade_runtime_valuation.rs"]
 mod product_trade_runtime_valuation;
 #[path = "product_trade_runtime_research.rs"]
 mod product_trade_runtime_research;
 #[path = "product_trade_runtime_prediction.rs"]
 mod prediction;
-
 use product_trade_runtime_candles::{historical_snapshot, parse_requested_sessions};
 
 pub(crate) fn canonical_candle_time(value: &str, market: &str) -> String {
@@ -60,7 +61,6 @@ use product_trade_runtime_projection_values::{
 use prediction::{
     normalize_prediction_code, normalize_prediction_data_types, prediction_provider_value,
 };
-
 #[derive(Clone, Default)]
 pub(crate) struct SharedTradeReadRuntime {
     state: Arc<RwLock<TradeRuntimeState>>,
@@ -68,6 +68,8 @@ pub(crate) struct SharedTradeReadRuntime {
     trade_writer: Arc<RwLock<Option<Arc<dyn TradeWritePort>>>>,
     pub(crate) margin_ratio_cache: MarginRatioCache,
     connection: Arc<RwLock<Option<TradeRuntimeConnection>>>,
+    server_version: Arc<RwLock<Option<String>>>,
+    global_state: Arc<RwLock<Option<jftrade_integration_futu::OpenDProbe>>>,
     /// One owner for OpenD connect status + generation-fenced quote rights.
     pub(crate) quote_rights: product_trade_runtime_quote_rights::QuoteRightsOwner,
     live_hub: Arc<RwLock<Option<Arc<LiveHub>>>>,

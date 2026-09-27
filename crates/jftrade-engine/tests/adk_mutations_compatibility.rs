@@ -368,6 +368,42 @@ fn adk_mutation_routes_reject_malformed_mutation_payloads() {
     }
 }
 
+/// Parity: go:452dea11:internal/api/assistant/adk_workflow_routes_test.go:262
+/// `TestADKWorkflowRoutesRejectInvalidInputs`.
+///
+/// The workflow route family owns distinct malformed-body messages. Keep the
+/// message assertions at the transport boundary so a future parser change
+/// cannot silently collapse workflow payload, run-input, and trigger-payload
+/// failures into the generic mutation error.
+#[test]
+fn adk_workflow_routes_reject_invalid_payloads_with_reference_messages() {
+    for (method, path, expected_message) in [
+        ("POST", "/api/v1/adk/workflows", "invalid workflow payload"),
+        (
+            "POST",
+            "/api/v1/adk/workflows/workflow-1/run",
+            "invalid workflow inputs",
+        ),
+        (
+            "POST",
+            "/api/v1/adk/workflows/workflow-1/triggers",
+            "invalid workflow trigger payload",
+        ),
+    ] {
+        let request = request_with_body(method, path, br#"{"#);
+        let response = dispatch_adk_mutation(&request, None, FIXTURE_TIMESTAMP);
+        assert_eq!(response.status, 400, "{method} {path}");
+        assert_eq!(
+            response.body["error"]["code"], "BAD_REQUEST",
+            "{method} {path}"
+        );
+        assert_eq!(
+            response.body["error"]["message"], expected_message,
+            "{method} {path} must preserve the workflow route message"
+        );
+    }
+}
+
 // Parity: go:452dea11:internal/api/assistant/adk_routes_test.go:578 TestADKProviderSaveRejectsInvalidPayload
 /// The reference route answers the truncated provider body
 /// (`{"displayName":`) with `400 BAD_REQUEST` and the provider-specific

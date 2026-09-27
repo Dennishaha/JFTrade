@@ -105,6 +105,14 @@ impl ProductionAdkChatRuntime {
         route: AdkChatRoute,
         input: &AdkChatInput,
     ) -> Result<AdkChatPortOutput, AdkChatPortError> {
+        if route == AdkChatRoute::Chat
+            && serde_json::from_slice::<Value>(&input.body)
+                .ok()
+                .and_then(|value| value.get("providerProbe").and_then(Value::as_bool))
+                .unwrap_or(false)
+        {
+            return self.dispatch_provider_probe(&input.body);
+        }
         let prepared = self.prepare_chat(route, input)?;
         match prepared {
             PreparedChat::Existing(output) => Ok(output),
@@ -112,6 +120,81 @@ impl ProductionAdkChatRuntime {
                 self.execute_chat(chat, run_lease)
             }
         }
+    }
+
+    fn dispatch_provider_probe(
+        &self,
+        body: &[u8],
+    ) -> Result<AdkChatPortOutput, AdkChatPortError> {
+        let request: Value = serde_json::from_slice(body).map_err(|error| {
+            AdkChatPortError::Failed {
+                status: 400,
+                code: "BAD_REQUEST".to_owned(),
+                message: format!("invalid chat payload: {error}"),
+            }
+        })?;
+        let object = request.as_object().ok_or_else(|| AdkChatPortError::Failed {
+            status: 400,
+            code: "BAD_REQUEST".to_owned(),
+            message: "invalid chat payload".to_owned(),
+        })?;
+        let mode = text_field(object, "providerTestMode")
+            .unwrap_or_else(|| "quick".to_owned())
+            .to_ascii_lowercase();
+        if !matches!(mode.as_str(), "quick" | "full") {
+            return Err(chat_failed(format!("invalid provider test mode {mode:?}")));
+        }
+        let provider = self.resolve_provider(object)?;
+        let baseline = provider_probe_model(&provider, Vec::new(), None)?;
+        let tool_result = provider_probe_model(&provider, provider_probe_tools(), None);
+        let (request_field, mappings) = provider_probe_reasoning_config(self, &provider)?;
+        let mappings = provider_probe_sample_mappings(mappings, &mode);
+        let results = mappings
+            .iter()
+            .map(|mapping| {
+                let effort = mapping
+                    .get("effort")
+                    .and_then(Value::as_str)
+                    .unwrap_or_default()
+                    .to_owned();
+                let value = mapping
+                    .get("value")
+                    .and_then(Value::as_str)
+                    .unwrap_or_default()
+                    .to_owned();
+                let reasoning = Some((request_field.clone(), value.clone()));
+                match provider_probe_model(&provider, Vec::new(), reasoning) {
+                    Ok(_) => json!({"effort": effort, "value": value, "ok": true}),
+                    Err(error) => json!({
+                        "effort": effort,
+                        "value": value,
+                        "ok": false,
+                        "error": format_adk_error(&error),
+                    }),
+                }
+            })
+            .collect::<Vec<_>>();
+        let reasoning_ok = results
+            .iter()
+            .all(|result| result.get("ok").and_then(Value::as_bool).unwrap_or(false));
+        let reasoning = json!({
+            "mode": mode,
+            "requestField": request_field,
+            "ok": reasoning_ok,
+            "results": results,
+        });
+        let response = json!({
+            "ok": reasoning_ok,
+            "reply": baseline.text,
+            "capabilities": {
+                "streaming": true,
+                "tools": tool_result.is_ok(),
+                "reasoning": !mappings.is_empty() && reasoning_ok,
+            },
+            "reasoning": reasoning,
+            "checkedAt": runtime_projection::now_timestamp(),
+        });
+        Ok(AdkChatPortOutput::Json(response))
     }
 
     fn prepare_chat(
@@ -359,10 +442,10 @@ impl ProductionAdkChatRuntime {
                     .get("name")
                     .and_then(Value::as_str)
                     .is_some_and(|name| {
-                        name == "interaction.request_user"
-                            || (tool_scope.exposes(name)
-                                && model_exposed_tool(name)
-                                && self.tool_executor.supports(name))
+                        tool_scope.exposes(name)
+                            && (name == "interaction.request_user"
+                                || (model_exposed_tool(name)
+                                    && self.tool_executor.supports(name)))
                     })
             })
             .collect();
@@ -557,6 +640,96 @@ impl ProductionAdkChatRuntime {
     pub(crate) fn attach_ports(&self, ports: Arc<crate::product::product_production_ports::ProductionPortBundle>) {
         self.tool_executor.attach_ports(ports);
     }
+}
+
+const PROVIDER_PROBE_MESSAGE: &str = "JFTrade ADK provider connectivity test.";
+
+fn provider_probe_model(
+    provider: &ResolvedProvider,
+    tools: Vec<Value>,
+    reasoning: Option<(String, String)>,
+) -> Result<ModelResponse, AdkChatPortError> {
+    execute_model(
+        ModelRequest {
+            endpoint: provider.endpoint.clone(),
+            api_key: provider.api_key.clone(),
+            model: provider.model.clone(),
+            instruction: None,
+            message: PROVIDER_PROBE_MESSAGE.to_owned(),
+            durable_context: Vec::new(),
+            tool_context: Vec::new(),
+            timeout: provider.timeout,
+            tools,
+            reasoning,
+        },
+        Arc::new(AtomicBool::new(false)),
+    )
+}
+
+fn provider_probe_tools() -> Vec<Value> {
+    vec![json!({
+        "type": "function",
+        "name": "system.health_probe",
+        "description": "Probe provider tool support.",
+        "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+            "additionalProperties": false,
+        },
+    })]
+}
+
+fn provider_probe_reasoning_config(
+    runtime: &ProductionAdkChatRuntime,
+    provider: &ResolvedProvider,
+) -> Result<(String, Vec<Value>), AdkChatPortError> {
+    let row = runtime
+        .store
+        .get_provider(&provider.id)
+        .map_err(storage_unavailable)?
+        .ok_or_else(|| unavailable("agent provider is unavailable"))?;
+    let mut value: Value = serde_json::from_str(&row.payload_json).map_err(|error| {
+        AdkChatPortError::Failed {
+            status: 500,
+            code: "ADK_STORAGE_CORRUPT".to_owned(),
+            message: format!("stored ADK provider payload is invalid JSON: {error}"),
+        }
+    })?;
+    crate::product::product_production_ports::product_production_ports_adk::projection::normalize_provider_reasoning_config(&mut value);
+    let config = value
+        .get("reasoningConfig")
+        .cloned()
+        .unwrap_or_else(|| json!({
+            "requestField": "reasoning.effort",
+            "mappings": [],
+        }));
+    crate::product::product_production_ports::product_production_ports_adk::projection::validate_provider_reasoning_config(&config)
+        .map_err(chat_failed)?;
+    let request_field = config
+        .get("requestField")
+        .and_then(Value::as_str)
+        .unwrap_or("reasoning.effort")
+        .to_owned();
+    let mappings = config
+        .get("mappings")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    Ok((request_field, mappings))
+}
+
+fn provider_probe_sample_mappings(mappings: Vec<Value>, mode: &str) -> Vec<Value> {
+    if mode == "full" || mappings.is_empty() {
+        return mappings;
+    }
+    mappings
+        .iter()
+        .find(|mapping| mapping.get("effort").and_then(Value::as_str) == Some("medium"))
+        .cloned()
+        .or_else(|| mappings.first().cloned())
+        .into_iter()
+        .collect()
 }
 
 include!("product_adk_model_runtime_resume.rs");

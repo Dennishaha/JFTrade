@@ -252,6 +252,91 @@ fn chat_input(client_request_id: &str, body: Value) -> AdkChatInput {
     }
 }
 
+/// Parity: go:452dea11:internal/assistant/engine/context_cache_test.go:187
+/// `TestProviderPayloadSortsToolsByNameIndependentOfAgentInputOrder`.
+#[test]
+fn provider_payload_sorts_tools_by_name_independent_of_agent_input_order() {
+    let (directory, store, session_store) = initialized_stores();
+    let (endpoint, provider) =
+        spawn_scripted_model_provider(vec![scripted_text("first"), scripted_text("second")]);
+    store
+        .upsert_provider(
+            "provider-cache-tools",
+            &json!({
+                "id": "provider-cache-tools",
+                "displayName": "Cache Tools Provider",
+                "baseUrl": endpoint,
+                "model": "cache-tools-model",
+                "apiKey": "sk-cache-tools",
+                "enabled": true,
+            })
+            .to_string(),
+        )
+        .expect("persist provider");
+    for (id, tools) in [
+        ("agent-cache-tools-a", json!(["tools.search", "http.fetch"])),
+        ("agent-cache-tools-b", json!(["http.fetch", "tools.search"])),
+    ] {
+        store
+            .upsert_agent(
+                id,
+                &json!({
+                    "id": id,
+                    "name": id,
+                    "providerId": "provider-cache-tools",
+                    "permissionMode": "approval",
+                    "status": "ENABLED",
+                    "tools": tools,
+                })
+                .to_string(),
+            )
+            .expect("persist agent");
+    }
+    let runtime = runtime_with_production_catalog(
+        &directory,
+        &store,
+        &session_store,
+        Arc::new(RecordingToolExecutor::new(vec![
+            "http.fetch",
+            "tools.search",
+        ])),
+    );
+
+    for (request_id, agent_id) in [
+        (
+            "11111111-1111-4111-8111-111111111187",
+            "agent-cache-tools-a",
+        ),
+        (
+            "11111111-1111-4111-8111-111111111188",
+            "agent-cache-tools-b",
+        ),
+    ] {
+        runtime
+            .dispatch(
+                AdkChatRoute::Chat,
+                &chat_input(
+                    request_id,
+                    json!({"agentId": agent_id, "message": "list tools"}),
+                ),
+            )
+            .expect("chat with ordered tool payload");
+    }
+
+    let requests = provider.join().expect("scripted provider thread");
+    assert_eq!(requests.len(), 2);
+    let tool_names = |request: &Value| {
+        request["tools"]
+            .as_array()
+            .expect("tools in provider request")
+            .iter()
+            .map(|tool| tool["name"].as_str().expect("tool name").to_owned())
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(tool_names(&requests[0]), vec!["http.fetch", "tools.search"]);
+    assert_eq!(tool_names(&requests[1]), tool_names(&requests[0]));
+}
+
 /// Parity: go:452dea11:internal/assistant/engine/runner_chat_test.go:609
 /// `TestChatRequestProviderOverrideRunsWithoutEditingAgent`.
 ///

@@ -250,6 +250,9 @@ fn resolve_timeframe_minutes(timeframe: &str, minutes_per_day: usize) -> Option<
         return Some(n);
     }
     let tf = clean.to_ascii_uppercase();
+    if matches!(tf.as_str(), "HOUR" | "HOURS") {
+        return Some(60);
+    }
     if tf == "D" || tf == "1D" || tf == "DAY" {
         return Some(minutes_per_day);
     }
@@ -1484,5 +1487,39 @@ mod tests {
         assert_eq!(resolve_interval_minutes("bad", day_minutes), 1);
         assert_eq!(resolve_interval_minutes("0m", day_minutes), 1);
         assert_eq!(resolve_interval_minutes("xm", day_minutes), 1);
+    }
+
+    /// Parity: go:452dea11:pkg/strategy/indicatorwarmup/warmup_internal_test.go:38 TestEstimateTradingPeriodBarsHandlesFallbackAndInvalidInputs
+    #[test]
+    fn estimate_security_source_bars_handles_period_and_timeframe_fallbacks() {
+        let zero_period = IndicatorRequirement {
+            alias: String::new(),
+            kind: "security_source".to_owned(),
+            key: "security_source:day:close:0".to_owned(),
+        };
+        assert_eq!(
+            zero_period.estimated_lookback_bars_with_session("US.AAPL", "5m", false),
+            0
+        );
+
+        let hour_period = IndicatorRequirement {
+            alias: String::new(),
+            kind: "security_source".to_owned(),
+            key: "security_source:hour:close:3".to_owned(),
+        };
+        assert_eq!(
+            hour_period.estimated_lookback_bars_with_session("US.AAPL", "", false),
+            180
+        );
+
+        let unknown_week = IndicatorRequirement {
+            alias: String::new(),
+            kind: "security_source".to_owned(),
+            key: "security_source:week:close:2".to_owned(),
+        };
+        assert_eq!(
+            unknown_week.estimated_lookback_bars_with_session("CRYPTO.BTC", "5m", false),
+            780
+        );
     }
 }

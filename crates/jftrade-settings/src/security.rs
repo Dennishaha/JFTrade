@@ -1,3 +1,4 @@
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
 use serde::{Deserialize, Serialize};
@@ -113,6 +114,8 @@ pub enum SecuritySettingsError {
     InvalidPort,
     #[error("Web access password hashing failed: {0}")]
     PasswordHash(String),
+    #[error("Web access settings changed during login; try again")]
+    ConfigurationChanged,
     #[error("security settings store failed: {0}")]
     Store(#[from] SettingsStoreError),
     #[error("could not apply Web access listener settings: {message}")]
@@ -148,6 +151,13 @@ pub trait SecurityRuntimePort: Send + Sync {
 
 pub trait SecurityPasswordPort: Send + Sync {
     fn hash(&self, password: &str) -> Result<String, String>;
+
+    /// Verifies a password without requiring callers to know the configured
+    /// password implementation.  The default keeps existing embedding ports
+    /// source compatible while allowing tests to hold verification open.
+    fn verify(&self, password_hash: &str, password: &str) -> bool {
+        verify_argon2id(password_hash, password)
+    }
 }
 
 #[derive(Default)]
@@ -165,6 +175,7 @@ pub struct SecuritySettingsService {
     runtime: Option<Arc<dyn SecurityRuntimePort>>,
     passwords: Arc<dyn SecurityPasswordPort>,
     write_lock: Arc<Mutex<()>>,
+    configuration_generation: Arc<AtomicU64>,
 }
 
 impl std::fmt::Debug for SecuritySettingsService {
@@ -188,6 +199,7 @@ impl SecuritySettingsService {
             runtime,
             passwords,
             write_lock: Arc::new(Mutex::new(())),
+            configuration_generation: Arc::new(AtomicU64::new(0)),
         }
     }
 
@@ -204,7 +216,36 @@ impl SecuritySettingsService {
         if !record.web_access_enabled() || record.password_hash().is_empty() {
             return Ok(false);
         }
-        Ok(verify_argon2id(record.password_hash(), password))
+        Ok(self.passwords.verify(record.password_hash(), password))
+    }
+
+    /// Returns a process-local revision for login fencing.
+    ///
+    /// This is an in-memory generation owned by the service rather than a
+    /// digest of the persisted record.  A digest admits an ABA race where a
+    /// setting is changed and then restored while password verification is in
+    /// flight; each successful save advances this generation, so the stale
+    /// login cannot commit even when the record bytes are back to their
+    /// original values. It is opaque and never sent over the wire.
+    pub fn login_configuration_revision(&self) -> Result<u64, SecuritySettingsError> {
+        self.record()?;
+        Ok(self.configuration_generation.load(Ordering::Acquire))
+    }
+
+    /// Runs the final login commit while excluding concurrent security saves.
+    /// The callback executes only when the persisted revision still matches
+    /// the value captured before password verification.
+    pub fn with_login_configuration_fence<T>(
+        &self,
+        expected_revision: u64,
+        operation: impl FnOnce() -> T,
+    ) -> Result<T, SecuritySettingsError> {
+        let _guard = self.lock_writes()?;
+        self.record()?;
+        if self.configuration_generation.load(Ordering::Acquire) != expected_revision {
+            return Err(SecuritySettingsError::ConfigurationChanged);
+        }
+        Ok(operation())
     }
 
     /// Applies the persisted security record to an attached runtime during
@@ -269,8 +310,10 @@ impl SecuritySettingsService {
             u16::try_from(web_port).map_err(|_| SecuritySettingsError::InvalidPort)?,
             password_hash,
         );
-        self.persist_and_apply(&current, &next)
-            .map(|record| record.public_settings())
+        self.persist_and_apply(&current, &next).map(|record| {
+            self.advance_configuration_generation();
+            record.public_settings()
+        })
     }
 
     fn record(&self) -> Result<SecuritySettingsRecord, SecuritySettingsError> {
@@ -308,6 +351,14 @@ impl SecuritySettingsService {
                 "security settings write lock is poisoned",
             ))
         })
+    }
+
+    fn advance_configuration_generation(&self) {
+        self.configuration_generation
+            .fetch_update(Ordering::AcqRel, Ordering::Acquire, |generation| {
+                generation.checked_add(1)
+            })
+            .expect("security settings login generation exhausted");
     }
 }
 

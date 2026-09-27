@@ -6,11 +6,13 @@ use std::thread;
 use std::time::Duration;
 
 use jftrade_api::AccessPolicy;
+use jftrade_integration_futu::trade_proto::{trd_common, trd_get_acc_list};
 use jftrade_integration_futu::{
     OpenDProviderRuntimeConfig, OpenDTcpProbeConfig, PROTO_GET_GLOBAL_STATE, PROTO_INIT_CONNECT,
     PROTO_QOT_SUB, decode_frame, encode_frame, provider_descriptor,
 };
 use jftrade_marketdata::{InstrumentRef, ProviderReadiness, ProviderRouter};
+use prost::Message;
 use tempfile::tempdir;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream as AsyncTcpStream;
@@ -130,6 +132,7 @@ async fn opend_runtime_task_requires_explicit_session_composition() {
     ));
 }
 
+// Parity: go:452dea11:internal/app/apiserver/futuapp/runtime_contracts_test.go:14 TestCoordinatorProjectsConnectedRuntimeAndDiscoveredAccounts
 #[tokio::test]
 async fn product_runtime_composes_opend_provider_and_fences_shutdown_ownership() {
     let listener = TcpListener::bind(("127.0.0.1", 0)).expect("mock OpenD listener");
@@ -150,6 +153,30 @@ async fn product_runtime_composes_opend_provider_and_fences_shutdown_ownership()
         let subscription = read_mock_frame(&mut session);
         assert_eq!(subscription.header.proto_id, PROTO_QOT_SUB);
         write_mock_response(&mut session, &subscription, field(1, 0));
+        let accounts = read_mock_frame(&mut session);
+        assert_eq!(accounts.header.proto_id, trd_get_acc_list::PROTOCOL_ID);
+        let response = trd_get_acc_list::Response {
+            ret_type: 0,
+            ret_msg: None,
+            err_code: None,
+            s2c: Some(trd_get_acc_list::S2c {
+                acc_list: vec![
+                    trd_common::TrdAcc {
+                        trd_env: 1,
+                        acc_id: 2001,
+                        trd_market_auth_list: vec![1],
+                        ..Default::default()
+                    },
+                    trd_common::TrdAcc {
+                        trd_env: 0,
+                        acc_id: 1001,
+                        trd_market_auth_list: vec![1],
+                        ..Default::default()
+                    },
+                ],
+            }),
+        };
+        write_mock_response(&mut session, &accounts, response.encode_to_vec());
         let mut byte = [0_u8; 1];
         while session.read(&mut byte).is_ok_and(|read| read > 0) {}
     });
@@ -191,6 +218,33 @@ async fn product_runtime_composes_opend_provider_and_fences_shutdown_ownership()
     assert_eq!(runtime.startup_record().worker_status, "unavailable");
     assert!(runtime.market_data_opend().is_some());
     assert!(runtime.market_data_opend_runtime_status().is_some());
+    let runtime_projection = runtime
+        .supervisor
+        .production_ports
+        .as_ref()
+        .expect("production ports")
+        .broker
+        .read("/api/v1/brokers/futu/runtime", "")
+        .expect("connected broker runtime projection");
+    assert_eq!(
+        runtime_projection["session"]["globalState"]["serverVersion"],
+        "10.9.7000"
+    );
+    assert_eq!(
+        runtime_projection["session"]["globalState"]["markets"][0]["state"],
+        "3"
+    );
+    assert_eq!(runtime_projection["session"]["connectivity"], "connected");
+    assert_eq!(runtime_projection["session"]["accountsDiscovered"], 2);
+    assert_eq!(
+        runtime_projection["accounts"].as_array().map(Vec::len),
+        Some(2)
+    );
+    assert_eq!(runtime_projection["accounts"][0]["accountId"], "2001");
+    assert_eq!(
+        runtime_projection["accounts"][0]["tradingEnvironment"],
+        "REAL"
+    );
     assert!(
         runtime
             .supervisor

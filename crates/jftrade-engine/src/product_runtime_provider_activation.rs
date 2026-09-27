@@ -190,6 +190,8 @@ pub(super) fn provider_activation(
                     let provider = OpenDProviderRuntime::start(configuration)
                         .map_err(|error| error.to_string())?;
                     let trade_logged_in = provider.trade_logged_in();
+                    trade_runtime_for_activation.set_server_version(provider.server_version());
+                    trade_runtime_for_activation.set_global_state(provider.global_state());
                     activate_quote_rights(&trade_runtime_for_activation, &provider);
                     let coordinator_handle = provider.coordinator();
                     let client = {

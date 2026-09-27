@@ -127,6 +127,7 @@ fn test_provider(
         "providerId": id,
         "agentId": "jftrade-default",
         "providerProbe": true,
+        "providerTestMode": mode,
         "message": "Respond with a short connectivity check.",
         "model": provider_value.get("model").and_then(Value::as_str).unwrap_or_default(),
     });
@@ -153,43 +154,27 @@ fn test_provider(
             });
         }
     };
-    let reply = response
-        .get("reply")
-        .and_then(Value::as_str)
-        .unwrap_or_default()
-        .to_owned();
-    let reasoning_config = provider_value
-        .get("reasoningConfig")
+    // `dispatch_provider_probe` owns the protocol probe and returns the
+    // capability/reasoning result it actually observed.  Do not rebuild the
+    // response from the stored provider row here: doing so turns failed
+    // reasoning probes into `ok: true` and hides the tool capability result.
+    let capabilities = response
+        .get("capabilities")
         .cloned()
         .unwrap_or_else(|| json!({}));
-    let request_field = reasoning_config
-        .get("requestField")
-        .and_then(Value::as_str)
-        .unwrap_or_default();
-    let results = reasoning_config
-        .get("mappings")
-        .and_then(Value::as_array)
-        .cloned()
-        .unwrap_or_default()
-        .into_iter()
-        .filter_map(|mapping| {
-            let effort = mapping.get("effort")?.as_str()?.to_owned();
-            let value = mapping.get("value")?.as_str()?.to_owned();
-            Some(json!({"effort": effort, "value": value, "ok": true}))
-        })
-        .collect::<Vec<_>>();
-    Ok(json!({
-        "ok": true,
-        "reply": reply,
-        "capabilities": provider_value.get("capabilities").cloned().unwrap_or_else(|| json!({"chat": true})),
-        "reasoning": {
-            "mode": mode,
-            "requestField": request_field,
-            "ok": true,
-            "results": results,
-        },
-        "checkedAt": now_rfc3339(),
-    }))
+    let mut updated_provider = provider_value;
+    let provider_object = updated_provider.as_object_mut().ok_or_else(|| {
+        AdkMutationPortError::Failed {
+            status: 500,
+            code: "ADK_STORAGE_CORRUPT".to_owned(),
+            message: "stored ADK provider payload must be an object".to_owned(),
+        }
+    })?;
+    provider_object.insert("capabilities".to_owned(), capabilities);
+    port.store
+        .upsert_provider(&id, &updated_provider.to_string())
+        .map_err(storage_mutation_failed)?;
+    Ok(response)
 }
 
 fn respond_to_input(

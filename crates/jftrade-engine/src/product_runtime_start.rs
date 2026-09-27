@@ -121,6 +121,8 @@ pub async fn start_product_runtime(
         match OpenDProviderRuntime::start(provider) {
             Ok(runtime) => {
                 let trade_logged_in = runtime.trade_logged_in();
+                trade_runtime.set_server_version(runtime.server_version());
+                trade_runtime.set_global_state(runtime.global_state());
                 let trade_client = runtime
                     .coordinator()
                     .lock()

@@ -264,6 +264,11 @@ impl AuthSessionWritePort for ProductionAuthSessionManager {
                     return Err(rate_limit);
                 }
 
+                let login_revision = self
+                    .security
+                    .login_configuration_revision()
+                    .map_err(|error| AuthSessionWritePortError::Unavailable(error.to_string()))?;
+
                 let enabled = self
                     .security
                     .is_web_access_enabled()
@@ -288,47 +293,60 @@ impl AuthSessionWritePort for ProductionAuthSessionManager {
 
                 self.clear_login_failures(client_key);
 
-                let session_token = Self::generate_random_token()
-                    .map_err(AuthSessionWritePortError::Unavailable)?;
-                let csrf_token = derive_csrf_token(&session_token);
-                let stored = StoredSession {
-                    token_hash: token_hash(&session_token),
-                    csrf_hash: token_hash(&csrf_token),
-                    expires_at_unix: unix_timestamp()
-                        .saturating_add(i64::try_from(SESSION_TTL.as_secs()).unwrap_or(i64::MAX)),
-                };
-                let mut guard = self.sessions.write().map_err(|_| {
-                    AuthSessionWritePortError::Unavailable(
-                        "Web session state lock is poisoned".to_owned(),
-                    )
-                })?;
-                prune_sessions(&mut guard);
-                if guard.len() >= MAX_SESSIONS {
-                    evict_oldest_session(&mut guard);
-                }
-                let previous = guard.insert(stored.token_hash.clone(), stored.clone());
-                if let Err(error) = persist_sessions(&self.session_path, &guard) {
-                    if let Some(previous) = previous {
-                        guard.insert(stored.token_hash, previous);
-                    } else {
-                        guard.remove(&stored.token_hash);
-                    }
-                    return Err(AuthSessionWritePortError::Unavailable(error));
-                }
-                drop(guard);
+                self.security
+                    .with_login_configuration_fence(login_revision, || {
+                        let session_token = Self::generate_random_token()
+                            .map_err(AuthSessionWritePortError::Unavailable)?;
+                        let csrf_token = derive_csrf_token(&session_token);
+                        let stored = StoredSession {
+                            token_hash: token_hash(&session_token),
+                            csrf_hash: token_hash(&csrf_token),
+                            expires_at_unix: unix_timestamp().saturating_add(
+                                i64::try_from(SESSION_TTL.as_secs()).unwrap_or(i64::MAX),
+                            ),
+                        };
+                        let mut guard = self.sessions.write().map_err(|_| {
+                            AuthSessionWritePortError::Unavailable(
+                                "Web session state lock is poisoned".to_owned(),
+                            )
+                        })?;
+                        prune_sessions(&mut guard);
+                        while guard.len() >= MAX_SESSIONS {
+                            evict_oldest_session(&mut guard);
+                        }
+                        let previous = guard.insert(stored.token_hash.clone(), stored.clone());
+                        if let Err(error) = persist_sessions(&self.session_path, &guard) {
+                            if let Some(previous) = previous {
+                                guard.insert(stored.token_hash, previous);
+                            } else {
+                                guard.remove(&stored.token_hash);
+                            }
+                            return Err(AuthSessionWritePortError::Unavailable(error));
+                        }
+                        drop(guard);
 
-                let cookie = session_cookie(&session_token, stored.expires_at_unix, context.secure);
+                        let cookie =
+                            session_cookie(&session_token, stored.expires_at_unix, context.secure);
 
-                Ok(AuthSessionWritePortResult {
-                    data: json!({
-                        "authenticated": true,
-                        "desktop": false,
-                        "browser": true,
-                        "csrfToken": csrf_token,
-                        "expiresAt": format_rfc3339(stored.expires_at_unix),
-                    }),
-                    set_cookie: Some(cookie),
-                })
+                        Ok(AuthSessionWritePortResult {
+                            data: json!({
+                                "authenticated": true,
+                                "desktop": false,
+                                "browser": true,
+                                "csrfToken": csrf_token,
+                                "expiresAt": format_rfc3339(stored.expires_at_unix),
+                            }),
+                            set_cookie: Some(cookie),
+                        })
+                    })
+                    .map_err(|error| match error {
+                        jftrade_settings::SecuritySettingsError::ConfigurationChanged => {
+                            AuthSessionWritePortError::ConfigurationChanged(
+                                "Web access settings changed during login; try again".to_owned(),
+                            )
+                        }
+                        error => AuthSessionWritePortError::Unavailable(error.to_string()),
+                    })?
             }
             AuthSessionWriteInput::Logout { session_cookie } => {
                 if let Some(token) = session_cookie {
@@ -535,266 +553,5 @@ fn session_expired(session: &StoredSession) -> bool {
 }
 
 #[cfg(test)]
-mod tests {
-    use std::sync::RwLock;
-
-    use jftrade_settings::{
-        SecurityPasswordPort, SecuritySettingsRecord, SecuritySettingsStorePort, SettingsStoreError,
-    };
-
-    use super::*;
-
-    struct MockSecurityStore(RwLock<Option<SecuritySettingsRecord>>);
-
-    impl SecuritySettingsStorePort for MockSecurityStore {
-        fn load_security_record(
-            &self,
-        ) -> Result<Option<SecuritySettingsRecord>, SettingsStoreError> {
-            Ok(self.0.read().unwrap().clone())
-        }
-
-        fn save_security_record(
-            &self,
-            record: &SecuritySettingsRecord,
-        ) -> Result<(), SettingsStoreError> {
-            *self.0.write().unwrap() = Some(record.clone());
-            Ok(())
-        }
-    }
-
-    // Parity: go:452dea11:internal/app/apiserver/webaccess/security_integration_test.go:379 TestWebLogoutClearsSessionCookie
-    // Parity: go:452dea11:internal/app/apiserver/webaccess/security_integration_test.go:400 TestWebLoginCookieIsHttpOnlyAndSameSiteStrict
-    #[test]
-    fn auth_manager_login_validate_and_logout_flow() {
-        let directory = tempfile::tempdir().expect("temporary directory");
-        // Create Argon2 hash of "correct-password"
-        let hash = jftrade_settings::SystemSecurityPasswords
-            .hash("correct-password")
-            .expect("hash password");
-
-        let store = Arc::new(MockSecurityStore(RwLock::new(Some(
-            SecuritySettingsRecord::new(true, false, 3000, hash),
-        ))));
-        let security = SecuritySettingsService::new(store);
-        let manager =
-            ProductionAuthSessionManager::open(security, &directory.path().join("settings.json"))
-                .expect("open auth manager");
-
-        // 1. Initial snapshot with unauthenticated request
-        let snap = manager
-            .session(AuthSessionSnapshotRequest {
-                desktop_trusted: false,
-                browser_authenticated: false,
-                session_cookie: None,
-                origin_provided: false,
-                origin_allowed: false,
-            })
-            .expect("snapshot");
-        assert_eq!(snap["authenticated"], false);
-
-        let invalid_browser = manager
-            .session(AuthSessionSnapshotRequest {
-                desktop_trusted: false,
-                browser_authenticated: true,
-                session_cookie: Some("stale-cookie".to_owned()),
-                origin_provided: true,
-                origin_allowed: true,
-            })
-            .expect("snapshot with stale cookie");
-        assert_eq!(invalid_browser["authenticated"], false);
-        assert_eq!(invalid_browser["browser"], false);
-        assert!(invalid_browser["csrfToken"].is_null());
-
-        // 2. Login with wrong password
-        let err = manager.mutate(&AuthSessionWriteInput::Login {
-            password: "wrong-password".to_owned(),
-        });
-        assert!(matches!(
-            err,
-            Err(AuthSessionWritePortError::InvalidPassword(_))
-        ));
-
-        // 3. Login with correct password
-        let res = manager
-            .mutate(&AuthSessionWriteInput::Login {
-                password: "correct-password".to_owned(),
-            })
-            .expect("login successful");
-        assert_eq!(res.data["authenticated"], true);
-        let csrf_token = res.data["csrfToken"]
-            .as_str()
-            .expect("csrf token")
-            .to_owned();
-        let cookie_header = res.set_cookie.expect("set cookie header");
-        assert!(cookie_header.starts_with("jftrade_web_session="));
-        // Parity: internal/app/apiserver/webaccess/security_integration_test.go:400 TestWebLoginCookieIsHttpOnlyAndSameSiteStrict
-        assert!(cookie_header.contains("HttpOnly"));
-        assert!(cookie_header.contains("SameSite=Strict"));
-        assert!(cookie_header.contains("Path=/"));
-        let session_token = cookie_header
-            .split(';')
-            .next()
-            .unwrap()
-            .strip_prefix("jftrade_web_session=")
-            .unwrap()
-            .to_owned();
-
-        // 4. Validate session and CSRF
-        assert!(manager.is_session_valid(&session_token));
-        assert!(manager.is_csrf_valid(&session_token, &csrf_token));
-        assert!(!manager.is_csrf_valid(&session_token, "wrong-csrf"));
-        assert!(!manager.is_session_valid("invalid-session"));
-
-        // 5. Snapshot with authenticated session
-        let snap2 = manager
-            .session(AuthSessionSnapshotRequest {
-                desktop_trusted: false,
-                browser_authenticated: true,
-                session_cookie: Some(session_token.clone()),
-                origin_provided: true,
-                origin_allowed: true,
-            })
-            .expect("snapshot authenticated");
-        assert_eq!(snap2["authenticated"], true);
-        assert_eq!(snap2["browser"], true);
-        assert_eq!(snap2["csrfToken"], csrf_token);
-
-        // 6. Logout
-        let logout_res = manager
-            .mutate(&AuthSessionWriteInput::Logout {
-                session_cookie: Some(session_token.clone()),
-            })
-            .expect("logout successful");
-        assert_eq!(logout_res.data["authenticated"], false);
-        assert!(!manager.is_session_valid(&session_token));
-        // Parity: internal/app/apiserver/webaccess/security_integration_test.go:379 TestWebLogoutClearsSessionCookie
-        let clear_cookie = logout_res
-            .set_cookie
-            .expect("logout must provide expired clear cookie");
-        assert!(clear_cookie.starts_with("jftrade_web_session=;"));
-        assert!(clear_cookie.contains("Max-Age=0"));
-        assert!(clear_cookie.contains("HttpOnly"));
-        assert!(clear_cookie.contains("SameSite=Strict"));
-        assert!(clear_cookie.contains("Path=/"));
-    }
-
-    // Parity: go:452dea11:internal/app/apiserver/webaccess/security_integration_test.go:335 TestWebLoginRejectsWrongPasswordAndRateLimits
-    #[test]
-    fn auth_manager_rate_limits_after_max_attempts() {
-        let directory = tempfile::tempdir().expect("temporary directory");
-        let hash = jftrade_settings::SystemSecurityPasswords
-            .hash("my-secret")
-            .expect("hash password");
-
-        let store = Arc::new(MockSecurityStore(RwLock::new(Some(
-            SecuritySettingsRecord::new(true, false, 3000, hash),
-        ))));
-        let security = SecuritySettingsService::new(store);
-        let manager =
-            ProductionAuthSessionManager::open(security, &directory.path().join("settings.json"))
-                .expect("open auth manager");
-
-        for _ in 0..MAX_FAILED_ATTEMPTS {
-            let _ = manager.mutate(&AuthSessionWriteInput::Login {
-                password: "bad".to_owned(),
-            });
-        }
-
-        let rate_limited = manager.mutate(&AuthSessionWriteInput::Login {
-            password: "bad".to_owned(),
-        });
-        assert!(matches!(
-            rate_limited,
-            Err(AuthSessionWritePortError::RateLimited { .. })
-        ));
-    }
-
-    // Parity: go:452dea11:internal/app/apiserver/servercore/settings_security_test.go:116 TestDisablingWebImmediatelyInvalidatesBrowserButNotDesktop; go:452dea11:internal/app/apiserver/webaccess/security_integration_test.go:352 TestPasswordChangesInvalidateWebSessions
-    #[test]
-    fn auth_sessions_are_cookie_bound_hashed_and_restart_durable() {
-        let directory = tempfile::tempdir().expect("temporary directory");
-        let settings_path = directory.path().join("settings.json");
-        let hash = jftrade_settings::SystemSecurityPasswords
-            .hash("restart-secret")
-            .expect("hash password");
-        let store = Arc::new(MockSecurityStore(RwLock::new(Some(
-            SecuritySettingsRecord::new(true, false, 3000, hash),
-        ))));
-        let security = SecuritySettingsService::new(store);
-        let manager = ProductionAuthSessionManager::open(security.clone(), &settings_path)
-            .expect("open manager");
-        let first = manager
-            .mutate(&AuthSessionWriteInput::Login {
-                password: "restart-secret".to_owned(),
-            })
-            .expect("first login");
-        let second = manager
-            .mutate(&AuthSessionWriteInput::Login {
-                password: "restart-secret".to_owned(),
-            })
-            .expect("second login");
-        let first_token = cookie_token(first.set_cookie.as_deref().expect("first cookie"));
-        let second_token = cookie_token(second.set_cookie.as_deref().expect("second cookie"));
-        let first_csrf = first.data["csrfToken"].as_str().expect("first csrf");
-        let second_csrf = second.data["csrfToken"].as_str().expect("second csrf");
-        assert_ne!(first_csrf, second_csrf);
-
-        let persisted = fs::read_to_string(directory.path().join(SESSION_STORE_FILENAME))
-            .expect("read session store");
-        assert!(!persisted.contains(&first_token));
-        assert!(!persisted.contains(first_csrf));
-        drop(manager);
-
-        let restarted =
-            ProductionAuthSessionManager::open(security, &settings_path).expect("restart manager");
-        assert!(restarted.is_session_valid(&first_token));
-        assert!(restarted.is_csrf_valid(&first_token, first_csrf));
-        let snapshot = restarted
-            .session(AuthSessionSnapshotRequest {
-                desktop_trusted: false,
-                browser_authenticated: true,
-                session_cookie: Some(second_token),
-                origin_provided: true,
-                origin_allowed: true,
-            })
-            .expect("cookie-bound snapshot");
-        assert_eq!(snapshot["csrfToken"], second_csrf);
-        // Parity: internal/app/apiserver/webaccess/security_integration_test.go:352 TestPasswordChangesInvalidateWebSessions
-        restarted.invalidate_all().expect("invalidate sessions");
-        assert!(!restarted.is_session_valid(&first_token));
-        let invalidated_snapshot = restarted
-            .session(AuthSessionSnapshotRequest {
-                desktop_trusted: false,
-                browser_authenticated: true,
-                session_cookie: Some(first_token.clone()),
-                origin_provided: true,
-                origin_allowed: true,
-            })
-            .expect("invalidated snapshot");
-        assert_eq!(invalidated_snapshot["authenticated"], false);
-    }
-
-    #[test]
-    fn auth_session_store_corruption_fails_closed_without_rewrite() {
-        let directory = tempfile::tempdir().expect("temporary directory");
-        let session_path = directory.path().join(SESSION_STORE_FILENAME);
-        fs::write(&session_path, b"{").expect("seed corrupt store");
-        let before = fs::read(&session_path).expect("read corrupt bytes");
-        let store = Arc::new(MockSecurityStore(RwLock::new(None)));
-        let security = SecuritySettingsService::new(store);
-        let error =
-            ProductionAuthSessionManager::open(security, &directory.path().join("settings.json"))
-                .expect_err("corrupt session store must fail closed");
-        assert!(error.contains("decode Web session store"));
-        assert_eq!(fs::read(session_path).expect("read original bytes"), before);
-    }
-
-    fn cookie_token(cookie: &str) -> String {
-        cookie
-            .split(';')
-            .next()
-            .and_then(|value| value.strip_prefix("jftrade_web_session="))
-            .expect("session cookie token")
-            .to_owned()
-    }
-}
+#[path = "product_auth_session_manager_tests.rs"]
+mod tests;

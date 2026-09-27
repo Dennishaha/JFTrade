@@ -219,10 +219,10 @@ impl ProductionAdkChatRuntime {
                     .get("name")
                     .and_then(Value::as_str)
                     .is_some_and(|name| {
-                        name == "interaction.request_user"
-                            || (tool_scope.exposes(name)
-                                && model_exposed_tool(name)
-                                && self.tool_executor.supports(name))
+                        tool_scope.exposes(name)
+                            && (name == "interaction.request_user"
+                                || (model_exposed_tool(name)
+                                    && self.tool_executor.supports(name)))
                     })
             })
             .collect();

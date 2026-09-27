@@ -463,6 +463,9 @@ fn security_settings_save_failure(error: SecuritySettingsError) -> ApiFailure {
         SecuritySettingsError::Runtime { .. } | SecuritySettingsError::RuntimeRollback { .. } => {
             ApiFailure::new(409, "WEB_ACCESS_LISTENER_UPDATE_FAILED", message)
         }
+        SecuritySettingsError::ConfigurationChanged => {
+            ApiFailure::new(409, "WEB_ACCESS_SETTINGS_CHANGED", message)
+        }
         SecuritySettingsError::PasswordHash(_) | SecuritySettingsError::Store(_) => {
             ApiFailure::new(500, "SETTINGS_SAVE_FAILED", message)
         }

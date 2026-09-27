@@ -3878,6 +3878,7 @@ fn adk_session_and_run_update_routes_keep_the_go_business_error_codes() {
 /// TestWorkflowRoutesClassifyInvalidPayloadsAndUnavailableRuns and
 /// internal/api/assistant/adk_workflow_routes_test.go:262
 /// TestADKWorkflowRoutesRejectInvalidInputs.
+/// Parity: go:452dea11:internal/api/assistant/adk_workflow_routes_test.go:262 TestADKWorkflowRoutesRejectInvalidInputs
 ///
 /// Go read handlers keep the route's own error code on a missing resource
 /// (`ADK_TASK_NOT_FOUND`, `ADK_WORKFLOW_GET_FAILED`,

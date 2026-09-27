@@ -412,10 +412,14 @@ impl ProductionStrategyRuntimePort {
         instance_id: &str,
         query: &StrategyActivityQuery,
     ) -> Result<Value, StrategyReadSnapshotError> {
-        let events = self
-            .store
-            .list_log_events(instance_id)
-            .map_err(|error| StrategyReadSnapshotError::Unavailable(error.to_string()))?;
+        let events = match self.store.list_log_events(instance_id) {
+            Ok(events) => events,
+            Err(error) => {
+                eprintln!("strategy log activity unavailable for {instance_id}: {error}");
+                let (logs, page) = page_values(Vec::<String>::new(), query);
+                return Ok(json!({"instanceId": instance_id, "logs": logs, "page": page}));
+            }
+        };
         let filtered = events
             .into_iter()
             .filter(|event| query.includes(event.at_ms))
@@ -431,10 +435,14 @@ impl ProductionStrategyRuntimePort {
         instance_id: &str,
         query: &StrategyActivityQuery,
     ) -> Result<Value, StrategyReadSnapshotError> {
-        let events = self
-            .store
-            .list_audit_events(instance_id)
-            .map_err(|error| StrategyReadSnapshotError::Unavailable(error.to_string()))?;
+        let events = match self.store.list_audit_events(instance_id) {
+            Ok(events) => events,
+            Err(error) => {
+                eprintln!("strategy audit activity unavailable for {instance_id}: {error}");
+                let (entries, page) = page_values(Vec::<Value>::new(), query);
+                return Ok(json!({"instanceId": instance_id, "entries": entries, "page": page}));
+            }
+        };
         let filtered = events
             .into_iter()
             .filter(|event| query.includes(event.at_ms))
@@ -513,6 +521,70 @@ mod tests {
         for id in ["legacy-runtime", "legacy-source", "missing-binding"] {
             assert_eq!(wire(id)["startable"], false, "{id} must not be startable");
         }
+    }
+
+    fn activity_store_query_failure_response(activity: &str) -> Value {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let path = directory.path().join("strategy.db");
+        let connection = rusqlite::Connection::open(&path).expect("database");
+        jftrade_store_sqlite::initialize_current(&connection, "strategy").expect("schema");
+        drop(connection);
+        let definitions = Arc::new(
+            StrategyDefinitionStore::open_existing(&path, STRATEGY_DEFINITION_TEST_CUTOVER_PROFILE)
+                .expect("definitions"),
+        );
+        let store = Arc::new(StrategyRuntimeStore::from_definition_store(&definitions));
+        store
+            .seed_instance_with_binding(
+                "activity",
+                "STOPPED",
+                json!({"symbols": ["US.AAPL"]}),
+                "2026-09-01T00:00:00Z",
+            )
+            .expect("seed instance");
+        let failure_connection = rusqlite::Connection::open(&path).expect("failure connection");
+        failure_connection
+            .execute_batch("DROP TABLE strategy_log_events; DROP TABLE strategy_audit_events;")
+            .expect("drop activity tables");
+        let manager = Arc::new(StrategyRuntimeManager::new(
+            None,
+            None,
+            None,
+            None,
+            Arc::new(ActiveProviderState::default()),
+        ));
+        let port = ProductionStrategyRuntimePort {
+            store,
+            definitions,
+            manager,
+        };
+        let path = format!("/api/v1/strategies/activity/{activity}");
+        port.read(&path, "limit=10&offset=0")
+            .expect("activity query should degrade")
+            .expect("activity route response")
+    }
+
+    fn assert_known_empty_activity_page(response: &Value, key: &str) {
+        assert_eq!(response["instanceId"], "activity");
+        assert_eq!(response["page"]["total"], 0);
+        assert_eq!(response["page"]["returned"], 0);
+        assert_eq!(response["page"]["hasMore"], false);
+        let entries = response[key].as_array().expect("activity entries");
+        assert!(entries.is_empty(), "{key} should be an empty page");
+    }
+
+    #[test]
+    // Parity: go:452dea11:internal/strategy/catalog/activity_degraded_test.go:65 TestCatalogActivityReturnsEmptyPagesWhenActivityStoreIsUnavailable
+    fn activity_store_log_query_failure_returns_known_empty_page() {
+        let response = activity_store_query_failure_response("logs");
+        assert_known_empty_activity_page(&response, "logs");
+    }
+
+    #[test]
+    // Parity: go:452dea11:internal/strategy/catalog/catalog_boundary_behavior_test.go:34 TestCatalogActivityQueryFailureReturnsKnownEmptyPage
+    fn activity_store_audit_query_failure_returns_known_empty_page() {
+        let response = activity_store_query_failure_response("audit");
+        assert_known_empty_activity_page(&response, "entries");
     }
 
     #[test]

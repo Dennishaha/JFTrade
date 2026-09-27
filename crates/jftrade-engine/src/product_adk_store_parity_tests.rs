@@ -777,6 +777,193 @@ fn snapshot_and_provider_test_boundaries_fail_closed() {
     );
 }
 
+#[derive(Debug)]
+struct ProviderProbeMutationRuntime;
+
+impl AdkChatStreamPort for ProviderProbeMutationRuntime {
+    fn dispatch(
+        &self,
+        route: AdkChatRoute,
+        input: &AdkChatInput,
+    ) -> Result<AdkChatPortOutput, AdkChatPortError> {
+        assert_eq!(route, AdkChatRoute::Chat);
+        let request: Value = serde_json::from_slice(&input.body).expect("decode provider probe");
+        assert_eq!(request["providerProbe"], true);
+        let mode = request["providerTestMode"].as_str().expect("probe mode");
+        Ok(AdkChatPortOutput::Json(json!({
+            "ok": mode == "quick",
+            "reply": "probe reply",
+            "capabilities": {
+                "streaming": true,
+                "tools": mode == "quick",
+                "reasoning": mode == "quick",
+            },
+            "reasoning": {
+                "mode": mode,
+                "requestField": "reasoning.effort",
+                "ok": mode == "quick",
+                "results": [{
+                    "effort": "high",
+                    "value": "DEEP",
+                    "ok": mode == "quick",
+                    "error": if mode == "quick" { Value::Null } else { json!("deep unavailable") },
+                }],
+            },
+            "checkedAt": "2026-01-01T00:00:00Z",
+        })))
+    }
+
+    fn runtime_ready(&self) -> bool {
+        true
+    }
+}
+
+/// Parity: go:452dea11:internal/api/assistant/routes_resource_contracts_test.go:261
+/// `TestProviderAndAgentValidationContracts`: provider test routes preserve
+/// the runtime probe result, including failed full-mode reasoning/tool flags,
+/// rather than reconstructing an all-success response from the stored row.
+#[test]
+fn provider_test_mutation_preserves_probe_result_and_rejects_unknown_mode() {
+    let (port, store, _directory) =
+        setup_test_adk_mutation_port(Some(Arc::new(ProviderProbeMutationRuntime)));
+    store
+        .upsert_provider(
+            "provider-probe-route",
+            &json!({
+                "displayName": "Probe route provider",
+                "baseUrl": "https://provider.example/v1",
+                "model": "probe-model",
+                "enabled": true,
+                "capabilities": {"chat": true},
+                "reasoningConfig": {
+                    "requestField": "reasoning.effort",
+                    "mappings": [{"effort": "high", "value": "DEEP"}],
+                },
+            })
+            .to_string(),
+        )
+        .expect("persist provider");
+
+    let mutate = |mode: &str| {
+        port.mutate(&AdkMutationInput {
+            operation: AdkMutationOperation::TestProvider,
+            identifiers: [("providerId".to_owned(), "provider-probe-route".to_owned())]
+                .into_iter()
+                .collect(),
+            body: json!({"mode": mode}),
+            webhook_secret: None,
+        })
+    };
+
+    let quick = mutate("quick").expect("quick provider probe");
+    assert_eq!(quick["ok"], true);
+    assert_eq!(quick["capabilities"], json!({
+        "streaming": true,
+        "tools": true,
+        "reasoning": true,
+    }));
+    assert_eq!(quick["reasoning"]["results"][0]["ok"], true);
+    assert_eq!(quick["checkedAt"], "2026-01-01T00:00:00Z");
+
+    let full = mutate("full").expect("full provider probe");
+    assert_eq!(full["ok"], false);
+    assert_eq!(full["capabilities"], json!({
+        "streaming": true,
+        "tools": false,
+        "reasoning": false,
+    }));
+    assert_eq!(full["reasoning"]["ok"], false);
+    assert_eq!(full["reasoning"]["results"][0]["ok"], false);
+    assert_eq!(full["reasoning"]["results"][0]["error"], "deep unavailable");
+    let stored = store
+        .get_provider("provider-probe-route")
+        .expect("read persisted probe capabilities")
+        .expect("provider remains persisted");
+    let stored: Value = serde_json::from_str(&stored.payload_json).expect("decode provider");
+    assert_eq!(stored["capabilities"], json!({
+        "streaming": true,
+        "tools": false,
+        "reasoning": false,
+    }));
+
+    let invalid = mutate("slow").expect_err("unknown provider test mode");
+    assert!(matches!(
+        invalid,
+        AdkMutationPortError::Failed {
+            status: 400,
+            code,
+            ..
+        } if code == "BAD_REQUEST"
+    ));
+
+    let missing = port
+        .mutate(&AdkMutationInput {
+            operation: AdkMutationOperation::TestProvider,
+            identifiers: [("providerId".to_owned(), "provider-probe-missing".to_owned())]
+                .into_iter()
+                .collect(),
+            body: json!({}),
+            webhook_secret: None,
+        })
+        .expect_err("unknown provider");
+    assert!(matches!(
+        missing,
+        AdkMutationPortError::Failed {
+            status: 404,
+            code,
+            ..
+        } if code == "ADK_PROVIDER_NOT_FOUND"
+    ));
+}
+
+/// Parity: go:452dea11:internal/assistant/engine/runtime_store_test.go:362 TestRuntimeTestProviderMarksToolsUnsupportedWhenSelectionFails
+/// `TestRuntimeTestProviderMarksToolsUnsupportedWhenSelectionFails`: a
+/// provider test must persist the observed capability flags, including
+/// `tools=false`, instead of leaving the provider row at its prior value.
+#[test]
+fn provider_test_mutation_persists_probe_capabilities() {
+    let (port, store, _directory) =
+        setup_test_adk_mutation_port(Some(Arc::new(ProviderProbeMutationRuntime)));
+    store
+        .upsert_provider(
+            "provider-probe-persist",
+            &json!({
+                "displayName": "Persisted probe provider",
+                "baseUrl": "https://provider.example/v1",
+                "model": "probe-model",
+                "enabled": true,
+                "capabilities": {"chat": true, "tools": true},
+            })
+            .to_string(),
+        )
+        .expect("persist provider");
+
+    let response = port
+        .mutate(&AdkMutationInput {
+            operation: AdkMutationOperation::TestProvider,
+            identifiers: [("providerId".to_owned(), "provider-probe-persist".to_owned())]
+                .into_iter()
+                .collect(),
+            body: json!({"mode": "full"}),
+            webhook_secret: None,
+        })
+        .expect("provider probe");
+    assert_eq!(response["capabilities"]["streaming"], true);
+    assert_eq!(response["capabilities"]["tools"], false);
+    assert_eq!(response["capabilities"]["reasoning"], false);
+
+    let stored = store
+        .get_provider("provider-probe-persist")
+        .expect("read persisted provider")
+        .expect("provider row");
+    let stored: Value = serde_json::from_str(&stored.payload_json).expect("decode provider");
+    assert_eq!(stored["capabilities"], json!({
+        "streaming": true,
+        "tools": false,
+        "reasoning": false,
+    }));
+}
+
 fn workflow_ids(snapshot: &Value) -> Vec<String> {
     snapshot["workflows"]
         .as_array()

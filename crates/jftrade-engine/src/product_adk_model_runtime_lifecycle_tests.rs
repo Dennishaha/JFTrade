@@ -6,6 +6,40 @@
 // visibility and imports are unchanged.
 
 use super::*;
+
+fn read_http_json_body(stream: &mut std::net::TcpStream) -> Value {
+    let mut request = Vec::new();
+    let mut chunk = [0_u8; 4096];
+    let mut expected = None;
+    loop {
+        let count = std::io::Read::read(stream, &mut chunk).expect("read probe request");
+        if count == 0 {
+            break;
+        }
+        request.extend_from_slice(&chunk[..count]);
+        if expected.is_none()
+            && let Some(headers_end) = request.windows(4).position(|window| window == b"\r\n\r\n")
+        {
+            let headers_end = headers_end + 4;
+            let headers = String::from_utf8_lossy(&request[..headers_end]).to_ascii_lowercase();
+            let content_length = headers
+                .lines()
+                .find_map(|line| line.strip_prefix("content-length:"))
+                .and_then(|value| value.trim().parse::<usize>().ok())
+                .expect("content length");
+            expected = Some(headers_end + content_length);
+        }
+        if expected.is_some_and(|length| request.len() >= length) {
+            break;
+        }
+    }
+    let headers_end = request
+        .windows(4)
+        .position(|window| window == b"\r\n\r\n")
+        .map(|index| index + 4)
+        .expect("probe request headers");
+    serde_json::from_slice(&request[headers_end..]).expect("decode probe request")
+}
 use jftrade_store_sqlite::RecordAdkEventParams;
 use jftrade_store_sqlite::initialize_current;
 use rusqlite::Connection;
@@ -37,11 +71,229 @@ fn initialized_stores() -> (tempfile::TempDir, Arc<AdkStore>, Arc<AdkSessionStor
     )
 }
 
+// Parity: go:452dea11:internal/assistant/engine/providers/probe_test.go:105 TestProviderProbeTimeoutCapsConfiguredRequestTimeout
 #[test]
 fn provider_probe_timeout_caps_configured_request_timeout() {
     assert_eq!(provider_probe_timeout_ms(0), 30_000);
     assert_eq!(provider_probe_timeout_ms(15_000), 15_000);
     assert_eq!(provider_probe_timeout_ms(600_000), 30_000);
+}
+
+// Parity: go:452dea11:internal/assistant/engine/providers/probe_test.go:13 TestProbeProviderQuickAndFullRequestCounts
+#[test]
+fn provider_probe_quick_and_full_modes_send_expected_responses_requests() {
+    let (directory, store, session_store) = initialized_stores();
+    let secrets_dir = directory.path().join("secrets");
+    std::fs::create_dir_all(&secrets_dir).expect("create secrets directory");
+    std::fs::write(
+        secrets_dir.join("adk-secrets.json"),
+        br#"{"probe-provider":"probe-secret"}"#,
+    )
+    .expect("write provider key");
+
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind probe provider");
+    let address = listener.local_addr().expect("probe provider address");
+    let server = thread::spawn(move || {
+        let mut requests = Vec::new();
+        for (index, incoming) in listener.incoming().take(13).enumerate() {
+            let mut stream = incoming.expect("accept provider probe");
+            let body = read_http_json_body(&mut stream);
+            let failed_reasoning = body.pointer("/reasoning/effort") == Some(&json!("DEEP"));
+            let failed_tools = body
+                .get("tools")
+                .and_then(Value::as_array)
+                .is_some_and(|tools| !tools.is_empty());
+            let (status, response) = if failed_tools {
+                ("502 Bad Gateway", r#"{"error":{"message":"tool calling unavailable"}}"#)
+            } else if failed_reasoning {
+                ("400 Bad Request", r#"{"error":{"message":"deep unavailable"}}"#)
+            } else {
+                ("200 OK", r#"{"output_text":"health check ok"}"#)
+            };
+            let header = format!(
+                "HTTP/1.1 {status}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                response.len()
+            );
+            std::io::Write::write_all(&mut stream, header.as_bytes()).expect("write headers");
+            std::io::Write::write_all(&mut stream, response.as_bytes()).expect("write response");
+            requests.push((index, body));
+        }
+        requests
+    });
+
+    let provider = |mappings: Value| {
+        store
+            .upsert_provider(
+                "probe-provider",
+                &json!({
+                    "displayName": "Probe Provider",
+                    "baseUrl": format!("http://{}:{}/v1", address.ip(), address.port()),
+                    "model": "probe-model",
+                    "enabled": true,
+                    "reasoningConfig": {
+                        "requestField": "reasoning.effort",
+                        "mappings": mappings,
+                    },
+                })
+                .to_string(),
+            )
+            .expect("persist probe provider");
+    };
+    provider(json!([
+        {"effort":"high","value":"DEEP"},
+        {"effort":"low","value":"FAST"},
+        {"effort":"medium","value":"BALANCED"},
+    ]));
+    store
+        .upsert_agent(
+            "probe-agent",
+            &json!({"providerId":"probe-provider","model":"probe-model","status":"ENABLED"})
+                .to_string(),
+        )
+        .expect("persist probe agent");
+
+    let settings_path = directory.path().join("settings.json");
+    std::fs::write(&settings_path, "{}").expect("write settings");
+    let runtime = ProductionAdkChatRuntime::new(
+        Arc::clone(&store),
+        session_store,
+        &settings_path,
+        Arc::new(RunCancellationRegistry::default()),
+        Arc::new(crate::product::product_production_ports::ProductionToolCatalog::empty_for_test()),
+    );
+
+    let run_probe = |mode: &str, request_id: &str| {
+        let body = json!({
+            "clientRequestId": request_id,
+            "providerId": "probe-provider",
+            "agentId": "probe-agent",
+            "providerProbe": true,
+            "providerTestMode": mode,
+        });
+        runtime
+            .dispatch_inner(
+                AdkChatRoute::Chat,
+                &AdkChatInput {
+                    body: body.to_string().into_bytes(),
+                    client_request_id: request_id.to_owned(),
+                },
+            )
+            .expect("provider probe succeeds")
+    };
+
+    let full = run_probe("full", "provider-probe-full");
+    let full = match full {
+        AdkChatPortOutput::Json(value) => value,
+        other => panic!("provider probe must return JSON: {other:?}"),
+    };
+    assert_eq!(full["reasoning"]["mode"], "full");
+    assert_eq!(full["reasoning"]["results"].as_array().unwrap().len(), 3);
+    assert_eq!(full["reasoning"]["results"][0]["effort"], "low");
+    assert_eq!(full["reasoning"]["results"][1]["effort"], "medium");
+    assert_eq!(full["reasoning"]["results"][2]["effort"], "high");
+    assert_eq!(full["reasoning"]["results"][2]["ok"], false);
+    assert_eq!(full["capabilities"]["reasoning"], false);
+    assert_eq!(full["capabilities"]["tools"], false);
+    assert_eq!(full["ok"], false);
+
+    let quick = run_probe("quick", "provider-probe-quick");
+    let quick = match quick {
+        AdkChatPortOutput::Json(value) => value,
+        other => panic!("provider probe must return JSON: {other:?}"),
+    };
+    assert_eq!(quick["reasoning"]["mode"], "quick");
+    assert_eq!(quick["reasoning"]["results"].as_array().unwrap().len(), 1);
+    assert_eq!(quick["reasoning"]["results"][0]["effort"], "medium");
+    assert_eq!(quick["capabilities"]["reasoning"], true);
+
+    provider(json!([
+        {"effort":"high","value":"DEEP"},
+        {"effort":"low","value":"FAST"},
+    ]));
+    let canonical = run_probe("quick", "provider-probe-canonical");
+    let canonical = match canonical {
+        AdkChatPortOutput::Json(value) => value,
+        other => panic!("provider probe must return JSON: {other:?}"),
+    };
+    assert_eq!(canonical["reasoning"]["results"].as_array().unwrap().len(), 1);
+    assert_eq!(canonical["reasoning"]["results"][0]["effort"], "low");
+    assert_eq!(canonical["reasoning"]["results"][0]["ok"], true);
+    assert_eq!(canonical["capabilities"]["reasoning"], true);
+
+    provider(json!([]));
+    let empty = run_probe("quick", "provider-probe-empty");
+    let empty = match empty {
+        AdkChatPortOutput::Json(value) => value,
+        other => panic!("provider probe must return JSON: {other:?}"),
+    };
+    assert_eq!(empty["reasoning"]["results"], json!([]));
+    assert_eq!(empty["capabilities"]["reasoning"], false);
+    assert_eq!(store.list_runs().expect("list runs"), Vec::new());
+
+    let requests = server.join().expect("join provider test server");
+    assert_eq!(requests.len(), 13);
+    for (_, body) in &requests {
+        assert_eq!(body["model"], "probe-model");
+        assert_eq!(body["stream"], false);
+        assert_eq!(body["input"][0]["content"], "JFTrade ADK provider connectivity test.");
+    }
+    assert!(requests[0].1.get("reasoning").is_none());
+    assert!(requests[1].1["tools"].is_array());
+    assert_eq!(requests[2].1.pointer("/reasoning/effort"), Some(&json!("FAST")));
+    assert_eq!(requests[3].1.pointer("/reasoning/effort"), Some(&json!("BALANCED")));
+    assert_eq!(requests[4].1.pointer("/reasoning/effort"), Some(&json!("DEEP")));
+    assert_eq!(requests[7].1.pointer("/reasoning/effort"), Some(&json!("BALANCED")));
+    assert_eq!(requests[10].1.pointer("/reasoning/effort"), Some(&json!("FAST")));
+    assert!(requests[9].1.get("reasoning").is_none());
+    assert!(requests[11].1.get("reasoning").is_none());
+    assert!(requests[12].1.get("reasoning").is_none());
+    runtime.shutdown();
+}
+
+// Parity: go:452dea11:internal/assistant/engine/providers/probe_test.go:81 TestProbeProviderWithoutMappingsSendsNoReasoningField
+#[test]
+fn provider_probe_without_mappings_sends_no_reasoning_field() {
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind probe provider");
+    let address = listener.local_addr().expect("probe provider address");
+    let server = thread::spawn(move || {
+        let mut requests = Vec::new();
+        for incoming in listener.incoming().take(2) {
+            let mut stream = incoming.expect("accept provider probe");
+            let body = read_http_json_body(&mut stream);
+            assert!(body.get("reasoning").is_none(), "unexpected reasoning: {body}");
+            requests.push(body);
+            let response = r#"{"output_text":"health check ok"}"#;
+            let header = format!(
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                response.len()
+            );
+            std::io::Write::write_all(&mut stream, header.as_bytes()).expect("write headers");
+            std::io::Write::write_all(&mut stream, response.as_bytes()).expect("write response");
+        }
+        requests
+    });
+    let provider = ResolvedProvider {
+        id: "probe-provider".to_owned(),
+        name: "Probe Provider".to_owned(),
+        agent_id: "probe-agent".to_owned(),
+        agent_payload: json!({}),
+        endpoint: Url::parse(&format!("http://{}:{}/v1", address.ip(), address.port()))
+            .expect("probe endpoint"),
+        api_key: "probe-secret".to_owned(),
+        model: "probe-model".to_owned(),
+        agent_model: None,
+        permission_mode: "all".to_owned(),
+        instruction: None,
+        timeout: Duration::from_secs(1),
+        reasoning: None,
+        reasoning_effort: None,
+    };
+    provider_probe_model(&provider, Vec::new(), None).expect("baseline probe");
+    provider_probe_model(&provider, provider_probe_tools(), None).expect("tool probe");
+    let requests = server.join().expect("join provider test server");
+    assert_eq!(requests.len(), 2);
+    assert!(requests[0].get("reasoning").is_none());
+    assert!(requests[1].get("reasoning").is_none());
 }
 
 // Parity: go:452dea11:internal/assistant/engine/chat_request_idempotency_test.go:48 TestConcurrentResponsesRequestReusesOneRunAndNativeAssistantEvent

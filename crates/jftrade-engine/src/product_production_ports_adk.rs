@@ -326,7 +326,15 @@ impl ProductionToolCatalog {
     /// with the existing Go tool contract; dispatch validates concrete input
     /// before any side effect.
     pub(crate) fn openai_tools(&self) -> Vec<Value> {
-        self.callable_tools()
+        let mut callable = self.callable_tools();
+        // Go's ToolRegistry.List sorts descriptors by canonical tool name so
+        // prompt-cache prefixes do not depend on agent declaration order.
+        callable.sort_by(|left, right| {
+            left.get("id")
+                .and_then(Value::as_str)
+                .cmp(&right.get("id").and_then(Value::as_str))
+        });
+        callable
             .into_iter()
             .filter_map(|tool| {
                 let name = tool.get("id").and_then(Value::as_str)?.to_owned();

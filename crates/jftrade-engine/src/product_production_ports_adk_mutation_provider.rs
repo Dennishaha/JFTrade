@@ -620,4 +620,42 @@ mod tests {
             "an omitted timeout keeps the stored one: {unchanged}"
         );
     }
+
+    /// Parity: go:452dea11:internal/api/assistant/adk_routes_test.go:597
+    /// `TestADKProviderSaveReturnsRequestTimeoutMs`.
+    ///
+    /// The Go route posts a provider through the HTTP handler and checks the
+    /// response data, including the caller-supplied timeout and the removal of
+    /// the retired `apiProtocol` field.  Exercise the production mutation port
+    /// with the same payload so the durable save and sanitized response are
+    /// both covered, rather than only checking the transport parser.
+    #[test]
+    fn provider_save_preserves_request_timeout_and_omits_removed_api_protocol() {
+        let (port, _directory) = production_port();
+        let saved = super::super::dispatch_mutation(
+            &port,
+            &AdkMutationInput {
+                operation: AdkMutationOperation::CreateProvider,
+                identifiers: BTreeMap::new(),
+                body: json!({
+                    "displayName": "Slow Provider",
+                    "baseUrl": "https://api.openai.com/v1",
+                    "model": "gpt-4o-mini",
+                    "requestTimeoutMs": 250_000,
+                    "enabled": true,
+                    "apiProtocol": "legacy",
+                }),
+                webhook_secret: None,
+            },
+        )
+        .expect("save provider");
+
+        assert_eq!(saved["requestTimeoutMs"], 250_000, "{saved}");
+        assert!(
+            saved
+                .as_object()
+                .is_some_and(|object| !object.contains_key("apiProtocol")),
+            "provider response leaked removed apiProtocol: {saved}"
+        );
+    }
 }

@@ -435,6 +435,32 @@ if close > close[1]
 }
 
 #[cfg(test)]
+mod trend_stateful_ta_tests {
+    use super::*;
+
+    /// Parity: go:452dea11:pkg/strategy/pine/parse_semantic_test.go:287 TestAnalyzeScriptSupportsTrendAndStatefulTAFunctions
+    #[test]
+    fn analyze_script_supports_trend_and_stateful_ta_functions() {
+        let analysis = analyze_script(
+            r#"//@version=6
+strategy("Supertrend", overlay=true)
+[line, direction] = ta.supertrend(3, 10)
+[plusDI, minusDI, adx] = ta.dmi(14, 14)
+v = ta.vwap(hlc3)
+m = ta.mfi(hlc3, 14)
+if ta.barssince(close > open) > 2 and ta.valuewhen(ta.cross(close, open), close, 0) > v and adx > 20
+    strategy.entry("Long", strategy.long)"#,
+            AnalysisOptions::default(),
+        );
+        assert!(
+            analysis.ok,
+            "trend/stateful TA analysis must succeed: {:?}",
+            analysis.diagnostics
+        );
+    }
+}
+
+#[cfg(test)]
 mod udf_and_loop_boundary_tests {
     use super::*;
 

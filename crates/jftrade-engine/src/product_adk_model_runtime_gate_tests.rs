@@ -974,8 +974,9 @@ fn agent_tool_scope_follows_the_go_access_mode_normalization() {
         !selected.exposes("market.search"),
         "a selected agent must not see tools outside its allowlist"
     );
-    // `interaction.request_user` is granted separately by the run admission
-    // path and is not part of the agent allowlist.
+    // `interaction.request_user` follows the selected allowlist like every
+    // other model-visible tool; its execution still uses the dedicated run
+    // admission path after the model calls it.
     assert!(!selected.exposes("interaction.request_user"));
     // The implicit backtest companion only appears with its parent tools.
     assert!(!selected.exposes("backtest.kline_sync_status"));

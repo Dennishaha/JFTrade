@@ -6,7 +6,7 @@ use jftrade_marketdata::{
 use thiserror::Error;
 
 use crate::{
-    OpenDSessionCoordinator, OpenDSessionCoordinatorError, OpenDSessionRuntime,
+    OpenDProbe, OpenDSessionCoordinator, OpenDSessionCoordinatorError, OpenDSessionRuntime,
     OpenDSessionRuntimeConfig, OpenDSessionRuntimeError, OpenDTcpProbe, OpenDTcpProbeConfig,
     OpenDTcpProbeError, QuoteSessionResolver, market_data_health_from_probe,
 };
@@ -57,6 +57,8 @@ pub struct OpenDProviderRuntime {
     demand_consumer_id: String,
     demand_managed: bool,
     trade_logged_in: Option<bool>,
+    server_version: Option<String>,
+    global_state: Option<OpenDProbe>,
     runtime: OpenDSessionRuntime,
 }
 
@@ -151,6 +153,8 @@ impl OpenDProviderRuntime {
             demand_consumer_id,
             demand_managed: config.demand_managed,
             trade_logged_in: probe.trade_logged_in,
+            server_version: probe.server_version.clone(),
+            global_state: Some(probe),
             runtime,
         })
     }
@@ -185,6 +189,17 @@ impl OpenDProviderRuntime {
     /// as an authenticated trade session by callers.
     pub fn trade_logged_in(&self) -> Option<bool> {
         self.trade_logged_in
+    }
+
+    /// Server version reported by the authenticated global-state probe that
+    /// established this provider runtime.
+    pub fn server_version(&self) -> Option<&str> {
+        self.server_version.as_deref()
+    }
+
+    /// Complete global-state projection captured by the provider-owned probe.
+    pub fn global_state(&self) -> Option<&OpenDProbe> {
+        self.global_state.as_ref()
     }
 
     pub fn physical_snapshot(
