@@ -52215,7 +52215,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/product_tests.rs::browser_authenticated_request_cannot_change_desktop_only_security_settings",
       "conclusion": "function_exact：Go 断言浏览器会话不能修改 web 暴露设置；Rust 断言浏览器认证请求修改 security 设置返回 WEB_ACCESS_SETTINGS_DESKTOP_ONLY（403）。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(browser_authenticated_request_cannot_change_desktop_only_security_settings)'",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-api -p jftrade-engine -p jftrade-store-settings-file --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(browser_authenticated_request_cannot_change_desktop_only_security_settings) or test(portfolio_cash_balances_fall_back_to_summary_currency_when_breakdown_is_empty) or test(unknown_portfolio_reconciliation_route_returns_json_not_found) or test(portfolio_read_routes_match_group_fixture_in_cutover_only) or test(unsaved_broker_settings_expose_null_integration_and_go_defaults)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/app/apiserver/servercore/settings_security_test.go",
@@ -52241,36 +52241,49 @@
           "function_exact：Go 断言浏览器会话不能修改 web 暴露设置；Rust 断言浏览器认证请求修改 security 设置返回 WEB_ACCESS_SETTINGS_DESKTOP_ONLY（403）。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
+          "-p",
+          "jftrade-api",
+          "-p",
+          "jftrade-engine",
+          "-p",
+          "jftrade-store-settings-file",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(depth_read_returns_empty_arrays_for_empty_s2c_lists) or test(switch_retires_the_previous_provider_before_publishing_the_next_one) or test(unsubscribe_retry_ladder_escalates_and_reacquire_clears_retry_state) or test(queued_transitions_observe_the_committed_provider_as_their_previous_owner) or test(start_rejects_a_second_launch_of_a_live_process) or test(stop_escalates_to_kill_when_the_child_outlives_the_grace_period) or test(managed_process_is_reused_until_an_explicit_stop_releases_it) or test(unknown_provider_activation_is_rejected_without_touching_the_active_selection) or test(activation_after_shutdown_is_rejected_and_leaves_the_snapshot_committed) or test(node_candidates_prefer_path_then_macos_common_installs) or test(runtime_dependencies_flag_unsatisfied_required_entries) or test(stop_product_is_idempotent_across_concurrent_invocations) or test(web_shutdown_does_not_hold_runtime_lock_while_joining_server) or test(auth_session_route_matches_go_fixture_in_cutover_only) or test(test_normalize_execution_order_preserves_broker_abstraction) or test(provider_switch_does_not_disconnect_an_existing_futu_trade_session) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log) or test(test_execute_strategy_intents_cancel_dispatches_order_cancel) or test(disabled_web_access_does_not_start_a_listener) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable) or test(test_product_runtime_ordered_shutdown_explicit) or test(production_startup_exposes_degraded_api_when_external_runtimes_are_unavailable) or test(earnings_calendar_route_maps_frontend_keys) or test(strategy_definition_preview_derives_warmup_bars_and_overrides_preview_parameters) or test(browser_authenticated_request_cannot_change_desktop_only_security_settings) or test(cached_projection_does_not_promote_stale_overnight_during_regular_hours) or test(startup_reconcile_resets_stale_paused_state_and_keeps_stopped_instances) or test(recovery_failure_converges_the_running_instance_to_stopped) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel) or test(broker_klines_valid_request_fails_closed_without_historical_source) or test(broker_securities_returns_real_empty_result_when_cache_has_no_symbol)"
+          "test(browser_authenticated_request_cannot_change_desktop_only_security_settings) or test(portfolio_cash_balances_fall_back_to_summary_currency_when_breakdown_is_empty) or test(unknown_portfolio_reconciliation_route_returns_json_not_found) or test(portfolio_read_routes_match_group_fixture_in_cutover_only) or test(unsaved_broker_settings_expose_null_integration_and_go_defaults)"
         ],
         "testFilter": [
-          "browser_authenticated_request_cannot_change_desktop_only_security_settings"
+          "browser_authenticated_request_cannot_change_desktop_only_security_settings",
+          "portfolio_cash_balances_fall_back_to_summary_currency_when_breakdown_is_empty",
+          "unknown_portfolio_reconciliation_route_returns_json_not_found",
+          "portfolio_read_routes_match_group_fixture_in_cutover_only",
+          "unsaved_broker_settings_expose_null_integration_and_go_defaults"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "0896c4ab",
-        "verifiedAt": "2026-09-25T13:35:20Z",
-        "receiptDigest": null
+        "verifiedCommit": "c71fef205fe83b312a636d2a0a479036756d0330",
+        "verifiedAt": "2026-09-27T17:56:56Z",
+        "receiptDigest": "sha256:cf733b63c6b03f627d273983d92eff928ecb09de97b1f79be6c6c95d04e3ee76"
       },
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：Go 断言浏览器会话不能修改 web 暴露设置；Rust 断言浏览器认证请求修改 security 设置返回 WEB_ACCESS_SETTINGS_DESKTOP_ONLY（403）。"
@@ -58061,7 +58074,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::portfolio_cash_balances_fall_back_to_summary_currency_when_breakdown_is_empty",
       "conclusion": "function_exact：Go 断言现金余额接口在无分解数据时返回空余额数组而不是报错。Rust 同一投影断言分解为空时按汇总币种回退且保持空余额，payload 形状由同组测试覆盖。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(portfolio_cash_balances_fall_back_to_summary_currency_when_breakdown_is_empty)'",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-api -p jftrade-engine -p jftrade-store-settings-file --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(browser_authenticated_request_cannot_change_desktop_only_security_settings) or test(portfolio_cash_balances_fall_back_to_summary_currency_when_breakdown_is_empty) or test(unknown_portfolio_reconciliation_route_returns_json_not_found) or test(portfolio_read_routes_match_group_fixture_in_cutover_only) or test(unsaved_broker_settings_expose_null_integration_and_go_defaults)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/app/apiserver/servercoretest/portfolio_routes_test.go",
@@ -58087,36 +58100,49 @@
           "function_exact：Go 断言现金余额接口在无分解数据时返回空余额数组而不是报错。Rust 同一投影断言分解为空时按汇总币种回退且保持空余额，payload 形状由同组测试覆盖。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
+          "-p",
+          "jftrade-api",
+          "-p",
+          "jftrade-engine",
+          "-p",
+          "jftrade-store-settings-file",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(broker_securities_returns_real_empty_result_when_cache_has_no_symbol) or test(broker_quote_projects_real_futu_tick_cache_for_all_symbols) or test(trade_write_methods_propagate_write_disconnects) or test(broker_unlock_route_forwards_password_md5_and_unlock_flag_to_opend) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(funds_projection_keeps_missing_margin_fields_absent) or test(broker_read_fails_closed_without_trade_client) or test(execution_write_fixture_replays_all_seven_go_owned_mutations) or test(accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel) or test(us_limit_route_orders_keep_price_session_and_explicit_market_code) or test(test_normalize_execution_order_supports_extended_us_limit_sessions) or test(place_order_rounds_us_prices_to_the_venue_tick_before_encoding) or test(unknown_api_is_json_but_frontend_uses_spa_fallback) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(enabled_web_access_binds_and_shutdown_releases_port) or test(production_startup_fails_closed_when_database_is_corrupted) or test(production_startup_exposes_degraded_api_when_external_runtimes_are_unavailable) or test(portfolio_cash_balances_fall_back_to_summary_currency_when_breakdown_is_empty) or test(unknown_portfolio_reconciliation_route_returns_json_not_found) or test(portfolio_read_routes_match_group_fixture_in_cutover_only) or test(unsaved_broker_settings_expose_null_integration_and_go_defaults) or test(strategy_instance_read_routes_match_group_fixture_in_cutover_only) or test(runtime_status_wire_drops_absent_and_blank_values_and_normalizes_utc) or test(test_product_runtime_ordered_shutdown_explicit) or test(startup_acquires_all_writer_leases_in_stable_order_before_migrating) or test(startup_failure_restores_previously_migrated_descriptor_files) or test(test_product_runtime_startup_failure_rollback) or test(execution_write_product_replays_browser_boundary_failure_recovery_and_restart) or test(combo_place_rejects_invalid_legs_accounts_and_hidden_transport_failures) or test(combo_intent_rejects_missing_kind_legs_and_account) or test(option_combo_preview_place_and_cancel_keep_server_identity) or test(helper_market_data_providers_reconcile_futu_account_order_fill_and_fee) or test(reconciliation_replays_history_fill_and_fee_once_after_restart) or test(reconciliation_scope_accepts_only_stock_trade_markets) or test(execution_orders_lifecycle_events_and_restart_durability) or test(auth_session_store_corruption_fails_closed_without_rewrite) or test(auth_rejects_untrusted_origin_before_authentication) or test(desktop_missing_static_assets_do_not_use_spa_fallback)"
+          "test(browser_authenticated_request_cannot_change_desktop_only_security_settings) or test(portfolio_cash_balances_fall_back_to_summary_currency_when_breakdown_is_empty) or test(unknown_portfolio_reconciliation_route_returns_json_not_found) or test(portfolio_read_routes_match_group_fixture_in_cutover_only) or test(unsaved_broker_settings_expose_null_integration_and_go_defaults)"
         ],
         "testFilter": [
-          "portfolio_cash_balances_fall_back_to_summary_currency_when_breakdown_is_empty"
+          "browser_authenticated_request_cannot_change_desktop_only_security_settings",
+          "portfolio_cash_balances_fall_back_to_summary_currency_when_breakdown_is_empty",
+          "unknown_portfolio_reconciliation_route_returns_json_not_found",
+          "portfolio_read_routes_match_group_fixture_in_cutover_only",
+          "unsaved_broker_settings_expose_null_integration_and_go_defaults"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "538d15d0",
-        "verifiedAt": "2026-09-25T13:41:05Z",
-        "receiptDigest": null
+        "verifiedCommit": "c71fef205fe83b312a636d2a0a479036756d0330",
+        "verifiedAt": "2026-09-27T17:56:56Z",
+        "receiptDigest": "sha256:cf733b63c6b03f627d273983d92eff928ecb09de97b1f79be6c6c95d04e3ee76"
       },
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：Go 断言现金余额接口在无分解数据时返回空余额数组而不是报错。Rust 同一投影断言分解为空时按汇总币种回退且保持空余额，payload 形状由同组测试覆盖。"
@@ -58128,7 +58154,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-api/tests/transport_contracts.rs::unknown_portfolio_reconciliation_route_returns_json_not_found",
       "conclusion": "function_exact：Go 断言已下线的 portfolio reconciliation 路由返回 JSON 404（不复活旧接口）。Rust transport 测试断言同一路径返回 JSON not found。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(unknown_portfolio_reconciliation_route_returns_json_not_found)'",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-api -p jftrade-engine -p jftrade-store-settings-file --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(browser_authenticated_request_cannot_change_desktop_only_security_settings) or test(portfolio_cash_balances_fall_back_to_summary_currency_when_breakdown_is_empty) or test(unknown_portfolio_reconciliation_route_returns_json_not_found) or test(portfolio_read_routes_match_group_fixture_in_cutover_only) or test(unsaved_broker_settings_expose_null_integration_and_go_defaults)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/app/apiserver/servercoretest/portfolio_routes_test.go",
@@ -58154,36 +58180,49 @@
           "function_exact：Go 断言已下线的 portfolio reconciliation 路由返回 JSON 404（不复活旧接口）。Rust transport 测试断言同一路径返回 JSON not found。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
+          "-p",
+          "jftrade-api",
+          "-p",
+          "jftrade-engine",
+          "-p",
+          "jftrade-store-settings-file",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(broker_securities_returns_real_empty_result_when_cache_has_no_symbol) or test(broker_quote_projects_real_futu_tick_cache_for_all_symbols) or test(trade_write_methods_propagate_write_disconnects) or test(broker_unlock_route_forwards_password_md5_and_unlock_flag_to_opend) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(funds_projection_keeps_missing_margin_fields_absent) or test(broker_read_fails_closed_without_trade_client) or test(execution_write_fixture_replays_all_seven_go_owned_mutations) or test(accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel) or test(us_limit_route_orders_keep_price_session_and_explicit_market_code) or test(test_normalize_execution_order_supports_extended_us_limit_sessions) or test(place_order_rounds_us_prices_to_the_venue_tick_before_encoding) or test(unknown_api_is_json_but_frontend_uses_spa_fallback) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(enabled_web_access_binds_and_shutdown_releases_port) or test(production_startup_fails_closed_when_database_is_corrupted) or test(production_startup_exposes_degraded_api_when_external_runtimes_are_unavailable) or test(portfolio_cash_balances_fall_back_to_summary_currency_when_breakdown_is_empty) or test(unknown_portfolio_reconciliation_route_returns_json_not_found) or test(portfolio_read_routes_match_group_fixture_in_cutover_only) or test(unsaved_broker_settings_expose_null_integration_and_go_defaults) or test(strategy_instance_read_routes_match_group_fixture_in_cutover_only) or test(runtime_status_wire_drops_absent_and_blank_values_and_normalizes_utc) or test(test_product_runtime_ordered_shutdown_explicit) or test(startup_acquires_all_writer_leases_in_stable_order_before_migrating) or test(startup_failure_restores_previously_migrated_descriptor_files) or test(test_product_runtime_startup_failure_rollback) or test(execution_write_product_replays_browser_boundary_failure_recovery_and_restart) or test(combo_place_rejects_invalid_legs_accounts_and_hidden_transport_failures) or test(combo_intent_rejects_missing_kind_legs_and_account) or test(option_combo_preview_place_and_cancel_keep_server_identity) or test(helper_market_data_providers_reconcile_futu_account_order_fill_and_fee) or test(reconciliation_replays_history_fill_and_fee_once_after_restart) or test(reconciliation_scope_accepts_only_stock_trade_markets) or test(execution_orders_lifecycle_events_and_restart_durability) or test(auth_session_store_corruption_fails_closed_without_rewrite) or test(auth_rejects_untrusted_origin_before_authentication) or test(desktop_missing_static_assets_do_not_use_spa_fallback)"
+          "test(browser_authenticated_request_cannot_change_desktop_only_security_settings) or test(portfolio_cash_balances_fall_back_to_summary_currency_when_breakdown_is_empty) or test(unknown_portfolio_reconciliation_route_returns_json_not_found) or test(portfolio_read_routes_match_group_fixture_in_cutover_only) or test(unsaved_broker_settings_expose_null_integration_and_go_defaults)"
         ],
         "testFilter": [
-          "unknown_portfolio_reconciliation_route_returns_json_not_found"
+          "browser_authenticated_request_cannot_change_desktop_only_security_settings",
+          "portfolio_cash_balances_fall_back_to_summary_currency_when_breakdown_is_empty",
+          "unknown_portfolio_reconciliation_route_returns_json_not_found",
+          "portfolio_read_routes_match_group_fixture_in_cutover_only",
+          "unsaved_broker_settings_expose_null_integration_and_go_defaults"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "538d15d0",
-        "verifiedAt": "2026-09-25T13:41:05Z",
-        "receiptDigest": null
+        "verifiedCommit": "c71fef205fe83b312a636d2a0a479036756d0330",
+        "verifiedAt": "2026-09-27T17:56:56Z",
+        "receiptDigest": "sha256:cf733b63c6b03f627d273983d92eff928ecb09de97b1f79be6c6c95d04e3ee76"
       },
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：Go 断言已下线的 portfolio reconciliation 路由返回 JSON 404（不复活旧接口）。Rust transport 测试断言同一路径返回 JSON not found。"
@@ -58195,7 +58234,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/product_portfolio_tests.rs::portfolio_read_routes_match_group_fixture_in_cutover_only",
       "conclusion": "function_exact：Go 断言未配置 broker 时 GET /api/v1/portfolio/<broker>/cash-balances 返回 200、ok=true 且 data.balances 存在（降级空态）。Rust 逐案重放冻结 fixture 的 cash-balances（200、connectivity=degraded、balances=[]、lastError 文本）并断言 data 全等。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-api -p jftrade-engine -p jftrade-store-settings-file --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(browser_authenticated_request_cannot_change_desktop_only_security_settings) or test(portfolio_cash_balances_fall_back_to_summary_currency_when_breakdown_is_empty) or test(unknown_portfolio_reconciliation_route_returns_json_not_found) or test(portfolio_read_routes_match_group_fixture_in_cutover_only) or test(unsaved_broker_settings_expose_null_integration_and_go_defaults)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/app/apiserver/servercoretest/portfolio_routes_test.go",
@@ -58221,36 +58260,49 @@
           "function_exact：Go 断言未配置 broker 时 GET /api/v1/portfolio/<broker>/cash-balances 返回 200、ok=true 且 data.balances 存在（降级空态）。Rust 逐案重放冻结 fixture 的 cash-balances（200、connectivity=degraded、balances=[]、lastError 文本）并断言 data 全等。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
+          "-p",
+          "jftrade-api",
+          "-p",
+          "jftrade-engine",
+          "-p",
+          "jftrade-store-settings-file",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(broker_securities_returns_real_empty_result_when_cache_has_no_symbol) or test(broker_quote_projects_real_futu_tick_cache_for_all_symbols) or test(trade_write_methods_propagate_write_disconnects) or test(broker_unlock_route_forwards_password_md5_and_unlock_flag_to_opend) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(funds_projection_keeps_missing_margin_fields_absent) or test(broker_read_fails_closed_without_trade_client) or test(execution_write_fixture_replays_all_seven_go_owned_mutations) or test(accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel) or test(us_limit_route_orders_keep_price_session_and_explicit_market_code) or test(test_normalize_execution_order_supports_extended_us_limit_sessions) or test(place_order_rounds_us_prices_to_the_venue_tick_before_encoding) or test(unknown_api_is_json_but_frontend_uses_spa_fallback) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(enabled_web_access_binds_and_shutdown_releases_port) or test(production_startup_fails_closed_when_database_is_corrupted) or test(production_startup_exposes_degraded_api_when_external_runtimes_are_unavailable) or test(portfolio_cash_balances_fall_back_to_summary_currency_when_breakdown_is_empty) or test(unknown_portfolio_reconciliation_route_returns_json_not_found) or test(portfolio_read_routes_match_group_fixture_in_cutover_only) or test(unsaved_broker_settings_expose_null_integration_and_go_defaults) or test(strategy_instance_read_routes_match_group_fixture_in_cutover_only) or test(runtime_status_wire_drops_absent_and_blank_values_and_normalizes_utc) or test(test_product_runtime_ordered_shutdown_explicit) or test(startup_acquires_all_writer_leases_in_stable_order_before_migrating) or test(startup_failure_restores_previously_migrated_descriptor_files) or test(test_product_runtime_startup_failure_rollback) or test(execution_write_product_replays_browser_boundary_failure_recovery_and_restart) or test(combo_place_rejects_invalid_legs_accounts_and_hidden_transport_failures) or test(combo_intent_rejects_missing_kind_legs_and_account) or test(option_combo_preview_place_and_cancel_keep_server_identity) or test(helper_market_data_providers_reconcile_futu_account_order_fill_and_fee) or test(reconciliation_replays_history_fill_and_fee_once_after_restart) or test(reconciliation_scope_accepts_only_stock_trade_markets) or test(execution_orders_lifecycle_events_and_restart_durability) or test(auth_session_store_corruption_fails_closed_without_rewrite) or test(auth_rejects_untrusted_origin_before_authentication) or test(desktop_missing_static_assets_do_not_use_spa_fallback)"
+          "test(browser_authenticated_request_cannot_change_desktop_only_security_settings) or test(portfolio_cash_balances_fall_back_to_summary_currency_when_breakdown_is_empty) or test(unknown_portfolio_reconciliation_route_returns_json_not_found) or test(portfolio_read_routes_match_group_fixture_in_cutover_only) or test(unsaved_broker_settings_expose_null_integration_and_go_defaults)"
         ],
         "testFilter": [
-          "portfolio_read_routes_match_group_fixture_in_cutover_only"
+          "browser_authenticated_request_cannot_change_desktop_only_security_settings",
+          "portfolio_cash_balances_fall_back_to_summary_currency_when_breakdown_is_empty",
+          "unknown_portfolio_reconciliation_route_returns_json_not_found",
+          "portfolio_read_routes_match_group_fixture_in_cutover_only",
+          "unsaved_broker_settings_expose_null_integration_and_go_defaults"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "538d15d0",
-        "verifiedAt": "2026-09-25T13:41:05Z",
-        "receiptDigest": null
+        "verifiedCommit": "c71fef205fe83b312a636d2a0a479036756d0330",
+        "verifiedAt": "2026-09-27T17:56:56Z",
+        "receiptDigest": "sha256:cf733b63c6b03f627d273983d92eff928ecb09de97b1f79be6c6c95d04e3ee76"
       },
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：Go 断言未配置 broker 时 GET /api/v1/portfolio/<broker>/cash-balances 返回 200、ok=true 且 data.balances 存在（降级空态）。Rust 逐案重放冻结 fixture 的 cash-balances（200、connectivity=degraded、balances=[]、lastError 文本）并断言 data 全等。"
@@ -59154,7 +59206,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-store-settings-file/tests/settings_file_contracts.rs::unsaved_broker_settings_expose_null_integration_and_go_defaults",
       "conclusion": "新增存储层测试：首次保存前 saved_integration=None、accounts 为空，有效配置等于 Go 默认（futu/127.0.0.1/11110/11111/20/HK/FUTUSECURITIES）；路由层 null 序列化由 API 合同测试承担。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-settings-file -E 'test(unsaved_broker_settings_expose_null_integration_and_go_defaults)'",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-api -p jftrade-engine -p jftrade-store-settings-file --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(browser_authenticated_request_cannot_change_desktop_only_security_settings) or test(portfolio_cash_balances_fall_back_to_summary_currency_when_breakdown_is_empty) or test(unknown_portfolio_reconciliation_route_returns_json_not_found) or test(portfolio_read_routes_match_group_fixture_in_cutover_only) or test(unsaved_broker_settings_expose_null_integration_and_go_defaults)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/app/apiserver/servercoretest/settings_broker_test.go",
@@ -59180,36 +59232,49 @@
           "新增存储层测试：首次保存前 saved_integration=None、accounts 为空，有效配置等于 Go 默认（futu/127.0.0.1/11110/11111/20/HK/FUTUSECURITIES）；路由层 null 序列化由 API 合同测试承担。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
+          "-p",
+          "jftrade-api",
+          "-p",
+          "jftrade-engine",
+          "-p",
+          "jftrade-store-settings-file",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(broker_securities_returns_real_empty_result_when_cache_has_no_symbol) or test(broker_quote_projects_real_futu_tick_cache_for_all_symbols) or test(trade_write_methods_propagate_write_disconnects) or test(broker_unlock_route_forwards_password_md5_and_unlock_flag_to_opend) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(funds_projection_keeps_missing_margin_fields_absent) or test(broker_read_fails_closed_without_trade_client) or test(execution_write_fixture_replays_all_seven_go_owned_mutations) or test(accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel) or test(us_limit_route_orders_keep_price_session_and_explicit_market_code) or test(test_normalize_execution_order_supports_extended_us_limit_sessions) or test(place_order_rounds_us_prices_to_the_venue_tick_before_encoding) or test(unknown_api_is_json_but_frontend_uses_spa_fallback) or test(direct_product_shutdown_stops_reconciliation_before_releasing_leases) or test(enabled_web_access_binds_and_shutdown_releases_port) or test(production_startup_fails_closed_when_database_is_corrupted) or test(production_startup_exposes_degraded_api_when_external_runtimes_are_unavailable) or test(portfolio_cash_balances_fall_back_to_summary_currency_when_breakdown_is_empty) or test(unknown_portfolio_reconciliation_route_returns_json_not_found) or test(portfolio_read_routes_match_group_fixture_in_cutover_only) or test(unsaved_broker_settings_expose_null_integration_and_go_defaults) or test(strategy_instance_read_routes_match_group_fixture_in_cutover_only) or test(runtime_status_wire_drops_absent_and_blank_values_and_normalizes_utc) or test(test_product_runtime_ordered_shutdown_explicit) or test(startup_acquires_all_writer_leases_in_stable_order_before_migrating) or test(startup_failure_restores_previously_migrated_descriptor_files) or test(test_product_runtime_startup_failure_rollback) or test(execution_write_product_replays_browser_boundary_failure_recovery_and_restart) or test(combo_place_rejects_invalid_legs_accounts_and_hidden_transport_failures) or test(combo_intent_rejects_missing_kind_legs_and_account) or test(option_combo_preview_place_and_cancel_keep_server_identity) or test(helper_market_data_providers_reconcile_futu_account_order_fill_and_fee) or test(reconciliation_replays_history_fill_and_fee_once_after_restart) or test(reconciliation_scope_accepts_only_stock_trade_markets) or test(execution_orders_lifecycle_events_and_restart_durability) or test(auth_session_store_corruption_fails_closed_without_rewrite) or test(auth_rejects_untrusted_origin_before_authentication) or test(desktop_missing_static_assets_do_not_use_spa_fallback)"
+          "test(browser_authenticated_request_cannot_change_desktop_only_security_settings) or test(portfolio_cash_balances_fall_back_to_summary_currency_when_breakdown_is_empty) or test(unknown_portfolio_reconciliation_route_returns_json_not_found) or test(portfolio_read_routes_match_group_fixture_in_cutover_only) or test(unsaved_broker_settings_expose_null_integration_and_go_defaults)"
         ],
         "testFilter": [
+          "browser_authenticated_request_cannot_change_desktop_only_security_settings",
+          "portfolio_cash_balances_fall_back_to_summary_currency_when_breakdown_is_empty",
+          "unknown_portfolio_reconciliation_route_returns_json_not_found",
+          "portfolio_read_routes_match_group_fixture_in_cutover_only",
           "unsaved_broker_settings_expose_null_integration_and_go_defaults"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "538d15d0",
-        "verifiedAt": "2026-09-25T13:41:05Z",
-        "receiptDigest": null
+        "verifiedCommit": "c71fef205fe83b312a636d2a0a479036756d0330",
+        "verifiedAt": "2026-09-27T17:56:56Z",
+        "receiptDigest": "sha256:cf733b63c6b03f627d273983d92eff928ecb09de97b1f79be6c6c95d04e3ee76"
       },
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "新增存储层测试：首次保存前 saved_integration=None、accounts 为空，有效配置等于 Go 默认（futu/127.0.0.1/11110/11111/20/HK/FUTUSECURITIES）；路由层 null 序列化由 API 合同测试承担。"
