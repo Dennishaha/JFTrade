@@ -149580,7 +149580,7 @@
           "function_exact：Go 空符号列表返回空 securities 且无错误；Rust normalized_instruments(&[]) 返回空 Vec 且无错误，后续 EmptyRequest 由 prepare_request 单独负责。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -149597,21 +149597,19 @@
         "testFilter": [
           "normalized_instruments_accepts_empty_symbol_list"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest-0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "dc862edb",
-        "verifiedAt": "2026-09-25T12:57:05Z",
-        "receiptDigest": null
+        "verifiedCommit": "11e4c6a267c8e7b2a4f59eaed6b65f216da54ac6",
+        "verifiedAt": "2026-09-28T01:56:40Z",
+        "receiptDigest": "sha256:65f7118836c30241fe900c00e4cb632ce9c8ead298e4c7d90e93f87bab8c69c1"
       },
       "risk": "high",
       "owner": "futu_opend",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：Go 空符号列表返回空 securities 且无错误；Rust normalized_instruments(&[]) 返回空 Vec 且无错误，后续 EmptyRequest 由 prepare_request 单独负责。"
@@ -150622,7 +150620,7 @@
           "function_exact：无 detail_list 时只输出 price/volume/orderCount，不注入空 detailList，与 Go 保留空 slice 的 JSON 语义一致。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -150637,21 +150635,19 @@
         "testFilter": [
           "order_book_levels_omit_detail_list_when_absent"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest-0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "dc862edb",
-        "verifiedAt": "2026-09-25T12:57:05Z",
-        "receiptDigest": null
+        "verifiedCommit": "11e4c6a267c8e7b2a4f59eaed6b65f216da54ac6",
+        "verifiedAt": "2026-09-28T01:56:40Z",
+        "receiptDigest": "sha256:65f7118836c30241fe900c00e4cb632ce9c8ead298e4c7d90e93f87bab8c69c1"
       },
       "risk": "high",
       "owner": "futu_opend",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：无 detail_list 时只输出 price/volume/orderCount，不注入空 detailList，与 Go 保留空 slice 的 JSON 语义一致。"
@@ -150811,7 +150807,7 @@
           "function_exact：存在 S2C 但 bid/ask 列表为空时返回空 bids/asks 数组且不注入 name 字段，对应 Go 空 result 的非 nil 快照。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -150826,21 +150822,19 @@
         "testFilter": [
           "depth_read_returns_empty_arrays_for_empty_s2c_lists"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest-0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "dc862edb",
-        "verifiedAt": "2026-09-25T12:57:05Z",
-        "receiptDigest": null
+        "verifiedCommit": "11e4c6a267c8e7b2a4f59eaed6b65f216da54ac6",
+        "verifiedAt": "2026-09-28T01:56:40Z",
+        "receiptDigest": "sha256:65f7118836c30241fe900c00e4cb632ce9c8ead298e4c7d90e93f87bab8c69c1"
       },
       "risk": "high",
       "owner": "futu_opend",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：存在 S2C 但 bid/ask 列表为空时返回空 bids/asks 数组且不注入 name 字段，对应 Go 空 result 的非 nil 快照。"
@@ -158770,7 +158764,7 @@
           "function_exact：Go 断言请求的符号在返回中缺失时报错（basicQotForSymbol → \"returned no quotes\"）、无效返回行被丢弃、订阅缓存命中时重复 ensure 不重复订阅、空请求集合不报错。Rust 对应：requires_subscription_... 覆盖未订阅时的 SubscriptionRequired、成功/拒绝/空 quotes/缺 s2c/不完整行的五种响应映射；maps_normalized_requested_rows_and_keeps_the_last_duplicate 断言 market=999 的非法行与零价行被丢弃、重复符号保留最后一次；empty_s2c 测试固定缺 S2C 为空列表；订阅缓存由 lifecycle 的 active_basic_instruments 去重（prepare_request 对重复请求只编码一次）。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -158791,21 +158785,19 @@
           "maps_normalized_requested_rows_and_keeps_the_last_duplicate",
           "basic_quote_query_returns_an_empty_list_when_the_success_s2c_is_absent"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest-0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "78e36bd3",
-        "verifiedAt": "2026-09-25T13:08:40Z",
-        "receiptDigest": null
+        "verifiedCommit": "11e4c6a267c8e7b2a4f59eaed6b65f216da54ac6",
+        "verifiedAt": "2026-09-28T01:56:40Z",
+        "receiptDigest": "sha256:65f7118836c30241fe900c00e4cb632ce9c8ead298e4c7d90e93f87bab8c69c1"
       },
       "risk": "high",
       "owner": "futu_opend",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：Go 断言请求的符号在返回中缺失时报错（basicQotForSymbol → \"returned no quotes\"）、无效返回行被丢弃、订阅缓存命中时重复 ensure 不重复订阅、空请求集合不报错。Rust 对应：requires_subscription_... 覆盖未订阅时的 SubscriptionRequired、成功/拒绝/空 quotes/缺 s2c/不完整行的五种响应映射；maps_normalized_requested_rows_and_keeps_the_last_duplicate 断言 market=999 的非法行与零价行被丢弃、重复符号保留最后一次；empty_s2c 测试固定缺 S2C 为空列表；订阅缓存由 lifecycle 的 active_basic_instruments 去重（prepare_request 对重复请求只编码一次）。"
@@ -166339,7 +166331,7 @@
           "function_exact：retType=0 且 S2C 缺失时返回空 Vec 而不是错误、也不伪造零值 quote，与 Go 的 len(qots)==0 断言一致。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -166354,21 +166346,19 @@
         "testFilter": [
           "basic_quote_query_returns_an_empty_list_when_the_success_s2c_is_absent"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest-0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "dc862edb",
-        "verifiedAt": "2026-09-25T12:57:05Z",
-        "receiptDigest": null
+        "verifiedCommit": "11e4c6a267c8e7b2a4f59eaed6b65f216da54ac6",
+        "verifiedAt": "2026-09-28T01:56:40Z",
+        "receiptDigest": "sha256:65f7118836c30241fe900c00e4cb632ce9c8ead298e4c7d90e93f87bab8c69c1"
       },
       "risk": "high",
       "owner": "futu_opend",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：retType=0 且 S2C 缺失时返回空 Vec 而不是错误、也不伪造零值 quote，与 Go 的 len(qots)==0 断言一致。"
