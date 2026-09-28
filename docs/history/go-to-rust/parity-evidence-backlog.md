@@ -4,7 +4,7 @@
 
 当前积压：**2955 项**（按当前 `manual-test-mappings.json` 的 `[~]` 条目重算）。
 
-最新审计快照（2026-09-28 Assistant session-context strict follow-up）：Go `4451`、Rust `3382`，`function_exact=1500`、`partial=2317`、`boundary=634`、`missing=0`；Parity anchor reconcile 为 `1793/1747/0/0/46`（unique/recorded/unrecorded/stale/unknown）。严格审计仍有 **3713 个 function_exact evidence/receipt gaps**（需 reviewed assertions、Parity anchor、reuse relation 与 passed receipt）；严格审计未通过。
+最新审计快照（2026-09-28 Futu K-line strict follow-up）：Go `4451`、Rust `3382`，`function_exact=1500`、`partial=2317`、`boundary=634`、`missing=0`；Parity anchor reconcile 为 `1793/1747/0/0/46`（unique/recorded/unrecorded/stale/unknown）。严格审计仍有 **3708 个 function_exact evidence/receipt gaps**（需 reviewed assertions、Parity anchor、reuse relation 与 passed receipt）；严格审计未通过。
 
 ## 按领域
 
@@ -129,3 +129,4 @@
 - 2026-09-28 Futu subscription/trade strict evidence：六条单引用 P1 exact 已完成 reviewed assertion 与 receipt `sha256:66b32e68a91fcc48f6557dcb436c9ea2d5d16af485d6418fcddc83bb83a25dc1`（integration-futu + engine nextest 6/6）；覆盖 subscription ack/retry、connection generation fencing、terminal close、failed-connect fail-closed 与交易写入断连前置条件。strict gap 降至 3723，仍有历史 evidence/receipt 缺口，整体未通过。
 - 2026-09-28 Futu protocol strict evidence：五条单引用 P1 exact 已完成 reviewed assertion 与 receipt `sha256:6478da8aebc98d804488cf76f032ff5ceaf9cc33c3a3fd38aaff652d8355429a`（integration-futu nextest 5/5）；覆盖 prediction catalog identity/pagination、research request injection、history pagination/filter forwarding 与 user-security error preservation。strict gap 降至 3718，仍有历史 evidence/receipt 缺口，整体未通过。
 - 2026-09-28 Assistant session-context strict evidence：五条单引用 P1 exact 已完成 reviewed assertion 与 receipt `sha256:0ca3d7f2e3b1e564c6fc25e2a91823516d7de78fb8e56d03ee042f9a272c92da`（engine nextest 5/5）；覆盖 read-pressure projection、model auto-compaction 与 pending-approval protected-tail selection。strict gap 降至 3713，仍有历史 evidence/receipt 缺口，整体未通过。
+- 2026-09-28 Futu K-line boundary strict evidence：五条单引用 P1 exact 已完成 reviewed assertion 与 receipt `sha256:f38ccd784ac1bf1afd47e5a14600fc1f016af24883a0787fb35b97b78f55801a`（integration-futu + engine nextest 5/5）；覆盖 period mapping、cursor/time validation、pagination bounds 与 Session_ALL fallback。strict gap 降至 3708，仍有历史 evidence/receipt 缺口，整体未通过。

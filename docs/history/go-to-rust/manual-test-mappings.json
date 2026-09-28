@@ -148012,7 +148012,7 @@
           "function_exact：每个声明的 candle period 同时具备 Qot_RequestHistoryKL 的 KLType 映射与 Qot_Sub 的 subtype 映射（1m/3m/5m/10m/15m/30m/60m 有 duration，1d/1w/1mo 走 KLType 2/3/4 与 subtype 6/12/13），不存在只声明却无法订阅的周期。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -148024,26 +148024,29 @@
           "-p",
           "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
+          "-E",
+          "test(declared_candle_periods_map_to_historical_and_realtime_types) or test(broker_kline_query_rejects_cursor_and_time_boundary_errors) or test(broker_kline_pagination_helpers_cover_sessions_bounds_and_listing_dates) or test(candle_period_catalog_rejects_missing_and_unmappable_intervals) or test(us_history_falls_back_to_session_all_when_a_route_is_rejected)"
         ],
         "testFilter": [
           "declared_candle_periods_map_to_historical_and_realtime_types"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest-0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "dc862edb",
-        "verifiedAt": "2026-09-25T12:57:05Z",
-        "receiptDigest": null
+        "verifiedCommit": "e7494998",
+        "verifiedAt": "2026-09-28T003048Z",
+        "receiptDigest": "sha256:f38ccd784ac1bf1afd47e5a14600fc1f016af24883a0787fb35b97b78f55801a"
       },
       "risk": "high",
       "owner": "futu_opend",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：每个声明的 candle period 同时具备 Qot_RequestHistoryKL 的 KLType 映射与 Qot_Sub 的 subtype 映射（1m/3m/5m/10m/15m/30m/60m 有 duration，1d/1w/1mo 走 KLType 2/3/4 与 subtype 6/12/13），不存在只声明却无法订阅的周期。"
@@ -148393,7 +148396,7 @@
           "function_exact：before+from 组合、非法 before/from/to、from 晚于 to、tick+before 全部返回 400 且没有任何 provider 请求。真实修复：Rust 此前对 from 晚于 to 静默返回数据，Go 是 \"fromTime must be earlier than or equal to toTime\"；现已在 quote reads owner 前置校验。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -148405,26 +148408,29 @@
           "-p",
           "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
+          "-E",
+          "test(declared_candle_periods_map_to_historical_and_realtime_types) or test(broker_kline_query_rejects_cursor_and_time_boundary_errors) or test(broker_kline_pagination_helpers_cover_sessions_bounds_and_listing_dates) or test(candle_period_catalog_rejects_missing_and_unmappable_intervals) or test(us_history_falls_back_to_session_all_when_a_route_is_rejected)"
         ],
         "testFilter": [
           "broker_kline_query_rejects_cursor_and_time_boundary_errors"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest-0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "dc862edb",
-        "verifiedAt": "2026-09-25T12:57:05Z",
-        "receiptDigest": null
+        "verifiedCommit": "e7494998",
+        "verifiedAt": "2026-09-28T003048Z",
+        "receiptDigest": "sha256:f38ccd784ac1bf1afd47e5a14600fc1f016af24883a0787fb35b97b78f55801a"
       },
       "risk": "high",
       "owner": "futu_opend",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：before+from 组合、非法 before/from/to、from 晚于 to、tick+before 全部返回 400 且没有任何 provider 请求。真实修复：Rust 此前对 from 晚于 to 静默返回数据，Go 是 \"fromTime must be earlier than or equal to toTime\"；现已在 quote reads owner 前置校验。"
@@ -148462,7 +148468,7 @@
           "function_exact：相同 begin/end 收敛为文档化 lookback 而非反向窗口；非法 from 回落 lookback 且保持 begin<end；listing 解析同时接受 2004-06-16 日期与带时间形式，垃圾输入返回 None（Go 回落到 1900）。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -148474,26 +148480,29 @@
           "-p",
           "jftrade-engine",
           "--all-targets",
-          "--locked"
+          "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
+          "-E",
+          "test(declared_candle_periods_map_to_historical_and_realtime_types) or test(broker_kline_query_rejects_cursor_and_time_boundary_errors) or test(broker_kline_pagination_helpers_cover_sessions_bounds_and_listing_dates) or test(candle_period_catalog_rejects_missing_and_unmappable_intervals) or test(us_history_falls_back_to_session_all_when_a_route_is_rejected)"
         ],
         "testFilter": [
           "broker_kline_pagination_helpers_cover_sessions_bounds_and_listing_dates"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest-0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "dc862edb",
-        "verifiedAt": "2026-09-25T12:57:05Z",
-        "receiptDigest": null
+        "verifiedCommit": "e7494998",
+        "verifiedAt": "2026-09-28T003048Z",
+        "receiptDigest": "sha256:f38ccd784ac1bf1afd47e5a14600fc1f016af24883a0787fb35b97b78f55801a"
       },
       "risk": "high",
       "owner": "futu_opend",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：相同 begin/end 收敛为文档化 lookback 而非反向窗口；非法 from 回落 lookback 且保持 begin<end；listing 解析同时接受 2004-06-16 日期与带时间形式，垃圾输入返回 None（Go 回落到 1900）。"
@@ -148531,7 +148540,7 @@
           "function_exact：未知/缺失 period 在 realtime mapper 返回 UnsupportedInterval（保留原始 interval 文本），历史编码保留文档化的 daily 回落，二者边界被显式钉住。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -148544,27 +148553,28 @@
           "jftrade-engine",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(fills_projection_sorts_filled_at_desc_with_id_tiebreak) or test(history_fill_read_projects_fill_identity) or test(advanced_feature_defaults_build_strict_opend_requests) or test(advanced_page_size_respects_protocol_limits) or test(high_dividend_state_is_hk_only) or test(product_states_match_go_quote_right_table) or test(entitlement_failure_is_cached_and_refreshed_after_reconnect) or test(fallback_requires_the_same_route_and_an_unsupported_marker) or test(test_adjust_kline_time_semantics) or test(helper_boundaries_return_the_input_unchanged) or test(broker_adapter_forwards_unavailable_opend_errors_on_every_read_route) or test(candle_period_catalog_rejects_missing_and_unmappable_intervals) or test(combo_rfq_creates_the_quote_once_and_never_replays_after_a_transport_failure) or test(prediction_push_handlers_install_once_and_fail_closed_on_invalid_demand) or test(prediction_catalog_pagination_and_identity_follow_the_go_rules) or test(catalog_operations_build_strict_opend_requests_like_go) or test(local_pagination_never_leaks_into_the_opend_request) or test(local_pagination_walks_plate_and_catalog_windows) or test(economic_calendar_pagination_honors_explicit_has_more_and_empty_rows) or test(payload_envelope_picks_the_first_sorted_entry_list_like_go) or test(futu_securities_route_projects_broker_neutral_envelope_boundary) or test(portfolio_cash_balances_prefer_currency_rows_over_summary_fallback) or test(public_coordinator_polls_basic_quotes_into_a_generation_fenced_cache) or test(subscribe_trade_accounts_propagates_opend_rejection) or test(executor_rejects_invalid_instrument_and_unsupported_interval) or test(market_rules_fall_back_to_security_snapshot_lot_size_and_report_the_primary_error) or test(basic_quote_query_requires_subscription_and_maps_success_rejection_and_empty) or test(maps_normalized_requested_rows_and_keeps_the_last_duplicate) or test(basic_quote_query_returns_an_empty_list_when_the_success_s2c_is_absent) or test(snapshot_reader_rejects_a_present_s2c_with_no_mappable_rows) or test(snapshot_reader_keeps_mappable_rows_and_drops_invalid_ones) or test(snapshot_reader_rejects_invalid_symbols_before_any_opend_call) or test(snapshot_reader_keeps_a_payload_less_ack_as_an_empty_collection) or test(cached_projection_does_not_promote_stale_overnight_during_regular_hours) or test(holiday_snapshot_stays_closed_with_stale_extended_blocks) or test(margin_ratios_reuse_a_recent_success_within_the_ttl) or test(cancel_order_uses_modify_order_cancel_operation) or test(subscribe_trade_accounts_forwards_every_account_id) or test(mainland_trade_market_falls_back_to_the_shanghai_request_location) or test(stale_or_malformed_push_updates_never_reach_the_lifecycle) or test(kline_adds_basic_and_minimum_age_delays_unsubscribe) or test(executor_sends_us_intraday_kline_session_all_on_the_wire)"
+          "test(declared_candle_periods_map_to_historical_and_realtime_types) or test(broker_kline_query_rejects_cursor_and_time_boundary_errors) or test(broker_kline_pagination_helpers_cover_sessions_bounds_and_listing_dates) or test(candle_period_catalog_rejects_missing_and_unmappable_intervals) or test(us_history_falls_back_to_session_all_when_a_route_is_rejected)"
         ],
         "testFilter": [
           "candle_period_catalog_rejects_missing_and_unmappable_intervals"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest-0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "78e36bd3",
-        "verifiedAt": "2026-09-25T13:08:40Z",
-        "receiptDigest": null
+        "verifiedCommit": "e7494998",
+        "verifiedAt": "2026-09-28T003048Z",
+        "receiptDigest": "sha256:f38ccd784ac1bf1afd47e5a14600fc1f016af24883a0787fb35b97b78f55801a"
       },
       "risk": "high",
       "owner": "futu_opend",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：未知/缺失 period 在 realtime mapper 返回 UnsupportedInterval（保留原始 interval 文本），历史编码保留文档化的 daily 回落，二者边界被显式钉住。"
@@ -156695,7 +156705,7 @@
           "function_exact：ETH 路由被 OpenD 以“时段仅支持设置 RTH，ETH，ALL”拒绝后，请求序列为 RTH→ETH→ALL 且 fallback 页返回三条完整窗口 candle。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -156703,28 +156713,33 @@
           "scripts/quality/cargo-nextest.mjs",
           "run",
           "-p",
+          "jftrade-integration-futu",
+          "-p",
           "jftrade-engine",
+          "--all-targets",
+          "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(us_history_falls_back_to_session_all_when_a_route_is_rejected)"
+          "test(declared_candle_periods_map_to_historical_and_realtime_types) or test(broker_kline_query_rejects_cursor_and_time_boundary_errors) or test(broker_kline_pagination_helpers_cover_sessions_bounds_and_listing_dates) or test(candle_period_catalog_rejects_missing_and_unmappable_intervals) or test(us_history_falls_back_to_session_all_when_a_route_is_rejected)"
         ],
         "testFilter": [
           "us_history_falls_back_to_session_all_when_a_route_is_rejected"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest-0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "dc862edb",
-        "verifiedAt": "2026-09-25T12:57:05Z",
-        "receiptDigest": null
+        "verifiedCommit": "e7494998",
+        "verifiedAt": "2026-09-28T003048Z",
+        "receiptDigest": "sha256:f38ccd784ac1bf1afd47e5a14600fc1f016af24883a0787fb35b97b78f55801a"
       },
       "risk": "high",
       "owner": "futu_opend",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：ETH 路由被 OpenD 以“时段仅支持设置 RTH，ETH，ALL”拒绝后，请求序列为 RTH→ETH→ALL 且 fallback 页返回三条完整窗口 candle。"

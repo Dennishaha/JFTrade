@@ -1,0 +1,116 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-integration-futu",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(declared_candle_periods_map_to_historical_and_realtime_types) or test(broker_kline_query_rejects_cursor_and_time_boundary_errors) or test(broker_kline_pagination_helpers_cover_sessions_bounds_and_listing_dates) or test(candle_period_catalog_rejects_missing_and_unmappable_intervals) or test(us_history_falls_back_to_session_all_when_a_route_is_rejected)"
+  ],
+  "runnerVersion": "cargo-nextest-0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-28T00:31:09Z",
+  "sourceState": {
+    "verifiedCommit": "e7494998df8fddd62807753aeec5cfacdf59d7fc",
+    "trackedDiffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "untrackedFiles": []
+  },
+  "rawOutputSha256": "3f018721c7ccf8a68655117ad4a6163503374f2326dff033c50f678dfe0aca89",
+  "passedTests": [
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_market_data::product_production_ports_market_data_quote::quote_reads_futu::tests::broker_kline_pagination_helpers_cover_sessions_bounds_and_listing_dates",
+    "jftrade-engine::jftrade_engine$product::tests::market_data_quote_read_tests::candle_pagination_tests::broker_kline_query_rejects_cursor_and_time_boundary_errors",
+    "jftrade-engine::jftrade_engine$product::tests::market_data_quote_read_tests::candle_pagination_tests::us_history_falls_back_to_session_all_when_a_route_is_rejected",
+    "jftrade-integration-futu::jftrade_integration_futu$kline_query::tests::candle_period_catalog_rejects_missing_and_unmappable_intervals",
+    "jftrade-integration-futu::jftrade_integration_futu$kline_query::tests::declared_candle_periods_map_to_historical_and_realtime_types"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1,
+      "nextest": {
+        "crate": "jftrade-integration-futu",
+        "test_binary": "live_opend_provider_runtime",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 2,
+      "nextest": {
+        "crate": "jftrade-integration-futu",
+        "test_binary": "jftrade_integration_futu",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 3,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 478,
+      "exec_time": 0.024054042,
+      "nextest": {
+        "crate": "jftrade-integration-futu",
+        "test_binary": "jftrade_integration_futu",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1631,
+      "exec_time": 0.169248709,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 1,
+      "measured": 0,
+      "filtered_out": 18446744073709551615,
+      "exec_time": 0,
+      "nextest": {
+        "crate": "jftrade-integration-futu",
+        "test_binary": "live_opend_provider_runtime",
+        "kind": "test"
+      }
+    }
+  ]
+}
