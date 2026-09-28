@@ -1,0 +1,64 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(provider_payload_sorts_tools_by_name_independent_of_agent_input_order) or test(a_cancelled_tool_call_reports_the_context_cancellation) or test(provider_probe_timeout_caps_configured_request_timeout) or test(challenge_continuation_supervisor_cancellation_signal_propagates) or test(chat_creates_the_session_once_and_reuses_its_stored_title)"
+  ],
+  "runnerVersion": "cargo-nextest-0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-28T01:18:25Z",
+  "sourceState": {
+    "verifiedCommit": "868e55163dcbc5cd24503723d2bbe189f395d286",
+    "trackedDiffSha256": "04ee9f1f0f8a0a7db0451b7bf00650d7139efb5351586e9259c190d53abc341d",
+    "untrackedFiles": []
+  },
+  "rawOutputSha256": "856c19b28e08d7201b160b8ed291f8ca31819ab67b9164df94658c2130809c5e",
+  "passedTests": [
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::chat_turn_tests::provider_payload_sorts_tools_by_name_independent_of_agent_input_order",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::fencing_tests::challenge_continuation_supervisor_cancellation_signal_propagates",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::provider_probe_timeout_caps_configured_request_timeout",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::run_projection_tests::chat_creates_the_session_once_and_reuses_its_stored_title",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::tool_deadline_tests::a_cancelled_tool_call_reports_the_context_cancellation"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 5,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1629,
+      "exec_time": 0.696458459,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    }
+  ]
+}

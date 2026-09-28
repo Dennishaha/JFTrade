@@ -76617,36 +76617,35 @@
       },
       "verification": {
         "argv": [
-          "env",
-          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(provider_payload_sorts_tools_by_name_independent_of_agent_input_order) or test(a_cancelled_tool_call_reports_the_context_cancellation) or test(provider_probe_timeout_caps_configured_request_timeout) or test(challenge_continuation_supervisor_cancellation_signal_propagates) or test(chat_creates_the_session_once_and_reuses_its_stored_title)"
         ],
         "testFilter": [
           "provider_payload_sorts_tools_by_name_independent_of_agent_input_order"
         ],
-        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "runnerVersion": "cargo-nextest-0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "53d1dbd7344efe589018e2c3ef11f10fc7b5d50c",
-        "verifiedAt": "2026-09-27T06:11:31Z",
-        "receiptDigest": "sha256:10e0f6f0303126574a56bb913fce6b78e03ef69a359136b6a92d3d6be3eb5bf8"
+        "verifiedCommit": "868e5516",
+        "verifiedAt": "2026-09-28T011809Z",
+        "receiptDigest": "sha256:cbeb1497d9d8ee4db2dbafb58ab65670dd8abbd74d3c020007e4ab127b04b211"
       },
       "risk": "high",
       "owner": "assistant_workflow",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "两个 agent 以相反工具输入顺序发起聊天，provider 捕获的两次请求都按名称输出 http.fetch、tools.search。"
@@ -77289,36 +77288,39 @@
           "function_exact：Go 断言取消后 executeRegisteredTool 返回 context.Canceled 且必须等 handler 真正退出（join 语义）。Rust 的 a_cancelled_tool_call_reports_the_context_cancellation 断言取消被归类为上下文中止且调用结束在 handler 退出之后，逐条对应“取消需 join 处理器”。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(compacted_context_survives_restart_and_precedes_current_user_message) or test(context_compaction_shrinks_the_projected_session_view) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(session_context_read_reports_pressure_without_compacting) or test(chat_creates_the_session_once_and_reuses_its_stored_title) or test(a_cancelled_tool_call_reports_the_context_cancellation) or test(the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals) or test(stale_replay_safe_claim_takes_over_with_fencing) or test(expired_tool_invocation_takeover_fences_old_ticket_with_live_run_lease) or test(infrastructure_resume_error_degrades_until_a_successful_scan) or test(context_notices_are_best_effort_and_keep_one_identity_across_updates) or test(an_unrecoverable_input_continuation_fails_the_run_with_the_reference_resume_state) or test(input_response_payload_anchors_the_resumed_run_to_the_original_request) or test(a_restarted_runtime_resumes_a_pending_input_run) or test(cancelling_a_pending_input_run_cancels_the_request_and_rejects_a_late_answer) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(adk_task_normalization_and_validation_match_go) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_store_fences_a_second_writer_and_serializes_concurrent_access) or test(paths_follow_go_environment_overrides_and_adk_artifact_lifecycle) or test(adk_session_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_v2_migration_rebuilds_runs_without_losing_payload) or test(adk_session_store_lifecycle_and_restart_durability) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success)"
+          "test(provider_payload_sorts_tools_by_name_independent_of_agent_input_order) or test(a_cancelled_tool_call_reports_the_context_cancellation) or test(provider_probe_timeout_caps_configured_request_timeout) or test(challenge_continuation_supervisor_cancellation_signal_propagates) or test(chat_creates_the_session_once_and_reuses_its_stored_title)"
         ],
         "testFilter": [
           "a_cancelled_tool_call_reports_the_context_cancellation"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest-0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "592df11d",
-        "verifiedAt": "2026-09-25T13:53:41Z",
-        "receiptDigest": null
+        "verifiedCommit": "868e5516",
+        "verifiedAt": "2026-09-28T011809Z",
+        "receiptDigest": "sha256:cbeb1497d9d8ee4db2dbafb58ab65670dd8abbd74d3c020007e4ab127b04b211"
       },
       "risk": "high",
       "owner": "assistant_workflow",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：Go 断言取消后 executeRegisteredTool 返回 context.Canceled 且必须等 handler 真正退出（join 语义）。Rust 的 a_cancelled_tool_call_reports_the_context_cancellation 断言取消被归类为上下文中止且调用结束在 handler 退出之后，逐条对应“取消需 join 处理器”。"
@@ -85213,36 +85215,35 @@
       },
       "verification": {
         "argv": [
-          "env",
-          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(provider_payload_sorts_tools_by_name_independent_of_agent_input_order) or test(a_cancelled_tool_call_reports_the_context_cancellation) or test(provider_probe_timeout_caps_configured_request_timeout) or test(challenge_continuation_supervisor_cancellation_signal_propagates) or test(chat_creates_the_session_once_and_reuses_its_stored_title)"
         ],
         "testFilter": [
           "provider_probe_timeout_caps_configured_request_timeout"
         ],
-        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "runnerVersion": "cargo-nextest-0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "53d1dbd7344efe589018e2c3ef11f10fc7b5d50c",
-        "verifiedAt": "2026-09-27T06:11:31Z",
-        "receiptDigest": "sha256:10e0f6f0303126574a56bb913fce6b78e03ef69a359136b6a92d3d6be3eb5bf8"
+        "verifiedCommit": "868e5516",
+        "verifiedAt": "2026-09-28T011809Z",
+        "receiptDigest": "sha256:cbeb1497d9d8ee4db2dbafb58ab65670dd8abbd74d3c020007e4ab127b04b211"
       },
       "risk": "high",
       "owner": "assistant_workflow",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "provider probe timeout cap 的默认值、保留值和上限钳制均由 Rust helper 逐项断言。"
@@ -86657,36 +86658,39 @@
           "function_exact：Go 断言等待续跑租约时上下文取消返回 context.Canceled。Rust 的 challenge_continuation_supervisor_cancellation_signal_propagates 断言取消信号传播到等待方，逐条对应。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(adk_approval_resolution_stages_continuation_and_denial_cas) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(cascade_deletion_fences_stale_writer_and_session_recovery) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(terminal_failure_mapping_matches_the_reference_table) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(adk_read_routes_reject_blank_decoded_identifiers) or test(challenge_continuation_supervisor_cancellation_signal_propagates) or test(running_stream_payload_replays_all_nonterminal_events) or test(production_approval_resume_after_the_stream_closed_completes_without_late_frames) or test(chat_creates_the_session_once_and_reuses_its_stored_title) or test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(a_continuation_for_a_missing_run_is_a_silent_no_op) or test(challenge_continuation_supervisor_rejects_new_work_once_stopping) or test(the_run_read_routes_reconcile_expired_runs_before_serving) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(non_resumable_running_run_does_not_make_runtime_unready) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(graph_exposes_one_deterministic_ready_task) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success) or test(challenge_continuation_supervisor_concurrent_spawn_shutdown_race) or test(challenge_continuation_supervisor_claims_are_exclusive_and_released) or test(production_adk_updates_do_not_create_missing_agents_or_providers) or test(snapshot_and_provider_test_boundaries_fail_closed) or test(adk_session_delete_missing_is_reported_with_the_session_error_code) or test(a_second_compaction_is_rejected_while_the_session_gate_is_held)"
+          "test(provider_payload_sorts_tools_by_name_independent_of_agent_input_order) or test(a_cancelled_tool_call_reports_the_context_cancellation) or test(provider_probe_timeout_caps_configured_request_timeout) or test(challenge_continuation_supervisor_cancellation_signal_propagates) or test(chat_creates_the_session_once_and_reuses_its_stored_title)"
         ],
         "testFilter": [
           "challenge_continuation_supervisor_cancellation_signal_propagates"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest-0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "f6a6c5f6",
-        "verifiedAt": "2026-09-25T14:00:05Z",
-        "receiptDigest": null
+        "verifiedCommit": "868e5516",
+        "verifiedAt": "2026-09-28T011809Z",
+        "receiptDigest": "sha256:cbeb1497d9d8ee4db2dbafb58ab65670dd8abbd74d3c020007e4ab127b04b211"
       },
       "risk": "high",
       "owner": "assistant_workflow",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：Go 断言等待续跑租约时上下文取消返回 context.Canceled。Rust 的 challenge_continuation_supervisor_cancellation_signal_propagates 断言取消信号传播到等待方，逐条对应。"
@@ -88640,36 +88644,39 @@
           "function_exact：Go 的 resolveSession 只在创建时写 title（消息前 28 个 rune），复用显式 sessionId 时原样返回既有行。Rust 之前每次 chat 都用当次消息 upsert app 层 session title，导致会话被自己的第二条消息改名。修复：仅当 get_session_agent_id 为空时创建 app 层 session；Google-ADK session 行改为按需创建且不再重写 state。回归：40 rune 的中文消息创建出 28 rune title，第二条消息复用后 title 不变且 session 仍只有一行。不同 agent 的 mismatch 与 missing session 由 gate_tests::chat_rejects_a_session_owned_by_a_different_agent 覆盖。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(adk_approval_resolution_stages_continuation_and_denial_cas) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(cascade_deletion_fences_stale_writer_and_session_recovery) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(terminal_failure_mapping_matches_the_reference_table) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(adk_read_routes_reject_blank_decoded_identifiers) or test(challenge_continuation_supervisor_cancellation_signal_propagates) or test(running_stream_payload_replays_all_nonterminal_events) or test(production_approval_resume_after_the_stream_closed_completes_without_late_frames) or test(chat_creates_the_session_once_and_reuses_its_stored_title) or test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(a_continuation_for_a_missing_run_is_a_silent_no_op) or test(challenge_continuation_supervisor_rejects_new_work_once_stopping) or test(the_run_read_routes_reconcile_expired_runs_before_serving) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(non_resumable_running_run_does_not_make_runtime_unready) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(graph_exposes_one_deterministic_ready_task) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success) or test(challenge_continuation_supervisor_concurrent_spawn_shutdown_race) or test(challenge_continuation_supervisor_claims_are_exclusive_and_released) or test(production_adk_updates_do_not_create_missing_agents_or_providers) or test(snapshot_and_provider_test_boundaries_fail_closed) or test(adk_session_delete_missing_is_reported_with_the_session_error_code) or test(a_second_compaction_is_rejected_while_the_session_gate_is_held)"
+          "test(provider_payload_sorts_tools_by_name_independent_of_agent_input_order) or test(a_cancelled_tool_call_reports_the_context_cancellation) or test(provider_probe_timeout_caps_configured_request_timeout) or test(challenge_continuation_supervisor_cancellation_signal_propagates) or test(chat_creates_the_session_once_and_reuses_its_stored_title)"
         ],
         "testFilter": [
           "chat_creates_the_session_once_and_reuses_its_stored_title"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest-0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "f6a6c5f6",
-        "verifiedAt": "2026-09-25T14:00:05Z",
-        "receiptDigest": null
+        "verifiedCommit": "868e5516",
+        "verifiedAt": "2026-09-28T011809Z",
+        "receiptDigest": "sha256:cbeb1497d9d8ee4db2dbafb58ab65670dd8abbd74d3c020007e4ab127b04b211"
       },
       "risk": "high",
       "owner": "assistant_workflow",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：Go 的 resolveSession 只在创建时写 title（消息前 28 个 rune），复用显式 sessionId 时原样返回既有行。Rust 之前每次 chat 都用当次消息 upsert app 层 session title，导致会话被自己的第二条消息改名。修复：仅当 get_session_agent_id 为空时创建 app 层 session；Google-ADK session 行改为按需创建且不再重写 state。回归：40 rune 的中文消息创建出 28 rune title，第二条消息复用后 title 不变且 session 仍只有一行。不同 agent 的 mismatch 与 missing session 由 gate_tests::chat_rejects_a_session_owned_by_a_different_agent 覆盖。"
