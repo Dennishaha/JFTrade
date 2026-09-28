@@ -1,0 +1,73 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-integration-futu",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(recoverable_error_policy_gates_replay_safe_reads) or test(closed_ready_session_is_replaced_on_peer_close) or test(reconnect_completes_while_a_notification_listener_reads_coordinator_state) or test(below_minimum_version_fails_session_initialization) or test(init_response_and_session_transport_failures_stay_typed)"
+  ],
+  "runnerVersion": "cargo-nextest-0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-28T01:50:42Z",
+  "sourceState": {
+    "verifiedCommit": "9141cb303cc926bc7494b31af58d757cb8952778",
+    "trackedDiffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "untrackedFiles": []
+  },
+  "rawOutputSha256": "8691574cb891a5f89c932ccd431f408bf4c3893654277016ba7e57c0c62ace54",
+  "passedTests": [
+    "jftrade-integration-futu::client_recovery_boundaries$below_minimum_version_fails_session_initialization",
+    "jftrade-integration-futu::client_recovery_boundaries$init_response_and_session_transport_failures_stay_typed",
+    "jftrade-integration-futu::client_recovery_boundaries$recoverable_error_policy_gates_replay_safe_reads",
+    "jftrade-integration-futu::client_recovery_boundaries$closed_ready_session_is_replaced_on_peer_close",
+    "jftrade-integration-futu::client_recovery_boundaries$reconnect_completes_while_a_notification_listener_reads_coordinator_state"
+  ],
+  "failedTests": [],
+  "ignoredTests": [
+    "jftrade-integration-futu::live_opend_provider_runtime$live_opend_provider_runtime_reads_generation_fenced_hk_quote"
+  ],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 5,
+      "exec_time": 0.102352707,
+      "nextest": {
+        "crate": "jftrade-integration-futu",
+        "test_binary": "client_recovery_boundaries",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 1,
+      "measured": 0,
+      "filtered_out": 18446744073709551615,
+      "exec_time": 0,
+      "nextest": {
+        "crate": "jftrade-integration-futu",
+        "test_binary": "live_opend_provider_runtime",
+        "kind": "test"
+      }
+    }
+  ]
+}

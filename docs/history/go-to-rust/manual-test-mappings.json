@@ -154670,7 +154670,7 @@
           "function_exact（含功能修复）：Go 断言 withClient 只执行一次、withRetryingClient 对 recoverable 错误重放一次，且 isRecoverableOpenDErr 接受 ErrClosed/ErrRequestTimeout/broken pipe/connection reset/EOF/use of closed network connection 并拒绝 nil 与 permission denied。Rust 新增 recoverable_error.rs 作为唯一分类 owner（is_recoverable_error/classify_recoverable/classify_recoverable_io），basic_quote_query::is_recoverable_session_error 改为委托该 owner；socket 级测试断言 peer close 后 coordinator 用 generation 2 重放订阅，服务端只接受 2 个会话。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -154688,21 +154688,19 @@
           "recoverable_error_policy_gates_replay_safe_reads",
           "recoverable_errors_match_go_is_recoverable_opend_err"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest-0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "01fc8ae0",
-        "verifiedAt": "2026-09-25T12:51:19Z",
-        "receiptDigest": null
+        "verifiedCommit": "9141cb303cc926bc7494b31af58d757cb8952778",
+        "verifiedAt": "2026-09-28T01:50:42Z",
+        "receiptDigest": "sha256:8691574cb891a5f89c932ccd431f408bf4c3893654277016ba7e57c0c62ace54"
       },
       "risk": "high",
       "owner": "futu_opend",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact（含功能修复）：Go 断言 withClient 只执行一次、withRetryingClient 对 recoverable 错误重放一次，且 isRecoverableOpenDErr 接受 ErrClosed/ErrRequestTimeout/broken pipe/connection reset/EOF/use of closed network connection 并拒绝 nil 与 permission denied。Rust 新增 recoverable_error.rs 作为唯一分类 owner（is_recoverable_error/classify_recoverable/classify_recoverable_io），basic_quote_query::is_recoverable_session_error 改为委托该 owner；socket 级测试断言 peer close 后 coordinator 用 generation 2 重放订阅，服务端只接受 2 个会话。"
@@ -154735,7 +154733,7 @@
           "function_exact（收窄到会话替换边界的等价部分）：Go 断言已 ready 的 client 关闭后 ensureClient 返回不同 replacement；Rust 断言 ready 会话（generation 1）在 peer close 后被替换为 generation 2 且新会话可用、recorder generation 同步为 2。Go 同测试中的 order-book/system-notify handler 绑定与 stale-client 通知丢弃属 Wails/旧 handler owner，见本批 :198 边界说明。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -154752,21 +154750,19 @@
         "testFilter": [
           "closed_ready_session_is_replaced_on_peer_close"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest-0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "01fc8ae0",
-        "verifiedAt": "2026-09-25T12:51:19Z",
-        "receiptDigest": null
+        "verifiedCommit": "9141cb303cc926bc7494b31af58d757cb8952778",
+        "verifiedAt": "2026-09-28T01:50:42Z",
+        "receiptDigest": "sha256:8691574cb891a5f89c932ccd431f408bf4c3893654277016ba7e57c0c62ace54"
       },
       "risk": "high",
       "owner": "futu_opend",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact（收窄到会话替换边界的等价部分）：Go 断言已 ready 的 client 关闭后 ensureClient 返回不同 replacement；Rust 断言 ready 会话（generation 1）在 peer close 后被替换为 generation 2 且新会话可用、recorder generation 同步为 2。Go 同测试中的 order-book/system-notify handler 绑定与 stale-client 通知丢弃属 Wails/旧 handler owner，见本批 :198 边界说明。"
@@ -154799,7 +154795,7 @@
           "function_exact（含功能修复）：Go 让 notification handler 在重连进行中调用 exchange.ConnectionGeneration() 并断言不死锁、generation 递增。Rust 原先在 runtime_task 持有 coordinator 锁时调用 listener.on_event，任何回读 coordinator 的 handler 会自锁；现已把事件发布移到 drop(coordinator) 之后。新 socket 测试的 listener 在 on_event 中回读 generation，断言收到 generation 2 且 run 计数递增。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -154816,21 +154812,19 @@
         "testFilter": [
           "reconnect_completes_while_a_notification_listener_reads_coordinator_state"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest-0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "01fc8ae0",
-        "verifiedAt": "2026-09-25T12:51:19Z",
-        "receiptDigest": null
+        "verifiedCommit": "9141cb303cc926bc7494b31af58d757cb8952778",
+        "verifiedAt": "2026-09-28T01:50:42Z",
+        "receiptDigest": "sha256:8691574cb891a5f89c932ccd431f408bf4c3893654277016ba7e57c0c62ace54"
       },
       "risk": "high",
       "owner": "futu_opend",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact（含功能修复）：Go 让 notification handler 在重连进行中调用 exchange.ConnectionGeneration() 并断言不死锁、generation 递增。Rust 原先在 runtime_task 持有 coordinator 锁时调用 listener.on_event，任何回读 coordinator 的 handler 会自锁；现已把事件发布移到 drop(coordinator) 之后。新 socket 测试的 listener 在 on_event 中回读 generation，断言收到 generation 2 且 run 计数递增。"
@@ -154927,7 +154921,7 @@
           "function_exact（含功能修复）：Go 的 serverVer=1 令 Connect 失败（validateInitConnectResponse 用 nil build 调 ValidateMinimumVersion）。Rust 原先只在 health probe 的 GetGlobalState 阶段校验版本，InitConnect 报旧版本仍可建立会话；现 initialize_session 增加 version_supported_without_build 守卫并返回新 typed 变体 OpenDTcpProbeError::UnsupportedVersion（消息含检测到的版本与最低要求），engine 的 OpenD 健康投影同步把该变体归入 degraded 协议失败。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -154944,21 +154938,19 @@
         "testFilter": [
           "below_minimum_version_fails_session_initialization"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest-0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "01fc8ae0",
-        "verifiedAt": "2026-09-25T12:51:19Z",
-        "receiptDigest": null
+        "verifiedCommit": "9141cb303cc926bc7494b31af58d757cb8952778",
+        "verifiedAt": "2026-09-28T01:50:42Z",
+        "receiptDigest": "sha256:8691574cb891a5f89c932ccd431f408bf4c3893654277016ba7e57c0c62ace54"
       },
       "risk": "high",
       "owner": "futu_opend",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact（含功能修复）：Go 的 serverVer=1 令 Connect 失败（validateInitConnectResponse 用 nil build 调 ValidateMinimumVersion）。Rust 原先只在 health probe 的 GetGlobalState 阶段校验版本，InitConnect 报旧版本仍可建立会话；现 initialize_session 增加 version_supported_without_build 守卫并返回新 typed 变体 OpenDTcpProbeError::UnsupportedVersion（消息含检测到的版本与最低要求），engine 的 OpenD 健康投影同步把该变体归入 degraded 协议失败。"
@@ -154991,7 +154983,7 @@
           "function_exact：Go 断言 InitConnect retType!=0、成功但缺 S2C、旧版本、InitConnect/GetGlobalState 期间断线全部返回错误。Rust 以四个脚本化服务端逐一断言 Rejected{ret_type:1,message=denied}、MissingInitState、以及丢包发生在 InitConnect 与 GetGlobalState 时的 typed closed（后者经 OpenDTcpProbe::probe，与 Go 在 initializeOpenDSession 内完成 GetGlobalState 的分层不同但断言等价）。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -155008,21 +155000,19 @@
         "testFilter": [
           "init_response_and_session_transport_failures_stay_typed"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest-0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "01fc8ae0",
-        "verifiedAt": "2026-09-25T12:51:19Z",
-        "receiptDigest": null
+        "verifiedCommit": "9141cb303cc926bc7494b31af58d757cb8952778",
+        "verifiedAt": "2026-09-28T01:50:42Z",
+        "receiptDigest": "sha256:8691574cb891a5f89c932ccd431f408bf4c3893654277016ba7e57c0c62ace54"
       },
       "risk": "high",
       "owner": "futu_opend",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：Go 断言 InitConnect retType!=0、成功但缺 S2C、旧版本、InitConnect/GetGlobalState 期间断线全部返回错误。Rust 以四个脚本化服务端逐一断言 Rejected{ret_type:1,message=denied}、MissingInitState、以及丢包发生在 InitConnect 与 GetGlobalState 时的 typed closed（后者经 OpenDTcpProbe::probe，与 Go 在 initializeOpenDSession 内完成 GetGlobalState 的分层不同但断言等价）。"
