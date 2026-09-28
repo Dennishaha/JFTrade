@@ -66748,7 +66748,7 @@
           "function_exact：Go 的 `strategy.optimize` 处理器为每个候选定义起一条真实异步回测（`deps.EnqueueBacktest`，candidateInput.DefinitionID = 该候选），失败时 `CancelBacktest` 回滚已入队候选，成功则 `store.SaveOptimizationTask` 落`OptimizationTask{ID:\"opt-<UTC时间戳>\",Status:\"queued\",Objective,Runs:[{DefinitionID,RunID}]}` 并返回 `{taskId,status,objective,runs,message}`。Rust 本批补齐了缺失的工具：`PRODUCTION_TOOL_DEFINITIONS` 增加 `strategy.optimize`（adapter=BacktestStart、category=strategy、displayName=策略优化），`tool_access_policy` 设 permission=optimize_strategy / risk=low / requires_approval_in=[approval]，`MODEL_EXPOSED_TOOLS` 暴露给模型，`ProductionAdkToolExecutor` 绑定 `product_strategy_optimize_execution::execute_strategy_optimize`。执行器按候选逐个 `BacktestsWriteInput::Start` 入队（新增 `BacktestsWriteInput::Cancel` 供回滚，生产实现复用既有 `cancel_backtest`），落 `adk_optimization_tasks` 行，返回同一 envelope。回归两条：`strategy_optimize_enqueues_every_candidate_and_persists_the_task`（每个候选一条 Start、任务行可读、runs[] 引用 run-id）与 `strategy_optimize_rolls_back_candidates_and_validates_the_request`（第二个候选失败时回滚 run-def-a、不落任务行、缺失/超限报错文本）。探针证据：删掉失败分支的 `cancel_candidates` 调用后回滚回归立即失败（cancelled_runs 为空），回滚后通过。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -66763,21 +66763,19 @@
         "testFilter": [
           "strategy_optimize_enqueues_every_candidate_and_persists_the_task"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest-0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "3d356b9a",
-        "verifiedAt": "2026-09-25T13:47:02Z",
-        "receiptDigest": null
+        "verifiedCommit": "dcebaeabc652f7c8d7e69f62841796701c7aabe8",
+        "verifiedAt": "2026-09-28T02:06:07Z",
+        "receiptDigest": "sha256:484a697d804103853875d6d7e2d34429dc85981bc916d7568cb3e1fecca74a49"
       },
       "risk": "high",
       "owner": "assistant_workflow",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：Go 的 `strategy.optimize` 处理器为每个候选定义起一条真实异步回测（`deps.EnqueueBacktest`，candidateInput.DefinitionID = 该候选），失败时 `CancelBacktest` 回滚已入队候选，成功则 `store.SaveOptimizationTask` 落`OptimizationTask{ID:\"opt-<UTC时间戳>\",Status:\"queued\",Objective,Runs:[{DefinitionID,RunID}]}` 并返回 `{taskId,status,objective,runs,message}`。Rust 本批补齐了缺失的工具：`PRODUCTION_TOOL_DEFINITIONS` 增加 `strategy.optimize`（adapter=BacktestStart、category=strategy、displayName=策略优化），`tool_access_policy` 设 permission=optimize_strategy / risk=low / requires_approval_in=[approval]，`MODEL_EXPOSED_TOOLS` 暴露给模型，`ProductionAdkToolExecutor` 绑定 `product_strategy_optimize_execution::execute_strategy_optimize`。执行器按候选逐个 `BacktestsWriteInput::Start` 入队（新增 `BacktestsWriteInput::Cancel` 供回滚，生产实现复用既有 `cancel_backtest`），落 `adk_optimization_tasks` 行，返回同一 envelope。回归两条：`strategy_optimize_enqueues_every_candidate_and_persists_the_task`（每个候选一条 Start、任务行可读、runs[] 引用 run-id）与 `strategy_optimize_rolls_back_candidates_and_validates_the_request`（第二个候选失败时回滚 run-def-a、不落任务行、缺失/超限报错文本）。探针证据：删掉失败分支的 `cancel_candidates` 调用后回滚回归立即失败（cancelled_runs 为空），回滚后通过。"
@@ -69320,7 +69318,7 @@
           "已对齐：启用后 status.running=true 且 endpoint=http://127.0.0.1:<port>/mcp；禁用后 running=false 且原端口可被重新绑定（监听器已释放）。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -69335,21 +69333,19 @@
         "testFilter": [
           "disabled_runtime_has_stopped_status_and_releases_listener"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest-0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "3d356b9a",
-        "verifiedAt": "2026-09-25T13:47:02Z",
-        "receiptDigest": null
+        "verifiedCommit": "dcebaeabc652f7c8d7e69f62841796701c7aabe8",
+        "verifiedAt": "2026-09-28T02:06:07Z",
+        "receiptDigest": "sha256:484a697d804103853875d6d7e2d34429dc85981bc916d7568cb3e1fecca74a49"
       },
       "risk": "high",
       "owner": "assistant_workflow",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "已对齐：启用后 status.running=true 且 endpoint=http://127.0.0.1:<port>/mcp；禁用后 running=false 且原端口可被重新绑定（监听器已释放）。"
@@ -73578,7 +73574,7 @@
           "已对齐（结构边界）：可达解析边界为缺失 agent（agent not found）、禁用 agent（agent is disabled）、禁用 provider（agent provider is unavailable）、无凭据 provider（agent provider API keys is not configured）、无 provider 且 store 无默认（default agent provider is not configured），以及带凭据 provider 成功解析。Go 的 session 标题 28 字符、技能缺失、关闭 store、DROP TABLE 分支分别由 `chat_creates_the_session_once_and_reuses_its_stored_title`、`adk_agent_write_requires_registered_skills_and_keeps_declared_tools` 与 store 表缺失用例覆盖。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -73593,21 +73589,19 @@
         "testFilter": [
           "chat_resolution_reports_missing_agents_and_unusable_providers"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest-0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "3d356b9a",
-        "verifiedAt": "2026-09-25T13:47:02Z",
-        "receiptDigest": null
+        "verifiedCommit": "dcebaeabc652f7c8d7e69f62841796701c7aabe8",
+        "verifiedAt": "2026-09-28T02:06:07Z",
+        "receiptDigest": "sha256:484a697d804103853875d6d7e2d34429dc85981bc916d7568cb3e1fecca74a49"
       },
       "risk": "high",
       "owner": "assistant_workflow",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "已对齐（结构边界）：可达解析边界为缺失 agent（agent not found）、禁用 agent（agent is disabled）、禁用 provider（agent provider is unavailable）、无凭据 provider（agent provider API keys is not configured）、无 provider 且 store 无默认（default agent provider is not configured），以及带凭据 provider 成功解析。Go 的 session 标题 28 字符、技能缺失、关闭 store、DROP TABLE 分支分别由 `chat_creates_the_session_once_and_reuses_its_stored_title`、`adk_agent_write_requires_registered_skills_and_keeps_declared_tools` 与 store 表缺失用例覆盖。"
@@ -103042,7 +103036,7 @@
           "function_exact：目录投影对每个工具断言 requiresApprovalIn 是数组，并明确断言 workflow.wait/system.status 的 requiresApprovalIn == []（空列表必须序列化为 []，不能省略）。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -103057,21 +103051,19 @@
         "testFilter": [
           "tool_catalog_marks_external_unavailable_tools_non_callable"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest-0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "6a9d161a8c1645596ad565eb64fd488fec7a3077",
-        "verifiedAt": "2026-09-25T14:07:13Z",
-        "receiptDigest": null
+        "verifiedCommit": "dcebaeabc652f7c8d7e69f62841796701c7aabe8",
+        "verifiedAt": "2026-09-28T02:06:07Z",
+        "receiptDigest": "sha256:484a697d804103853875d6d7e2d34429dc85981bc916d7568cb3e1fecca74a49"
       },
       "risk": "high",
       "owner": "assistant_workflow",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：目录投影对每个工具断言 requiresApprovalIn 是数组，并明确断言 workflow.wait/system.status 的 requiresApprovalIn == []（空列表必须序列化为 []，不能省略）。"
@@ -108479,7 +108471,7 @@
           "function_exact：本批新增用例覆盖四类断言。(1) 执行器错误（TOOL_EXECUTION_TIMEOUT / context deadline exceeded）→ envelope success=false、errorCode=TIMEOUT、retryable=true，且嵌套 error 同步镜像 code/message/retryable；(2) 结构化响应 {\"success\":false,\"error\":{\"code\":\"rate_limited\",\"retryable\":true}} → structuredToolErrorEnvelope 保留 RATE_LIMITED 与 retryable=true（大小写归一），嵌套 error 不含 code 时回退 TOOL_EXECUTION_FAILED（刻意不用 Go 的 \"<NIL>\" fmt.Sprint 产物）；(3) 取消（TOOL_EXECUTION_CANCELLED / context canceled）→ errorCode=CANCELLED、retryable=false。结构化响应的 retryable 也经持久化聚合验证（product_production_assembly_tests::production_adk_metrics_are_aggregated_from_persisted_records 断言 retryableErrors=1 与 byErrorCode）。探针：把 map_tool_output 的失败检测短路为恒 SUCCEEDED 后该用例与 structured_tool_response_failures_match_the_reference_helpers 同时转红。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -108494,21 +108486,19 @@
         "testFilter": [
           "tool_error_envelopes_classify_timeout_cancellation_and_structured_metadata"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest-0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "6a9d161a8c1645596ad565eb64fd488fec7a3077",
-        "verifiedAt": "2026-09-25T14:07:13Z",
-        "receiptDigest": null
+        "verifiedCommit": "dcebaeabc652f7c8d7e69f62841796701c7aabe8",
+        "verifiedAt": "2026-09-28T02:06:07Z",
+        "receiptDigest": "sha256:484a697d804103853875d6d7e2d34429dc85981bc916d7568cb3e1fecca74a49"
       },
       "risk": "high",
       "owner": "assistant_workflow",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：本批新增用例覆盖四类断言。(1) 执行器错误（TOOL_EXECUTION_TIMEOUT / context deadline exceeded）→ envelope success=false、errorCode=TIMEOUT、retryable=true，且嵌套 error 同步镜像 code/message/retryable；(2) 结构化响应 {\"success\":false,\"error\":{\"code\":\"rate_limited\",\"retryable\":true}} → structuredToolErrorEnvelope 保留 RATE_LIMITED 与 retryable=true（大小写归一），嵌套 error 不含 code 时回退 TOOL_EXECUTION_FAILED（刻意不用 Go 的 \"<NIL>\" fmt.Sprint 产物）；(3) 取消（TOOL_EXECUTION_CANCELLED / context canceled）→ errorCode=CANCELLED、retryable=false。结构化响应的 retryable 也经持久化聚合验证（product_production_assembly_tests::production_adk_metrics_are_aggregated_from_persisted_records 断言 retryableErrors=1 与 byErrorCode）。探针：把 map_tool_output 的失败检测短路为恒 SUCCEEDED 后该用例与 structured_tool_response_failures_match_the_reference_helpers 同时转红。"

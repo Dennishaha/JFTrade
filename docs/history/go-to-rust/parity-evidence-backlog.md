@@ -4,7 +4,7 @@
 
 当前积压：**2955 项**（按当前 `manual-test-mappings.json` 的 `[~]` 条目重算）。
 
-最新审计快照（2026-09-28 Futu quote/empty-boundary strict follow-up）：Go `4451`、Rust `3382`，`function_exact=1500`、`partial=2317`、`boundary=634`、`missing=0`；Parity anchor reconcile 为 `1793/1747/0/0/46`（unique/recorded/unrecorded/stale/unknown）。严格审计仍有 **3642 个 function_exact evidence/receipt gaps**（需 reviewed assertions、Parity anchor、reuse relation 与 passed receipt）；严格审计未通过。
+最新审计快照（2026-09-28 Assistant engine-gates strict follow-up）：Go `4451`、Rust `3382`，`function_exact=1500`、`partial=2317`、`boundary=634`、`missing=0`；Parity anchor reconcile 为 `1793/1747/0/0/46`（unique/recorded/unrecorded/stale/unknown）。严格审计仍有 **3632 个 function_exact evidence/receipt gaps**（需 reviewed assertions、Parity anchor、reuse relation 与 passed receipt）；严格审计未通过。
 
 ## 按领域
 
@@ -141,3 +141,4 @@
 - 2026-09-28 Futu subscription-reconciler strict evidence：五条单引用 P1 exact 已完成 reviewed assertion 与 receipt `sha256:c3d81229c5939b1e25203f0f1c269d609600a0ed226da538c5fc7b1e8bd5e3e0`（integration-futu nextest 5/5，live OpenD ignored）；覆盖 subscription sharing/deferred release、concurrent idempotence、retry ladder/reacquire、delayed fallback 与 connection quota reset。strict gap 降至 3662，仍有历史 evidence/receipt 缺口，整体未通过。
 - 2026-09-28 Futu client-recovery strict evidence：五条单引用 P1 exact 已完成 reviewed assertion 与 receipt `sha256:8691574cb891a5f89c932ccd431f408bf4c3893654277016ba7e57c0c62ace54`（integration-futu nextest 5/5，live OpenD ignored）；覆盖 replay-safe recoverable errors、session replacement、callback lock release、minimum version 与 typed transport failures。strict gap 降至 3652，仍有历史 evidence/receipt 缺口，整体未通过。
 - 2026-09-28 Futu quote/empty-boundary strict evidence：五条单引用 P1 exact 已完成 reviewed assertion 与 receipt `sha256:65f7118836c30241fe900c00e4cb632ce9c8ead298e4c7d90e93f87bab8c69c1`（integration-futu nextest 10/10，live OpenD ignored）；覆盖 empty normalization、order-book/basic-quote empty/rejection paths、duplicate quote projection 与 invalid/payload-less snapshot rows。strict gap 降至 3642，仍有历史 evidence/receipt 缺口，整体未通过。
+- 2026-09-28 Assistant engine-gates strict evidence：五条单引用 P1 exact 已完成 reviewed assertion 与 receipt `sha256:484a697d804103853875d6d7e2d34429dc85981bc916d7568cb3e1fecca74a49`（engine nextest 5/5）；覆盖 strategy optimization persistence、MCP runtime lifecycle、agent/provider resolution、tool catalog availability 与 retryability envelope。strict gap 降至 3632，仍有历史 evidence/receipt 缺口，整体未通过。
