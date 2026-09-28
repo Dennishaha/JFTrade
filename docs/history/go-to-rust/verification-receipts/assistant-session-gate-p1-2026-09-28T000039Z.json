@@ -1,0 +1,66 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(auto_compaction_skips_while_another_compaction_holds_the_session_gate) or test(model_context_read_compacts_only_when_the_session_gate_is_free) or test(workflow_auto_compaction_proceeds_under_an_active_run_while_chat_waits) or test(protected_tail_rewinds_a_pending_approval_to_its_original_call) or test(a_run_waiting_for_approval_does_not_block_chat_auto_compaction)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-28T00:00:39Z",
+  "sourceState": {
+    "verifiedCommit": "aa1527dd43052b051b178f19709f65d79782b970",
+    "trackedDiffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "untrackedFiles": []
+  },
+  "rawOutputSha256": "5d5ebee146428b36e683687861b518bd7ece1ba28ce3a2b795213283740d00bc",
+  "passedTests": [
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::session_context_tests::a_run_waiting_for_approval_does_not_block_chat_auto_compaction",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::session_context_tests::auto_compaction_skips_while_another_compaction_holds_the_session_gate",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::session_context_tests::model_context_read_compacts_only_when_the_session_gate_is_free",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::session_context_tests::protected_tail_rewinds_a_pending_approval_to_its_original_call",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::session_context_tests::workflow_auto_compaction_proceeds_under_an_active_run_while_chat_waits"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 5,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1629,
+      "exec_time": 1.003062877,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    }
+  ]
+}

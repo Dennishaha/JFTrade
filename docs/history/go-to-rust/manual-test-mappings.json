@@ -92999,7 +92999,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/product_adk_session_context_tests.rs::auto_compaction_skips_while_another_compaction_holds_the_session_gate",
       "conclusion": "function_exact（本批实现并验证）：持锁时 maybe_auto_compact_session（workflow 入口 allow_active_run=true，对应 Go 测试调用的 MaybeAutoCompactSessionDuringWorkflow）返回 0 个 delta、不写通知；释放后同一调用产生 delta 并落库。反向探针：让 gate 恒成功 → 本行转红（gated 调用直接执行压缩并发布 delta）。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked session_context_tests::",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(auto_compaction_skips_while_another_compaction_holds_the_session_gate) or test(model_context_read_compacts_only_when_the_session_gate_is_free) or test(workflow_auto_compaction_proceeds_under_an_active_run_while_chat_waits) or test(protected_tail_rewinds_a_pending_approval_to_its_original_call) or test(a_run_waiting_for_approval_does_not_block_chat_auto_compaction)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/assistant/engine/session_context_test.go",
@@ -93025,36 +93025,45 @@
           "function_exact（本批实现并验证）：持锁时 maybe_auto_compact_session（workflow 入口 allow_active_run=true，对应 Go 测试调用的 MaybeAutoCompactSessionDuringWorkflow）返回 0 个 delta、不写通知；释放后同一调用产生 delta 并落库。反向探针：让 gate 恒成功 → 本行转红（gated 调用直接执行压缩并发布 delta）。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(protected_tail_ignores_approvals_closed_by_a_denied_run) or test(context_compaction_shrinks_the_projected_session_view) or test(protected_tail_keeps_only_the_approval_that_is_still_pending) or test(protected_tail_ignores_an_approval_with_a_durable_tool_outcome) or test(protected_tail_starts_at_the_earliest_unresolved_approval) or test(a_chat_turn_autocompacts_the_session_before_the_provider_payload) or test(a_rejected_compaction_records_the_failed_notice) or test(a_second_compaction_is_rejected_while_the_session_gate_is_held) or test(event_must_match_the_run_and_session_before_projection_changes) or test(duplicate_event_key_with_different_content_rolls_back_projection) or test(adk_session_store_lifecycle_and_restart_durability) or test(missing_session_database_is_not_created_and_run_is_unchanged) or test(pending_input_is_persisted_and_answer_resume_is_idempotent) or test(model_context_autocompacts_before_the_provider_payload) or test(session_context_read_reports_pressure_without_compacting) or test(session_context_window_follows_the_composer_provider_override) or test(each_context_compaction_creates_the_next_current_revision) or test(manual_context_compaction_writes_the_done_notice_into_the_timeline) or test(auto_compaction_emits_streaming_then_final_notice_and_context_delta) or test(auto_compaction_skips_while_another_compaction_holds_the_session_gate) or test(model_context_read_compacts_only_when_the_session_gate_is_free) or test(workflow_auto_compaction_proceeds_under_an_active_run_while_chat_waits) or test(protected_tail_rewinds_a_pending_approval_to_its_original_call) or test(session_context_ignores_handoff_segments_without_a_revision)"
+          "test(auto_compaction_skips_while_another_compaction_holds_the_session_gate) or test(model_context_read_compacts_only_when_the_session_gate_is_free) or test(workflow_auto_compaction_proceeds_under_an_active_run_while_chat_waits) or test(protected_tail_rewinds_a_pending_approval_to_its_original_call) or test(a_run_waiting_for_approval_does_not_block_chat_auto_compaction)"
         ],
         "testFilter": [
-          "auto_compaction_skips_while_another_compaction_holds_the_session_gate"
+          "auto_compaction_skips_while_another_compaction_holds_the_session_gate",
+          "model_context_read_compacts_only_when_the_session_gate_is_free",
+          "workflow_auto_compaction_proceeds_under_an_active_run_while_chat_waits",
+          "protected_tail_rewinds_a_pending_approval_to_its_original_call",
+          "a_run_waiting_for_approval_does_not_block_chat_auto_compaction"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "a601d03c8fc607e147f1f4eb377f7cba1020592f",
-        "verifiedAt": "2026-09-25T14:03:33Z",
-        "receiptDigest": null
+        "verifiedCommit": "aa1527dd43052b051b178f19709f65d79782b970",
+        "verifiedAt": "2026-09-28T00:00:39Z",
+        "receiptDigest": "sha256:c6e22cccbab1c95b191598b13684cc7d6632461fc80d06f8fbed43fb736981b2"
       },
       "risk": "high",
       "owner": "assistant_workflow",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact（本批实现并验证）：持锁时 maybe_auto_compact_session（workflow 入口 allow_active_run=true，对应 Go 测试调用的 MaybeAutoCompactSessionDuringWorkflow）返回 0 个 delta、不写通知；释放后同一调用产生 delta 并落库。反向探针：让 gate 恒成功 → 本行转红（gated 调用直接执行压缩并发布 delta）。"
@@ -93066,7 +93075,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/product_adk_session_context_tests.rs::model_context_read_compacts_only_when_the_session_gate_is_free",
       "conclusion": "function_exact（本批实现并验证）：Go 断言 gate 被占用时模型上下文读取不压缩、释放后同一读取完成压缩。Rust 对应路径为 Runtime.auto_compact_for_model_context（无通知、取 gate、理由文本「... before model call」）；测试持锁调用后 GET 会话上下文仍 activeHandoffCount=0/autoCompacted=false，释放后同一调用使 autoCompacted=true 且 activeHandoffCount>0。反向探针同 :341（阈值恒 None）与 gate 探针共同覆盖。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked session_context_tests::",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(auto_compaction_skips_while_another_compaction_holds_the_session_gate) or test(model_context_read_compacts_only_when_the_session_gate_is_free) or test(workflow_auto_compaction_proceeds_under_an_active_run_while_chat_waits) or test(protected_tail_rewinds_a_pending_approval_to_its_original_call) or test(a_run_waiting_for_approval_does_not_block_chat_auto_compaction)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/assistant/engine/session_context_test.go",
@@ -93092,36 +93101,45 @@
           "function_exact（本批实现并验证）：Go 断言 gate 被占用时模型上下文读取不压缩、释放后同一读取完成压缩。Rust 对应路径为 Runtime.auto_compact_for_model_context（无通知、取 gate、理由文本「... before model call」）；测试持锁调用后 GET 会话上下文仍 activeHandoffCount=0/autoCompacted=false，释放后同一调用使 autoCompacted=true 且 activeHandoffCount>0。反向探针同 :341（阈值恒 None）与 gate 探针共同覆盖。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(protected_tail_ignores_approvals_closed_by_a_denied_run) or test(context_compaction_shrinks_the_projected_session_view) or test(protected_tail_keeps_only_the_approval_that_is_still_pending) or test(protected_tail_ignores_an_approval_with_a_durable_tool_outcome) or test(protected_tail_starts_at_the_earliest_unresolved_approval) or test(a_chat_turn_autocompacts_the_session_before_the_provider_payload) or test(a_rejected_compaction_records_the_failed_notice) or test(a_second_compaction_is_rejected_while_the_session_gate_is_held) or test(event_must_match_the_run_and_session_before_projection_changes) or test(duplicate_event_key_with_different_content_rolls_back_projection) or test(adk_session_store_lifecycle_and_restart_durability) or test(missing_session_database_is_not_created_and_run_is_unchanged) or test(pending_input_is_persisted_and_answer_resume_is_idempotent) or test(model_context_autocompacts_before_the_provider_payload) or test(session_context_read_reports_pressure_without_compacting) or test(session_context_window_follows_the_composer_provider_override) or test(each_context_compaction_creates_the_next_current_revision) or test(manual_context_compaction_writes_the_done_notice_into_the_timeline) or test(auto_compaction_emits_streaming_then_final_notice_and_context_delta) or test(auto_compaction_skips_while_another_compaction_holds_the_session_gate) or test(model_context_read_compacts_only_when_the_session_gate_is_free) or test(workflow_auto_compaction_proceeds_under_an_active_run_while_chat_waits) or test(protected_tail_rewinds_a_pending_approval_to_its_original_call) or test(session_context_ignores_handoff_segments_without_a_revision)"
+          "test(auto_compaction_skips_while_another_compaction_holds_the_session_gate) or test(model_context_read_compacts_only_when_the_session_gate_is_free) or test(workflow_auto_compaction_proceeds_under_an_active_run_while_chat_waits) or test(protected_tail_rewinds_a_pending_approval_to_its_original_call) or test(a_run_waiting_for_approval_does_not_block_chat_auto_compaction)"
         ],
         "testFilter": [
-          "model_context_read_compacts_only_when_the_session_gate_is_free"
+          "auto_compaction_skips_while_another_compaction_holds_the_session_gate",
+          "model_context_read_compacts_only_when_the_session_gate_is_free",
+          "workflow_auto_compaction_proceeds_under_an_active_run_while_chat_waits",
+          "protected_tail_rewinds_a_pending_approval_to_its_original_call",
+          "a_run_waiting_for_approval_does_not_block_chat_auto_compaction"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "a601d03c8fc607e147f1f4eb377f7cba1020592f",
-        "verifiedAt": "2026-09-25T14:03:33Z",
-        "receiptDigest": null
+        "verifiedCommit": "aa1527dd43052b051b178f19709f65d79782b970",
+        "verifiedAt": "2026-09-28T00:00:39Z",
+        "receiptDigest": "sha256:c6e22cccbab1c95b191598b13684cc7d6632461fc80d06f8fbed43fb736981b2"
       },
       "risk": "high",
       "owner": "assistant_workflow",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact（本批实现并验证）：Go 断言 gate 被占用时模型上下文读取不压缩、释放后同一读取完成压缩。Rust 对应路径为 Runtime.auto_compact_for_model_context（无通知、取 gate、理由文本「... before model call」）；测试持锁调用后 GET 会话上下文仍 activeHandoffCount=0/autoCompacted=false，释放后同一调用使 autoCompacted=true 且 activeHandoffCount>0。反向探针同 :341（阈值恒 None）与 gate 探针共同覆盖。"
@@ -93133,7 +93151,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/product_adk_session_context_tests.rs::workflow_auto_compaction_proceeds_under_an_active_run_while_chat_waits",
       "conclusion": "function_exact（本批实现并验证）：存在 RUNNING 父 run 时，常规入口（allow_active_run=false）返回 0 delta，workflow 入口（true）产生 context delta 并使会话落 autoCompacted=true、activeHandoffCount>0；RUNNING 判定对齐 Go HasActiveRun 注释（仅 RUNNING 阻塞，等待审批的 PENDING 不阻塞）。反向探针：把 active-run 跳过条件改为恒 false → 常规入口执行压缩并发布 delta，本行转红。剩余差异：Rust 的 workflow 入口目前以 allow_active_run 参数暴露（供 workflow canvas 调用），Go 的 workflow_canvas.go 直接调用 MaybeAutoCompactSessionDuringWorkflow；Rust 侧 canvas 调用点接线作为现有 workflow 边界条目跟踪。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked session_context_tests::",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(auto_compaction_skips_while_another_compaction_holds_the_session_gate) or test(model_context_read_compacts_only_when_the_session_gate_is_free) or test(workflow_auto_compaction_proceeds_under_an_active_run_while_chat_waits) or test(protected_tail_rewinds_a_pending_approval_to_its_original_call) or test(a_run_waiting_for_approval_does_not_block_chat_auto_compaction)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/assistant/engine/session_context_test.go",
@@ -93159,36 +93177,45 @@
           "function_exact（本批实现并验证）：存在 RUNNING 父 run 时，常规入口（allow_active_run=false）返回 0 delta，workflow 入口（true）产生 context delta 并使会话落 autoCompacted=true、activeHandoffCount>0；RUNNING 判定对齐 Go HasActiveRun 注释（仅 RUNNING 阻塞，等待审批的 PENDING 不阻塞）。反向探针：把 active-run 跳过条件改为恒 false → 常规入口执行压缩并发布 delta，本行转红。剩余差异：Rust 的 workflow 入口目前以 allow_active_run 参数暴露（供 workflow canvas 调用），Go 的 workflow_canvas.go 直接调用 MaybeAutoCompactSessionDuringWorkflow；Rust 侧 canvas 调用点接线作为现有 workflow 边界条目跟踪。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(protected_tail_ignores_approvals_closed_by_a_denied_run) or test(context_compaction_shrinks_the_projected_session_view) or test(protected_tail_keeps_only_the_approval_that_is_still_pending) or test(protected_tail_ignores_an_approval_with_a_durable_tool_outcome) or test(protected_tail_starts_at_the_earliest_unresolved_approval) or test(a_chat_turn_autocompacts_the_session_before_the_provider_payload) or test(a_rejected_compaction_records_the_failed_notice) or test(a_second_compaction_is_rejected_while_the_session_gate_is_held) or test(event_must_match_the_run_and_session_before_projection_changes) or test(duplicate_event_key_with_different_content_rolls_back_projection) or test(adk_session_store_lifecycle_and_restart_durability) or test(missing_session_database_is_not_created_and_run_is_unchanged) or test(pending_input_is_persisted_and_answer_resume_is_idempotent) or test(model_context_autocompacts_before_the_provider_payload) or test(session_context_read_reports_pressure_without_compacting) or test(session_context_window_follows_the_composer_provider_override) or test(each_context_compaction_creates_the_next_current_revision) or test(manual_context_compaction_writes_the_done_notice_into_the_timeline) or test(auto_compaction_emits_streaming_then_final_notice_and_context_delta) or test(auto_compaction_skips_while_another_compaction_holds_the_session_gate) or test(model_context_read_compacts_only_when_the_session_gate_is_free) or test(workflow_auto_compaction_proceeds_under_an_active_run_while_chat_waits) or test(protected_tail_rewinds_a_pending_approval_to_its_original_call) or test(session_context_ignores_handoff_segments_without_a_revision)"
+          "test(auto_compaction_skips_while_another_compaction_holds_the_session_gate) or test(model_context_read_compacts_only_when_the_session_gate_is_free) or test(workflow_auto_compaction_proceeds_under_an_active_run_while_chat_waits) or test(protected_tail_rewinds_a_pending_approval_to_its_original_call) or test(a_run_waiting_for_approval_does_not_block_chat_auto_compaction)"
         ],
         "testFilter": [
-          "workflow_auto_compaction_proceeds_under_an_active_run_while_chat_waits"
+          "auto_compaction_skips_while_another_compaction_holds_the_session_gate",
+          "model_context_read_compacts_only_when_the_session_gate_is_free",
+          "workflow_auto_compaction_proceeds_under_an_active_run_while_chat_waits",
+          "protected_tail_rewinds_a_pending_approval_to_its_original_call",
+          "a_run_waiting_for_approval_does_not_block_chat_auto_compaction"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "a601d03c8fc607e147f1f4eb377f7cba1020592f",
-        "verifiedAt": "2026-09-25T14:03:33Z",
-        "receiptDigest": null
+        "verifiedCommit": "aa1527dd43052b051b178f19709f65d79782b970",
+        "verifiedAt": "2026-09-28T00:00:39Z",
+        "receiptDigest": "sha256:c6e22cccbab1c95b191598b13684cc7d6632461fc80d06f8fbed43fb736981b2"
       },
       "risk": "high",
       "owner": "assistant_workflow",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact（本批实现并验证）：存在 RUNNING 父 run 时，常规入口（allow_active_run=false）返回 0 delta，workflow 入口（true）产生 context delta 并使会话落 autoCompacted=true、activeHandoffCount>0；RUNNING 判定对齐 Go HasActiveRun 注释（仅 RUNNING 阻塞，等待审批的 PENDING 不阻塞）。反向探针：把 active-run 跳过条件改为恒 false → 常规入口执行压缩并发布 delta，本行转红。剩余差异：Rust 的 workflow 入口目前以 allow_active_run 参数暴露（供 workflow canvas 调用），Go 的 workflow_canvas.go 直接调用 MaybeAutoCompactSessionDuringWorkflow；Rust 侧 canvas 调用点接线作为现有 workflow 边界条目跟踪。"
@@ -93401,7 +93428,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/product_adk_session_context_tests.rs::protected_tail_rewinds_a_pending_approval_to_its_original_call",
       "conclusion": "function_exact：Go 对带 originalFunctionCall 的审批回退到原始函数调用事件的索引；Rust 审批信封的 functionCallId 指向原始调用，测试断言保护尾起点回退到索引 1 而不是审批信封自身的索引。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(protected_tail_rewinds_a_pending_approval_to_its_original_call)'",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(auto_compaction_skips_while_another_compaction_holds_the_session_gate) or test(model_context_read_compacts_only_when_the_session_gate_is_free) or test(workflow_auto_compaction_proceeds_under_an_active_run_while_chat_waits) or test(protected_tail_rewinds_a_pending_approval_to_its_original_call) or test(a_run_waiting_for_approval_does_not_block_chat_auto_compaction)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/assistant/engine/session_context_test.go",
@@ -93427,36 +93454,45 @@
           "function_exact：Go 对带 originalFunctionCall 的审批回退到原始函数调用事件的索引；Rust 审批信封的 functionCallId 指向原始调用，测试断言保护尾起点回退到索引 1 而不是审批信封自身的索引。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(protected_tail_ignores_approvals_closed_by_a_denied_run) or test(context_compaction_shrinks_the_projected_session_view) or test(protected_tail_keeps_only_the_approval_that_is_still_pending) or test(protected_tail_ignores_an_approval_with_a_durable_tool_outcome) or test(protected_tail_starts_at_the_earliest_unresolved_approval) or test(a_chat_turn_autocompacts_the_session_before_the_provider_payload) or test(a_rejected_compaction_records_the_failed_notice) or test(a_second_compaction_is_rejected_while_the_session_gate_is_held) or test(event_must_match_the_run_and_session_before_projection_changes) or test(duplicate_event_key_with_different_content_rolls_back_projection) or test(adk_session_store_lifecycle_and_restart_durability) or test(missing_session_database_is_not_created_and_run_is_unchanged) or test(pending_input_is_persisted_and_answer_resume_is_idempotent) or test(model_context_autocompacts_before_the_provider_payload) or test(session_context_read_reports_pressure_without_compacting) or test(session_context_window_follows_the_composer_provider_override) or test(each_context_compaction_creates_the_next_current_revision) or test(manual_context_compaction_writes_the_done_notice_into_the_timeline) or test(auto_compaction_emits_streaming_then_final_notice_and_context_delta) or test(auto_compaction_skips_while_another_compaction_holds_the_session_gate) or test(model_context_read_compacts_only_when_the_session_gate_is_free) or test(workflow_auto_compaction_proceeds_under_an_active_run_while_chat_waits) or test(protected_tail_rewinds_a_pending_approval_to_its_original_call) or test(session_context_ignores_handoff_segments_without_a_revision)"
+          "test(auto_compaction_skips_while_another_compaction_holds_the_session_gate) or test(model_context_read_compacts_only_when_the_session_gate_is_free) or test(workflow_auto_compaction_proceeds_under_an_active_run_while_chat_waits) or test(protected_tail_rewinds_a_pending_approval_to_its_original_call) or test(a_run_waiting_for_approval_does_not_block_chat_auto_compaction)"
         ],
         "testFilter": [
-          "protected_tail_rewinds_a_pending_approval_to_its_original_call"
+          "auto_compaction_skips_while_another_compaction_holds_the_session_gate",
+          "model_context_read_compacts_only_when_the_session_gate_is_free",
+          "workflow_auto_compaction_proceeds_under_an_active_run_while_chat_waits",
+          "protected_tail_rewinds_a_pending_approval_to_its_original_call",
+          "a_run_waiting_for_approval_does_not_block_chat_auto_compaction"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "a601d03c8fc607e147f1f4eb377f7cba1020592f",
-        "verifiedAt": "2026-09-25T14:03:33Z",
-        "receiptDigest": null
+        "verifiedCommit": "aa1527dd43052b051b178f19709f65d79782b970",
+        "verifiedAt": "2026-09-28T00:00:39Z",
+        "receiptDigest": "sha256:c6e22cccbab1c95b191598b13684cc7d6632461fc80d06f8fbed43fb736981b2"
       },
       "risk": "high",
       "owner": "assistant_workflow",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：Go 对带 originalFunctionCall 的审批回退到原始函数调用事件的索引；Rust 审批信封的 functionCallId 指向原始调用，测试断言保护尾起点回退到索引 1 而不是审批信封自身的索引。"
@@ -93785,7 +93821,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/product_adk_session_context_tests.rs::a_run_waiting_for_approval_does_not_block_chat_auto_compaction",
       "conclusion": "function_exact：Go 的 HasActiveRun 只把 RUNNING 运行视为执行中，等待审批的运行不阻塞压缩；Rust session_has_running_run 只匹配 RUNNING，测试断言 PENDING 运行下 chat 入口仍完成压缩、RUNNING 运行下同一入口跳过。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(a_run_waiting_for_approval_does_not_block_chat_auto_compaction)'",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(auto_compaction_skips_while_another_compaction_holds_the_session_gate) or test(model_context_read_compacts_only_when_the_session_gate_is_free) or test(workflow_auto_compaction_proceeds_under_an_active_run_while_chat_waits) or test(protected_tail_rewinds_a_pending_approval_to_its_original_call) or test(a_run_waiting_for_approval_does_not_block_chat_auto_compaction)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/assistant/engine/session_context_test.go",
@@ -93811,36 +93847,45 @@
           "function_exact：Go 的 HasActiveRun 只把 RUNNING 运行视为执行中，等待审批的运行不阻塞压缩；Rust session_has_running_run 只匹配 RUNNING，测试断言 PENDING 运行下 chat 入口仍完成压缩、RUNNING 运行下同一入口跳过。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(session_context_tracks_events_appended_after_a_compaction) or test(a_run_waiting_for_approval_does_not_block_chat_auto_compaction) or test(compaction_preserves_the_call_of_a_pending_approval) or test(builtin_skill_catalog_stays_registered_alongside_external_installs) or test(session_context_window_follows_the_composer_provider_override) or test(reviewed_mcp_schemas_match_canonical_go_fixture_deeply) or test(session_delete_missing_is_idempotent_and_blank_ids_are_rejected) or test(completed_run_reopens_only_for_a_fresh_durable_approval) or test(adk_audit_route_filters_by_kind_and_subject_id) or test(test_shared_artifacts_preserved_and_user_session_deletion_rejected) or test(adk_store_lifecycle_and_restart_durability) or test(test_idempotent_retry_and_partial_failure_crash_recovery) or test(test_adk_cascade_cleanup_removes_all_entities_across_three_databases) or test(adk_session_page_filters_by_agent_and_title_and_paginates) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_session_delete_missing_is_reported_with_the_session_error_code) or test(adk_approval_page_orders_by_latest_update_and_counts_filtered_rows) or test(adk_maintenance_compacts_every_owned_database_and_requires_the_writer_lease) or test(chat_rejects_a_session_owned_by_a_different_agent) or test(cancelling_a_run_denies_its_pending_approvals) or test(adk_cancel_run_missing_is_the_dedicated_cancel_failure) or test(adk_resolve_approval_missing_returns_the_idempotent_empty_envelope) or test(adk_run_listing_filters_and_sorts_newest_first) or test(saved_provider_normalizes_the_request_timeout_on_write) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(run_start_freezes_the_configured_run_timeout_from_settings) or test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(expired_runs_use_each_runs_own_timeout_window)"
+          "test(auto_compaction_skips_while_another_compaction_holds_the_session_gate) or test(model_context_read_compacts_only_when_the_session_gate_is_free) or test(workflow_auto_compaction_proceeds_under_an_active_run_while_chat_waits) or test(protected_tail_rewinds_a_pending_approval_to_its_original_call) or test(a_run_waiting_for_approval_does_not_block_chat_auto_compaction)"
         ],
         "testFilter": [
+          "auto_compaction_skips_while_another_compaction_holds_the_session_gate",
+          "model_context_read_compacts_only_when_the_session_gate_is_free",
+          "workflow_auto_compaction_proceeds_under_an_active_run_while_chat_waits",
+          "protected_tail_rewinds_a_pending_approval_to_its_original_call",
           "a_run_waiting_for_approval_does_not_block_chat_auto_compaction"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "401604517dde7ec5b5ea8721ce8fbcac51b94726",
-        "verifiedAt": "2026-09-25T14:05:33Z",
-        "receiptDigest": null
+        "verifiedCommit": "aa1527dd43052b051b178f19709f65d79782b970",
+        "verifiedAt": "2026-09-28T00:00:39Z",
+        "receiptDigest": "sha256:c6e22cccbab1c95b191598b13684cc7d6632461fc80d06f8fbed43fb736981b2"
       },
       "risk": "high",
       "owner": "assistant_workflow",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：Go 的 HasActiveRun 只把 RUNNING 运行视为执行中，等待审批的运行不阻塞压缩；Rust session_has_running_run 只匹配 RUNNING，测试断言 PENDING 运行下 chat 入口仍完成压缩、RUNNING 运行下同一入口跳过。"
