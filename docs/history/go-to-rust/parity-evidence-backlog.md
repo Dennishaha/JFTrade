@@ -4,7 +4,7 @@
 
 当前积压：**2955 项**（按当前 `manual-test-mappings.json` 的 `[~]` 条目重算）。
 
-最新审计快照（2026-09-27 Assistant/session-context strict follow-up）：Go `4451`、Rust `3377`，`function_exact=1496`、`partial=2321`、`boundary=634`、`missing=0`；Parity anchor reconcile 为 `1788/1742/0/0/46`（unique/recorded/unrecorded/stale/unknown）。严格审计仍有 **3948 个 function_exact evidence/receipt gaps**（需 reviewed assertions、Parity anchor、reuse relation 与 passed receipt）；严格审计未通过。
+最新审计快照（2026-09-28 Futu subscription/trade strict follow-up）：Go `4451`、Rust `3382`，`function_exact=1500`、`partial=2317`、`boundary=634`、`missing=0`；Parity anchor reconcile 为 `1793/1747/0/0/46`（unique/recorded/unrecorded/stale/unknown）。严格审计仍有 **3723 个 function_exact evidence/receipt gaps**（需 reviewed assertions、Parity anchor、reuse relation 与 passed receipt）；严格审计未通过。
 
 ## 按领域
 
@@ -126,3 +126,4 @@
 - 2026-09-27 Futu OpenD boundary strict evidence：五条单引用 P1 exact 已完成 reviewed assertion 与 receipt `sha256:b10f6c20a8a268cddbaed2a56114e7e63c4a24caad8e1cd6a856d6c70d17c420`（integration-futu nextest 5/5，live OpenD ignored）；覆盖 timeout/keep-alive、history decode、depth closed-session 与 trading disconnected boundaries。strict gap 降至 3749，仍有历史 evidence/receipt 缺口，整体未通过。
 - 2026-09-27 Futu session/trade strict evidence：五条 Go 映射、七个 Rust owner tests 已完成 reviewed assertion 与 receipt `sha256:9b9427f38df767a2d63f217953fd27bae053fda603622c86d9a7ef33d51b3814`（engine/integration-futu 联合 nextest 7/7，live OpenD ignored）；覆盖 session normalization/defaults、previous-close rules、trade authority 与 CN location fallback。strict gap 降至 3739，仍有历史 evidence/receipt 缺口，整体未通过。
 - 2026-09-28 Assistant session-gate strict evidence：五条单引用 P1 exact 已完成 reviewed assertion 与 receipt `sha256:c6e22cccbab1c95b191598b13684cc7d6632461fc80d06f8fbed43fb736981b2`（engine nextest 5/5）；覆盖 compaction gate、workflow parent、pending approval tail 与 active-run detection。strict gap 降至 3729，仍有历史 evidence/receipt 缺口，整体未通过。
+- 2026-09-28 Futu subscription/trade strict evidence：六条单引用 P1 exact 已完成 reviewed assertion 与 receipt `sha256:66b32e68a91fcc48f6557dcb436c9ea2d5d16af485d6418fcddc83bb83a25dc1`（integration-futu + engine nextest 6/6）；覆盖 subscription ack/retry、connection generation fencing、terminal close、failed-connect fail-closed 与交易写入断连前置条件。strict gap 降至 3723，仍有历史 evidence/receipt 缺口，整体未通过。

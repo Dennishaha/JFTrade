@@ -1,18 +1,18 @@
 # Go → Rust 对齐成果摘要
 
-更新时间：2026-09-27。本文是迁移期工作摘要，不替代架构事实、门禁结果或发布资格。
+更新时间：2026-09-28。本文是迁移期工作摘要，不替代架构事实、门禁结果或发布资格。
 
 ## 当前基线
 
 | 项目 | 数值 | 解释 |
 | --- | ---: | --- |
 | Go 测试候选 | 4451 | 冻结基线 `go:452dea11` |
-| Rust 测试 | 3377 | 数量不代表行为等价 |
-| `function_exact` | 1496 | 有真实且唯一的 Rust 测试证据 |
-| `partial` | 2321 | 只覆盖部分断言，不能视为完成 |
+| Rust 测试 | 3382 | 数量不代表行为等价 |
+| `function_exact` | 1500 | 有真实且唯一的 Rust 测试证据 |
+| `partial` | 2317 | 只覆盖部分断言，不能视为完成 |
 | `boundary` | 634 | 当前架构边界或没有同形对象 |
 | 重复映射 | 0 | 审计脚本结果 |
-| Parity 锚点 | 1788 / 1742 / 0 / 0 / 46 | unique / recorded / unrecorded / stale / unknown |
+| Parity 锚点 | 1793 / 1747 / 0 / 0 / 46 | unique / recorded / unrecorded / stale / unknown |
 
 ## 已完成的工作
 
@@ -286,3 +286,4 @@
 - 2026-09-27 Futu OpenD boundary strict evidence：复核 request timeout stale-waiter isolation、keep-alive shutdown、history optional-field/empty-result handling、closed-session depth rejection 与 disconnected trading reads 五条 P1 exact；integration-futu nextest 5/5 通过（live OpenD suite 保持 ignored），receipt `sha256:b10f6c20a8a268cddbaed2a56114e7e63c4a24caad8e1cd6a856d6c70d17c420`。mapping assertionCoverage/reuse/verification 已同步；当前 strict gap 3749，整体严格审计仍未通过。
 - 2026-09-27 Futu session/trade strict evidence：复核 K 线 session selection/annotation/default validation、US previous-close session rules、trade-account authority fallback 与 mainland Shanghai location fallback 七条 P1 exact；engine/integration-futu 联合 nextest 7/7 通过（live OpenD suite 保持 ignored），receipt `sha256:9b9427f38df767a2d63f217953fd27bae053fda603622c86d9a7ef33d51b3814`。mapping assertionCoverage/reuse/verification 已同步；当前 strict gap 3739，整体严格审计仍未通过。
 - 2026-09-28 Assistant session-gate strict evidence：复核 auto-compaction gate exclusion/free-path、workflow active-parent compaction、pending-approval protected tail 与 approval-waiting active-run detection 五条 P1 exact；engine nextest 5/5 通过，receipt `sha256:c6e22cccbab1c95b191598b13684cc7d6632461fc80d06f8fbed43fb736981b2`。mapping assertionCoverage/reuse/verification 已同步；当前 strict gap 3729，整体严格审计仍未通过。
+- 2026-09-28 Futu subscription/trade strict evidence：复核 `TestExchangeSubscriptionCacheUpdatesOnlyAfterOpenDConfirmation`、`TestConnectionGenerationInvalidatesClosedSessionAndItsSubscriptions`、`TestExchangeCloseIsTerminalAndPreventsOrphanedReconnect`、`TestFailedConnectionDoesNotAdvanceEstablishedSessionGeneration`、`TestTradeWriteMethodsEnforcePrerequisitesAndDisconnectedState` 与 `TestModifyOrderReturnsStableEmptyResult` 六条 P1 exact；integration-futu + engine 联合 nextest 6/6 通过，receipt `sha256:66b32e68a91fcc48f6557dcb436c9ea2d5d16af485d6418fcddc83bb83a25dc1`。mapping assertionCoverage/reuse/verification 已同步；当前审计为 Go 4451、Rust 3382、`function_exact=1500`、`partial=2317`、`boundary=634`、`missing=0`，anchor `1793/1747/0/0/46`；strict gap 降至 3723，整体严格审计仍未通过。

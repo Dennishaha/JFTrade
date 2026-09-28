@@ -4,6 +4,8 @@
 
 当前进度：已确认 `4451` / `4451`，待核对 `0`。
 
+最新审计（2026-09-28）：Rust `3382`，`function_exact=1500`、`partial=2317`、`boundary=634`、`missing=0`；anchor reconcile `1793/1747/0/0/46`；strict gaps `3723`，仍未通过。
+
 | 业务域 | 已确认 | 待核对 |
 |---|---:|---:|
 | api_transport | 951 | 0 |

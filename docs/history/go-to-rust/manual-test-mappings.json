@@ -169242,7 +169242,7 @@
           "function_exact：place/unlock/subscribe 三条写入路径在断开会话后全部报错，不静默成功。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -169251,27 +169251,32 @@
           "run",
           "-p",
           "jftrade-integration-futu",
+          "-p",
+          "jftrade-engine",
+          "--all-targets",
+          "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(trade_write_methods_enforce_prerequisites_and_disconnected_state)"
+          "test(failed_or_replayed_subscriptions_are_not_active_until_opend_confirms) or test(closed_session_generation_invalidates_its_subscriptions_and_requires_replay) or test(coordinator_close_is_terminal_and_prevents_orphaned_reconnect) or test(failed_connection_does_not_advance_the_established_session_generation) or test(trade_write_methods_enforce_prerequisites_and_disconnected_state) or test(modify_order_returns_stable_identity_for_an_empty_success_payload)"
         ],
         "testFilter": [
           "trade_write_methods_enforce_prerequisites_and_disconnected_state"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest-0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "01fc8ae0",
-        "verifiedAt": "2026-09-25T12:51:19Z",
-        "receiptDigest": null
+        "verifiedCommit": "dfe36f0c",
+        "verifiedAt": "2026-09-28T000608Z",
+        "receiptDigest": "sha256:66b32e68a91fcc48f6557dcb436c9ea2d5d16af485d6418fcddc83bb83a25dc1"
       },
       "risk": "high",
       "owner": "futu_opend",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：place/unlock/subscribe 三条写入路径在断开会话后全部报错，不静默成功。"
@@ -169376,7 +169381,7 @@
           "function_exact：成功但 orderID=0 且无 orderIDEx 时返回稳定零值身份，不伪造 id、不报错。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -169385,27 +169390,32 @@
           "run",
           "-p",
           "jftrade-integration-futu",
+          "-p",
+          "jftrade-engine",
+          "--all-targets",
+          "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(modify_order_returns_stable_identity_for_an_empty_success_payload)"
+          "test(failed_or_replayed_subscriptions_are_not_active_until_opend_confirms) or test(closed_session_generation_invalidates_its_subscriptions_and_requires_replay) or test(coordinator_close_is_terminal_and_prevents_orphaned_reconnect) or test(failed_connection_does_not_advance_the_established_session_generation) or test(trade_write_methods_enforce_prerequisites_and_disconnected_state) or test(modify_order_returns_stable_identity_for_an_empty_success_payload)"
         ],
         "testFilter": [
           "modify_order_returns_stable_identity_for_an_empty_success_payload"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest-0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "01fc8ae0",
-        "verifiedAt": "2026-09-25T12:51:19Z",
-        "receiptDigest": null
+        "verifiedCommit": "dfe36f0c",
+        "verifiedAt": "2026-09-28T000608Z",
+        "receiptDigest": "sha256:66b32e68a91fcc48f6557dcb436c9ea2d5d16af485d6418fcddc83bb83a25dc1"
       },
       "risk": "high",
       "owner": "futu_opend",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：成功但 orderID=0 且无 orderIDEx 时返回稳定零值身份，不伪造 id、不报错。"
@@ -173907,7 +173917,7 @@
           "function_exact：K 线 subscribe 首次被 OpenD 配额拒绝时不进入 active、armed 5s 重试；重试成功后才 active。unsubscribe 失败时记录保留并递增重试，窗口内不重复调用，到点再次发出精确 unsubscribe。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -173918,31 +173928,30 @@
           "jftrade-integration-futu",
           "-p",
           "jftrade-engine",
-          "-p",
-          "jftrade-broker",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(resolver_projects_us_early_close_extended_window_with_timezone) or test(us_intraday_futu_candles_carry_calendar_resolved_session_labels) or test(broker_lot_size_initializes_minimum_and_step_quantity) or test(buying_power_requires_opend_trade_reader_and_forwards_max_quantity_query) or test(previous_close_condition_switches_on_session_type) or test(previous_close_condition_does_not_rewrite_non_us_unknown_sessions) or test(resolve_account_honors_requested_authority_and_falls_back_like_go) or test(security_snapshot_coordinator_caches_clones_and_uses_market_batches) or test(security_snapshot_coordinator_enforces_sliding_budget_and_does_not_cache_failures) or test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(security_snapshot_coordinator_handles_empty_and_unexpected_results) or test(symbol_scoped_snapshot_errors_are_detectable_through_context) or test(closed_ready_session_is_replaced_on_peer_close) or test(stock_screen_fallback_wire_value_helpers_match_go_coercions) or test(stock_screen_fallback_parses_rows_and_market_groups) or test(stock_screen_fallback_cancellation_and_adapter_entry_point) or test(stock_screen_fallback_coordinates_copies_and_errors) or test(snapshot_fallback_params_use_strict_delayed_quote_fields) or test(futu_stock_screen_snapshot_fallback_uses_static_ids_without_subscription) or test(stock_screen_snapshot_coordinator_caches_rows_and_negative_results) or test(futu_stock_screen_snapshot_fallback_reports_screen_errors) or test(runtime_shutdown_cancels_then_joins_its_worker) or test(basic_quote_pushes_drop_rows_without_a_usable_security_or_price) or test(provider_reconnect_publishes_resync_events_and_wakes_reconciliation) or test(coordinator_close_is_terminal_and_prevents_orphaned_reconnect) or test(failed_or_replayed_subscriptions_are_not_active_until_opend_confirms) or test(closed_session_generation_invalidates_its_subscriptions_and_requires_replay) or test(failed_connection_does_not_advance_the_established_session_generation) or test(hk_lunch_snapshot_keeps_previous_close_and_does_not_mark_extended_hours) or test(history_query_converts_supported_trade_markets_to_local_wall_clock) or test(history_fill_call_uses_history_protocol_and_forwards_time_filter) or test(history_query_converts_hk_rfc3339_to_local_wall_clock) or test(history_fill_read_projects_fill_identity) or test(resolve_trade_market_covers_requested_and_fallback_branches_like_go) or test(broker_read_projects_max_trade_quantity_snapshot) or test(max_trade_quantity_call_preserves_serial_and_projects_optional_fields) or test(margin_ratio_unknown_stock_code_extraction_matches_go_boundaries) or test(margin_ratio_unknown_stock_recovery_keeps_nil_security_rows_and_code_forms) or test(margin_ratio_server_throttling_maps_to_the_typed_rate_limit) or test(margin_ratio_wire_throttling_reaches_the_typed_rate_limit_variant)"
+          "test(failed_or_replayed_subscriptions_are_not_active_until_opend_confirms) or test(closed_session_generation_invalidates_its_subscriptions_and_requires_replay) or test(coordinator_close_is_terminal_and_prevents_orphaned_reconnect) or test(failed_connection_does_not_advance_the_established_session_generation) or test(trade_write_methods_enforce_prerequisites_and_disconnected_state) or test(modify_order_returns_stable_identity_for_an_empty_success_payload)"
         ],
         "testFilter": [
           "failed_or_replayed_subscriptions_are_not_active_until_opend_confirms"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest-0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "5eab8d75",
-        "verifiedAt": "2026-09-25T13:16:09Z",
-        "receiptDigest": null
+        "verifiedCommit": "dfe36f0c",
+        "verifiedAt": "2026-09-28T000608Z",
+        "receiptDigest": "sha256:66b32e68a91fcc48f6557dcb436c9ea2d5d16af485d6418fcddc83bb83a25dc1"
       },
       "risk": "high",
       "owner": "futu_opend",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：K 线 subscribe 首次被 OpenD 配额拒绝时不进入 active、armed 5s 重试；重试成功后才 active。unsubscribe 失败时记录保留并递增重试，窗口内不重复调用，到点再次发出精确 unsubscribe。"
@@ -174118,7 +174127,7 @@
           "function_exact：reconfigure_for_reconnect 后 generation 严格递增、旧 record 不再 active（active_basic_instruments 为空），旧 generation 的 ack 被拒绝；在新 generation 确认 replay 后重新 active。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -174129,31 +174138,30 @@
           "jftrade-integration-futu",
           "-p",
           "jftrade-engine",
-          "-p",
-          "jftrade-broker",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(resolver_projects_us_early_close_extended_window_with_timezone) or test(us_intraday_futu_candles_carry_calendar_resolved_session_labels) or test(broker_lot_size_initializes_minimum_and_step_quantity) or test(buying_power_requires_opend_trade_reader_and_forwards_max_quantity_query) or test(previous_close_condition_switches_on_session_type) or test(previous_close_condition_does_not_rewrite_non_us_unknown_sessions) or test(resolve_account_honors_requested_authority_and_falls_back_like_go) or test(security_snapshot_coordinator_caches_clones_and_uses_market_batches) or test(security_snapshot_coordinator_enforces_sliding_budget_and_does_not_cache_failures) or test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(security_snapshot_coordinator_handles_empty_and_unexpected_results) or test(symbol_scoped_snapshot_errors_are_detectable_through_context) or test(closed_ready_session_is_replaced_on_peer_close) or test(stock_screen_fallback_wire_value_helpers_match_go_coercions) or test(stock_screen_fallback_parses_rows_and_market_groups) or test(stock_screen_fallback_cancellation_and_adapter_entry_point) or test(stock_screen_fallback_coordinates_copies_and_errors) or test(snapshot_fallback_params_use_strict_delayed_quote_fields) or test(futu_stock_screen_snapshot_fallback_uses_static_ids_without_subscription) or test(stock_screen_snapshot_coordinator_caches_rows_and_negative_results) or test(futu_stock_screen_snapshot_fallback_reports_screen_errors) or test(runtime_shutdown_cancels_then_joins_its_worker) or test(basic_quote_pushes_drop_rows_without_a_usable_security_or_price) or test(provider_reconnect_publishes_resync_events_and_wakes_reconciliation) or test(coordinator_close_is_terminal_and_prevents_orphaned_reconnect) or test(failed_or_replayed_subscriptions_are_not_active_until_opend_confirms) or test(closed_session_generation_invalidates_its_subscriptions_and_requires_replay) or test(failed_connection_does_not_advance_the_established_session_generation) or test(hk_lunch_snapshot_keeps_previous_close_and_does_not_mark_extended_hours) or test(history_query_converts_supported_trade_markets_to_local_wall_clock) or test(history_fill_call_uses_history_protocol_and_forwards_time_filter) or test(history_query_converts_hk_rfc3339_to_local_wall_clock) or test(history_fill_read_projects_fill_identity) or test(resolve_trade_market_covers_requested_and_fallback_branches_like_go) or test(broker_read_projects_max_trade_quantity_snapshot) or test(max_trade_quantity_call_preserves_serial_and_projects_optional_fields) or test(margin_ratio_unknown_stock_code_extraction_matches_go_boundaries) or test(margin_ratio_unknown_stock_recovery_keeps_nil_security_rows_and_code_forms) or test(margin_ratio_server_throttling_maps_to_the_typed_rate_limit) or test(margin_ratio_wire_throttling_reaches_the_typed_rate_limit_variant)"
+          "test(failed_or_replayed_subscriptions_are_not_active_until_opend_confirms) or test(closed_session_generation_invalidates_its_subscriptions_and_requires_replay) or test(coordinator_close_is_terminal_and_prevents_orphaned_reconnect) or test(failed_connection_does_not_advance_the_established_session_generation) or test(trade_write_methods_enforce_prerequisites_and_disconnected_state) or test(modify_order_returns_stable_identity_for_an_empty_success_payload)"
         ],
         "testFilter": [
           "closed_session_generation_invalidates_its_subscriptions_and_requires_replay"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest-0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "5eab8d75",
-        "verifiedAt": "2026-09-25T13:16:09Z",
-        "receiptDigest": null
+        "verifiedCommit": "dfe36f0c",
+        "verifiedAt": "2026-09-28T000608Z",
+        "receiptDigest": "sha256:66b32e68a91fcc48f6557dcb436c9ea2d5d16af485d6418fcddc83bb83a25dc1"
       },
       "risk": "high",
       "owner": "futu_opend",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：reconfigure_for_reconnect 后 generation 严格递增、旧 record 不再 active（active_basic_instruments 为空），旧 generation 的 ack 被拒绝；在新 generation 确认 replay 后重新 active。"
@@ -174191,7 +174199,7 @@
           "function_exact：close 后 reconcile_topology/refresh_quota/poll_once 全部返回 Closed，physical_snapshot 为 None；第二次 close 幂等返回 false，不会重建 session。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -174202,31 +174210,30 @@
           "jftrade-integration-futu",
           "-p",
           "jftrade-engine",
-          "-p",
-          "jftrade-broker",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(resolver_projects_us_early_close_extended_window_with_timezone) or test(us_intraday_futu_candles_carry_calendar_resolved_session_labels) or test(broker_lot_size_initializes_minimum_and_step_quantity) or test(buying_power_requires_opend_trade_reader_and_forwards_max_quantity_query) or test(previous_close_condition_switches_on_session_type) or test(previous_close_condition_does_not_rewrite_non_us_unknown_sessions) or test(resolve_account_honors_requested_authority_and_falls_back_like_go) or test(security_snapshot_coordinator_caches_clones_and_uses_market_batches) or test(security_snapshot_coordinator_enforces_sliding_budget_and_does_not_cache_failures) or test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(security_snapshot_coordinator_handles_empty_and_unexpected_results) or test(symbol_scoped_snapshot_errors_are_detectable_through_context) or test(closed_ready_session_is_replaced_on_peer_close) or test(stock_screen_fallback_wire_value_helpers_match_go_coercions) or test(stock_screen_fallback_parses_rows_and_market_groups) or test(stock_screen_fallback_cancellation_and_adapter_entry_point) or test(stock_screen_fallback_coordinates_copies_and_errors) or test(snapshot_fallback_params_use_strict_delayed_quote_fields) or test(futu_stock_screen_snapshot_fallback_uses_static_ids_without_subscription) or test(stock_screen_snapshot_coordinator_caches_rows_and_negative_results) or test(futu_stock_screen_snapshot_fallback_reports_screen_errors) or test(runtime_shutdown_cancels_then_joins_its_worker) or test(basic_quote_pushes_drop_rows_without_a_usable_security_or_price) or test(provider_reconnect_publishes_resync_events_and_wakes_reconciliation) or test(coordinator_close_is_terminal_and_prevents_orphaned_reconnect) or test(failed_or_replayed_subscriptions_are_not_active_until_opend_confirms) or test(closed_session_generation_invalidates_its_subscriptions_and_requires_replay) or test(failed_connection_does_not_advance_the_established_session_generation) or test(hk_lunch_snapshot_keeps_previous_close_and_does_not_mark_extended_hours) or test(history_query_converts_supported_trade_markets_to_local_wall_clock) or test(history_fill_call_uses_history_protocol_and_forwards_time_filter) or test(history_query_converts_hk_rfc3339_to_local_wall_clock) or test(history_fill_read_projects_fill_identity) or test(resolve_trade_market_covers_requested_and_fallback_branches_like_go) or test(broker_read_projects_max_trade_quantity_snapshot) or test(max_trade_quantity_call_preserves_serial_and_projects_optional_fields) or test(margin_ratio_unknown_stock_code_extraction_matches_go_boundaries) or test(margin_ratio_unknown_stock_recovery_keeps_nil_security_rows_and_code_forms) or test(margin_ratio_server_throttling_maps_to_the_typed_rate_limit) or test(margin_ratio_wire_throttling_reaches_the_typed_rate_limit_variant)"
+          "test(failed_or_replayed_subscriptions_are_not_active_until_opend_confirms) or test(closed_session_generation_invalidates_its_subscriptions_and_requires_replay) or test(coordinator_close_is_terminal_and_prevents_orphaned_reconnect) or test(failed_connection_does_not_advance_the_established_session_generation) or test(trade_write_methods_enforce_prerequisites_and_disconnected_state) or test(modify_order_returns_stable_identity_for_an_empty_success_payload)"
         ],
         "testFilter": [
           "coordinator_close_is_terminal_and_prevents_orphaned_reconnect"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest-0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "5eab8d75",
-        "verifiedAt": "2026-09-25T13:16:09Z",
-        "receiptDigest": null
+        "verifiedCommit": "dfe36f0c",
+        "verifiedAt": "2026-09-28T000608Z",
+        "receiptDigest": "sha256:66b32e68a91fcc48f6557dcb436c9ea2d5d16af485d6418fcddc83bb83a25dc1"
       },
       "risk": "high",
       "owner": "futu_opend",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：close 后 reconcile_topology/refresh_quota/poll_once 全部返回 Closed，physical_snapshot 为 None；第二次 close 幂等返回 false，不会重建 session。"
@@ -174333,7 +174340,7 @@
           "function_exact：连接被拒绝时 OpenDSessionCoordinator::connect 返回 Err，不留下 session/generation 供后续订阅观察（fail closed）。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -174344,31 +174351,30 @@
           "jftrade-integration-futu",
           "-p",
           "jftrade-engine",
-          "-p",
-          "jftrade-broker",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(resolver_projects_us_early_close_extended_window_with_timezone) or test(us_intraday_futu_candles_carry_calendar_resolved_session_labels) or test(broker_lot_size_initializes_minimum_and_step_quantity) or test(buying_power_requires_opend_trade_reader_and_forwards_max_quantity_query) or test(previous_close_condition_switches_on_session_type) or test(previous_close_condition_does_not_rewrite_non_us_unknown_sessions) or test(resolve_account_honors_requested_authority_and_falls_back_like_go) or test(security_snapshot_coordinator_caches_clones_and_uses_market_batches) or test(security_snapshot_coordinator_enforces_sliding_budget_and_does_not_cache_failures) or test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(security_snapshot_coordinator_handles_empty_and_unexpected_results) or test(symbol_scoped_snapshot_errors_are_detectable_through_context) or test(closed_ready_session_is_replaced_on_peer_close) or test(stock_screen_fallback_wire_value_helpers_match_go_coercions) or test(stock_screen_fallback_parses_rows_and_market_groups) or test(stock_screen_fallback_cancellation_and_adapter_entry_point) or test(stock_screen_fallback_coordinates_copies_and_errors) or test(snapshot_fallback_params_use_strict_delayed_quote_fields) or test(futu_stock_screen_snapshot_fallback_uses_static_ids_without_subscription) or test(stock_screen_snapshot_coordinator_caches_rows_and_negative_results) or test(futu_stock_screen_snapshot_fallback_reports_screen_errors) or test(runtime_shutdown_cancels_then_joins_its_worker) or test(basic_quote_pushes_drop_rows_without_a_usable_security_or_price) or test(provider_reconnect_publishes_resync_events_and_wakes_reconciliation) or test(coordinator_close_is_terminal_and_prevents_orphaned_reconnect) or test(failed_or_replayed_subscriptions_are_not_active_until_opend_confirms) or test(closed_session_generation_invalidates_its_subscriptions_and_requires_replay) or test(failed_connection_does_not_advance_the_established_session_generation) or test(hk_lunch_snapshot_keeps_previous_close_and_does_not_mark_extended_hours) or test(history_query_converts_supported_trade_markets_to_local_wall_clock) or test(history_fill_call_uses_history_protocol_and_forwards_time_filter) or test(history_query_converts_hk_rfc3339_to_local_wall_clock) or test(history_fill_read_projects_fill_identity) or test(resolve_trade_market_covers_requested_and_fallback_branches_like_go) or test(broker_read_projects_max_trade_quantity_snapshot) or test(max_trade_quantity_call_preserves_serial_and_projects_optional_fields) or test(margin_ratio_unknown_stock_code_extraction_matches_go_boundaries) or test(margin_ratio_unknown_stock_recovery_keeps_nil_security_rows_and_code_forms) or test(margin_ratio_server_throttling_maps_to_the_typed_rate_limit) or test(margin_ratio_wire_throttling_reaches_the_typed_rate_limit_variant)"
+          "test(failed_or_replayed_subscriptions_are_not_active_until_opend_confirms) or test(closed_session_generation_invalidates_its_subscriptions_and_requires_replay) or test(coordinator_close_is_terminal_and_prevents_orphaned_reconnect) or test(failed_connection_does_not_advance_the_established_session_generation) or test(trade_write_methods_enforce_prerequisites_and_disconnected_state) or test(modify_order_returns_stable_identity_for_an_empty_success_payload)"
         ],
         "testFilter": [
           "failed_connection_does_not_advance_the_established_session_generation"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest-0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "5eab8d75",
-        "verifiedAt": "2026-09-25T13:16:09Z",
-        "receiptDigest": null
+        "verifiedCommit": "dfe36f0c",
+        "verifiedAt": "2026-09-28T000608Z",
+        "receiptDigest": "sha256:66b32e68a91fcc48f6557dcb436c9ea2d5d16af485d6418fcddc83bb83a25dc1"
       },
       "risk": "high",
       "owner": "futu_opend",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：连接被拒绝时 OpenDSessionCoordinator::connect 返回 Err，不留下 session/generation 供后续订阅观察（fail closed）。"
