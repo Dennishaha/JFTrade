@@ -1,0 +1,91 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-store-sqlite",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(test_adk_cascade_cleanup_removes_all_entities_across_three_databases) or test(adk_session_page_filters_by_agent_and_title_and_paginates) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_approval_page_orders_by_latest_update_and_counts_filtered_rows) or test(saved_provider_normalizes_the_request_timeout_on_write)"
+  ],
+  "runnerVersion": "cargo-nextest-0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-28T01:24:58Z",
+  "sourceState": {
+    "verifiedCommit": "31ab6dd69f0e47d875833da923b67f7a1cd87a4c",
+    "trackedDiffSha256": "d2808d4759a803a8207759035ebe7ada12a5d3c9700513cb6fd86877c17074e7",
+    "untrackedFiles": []
+  },
+  "rawOutputSha256": "e808a3ccde6d6dadded60015274321a88701ee31bf4ea3b0bf7a06d22b7c8d6f",
+  "passedTests": [
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_adk::mutation::provider::tests::saved_provider_normalizes_the_request_timeout_on_write",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_adk::tests::store_parity::adk_approval_page_orders_by_latest_update_and_counts_filtered_rows",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_adk::tests::store_parity::adk_composer_state_truncates_trim_and_rejects_invalid_modes",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_adk::tests::store_parity::adk_session_page_filters_by_agent_and_title_and_paginates",
+    "jftrade-store-sqlite::adk_cascade_session_cleanup$test_adk_cascade_cleanup_removes_all_entities_across_three_databases"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 4,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1,
+      "nextest": {
+        "crate": "jftrade-store-sqlite",
+        "test_binary": "adk_cascade_session_cleanup",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 3,
+      "exec_time": 0.171254542,
+      "nextest": {
+        "crate": "jftrade-store-sqlite",
+        "test_binary": "adk_cascade_session_cleanup",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1630,
+      "exec_time": 0.879433583,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    }
+  ]
+}

@@ -97495,36 +97495,41 @@
           "function_exact：Go 建会话＋run＋approval＋task＋assistant 事件后删除会话，断言 approval/run/task 查询为空、messages 为空、session 消失；Rust delete_session_cascade 在同一测试中跨 adk/adk-session/adk-artifact 三库断言 14 张表计数全部归零（含 approvals/runs/tasks/events/composer），并额外断言删除边界后的 stale run/approval/task/event/artifact 写入全部被 fence——覆盖范围是 Go 断言的超集。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
+          "-p",
+          "jftrade-store-sqlite",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(session_context_tracks_events_appended_after_a_compaction) or test(a_run_waiting_for_approval_does_not_block_chat_auto_compaction) or test(compaction_preserves_the_call_of_a_pending_approval) or test(builtin_skill_catalog_stays_registered_alongside_external_installs) or test(session_context_window_follows_the_composer_provider_override) or test(reviewed_mcp_schemas_match_canonical_go_fixture_deeply) or test(session_delete_missing_is_idempotent_and_blank_ids_are_rejected) or test(completed_run_reopens_only_for_a_fresh_durable_approval) or test(adk_audit_route_filters_by_kind_and_subject_id) or test(test_shared_artifacts_preserved_and_user_session_deletion_rejected) or test(adk_store_lifecycle_and_restart_durability) or test(test_idempotent_retry_and_partial_failure_crash_recovery) or test(test_adk_cascade_cleanup_removes_all_entities_across_three_databases) or test(adk_session_page_filters_by_agent_and_title_and_paginates) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_session_delete_missing_is_reported_with_the_session_error_code) or test(adk_approval_page_orders_by_latest_update_and_counts_filtered_rows) or test(adk_maintenance_compacts_every_owned_database_and_requires_the_writer_lease) or test(chat_rejects_a_session_owned_by_a_different_agent) or test(cancelling_a_run_denies_its_pending_approvals) or test(adk_cancel_run_missing_is_the_dedicated_cancel_failure) or test(adk_resolve_approval_missing_returns_the_idempotent_empty_envelope) or test(adk_run_listing_filters_and_sorts_newest_first) or test(saved_provider_normalizes_the_request_timeout_on_write) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(run_start_freezes_the_configured_run_timeout_from_settings) or test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(expired_runs_use_each_runs_own_timeout_window)"
+          "test(test_adk_cascade_cleanup_removes_all_entities_across_three_databases) or test(adk_session_page_filters_by_agent_and_title_and_paginates) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_approval_page_orders_by_latest_update_and_counts_filtered_rows) or test(saved_provider_normalizes_the_request_timeout_on_write)"
         ],
         "testFilter": [
           "test_adk_cascade_cleanup_removes_all_entities_across_three_databases"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest-0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "401604517dde7ec5b5ea8721ce8fbcac51b94726",
-        "verifiedAt": "2026-09-25T14:05:33Z",
-        "receiptDigest": null
+        "verifiedCommit": "31ab6dd6",
+        "verifiedAt": "2026-09-28T012458Z",
+        "receiptDigest": "sha256:df78dcad3dcd67f0e6dc10d4c57da16dee947f4114ebfdeb509578e2df9bc07e"
       },
       "risk": "high",
       "owner": "assistant_workflow",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：Go 建会话＋run＋approval＋task＋assistant 事件后删除会话，断言 approval/run/task 查询为空、messages 为空、session 消失；Rust delete_session_cascade 在同一测试中跨 adk/adk-session/adk-artifact 三库断言 14 张表计数全部归零（含 approvals/runs/tasks/events/composer），并额外断言删除边界后的 stale run/approval/task/event/artifact 写入全部被 fence——覆盖范围是 Go 断言的超集。"
@@ -97814,36 +97819,41 @@
           "function_exact：Go 断言 ListSessionsPage 按 agent 过滤、标题 query 大小写不敏感、按 updated_at 倒序分页且 total 为过滤后总数；Rust 生产端口新增同构测试（4 个会话，agentId=agent-a + query=ALPHA/alpha，limit=1 两页取回 newer→older，total=2，并核对无 agent 过滤时 total=3）。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
+          "-p",
+          "jftrade-store-sqlite",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(session_context_tracks_events_appended_after_a_compaction) or test(a_run_waiting_for_approval_does_not_block_chat_auto_compaction) or test(compaction_preserves_the_call_of_a_pending_approval) or test(builtin_skill_catalog_stays_registered_alongside_external_installs) or test(session_context_window_follows_the_composer_provider_override) or test(reviewed_mcp_schemas_match_canonical_go_fixture_deeply) or test(session_delete_missing_is_idempotent_and_blank_ids_are_rejected) or test(completed_run_reopens_only_for_a_fresh_durable_approval) or test(adk_audit_route_filters_by_kind_and_subject_id) or test(test_shared_artifacts_preserved_and_user_session_deletion_rejected) or test(adk_store_lifecycle_and_restart_durability) or test(test_idempotent_retry_and_partial_failure_crash_recovery) or test(test_adk_cascade_cleanup_removes_all_entities_across_three_databases) or test(adk_session_page_filters_by_agent_and_title_and_paginates) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_session_delete_missing_is_reported_with_the_session_error_code) or test(adk_approval_page_orders_by_latest_update_and_counts_filtered_rows) or test(adk_maintenance_compacts_every_owned_database_and_requires_the_writer_lease) or test(chat_rejects_a_session_owned_by_a_different_agent) or test(cancelling_a_run_denies_its_pending_approvals) or test(adk_cancel_run_missing_is_the_dedicated_cancel_failure) or test(adk_resolve_approval_missing_returns_the_idempotent_empty_envelope) or test(adk_run_listing_filters_and_sorts_newest_first) or test(saved_provider_normalizes_the_request_timeout_on_write) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(run_start_freezes_the_configured_run_timeout_from_settings) or test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(expired_runs_use_each_runs_own_timeout_window)"
+          "test(test_adk_cascade_cleanup_removes_all_entities_across_three_databases) or test(adk_session_page_filters_by_agent_and_title_and_paginates) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_approval_page_orders_by_latest_update_and_counts_filtered_rows) or test(saved_provider_normalizes_the_request_timeout_on_write)"
         ],
         "testFilter": [
           "adk_session_page_filters_by_agent_and_title_and_paginates"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest-0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "401604517dde7ec5b5ea8721ce8fbcac51b94726",
-        "verifiedAt": "2026-09-25T14:05:33Z",
-        "receiptDigest": null
+        "verifiedCommit": "31ab6dd6",
+        "verifiedAt": "2026-09-28T012458Z",
+        "receiptDigest": "sha256:df78dcad3dcd67f0e6dc10d4c57da16dee947f4114ebfdeb509578e2df9bc07e"
       },
       "risk": "high",
       "owner": "assistant_workflow",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：Go 断言 ListSessionsPage 按 agent 过滤、标题 query 大小写不敏感、按 updated_at 倒序分页且 total 为过滤后总数；Rust 生产端口新增同构测试（4 个会话，agentId=agent-a + query=ALPHA/alpha，limit=1 两页取回 newer→older，total=2，并核对无 agent 过滤时 total=3）。"
@@ -97881,36 +97891,41 @@
           "function_exact：Go 断言空 composer state 读回 sessionId 且 chatDraft 为空、50020 字符草稿被截到 MaxMessageLength(50000)、provider/model override 去空格、high/loop/less_approval 合法、非法 workMode/permissionMode/reasoningEffort 报错、删除会话后状态消失；Rust 在所属写入口（UpdateSessionComposerState）新增测试覆盖同样序列，非法值断言 400 ADK_SESSION_COMPOSER_STATE_UPDATE_FAILED，删除后 store 行为 None。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
+          "-p",
+          "jftrade-store-sqlite",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(session_context_tracks_events_appended_after_a_compaction) or test(a_run_waiting_for_approval_does_not_block_chat_auto_compaction) or test(compaction_preserves_the_call_of_a_pending_approval) or test(builtin_skill_catalog_stays_registered_alongside_external_installs) or test(session_context_window_follows_the_composer_provider_override) or test(reviewed_mcp_schemas_match_canonical_go_fixture_deeply) or test(session_delete_missing_is_idempotent_and_blank_ids_are_rejected) or test(completed_run_reopens_only_for_a_fresh_durable_approval) or test(adk_audit_route_filters_by_kind_and_subject_id) or test(test_shared_artifacts_preserved_and_user_session_deletion_rejected) or test(adk_store_lifecycle_and_restart_durability) or test(test_idempotent_retry_and_partial_failure_crash_recovery) or test(test_adk_cascade_cleanup_removes_all_entities_across_three_databases) or test(adk_session_page_filters_by_agent_and_title_and_paginates) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_session_delete_missing_is_reported_with_the_session_error_code) or test(adk_approval_page_orders_by_latest_update_and_counts_filtered_rows) or test(adk_maintenance_compacts_every_owned_database_and_requires_the_writer_lease) or test(chat_rejects_a_session_owned_by_a_different_agent) or test(cancelling_a_run_denies_its_pending_approvals) or test(adk_cancel_run_missing_is_the_dedicated_cancel_failure) or test(adk_resolve_approval_missing_returns_the_idempotent_empty_envelope) or test(adk_run_listing_filters_and_sorts_newest_first) or test(saved_provider_normalizes_the_request_timeout_on_write) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(run_start_freezes_the_configured_run_timeout_from_settings) or test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(expired_runs_use_each_runs_own_timeout_window)"
+          "test(test_adk_cascade_cleanup_removes_all_entities_across_three_databases) or test(adk_session_page_filters_by_agent_and_title_and_paginates) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_approval_page_orders_by_latest_update_and_counts_filtered_rows) or test(saved_provider_normalizes_the_request_timeout_on_write)"
         ],
         "testFilter": [
           "adk_composer_state_truncates_trim_and_rejects_invalid_modes"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest-0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "401604517dde7ec5b5ea8721ce8fbcac51b94726",
-        "verifiedAt": "2026-09-25T14:05:33Z",
-        "receiptDigest": null
+        "verifiedCommit": "31ab6dd6",
+        "verifiedAt": "2026-09-28T012458Z",
+        "receiptDigest": "sha256:df78dcad3dcd67f0e6dc10d4c57da16dee947f4114ebfdeb509578e2df9bc07e"
       },
       "risk": "high",
       "owner": "assistant_workflow",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：Go 断言空 composer state 读回 sessionId 且 chatDraft 为空、50020 字符草稿被截到 MaxMessageLength(50000)、provider/model override 去空格、high/loop/less_approval 合法、非法 workMode/permissionMode/reasoningEffort 报错、删除会话后状态消失；Rust 在所属写入口（UpdateSessionComposerState）新增测试覆盖同样序列，非法值断言 400 ADK_SESSION_COMPOSER_STATE_UPDATE_FAILED，删除后 store 行为 None。"
@@ -98022,36 +98037,41 @@
           "function_exact：Go 断言 ListApprovalsPage 先按 status+agent 过滤（total=2）、再按 updated_at 倒序返回 [approval-newer, approval-older]；Rust 复现同一四行 fixture，并额外断言刷新较老审批的 updated_at 后其排到队首（证明排序键是 updated_at 而非 created_at）。本批修复：store.list_approvals 从 created_at DESC 改为 updated_at DESC, id ASC（Go StoreCore.ListApprovals 的排序契约）。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
+          "-p",
+          "jftrade-store-sqlite",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(session_context_tracks_events_appended_after_a_compaction) or test(a_run_waiting_for_approval_does_not_block_chat_auto_compaction) or test(compaction_preserves_the_call_of_a_pending_approval) or test(builtin_skill_catalog_stays_registered_alongside_external_installs) or test(session_context_window_follows_the_composer_provider_override) or test(reviewed_mcp_schemas_match_canonical_go_fixture_deeply) or test(session_delete_missing_is_idempotent_and_blank_ids_are_rejected) or test(completed_run_reopens_only_for_a_fresh_durable_approval) or test(adk_audit_route_filters_by_kind_and_subject_id) or test(test_shared_artifacts_preserved_and_user_session_deletion_rejected) or test(adk_store_lifecycle_and_restart_durability) or test(test_idempotent_retry_and_partial_failure_crash_recovery) or test(test_adk_cascade_cleanup_removes_all_entities_across_three_databases) or test(adk_session_page_filters_by_agent_and_title_and_paginates) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_session_delete_missing_is_reported_with_the_session_error_code) or test(adk_approval_page_orders_by_latest_update_and_counts_filtered_rows) or test(adk_maintenance_compacts_every_owned_database_and_requires_the_writer_lease) or test(chat_rejects_a_session_owned_by_a_different_agent) or test(cancelling_a_run_denies_its_pending_approvals) or test(adk_cancel_run_missing_is_the_dedicated_cancel_failure) or test(adk_resolve_approval_missing_returns_the_idempotent_empty_envelope) or test(adk_run_listing_filters_and_sorts_newest_first) or test(saved_provider_normalizes_the_request_timeout_on_write) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(run_start_freezes_the_configured_run_timeout_from_settings) or test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(expired_runs_use_each_runs_own_timeout_window)"
+          "test(test_adk_cascade_cleanup_removes_all_entities_across_three_databases) or test(adk_session_page_filters_by_agent_and_title_and_paginates) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_approval_page_orders_by_latest_update_and_counts_filtered_rows) or test(saved_provider_normalizes_the_request_timeout_on_write)"
         ],
         "testFilter": [
           "adk_approval_page_orders_by_latest_update_and_counts_filtered_rows"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest-0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "401604517dde7ec5b5ea8721ce8fbcac51b94726",
-        "verifiedAt": "2026-09-25T14:05:33Z",
-        "receiptDigest": null
+        "verifiedCommit": "31ab6dd6",
+        "verifiedAt": "2026-09-28T012458Z",
+        "receiptDigest": "sha256:df78dcad3dcd67f0e6dc10d4c57da16dee947f4114ebfdeb509578e2df9bc07e"
       },
       "risk": "high",
       "owner": "assistant_workflow",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：Go 断言 ListApprovalsPage 先按 status+agent 过滤（total=2）、再按 updated_at 倒序返回 [approval-newer, approval-older]；Rust 复现同一四行 fixture，并额外断言刷新较老审批的 updated_at 后其排到队首（证明排序键是 updated_at 而非 created_at）。本批修复：store.list_approvals 从 created_at DESC 改为 updated_at DESC, id ASC（Go StoreCore.ListApprovals 的排序契约）。"
@@ -101354,36 +101374,41 @@
           "function_exact（真实功能缺口已修复）：Go 断言未提供 timeout 时保存结果为 180000ms（DefaultProviderRequestTimeout），提供 1000ms 时被钳到 15000ms。Rust 原先只在 chat 解析时 clamp（默认还是 120000ms），保存值会原样回显。修复位置：product_production_ports_adk_mutation_provider.rs 保存路径新增 normalize_provider_request_timeout_ms（<=0 取 180000，区间 [15000,600000]），并把执行期兜底常量同步为 180000ms。回归测试覆盖默认值、1000→15000 钳制、以及省略字段的更新保留已存值。探针：把归一化替换为直存原值后测试在 180000 断言处转红。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
+          "-p",
+          "jftrade-store-sqlite",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(session_context_tracks_events_appended_after_a_compaction) or test(a_run_waiting_for_approval_does_not_block_chat_auto_compaction) or test(compaction_preserves_the_call_of_a_pending_approval) or test(builtin_skill_catalog_stays_registered_alongside_external_installs) or test(session_context_window_follows_the_composer_provider_override) or test(reviewed_mcp_schemas_match_canonical_go_fixture_deeply) or test(session_delete_missing_is_idempotent_and_blank_ids_are_rejected) or test(completed_run_reopens_only_for_a_fresh_durable_approval) or test(adk_audit_route_filters_by_kind_and_subject_id) or test(test_shared_artifacts_preserved_and_user_session_deletion_rejected) or test(adk_store_lifecycle_and_restart_durability) or test(test_idempotent_retry_and_partial_failure_crash_recovery) or test(test_adk_cascade_cleanup_removes_all_entities_across_three_databases) or test(adk_session_page_filters_by_agent_and_title_and_paginates) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_session_delete_missing_is_reported_with_the_session_error_code) or test(adk_approval_page_orders_by_latest_update_and_counts_filtered_rows) or test(adk_maintenance_compacts_every_owned_database_and_requires_the_writer_lease) or test(chat_rejects_a_session_owned_by_a_different_agent) or test(cancelling_a_run_denies_its_pending_approvals) or test(adk_cancel_run_missing_is_the_dedicated_cancel_failure) or test(adk_resolve_approval_missing_returns_the_idempotent_empty_envelope) or test(adk_run_listing_filters_and_sorts_newest_first) or test(saved_provider_normalizes_the_request_timeout_on_write) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(run_start_freezes_the_configured_run_timeout_from_settings) or test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(expired_runs_use_each_runs_own_timeout_window)"
+          "test(test_adk_cascade_cleanup_removes_all_entities_across_three_databases) or test(adk_session_page_filters_by_agent_and_title_and_paginates) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_approval_page_orders_by_latest_update_and_counts_filtered_rows) or test(saved_provider_normalizes_the_request_timeout_on_write)"
         ],
         "testFilter": [
           "saved_provider_normalizes_the_request_timeout_on_write"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest-0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "401604517dde7ec5b5ea8721ce8fbcac51b94726",
-        "verifiedAt": "2026-09-25T14:05:33Z",
-        "receiptDigest": null
+        "verifiedCommit": "31ab6dd6",
+        "verifiedAt": "2026-09-28T012458Z",
+        "receiptDigest": "sha256:df78dcad3dcd67f0e6dc10d4c57da16dee947f4114ebfdeb509578e2df9bc07e"
       },
       "risk": "high",
       "owner": "assistant_workflow",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact（真实功能缺口已修复）：Go 断言未提供 timeout 时保存结果为 180000ms（DefaultProviderRequestTimeout），提供 1000ms 时被钳到 15000ms。Rust 原先只在 chat 解析时 clamp（默认还是 120000ms），保存值会原样回显。修复位置：product_production_ports_adk_mutation_provider.rs 保存路径新增 normalize_provider_request_timeout_ms（<=0 取 180000，区间 [15000,600000]），并把执行期兜底常量同步为 180000ms。回归测试覆盖默认值、1000→15000 钳制、以及省略字段的更新保留已存值。探针：把归一化替换为直存原值后测试在 180000 断言处转红。"

@@ -4,7 +4,7 @@
 
 当前积压：**2955 项**（按当前 `manual-test-mappings.json` 的 `[~]` 条目重算）。
 
-最新审计快照（2026-09-28 Futu history-window strict follow-up）：Go `4451`、Rust `3382`，`function_exact=1500`、`partial=2317`、`boundary=634`、`missing=0`；Parity anchor reconcile 为 `1793/1747/0/0/46`（unique/recorded/unrecorded/stale/unknown）。严格审计仍有 **3692 个 function_exact evidence/receipt gaps**（需 reviewed assertions、Parity anchor、reuse relation 与 passed receipt）；严格审计未通过。
+最新审计快照（2026-09-28 Assistant store-lifecycle strict follow-up）：Go `4451`、Rust `3382`，`function_exact=1500`、`partial=2317`、`boundary=634`、`missing=0`；Parity anchor reconcile 为 `1793/1747/0/0/46`（unique/recorded/unrecorded/stale/unknown）。严格审计仍有 **3687 个 function_exact evidence/receipt gaps**（需 reviewed assertions、Parity anchor、reuse relation 与 passed receipt）；严格审计未通过。
 
 ## 按领域
 
@@ -135,3 +135,4 @@
 - 2026-09-28 Assistant session-context2 strict evidence：五条单引用 P1 exact 已完成 reviewed assertion 与 receipt `sha256:83808bfd4b00fe6f1aacfe581f8ee1453badfe7659bff03d5d281583ba62163a`（engine nextest 5/5）；覆盖 provider override/revision compaction、handoff revision filtering、append visibility 与 pending approval preservation。strict gap 降至 3696，仍有历史 evidence/receipt 缺口，整体未通过。
 - 2026-09-28 Assistant runtime strict evidence：五条单引用 P1 exact 已完成 reviewed assertion 与 receipt `sha256:cbeb1497d9d8ee4db2dbafb58ab65670dd8abbd74d3c020007e4ab127b04b211`（engine nextest 5/5）；覆盖 tool ordering、cancellation join、probe timeout cap、approval lease cancellation 与 session title reuse。strict gap 降至 3695，仍有历史 evidence/receipt 缺口，整体未通过。
 - 2026-09-28 Futu history-window strict evidence：五条单引用 P1 exact 已完成 reviewed assertion 与 receipt `sha256:603f4b41c4847b7f46c69791b46609ecb78503502e1118929ce1f5d5d9f09338`（integration-futu nextest 5/5）；覆盖 session planning、multi-page pagination/page limits、upstream page sizing 与 payload-less success normalization。strict gap 降至 3692，仍有历史 evidence/receipt 缺口，整体未通过。
+- 2026-09-28 Assistant store-lifecycle strict evidence：五条单引用 P1 exact 已完成 reviewed assertion 与 receipt `sha256:df78dcad3dcd67f0e6dc10d4c57da16dee947f4114ebfdeb509578e2df9bc07e`（store-sqlite + engine nextest 5/5）；覆盖 cascade cleanup、session/composer/approval store semantics 与 provider timeout normalization。strict gap 降至 3687，仍有历史 evidence/receipt 缺口，整体未通过。
