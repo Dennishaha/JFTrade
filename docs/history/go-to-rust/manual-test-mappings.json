@@ -93253,36 +93253,39 @@
           "function_exact（本批验证）：同一 provider 小窗口（80 tokens）下灌入 80 条大事件后，GET /api/v1/adk/sessions/{id}/context 返回 status 为 near_limit 或 critical，同时 autoCompacted=false、activeHandoffCount=0，且 store.list_handoff_segments(active=true) 为空，证明读路由只投影不写入。反向探针：让窗口解析恒为 0 后 status 退化为 unknown，该测试失败。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(protected_tail_ignores_approvals_closed_by_a_denied_run) or test(context_compaction_shrinks_the_projected_session_view) or test(protected_tail_keeps_only_the_approval_that_is_still_pending) or test(protected_tail_ignores_an_approval_with_a_durable_tool_outcome) or test(protected_tail_starts_at_the_earliest_unresolved_approval) or test(a_chat_turn_autocompacts_the_session_before_the_provider_payload) or test(a_rejected_compaction_records_the_failed_notice) or test(a_second_compaction_is_rejected_while_the_session_gate_is_held) or test(event_must_match_the_run_and_session_before_projection_changes) or test(duplicate_event_key_with_different_content_rolls_back_projection) or test(adk_session_store_lifecycle_and_restart_durability) or test(missing_session_database_is_not_created_and_run_is_unchanged) or test(pending_input_is_persisted_and_answer_resume_is_idempotent) or test(model_context_autocompacts_before_the_provider_payload) or test(session_context_read_reports_pressure_without_compacting) or test(session_context_window_follows_the_composer_provider_override) or test(each_context_compaction_creates_the_next_current_revision) or test(manual_context_compaction_writes_the_done_notice_into_the_timeline) or test(auto_compaction_emits_streaming_then_final_notice_and_context_delta) or test(auto_compaction_skips_while_another_compaction_holds_the_session_gate) or test(model_context_read_compacts_only_when_the_session_gate_is_free) or test(workflow_auto_compaction_proceeds_under_an_active_run_while_chat_waits) or test(protected_tail_rewinds_a_pending_approval_to_its_original_call) or test(session_context_ignores_handoff_segments_without_a_revision)"
+          "test(session_context_read_reports_pressure_without_compacting) or test(model_context_autocompacts_before_the_provider_payload) or test(protected_tail_starts_at_the_earliest_unresolved_approval) or test(protected_tail_ignores_an_approval_with_a_durable_tool_outcome) or test(protected_tail_keeps_only_the_approval_that_is_still_pending)"
         ],
         "testFilter": [
           "session_context_read_reports_pressure_without_compacting"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest-0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "a601d03c8fc607e147f1f4eb377f7cba1020592f",
-        "verifiedAt": "2026-09-25T14:03:33Z",
-        "receiptDigest": null
+        "verifiedCommit": "4310aebb",
+        "verifiedAt": "2026-09-28T002608Z",
+        "receiptDigest": "sha256:0ca3d7f2e3b1e564c6fc25e2a91823516d7de78fb8e56d03ee042f9a272c92da"
       },
       "risk": "high",
       "owner": "assistant_workflow",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact（本批验证）：同一 provider 小窗口（80 tokens）下灌入 80 条大事件后，GET /api/v1/adk/sessions/{id}/context 返回 status 为 near_limit 或 critical，同时 autoCompacted=false、activeHandoffCount=0，且 store.list_handoff_segments(active=true) 为空，证明读路由只投影不写入。反向探针：让窗口解析恒为 0 后 status 退化为 unknown，该测试失败。"
@@ -93320,36 +93323,39 @@
           "function_exact（本批实现并验证）：模型上下文（durable_context_items）在压缩后由 80 条原始事件收缩为更少的模型条目，且存在 active handoff 段；接线点位于 ProductAdkChatRuntime 组装 provider payload 之前（prepare_chat 内每次 durable_context_items 之前调用 auto_compact_for_model_context，含恢复路径）。端到端守卫由 a_chat_turn_autocompacts_the_session_before_the_provider_payload 提供：通过 prepare_chat 跑一次真实 chat 预处理（带凭据的 provider + 80 token 窗口 + 80 条大事件），断言会话落 autoCompacted=true、compactedEventCount>0、activeHandoffCount>0。反向探针：阈值恒 None 时这两条用例均转红。剩余差异：Go 的断言经由包装后的 session service Get 观察“模型可见事件数 < 原始事件数”，Rust 的模型可见集合是 durable_context_items 的输出，测试以该集合的条目数收缩作为同一语义的证据，未走 ADK 会话服务（Rust 无该层）。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(protected_tail_ignores_approvals_closed_by_a_denied_run) or test(context_compaction_shrinks_the_projected_session_view) or test(protected_tail_keeps_only_the_approval_that_is_still_pending) or test(protected_tail_ignores_an_approval_with_a_durable_tool_outcome) or test(protected_tail_starts_at_the_earliest_unresolved_approval) or test(a_chat_turn_autocompacts_the_session_before_the_provider_payload) or test(a_rejected_compaction_records_the_failed_notice) or test(a_second_compaction_is_rejected_while_the_session_gate_is_held) or test(event_must_match_the_run_and_session_before_projection_changes) or test(duplicate_event_key_with_different_content_rolls_back_projection) or test(adk_session_store_lifecycle_and_restart_durability) or test(missing_session_database_is_not_created_and_run_is_unchanged) or test(pending_input_is_persisted_and_answer_resume_is_idempotent) or test(model_context_autocompacts_before_the_provider_payload) or test(session_context_read_reports_pressure_without_compacting) or test(session_context_window_follows_the_composer_provider_override) or test(each_context_compaction_creates_the_next_current_revision) or test(manual_context_compaction_writes_the_done_notice_into_the_timeline) or test(auto_compaction_emits_streaming_then_final_notice_and_context_delta) or test(auto_compaction_skips_while_another_compaction_holds_the_session_gate) or test(model_context_read_compacts_only_when_the_session_gate_is_free) or test(workflow_auto_compaction_proceeds_under_an_active_run_while_chat_waits) or test(protected_tail_rewinds_a_pending_approval_to_its_original_call) or test(session_context_ignores_handoff_segments_without_a_revision)"
+          "test(session_context_read_reports_pressure_without_compacting) or test(model_context_autocompacts_before_the_provider_payload) or test(protected_tail_starts_at_the_earliest_unresolved_approval) or test(protected_tail_ignores_an_approval_with_a_durable_tool_outcome) or test(protected_tail_keeps_only_the_approval_that_is_still_pending)"
         ],
         "testFilter": [
           "model_context_autocompacts_before_the_provider_payload"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest-0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "a601d03c8fc607e147f1f4eb377f7cba1020592f",
-        "verifiedAt": "2026-09-25T14:03:33Z",
-        "receiptDigest": null
+        "verifiedCommit": "4310aebb",
+        "verifiedAt": "2026-09-28T002608Z",
+        "receiptDigest": "sha256:0ca3d7f2e3b1e564c6fc25e2a91823516d7de78fb8e56d03ee042f9a272c92da"
       },
       "risk": "high",
       "owner": "assistant_workflow",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact（本批实现并验证）：模型上下文（durable_context_items）在压缩后由 80 条原始事件收缩为更少的模型条目，且存在 active handoff 段；接线点位于 ProductAdkChatRuntime 组装 provider payload 之前（prepare_chat 内每次 durable_context_items 之前调用 auto_compact_for_model_context，含恢复路径）。端到端守卫由 a_chat_turn_autocompacts_the_session_before_the_provider_payload 提供：通过 prepare_chat 跑一次真实 chat 预处理（带凭据的 provider + 80 token 窗口 + 80 条大事件），断言会话落 autoCompacted=true、compactedEventCount>0、activeHandoffCount>0。反向探针：阈值恒 None 时这两条用例均转红。剩余差异：Go 的断言经由包装后的 session service Get 观察“模型可见事件数 < 原始事件数”，Rust 的模型可见集合是 durable_context_items 的输出，测试以该集合的条目数收缩作为同一语义的证据，未走 ADK 会话服务（Rust 无该层）。"
@@ -93387,36 +93393,39 @@
           "function_exact：Go 的 protectedTailStart 返回最早未解决审批事件的索引；Rust 以 assistant.tool_call 的 PENDING_APPROVAL 信封作为审批锚点，测试断言两个待审批调用中较早者（索引 1）决定保护尾起点。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(protected_tail_ignores_approvals_closed_by_a_denied_run) or test(context_compaction_shrinks_the_projected_session_view) or test(protected_tail_keeps_only_the_approval_that_is_still_pending) or test(protected_tail_ignores_an_approval_with_a_durable_tool_outcome) or test(protected_tail_starts_at_the_earliest_unresolved_approval) or test(a_chat_turn_autocompacts_the_session_before_the_provider_payload) or test(a_rejected_compaction_records_the_failed_notice) or test(a_second_compaction_is_rejected_while_the_session_gate_is_held) or test(event_must_match_the_run_and_session_before_projection_changes) or test(duplicate_event_key_with_different_content_rolls_back_projection) or test(adk_session_store_lifecycle_and_restart_durability) or test(missing_session_database_is_not_created_and_run_is_unchanged) or test(pending_input_is_persisted_and_answer_resume_is_idempotent) or test(model_context_autocompacts_before_the_provider_payload) or test(session_context_read_reports_pressure_without_compacting) or test(session_context_window_follows_the_composer_provider_override) or test(each_context_compaction_creates_the_next_current_revision) or test(manual_context_compaction_writes_the_done_notice_into_the_timeline) or test(auto_compaction_emits_streaming_then_final_notice_and_context_delta) or test(auto_compaction_skips_while_another_compaction_holds_the_session_gate) or test(model_context_read_compacts_only_when_the_session_gate_is_free) or test(workflow_auto_compaction_proceeds_under_an_active_run_while_chat_waits) or test(protected_tail_rewinds_a_pending_approval_to_its_original_call) or test(session_context_ignores_handoff_segments_without_a_revision)"
+          "test(session_context_read_reports_pressure_without_compacting) or test(model_context_autocompacts_before_the_provider_payload) or test(protected_tail_starts_at_the_earliest_unresolved_approval) or test(protected_tail_ignores_an_approval_with_a_durable_tool_outcome) or test(protected_tail_keeps_only_the_approval_that_is_still_pending)"
         ],
         "testFilter": [
           "protected_tail_starts_at_the_earliest_unresolved_approval"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest-0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "a601d03c8fc607e147f1f4eb377f7cba1020592f",
-        "verifiedAt": "2026-09-25T14:03:33Z",
-        "receiptDigest": null
+        "verifiedCommit": "4310aebb",
+        "verifiedAt": "2026-09-28T002608Z",
+        "receiptDigest": "sha256:0ca3d7f2e3b1e564c6fc25e2a91823516d7de78fb8e56d03ee042f9a272c92da"
       },
       "risk": "high",
       "owner": "assistant_workflow",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：Go 的 protectedTailStart 返回最早未解决审批事件的索引；Rust 以 assistant.tool_call 的 PENDING_APPROVAL 信封作为审批锚点，测试断言两个待审批调用中较早者（索引 1）决定保护尾起点。"
@@ -93530,36 +93539,39 @@
           "function_exact：Go 用同名的 toolconfirmation function response 判定审批已解决并跳过该事件；Rust 用 assistant.tool 结果信封中的同名 callId 判定，测试断言已解决审批不再产生保护尾。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(protected_tail_ignores_approvals_closed_by_a_denied_run) or test(context_compaction_shrinks_the_projected_session_view) or test(protected_tail_keeps_only_the_approval_that_is_still_pending) or test(protected_tail_ignores_an_approval_with_a_durable_tool_outcome) or test(protected_tail_starts_at_the_earliest_unresolved_approval) or test(a_chat_turn_autocompacts_the_session_before_the_provider_payload) or test(a_rejected_compaction_records_the_failed_notice) or test(a_second_compaction_is_rejected_while_the_session_gate_is_held) or test(event_must_match_the_run_and_session_before_projection_changes) or test(duplicate_event_key_with_different_content_rolls_back_projection) or test(adk_session_store_lifecycle_and_restart_durability) or test(missing_session_database_is_not_created_and_run_is_unchanged) or test(pending_input_is_persisted_and_answer_resume_is_idempotent) or test(model_context_autocompacts_before_the_provider_payload) or test(session_context_read_reports_pressure_without_compacting) or test(session_context_window_follows_the_composer_provider_override) or test(each_context_compaction_creates_the_next_current_revision) or test(manual_context_compaction_writes_the_done_notice_into_the_timeline) or test(auto_compaction_emits_streaming_then_final_notice_and_context_delta) or test(auto_compaction_skips_while_another_compaction_holds_the_session_gate) or test(model_context_read_compacts_only_when_the_session_gate_is_free) or test(workflow_auto_compaction_proceeds_under_an_active_run_while_chat_waits) or test(protected_tail_rewinds_a_pending_approval_to_its_original_call) or test(session_context_ignores_handoff_segments_without_a_revision)"
+          "test(session_context_read_reports_pressure_without_compacting) or test(model_context_autocompacts_before_the_provider_payload) or test(protected_tail_starts_at_the_earliest_unresolved_approval) or test(protected_tail_ignores_an_approval_with_a_durable_tool_outcome) or test(protected_tail_keeps_only_the_approval_that_is_still_pending)"
         ],
         "testFilter": [
           "protected_tail_ignores_an_approval_with_a_durable_tool_outcome"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest-0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "a601d03c8fc607e147f1f4eb377f7cba1020592f",
-        "verifiedAt": "2026-09-25T14:03:33Z",
-        "receiptDigest": null
+        "verifiedCommit": "4310aebb",
+        "verifiedAt": "2026-09-28T002608Z",
+        "receiptDigest": "sha256:0ca3d7f2e3b1e564c6fc25e2a91823516d7de78fb8e56d03ee042f9a272c92da"
       },
       "risk": "high",
       "owner": "assistant_workflow",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：Go 用同名的 toolconfirmation function response 判定审批已解决并跳过该事件；Rust 用 assistant.tool 结果信封中的同名 callId 判定，测试断言已解决审批不再产生保护尾。"
@@ -93597,36 +93609,39 @@
           "function_exact：Go 只保留仍未被响应解决的审批事件；Rust 测试断言较早审批已有工具结果时，保护尾起点落在第二个未决审批（索引 4）。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(protected_tail_ignores_approvals_closed_by_a_denied_run) or test(context_compaction_shrinks_the_projected_session_view) or test(protected_tail_keeps_only_the_approval_that_is_still_pending) or test(protected_tail_ignores_an_approval_with_a_durable_tool_outcome) or test(protected_tail_starts_at_the_earliest_unresolved_approval) or test(a_chat_turn_autocompacts_the_session_before_the_provider_payload) or test(a_rejected_compaction_records_the_failed_notice) or test(a_second_compaction_is_rejected_while_the_session_gate_is_held) or test(event_must_match_the_run_and_session_before_projection_changes) or test(duplicate_event_key_with_different_content_rolls_back_projection) or test(adk_session_store_lifecycle_and_restart_durability) or test(missing_session_database_is_not_created_and_run_is_unchanged) or test(pending_input_is_persisted_and_answer_resume_is_idempotent) or test(model_context_autocompacts_before_the_provider_payload) or test(session_context_read_reports_pressure_without_compacting) or test(session_context_window_follows_the_composer_provider_override) or test(each_context_compaction_creates_the_next_current_revision) or test(manual_context_compaction_writes_the_done_notice_into_the_timeline) or test(auto_compaction_emits_streaming_then_final_notice_and_context_delta) or test(auto_compaction_skips_while_another_compaction_holds_the_session_gate) or test(model_context_read_compacts_only_when_the_session_gate_is_free) or test(workflow_auto_compaction_proceeds_under_an_active_run_while_chat_waits) or test(protected_tail_rewinds_a_pending_approval_to_its_original_call) or test(session_context_ignores_handoff_segments_without_a_revision)"
+          "test(session_context_read_reports_pressure_without_compacting) or test(model_context_autocompacts_before_the_provider_payload) or test(protected_tail_starts_at_the_earliest_unresolved_approval) or test(protected_tail_ignores_an_approval_with_a_durable_tool_outcome) or test(protected_tail_keeps_only_the_approval_that_is_still_pending)"
         ],
         "testFilter": [
           "protected_tail_keeps_only_the_approval_that_is_still_pending"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest-0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "a601d03c8fc607e147f1f4eb377f7cba1020592f",
-        "verifiedAt": "2026-09-25T14:03:33Z",
-        "receiptDigest": null
+        "verifiedCommit": "4310aebb",
+        "verifiedAt": "2026-09-28T002608Z",
+        "receiptDigest": "sha256:0ca3d7f2e3b1e564c6fc25e2a91823516d7de78fb8e56d03ee042f9a272c92da"
       },
       "risk": "high",
       "owner": "assistant_workflow",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：Go 只保留仍未被响应解决的审批事件；Rust 测试断言较早审批已有工具结果时，保护尾起点落在第二个未决审批（索引 4）。"
