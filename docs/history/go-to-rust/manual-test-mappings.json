@@ -99230,36 +99230,39 @@
           "function_exact：新增回归测试在生产 chat 入口断言显式 sessionId 属于其他 agent 时返回 400 ADK_CHAT_FAILED/\"session belongs to a different agent\"，且提供的 session 不存在时返回 \"session not found\"、存储归属不被改写。修复位置：crates/jftrade-engine/src/product_adk_model_runtime_events.rs 的 prepare_chat 增加 resolveSession 等价 guard（原实现无条件 upsert 会静默改绑 agent）。探针：禁用 guard 后测试转红。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(session_context_tracks_events_appended_after_a_compaction) or test(a_run_waiting_for_approval_does_not_block_chat_auto_compaction) or test(compaction_preserves_the_call_of_a_pending_approval) or test(builtin_skill_catalog_stays_registered_alongside_external_installs) or test(session_context_window_follows_the_composer_provider_override) or test(reviewed_mcp_schemas_match_canonical_go_fixture_deeply) or test(session_delete_missing_is_idempotent_and_blank_ids_are_rejected) or test(completed_run_reopens_only_for_a_fresh_durable_approval) or test(adk_audit_route_filters_by_kind_and_subject_id) or test(test_shared_artifacts_preserved_and_user_session_deletion_rejected) or test(adk_store_lifecycle_and_restart_durability) or test(test_idempotent_retry_and_partial_failure_crash_recovery) or test(test_adk_cascade_cleanup_removes_all_entities_across_three_databases) or test(adk_session_page_filters_by_agent_and_title_and_paginates) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_session_delete_missing_is_reported_with_the_session_error_code) or test(adk_approval_page_orders_by_latest_update_and_counts_filtered_rows) or test(adk_maintenance_compacts_every_owned_database_and_requires_the_writer_lease) or test(chat_rejects_a_session_owned_by_a_different_agent) or test(cancelling_a_run_denies_its_pending_approvals) or test(adk_cancel_run_missing_is_the_dedicated_cancel_failure) or test(adk_resolve_approval_missing_returns_the_idempotent_empty_envelope) or test(adk_run_listing_filters_and_sorts_newest_first) or test(saved_provider_normalizes_the_request_timeout_on_write) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(run_start_freezes_the_configured_run_timeout_from_settings) or test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(expired_runs_use_each_runs_own_timeout_window)"
+          "test(chat_rejects_a_session_owned_by_a_different_agent) or test(cancelling_a_run_denies_its_pending_approvals) or test(adk_cancel_run_missing_is_the_dedicated_cancel_failure) or test(adk_resolve_approval_missing_returns_the_idempotent_empty_envelope) or test(adk_run_listing_filters_and_sorts_newest_first)"
         ],
         "testFilter": [
           "chat_rejects_a_session_owned_by_a_different_agent"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest-0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "401604517dde7ec5b5ea8721ce8fbcac51b94726",
-        "verifiedAt": "2026-09-25T14:05:33Z",
-        "receiptDigest": null
+        "verifiedCommit": "6e850e7d",
+        "verifiedAt": "2026-09-28T004117Z",
+        "receiptDigest": "sha256:66c0e83d636b8f8045e81d60c6cd382808d168af88f8d211cc8739dcdc9df635"
       },
       "risk": "high",
       "owner": "assistant_workflow",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：新增回归测试在生产 chat 入口断言显式 sessionId 属于其他 agent 时返回 400 ADK_CHAT_FAILED/\"session belongs to a different agent\"，且提供的 session 不存在时返回 \"session not found\"、存储归属不被改写。修复位置：crates/jftrade-engine/src/product_adk_model_runtime_events.rs 的 prepare_chat 增加 resolveSession 等价 guard（原实现无条件 upsert 会静默改绑 agent）。探针：禁用 guard 后测试转红。"
@@ -99501,36 +99504,39 @@
           "function_exact：新增回归测试断言取消 PENDING run 后 status=CANCELLED、cancelledAt 非空，且该 run 的 PENDING approval 行在同一事务被置为 DENIED，后续 approve 不再生效、run 保持 CANCELLED。修复位置：新增 store 方法 cancel_run_and_deny_pending_approvals（事务内 run CAS + deny pending approvals），取消路由改走该方法。探针：恢复旧 run-only 写入路径后测试转红。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(session_context_tracks_events_appended_after_a_compaction) or test(a_run_waiting_for_approval_does_not_block_chat_auto_compaction) or test(compaction_preserves_the_call_of_a_pending_approval) or test(builtin_skill_catalog_stays_registered_alongside_external_installs) or test(session_context_window_follows_the_composer_provider_override) or test(reviewed_mcp_schemas_match_canonical_go_fixture_deeply) or test(session_delete_missing_is_idempotent_and_blank_ids_are_rejected) or test(completed_run_reopens_only_for_a_fresh_durable_approval) or test(adk_audit_route_filters_by_kind_and_subject_id) or test(test_shared_artifacts_preserved_and_user_session_deletion_rejected) or test(adk_store_lifecycle_and_restart_durability) or test(test_idempotent_retry_and_partial_failure_crash_recovery) or test(test_adk_cascade_cleanup_removes_all_entities_across_three_databases) or test(adk_session_page_filters_by_agent_and_title_and_paginates) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_session_delete_missing_is_reported_with_the_session_error_code) or test(adk_approval_page_orders_by_latest_update_and_counts_filtered_rows) or test(adk_maintenance_compacts_every_owned_database_and_requires_the_writer_lease) or test(chat_rejects_a_session_owned_by_a_different_agent) or test(cancelling_a_run_denies_its_pending_approvals) or test(adk_cancel_run_missing_is_the_dedicated_cancel_failure) or test(adk_resolve_approval_missing_returns_the_idempotent_empty_envelope) or test(adk_run_listing_filters_and_sorts_newest_first) or test(saved_provider_normalizes_the_request_timeout_on_write) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(run_start_freezes_the_configured_run_timeout_from_settings) or test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(expired_runs_use_each_runs_own_timeout_window)"
+          "test(chat_rejects_a_session_owned_by_a_different_agent) or test(cancelling_a_run_denies_its_pending_approvals) or test(adk_cancel_run_missing_is_the_dedicated_cancel_failure) or test(adk_resolve_approval_missing_returns_the_idempotent_empty_envelope) or test(adk_run_listing_filters_and_sorts_newest_first)"
         ],
         "testFilter": [
           "cancelling_a_run_denies_its_pending_approvals"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest-0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "401604517dde7ec5b5ea8721ce8fbcac51b94726",
-        "verifiedAt": "2026-09-25T14:05:33Z",
-        "receiptDigest": null
+        "verifiedCommit": "6e850e7d",
+        "verifiedAt": "2026-09-28T004117Z",
+        "receiptDigest": "sha256:66c0e83d636b8f8045e81d60c6cd382808d168af88f8d211cc8739dcdc9df635"
       },
       "risk": "high",
       "owner": "assistant_workflow",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：新增回归测试断言取消 PENDING run 后 status=CANCELLED、cancelledAt 非空，且该 run 的 PENDING approval 行在同一事务被置为 DENIED，后续 approve 不再生效、run 保持 CANCELLED。修复位置：新增 store 方法 cancel_run_and_deny_pending_approvals（事务内 run CAS + deny pending approvals），取消路由改走该方法。探针：恢复旧 run-only 写入路径后测试转红。"
@@ -99568,36 +99574,39 @@
           "function_exact：取消一个不存在的 run 走 `AdkMutationOperation::CancelRun` 的专用失败分支——Rust 返回 `404 ADK_RUN_NOT_FOUND`（Go 的 `run not found` 错误文本经 route 层分类后的等价物），而 approve/deny 的缺失目标仍返回幂等空 envelope。测试同时断言该分支不写入 run/approval 行，因此“缺失目标是共享 404”这个回归会在这里转红。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(session_context_tracks_events_appended_after_a_compaction) or test(a_run_waiting_for_approval_does_not_block_chat_auto_compaction) or test(compaction_preserves_the_call_of_a_pending_approval) or test(builtin_skill_catalog_stays_registered_alongside_external_installs) or test(session_context_window_follows_the_composer_provider_override) or test(reviewed_mcp_schemas_match_canonical_go_fixture_deeply) or test(session_delete_missing_is_idempotent_and_blank_ids_are_rejected) or test(completed_run_reopens_only_for_a_fresh_durable_approval) or test(adk_audit_route_filters_by_kind_and_subject_id) or test(test_shared_artifacts_preserved_and_user_session_deletion_rejected) or test(adk_store_lifecycle_and_restart_durability) or test(test_idempotent_retry_and_partial_failure_crash_recovery) or test(test_adk_cascade_cleanup_removes_all_entities_across_three_databases) or test(adk_session_page_filters_by_agent_and_title_and_paginates) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_session_delete_missing_is_reported_with_the_session_error_code) or test(adk_approval_page_orders_by_latest_update_and_counts_filtered_rows) or test(adk_maintenance_compacts_every_owned_database_and_requires_the_writer_lease) or test(chat_rejects_a_session_owned_by_a_different_agent) or test(cancelling_a_run_denies_its_pending_approvals) or test(adk_cancel_run_missing_is_the_dedicated_cancel_failure) or test(adk_resolve_approval_missing_returns_the_idempotent_empty_envelope) or test(adk_run_listing_filters_and_sorts_newest_first) or test(saved_provider_normalizes_the_request_timeout_on_write) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(run_start_freezes_the_configured_run_timeout_from_settings) or test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(expired_runs_use_each_runs_own_timeout_window)"
+          "test(chat_rejects_a_session_owned_by_a_different_agent) or test(cancelling_a_run_denies_its_pending_approvals) or test(adk_cancel_run_missing_is_the_dedicated_cancel_failure) or test(adk_resolve_approval_missing_returns_the_idempotent_empty_envelope) or test(adk_run_listing_filters_and_sorts_newest_first)"
         ],
         "testFilter": [
           "adk_cancel_run_missing_is_the_dedicated_cancel_failure"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest-0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "401604517dde7ec5b5ea8721ce8fbcac51b94726",
-        "verifiedAt": "2026-09-25T14:05:33Z",
-        "receiptDigest": null
+        "verifiedCommit": "6e850e7d",
+        "verifiedAt": "2026-09-28T004117Z",
+        "receiptDigest": "sha256:66c0e83d636b8f8045e81d60c6cd382808d168af88f8d211cc8739dcdc9df635"
       },
       "risk": "high",
       "owner": "assistant_workflow",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：取消一个不存在的 run 走 `AdkMutationOperation::CancelRun` 的专用失败分支——Rust 返回 `404 ADK_RUN_NOT_FOUND`（Go 的 `run not found` 错误文本经 route 层分类后的等价物），而 approve/deny 的缺失目标仍返回幂等空 envelope。测试同时断言该分支不写入 run/approval 行，因此“缺失目标是共享 404”这个回归会在这里转红。"
@@ -99635,36 +99644,39 @@
           "function_exact：approve 与 deny 两条缺失路径都返回 Go 的零值 resolution —— `{\"approval\":{\"id\":\"\"}}`，没有 `run`、没有 `message`，且不创建任何 approval 行。Go 该用例明确“缺失不是错误”，因此 Rust 不得把它升级成 404；store 层（`Ok(None)`、`changed=false`）由 crates/jftrade-store-sqlite/tests/adk_store_contracts.rs::adk_approval_resolution_missing_and_non_pending_rows_are_idempotent 单独冻结。route 层的 resolved-twice 幂等由 adk_approval_negative_and_idempotent_routes_match_the_go_envelopes 覆盖。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(session_context_tracks_events_appended_after_a_compaction) or test(a_run_waiting_for_approval_does_not_block_chat_auto_compaction) or test(compaction_preserves_the_call_of_a_pending_approval) or test(builtin_skill_catalog_stays_registered_alongside_external_installs) or test(session_context_window_follows_the_composer_provider_override) or test(reviewed_mcp_schemas_match_canonical_go_fixture_deeply) or test(session_delete_missing_is_idempotent_and_blank_ids_are_rejected) or test(completed_run_reopens_only_for_a_fresh_durable_approval) or test(adk_audit_route_filters_by_kind_and_subject_id) or test(test_shared_artifacts_preserved_and_user_session_deletion_rejected) or test(adk_store_lifecycle_and_restart_durability) or test(test_idempotent_retry_and_partial_failure_crash_recovery) or test(test_adk_cascade_cleanup_removes_all_entities_across_three_databases) or test(adk_session_page_filters_by_agent_and_title_and_paginates) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_session_delete_missing_is_reported_with_the_session_error_code) or test(adk_approval_page_orders_by_latest_update_and_counts_filtered_rows) or test(adk_maintenance_compacts_every_owned_database_and_requires_the_writer_lease) or test(chat_rejects_a_session_owned_by_a_different_agent) or test(cancelling_a_run_denies_its_pending_approvals) or test(adk_cancel_run_missing_is_the_dedicated_cancel_failure) or test(adk_resolve_approval_missing_returns_the_idempotent_empty_envelope) or test(adk_run_listing_filters_and_sorts_newest_first) or test(saved_provider_normalizes_the_request_timeout_on_write) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(run_start_freezes_the_configured_run_timeout_from_settings) or test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(expired_runs_use_each_runs_own_timeout_window)"
+          "test(chat_rejects_a_session_owned_by_a_different_agent) or test(cancelling_a_run_denies_its_pending_approvals) or test(adk_cancel_run_missing_is_the_dedicated_cancel_failure) or test(adk_resolve_approval_missing_returns_the_idempotent_empty_envelope) or test(adk_run_listing_filters_and_sorts_newest_first)"
         ],
         "testFilter": [
           "adk_resolve_approval_missing_returns_the_idempotent_empty_envelope"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest-0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "401604517dde7ec5b5ea8721ce8fbcac51b94726",
-        "verifiedAt": "2026-09-25T14:05:33Z",
-        "receiptDigest": null
+        "verifiedCommit": "6e850e7d",
+        "verifiedAt": "2026-09-28T004117Z",
+        "receiptDigest": "sha256:66c0e83d636b8f8045e81d60c6cd382808d168af88f8d211cc8739dcdc9df635"
       },
       "risk": "high",
       "owner": "assistant_workflow",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：approve 与 deny 两条缺失路径都返回 Go 的零值 resolution —— `{\"approval\":{\"id\":\"\"}}`，没有 `run`、没有 `message`，且不创建任何 approval 行。Go 该用例明确“缺失不是错误”，因此 Rust 不得把它升级成 404；store 层（`Ok(None)`、`changed=false`）由 crates/jftrade-store-sqlite/tests/adk_store_contracts.rs::adk_approval_resolution_missing_and_non_pending_rows_are_idempotent 单独冻结。route 层的 resolved-twice 幂等由 adk_approval_negative_and_idempotent_routes_match_the_go_envelopes 覆盖。"
@@ -99770,36 +99782,39 @@
           "function_exact：`/api/v1/adk/runs?status=…&agentId=…&sessionId=…` 按 status/agent/session 过滤并按 `createdAt DESC, id ASC` 排序（Go `ListRunsPage` 的顺序），返回页与过滤后的 total 一致；不同 session/status 的行被排除。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(session_context_tracks_events_appended_after_a_compaction) or test(a_run_waiting_for_approval_does_not_block_chat_auto_compaction) or test(compaction_preserves_the_call_of_a_pending_approval) or test(builtin_skill_catalog_stays_registered_alongside_external_installs) or test(session_context_window_follows_the_composer_provider_override) or test(reviewed_mcp_schemas_match_canonical_go_fixture_deeply) or test(session_delete_missing_is_idempotent_and_blank_ids_are_rejected) or test(completed_run_reopens_only_for_a_fresh_durable_approval) or test(adk_audit_route_filters_by_kind_and_subject_id) or test(test_shared_artifacts_preserved_and_user_session_deletion_rejected) or test(adk_store_lifecycle_and_restart_durability) or test(test_idempotent_retry_and_partial_failure_crash_recovery) or test(test_adk_cascade_cleanup_removes_all_entities_across_three_databases) or test(adk_session_page_filters_by_agent_and_title_and_paginates) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_session_delete_missing_is_reported_with_the_session_error_code) or test(adk_approval_page_orders_by_latest_update_and_counts_filtered_rows) or test(adk_maintenance_compacts_every_owned_database_and_requires_the_writer_lease) or test(chat_rejects_a_session_owned_by_a_different_agent) or test(cancelling_a_run_denies_its_pending_approvals) or test(adk_cancel_run_missing_is_the_dedicated_cancel_failure) or test(adk_resolve_approval_missing_returns_the_idempotent_empty_envelope) or test(adk_run_listing_filters_and_sorts_newest_first) or test(saved_provider_normalizes_the_request_timeout_on_write) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(run_start_freezes_the_configured_run_timeout_from_settings) or test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(expired_runs_use_each_runs_own_timeout_window)"
+          "test(chat_rejects_a_session_owned_by_a_different_agent) or test(cancelling_a_run_denies_its_pending_approvals) or test(adk_cancel_run_missing_is_the_dedicated_cancel_failure) or test(adk_resolve_approval_missing_returns_the_idempotent_empty_envelope) or test(adk_run_listing_filters_and_sorts_newest_first)"
         ],
         "testFilter": [
           "adk_run_listing_filters_and_sorts_newest_first"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest-0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "401604517dde7ec5b5ea8721ce8fbcac51b94726",
-        "verifiedAt": "2026-09-25T14:05:33Z",
-        "receiptDigest": null
+        "verifiedCommit": "6e850e7d",
+        "verifiedAt": "2026-09-28T004117Z",
+        "receiptDigest": "sha256:66c0e83d636b8f8045e81d60c6cd382808d168af88f8d211cc8739dcdc9df635"
       },
       "risk": "high",
       "owner": "assistant_workflow",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：`/api/v1/adk/runs?status=…&agentId=…&sessionId=…` 按 status/agent/session 过滤并按 `createdAt DESC, id ASC` 排序（Go `ListRunsPage` 的顺序），返回页与过滤后的 total 一致；不同 session/status 的行被排除。"
