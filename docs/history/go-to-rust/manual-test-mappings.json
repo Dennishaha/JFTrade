@@ -156525,7 +156525,7 @@
           "function_exact：pre-only 选择产出单条 ETH 计划且 keepSessions=[Pre]；Session_ALL fallback 的 keepSessions=[Overnight] 与 Go 一致。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -156534,27 +156534,30 @@
           "run",
           "-p",
           "jftrade-integration-futu",
+          "--all-targets",
+          "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(history_session_plan)"
+          "test(session_planner_selects_explicit_routes_and_keep_sets) or test(history_window_follows_forward_pages_and_keeps_the_latest_limit) or test(history_window_allows_more_than_eight_pages) or test(history_window_uses_a_larger_upstream_page_size_than_the_limit) or test(security_info_methods_return_empty_collections_for_a_payload_less_ack)"
         ],
         "testFilter": [
           "session_planner_selects_explicit_routes_and_keep_sets"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest-0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "dc862edb",
-        "verifiedAt": "2026-09-25T12:57:05Z",
-        "receiptDigest": null
+        "verifiedCommit": "e31b5f4e",
+        "verifiedAt": "2026-09-28T012119Z",
+        "receiptDigest": "sha256:603f4b41c4847b7f46c69791b46609ecb78503502e1118929ce1f5d5d9f09338"
       },
       "risk": "high",
       "owner": "futu_opend",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：pre-only 选择产出单条 ETH 计划且 keepSessions=[Pre]；Session_ALL fallback 的 keepSessions=[Overnight] 与 Go 一致。"
@@ -157021,7 +157024,7 @@
           "function_exact：数据层跟随 nextReqKey 连续读取 3 页并保留最新窗口（limit 裁剪由 engine 读取路径承担）；请求顺序与 Go 的两次分页语义一致。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -157030,27 +157033,30 @@
           "run",
           "-p",
           "jftrade-integration-futu",
+          "--all-targets",
+          "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(history_window)"
+          "test(session_planner_selects_explicit_routes_and_keep_sets) or test(history_window_follows_forward_pages_and_keeps_the_latest_limit) or test(history_window_allows_more_than_eight_pages) or test(history_window_uses_a_larger_upstream_page_size_than_the_limit) or test(security_info_methods_return_empty_collections_for_a_payload_less_ack)"
         ],
         "testFilter": [
           "history_window_follows_forward_pages_and_keeps_the_latest_limit"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest-0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "dc862edb",
-        "verifiedAt": "2026-09-25T12:57:05Z",
-        "receiptDigest": null
+        "verifiedCommit": "e31b5f4e",
+        "verifiedAt": "2026-09-28T012119Z",
+        "receiptDigest": "sha256:603f4b41c4847b7f46c69791b46609ecb78503502e1118929ce1f5d5d9f09338"
       },
       "risk": "high",
       "owner": "futu_opend",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：数据层跟随 nextReqKey 连续读取 3 页并保留最新窗口（limit 裁剪由 engine 读取路径承担）；请求顺序与 Go 的两次分页语义一致。"
@@ -157088,7 +157094,7 @@
           "function_exact：九页 + 终止页共 10 次请求全部跟随，突破旧的 8 页上限（Rust 预算 32 页，对应 Go maxHistoryKLinePages）。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -157097,27 +157103,30 @@
           "run",
           "-p",
           "jftrade-integration-futu",
+          "--all-targets",
+          "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(history_window)"
+          "test(session_planner_selects_explicit_routes_and_keep_sets) or test(history_window_follows_forward_pages_and_keeps_the_latest_limit) or test(history_window_allows_more_than_eight_pages) or test(history_window_uses_a_larger_upstream_page_size_than_the_limit) or test(security_info_methods_return_empty_collections_for_a_payload_less_ack)"
         ],
         "testFilter": [
           "history_window_allows_more_than_eight_pages"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest-0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "dc862edb",
-        "verifiedAt": "2026-09-25T12:57:05Z",
-        "receiptDigest": null
+        "verifiedCommit": "e31b5f4e",
+        "verifiedAt": "2026-09-28T012119Z",
+        "receiptDigest": "sha256:603f4b41c4847b7f46c69791b46609ecb78503502e1118929ce1f5d5d9f09338"
       },
       "risk": "high",
       "owner": "futu_opend",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：九页 + 终止页共 10 次请求全部跟随，突破旧的 8 页上限（Rust 预算 32 页，对应 Go maxHistoryKLinePages）。"
@@ -157155,7 +157164,7 @@
           "function_exact：请求 limit 2/500/5000 分别放大/钳制为 200/500/1000 的上游页大小，与 Go 的 resolveHistoricalKLinePageSize 一致。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -157164,27 +157173,30 @@
           "run",
           "-p",
           "jftrade-integration-futu",
+          "--all-targets",
+          "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(history_window)"
+          "test(session_planner_selects_explicit_routes_and_keep_sets) or test(history_window_follows_forward_pages_and_keeps_the_latest_limit) or test(history_window_allows_more_than_eight_pages) or test(history_window_uses_a_larger_upstream_page_size_than_the_limit) or test(security_info_methods_return_empty_collections_for_a_payload_less_ack)"
         ],
         "testFilter": [
           "history_window_uses_a_larger_upstream_page_size_than_the_limit"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest-0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "dc862edb",
-        "verifiedAt": "2026-09-25T12:57:05Z",
-        "receiptDigest": null
+        "verifiedCommit": "e31b5f4e",
+        "verifiedAt": "2026-09-28T012119Z",
+        "receiptDigest": "sha256:603f4b41c4847b7f46c69791b46609ecb78503502e1118929ce1f5d5d9f09338"
       },
       "risk": "high",
       "owner": "futu_opend",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：请求 limit 2/500/5000 分别放大/钳制为 200/500/1000 的上游页大小，与 Go 的 resolveHistoricalKLinePageSize 一致。"
@@ -161100,8 +161112,6 @@
       },
       "verification": {
         "argv": [
-          "env",
-          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
@@ -165074,27 +165084,26 @@
           "--locked",
           "--message-format",
           "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(get_kl_missing_s2c_returns_an_empty_result) or test(security_info_methods_return_empty_collections_for_a_payload_less_ack) or test(history_trading_reads_return_stable_empty_collections)"
+          "test(session_planner_selects_explicit_routes_and_keep_sets) or test(history_window_follows_forward_pages_and_keeps_the_latest_limit) or test(history_window_allows_more_than_eight_pages) or test(history_window_uses_a_larger_upstream_page_size_than_the_limit) or test(security_info_methods_return_empty_collections_for_a_payload_less_ack)"
         ],
         "testFilter": [
           "security_info_methods_return_empty_collections_for_a_payload_less_ack"
         ],
-        "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+        "runnerVersion": "cargo-nextest-0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "53d1dbd7344efe589018e2c3ef11f10fc7b5d50c",
-        "verifiedAt": "2026-09-27T08:00:00Z",
-        "receiptDigest": "sha256:6c291f2148637bd23a63503b986a18df98b015f6caed72ced4b78a3710cac909"
+        "verifiedCommit": "e31b5f4e",
+        "verifiedAt": "2026-09-28T012119Z",
+        "receiptDigest": "sha256:603f4b41c4847b7f46c69791b46609ecb78503502e1118929ce1f5d5d9f09338"
       },
       "risk": "high",
       "owner": "futu_opend",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "reviewed：Go 的 Qot_GetStaticInfo 与 Qot_GetSecuritySnapshot 在 retType=0 且缺 S2C 时都要求非 nil、长度为 0 且无错误；Rust 的同一测试逐路发送 payload-less success 并断言 lookup 与 snapshot 两个返回 Vec 均为空。"
