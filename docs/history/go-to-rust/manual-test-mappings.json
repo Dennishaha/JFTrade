@@ -142119,7 +142119,7 @@
           "完整覆盖：desired_subscriptions 把 KLINE/hk/HK.00700/1m 与 KLINE/HK/HK.00700/1M 归并为一个逻辑能力（logical_count=3），物理键为 BASIC:HK.00700、KLINE:HK.00700:1m、KLINE:HK.00700:5m；最小保留期内释放只标记 pending（pending_release_count=3）且不产生 RPC；重新 desired 单个能力时不重新订阅（pending_release_count=1）；超过最小年龄只释放不再 desired 的 KLINE:HK.00700:5m；最终释放剩余两条并回到 own_active_count=0、pending_release_count=0、entries 为空。与 Go ReconcileSubscriptions 的时机差异说明：Rust 把 unsubscribe 计划与提交分开（actions 产出计划、record_success 提交），物理结果等价"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -142136,21 +142136,19 @@
         "testFilter": [
           "exact_physical_subscriptions_are_shared_and_final_release_is_deferred"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest-0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "50e13e18",
-        "verifiedAt": "2026-09-25T12:42:42Z",
-        "receiptDigest": null
+        "verifiedCommit": "eef6f10fc7e2569fd82c0860bf779dc90e98a19c",
+        "verifiedAt": "2026-09-28T01:42:36Z",
+        "receiptDigest": "sha256:c3d81229c5939b1e25203f0f1c269d609600a0ed226da538c5fc7b1e8bd5e3e0"
       },
       "risk": "high",
       "owner": "futu_opend",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "完整覆盖：desired_subscriptions 把 KLINE/hk/HK.00700/1m 与 KLINE/HK/HK.00700/1M 归并为一个逻辑能力（logical_count=3），物理键为 BASIC:HK.00700、KLINE:HK.00700:1m、KLINE:HK.00700:5m；最小保留期内释放只标记 pending（pending_release_count=3）且不产生 RPC；重新 desired 单个能力时不重新订阅（pending_release_count=1）；超过最小年龄只释放不再 desired 的 KLINE:HK.00700:5m；最终释放剩余两条并回到 own_active_count=0、pending_release_count=0、entries 为空。与 Go ReconcileSubscriptions 的时机差异说明：Rust 把 unsubscribe 计划与提交分开（actions 产出计划、record_success 提交），物理结果等价"
@@ -142188,7 +142186,7 @@
           "完整覆盖（并发幂等）：以真实共享 owner（Arc<Mutex<SubscriptionReconciler>>）跑 64 个并发 reconcile pass。首个 pass 规划并提交 2 条物理订阅，其余 63 个 pass 观察到已提交状态、规划数恒为 0；释放阶段同样 64 并发只规划 2 条 unsubscribe，结束后 desiredCount/ownActiveCount/pendingReleaseCount 全为 0 且 entries 为空。唯一写入所有权由 &mut self + Mutex 保证（Go 用 reconcileMu）"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -142205,21 +142203,19 @@
         "testFilter": [
           "concurrent_reconcile_passes_are_idempotent_for_subscribe_and_release"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest-0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "50e13e18",
-        "verifiedAt": "2026-09-25T12:42:42Z",
-        "receiptDigest": null
+        "verifiedCommit": "eef6f10fc7e2569fd82c0860bf779dc90e98a19c",
+        "verifiedAt": "2026-09-28T01:42:36Z",
+        "receiptDigest": "sha256:c3d81229c5939b1e25203f0f1c269d609600a0ed226da538c5fc7b1e8bd5e3e0"
       },
       "risk": "high",
       "owner": "futu_opend",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "完整覆盖（并发幂等）：以真实共享 owner（Arc<Mutex<SubscriptionReconciler>>）跑 64 个并发 reconcile pass。首个 pass 规划并提交 2 条物理订阅，其余 63 个 pass 观察到已提交状态、规划数恒为 0；释放阶段同样 64 并发只规划 2 条 unsubscribe，结束后 desiredCount/ownActiveCount/pendingReleaseCount 全为 0 且 entries 为空。唯一写入所有权由 &mut self + Mutex 保证（Go 用 reconcileMu）"
@@ -142391,7 +142387,7 @@
           "完整覆盖：Rust 断言 unsubscribe 失败的完整退避阶梯 5s/10s/20s/30s/30s（每级窗口内 reconcile 被推迟）、retry_delay_ms 边界（0 钳到 5s、99 饱和到 30s），以及 reacquire 在不发起 RPC 的情况下取消待定 unsubscribe 重试（failures/retryAt/lastError 归零、状态回到 active、下一次失败从 5s 重新起梯）。修复点：actions() 过去不会在记录重新被 desired 且仍 active 时清理 retry 状态，导致 reacquire 后阶梯与 lastError 残留"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -142408,21 +142404,19 @@
         "testFilter": [
           "unsubscribe_retry_ladder_escalates_and_reacquire_clears_retry_state"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest-0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "50e13e18",
-        "verifiedAt": "2026-09-25T12:42:42Z",
-        "receiptDigest": null
+        "verifiedCommit": "eef6f10fc7e2569fd82c0860bf779dc90e98a19c",
+        "verifiedAt": "2026-09-28T01:42:36Z",
+        "receiptDigest": "sha256:c3d81229c5939b1e25203f0f1c269d609600a0ed226da538c5fc7b1e8bd5e3e0"
       },
       "risk": "high",
       "owner": "futu_opend",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "完整覆盖：Rust 断言 unsubscribe 失败的完整退避阶梯 5s/10s/20s/30s/30s（每级窗口内 reconcile 被推迟）、retry_delay_ms 边界（0 钳到 5s、99 饱和到 30s），以及 reacquire 在不发起 RPC 的情况下取消待定 unsubscribe 重试（failures/retryAt/lastError 归零、状态回到 active、下一次失败从 5s 重新起梯）。修复点：actions() 过去不会在记录重新被 desired 且仍 active 时清理 retry 状态，导致 reacquire 后阶梯与 lastError 残留"
@@ -142460,7 +142454,7 @@
           "完整覆盖：真实帧协议会话下 BasicQot 配额拒绝进入 delayed fallback（fallbackCount=1、ownActiveCount=0、brokerState=fallback、lastError 保留），15s 窗口内延迟重试，窗口到点后恢复 active 且 fallbackCount=0；reconciler 级快照与恢复断言另见 subscriptions::tests::basic_quote_availability_failure_enters_delayed_fallback_and_recovers"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -142477,21 +142471,19 @@
         "testFilter": [
           "test_basic_quote_availability_rejection_enters_delayed_fallback_and_reconcile_succeeds"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest-0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "50e13e18",
-        "verifiedAt": "2026-09-25T12:42:42Z",
-        "receiptDigest": null
+        "verifiedCommit": "eef6f10fc7e2569fd82c0860bf779dc90e98a19c",
+        "verifiedAt": "2026-09-28T01:42:36Z",
+        "receiptDigest": "sha256:c3d81229c5939b1e25203f0f1c269d609600a0ed226da538c5fc7b1e8bd5e3e0"
       },
       "risk": "high",
       "owner": "futu_opend",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "完整覆盖：真实帧协议会话下 BasicQot 配额拒绝进入 delayed fallback（fallbackCount=1、ownActiveCount=0、brokerState=fallback、lastError 保留），15s 窗口内延迟重试，窗口到点后恢复 active 且 fallbackCount=0；reconciler 级快照与恢复断言另见 subscriptions::tests::basic_quote_availability_failure_enters_delayed_fallback_and_recovers"
@@ -142893,7 +142885,7 @@
           "完整覆盖：连接替换时清空上一连接的配额诊断（totalUsed/remain/ownUsed/checkedAt/lastError 全部归 None），demand 重放非空且 ownActiveCount 归 0；配额失败仅作为诊断记录（lastError 与 checkedAt 生效、不上抛 reconcile 错误）；close 幂等且关闭后 reconcile 为空、快照计数归 0。修复点：replay_actions 过去保留旧连接的配额总数与检查时间，会把已断开的连接配额继续投射到 UI（对应 Go resetConnectionStateLocked 清空 quota/quotaCheckedAt/quotaLastError）。Go 针对 nil exchange/裸指针边界的断言在 Rust 由所有权与 Option 表达，不适用"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -142910,21 +142902,19 @@
         "testFilter": [
           "connection_replacement_clears_quota_ownership_and_reset_is_idempotent"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest-0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "50e13e18",
-        "verifiedAt": "2026-09-25T12:42:42Z",
-        "receiptDigest": null
+        "verifiedCommit": "eef6f10fc7e2569fd82c0860bf779dc90e98a19c",
+        "verifiedAt": "2026-09-28T01:42:36Z",
+        "receiptDigest": "sha256:c3d81229c5939b1e25203f0f1c269d609600a0ed226da538c5fc7b1e8bd5e3e0"
       },
       "risk": "high",
       "owner": "futu_opend",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "完整覆盖：连接替换时清空上一连接的配额诊断（totalUsed/remain/ownUsed/checkedAt/lastError 全部归 None），demand 重放非空且 ownActiveCount 归 0；配额失败仅作为诊断记录（lastError 与 checkedAt 生效、不上抛 reconcile 错误）；close 幂等且关闭后 reconcile 为空、快照计数归 0。修复点：replay_actions 过去保留旧连接的配额总数与检查时间，会把已断开的连接配额继续投射到 UI（对应 Go resetConnectionStateLocked 清空 quota/quotaCheckedAt/quotaLastError）。Go 针对 nil exchange/裸指针边界的断言在 Rust 由所有权与 Option 表达，不适用"
