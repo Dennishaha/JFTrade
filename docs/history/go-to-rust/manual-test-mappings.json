@@ -147822,7 +147822,7 @@
           "function_exact：Go 断言 nil-session plan 不回退、空 route 错误不回退、OVERNIGHT→SessionOvernight、非 US 零时间→SessionUnknown、US end-time-only→Pre、US 下午→After、窗口过滤只留相交 bar、1d 日线起始时间不位移、零价/NaN/零步长边界。Rust 对应：fallback_requires_the_same_route_and_an_unsupported_marker 断言无 session/路线不匹配/无 unsupported marker 都不回退；session 解析在 Rust 由 exchange calendar 的 classify_session + plan.resolve_market_session 承担（jftrade-calendar::manager_session 覆盖 Sunday overnight/节假日/早收盘），plan 的 keep_sessions 过滤是窗口过滤的 owner；test_adjust_kline_time_semantics 断言 1d 不位移；helper_boundaries_return_the_input_unchanged 断言零价/NaN/零步长原样返回。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -147843,21 +147843,19 @@
           "test_adjust_kline_time_semantics",
           "helper_boundaries_return_the_input_unchanged"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest-0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "78e36bd3",
-        "verifiedAt": "2026-09-25T13:08:40Z",
-        "receiptDigest": null
+        "verifiedCommit": "c5e7947474acffa58d37f25601725d9e26c7cc84",
+        "verifiedAt": "2026-09-28T02:20:45Z",
+        "receiptDigest": "sha256:b32a88c5f551e7f3b00501146b2f5b3e32ec0a931078327803c0bcd36c2d493c"
       },
       "risk": "high",
       "owner": "futu_opend",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：Go 断言 nil-session plan 不回退、空 route 错误不回退、OVERNIGHT→SessionOvernight、非 US 零时间→SessionUnknown、US end-time-only→Pre、US 下午→After、窗口过滤只留相交 bar、1d 日线起始时间不位移、零价/NaN/零步长边界。Rust 对应：fallback_requires_the_same_route_and_an_unsupported_marker 断言无 session/路线不匹配/无 unsupported marker 都不回退；session 解析在 Rust 由 exchange calendar 的 classify_session + plan.resolve_market_session 承担（jftrade-calendar::manager_session 覆盖 Sunday overnight/节假日/早收盘），plan 的 keep_sessions 过滤是窗口过滤的 owner；test_adjust_kline_time_semantics 断言 1d 不位移；helper_boundaries_return_the_input_unchanged 断言零价/NaN/零步长原样返回。"
@@ -152394,7 +152392,7 @@
           "function_exact：Go 对 PlateSet/PlateSecurity/StaticInfo 三协议断言两件事——injectAdvancedCursor(\"local:2\") 与 injectAdvancedPageSize(2) 之后 params 必须**完全为空**（本地分页不得进入 OpenD 请求），以及 applyResearchLocalPagination 按 local:2 → local:4 → 末尾清空游标走完 5 行、total=5、hasMore 正确，非法游标（server-cursor）报 invalid local research cursor。Rust 侧 local_pagination_walks_plate_and_catalog_windows 已覆盖三协议三页与非法游标；新增 local_pagination_never_leaks_into_the_opend_request 逐协议断言注入后 params.is_empty()（三协议必须为空），闭合 Go 的「不泄漏」子断言。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -152414,21 +152412,19 @@
           "local_pagination_never_leaks_into_the_opend_request",
           "local_pagination_walks_plate_and_catalog_windows"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest-0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "78e36bd3",
-        "verifiedAt": "2026-09-25T13:08:40Z",
-        "receiptDigest": null
+        "verifiedCommit": "c5e7947474acffa58d37f25601725d9e26c7cc84",
+        "verifiedAt": "2026-09-28T02:20:45Z",
+        "receiptDigest": "sha256:b32a88c5f551e7f3b00501146b2f5b3e32ec0a931078327803c0bcd36c2d493c"
       },
       "risk": "high",
       "owner": "futu_opend",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：Go 对 PlateSet/PlateSecurity/StaticInfo 三协议断言两件事——injectAdvancedCursor(\"local:2\") 与 injectAdvancedPageSize(2) 之后 params 必须**完全为空**（本地分页不得进入 OpenD 请求），以及 applyResearchLocalPagination 按 local:2 → local:4 → 末尾清空游标走完 5 行、total=5、hasMore 正确，非法游标（server-cursor）报 invalid local research cursor。Rust 侧 local_pagination_walks_plate_and_catalog_windows 已覆盖三协议三页与非法游标；新增 local_pagination_never_leaks_into_the_opend_request 逐协议断言注入后 params.is_empty()（三协议必须为空），闭合 Go 的「不泄漏」子断言。"
@@ -152477,7 +152473,7 @@
           "function_exact（含真实功能修复）：Go 断言「pagination metadata 不得变成 economic event 行、hasMore=false 且 nextCursor 清空、total=0、metadata 仍保留 nextPage/hasMore」。修复前 Rust 没有 Go payloadEntries/setPagination 的同构 owner，该组合断言无归属（research_normalization.rs 只把 PAGINATION_KEYS 用于「只有分页元数据就原样返回」判定）。修复后新增 research_payload_envelope（metadata 与 entries 分离、firstString(nextPage,nextKey) 探针、显式 bool hasMore 覆盖派生值、hasMore=false 清空游标、total 取 total/totalCount/allCount 否则 entries.len），并由测试逐条固定：纯分页 metadata 无 entries、hasMore=false 清空 stale 游标、带真实行时仍清空、显式 hasMore=true 无游标、nextPage 派生、allCount 覆盖计数、nextKey 次级探针，以及 payload_entries 的「按键名升序取第一个对象数组、丢弃标量行、行状 payload 自成一条」规则。这同时是 Go featureResultFromNormalizedPayload（结构体级 -> 字段名级）的 Rust owner。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -152497,21 +152493,19 @@
           "economic_calendar_pagination_honors_explicit_has_more_and_empty_rows",
           "payload_envelope_picks_the_first_sorted_entry_list_like_go"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest-0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "78e36bd3",
-        "verifiedAt": "2026-09-25T13:08:40Z",
-        "receiptDigest": null
+        "verifiedCommit": "c5e7947474acffa58d37f25601725d9e26c7cc84",
+        "verifiedAt": "2026-09-28T02:20:45Z",
+        "receiptDigest": "sha256:b32a88c5f551e7f3b00501146b2f5b3e32ec0a931078327803c0bcd36c2d493c"
       },
       "risk": "high",
       "owner": "futu_opend",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact（含真实功能修复）：Go 断言「pagination metadata 不得变成 economic event 行、hasMore=false 且 nextCursor 清空、total=0、metadata 仍保留 nextPage/hasMore」。修复前 Rust 没有 Go payloadEntries/setPagination 的同构 owner，该组合断言无归属（research_normalization.rs 只把 PAGINATION_KEYS 用于「只有分页元数据就原样返回」判定）。修复后新增 research_payload_envelope（metadata 与 entries 分离、firstString(nextPage,nextKey) 探针、显式 bool hasMore 覆盖派生值、hasMore=false 清空游标、total 取 total/totalCount/allCount 否则 entries.len），并由测试逐条固定：纯分页 metadata 无 entries、hasMore=false 清空 stale 游标、带真实行时仍清空、显式 hasMore=true 无游标、nextPage 派生、allCount 覆盖计数、nextKey 次级探针，以及 payload_entries 的「按键名升序取第一个对象数组、丢弃标量行、行状 payload 自成一条」规则。这同时是 Go featureResultFromNormalizedPayload（结构体级 -> 字段名级）的 Rust owner。"
@@ -165182,7 +165176,7 @@
           "function_exact：未连接端口 connect 直接失败；已关闭 coordinator 上的历史/当前 K 线读取返回 Session(Closed) 而不是伪造空页。BasicQot 的等价断线拒绝由 basic_quote_query 既有测试覆盖（Session/SubscriptionRequired 不返回空成功）。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -165197,21 +165191,19 @@
         "testFilter": [
           "market_read_methods_reject_a_disconnected_session"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest-0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "01fc8ae0",
-        "verifiedAt": "2026-09-25T12:51:19Z",
-        "receiptDigest": null
+        "verifiedCommit": "c5e7947474acffa58d37f25601725d9e26c7cc84",
+        "verifiedAt": "2026-09-28T02:20:45Z",
+        "receiptDigest": "sha256:b32a88c5f551e7f3b00501146b2f5b3e32ec0a931078327803c0bcd36c2d493c"
       },
       "risk": "high",
       "owner": "futu_opend",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：未连接端口 connect 直接失败；已关闭 coordinator 上的历史/当前 K 线读取返回 Session(Closed) 而不是伪造空页。BasicQot 的等价断线拒绝由 basic_quote_query 既有测试覆盖（Session/SubscriptionRequired 不返回空成功）。"
@@ -172504,7 +172496,7 @@
           "function_exact：Go 逐类型断言 stockScreenFloat/stockScreenUint64/stockScreenInt32 的强制转换与 NaN/Inf/负值拒绝，以及 stockScreenResultNumber 的 dval→ival 回退、stockScreenPreviousClose 的非正数拒绝、stockScreenOptional 的非有限值丢弃。Rust 不再解析 map[string]any，字段由 protobuf 解码为强类型，等价规则集中在 result_number/optional/positive/decimal 与 project_screen_page_at 的 previousClose 推导；测试逐条覆盖 dval 优先、NaN/Inf 回退 ival、dval/ival 全缺、非有限 optional 丢弃、0/负数/NaN 非正、以及 lastPrice-3101 为负时 previousClose 为空。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -172525,21 +172517,19 @@
         "testFilter": [
           "stock_screen_fallback_wire_value_helpers_match_go_coercions"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest-0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "5eab8d75",
-        "verifiedAt": "2026-09-25T13:16:09Z",
-        "receiptDigest": null
+        "verifiedCommit": "c5e7947474acffa58d37f25601725d9e26c7cc84",
+        "verifiedAt": "2026-09-28T02:20:45Z",
+        "receiptDigest": "sha256:b32a88c5f551e7f3b00501146b2f5b3e32ec0a931078327803c0bcd36c2d493c"
       },
       "risk": "high",
       "owner": "futu_opend",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：Go 逐类型断言 stockScreenFloat/stockScreenUint64/stockScreenInt32 的强制转换与 NaN/Inf/负值拒绝，以及 stockScreenResultNumber 的 dval→ival 回退、stockScreenPreviousClose 的非正数拒绝、stockScreenOptional 的非有限值丢弃。Rust 不再解析 map[string]any，字段由 protobuf 解码为强类型，等价规则集中在 result_number/optional/positive/decimal 与 project_screen_page_at 的 previousClose 推导；测试逐条覆盖 dval 优先、NaN/Inf 回退 ival、dval/ival 全缺、非有限 optional 丢弃、0/负数/NaN 非正、以及 lastPrice-3101 为负时 previousClose 为空。"
