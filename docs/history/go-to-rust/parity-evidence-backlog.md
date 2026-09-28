@@ -4,7 +4,7 @@
 
 当前积压：**2955 项**（按当前 `manual-test-mappings.json` 的 `[~]` 条目重算）。
 
-最新审计快照（2026-09-28 Assistant store-ops strict follow-up）：Go `4451`、Rust `3382`，`function_exact=1500`、`partial=2317`、`boundary=634`、`missing=0`；Parity anchor reconcile 为 `1793/1747/0/0/46`（unique/recorded/unrecorded/stale/unknown）。严格审计仍有 **3698 个 function_exact evidence/receipt gaps**（需 reviewed assertions、Parity anchor、reuse relation 与 passed receipt）；严格审计未通过。
+最新审计快照（2026-09-28 Assistant session-context2 strict follow-up）：Go `4451`、Rust `3382`，`function_exact=1500`、`partial=2317`、`boundary=634`、`missing=0`；Parity anchor reconcile 为 `1793/1747/0/0/46`（unique/recorded/unrecorded/stale/unknown）。严格审计仍有 **3696 个 function_exact evidence/receipt gaps**（需 reviewed assertions、Parity anchor、reuse relation 与 passed receipt）；严格审计未通过。
 
 ## 按领域
 
@@ -132,3 +132,4 @@
 - 2026-09-28 Futu K-line boundary strict evidence：五条单引用 P1 exact 已完成 reviewed assertion 与 receipt `sha256:f38ccd784ac1bf1afd47e5a14600fc1f016af24883a0787fb35b97b78f55801a`（integration-futu + engine nextest 5/5）；覆盖 period mapping、cursor/time validation、pagination bounds 与 Session_ALL fallback。strict gap 降至 3708，仍有历史 evidence/receipt 缺口，整体未通过。
 - 2026-09-28 Futu snapshot/listener strict evidence：五条单引用 P1 exact 已完成 reviewed assertion 与 receipt `sha256:5843770babe2087467db4d181f4c556dcea44dcf03a89385610e9ded8179dad8`（integration-futu + engine nextest 5/5）；覆盖 snapshot batching/cache、sliding budget/rate-limit/cancellation、empty result handling 与 basic quote malformed-row drop。strict gap 降至 3703，仍有历史 evidence/receipt 缺口，整体未通过。
 - 2026-09-28 Assistant store-ops strict evidence：五条单引用 P1 exact 已完成 reviewed assertion 与 receipt `sha256:66c0e83d636b8f8045e81d60c6cd382808d168af88f8d211cc8739dcdc9df635`（engine nextest 5/5）；覆盖 agent ownership guard、cancel/deny transaction、missing-target classifications 与 listing filters/sort。strict gap 降至 3698，仍有历史 evidence/receipt 缺口，整体未通过。
+- 2026-09-28 Assistant session-context2 strict evidence：五条单引用 P1 exact 已完成 reviewed assertion 与 receipt `sha256:83808bfd4b00fe6f1aacfe581f8ee1453badfe7659bff03d5d281583ba62163a`（engine nextest 5/5）；覆盖 provider override/revision compaction、handoff revision filtering、append visibility 与 pending approval preservation。strict gap 降至 3696，仍有历史 evidence/receipt 缺口，整体未通过。
