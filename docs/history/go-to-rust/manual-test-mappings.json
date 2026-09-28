@@ -140022,7 +140022,7 @@
           "完整覆盖：Rust 测试覆盖了无效价格剔除以及使用前收盘价/报价后备填补的完整转换分支，与 Go 等价"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -140039,21 +140039,19 @@
         "testFilter": [
           "test_tick_conversion_rejects_unusable_prices_and_uses_quote_fallbacks"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest-0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "71edf50b",
-        "verifiedAt": "2026-09-25T12:21:12Z",
-        "receiptDigest": null
+        "verifiedCommit": "4e3a4520f9a098670b37a3292cc5264a1831d530",
+        "verifiedAt": "2026-09-28T02:09:53Z",
+        "receiptDigest": "sha256:77b7aeff1ac829b88bffc92e012affa9c99f2f1b01599c1d957e5d7a1cac473f"
       },
       "risk": "high",
       "owner": "futu_opend",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "完整覆盖：Rust 测试覆盖了无效价格剔除以及使用前收盘价/报价后备填补的完整转换分支，与 Go 等价"
@@ -143018,7 +143016,7 @@
           "完整覆盖：空引用、KLINE 缺 interval、NEWS 等未支持 channel 全部被丢弃；限定符号 us.nvda 补齐 market 并规范化为 US.NVDA；logicalCount=2、物理键为 BASIC:US.NVDA 与 ORDER_BOOK:US.NVDA（ORDER_BOOK 不带 interval）；无法限定（market 为空且 symbol 非限定）时 normalize 失败且不产出物理订阅——与 Go normalizedInstrument/switch channel 的拒绝语义一致"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -143035,21 +143033,19 @@
         "testFilter": [
           "desired_physical_subscriptions_reject_incomplete_refs_and_normalize_symbols"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest-0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "50e13e18",
-        "verifiedAt": "2026-09-25T12:42:42Z",
-        "receiptDigest": null
+        "verifiedCommit": "4e3a4520f9a098670b37a3292cc5264a1831d530",
+        "verifiedAt": "2026-09-28T02:09:53Z",
+        "receiptDigest": "sha256:77b7aeff1ac829b88bffc92e012affa9c99f2f1b01599c1d957e5d7a1cac473f"
       },
       "risk": "high",
       "owner": "futu_opend",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "完整覆盖：空引用、KLINE 缺 interval、NEWS 等未支持 channel 全部被丢弃；限定符号 us.nvda 补齐 market 并规范化为 US.NVDA；logicalCount=2、物理键为 BASIC:US.NVDA 与 ORDER_BOOK:US.NVDA（ORDER_BOOK 不带 interval）；无法限定（market 为空且 symbol 非限定）时 normalize 失败且不产出物理订阅——与 Go normalizedInstrument/switch channel 的拒绝语义一致"
@@ -143087,7 +143083,7 @@
           "完整覆盖：viewer A（AAPL 1m K-line + AAPL order book）先订阅三条物理能力；切换到 strategy-A+viewer-B 时只订阅 MSFT 的三条能力，旧 AAPL order book 保持 pending（pending_release_count=1）因策略仍在看 AAPL 1m；切换回 A 之前复用 pending 不产生 RPC（A 视图 pending=3），再切到 B 同样复用；超过最小年龄仅释放 ORDER_BOOK:US.AAPL，策略的 KLINE:US.AAPL:1m 保留"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -143104,21 +143100,19 @@
         "testFilter": [
           "viewers_share_capabilities_and_only_the_stale_order_book_is_released"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest-0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "50e13e18",
-        "verifiedAt": "2026-09-25T12:42:42Z",
-        "receiptDigest": null
+        "verifiedCommit": "4e3a4520f9a098670b37a3292cc5264a1831d530",
+        "verifiedAt": "2026-09-28T02:09:53Z",
+        "receiptDigest": "sha256:77b7aeff1ac829b88bffc92e012affa9c99f2f1b01599c1d957e5d7a1cac473f"
       },
       "risk": "high",
       "owner": "futu_opend",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "完整覆盖：viewer A（AAPL 1m K-line + AAPL order book）先订阅三条物理能力；切换到 strategy-A+viewer-B 时只订阅 MSFT 的三条能力，旧 AAPL order book 保持 pending（pending_release_count=1）因策略仍在看 AAPL 1m；切换回 A 之前复用 pending 不产生 RPC（A 视图 pending=3），再切到 B 同样复用；超过最小年龄仅释放 ORDER_BOOK:US.AAPL，策略的 KLINE:US.AAPL:1m 保留"
@@ -144461,7 +144455,7 @@
           "function_exact：Rust 的 inject_advanced_option_defaults 对 Qot_GetHighDividendSOERank 在 market != HK 时返回 \"futu: high_dividend_state is available only for HK; OpenD does not accept a market filter\"（保留 Go 断言子串），HK（含小写 hk）通过；同一测试此前未被任何映射引用，本批正式登记为该 Go 测试的入口。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -144480,21 +144474,19 @@
         "testFilter": [
           "high_dividend_state_is_hk_only"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest-0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "78e36bd3",
-        "verifiedAt": "2026-09-25T13:08:40Z",
-        "receiptDigest": null
+        "verifiedCommit": "4e3a4520f9a098670b37a3292cc5264a1831d530",
+        "verifiedAt": "2026-09-28T02:09:53Z",
+        "receiptDigest": "sha256:77b7aeff1ac829b88bffc92e012affa9c99f2f1b01599c1d957e5d7a1cac473f"
       },
       "risk": "high",
       "owner": "futu_opend",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：Rust 的 inject_advanced_option_defaults 对 Qot_GetHighDividendSOERank 在 market != HK 时返回 \"futu: high_dividend_state is available only for HK; OpenD does not accept a market filter\"（保留 Go 断言子串），HK（含小写 hk）通过；同一测试此前未被任何映射引用，本批正式登记为该 Go 测试的入口。"
@@ -145728,7 +145720,7 @@
           "function_exact：同一世代失败只查询一次并缓存在 3s 重试窗口内；generation 变化后缓存失效、用新世代重新拉取；分离的缓存过期断言见 cached_failure_expires_at_the_retry_interval。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -145747,21 +145739,19 @@
         "testFilter": [
           "entitlement_failure_is_cached_and_refreshed_after_reconnect"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest-0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "78e36bd3",
-        "verifiedAt": "2026-09-25T13:08:40Z",
-        "receiptDigest": null
+        "verifiedCommit": "4e3a4520f9a098670b37a3292cc5264a1831d530",
+        "verifiedAt": "2026-09-28T02:09:53Z",
+        "receiptDigest": "sha256:77b7aeff1ac829b88bffc92e012affa9c99f2f1b01599c1d957e5d7a1cac473f"
       },
       "risk": "high",
       "owner": "futu_opend",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：同一世代失败只查询一次并缓存在 3s 重试窗口内；generation 变化后缓存失效、用新世代重新拉取；分离的缓存过期断言见 cached_failure_expires_at_the_retry_interval。"
