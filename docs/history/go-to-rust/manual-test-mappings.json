@@ -139280,7 +139280,7 @@
           "已找到 Rust 源码中的对应 Parity 测试证据"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -139295,21 +139295,19 @@
         "testFilter": [
           "test_market_sessions_for_candle_sessions"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest-0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "4b7b77f215c7499eaec49eda7b7782329a08f428",
-        "verifiedAt": "2026-09-25T14:13:44Z",
-        "receiptDigest": null
+        "verifiedCommit": "443b2fa402fbde9c385d4745574af8685c2ab6bd",
+        "verifiedAt": "2026-09-28T01:33:11Z",
+        "receiptDigest": "sha256:ae8a2c04479d9119e93e169d4f3e3a048488f478e60b591242891cc9c4040d6a"
       },
       "risk": "high",
       "owner": "futu_opend",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "已找到 Rust 源码中的对应 Parity 测试证据"
@@ -140954,7 +140952,7 @@
           "完整覆盖：Rust 测试严格按 Go 测试用例结构对各协议载荷（委托更新、持仓更新、系统通知）路由到中立分类进行断言，完全等价"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -140971,21 +140969,19 @@
         "testFilter": [
           "test_live_notification_from_response_routes_protocol_payloads_to_neutral_categories"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest-0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "50e13e18",
-        "verifiedAt": "2026-09-25T12:42:42Z",
-        "receiptDigest": null
+        "verifiedCommit": "443b2fa402fbde9c385d4745574af8685c2ab6bd",
+        "verifiedAt": "2026-09-28T01:33:11Z",
+        "receiptDigest": "sha256:ae8a2c04479d9119e93e169d4f3e3a048488f478e60b591242891cc9c4040d6a"
       },
       "risk": "high",
       "owner": "futu_opend",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "完整覆盖：Rust 测试严格按 Go 测试用例结构对各协议载荷（委托更新、持仓更新、系统通知）路由到中立分类进行断言，完全等价"
@@ -141018,7 +141014,7 @@
           "完整覆盖：Rust 测试严格对空载荷与各状态流转组合进行断言测试，与 Go 测试逻辑完全一致"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -141035,21 +141031,19 @@
         "testFilter": [
           "test_neutral_notification_builders_handle_nil_and_status_transitions"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest-0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "50e13e18",
-        "verifiedAt": "2026-09-25T12:42:42Z",
-        "receiptDigest": null
+        "verifiedCommit": "443b2fa402fbde9c385d4745574af8685c2ab6bd",
+        "verifiedAt": "2026-09-28T01:33:11Z",
+        "receiptDigest": "sha256:ae8a2c04479d9119e93e169d4f3e3a048488f478e60b591242891cc9c4040d6a"
       },
       "risk": "high",
       "owner": "futu_opend",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "完整覆盖：Rust 测试严格对空载荷与各状态流转组合进行断言测试，与 Go 测试逻辑完全一致"
@@ -141684,7 +141678,7 @@
           "function_exact：closed port 语义由 OpenDProbe::disconnected 冻结为 status=offline、connectivity=disconnected、lastError 存在且 market_data_ready=false；Go 在同一文件断言 status/connectivity/lastError 三项，Rust 覆盖相同行为并额外断言 readiness 失败。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -141701,21 +141695,19 @@
         "testFilter": [
           "probe_opend_reports_closed_port_as_disconnected"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest-0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "50e13e18",
-        "verifiedAt": "2026-09-25T12:42:42Z",
-        "receiptDigest": null
+        "verifiedCommit": "443b2fa402fbde9c385d4745574af8685c2ab6bd",
+        "verifiedAt": "2026-09-28T01:33:11Z",
+        "receiptDigest": "sha256:ae8a2c04479d9119e93e169d4f3e3a048488f478e60b591242891cc9c4040d6a"
       },
       "risk": "high",
       "owner": "futu_opend",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：closed port 语义由 OpenDProbe::disconnected 冻结为 status=offline、connectivity=disconnected、lastError 存在且 market_data_ready=false；Go 在同一文件断言 status/connectivity/lastError 三项，Rust 覆盖相同行为并额外断言 readiness 失败。"
@@ -141822,7 +141814,7 @@
           "function_exact：Rust program_status 逐项验证 nil→\"Unavailable\"、enum-only→\"ProgramStatusType_Loging\"、带描述→\"ProgramStatusType_Loging: <desc>\"，与 Go ProgramStatusString 完全等价；同测试还覆盖未知枚举值→Unavailable。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -141839,21 +141831,19 @@
         "testFilter": [
           "program_status_handles_missing_plain_and_described_status"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest-0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "50e13e18",
-        "verifiedAt": "2026-09-25T12:42:42Z",
-        "receiptDigest": null
+        "verifiedCommit": "443b2fa402fbde9c385d4745574af8685c2ab6bd",
+        "verifiedAt": "2026-09-28T01:33:11Z",
+        "receiptDigest": "sha256:ae8a2c04479d9119e93e169d4f3e3a048488f478e60b591242891cc9c4040d6a"
       },
       "risk": "high",
       "owner": "futu_opend",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：Rust program_status 逐项验证 nil→\"Unavailable\"、enum-only→\"ProgramStatusType_Loging\"、带描述→\"ProgramStatusType_Loging: <desc>\"，与 Go ProgramStatusString 完全等价；同测试还覆盖未知枚举值→Unavailable。"
