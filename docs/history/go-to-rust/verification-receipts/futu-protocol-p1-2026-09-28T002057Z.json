@@ -1,0 +1,139 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-integration-futu",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(prediction_catalog_pagination_and_identity_follow_the_go_rules) or test(catalog_operations_build_strict_opend_requests_like_go) or test(history_pagination_round_trips_the_next_req_key_across_pages) or test(history_order_call_uses_history_protocol_and_forwards_filters) or test(a_rejected_group_query_surfaces_the_opend_message)"
+  ],
+  "runnerVersion": "cargo-nextest-0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-28T00:21:14Z",
+  "sourceState": {
+    "verifiedCommit": "7a083a7b10cbd742384fa7b1d5b525239cb0a470",
+    "trackedDiffSha256": "03070d55ab192159e8ea4394b26bed18ffd0d34e100ee348c933e4049c1519dc",
+    "untrackedFiles": []
+  },
+  "rawOutputSha256": "4b842880f31ffa69c356517271e653372e70a5cf180bc92d4f73da24e2d6ae95",
+  "passedTests": [
+    "jftrade-integration-futu::jftrade_integration_futu$history::tests::history_pagination_round_trips_the_next_req_key_across_pages",
+    "jftrade-integration-futu::jftrade_integration_futu$research_normalization::tests::catalog_operations_build_strict_opend_requests_like_go",
+    "jftrade-integration-futu::jftrade_integration_futu$trade_session::tests::history_order_call_uses_history_protocol_and_forwards_filters",
+    "jftrade-integration-futu::prediction_push_stream$prediction_catalog_pagination_and_identity_follow_the_go_rules",
+    "jftrade-integration-futu::user_security_protocol$a_rejected_group_query_surfaces_the_opend_message"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1,
+      "nextest": {
+        "crate": "jftrade-integration-futu",
+        "test_binary": "live_opend_provider_runtime",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1,
+      "nextest": {
+        "crate": "jftrade-integration-futu",
+        "test_binary": "prediction_push_stream",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 3,
+      "nextest": {
+        "crate": "jftrade-integration-futu",
+        "test_binary": "jftrade_integration_futu",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1,
+      "nextest": {
+        "crate": "jftrade-integration-futu",
+        "test_binary": "user_security_protocol",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 5,
+      "exec_time": 0.015554417,
+      "nextest": {
+        "crate": "jftrade-integration-futu",
+        "test_binary": "prediction_push_stream",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 6,
+      "exec_time": 0.022701083,
+      "nextest": {
+        "crate": "jftrade-integration-futu",
+        "test_binary": "user_security_protocol",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 477,
+      "exec_time": 0.113585291,
+      "nextest": {
+        "crate": "jftrade-integration-futu",
+        "test_binary": "jftrade_integration_futu",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 1,
+      "measured": 0,
+      "filtered_out": 18446744073709551615,
+      "exec_time": 0,
+      "nextest": {
+        "crate": "jftrade-integration-futu",
+        "test_binary": "live_opend_provider_runtime",
+        "kind": "test"
+      }
+    }
+  ]
+}

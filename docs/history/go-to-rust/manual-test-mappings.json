@@ -151959,7 +151959,7 @@
           "function_exact：Go 固定每个 prediction protocol 的 listKey、integerValue 的数值/字符串强制、以及 resolvedPredictionInstrument 对首行的身份规则（code/contractSecurity → instrumentId、eventCode/event_code/eventSecurity → eventID、tickSize 非法回退 0.01、catalog 类协议不产出 resolvedInstrument）。Rust 走 typed reader（route_operation + 各协议 C2s）而不是无类型 protocol map，因此等价 owner 拆成两处：typed reader 的路由表与非 prediction 协议拒绝（prediction_route_parsing_preserves_contract_operation_boundaries 既有覆盖），以及本测试对推送行投影的断言——ticker 点的 sequence→timeKey→time 回退、KLINE 行取自身 contractSecurity 得到 US.EC.K、order-book 行无 sequence 且价位/量原样投影、非 prediction 协议 3005 与未知 9999 均返回 None。此处刻意不改写为 Go 的 map 形态：Rust 的 prediction 读取入口是 typed reader，复制一层 listKey 表反而会造出第二个 owner。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -151968,31 +151968,30 @@
           "run",
           "-p",
           "jftrade-integration-futu",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(fills_projection_sorts_filled_at_desc_with_id_tiebreak) or test(history_fill_read_projects_fill_identity) or test(advanced_feature_defaults_build_strict_opend_requests) or test(advanced_page_size_respects_protocol_limits) or test(high_dividend_state_is_hk_only) or test(product_states_match_go_quote_right_table) or test(entitlement_failure_is_cached_and_refreshed_after_reconnect) or test(fallback_requires_the_same_route_and_an_unsupported_marker) or test(test_adjust_kline_time_semantics) or test(helper_boundaries_return_the_input_unchanged) or test(broker_adapter_forwards_unavailable_opend_errors_on_every_read_route) or test(candle_period_catalog_rejects_missing_and_unmappable_intervals) or test(combo_rfq_creates_the_quote_once_and_never_replays_after_a_transport_failure) or test(prediction_push_handlers_install_once_and_fail_closed_on_invalid_demand) or test(prediction_catalog_pagination_and_identity_follow_the_go_rules) or test(catalog_operations_build_strict_opend_requests_like_go) or test(local_pagination_never_leaks_into_the_opend_request) or test(local_pagination_walks_plate_and_catalog_windows) or test(economic_calendar_pagination_honors_explicit_has_more_and_empty_rows) or test(payload_envelope_picks_the_first_sorted_entry_list_like_go) or test(futu_securities_route_projects_broker_neutral_envelope_boundary) or test(portfolio_cash_balances_prefer_currency_rows_over_summary_fallback) or test(public_coordinator_polls_basic_quotes_into_a_generation_fenced_cache) or test(subscribe_trade_accounts_propagates_opend_rejection) or test(executor_rejects_invalid_instrument_and_unsupported_interval) or test(market_rules_fall_back_to_security_snapshot_lot_size_and_report_the_primary_error) or test(basic_quote_query_requires_subscription_and_maps_success_rejection_and_empty) or test(maps_normalized_requested_rows_and_keeps_the_last_duplicate) or test(basic_quote_query_returns_an_empty_list_when_the_success_s2c_is_absent) or test(snapshot_reader_rejects_a_present_s2c_with_no_mappable_rows) or test(snapshot_reader_keeps_mappable_rows_and_drops_invalid_ones) or test(snapshot_reader_rejects_invalid_symbols_before_any_opend_call) or test(snapshot_reader_keeps_a_payload_less_ack_as_an_empty_collection) or test(cached_projection_does_not_promote_stale_overnight_during_regular_hours) or test(holiday_snapshot_stays_closed_with_stale_extended_blocks) or test(margin_ratios_reuse_a_recent_success_within_the_ttl) or test(cancel_order_uses_modify_order_cancel_operation) or test(subscribe_trade_accounts_forwards_every_account_id) or test(mainland_trade_market_falls_back_to_the_shanghai_request_location) or test(stale_or_malformed_push_updates_never_reach_the_lifecycle) or test(kline_adds_basic_and_minimum_age_delays_unsubscribe) or test(executor_sends_us_intraday_kline_session_all_on_the_wire)"
+          "test(prediction_catalog_pagination_and_identity_follow_the_go_rules) or test(catalog_operations_build_strict_opend_requests_like_go) or test(history_pagination_round_trips_the_next_req_key_across_pages) or test(history_order_call_uses_history_protocol_and_forwards_filters) or test(a_rejected_group_query_surfaces_the_opend_message)"
         ],
         "testFilter": [
           "prediction_catalog_pagination_and_identity_follow_the_go_rules"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest-0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "78e36bd3",
-        "verifiedAt": "2026-09-25T13:08:40Z",
-        "receiptDigest": null
+        "verifiedCommit": "7a083a7b",
+        "verifiedAt": "2026-09-28T002057Z",
+        "receiptDigest": "sha256:6478da8aebc98d804488cf76f032ff5ceaf9cc33c3a3fd38aaff652d8355429a"
       },
       "risk": "high",
       "owner": "futu_opend",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：Go 固定每个 prediction protocol 的 listKey、integerValue 的数值/字符串强制、以及 resolvedPredictionInstrument 对首行的身份规则（code/contractSecurity → instrumentId、eventCode/event_code/eventSecurity → eventID、tickSize 非法回退 0.01、catalog 类协议不产出 resolvedInstrument）。Rust 走 typed reader（route_operation + 各协议 C2s）而不是无类型 protocol map，因此等价 owner 拆成两处：typed reader 的路由表与非 prediction 协议拒绝（prediction_route_parsing_preserves_contract_operation_boundaries 既有覆盖），以及本测试对推送行投影的断言——ticker 点的 sequence→timeKey→time 回退、KLINE 行取自身 contractSecurity 得到 US.EC.K、order-book 行无 sequence 且价位/量原样投影、非 prediction 协议 3005 与未知 9999 均返回 None。此处刻意不改写为 Go 的 map 形态：Rust 的 prediction 读取入口是 typed reader，复制一层 listKey 表反而会造出第二个 owner。"
@@ -152099,7 +152098,7 @@
           "function_exact：Go 逐组断言 7 个 catalog 操作注入后的 OpenD 字段（concept plate list plateSetType=3、plate members plate={market:1,code:BK1001}、fund catalog secType 3→4、down movers direction=down→sortDir=1、concept heatmap plateType=1、economic calendar marketList=[21]、institution holding institutionId int64 7→int32 7），并断言业务字段 direction 不泄漏进 OpenD params、opend.ValidateAdvancedC2S 通过。Rust 由 research_params.rs 的 translate_plate_set_type / translate_heat_map_plate_type / translate_top_movers_direction / inject_advanced_research_defaults（secType、marketList、institutionId）唯一承接，新测试逐条固定这 5 个可注入字段、断言 direction 被删除且 sortDir 生效、并断言 plate 对象按 {market,code} 透传。Go 的 opend.ValidateAdvancedC2S 在 Rust 对应「注入后必须能被 typed reader 接受」，该前置契约由 research_params_tests.rs::advanced_feature_defaults_build_strict_opend_requests 与 advanced_page_size_respects_protocol_limits 覆盖。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -152108,31 +152107,30 @@
           "run",
           "-p",
           "jftrade-integration-futu",
-          "-p",
-          "jftrade-engine",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(fills_projection_sorts_filled_at_desc_with_id_tiebreak) or test(history_fill_read_projects_fill_identity) or test(advanced_feature_defaults_build_strict_opend_requests) or test(advanced_page_size_respects_protocol_limits) or test(high_dividend_state_is_hk_only) or test(product_states_match_go_quote_right_table) or test(entitlement_failure_is_cached_and_refreshed_after_reconnect) or test(fallback_requires_the_same_route_and_an_unsupported_marker) or test(test_adjust_kline_time_semantics) or test(helper_boundaries_return_the_input_unchanged) or test(broker_adapter_forwards_unavailable_opend_errors_on_every_read_route) or test(candle_period_catalog_rejects_missing_and_unmappable_intervals) or test(combo_rfq_creates_the_quote_once_and_never_replays_after_a_transport_failure) or test(prediction_push_handlers_install_once_and_fail_closed_on_invalid_demand) or test(prediction_catalog_pagination_and_identity_follow_the_go_rules) or test(catalog_operations_build_strict_opend_requests_like_go) or test(local_pagination_never_leaks_into_the_opend_request) or test(local_pagination_walks_plate_and_catalog_windows) or test(economic_calendar_pagination_honors_explicit_has_more_and_empty_rows) or test(payload_envelope_picks_the_first_sorted_entry_list_like_go) or test(futu_securities_route_projects_broker_neutral_envelope_boundary) or test(portfolio_cash_balances_prefer_currency_rows_over_summary_fallback) or test(public_coordinator_polls_basic_quotes_into_a_generation_fenced_cache) or test(subscribe_trade_accounts_propagates_opend_rejection) or test(executor_rejects_invalid_instrument_and_unsupported_interval) or test(market_rules_fall_back_to_security_snapshot_lot_size_and_report_the_primary_error) or test(basic_quote_query_requires_subscription_and_maps_success_rejection_and_empty) or test(maps_normalized_requested_rows_and_keeps_the_last_duplicate) or test(basic_quote_query_returns_an_empty_list_when_the_success_s2c_is_absent) or test(snapshot_reader_rejects_a_present_s2c_with_no_mappable_rows) or test(snapshot_reader_keeps_mappable_rows_and_drops_invalid_ones) or test(snapshot_reader_rejects_invalid_symbols_before_any_opend_call) or test(snapshot_reader_keeps_a_payload_less_ack_as_an_empty_collection) or test(cached_projection_does_not_promote_stale_overnight_during_regular_hours) or test(holiday_snapshot_stays_closed_with_stale_extended_blocks) or test(margin_ratios_reuse_a_recent_success_within_the_ttl) or test(cancel_order_uses_modify_order_cancel_operation) or test(subscribe_trade_accounts_forwards_every_account_id) or test(mainland_trade_market_falls_back_to_the_shanghai_request_location) or test(stale_or_malformed_push_updates_never_reach_the_lifecycle) or test(kline_adds_basic_and_minimum_age_delays_unsubscribe) or test(executor_sends_us_intraday_kline_session_all_on_the_wire)"
+          "test(prediction_catalog_pagination_and_identity_follow_the_go_rules) or test(catalog_operations_build_strict_opend_requests_like_go) or test(history_pagination_round_trips_the_next_req_key_across_pages) or test(history_order_call_uses_history_protocol_and_forwards_filters) or test(a_rejected_group_query_surfaces_the_opend_message)"
         ],
         "testFilter": [
           "catalog_operations_build_strict_opend_requests_like_go"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest-0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "78e36bd3",
-        "verifiedAt": "2026-09-25T13:08:40Z",
-        "receiptDigest": null
+        "verifiedCommit": "7a083a7b",
+        "verifiedAt": "2026-09-28T002057Z",
+        "receiptDigest": "sha256:6478da8aebc98d804488cf76f032ff5ceaf9cc33c3a3fd38aaff652d8355429a"
       },
       "risk": "high",
       "owner": "futu_opend",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：Go 逐组断言 7 个 catalog 操作注入后的 OpenD 字段（concept plate list plateSetType=3、plate members plate={market:1,code:BK1001}、fund catalog secType 3→4、down movers direction=down→sortDir=1、concept heatmap plateType=1、economic calendar marketList=[21]、institution holding institutionId int64 7→int32 7），并断言业务字段 direction 不泄漏进 OpenD params、opend.ValidateAdvancedC2S 通过。Rust 由 research_params.rs 的 translate_plate_set_type / translate_heat_map_plate_type / translate_top_movers_direction / inject_advanced_research_defaults（secType、marketList、institutionId）唯一承接，新测试逐条固定这 5 个可注入字段、断言 direction 被删除且 sortDir 生效、并断言 plate 对象按 {market,code} 透传。Go 的 opend.ValidateAdvancedC2S 在 Rust 对应「注入后必须能被 typed reader 接受」，该前置契约由 research_params_tests.rs::advanced_feature_defaults_build_strict_opend_requests 与 advanced_page_size_respects_protocol_limits 覆盖。"
@@ -166457,7 +166455,7 @@
           "function_exact：第 1 页返回 nextReqKey=\"page2\" + 1 条 kline，携带该 key 的第 2 页返回空 nextReqKey + 1 条 kline，与 Go 两页断言一致。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -166466,27 +166464,30 @@
           "run",
           "-p",
           "jftrade-integration-futu",
+          "--all-targets",
+          "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(history_pagination_round_trips_the_next_req_key_across_pages)"
+          "test(prediction_catalog_pagination_and_identity_follow_the_go_rules) or test(catalog_operations_build_strict_opend_requests_like_go) or test(history_pagination_round_trips_the_next_req_key_across_pages) or test(history_order_call_uses_history_protocol_and_forwards_filters) or test(a_rejected_group_query_surfaces_the_opend_message)"
         ],
         "testFilter": [
           "history_pagination_round_trips_the_next_req_key_across_pages"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest-0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "dc862edb",
-        "verifiedAt": "2026-09-25T12:57:05Z",
-        "receiptDigest": null
+        "verifiedCommit": "7a083a7b",
+        "verifiedAt": "2026-09-28T002057Z",
+        "receiptDigest": "sha256:6478da8aebc98d804488cf76f032ff5ceaf9cc33c3a3fd38aaff652d8355429a"
       },
       "risk": "high",
       "owner": "futu_opend",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：第 1 页返回 nextReqKey=\"page2\" + 1 条 kline，携带该 key 的第 2 页返回空 nextReqKey + 1 条 kline，与 Go 两页断言一致。"
@@ -168705,7 +168706,7 @@
           "function_exact：历史订单读取走 GetHistoryOrderList 协议，filter code/begin/end 与 status [5,10] 原样转发，空 order_list 返回空集合（同文件 history_fill_call_uses_history_protocol_and_forwards_time_filter 覆盖 fill 侧）。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -168714,27 +168715,30 @@
           "run",
           "-p",
           "jftrade-integration-futu",
+          "--all-targets",
+          "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(history_order_call_uses_history_protocol_and_forwards_filters)"
+          "test(prediction_catalog_pagination_and_identity_follow_the_go_rules) or test(catalog_operations_build_strict_opend_requests_like_go) or test(history_pagination_round_trips_the_next_req_key_across_pages) or test(history_order_call_uses_history_protocol_and_forwards_filters) or test(a_rejected_group_query_surfaces_the_opend_message)"
         ],
         "testFilter": [
           "history_order_call_uses_history_protocol_and_forwards_filters"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest-0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "01fc8ae0",
-        "verifiedAt": "2026-09-25T12:51:19Z",
-        "receiptDigest": null
+        "verifiedCommit": "7a083a7b",
+        "verifiedAt": "2026-09-28T002057Z",
+        "receiptDigest": "sha256:6478da8aebc98d804488cf76f032ff5ceaf9cc33c3a3fd38aaff652d8355429a"
       },
       "risk": "high",
       "owner": "futu_opend",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：历史订单读取走 GetHistoryOrderList 协议，filter code/begin/end 与 status [5,10] 原样转发，空 order_list 返回空集合（同文件 history_fill_call_uses_history_protocol_and_forwards_time_filter 覆盖 fill 侧）。"
@@ -169716,7 +169720,7 @@
           "function_exact：分组查询被拒（retType=-1/errCode=429/\"group query rate limited\"）时返回错误并保留 OpenD 原始 message，不静默降级为空列表。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
@@ -169725,27 +169729,30 @@
           "run",
           "-p",
           "jftrade-integration-futu",
+          "--all-targets",
+          "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(a_rejected_group_query_surfaces_the_opend_message)"
+          "test(prediction_catalog_pagination_and_identity_follow_the_go_rules) or test(catalog_operations_build_strict_opend_requests_like_go) or test(history_pagination_round_trips_the_next_req_key_across_pages) or test(history_order_call_uses_history_protocol_and_forwards_filters) or test(a_rejected_group_query_surfaces_the_opend_message)"
         ],
         "testFilter": [
           "a_rejected_group_query_surfaces_the_opend_message"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest-0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "01fc8ae0",
-        "verifiedAt": "2026-09-25T12:51:19Z",
-        "receiptDigest": null
+        "verifiedCommit": "7a083a7b",
+        "verifiedAt": "2026-09-28T002057Z",
+        "receiptDigest": "sha256:6478da8aebc98d804488cf76f032ff5ceaf9cc33c3a3fd38aaff652d8355429a"
       },
       "risk": "high",
       "owner": "futu_opend",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：分组查询被拒（retType=-1/errCode=429/\"group query rate limited\"）时返回错误并保留 OpenD 原始 message，不静默降级为空列表。"
