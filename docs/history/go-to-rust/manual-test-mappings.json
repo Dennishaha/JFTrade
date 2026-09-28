@@ -88781,36 +88781,39 @@
           "function_exact：断言取消后 status=CANCELLED、errorCode=RUN_CANCELLED、errorStatus=499，第二次 cancel 为 no-op 且只写一条 run.cancelled 审计行（metadata.status=CANCELLED、errorCode=RUN_CANCELLED），对应 Go 的“终态 run 取消不变更、不新增审计”。修复位置：product_adk_model_runtime_lifecycle.rs 的 persist_cancelled 增加 record_run_audit。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(adk_approval_resolution_stages_continuation_and_denial_cas) or test(adk_approval_resolution_restages_a_stale_embedded_approval) or test(cascade_deletion_fences_stale_writer_and_session_recovery) or test(a_tool_round_projects_the_pre_tool_reply_and_session_timeline) or test(terminal_failure_mapping_matches_the_reference_table) or test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(adk_read_routes_reject_blank_decoded_identifiers) or test(challenge_continuation_supervisor_cancellation_signal_propagates) or test(running_stream_payload_replays_all_nonterminal_events) or test(production_approval_resume_after_the_stream_closed_completes_without_late_frames) or test(chat_creates_the_session_once_and_reuses_its_stored_title) or test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(a_continuation_for_a_missing_run_is_a_silent_no_op) or test(challenge_continuation_supervisor_rejects_new_work_once_stopping) or test(the_run_read_routes_reconcile_expired_runs_before_serving) or test(cancellation_registry_fans_out_and_unregisters_exact_token) or test(non_resumable_running_run_does_not_make_runtime_unready) or test(orphaned_pending_approval_runs_are_failed_on_startup_reconcile) or test(user_goal_pause_fields_survive_a_stale_writer_and_clear_on_explicit_resume) or test(graph_exposes_one_deterministic_ready_task) or test(failed_recovery_scan_marks_readiness_degraded_until_next_success) or test(challenge_continuation_supervisor_concurrent_spawn_shutdown_race) or test(challenge_continuation_supervisor_claims_are_exclusive_and_released) or test(production_adk_updates_do_not_create_missing_agents_or_providers) or test(snapshot_and_provider_test_boundaries_fail_closed) or test(adk_session_delete_missing_is_reported_with_the_session_error_code) or test(a_second_compaction_is_rejected_while_the_session_gate_is_held)"
+          "test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(run_start_freezes_the_configured_run_timeout_from_settings) or test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(expired_runs_use_each_runs_own_timeout_window)"
         ],
         "testFilter": [
           "a_cancelled_run_audits_run_cancelled_and_terminates_once"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest-0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "f6a6c5f6",
-        "verifiedAt": "2026-09-25T14:00:05Z",
-        "receiptDigest": null
+        "verifiedCommit": "a151a722",
+        "verifiedAt": "2026-09-28T012812Z",
+        "receiptDigest": "sha256:172dd3f940aca79bcb55c464e065550bf98f4273f0ff1559bba3f44ad9e5560c"
       },
       "risk": "high",
       "owner": "assistant_workflow",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：断言取消后 status=CANCELLED、errorCode=RUN_CANCELLED、errorStatus=499，第二次 cancel 为 no-op 且只写一条 run.cancelled 审计行（metadata.status=CANCELLED、errorCode=RUN_CANCELLED），对应 Go 的“终态 run 取消不变更、不新增审计”。修复位置：product_adk_model_runtime_lifecycle.rs 的 persist_cancelled 增加 record_run_audit。"
@@ -101942,36 +101945,39 @@
           "function_exact（真实功能缺口已修复）：Go 的 startRun 用 RuntimeLimits().RunTimeout（assembly 从持久化 assistantRuntime.runTimeoutMs 注入）冻结 run.MaxDurationMs；Rust 原先把 1800000ms 写死。修复位置：新增 crate::product::product_adk_run_timeout::assistant_run_timeout_ms(settings_path)（读 settings 文档 adk.runTimeoutMs，缺失/不可读回退 Go 默认 1800000），chat 起始 payload 改用它。复现条件：settings 文档写 {\"adk\":{\"runTimeoutMs\":660000}} 后发起 chat，期望 run payload maxDurationMs=660000；把 settings 清空后期望回退 1800000。回归测试断言两次 dispatch 的两条 run 行。探针：把 payload 改回常量 1800000 后测试转红（实际观测到 maxDurationMs=1800000 vs 期望 660000）。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(session_context_tracks_events_appended_after_a_compaction) or test(a_run_waiting_for_approval_does_not_block_chat_auto_compaction) or test(compaction_preserves_the_call_of_a_pending_approval) or test(builtin_skill_catalog_stays_registered_alongside_external_installs) or test(session_context_window_follows_the_composer_provider_override) or test(reviewed_mcp_schemas_match_canonical_go_fixture_deeply) or test(session_delete_missing_is_idempotent_and_blank_ids_are_rejected) or test(completed_run_reopens_only_for_a_fresh_durable_approval) or test(adk_audit_route_filters_by_kind_and_subject_id) or test(test_shared_artifacts_preserved_and_user_session_deletion_rejected) or test(adk_store_lifecycle_and_restart_durability) or test(test_idempotent_retry_and_partial_failure_crash_recovery) or test(test_adk_cascade_cleanup_removes_all_entities_across_three_databases) or test(adk_session_page_filters_by_agent_and_title_and_paginates) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_session_delete_missing_is_reported_with_the_session_error_code) or test(adk_approval_page_orders_by_latest_update_and_counts_filtered_rows) or test(adk_maintenance_compacts_every_owned_database_and_requires_the_writer_lease) or test(chat_rejects_a_session_owned_by_a_different_agent) or test(cancelling_a_run_denies_its_pending_approvals) or test(adk_cancel_run_missing_is_the_dedicated_cancel_failure) or test(adk_resolve_approval_missing_returns_the_idempotent_empty_envelope) or test(adk_run_listing_filters_and_sorts_newest_first) or test(saved_provider_normalizes_the_request_timeout_on_write) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(run_start_freezes_the_configured_run_timeout_from_settings) or test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(expired_runs_use_each_runs_own_timeout_window)"
+          "test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(run_start_freezes_the_configured_run_timeout_from_settings) or test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(expired_runs_use_each_runs_own_timeout_window)"
         ],
         "testFilter": [
           "run_start_freezes_the_configured_run_timeout_from_settings"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest-0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "401604517dde7ec5b5ea8721ce8fbcac51b94726",
-        "verifiedAt": "2026-09-25T14:05:33Z",
-        "receiptDigest": null
+        "verifiedCommit": "a151a722",
+        "verifiedAt": "2026-09-28T012812Z",
+        "receiptDigest": "sha256:172dd3f940aca79bcb55c464e065550bf98f4273f0ff1559bba3f44ad9e5560c"
       },
       "risk": "high",
       "owner": "assistant_workflow",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact（真实功能缺口已修复）：Go 的 startRun 用 RuntimeLimits().RunTimeout（assembly 从持久化 assistantRuntime.runTimeoutMs 注入）冻结 run.MaxDurationMs；Rust 原先把 1800000ms 写死。修复位置：新增 crate::product::product_adk_run_timeout::assistant_run_timeout_ms(settings_path)（读 settings 文档 adk.runTimeoutMs，缺失/不可读回退 Go 默认 1800000），chat 起始 payload 改用它。复现条件：settings 文档写 {\"adk\":{\"runTimeoutMs\":660000}} 后发起 chat，期望 run payload maxDurationMs=660000；把 settings 清空后期望回退 1800000。回归测试断言两次 dispatch 的两条 run 行。探针：把 payload 改回常量 1800000 后测试转红（实际观测到 maxDurationMs=1800000 vs 期望 660000）。"
@@ -102009,36 +102015,39 @@
           "function_exact（真实功能缺口已修复）：Go 的 ResumeGoalRun 对 TIMED_OUT 目标刷新 StartedAt、清空 CompletedAt/errorCode/failureReason/degraded、并把 MaxDurationMs 重置为当前 RuntimeLimits().RunTimeout。Rust 原文已清空终态字段，但 maxDurationMs 写死 1800000。修复位置：product_production_ports_adk_mutation_runs.rs 的 ResumeRun 分支改用 assistant_run_timeout_ms(port.settings_path)。复现条件：seed 一条 TIMED_OUT 目标 run（maxDurationMs=1800000），settings 写 {\"adk\":{\"runTimeoutMs\":2700000}}，调用 resume-run，期望 maxDurationMs=2700000、startedAt 刷新、completedAt/errorCode/failureReason 清除、status=RUNNING、resumeState=user_resuming，且持久化一致。探针：把该处改回常量后测试转红（2700000 vs 1800000）。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(session_context_tracks_events_appended_after_a_compaction) or test(a_run_waiting_for_approval_does_not_block_chat_auto_compaction) or test(compaction_preserves_the_call_of_a_pending_approval) or test(builtin_skill_catalog_stays_registered_alongside_external_installs) or test(session_context_window_follows_the_composer_provider_override) or test(reviewed_mcp_schemas_match_canonical_go_fixture_deeply) or test(session_delete_missing_is_idempotent_and_blank_ids_are_rejected) or test(completed_run_reopens_only_for_a_fresh_durable_approval) or test(adk_audit_route_filters_by_kind_and_subject_id) or test(test_shared_artifacts_preserved_and_user_session_deletion_rejected) or test(adk_store_lifecycle_and_restart_durability) or test(test_idempotent_retry_and_partial_failure_crash_recovery) or test(test_adk_cascade_cleanup_removes_all_entities_across_three_databases) or test(adk_session_page_filters_by_agent_and_title_and_paginates) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_session_delete_missing_is_reported_with_the_session_error_code) or test(adk_approval_page_orders_by_latest_update_and_counts_filtered_rows) or test(adk_maintenance_compacts_every_owned_database_and_requires_the_writer_lease) or test(chat_rejects_a_session_owned_by_a_different_agent) or test(cancelling_a_run_denies_its_pending_approvals) or test(adk_cancel_run_missing_is_the_dedicated_cancel_failure) or test(adk_resolve_approval_missing_returns_the_idempotent_empty_envelope) or test(adk_run_listing_filters_and_sorts_newest_first) or test(saved_provider_normalizes_the_request_timeout_on_write) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(run_start_freezes_the_configured_run_timeout_from_settings) or test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(expired_runs_use_each_runs_own_timeout_window)"
+          "test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(run_start_freezes_the_configured_run_timeout_from_settings) or test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(expired_runs_use_each_runs_own_timeout_window)"
         ],
         "testFilter": [
           "resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest-0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "401604517dde7ec5b5ea8721ce8fbcac51b94726",
-        "verifiedAt": "2026-09-25T14:05:33Z",
-        "receiptDigest": null
+        "verifiedCommit": "a151a722",
+        "verifiedAt": "2026-09-28T012812Z",
+        "receiptDigest": "sha256:172dd3f940aca79bcb55c464e065550bf98f4273f0ff1559bba3f44ad9e5560c"
       },
       "risk": "high",
       "owner": "assistant_workflow",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact（真实功能缺口已修复）：Go 的 ResumeGoalRun 对 TIMED_OUT 目标刷新 StartedAt、清空 CompletedAt/errorCode/failureReason/degraded、并把 MaxDurationMs 重置为当前 RuntimeLimits().RunTimeout。Rust 原文已清空终态字段，但 maxDurationMs 写死 1800000。修复位置：product_production_ports_adk_mutation_runs.rs 的 ResumeRun 分支改用 assistant_run_timeout_ms(port.settings_path)。复现条件：seed 一条 TIMED_OUT 目标 run（maxDurationMs=1800000），settings 写 {\"adk\":{\"runTimeoutMs\":2700000}}，调用 resume-run，期望 maxDurationMs=2700000、startedAt 刷新、completedAt/errorCode/failureReason 清除、status=RUNNING、resumeState=user_resuming，且持久化一致。探针：把该处改回常量后测试转红（2700000 vs 1800000）。"
@@ -102076,36 +102085,39 @@
           "function_exact（本批实现并验证）：ProductionAdkChatRuntime::reconcile_expired_runs 扫描 RUNNING run，按 startedAt（缺省 createdAt）+ MaxDurationMs 判断到期，取消活跃 provider 调用、把 RUNNING 工具调用置 FAILED 并补 error/completedAt/updatedAt/durationMs、run 落 TIMED_OUT 且 message=run timed out、failureReason=\"run exceeded maximum duration of <go duration>\"、errorCode=RUN_TIMED_OUT、degraded=true、补 completedAt 并 FinalizeRunUsage 写 usage.durationMs，最后以 status+revision CAS 落库并写 run.timed_out 审计（detail=Agent run timed out.，id=<run>:audit:run.timed_out），与 go:452dea11 internal/assistant/engine/runner_lifecycle.go:177 ReconcileExpiredRuns 一致。测试用 31 分钟前的 RUNNING run + 一个 RUNNING 工具调用，断言全部终态字段、工具调用 FAILED+原因文本、usage.durationMs>0 以及审计行。实现位于 crates/jftrade-engine/src/product_adk_model_runtime_expiry.rs（include! 片段，保持 product* 生产文件 ≤800 行）。反向探针：把 finish_running_tool_calls 改为跳过 RUNNING 调用后该测试失败（left RUNNING / right FAILED）；把超时窗口改为常量 DEFAULT 后 expired_runs_use_each_runs_own_timeout_window 失败。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(session_context_tracks_events_appended_after_a_compaction) or test(a_run_waiting_for_approval_does_not_block_chat_auto_compaction) or test(compaction_preserves_the_call_of_a_pending_approval) or test(builtin_skill_catalog_stays_registered_alongside_external_installs) or test(session_context_window_follows_the_composer_provider_override) or test(reviewed_mcp_schemas_match_canonical_go_fixture_deeply) or test(session_delete_missing_is_idempotent_and_blank_ids_are_rejected) or test(completed_run_reopens_only_for_a_fresh_durable_approval) or test(adk_audit_route_filters_by_kind_and_subject_id) or test(test_shared_artifacts_preserved_and_user_session_deletion_rejected) or test(adk_store_lifecycle_and_restart_durability) or test(test_idempotent_retry_and_partial_failure_crash_recovery) or test(test_adk_cascade_cleanup_removes_all_entities_across_three_databases) or test(adk_session_page_filters_by_agent_and_title_and_paginates) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_session_delete_missing_is_reported_with_the_session_error_code) or test(adk_approval_page_orders_by_latest_update_and_counts_filtered_rows) or test(adk_maintenance_compacts_every_owned_database_and_requires_the_writer_lease) or test(chat_rejects_a_session_owned_by_a_different_agent) or test(cancelling_a_run_denies_its_pending_approvals) or test(adk_cancel_run_missing_is_the_dedicated_cancel_failure) or test(adk_resolve_approval_missing_returns_the_idempotent_empty_envelope) or test(adk_run_listing_filters_and_sorts_newest_first) or test(saved_provider_normalizes_the_request_timeout_on_write) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(run_start_freezes_the_configured_run_timeout_from_settings) or test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(expired_runs_use_each_runs_own_timeout_window)"
+          "test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(run_start_freezes_the_configured_run_timeout_from_settings) or test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(expired_runs_use_each_runs_own_timeout_window)"
         ],
         "testFilter": [
           "expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest-0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "401604517dde7ec5b5ea8721ce8fbcac51b94726",
-        "verifiedAt": "2026-09-25T14:05:33Z",
-        "receiptDigest": null
+        "verifiedCommit": "a151a722",
+        "verifiedAt": "2026-09-28T012812Z",
+        "receiptDigest": "sha256:172dd3f940aca79bcb55c464e065550bf98f4273f0ff1559bba3f44ad9e5560c"
       },
       "risk": "high",
       "owner": "assistant_workflow",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact（本批实现并验证）：ProductionAdkChatRuntime::reconcile_expired_runs 扫描 RUNNING run，按 startedAt（缺省 createdAt）+ MaxDurationMs 判断到期，取消活跃 provider 调用、把 RUNNING 工具调用置 FAILED 并补 error/completedAt/updatedAt/durationMs、run 落 TIMED_OUT 且 message=run timed out、failureReason=\"run exceeded maximum duration of <go duration>\"、errorCode=RUN_TIMED_OUT、degraded=true、补 completedAt 并 FinalizeRunUsage 写 usage.durationMs，最后以 status+revision CAS 落库并写 run.timed_out 审计（detail=Agent run timed out.，id=<run>:audit:run.timed_out），与 go:452dea11 internal/assistant/engine/runner_lifecycle.go:177 ReconcileExpiredRuns 一致。测试用 31 分钟前的 RUNNING run + 一个 RUNNING 工具调用，断言全部终态字段、工具调用 FAILED+原因文本、usage.durationMs>0 以及审计行。实现位于 crates/jftrade-engine/src/product_adk_model_runtime_expiry.rs（include! 片段，保持 product* 生产文件 ≤800 行）。反向探针：把 finish_running_tool_calls 改为跳过 RUNNING 调用后该测试失败（left RUNNING / right FAILED）；把超时窗口改为常量 DEFAULT 后 expired_runs_use_each_runs_own_timeout_window 失败。"
@@ -102143,36 +102155,39 @@
           "function_exact（本批实现并验证）：到期窗口取每个 run payload 的 maxDurationMs（<=0 或缺省回退 product_adk_run_timeout::DEFAULT_RUN_TIMEOUT_MS=1800000，与 Go RunTimeoutForRun 一致），不是全局常量。测试同时放入 60000ms 的到期 run（断言 TIMED_OUT 且 failureReason 为 \"... of 1m0s\"）与 300000ms 的未到期 run（断言保持 RUNNING），对齐 go:452dea11 internal/assistant/model/runner_state.go:388。failureReason 中的 \"1m0s\" 由 go_duration_string 复刻 Go time.Duration.String()，由 go_duration_string_matches_the_reference_formatting 逐值校验。反向探针：把 timeout_ms 强制为 DEFAULT 常量后该测试失败，证明窗口选择被真实断言覆盖。"
         ],
         "uncovered": [],
-        "source": "legacy-conclusion"
+        "source": "reviewed"
       },
       "verification": {
         "argv": [
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
           "-E",
-          "test(session_context_tracks_events_appended_after_a_compaction) or test(a_run_waiting_for_approval_does_not_block_chat_auto_compaction) or test(compaction_preserves_the_call_of_a_pending_approval) or test(builtin_skill_catalog_stays_registered_alongside_external_installs) or test(session_context_window_follows_the_composer_provider_override) or test(reviewed_mcp_schemas_match_canonical_go_fixture_deeply) or test(session_delete_missing_is_idempotent_and_blank_ids_are_rejected) or test(completed_run_reopens_only_for_a_fresh_durable_approval) or test(adk_audit_route_filters_by_kind_and_subject_id) or test(test_shared_artifacts_preserved_and_user_session_deletion_rejected) or test(adk_store_lifecycle_and_restart_durability) or test(test_idempotent_retry_and_partial_failure_crash_recovery) or test(test_adk_cascade_cleanup_removes_all_entities_across_three_databases) or test(adk_session_page_filters_by_agent_and_title_and_paginates) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_session_delete_missing_is_reported_with_the_session_error_code) or test(adk_approval_page_orders_by_latest_update_and_counts_filtered_rows) or test(adk_maintenance_compacts_every_owned_database_and_requires_the_writer_lease) or test(chat_rejects_a_session_owned_by_a_different_agent) or test(cancelling_a_run_denies_its_pending_approvals) or test(adk_cancel_run_missing_is_the_dedicated_cancel_failure) or test(adk_resolve_approval_missing_returns_the_idempotent_empty_envelope) or test(adk_run_listing_filters_and_sorts_newest_first) or test(saved_provider_normalizes_the_request_timeout_on_write) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart) or test(run_start_freezes_the_configured_run_timeout_from_settings) or test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(expired_runs_use_each_runs_own_timeout_window)"
+          "test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(run_start_freezes_the_configured_run_timeout_from_settings) or test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(expired_runs_use_each_runs_own_timeout_window)"
         ],
         "testFilter": [
           "expired_runs_use_each_runs_own_timeout_window"
         ],
-        "runnerVersion": null,
-        "toolchain": null,
+        "runnerVersion": "cargo-nextest-0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "401604517dde7ec5b5ea8721ce8fbcac51b94726",
-        "verifiedAt": "2026-09-25T14:05:33Z",
-        "receiptDigest": null
+        "verifiedCommit": "a151a722",
+        "verifiedAt": "2026-09-28T012812Z",
+        "receiptDigest": "sha256:172dd3f940aca79bcb55c464e065550bf98f4273f0ff1559bba3f44ad9e5560c"
       },
       "risk": "high",
       "owner": "assistant_workflow",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact（本批实现并验证）：到期窗口取每个 run payload 的 maxDurationMs（<=0 或缺省回退 product_adk_run_timeout::DEFAULT_RUN_TIMEOUT_MS=1800000，与 Go RunTimeoutForRun 一致），不是全局常量。测试同时放入 60000ms 的到期 run（断言 TIMED_OUT 且 failureReason 为 \"... of 1m0s\"）与 300000ms 的未到期 run（断言保持 RUNNING），对齐 go:452dea11 internal/assistant/model/runner_state.go:388。failureReason 中的 \"1m0s\" 由 go_duration_string 复刻 Go time.Duration.String()，由 go_duration_string_matches_the_reference_formatting 逐值校验。反向探针：把 timeout_ms 强制为 DEFAULT 常量后该测试失败，证明窗口选择被真实断言覆盖。"
