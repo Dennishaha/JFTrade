@@ -4,7 +4,7 @@
 
 当前积压：**2955 项**（按当前 `manual-test-mappings.json` 的 `[~]` 条目重算）。
 
-最新审计快照（2026-09-28 Futu mixed-boundaries strict follow-up）：Go `4451`、Rust `3382`，`function_exact=1500`、`partial=2317`、`boundary=634`、`missing=0`；Parity anchor reconcile 为 `1793/1747/0/0/46`（unique/recorded/unrecorded/stale/unknown）。严格审计仍有 **3622 个 function_exact evidence/receipt gaps**（需 reviewed assertions、Parity anchor、reuse relation 与 passed receipt）；严格审计未通过。
+最新审计快照（2026-09-28 API market-runtime strict follow-up）：Go `4451`、Rust `3382`，`function_exact=1500`、`partial=2317`、`boundary=634`、`missing=0`；Parity anchor reconcile 为 `1793/1747/0/0/46`（unique/recorded/unrecorded/stale/unknown）。严格审计仍有 **3612 个 function_exact evidence/receipt gaps**（需 reviewed assertions、Parity anchor、reuse relation 与 passed receipt）；严格审计未通过。
 
 ## 按领域
 
@@ -143,3 +143,4 @@
 - 2026-09-28 Futu quote/empty-boundary strict evidence：五条单引用 P1 exact 已完成 reviewed assertion 与 receipt `sha256:65f7118836c30241fe900c00e4cb632ce9c8ead298e4c7d90e93f87bab8c69c1`（integration-futu nextest 10/10，live OpenD ignored）；覆盖 empty normalization、order-book/basic-quote empty/rejection paths、duplicate quote projection 与 invalid/payload-less snapshot rows。strict gap 降至 3642，仍有历史 evidence/receipt 缺口，整体未通过。
 - 2026-09-28 Assistant engine-gates strict evidence：五条单引用 P1 exact 已完成 reviewed assertion 与 receipt `sha256:484a697d804103853875d6d7e2d34429dc85981bc916d7568cb3e1fecca74a49`（engine nextest 5/5）；覆盖 strategy optimization persistence、MCP runtime lifecycle、agent/provider resolution、tool catalog availability 与 retryability envelope。strict gap 降至 3632，仍有历史 evidence/receipt 缺口，整体未通过。
 - 2026-09-28 Futu mixed-boundaries strict evidence：五条单引用 P1 exact 已完成 reviewed assertion 与 receipt `sha256:77b7aeff1ac829b88bffc92e012affa9c99f2f1b01599c1d957e5d7a1cac473f`（integration-futu nextest 5/5，live OpenD ignored）；覆盖 tick fallback、subscription normalization/release、HK-only research state 与 quote-right cache refresh。strict gap 降至 3622，仍有历史 evidence/receipt 缺口，整体未通过。
+- 2026-09-28 API market-runtime strict evidence：五条单引用 P1 exact 已完成 reviewed assertion 与 receipt `sha256:ea1a72725d8f5cd97f2e15017b44283975b76e1aef4d2af17bab7a72ef24009b`（engine nextest 7/7）；覆盖 candle cache/provider fallback、research provider forwarding 与 strategy cancel dispatch。strict gap 降至 3612，仍有历史 evidence/receipt 缺口，整体未通过。
