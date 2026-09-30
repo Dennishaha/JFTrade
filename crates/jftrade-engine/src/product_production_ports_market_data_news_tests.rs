@@ -302,6 +302,7 @@ fn corporate_actions_projection_sorts_events_by_ex_date_and_kind() {
         "AAPL",
     )
     .expect("corporate actions projection");
+    assert_eq!(value["source"], "yfinance-actions");
     assert_eq!(
         value["events"],
         serde_json::json!([
@@ -310,6 +311,37 @@ fn corporate_actions_projection_sorts_events_by_ex_date_and_kind() {
             {"kind": "dividend", "exDate": "2026-08-10", "amount": 0.5, "ratio": null}
         ])
     );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+// Parity: go:452dea11:internal/integration/yfinance/provider_news_actions_test.go:67 TestProviderCorporateActionsSortsEventsByExDateAndKind
+async fn production_news_actions_port_forwards_corporate_actions_from_without_to() {
+    let listener = TcpListener::bind("127.0.0.1:0").await.expect("listen");
+    let address = listener.local_addr().expect("address");
+    let server = tokio::spawn(async move {
+        let (mut stream, _) = listener.accept().await.expect("accept");
+        let mut request = vec![0_u8; 4096];
+        let read = stream.read(&mut request).await.expect("read");
+        let request = String::from_utf8_lossy(&request[..read]);
+        assert!(request.starts_with(
+            "GET /providers/yfinance/corporate-actions/US/AAPL?from=2024-01-01T00%3A00%3A00Z HTTP/1.1\r\n"
+        ));
+        let body = r#"{"market":"US","symbol":"AAPL","instrument_id":"US.AAPL","events":[{"kind":"dividend","ex_date":"2026-05-11","amount":1.2,"ratio":null},{"kind":"split","ex_date":"2026-06-09","amount":null,"ratio":2},{"kind":"dividend","ex_date":"2026-08-10","amount":0.5,"ratio":null}],"source":"yfinance-actions"}"#;
+        let response = format!(
+            "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+            body.len(), body
+        );
+        stream.write_all(response.as_bytes()).await.expect("write");
+    });
+    let value = MarketDataNewsActionsReadSnapshotPort::read(
+        &port(format!("http://{address}")),
+        "/api/v1/market-data/corporate-actions/US/AAPL",
+        "from=2024-01-01T00:00:00Z",
+    )
+    .expect("corporate actions response");
+    assert_eq!(value["source"], "yfinance-actions");
+    assert_eq!(value["events"].as_array().map(Vec::len), Some(3));
+    server.await.expect("server");
 }
 
 #[test]
