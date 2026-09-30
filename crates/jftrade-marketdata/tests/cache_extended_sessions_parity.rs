@@ -98,6 +98,7 @@ fn test_cache_retains_extended_quote_when_price_is_unchanged() {
         after_market: Some(ExtendedQuoteSnapshot {
             price: Some(post_price),
             volume: Some(decimal("50")),
+            quote_time: Some("2026-07-09T19:59:59.500Z".to_owned()),
             ..Default::default()
         }),
         ..Default::default()
@@ -111,6 +112,7 @@ fn test_cache_retains_extended_quote_when_price_is_unchanged() {
         Some(refreshed_snapshot.clone()),
     );
     assert_eq!(cache.insert(tick2, generation), Ok(()));
+    assert_eq!(cache.history("US.AAPL").len(), 2);
 
     match cache.lookup("US.AAPL", base_time + 500, 0) {
         CacheLookup::Fresh(t) => {
@@ -118,6 +120,11 @@ fn test_cache_retains_extended_quote_when_price_is_unchanged() {
             let snap = t.snapshot.expect("snapshot exists");
             let after = snap.after_market.expect("after market exists");
             assert_eq!(after.price, Some(post_price));
+            assert_eq!(
+                after.quote_time.as_deref(),
+                Some("2026-07-09T19:59:59.500Z")
+            );
+            assert_eq!(snap.previous_close, Some(price_dec("99")));
         }
         other => panic!("expected fresh tick with extended quote, got {other:?}"),
     }

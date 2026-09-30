@@ -2206,3 +2206,5 @@ US regular 当前桶过滤与 bounded-window 合并页重过滤已按 Go `QueryK
 缓存后续回归：新增 quote update_time 去重、独立 trade 保留、capacity=3 顺序与 stale require_fresh 测试，定向 receipt 为 5/5 passed。Rust cache 仍没有 Go `now` 注入的 30 分钟 retention owner，也没有 Source 字段的 promotion 语义；两项继续保持 partial。随后完整 Rust 门禁曾在既有 Assistant resolved-approval timeline 测试失败（755/1），修正测试对 fixture 后缀的误匹配后单测 1/1 passed；完整门禁需重新运行。
 
 验证：修正后完整 `check:rust` 通过，workspace nextest 3552/3552 passed（2 skipped），clippy/static 与七类 compatibility replay 通过；缓存定向 receipt 5/5 passed，SHA-256 `8b8e9782cc9d6b7cb094e2e1c25b1724c24c235d3e6fbf088c53f14c4e9f03b4`。两条 cache 映射绑定新的真实 receipt、断言列表与 duplicate owner anchor；整体目标仍未完成。
+
+本轮继续复核 `TestCacheRetainsNewExtendedQuoteWhenPriceIsUnchanged`：Go 的同价新扩展行情要求 Count=2、after-market price/time、previous close 和 last close 保留；Rust 增加 Count=2、quote_time、previous_close 断言，last_close 与 retention clock 仍列为未覆盖。`jftrade-marketdata` 64/64 定向测试通过，新增 receipt `cache-extended-quote-reviewed-2026-09-30.json`。
