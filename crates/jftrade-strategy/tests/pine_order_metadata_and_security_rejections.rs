@@ -76,6 +76,8 @@ fn request_security_rejects_unsupported_inner_ta_contracts() {
 
 /// Parity: go:452dea11:pkg/strategy/pine/order_metadata_contracts_test.go:8 TestOrderMetadataRejectsAmbiguousInputsAndKeepsSupportedPositionals
 ///
+/// Parity: go:452dea11:pkg/strategy/ir/planner_test.go:73 TestPlanRequirementsRejectsUnsupportedOrderQuantityMode
+///
 /// Parity: go:452dea11:pkg/strategy/pine/language_failure_contracts_test.go:239 TestOrderAndTupleHelperContractsKeepTradeInstructionsUnambiguous
 ///
 /// Parity: go:452dea11:pkg/strategy/pine/strategy_call_bounds_test.go:98 TestParseStrategyCallRejectsUnsupportedOrderBoundaries
@@ -151,6 +153,11 @@ fn compile_rejects_ambiguous_order_metadata_and_missing_ids() {
             r#"strategy.entry("Long", strategy.long, mystery=1)"#,
             "PINE_COMPILE_ERROR",
             "strategy.entry argument mystery is not supported by JFTrade",
+        ),
+        (
+            r#"strategy.entry("Long", strategy.long, qty=1, qty_type="bananas")"#,
+            "PINE_COMPILE_ERROR",
+            "strategy.entry argument qty_type is not supported by JFTrade",
         ),
         (
             r#"strategy.exit("Exit", "Long", stop=98, mystery=1)"#,
