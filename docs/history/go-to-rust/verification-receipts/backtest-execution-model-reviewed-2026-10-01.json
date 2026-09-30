@@ -1,0 +1,37 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--lib",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "-E",
+    "test(execution_model_)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-10-01T00:00:00Z",
+  "sourceState": {
+    "verifiedCommit": "0065b951bfe21b274295aad508d7b17558fd681a",
+    "testOutputSha256": "ff75a092a9ce7e8701b1bc16405f14936f84821b7bd662f610d70ae6ada77857"
+  },
+  "summary": {
+    "tests": [
+      "execution_model_defaults_and_normalizes_ascii_case",
+      "execution_model_rejects_unsupported_name_with_trimmed_value",
+      "execution_model_rejects_non_string_value_as_bad_request"
+    ],
+    "passed": 4,
+    "failed": 0,
+    "skipped": 0
+  }
+}
