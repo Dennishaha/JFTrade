@@ -782,6 +782,44 @@ fn test_result_view_all_six_views_and_validation() {
 }
 
 #[test]
+// Parity: go:452dea11:internal/backtest/result_view_test.go:21 TestResultViewOrdersLogsAndErrorsUseWindowAndCursor
+fn test_result_view_orders_logs_and_errors_honor_window_and_cursor() {
+    use crate::product::product_research_backtest_projection::project_authoritative_result_view;
+    use crate::product::BacktestResultViewRequest;
+    let payload = json!({
+        "id": "run-window-cursor",
+        "status": "completed",
+        "request": {"symbol": "US.AAPL", "interval": "1m"},
+        "result": {
+            "orders": [
+                {"orderId":"before","submittedAt":"2026-01-01T00:00:00Z","status":"FILLED"},
+                {"orderId":"inside","submittedAt":"2026-01-01T00:02:00Z","status":"NEW"},
+                {"orderId":"inside-2","submittedAt":"2026-01-01T00:03:00Z","status":"NEW"},
+                {"orderId":"outside","submittedAt":"2026-01-01T00:05:00Z","status":"FILLED"}
+            ],
+            "logs": [{"time":"2026-01-01T00:02:00Z","message":"a"},{"time":"2026-01-01T00:03:00Z","message":"b"}],
+            "runtimeErrors": [{"time":"2026-01-01T00:02:00Z","error":"e1"},{"time":"2026-01-01T00:03:00Z","error":"e2"}]
+        }
+    });
+    let request = |view: &str, cursor: Option<&str>| BacktestResultViewRequest {
+        run_id: "run-window-cursor".to_owned(), view: Some(view.to_owned()),
+        start_time: Some("2026-01-01T00:01:00Z".to_owned()),
+        end_time: Some("2026-01-01T00:04:00Z".to_owned()),
+        limit: Some(1), cursor: cursor.map(str::to_owned), ..Default::default()
+    };
+    let first = project_authoritative_result_view(&payload, None, &request("orders", None)).unwrap();
+    assert_eq!(first["series"]["orderBook"][0]["orderId"], "inside");
+    assert_eq!(first["window"]["truncated"], true);
+    assert_eq!(first["window"]["nextCursor"], "1");
+    let second = project_authoritative_result_view(&payload, None, &request("orders", Some("1"))).unwrap();
+    assert_eq!(second["series"]["orderBook"][0]["orderId"], "inside-2");
+    let logs = project_authoritative_result_view(&payload, None, &request("logs", None)).unwrap();
+    assert_eq!(logs["series"]["logs"][0]["message"], "a");
+    let errors = project_authoritative_result_view(&payload, None, &request("errors", None)).unwrap();
+    assert_eq!(errors["series"]["runtimeErrors"][0]["error"], "e1");
+}
+
+#[test]
 fn test_result_view_order_fee_aggregation_and_numeric_types() {
     use crate::product::product_research_backtest_projection::project_authoritative_result_view;
     use crate::product::BacktestResultViewRequest;
