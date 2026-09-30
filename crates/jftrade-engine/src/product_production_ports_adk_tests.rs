@@ -2730,6 +2730,7 @@ fn test_strategy_research_backtest_schema_properties() {
     assert!(inst_enum.iter().any(|v| v == "etf"));
 }
 
+// Parity: go:452dea11:internal/backtest/result_view_test.go:12 TestResultViewRunPayloadPreservesProviderAndExecutionMetadata
 #[test]
 fn test_research_backtest_result_view_projection() {
     use crate::product::product_research_backtest_projection::project_result_view;
@@ -2739,6 +2740,13 @@ fn test_research_backtest_result_view_projection() {
         "id": "run-test-real-corpus",
         "status": "completed",
         "marketDataProvider": "longport",
+        "request": {
+            "chartType": "candlestick",
+            "instrumentType": "stock",
+            "useExtendedHours": true,
+            "executionModel": "bar_close",
+            "tradingCosts": {"brokerFees": {"feeSchedule": "fixed"}}
+        },
         "chartType": "candlestick",
         "instrumentType": "stock",
         "useExtendedHours": true,
@@ -2788,6 +2796,11 @@ fn test_research_backtest_result_view_projection() {
     // Summary view projections from real CorpusOutput cases[0]
     let summary_view = project_result_view(&real_corpus_payload, Some(&default_options));
     assert_eq!(summary_view["run"]["marketDataProvider"], "longport");
+    assert_eq!(summary_view["run"]["chartType"], "candlestick");
+    assert_eq!(summary_view["run"]["instrumentType"], "stock");
+    assert_eq!(summary_view["run"]["executionModel"], "bar_close");
+    assert_eq!(summary_view["run"]["useExtendedHours"], true);
+    assert_eq!(summary_view["run"]["tradingCosts"]["brokerFees"]["feeSchedule"], "fixed");
     assert_eq!(summary_view["summary"]["finalEquity"], "105000.0");
     assert_eq!(summary_view["summary"]["realizedPnl"], "5000.0");
     assert_eq!(summary_view["summary"]["totalTrades"], 2);
