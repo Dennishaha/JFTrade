@@ -152,8 +152,9 @@ fn index_constituents_projection_rejects_identity_drift_and_blank_codes() {
         "source": "akshare-index-constituents"
     });
     match project_constituents(&blank_code, "SH", "000300") {
-        Err(MarketIndexConstituentsReadError::Failed { status, code, .. }) => {
+        Err(MarketIndexConstituentsReadError::Failed { status, code, message, .. }) => {
             assert_eq!((status, code.as_str()), (502, "BAD_GATEWAY"));
+            assert!(message.contains("code"), "message = {message}");
         }
         other => panic!("expected the blank-code rejection, got {other:?}"),
     }
