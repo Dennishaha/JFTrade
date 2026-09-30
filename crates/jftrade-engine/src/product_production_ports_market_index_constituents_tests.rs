@@ -122,6 +122,8 @@ async fn index_constituents_read_accepts_the_cn_aggregate_prefix() {
 }
 
 #[test]
+// Parity: go:452dea11:internal/integration/akshare/provider_index_constituents_test.go:48 TestProviderIndexConstituentsRejectsMalformedPayloads
+// Parity: go:452dea11:internal/integration/akshare/provider_index_constituents_test.go:65 TestProviderIndexConstituentsRejectsIdentityMismatch
 fn index_constituents_projection_rejects_identity_drift_and_blank_codes() {
     let drifted = json!({
         "market": "SH",
