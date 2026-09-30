@@ -221,19 +221,22 @@ fn index_constituents_read_requires_akshare_and_a_ready_helper() {
 }
 
 #[test]
+// Parity: go:452dea11:internal/integration/akshare/provider_index_constituents_test.go:80 TestProviderIndexConstituentsSurfacesUnsupportedMarkets
 // Parity: go:452dea11:internal/marketdata/index_constituents_facade_test.go:31 TestServiceIndexConstituentsRejectsProvidersWithoutCapability
 fn index_constituents_read_rejects_non_cn_indices_without_touching_the_helper() {
     let port = port(Some(MarketDataProvider::Akshare), true, None);
-    match MarketIndexConstituentsReadPort::read(&port, "HK", "HSI", 200) {
-        Err(MarketIndexConstituentsReadError::Failed {
-            status, code, message, ..
-        }) => {
-            assert_eq!(status, 409);
-            assert_eq!(code, "MARKET_DATA_CAPABILITY_UNSUPPORTED");
-            assert!(message.contains("akshare"), "message = {message}");
-            assert!(message.contains("HK"), "message = {message}");
+    for (market, symbol) in [("US", "SPX"), ("HK", "HSI")] {
+        match MarketIndexConstituentsReadPort::read(&port, market, symbol, 200) {
+            Err(MarketIndexConstituentsReadError::Failed {
+                status, code, message, ..
+            }) => {
+                assert_eq!(status, 409);
+                assert_eq!(code, "MARKET_DATA_CAPABILITY_UNSUPPORTED");
+                assert!(message.contains("akshare"), "message = {message}");
+                assert!(message.contains(market), "message = {message}");
+            }
+            other => panic!("expected the non-CN capability failure, got {other:?}"),
         }
-        other => panic!("expected the non-CN capability failure, got {other:?}"),
     }
     match MarketIndexConstituentsReadPort::read(&port, "CN", "000300", 200) {
         Err(MarketIndexConstituentsReadError::Failed {
