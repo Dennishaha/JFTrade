@@ -144,7 +144,13 @@ fn custom_period_backward_queries_return_latest_rows_in_ascending_order() {
 
     let daily_page = store
         .query_candles_backward(
-            "futu", "US.AAPL", "1d", "forward", "extended", 3 * 86_400_000, 2,
+            "futu",
+            "US.AAPL",
+            "1d",
+            "forward",
+            "extended",
+            3 * 86_400_000,
+            2,
         )
         .expect("query daily page");
     assert_eq!(daily_page.len(), 2);
@@ -153,7 +159,13 @@ fn custom_period_backward_queries_return_latest_rows_in_ascending_order() {
 
     let intraday_page = store
         .query_candles_backward(
-            "futu", "US.AAPL", "2h", "forward", "extended", 3 * 7_200_000, 2,
+            "futu",
+            "US.AAPL",
+            "2h",
+            "forward",
+            "extended",
+            3 * 7_200_000,
+            2,
         )
         .expect("query intraday page");
     assert_eq!(intraday_page.len(), 2);
