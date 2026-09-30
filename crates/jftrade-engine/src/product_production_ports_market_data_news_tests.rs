@@ -465,6 +465,36 @@ async fn production_news_actions_support_every_leaf_market() {
 }
 
 #[test]
+// Parity: go:452dea11:internal/integration/akshare/provider_news_actions_test.go:114 TestProviderNewsAndCorporateActionsSurfaceUnsupportedUSAndHK
+fn akshare_news_actions_reject_unsupported_us_and_hk_markets() {
+    let state = Arc::new(ActiveProviderState::new(Some(MarketDataProvider::Akshare)));
+    state.set_readiness(true, false, false);
+    let port = ProductionMarketDataNewsPort {
+        active_provider_state: state,
+        helper: Some(helper("http://127.0.0.1:7788".to_owned())),
+        trade_runtime: None,
+    };
+    for (path, query) in [
+        ("/api/v1/market-data/news/US/AAPL", "limit=5"),
+        ("/api/v1/market-data/news/HK/00700", "limit=5"),
+        ("/api/v1/market-data/corporate-actions/US/AAPL", ""),
+    ] {
+        let error = MarketDataNewsActionsReadSnapshotPort::read(&port, path, query)
+            .expect_err("AKShare must reject unsupported market before helper access");
+        assert!(matches!(
+            error,
+            MarketDataNewsActionsReadSnapshotError::Failed {
+                status: 409,
+                ref code,
+                ref message,
+                ..
+            } if code == "MARKET_DATA_CAPABILITY_UNSUPPORTED"
+                && message == "AKShare news/actions is only available for CN markets"
+        ));
+    }
+}
+
+#[test]
 // Parity: go:452dea11:internal/integration/akshare/provider_news_actions_test.go:71 TestProviderNewsAndCorporateActionsRejectMalformedPayloads
 fn akshare_news_actions_projection_rejects_malformed_payloads() {
     let news_payload = serde_json::json!({
