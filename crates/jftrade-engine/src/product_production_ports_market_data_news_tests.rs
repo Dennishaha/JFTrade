@@ -411,6 +411,59 @@ fn news_projection_rejects_mismatched_identity_and_invalid_timestamps() {
     ));
 }
 
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+// Parity: go:452dea11:internal/integration/yfinance/provider_news_actions_test.go:124 TestProviderNewsAndCorporateActionsSupportEveryLeafMarket
+async fn production_news_actions_support_every_leaf_market() {
+    let listener = TcpListener::bind("127.0.0.1:0").await.expect("listen");
+    let address = listener.local_addr().expect("address");
+    let server = tokio::spawn(async move {
+        for _ in 0..8 {
+            let (mut stream, _) = listener.accept().await.expect("accept");
+            let mut request = vec![0_u8; 4096];
+            let read = stream.read(&mut request).await.expect("read");
+            let request = String::from_utf8_lossy(&request[..read]);
+            let path = request
+                .split_whitespace()
+                .nth(1)
+                .expect("request path")
+                .split('?')
+                .next()
+                .expect("path without query");
+            let instrument = path.trim_matches('/').rsplitn(3, '/').collect::<Vec<_>>();
+            let symbol = instrument.first().copied().expect("symbol");
+            let market = instrument.get(1).copied().expect("market");
+            let (body, content_type) = if request.contains("/news/") {
+                (format!(r#"{{"market":"{market}","symbol":"{symbol}","instrument_id":"{market}.{symbol}","entries":[],"source":"yfinance-news"}}"#), "application/json")
+            } else {
+                (format!(r#"{{"market":"{market}","symbol":"{symbol}","instrument_id":"{market}.{symbol}","events":[],"source":"yfinance-actions"}}"#), "application/json")
+            };
+            let response = format!(
+                "HTTP/1.1 200 OK\r\nContent-Type: {content_type}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                body.len()
+            );
+            stream.write_all(response.as_bytes()).await.expect("write");
+        }
+    });
+    let port = port(format!("http://{address}"));
+    for (market, symbol) in [("US", "AAPL"), ("HK", "00700"), ("SH", "600519"), ("SZ", "000001")] {
+        let news = MarketDataNewsActionsReadSnapshotPort::read(
+            &port,
+            &format!("/api/v1/market-data/news/{market}/{symbol}"),
+            "limit=3",
+        )
+        .expect("leaf market news");
+        assert_eq!(news["source"], "yfinance-news");
+        let actions = MarketDataNewsActionsReadSnapshotPort::read(
+            &port,
+            &format!("/api/v1/market-data/corporate-actions/{market}/{symbol}"),
+            "",
+        )
+        .expect("leaf market corporate actions");
+        assert_eq!(actions["source"], "yfinance-actions");
+    }
+    server.await.expect("server");
+}
+
 #[test]
 // Parity: go:452dea11:internal/integration/akshare/provider_news_actions_test.go:71 TestProviderNewsAndCorporateActionsRejectMalformedPayloads
 fn akshare_news_actions_projection_rejects_malformed_payloads() {
