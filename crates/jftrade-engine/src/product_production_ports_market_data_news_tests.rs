@@ -379,6 +379,39 @@ async fn production_news_actions_port_forwards_corporate_actions_from_without_to
 }
 
 #[test]
+// Parity: go:452dea11:internal/integration/yfinance/provider_news_actions_test.go:46 TestProviderNewsRejectsMismatchedIdentityAndInvalidTimestamps
+fn news_projection_rejects_mismatched_identity_and_invalid_timestamps() {
+    let identity_payload = serde_json::json!({
+        "market": "US", "symbol": "MSFT", "instrument_id": "US.MSFT",
+        "source": "yfinance-news", "entries": []
+    });
+    let identity_error = super::product_production_ports_market_data_news_actions::validate_news_actions_payload(
+        identity_payload, "news", "US", "AAPL",
+    )
+    .expect_err("identity mismatch must be rejected");
+    assert!(matches!(
+        identity_error,
+        MarketDataNewsActionsReadSnapshotError::Failed { status: 502, ref code, .. }
+            if code == "BAD_GATEWAY"
+    ));
+
+    let timestamp_payload = serde_json::json!({
+        "market": "US", "symbol": "AAPL", "instrument_id": "US.AAPL",
+        "source": "yfinance-news",
+        "entries": [{"title": "t", "published_at": "not-a-time"}]
+    });
+    let timestamp_error = super::product_production_ports_market_data_news_actions::validate_news_actions_payload(
+        timestamp_payload, "news", "US", "AAPL",
+    )
+    .expect_err("invalid timestamp must be rejected");
+    assert!(matches!(
+        timestamp_error,
+        MarketDataNewsActionsReadSnapshotError::Failed { status: 502, ref code, ref message, .. }
+            if code == "BAD_GATEWAY" && message == "news entry publishedAt must be RFC3339"
+    ));
+}
+
+#[test]
 // Parity: go:452dea11:internal/integration/akshare/provider_news_actions_test.go:100 TestProviderNewsRejectsIdentityMismatch
 fn news_projection_rejects_identity_mismatch() {
     let payload = serde_json::json!({
