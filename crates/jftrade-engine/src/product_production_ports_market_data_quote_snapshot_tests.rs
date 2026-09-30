@@ -62,6 +62,7 @@
         }
     }
 
+    // Parity: go:452dea11:internal/marketdata/cache_test.go:261 TestSerializationPreservesNullExtendedAndStringPrices
     #[test]
     fn cached_projection_uses_active_after_quote_and_separates_closes() {
         let snapshot = TradeQuoteSnapshot {
@@ -69,7 +70,6 @@
             last_price: Some(decimal("114.97")),
             previous_close: Some(decimal("114.97")),
             last_close: Some(decimal("112.50")),
-            open_price: Some(decimal("113.00")),
             high_price: Some(decimal("115.70")),
             low_price: Some(decimal("114.13")),
             volume: Some(decimal_text("1179135")),
@@ -105,6 +105,9 @@
         assert_eq!(value["lastClosePrice"], "112.50");
         assert_eq!(value["session"], "after");
         assert_eq!(value["extendedHours"], true);
+        assert!(value["openPrice"].is_null());
+        assert!(value["extended"]["preMarket"].is_null());
+        assert!(value["extended"]["overnight"].is_null());
         assert_eq!(value["extended"]["afterMarket"]["quoteTime"], "2026-07-18T20:15:00Z");
         assert_eq!(
             value["extended"]["afterMarket"]["sessionStartAt"],

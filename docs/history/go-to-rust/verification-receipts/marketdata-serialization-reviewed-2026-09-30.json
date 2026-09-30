@@ -1,0 +1,68 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(cached_projection_uses_active_after_quote_and_separates_closes) or test(futu_snapshot_route_projects_cached_extended_quote_contract)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-30T08:10:34Z",
+  "sourceState": {
+    "verifiedCommit": "57b03e713543079c828dac212e91f1c43a2148f6",
+    "trackedDiffSha256": "0dad0cadf4f5813ca77af557d1ecc70fb414f93c30937e985e1ee9b48c48a039",
+    "untrackedFiles": [
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/marketdata-serialization-reviewed-2026-09-30.json",
+        "sha256": "0dc6daf99cf9caf2cc23797eca047944dcb13806c7fb7f664e969c99c841c176"
+      }
+    ]
+  },
+  "rawOutputSha256": "2e1aa35a8ef45346eda01dfc562748541852cafb1a9f8485d237ac4acb798cfe",
+  "passedTests": [
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_market_data::product_production_ports_market_data_quote::quote_snapshot::tests::cached_projection_uses_active_after_quote_and_separates_closes",
+    "jftrade-engine::jftrade_engine$product::tests::market_data_quote_read_tests::futu_snapshot_route_projects_cached_extended_quote_contract"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 2,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1652,
+      "exec_time": 0.037212957,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    }
+  ]
+}

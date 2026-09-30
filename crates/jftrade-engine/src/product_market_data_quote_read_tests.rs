@@ -348,6 +348,7 @@ async fn market_data_quote_read_routes_are_not_registered_without_snapshot_port(
     handle.shutdown().await.expect("shutdown product");
 }
 
+// Parity: go:452dea11:internal/marketdata/cache_test.go:261 TestSerializationPreservesNullExtendedAndStringPrices
 #[tokio::test]
 async fn futu_snapshot_route_projects_cached_extended_quote_contract() {
     let state = Arc::new(ActiveProviderState::new(Some(
@@ -417,6 +418,8 @@ async fn futu_snapshot_route_projects_cached_extended_quote_contract() {
     assert_eq!(snapshot["session"], "after");
     assert_eq!(snapshot["extendedHours"], true);
     assert_eq!(snapshot["volume"], "0");
+    assert!(snapshot["extended"]["preMarket"].is_null());
+    assert!(snapshot["extended"]["overnight"].is_null());
     assert_eq!(snapshot["previousClosePrice"], "114.97");
     assert_eq!(snapshot["lastClosePrice"], "111.25");
     assert_eq!(
