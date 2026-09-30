@@ -2194,3 +2194,11 @@ US regular 当前桶过滤与 bounded-window 合并页重过滤已按 Go `QueryK
 复核六条已有 `function_exact`：`TestStockScreenFallbackParsesRowsAndMarketGroups`、`TestStockScreenFallbackCoordinatesCopiesAndErrors`、`TestStockScreenSnapshotParamsUseStrictDelayedQuoteFields`、`TestFutuStockScreenSnapshotFallbackUsesStaticIDsWithoutSubscription`、`TestStockScreenSnapshotCoordinatorCachesRowsAndNegativeResults`、`TestFutuStockScreenSnapshotFallbackReportsScreenErrors`。Go 断言逐项对应 Rust 的真实 StockScreen parser、coordinator、adapter 与 framed protobuf 行为；未将历史 `legacy-conclusion` 直接视为 reviewed。
 
 `jftrade-integration-futu` 定向 nextest **6/6 passed**，receipt `sha256:5d2e8d55218adc5252b1389a258dbf15803b757a9bb05091ccd10b78c56cb8f6`。六条 mapping 已补 reviewed assertion、Parity anchor、passed receipt；strict gap **3323→3312**。后续仍需处理 API Server/Transport Wire 低测试比例与剩余未 reviewed exact。
+
+## 2026-09-30：缓存断言复核与历史标签纠正
+
+逐项读取冻结 Go `internal/marketdata/cache_test.go:12,76` 与 Rust `cache_boundaries.rs` 两个测试及 `TickCache` owner。去重测试只证明 instrument key 数量与最新 snapshot 更新，不能用 `instrument_count=1` 证明 Go `Count=1` 的样本去重；freshness 测试只证明 Fresh/Stale，未执行 retention 删除、max=3 顺序与 AllFresh。两行标为 reviewed partial，缺失断言逐项记录，不升级 exact。
+
+撤回此前批量复用历史结论得到的 reviewed 标签：其余 31 条 marketdata 与 16 条 broker 保留原始 legacy-conclusion 审查状态，已执行测试 receipt 保留。跨域 receipt 只证明实际运行的测试，不证明未执行的 owner 或 Go 断言。源码未有 provenance 注释时不以函数行号伪造 Parity anchor。
+
+验证：marketdata 定向 29/29、broker catalog 定向 8/8 passed；严格审计通过（仅现有 1505 条 exact），anchor reconcile 为 1903/1856/0/0/47，`check:ai-context` 与 `git diff --check` 通过。已预览 quick 计划并运行 `check:quick`；该检查失败于 `check:zero-go`：desktop 与 market-data helper 的 8 处既有源码注释含已退役 asset 路径，其余 policy 检查通过。整体迁移审查仍未完成。
