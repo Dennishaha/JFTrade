@@ -1,0 +1,56 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "-p",
+    "jftrade-calendar",
+    "-p",
+    "jftrade-integration-futu",
+    "-p",
+    "jftrade-integration-pine",
+    "-p",
+    "jftrade-desktop",
+    "--all-targets",
+    "--locked",
+    "--no-fail-fast",
+    "-E",
+    "test(responses_request_reasoning_effort_matrix_matches_go_contract) or test(trading_day_schedule_json_omits_zero_updated_at) or test(frozen_proto_tree_matches_the_recorded_repository_digest) or test(frozen_proto_names_and_extensions_match_the_checksum_manifest) or test(frozen_digest_parser_rejects_malformed_entries) or test(pineworker_proto_inputs_are_verified_before_any_generation) or test(repository_root_walks_up_from_a_nested_directory_to_the_workspace_markers) or test(repository_root_rejects_a_tree_without_the_workspace_markers) or test(development_channel_skips_release_checks_while_the_release_channel_runs_them) or test(rejects_missing_staged_resource_instead_of_serving_without_it) or test(development_pine_runtime_without_staged_bundle_reports_unavailable_asset) or test(accepts_exact_resources_and_rejects_tampering) or test(pine_worker_bundle_file_name_is_platform_independent)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-29T15:44:52Z",
+  "sourceState": {
+    "verifiedCommit": "2f5de4172a26c6f2f3ddb3df13e326787e82e54b"
+  },
+  "rawOutputSha256": "sha256:0c0cd9360e979c1b0ca737052037eee818f431ae89b9715f8357f4f058c50ea5",
+  "passedTests": [
+    "jftrade-parity::responses_request_reasoning_effort_matrix_matches_go_contract",
+    "jftrade-parity::trading_day_schedule_json_omits_zero_updated_at",
+    "jftrade-parity::frozen_proto_tree_matches_the_recorded_repository_digest",
+    "jftrade-parity::frozen_proto_names_and_extensions_match_the_checksum_manifest",
+    "jftrade-parity::frozen_digest_parser_rejects_malformed_entries",
+    "jftrade-parity::pineworker_proto_inputs_are_verified_before_any_generation",
+    "jftrade-parity::repository_root_walks_up_from_a_nested_directory_to_the_workspace_markers",
+    "jftrade-parity::repository_root_rejects_a_tree_without_the_workspace_markers",
+    "jftrade-parity::development_channel_skips_release_checks_while_the_release_channel_runs_them",
+    "jftrade-parity::rejects_missing_staged_resource_instead_of_serving_without_it",
+    "jftrade-parity::development_pine_runtime_without_staged_bundle_reports_unavailable_asset",
+    "jftrade-parity::accepts_exact_resources_and_rejects_tampering",
+    "jftrade-parity::pine_worker_bundle_file_name_is_platform_independent"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "summary": {
+    "testsRun": 13,
+    "testsPassed": 13,
+    "testsFailed": 0,
+    "testsSkipped": 2712,
+    "scope": "13 function_exact owners whose assertionCoverage was legacy/manual and required reviewed assertion evidence"
+  }
+}

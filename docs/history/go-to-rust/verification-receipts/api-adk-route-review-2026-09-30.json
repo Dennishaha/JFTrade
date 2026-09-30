@@ -1,0 +1,364 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json",
+    "-E",
+    "test(adk_approval_approve_returns_the_running_resolution_envelope) or test(adk_provider_delete_reports_the_in_use_agent_and_keeps_the_go_projection) or test(production_adk_goal_pause_and_resume_are_persisted_atomically) or test(goal_pause_rejects_child_runs_and_resume_reports_missing_runs) or test(production_adk_metrics_are_aggregated_from_persisted_records) or test(production_adk_local_mutations_persist_tasks_memory_and_workflow_triggers) or test(optimization_task_negative_routes_match_the_reference_matrix)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-30T00:12:00Z",
+  "sourceState": {
+    "verifiedCommit": "2f5de4172a26c6f2f3ddb3df13e326787e82e54b",
+    "trackedDiffSha256": "96a61ebb991b80104b5b21e2ca7d228cc11f3758cfdc77cea4a8b9e81d700abd",
+    "untrackedFiles": [
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-adk-catalog-expanded-reviewed-2026-09-29.json",
+        "sha256": "30fe272d6caf798028ac0e5e33bc72c519a2cf460bce7cc5a7ad3d50960125d8"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-adk-workflow-routes-reviewed-2026-09-29.json",
+        "sha256": "b49cb003e98c5109ecf876bcadff2a930a1ad87f60ca77ce40a1a71d5c7c5bb2"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-auth-boundaries-reviewed-2026-09-29.json",
+        "sha256": "d9491a62ef3b46d0ff5ee03f652748d32fa1bd219460c95a0edd7e3748702b89"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-auth-rejections-reviewed-2026-09-29.json",
+        "sha256": "d302cddef14057dec554dd8d48e00892a71e7c5a2e4c565fff7010970fbe800e"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-backtest-routes-reviewed-2026-09-29.json",
+        "sha256": "8112ca0221bc3297e0d325c6778eda46484126247e7f90586e945c21860176f8"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-data-plane-cache-expanded-reviewed-2026-09-29.json",
+        "sha256": "200612c8aef83ed54639008cb4a24da4c3a5bf13f83581050015b4ec289bbc11"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-execution-expanded-reviewed-2026-09-29.json",
+        "sha256": "d0d7c5a9b5eaa398725dc5984bf74baea521e8183c19162b027e4476ca833960"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-execution-notification-expanded-reviewed-2026-09-29.json",
+        "sha256": "9b41ff872e5f99dd1cf113bfe6c0bf93b83b428c595aeb511e536030ed715a4f"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-execution-routes-reviewed-2026-09-29.json",
+        "sha256": "908dd3ccbeb7cc812691cb3f9a4a3da31acc4da56689cff37c8fa276e6d8319e"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-execution-session-reviewed-2026-09-29.json",
+        "sha256": "8abeb1dae760d9861b6bd1f5070052482df98eb3047d517386db66084255dce8"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-execution-validation-reviewed-2026-09-29.json",
+        "sha256": "53e2f159b30ba83c635eb62d2b54c3ee703e8a55ebe260392c70073b84a78df1"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-live-volume-expanded-reviewed-2026-09-29.json",
+        "sha256": "3a000a243b3b7b08343b931ba6205aa9e7295473c9fcef20b6a4ae7af167c332"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-live-volume-routes-reviewed-2026-09-29.json",
+        "sha256": "ec10dda614a774af706ee1aecc442d08f4e8770edbb9843c005bdd96b5c4472e"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-provider-research-routes-reviewed-2026-09-29.json",
+        "sha256": "9e32c31f0abd2449195e807ff7ddc0342e14e4c40968c1959fbec197eaae2750"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-sse-frame-loop-reviewed-2026-09-29.json",
+        "sha256": "12db05f76dea7d6f98960badd67dea25b6b4e64ba6930826093083d15e5c1e9c"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-sse-loop-reviewed-2026-09-29.json",
+        "sha256": "803a99b17ac95ec97490cbf3f1f91ee8c3aa95d061ee9966dfdd9217f3bae18e"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-sse-reviewed-2026-09-30.json",
+        "sha256": "23cb9085910da407cffce794533dee1ff1eea1154a3a50a766fa6afd67ed9ec9"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-startup-rollback-reviewed-2026-09-29.json",
+        "sha256": "5ff41a57feb4610daf6dfae3a59381aad5bf567d79b1f659a0da8068872fa066"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-strategy-pine-routes-reviewed-2026-09-29.json",
+        "sha256": "006d1777d3ddf4b8b1ca5dbe3eec152adbe879252316d462a2ea97d0cbc2a4a5"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-system-adk-expanded-reviewed-2026-09-29.json",
+        "sha256": "9c793407b9b524bd1b8eb97949f541c95dd14b0c4d56d9c0456da9003dfab16c"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-system-status-reviewed-2026-09-29.json",
+        "sha256": "9a870aa32803da5277ec22731f5f85cf693f518d14e72ea28a484c1440d8354f"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-transport-p2-assistant-boundaries-reviewed-2026-09-29.json",
+        "sha256": "bdf00cc6589295500b7a80c580b0efd34a206f268f441f174306f5e24245c9f8"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-transport-p2-assistant-routes-2-reviewed-2026-09-29.json",
+        "sha256": "be396063e4b089be09ef9d33ff13c02565bf533b74d5fb34198b675b4a6e01da"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-transport-p2-auth-origin-reviewed-2026-09-29.json",
+        "sha256": "a90d53c5245a42b16cb1397efcf98d666f3bc7aa3c02e56a9dda6e60b19d59e2"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-transport-p2-backtest-research-reviewed-2026-09-29.json",
+        "sha256": "c9b06706f5ff34185820f23a91855d52986a888bddc391aeb24fb4466982a198"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-transport-p2-behavior-reviewed-2026-09-29.json",
+        "sha256": "ce452bd3c5eb1ac54fa17c8f9bd952a69c8e811dc9abc3b0bcd2e9503492a19d"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-transport-p2-boundaries-reviewed-2026-09-29.json",
+        "sha256": "66c7dc3e04676d72b054ac13f9a9a92bcc0e52a78652a954e5b1d9022eaed99b"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-transport-p2-candle-search-reviewed-2026-09-29.json",
+        "sha256": "0d37de6e56677e8e7241ea03905f6b143b7ede47a76535e15c91a2856ad0a4d4"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-transport-p2-datamigration-reviewed-2026-09-29.json",
+        "sha256": "4d739bd52477eb28f8bf1dbdcaba199570f595d524ea28b7b89a9793aa5397a4"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-transport-p2-datamigration-safety-reviewed-2026-09-29.json",
+        "sha256": "c91a4ac3fe696e1fbebd5897d1f96b81b9e42433c0ea3761390452bc25ae0119"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-transport-p2-production-boundaries-reviewed-2026-09-29.json",
+        "sha256": "ca4c5fc102f6467c890fbd22e5cd409bc6ace00a1feafe7e6fd5b30edfa39cb9"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-transport-p2-query-uri-reviewed-2026-09-29.json",
+        "sha256": "97726dfe188f6691db04e9b03f19dec666d366f4c48d8498c5a06526966a9f23"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-transport-p2-readsettings-reviewed-2026-09-29.json",
+        "sha256": "77a4805fce48b4565c50fe4d7475287a2977f08bae3486c1007be627fdbb65fc"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-transport-p2-route-reviewed-2026-09-29.json",
+        "sha256": "84dbc60dbeb07184ad3c0cbc750321351de2bd6b052e61ea613ea329e0ba553c"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-transport-p2-runtime-dependencies-shared-reviewed-2026-09-29.json",
+        "sha256": "e12b481f0265f0680e5e6ca822d09c2ff5770ca08cd2924ddffe996a56c395a0"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-transport-p2-runtime-reviewed-2026-09-29.json",
+        "sha256": "652cbc5eae4d4533af8b22ff2ea8f098cb6398bea05bf7f3d6e9871403d18d6b"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-transport-p2-shared-owners-reviewed-2026-09-29.json",
+        "sha256": "9c451f9dc06c5c9679f7299c2d089593a3526086b535c497b1210fa8dc3f9080"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-transport-p2-subscription-reviewed-2026-09-29.json",
+        "sha256": "66229dc2cec638a02dc06384b47949a7bca05c593b67daa57dbbce6cecb41710"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-transport-p2-swagger-contracts-2-reviewed-2026-09-29.json",
+        "sha256": "b98a7bd55fe062644991008420a3ca043c18b6fd76f9225fa1234adfe435a02a"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-transport-p2-webaccess-boundaries-2-reviewed-2026-09-29.json",
+        "sha256": "938c081bf90acfe483b1047d9a2147fc15dfdbe5e1e0cf8e0cb0a4fe10ae7b37"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-transport-p2-ws-lease-reviewed-2026-09-29.json",
+        "sha256": "c6a21e20592a76fa5537c3650978925468b2675a4c0ff92d774a9f08413a6619"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-transport-p2-wslive-reviewed-2026-09-29.json",
+        "sha256": "d5630dbcfc1a2e7e10bdaf5bf09f96e992fbff7c53addf84023fa4f0880510dd"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-watchlist-expanded-reviewed-2026-09-29.json",
+        "sha256": "1229c3cce32d106a24fe67b26d6ba010cbd359695d5e486bdba4b47d78c15ca7"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-watchlist-routes-reviewed-2026-09-29.json",
+        "sha256": "3ed7a53929b236bd9372cd098c5e7672970846bdc17f27bd903bfee8a05466dc"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-web-disabled-expanded-reviewed-2026-09-29.json",
+        "sha256": "f30e71343d4544520315daddffe13f8f6eca58430f7fe77f568bcc32546e3054"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-web-p1-reviewed-2026-09-29.json",
+        "sha256": "02d835502c6392862c7678ed3087c19e51198186c265a1583cc181bbac8d5b92"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/assistant-reasoning-expanded-reviewed-2026-09-29.json",
+        "sha256": "0a491996ff59766bc9d70064e3a117bcceb121074dc4cab32cc8af39b55f1361"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/assistant-research-backtest-reviewed-2026-09-29.json",
+        "sha256": "13dfccf8542102be58216af7a8534c0a234bc09090cd83a519e1b697b698368e"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/assistant-tail-p1-2026-09-28T0227Z.json",
+        "sha256": "74e1bd1f4f2ee7a7eead3bd398b267e9788d7082fdf8e028449e66f31f29f48b"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/candle-adjustment-reviewed-2026-09-29.json",
+        "sha256": "a6a4ce38cf768d8e05cbe1470d67513374d7d5f570fb2b016bba96a1d0be39e8"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/futu-history-partial-reviewed-2026-09-29.json",
+        "sha256": "fb4552f868c250f0dc14ba880ec0c59db20dac6b7fe55125d2343715cbdb8cb8"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/futu-p2-three-reviewed-2026-09-29.json",
+        "sha256": "75652df0ee656dacbda2d0b3f40dff5ccf47ec060b44fabc5aba58cebaf63d8e"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/futu-snapshot-expanded-reviewed-2026-09-29.json",
+        "sha256": "dfa872be52fcf43d403ed32fc27cb673e30e74531a603b8b8a940ff7ec0a1f9e"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/futu-snapshot-fallback-reviewed-2026-09-29.json",
+        "sha256": "5d2e8d55218adc5252b1389a258dbf15803b757a9bb05091ccd10b78c56cb8f6"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/futu-transport-reviewed-2026-09-30.json",
+        "sha256": "a0906c826c136f6c21afaaf156d85bc399947b9047e47431aa33fcc242ad4290"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/p1-broker-cancel-rejection-2026-09-28T184500Z.json",
+        "sha256": "6a1ab35d3718e0b74d98bd4ddfabaa9effdfd09a49912d349b16786d713bcbdc"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/p1-broker-cancel-rejection-red-2026-09-28T184300Z.json",
+        "sha256": "ffcf4bdfc81402a57b2173d242df628c00875e4197591fdba2a9d17ee5828a50"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/p1-futu-boundaries-2026-09-28T064852Z.json",
+        "sha256": "9304c9ef4cd2b9a4d36385012db4902c61c41bad326f7472345fdcafc0a3bbf7"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/p1-futu-session-market-rules-2026-09-28T071432Z.json",
+        "sha256": "b290cd212da3374c17198d541103085cf5a0b71fedc8f0d1271732534f097167"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/p1-manager-close-aggregate-2026-09-28T125441Z.json",
+        "sha256": "e319b1dd01b56b3ae8bb821aa23bd831c2eb4ca5216765035961fd92f0bdd185"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/p1-manager-close-drain-2026-09-28T115903Z.json",
+        "sha256": "7fd9c2be86d54c740663edd6da3de92f391c27925949a5774809020f7ad558f0"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/p1-provider-boundaries-2026-09-28T1415Z.json",
+        "sha256": "143648491d86b0a5b7e9495ef6dd97bffc10d6797e5bd08e24396b332a94c20e"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/p1-query-candle-boundaries-2026-09-28T0250Z.json",
+        "sha256": "69bae53794658676a710eeda191d4e68b5e70c7f243ee3483c441f7919d75b40"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/p1-strategy-cancel-all-2026-09-28T075220Z.json",
+        "sha256": "4ae81bb8523edd0244a07edcbd5299533a5a837488451687b2882fe0df95a2f2"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/p1-strategy-cancel-all-success-2026-09-28T145000Z.json",
+        "sha256": "fc615c228ba5af017d074b6793421fc3e624cc447a0abd801c9a8ad8c8eb6901"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/p1-strategy-lifecycle-transition-2026-09-28T190500Z.json",
+        "sha256": "5e8e5224e011be0b58564f1054e9ee5e375fc2f7ee3c536884c486fb760c58ff"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/p1-strategy-subscription-normalization-2026-09-28T100015Z.json",
+        "sha256": "395ad660308cecd62c6a0665868e97e57a053834315bb65d5ce0d3c802609311"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/p1-strategy-subscription-warmup-2026-09-28T100015Z.json",
+        "sha256": "5117b36376dd8f887ee47ec8539fe723fd0bab1c6d7ada5938259aac157c062f"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/p1-strategy-targeted-cancel-2026-09-28T142057Z.json",
+        "sha256": "3423dac32787c4000997a77e747bdf13c64a024334cf4c27e9e341eb47d25fa3"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/p1-strategy-targeted-cancel-alias-2026-09-29T235736Z.json",
+        "sha256": "be73bf20b8629fc8c9ca04ba9cab81258f9dd7a4b3a84d31c481736e5f1800fd"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/p1-workflow-crud-filter-delete-2026-09-28T090634Z.json",
+        "sha256": "5780bdfc67c001debadc02ce685ef3c823f562a1eeb439e6a7c6f6b4d51e9e6f"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/p1-workflow-pagination-2026-09-28T081500Z.json",
+        "sha256": "3efdb120b58c0332c7b3ca0f868ed339945311c319e31c7ec8a09c6098e66732"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/prediction-push-reviewed-2026-09-29.json",
+        "sha256": "3ae94d273c7803e3288ef3360f0b4ef994d754e4aa7115d2b72f212e8e2cd771"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/runtime-lifecycle-expanded-reviewed-2026-09-29.json",
+        "sha256": "8e29d9b65d8f849d562355f29993e55daff5b6ec517717bc3e7f1211ea1770b4"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/runtime-lifecycle-expanded-reviewed-2026-09-30.json",
+        "sha256": "9a22c0dbcdc8be8d756bfbea9157f46e8dc34c05c2113476a55dbf2e12b4383e"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/runtime-resources-expanded-reviewed-2026-09-29.json",
+        "sha256": "9675f546e7c02833ebe266297914dd43faf3242a6c139eba0e0d891d072a0535"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/settings-empty-defaults-expanded-reviewed-2026-09-29.json",
+        "sha256": "1baf8bad5108ca592701c3511d77ad742593246652073c1917b23954e0ec0353"
+      }
+    ]
+  },
+  "rawOutputSha256": "f3622ac946fe5f50ada6aadca3a2cea91893e51c55d3d51692b14247bb1b30f1",
+  "passedTests": [
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_adk::tests::adk_approval_approve_returns_the_running_resolution_envelope",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_adk::tests::adk_provider_delete_reports_the_in_use_agent_and_keeps_the_go_projection",
+    "jftrade-engine::jftrade_engine$product::tests::adk_mutation_product_tests::goal_pause_rejects_child_runs_and_resume_reports_missing_runs",
+    "jftrade-engine::jftrade_engine$product::tests::adk_mutation_product_tests::optimization_task_negative_routes_match_the_reference_matrix",
+    "jftrade-engine::jftrade_engine$product::tests::production_assembly_tests::product_production_assembly_tests::production_adk_goal_pause_and_resume_are_persisted_atomically",
+    "jftrade-engine::jftrade_engine$product::tests::production_assembly_tests::product_production_assembly_tests::production_adk_local_mutations_persist_tasks_memory_and_workflow_triggers",
+    "jftrade-engine::jftrade_engine$product::tests::production_assembly_tests::product_production_assembly_tests::production_adk_metrics_are_aggregated_from_persisted_records"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 7
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1639,
+      "exec_time": 17.512820667
+    }
+  ]
+}

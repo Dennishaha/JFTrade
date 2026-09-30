@@ -74,6 +74,7 @@ async fn ws_live_subscription_registry_drives_status_and_releases_on_disconnect(
 }
 
 // Parity: go:452dea11:internal/app/apiserver/servercore/live_runtime_test.go:13 TestLiveStreamDiagnosticsUseConfiguredLimit
+// Parity: go:452dea11:internal/api/live/handler_test.go:342 TestHandlerConnectionLimitAndCloseLifecycle
 #[tokio::test]
 async fn ws_live_transport_rejects_origin_and_limit_without_leaking_permits() {
     let directory = tempdir().expect("temporary directory");
@@ -110,6 +111,52 @@ async fn ws_live_transport_rejects_origin_and_limit_without_leaking_permits() {
     assert_eq!(forbidden.content_type(), Some("text/plain; charset=utf-8"));
     assert_eq!(forbidden.body, "Forbidden\n");
     handle.shutdown().await.expect("shutdown product");
+}
+
+// Parity: go:452dea11:internal/api/live/handler_test.go:342 TestHandlerConnectionLimitAndCloseLifecycle
+#[tokio::test]
+async fn ws_live_shutdown_closes_active_connection_and_releases_depth_subscription() {
+    let directory = tempdir().expect("temporary directory");
+    let settings_path = directory.path().join("settings.json");
+    let config =
+        ProductConfig::test_cutover("127.0.0.1:0".parse().expect("address"), &settings_path)
+            .expect("config")
+            .with_ws_live_snapshot_port(Arc::new(EnabledWsLiveSnapshotPort));
+    let handle = start_product(config).await.expect("start product");
+    let address = handle.startup_record().address;
+    let hub = handle.live_hub();
+    let mut websocket = websocket_upgrade(address).await;
+    let heartbeat = read_server_text_frame(&mut websocket).await;
+    let heartbeat: serde_json::Value = serde_json::from_str(&heartbeat).expect("heartbeat JSON");
+    assert_eq!(heartbeat["type"], "heartbeat");
+
+    let subscription = br#"{"type":"subscribe","subscriptions":{"providerBrokerId":"futu","activeInstruments":[],"depth":[{"market":"US","symbol":"AAPL","instrumentId":"US.AAPL","num":50}]}}"#;
+    websocket
+        .write_all(&masked_text_frame(subscription))
+        .await
+        .expect("send depth subscription");
+    wait_for_live_projection(address, 1, &["US.AAPL"]).await;
+
+    let shutdown = tokio::spawn(async move { handle.shutdown().await.expect("shutdown product") });
+    let (code, reason) = tokio::time::timeout(
+        std::time::Duration::from_secs(5),
+        read_server_close_frame(&mut websocket),
+    )
+    .await
+    .expect("shutdown close frame");
+    assert_eq!(code, 1001, "server shutdown close code");
+    assert_eq!(reason, "server shutting down");
+    shutdown.await.expect("shutdown task");
+
+    let snapshot = hub.snapshot();
+    assert_eq!(
+        snapshot.connected, 0,
+        "shutdown must clear live connections"
+    );
+    assert!(
+        snapshot.active_instruments.is_empty(),
+        "shutdown must release depth demand: {snapshot:?}"
+    );
 }
 
 #[tokio::test]
@@ -319,11 +366,25 @@ async fn websocket_handshake(
 }
 
 fn masked_text_frame(payload: &[u8]) -> Vec<u8> {
-    assert!(payload.len() < 126, "test payload must use the short frame");
     let mask = [0x12_u8, 0x34, 0x56, 0x78];
-    let mut frame = Vec::with_capacity(payload.len() + 6);
+    let length_bytes = if payload.len() < 126 {
+        1
+    } else if payload.len() <= u16::MAX as usize {
+        3
+    } else {
+        9
+    };
+    let mut frame = Vec::with_capacity(payload.len() + length_bytes + 5);
     frame.push(0x81);
-    frame.push(0x80 | payload.len() as u8);
+    if payload.len() < 126 {
+        frame.push(0x80 | payload.len() as u8);
+    } else if payload.len() <= u16::MAX as usize {
+        frame.push(0xFE);
+        frame.extend_from_slice(&(payload.len() as u16).to_be_bytes());
+    } else {
+        frame.push(0xFF);
+        frame.extend_from_slice(&(payload.len() as u64).to_be_bytes());
+    }
     frame.extend_from_slice(&mask);
     frame.extend(
         payload
@@ -335,12 +396,17 @@ fn masked_text_frame(payload: &[u8]) -> Vec<u8> {
 }
 
 async fn read_server_text_frame(stream: &mut TcpStream) -> String {
+    let (opcode, payload) = read_server_frame(stream).await;
+    assert_eq!(opcode, 0x1, "expected a text frame");
+    String::from_utf8(payload).expect("websocket frame utf8")
+}
+
+async fn read_server_frame(stream: &mut TcpStream) -> (u8, Vec<u8>) {
     let mut header = [0_u8; 2];
     stream
         .read_exact(&mut header)
         .await
         .expect("read websocket frame header");
-    assert_eq!(header[0] & 0x0f, 0x1, "expected a text frame");
     assert_eq!(header[1] & 0x80, 0, "server frames must not be masked");
     let length = match header[1] & 0x7f {
         126 => {
@@ -366,7 +432,27 @@ async fn read_server_text_frame(stream: &mut TcpStream) -> String {
         .read_exact(&mut payload)
         .await
         .expect("read websocket frame payload");
-    String::from_utf8(payload).expect("websocket frame utf8")
+    (header[0] & 0x0f, payload)
+}
+
+async fn read_server_close_frame(stream: &mut TcpStream) -> (u16, String) {
+    for _ in 0..8 {
+        let (opcode, payload) = read_server_frame(stream).await;
+        if opcode == 0x1 {
+            continue;
+        }
+        assert_eq!(opcode, 0x8, "expected a close frame");
+        let code = u16::from_be_bytes(
+            payload
+                .get(..2)
+                .expect("close frame status code")
+                .try_into()
+                .expect("close frame status bytes"),
+        );
+        let reason = String::from_utf8(payload[2..].to_vec()).expect("close frame reason utf8");
+        return (code, reason);
+    }
+    panic!("server did not send a close frame after draining text frames");
 }
 
 async fn wait_for_live_projection(

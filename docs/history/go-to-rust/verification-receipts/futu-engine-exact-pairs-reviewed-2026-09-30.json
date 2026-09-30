@@ -1,0 +1,39 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-integration-futu",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--no-fail-fast",
+    "-E",
+    "<21 exact-pair owner filters>"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-30T00:00:00Z",
+  "sourceState": {
+    "verifiedCommit": "2f5de4172a26c6f2f3ddb3df13e326787e82e54b"
+  },
+  "rawOutputSha256": "sha256:db5bfa62fdacea96e71ca5c648e3a554eca3ad6ca4f1aff7142a7cbe1360951a",
+  "passedTests": [
+    "jftrade-futu-engine::exact-pair-owner-tests-21"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "summary": {
+    "testsRun": 21,
+    "testsPassed": 21,
+    "testsFailed": 0,
+    "testsSkipped": 2534,
+    "relationsReviewed": 21,
+    "functionExactReferencesReleased": 42
+  }
+}

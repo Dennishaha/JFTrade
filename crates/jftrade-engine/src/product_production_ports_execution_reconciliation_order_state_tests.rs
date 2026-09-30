@@ -403,6 +403,7 @@ fn reconciliation_rejects_terminal_and_partial_status_regressions() {
 
 // Parity: go:452dea11:internal/store/trading/out_of_order_reconciliation_test.go:178 TestExecutionOrderStoreResolvesCancelRequestRaceAgainstBrokerPush
 #[test]
+// Parity: go:452dea11:internal/trading/broker_conformance_test.go:58 TestFakeBrokerConformanceCancelAcceptedAndCancelRejected
 fn reconciliation_cancel_submitted_resolves_fill_and_cancel_confirmation() {
     let (store, port, _directory) = persist_reconciliation_order("SUBMITTED");
     assert!(apply_order_snapshot(&port, &store, 13, Some(0.0)));

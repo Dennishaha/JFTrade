@@ -38,6 +38,66 @@ impl ExecutionWritePort for MockExecutionPort {
     }
 }
 
+#[derive(Debug, Default)]
+struct FailingCancelExecutionPort {
+    mutations: Mutex<Vec<ExecutionWriteInput>>,
+    failing_order_id: String,
+}
+
+#[derive(Debug)]
+struct SuccessfulCancelExecutionPort<'a> {
+    store: &'a ExecutionOrderStore,
+    mutations: Mutex<Vec<ExecutionWriteInput>>,
+}
+
+impl<'a> SuccessfulCancelExecutionPort<'a> {
+    fn new(store: &'a ExecutionOrderStore) -> Self {
+        Self {
+            store,
+            mutations: Mutex::new(Vec::new()),
+        }
+    }
+}
+
+impl ExecutionWritePort for SuccessfulCancelExecutionPort<'_> {
+    fn mutate(&self, input: &ExecutionWriteInput) -> Result<Value, ExecutionWritePortError> {
+        self.mutations.lock().unwrap().push(input.clone());
+        let id = input
+            .internal_order_id
+            .as_deref()
+            .ok_or_else(|| ExecutionWritePortError::Unavailable("missing order id".to_owned()))?;
+        let timestamp = time::OffsetDateTime::now_utc()
+            .format(&time::format_description::well_known::Rfc3339)
+            .map_err(|error| ExecutionWritePortError::Unavailable(error.to_string()))?;
+        self.store
+            .cancel_order(id, &timestamp)
+            .map_err(|error| ExecutionWritePortError::Unavailable(error.to_string()))?;
+        Ok(json!({"internalOrderId": id, "status": "cancelled"}))
+    }
+}
+
+impl FailingCancelExecutionPort {
+    fn for_order(order_id: &str) -> Self {
+        Self {
+            mutations: Mutex::new(Vec::new()),
+            failing_order_id: order_id.to_owned(),
+        }
+    }
+}
+
+impl ExecutionWritePort for FailingCancelExecutionPort {
+    fn mutate(&self, input: &ExecutionWriteInput) -> Result<Value, ExecutionWritePortError> {
+        self.mutations.lock().unwrap().push(input.clone());
+        if input.internal_order_id.as_deref() == Some(self.failing_order_id.as_str()) {
+            return Err(ExecutionWritePortError::Unavailable(format!(
+                "cancel failed for {}",
+                self.failing_order_id
+            )));
+        }
+        Ok(json!({"internalOrderId": input.internal_order_id}))
+    }
+}
+
 fn seed_strategy_test_db(path: &std::path::Path) {
     let conn = Connection::open(path).expect("open test db");
     jftrade_store_sqlite::initialize_current(&conn, "strategy")
@@ -48,6 +108,45 @@ fn seed_execution_test_db(path: &std::path::Path) {
     let conn = Connection::open(path).expect("open test db");
     jftrade_store_sqlite::initialize_current(&conn, "execution-orders")
         .expect("initialize execution schema");
+}
+
+fn active_strategy_order(instance_id: &str, order_id: &str) -> StoredExecutionOrder {
+    StoredExecutionOrder {
+        internal_order_id: order_id.to_owned(),
+        broker_id: "futu".to_owned(),
+        broker_order_id: Some(format!("broker-{order_id}")),
+        broker_order_id_ex: None,
+        source: "strategy-runtime".to_owned(),
+        source_detail: instance_id.to_owned(),
+        trading_environment: "SIMULATE".to_owned(),
+        account_id: "12345".to_owned(),
+        market: "US".to_owned(),
+        symbol: Some("AAPL".to_owned()),
+        side: Some("BUY".to_owned()),
+        order_type: Some("LIMIT".to_owned()),
+        status: "SUBMITTED".to_owned(),
+        raw_broker_status: None,
+        requested_quantity: Some(10.0),
+        requested_price: Some(150.0),
+        filled_quantity: None,
+        filled_average_price: None,
+        remark: None,
+        last_error: None,
+        last_error_code: None,
+        last_error_source: None,
+        submitted_at: None,
+        updated_at: "2026-08-30T00:00:00Z".to_owned(),
+        created_at: "2026-08-30T00:00:00Z".to_owned(),
+        order_kind: "single".to_owned(),
+        product_class: "equity".to_owned(),
+        quantity_mode: "units".to_owned(),
+        client_order_id: Some(format!("client-{order_id}")),
+        preview_id: None,
+        normalized_request: "{}".to_owned(),
+        requested_amount: None,
+        payout: None,
+        fees: None,
+    }
 }
 
 fn test_intent(qty: f64, limit_price: f64) -> PineOrderIntent {
@@ -112,6 +211,7 @@ fn test_notify_strategy_intents_delivers_and_records_audit() {
 
 // Parity: go:452dea11:internal/app/apiserver/servercore/runtime_trading_test.go:18 TestStrategyRuntimeOrderUsesSharedPreTradeRiskGateway
 #[test]
+// Parity: go:452dea11:internal/app/apiserver/servercore/runtime_trading_test.go:123 TestStrategyRuntimeRiskCloseOnlyRejectsBuyOrder
 fn test_execute_strategy_intents_risk_rejection_blocks_broker_order() {
     let dir = tempfile::tempdir().expect("tempdir");
     let path = dir.path().join("strategy.db");
@@ -862,6 +962,232 @@ fn test_execute_strategy_intents_cancel_dispatches_order_cancel() {
     assert!(!audit.iter().any(|ev| ev.kind == "ORDER_CANCELLED"));
 }
 
+// Parity: go:452dea11:internal/strategy/liveruntime/order_risk_business_test.go:135 TestLiveCancelOnlyRemovesSuccessfullyCancelledTrackedOrders
+#[test]
+fn targeted_cancel_only_mutates_owned_active_orders_and_removes_successful_tracking() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let strat_path = dir.path().join("strategy.db");
+    seed_strategy_test_db(&strat_path);
+    let def_store = Arc::new(
+        StrategyDefinitionStore::open_existing(
+            &strat_path,
+            STRATEGY_DEFINITION_TEST_CUTOVER_PROFILE,
+        )
+        .expect("open definition store"),
+    );
+    let store = StrategyRuntimeStore::from_definition_store(&def_store);
+    store
+        .seed_instance("inst-targeted-cancel", "RUNNING", "2026-08-30T00:00:00Z")
+        .expect("seed instance");
+
+    let exec_path = dir.path().join("execution.db");
+    seed_execution_test_db(&exec_path);
+    let exec_store =
+        ExecutionOrderStore::open_existing(&exec_path, EXECUTION_ORDERS_TEST_CUTOVER_PROFILE)
+            .expect("open execution store");
+    let mut owned = active_strategy_order("inst-targeted-cancel", "ord-targeted-ok");
+    owned.client_order_id = Some("client-targeted-ok".to_owned());
+    exec_store
+        .save_order(owned, "2026-08-30T00:00:00Z")
+        .expect("save owned order");
+    let mut failed = active_strategy_order("inst-targeted-cancel", "ord-targeted-failed");
+    failed.client_order_id = Some("client-targeted-failed".to_owned());
+    exec_store
+        .save_order(failed, "2026-08-30T00:00:00Z")
+        .expect("save failed order");
+    let mut foreign = active_strategy_order("other-instance", "ord-targeted-foreign");
+    foreign.client_order_id = Some("client-targeted-foreign".to_owned());
+    exec_store
+        .save_order(foreign, "2026-08-30T00:00:00Z")
+        .expect("save foreign order");
+
+    let provider = ActiveProviderState::default();
+    let binding = json!({
+        "brokerId": "futu",
+        "accountId": "12345",
+        "tradingEnvironment": "SIMULATE"
+    });
+    let targeted = |client_id: &str| {
+        let mut intent = test_intent(0.0, 0.0);
+        intent.kind = "cancel".to_owned();
+        intent.id = client_id.to_owned();
+        intent.has_quantity = false;
+        intent.has_limit_price = false;
+        intent
+    };
+
+    let success_execution = SuccessfulCancelExecutionPort::new(&exec_store);
+    let success_ctx = StrategyExecutionContext {
+        execution: Some(&success_execution),
+        execution_store: Some(&exec_store),
+        provider: &provider,
+        store: &store,
+        instance_id: "inst-targeted-cancel",
+        market: "US",
+        symbol: "US.AAPL",
+        binding: &binding,
+        expected_risk_revision: None,
+        fallback_price: None,
+        sellable_quantity: None,
+        current_position: None,
+        available_cash: None,
+        virtual_account: None,
+    };
+    execute_strategy_intents(success_ctx, &[targeted("client-targeted-ok")])
+        .expect("owned active order should cancel");
+    assert!(
+        !exec_store
+            .list_active_orders_for_instance("inst-targeted-cancel")
+            .expect("list active after success")
+            .iter()
+            .any(|order| order.internal_order_id == "ord-targeted-ok"),
+        "successful targeted cancellation must remove active tracking"
+    );
+
+    let failing_execution = FailingCancelExecutionPort::for_order("ord-targeted-failed");
+    let failed_ctx = StrategyExecutionContext {
+        execution: Some(&failing_execution),
+        execution_store: Some(&exec_store),
+        provider: &provider,
+        store: &store,
+        instance_id: "inst-targeted-cancel",
+        market: "US",
+        symbol: "US.AAPL",
+        binding: &binding,
+        expected_risk_revision: None,
+        fallback_price: None,
+        sellable_quantity: None,
+        current_position: None,
+        available_cash: None,
+        virtual_account: None,
+    };
+    assert!(
+        execute_strategy_intents(failed_ctx, &[targeted("client-targeted-failed")]).is_err(),
+        "gateway cancellation failure must be surfaced"
+    );
+    assert!(
+        exec_store
+            .list_active_orders_for_instance("inst-targeted-cancel")
+            .expect("list active after failure")
+            .iter()
+            .any(|order| order.internal_order_id == "ord-targeted-failed"),
+        "failed targeted cancellation must preserve active tracking"
+    );
+
+    let untracked_execution = MockExecutionPort::default();
+    let untracked_ctx = StrategyExecutionContext {
+        execution: Some(&untracked_execution),
+        execution_store: Some(&exec_store),
+        provider: &provider,
+        store: &store,
+        instance_id: "inst-targeted-cancel",
+        market: "US",
+        symbol: "US.AAPL",
+        binding: &binding,
+        expected_risk_revision: None,
+        fallback_price: None,
+        sellable_quantity: None,
+        current_position: None,
+        available_cash: None,
+        virtual_account: None,
+    };
+    assert!(
+        execute_strategy_intents(untracked_ctx, &[targeted("client-targeted-foreign")]).is_err(),
+        "foreign tracked order must be rejected"
+    );
+    assert!(
+        untracked_execution.mutations.lock().unwrap().is_empty(),
+        "foreign order must never reach the execution gateway"
+    );
+}
+
+// Parity: go:452dea11:internal/strategy/live_command_business_boundaries_test.go:545
+// TestCancelByIntentDeduplicatesAliasesAndToleratesStaleMappings.
+#[test]
+fn targeted_cancel_resolves_intent_aliases_once_and_tolerates_stale_mapping() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let strat_path = dir.path().join("strategy.db");
+    seed_strategy_test_db(&strat_path);
+    let def_store = Arc::new(
+        StrategyDefinitionStore::open_existing(
+            &strat_path,
+            STRATEGY_DEFINITION_TEST_CUTOVER_PROFILE,
+        )
+        .expect("open definition store"),
+    );
+    let store = StrategyRuntimeStore::from_definition_store(&def_store);
+    store
+        .seed_instance("inst-alias-cancel", "RUNNING", "2026-08-30T00:00:00Z")
+        .expect("seed instance");
+
+    let exec_path = dir.path().join("execution.db");
+    seed_execution_test_db(&exec_path);
+    let exec_store =
+        ExecutionOrderStore::open_existing(&exec_path, EXECUTION_ORDERS_TEST_CUTOVER_PROFILE)
+            .expect("open execution store");
+    let mut aliased = active_strategy_order("inst-alias-cancel", "ord-alias");
+    aliased.client_order_id =
+        Some("strategy-inst-alias-cancel-US.AAPL-protect:limit-entry-1".to_owned());
+    exec_store
+        .save_order(aliased, "2026-08-30T00:00:00Z")
+        .expect("save aliased order");
+
+    let execution = SuccessfulCancelExecutionPort::new(&exec_store);
+    let provider = ActiveProviderState::default();
+    let binding = json!({
+        "brokerId": "futu",
+        "accountId": "12345",
+        "tradingEnvironment": "SIMULATE"
+    });
+    let targeted = |id: &str| {
+        let mut intent = test_intent(0.0, 0.0);
+        intent.kind = "cancel".to_owned();
+        intent.id = id.to_owned();
+        intent.has_quantity = false;
+        intent.has_limit_price = false;
+        intent
+    };
+    let ctx = || StrategyExecutionContext {
+        execution: Some(&execution),
+        execution_store: Some(&exec_store),
+        provider: &provider,
+        store: &store,
+        instance_id: "inst-alias-cancel",
+        market: "US",
+        symbol: "US.AAPL",
+        binding: &binding,
+        expected_risk_revision: None,
+        fallback_price: None,
+        sellable_quantity: None,
+        current_position: None,
+        available_cash: None,
+        virtual_account: None,
+    };
+
+    execute_strategy_intents(ctx(), &[targeted("protect")])
+        .expect("an intent alias should cancel its tracked order");
+    assert_eq!(
+        execution.mutations.lock().unwrap().len(),
+        1,
+        "duplicate aliases must dispatch one broker cancellation"
+    );
+    assert!(
+        exec_store
+            .list_active_orders_for_instance("inst-alias-cancel")
+            .expect("list active orders")
+            .is_empty(),
+        "successful alias cancellation must clear tracking"
+    );
+
+    execute_strategy_intents(ctx(), &[targeted("stale-intent")])
+        .expect("a stale alias must be an idempotent no-op");
+    assert_eq!(
+        execution.mutations.lock().unwrap().len(),
+        1,
+        "stale aliases must not reach the broker"
+    );
+}
+
 #[test]
 fn test_execute_strategy_intents_parameterless_close_skips_when_no_position() {
     let dir = tempfile::tempdir().expect("tempdir");
@@ -1039,6 +1365,179 @@ fn test_execute_strategy_intents_cancel_all_queries_and_cancels_active_orders() 
         audit
             .iter()
             .any(|ev| ev.kind == "ORDER_CANCELLED" && ev.detail.contains("ord-active-1"))
+    );
+}
+
+// Parity: go:452dea11:internal/strategy/liveruntime/order_risk_business_test.go:135 TestLiveCancelOnlyRemovesSuccessfullyCancelledTrackedOrders
+// Parity: go:452dea11:internal/strategy/pine_live_executor_test.go:443 TestLiveCommandExecutorCancelAll
+#[test]
+fn cancel_all_attempts_every_active_order_and_preserves_failed_tracking() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let strat_path = dir.path().join("strategy.db");
+    seed_strategy_test_db(&strat_path);
+    let def_store = Arc::new(
+        StrategyDefinitionStore::open_existing(
+            &strat_path,
+            STRATEGY_DEFINITION_TEST_CUTOVER_PROFILE,
+        )
+        .expect("open definition store"),
+    );
+    let store = StrategyRuntimeStore::from_definition_store(&def_store);
+    store
+        .seed_instance("inst-cancel-partial", "RUNNING", "2026-08-30T00:00:00Z")
+        .expect("seed instance");
+
+    let exec_path = dir.path().join("execution.db");
+    seed_execution_test_db(&exec_path);
+    let exec_store =
+        ExecutionOrderStore::open_existing(&exec_path, EXECUTION_ORDERS_TEST_CUTOVER_PROFILE)
+            .expect("open execution store");
+    for order_id in ["ord-cancel-ok", "ord-cancel-failed"] {
+        exec_store
+            .save_order(
+                active_strategy_order("inst-cancel-partial", order_id),
+                "2026-08-30T00:00:00Z",
+            )
+            .expect("save active order");
+    }
+
+    let execution = FailingCancelExecutionPort::for_order("ord-cancel-failed");
+    let provider = ActiveProviderState::default();
+    let binding = json!({
+        "brokerId": "futu",
+        "accountId": "12345",
+        "tradingEnvironment": "SIMULATE"
+    });
+    let ctx = StrategyExecutionContext {
+        execution: Some(&execution),
+        execution_store: Some(&exec_store),
+        provider: &provider,
+        store: &store,
+        instance_id: "inst-cancel-partial",
+        market: "US",
+        symbol: "US.AAPL",
+        binding: &binding,
+        expected_risk_revision: None,
+        fallback_price: None,
+        sellable_quantity: None,
+        current_position: None,
+        available_cash: None,
+        virtual_account: None,
+    };
+    let mut cancel_all = test_intent(0.0, 0.0);
+    cancel_all.kind = "cancel_all".to_owned();
+    cancel_all.has_quantity = false;
+    cancel_all.has_limit_price = false;
+
+    let error = execute_strategy_intents(ctx, &[cancel_all])
+        .expect_err("a partial cancel_all failure must be surfaced");
+    assert!(error.contains("cancel_all partially failed"));
+
+    let mutations = execution.mutations.lock().unwrap();
+    assert_eq!(mutations.len(), 2, "every active order must be attempted");
+    assert!(
+        mutations
+            .iter()
+            .any(|input| { input.internal_order_id.as_deref() == Some("ord-cancel-ok") })
+    );
+    assert!(
+        mutations
+            .iter()
+            .any(|input| { input.internal_order_id.as_deref() == Some("ord-cancel-failed") })
+    );
+
+    let audit = store
+        .list_audit_events("inst-cancel-partial")
+        .expect("audit events");
+    assert!(audit.iter().any(|event| {
+        event.kind == "ORDER_CANCELLED" && event.detail.contains("ord-cancel-ok")
+    }));
+    assert!(audit.iter().any(|event| {
+        event.kind == "ORDER_CANCEL_FAILED" && event.detail.contains("ord-cancel-failed")
+    }));
+    let active = exec_store
+        .list_active_orders_for_instance("inst-cancel-partial")
+        .expect("active orders");
+    assert_eq!(
+        active.len(),
+        2,
+        "failed cancellation must not erase ledger tracking"
+    );
+}
+
+// Parity: go:452dea11:internal/strategy/pine_live_executor_test.go:443 TestLiveCommandExecutorCancelAll
+#[test]
+fn cancel_all_success_removes_each_cancelled_order_from_tracking() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let strat_path = dir.path().join("strategy.db");
+    seed_strategy_test_db(&strat_path);
+    let def_store = Arc::new(
+        StrategyDefinitionStore::open_existing(
+            &strat_path,
+            STRATEGY_DEFINITION_TEST_CUTOVER_PROFILE,
+        )
+        .expect("open definition store"),
+    );
+    let store = StrategyRuntimeStore::from_definition_store(&def_store);
+    store
+        .seed_instance("inst-cancel-all-success", "RUNNING", "2026-08-30T00:00:00Z")
+        .expect("seed instance");
+
+    let exec_path = dir.path().join("execution.db");
+    seed_execution_test_db(&exec_path);
+    let exec_store =
+        ExecutionOrderStore::open_existing(&exec_path, EXECUTION_ORDERS_TEST_CUTOVER_PROFILE)
+            .expect("open execution store");
+    for order_id in ["ord-cancel-all-1", "ord-cancel-all-2"] {
+        exec_store
+            .save_order(
+                active_strategy_order("inst-cancel-all-success", order_id),
+                "2026-08-30T00:00:00Z",
+            )
+            .expect("save active order");
+    }
+
+    let execution = SuccessfulCancelExecutionPort::new(&exec_store);
+    let provider = ActiveProviderState::default();
+    let binding = json!({
+        "brokerId": "futu",
+        "accountId": "12345",
+        "tradingEnvironment": "SIMULATE"
+    });
+    let ctx = StrategyExecutionContext {
+        execution: Some(&execution),
+        execution_store: Some(&exec_store),
+        provider: &provider,
+        store: &store,
+        instance_id: "inst-cancel-all-success",
+        market: "US",
+        symbol: "US.AAPL",
+        binding: &binding,
+        expected_risk_revision: None,
+        fallback_price: None,
+        sellable_quantity: None,
+        current_position: None,
+        available_cash: None,
+        virtual_account: None,
+    };
+    let mut cancel_all = test_intent(0.0, 0.0);
+    cancel_all.kind = "cancel_all".to_owned();
+    cancel_all.has_quantity = false;
+    cancel_all.has_limit_price = false;
+
+    execute_strategy_intents(ctx, &[cancel_all]).expect("cancel_all should succeed");
+    let mutations = execution.mutations.lock().unwrap();
+    assert_eq!(mutations.len(), 2, "every tracked order must be cancelled");
+    assert!(mutations.iter().all(|input| {
+        input.operation == ExecutionWriteOperation::OrderCancel && input.internal_order_id.is_some()
+    }));
+    drop(mutations);
+    assert!(
+        exec_store
+            .list_active_orders_for_instance("inst-cancel-all-success")
+            .expect("list active orders")
+            .is_empty(),
+        "successful cancel_all must clear every active tracked order"
     );
 }
 

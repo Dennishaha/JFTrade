@@ -481,6 +481,7 @@ mod tests {
     }
 
     #[test]
+    // Parity: go:452dea11:pkg/futu/opend/new_methods_test.go:499 TestRequestHistoryKL
     fn history_wire_frame_keeps_protocol_and_serial_for_mock_opend() {
         let body = HistoryResponse {
             ret_type: Some(0),

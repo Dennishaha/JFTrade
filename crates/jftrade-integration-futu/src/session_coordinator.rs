@@ -969,6 +969,7 @@ mod tests {
     }
 
     #[test]
+    // Parity: go:452dea11:pkg/futu/stream_connection_quote_boundaries_test.go:317 TestStreamReconnectAndClientWatcherExitPaths
     fn coordinator_close_is_terminal_and_prevents_orphaned_reconnect() {
         // Parity: go:8a78fc78:pkg/futu/subscription_lifecycle_test.go:194
         // TestExchangeCloseIsTerminalAndPreventsOrphanedReconnect.
@@ -1183,6 +1184,7 @@ mod tests {
     }
 
     #[test]
+    // Parity: go:452dea11:pkg/futu/exchange_kline_test.go:479 TestStreamConnectRebuildsClosedCachedOpenDClient
     fn reconnect_replay_contains_only_subscriptions_and_resets_retry_state() {
         let recorder = Arc::new(MarketDataRuntimeRecorder::default());
         let mut lifecycle = OpenDSubscriptionLifecycle::new(Arc::clone(&recorder), 60_000);
@@ -1224,6 +1226,9 @@ mod tests {
         assert_eq!(recorder.snapshot().active_count, 0);
     }
 
+    // Parity: go:7e98458e781d8792d40ccdcacb409d80f6a17d38:pkg/futu/exchange_kline_test.go:479
+    // TestStreamConnectRebuildsClosedCachedOpenDClient. A closed cached
+    // OpenD client must be replaced before the stream replays subscriptions.
     #[test]
     fn public_coordinator_polls_basic_quotes_into_a_generation_fenced_cache() {
         let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");

@@ -19,6 +19,7 @@ impl MarketDataQuoteReadSnapshotPort for Quotes {
 struct Worker {
     calls: Mutex<Vec<PineRunRequest>>,
     fail_at: Mutex<Option<i64>>,
+    fail_close: Mutex<bool>,
 }
 impl PineExecutionPort for Worker {
     fn run<'a>(&'a self, request: PineRunRequest) -> PineExecutionFuture<'a> {
@@ -28,6 +29,7 @@ impl PineExecutionPort for Worker {
             .map(|c| c.open_time)
             .unwrap_or_default();
         let append = request.session_operation == "append";
+        let close = request.session_operation == "close";
         let mut fail = self.fail_at.lock().unwrap();
         let should_fail = append && *fail == Some(at);
         if should_fail {
@@ -36,6 +38,8 @@ impl PineExecutionPort for Worker {
         self.calls.lock().unwrap().push(request.clone());
         Box::pin(std::future::ready(if should_fail {
             Err(PineExecutionError::Timeout)
+        } else if close && *self.fail_close.lock().unwrap() {
+            Err(PineExecutionError::Remote("close failed".to_owned()))
         } else {
             Ok(PineRunResult {
                 session_revision: request.expected_revision + 1,
@@ -489,4 +493,207 @@ fn strategy_runtime_holds_exact_kline_demand_until_stop_and_shutdown() {
     assert_eq!(router.lock().unwrap().demand().logical_count, 2);
     manager.shutdown();
     wait_for(|| router.lock().unwrap().demand().logical_count == 0);
+}
+
+// Parity: go:452dea11:internal/strategy/pineruntime/runtime_failure_contracts_test.go:171 TestManagerCloseDrainsActiveLiveSession
+#[test]
+fn manager_shutdown_closes_active_pine_sessions_once() {
+    let (_dir, store) = store();
+    let quotes = Arc::new(Quotes {
+        rows: Mutex::new(json!({"candles":[bar(0, true)]})),
+    });
+    let worker = Arc::new(Worker::default());
+    let mut manager = StrategyRuntimeManager::new(
+        None,
+        None,
+        Some(quotes),
+        None,
+        Arc::new(ActiveProviderState::default()),
+    );
+    manager.worker = Some(worker.clone());
+    let runtime_binding = binding();
+    manager
+        .spawn_task("one".to_owned(), runtime_binding, Arc::clone(&store))
+        .expect("spawn strategy runtime");
+    wait_for(|| {
+        worker
+            .calls
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|request| request.session_operation == "open")
+            .count()
+            == 1
+    });
+
+    assert!(
+        manager.shutdown(),
+        "active strategy task must drain on shutdown"
+    );
+    let calls = worker.calls.lock().unwrap();
+    let opens: Vec<_> = calls
+        .iter()
+        .filter(|request| request.session_operation == "open")
+        .collect();
+    let closes: Vec<_> = calls
+        .iter()
+        .filter(|request| request.session_operation == "close")
+        .collect();
+    assert_eq!(opens.len(), 1, "session open calls = {calls:?}");
+    assert_eq!(closes.len(), 1, "session close calls = {calls:?}");
+    assert_eq!(closes[0].session_id, opens[0].session_id);
+    assert_eq!(closes[0].expected_revision, opens[0].expected_revision + 1);
+}
+
+// Parity: go:452dea11:internal/strategy/liveruntime/manager_close_test.go:86 TestManagerCloseAggregatesNamedSessionErrorsOnce
+#[test]
+fn manager_shutdown_aggregates_named_session_close_errors_once() {
+    let (_dir, store) = store();
+    let quotes = Arc::new(Quotes {
+        rows: Mutex::new(json!({"candles":[bar(0, true)]})),
+    });
+    let worker = Arc::new(Worker {
+        fail_close: Mutex::new(true),
+        ..Worker::default()
+    });
+    let router = Arc::new(Mutex::new(lease_router()));
+    let mut manager = StrategyRuntimeManager::new(
+        Some(Arc::clone(&router)),
+        None,
+        Some(quotes),
+        None,
+        Arc::new(ActiveProviderState::default()),
+    );
+    manager.worker = Some(worker.clone());
+    let runtime_binding = json!({
+        "script": "//@version=5\nindicator('aggregate')\nplot(close)",
+        "symbols": ["US.AAPL", "US.MSFT"],
+        "interval": "1m",
+        "executeOrders": false
+    });
+    manager
+        .acquire_demand("one", &runtime_binding)
+        .expect("acquire runtime demand");
+    manager
+        .spawn_task("one".to_owned(), runtime_binding, Arc::clone(&store))
+        .expect("spawn strategy runtime");
+    wait_for(|| {
+        worker
+            .calls
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|request| request.session_operation == "open")
+            .count()
+            == 2
+    });
+
+    let manager = Arc::new(manager);
+    let callers = 12;
+    let mut joins = Vec::new();
+    for _ in 0..callers {
+        let manager = Arc::clone(&manager);
+        joins.push(std::thread::spawn(move || {
+            manager
+                .shutdown_with_error()
+                .expect_err("close error must be returned")
+        }));
+    }
+    let expected = joins
+        .into_iter()
+        .map(|join| join.join().expect("shutdown caller"))
+        .collect::<Vec<_>>();
+    assert_eq!(expected.len(), callers);
+    for message in &expected {
+        assert!(message.contains("strategy runtime one symbol US.AAPL pine session close"));
+        assert!(message.contains("strategy runtime one symbol US.MSFT pine session close"));
+        assert!(message.contains("close failed"));
+    }
+    assert_eq!(
+        expected
+            .iter()
+            .collect::<std::collections::BTreeSet<_>>()
+            .len(),
+        1,
+        "concurrent shutdown callers must observe one stable aggregate"
+    );
+    let calls = worker.calls.lock().unwrap();
+    assert_eq!(
+        calls
+            .iter()
+            .filter(|request| request.session_operation == "close")
+            .count(),
+        2,
+        "each active session must be closed once despite concurrent shutdown callers"
+    );
+    assert_eq!(
+        router.lock().unwrap().demand().logical_count,
+        0,
+        "concurrent shutdown callers must release the runtime demand once"
+    );
+}
+
+/// Parity: go:452dea11:internal/strategy/liveruntime/subscription_lifecycle_test.go:14
+/// TestSubscriptionLeaseAndWarmupFailuresRollBackRuntime.
+///
+/// A failed Pine warmup must release exactly the runtime's managed demand. A
+/// second consumer sharing the same physical K-line target proves that the
+/// failure path neither leaks the runtime lease nor releases another owner's
+/// reference when the cleanup is repeated.
+#[test]
+fn failed_pine_warmup_releases_only_its_own_subscription_once() {
+    let (_dir, store) = store();
+    let quotes = Arc::new(Quotes {
+        rows: Mutex::new(json!({"candles":[bar(0,true)]})),
+    });
+    let router = Arc::new(Mutex::new(lease_router()));
+    router
+        .lock()
+        .unwrap()
+        .acquire_demand(
+            "other",
+            [InstrumentRef {
+                channel: "KLINE".to_owned(),
+                market: "US".to_owned(),
+                symbol: "AAPL".to_owned(),
+                interval: Some("1m".to_owned()),
+            }],
+            false,
+            1_700_000_000_000,
+        )
+        .expect("seed the shared demand owner");
+    let mut manager = StrategyRuntimeManager::new(
+        Some(Arc::clone(&router)),
+        None,
+        Some(quotes),
+        None,
+        Arc::new(ActiveProviderState::default()),
+    );
+    manager.worker = Some(Arc::new(FailingOpenWorker));
+    manager
+        .acquire_demand("one", &binding())
+        .expect("acquire runtime demand");
+    assert_eq!(router.lock().unwrap().demand().logical_count, 1);
+    manager
+        .spawn_task("one".to_owned(), binding(), Arc::clone(&store))
+        .expect("spawn runtime task");
+
+    wait_for(|| {
+        store
+            .get_instance("one")
+            .unwrap()
+            .is_some_and(|instance| instance.status == "STOPPED")
+    });
+
+    let demand = router.lock().unwrap().demand();
+    assert_eq!(demand.logical_count, 1, "shared demand was released twice");
+    assert_eq!(demand.entries[0].consumers, vec!["other".to_owned()]);
+    drop(demand);
+
+    // Cleanup callers may defensively release after task failure; it must be
+    // idempotent and leave the other consumer's lease untouched.
+    manager.release_demand("one");
+    let demand = router.lock().unwrap().demand();
+    assert_eq!(demand.logical_count, 1);
+    assert_eq!(demand.entries[0].consumers, vec!["other".to_owned()]);
 }

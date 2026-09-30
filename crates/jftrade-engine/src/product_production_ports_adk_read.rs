@@ -474,10 +474,33 @@ impl ProductionAdkPort {
     }
 
     fn workflow_logs(&self, query: &str) -> Result<AdkReadSnapshot, AdkReadSnapshotError> {
+        // Go's ListWorkflowTriggerLogs applies workflow/trigger/status
+        // predicates before pagination, so `total` describes the filtered
+        // result rather than the complete invocation history.
+        let workflow_id = query_param(query, "workflowId")
+            .map(|value| value.trim().to_owned())
+            .filter(|value| !value.is_empty());
+        let trigger_id = query_param(query, "triggerId")
+            .map(|value| value.trim().to_owned())
+            .filter(|value| !value.is_empty());
+        let status = query_param(query, "status")
+            .map(|value| value.trim().to_ascii_uppercase())
+            .filter(|value| !value.is_empty());
         let values = self
             .store
             .list_workflow_trigger_logs()?
             .into_iter()
+            .filter(|row| {
+                workflow_id
+                    .as_deref()
+                    .is_none_or(|expected| row.workflow_id == expected)
+                    && trigger_id
+                        .as_deref()
+                        .is_none_or(|expected| row.trigger_id == expected)
+                    && status.as_deref().is_none_or(|expected| {
+                        row.status.trim().eq_ignore_ascii_case(expected)
+                    })
+            })
             .map(|row| {
                 payload(
                     &row.payload_json,
@@ -495,7 +518,7 @@ impl ProductionAdkPort {
                 )
             })
             .collect::<Result<Vec<_>, _>>()?;
-        Ok(AdkReadSnapshot::Json(page("logs", values, query, 100)))
+        Ok(AdkReadSnapshot::Json(page("logs", values, query, 20)))
     }
 
     fn metrics(&self) -> Result<AdkReadSnapshot, AdkReadSnapshotError> {

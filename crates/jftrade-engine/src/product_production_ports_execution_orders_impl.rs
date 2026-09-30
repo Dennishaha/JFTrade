@@ -493,8 +493,26 @@ impl ProductionExecutionPort {
             order_id_ex: order.broker_order_id_ex.clone(),
         });
         if let Err(error) = modify_result {
+            let broker_rejection = is_broker_cancel_rejection(&error);
             let mapped = map_trade_error(error);
             let now = crate::product::product_production_ports::provider_now_rfc3339();
+            if broker_rejection {
+                let previous_status = order.status.clone();
+                let expected_updated_at = order.updated_at.clone();
+                let (message, code) = execution_error_details(&mapped);
+                order.last_error = Some(message);
+                order.last_error_code = code;
+                order.last_error_source = Some("broker.cancel".to_owned());
+                order.updated_at = now.clone();
+                self.persist_transition(
+                    &order,
+                    "BROKER_CANCEL_REJECTED",
+                    Some(&previous_status),
+                    &expected_updated_at,
+                    &now,
+                )?;
+                return Err(mapped);
+            }
             self.persist_unknown(&mut order, &mapped, "cancel_failed", &now)?;
             return Err(mapped);
         }
@@ -773,4 +791,8 @@ fn is_risk_rejection(error: &ExecutionWritePortError) -> bool {
         }
         _ => false,
     }
+}
+
+fn is_broker_cancel_rejection(error: &jftrade_integration_futu::TradeSessionError) -> bool {
+    matches!(error, jftrade_integration_futu::TradeSessionError::Response(_))
 }

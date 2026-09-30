@@ -1,0 +1,74 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "-E",
+    "test(broker_cancel_rejection_keeps_cancel_requested_and_records_rejection_event)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 100,
+  "status": "failed",
+  "verifiedAt": "2026-09-28T18:43:00Z",
+  "sourceState": {
+    "verifiedCommit": "2f5de4172a26c6f2f3ddb3df13e326787e82e54b",
+    "trackedDiffSha256": "1b85efe050bb392606e5c5832fbd99b98dcf9e536d01b25324f29ae997d8d03b",
+    "untrackedFiles": [
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/assistant-tail-p1-2026-09-28T0227Z.json",
+        "sha256": "74e1bd1f4f2ee7a7eead3bd398b267e9788d7082fdf8e028449e66f31f29f48b"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/p1-broker-cancel-rejection-2026-09-28T184500Z.json",
+        "sha256": "6a1ab35d3718e0b74d98bd4ddfabaa9effdfd09a49912d349b16786d713bcbdc"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/p1-futu-boundaries-2026-09-28T064852Z.json",
+        "sha256": "9304c9ef4cd2b9a4d36385012db4902c61c41bad326f7472345fdcafc0a3bbf7"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/p1-futu-session-market-rules-2026-09-28T071432Z.json",
+        "sha256": "b290cd212da3374c17198d541103085cf5a0b71fedc8f0d1271732534f097167"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/p1-provider-boundaries-2026-09-28T1415Z.json",
+        "sha256": "143648491d86b0a5b7e9495ef6dd97bffc10d6797e5bd08e24396b332a94c20e"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/p1-query-candle-boundaries-2026-09-28T0250Z.json",
+        "sha256": "69bae53794658676a710eeda191d4e68b5e70c7f243ee3483c441f7919d75b40"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/p1-strategy-cancel-all-2026-09-28T075220Z.json",
+        "sha256": "4ae81bb8523edd0244a07edcbd5299533a5a837488451687b2882fe0df95a2f2"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/p1-strategy-subscription-normalization-2026-09-28T100015Z.json",
+        "sha256": "395ad660308cecd62c6a0665868e97e57a053834315bb65d5ce0d3c802609311"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/p1-strategy-subscription-warmup-2026-09-28T100015Z.json",
+        "sha256": "5117b36376dd8f887ee47ec8539fe723fd0bab1c6d7ada5938259aac157c062f"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/p1-workflow-crud-filter-delete-2026-09-28T090634Z.json",
+        "sha256": "5780bdfc67c001debadc02ce685ef3c823f562a1eeb439e6a7c6f6b4d51e9e6f"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/p1-workflow-pagination-2026-09-28T081500Z.json",
+        "sha256": "3efdb120b58c0332c7b3ca0f868ed339945311c319e31c7ec8a09c6098e66732"
+      }
+    ]
+  },
+  "rawOutputSha256": "423363fd59c0c548756152d991a7755a7463c0cd072d9fc2050a79e033176084",
+  "passedTests": [],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": []
+}

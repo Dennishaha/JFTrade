@@ -133,6 +133,7 @@ fn run_mock_sse_server(
 }
 
 #[test]
+// Parity: go:452dea11:internal/api/assistant/chat_transport_disconnect_test.go:55 TestChatStreamTransportHandlesDisconnectedClients
 fn test_client_disconnect_returns_499_within_250ms() {
     // Upstream sends 200 OK text/event-stream headers, then stays silent (simulating slow LLM generation)
     let sse_response =

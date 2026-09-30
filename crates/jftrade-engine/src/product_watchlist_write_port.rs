@@ -473,6 +473,7 @@ mod tests {
 
     #[test]
     // Parity: go:452dea11:internal/api/watchlist/routes_test.go:34 TestUnavailableServiceExercisesAllRouteErrorBranches
+    // Parity: go:452dea11:internal/api/watchlist/routes_test.go:15 TestUnavailableServiceReturns503Envelope
     fn every_watchlist_mutation_fails_closed_without_a_port() {
         for (method, path, body) in [
             (

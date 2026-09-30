@@ -87,6 +87,8 @@ impl StrategyRuntimeManager {
         }
         let cancel = Arc::new(AtomicBool::new(false));
         let cancel_for_thread = Arc::clone(&cancel);
+        let close_errors = Arc::new(Mutex::new(Vec::new()));
+        let close_errors_for_thread = Arc::clone(&close_errors);
         let wake = Arc::new(tokio::sync::Notify::new());
         let wake_for_thread = Arc::clone(&wake);
         let (done_tx, done_rx) = std::sync::mpsc::channel();
@@ -487,6 +489,7 @@ impl StrategyRuntimeManager {
                             &timeframe,
                             &binding,
                             &session_state_by_symbol,
+                            &close_errors_for_thread,
                         );
                         fail_strategy_task(
                             &store,
@@ -522,6 +525,7 @@ impl StrategyRuntimeManager {
                     &timeframe,
                     &binding,
                     &session_state_by_symbol,
+                    &close_errors_for_thread,
                 );
             })
             .map_err(|error| {
@@ -529,6 +533,10 @@ impl StrategyRuntimeManager {
                     "start strategy runtime task: {error}"
                 ))
             })?;
+        self.last_shutdown_result
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .take();
         self.tasks.lock().unwrap_or_else(|e| e.into_inner()).insert(
             instance_id,
             RuntimeTask {
@@ -536,6 +544,7 @@ impl StrategyRuntimeManager {
                 wake,
                 done_rx,
                 thread_handle: Some(join),
+                close_errors,
             },
         );
         Ok(())

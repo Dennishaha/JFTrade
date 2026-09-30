@@ -1,0 +1,38 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "node", "scripts/quality/cargo-nextest.mjs", "run", "-p", "jftrade-engine", "--all-targets", "--locked",
+    "-E", "test(simultaneous_input_request_calls_fail_the_run_instead_of_parking) or test(gated_call_persists_the_go_approval_projection) or test(a_gated_tool_call_parks_the_run_with_only_pending_approvals) or test(a_provider_override_runs_the_turn_without_editing_the_stored_agent) or test(challenge_continuation_supervisor_releases_claims_without_extra_initialization) or test(fail_closed_lease_takeover_blocks_duplicate_tool_execution_and_stale_commit) or test(a_completed_projection_hides_resolved_approvals) or test(a_started_run_serves_its_snapshot_and_drops_the_active_handle) or test(a_top_level_follow_up_reply_keeps_its_run_completed) or test(chat_creates_the_session_once_and_reuses_its_stored_title) or test(a_completed_run_persists_the_reply_and_audits_run_completed) or test(a_failed_run_persists_its_terminal_state_and_audit_row) or test(a_gated_call_parks_the_run_and_audits_awaiting_approval) or test(terminal_failure_mapping_matches_the_reference_table) or test(model_context_autocompacts_before_the_provider_payload) or test(protected_tail_ignores_an_approval_with_a_durable_tool_outcome) or test(protected_tail_keeps_only_the_approval_that_is_still_pending) or test(protected_tail_starts_at_the_earliest_unresolved_approval) or test(session_context_tracks_events_appended_after_a_compaction) or test(session_context_window_follows_the_composer_provider_override)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-30T00:00:00Z",
+  "sourceState": {"verifiedCommit": "2f5de4172a26c6f2f3ddb3df13e326787e82e54b"},
+  "rawOutputSha256": "sha256:4a81b9bc4b2324ea45c9ed00b94198fe11e0766718c7e061596c2136ce0af21a",
+  "passedTests": [
+    "jftrade-engine::product::product_adk_model_runtime::input_response_parity::simultaneous_input_request_calls_fail_the_run_instead_of_parking",
+    "jftrade-engine::product::product_adk_model_runtime::catalog_policy_tests::gated_call_persists_the_go_approval_projection",
+    "jftrade-engine::product::product_adk_model_runtime::chat_turn_tests::a_gated_tool_call_parks_the_run_with_only_pending_approvals",
+    "jftrade-engine::product::product_adk_model_runtime::chat_turn_tests::a_provider_override_runs_the_turn_without_editing_the_stored_agent",
+    "jftrade-engine::product::product_adk_model_runtime::fencing_tests::challenge_continuation_supervisor_releases_claims_without_extra_initialization",
+    "jftrade-engine::product::product_adk_model_runtime::fencing_tests::fail_closed_lease_takeover_blocks_duplicate_tool_execution_and_stale_commit",
+    "jftrade-engine::product::product_adk_model_runtime::run_projection_tests::a_completed_projection_hides_resolved_approvals",
+    "jftrade-engine::product::product_adk_model_runtime::run_projection_tests::a_started_run_serves_its_snapshot_and_drops_the_active_handle",
+    "jftrade-engine::product::product_adk_model_runtime::run_projection_tests::a_top_level_follow_up_reply_keeps_its_run_completed",
+    "jftrade-engine::product::product_adk_model_runtime::run_projection_tests::chat_creates_the_session_once_and_reuses_its_stored_title",
+    "jftrade-engine::product::product_adk_model_runtime::terminal_audit_tests::a_completed_run_persists_the_reply_and_audits_run_completed",
+    "jftrade-engine::product::product_adk_model_runtime::terminal_audit_tests::a_failed_run_persists_its_terminal_state_and_audit_row",
+    "jftrade-engine::product::product_adk_model_runtime::terminal_audit_tests::a_gated_call_parks_the_run_and_audits_awaiting_approval",
+    "jftrade-engine::product::product_adk_model_runtime::terminal_audit_tests::terminal_failure_mapping_matches_the_reference_table",
+    "jftrade-engine::product::product_adk_model_runtime::session_context_tests::model_context_autocompacts_before_the_provider_payload",
+    "jftrade-engine::product::product_adk_model_runtime::session_context_tests::protected_tail_ignores_an_approval_with_a_durable_tool_outcome",
+    "jftrade-engine::product::product_adk_model_runtime::session_context_tests::protected_tail_keeps_only_the_approval_that_is_still_pending",
+    "jftrade-engine::product::product_adk_model_runtime::session_context_tests::protected_tail_starts_at_the_earliest_unresolved_approval",
+    "jftrade-engine::product::product_adk_model_runtime::session_context_tests::session_context_tracks_events_appended_after_a_compaction",
+    "jftrade-engine::product::product_adk_model_runtime::session_context_tests::session_context_window_follows_the_composer_provider_override"
+  ],
+  "failedTests": [], "ignoredTests": [],
+  "summary": {"testsRun": 20, "testsPassed": 20, "testsFailed": 0, "testsSkipped": 1992, "relationsReviewed": 20, "functionExactReferencesReleased": 20}
+}

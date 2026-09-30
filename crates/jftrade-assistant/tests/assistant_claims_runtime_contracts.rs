@@ -275,6 +275,7 @@ fn stale_tool_completion_is_rejected_after_keyed_takeover() {
 
 // Parity: go:452dea11:internal/assistant/engine/execution_claims_test.go:167 TestGoogleADKToolRejectsStaleContextAfterLeaseTurnover
 #[test]
+// Parity: go:452dea11:internal/assistant/engine/execution_claims_test.go:265 TestRuntimeReconciliationDoesNotStealFreshForeignLease
 fn expired_tool_invocation_takeover_fences_old_ticket_with_live_run_lease() {
     let mut store = ClaimStore::default();
     let lease = store

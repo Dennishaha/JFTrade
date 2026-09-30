@@ -969,3 +969,9 @@ Parity anchor，补齐 `assertionCoverage.source=reviewed` 及 receipt。
 映射从 `partial` 升为 `function_exact`；两个 Rust evidence、单引用 reuse、reviewed assertion 与 receipt 已同步。定向 nextest 2/2 通过，receipt `sha256:26dc42121e439058156a76cfe41acd1d0c041eb7104b2f320d99861e119019dc`。本批最新只读审计为 Go 4451、Rust 3382、`function_exact=1500`、`partial=2317`、`boundary=634`、`missing=0`；anchor `1792/1746/0/0/46`；strict 仍真实失败 3921 个历史 evidence/receipt gaps，未宣称整体严格审计完成。
 
 验证：`cargo fmt --all -- --check`、`node scripts/quality/check-workspace-architecture.mjs`、定向 `cargo-nextest` 2/2、`pnpm run check:rust`（workspace nextest 3510/3510 passed、2 skipped，7 类 compatibility replay 全部 passed）、`audit_test_parity.py --write-report`、`parity_anchor_reconcile.py` 与 JSON 校验均通过；`audit_test_parity.py --strict` 继续保留 3921 个历史 evidence/receipt 缺口。
+
+## 2026-09-28 P1：session-scope parser strict evidence
+
+复核 `internal/backtest/sync_test.go:412:TestParseSessionScope`。Go 允许空值、`regular`、`extended`，并将 `legacy`、`unknown`、带空白和大写输入判为 request error；Rust `sync_request_session_scope_parity_with_go` 对同一集合逐项断言成功值或错误。清单中的 Rust anchor 行号已按当前源码修正到真实 `Parity:` 行。
+
+验证：同批 nextest 5/5 passed（live OpenD 1 ignored）；receipt `sha256:69bae53794658676a710eeda191d4e68b5e70c7f243ee3483c441f7919d75b40`；`audit_test_parity.py --write-report`、JSON 校验与 anchor reconcile 通过。

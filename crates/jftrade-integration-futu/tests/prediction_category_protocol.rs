@@ -101,6 +101,7 @@ fn make_reader(address: SocketAddr) -> OpenDPredictionMarketReader {
 }
 
 #[test]
+// Parity: go:452dea11:pkg/futu/advanced_product_adapter_contracts_test.go:22 TestFutuAdvancedSpecializedReadersAndCustomizationSuccess
 fn prediction_category_read_encodes_protocol_and_projects_entries() {
     use jftrade_integration_futu::trade_proto::qot_get_event_contract_category as wire;
 

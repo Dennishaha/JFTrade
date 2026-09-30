@@ -1,5 +1,35 @@
 use super::*;
 use crate::product::product_adk_mutation_port::AdkMutationPortError;
+use crate::product::{ProductConfig, start_product};
+use std::net::SocketAddr;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::net::TcpStream;
+
+async fn request_json_with_status(
+    address: SocketAddr,
+    method: &str,
+    path: &str,
+    body: Option<&str>,
+) -> (u16, Value) {
+    let body = body.unwrap_or_default();
+    let mut stream = TcpStream::connect(address).await.expect("connect product API");
+    let request = format!(
+        "{method} {path} HTTP/1.1\r\nHost: {address}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+        body.len()
+    );
+    stream.write_all(request.as_bytes()).await.expect("write request");
+    let mut response = Vec::new();
+    stream.read_to_end(&mut response).await.expect("read response");
+    let response = String::from_utf8(response).expect("UTF-8 response");
+    let (headers, body) = response.split_once("\r\n\r\n").expect("HTTP body");
+    let status = headers
+        .lines()
+        .next()
+        .and_then(|line| line.split_whitespace().nth(1))
+        .and_then(|value| value.parse().ok())
+        .expect("HTTP status");
+    (status, serde_json::from_str(body).expect("JSON response"))
+}
 
 #[path = "product_adk_store_parity_tests.rs"]
 mod store_parity;
@@ -4404,6 +4434,8 @@ fn adk_skill_uninstall_removes_external_installs_and_reports_missing_files() {
 /// reports `agent not found`. `BAD_REQUEST` is reserved for a payload the chat
 /// wire port cannot decode or whose `clientRequestId` is not a UUID.
 #[test]
+// Parity: go:452dea11:internal/assistant/engine/runner_chat_test.go:18 TestPrepareChatRequestValidationAndConcurrency
+// Parity: go:452dea11:internal/assistant/engine/runner_chat_test.go:978 TestResolveAgentCoversDefaultAndProviderValidation
 fn adk_chat_route_reports_the_go_error_classification() {
     let (port, _directory) = ready_adk_port_with_fallback_provider();
     port.store
@@ -5326,6 +5358,7 @@ fn provider_reasoning_config_defaults_to_the_responses_field_and_empty_mappings(
 /// Custom mappings are trimmed, normalized to stable effort names and sorted;
 /// malformed provider reasoning configurations fail before persistence.
 #[test]
+// Parity: go:452dea11:internal/assistant/model/provider_reasoning_config_test.go:27 TestProviderReasoningValidationAndCustomMapping
 fn provider_reasoning_config_normalizes_custom_mappings_and_rejects_duplicates() {
     let (port, _directory) = agent_validation_port();
     let saved = port
@@ -7292,9 +7325,10 @@ fn wired_but_unavailable_adk_ports_fail_closed_on_every_route() {
 /// session / run / observability read route to answer `200 ok=true` - and the
 /// provider delete route to succeed.  The Rust surface must reach the same
 /// composed state through the production port rather than per-route stubs.
-#[test]
-fn catalog_session_run_and_observability_routes_answer_ok() {
-    let (port, _directory) = unready_adk_port();
+#[tokio::test]
+async fn catalog_session_run_and_observability_routes_answer_ok() {
+    let (port, directory) = unready_adk_port();
+    let port = Arc::new(port);
     port.store
         .upsert_provider(
             "provider-disabled",
@@ -7366,6 +7400,52 @@ fn catalog_session_run_and_observability_routes_answer_ok() {
         webhook_secret: None,
     })
     .expect("DELETE provider must succeed");
+
+    port.store
+        .upsert_provider(
+            "provider-disabled",
+            &json!({"displayName": "Disabled", "enabled": false}).to_string(),
+        )
+        .expect("reseed provider for HTTP delete");
+
+    let settings_path = directory.path().join("http-settings.json");
+    let config = ProductConfig::test_cutover(
+        "127.0.0.1:0".parse().expect("address"),
+        &settings_path,
+    )
+    .expect("config")
+    .with_adk_read_snapshot_port(port.clone())
+    .with_adk_mutation_port(port.clone());
+    let handle = start_product(config).await.expect("start ADK product");
+    for path in [
+        "/api/v1/adk",
+        "/api/v1/adk/providers",
+        "/api/v1/adk/agents",
+        "/api/v1/adk/skills",
+        "/api/v1/adk/sessions",
+        "/api/v1/adk/sessions/session-catalog",
+        "/api/v1/adk/runs",
+        "/api/v1/adk/runs/run-contract",
+        "/api/v1/adk/audit",
+        "/api/v1/adk/metrics",
+        "/api/v1/adk/optimization-tasks",
+        "/api/v1/adk/optimization-tasks/optimization-contract",
+    ] {
+        let (status, response) =
+            request_json_with_status(handle.startup_record().address, "GET", path, None).await;
+        assert_eq!(status, 200, "GET {path}: {response}");
+        assert_eq!(response["ok"], true, "GET {path}: {response}");
+    }
+    let (status, response) = request_json_with_status(
+        handle.startup_record().address,
+        "DELETE",
+        "/api/v1/adk/providers/provider-disabled",
+        None,
+    )
+    .await;
+    assert_eq!(status, 200, "DELETE provider: {response}");
+    assert_eq!(response["ok"], true);
+    handle.shutdown().await.expect("shutdown ADK product");
 }
 
 /// Parity: go:452dea11:internal/api/assistant/catalog_failure_contracts_test.go:17 TestCatalogReadFaultsExposeStableAPIContracts

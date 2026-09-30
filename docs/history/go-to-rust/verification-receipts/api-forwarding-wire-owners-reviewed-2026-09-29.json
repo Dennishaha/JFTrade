@@ -1,0 +1,39 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "-p",
+    "jftrade-integration-marketdata-helper",
+    "--all-targets",
+    "--locked",
+    "--no-fail-fast",
+    "-E",
+    "test(candle_route_classifies_unknown_us_session_as_a_data_error) or test(explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback) or test(futu_news_queries_stay_on_the_broker_path) or test(index_constituents_read_forwards_the_normalized_leaf_and_limit) or test(index_constituents_read_rejects_non_cn_indices_without_touching_the_helper) or test(index_constituents_read_requires_akshare_and_a_ready_helper) or test(calendar_and_macro_propagate_capability_and_busy_errors) or test(calendar_operations_map_to_provider_reads_on_the_wire) or test(company_financials_forwards_market_symbol_and_statement) or test(company_research_default_operations_project_on_the_wire) or test(company_research_propagates_capability_and_lifecycle_errors) or test(industry_board_operations_map_to_provider_kinds_on_the_wire) or test(industry_plate_members_read_the_board_from_the_instrument_id) or test(rankings_limit_clamps_to_provider_bounds) or test(rankings_operations_map_to_provider_kinds_on_the_wire) or test(embedded_screen_maps_capability_and_lifecycle_errors) or test(order_book_pushes_publish_depth_for_the_subscribed_instrument) or test(retries_transient_readiness_and_sends_optional_bearer)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-29T15:44:52Z",
+  "sourceState": {
+    "verifiedCommit": "2f5de4172a26c6f2f3ddb3df13e326787e82e54b"
+  },
+  "rawOutputSha256": "sha256:eaf29e07e48c810bcb4b966db1af2b5eb6dd402f9d52a0693e88e5b8c5a87117",
+  "passedTests": [
+    "jftrade-forwarding::owner-tests-18"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "summary": {
+    "testsRun": 18,
+    "testsPassed": 18,
+    "testsFailed": 0,
+    "testsSkipped": 2020,
+    "relationsReviewed": 18,
+    "functionExactReferencesReleased": 34
+  }
+}

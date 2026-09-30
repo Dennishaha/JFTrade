@@ -285,6 +285,7 @@ fn adk_optimization_task_page_orders_by_latest_update() {
 /// Parity: go:452dea11:internal/assistant/engine/store_lifecycle_test.go:501
 /// TestSessionComposerStatePersistsAndDeletesWithSession.
 #[test]
+// Parity: go:452dea11:internal/api/assistant/adk_sessions_test.go:15 TestADKSessionsCRUDAndFilteringRoutes
 fn adk_composer_state_truncates_trim_and_rejects_invalid_modes() {
     let (port, store, _directory) = setup_test_adk_mutation_port(None);
     let session = create_session(&port, "jftrade-default", "composer");
@@ -1282,10 +1283,29 @@ fn workflow_and_trigger_lists_hide_deleted_rows_after_create_and_delete() {
         json!({}),
     );
     assert_eq!(deleted_trigger["deleted"], true);
+    assert_eq!(deleted_trigger["trigger"]["status"], "DISABLED");
+    assert!(
+        deleted_trigger["trigger"]
+            .get("deletedAt")
+            .and_then(Value::as_str)
+            .is_some_and(|value| !value.is_empty()),
+        "deleted trigger must expose its soft-delete timestamp: {deleted_trigger}"
+    );
     assert!(
         !trigger_ids(&read_json(&port, &trigger_path, "")).contains(&trigger_id),
         "a deleted trigger disappears from the list"
     );
+
+    let second_trigger_delete = port.mutate(&AdkMutationInput {
+        operation: AdkMutationOperation::DeleteWorkflowTrigger,
+        identifiers: BTreeMap::from([
+            ("workflowId".to_owned(), workflow_id.clone()),
+            ("triggerId".to_owned(), trigger_id.clone()),
+        ]),
+        body: json!({}),
+        webhook_secret: None,
+    });
+    assert!(second_trigger_delete.is_err(), "a deleted trigger must not be deleted twice");
 
     let deleted_workflow = mutate(
         &port,
@@ -1294,9 +1314,32 @@ fn workflow_and_trigger_lists_hide_deleted_rows_after_create_and_delete() {
         json!({}),
     );
     assert_eq!(deleted_workflow["deleted"], true);
+    assert_eq!(deleted_workflow["workflow"]["status"], "DISABLED");
+    assert!(
+        deleted_workflow["workflow"]
+            .get("deletedAt")
+            .and_then(Value::as_str)
+            .is_some_and(|value| !value.is_empty()),
+        "deleted workflow must expose its soft-delete timestamp: {deleted_workflow}"
+    );
     assert!(
         !workflow_ids(&read_json(&port, "/api/v1/adk/workflows", "")).contains(&workflow_id),
         "a deleted workflow disappears from the list"
+    );
+    let second_workflow_delete = port.mutate(&AdkMutationInput {
+        operation: AdkMutationOperation::DeleteWorkflow,
+        identifiers: BTreeMap::from([("workflowId".to_owned(), workflow_id.clone())]),
+        body: json!({}),
+        webhook_secret: None,
+    });
+    assert!(second_workflow_delete.is_err(), "a deleted workflow must not be deleted twice");
+    assert!(
+        port.read(
+            &format!("/api/v1/adk/workflows/{workflow_id}"),
+            "",
+        )
+        .is_err(),
+        "a deleted workflow must not be readable through the item route"
     );
     assert_eq!(
         port.store
@@ -1509,5 +1552,158 @@ fn workflow_bridge_pages_lists_and_rejects_unknown_run_targets() {
             }
             other => panic!("expected 404 {code}, got {other:?}"),
         }
+    }
+}
+
+// Parity: go:452dea11:internal/assistant/workflows_test.go:14 TestWorkflowResourceCrudPaginationAndLogs
+#[test]
+fn workflow_resource_crud_normalizes_tags_and_pagination_defaults() {
+    let (port, _directory) = agent_validation_port();
+    let agent_id = mutate(
+        &port,
+        AdkMutationOperation::CreateAgent,
+        &[],
+        json!({"name": "Pagination Agent", "instruction": "page", "model": "gpt-4o"}),
+    )["id"]
+        .as_str()
+        .expect("agent id")
+        .to_owned();
+    let workflow = mutate(
+        &port,
+        AdkMutationOperation::CreateWorkflow,
+        &[],
+        json!({
+            "name": "Pagination Workflow",
+            "agentId": agent_id,
+            "promptTemplate": "page",
+            "tags": [" z ", "", "a", "z", " a "],
+        }),
+    );
+    let workflow_id = workflow["id"].as_str().expect("workflow id");
+    assert_eq!(workflow["tags"], json!(["a", "z"]));
+
+    let updated = mutate(
+        &port,
+        AdkMutationOperation::UpdateWorkflow,
+        &[("workflowId", workflow_id)],
+        json!({
+            "name": " Updated Workflow ",
+            "status": "disabled",
+            "agentId": agent_id,
+            "workMode": "loop",
+            "permissionMode": "all",
+            "promptTemplate": " run updated ",
+            "defaultInputs": {"symbol": "US.AAPL"},
+            "tags": [" daily ", "daily", "", "risk"],
+        }),
+    );
+    assert_eq!(updated["name"], "Updated Workflow");
+    assert_eq!(updated["status"], "DISABLED");
+    assert_eq!(updated["workMode"], "loop");
+    assert_eq!(updated["tags"], json!(["daily", "risk"]));
+
+    let workflows = read_json(
+        &port,
+        "/api/v1/adk/workflows",
+        "status=DISABLED&limit=200&offset=-10",
+    );
+    assert_eq!(workflows["page"]["limit"], 100, "workflow limit must clamp: {workflows}");
+    assert_eq!(workflows["page"]["offset"], 0, "negative workflow offset must clamp: {workflows}");
+    assert_eq!(workflows["workflows"].as_array().map(Vec::len), Some(1));
+
+    let trigger = mutate(
+        &port,
+        AdkMutationOperation::CreateWorkflowTrigger,
+        &[("workflowId", workflow_id)],
+        json!({"type": "", "title": "", "status": "error", "config": {"custom": true}}),
+    );
+    assert_eq!(trigger["trigger"]["type"], "manual");
+    assert_eq!(trigger["trigger"]["title"], "手动触发");
+    assert_eq!(trigger["trigger"]["status"], "ERROR");
+    let listed_triggers = read_json(
+        &port,
+        &format!("/api/v1/adk/workflows/{workflow_id}/triggers"),
+        "",
+    );
+    assert!(listed_triggers["triggers"][0].get("secretHash").is_none());
+
+    port.store
+        .create_workflow_trigger_log(
+            "pagination-log",
+            workflow_id,
+            trigger["trigger"]["id"].as_str().expect("trigger id"),
+            "manual",
+            "SUCCEEDED",
+            "run-pagination",
+            r#"{"id":"pagination-log","status":"SUCCEEDED"}"#,
+        )
+        .expect("create trigger log");
+    port.store
+        .create_workflow_trigger_log(
+            "unrelated-log",
+            "other-workflow",
+            "other-trigger",
+            "manual",
+            "FAILED",
+            "other-run",
+            r#"{"id":"unrelated-log","status":"FAILED"}"#,
+        )
+        .expect("create unrelated trigger log");
+    let logs = read_json(
+        &port,
+        "/api/v1/adk/workflow-trigger-logs",
+        &format!(
+            "workflowId={workflow_id}&triggerId={}&status=FAILED&limit=0&offset=-1",
+            trigger["trigger"]["id"].as_str().expect("trigger id")
+        ),
+    );
+    assert_eq!(logs["page"]["limit"], 20, "workflow log default must be 20: {logs}");
+    assert_eq!(logs["page"]["offset"], 0, "negative workflow log offset must clamp: {logs}");
+    assert_eq!(logs["page"]["total"], 0, "success log must be excluded by status: {logs}");
+
+    port.store
+        .create_workflow_trigger_log(
+            "pagination-failed-log",
+            workflow_id,
+            trigger["trigger"]["id"].as_str().expect("trigger id"),
+            "manual",
+            "FAILED",
+            "run-pagination-failed",
+            r#"{"id":"pagination-failed-log","status":"FAILED","error":"unit failure"}"#,
+        )
+        .expect("create failed trigger log");
+    let failed_logs = read_json(
+        &port,
+        "/api/v1/adk/workflow-trigger-logs",
+        &format!(
+            "workflowId={workflow_id}&triggerId={}&status=FAILED&limit=0&offset=-1",
+            trigger["trigger"]["id"].as_str().expect("trigger id")
+        ),
+    );
+    assert_eq!(failed_logs["page"]["total"], 1, "workflow log filters must be applied before pagination: {failed_logs}");
+    assert_eq!(failed_logs["logs"][0]["id"], "pagination-failed-log");
+
+    let invalid_trigger = |body: Value| {
+        port.mutate(&AdkMutationInput {
+            operation: AdkMutationOperation::CreateWorkflowTrigger,
+            identifiers: BTreeMap::from([("workflowId".to_owned(), workflow_id.to_owned())]),
+            body,
+            webhook_secret: None,
+        })
+        .expect_err("invalid trigger config must fail")
+    };
+    match invalid_trigger(json!({"type": "schedule", "config": {"cron": "bad"}})) {
+        AdkMutationPortError::Failed { status, message, .. } => {
+            assert_eq!(status, 400);
+            assert!(message.contains("cron"), "schedule error = {message}");
+        }
+        other => panic!("unexpected schedule error: {other:?}"),
+    }
+    match invalid_trigger(json!({"type": "market_threshold", "config": {"instrumentIds": ["US.AAPL"]}})) {
+        AdkMutationPortError::Failed { status, message, .. } => {
+            assert_eq!(status, 400);
+            assert!(message.contains("numeric value"), "market threshold error = {message}");
+        }
+        other => panic!("unexpected market threshold error: {other:?}"),
     }
 }

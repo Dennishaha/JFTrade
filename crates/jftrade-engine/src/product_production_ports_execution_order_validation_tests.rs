@@ -11,6 +11,7 @@ use std::str::FromStr;
 /// `Trd_PlaceOrder.orderType`, so it must already speak the wire enum rather
 /// than a private numbering.
 #[test]
+// Parity: go:452dea11:pkg/futu/exchange_mapping_boundaries_test.go:158 TestFutuTradeEnumMappingsCoverBrokerAndBBGOBoundaries
 fn parsed_order_type_matches_the_opend_wire_enum() {
     let cases = [
         ("LIMIT", 1),

@@ -1,0 +1,97 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "--workspace",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json",
+    "-E",
+    "test(compile_keeps_valid_risk_declarations_and_projects_their_limits) or test(compile_rejects_invalid_risk_declarations) or test(expression_parser_accepts_trimmed_expressions) or test(expression_parser_rejects_blank_assignment) or test(expression_parser_rejects_trailing_operator)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-29T12:36:23Z",
+  "sourceState": {
+    "verifiedCommit": "2f5de4172a26c6f2f3ddb3df13e326787e82e54b"
+  },
+  "rawOutputSha256": "sha256:b2297ef2a08cc29466a3ccaa1309e1b5565383d04095da02a4fe70c3c8097028",
+  "passedTests": [
+    "jftrade-strategy::pine_expression_and_security_boundaries$expression_parser_rejects_trailing_operator",
+    "jftrade-strategy::pine_expression_and_security_boundaries$expression_parser_accepts_trimmed_expressions",
+    "jftrade-strategy::pine_expression_and_security_boundaries$expression_parser_rejects_blank_assignment",
+    "jftrade-strategy::pine_risk_and_block_parity$compile_keeps_valid_risk_declarations_and_projects_their_limits",
+    "jftrade-strategy::pine_risk_and_block_parity$compile_rejects_invalid_risk_declarations"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 3
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 5,
+      "exec_time": 0.024300708
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 2
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 8,
+      "exec_time": 0.02123475
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 1,
+      "measured": 0,
+      "filtered_out": 18446744073709551615,
+      "exec_time": 0
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 1,
+      "measured": 0,
+      "filtered_out": 18446744073709551615,
+      "exec_time": 0
+    }
+  ]
+}

@@ -1130,6 +1130,7 @@ mod tests {
     }
 
     #[test]
+    // Parity: go:452dea11:pkg/futu/trade_margin_ratio_boundaries_test.go:150 TestMarginRatioUncachedRecoveryAndConversionBoundaries
     fn margin_ratio_projection_sorts_by_symbol_and_reports_market_labels() {
         // Parity: go:452dea11:pkg/futu/trade_margin_ratio_boundaries_test.go:150
         // (`brokerMarginRatioSnapshotsFromProto`). Go skips nil rows, maps each

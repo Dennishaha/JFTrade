@@ -1,0 +1,45 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-backtest",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json",
+    "-E",
+    "test(pine_ema_seeds_from_sma_after_nan_warmup) or test(pine_macd_delays_signal_until_valid_macd_values_exist)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-29T13:40:00Z",
+  "sourceState": {
+    "verifiedCommit": "2f5de4172a26c6f2f3ddb3df13e326787e82e54b"
+  },
+  "rawOutputSha256": "sha256:b743a7460767d54ce3c269ebda5718e6f695a55d54eb0fb7878a5983a2661994",
+  "passedTests": [
+    "jftrade-backtest::pine_indicator_compatibility$pine_macd_delays_signal_until_valid_macd_values_exist",
+    "jftrade-backtest::pine_indicator_compatibility$pine_ema_seeds_from_sma_after_nan_warmup"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 7,
+      "exec_time": 0.029155333
+    }
+  ]
+}

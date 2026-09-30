@@ -76,6 +76,7 @@ mod tests {
     use super::*;
 
     #[test]
+    // Parity: go:452dea11:pkg/futu/trade_margin_ratio_boundaries_test.go:62 TestMarginRatioCacheReturnsDefensiveFreshSnapshots
     fn cache_returns_cloned_snapshots_only_within_requested_age() {
         let cache = MarginRatioCache::default();
         let mut snapshots = Vec::new();

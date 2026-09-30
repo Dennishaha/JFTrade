@@ -1,0 +1,39 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "-E",
+    "test(adk_agent_write_reports_the_go_validation_messages) or test(provider_test_routes_match_go_wire_mode_and_missing_provider_contract) or test(snapshot_and_provider_test_boundaries_fail_closed) or test(provider_test_mutation_preserves_probe_result_and_rejects_unknown_mode)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-29T18:42:24Z",
+  "sourceState": {
+    "verifiedCommit": "2f5de4172a26c6f2f3ddb3df13e326787e82e54b"
+  },
+  "rawOutputSha256": "sha256:b4ce4838b0f6ebe37e9474caabda06913c14ab226e3fbcc7ba332fd324ee6800",
+  "passedTests": [
+    "jftrade-engine::product::product_production_ports::product_production_ports_adk::tests::store_parity::snapshot_and_provider_test_boundaries_fail_closed",
+    "jftrade-engine::product::product_production_ports::product_production_ports_adk::tests::store_parity::provider_test_mutation_preserves_probe_result_and_rejects_unknown_mode",
+    "jftrade-engine::product::product_production_ports::product_production_ports_adk::tests::adk_agent_write_reports_the_go_validation_messages",
+    "jftrade-engine::product::tests::adk_mutation_product_tests::provider_test_routes_match_go_wire_mode_and_missing_provider_contract"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "summary": {
+    "testsRun": 4,
+    "testsPassed": 4,
+    "testsFailed": 0,
+    "testsSkipped": 2009,
+    "relationsReviewed": 1,
+    "functionExactReferencesReleased": 1
+  }
+}

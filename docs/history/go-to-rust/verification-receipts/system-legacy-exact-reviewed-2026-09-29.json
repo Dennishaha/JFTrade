@@ -1,0 +1,63 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json",
+    "--no-fail-fast",
+    "-E",
+    "test(system_status_embeds_injected_live_market_data_calendar_and_request_summaries) or test(system_status_default_request_observability_matches_the_go_baseline) or test(storage_overview_and_control_defaults_expose_empty_frontend_slices) or test(system_status_reports_the_persisted_default_trading_environment) or test(default_control_reads_match_the_frontend_contract) or test(system_status_and_control_reads_follow_the_configured_risk_snapshot) or test(empty_control_state_serializes_empty_entry_slices) or test(system_write_product_replays_browser_boundary_failure_recovery_and_restart) or test(production_system_read_defaults_opend_health_to_the_unavailable_reason)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-29T15:35:00Z",
+  "sourceState": {
+    "verifiedCommit": "2f5de4172a26c6f2f3ddb3df13e326787e82e54b"
+  },
+  "rawOutputSha256": "sha256:eb4c5569345b8c63ebd052664548e09aade15e837758df37539ecc6fc5169afd",
+  "passedTests": [
+    "jftrade-engine::jftrade_engine$product::tests::production_assembly_tests::product_production_assembly_tests::production_system_read_defaults_opend_health_to_the_unavailable_reason",
+    "jftrade-engine::jftrade_engine$product::tests::system_control_read_tests::system_status_and_control_reads_follow_the_configured_risk_snapshot",
+    "jftrade-engine::jftrade_engine$real_trade_control::tests::default_control_reads_match_the_frontend_contract",
+    "jftrade-engine::jftrade_engine$real_trade_control::tests::empty_control_state_serializes_empty_entry_slices",
+    "jftrade-engine::jftrade_engine$product::tests::system_control_read_tests::system_status_reports_the_persisted_default_trading_environment",
+    "jftrade-engine::jftrade_engine$product::tests::system_control_read_tests::system_status_default_request_observability_matches_the_go_baseline",
+    "jftrade-engine::jftrade_engine$product::tests::system_control_read_tests::storage_overview_and_control_defaults_expose_empty_frontend_slices",
+    "jftrade-engine::jftrade_engine$product::tests::system_control_read_tests::system_status_embeds_injected_live_market_data_calendar_and_request_summaries",
+    "jftrade-engine::jftrade_engine$product::tests::system_write_product_tests::system_write_product_replays_browser_boundary_failure_recovery_and_restart"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 9
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1637,
+      "exec_time": 15.259109543
+    }
+  ],
+  "scope": {
+    "module": "system",
+    "mappingCount": 9,
+    "rustTestCount": 9
+  }
+}

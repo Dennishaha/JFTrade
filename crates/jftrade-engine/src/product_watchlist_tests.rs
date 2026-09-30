@@ -119,6 +119,7 @@ fn watchlist_read_fixture() -> WatchlistReadFixture {
 
 #[tokio::test]
 // Parity: go:452dea11:internal/api/watchlist/routes_test.go:72 TestInvalidListLimitReturns400
+// Parity: go:452dea11:internal/api/watchlist/routes_business_test.go:281 TestWatchlistRoutesRejectMalformedBodiesAndPageLimits
 async fn watchlist_read_routes_match_group_fixture_in_cutover_only() {
     let fixture = watchlist_read_fixture();
     let directory = tempdir().expect("temporary directory");

@@ -1,0 +1,38 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "-E",
+    "test(test_execute_strategy_intents_resolves_quantity_pct_and_close_intent)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-29T15:44:52Z",
+  "sourceState": {
+    "verifiedCommit": "2f5de4172a26c6f2f3ddb3df13e326787e82e54b"
+  },
+  "rawOutputSha256": "sha256:eded69c1c365d13ed4b6735b0385ee1ef563dd82e0f87598667e2ebe1c4f1a03",
+  "passedTests": [
+    "jftrade-engine::strategy_simulate_closed_loop::strategy_runtime_execution::tests::test_execute_strategy_intents_resolves_quantity_pct_and_close_intent",
+    "jftrade-engine::strategy_runtime_lifecycle_bounded_tests::strategy_runtime::strategy_runtime_execution::tests::test_execute_strategy_intents_resolves_quantity_pct_and_close_intent",
+    "jftrade-engine::product::strategy_runtime_execution::tests::test_execute_strategy_intents_resolves_quantity_pct_and_close_intent"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "summary": {
+    "testsRun": 3,
+    "testsPassed": 3,
+    "testsFailed": 0,
+    "testsSkipped": 2009,
+    "referenceCountReviewed": 12,
+    "functionExactReferencesReleased": 2
+  }
+}

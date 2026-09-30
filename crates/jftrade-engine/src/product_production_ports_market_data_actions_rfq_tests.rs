@@ -88,6 +88,7 @@ async fn prediction_combo_quote_validates_persists_and_publishes_server_expiry()
 /// before anything is written. The adapter must never be called for an invalid
 /// request.
 #[tokio::test]
+// Parity: go:452dea11:internal/api/productfeatures/prediction_combo_routes_test.go:15 TestPredictionComboQuoteAcceptsContextFromQueryAndMapsFailures
 async fn prediction_combo_quote_rejects_invalid_and_unpersistable_requests() {
     let (directory, _store, port) = combo_quote_port(
         json!({"quoteId": "quote-1"}),

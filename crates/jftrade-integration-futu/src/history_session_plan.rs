@@ -292,6 +292,8 @@ mod tests {
     /// Parity: pkg/futu/exchange_kline_test.go:192
     /// TestQueryKLinesFallsBackToSessionAllWhenHistoricalRouteUnsupported
     #[test]
+    // Parity: go:452dea11:pkg/futu/adapter_failure_boundaries_test.go:115 TestKLineSessionAndPriceHelperBoundaries
+    // Parity: go:452dea11:pkg/futu/exchange_mapping_boundaries_test.go:127 TestFutuHistoricalKLineSessionFallbacksAndETHClassification
     fn fallback_requires_the_same_route_and_an_unsupported_marker() {
         let plan = HistoricalKlineRequestPlan {
             extended_time: true,

@@ -19,6 +19,12 @@ JFTrade 的质量门禁面向当前 Rust/Tauri 产品，不使用迁移阶段作
 `check:migration-manifest` 只校验发布资格使用的迁移 manifest 与已发布基线绑定；它不把
 synthetic 迁移证据当作 release qualification，也不改变当前产品门禁的 affected 调度。
 
+迁移历史清单的行为 receipt 可使用 `pnpm run test:parity:receipt`，只运行显式指定的
+Rust package 和 test filter。该 receipt 只证明所列 Rust owner 测试，不替代生产 Rust
+变更必须完成的 `check:rust`，也不改变 PR、main 或发布门禁。它不改变
+`manual-test-mappings.json` 的 schema；`function_exact` 仍须满足 anchor、断言覆盖、
+reuse 审核和 passed receipt 的严格条件。
+
 ## 本地选择与副作用
 
 命令从仓库根目录运行。先执行目标模块的最窄测试，再运行 `pnpm run check:quick`；可用 `pnpm run check:quick -- --print` 预览计划。`pnpm run test:affected -- --print` 预览 merge-base 测试集合，不执行检查。

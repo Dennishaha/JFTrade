@@ -7,6 +7,7 @@ use jftrade_integration_futu::trade_proto::qot_common::QotRight as QotCommonRigh
 
 // Parity: go:452dea11:internal/app/apiserver/tradingapp/notifications_lifecycle_test.go:29 TestOrderLifecycleNotificationMapsSubmittedCancelledAndFilled
 #[test]
+// Parity: go:452dea11:internal/integration/futu/notifications_test.go:98 TestNeutralNotificationBuildersHandleNilAndStatusTransitions
 fn test_neutral_notification_builders_handle_nil_and_status_transitions() {
     // Parity: internal/integration/futu/notifications_test.go:13 TestNeutralNotificationBuildersHandleNilAndStatusTransitions
     assert!(connection_status_notification(None).is_none());
@@ -80,6 +81,7 @@ fn test_neutral_notification_builders_handle_nil_and_status_transitions() {
 
 // Parity: go:452dea11:internal/app/apiserver/tradingapp/notifications_test.go:10 TestOrderLifecycleNotificationHandlesUnrelatedAndPartialFillEvents
 #[test]
+// Parity: go:452dea11:internal/integration/futu/notifications_test.go:13 TestLiveNotificationFromResponseRoutesProtocolPayloadsToNeutralCategories
 fn test_live_notification_from_response_routes_protocol_payloads_to_neutral_categories() {
     // Parity: internal/integration/futu/notifications_test.go:73 TestLiveNotificationFromResponseRoutesProtocolPayloadsToNeutralCategories
     assert!(live_notification_from_response(None).is_none());

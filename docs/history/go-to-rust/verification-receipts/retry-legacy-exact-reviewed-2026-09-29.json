@@ -1,0 +1,72 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-integration-futu",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json",
+    "--no-fail-fast",
+    "-E",
+    "test(runtime_task_backoff_replays_after_a_failed_reconnect_attempt) or test(basic_quote_query_replays_once_after_recoverable_session_timeout) or test(basic_quote_query_returns_non_recoverable_rejection_without_replaying)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-29T16:24:00Z",
+  "sourceState": {
+    "verifiedCommit": "2f5de4172a26c6f2f3ddb3df13e326787e82e54b"
+  },
+  "rawOutputSha256": "sha256:c90c3bf12ebf14975a85f5f370086ae39541cc11bc83baffd4188228b4226407",
+  "passedTests": [
+    "jftrade-integration-futu::jftrade_integration_futu$basic_quote_query::tests::basic_quote_query_returns_non_recoverable_rejection_without_replaying",
+    "jftrade-integration-futu::jftrade_integration_futu$basic_quote_query::tests::basic_quote_query_replays_once_after_recoverable_session_timeout",
+    "jftrade-integration-futu::jftrade_integration_futu$runtime_task::tests::runtime_task_backoff_replays_after_a_failed_reconnect_attempt"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 3
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 477,
+      "exec_time": 0.187947041
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 1,
+      "measured": 0,
+      "filtered_out": 18446744073709551615,
+      "exec_time": 0
+    }
+  ],
+  "scope": {
+    "module": "retry",
+    "mappingCount": 3,
+    "rustTestCount": 3
+  }
+}

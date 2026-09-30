@@ -1,0 +1,45 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--lib",
+    "--locked",
+    "-E",
+    "test(cancel_all_attempts_every_active_order_and_preserves_failed_tracking) or test(test_execute_strategy_intents_cancel_all_queries_and_cancels_active_orders)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-28T07:52:20Z",
+  "sourceState": {
+    "verifiedCommit": "2f5de4172a26c6f2f3ddb3df13e326787e82e54b"
+  },
+  "rawOutputSha256": "b0b2788e6b2fb67563b2da0e1a864b5b691c8d67d22707b40bf7150842508512",
+  "passedTests": [
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_strategy::product_production_ports_strategy_runtime::strategy_runtime_execution::tests::cancel_all_attempts_every_active_order_and_preserves_failed_tracking",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_strategy::product_production_ports_strategy_runtime::strategy_runtime_execution::tests::test_execute_strategy_intents_cancel_all_queries_and_cancels_active_orders"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1633,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    }
+  ]
+}

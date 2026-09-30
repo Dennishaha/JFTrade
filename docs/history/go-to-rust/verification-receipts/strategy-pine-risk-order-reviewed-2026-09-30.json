@@ -1,0 +1,132 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "--workspace",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json",
+    "-E",
+    "test(compile_propagates_order_metadata_rejections_to_every_order_form) or test(compile_rejects_ambiguous_order_metadata_and_missing_ids) or test(compile_rejects_every_truncated_order_expression) or test(compile_requires_trailing_offset_for_trailing_exits) or test(positions_match_qualified_symbols_and_sum_sellable_quantity) or test(runtime_risk_enforce_applies_close_only_quantity_notional_and_daily_limits) or test(runtime_risk_monitor_records_match_without_rejecting_and_uses_fallback_price) or test(runtime_risk_normalizes_modes_and_clears_off_limits) or test(runtime_risk_off_ignores_configured_limits) or test(runtime_risk_reason_codes_match_the_live_executor_table)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-29T12:30:53Z",
+  "sourceState": {
+    "verifiedCommit": "2f5de4172a26c6f2f3ddb3df13e326787e82e54b"
+  },
+  "rawOutputSha256": "sha256:a8d9603e2f3f9cd70b93eac40093f44326cab698c15a00a7f628552b41606de6",
+  "passedTests": [
+    "jftrade-strategy::pine_order_metadata_and_security_rejections$compile_propagates_order_metadata_rejections_to_every_order_form",
+    "jftrade-strategy::pine_order_metadata_and_security_rejections$compile_rejects_ambiguous_order_metadata_and_missing_ids",
+    "jftrade-strategy::pine_risk_and_block_parity$compile_rejects_every_truncated_order_expression",
+    "jftrade-strategy::pine_risk_and_block_parity$compile_requires_trailing_offset_for_trailing_exits",
+    "jftrade-trading::jftrade_trading$portfolio::tests::positions_match_qualified_symbols_and_sum_sellable_quantity",
+    "jftrade-trading::risk_engine_tests$runtime_risk_enforce_applies_close_only_quantity_notional_and_daily_limits",
+    "jftrade-trading::risk_engine_tests$runtime_risk_monitor_records_match_without_rejecting_and_uses_fallback_price",
+    "jftrade-trading::risk_engine_tests$runtime_risk_normalizes_modes_and_clears_off_limits",
+    "jftrade-trading::risk_engine_tests$runtime_risk_off_ignores_configured_limits",
+    "jftrade-trading::risk_engine_tests$runtime_risk_reason_codes_match_the_live_executor_table"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 2
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 6,
+      "exec_time": 0.023868166
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 2
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 8,
+      "exec_time": 0.027555375
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 22,
+      "exec_time": 0.017612042
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 5
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 3,
+      "exec_time": 0.050220334
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 1,
+      "measured": 0,
+      "filtered_out": 18446744073709551615,
+      "exec_time": 0
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 1,
+      "measured": 0,
+      "filtered_out": 18446744073709551615,
+      "exec_time": 0
+    }
+  ]
+}

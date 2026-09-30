@@ -1,0 +1,65 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-api",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json",
+    "-E",
+    "test(envelope_writers_preserve_success_error_and_not_found_shapes) or test(desktop_token_reaches_port_with_stable_envelope_and_request_id)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-29T12:51:40Z",
+  "sourceState": {
+    "verifiedCommit": "2f5de4172a26c6f2f3ddb3df13e326787e82e54b"
+  },
+  "rawOutputSha256": "sha256:552d9d0eb2f091ee9f829c65a37d7637361ba4ac1fce173c8e0b635f99c480cf",
+  "passedTests": [
+    "jftrade-api::jftrade_api$envelope::tests::envelope_writers_preserve_success_error_and_not_found_shapes",
+    "jftrade-api::transport_contracts$desktop_token_reaches_port_with_stable_envelope_and_request_id"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 47,
+      "exec_time": 0.0140085
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 28,
+      "exec_time": 0.014787083
+    }
+  ]
+}

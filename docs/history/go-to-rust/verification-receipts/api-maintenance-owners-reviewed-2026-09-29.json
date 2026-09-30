@@ -1,0 +1,47 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-store-sqlite",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--no-fail-fast",
+    "-E",
+    "test(managed_backup_discovery_parses_only_canonical_filenames) or test(backup_retention_keeps_three_snapshots_and_reports_an_over_quota_snapshot) or test(a_corrupt_rebuild_marker_blocks_backup_and_rebuild_without_deleting_data) or test(a_failed_rebuild_batch_removes_every_snapshot_it_created) or test(startup_rejects_a_tampered_pending_rebuild_without_deleting_any_source) or test(overview_counts_main_wal_and_shm_and_keeps_an_unreadable_database_local) or test(overview_summary_only_skips_storage_and_a_single_filter_keeps_its_totals) or test(cleanup_candidates_fail_closed_when_the_maintenance_tables_are_missing) or test(backtest_history_preview_prefers_age_and_latest_protection)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-29T15:44:52Z",
+  "sourceState": {
+    "verifiedCommit": "2f5de4172a26c6f2f3ddb3df13e326787e82e54b"
+  },
+  "rawOutputSha256": "sha256:2ec3da6ae462d9ddd856d2ad3f07e6b90085e49ba1722e71eb38d2cf33926b11",
+  "passedTests": [
+    "jftrade-store-sqlite::maintenance_backup_retention::tests::managed_backup_discovery_parses_only_canonical_filenames",
+    "jftrade-store-sqlite::maintenance_backup_retention::tests::backup_retention_keeps_three_snapshots_and_reports_an_over_quota_snapshot",
+    "jftrade-store-sqlite::maintenance_overview_and_cleanup_contracts::overview_counts_main_wal_and_shm_and_keeps_an_unreadable_database_local",
+    "jftrade-store-sqlite::maintenance_backup_and_rebuild_contracts::a_corrupt_rebuild_marker_blocks_backup_and_rebuild_without_deleting_data",
+    "jftrade-store-sqlite::maintenance_overview_and_cleanup_contracts::backtest_history_preview_prefers_age_and_latest_protection",
+    "jftrade-store-sqlite::maintenance_overview_and_cleanup_contracts::overview_summary_only_skips_storage_and_a_single_filter_keeps_its_totals",
+    "jftrade-store-sqlite::maintenance_backup_and_rebuild_contracts::a_failed_rebuild_batch_removes_every_snapshot_it_created",
+    "jftrade-store-sqlite::maintenance_overview_and_cleanup_contracts::cleanup_candidates_fail_closed_when_the_maintenance_tables_are_missing",
+    "jftrade-engine::product_data_management::tests::pending_rebuild_tests::startup_rejects_a_tampered_pending_rebuild_without_deleting_any_source"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "summary": {
+    "testsRun": 9,
+    "testsPassed": 9,
+    "testsFailed": 0,
+    "testsSkipped": 2191,
+    "relationsReviewed": 8,
+    "functionExactReferencesReleased": 9
+  }
+}

@@ -442,6 +442,7 @@ async fn run_script_rejects_worker_error_and_identity_mismatch() {
 }
 
 #[test]
+// Parity: go:452dea11:pkg/strategy/pineworker/client_test.go:41 TestClientRunScriptRejectsInvalidRequestBeforeTransport
 fn request_validation_rejects_oversized_source_and_invalid_candle() {
     let mut request = request();
     request.source = "x".repeat(DEFAULT_MAX_SOURCE_BYTES + 1);
@@ -453,6 +454,20 @@ fn request_validation_rejects_oversized_source_and_invalid_candle() {
     let error = port.request_to_proto(&request).expect_err("source limit");
     assert!(error.to_string().contains("source bytes exceed limit"));
     request.source = "source".to_owned();
+    request.candles.clear();
+    let error = port
+        .request_to_proto(&request)
+        .expect_err("missing candles");
+    assert!(error.to_string().contains("candles are required"));
+    request.candles.push(PineCandle {
+        open_time: 1_700_000_000_000,
+        close_time: 1_700_000_060_000,
+        open: 10.0,
+        high: 12.0,
+        low: 9.0,
+        close: 11.0,
+        volume: 100.0,
+    });
     request.candles[0].high = 8.0;
     let error = port.request_to_proto(&request).expect_err("candle range");
     assert!(error.to_string().contains("high is below low"));

@@ -1,0 +1,90 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-integration-futu",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json",
+    "--no-fail-fast",
+    "-E",
+    "test(hk_lunch_snapshot_keeps_previous_close_and_does_not_mark_extended_hours) or test(snapshot_projection_reclassifies_us_regular_boundary_and_clears_extended_hours) or test(test_notification_labels_cover_every_supported_program_and_gateway_state) or test(test_notification_and_quote_right_labels_remain_stable) or test(tcp_probe_maps_login_global_state_and_market_readiness) or test(probe_from_global_state_enforces_minimum_version_and_maps_neutral_state)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-29T16:58:00Z",
+  "sourceState": {
+    "verifiedCommit": "2f5de4172a26c6f2f3ddb3df13e326787e82e54b"
+  },
+  "rawOutputSha256": "sha256:def9669e86f1f6f3c562862b6f03115be842b0ade71b73e9c93213f9f8c0bb6f",
+  "passedTests": [
+    "jftrade-integration-futu::futu_notifications_parity$test_notification_labels_cover_every_supported_program_and_gateway_state",
+    "jftrade-integration-futu::futu_notifications_parity$test_notification_and_quote_right_labels_remain_stable",
+    "jftrade-integration-futu::jftrade_integration_futu$probe::tests::probe_from_global_state_enforces_minimum_version_and_maps_neutral_state",
+    "jftrade-integration-futu::jftrade_integration_futu$health::tests::tcp_probe_maps_login_global_state_and_market_readiness",
+    "jftrade-integration-futu::jftrade_integration_futu$basic_quote_tick::tests::hk_lunch_snapshot_keeps_previous_close_and_does_not_mark_extended_hours",
+    "jftrade-integration-futu::jftrade_integration_futu$basic_quote_tick::tests::snapshot_projection_reclassifies_us_regular_boundary_and_clears_extended_hours"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 2
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 2,
+      "exec_time": 0.01603425
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 4
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 476,
+      "exec_time": 0.109463585
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 1,
+      "measured": 0,
+      "filtered_out": 18446744073709551615,
+      "exec_time": 0
+    }
+  ],
+  "scope": {
+    "module": "integration",
+    "mappingCount": 6,
+    "rustTestCount": 6
+  }
+}

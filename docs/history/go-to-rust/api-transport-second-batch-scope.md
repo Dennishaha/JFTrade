@@ -6,7 +6,7 @@ SSE、CORS、WebSocket 和 candles 边界。新增 Rust 测试只验证其实际
 
 | 状态 | Go 测试 | Rust 证据 | 差异结论 | 精确验证 |
 | --- | --- | --- | --- | --- |
-| [~] | `internal/api/httpserver/sse_test.go:87:TestPrepareSSEWriterAndFrameFormatting` | `jftrade-api::sse::tests::frames_preserve_go_retry_id_data_and_comment_shape` | Rust 覆盖 retry、retry=0、id/data、comment 编码；缺 Go writer 的响应头与完整写入 body。 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(frames_preserve_go_retry_id_data_and_comment_shape)'` |
+| [x] | `internal/api/httpserver/sse_test.go:87:TestPrepareSSEWriterAndFrameFormatting` | `jftrade-api::sse::tests::prepare_writes_retry_then_id_event_and_comment_frames` + `no_retry_writer_keeps_the_existing_body` + `transport_contracts::buffered_sse_output_writes_retry_and_frames_through_the_router` | function_exact：联合 Rust 单元与 router transport 断言覆盖 retry、retry=0、id/data、comment 编码、完整写入 body，以及 `text/event-stream`/`no-cache`/`keep-alive` 三个响应头。 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-api --all-targets --locked -E 'test(prepare_writes_retry_then_id_event_and_comment_frames) or test(no_retry_writer_keeps_the_existing_body) or test(buffered_sse_output_writes_retry_and_frames_through_the_router)'` |
 | [~] | `internal/api/middleware/auth_test.go:173:TestCORSReflectsAllowedOriginsAndRejectsUnknownPreflight` | `jftrade-api::transport_contracts::cors_preflight_reflects_allowed_origin_and_rejects_unknown_origin` | Rust 覆盖允许 Origin 的 204/header 与恶意 Origin 的 403；Go 另有 expose、Referer/null 和完整 header 集合断言。 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(cors_preflight_reflects_allowed_origin_and_rejects_unknown_origin)'` |
 | [~] | `internal/api/middleware/security_boundaries_test.go:90:TestRequestOriginUsesRefererAndHandlesNil` | `jftrade-api::auth::tests::request_origin_preserves_origin_precedence_and_referer_fallback_boundary` | Rust 覆盖 Origin 优先、Referer fallback、malformed Origin 不回退与 provided 标志；Go 使用 nil/HTTP request，装配不同。 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(request_origin_preserves_origin_precedence_and_referer_fallback_boundary)'` |
 | [~] | `internal/api/live/handler_test.go:397:TestHandlerRejectsUntrustedWebSocketOrigin` | `jftrade-engine::product::tests::ws_live_tests::ws_live_transport_rejects_untrusted_origin_before_upgrade` | Rust 断言 upgrade 前 403、text/plain 和 body；Go 覆盖两个恶意 origin 及 handler 关闭清理，Rust 仅覆盖单值。 | `node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(ws_live_transport_rejects_untrusted_origin_before_upgrade)'` |
@@ -217,3 +217,36 @@ live 读取条目，新增回归集中在
 - 下一批（第八十三批）范围：`internal/strategy` 169 条，其后 `pkg/bbgo` 145、`internal/integration` 141、`internal/marketdata` 112、`pkg/futu` 86、`internal/trading` 80、`internal/backtest` 63、`pkg/market` 56，以及 `pkg/**` 其余存量，直至 4451 条清单全部完成。
 
 验证：`cargo fmt --all -- --check`、`cargo clippy -p jftrade-api -p jftrade-engine --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-api -p jftrade-engine --all-targets --locked --no-fail-fast`（**1768 passed / 0 skipped**）、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / 2925 Rust / **1200 `[x]`**；missing 1129、partial 1682、boundary 436、module_only 4；0 破坏引用、0 重复 rust_entry、未锚定告警 193 = 前批基线，7 条 partial 无解析引用与 2 条无断言为前批已登记缺口）、`pnpm run check:compatibility`（278 OpenAPI operations / 18 route groups / 19 route probes）、`node scripts/check-zero-go.mjs`（2888 tracked files / 0 release artifact）、`pnpm run check:rust:architecture`、`git diff --check`、`pnpm run check:quick`、`pnpm run check:ai-context`。
+
+## 2026-09-29 SSE frame/loop exact 收口
+
+`TestPrepareSSEWriterAndFrameFormatting` 已由“只覆盖编码、不含 writer headers/body”纠正为联合 exact：Rust 单元测试覆盖 retry/id+data/comment 与 retry=0，`buffered_sse_output_writes_retry_and_frames_through_the_router` 覆盖 `text/event-stream`、`no-cache`、`keep-alive` 和完整 body。另 4 条 SSE loop/write/flusher 条目同步完成 reviewed assertion 与真实 receipt；联合 nextest 7/7 通过，strict gap 3378→3368。
+
+## 2026-09-29 API lease strict follow-up
+
+`TestMarketDepthEndpointRouting` 的 Futu lease-required 与 poll-only capability
+优先级，以及 `TestStrategyRuntimeHoldsExactKLineLeasesUntilStopAndClose` 的
+strategy lease 持有/clear/stop/shutdown 行为，已由真实 Rust owner tests 覆盖并
+标记 `assertionCoverage.source=reviewed`。联合目标集 8/8 passed，receipt
+`sha256:c6a21e20592a76fa5537c3650978925468b2675a4c0ff92d774a9f08413a6619`；
+同时补齐该批共享 evidence 的代码锚点，strict gap 由 3196 降至 3178。
+
+## 2026-09-29 API boundary strict follow-up
+
+strategy definition query、broker query encoding/scope、removed auth token 与
+Swagger UI/spec 七条单引用 exact 已完成 reviewed assertion、passed receipt 与
+mapping 同步；`jftrade-api`/`jftrade-engine` nextest 7/7 passed，receipt
+`sha256:66c7dc3e04676d72b054ac13f9a9a92bcc0e52a78652a954e5b1d9022eaed99b`。
+本批不使用聚合 corpus 作为行为替代，strict gap 实际降至 3164。
+
+## 2026-09-29 后续 route/transport batches
+
+生产 broker/backtest/research 11 条与 Assistant API route/transport 8 条均使用独立 owner tests；真实 nextest 分别 7/7、8/8 passed，receipts 为 `sha256:ca4c5fc102f6467c890fbd22e5cd409bc6ace00a1feafe7e6fd5b30edfa39cb9`、`sha256:bdf00cc6589295500b7a80c580b0efd34a206f268f441f174306f5e24245c9f8`。strict gap 已实际降至 3112，仍保留剩余历史 evidence/receipt 缺口。
+
+## 2026-09-29 后续 API strict evidence
+
+Assistant route、Swagger/OpenAPI contract、webaccess transport boundary 三批各 4/4
+passed，receipts 分别为 `sha256:be396063e4b089be09ef9d33ff13c02565bf533b74d5fb34198b675b4a6e01da`、
+`sha256:b98a7bd55fe062644991008420a3ca043c18b6fd76f9225fa1234adfe435a02a`、
+`sha256:938c081bf90acfe483b1047d9a2147fc15dfdbe5e1e0cf8e0cb0a4fe10ae7b37`。
+三批均为独立行为 owner，strict gap 实际由 3112 降至 3088。

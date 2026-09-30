@@ -439,6 +439,8 @@ mod tests {
     }
 
     #[test]
+    // Parity: go:452dea11:pkg/futu/exchange_orderbook_test.go:214 TestGroupOrderBookRequestsForPushSingleHKBatchNeedsDetail
+    // Parity: go:452dea11:pkg/futu/stream_connection_quote_boundaries_test.go:292 TestOrderBookStreamConnectionBoundaries
     fn hk_order_book_subscribe_requests_detail_and_registers_push() {
         // Parity: go:452dea11:pkg/futu/exchange_orderbook.go:151
         // ensureOrderBookPushSubscriptions (HK batch sets IsSubOrderBookDetail)
@@ -679,6 +681,7 @@ mod tests {
     }
 
     #[test]
+    // Parity: go:452dea11:pkg/futu/opend/new_methods_test.go:313 TestSubscribeQuotes
     fn executor_sends_subscribe_and_unsubscribe_over_one_framed_session() {
         let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
         let address = listener.local_addr().expect("address");
@@ -763,6 +766,7 @@ mod tests {
     }
 
     #[test]
+    // Parity: go:452dea11:pkg/futu/stream_connection_quote_boundaries_test.go:369 TestStreamConnectReportsPhysicalSubscriptionFailures
     fn executor_maps_qot_sub_rejection_without_reporting_success() {
         let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
         let address = listener.local_addr().expect("address");
@@ -1057,6 +1061,8 @@ mod tests {
     }
 
     #[test]
+    // Parity: go:452dea11:pkg/futu/adapter_failure_boundaries_test.go:64 TestAdapterSubscriptionParsingErrorsAreReturned
+    // Parity: go:452dea11:pkg/futu/exchange_quote_request_boundaries_test.go:16 TestExchangeAccountPushMarketWarningAndEmptySymbolBoundaries
     fn executor_rejects_invalid_instrument_and_unsupported_interval() {
         assert!(matches!(
             qot_sub_request(&action(SubscriptionKind::Basic, "AAPL", None)),
@@ -1227,6 +1233,8 @@ mod tests {
     }
 
     #[test]
+    // Parity: go:452dea11:internal/app/apiserver/marketdataapp/runtime_forwarding_test.go:166 TestRuntimeSameProviderActivationDoesNotReleasePhysicalSubscriptions
+    // Parity: go:452dea11:pkg/futu/exchange_mapping_boundaries_test.go:353 TestFutuOrderBookSubscriptionRequestExtraction
     fn order_book_replay_deduplicates_already_active_subscriptions() {
         // Parity: go:452dea11:pkg/futu/exchange_orderbook_test.go:237
         // TestEnsureOrderBookPushSubscriptionsSplitsDetailsAndDeduplicates. A

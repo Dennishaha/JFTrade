@@ -1,0 +1,85 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "-p",
+    "jftrade-api",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(uri_escape_validation_accepts_literal_percent_and_rejects_malformed) or test(exact_method_and_single_segment_parameters_are_required) or test(missing_path_parameter_returns_not_found_json_without_dispatch)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-30T00:00:00Z",
+  "sourceState": {
+    "verifiedCommit": "2f5de4172a26c6f2f3ddb3df13e326787e82e54b",
+    "trackedDiffSha256": "c76625d4b489b3bf8f1e5e13a473e46971920039884286d82aed67722afe36c0"
+  },
+  "rawOutputSha256": "df775fcfd9a151371616e8dfe64aef9996d0f1c84088b7d4925d8cd6eba2ec0f",
+  "passedTests": [
+    "jftrade-engine::jftrade_engine$product::product_query::tests::uri_escape_validation_accepts_literal_percent_and_rejects_malformed",
+    "jftrade-api::jftrade_api$route::tests::exact_method_and_single_segment_parameters_are_required",
+    "jftrade-api::transport_contracts$missing_path_parameter_returns_not_found_json_without_dispatch"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1647,
+      "exec_time": 0.019945792,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 47,
+      "exec_time": 0.010054625,
+      "nextest": {
+        "crate": "jftrade-api",
+        "test_binary": "jftrade_api",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 30,
+      "exec_time": 0.012631,
+      "nextest": {
+        "crate": "jftrade-api",
+        "test_binary": "transport_contracts",
+        "kind": "test"
+      }
+    }
+  ]
+}

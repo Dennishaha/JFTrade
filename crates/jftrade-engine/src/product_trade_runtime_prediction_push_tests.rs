@@ -87,6 +87,7 @@ fn fresh_prediction_push_serves_reads_and_duplicate_sequences_keep_the_first_sam
 /// Go's freshness window is exactly five seconds: a sample received inside the
 /// window answers the read, and anything strictly older falls back to polling.
 #[test]
+// Parity: go:452dea11:internal/productfeatures/prediction_quote_candle_bridge_test.go:137 TestPredictionPushSourceCachesFreshUniqueUpdates
 fn prediction_push_samples_expire_after_the_five_second_window() {
     let cache = PredictionPushCache::default();
     let now = Instant::now();
@@ -140,6 +141,7 @@ fn prediction_push_samples_expire_after_the_five_second_window() {
 /// The push key folds the broker id to lower case and the instrument/data type
 /// to upper case, matching Go's `predictionPushKey`.
 #[test]
+// Parity: go:452dea11:internal/productfeatures/prediction_quote_candle_bridge_test.go:137 TestPredictionPushSourceCachesFreshUniqueUpdates
 fn prediction_push_key_folds_broker_instrument_and_data_type() {
     assert_eq!(
         prediction_push_key(" FUTU ", " us.event.one ", " order_book "),

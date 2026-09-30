@@ -1,0 +1,784 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-api",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(auth_skips_public_paths_without_credentials) or test(auth_protects_logout)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-30T05:38:57Z",
+  "sourceState": {
+    "verifiedCommit": "dab5c5864a33bd8fb2bc2414675661a8aa309fdb",
+    "trackedDiffSha256": "851749e5ff858d1429a057d2f2ef5b27b0613427228c5cd40e8a49333ab18956",
+    "untrackedFiles": [
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/adk-store-owners-reviewed-2026-09-30.json",
+        "sha256": "fb413577b55ddf7b74bb885ec5e40bd0aec0ad0de27612817e1bac03da287ef6"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/all-receipt-refresh-2026-09-29.json",
+        "sha256": "6537454bc596824a3e7bc4b43a54f314a669b714bfe63c41bc633248d053dc2f"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-adk-boundary-review-2026-09-30.json",
+        "sha256": "69da44a4f5d7e12754e2283915688d2b2066a64348903ce6faadf4292b057ec6"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-adk-catalog-expanded-reviewed-2026-09-29.json",
+        "sha256": "30fe272d6caf798028ac0e5e33bc72c519a2cf460bce7cc5a7ad3d50960125d8"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-adk-catalog-http-reviewed-2026-09-30.json",
+        "sha256": "8249f1afebb9345f3c0a4bb8fefb4eab02ac313e3706f75b39fdc26e5283e383"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-adk-idempotency-workflow-review-2026-09-30.json",
+        "sha256": "93d27123068b2a8d91a083b8c4b7cf8fd838fd8db5be6b6ede5371a1c7acebed"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-adk-route-review-2026-09-30.json",
+        "sha256": "7a01fb35003d87f7637e83296dfb304ae1cb389ead14c819582b11c6a02ddcae"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-adk-stream-audit-review-2026-09-30.json",
+        "sha256": "9dd9c6f0b31709e85218f9c516b79132ef3f888d36ac827fdb514ecffab98b36"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-adk-workflow-routes-reviewed-2026-09-29.json",
+        "sha256": "b49cb003e98c5109ecf876bcadff2a930a1ad87f60ca77ce40a1a71d5c7c5bb2"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-apiserver-receipt-refresh-2026-09-29.json",
+        "sha256": "8fb759743e0e307e9fcb3f149a7033f3f7c2418394af1d9bbc5c8606bb6e7e73"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-assistant-chat-sse-contract-reviewed-2026-09-30.json",
+        "sha256": "ef17475a3ca52c8d11254d0a921de827174661872903d9d93a6ea34a09c353f8"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-assistant-p1-replay-reviewed-2026-09-30.json",
+        "sha256": "fa8eb14d5a6d7f30687dcc5f8b6962f1f16bc7777de22117eabbf726eff2f996"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-auth-boundaries-reviewed-2026-09-29.json",
+        "sha256": "d9491a62ef3b46d0ff5ee03f652748d32fa1bd219460c95a0edd7e3748702b89"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-auth-rejections-reviewed-2026-09-29.json",
+        "sha256": "d302cddef14057dec554dd8d48e00892a71e7c5a2e4c565fff7010970fbe800e"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-backtest-p1-replay-reviewed-2026-09-30.json",
+        "sha256": "27a2ca771032e4f46dc75ba9abe086ac8e5dac93da56375cd661992d4076da23"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-backtest-routes-reviewed-2026-09-29.json",
+        "sha256": "8112ca0221bc3297e0d325c6778eda46484126247e7f90586e945c21860176f8"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-bindings-wire-exact-reviewed-2026-09-30.json",
+        "sha256": "b0b57dcbc9ccdaa5869ff5c59955dc4cc97f97a109dfc0bb59f83dbe6b9bfad0"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-candle-adjustment-owner-reviewed-2026-09-29.json",
+        "sha256": "2c53c235c9ccc2dc1dcd5bd49a658fb0b96689a93d7cac6c62dc33a7fcb2f9fd"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-daily-candle-reviewed-2026-09-30.json",
+        "sha256": "81066e73e3ad596e37e434d16a68862032bf1e46f5b7f1ac386fede7d975b832"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-data-management-route-review-2026-09-30.json",
+        "sha256": "336cf2adc4159108ad36ce6b084f493b2936fed1e801578c99d347e53b2cee82"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-data-plane-cache-expanded-reviewed-2026-09-29.json",
+        "sha256": "200612c8aef83ed54639008cb4a24da4c3a5bf13f83581050015b4ec289bbc11"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-execution-eth-session-wire-reviewed-2026-09-30.json",
+        "sha256": "ef814b566fa23db1756adfc112360616db9f75b2193b496ee280ff98aad9086c"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-execution-expanded-reviewed-2026-09-29.json",
+        "sha256": "d0d7c5a9b5eaa398725dc5984bf74baea521e8183c19162b027e4476ca833960"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-execution-notification-expanded-reviewed-2026-09-29.json",
+        "sha256": "9b41ff872e5f99dd1cf113bfe6c0bf93b83b428c595aeb511e536030ed715a4f"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-execution-routes-reviewed-2026-09-29.json",
+        "sha256": "908dd3ccbeb7cc812691cb3f9a4a3da31acc4da56689cff37c8fa276e6d8319e"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-execution-session-reviewed-2026-09-29.json",
+        "sha256": "8abeb1dae760d9861b6bd1f5070052482df98eb3047d517386db66084255dce8"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-execution-validation-reviewed-2026-09-29.json",
+        "sha256": "53e2f159b30ba83c635eb62d2b54c3ee703e8a55ebe260392c70073b84a78df1"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-forwarding-wire-owners-reviewed-2026-09-29.json",
+        "sha256": "a194c2d6525b40b6b0bc9a9c0f7ef769cee3829cb30d30a980ef2520e2a568fc"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-http-query-bindings-review-2026-09-30.json",
+        "sha256": "b21632385c2acb26e5811fef19e9cad2dbb03335c8fe36d45971b57a907111ea"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-live-handler-close-lifecycle-reviewed-2026-09-30.json",
+        "sha256": "14c38cbc91d70bb6b9a627c8fddd509294d9899c7a119ba0bf6c20079930b181"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-live-volume-expanded-reviewed-2026-09-29.json",
+        "sha256": "3a000a243b3b7b08343b931ba6205aa9e7295473c9fcef20b6a4ae7af167c332"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-live-volume-routes-reviewed-2026-09-29.json",
+        "sha256": "ec10dda614a774af706ee1aecc442d08f4e8770edbb9843c005bdd96b5c4472e"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-maintenance-owners-reviewed-2026-09-29.json",
+        "sha256": "a3a802d334383a75937016991a1b92a9045971844800ecdd945053b3d9ae6aa5"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-marketdata-force-refresh-review-2026-09-30.json",
+        "sha256": "e69838c45cde0272210bdd3c7d200b1870b14b86dafff3c8d873ed975a2f8664"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-marketdata-owners-reviewed-2026-09-29.json",
+        "sha256": "72ee60a0b1181aae5c9b8d326d0edd81f1796dc1997a41ef6114af7c28a955cd"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-provider-research-routes-reviewed-2026-09-29.json",
+        "sha256": "9e32c31f0abd2449195e807ff7ddc0342e14e4c40968c1959fbec197eaae2750"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-provider-test-wire-reviewed-2026-09-29.json",
+        "sha256": "f0242d5362afd9b56a3300f7ec91f2da4c381a2be99df91a26f2fac8e872cc36"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-route-pairs-reviewed-2026-09-30.json",
+        "sha256": "94023884a7f8ec0b49131797ca76f28f2e65c9bec1ec7de7c251c5f529498a46"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-route-pairs-tail-reviewed-2026-09-30.json",
+        "sha256": "ebbdaedd7276ae4a5c2c0b888259cd062f4bac326b53aea071c092a561d525e7"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-route-triples-reviewed-2026-09-30.json",
+        "sha256": "8010955cbbe55db504346eef5dd13682c4853eaeb2c6f86790a5fde1b59551c0"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-runtime-legacy-reviewed-2026-09-30.json",
+        "sha256": "48d34e9714e6c67134a3a60cd34c18276898c03791c202e5e4a156ddd37d4b07"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-runtime-quantity-owner-reviewed-2026-09-29.json",
+        "sha256": "73ba2c3b9814c40d57370e2a4f53ab62e1b522fe56be5884b5f21a5ab2134530"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-runtime-tail-owners-reviewed-2026-09-29.json",
+        "sha256": "1c2572ed4e4572c09de324320e4e3df6f1aa8fdc11fb153cfa957c250b4ea4e6"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-settings-product-owner-reviewed-2026-09-29.json",
+        "sha256": "e66463586c1b83fc693120fca24c0669d2bb706d906e7e7b330ca6df2d3fe795"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-sse-frame-loop-reviewed-2026-09-29.json",
+        "sha256": "12db05f76dea7d6f98960badd67dea25b6b4e64ba6930826093083d15e5c1e9c"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-sse-loop-reviewed-2026-09-29.json",
+        "sha256": "803a99b17ac95ec97490cbf3f1f91ee8c3aa95d061ee9966dfdd9217f3bae18e"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-sse-reviewed-2026-09-30.json",
+        "sha256": "23cb9085910da407cffce794533dee1ff1eea1154a3a50a766fa6afd67ed9ec9"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-startup-rollback-reviewed-2026-09-29.json",
+        "sha256": "5ff41a57feb4610daf6dfae3a59381aad5bf567d79b1f659a0da8068872fa066"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-strategy-pine-routes-reviewed-2026-09-29.json",
+        "sha256": "006d1777d3ddf4b8b1ca5dbe3eec152adbe879252316d462a2ea97d0cbc2a4a5"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-system-adk-expanded-reviewed-2026-09-29.json",
+        "sha256": "9c793407b9b524bd1b8eb97949f541c95dd14b0c4d56d9c0456da9003dfab16c"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-system-blank-hard-stop-reviewed-2026-09-30.json",
+        "sha256": "aabb091fc34e9a5dc1fff7211d4291cb6aca91d450bdd2fa4dcfe28d6ff21ac0"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-system-status-reviewed-2026-09-29.json",
+        "sha256": "9a870aa32803da5277ec22731f5f85cf693f518d14e72ea28a484c1440d8354f"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-transport-envelope-writers-reviewed-2026-09-29.json",
+        "sha256": "945dca4e7c8f1276c6145eaa7d631da20b17f5064e08a98adca5d9761db04bce"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-transport-frontend-exact-2026-09-30.json",
+        "sha256": "a785458018405731a8790acd54bc0175f71ad20008e24905bbb326197ce4beaf"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-transport-legacy-tail-reviewed-2026-09-30.json",
+        "sha256": "9fa21653293b25a5387a6e258ea46c4d0a7fda346e4e40f018408ad33b8ae02a"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-transport-logout-http-reviewed-2026-09-29.json",
+        "sha256": "459ce53c994638288df3ff5cd86d8c1405b3d63bb95ecc70917e819fc1aa0f1c"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-transport-marketdata-forwarding-reviewed-2026-09-30.json",
+        "sha256": "c14f07fd5e856315c2eabbf5084c94304c9c5427a5b74761a36ddaac5f11eb91"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-transport-marketdataapp-reviewed-2026-09-30.json",
+        "sha256": "149b526fba2d3675215d4da18ebaa323b273b1af86f5f5a239e743f0ae2d3e4d"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-transport-p2-assistant-boundaries-reviewed-2026-09-29.json",
+        "sha256": "bdf00cc6589295500b7a80c580b0efd34a206f268f441f174306f5e24245c9f8"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-transport-p2-assistant-routes-2-reviewed-2026-09-29.json",
+        "sha256": "be396063e4b089be09ef9d33ff13c02565bf533b74d5fb34198b675b4a6e01da"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-transport-p2-auth-origin-reviewed-2026-09-29.json",
+        "sha256": "a90d53c5245a42b16cb1397efcf98d666f3bc7aa3c02e56a9dda6e60b19d59e2"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-transport-p2-backtest-research-reviewed-2026-09-29.json",
+        "sha256": "c9b06706f5ff34185820f23a91855d52986a888bddc391aeb24fb4466982a198"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-transport-p2-behavior-reviewed-2026-09-29.json",
+        "sha256": "ce452bd3c5eb1ac54fa17c8f9bd952a69c8e811dc9abc3b0bcd2e9503492a19d"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-transport-p2-boundaries-reviewed-2026-09-29.json",
+        "sha256": "66c7dc3e04676d72b054ac13f9a9a92bcc0e52a78652a954e5b1d9022eaed99b"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-transport-p2-candle-search-reviewed-2026-09-29.json",
+        "sha256": "0d37de6e56677e8e7241ea03905f6b143b7ede47a76535e15c91a2856ad0a4d4"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-transport-p2-datamigration-reviewed-2026-09-29.json",
+        "sha256": "4d739bd52477eb28f8bf1dbdcaba199570f595d524ea28b7b89a9793aa5397a4"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-transport-p2-datamigration-safety-reviewed-2026-09-29.json",
+        "sha256": "c91a4ac3fe696e1fbebd5897d1f96b81b9e42433c0ea3761390452bc25ae0119"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-transport-p2-production-boundaries-reviewed-2026-09-29.json",
+        "sha256": "ca4c5fc102f6467c890fbd22e5cd409bc6ace00a1feafe7e6fd5b30edfa39cb9"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-transport-p2-query-uri-reviewed-2026-09-29.json",
+        "sha256": "97726dfe188f6691db04e9b03f19dec666d366f4c48d8498c5a06526966a9f23"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-transport-p2-readsettings-reviewed-2026-09-29.json",
+        "sha256": "77a4805fce48b4565c50fe4d7475287a2977f08bae3486c1007be627fdbb65fc"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-transport-p2-route-reviewed-2026-09-29.json",
+        "sha256": "84dbc60dbeb07184ad3c0cbc750321351de2bd6b052e61ea613ea329e0ba553c"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-transport-p2-runtime-dependencies-shared-reviewed-2026-09-29.json",
+        "sha256": "e12b481f0265f0680e5e6ca822d09c2ff5770ca08cd2924ddffe996a56c395a0"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-transport-p2-runtime-reviewed-2026-09-29.json",
+        "sha256": "652cbc5eae4d4533af8b22ff2ea8f098cb6398bea05bf7f3d6e9871403d18d6b"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-transport-p2-shared-owners-reviewed-2026-09-29.json",
+        "sha256": "9c451f9dc06c5c9679f7299c2d089593a3526086b535c497b1210fa8dc3f9080"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-transport-p2-subscription-reviewed-2026-09-29.json",
+        "sha256": "66229dc2cec638a02dc06384b47949a7bca05c593b67daa57dbbce6cecb41710"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-transport-p2-swagger-contracts-2-reviewed-2026-09-29.json",
+        "sha256": "b98a7bd55fe062644991008420a3ca043c18b6fd76f9225fa1234adfe435a02a"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-transport-p2-webaccess-boundaries-2-reviewed-2026-09-29.json",
+        "sha256": "938c081bf90acfe483b1047d9a2147fc15dfdbe5e1e0cf8e0cb0a4fe10ae7b37"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-transport-p2-ws-lease-reviewed-2026-09-29.json",
+        "sha256": "c6a21e20592a76fa5537c3650978925468b2675a4c0ff92d774a9f08413a6619"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-transport-p2-wslive-reviewed-2026-09-29.json",
+        "sha256": "d5630dbcfc1a2e7e10bdaf5bf09f96e992fbff7c53addf84023fa4f0880510dd"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-transport-receipt-refresh-2026-09-29.json",
+        "sha256": "56e6b47123163e28841dc10bb67219f20a2657bf78d04d0e2f97331d06bce450"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-transport-remaining-reviewed-2026-09-30.json",
+        "sha256": "fd668dae45b1043c644befedb4f9bc89ef150e21a9fb763a063dfa6cef02b95c"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-transport-reuse-reviewed-2026-09-29.json",
+        "sha256": "e915565c7d877af4be85335deb682783786bc6bcd199eb644ef311341aee203f"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-transport-route-owner-review-2026-09-30.json",
+        "sha256": "85794e4ef54ba95ae2ae1dae825413185bf5c373f05e43836980644f9f0e57f9"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-transport-runtime-ws-reviewed-2026-09-29.json",
+        "sha256": "f01dccf88d4feaed7d23ae539308f38ddc612c4bd7b09676b6be16eccfe9ff05"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-transport-servercore-reviewed-2026-09-30.json",
+        "sha256": "f34705653f56c58118b7fabcebae32738310fea16294a42a032871809c0e7d58"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-transport-servercoretest-reviewed-2026-09-30.json",
+        "sha256": "bdeba9459e52c5f8f071ffc53badcf73ab89c990405b4f174119179dc5ee3818"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-transport-spa-boundary-reviewed-2026-09-30.json",
+        "sha256": "fdc170b3ded8be4a2699212b4632283b93b0995059693e406fbbd377e4123701"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-transport-tail-final-reviewed-2026-09-30.json",
+        "sha256": "8c885bf0c5b09e5243b1ef111134b9805bf761ded361160755046f4bb1417eb2"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-watchlist-expanded-reviewed-2026-09-29.json",
+        "sha256": "1229c3cce32d106a24fe67b26d6ba010cbd359695d5e486bdba4b47d78c15ca7"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-watchlist-read-owner-reviewed-2026-09-29.json",
+        "sha256": "a73b3ee2a64934ef7c69cee3b8362170897774122b908efffb7cc43d2daf6f3d"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-watchlist-routes-reviewed-2026-09-29.json",
+        "sha256": "3ed7a53929b236bd9372cd098c5e7672970846bdc17f27bd903bfee8a05466dc"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-web-disabled-expanded-reviewed-2026-09-29.json",
+        "sha256": "f30e71343d4544520315daddffe13f8f6eca58430f7fe77f568bcc32546e3054"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-web-p1-reviewed-2026-09-29.json",
+        "sha256": "02d835502c6392862c7678ed3087c19e51198186c265a1583cc181bbac8d5b92"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-websocket-client-registry-reviewed-2026-09-30.json",
+        "sha256": "143aad95234ed04c387e570500510c95dfbbeee6f9c52076846fed21c90bc339"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/assertion-review-2026-09-29.json",
+        "sha256": "f4ae0ec092fe9c314b4bc41dde4d0fec818a8d6ccd64927da1679888a80153dd"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/assistant-adk-runtime-pairs-reviewed-2026-09-30.json",
+        "sha256": "24c25ec1f4e4a768971ee92cd9bd260c42f7b14fac7a4668278f0f25c28fc53c"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/assistant-adk-runtime-triples-reviewed-2026-09-30.json",
+        "sha256": "2729707fa0f7fc0dd038f2c0381d2a07a89415caa6e261f2417c48e9197d50b7"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/assistant-application-owner-reviewed-2026-09-30.json",
+        "sha256": "85c7eac0a96ab8113ba42a75c88cf0e751c4101bce2987123715f9cfc71d8bcc"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/assistant-assembly-mcp-review-2026-09-30.json",
+        "sha256": "23ebe943f0b7eca365d5b1882ae9a25ba7b6f31b9100699237289cd39510250e"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/assistant-claims-owners-reviewed-2026-09-30.json",
+        "sha256": "229b1a44376046c21de172fa2292eac179c1c66dd3fd5dad3701b528de8e0f46"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/assistant-legacy-exact-reviewed-2026-09-29.json",
+        "sha256": "1078f9c9c0b15ce341df8ee3c475078552d20747446c05923a7afcf333b0bca8"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/assistant-mcp-lifecycle-review-2026-09-30.json",
+        "sha256": "8b746b74d8b593f72ecd6952faec01f0ab21a68390c5d2d97eddc11c996bd393"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/assistant-mcp-policy-reviewed-2026-09-30.json",
+        "sha256": "303783b1d2e2f0dbffdac9286c869928e27b6530840135d27e24fb4860c0dd7d"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/assistant-mcp-server-owner-reviewed-2026-09-30.json",
+        "sha256": "8581dc9892244ea1adfd377695487b4203542b0deee63c28cab5075c247f7778"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/assistant-reasoning-expanded-reviewed-2026-09-29.json",
+        "sha256": "0a491996ff59766bc9d70064e3a117bcceb121074dc4cab32cc8af39b55f1361"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/assistant-receipt-refresh-2026-09-29.json",
+        "sha256": "9fbbc8f53b807d58ded6fa074ff3c745ab0183536a2db0d5fe8d27447fe6670c"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/assistant-research-backtest-reviewed-2026-09-29.json",
+        "sha256": "13dfccf8542102be58216af7a8534c0a234bc09090cd83a519e1b697b698368e"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/assistant-shared-owner-batch-2026-09-30.json",
+        "sha256": "619abcf55b377b330024e7bd088c3be7a66851107ded568d12cde77e56e8844c"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/assistant-shared-owners-reviewed-2026-09-29.json",
+        "sha256": "f01736b69226fed3c4ec08a262cbcd1a938adc39203fee6cc5249a7e3d3502f7"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/assistant-tail-p1-2026-09-28T0227Z.json",
+        "sha256": "74e1bd1f4f2ee7a7eead3bd398b267e9788d7082fdf8e028449e66f31f29f48b"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/assistant-task-normalization-owner-reviewed-2026-09-30.json",
+        "sha256": "57107e9080b2248d3b78634f2dc4dcd2526331e8f43fc28f2ac998d3d5277d13"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/backtest-aggregation-2026-09-30.json",
+        "sha256": "75e28cb0cdaeec50ba350fb3117255f8d64eb80e7e6b7b25ec6ad4938cad0684"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/backtest-legacy-exact-reviewed-2026-09-29.json",
+        "sha256": "9daff9277cfa0cfd5e688bd0ec83c6417abdd66b4c3edad0fa787f11c15bdb3d"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/backtest-pine-indicators-reviewed-2026-09-29.json",
+        "sha256": "6bea237a6a424a9bc3be8634b9826babb69c93fa65bd0b40c977fea8291f3cd8"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/broker-market-rules-reviewed-2026-09-29.json",
+        "sha256": "a44b35533000ffd19ebe17c1c4c654d32056757c5879e4bc32359760cab8121c"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/candle-adjustment-reviewed-2026-09-29.json",
+        "sha256": "a6a4ce38cf768d8e05cbe1470d67513374d7d5f570fb2b016bba96a1d0be39e8"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/cross-domain-pairs-reviewed-2026-09-30.json",
+        "sha256": "33a88c0371ee763140b594d675ae71e97afab0d4e9757d8d97d14cdb5da0cff9"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/exchangecalendar-legacy-exact-reviewed-2026-09-29.json",
+        "sha256": "bfd53e76cdb040c5536bc11d2b7447f4ce185c561dfbc6752c54cc239322a588"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/final-futu-research-owners-reviewed-2026-09-30.json",
+        "sha256": "58a4e914b6670e0b1a7d0ee767168144a8348b283edec911178602864db14858"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/futu-current-kl-empty-s2c-reviewed-2026-09-30.json",
+        "sha256": "eb09e7f11ce37faa435c2f6072739f742e49cb024efcdf1bbe0f9e35b52badbf"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/futu-engine-exact-pairs-reviewed-2026-09-30.json",
+        "sha256": "a1ebadc85dcfec4e2def47d3a58c710cbcc263bef716ef8bef305554db608e33"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/futu-history-partial-reviewed-2026-09-29.json",
+        "sha256": "fb4552f868c250f0dc14ba880ec0c59db20dac6b7fe55125d2343715cbdb8cb8"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/futu-legacy-exact-reviewed-2026-09-29.json",
+        "sha256": "4640e4c11b36473adffe78d193819b8971e99134fb75fcff6f192f6f252021b3"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/futu-marketdata-shared-owners-reviewed-2026-09-30.json",
+        "sha256": "eb5a3cb78366b234de894865395f8adf7a25e9cb7b11f8743b8336ea6e38ca34"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/futu-opend-pair-tail-reviewed-2026-09-30.json",
+        "sha256": "46ea42fe1f4790c79ec1d53002ad8b175348fb31a48d947f10e3124c1cdf9dea"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/futu-opend-pairs-2-reviewed-2026-09-30.json",
+        "sha256": "3f6048b9ce1172b2cf7fc1d90ba2eb0b54600ea7c8c61e635831198665053d0a"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/futu-opend-pairs-reviewed-2026-09-30.json",
+        "sha256": "12a853fe9996f3eb9e48ae7311f716ea6e82bb93e49ebd9aee333127af4b39ff"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/futu-opend-triples-2-reviewed-2026-09-30.json",
+        "sha256": "5a281c62a33a04580ad971d0f2bf1ec65bf2c92496f74ac881416c8aafbd6513"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/futu-p2-three-reviewed-2026-09-29.json",
+        "sha256": "75652df0ee656dacbda2d0b3f40dff5ccf47ec060b44fabc5aba58cebaf63d8e"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/futu-snapshot-expanded-reviewed-2026-09-29.json",
+        "sha256": "dfa872be52fcf43d403ed32fc27cb673e30e74531a603b8b8a940ff7ec0a1f9e"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/futu-snapshot-fallback-reviewed-2026-09-29.json",
+        "sha256": "5d2e8d55218adc5252b1389a258dbf15803b757a9bb05091ccd10b78c56cb8f6"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/futu-subscriptions-reviewed-2026-09-29.json",
+        "sha256": "aaf6f5792e1548c2fd6f00f641e4894372766952d431b6a2f3b8b8640b6ee19e"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/futu-trade-account-reviewed-2026-09-29.json",
+        "sha256": "4253bd1e490b483fbbfd799f35954ba99bb9098aa62277da3df56a4dfaea9648"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/futu-transport-reviewed-2026-09-30.json",
+        "sha256": "a0906c826c136f6c21afaaf156d85bc399947b9047e47431aa33fcc242ad4290"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/futu-triple-owner-reviewed-2026-09-30.json",
+        "sha256": "c61b719aa7fa191f496b042aa02a9e52e193692557698d24cdad0c18f359c8a1"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/futu-watchlist-reviewed-2026-09-29.json",
+        "sha256": "dfc981f6aa2915ed7bfaaa540bc9150c58eabdb63b482518cef1916875cf2f51"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/integration-legacy-exact-reviewed-2026-09-29.json",
+        "sha256": "d93edb62ded7bf935959fdaaf01d77680e54b6af2abfa28b9207771715663480"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/last-low-fanout-pairs-reviewed-2026-09-30.json",
+        "sha256": "9ed57afcb6049dccb7a862ff0fd648f99af5b301f6a17be6b7d284f759436819"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/marketdata-assets-legacy-exact-reviewed-2026-09-29.json",
+        "sha256": "9e31970c93531f1b38f8c0d5ba0c8157b50f989bd438d95325276600971331b1"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/mixed-highfanout-owners-2-reviewed-2026-09-30.json",
+        "sha256": "e2d279984c9dce5041c667c7d97fc4d6f0109955ffed631e2e397d02a6b6308e"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/mixed-highfanout-owners-reviewed-2026-09-30.json",
+        "sha256": "bad519547415000b8d6551b489b7d447e4b5b74d02745ad9142c1fb92526ce8f"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/p1-broker-cancel-rejection-2026-09-28T184500Z.json",
+        "sha256": "6a1ab35d3718e0b74d98bd4ddfabaa9effdfd09a49912d349b16786d713bcbdc"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/p1-broker-cancel-rejection-red-2026-09-28T184300Z.json",
+        "sha256": "ffcf4bdfc81402a57b2173d242df628c00875e4197591fdba2a9d17ee5828a50"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/p1-futu-boundaries-2026-09-28T064852Z.json",
+        "sha256": "9304c9ef4cd2b9a4d36385012db4902c61c41bad326f7472345fdcafc0a3bbf7"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/p1-futu-session-market-rules-2026-09-28T071432Z.json",
+        "sha256": "b290cd212da3374c17198d541103085cf5a0b71fedc8f0d1271732534f097167"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/p1-manager-close-aggregate-2026-09-28T125441Z.json",
+        "sha256": "e319b1dd01b56b3ae8bb821aa23bd831c2eb4ca5216765035961fd92f0bdd185"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/p1-manager-close-drain-2026-09-28T115903Z.json",
+        "sha256": "7fd9c2be86d54c740663edd6da3de92f391c27925949a5774809020f7ad558f0"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/p1-provider-boundaries-2026-09-28T1415Z.json",
+        "sha256": "143648491d86b0a5b7e9495ef6dd97bffc10d6797e5bd08e24396b332a94c20e"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/p1-query-candle-boundaries-2026-09-28T0250Z.json",
+        "sha256": "69bae53794658676a710eeda191d4e68b5e70c7f243ee3483c441f7919d75b40"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/p1-strategy-cancel-all-2026-09-28T075220Z.json",
+        "sha256": "4ae81bb8523edd0244a07edcbd5299533a5a837488451687b2882fe0df95a2f2"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/p1-strategy-cancel-all-success-2026-09-28T145000Z.json",
+        "sha256": "fc615c228ba5af017d074b6793421fc3e624cc447a0abd801c9a8ad8c8eb6901"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/p1-strategy-lifecycle-transition-2026-09-28T190500Z.json",
+        "sha256": "5e8e5224e011be0b58564f1054e9ee5e375fc2f7ee3c536884c486fb760c58ff"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/p1-strategy-subscription-normalization-2026-09-28T100015Z.json",
+        "sha256": "395ad660308cecd62c6a0665868e97e57a053834315bb65d5ce0d3c802609311"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/p1-strategy-subscription-warmup-2026-09-28T100015Z.json",
+        "sha256": "5117b36376dd8f887ee47ec8539fe723fd0bab1c6d7ada5938259aac157c062f"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/p1-strategy-targeted-cancel-2026-09-28T142057Z.json",
+        "sha256": "3423dac32787c4000997a77e747bdf13c64a024334cf4c27e9e341eb47d25fa3"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/p1-strategy-targeted-cancel-alias-2026-09-29T235736Z.json",
+        "sha256": "be73bf20b8629fc8c9ca04ba9cab81258f9dd7a4b3a84d31c481736e5f1800fd"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/p1-workflow-crud-filter-delete-2026-09-28T090634Z.json",
+        "sha256": "5780bdfc67c001debadc02ce685ef3c823f562a1eeb439e6a7c6f6b4d51e9e6f"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/p1-workflow-pagination-2026-09-28T081500Z.json",
+        "sha256": "3efdb120b58c0332c7b3ca0f868ed339945311c319e31c7ec8a09c6098e66732"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/prediction-push-reviewed-2026-09-29.json",
+        "sha256": "3ae94d273c7803e3288ef3360f0b4ef994d754e4aa7115d2b72f212e8e2cd771"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/productfeatures-legacy-exact-reviewed-2026-09-29.json",
+        "sha256": "0fe275e945581984083ab5705de00218052e98b3793d1ce45774fa349cd0a479"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/researchscreen-legacy-exact-reviewed-2026-09-29.json",
+        "sha256": "d7ac5aadaa0e41b27e2bcd6e61cbf518366cef518e8afb05b40efb8522d8f3e7"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/retry-legacy-exact-reviewed-2026-09-29.json",
+        "sha256": "72ee79d725c845de4ebc9400528a27a11d9e6c403174f976247ec672985ecc50"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/runtime-lifecycle-expanded-reviewed-2026-09-29.json",
+        "sha256": "8e29d9b65d8f849d562355f29993e55daff5b6ec517717bc3e7f1211ea1770b4"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/runtime-lifecycle-expanded-reviewed-2026-09-30.json",
+        "sha256": "9a22c0dbcdc8be8d756bfbea9157f46e8dc34c05c2113476a55dbf2e12b4383e"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/runtime-resources-expanded-reviewed-2026-09-29.json",
+        "sha256": "9675f546e7c02833ebe266297914dd43faf3242a6c139eba0e0d891d072a0535"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/security-legacy-exact-reviewed-2026-09-29.json",
+        "sha256": "10b3a783a97f8e9a5f12b3fb83170a64246a8d211813e0a14d0c5d31c82aad05"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/settings-empty-defaults-expanded-reviewed-2026-09-29.json",
+        "sha256": "1baf8bad5108ca592701c3511d77ad742593246652073c1917b23954e0ec0353"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/settings-legacy-exact-reviewed-2026-09-29.json",
+        "sha256": "e8181e775242ff20bd70a0e0b4448808082571be721857683e01c1b86fe5eea9"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/small-legacy-exact-reviewed-2026-09-29.json",
+        "sha256": "d199c2ba5868a76392027c2c026ed1979dd557ee0eb3c30698ac10129b04662c"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/small2-legacy-exact-reviewed-2026-09-29.json",
+        "sha256": "5c447e4beb7c4d3f3012756130f5a06389b6783aed60a785fe73d58899edd7da"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/store-legacy-exact-reviewed-2026-09-29.json",
+        "sha256": "41cc8b300364a897d35504df69de770716d4f0cb2d44113ac3953b0ffbda65c9"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/strategy-pine-client-validation-reviewed-2026-09-29.json",
+        "sha256": "d3aaeaffb18e08109df518c2cae4d0fb05dcd5de8986c2c07d5ad089677ff738"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/strategy-pine-expression-risk-reviewed-2026-09-30.json",
+        "sha256": "a045205e150d0e2ef062077eb97e2dcd1b90167cb1919037c354220e22e6f722"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/strategy-pine-legacy-exact-reviewed-2026-09-30.json",
+        "sha256": "714b108940610e21852d61cc63f832f695d4619d93fad3ac7872930079e28b07"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/strategy-pine-live-execution-reviewed-2026-09-30.json",
+        "sha256": "43e5dc4f19f99dd7791a8a9080cb98f9d36843e7a8b6e39a3e382a9ef9c387aa"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/strategy-pine-parse-reviewed-2026-09-30.json",
+        "sha256": "de794669fdef73c9757cfaae016c4685f6a01c3340a66a8e679335b19a99e329"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/strategy-pine-risk-order-reviewed-2026-09-30.json",
+        "sha256": "d56895f9effb8eeb8b27d5a39f4f9bcb979b6528a2940f802029b9cbdb8fff0f"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/system-legacy-exact-reviewed-2026-09-29.json",
+        "sha256": "8c6556f26a960db45da71275771a4cc9c2df03ab41aa463f740ee60a2d3d0375"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/trading-legacy-exact-reviewed-2026-09-29.json",
+        "sha256": "b0e6b5e4111b11c59b6f109627cef5c4b060d4d2aa2fe864506ce3c9efba9ff6"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/triples-batch-1-reviewed-2026-09-30.json",
+        "sha256": "d24a0afcde32e563302448d87c16c81441a0f3004c072a8e94f798c0742bcecd"
+      }
+    ]
+  },
+  "rawOutputSha256": "d4910407f0045f9ea6aac0c854d5a3cc213b3dac10d21202949bf13c81728593",
+  "passedTests": [
+    "jftrade-api::transport_contracts$auth_protects_logout",
+    "jftrade-api::transport_contracts$auth_skips_public_paths_without_credentials"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 2,
+      "nextest": {
+        "crate": "jftrade-api",
+        "test_binary": "transport_contracts",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 29,
+      "exec_time": 0.022799416,
+      "nextest": {
+        "crate": "jftrade-api",
+        "test_binary": "transport_contracts",
+        "kind": "test"
+      }
+    }
+  ]
+}

@@ -394,6 +394,7 @@ mod tests {
     }
 
     #[test]
+    // Parity: go:452dea11:pkg/futu/opend/new_methods_test.go:578 TestGetSecuritySnapshot
     fn maps_security_snapshot_bbo_and_equity_metrics_without_defaults() {
         let value = wire::Snapshot {
             basic: wire::SnapshotBasicData {
@@ -769,6 +770,7 @@ mod tests {
     }
 
     #[test]
+    // Parity: go:452dea11:pkg/futu/marketdata_reader_boundaries_test.go:17 TestMarketDataReaderSurfacesTransportAndPayloadBoundaries
     fn snapshot_reader_rejects_invalid_symbols_before_any_opend_call() {
         // Parity: go:452dea11:pkg/futu/exchange_quote_request_boundaries_test.go:110
         // and go:pkg/futu/security_query_test.go:25: an invalid symbol fails
@@ -847,6 +849,7 @@ mod tests {
     }
 
     #[test]
+    // Parity: go:452dea11:pkg/futu/exchange_mapping_boundaries_test.go:316 TestFutuMarketAndSecuritySymbolBoundaries
     fn market_code_and_label_supports_all_standard_markets() {
         assert_eq!(market_code("HK"), Some(1));
         assert_eq!(market_code("US"), Some(11));

@@ -30,6 +30,7 @@ struct RuntimeTask {
     wake: Arc<tokio::sync::Notify>,
     done_rx: std::sync::mpsc::Receiver<()>,
     thread_handle: Option<JoinHandle<()>>,
+    close_errors: Arc<Mutex<Vec<String>>>,
 }
 
 type RuntimeTaskMap = BTreeMap<String, RuntimeTask>;
@@ -52,6 +53,7 @@ pub(crate) struct StrategyRuntimeManager {
     stopping: AtomicBool,
     tasks: Mutex<RuntimeTaskMap>,
     reclaiming_tasks: Mutex<RuntimeTaskMap>,
+    last_shutdown_result: Mutex<Option<Result<(), String>>>,
     router: Option<Arc<Mutex<ProviderRouter>>>,
     worker: Option<Arc<dyn jftrade_integration_pine::PineExecutionPort>>,
     quote: Option<Arc<dyn MarketDataQuoteReadSnapshotPort>>,
@@ -75,6 +77,7 @@ impl StrategyRuntimeManager {
             stopping: AtomicBool::new(false),
             tasks: Mutex::new(BTreeMap::new()),
             reclaiming_tasks: Mutex::new(BTreeMap::new()),
+            last_shutdown_result: Mutex::new(None),
             router,
             worker: worker.map(|w| w as Arc<dyn jftrade_integration_pine::PineExecutionPort>),
             quote,
@@ -238,8 +241,31 @@ impl StrategyRuntimeManager {
     /// are torn down. Joining here is bounded by a global deadline and
     /// prevents a task from hanging process termination or retaining a store lease.
     pub(crate) fn shutdown(&self) -> bool {
+        self.shutdown_with_error().is_ok()
+    }
+
+    pub(crate) fn shutdown_with_error(&self) -> Result<(), String> {
         self.stopping.store(true, Ordering::Release);
         let _mutation = self.mutation_lock.lock().unwrap_or_else(|e| e.into_inner());
+        if self
+            .tasks
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .is_empty()
+            && self
+                .reclaiming_tasks
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .is_empty()
+            && let Some(result) = self
+                .last_shutdown_result
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .clone()
+        {
+            self.stopping.store(false, Ordering::Release);
+            return result;
+        }
         let mut tasks = std::mem::take(&mut *self.tasks.lock().unwrap_or_else(|e| e.into_inner()));
         tasks.extend(std::mem::take(
             &mut *self
@@ -253,6 +279,7 @@ impl StrategyRuntimeManager {
         }
         let deadline = std::time::Instant::now() + STRATEGY_SHUTDOWN_TIMEOUT;
         let mut joined_ids = Vec::new();
+        let mut close_errors = Vec::new();
         for (id, mut task) in tasks {
             let remaining = deadline.saturating_duration_since(std::time::Instant::now());
             if remaining.is_zero() {
@@ -268,12 +295,24 @@ impl StrategyRuntimeManager {
                     if let Some(join) = task.thread_handle.take() {
                         let _ = join.join();
                     }
+                    close_errors.extend(
+                        task.close_errors
+                            .lock()
+                            .unwrap_or_else(|e| e.into_inner())
+                            .drain(..),
+                    );
                     joined_ids.push(id);
                 }
                 Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
                     tracing::warn!(
                         instance_id = %id,
                         "strategy task exceeded shutdown deadline; retaining task owner"
+                    );
+                    close_errors.extend(
+                        task.close_errors
+                            .lock()
+                            .unwrap_or_else(|e| e.into_inner())
+                            .drain(..),
                     );
                     joined_ids.push(id);
                 }
@@ -290,8 +329,19 @@ impl StrategyRuntimeManager {
             .lock()
             .unwrap_or_else(|e| e.into_inner())
             .is_empty();
+        let result = if !stopped {
+            Err("strategy runtime still owns active tasks after shutdown deadline".to_owned())
+        } else if close_errors.is_empty() {
+            Ok(())
+        } else {
+            Err(close_errors.join("; "))
+        };
+        *self
+            .last_shutdown_result
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = Some(result.clone());
         self.stopping.store(false, Ordering::Release);
-        stopped
+        result
     }
 
     fn release_demand(&self, instance_id: &str) {
@@ -663,6 +713,7 @@ fn close_strategy_pine_sessions(
     timeframe: &str,
     binding: &Value,
     sessions: &BTreeMap<String, SymbolSessionState>,
+    close_errors: &Mutex<Vec<String>>,
 ) {
     for (requested_symbol, session) in sessions {
         if session.revision > 0 {
@@ -687,20 +738,34 @@ fn close_strategy_pine_sessions(
             });
             match close_result {
                 Ok(Err(err)) => {
+                    let message = format!(
+                        "strategy runtime {instance_id} symbol {market}.{symbol} pine session close: {err}"
+                    );
                     let _ = store.append_audit_event(
                         instance_id,
                         "SESSION_CLOSE_FAILED",
-                        &format!("close session for {symbol} failed: {err}"),
+                        &message,
                         now_millis(),
                     );
+                    close_errors
+                        .lock()
+                        .unwrap_or_else(|error| error.into_inner())
+                        .push(message);
                 }
                 Err(_) => {
+                    let message = format!(
+                        "strategy runtime {instance_id} symbol {market}.{symbol} pine session close: timeout"
+                    );
                     let _ = store.append_audit_event(
                         instance_id,
                         "SESSION_CLOSE_TIMEOUT",
-                        &format!("close session for {symbol} timed out after 500ms"),
+                        &message,
                         now_millis(),
                     );
+                    close_errors
+                        .lock()
+                        .unwrap_or_else(|error| error.into_inner())
+                        .push(message);
                 }
                 Ok(Ok(_)) => {}
             }

@@ -1526,3 +1526,105 @@ strict 审计仍不宣称通过。
 本批人工逐条复核 Strategy/Pine 的 6 条单引用 `function_exact`：分类错误 sentinel、broker account 空值归一化，以及四条 indicator warmup plan 的最大 lookback、市场 trading profile、extended session 和 runtime floor 语义。每条均已有 Parity anchor，并关联真实 workspace receipt `sha256:10e0f6f0303126574a56bb913fce6b78e03ef69a359136b6a92d3d6be3eb5bf8`；receiptDigest 未扩散到未复核的脚本/运行时条目。
 
 全量验证收尾（2026-09-27）：workspace nextest 当前 3504/3504 passed、0 failed、2 suite skipped，含 strategy/Pine 全部目标；结构化 receipt 为 `sha256:2f7422488ce7addc2b81ad38563b3b7662345283896be959843301f2b609d66f`（[receipt](verification-receipts/workspace-nextest-2026-09-27T071942Z.json)）。strict 审计仍剩 4019 个全局 evidence/receipt gaps，未将全量通过误报为 parity strict 完成。
+
+## 2026-09-28 P1：cancel-all 部分失败回归
+
+针对 `internal/strategy/pine_live_executor_test.go:443:TestLiveCommandExecutorCancelAll`，新增真实 engine owner 回归 `cancel_all_attempts_every_active_order_and_preserves_failed_tracking`。测试建立两笔 strategy-runtime 活动订单，注入一笔撤单失败，断言两笔都被尝试、成功项写 `ORDER_CANCELLED`、失败项写 `ORDER_CANCEL_FAILED`、返回 `cancel_all partially failed`，并确认失败项仍保留在 execution ledger 的 active tracking 中；成功撤单后的最终状态继续由 execution store 写入 owner 管理。
+
+定向 nextest **2/2 passed**；receipt：`sha256:b0b2788e6b2fb67563b2da0e1a864b5b691c8d67d22707b40bf7150842508512`（[`p1-strategy-cancel-all-2026-09-28T075220Z.json`](verification-receipts/p1-strategy-cancel-all-2026-09-28T075220Z.json)）。该条仍为 `partial`，没有把 strategy owner 的审计证据误升级为 execution-store 成功状态的完整等价。
+
+## 2026-09-28 P1 subscription warmup rollback evidence
+
+补充 `internal/strategy/liveruntime/subscription_lifecycle_test.go:14` 的真实行为证据：
+`failed_pine_warmup_releases_only_its_own_subscription_once` 注入 Pine open 失败，
+让第二个 consumer 共享同一 KLINE demand，断言运行时异常收敛后只移除自身 consumer，
+第二次 release 不会误删另一 owner。定向 engine nextest 4/4 通过，receipt：
+`sha256:49469ad896186b5f59c614381ff653c63720c7df59c98fd01cfb557c937b01e9`
+（[`p1-strategy-subscription-warmup-2026-09-28T100015Z.json`](verification-receipts/p1-strategy-subscription-warmup-2026-09-28T100015Z.json)）。
+该条仍为 `partial`：租约获取失败时不创建运行时的注入式失败 seam 尚未迁移。
+
+同批补齐 `internal/strategy/liveruntime/subscription_lifecycle_test.go:81`：新增
+`strategy_kline_subscription_refs_normalize_valid_targets_and_skip_malformed`，先红复现
+`market=\".\"` 畸形目标进入 demand book，再修正 mutation owner 过滤该目标；测试同时锁定
+大小写、空白和 `15m` 周期归一。定向 engine nextest 1/1 通过，receipt：
+`sha256:38704e6be9b4cbe98401245af9407ae949eafb5e2a2df0eced6ebdbda5f2b654`
+（[`p1-strategy-subscription-normalization-2026-09-28T100015Z.json`](verification-receipts/p1-strategy-subscription-normalization-2026-09-28T100015Z.json)）。
+该条已升级为 `function_exact`。
+
+## 2026-09-28 P1：manager close 活跃 Pine session drain
+
+`internal/strategy/pineruntime/runtime_failure_contracts_test.go:171:TestManagerCloseDrainsActiveLiveSession`
+补齐 engine 级真实运行时证据。新增
+`strategy_runtime_owner_tests::manager_shutdown_closes_active_pine_sessions_once`，启动真实
+`StrategyRuntimeManager` 任务并等待 Pine `open` 请求，再执行 manager shutdown；断言任务被
+cancel/join、活跃 session 恰好收到一次 `close`，且 `session_id` 与当前 `expected_revision`
+连续一致。该条由 `partial` 升为 `function_exact`，映射、reuse、Parity anchor 与 receipt 已同步。
+
+定向 nextest 2/2 通过（lib 与 bounded integration binary）：
+`sha256:7fd9c2be86d54c740663edd6da3de92f391c27925949a5774809020f7ad558f0`
+（[`p1-manager-close-drain-2026-09-28T115903Z.json`](verification-receipts/p1-manager-close-drain-2026-09-28T115903Z.json)）。
+
+## 2026-09-28 P1：manager close 具名 session 错误聚合
+
+针对 `internal/strategy/liveruntime/manager_close_test.go:86:TestManagerCloseAggregatesNamedSessionErrorsOnce`，先以错误上下文只包含单一 session 的测试 fixture 暴露覆盖缺口，随后改为两个真实活跃 symbol session，并补齐 `StrategyRuntimeManager::shutdown_with_error`。生产路径现在在 mutation lock 下串行化并发 shutdown，等待任务收尾，按 `instance + market.symbol + pine session close` 聚合失败；后续调用复用同一 `Result`，每个 session 只发送一次 close。旧的 `shutdown()` 保持 bool 兼容，production port 透传聚合错误；成功 spawn 会清除上一次 shutdown 缓存，避免旧错误污染新 runtime。
+
+新增 `strategy_runtime_owner_tests::manager_shutdown_aggregates_named_session_close_errors_once`，以 12 个并发调用断言所有调用收到完全相同的具名聚合错误，并断言两个活跃 session 恰好各收到一次 close。共享 subscription lease 的一次性释放继续由已复用的 owner 生命周期回归覆盖。定向 nextest **4/4 passed**（两个测试分别命中 lib 与 bounded integration binary）；receipt：`sha256:e319b1dd01b56b3ae8bb821aa23bd831c2eb4ca5216765035961fd92f0bdd185`（[`p1-manager-close-aggregate-2026-09-28T125441Z.json`](verification-receipts/p1-manager-close-aggregate-2026-09-28T125441Z.json)）。该条已由 `partial` 升为 `function_exact`；`TestManagerCloseWaitsForInFlightStartAndCollectsItsCloseError` 仍保持 P1 partial，未把启动竞态证据混入本条。
+
+## 2026-09-28 P1：targeted cancel 跟踪所有权
+
+针对 `internal/strategy/liveruntime/order_risk_business_test.go:135:TestLiveCancelOnlyRemovesSuccessfullyCancelledTrackedOrders`，新增 `targeted_cancel_only_mutates_owned_active_orders_and_removes_successful_tracking`。测试使用 execution store 的活动订单作为唯一跟踪 owner，逐项断言：本实例活动 `clientOrderId` 成功撤单后从 active ledger 消失；gateway 失败原样返回且跟踪保留；foreign/untracked 订单不触达 gateway。该条由 `partial` 升为 `function_exact`。
+
+定向 nextest **3/3 passed**；receipt：`sha256:3423dac32787c4000997a77e747bdf13c64a024334cf4c27e9e341eb47d25fa3`（[`p1-strategy-targeted-cancel-2026-09-28T142057Z.json`](verification-receipts/p1-strategy-targeted-cancel-2026-09-28T142057Z.json)）。
+
+## 2026-09-28 P1：cancel-all 成功终态
+
+针对 `internal/strategy/pine_live_executor_test.go:443:TestLiveCommandExecutorCancelAll`，新增
+`cancel_all_success_removes_each_cancelled_order_from_tracking`。测试将 execution gateway
+与 SQLite execution store 连接为同一 owner，逐项断言两笔活动订单都派发 `OrderCancel`，且成功
+后本实例 active ledger 为空；失败路径仍由相邻回归保留错误聚合和失败订单跟踪。
+该条由 `partial` 升为 `function_exact`。
+
+定向 nextest **9/9 passed**（三个 engine test binaries，各三条 cancel-all 回归）；receipt：
+`sha256:fc615c228ba5af017d074b6793421fc3e624cc447a0abd801c9a8ad8c8eb6901`
+（[`p1-strategy-cancel-all-success-2026-09-28T145000Z.json`](verification-receipts/p1-strategy-cancel-all-success-2026-09-28T145000Z.json)）。
+
+## 2026-09-28 P1：Pause/Stop 状态转换与 runtime 顺序
+
+`internal/strategy/service_test.go:278:TestServicePauseAndStopInstancesStopRuntimeAfterStateTransition` 新增两个 mutation-owner 回归：
+`lifecycle_transition_failure_does_not_stop_runtime_before_state_write` 在 SQLite status trigger 拒绝时确认 runtime owner 不被提前取消；
+`pause_and_stop_transition_state_before_stopping_runtime` 确认 Pause/Stop 分别落为 `PAUSED`/`STOPPED` 后 runtime task 被停止。
+真实实现现先完成 CAS 状态转换，再取消 task、释放 demand；状态转换错误原样保留。定向 nextest 4/4 passed，raw output
+`sha256:6d761bf44026ffcc680076f180a0f83335a640c2e406df004a2489bfac747546`。
+
+该映射保持 `partial`：Go `WithLiveMarketStreamRefresher` 的每次状态操作刷新计数尚无 Rust 同形 callback seam；生产 router demand reconcile 已由 owner 路径执行，但不据此升级为 `function_exact`。
+
+## 2026-09-29 P1：targeted cancel 意图别名与陈旧映射
+
+针对 `internal/strategy/live_command_business_boundaries_test.go:545:TestCancelByIntentDeduplicatesAliasesAndToleratesStaleMappings`，先以
+`targeted_cancel_resolves_intent_aliases_once_and_tolerates_stale_mapping` 复现 Rust 将陈旧意图报为
+`strategy order <id> is not owned` 的差异，随后在 `dispatch_cancel_intent` 增加 execution-store owner 查询：
+精确 client identity 继续校验实例与活动状态；未命中时按确定性 `clientOrderId` 意图前缀解析 alias，按
+internal order id 去重后逐笔取消；无活动映射返回成功 no-op。
+
+定向 nextest **3/3 passed**（三个 engine test binaries）；receipt：
+`sha256:a3e1e7ac8664d078feccbdd1fd234bb2abf8e0ec6e2e51a2d3ad5c43de7f9fc7`
+（[`p1-strategy-targeted-cancel-alias-2026-09-29T235736Z.json`](verification-receipts/p1-strategy-targeted-cancel-alias-2026-09-29T235736Z.json)）。
+该映射保持 `partial`：Rust 没有 Go 的显式 `activeOrderAliases` 多腿表，复杂 OCO/多腿 alias 的持久化 owner
+与逐项回归仍待后续批次；本批只收口确定性 client id alias 与 stale no-op 的真实行为。
+
+## 2026-09-30 Strategy/Pine legacy exact closure batch
+
+继续按真实行为 owner 收口剩余 Strategy/Pine exact：逐项复核 runtime reconciliation、definition
+version、warmup/planner、Pine parser/tuple/security、Pine worker pool 与 request validation 的
+29 条 Go mapping。已有 Rust 测试均保留具体断言与 `// Parity:` 锚点；本批只将 assertion coverage
+从 `legacy-conclusion` 升为 `reviewed`，并对 fan-out ≤6 的 19 个 reuse relation 逐项审核，高 fan-out
+仍保留 backlog。
+
+workspace nextest 实际命中 35 个 target 实例，**35/35 passed**；receipt：
+`sha256:22918fba9517443a7ed1bcac3a5ad269d4e35c9ef1e6b476b3f5487974008a6e`（
+[`strategy-pine-legacy-exact-reviewed-2026-09-30.json`](verification-receipts/strategy-pine-legacy-exact-reviewed-2026-09-30.json)）。
+strict gap **2139→2067**；没有用测试总数或 receipt 数量代替行为完成率。
+
+## 2026-09-30 API logout follow-up
+
+API logout 的真实 HTTP 投影已在独立 API parity 批次补齐；Strategy/Pine 继续保留高 fan-out shared owner backlog。

@@ -1,0 +1,109 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(reconciliation_cancel_submitted_resolves_fill_and_cancel_confirmation) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(broker_cancel_rejection_keeps_cancel_requested_and_records_rejection_event)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-28T18:45:00Z",
+  "sourceState": {
+    "verifiedCommit": "2f5de4172a26c6f2f3ddb3df13e326787e82e54b",
+    "trackedDiffSha256": "ce5ae28d2eb8fc11329dd90adedc7c91fc052ab99cf62cd2c34bf0c361c77817",
+    "untrackedFiles": [
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/assistant-tail-p1-2026-09-28T0227Z.json",
+        "sha256": "74e1bd1f4f2ee7a7eead3bd398b267e9788d7082fdf8e028449e66f31f29f48b"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/p1-broker-cancel-rejection-2026-09-28T184500Z.json",
+        "sha256": "4cfe93176192510336345863eff6000cbdfb8d73f7949c8188830c167ddc9905"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/p1-futu-boundaries-2026-09-28T064852Z.json",
+        "sha256": "9304c9ef4cd2b9a4d36385012db4902c61c41bad326f7472345fdcafc0a3bbf7"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/p1-futu-session-market-rules-2026-09-28T071432Z.json",
+        "sha256": "b290cd212da3374c17198d541103085cf5a0b71fedc8f0d1271732534f097167"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/p1-provider-boundaries-2026-09-28T1415Z.json",
+        "sha256": "143648491d86b0a5b7e9495ef6dd97bffc10d6797e5bd08e24396b332a94c20e"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/p1-query-candle-boundaries-2026-09-28T0250Z.json",
+        "sha256": "69bae53794658676a710eeda191d4e68b5e70c7f243ee3483c441f7919d75b40"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/p1-strategy-cancel-all-2026-09-28T075220Z.json",
+        "sha256": "4ae81bb8523edd0244a07edcbd5299533a5a837488451687b2882fe0df95a2f2"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/p1-strategy-subscription-normalization-2026-09-28T100015Z.json",
+        "sha256": "395ad660308cecd62c6a0665868e97e57a053834315bb65d5ce0d3c802609311"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/p1-strategy-subscription-warmup-2026-09-28T100015Z.json",
+        "sha256": "5117b36376dd8f887ee47ec8539fe723fd0bab1c6d7ada5938259aac157c062f"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/p1-workflow-crud-filter-delete-2026-09-28T090634Z.json",
+        "sha256": "5780bdfc67c001debadc02ce685ef3c823f562a1eeb439e6a7c6f6b4d51e9e6f"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/p1-workflow-pagination-2026-09-28T081500Z.json",
+        "sha256": "3efdb120b58c0332c7b3ca0f868ed339945311c319e31c7ec8a09c6098e66732"
+      }
+    ]
+  },
+  "rawOutputSha256": "7844725e286a92290a6dc2039054e4380d607e9b2bfb5612dc480fc993b68e47",
+  "passedTests": [
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_execution::product_production_ports_execution_orders::execution_preview_tests::broker_cancel_rejection_keeps_cancel_requested_and_records_rejection_event",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_execution::product_production_ports_execution_orders::execution_preview_tests::cancel_rejects_missing_terminal_and_unidentified_persisted_orders",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_execution::product_production_ports_execution_orders::execution_reconciliation::tests::order_state_tests::reconciliation_cancel_submitted_resolves_fill_and_cancel_confirmation"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 3,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1636,
+      "exec_time": 0.268509625,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    }
+  ]
+}

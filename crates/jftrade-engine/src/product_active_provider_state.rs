@@ -244,6 +244,7 @@ mod tests {
     }
 
     #[test]
+    // Parity: go:452dea11:internal/app/apiserver/marketdataapp/runtime_akshare_test.go:11 TestRuntimeReusesSharedSidecarAcrossPythonProviders
     fn helper_provider_switch_preserves_observed_opend_trade_readiness() {
         // OpenD is a separate trade owner in production.  Switching market
         // data from yfinance to AKShare must not clear a healthy physical

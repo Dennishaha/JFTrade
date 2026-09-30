@@ -1,0 +1,187 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-settings",
+    "-p",
+    "jftrade-store-settings-file",
+    "-p",
+    "jftrade-desktop",
+    "-p",
+    "jftrade-integration-futu",
+    "-p",
+    "jftrade-watchlist",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json",
+    "--no-fail-fast",
+    "-E",
+    "test(should_forward_system_notification_covers_disabled_all_custom_and_unknown_modes) or test(platform_paths_report_missing_home_environment) or test(blank_values_never_match_and_padded_candidates_match_case_insensitively) or test(product_data_dir_covers_every_platform_base_directory) or test(product_data_dir_uses_the_current_platform_base_directory) or test(explicit_error_notifications_true_keeps_calendar_defaults) or test(non_boolean_error_notifications_value_is_rejected_at_open) or test(legacy_settings_without_error_notifications_field_default_to_enabled) or test(explicit_error_notifications_false_survives_normalization) or test(truncated_exchange_calendar_document_is_rejected_at_open) or test(preset_ports_round_trip_create_list_get_and_delete_with_trimmed_ids) or test(definition_only_updates_keep_the_stored_name_and_enforce_revision) or test(invalid_preset_operations_fail_closed_before_the_store_is_touched) or test(store_failures_surface_as_unavailable_instead_of_silent_success) or test(watchlist_member_conversion_preserves_canonical_id_and_broker_alias) or test(test_quote_cache_and_import_helpers_keep_absent_data_explicit) or test(test_preview_import_rejects_invalid_derived_group_name) or test(in_flight_snapshot_does_not_repopulate_the_cache_after_a_provider_switch)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-29T16:47:00Z",
+  "sourceState": {
+    "verifiedCommit": "2f5de4172a26c6f2f3ddb3df13e326787e82e54b"
+  },
+  "rawOutputSha256": "sha256:0e58f1a26859c7ae40dccd4e1943c9d03a3748c48b9df4a2ad770f6d50af68fd",
+  "passedTests": [
+    "jftrade-desktop::desktop_contracts$product_data_dir_covers_every_platform_base_directory",
+    "jftrade-desktop::jftrade_desktop$native::tests::platform_paths_report_missing_home_environment",
+    "jftrade-desktop::jftrade_desktop$native::tests::product_data_dir_uses_the_current_platform_base_directory",
+    "jftrade-integration-futu::jftrade_integration_futu$watchlist_reader::tests::watchlist_member_conversion_preserves_canonical_id_and_broker_alias",
+    "jftrade-settings::jftrade_settings$exchange_calendar::tests::explicit_error_notifications_false_survives_normalization",
+    "jftrade-settings::jftrade_settings$exchange_calendar::tests::explicit_error_notifications_true_keeps_calendar_defaults",
+    "jftrade-settings::jftrade_settings$exchange_calendar::tests::legacy_settings_without_error_notifications_field_default_to_enabled",
+    "jftrade-settings::jftrade_settings$notifications::tests::blank_values_never_match_and_padded_candidates_match_case_insensitively",
+    "jftrade-settings::jftrade_settings$notifications::tests::should_forward_system_notification_covers_disabled_all_custom_and_unknown_modes",
+    "jftrade-store-settings-file::settings_file_contracts$truncated_exchange_calendar_document_is_rejected_at_open",
+    "jftrade-store-settings-file::settings_file_contracts$non_boolean_error_notifications_value_is_rejected_at_open",
+    "jftrade-watchlist::jftrade_watchlist$tests::test_preview_import_rejects_invalid_derived_group_name",
+    "jftrade-watchlist::jftrade_watchlist$tests::test_quote_cache_and_import_helpers_keep_absent_data_explicit",
+    "jftrade-engine::jftrade_engine$product::tests::research_preset_read_tests::invalid_preset_operations_fail_closed_before_the_store_is_touched",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_watchlist::quotes::tests::in_flight_snapshot_does_not_repopulate_the_cache_after_a_provider_switch",
+    "jftrade-engine::jftrade_engine$product::tests::research_preset_read_tests::definition_only_updates_keep_the_stored_name_and_enforce_revision",
+    "jftrade-engine::jftrade_engine$product::tests::research_preset_read_tests::store_failures_surface_as_unavailable_instead_of_silent_success",
+    "jftrade-engine::jftrade_engine$product::tests::research_preset_read_tests::preset_ports_round_trip_create_list_get_and_delete_with_trimmed_ids"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 7,
+      "exec_time": 0.015127209
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 2
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 20,
+      "exec_time": 0.035253208
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 479,
+      "exec_time": 0.022337959
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 5
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 47,
+      "exec_time": 0.052260748
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 2
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 16,
+      "exec_time": 0.034406417
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 2
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 6,
+      "exec_time": 0.020648834
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 5
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1641,
+      "exec_time": 0.607623625
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 1,
+      "measured": 0,
+      "filtered_out": 18446744073709551615,
+      "exec_time": 0
+    }
+  ],
+  "scope": {
+    "module": "small2_legacy",
+    "mappingCount": 18,
+    "rustTestCount": 18
+  }
+}

@@ -1,0 +1,77 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--lib",
+    "--locked",
+    "--message-format",
+    "libtest-json",
+    "-E",
+    "test(calendar_and_macro_propagate_capability_and_busy_errors) or test(calendar_and_macro_reject_unsupported_operations_without_a_helper_call) or test(calendar_and_macro_routes_fail_closed_for_other_providers) or test(calendar_and_macro_routes_reject_unsupported_operations) or test(calendar_operations_map_to_provider_reads_on_the_wire) or test(company_financials_forwards_market_symbol_and_statement) or test(company_research_default_operations_project_on_the_wire) or test(company_research_propagates_capability_and_lifecycle_errors) or test(company_research_rejects_non_default_operations) or test(company_research_rejects_provider_identity_drift) or test(company_research_stays_off_the_helper_for_futu) or test(embedded_screen_accepts_a_map_definition_and_defaults_paging) or test(embedded_screen_maps_capability_and_lifecycle_errors) or test(embedded_screen_projects_rows_and_forwards_the_definition) or test(embedded_screen_rejects_a_futu_catalog_definition) or test(embedded_screen_rejects_shapes_the_helper_cannot_execute) or test(explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback) or test(futu_news_queries_stay_on_the_broker_path) or test(index_constituents_read_forwards_the_normalized_leaf_and_limit) or test(index_constituents_read_rejects_non_cn_indices_without_touching_the_helper) or test(index_constituents_read_requires_akshare_and_a_ready_helper) or test(industry_rejects_unsupported_operations_and_plate_types) or test(macro_operations_map_to_provider_reads_on_the_wire) or test(production_news_actions_port_forwards_corporate_actions_window) or test(production_news_actions_port_forwards_yfinance_news_request) or test(production_news_actions_port_maps_helper_failure_and_rejects_bad_limit) or test(rankings_limit_clamps_to_provider_bounds) or test(rankings_operations_map_to_provider_kinds_on_the_wire) or test(rankings_reject_unmapped_operations_without_a_helper_call)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-29T12:04:38Z",
+  "sourceState": {
+    "verifiedCommit": "2f5de4172a26c6f2f3ddb3df13e326787e82e54b"
+  },
+  "rawOutputSha256": "sha256:51abd6e018b42e2f4f3a8ee2acd76ecb8e53cc80fbc64c4a176cddc17e9a6528",
+  "passedTests": [
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_market_data::product_production_ports_market_data_news_tests::futu_news_queries_stay_on_the_broker_path",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_market_data::product_production_ports_market_data_news_tests::explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_market_index_constituents::tests::index_constituents_read_forwards_the_normalized_leaf_and_limit",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_market_data::product_production_ports_market_data_news_tests::production_news_actions_port_maps_helper_failure_and_rejects_bad_limit",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_market_data::product_production_ports_market_data_news_tests::production_news_actions_port_forwards_yfinance_news_request",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_market_data::product_production_ports_market_data_news_tests::production_news_actions_port_forwards_corporate_actions_window",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_market_index_constituents::tests::index_constituents_read_rejects_non_cn_indices_without_touching_the_helper",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_market_index_constituents::tests::index_constituents_read_requires_akshare_and_a_ready_helper",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_strategy::product_production_ports_research::company::tests::company_research_rejects_non_default_operations",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_strategy::product_production_ports_research::company::tests::company_research_propagates_capability_and_lifecycle_errors",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_strategy::product_production_ports_research::company::tests::company_financials_forwards_market_symbol_and_statement",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_strategy::product_production_ports_research::company::tests::company_research_default_operations_project_on_the_wire",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_strategy::product_production_ports_research::company::tests::company_research_rejects_provider_identity_drift",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_strategy::product_production_ports_research::screen::tests::embedded_screen_accepts_a_map_definition_and_defaults_paging",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_strategy::product_production_ports_research::screen::tests::embedded_screen_rejects_a_futu_catalog_definition",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_strategy::product_production_ports_research::company::tests::company_research_stays_off_the_helper_for_futu",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_strategy::product_production_ports_research::screen::tests::embedded_screen_maps_capability_and_lifecycle_errors",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_strategy::product_production_ports_research_calendar::tests::calendar_and_macro_routes_fail_closed_for_other_providers",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_strategy::product_production_ports_research_calendar::tests::calendar_and_macro_propagate_capability_and_busy_errors",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_strategy::product_production_ports_research::screen::tests::embedded_screen_rejects_shapes_the_helper_cannot_execute",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_strategy::product_production_ports_research_calendar::tests::calendar_and_macro_reject_unsupported_operations_without_a_helper_call",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_strategy::product_production_ports_research_calendar::tests::calendar_and_macro_routes_reject_unsupported_operations",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_strategy::product_production_ports_research_calendar::tests::calendar_operations_map_to_provider_reads_on_the_wire",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_strategy::product_production_ports_research_market::tests::industry_rejects_unsupported_operations_and_plate_types",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_strategy::product_production_ports_research_market::tests::rankings_limit_clamps_to_provider_bounds",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_strategy::product_production_ports_research_calendar::tests::macro_operations_map_to_provider_reads_on_the_wire",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_strategy::product_production_ports_research_market::tests::rankings_operations_map_to_provider_kinds_on_the_wire",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_strategy::product_production_ports_research_market::tests::rankings_reject_unmapped_operations_without_a_helper_call",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_strategy::product_production_ports_research::screen::tests::embedded_screen_projects_rows_and_forwards_the_definition"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 29
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 29,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1617,
+      "exec_time": 0.600437795
+    }
+  ]
+}

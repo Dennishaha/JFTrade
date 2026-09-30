@@ -1,6 +1,7 @@
 use super::*;
 
 #[test]
+// Parity: go:452dea11:pkg/futu/opend/search_quote_test.go:14 TestGetSearchQuoteSendsKeywordAndReturnsCandidates
 fn search_request_preserves_chinese_name_and_requests_full_candidate_window() {
     let request =
         wire::Request::decode(encode_request(" 分众传媒 ", 100).unwrap().as_slice()).unwrap();

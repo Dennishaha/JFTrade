@@ -5101,4 +5101,63 @@ partial 2233 + boundary 529 + module_only 4 + **missing 476**。
 8. **live OpenD**：8 条 live 用例（proto 契约、HKD 双柜台、权限发现、延迟快照、研究目录、
    财报日历、周期声明、期权读闭环）只在显式 live workflow 验证。
 
+## 2026-09-28 P1：empty depth projection strict evidence
+
+复核 `internal/app/apiserver/marketdataapp/market_depth_test.go:306` 的空订单簿断言。Go 要求 nil bid/ask 在 JSON 中保持空数组；Rust `depth_read_returns_empty_arrays_for_empty_s2c_lists` 逐项断言 `bids=[]`、`asks=[]` 且不生成 name。该条与 query/candle、backtest session-scope owner 共用跨 crate receipt，未把 Futu OpenD live suite 当作普通证据。
+
+验证：同批 nextest 5/5 passed（live OpenD 1 ignored）；receipt `sha256:69bae53794658676a710eeda191d4e68b5e70c7f243ee3483c441f7919d75b40`；映射的 assertion coverage、anchor 与 verification 已同步。
+
+## 2026-09-28 P1：search validation strict evidence
+
+`TestBrokerAdapterSecuritySearchRejectsInvalidQueriesBeforeConnecting` 的空 keyword、`limit=0` 与 `limit=101` 均在触达 OpenD 前返回 `MARKET_INSTRUMENT_INVALID`，并断言 search 调用计数为 0。Rust owner `futu_search_rejects_invalid_queries_before_reaching_opend` 已按 Go 断言逐项覆盖。
+
+验证：与 provider facade/search 批次共用 `jftrade-engine` 定向 nextest **5/5 passed**；receipt `sha256:143648491d86b0a5b7e9495ef6dd97bffc10d6797e5bd08e24396b332a94c20e`。live OpenD suite 未纳入本 receipt。
+
+## 2026-09-28 P1：Futu funds/K-line/snapshot boundary strict evidence
+
+复核五条已有 Rust owner 的 P1 exact：币种行优先于账户汇总、US regular 当前桶请求与 bounded-window 重过滤、历史 K 线 session split fallback、账户 push/空 symbol/market rules 回退，以及 security snapshot 非法行与 payload-less ack。Go 多断言按清单拆到 11 个 Rust 测试；其中 snapshot option strikePrice 合并属于 Rust securities DTO 不暴露的模型边界，已保留在 mapping 结论而未扩张 Rust wire。
+
+验证：`jftrade-integration-futu`/`jftrade-engine` 定向 nextest **11/11 passed**，live OpenD suite 保持 ignored；receipt `sha256:9304c9ef4cd2b9a4d36385012db4902c61c41bad326f7472345fdcafc0a3bbf7`（`verification-receipts/p1-futu-boundaries-2026-09-28T064852Z.json`）。五条 mapping 已完成 reviewed assertion、receipt 绑定与 blocker 清理。
+
 验证：`cargo fmt --all -- --check`；`node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-broker --all-targets --locked --no-fail-fast`（**542 passed / 1 skipped**，跳过项为 live 门控）；`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **2927 Rust** / **1209 `[x]`**；missing 476、partial 2233、boundary 529、module_only 4；0 破坏引用、0 重复 rust_entry、未锚定告警 193 = 前批基线、7 条 partial 无解析引用与 2 条无断言为前批已登记缺口）；`pnpm run check:compatibility`（EXIT=0）；`node scripts/check-zero-go.mjs`（2891 tracked files / 0 release artifact）；`pnpm run check:rust:architecture`；`git diff --check`；`pnpm run check:quick`（EXIT=0）；`pnpm run check:ai-context`。
+
+## 2026-09-28 P1：Futu session / market-rules strict evidence
+
+本批复核 5 条已有 `function_exact`：`TestStreamConnectRebuildsClosedCachedOpenDClient`、`TestQueryBrokerMarginRatiosUsesCacheWithinTTL`、`TestCancelOrdersUsesModifyOrderCancel`、`TestMarketRuleFallbacksExplainTheirSourceAndFailures`、`TestQuoteSnapshotPreviousClosePriceInClosedSession`。逐项对照 Go 断言与 Rust owner，补充 session coordinator 锚点；未发现真实功能差异，因此没有生产修复。
+
+定向 nextest **10/10 passed**（`jftrade-integration-futu` 7、`jftrade-engine` 3；live OpenD 1 ignored），receipt：`sha256:b290cd212da3374c17198d541103085cf5a0b71fedc8f0d1271732534f097167`（[`p1-futu-session-market-rules-2026-09-28T071432Z.json`](verification-receipts/p1-futu-session-market-rules-2026-09-28T071432Z.json)）。清单已写入 reviewed assertion、验证收据、空 blocker，并审查撤单/market-rules 共享 Rust 测试的复用关系；strict gap 实际降至 **3546**，整体审计仍未通过。
+## 2026-09-30 Futu transport error propagation strict batch
+
+复核 5 条 transport exact：trade read 各协议断连、quote/K-line/order-book 断连、trade write account/write 断连、响应丢失不重放、closed client subscription 错误透传。Go/Rust 逐条读取断言，联合 `jftrade-integration-futu` + `jftrade-engine` nextest 5/5 passed；receipt `sha256:a0906c826c136f6c21afaaf156d85bc399947b9047e47431aa33fcc242ad4290`（`verification-receipts/futu-transport-reviewed-2026-09-30.json`）。5 条已补 Parity anchor、reviewed assertion 与 passed receipt；strict gap 3385→3378。
+
+## 2026-09-29 cross-domain strict audit checkpoint
+
+本轮行为证据属于 API Server/Transport Wire SSE，不改变 Futu/OpenD 的 transport 结论。全局 `audit_test_parity.py --strict` 已重跑：function_exact evidence gaps 为 **3368**，较上一基线 3378 实际下降；Futu 条目继续按 reviewed assertion、真实 anchor、passed receipt 三项门槛独立收口。
+
+## 2026-09-29 Futu P2 strict evidence batch
+
+三条已有 Futu exact 完成断言复核、正确 provenance anchor 与真实测试收口：`TestConstructorFallsBackToDefaultAddress` 对应默认 OpenD TCP 11110、`TestSubscribeQuotes` 对应 Qot_Sub 订阅/退订 frame、`TestQuoteSnapshotPreviousClosePriceZeroCurPrice` 对应零当前价回退 LastClosePrice。engine/Futu 联合 nextest 3/3 passed；receipt `sha256:c121cb50db0c539b0df79c1bea408c2aaa59111be0295c6b9169b2bc875b30c2`（`verification-receipts/futu-p2-three-reviewed-2026-09-29.json`）。strict gap 3362→3353；anchor 对账 1890/1843/0/47，stale=0。
+
+## 2026-09-29 Futu history seam correction
+
+`TestQueryKLinesKeepsDailyHistoryLabelAsBucketStart` 与 `TestRequestHistoryKL` 已逐项复核：Rust 分别只覆盖日线时间 helper 与 Qot_RequestHistoryKL frame 编解码，缺少 Go 的真实 QueryKLines/RequestHistoryKL client response 投影，因此从 legacy `function_exact` 收窄为 reviewed `partial`，并补准确 Parity anchor 与 2/2 窄测试 receipt `sha256:635332bacd351da3b2c6735ed4f467aa441967d1229b6c2170c5297b2e39f2d3`。strict gap 3347→3341。
+
+## 2026-09-29 Futu business exact correction
+
+`TestBalanceMapFromBrokerFundsFallsBackToMarketCurrencyAndLockedCash` 与 `TestBrokerOrderTypeAndTimeInForceMappingsCoverTradingVariants` 由旧 exact 收窄为 reviewed partial。Rust 当前分别只证明 US→USD 现金行和 OpenD 数字枚举原始标签；Go 的 available/locked/maxWithdrawal/CN/MY 矩阵以及 BBGO 订单类型、FOK/nil/DAY/account-type 目标映射尚未逐项证明。此纠偏不计为新增行为。
+
+## 2026-09-29 P1：snapshot fallback reviewed batch
+
+六条已有 Futu snapshot fallback exact 完成 Go/Rust 断言复核：StockScreen 行与 market 分组投影、输入归一/取消/错误与 clone 隔离、strict delayed quote protobuf 字段、无订阅 static-id 回退、15 秒正/负缓存边界、以及 StockScreen 错误透传。Rust `snapshot_fallback_tests` 的六个行为测试以真实 coordinator/adapter/protobuf owner 承接；没有把仅有测试名或历史结论当作覆盖。
+
+联合 `jftrade-integration-futu` nextest **6/6 passed**（live OpenD suite ignored），receipt `sha256:5d2e8d55218adc5252b1389a258dbf15803b757a9bb05091ccd10b78c56cb8f6`（[`futu-snapshot-fallback-reviewed-2026-09-29.json`](verification-receipts/futu-snapshot-fallback-reviewed-2026-09-29.json)）。六条 mapping 的 `assertionCoverage.source` 已升级为 `reviewed`，verification receipt 与 blocker 已同步清理；strict gap **3323→3312**，整体严格审计仍未通过。
+
+## 2026-09-29 API auth/SSE cross-domain checkpoint
+
+API 侧本轮完成 SSE loop 2 条和 auth middleware 3 条 reviewed evidence；本文件只记录跨域审计结果，Futu snapshot fallback 六条仍保持 receipt `sha256:5d2e8d55218adc5252b1389a258dbf15803b757a9bb05091ccd10b78c56cb8f6`。全局 strict gap 由 3303 降至 **3297**，Futu 未审 exact 与 API 低测试比例继续列为 backlog。
+
+API auth rejection follow-up 又收口 2 条，receipt `sha256:d302cddef14057dec554dd8d48e00892a71e7c5a2e4c565fff7010970fbe800e`；全局 strict gap 由 3297 降至 **3293**。
+
+跨域 checkpoint：API P1 Web/Execution 批次继续完成 3 条 reviewed Web 行为，execution session 保留 route-level partial；receipts 为 `sha256:02d835502c6392862c7678ed3087c19e51198186c265a1583cc181bbac8d5b92`、`sha256:8abeb1dae760d9861b6bd1f5070052482df98eb3047d517386db66084255dce8`，全局 strict gap 降至 **3274**。
+
+API startup rollback follow-up 以 engine 2/2 receipt `sha256:5ff41a57feb4610daf6dfae3a59381aad5bf567d79b1f659a0da8068872fa066` 收口；由于是跨域 production migration 证据，generic Handle seam 保持 partial，全局 strict gap 降至 **3270**。

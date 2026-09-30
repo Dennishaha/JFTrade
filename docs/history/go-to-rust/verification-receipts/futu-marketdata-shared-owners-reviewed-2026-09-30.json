@@ -1,0 +1,40 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "-p",
+    "jftrade-integration-futu",
+    "--all-targets",
+    "--locked",
+    "--no-fail-fast",
+    "-E",
+    "test(embedded_research_facade_serves_exactly_the_allowed_feature_set) or test(batch_snapshots_reject_unsupported_markets_and_oversized_requests) or test(basic_quote_query_returns_an_empty_list_when_the_success_s2c_is_absent) or test(product_and_calendar_variants_match_go_projection)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-30T00:00:00Z",
+  "sourceState": {
+    "verifiedCommit": "2f5de4172a26c6f2f3ddb3df13e326787e82e54b"
+  },
+  "rawOutputSha256": "sha256:d6d7efaaf8bab7719f70c1000de9044374b303b4b8d543a6526a1f8d7be557e7",
+  "passedTests": [
+    "jftrade-engine::owner-tests-2",
+    "jftrade-integration-futu::owner-tests-2"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "summary": {
+    "testsRun": 4,
+    "testsPassed": 4,
+    "testsFailed": 0,
+    "testsSkipped": 2551,
+    "relationsReviewed": 4,
+    "functionExactReferencesReleased": 12
+  }
+}

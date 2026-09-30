@@ -126,6 +126,7 @@ fn generated_instance_ids_use_the_definition_prefix_or_the_pine_runtime_default(
 }
 
 #[test]
+// Parity: go:452dea11:internal/assistant/assembly/application_strategy_lifecycle_test.go:84 TestApplicationAdapterStrategyInstanceLifecyclePorts
 fn instantiate_persists_the_same_normalized_binding_as_runtime_update() {
     let dir = tempdir().expect("tempdir");
     let db_path = dir.path().join("strategy-instantiate.db");

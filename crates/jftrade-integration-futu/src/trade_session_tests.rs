@@ -67,6 +67,7 @@ fn account_list_call_uses_protocol_serial_and_typed_response() {
 }
 
 #[test]
+// Parity: go:452dea11:pkg/futu/exchange_test.go:729 TestQueryBrokerCashFlowsReturnsFlowSummary
 fn cash_flow_read_encodes_header_and_projects_neutral_snapshot() {
     let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
     let address = listener.local_addr().expect("address");
@@ -224,6 +225,7 @@ fn calls_after_session_close_surface_closed_error() {
 }
 
 #[test]
+// Parity: go:452dea11:pkg/futu/opend/trading_methods_test.go:182 TestHistoryOrderReadersPreserveFiltersAndEmptyResponses
 fn history_order_call_uses_history_protocol_and_forwards_filters() {
     let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
     let address = listener.local_addr().expect("address");
@@ -528,6 +530,7 @@ fn place_request(price: f64) -> TradePlaceOrderRequest {
 }
 
 #[test]
+// Parity: go:452dea11:internal/app/apiserver/servercoretest/exec_validate_test.go:153 TestExecutionOrderRoutesAcceptExplicitCodeWithMarket
 fn place_order_encodes_packet_conn_id_and_projects_server_order_identity() {
     // Parity: go:452dea11:pkg/futu/opend/trading_methods_test.go:83 TestPlaceOrderAndModifyOrderEncodeTradeWrites
     let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
@@ -580,6 +583,9 @@ fn place_order_encodes_packet_conn_id_and_projects_server_order_identity() {
 }
 
 #[test]
+// Parity: go:452dea11:internal/app/apiserver/servercoretest/exec_validate_test.go:18 TestExecutionOrderRoutesNormalizeUSPricePrecision
+// Parity: go:452dea11:internal/app/apiserver/servercoretest/exec_validate_test.go:88 TestExecutionOrderRoutesPropagateUSSessionSelection
+// Parity: go:452dea11:pkg/futu/exchange_trade_price_test.go:75 TestPlaceOrderRequestFromSubmitOrderNormalizesUSPriceAndFlags
 fn place_order_rounds_us_prices_to_the_venue_tick_before_encoding() {
     // Parity: go:452dea11:pkg/futu/exchange_trade_price_test.go:25 and
     // go:452dea11:pkg/futu/exchange_trade_write.go:177
@@ -1075,6 +1081,7 @@ fn trading_reads_reject_a_disconnected_session() {
 }
 
 #[test]
+// Parity: go:452dea11:pkg/futu/exchange_quote_request_boundaries_test.go:16 TestExchangeAccountPushMarketWarningAndEmptySymbolBoundaries
 fn subscribe_trade_accounts_propagates_opend_rejection() {
     // Parity: go:452dea11:pkg/futu/opend/trading_methods_test.go:334 TestSubscribeAccountPushPropagatesTradeErrors
     let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
@@ -1958,6 +1965,7 @@ fn margin_ratio_wire_throttling_reaches_the_typed_rate_limit_variant() {
     server.join().expect("server");
 }
 
+// Parity: go:452dea11:pkg/futu/trade_margin_ratio_boundaries_test.go:150 TestMarginRatioUncachedRecoveryAndConversionBoundaries
 #[test]
 fn margin_ratio_unknown_stock_code_extraction_matches_go_boundaries() {
     // Parity: go:452dea11:pkg/futu/trade_margin_ratio_boundaries_test.go:13
@@ -2701,6 +2709,7 @@ fn combo_place_request() -> TradePlaceComboOrderRequest {
 }
 
 #[test]
+// Parity: go:452dea11:pkg/futu/opend/advanced_combo_protocol_test.go:52 TestCallAdvancedSuccessEnvelopeAndAllErrorBoundaries
 fn combo_trading_client_response_shapes() {
     // Parity: go:452dea11:pkg/futu/opend/advanced_combo_protocol_test.go:132
     // TestComboTradingClientResponseShapes. Go asserts the empty-response

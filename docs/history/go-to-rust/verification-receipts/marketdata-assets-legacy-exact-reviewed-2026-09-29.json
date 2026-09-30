@@ -1,0 +1,75 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-watchlist",
+    "-p",
+    "jftrade-integration-marketdata-helper",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json",
+    "--no-fail-fast",
+    "-E",
+    "test(test_normalize_instrument_id_rejects_incomplete_values) or test(rejects_a_bundle_whose_bytes_no_longer_match_the_digest) or test(rejects_escaping_asset_names_before_writing) or test(reuses_a_published_asset_without_rewriting_it)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-29T16:05:00Z",
+  "sourceState": {
+    "verifiedCommit": "2f5de4172a26c6f2f3ddb3df13e326787e82e54b"
+  },
+  "rawOutputSha256": "sha256:7e307064cd641c432bddba1bd8b3426522f8821d6e5cfbac759af8c1ccbbcf88",
+  "passedTests": [
+    "jftrade-watchlist::jftrade_watchlist$tests::test_normalize_instrument_id_rejects_incomplete_values",
+    "jftrade-integration-marketdata-helper::jftrade_integration_marketdata_helper$asset::tests::rejects_a_bundle_whose_bytes_no_longer_match_the_digest",
+    "jftrade-integration-marketdata-helper::jftrade_integration_marketdata_helper$asset::tests::rejects_escaping_asset_names_before_writing",
+    "jftrade-integration-marketdata-helper::jftrade_integration_marketdata_helper$asset::tests::reuses_a_published_asset_without_rewriting_it"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 7,
+      "exec_time": 0.009544833
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 3
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 23,
+      "exec_time": 0.055614208
+    }
+  ],
+  "scope": {
+    "module": "marketdata-assets",
+    "mappingCount": 4,
+    "rustTestCount": 4
+  }
+}

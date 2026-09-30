@@ -1,0 +1,38 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "node", "scripts/quality/cargo-nextest.mjs", "run", "--workspace", "--all-targets", "--locked",
+    "-E", "test(sync_request_plans_intervals_like_go) or test(kill_switch_and_hard_stop_survive_a_restart_with_rejection_audit) or test(production_system_read_defaults_opend_health_to_the_unavailable_reason) or test(single_preview_hash_binds_client_order_id) or test(test_normalize_execution_order_preserves_broker_abstraction) or test(test_normalize_execution_order_rejects_invalid_instrument) or test(test_normalize_execution_order_supports_extended_us_limit_sessions) or test(combo_place_rejects_invalid_legs_accounts_and_hidden_transport_failures) or test(option_combo_preview_place_and_cancel_keep_server_identity) or test(helper_market_data_providers_project_futu_broker_and_portfolio_routes) or test(news_route_serves_an_explicit_broker_id_for_the_active_provider) or test(earnings_calendar_route_maps_frontend_keys) or test(corporate_action_projection_formats_statements) or test(broker_read_query_normalization_and_account_priority_match_go) or test(system_status_reports_the_persisted_default_trading_environment) or test(candle_adjustment_maps_to_the_opend_rehab_enum) or test(subscription_normalization_matches_the_go_table) or test(market_rules_use_security_info_lot_size_without_warnings) or test(order_book_registry_reset_clears_marks_for_a_replacement_connection) or test(test_neutral_notification_builders_handle_nil_and_status_transitions)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-30T00:00:00Z",
+  "sourceState": {"verifiedCommit": "2f5de4172a26c6f2f3ddb3df13e326787e82e54b"},
+  "rawOutputSha256": "sha256:5e63078e658a06423b3c1b0453baeb53f72de24a2e26a4da3faea60c003c084c",
+  "passedTests": [
+    "jftrade-engine::product::product_production_ports::sync_start_tests::sync_request_plans_intervals_like_go",
+    "jftrade-engine::product::product_execution_risk_coordinator::tests::kill_switch_and_hard_stop_survive_a_restart_with_rejection_audit",
+    "jftrade-engine::product::product_production_ports::product_production_assembly_tests::production_system_read_defaults_opend_health_to_the_unavailable_reason",
+    "jftrade-engine::product::product_production_ports::product_production_ports_execution_orders::execution_order_validation_tests::single_preview_hash_binds_client_order_id",
+    "jftrade-engine::product::product_production_ports::product_production_ports_execution_orders::execution_order_validation_tests::test_normalize_execution_order_preserves_broker_abstraction",
+    "jftrade-engine::product::product_production_ports::product_production_ports_execution_orders::execution_order_validation_tests::test_normalize_execution_order_rejects_invalid_instrument",
+    "jftrade-engine::product::product_production_ports::product_production_ports_execution_orders::execution_order_validation_tests::test_normalize_execution_order_supports_extended_us_limit_sessions",
+    "jftrade-engine::product::product_production_ports::product_production_ports_execution_orders::execution_preview_tests::combo_place_rejects_invalid_legs_accounts_and_hidden_transport_failures",
+    "jftrade-engine::product::product_production_ports::product_production_ports_execution_orders::execution_preview_tests::option_combo_preview_place_and_cancel_keep_server_identity",
+    "jftrade-engine::product::product_production_ports::execution_reconciliation::provider_projection_tests::helper_market_data_providers_project_futu_broker_and_portfolio_routes",
+    "jftrade-engine::product::product_production_ports::product_production_ports_market_data_news_tests::news_route_serves_an_explicit_broker_id_for_the_active_provider",
+    "jftrade-engine::product::product_research_screen_write_port::research_calendar::earnings_calendar_route_maps_frontend_keys",
+    "jftrade-engine::product::product_research_screen_write_port::research_company::corporate_action_projection_formats_statements",
+    "jftrade-engine::product::product_production_ports::product_production_ports_trade::tests::broker_read_query_normalization_and_account_priority_match_go",
+    "jftrade-engine::product::product_system_control_read_tests::system_status_reports_the_persisted_default_trading_environment",
+    "jftrade-engine::product::product_trade_runtime_projection::product_trade_runtime_broker_routes::tests::candle_adjustment_maps_to_the_opend_rehab_enum",
+    "jftrade-engine::product::product_ws_live_projection_tests::tests::subscription_normalization_matches_the_go_table",
+    "jftrade-integration-futu::market_rules_query::tests::market_rules_use_security_info_lot_size_without_warnings",
+    "jftrade-integration-futu::subscriptions::tests::order_book_registry_reset_clears_marks_for_a_replacement_connection",
+    "jftrade-integration-futu::futu_notifications_parity::test_neutral_notification_builders_handle_nil_and_status_transitions"
+  ],
+  "failedTests": [], "ignoredTests": [],
+  "summary": {"testsRun": 20, "testsPassed": 20, "testsFailed": 0, "testsSkipped": 3521, "relationsReviewed": 20, "functionExactReferencesReleased": 20}
+}

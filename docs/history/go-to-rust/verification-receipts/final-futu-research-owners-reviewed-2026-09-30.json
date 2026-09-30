@@ -1,0 +1,27 @@
+{
+  "schemaVersion":"jftrade.go-rust-parity-receipt.v1",
+  "command":["node","scripts/quality/cargo-nextest.mjs","run","--workspace","--all-targets","--locked","-E","test(test_live_notification_from_response_routes_protocol_payloads_to_neutral_categories) or test(entitlement_query_runs_once_per_connection) or test(order_book_levels_project_price_volume_count_and_details) or test(futu_search_distinguishes_no_match_unsupported_market_and_runtime_failure) or test(history_fill_read_projects_fill_identity) or test(closed_session_rejects_connect_like_rpcs_before_touching_the_transport) or test(security_snapshot_coordinator_rejects_invalid_and_unavailable_inputs) or test(provider_company_profile_projection_maps_frontend_keys) or test(provider_financial_statements_projection_maps_frontend_keys) or test(provider_analyst_consensus_projection_maps_frontend_keys) or test(provider_ownership_projection_maps_frontend_keys)"],
+  "runnerVersion":"cargo-nextest 0.9.143",
+  "toolchain":"rustc 1.97.1 (2026-07-14)",
+  "exitCode":0,
+  "status":"passed",
+  "verifiedAt":"2026-09-30T00:00:00Z",
+  "sourceState":{"verifiedCommit":"2f5de4172a26c6f2f3ddb3df13e326787e82e54b"},
+  "rawOutputSha256":"sha256:400c22b7ae211ed0eb4cd8c490347c8dcd808d4bb8b19b7b4e39710513d17061",
+  "passedTests":[
+    "jftrade-engine::product::product_production_ports::product_production_ports_strategy::product_production_ports_research::company::tests::provider_analyst_consensus_projection_maps_frontend_keys",
+    "jftrade-engine::product::product_production_ports::product_production_ports_strategy::product_production_ports_research::company::tests::provider_financial_statements_projection_maps_frontend_keys",
+    "jftrade-engine::product::product_production_ports::product_production_ports_strategy::product_production_ports_research::company::tests::provider_company_profile_projection_maps_frontend_keys",
+    "jftrade-engine::product::product_production_ports::product_production_ports_strategy::product_production_ports_research::company::tests::provider_ownership_projection_maps_frontend_keys",
+    "jftrade-integration-futu::managed_session::tests::closed_session_rejects_connect_like_rpcs_before_touching_the_transport",
+    "jftrade-integration-futu::futu_notifications_parity::test_live_notification_from_response_routes_protocol_payloads_to_neutral_categories",
+    "jftrade-integration-futu::open_d_quote_rights::tests::entitlement_query_runs_once_per_connection",
+    "jftrade-integration-futu::security_snapshot_coordinator::tests::security_snapshot_coordinator_rejects_invalid_and_unavailable_inputs",
+    "jftrade-integration-futu::market_microstructure_query::tests::order_book_levels_project_price_volume_count_and_details",
+    "jftrade-integration-futu::trade_session::tests::history_fill_read_projects_fill_identity",
+    "jftrade-engine::product::product_production_ports::product_production_ports_market_data::product_production_ports_market_data_catalog::tests::futu_search_distinguishes_no_match_unsupported_market_and_runtime_failure"
+  ],
+  "failedTests":[],
+  "ignoredTests":[],
+  "summary":{"testsRun":11,"testsPassed":11,"testsFailed":0,"testsSkipped":3530,"relationsReviewed":11,"functionExactReferencesReleased":11}
+}

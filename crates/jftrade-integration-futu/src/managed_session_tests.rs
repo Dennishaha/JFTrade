@@ -136,6 +136,7 @@ fn rpc_waiter_survives_unsolicited_push_before_response() {
 }
 
 #[test]
+// Parity: go:452dea11:pkg/futu/opend/client_test.go:405 TestCallIgnoresMismatchedProtoOnSameSerial
 fn same_serial_with_wrong_protocol_is_unsolicited_until_exact_response_arrives() {
     let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
     let address = listener.local_addr().expect("listener address");
@@ -171,6 +172,7 @@ fn same_serial_with_wrong_protocol_is_unsolicited_until_exact_response_arrives()
 }
 
 #[test]
+// Parity: go:452dea11:pkg/futu/opend/client_test.go:181 TestCallRoundTrip
 fn concurrent_rpc_responses_are_routed_by_protocol_and_serial() {
     let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
     let address = listener.local_addr().expect("listener address");
@@ -250,6 +252,7 @@ fn peer_eof_fans_out_to_pending_call_and_closed_event() {
 }
 
 #[test]
+// Parity: go:452dea11:pkg/futu/opend/client_test.go:206 TestRequestTimeout
 fn response_after_request_timeout_is_not_delivered_to_a_stale_waiter() {
     let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
     let address = listener.local_addr().expect("listener address");

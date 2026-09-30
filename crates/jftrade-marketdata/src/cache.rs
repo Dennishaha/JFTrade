@@ -294,6 +294,7 @@ mod tests {
     use super::*;
 
     #[test]
+    // Parity: go:452dea11:internal/app/apiserver/marketdataapp/data_plane_switch_test.go:40 TestApplyProviderSettingsPreservesAtomicQuoteCacheOnFailure
     fn cache_rejects_stale_generation_and_classifies_freshness() {
         let mut cache = TickCache::new(2);
         let tick = Tick {

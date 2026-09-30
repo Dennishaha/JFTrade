@@ -333,6 +333,7 @@ async fn backtests_write_product_replays_browser_boundary_failure_recovery_and_r
 }
 
 #[tokio::test]
+// Parity: go:452dea11:internal/api/backtest/routes_progress_test.go:71 TestSyncProgressAndCancelRoutesHandleSuccessAndNotFound
 async fn backtests_sqlite_test_cutover_replays_transport_and_restart() {
     let directory = tempdir().expect("temporary directory");
     let settings_path = directory.path().join("settings.json");

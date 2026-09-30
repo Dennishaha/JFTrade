@@ -376,6 +376,32 @@ fn system_write_validator_boundaries_keep_go_non_positive_rejection_and_missing_
     );
     assert_eq!(missing_hard_stop_id.status, 404);
     assert_eq!(missing_hard_stop_id.body["error"]["code"], "NOT_FOUND");
+
+    let port = FixturePort {
+        responses: Mutex::new(VecDeque::new()),
+        calls: Mutex::new(Vec::new()),
+    };
+    for encoded_id in ["%20", "%20%20", "%09"] {
+        let response = dispatch_system_write(
+            &SystemWriteRequest {
+                method: "POST".to_owned(),
+                path: format!("/api/v1/system/real-trade-hard-stops/{encoded_id}/release"),
+                body: Vec::new(),
+            },
+            Some(&port),
+            FIXTURE_TIMESTAMP,
+        );
+        assert_eq!(response.status, 400, "{encoded_id}");
+        assert_eq!(response.body["error"]["code"], "BAD_REQUEST");
+        assert_eq!(
+            response.body["error"]["message"],
+            "hard stop id is required"
+        );
+    }
+    assert!(
+        port.calls().is_empty(),
+        "blank ids cannot release a hard stop"
+    );
 }
 
 // Parity: go:452dea11:internal/api/system/routes_test.go:121 TestRealTradeReleaseRoutesRejectMalformedOptionalPayloadBeforeStateChange

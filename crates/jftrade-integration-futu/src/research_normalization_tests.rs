@@ -7,6 +7,7 @@ use crate::research_params::{
 use serde_json::{Map, json};
 
 #[test]
+// Parity: go:452dea11:pkg/futu/adapter_research_normalization_boundaries_test.go:178 TestResearchNormalizationCoversAlternateWireShapes
 fn alternate_wire_shapes_keep_scalars_and_add_aliases() {
     // Parity: go:pkg/futu/adapter_research_normalization_boundaries_test.go:178
     let payload = json!({
@@ -33,6 +34,8 @@ fn alternate_wire_shapes_keep_scalars_and_add_aliases() {
 }
 
 #[test]
+// Parity: go:452dea11:pkg/futu/adapter_research_normalization_boundaries_test.go:208 TestResearchNormalizationCoversProductAndCalendarVariants
+// Parity: go:452dea11:pkg/futu/advanced_product_adapter_contracts_test.go:336 TestFutuSnapshotProductExtensionsAndSecurityTypeMapping
 fn product_and_calendar_variants_match_go_projection() {
     // Parity: go:pkg/futu/adapter_research_normalization_boundaries_test.go:208
     for (value, want) in [

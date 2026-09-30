@@ -162,6 +162,7 @@ mod tests {
     use super::*;
 
     #[test]
+    // Parity: go:452dea11:internal/pineworkerassets/assets_release_test.go:13 TestSelectReturnsEmbeddedBundleWhenStaged
     fn accepts_exact_resources_and_rejects_tampering() {
         let directory = tempfile::tempdir().expect("temporary directory");
         let resource = directory.path().join("runtime/node/node");
@@ -203,6 +204,7 @@ mod tests {
     }
 
     #[test]
+    // Parity: go:452dea11:internal/pineworkerassets/asset_selection_boundaries_test.go:52 TestSelectFromFSReturnsUnexpectedReadError
     fn rejects_missing_staged_resource_instead_of_serving_without_it() {
         let directory = tempfile::tempdir().expect("temporary directory");
         let manifest_directory = directory.path().join("runtime/node");

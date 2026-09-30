@@ -3301,6 +3301,14 @@ Go 这两条把 workflow bridge 钉在两件事上：manager 的 CRUD/分页/run
 - 下一批（第七十九批）范围：按域余量排序的下一块 **`pkg/strategy` 333 条**——先按文件分组 recon（`pkg/strategy/*` 与 `pkg/strategy/pine*` 等），再按 P0（策略实例/定义写入所有权、运行期状态与取消）→ P1（Pine 编译/校验、回测分页与超时）→ P2 顺序分片。其后：`pkg/backtest` 237、`internal/store` 206、`internal/api` 180、`internal/strategy` 169、`pkg/bbgo` 145、`internal/integration` 141、`internal/marketdata` 112、`pkg/futu` 86、`internal/trading` 80，直至 4451 条清单全部完成。
 
 验证：`cargo fmt --all -- --check`、`cargo clippy -p jftrade-engine -p jftrade-assistant -p jftrade-store-sqlite --all-targets --locked`、`node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-assistant -p jftrade-store-sqlite --all-targets --locked --no-fail-fast`（**1930 passed / 0 skipped**）、`python3 scripts/compatibility/audit_test_parity.py`（4451 Go / **2925 Rust** / **1196 `[x]`**；missing 2085、partial 846、boundary 320、module_only 4；0 破坏引用、0 重复 rust_entry、未锚定告警 193 = 前批基线，7 条 partial 无解析引用为前批已登记缺口）、`pnpm run check:compatibility`、`node scripts/check-zero-go.mjs`（2888 tracked files / 0 release artifact）、`pnpm run check:rust:architecture`、`git diff --check`、`pnpm run check:quick`。
+
+## 2026-09-28 P1：workflow CRUD 分页与标签归一化
+
+针对 `internal/assistant/workflow_crud_test.go:14:TestWorkflowResourceCrudPaginationAndLogs`，先红后修补齐四个可迁移行为：workflow `tags` 现在 trim、去空、去重并排序；ADK 列表请求的 `limit=200` 统一收敛到 100；workflow trigger logs 默认 limit 从 100 改为 20；空 type/title/status 的手动 trigger 回退为 `manual`/`手动触发`/`ERROR` 且列表投影不暴露 `secretHash`。新增 `workflow_resource_crud_normalizes_tags_and_pagination_defaults` 回归，修复后与 workflow bridge/软删除 owner 测试合计 nextest 3/3 通过，receipt 为 `sha256:98e9c06f94e261d4b0c53c0a7141ab81d861de627f5435ea45c07550092bee09`（[`p1-workflow-pagination-2026-09-28T081500Z.json`](verification-receipts/p1-workflow-pagination-2026-09-28T081500Z.json)）。
+
+## 2026-09-28 P1：workflow CRUD 删除 wire 与日志过滤
+
+对同一 Go 测试继续逐断言核对：先红确认 `workflow-trigger-logs` 忽略 `workflowId`/`triggerId`/`status` 过滤，随后在生产 read owner 按过滤条件缩小集合再分页；新增 workflow 更新后的 `status/name/workMode/tags` 与负 offset 归一断言；删除 workflow/trigger 逐字段确认 `DISABLED`、`deletedAt`、重复删除失败以及删除后单条 workflow 读取失败；补齐 schedule 非法 cron 与 market-threshold 缺 numeric value 的 400 分支。定向 engine nextest 3/3 通过，receipt 为 `sha256:1a5f94840bd784348b30d979083cac9e64b2bee2be0a9bdb7b7bef961d1cb4df`（[`p1-workflow-crud-filter-delete-2026-09-28T090634Z.json`](verification-receipts/p1-workflow-crud-filter-delete-2026-09-28T090634Z.json)）。映射继续保持 `partial`：webhook/manual 运行错误矩阵与完整删除 wire 仍需更多逐字段证据，未机械升级 exact。
 ## 2026-09-26 provider probe completion
 
 本节更新第七十八批的历史 follow-up：当时登记为 P1 的 provider 工具探测回写缺口现已由真实生产端口与 loopback provider 回归关闭；此前批次中关于 ProbeProvider quick/full 未实现的表述仅保留为历史状态。

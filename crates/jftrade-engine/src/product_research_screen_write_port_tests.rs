@@ -131,6 +131,7 @@ impl ResearchScreenWritePort for UnreachablePort {
 }
 
 #[test]
+// Parity: go:452dea11:pkg/futu/adapter_stock_screen_test.go:105 TestTranslateResearchScreenParamsValidatesStableKeysAndMarket
 fn research_screen_definition_rejects_unsupported_market_and_stable_keys() {
     for (body, expected) in [
         (

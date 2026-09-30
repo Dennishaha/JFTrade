@@ -1,0 +1,41 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "-p",
+    "jftrade-store-sqlite",
+    "--all-targets",
+    "--locked",
+    "--no-fail-fast",
+    "-E",
+    "test(a_resumed_approval_run_completes_with_the_confirmation_resolved_state) or test(provider_list_normalizes_default_selection_and_orders_default_first) or test(an_approval_resuming_run_is_recovered_after_a_runtime_restart)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-29T15:44:52Z",
+  "sourceState": {
+    "verifiedCommit": "2f5de4172a26c6f2f3ddb3df13e326787e82e54b"
+  },
+  "rawOutputSha256": "sha256:417ec00c82bc1eef7a034b7173869f119902ce19d040c12de8fdcebae14eb524",
+  "passedTests": [
+    "jftrade-store-sqlite::adk_store_contracts::provider_list_normalizes_default_selection_and_orders_default_first",
+    "jftrade-engine::product::tool_failure_tests::a_resumed_approval_run_completes_with_the_confirmation_resolved_state",
+    "jftrade-engine::product::lifecycle_tests::an_approval_resuming_run_is_recovered_after_a_runtime_restart"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "summary": {
+    "testsRun": 3,
+    "testsPassed": 3,
+    "testsFailed": 0,
+    "testsSkipped": 2197,
+    "relationsReviewed": 3,
+    "functionExactReferencesReleased": 6
+  }
+}

@@ -1,0 +1,162 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "--workspace",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json",
+    "-E",
+    "test(akshare_sync_rejects_history_beyond_the_intraday_lookback_window) or test(auth_manager_login_validate_and_logout_flow) or test(blank_account_id_is_rejected_before_persistence) or test(combo_preview_hash_binds_client_order_id) or test(command_error_summary_keeps_output_tail_within_wire_budget) or test(create_account_clears_client_owned_identity_and_timestamps) or test(dynamic_origin_allowlist_tracks_the_current_web_port) or test(log_reader_matches_go_filter_paging_and_day_order) or test(market_data_runtime_projection_matches_go_status_corpus) or test(native_runtime_events_append_to_the_existing_daily_log_contract) or test(node_version_parser_matches_go_compatibility_rules) or test(probe_from_global_state_enforces_minimum_version_and_maps_neutral_state) or test(product_runtime_without_optional_workers_starts_and_stops_cleanly) or test(product_server_persists_ui_settings_and_reports_actual_port) or test(production_adk_and_plugin_and_alert_ports) or test(production_opend_health_diagnoses_enabled_but_unreachable_opend) or test(production_sync_rejects_provider_capability_before_queuing) or test(production_system_read_reports_unavailable_opend_without_fake_health) or test(readiness_failure_reclaims_every_started_process_without_starting_dependents) or test(required_asset_does_not_fallback_for_missing_static_asset) or test(startup_applies_a_pending_rebuild_only_to_the_selected_databases) or test(startup_keeps_the_marker_when_a_selected_database_cannot_be_deleted) or test(strategy_runtime_projection_matches_go_status_corpus) or test(system_status_live_projection_uses_shared_transport_metrics) or test(tcp_probe_maps_login_global_state_and_market_readiness)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-29T12:19:11Z",
+  "sourceState": {
+    "verifiedCommit": "2f5de4172a26c6f2f3ddb3df13e326787e82e54b"
+  },
+  "rawOutputSha256": "sha256:848b85e4751fa1f1c3addb93b9188624f8de95c12413857c5f367ea7ad4be9e7",
+  "passedTests": [
+    "jftrade-desktop::desktop_contracts$readiness_failure_reclaims_every_started_process_without_starting_dependents",
+    "jftrade-desktop::jftrade_desktop$native::tests::required_asset_does_not_fallback_for_missing_static_asset",
+    "jftrade-desktop::jftrade_desktop$native::tests::native_runtime_events_append_to_the_existing_daily_log_contract",
+    "jftrade-desktop::jftrade_desktop$native::tests::log_reader_matches_go_filter_paging_and_day_order",
+    "jftrade-integration-futu::jftrade_integration_futu$health::tests::tcp_probe_maps_login_global_state_and_market_readiness",
+    "jftrade-integration-futu::jftrade_integration_futu$probe::tests::probe_from_global_state_enforces_minimum_version_and_maps_neutral_state",
+    "jftrade-settings::managed_account_validation$blank_account_id_is_rejected_before_persistence",
+    "jftrade-settings::managed_account_validation$create_account_clears_client_owned_identity_and_timestamps",
+    "jftrade-engine::jftrade_engine$product::product_market_data_runtime_status::tests::market_data_runtime_projection_matches_go_status_corpus",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_execution::product_production_ports_execution_orders::execution_order_validation_tests::combo_preview_hash_binds_client_order_id",
+    "jftrade-engine::jftrade_engine$product::product_strategy_runtime_status::tests::strategy_runtime_projection_matches_go_status_corpus",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_execution::sync_start_tests::akshare_sync_rejects_history_beyond_the_intraday_lookback_window",
+    "jftrade-engine::jftrade_engine$product::product_server_tests::dynamic_origin_allowlist_tracks_the_current_web_port",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_execution::sync_start_tests::production_sync_rejects_provider_capability_before_queuing",
+    "jftrade-engine::jftrade_engine$product::tests::system_control_read_tests::system_status_live_projection_uses_shared_transport_metrics",
+    "jftrade-engine::jftrade_engine$product::tests::production_assembly_tests::product_production_assembly_tests::production_adk_and_plugin_and_alert_ports",
+    "jftrade-engine::jftrade_engine$product::tests::production_assembly_tests::product_production_assembly_tests::production_system_read_reports_unavailable_opend_without_fake_health",
+    "jftrade-engine::jftrade_engine$product::tests::production_assembly_tests::product_production_assembly_tests::production_opend_health_diagnoses_enabled_but_unreachable_opend",
+    "jftrade-engine::jftrade_engine$runtime_dependencies::tests::command_error_summary_keeps_output_tail_within_wire_budget",
+    "jftrade-engine::jftrade_engine$runtime_dependencies::tests::node_version_parser_matches_go_compatibility_rules",
+    "jftrade-engine::jftrade_engine$product_data_management::tests::pending_rebuild_tests::startup_keeps_the_marker_when_a_selected_database_cannot_be_deleted",
+    "jftrade-engine::jftrade_engine$product_data_management::tests::pending_rebuild_tests::startup_applies_a_pending_rebuild_only_to_the_selected_databases",
+    "jftrade-engine::jftrade_engine$product_runtime::product_runtime_tests::product_runtime_without_optional_workers_starts_and_stops_cleanly",
+    "jftrade-engine::jftrade_engine$product::product_auth_session_manager::tests::auth_manager_login_validate_and_logout_flow",
+    "jftrade-engine::jftrade_engine$product::tests::product_server_persists_ui_settings_and_reports_actual_port"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 7,
+      "exec_time": 0.016009959
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 3
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 19,
+      "exec_time": 0.061159583
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 2
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 478,
+      "exec_time": 0.052183667
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 2
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1,
+      "exec_time": 0.018778751
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 17
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 17,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1629,
+      "exec_time": 13.693174044
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 1,
+      "measured": 0,
+      "filtered_out": 18446744073709551615,
+      "exec_time": 0
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 1,
+      "measured": 0,
+      "filtered_out": 18446744073709551615,
+      "exec_time": 0
+    }
+  ]
+}

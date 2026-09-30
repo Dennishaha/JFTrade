@@ -336,6 +336,7 @@ async fn runtime_dependencies_use_the_normalized_settings_node_candidate() {
 // Parity: go:452dea11:internal/app/apiserver/servercoretest/system_routes_test.go:12 TestSystemStatusEndpointReturnsStatus
 // Parity: go:452dea11:internal/api/system/status_mapper_test.go:11 TestSystemStatusTransportMapperPreservesDomainJSON
 #[tokio::test]
+// Parity: go:452dea11:internal/assistant/assembly/application_adapter_boundaries_test.go:71 TestApplicationAdapterUsesConfiguredRuntimeAndSettings
 async fn system_status_matches_go_stable_fields_without_claiming_migration_ownership() {
     let directory = tempdir().expect("temporary directory");
     let settings_path = directory.path().join("settings.json");

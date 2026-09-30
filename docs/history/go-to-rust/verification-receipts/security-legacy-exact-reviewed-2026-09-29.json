@@ -1,0 +1,58 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-settings",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json",
+    "--no-fail-fast",
+    "-E",
+    "test(produced_verifier_hides_the_password_and_only_accepts_the_matching_secret) or test(parameters_outside_go_bounds_are_rejected_before_argon2_runs) or test(go_bounded_parameters_keep_verifying_after_migration) or test(malformed_verifiers_are_rejected_without_a_verification_result)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-29T16:14:00Z",
+  "sourceState": {
+    "verifiedCommit": "2f5de4172a26c6f2f3ddb3df13e326787e82e54b"
+  },
+  "rawOutputSha256": "sha256:37f123fb6d929139732d328c486be65416b8e015eee555726339d85674431589",
+  "passedTests": [
+    "jftrade-settings::jftrade_settings$password_hash::tests::parameters_outside_go_bounds_are_rejected_before_argon2_runs",
+    "jftrade-settings::jftrade_settings$password_hash::tests::malformed_verifiers_are_rejected_without_a_verification_result",
+    "jftrade-settings::jftrade_settings$password_hash::tests::go_bounded_parameters_keep_verifying_after_migration",
+    "jftrade-settings::jftrade_settings$password_hash::tests::produced_verifier_hides_the_password_and_only_accepts_the_matching_secret"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 4
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 48,
+      "exec_time": 4.293133458
+    }
+  ],
+  "scope": {
+    "module": "security",
+    "mappingCount": 3,
+    "rustTestCount": 4
+  }
+}

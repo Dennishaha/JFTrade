@@ -167,6 +167,7 @@ fn prediction_request(
 }
 
 #[test]
+// Parity: go:452dea11:internal/productfeatures/service_test.go:99 TestPredictionSubscriptionLeasesReferenceCountVisibleContracts
 fn prediction_subscription_uses_reference_counted_leases() {
     let active = Arc::new(ActiveProviderState::new(Some(MarketDataProvider::Futu)));
     active.set_readiness(false, true, false);
@@ -268,6 +269,7 @@ fn prediction_subscription_rejects_an_ineligible_account_before_subscribing() {
 
     // Parity: go:452dea11:internal/app/apiserver/strategyapp/runtime_ports_test.go:137 TestMarketDataHealthReturnsActiveProviderHealth
 #[test]
+// Parity: go:452dea11:internal/productfeatures/service_test.go:210 TestProductFeatureServiceFailureBoundaries
 fn prediction_subscription_rejects_invalid_types_and_unready_provider() {
     let active = Arc::new(ActiveProviderState::new(Some(MarketDataProvider::Futu)));
     active.set_readiness(false, false, false);
@@ -627,6 +629,7 @@ fn consumer_only_release_keeps_other_consumer_entry() {
 /// web `DELETE /subscriptions` (no `consumerId`).  The managed lease must
 /// survive and remain visible with the strategy consumer id.
 #[test]
+// Parity: go:452dea11:internal/app/apiserver/servercore/strategy_subscription_lifecycle_test.go:12 TestStrategyRuntimeHoldsExactKLineLeasesUntilStopAndClose
 fn clear_route_preserves_running_strategy_lease() {
     let active = Arc::new(ActiveProviderState::new(Some(MarketDataProvider::Futu)));
     let router = Arc::new(std::sync::Mutex::new(streaming_router()));
@@ -897,6 +900,49 @@ fn subscription_request_helpers_preserve_only_valid_targets() {
         router.lock().expect("router").demand().logical_count,
         1,
         "rejected release must keep the acquired demand"
+    );
+}
+
+/// Parity: go:452dea11:internal/strategy/liveruntime/subscription_lifecycle_test.go:81
+/// TestKLineSubscriptionRefsSkipMalformedSymbols.
+///
+/// Strategy subscription helpers keep malformed targets out while normalizing
+/// the surviving market, symbol, and interval before they reach the demand
+/// book.
+#[test]
+fn strategy_kline_subscription_refs_normalize_valid_targets_and_skip_malformed() {
+    let active = Arc::new(ActiveProviderState::new(Some(MarketDataProvider::Futu)));
+    let router = Arc::new(std::sync::Mutex::new(streaming_router()));
+    let port = ProductionMarketDataSubscriptionMutationPort::new(
+        active,
+        Some(router.clone()),
+        None,
+    );
+
+    let acquired = port
+        .dispatch(&MarketDataSubscriptionMutationRequest {
+            method: "POST".to_owned(),
+            path: "/api/v1/market-data/subscriptions".to_owned(),
+            query: String::new(),
+            body: serde_json::to_vec(&json!({
+                "consumerId": "strategy",
+                "instruments": [
+                    {"market": " ", "symbol": "AAPL"},
+                    {"market": ".", "symbol": "missing"},
+                    {"market": "HK", "symbol": ""},
+                    {"channel": "kline", "market": " us ", "symbol": " aapl ", "interval": " 15m "}
+                ],
+            }))
+            .expect("strategy subscription body"),
+        })
+        .expect("valid strategy target survives malformed entries");
+
+    let entries = acquired["entries"].as_array().expect("acquire entries");
+    assert_eq!(entries.len(), 1, "malformed strategy targets must be skipped");
+    assert_eq!(entries[0]["key"], "KLINE:US:AAPL:15m");
+    assert_eq!(
+        router.lock().expect("router").demand().entries[0].consumers,
+        vec!["strategy".to_owned()]
     );
 }
 

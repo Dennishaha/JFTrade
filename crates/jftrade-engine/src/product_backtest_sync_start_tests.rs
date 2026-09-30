@@ -999,6 +999,7 @@ async fn production_helper_sync_cancel_aborts_in_flight_request() {
 
 #[test]
 // Parity: go:452dea11:internal/api/backtest/routes_boundaries_test.go:53 TestBacktestSyncRouteReturnsTaskForValidRequest
+// Parity: go:452dea11:internal/api/backtest/routes_progress_test.go:71 TestSyncProgressAndCancelRoutesHandleSuccessAndNotFound
 fn production_sync_read_projects_persisted_task() {
     let (port, _directory) = production_port();
     port.sync_tasks
@@ -1029,6 +1030,7 @@ fn production_sync_read_projects_persisted_task() {
 }
 
 #[test]
+// Parity: go:452dea11:internal/api/backtest/routes_progress_test.go:71 TestSyncProgressAndCancelRoutesHandleSuccessAndNotFound
 fn production_sync_cancel_matches_not_found_for_terminal_task() {
     let (port, _directory) = production_port();
     port.sync_tasks

@@ -247,6 +247,7 @@ fn subscription_mutation_routes_cover_the_complete_group() {
 }
 
 #[test]
+// Parity: go:452dea11:internal/api/marketdata/routes_boundaries_test.go:462 TestSubscriptionRoutesRejectMalformedAndIncompleteRequests
 fn subscription_mutation_replay_matches_go_fixture_data_errors_and_retry_metadata() {
     let fixture = fixture();
     let port = Arc::new(FixturePort::from_fixture(&fixture));

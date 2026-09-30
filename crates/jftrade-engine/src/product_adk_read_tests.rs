@@ -577,6 +577,7 @@ fn parse_sse_events(body: &str) -> Vec<AdkReadEvent> {
 /// `agent.saved`/`agent-audit` event.  The Rust read owner must apply the same
 /// filters before pagination instead of returning every audit row.
 #[test]
+// Parity: go:452dea11:internal/assistant/assembly/application_adapter_boundaries_test.go:71 TestApplicationAdapterUsesConfiguredRuntimeAndSettings
 fn adk_audit_route_filters_by_kind_and_subject_id() {
     use jftrade_store_sqlite::{AdkArtifactStore, AdkSessionStore, AdkStore, initialize_current};
     use rusqlite::Connection;

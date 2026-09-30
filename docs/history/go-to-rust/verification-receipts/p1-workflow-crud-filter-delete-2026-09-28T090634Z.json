@@ -1,0 +1,46 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--lib",
+    "--locked",
+    "-E",
+    "test(workflow_resource_crud_normalizes_tags_and_pagination_defaults) or test(workflow_bridge_pages_lists_and_rejects_unknown_run_targets) or test(workflow_and_trigger_lists_hide_deleted_rows_after_create_and_delete)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-28T09:06:34Z",
+  "sourceState": {
+    "verifiedCommit": "2f5de4172a26c6f2f3ddb3df13e326787e82e54b"
+  },
+  "rawOutputSha256": "1a5f94840bd784348b30d979083cac9e64b2bee2be0a9bdb7b7bef961d1cb4df",
+  "passedTests": [
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_adk::tests::store_parity::workflow_resource_crud_normalizes_tags_and_pagination_defaults",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_adk::tests::workflow_bridge_pages_lists_and_rejects_unknown_run_targets",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_adk::tests::store_parity::workflow_and_trigger_lists_hide_deleted_rows_after_create_and_delete"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1633,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    }
+  ]
+}

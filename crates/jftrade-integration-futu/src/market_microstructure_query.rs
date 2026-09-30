@@ -1134,6 +1134,7 @@ mod tests {
     }
 
     #[test]
+    // Parity: go:452dea11:internal/app/apiserver/marketdataapp/market_depth_test.go:143 TestMarketDepthNumClamping
     fn depth_read_projects_name_times_and_levels_from_opend_s2c() {
         // Parity: go:452dea11:pkg/futu/adapter_new_methods_test.go:492
         // TestOrderBookSnapshotFromOpendResult.
@@ -1177,6 +1178,7 @@ mod tests {
     }
 
     #[test]
+    // Parity: go:452dea11:pkg/futu/marketdata_reader_boundaries_test.go:17 TestMarketDataReaderSurfacesTransportAndPayloadBoundaries
     fn microstructure_reader_rejects_invalid_instruments_before_any_opend_call() {
         // Parity: go:452dea11:pkg/futu/marketdata_reader_boundaries_test.go:17
         // `QueryOrderBook(invalid symbol)` must fail. Rust's single owner is

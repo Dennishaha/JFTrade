@@ -118,6 +118,9 @@ impl WatchlistWritePort for FixturePort {
 #[test]
 // Parity: go:452dea11:internal/api/watchlist/route_error_handling_test.go:16 TestWriteErrorMapsAllDomainErrors
 // Parity: go:452dea11:internal/api/watchlist/routes_business_test.go:126 TestWatchlistRoutesMapValidationNotFoundAndProtectedConflicts
+// Parity: go:452dea11:internal/api/watchlist/routes_business_test.go:51 TestWatchlistRoutesMembershipIdempotencyConflictAndPagination
+// Parity: go:452dea11:internal/api/watchlist/routes_business_test.go:281 TestWatchlistRoutesRejectMalformedBodiesAndPageLimits
+// Parity: go:452dea11:internal/api/watchlist/routes_test.go:84 TestWatchlistListAndBindingRoutesRejectMalformedQueryEncoding
 fn watchlist_write_fixture_matches_go_owner_for_all_eight_routes() {
     let fixture = fixture();
     assert_eq!(fixture.version, "stage9.watchlist-write.v1");

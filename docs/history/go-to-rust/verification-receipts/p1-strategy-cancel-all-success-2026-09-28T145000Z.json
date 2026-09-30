@@ -1,0 +1,55 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--test",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "-E",
+    "test(cancel_all_success_removes_each_cancelled_order_from_tracking) or test(cancel_all_attempts_every_active_order_and_preserves_failed_tracking) or test(test_execute_strategy_intents_cancel_all_queries_and_cancels_active_orders)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-28T14:50:00Z",
+  "sourceState": {
+    "verifiedCommit": null,
+    "rawOutputSha256": "24cc2139cb68619bba2da4be08dc315f87f2d01e9380140b7d31e2475357311c",
+    "trackedDiffSha256": "6e777f0a537fa83ae2d7434bb314f73a9ac76e063fc38167450a8f7cb917b31d"
+  },
+  "passedTests": [
+    "jftrade-engine::strategy_runtime_lifecycle_bounded_tests::strategy_runtime::strategy_runtime_execution::tests::cancel_all_success_removes_each_cancelled_order_from_tracking",
+    "jftrade-engine::strategy_runtime_lifecycle_bounded_tests::strategy_runtime::strategy_runtime_execution::tests::cancel_all_attempts_every_active_order_and_preserves_failed_tracking",
+    "jftrade-engine::strategy_runtime_lifecycle_bounded_tests::strategy_runtime::strategy_runtime_execution::tests::test_execute_strategy_intents_cancel_all_queries_and_cancels_active_orders",
+    "jftrade-engine::strategy_simulate_closed_loop::strategy_runtime_execution::tests::cancel_all_success_removes_each_cancelled_order_from_tracking",
+    "jftrade-engine::strategy_simulate_closed_loop::strategy_runtime_execution::tests::cancel_all_attempts_every_active_order_and_preserves_failed_tracking",
+    "jftrade-engine::strategy_simulate_closed_loop::strategy_runtime_execution::tests::test_execute_strategy_intents_cancel_all_queries_and_cancels_active_orders",
+    "jftrade-engine::product::product_production_ports::product_production_ports_strategy::product_production_ports_strategy_runtime::strategy_runtime_execution::tests::cancel_all_success_removes_each_cancelled_order_from_tracking",
+    "jftrade-engine::product::product_production_ports::product_production_ports_strategy::product_production_ports_strategy_runtime::strategy_runtime_execution::tests::cancel_all_attempts_every_active_order_and_preserves_failed_tracking",
+    "jftrade-engine::product::product_production_ports::product_production_ports_strategy::product_production_ports_strategy_runtime::strategy_runtime_execution::tests::test_execute_strategy_intents_cancel_all_queries_and_cancels_active_orders"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1996,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "all-targets",
+        "kind": "all-targets"
+      }
+    }
+  ]
+}

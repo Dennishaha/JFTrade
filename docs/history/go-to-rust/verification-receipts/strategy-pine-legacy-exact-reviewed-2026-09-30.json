@@ -1,0 +1,277 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "--workspace",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json",
+    "-E",
+    "test(pine_external_engine_payload_requires_the_agpl_notice_in_community_mode) or test(pine_shadow_error_payload_keeps_the_worker_failure_message) or test(pine_shadow_success_payload_projects_engine_metadata_and_counts) or test(strategy_definition_versions_report_unknown_ids_and_keep_deleted_history) or test(runtime_exit_converges_to_stopped_with_audit_notification_and_error_log) or test(recovery_failure_converges_the_running_instance_to_stopped) or test(startable_requires_the_pinets_runtime_on_the_pine_v6_source_format) or test(strategy_pine_applies_input_validation_and_error_precedence_before_the_port) or test(analyze_mode_accepts_an_empty_candle_list) or test(request_validation_enforces_the_candle_limit) or test(request_validation_rejects_every_incomplete_or_inconsistent_field) or test(closing_a_live_session_releases_its_pin) or test(healthy_workers_are_selected_in_rotation) or test(analyze_script_reports_public_internal_helper_diagnostics) or test(test_resolve_interval_minutes_supports_broker_intervals_and_safe_fallbacks) or test(extended_ticker_and_chart_flags_keep_requirements) or test(request_security_timeframes_validate_against_the_strategy_interval) or test(warmup_bars_fall_back_to_the_generic_calendar_for_unknown_symbols) or test(warmup_bars_from_a_script_match_the_plan_for_extended_hours) or test(compile_rejects_ambiguous_order_metadata_and_missing_ids) or test(history_reference_overflow_is_rejected) or test(request_security_tuple_diagnostics_match_go_codes) or test(legacy_and_explicit_sources_keep_the_planned_keys) or test(position_variables_in_expressions_require_position_data) or test(stdev_keeps_the_legacy_close_key) or test(unsupported_request_security_forms_keep_the_go_diagnostic_codes) or test(visual_calls_are_ignored_with_named_warnings) or test(compile_guards_disabled_helpers_and_ignores_helper_names_in_strings) or test(compile_uses_business_defaults_for_declarations_without_a_title) or test(public_entry_returns_program_and_propagates_helper_errors) or test(static_for_ranges_reject_non_terminating_bounds) or test(tuple_assignments_keep_the_go_alias_and_width_contract)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-29T12:45:26Z",
+  "sourceState": {
+    "verifiedCommit": "2f5de4172a26c6f2f3ddb3df13e326787e82e54b"
+  },
+  "rawOutputSha256": "sha256:22918fba9517443a7ed1bcac3a5ad269d4e35c9ef1e6b476b3f5487974008a6e",
+  "passedTests": [
+    "jftrade-engine::strategy_pine_compatibility$strategy_pine_applies_input_validation_and_error_precedence_before_the_port",
+    "jftrade-engine::strategy_runtime_lifecycle_bounded_tests$strategy_runtime::strategy_runtime_port::tests::recovery_failure_converges_the_running_instance_to_stopped",
+    "jftrade-engine::strategy_runtime_lifecycle_bounded_tests$strategy_runtime::strategy_runtime_port::tests::startable_requires_the_pinets_runtime_on_the_pine_v6_source_format",
+    "jftrade-engine::strategy_runtime_lifecycle_bounded_tests$strategy_runtime::owner_tests::runtime_exit_converges_to_stopped_with_audit_notification_and_error_log",
+    "jftrade-integration-pine::jftrade_integration_pine$execution::tests::analyze_mode_accepts_an_empty_candle_list",
+    "jftrade-integration-pine::jftrade_integration_pine$execution::tests::request_validation_rejects_every_incomplete_or_inconsistent_field",
+    "jftrade-integration-pine::jftrade_integration_pine$execution::tests::request_validation_enforces_the_candle_limit",
+    "jftrade-integration-pine::jftrade_integration_pine$pool::tests::healthy_workers_are_selected_in_rotation",
+    "jftrade-integration-pine::jftrade_integration_pine$pool::tests::closing_a_live_session_releases_its_pin",
+    "jftrade-strategy::jftrade_strategy$pine::planner::tests::test_resolve_interval_minutes_supports_broker_intervals_and_safe_fallbacks",
+    "jftrade-strategy::jftrade_strategy$pine::public_helper_guard_tests::analyze_script_reports_public_internal_helper_diagnostics",
+    "jftrade-strategy::pine_expression_and_security_boundaries$extended_ticker_and_chart_flags_keep_requirements",
+    "jftrade-engine::jftrade_engine$product::product_mcp_production_executor::tests::pine_external_engine_payload_requires_the_agpl_notice_in_community_mode",
+    "jftrade-engine::jftrade_engine$product::product_mcp_production_executor::tests::pine_shadow_error_payload_keeps_the_worker_failure_message",
+    "jftrade-engine::jftrade_engine$product::product_mcp_production_executor::tests::pine_shadow_success_payload_projects_engine_metadata_and_counts",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_strategy::tests::strategy_definition_versions_report_unknown_ids_and_keep_deleted_history",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_strategy::product_production_ports_strategy_runtime::strategy_runtime_port::tests::startable_requires_the_pinets_runtime_on_the_pine_v6_source_format",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_strategy::product_production_ports_strategy_runtime::strategy_runtime_port::tests::recovery_failure_converges_the_running_instance_to_stopped",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_strategy::product_production_ports_strategy_runtime::owner_tests::runtime_exit_converges_to_stopped_with_audit_notification_and_error_log",
+    "jftrade-strategy::pine_indicator_warmup$warmup_bars_fall_back_to_the_generic_calendar_for_unknown_symbols",
+    "jftrade-strategy::pine_indicator_warmup$request_security_timeframes_validate_against_the_strategy_interval",
+    "jftrade-strategy::pine_indicator_warmup$warmup_bars_from_a_script_match_the_plan_for_extended_hours",
+    "jftrade-strategy::pine_order_metadata_and_security_rejections$history_reference_overflow_is_rejected",
+    "jftrade-strategy::pine_order_metadata_and_security_rejections$compile_rejects_ambiguous_order_metadata_and_missing_ids",
+    "jftrade-strategy::pine_order_metadata_and_security_rejections$request_security_tuple_diagnostics_match_go_codes",
+    "jftrade-strategy::pine_planner_requirement_keys$position_variables_in_expressions_require_position_data",
+    "jftrade-strategy::pine_planner_requirement_keys$legacy_and_explicit_sources_keep_the_planned_keys",
+    "jftrade-strategy::pine_request_and_visual_contracts$stdev_keeps_the_legacy_close_key",
+    "jftrade-strategy::pine_request_and_visual_contracts$unsupported_request_security_forms_keep_the_go_diagnostic_codes",
+    "jftrade-strategy::pine_request_and_visual_contracts$visual_calls_are_ignored_with_named_warnings",
+    "jftrade-strategy::pine_risk_and_block_parity$compile_guards_disabled_helpers_and_ignores_helper_names_in_strings",
+    "jftrade-strategy::pine_risk_and_block_parity$compile_uses_business_defaults_for_declarations_without_a_title",
+    "jftrade-strategy::pine_tuple_contracts$public_entry_returns_program_and_propagates_helper_errors",
+    "jftrade-strategy::pine_tuple_contracts$tuple_assignments_keep_the_go_alias_and_width_contract",
+    "jftrade-strategy::pine_tuple_contracts$static_for_ranges_reject_non_terminating_bounds"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 6,
+      "exec_time": 0.010155333
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 3
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 64,
+      "exec_time": 0.215839667
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 5
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 37,
+      "exec_time": 0.088527375
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 2
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 36,
+      "exec_time": 0.022364041
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 7,
+      "exec_time": 0.01057925
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 7
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1639,
+      "exec_time": 0.474561625
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 3
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 4,
+      "exec_time": 0.041691585
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 3
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 5,
+      "exec_time": 0.038931042
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 2
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 2,
+      "exec_time": 0.029168499
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 3
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 4,
+      "exec_time": 0.03621796
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 2
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 8,
+      "exec_time": 0.025946458
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 3
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1,
+      "exec_time": 0.033140083
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 1,
+      "measured": 0,
+      "filtered_out": 18446744073709551615,
+      "exec_time": 0
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 1,
+      "measured": 0,
+      "filtered_out": 18446744073709551615,
+      "exec_time": 0
+    }
+  ]
+}

@@ -1,0 +1,101 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "-p",
+    "jftrade-store-sqlite",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json",
+    "--no-fail-fast",
+    "-E",
+    "test(provider_payload_sorts_tools_by_name_independent_of_agent_input_order) or test(a_cancelled_tool_call_reports_the_context_cancellation) or test(provider_probe_timeout_caps_configured_request_timeout) or test(challenge_continuation_supervisor_cancellation_signal_propagates) or test(chat_creates_the_session_once_and_reuses_its_stored_title) or test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(session_context_window_follows_the_composer_provider_override) or test(each_context_compaction_creates_the_next_current_revision) or test(session_context_read_reports_pressure_without_compacting) or test(model_context_autocompacts_before_the_provider_payload) or test(protected_tail_starts_at_the_earliest_unresolved_approval) or test(protected_tail_ignores_an_approval_with_a_durable_tool_outcome) or test(protected_tail_keeps_only_the_approval_that_is_still_pending) or test(session_context_ignores_handoff_segments_without_a_revision) or test(session_context_tracks_events_appended_after_a_compaction) or test(compaction_preserves_the_call_of_a_pending_approval) or test(test_adk_cascade_cleanup_removes_all_entities_across_three_databases) or test(adk_session_page_filters_by_agent_and_title_and_paginates) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_approval_page_orders_by_latest_update_and_counts_filtered_rows) or test(chat_rejects_a_session_owned_by_a_different_agent) or test(cancelling_a_run_denies_its_pending_approvals) or test(adk_cancel_run_missing_is_the_dedicated_cancel_failure) or test(adk_resolve_approval_missing_returns_the_idempotent_empty_envelope) or test(adk_run_listing_filters_and_sorts_newest_first) or test(saved_provider_normalizes_the_request_timeout_on_write) or test(run_start_freezes_the_configured_run_timeout_from_settings) or test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(expired_runs_use_each_runs_own_timeout_window)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-29T15:27:00Z",
+  "sourceState": {
+    "verifiedCommit": "2f5de4172a26c6f2f3ddb3df13e326787e82e54b"
+  },
+  "rawOutputSha256": "sha256:b051bebb952afa819447ac98af1767b5e1b9cf3de737c2814a915aca2d9787dc",
+  "passedTests": [
+    "jftrade-store-sqlite::adk_cascade_session_cleanup$test_adk_cascade_cleanup_removes_all_entities_across_three_databases",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::provider_probe_timeout_caps_configured_request_timeout",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::fencing_tests::challenge_continuation_supervisor_cancellation_signal_propagates",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::expiry_tests::expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::expiry_tests::expired_runs_use_each_runs_own_timeout_window",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::gate_tests::chat_rejects_a_session_owned_by_a_different_agent",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::run_projection_tests::chat_creates_the_session_once_and_reuses_its_stored_title",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::run_start_freezes_the_configured_run_timeout_from_settings",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::session_context_tests::compaction_preserves_the_call_of_a_pending_approval",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::chat_turn_tests::provider_payload_sorts_tools_by_name_independent_of_agent_input_order",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::session_context_tests::each_context_compaction_creates_the_next_current_revision",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::session_context_tests::protected_tail_ignores_an_approval_with_a_durable_tool_outcome",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::session_context_tests::protected_tail_keeps_only_the_approval_that_is_still_pending",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::session_context_tests::protected_tail_starts_at_the_earliest_unresolved_approval",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::session_context_tests::model_context_autocompacts_before_the_provider_payload",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::tool_deadline_tests::a_cancelled_tool_call_reports_the_context_cancellation",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::session_context_tests::session_context_ignores_handoff_segments_without_a_revision",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::session_context_tests::session_context_window_follows_the_composer_provider_override",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::a_cancelled_run_audits_run_cancelled_and_terminates_once",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::session_context_tests::session_context_tracks_events_appended_after_a_compaction",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::session_context_tests::session_context_read_reports_pressure_without_compacting",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_adk::mutation::provider::tests::saved_provider_normalizes_the_request_timeout_on_write",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_adk::tests::adk_cancel_run_missing_is_the_dedicated_cancel_failure",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_adk::tests::adk_resolve_approval_missing_returns_the_idempotent_empty_envelope",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_adk::tests::adk_run_listing_filters_and_sorts_newest_first",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_adk::tests::cancelling_a_run_denies_its_pending_approvals",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_adk::tests::resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_adk::tests::store_parity::adk_composer_state_truncates_trim_and_rejects_invalid_modes",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_adk::tests::store_parity::adk_approval_page_orders_by_latest_update_and_counts_filtered_rows",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_adk::tests::store_parity::adk_session_page_filters_by_agent_and_title_and_paginates"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 3,
+      "exec_time": 0.118939958
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 29
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 29,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1617,
+      "exec_time": 3.754292752
+    }
+  ],
+  "scope": {
+    "module": "assistant_workflow",
+    "mappingCount": 30,
+    "rustTestCount": 30
+  }
+}

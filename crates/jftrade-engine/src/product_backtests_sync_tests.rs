@@ -85,6 +85,7 @@ fn backtests_sync_read_fixture() -> BacktestsSyncReadFixture {
 }
 
 #[tokio::test]
+// Parity: go:452dea11:internal/api/backtest/routes_progress_test.go:71 TestSyncProgressAndCancelRoutesHandleSuccessAndNotFound
 async fn backtests_sync_read_route_matches_group_fixture_in_cutover_only() {
     let fixture = backtests_sync_read_fixture();
     let directory = tempdir().expect("temporary directory");

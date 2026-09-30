@@ -1,0 +1,77 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "-p",
+    "jftrade-calendar",
+    "--all-targets",
+    "--locked",
+    "--no-fail-fast",
+    "--message-format",
+    "libtest-json-plus",
+    "-E",
+    "test(futu_search_rejects_invalid_queries_before_reaching_opend) or test(test_board_kind_defaults_empty_to_industry) or test(projection_maps_nullable_fields_and_as_of) or test(company_financials_forwards_market_symbol_and_statement) or test(market_research_defaults_an_absent_market_per_provider)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-28T14:15:00Z",
+  "sourceState": {
+    "verifiedCommit": "2f5de4172a26c6f2f3ddb3df13e326787e82e54b",
+    "trackedDiffSha256": "76247011efd1803a5785d7296dbd38c8229698ce6a1283071eabd0b1fa60989a",
+    "untrackedFiles": [
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/assistant-tail-p1-2026-09-28T0227Z.json",
+        "sha256": "74e1bd1f4f2ee7a7eead3bd398b267e9788d7082fdf8e028449e66f31f29f48b"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/p1-query-candle-boundaries-2026-09-28T0250Z.json",
+        "sha256": "69bae53794658676a710eeda191d4e68b5e70c7f243ee3483c441f7919d75b40"
+      }
+    ]
+  },
+  "rawOutputSha256": "bb4c2e9cf0815b8ebcabc4b602b3f66e8320cab3ee9da6ae19dcf39714cd98d8",
+  "passedTests": [
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_market_data::product_production_ports_market_data_catalog::tests::futu_search_rejects_invalid_queries_before_reaching_opend",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_market_data::product_production_ports_market_data_news_search::tests::projection_maps_nullable_fields_and_as_of",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_strategy::product_production_ports_research::company::tests::company_financials_forwards_market_symbol_and_statement",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_strategy::product_production_ports_research_market::tests::market_research_defaults_an_absent_market_per_provider",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_strategy::product_production_ports_research_market::tests::test_board_kind_defaults_empty_to_industry"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 5,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1629,
+      "exec_time": 0.140531543,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    }
+  ]
+}

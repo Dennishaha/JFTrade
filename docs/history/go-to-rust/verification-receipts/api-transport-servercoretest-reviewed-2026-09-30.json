@@ -1,0 +1,190 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "--workspace",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json",
+    "-E",
+    "test(akshare_sync_rejects_history_beyond_the_intraday_lookback_window) or test(appearance_round_trip_preserves_unknown_go_owned_fields) or test(broker_funds_response_serializes_the_contract_keys_with_null_last_error) or test(broker_settings_writes_replay_frozen_compatibility_cases) or test(durable_create_ignores_client_ids_and_generates_uuid_v4_definition_ids) or test(execution_defaults_bounds_and_round_trip_match_go) or test(live_websocket_limit_reads_go_settings_without_mutating_the_shadow_file) or test(normalize_futu_config_applies_go_defaults_and_forces_encryption_off) or test(product_corpus_replays_frozen_compatibility_and_preserves_unknown_fields) or test(production_backtest_start_rejects_missing_history_without_queuing) or test(production_futu_sync_uses_opend_reader_and_persists_candles) or test(production_http_broker_projection_fails_closed_and_validates_before_runtime) or test(research_preset_write_fixture_matches_go_owner_for_all_three_routes) or test(sqlite_test_cutover_preserves_versions_rollback_linked_delete_and_restart) or test(startup_creates_missing_nested_backtest_database_directory) or test(strategy_definition_routes_match_group_fixture_in_cutover_only) or test(strategy_definition_write_fixture_matches_go_owner_for_all_five_routes) or test(structured_integration_save_leaves_the_process_environment_untouched) or test(sync_request_rejects_invalid_ranges_and_intervals) or test(system_read_routes_match_group_fixture_in_cutover_only) or test(system_status_contract_envelope_exposes_required_fields_and_trading_resource) or test(test_product_runtime_ordered_shutdown_tokio_runtime_exit_drop) or test(watchlist_group_mutations_are_revision_fenced_and_survive_restart)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-29T12:11:48Z",
+  "sourceState": {
+    "verifiedCommit": "2f5de4172a26c6f2f3ddb3df13e326787e82e54b"
+  },
+  "rawOutputSha256": "sha256:d0f9cbb88920c3bed3fa60b9a47c6fea80a6e277a0b7ad06e844d33bff7f2463",
+  "passedTests": [
+    "jftrade-engine::research_presets_write_compatibility$research_preset_write_fixture_matches_go_owner_for_all_three_routes",
+    "jftrade-engine::strategy_definitions_write_compatibility$durable_create_ignores_client_ids_and_generates_uuid_v4_definition_ids",
+    "jftrade-engine::strategy_definitions_write_compatibility$sqlite_test_cutover_preserves_versions_rollback_linked_delete_and_restart",
+    "jftrade-engine::strategy_definitions_write_compatibility$strategy_definition_write_fixture_matches_go_owner_for_all_five_routes",
+    "jftrade-settings::jftrade_settings$broker::tests::normalize_futu_config_applies_go_defaults_and_forces_encryption_off",
+    "jftrade-settings::jftrade_settings$broker::tests::structured_integration_save_leaves_the_process_environment_untouched",
+    "jftrade-settings::jftrade_settings$execution::tests::execution_defaults_bounds_and_round_trip_match_go",
+    "jftrade-store-settings-file::interface_settings_contracts$live_websocket_limit_reads_go_settings_without_mutating_the_shadow_file",
+    "jftrade-store-settings-file::settings_file_contracts$appearance_round_trip_preserves_unknown_go_owned_fields",
+    "jftrade-store-settings-file::settings_file_contracts$product_corpus_replays_frozen_compatibility_and_preserves_unknown_fields",
+    "jftrade-store-sqlite::watchlist_store_contracts$watchlist_group_mutations_are_revision_fenced_and_survive_restart",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_execution::sync_start_tests::sync_request_rejects_invalid_ranges_and_intervals",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_trade::tests::broker_funds_response_serializes_the_contract_keys_with_null_last_error",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_execution::sync_start_tests::akshare_sync_rejects_history_beyond_the_intraday_lookback_window",
+    "jftrade-engine::jftrade_engine$product::tests::broker_settings_writes_replay_frozen_compatibility_cases",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_execution::sync_start_tests::production_backtest_start_rejects_missing_history_without_queuing",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_execution::sync_start_tests::production_futu_sync_uses_opend_reader_and_persists_candles",
+    "jftrade-engine::jftrade_engine$product_data_management::tests::batch_atomic_startup_tests::startup_creates_missing_nested_backtest_database_directory",
+    "jftrade-engine::jftrade_engine$product::tests::system_control_read_tests::system_status_contract_envelope_exposes_required_fields_and_trading_resource",
+    "jftrade-engine::jftrade_engine$product::tests::strategy_definition_tests::strategy_definition_routes_match_group_fixture_in_cutover_only",
+    "jftrade-engine::jftrade_engine$product::tests::system_read_tests::system_read_routes_match_group_fixture_in_cutover_only",
+    "jftrade-engine::jftrade_engine$product_runtime::product_runtime_tests::test_product_runtime_ordered_shutdown_tokio_runtime_exit_drop",
+    "jftrade-engine::jftrade_engine$product::tests::production_assembly_tests::product_production_assembly_tests::production_http_broker_projection_fails_closed_and_validates_before_runtime"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 5,
+      "exec_time": 0.020537
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 3
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 12,
+      "exec_time": 0.191455376
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 3
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 49,
+      "exec_time": 0.041739833
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 0,
+      "exec_time": 0.024098125
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 2
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 16,
+      "exec_time": 0.168396166
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 4,
+      "exec_time": 0.055015917
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 12
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 12,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1634,
+      "exec_time": 19.716143374
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 1,
+      "measured": 0,
+      "filtered_out": 18446744073709551615,
+      "exec_time": 0
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 1,
+      "measured": 0,
+      "filtered_out": 18446744073709551615,
+      "exec_time": 0
+    }
+  ]
+}

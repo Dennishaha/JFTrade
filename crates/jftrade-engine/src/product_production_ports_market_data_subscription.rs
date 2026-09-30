@@ -351,7 +351,7 @@ impl ProductionMarketDataSubscriptionMutationPort {
         for item in &raw_instruments {
             let market = item.market.as_deref().map(str::trim).unwrap_or_default();
             let symbol = item.symbol.as_deref().map(str::trim).unwrap_or_default();
-            if market.is_empty() || symbol.is_empty() {
+            if market.is_empty() || symbol.is_empty() || market == "." || symbol == "." {
                 continue;
             }
             let raw_channel = item.channel.as_deref().map(str::trim).unwrap_or("SNAPSHOT");

@@ -1,0 +1,36 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "-E",
+    "test(candle_route_validates_adjustment_and_forwards_the_mapped_rehab_type)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-29T15:44:52Z",
+  "sourceState": {
+    "verifiedCommit": "2f5de4172a26c6f2f3ddb3df13e326787e82e54b"
+  },
+  "rawOutputSha256": "sha256:85cdd550afe72f285445698cd12609e990def5404277cf258e2a29e0d79a3a11",
+  "passedTests": [
+    "jftrade-engine::product::tests::market_data_quote_read_tests::candle_pagination_tests::candle_route_validates_adjustment_and_forwards_the_mapped_rehab_type"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "summary": {
+    "testsRun": 1,
+    "testsPassed": 1,
+    "testsFailed": 0,
+    "testsSkipped": 2011,
+    "referenceCountReviewed": 4,
+    "functionExactReferencesReleased": 4
+  }
+}

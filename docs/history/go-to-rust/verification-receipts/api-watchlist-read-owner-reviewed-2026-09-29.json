@@ -1,0 +1,40 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-store-sqlite",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--no-fail-fast",
+    "-E",
+    "test(watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog) or test(watchlist_write_fixture_matches_go_owner_for_all_eight_routes)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-29T15:44:52Z",
+  "sourceState": {
+    "verifiedCommit": "2f5de4172a26c6f2f3ddb3df13e326787e82e54b"
+  },
+  "rawOutputSha256": "sha256:ce73e5c1ec405a4d571db8ba59fd37229c8649df3feb4f9146c6fb02ba088e70",
+  "passedTests": [
+    "jftrade-engine::watchlist_write_compatibility::watchlist_write_fixture_matches_go_owner_for_all_eight_routes",
+    "jftrade-store-sqlite::watchlist_store_contracts::watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "summary": {
+    "testsRun": 2,
+    "testsPassed": 2,
+    "testsFailed": 0,
+    "testsSkipped": 2198,
+    "referenceCountReviewed": 11,
+    "functionExactReferencesReleased": 1
+  }
+}

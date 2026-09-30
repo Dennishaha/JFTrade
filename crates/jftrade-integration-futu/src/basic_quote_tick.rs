@@ -404,6 +404,7 @@ mod tests {
     }
 
     #[test]
+    // Parity: go:452dea11:pkg/futu/adapter_failure_boundaries_test.go:77 TestAdapterAndDecimalConversionBoundaries
     fn security_projection_rejects_nil_or_unknown_market() {
         // Parity: go:452dea11:pkg/futu/adapter_new_methods_test.go:182
         // TestSecuritySymbolNil and :156 TestSecuritiesFromSymbolsInvalid.
@@ -505,6 +506,8 @@ mod tests {
     }
 
     #[test]
+    // Parity: go:452dea11:pkg/futu/exchange_quote_request_boundaries_test.go:50 TestBasicQuoteMissingInvalidAndSubscriptionCacheBoundaries
+    // Parity: go:452dea11:pkg/futu/trade_margin_ratio_boundaries_test.go:124 TestBasicQuoteQueriesHandleEmptyDuplicateAndInvalidRequests
     fn maps_normalized_requested_rows_and_keeps_the_last_duplicate() {
         let mut high_precision = quote(11, " aapl ", 189.123_456_789, 10);
         high_precision.hp_volume = Some(12.0);
@@ -645,6 +648,7 @@ mod tests {
     }
 
     #[test]
+    // Parity: go:452dea11:pkg/futu/adapter_failure_boundaries_test.go:77 TestAdapterAndDecimalConversionBoundaries
     fn test_tick_conversion_rejects_unusable_prices_and_uses_quote_fallbacks() {
         // Parity: internal/integration/futu/marketdata_runtime_test.go:267 TestTickConversionRejectsUnusablePricesAndUsesQuoteFallbacks
         // 1. Invalid security dropped

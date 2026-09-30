@@ -257,6 +257,7 @@ fn runtime_with_accounts(
 /// authority or a non-`FUTUINC` firm is rejected, and only a `FUTUINC` account
 /// with US authority (or no authority list) returns `"FUTUINC"`.
 #[test]
+// Parity: go:452dea11:internal/productfeatures/service_routing_and_validation_test.go:14 TestProductFeatureServiceRemainingRoutingAndDegradationBranches
 fn prediction_eligibility_rejects_futu_securities_and_accepts_futu_inc() {
     let hk = runtime_with_accounts(vec![account(1, Some(1), vec![1])]);
     let error = prediction_account_eligibility(&hk, "accountId=1")

@@ -83,6 +83,7 @@
     "lint:rust": "pnpm run check:clippy",
     "format:rust:check": "cargo fmt --all -- --check",
     "test:rust": "node scripts/quality/cargo-nextest.mjs run --workspace --all-targets --locked",
+    "test:parity:receipt": "python3 scripts/compatibility/run_parity_receipt.py",
     "test:rust:archive": "node scripts/quality/cargo-nextest.mjs archive --workspace --all-targets --locked",
     "test:rust:archive-shard": "node scripts/quality/cargo-nextest.mjs run",
     "check:release-source": "node scripts/release/check-release-source-admission.mjs",

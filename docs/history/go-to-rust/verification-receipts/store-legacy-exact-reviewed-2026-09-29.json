@@ -1,0 +1,150 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-calendar",
+    "-p",
+    "jftrade-settings",
+    "-p",
+    "jftrade-engine",
+    "-p",
+    "jftrade-store-sqlite",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json",
+    "--no-fail-fast",
+    "-E",
+    "test(load_reports_walk_and_read_failures_without_losing_valid_snapshots) or test(store_rejects_invalid_snapshot_persistence_with_named_errors) or test(store_reports_an_unavailable_snapshot_directory) or test(save_uses_atomic_replacement_that_keeps_the_previous_snapshot_on_failure) or test(store_root_is_trimmed_and_the_empty_root_stays_safe) or test(delete_ignores_missing_files_and_reports_real_remove_errors) or test(write_snapshot_propagates_each_temporary_file_durability_failure) or test(write_snapshot_default_hooks_and_directory_sync_errors) or test(save_returns_the_directory_creation_error) or test(store_round_trips_snapshots_and_isolates_corruption) or test(store_uses_the_snapshot_local_year_for_positive_offset_markets) or test(default_exchange_calendar_settings_use_nyse_as_only_default_us_remote_source) or test(reconciliation_snapshot_coverage_caps_partial_and_exhausted_credit) or test(reconciliation_snapshot_coverage_timestamp_boundaries_are_conservative) or test(reconciliation_snapshot_keeps_preview_locked_product_and_quantity_mode) or test(execution_order_concurrent_writes_and_reads_survive_reopen) or test(reconciliation_rejects_terminal_and_partial_status_regressions) or test(reconciliation_older_snapshot_fill_progress_is_accepted_with_monotonic_updated_at) or test(reconciliation_cancel_submitted_resolves_fill_and_cancel_confirmation) or test(execution_order_sequence_high_water_marks_survive_reopen) or test(execution_order_events_load_in_per_order_chronology_without_a_temp_sort) or test(execution_order_database_path_resolution_trims_override_and_derives_settings_sibling) or test(execution_order_legacy_metadata_is_rejected_without_mutating_the_file) or test(execution_orders_store_rejects_directory_and_missing_parent_paths) or test(execution_orders_store_rejects_partial_legacy_schema_with_rebuild_guidance) or test(execution_orders_store_rejects_wrong_column_layout) or test(execution_orders_store_rejects_missing_runtime_tables) or test(prediction_rfq_persists_binding_expiry_and_single_consumption) or test(prediction_rfq_rejects_missing_expired_and_malformed_rows) or test(prediction_rfq_consume_is_fenced_by_status_and_expiry_in_one_transaction)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-29T14:55:00Z",
+  "sourceState": {
+    "verifiedCommit": "2f5de4172a26c6f2f3ddb3df13e326787e82e54b"
+  },
+  "rawOutputSha256": "sha256:269e5473ac3ace141090615278dd73cdc32a3d6355b305904cf6a14a5b7e50ae",
+  "passedTests": [
+    "jftrade-calendar::jftrade_calendar$snapshot::tests::store_rejects_invalid_snapshot_persistence_with_named_errors",
+    "jftrade-calendar::jftrade_calendar$snapshot::tests::save_returns_the_directory_creation_error",
+    "jftrade-calendar::jftrade_calendar$snapshot::tests::store_reports_an_unavailable_snapshot_directory",
+    "jftrade-calendar::jftrade_calendar$snapshot::tests::delete_ignores_missing_files_and_reports_real_remove_errors",
+    "jftrade-calendar::jftrade_calendar$snapshot::tests::store_root_is_trimmed_and_the_empty_root_stays_safe",
+    "jftrade-calendar::jftrade_calendar$snapshot::tests::load_reports_walk_and_read_failures_without_losing_valid_snapshots",
+    "jftrade-calendar::jftrade_calendar$snapshot::tests::save_uses_atomic_replacement_that_keeps_the_previous_snapshot_on_failure",
+    "jftrade-calendar::jftrade_calendar$snapshot::tests::store_uses_the_snapshot_local_year_for_positive_offset_markets",
+    "jftrade-calendar::jftrade_calendar$snapshot::tests::write_snapshot_default_hooks_and_directory_sync_errors",
+    "jftrade-calendar::jftrade_calendar$snapshot::tests::store_round_trips_snapshots_and_isolates_corruption",
+    "jftrade-calendar::jftrade_calendar$snapshot::tests::write_snapshot_propagates_each_temporary_file_durability_failure",
+    "jftrade-settings::jftrade_settings$exchange_calendar::tests::default_exchange_calendar_settings_use_nyse_as_only_default_us_remote_source",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_execution::product_production_ports_execution_orders::execution_reconciliation::tests::reconciliation_snapshot_coverage_caps_partial_and_exhausted_credit",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_execution::product_production_ports_execution_orders::execution_reconciliation::tests::reconciliation_snapshot_coverage_timestamp_boundaries_are_conservative",
+    "jftrade-engine::jftrade_engine$product_data_management::tests::batch_atomic_startup_tests::execution_order_database_path_resolution_trims_override_and_derives_settings_sibling",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_execution::product_production_ports_execution_orders::execution_reconciliation::tests::order_state_tests::reconciliation_older_snapshot_fill_progress_is_accepted_with_monotonic_updated_at",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_execution::product_production_ports_execution_orders::execution_reconciliation::tests::order_state_tests::reconciliation_snapshot_keeps_preview_locked_product_and_quantity_mode",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_execution::product_production_ports_execution_orders::execution_reconciliation::tests::order_state_tests::reconciliation_cancel_submitted_resolves_fill_and_cancel_confirmation",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_execution::product_production_ports_execution_orders::execution_reconciliation::tests::order_state_tests::reconciliation_rejects_terminal_and_partial_status_regressions",
+    "jftrade-store-sqlite::prediction_quote_ledger$prediction_rfq_persists_binding_expiry_and_single_consumption",
+    "jftrade-store-sqlite::prediction_quote_ledger$prediction_rfq_consume_is_fenced_by_status_and_expiry_in_one_transaction",
+    "jftrade-store-sqlite::prediction_quote_ledger$prediction_rfq_rejects_missing_expired_and_malformed_rows",
+    "jftrade-store-sqlite::execution_order_store_contracts$execution_order_events_load_in_per_order_chronology_without_a_temp_sort",
+    "jftrade-store-sqlite::execution_order_store_contracts$execution_order_legacy_metadata_is_rejected_without_mutating_the_file",
+    "jftrade-store-sqlite::execution_order_store_contracts$execution_orders_store_rejects_directory_and_missing_parent_paths",
+    "jftrade-store-sqlite::execution_order_store_contracts$execution_order_concurrent_writes_and_reads_survive_reopen",
+    "jftrade-store-sqlite::execution_order_store_contracts$execution_orders_store_rejects_partial_legacy_schema_with_rebuild_guidance",
+    "jftrade-store-sqlite::execution_order_store_contracts$execution_order_sequence_high_water_marks_survive_reopen",
+    "jftrade-store-sqlite::execution_order_store_contracts$execution_orders_store_rejects_wrong_column_layout",
+    "jftrade-store-sqlite::execution_order_store_contracts$execution_orders_store_rejects_missing_runtime_tables"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 11
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 25,
+      "exec_time": 0.492579959
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 51,
+      "exec_time": 0.006282333
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 7
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1639,
+      "exec_time": 0.585951333
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 3
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 0,
+      "exec_time": 0.132176667
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 8
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 5,
+      "exec_time": 0.418678918
+    }
+  ],
+  "scope": {
+    "module": "internal/store",
+    "mappingCount": 28,
+    "rustTestCount": 30
+  }
+}

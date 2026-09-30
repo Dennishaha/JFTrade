@@ -1,0 +1,32 @@
+{
+  "schemaVersion":"jftrade.go-rust-parity-receipt.v1",
+  "command":["node","scripts/quality/cargo-nextest.mjs","run","--workspace","--all-targets","--locked","-E","test(search_failures_and_malformed_responses_are_not_empty_successes) or test(declared_candle_periods_map_to_historical_and_realtime_types) or test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(security_snapshot_coordinator_handles_empty_and_unexpected_results) or test(concurrent_reconcile_passes_are_idempotent_for_subscribe_and_release) or test(funds_snapshot_projection_preserves_available_and_withdrawable_cash) or test(max_trade_quantity_read_projects_cash_and_margin_buying_power) or test(protocol_ids_match_go_opend_and_shadow_forbids_writes) or test(watchlist_fresh_member_read_rechecks_remote_ambiguity) or test(watchlist_fresh_read_bypasses_and_replaces_group_and_member_caches) or test(watchlist_group_conversion_marks_every_normalized_duplicate_ambiguous) or test(direct_subscription_calls_propagate_closed_client_errors) or test(market_read_methods_reject_a_disconnected_session) or test(prediction_security_normalization_covers_all_public_markets) or test(tick_candles_default_to_a_fifteen_minute_window_and_clamp_negative_volume) or test(execution_order_sequence_high_water_marks_survive_reopen)"],
+  "runnerVersion":"cargo-nextest 0.9.143",
+  "toolchain":"rustc 1.97.1 (2026-07-14)",
+  "exitCode":0,
+  "status":"passed",
+  "verifiedAt":"2026-09-30T00:00:00Z",
+  "sourceState":{"verifiedCommit":"2f5de4172a26c6f2f3ddb3df13e326787e82e54b"},
+  "rawOutputSha256":"sha256:7564322fb6753e5a1262f184c00d6d07694179d6a6f606f295dd7c648e7f2933",
+  "passedTests":[
+    "jftrade-integration-futu::instrument_search_query::tests::search_failures_and_malformed_responses_are_not_empty_successes",
+    "jftrade-integration-futu::security_snapshot_coordinator::tests::security_snapshot_coordinator_handles_empty_and_unexpected_results",
+    "jftrade-integration-futu::security_snapshot_coordinator::tests::security_snapshot_coordinator_classifies_remote_rate_limit",
+    "jftrade-integration-futu::kline_query::tests::declared_candle_periods_map_to_historical_and_realtime_types",
+    "jftrade-integration-futu::trade_session::tests::funds_snapshot_projection_preserves_available_and_withdrawable_cash",
+    "jftrade-integration-futu::subscriptions::tests::concurrent_reconcile_passes_are_idempotent_for_subscribe_and_release",
+    "jftrade-integration-futu::watchlist_reader::tests::watchlist_fresh_member_read_rechecks_remote_ambiguity",
+    "jftrade-integration-futu::watchlist_reader::tests::watchlist_fresh_read_bypasses_and_replaces_group_and_member_caches",
+    "jftrade-integration-futu::trading::tests::protocol_ids_match_go_opend_and_shadow_forbids_writes",
+    "jftrade-integration-futu::trade_session::tests::max_trade_quantity_read_projects_cash_and_margin_buying_power",
+    "jftrade-integration-futu::watchlist_reader::tests::watchlist_group_conversion_marks_every_normalized_duplicate_ambiguous",
+    "jftrade-integration-futu::prediction_push_stream::prediction_security_normalization_covers_all_public_markets",
+    "jftrade-marketdata::tick_candles::tests::tick_candles_default_to_a_fifteen_minute_window_and_clamp_negative_volume",
+    "jftrade-integration-futu::market_read_boundaries::market_read_methods_reject_a_disconnected_session",
+    "jftrade-integration-futu::client_recovery_boundaries::direct_subscription_calls_propagate_closed_client_errors",
+    "jftrade-store-sqlite::execution_order_store_contracts::execution_order_sequence_high_water_marks_survive_reopen"
+  ],
+  "failedTests":[],
+  "ignoredTests":[],
+  "summary":{"testsRun":16,"testsPassed":16,"testsFailed":0,"testsSkipped":3525,"relationsReviewed":16,"functionExactReferencesReleased":16}
+}

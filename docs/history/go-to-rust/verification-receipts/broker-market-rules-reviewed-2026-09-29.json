@@ -1,0 +1,55 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-broker",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json",
+    "-E",
+    "test(apply_market_rule_ignores_missing_zero_and_negative_lot_size) or test(broker_lot_size_initializes_minimum_and_step_quantity) or test(capability_access_classes_bound_the_reviewed_read_only_surface) or test(capability_catalog_publishes_required_product_surfaces) or test(declared_features_publish_the_reader_interface_that_gates_them) or test(market_rules_ignore_missing_non_positive_and_non_finite_constraints) or test(market_rules_match_trimmed_symbols_and_apply_overrides_in_order) or test(portfolio_summary_merges_positions_balances_and_orders_and_rejects_unknown_brokers) or test(prediction_quote_legs_hash_matches_go_normalization) or test(preserves_broker_error_display_and_snapshot_fallback_rules) or test(snapshot_availability_kinds_control_fallback_eligibility) or test(symbol_scoped_snapshot_errors_are_detectable_through_context)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-29T13:45:00Z",
+  "sourceState": {
+    "verifiedCommit": "2f5de4172a26c6f2f3ddb3df13e326787e82e54b"
+  },
+  "rawOutputSha256": "sha256:ac86c17917637356a4c0cad7188c79697bc29a9fc0f415e0b26bb3fd19584d11",
+  "passedTests": [
+    "jftrade-broker::market_rules_snapshot_errors::snapshot_availability_kinds_control_fallback_eligibility",
+    "jftrade-broker::market_rules_snapshot_errors::apply_market_rule_ignores_missing_zero_and_negative_lot_size",
+    "jftrade-broker::market_rules_snapshot_errors::broker_lot_size_initializes_minimum_and_step_quantity",
+    "jftrade-broker::market_rules_snapshot_errors::market_rules_match_trimmed_symbols_and_apply_overrides_in_order",
+    "jftrade-broker::foundation_corpus::preserves_broker_error_display_and_snapshot_fallback_rules",
+    "jftrade-broker::market_rules_snapshot_errors::market_rules_ignore_missing_non_positive_and_non_finite_constraints",
+    "jftrade-broker::market_rules_snapshot_errors::symbol_scoped_snapshot_errors_are_detectable_through_context",
+    "jftrade-engine::product_broker_capabilities_projection::capability_catalog_publishes_required_product_surfaces",
+    "jftrade-engine::product_production_ports_market_data_actions::prediction_quote_legs_hash_matches_go_normalization",
+    "jftrade-engine::product_broker_capabilities_projection::capability_access_classes_bound_the_reviewed_read_only_surface",
+    "jftrade-engine::product_broker_capabilities_projection::declared_features_publish_the_reader_interface_that_gates_them",
+    "jftrade-engine::product_mcp_server::portfolio_summary_merges_positions_balances_and_orders_and_rejects_unknown_brokers"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 12,
+      "failed": 0,
+      "ignored": 0,
+      "filtered_out": 2010
+    }
+  ]
+}

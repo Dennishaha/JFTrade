@@ -10,6 +10,7 @@ fn scope(market: &str) -> ResearchQueryScope {
 }
 
 #[test]
+// Parity: go:452dea11:pkg/futu/adapter_research_contract_test.go:84 TestResearchCatalogOperationsRejectMissingOrInvalidParameters
 fn advanced_research_defaults_reject_incomplete_queries() {
     // Parity: go:pkg/futu/adapter_research_normalization_boundaries_test.go:16
     let cases: Vec<(&str, &str, Value, &str)> = vec![
@@ -51,6 +52,7 @@ fn advanced_research_defaults_reject_incomplete_queries() {
 }
 
 #[test]
+// Parity: go:452dea11:pkg/futu/adapter_research_normalization_boundaries_test.go:54 TestAdvancedResearchDefaultsTranslatePublicInputs
 fn advanced_research_defaults_translate_public_inputs() {
     // Parity: go:pkg/futu/adapter_research_normalization_boundaries_test.go:54
     let mut plate = params(&[("market", json!(11)), ("plateType", json!("region"))]);
@@ -88,6 +90,7 @@ fn advanced_research_defaults_translate_public_inputs() {
 }
 
 #[test]
+// Parity: go:452dea11:pkg/futu/adapter_research_normalization_boundaries_test.go:96 TestAdvancedResearchEnumTranslations
 fn advanced_research_enum_translations_match_go_bounds() {
     // Parity: go:pkg/futu/adapter_research_normalization_boundaries_test.go:96
     for (raw, want) in [("", None), ("up", Some(0)), ("down", Some(1))] {
@@ -146,6 +149,7 @@ fn advanced_research_enum_translations_match_go_bounds() {
 }
 
 #[test]
+// Parity: go:452dea11:pkg/futu/adapter_research_normalization_boundaries_test.go:284 TestResearchNumberAcceptsSupportedScalarTypes
 fn research_number_accepts_go_supported_scalar_types() {
     // Parity: go:pkg/futu/adapter_research_normalization_boundaries_test.go:284
     for value in [json!(1.0), json!(1), json!(" 1 ")] {
@@ -158,6 +162,7 @@ fn research_number_accepts_go_supported_scalar_types() {
 }
 
 #[test]
+// Parity: go:452dea11:pkg/futu/adapter_advanced_test.go:212 TestHighDividendStateRejectsMisleadingMainlandScope
 fn high_dividend_state_is_hk_only() {
     // Parity: go:pkg/futu/adapter_advanced_defaults.go:63 (Go
     // TestAdvancedResearchDefaultsRejectIncompleteQueries covers the guard).

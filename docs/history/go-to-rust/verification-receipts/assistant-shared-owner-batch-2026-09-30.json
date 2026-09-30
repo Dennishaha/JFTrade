@@ -1,0 +1,42 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-assistant",
+    "-p",
+    "jftrade-engine",
+    "-p",
+    "jftrade-store-sqlite",
+    "--all-targets",
+    "--locked",
+    "--no-fail-fast",
+    "-E",
+    "test(stale_replay_safe_claim_takes_over_with_fencing) or test(expired_tool_invocation_takeover_fences_old_ticket_with_live_run_lease) or test(run_lease_expiry_fencing_and_stale_release_are_rejected) or test(persist_success_marks_a_run_degraded_from_its_failed_tool_calls) or test(assistant_run_timeout_falls_back_to_the_reference_default_window) or test(adk_approval_wakeup_accepts_an_already_claimed_continuation) or test(evaluate_cross_up_transitions) or test(evaluate_above_and_below_levels) or test(challenge_continuation_supervisor_claims_are_exclusive_and_released)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-30T00:00:00Z",
+  "sourceState": {
+    "verifiedCommit": "2f5de4172a26c6f2f3ddb3df13e326787e82e54b"
+  },
+  "rawOutputSha256": "sha256:90f36484e3ef5ed3d742f8eb111b59fb68fd9e9cb54a0f6b5948174ab810825e",
+  "passedTests": [
+    "jftrade-assistant::owner-tests-3",
+    "jftrade-engine::owner-tests-6"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "summary": {
+    "testsRun": 9,
+    "testsPassed": 9,
+    "testsFailed": 0,
+    "testsSkipped": 2234,
+    "relationsReviewed": 9,
+    "functionExactReferencesReleased": 18
+  }
+}

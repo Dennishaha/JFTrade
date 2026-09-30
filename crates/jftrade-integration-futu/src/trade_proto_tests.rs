@@ -79,6 +79,7 @@ fn list_missing_s2c_normalizes_to_an_empty_result() {
 }
 
 #[test]
+// Parity: go:452dea11:pkg/futu/adapter_new_methods_test.go:344 TestBrokerFundsSnapshotFromProtoNilFunds
 fn funds_missing_s2c_normalizes_to_an_empty_snapshot() {
     let response = trd_get_funds::Response {
         ret_type: 0,

@@ -743,6 +743,7 @@ impl jftrade_integration_futu::PredictionComboQuotePort for ComboQuoteFixture {
 }
 
 #[test]
+// Parity: go:452dea11:pkg/futu/advanced_product_adapter_contracts_test.go:150 TestFutuComboAdapterErrorPropagationBranches
 fn event_parlay_preview_rejects_inactive_contract_filtered_from_snapshot_list() {
     // Parity: go:452dea11:pkg/futu/advanced_product_adapter_contracts_test.go:216
     // TestFutuEventContractStatusBranches. OpenD may return protocol-compatible
@@ -1254,6 +1255,7 @@ fn cancel_contract_payload(client_order_id: &str) -> Value {
 
 // Parity: go:452dea11:internal/app/apiserver/servercore/trading_order_cancellation_contracts_test.go:98 TestTradingOrderCancellationRejectsInvalidPersistedOrders
 #[test]
+// Parity: go:452dea11:internal/trading/broker_conformance_test.go:58 TestFakeBrokerConformanceCancelAcceptedAndCancelRejected
 fn cancel_rejects_missing_terminal_and_unidentified_persisted_orders() {
     let writer = Arc::new(RecordingTradeWriter::default());
     let port = cancel_contract_port(Arc::clone(&writer) as Arc<dyn TradeWritePort>);
@@ -1565,6 +1567,53 @@ impl TradeWritePort for CancelFailingWriter {
     }
 }
 
+#[derive(Debug, Default)]
+struct CancelRejectingWriter;
+
+impl TradeWritePort for CancelRejectingWriter {
+    fn place_order(
+        &self,
+        request: TradePlaceOrderRequest,
+    ) -> Result<TradePlaceOrderResult, TradeSessionError> {
+        Ok(TradePlaceOrderResult {
+            header: request.header,
+            order_id: Some(9002),
+            order_id_ex: Some("EXT-9002".to_owned()),
+        })
+    }
+
+    fn place_combo_order(
+        &self,
+        _: TradePlaceComboOrderRequest,
+    ) -> Result<TradePlaceComboOrderResult, TradeSessionError> {
+        unsupported()
+    }
+
+    fn modify_order(
+        &self,
+        _: TradeModifyOrderRequest,
+    ) -> Result<TradePlaceOrderResult, TradeSessionError> {
+        Err(TradeSessionError::Response(
+            jftrade_integration_futu::ResponseError::ReturnCode {
+                ret_type: 1,
+                err_code: 3001,
+                message: "broker refused cancel because order is locked".to_owned(),
+            },
+        ))
+    }
+
+    fn unlock_trade(&self, _: TradeUnlockRequest) -> Result<(), TradeSessionError> {
+        unsupported()
+    }
+
+    fn subscribe_trade_accounts(
+        &self,
+        _: TradeSubscribeAccountsRequest,
+    ) -> Result<(), TradeSessionError> {
+        unsupported()
+    }
+}
+
 // Parity: go:452dea11:internal/app/apiserver/servercore/trading_order_cancellation_contracts_test.go:134 TestTradingOrderCancellationPropagatesBrokerFailuresAndPersistsAcceptedCancel
 #[test]
 fn accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel() {
@@ -1639,6 +1688,50 @@ fn accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel() {
         ),
         "repeat cancel error = {repeat:?}"
     );
+}
+
+#[test]
+fn broker_cancel_rejection_keeps_cancel_requested_and_records_rejection_event() {
+    // Parity: internal/trading/broker_conformance_test.go:58 TestFakeBrokerConformanceCancelAcceptedAndCancelRejected
+    let writer = Arc::new(CancelRejectingWriter);
+    let port = cancel_contract_port(Arc::clone(&writer) as Arc<dyn TradeWritePort>);
+    let placed = port
+        .place_order(&cancel_contract_payload("cancel-contract-rejected"))
+        .expect("place order");
+    let order_id = placed["internalOrderId"]
+        .as_str()
+        .expect("internal order id")
+        .to_owned();
+
+    let error = port
+        .cancel_order(&order_id)
+        .expect_err("broker cancellation rejection");
+    assert!(
+        matches!(
+            error,
+            ExecutionWritePortError::Failed { status: 502, ref code, .. }
+                if code == "BROKER_COMMAND_FAILED"
+        ),
+        "cancel rejection = {error:?}"
+    );
+    let stored = port
+        .store
+        .get_order(&order_id)
+        .expect("read order")
+        .expect("stored order");
+    assert_eq!(stored.status, "CANCEL_SUBMITTED");
+    assert_eq!(stored.last_error_source.as_deref(), Some("broker.cancel"));
+    assert!(stored
+        .last_error
+        .as_deref()
+        .is_some_and(|message| message.contains("order is locked")));
+    let events = port
+        .store
+        .list_order_events(&order_id)
+        .expect("list order events");
+    assert!(events
+        .iter()
+        .any(|event| event.event_type == "BROKER_CANCEL_REJECTED"));
 }
 
 #[test]
@@ -1947,6 +2040,7 @@ fn product_rule_denials_return_the_go_reason_code_matrix() {
 /// `SUBMITTED` with the server-issued order id, and cancel issues exactly one
 /// `Trd_ModifyOrder(operation=2)`.
 #[test]
+// Parity: go:452dea11:pkg/futu/advanced_product_adapter_contracts_test.go:150 TestFutuComboAdapterErrorPropagationBranches
 fn option_combo_preview_place_and_cancel_keep_server_identity() {
     let runtime = Arc::new(SharedTradeReadRuntime::default());
     runtime.set_option_strategy_spread(Some(Arc::new(OptionSpreadFixture)));
@@ -2898,6 +2992,7 @@ impl TradeWritePort for CancelLosesResponseWriter {
 /// fabricate a submitted order. The Rust owner is the execution write port,
 /// which persists UNKNOWN and returns the upstream failure.
 #[test]
+// Parity: go:452dea11:pkg/futu/transport_error_propagation_test.go:125 TestTradeWriteMethodsPropagateAccountAndWriteDisconnects
 fn trade_write_methods_propagate_write_disconnects() {
     let writer = Arc::new(DisconnectingTradeWriter::default());
     let port = write_port_with_writer(Arc::clone(&writer) as Arc<dyn TradeWritePort>);
@@ -2936,6 +3031,7 @@ fn trade_write_methods_propagate_write_disconnects() {
 /// request loses its response, the write must fail closed and must never be
 /// replayed, because a second submission could double-fill the account.
 #[test]
+// Parity: go:452dea11:pkg/futu/transport_error_propagation_test.go:166 TestTradeWritesAreNotReplayedWhenResponseIsLost
 fn trade_writes_are_not_replayed_when_the_response_is_lost() {
     let writer = Arc::new(DisconnectingTradeWriter::default());
     let port = write_port_with_writer(Arc::clone(&writer) as Arc<dyn TradeWritePort>);
@@ -3007,6 +3103,7 @@ fn trade_writes_are_not_replayed_when_the_response_is_lost() {
 /// percent-encodes the id it builds. An id such as `order-1` must therefore be
 /// decoded before the store lookup instead of surfacing as 404.
 #[test]
+// Parity: go:452dea11:internal/assistant/assembly/tool_catalog_test.go:707 TestExecutionReadToolsPropagateProjectionFailures
 fn execution_read_decodes_percent_encoded_order_ids() {
     let state = Arc::new(ActiveProviderState::new(Some(
         jftrade_settings::MarketDataProvider::Futu,

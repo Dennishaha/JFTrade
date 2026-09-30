@@ -223,6 +223,7 @@ fn lifecycle_starts_in_dependency_order_and_shuts_down_in_reverse() {
 // Parity: go:452dea11:internal/app/apiserver/desktop_api_startup_test.go:148 TestStartDesktopWithConfigClosesSidecarWhenReadinessTargetFails
 // Parity: go:452dea11:internal/app/apiserver/lifecycle/lifecycle_test.go:616 TestStartForRunArgsStopsAtFailingStartupStage
 #[test]
+// Parity: go:452dea11:internal/app/apiserver/application/installers_test.go:49 TestInstallersRollbackPartialInitialization
 fn readiness_failure_reclaims_every_started_process_without_starting_dependents() {
     let plan = RuntimePlan::new(assets()).unwrap();
     let mut supervisor = FakeSupervisor {
@@ -260,6 +261,7 @@ fn frontend_facade_contract_names_are_versioned_in_one_place() {
 }
 
 #[test]
+// Parity: go:452dea11:internal/frontendassets/dev_test.go:7 TestFileSystemReportsExternalAssetsForDevelopmentBuild
 fn desktop_shell_keeps_development_frontend_external_and_embeds_staged_dist_for_release() {
     let manifest_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
     let config: serde_json::Value = serde_json::from_slice(

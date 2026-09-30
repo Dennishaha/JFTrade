@@ -495,6 +495,7 @@ mod tests {
 
     // Parity: go:452dea11:internal/app/apiserver/futuapp/runtime_state_boundaries_test.go:51 TestFutuRuntimeHealthyProbeAndGlobalStateBoundaries
     #[test]
+    // Parity: go:452dea11:internal/integration/futu/probe_test.go:96 TestProbeOpenDMapsHealthyProtocolFixture
     fn tcp_probe_maps_login_global_state_and_market_readiness() {
         let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
         let address = listener.local_addr().expect("address");
@@ -564,6 +565,7 @@ mod tests {
     }
 
     #[test]
+    // Parity: go:452dea11:pkg/futu/opend/client_test.go:280 TestSubscribeNotifyReceivesSystemPush
     fn initialized_probe_and_subscription_rpc_share_one_managed_reader() {
         let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
         let address = listener.local_addr().expect("address");
@@ -988,6 +990,7 @@ mod tests {
     }
 
     #[test]
+    // Parity: go:452dea11:pkg/futu/exchange_test.go:237 TestConnectRejectsOpenDBelowMinimumVersion
     fn version_support_matches_go_minimum_version_rule() {
         // Parity: go:452dea11:pkg/futu/opend/version_test.go:8 TestFormatVersion
         assert_eq!(format_version(1009, 6908), "10.9.6908");

@@ -1,0 +1,58 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json",
+    "--no-fail-fast",
+    "-E",
+    "test(backtest_start_normalizes_chart_type) or test(sync_request_plans_intervals_like_go) or test(backtest_start_resolves_hong_kong_calendar_day) or test(backtest_start_normalizes_legacy_offset_timestamps)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-29T15:42:00Z",
+  "sourceState": {
+    "verifiedCommit": "2f5de4172a26c6f2f3ddb3df13e326787e82e54b"
+  },
+  "rawOutputSha256": "sha256:10cd6f60b642e35ffce5f6d3f78a7aa7c3c8bb1e0c03b6a01f50480076de6f00",
+  "passedTests": [
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_execution::product_production_ports_backtest_strategy::time_range_tests::backtest_start_normalizes_chart_type",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_execution::product_production_ports_backtest_strategy::time_range_tests::backtest_start_normalizes_legacy_offset_timestamps",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_execution::sync_start_tests::sync_request_plans_intervals_like_go",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_execution::product_production_ports_backtest_strategy::time_range_tests::backtest_start_resolves_hong_kong_calendar_day"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 4
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1642,
+      "exec_time": 0.111958042
+    }
+  ],
+  "scope": {
+    "module": "backtest",
+    "mappingCount": 4,
+    "rustTestCount": 4
+  }
+}

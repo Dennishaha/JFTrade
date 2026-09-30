@@ -840,6 +840,7 @@ mod product_production_assembly_tests {
     }
 
     #[test]
+    // Parity: go:452dea11:internal/api/watchlist/route_error_handling_test.go:77 TestBindQueryRejectsMalformedAndInvalidValues
     fn production_watchlist_read_uses_real_pages_and_remote_catalog() {
         let (_temp_dir, settings_path, config, security) = setup_test_env();
         let descriptors =
@@ -1472,6 +1473,7 @@ mod product_production_assembly_tests {
     /// An enabled but unreachable OpenD is `offline`/`disconnected` with the
     /// generic connectivity code and a restart hint.
     #[test]
+    // Parity: go:452dea11:internal/app/apiserver/futuapp/runtime_state_boundaries_test.go:26 TestFutuRuntimeRemainingDisconnectedAndResetPaths
     fn production_opend_health_diagnoses_enabled_but_unreachable_opend() {
         let (_temp_dir, settings_path, config, security) = setup_test_env();
 
@@ -3610,6 +3612,7 @@ mod product_production_assembly_tests {
     }
 
     #[tokio::test]
+    // Parity: go:452dea11:internal/api/backtest/routes_progress_test.go:71 TestSyncProgressAndCancelRoutesHandleSuccessAndNotFound
     async fn production_backtest_sync_endpoints_project_missing_tasks_and_unavailable_start() {
         let (_temp_dir, _settings_path, config, _security) = setup_test_env();
         let handle = start_product(config).await.expect("start product");
@@ -4000,6 +4003,7 @@ mod product_production_assembly_tests {
     }
 
     #[tokio::test]
+    // Parity: go:452dea11:internal/api/marketdata/routes_boundaries_test.go:314 TestMarketDataReadErrorsRejectInvalidCandleSessions
     async fn candles_and_search_validation_rules() {
         let (_temp_dir, settings_path, _config, _security) = setup_test_env();
         fs::write(

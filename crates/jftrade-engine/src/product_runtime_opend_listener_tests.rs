@@ -117,6 +117,7 @@ async fn next_event(connection: &mut LiveHubConnection) -> Option<serde_json::Va
 // Parity: go:452dea11:pkg/futu/stream_connection_quote_boundaries_test.go:188
 // TestStreamMarketTradeCarriesDeltaAndCumulativeVolume
 #[tokio::test]
+// Parity: go:452dea11:pkg/futu/stream_connection_quote_boundaries_test.go:292 TestOrderBookStreamConnectionBoundaries
 async fn order_book_pushes_publish_depth_for_the_subscribed_instrument() {
     // Parity: go:452dea11:pkg/futu/exchange_business_boundary_test.go:277
     // TestExchangeLocalMarketAndOrderBookHandlerBoundaries. Go registers a
@@ -159,6 +160,7 @@ async fn order_book_pushes_publish_depth_for_the_subscribed_instrument() {
 
 // Parity: go:452dea11:pkg/futu/stream_orderbook.go:48 handleOrderBookPush
 #[tokio::test]
+// Parity: go:452dea11:pkg/futu/exchange_orderbook_test.go:363 TestHandleOrderBookPushEmitsSingleCompleteBookTicker
 async fn order_book_pushes_no_longer_require_server_receive_times() {
     // Go's handler only needs a resolvable security plus at least one non-zero
     // best price; it never reads `SvrRecvTimeBid`/`SvrRecvTimeAsk`. Rust must
@@ -243,6 +245,7 @@ async fn order_book_pushes_without_any_price_are_dropped() {
 // deliver the `market-data.tick` and `market.depth` envelopes from both push
 // kinds, which is why this test reuses a single `subscribed()` connection.
 #[tokio::test]
+// Parity: go:452dea11:internal/app/apiserver/servercore/server_market_test.go:11 TestMarketDataSubscriptionHeartbeat
 async fn one_live_subscription_publishes_both_trade_and_depth_pushes() {
     let (_hub, listener, mut connection) = subscribed(&["HK.00700"]);
 

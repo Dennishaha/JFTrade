@@ -533,8 +533,7 @@ impl ProductionPortBundle {
     }
 
     pub(crate) fn shutdown_strategy_runtime(&self) -> Result<(), String> {
-        if self.strategy_runtime_manager.shutdown() { Ok(()) }
-        else { Err("strategy runtime still owns active tasks after shutdown deadline".to_owned()) }
+        self.strategy_runtime_manager.shutdown_with_error()
     }
 
     /// Stop assistant provider calls and join approval continuations before

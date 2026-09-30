@@ -232,6 +232,7 @@ mod tests {
     }
 
     #[test]
+    // Parity: go:452dea11:internal/marketdataassets/asset_selection_boundaries_test.go:204 TestMaterializeAssetRejectsDigestChanges
     fn rejects_a_bundle_whose_bytes_no_longer_match_the_digest() {
         let root = scratch_root("digest-change");
         let bundle = AssetBundle {
@@ -251,6 +252,7 @@ mod tests {
     }
 
     #[test]
+    // Parity: go:452dea11:internal/marketdataassets/cache_test.go:15 TestMaterializeCachedAssetReusesVerifiedContent
     fn reuses_a_published_asset_without_rewriting_it() {
         let root = scratch_root("reuse");
         let bundle = AssetBundle {
@@ -278,6 +280,7 @@ mod tests {
     }
 
     #[test]
+    // Parity: go:452dea11:internal/marketdataassets/asset_selection_boundaries_test.go:218 TestMaterializeAssetRejectsInvalidBundlePath
     fn rejects_escaping_asset_names_before_writing() {
         let parent = scratch_root("escaping-name");
         let root = parent.join("bundle");

@@ -760,6 +760,7 @@ fn backtest_history_cleanup_skips_running_runs_and_keeps_the_newest_terminal_run
 }
 
 #[test]
+// Parity: go:452dea11:internal/app/apiserver/servercore/data_management_test.go:124 TestDataManagementAdaptersRejectBusyRuntimeAndMapStalePreview
 fn cleanup_preview_requires_a_ready_database_with_the_purgeable_table() {
     let fixture = Fixture::new();
     let previews = fixture.preview_service();

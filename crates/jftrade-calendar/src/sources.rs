@@ -404,6 +404,7 @@ mod tests {
     }
 
     #[test]
+    // Parity: go:452dea11:internal/exchangecalendar/source_json_test.go:10 TestSourceStatusJSONOmitsZeroTimes
     fn nonzero_time_fields_use_wire_rfc3339_and_zero_status_omits_them() {
         let zero = serde_json::to_value(CalendarSourceStatus {
             source_id: "nyse_official".to_owned(),

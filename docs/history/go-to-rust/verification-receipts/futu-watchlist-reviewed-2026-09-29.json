@@ -1,0 +1,48 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-integration-futu",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json",
+    "-E",
+    "test(watchlist_read_gate_enforces_ten_calls_per_rolling_thirty_seconds) or test(watchlist_reader_cache_uses_ttl_and_returns_copies) or test(watchlist_reader_cache_expires_at_the_ttl_boundary) or test(watchlist_group_conversion_marks_every_normalized_duplicate_ambiguous) or test(members_keep_canonical_id_and_broker_aliases_distinct) or test(watchlist_fresh_read_bypasses_and_replaces_group_and_member_caches) or test(watchlist_fresh_member_read_rechecks_remote_ambiguity)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-29T13:50:00Z",
+  "sourceState": {
+    "verifiedCommit": "2f5de4172a26c6f2f3ddb3df13e326787e82e54b"
+  },
+  "rawOutputSha256": "sha256:fb8cabb2bbc7221e572856e31b62da55ed67ea96132d1108d74bd1eb7a3dd89e",
+  "passedTests": [
+    "jftrade-integration-futu::watchlist_reader::tests::watchlist_reader_cache_uses_ttl_and_returns_copies",
+    "jftrade-integration-futu::watchlist_reader::tests::watchlist_reader_cache_expires_at_the_ttl_boundary",
+    "jftrade-integration-futu::watchlist_reader::tests::watchlist_fresh_member_read_rechecks_remote_ambiguity",
+    "jftrade-integration-futu::watchlist_reader::tests::watchlist_fresh_read_bypasses_and_replaces_group_and_member_caches",
+    "jftrade-integration-futu::watchlist_reader::tests::watchlist_group_conversion_marks_every_normalized_duplicate_ambiguous",
+    "jftrade-integration-futu::watchlist_reader::tests::watchlist_read_gate_enforces_ten_calls_per_rolling_thirty_seconds",
+    "jftrade-integration-futu::user_security_protocol::members_keep_canonical_id_and_broker_aliases_distinct"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "filtered_out": 536
+    }
+  ]
+}

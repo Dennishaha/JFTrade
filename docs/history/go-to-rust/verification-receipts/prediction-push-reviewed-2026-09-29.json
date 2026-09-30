@@ -1,0 +1,152 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "-E",
+    "test(fresh_prediction_push_serves_reads_and_duplicate_sequences_keep_the_first_sample) or test(prediction_push_samples_expire_after_the_five_second_window) or test(prediction_push_key_folds_broker_instrument_and_data_type)",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-29T02:10:35Z",
+  "sourceState": {
+    "verifiedCommit": "2f5de4172a26c6f2f3ddb3df13e326787e82e54b",
+    "trackedDiffSha256": "ec90db2c5c90d6b08c21338ce6146f557583ef54b9c204886aa93e8d93c8dd2c",
+    "untrackedFiles": [
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-sse-frame-loop-reviewed-2026-09-29.json",
+        "sha256": "12db05f76dea7d6f98960badd67dea25b6b4e64ba6930826093083d15e5c1e9c"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-sse-reviewed-2026-09-30.json",
+        "sha256": "23cb9085910da407cffce794533dee1ff1eea1154a3a50a766fa6afd67ed9ec9"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/assistant-tail-p1-2026-09-28T0227Z.json",
+        "sha256": "74e1bd1f4f2ee7a7eead3bd398b267e9788d7082fdf8e028449e66f31f29f48b"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/futu-p2-three-reviewed-2026-09-29.json",
+        "sha256": "75652df0ee656dacbda2d0b3f40dff5ccf47ec060b44fabc5aba58cebaf63d8e"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/futu-transport-reviewed-2026-09-30.json",
+        "sha256": "a0906c826c136f6c21afaaf156d85bc399947b9047e47431aa33fcc242ad4290"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/p1-broker-cancel-rejection-2026-09-28T184500Z.json",
+        "sha256": "6a1ab35d3718e0b74d98bd4ddfabaa9effdfd09a49912d349b16786d713bcbdc"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/p1-broker-cancel-rejection-red-2026-09-28T184300Z.json",
+        "sha256": "ffcf4bdfc81402a57b2173d242df628c00875e4197591fdba2a9d17ee5828a50"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/p1-futu-boundaries-2026-09-28T064852Z.json",
+        "sha256": "9304c9ef4cd2b9a4d36385012db4902c61c41bad326f7472345fdcafc0a3bbf7"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/p1-futu-session-market-rules-2026-09-28T071432Z.json",
+        "sha256": "b290cd212da3374c17198d541103085cf5a0b71fedc8f0d1271732534f097167"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/p1-manager-close-aggregate-2026-09-28T125441Z.json",
+        "sha256": "e319b1dd01b56b3ae8bb821aa23bd831c2eb4ca5216765035961fd92f0bdd185"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/p1-manager-close-drain-2026-09-28T115903Z.json",
+        "sha256": "7fd9c2be86d54c740663edd6da3de92f391c27925949a5774809020f7ad558f0"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/p1-provider-boundaries-2026-09-28T1415Z.json",
+        "sha256": "143648491d86b0a5b7e9495ef6dd97bffc10d6797e5bd08e24396b332a94c20e"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/p1-query-candle-boundaries-2026-09-28T0250Z.json",
+        "sha256": "69bae53794658676a710eeda191d4e68b5e70c7f243ee3483c441f7919d75b40"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/p1-strategy-cancel-all-2026-09-28T075220Z.json",
+        "sha256": "4ae81bb8523edd0244a07edcbd5299533a5a837488451687b2882fe0df95a2f2"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/p1-strategy-cancel-all-success-2026-09-28T145000Z.json",
+        "sha256": "fc615c228ba5af017d074b6793421fc3e624cc447a0abd801c9a8ad8c8eb6901"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/p1-strategy-lifecycle-transition-2026-09-28T190500Z.json",
+        "sha256": "5e8e5224e011be0b58564f1054e9ee5e375fc2f7ee3c536884c486fb760c58ff"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/p1-strategy-subscription-normalization-2026-09-28T100015Z.json",
+        "sha256": "395ad660308cecd62c6a0665868e97e57a053834315bb65d5ce0d3c802609311"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/p1-strategy-subscription-warmup-2026-09-28T100015Z.json",
+        "sha256": "5117b36376dd8f887ee47ec8539fe723fd0bab1c6d7ada5938259aac157c062f"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/p1-strategy-targeted-cancel-2026-09-28T142057Z.json",
+        "sha256": "3423dac32787c4000997a77e747bdf13c64a024334cf4c27e9e341eb47d25fa3"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/p1-strategy-targeted-cancel-alias-2026-09-29T235736Z.json",
+        "sha256": "be73bf20b8629fc8c9ca04ba9cab81258f9dd7a4b3a84d31c481736e5f1800fd"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/p1-workflow-crud-filter-delete-2026-09-28T090634Z.json",
+        "sha256": "5780bdfc67c001debadc02ce685ef3c823f562a1eeb439e6a7c6f6b4d51e9e6f"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/p1-workflow-pagination-2026-09-28T081500Z.json",
+        "sha256": "3efdb120b58c0332c7b3ca0f868ed339945311c319e31c7ec8a09c6098e66732"
+      }
+    ]
+  },
+  "rawOutputSha256": "be911c287f663bb6151394cb091665b1e326ea59b6d42a81c4ecf3bd99a7bbf9",
+  "passedTests": [
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_trade::product_trade_runtime_projection::product_trade_runtime_prediction_push::tests::fresh_prediction_push_serves_reads_and_duplicate_sequences_keep_the_first_sample",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_trade::product_trade_runtime_projection::product_trade_runtime_prediction_push::tests::prediction_push_samples_expire_after_the_five_second_window",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_trade::product_trade_runtime_projection::product_trade_runtime_prediction_push::tests::prediction_push_key_folds_broker_instrument_and_data_type"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 3,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1643,
+      "exec_time": 0.054482167,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    }
+  ]
+}

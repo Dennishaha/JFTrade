@@ -749,6 +749,7 @@ fn tool_failure_classification_matches_the_reference_table() {
 /// projection dropped that resume state, so a resumed run looked like a plain
 /// chat run in the console and in the metrics `resumed` counter.
 #[test]
+// Parity: go:452dea11:internal/assistant/engine/store_test.go:471 TestApprovalModeCreatesPendingApprovalForWriteTool
 fn a_resumed_approval_run_completes_with_the_confirmation_resolved_state() {
     let (_directory, store, session_store) = initialized_stores();
     let settings_path = _directory.path().join("settings.json");

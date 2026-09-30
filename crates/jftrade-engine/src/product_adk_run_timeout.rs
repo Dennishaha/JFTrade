@@ -58,6 +58,7 @@ mod tests {
     /// `assistantmodel.DefaultRunTimeout` for an absent, unreadable or
     /// non-positive snapshot, while a configured provider value wins.
     #[test]
+    // Parity: go:452dea11:internal/assistant/assembly/application_adapter_boundaries_test.go:71 TestApplicationAdapterUsesConfiguredRuntimeAndSettings
     fn assistant_run_timeout_falls_back_to_the_reference_default_window() {
         assert_eq!(
             assistant_run_timeout_ms(Path::new("missing-settings.json")),

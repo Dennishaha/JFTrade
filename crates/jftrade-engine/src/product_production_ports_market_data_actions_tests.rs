@@ -363,6 +363,7 @@ fn batch_snapshot_request(query: &str, body: &[u8]) -> MarketDataProviderActions
 /// always stamps `metadata.subscriptionCreated=false`, and answers the second
 /// identical request from the 3 second cache with `metadata.fromCache=true`.
 #[tokio::test]
+// Parity: go:452dea11:internal/productfeatures/service_test.go:143 TestProductFeatureServiceRoutesEveryOptionalInterfaceAndCaches
 async fn batch_snapshots_normalize_deduplicate_and_serve_the_short_lived_cache() {
     let quote_port = Arc::new(CacheCountingSnapshotQuotePort::default());
     let port = ProductionMarketDataProviderActionsPort::new(Some(quote_port.clone()));
@@ -414,6 +415,8 @@ async fn batch_snapshots_normalize_deduplicate_and_serve_the_short_lived_cache()
 /// Go rejects `SG.D05` (prefix is not HK/US/SH/SZ) and a 201 symbol body with
 /// `ErrInvalidQuery`, both before the broker read.
 #[tokio::test]
+// Parity: go:452dea11:internal/productfeatures/service_routing_and_validation_test.go:14 TestProductFeatureServiceRemainingRoutingAndDegradationBranches
+// Parity: go:452dea11:internal/productfeatures/service_test.go:243 TestProductFeatureServiceExhaustiveFailureAndNormalizationBranches
 async fn batch_snapshots_reject_unsupported_markets_and_oversized_requests() {
     let quote_port = Arc::new(CacheCountingSnapshotQuotePort::default());
     let port = ProductionMarketDataProviderActionsPort::new(Some(quote_port.clone()));

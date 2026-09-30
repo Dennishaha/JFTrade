@@ -108,6 +108,7 @@ fn market_rules_use_security_info_lot_size_without_warnings() {
 }
 
 #[test]
+// Parity: go:452dea11:pkg/futu/exchange_quote_request_boundaries_test.go:16 TestExchangeAccountPushMarketWarningAndEmptySymbolBoundaries
 fn market_rules_fall_back_to_security_snapshot_lot_size_and_report_the_primary_error() {
     // Parity: go:452dea11:pkg/futu/adapter_bridge_test.go:155
     // TestBrokerAdapterQueryMarketRulesFallsBackToSecuritySnapshotLotSize.
@@ -259,6 +260,7 @@ fn market_rules_fallback_empty_keeps_the_primary_error_in_the_message() {
 }
 
 #[test]
+// Parity: go:452dea11:pkg/futu/marketdata_reader_boundaries_test.go:17 TestMarketDataReaderSurfacesTransportAndPayloadBoundaries
 fn market_rules_reject_invalid_symbols_before_touching_opend() {
     // Parity: go:452dea11:pkg/futu/marketdata_reader_boundaries_test.go:17
     // `QuerySecurityInfo(BAD)` must fail instead of silently querying OpenD.
@@ -276,6 +278,7 @@ fn market_rules_reject_invalid_symbols_before_touching_opend() {
 }
 
 #[test]
+// Parity: go:452dea11:pkg/futu/marketdata_reader_boundaries_test.go:188 TestMarketDataRuleHelpersRejectIncompleteBrokerPayloads
 fn market_rules_skip_snapshot_rows_with_blank_symbols_or_invalid_lot_sizes() {
     // Parity: go:452dea11:pkg/futu/adapter_marketdata_reader.go:658
     // `marketRulesFromSecuritySnapshot` drops rows without a usable lot size.

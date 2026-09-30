@@ -1,0 +1,100 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json",
+    "--no-fail-fast",
+    "-E",
+    "test(snapshot_read_fences_provider_generation_switch_during_helper_query) or test(candles_and_search_validation_rules) or test(subscription_mutations_map_canceled_context_to_failed) or test(release_and_clear_map_snapshot_failure_after_logical_cleanup) or test(production_news_actions_port_maps_helper_failure_and_rejects_bad_limit) or test(production_news_actions_port_forwards_yfinance_news_request) or test(corporate_actions_query_requires_rfc3339_and_ascending_range) or test(production_news_actions_port_forwards_corporate_actions_window) or test(tick_candles_use_fresh_cache_without_querying_the_provider) or test(candle_route_forwards_strict_before_window) or test(broker_settings_writes_replay_frozen_compatibility_cases) or test(managed_account_write_routes_map_missing_records_to_not_found) or test(strategy_instance_read_routes_match_group_fixture_in_cutover_only) or test(catalog_activity_paging_and_filters_match_go_boundaries) or test(production_http_broker_reads_serialize_empty_collections_as_arrays)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-29T15:12:00Z",
+  "sourceState": {
+    "verifiedCommit": "2f5de4172a26c6f2f3ddb3df13e326787e82e54b"
+  },
+  "rawOutputSha256": "sha256:32fe1451be0c9565c8fab2733dbb134212bfb3221d39e338f8e985b24c49e506",
+  "passedTests": [
+    "jftrade-engine::market_data_subscription_mutation_compatibility$subscription_mutations_map_canceled_context_to_failed",
+    "jftrade-engine::strategy_runtime_lifecycle_bounded_tests$strategy_runtime::strategy_runtime_activity::tests::catalog_activity_paging_and_filters_match_go_boundaries",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_strategy::product_production_ports_strategy_runtime::strategy_runtime_activity::tests::catalog_activity_paging_and_filters_match_go_boundaries",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_market_data::product_production_ports_market_data_news_tests::corporate_actions_query_requires_rfc3339_and_ascending_range",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_market_data::product_production_ports_market_data_subscription::tests::release_and_clear_map_snapshot_failure_after_logical_cleanup",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_market_data::product_production_ports_market_data_news_tests::production_news_actions_port_maps_helper_failure_and_rejects_bad_limit",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_market_data::product_production_ports_market_data_news_tests::production_news_actions_port_forwards_yfinance_news_request",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_market_data::product_production_ports_market_data_news_tests::production_news_actions_port_forwards_corporate_actions_window",
+    "jftrade-engine::jftrade_engine$product::tests::market_data_quote_read_tests::snapshot_read_fences_provider_generation_switch_during_helper_query",
+    "jftrade-engine::jftrade_engine$product::tests::market_data_quote_read_tests::candle_pagination_tests::tick_candles_use_fresh_cache_without_querying_the_provider",
+    "jftrade-engine::jftrade_engine$product::tests::market_data_quote_read_tests::candle_pagination_tests::candle_route_forwards_strict_before_window",
+    "jftrade-engine::jftrade_engine$product::tests::broker_settings_writes_replay_frozen_compatibility_cases",
+    "jftrade-engine::jftrade_engine$product::tests::production_assembly_tests::product_production_assembly_tests::candles_and_search_validation_rules",
+    "jftrade-engine::jftrade_engine$product::tests::managed_account_write_routes_map_missing_records_to_not_found",
+    "jftrade-engine::jftrade_engine$product::tests::strategy_read_tests::strategy_instance_read_routes_match_group_fixture_in_cutover_only",
+    "jftrade-engine::jftrade_engine$product::tests::production_assembly_tests::product_production_assembly_tests::production_http_broker_reads_serialize_empty_collections_as_arrays"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 8,
+      "exec_time": 0.014470791
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 66,
+      "exec_time": 0.034292584
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 14
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 14,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1632,
+      "exec_time": 7.553634708
+    }
+  ],
+  "scope": {
+    "module": "api_transport",
+    "mappingCount": 11,
+    "rustTestCount": 16
+  }
+}

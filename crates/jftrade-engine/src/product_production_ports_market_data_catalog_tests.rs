@@ -259,6 +259,7 @@ async fn futu_search_filters_and_deduplicates_before_limiting_without_hiding_amb
 }
 
 #[tokio::test]
+// Parity: go:452dea11:pkg/futu/advanced_product_adapter_contracts_test.go:22 TestFutuAdvancedSpecializedReadersAndCustomizationSuccess
 async fn futu_search_distinguishes_no_match_unsupported_market_and_runtime_failure() {
     for (entries, status) in [
         (vec![], "not_found"),

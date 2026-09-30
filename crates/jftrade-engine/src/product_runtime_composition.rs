@@ -184,6 +184,7 @@ mod tests {
     use jftrade_marketdata::PhysicalSubscriptionSnapshotPort;
 
     #[test]
+    // Parity: go:452dea11:pkg/futu/exchange_test.go:36 TestConstructorFallsBackToDefaultAddress
     fn opend_provider_config_defaults_to_the_go_tcp_api_port() {
         // Parity: go:452dea11:pkg/futu/exchange.go:45 DefaultOpenDAddr and
         // pkg/futu/exchange_test.go:36 TestConstructorFallsBackToDefaultAddress.

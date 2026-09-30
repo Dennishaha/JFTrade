@@ -1,0 +1,72 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-api",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json",
+    "-E",
+    "test(stream_loop_propagates_trigger_and_ticker_failures) or test(stream_loop_propagates_initial_error_before_any_tick) or test(auth_protects_system_status_without_credentials) or test(auth_rejects_requests_without_any_authenticator) or test(auth_rejects_untrusted_origin_before_authentication) or test(auth_treats_patch_as_session_write_requiring_csrf) or test(cors_preflight_reflects_allowed_origin_and_rejects_unknown_origin) or test(request_origin_uses_production_semantics_without_malformed_origin_fallback) or test(origin_normalization_accepts_web_and_tauri_schemes)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-29T12:54:00Z",
+  "sourceState": {
+    "verifiedCommit": "2f5de4172a26c6f2f3ddb3df13e326787e82e54b"
+  },
+  "rawOutputSha256": "sha256:720c76ce1c5c9c27c9c5c5cc879ebc9845cd4b0e946440a467d5c71c4231284e",
+  "passedTests": [
+    "jftrade-api::jftrade_api$auth::tests::origin_normalization_accepts_web_and_tauri_schemes",
+    "jftrade-api::jftrade_api$auth::tests::request_origin_uses_production_semantics_without_malformed_origin_fallback",
+    "jftrade-api::jftrade_api$sse::tests::stream_loop_propagates_trigger_and_ticker_failures",
+    "jftrade-api::jftrade_api$sse::tests::stream_loop_propagates_initial_error_before_any_tick",
+    "jftrade-api::transport_contracts$auth_protects_system_status_without_credentials",
+    "jftrade-api::transport_contracts$auth_rejects_requests_without_any_authenticator",
+    "jftrade-api::transport_contracts$auth_treats_patch_as_session_write_requiring_csrf",
+    "jftrade-api::transport_contracts$cors_preflight_reflects_allowed_origin_and_rejects_unknown_origin",
+    "jftrade-api::transport_contracts$auth_rejects_untrusted_origin_before_authentication"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 4
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 44,
+      "exec_time": 0.048580417
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 5
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 24,
+      "exec_time": 0.059130166
+    }
+  ]
+}

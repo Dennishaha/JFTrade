@@ -278,7 +278,8 @@ pub(super) fn page(key: &str, items: Vec<Value>, query: &str, default_limit: usi
     let limit = query_param(query, "limit")
         .and_then(|v| v.parse().ok())
         .filter(|v: &usize| *v > 0)
-        .unwrap_or(default_limit);
+        .unwrap_or(default_limit)
+        .min(100);
     let offset = query_param(query, "offset")
         .and_then(|v| v.parse().ok())
         .unwrap_or(0usize)

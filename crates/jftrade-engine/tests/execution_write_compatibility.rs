@@ -255,6 +255,7 @@ fn execution_write_leaf_fails_closed_without_test_port_after_shape_validation() 
 }
 
 #[test]
+// Parity: go:452dea11:internal/api/httpserver/bindings_test.go:75 TestBindURIAllowsEscapedLiteralPercent
 fn execution_write_leaf_preserves_null_trailing_json_and_percent_id_trim() {
     let port = RecordingPort::new();
     let trailing = ExecutionWriteRequest {

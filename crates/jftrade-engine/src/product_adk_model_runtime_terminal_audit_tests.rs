@@ -610,6 +610,7 @@ fn a_completed_run_persists_the_reply_and_audits_run_completed() {
 /// which drives a real runtime against a closed loopback provider and asserts
 /// the frozen `chat-provider-failure` shape.
 #[test]
+// Parity: go:452dea11:internal/assistant/engine/runner_chat_test.go:325 TestCompleteChatRunFailurePersistsUserFacingErrorReply
 fn a_failed_run_persists_the_provider_error_and_audit_row() {
     let (directory, store, session_store) = initialized_stores();
     let runtime = runtime_for(&directory, &store, &session_store);

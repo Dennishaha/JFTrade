@@ -1,0 +1,51 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "-p",
+    "jftrade-integration-futu",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json",
+    "-E",
+    "test(runtime_account_discovery_deduplicates_sorts_and_falls_back_to_card_identity) or test(resolve_trade_market_covers_requested_and_fallback_branches_like_go) or test(broker_working_orders_are_filtered_sorted_and_symbol_normalized_like_go) or test(execution_order_rejects_non_us_fill_outside_rth_and_normalizes_the_remark) or test(symbol_qualification_falls_back_to_the_resolved_market_like_go) or test(empty_status_filters_produce_no_codes_like_go) or test(margin_ratio_with_an_invalid_security_market_keeps_an_empty_symbol) or test(runtime_account_candidates_are_sorted_before_selection_like_go)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-29T13:55:00Z",
+  "sourceState": {
+    "verifiedCommit": "2f5de4172a26c6f2f3ddb3df13e326787e82e54b"
+  },
+  "rawOutputSha256": "sha256:0352cf0f364c0a117d25738da8e067c73336570bef682216167876a59073fded",
+  "passedTests": [
+    "jftrade-engine::product_production_ports_trade::runtime_account_discovery_deduplicates_sorts_and_falls_back_to_card_identity",
+    "jftrade-engine::product_production_ports_trade::resolve_trade_market_covers_requested_and_fallback_branches_like_go",
+    "jftrade-engine::product_production_ports_trade::broker_working_orders_are_filtered_sorted_and_symbol_normalized_like_go",
+    "jftrade-engine::product_production_ports_execution::execution_order_validation_tests::execution_order_rejects_non_us_fill_outside_rth_and_normalizes_the_remark",
+    "jftrade-engine::product_production_ports_trade::symbol_qualification_falls_back_to_the_resolved_market_like_go",
+    "jftrade-engine::product_production_ports_trade::empty_status_filters_produce_no_codes_like_go",
+    "jftrade-integration-futu::trade_session::margin_ratio_with_an_invalid_security_market_keeps_an_empty_symbol",
+    "jftrade-engine::product_production_ports_trade::runtime_account_candidates_are_sorted_before_selection_like_go"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0,
+      "filtered_out": 2547
+    }
+  ]
+}

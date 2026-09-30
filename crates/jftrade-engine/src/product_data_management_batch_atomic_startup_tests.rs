@@ -16,6 +16,8 @@ use super::super::{
 
     // Parity: go:452dea11:internal/app/apiserver/stores/handle_test.go:42 TestHandleRollsBackAndStopsAfterOpenFailure
 #[test]
+// Parity: go:452dea11:internal/app/apiserver/application/installers_test.go:49 TestInstallersRollbackPartialInitialization
+// Parity: go:452dea11:internal/app/apiserver/application/resources_test.go:34 TestOpenRollsBackEarlierResourcesWhenLaterStartupFails
 fn startup_failure_restores_previously_migrated_descriptor_files() {
     let directory = tempfile::tempdir().expect("temporary directory");
     let settings_path = directory.path().join("settings.json");

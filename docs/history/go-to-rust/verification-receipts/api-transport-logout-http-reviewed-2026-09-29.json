@@ -1,0 +1,51 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json",
+    "-E",
+    "test(auth_session_write_product_preserves_browser_context_and_recovers) or test(auth_manager_login_validate_and_logout_flow) or test(auth_session_route_matches_go_fixture_in_cutover_only)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-29T13:37:00Z",
+  "sourceState": {
+    "verifiedCommit": "2f5de4172a26c6f2f3ddb3df13e326787e82e54b"
+  },
+  "rawOutputSha256": "sha256:3a34c8940c101b5df7007725f978618f735b8abbecab510454fdb5979c9080d4",
+  "passedTests": [
+    "jftrade-engine::jftrade_engine$product::tests::auth_session_write_product_tests::auth_session_write_product_preserves_browser_context_and_recovers",
+    "jftrade-engine::jftrade_engine$product::tests::auth_session_tests::auth_session_route_matches_go_fixture_in_cutover_only",
+    "jftrade-engine::jftrade_engine$product::product_auth_session_manager::tests::auth_manager_login_validate_and_logout_flow"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 3
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1643,
+      "exec_time": 7.587920583
+    }
+  ]
+}

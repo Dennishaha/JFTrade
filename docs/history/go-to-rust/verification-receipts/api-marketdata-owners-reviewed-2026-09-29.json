@@ -1,0 +1,49 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-integration-futu",
+    "-p",
+    "jftrade-marketdata",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--no-fail-fast",
+    "-E",
+    "test(probe_opend_reports_closed_port_as_disconnected) or test(provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update) or test(cache_rejects_stale_generation_and_classifies_freshness) or test(partial_release_and_clear_operations) or test(snapshot_route_serves_a_fresh_cache_hit_without_provider_access) or test(snapshot_route_queries_the_provider_once_on_cache_miss) or test(tick_candles_query_the_provider_once_on_cache_miss_and_ingest_the_sample) or test(tick_candles_fall_back_to_retained_cache_on_ticker_error) or test(us_intraday_futu_candles_carry_calendar_resolved_session_labels)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-29T15:44:52Z",
+  "sourceState": {
+    "verifiedCommit": "2f5de4172a26c6f2f3ddb3df13e326787e82e54b"
+  },
+  "rawOutputSha256": "sha256:e18e93372b58803d03bb62430a16c4986d1be8fa7fbd11769728c7656a8312a0",
+  "passedTests": [
+    "jftrade-integration-futu::probe::tests::probe_opend_reports_closed_port_as_disconnected",
+    "jftrade-marketdata::cache::tests::cache_rejects_stale_generation_and_classifies_freshness",
+    "jftrade-marketdata::demand::tests::partial_release_and_clear_operations",
+    "jftrade-marketdata::provider_activation_recovery::provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update",
+    "jftrade-engine::product::tests::market_data_quote_read_tests::snapshot_route_serves_a_fresh_cache_hit_without_provider_access",
+    "jftrade-engine::product::tests::market_data_quote_read_tests::candle_pagination_tests::tick_candles_query_the_provider_once_on_cache_miss_and_ingest_the_sample",
+    "jftrade-engine::product::tests::market_data_quote_read_tests::candle_pagination_tests::tick_candles_fall_back_to_retained_cache_on_ticker_error",
+    "jftrade-engine::product::tests::market_data_quote_read_tests::snapshot_route_queries_the_provider_once_on_cache_miss",
+    "jftrade-engine::product::tests::market_data_quote_read_tests::candle_pagination_tests::us_intraday_futu_candles_carry_calendar_resolved_session_labels"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "summary": {
+    "testsRun": 9,
+    "testsPassed": 9,
+    "testsFailed": 0,
+    "testsSkipped": 2607,
+    "relationsReviewed": 9,
+    "functionExactReferencesReleased": 9
+  }
+}

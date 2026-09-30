@@ -1067,6 +1067,8 @@ fn capture_responses_request(reasoning: Option<(String, String)>) -> Value {
 /// Parity: go:452dea11:internal/assistant/model/provider_reasoning_config_test.go:65
 /// TestOptionalReasoningEffortRejectsDefault.
 #[test]
+// Parity: go:452dea11:internal/assistant/model/provider_reasoning_config_test.go:8 TestProviderReasoningPresetsAndExplicitEmptyMappings
+// Parity: go:452dea11:internal/assistant/model/provider_reasoning_config_test.go:27 TestProviderReasoningValidationAndCustomMapping
 fn provider_reasoning_resolution_matches_mapping_and_unsupported_effort_contract() {
     let provider = json!({
         "reasoningConfig": {
@@ -1096,6 +1098,7 @@ fn provider_reasoning_resolution_matches_mapping_and_unsupported_effort_contract
 }
 
 #[test]
+// Parity: go:452dea11:internal/assistant/model/provider_reasoning_config_test.go:27 TestProviderReasoningValidationAndCustomMapping
 fn resolve_provider_freezes_agent_reasoning_mapping_and_request_override() {
     let (directory, store, session_store) = initialized_stores();
     let secrets = directory.path().join("secrets");
@@ -1190,6 +1193,7 @@ fn resolve_provider_freezes_agent_reasoning_mapping_and_request_override() {
 /// without a second execution and without re-grouping the resolved approval on
 /// the session timeline.
 #[test]
+// Parity: go:452dea11:internal/assistant/engine/store_ops_test.go:565 TestPendingApprovalResumesThroughGoogleADKAfterRuntimeRestart
 fn an_approval_resuming_run_is_recovered_after_a_runtime_restart() {
     let (endpoint, provider) = spawn_loopback_json_provider("recovered after restart");
     let (_directory, store, session_store) = initialized_stores();

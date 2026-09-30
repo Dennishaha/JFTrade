@@ -69,6 +69,7 @@ fn system_read_fixture() -> SystemReadFixture {
 }
 
 #[tokio::test]
+// Parity: go:452dea11:internal/app/apiserver/servercoretest/contract_test.go:13 TestContractSystemStatus
 async fn system_read_routes_match_group_fixture_in_cutover_only() {
     let fixture = system_read_fixture();
     let directory = tempdir().expect("temporary directory");

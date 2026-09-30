@@ -341,6 +341,7 @@ mod tests {
     }
 
     #[test]
+    // Parity: go:452dea11:internal/app/apiserver/marketdataapp/data_plane_switch_test.go:16 TestApplyProviderSettingsUsesAtomicQuoteProviderSwitch
     fn explicit_activation_fails_closed_and_switch_clears_cache() {
         let mut router = ProviderRouter::new(2);
         router

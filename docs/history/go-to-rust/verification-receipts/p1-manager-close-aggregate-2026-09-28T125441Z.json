@@ -1,0 +1,31 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "-E",
+    "test(manager_shutdown_closes_active_pine_sessions_once) or test(manager_shutdown_aggregates_named_session_close_errors_once)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-28T13:05:15Z",
+  "sourceState": {
+    "verifiedCommit": "2f5de4172a26c6f2f3ddb3df13e326787e82e54b",
+    "trackedDiffSha256": "a7d677ab986e45abda40abf68031f6549119eb80f65d9d498364cfb793e1a2fd"
+  },
+  "passedTests": [
+    "jftrade-engine::strategy_runtime_lifecycle_bounded_tests::strategy_runtime::owner_tests::manager_shutdown_closes_active_pine_sessions_once",
+    "jftrade-engine::strategy_runtime_lifecycle_bounded_tests::strategy_runtime::owner_tests::manager_shutdown_aggregates_named_session_close_errors_once",
+    "jftrade-engine::product::product_production_ports::product_production_ports_strategy::product_production_ports_strategy_runtime::owner_tests::manager_shutdown_closes_active_pine_sessions_once",
+    "jftrade-engine::product::product_production_ports::product_production_ports_strategy::product_production_ports_strategy_runtime::owner_tests::manager_shutdown_aggregates_named_session_close_errors_once"
+  ],
+  "failedTests": [],
+  "ignoredTests": []
+}

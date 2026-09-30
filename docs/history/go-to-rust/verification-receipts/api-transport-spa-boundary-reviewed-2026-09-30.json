@@ -1,0 +1,15 @@
+{
+  "schemaVersion":"jftrade.go-rust-parity-receipt.v1",
+  "command":["node","scripts/quality/cargo-nextest.mjs","run","-p","jftrade-api","--all-targets","--locked","-E","test(frontend_spa_fallback_respects_path_and_accept_boundaries)"],
+  "runnerVersion":"cargo-nextest 0.9.143",
+  "toolchain":"rustc 1.97.1 (2026-07-14)",
+  "exitCode":0,
+  "status":"passed",
+  "verifiedAt":"2026-09-30T00:00:00Z",
+  "sourceState":{"verifiedCommit":"2f5de4172a26c6f2f3ddb3df13e326787e82e54b"},
+  "rawOutputSha256":"sha256:f3c8b8358b7572660ce891f978438721ec363b73ea1b649e9746a896359b83b8",
+  "passedTests":["jftrade-api::transport_contracts::frontend_spa_fallback_respects_path_and_accept_boundaries"],
+  "failedTests":[],
+  "ignoredTests":[],
+  "summary":{"testsRun":1,"testsPassed":1,"testsFailed":0,"testsSkipped":91,"relationsReviewed":1,"functionExactReferencesReleased":1}
+}

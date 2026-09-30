@@ -1388,7 +1388,7 @@ async fn production_chat_provider_failure_projects_go_failed_run_with_reply() {
 async fn start_adk_product_with_loopback_provider(
     endpoint: &str,
 ) -> (tempfile::TempDir, super::ProductHandle) {
-    start_adk_product_with_loopback_provider_seeded(endpoint, 0, |_, _| {}).await
+    start_adk_product_with_loopback_provider_seeded_with_timeout(endpoint, 0, None, |_, _| {}).await
 }
 
 /// Same product runtime with a configured context window and a seeding hook,
@@ -1398,6 +1398,21 @@ async fn start_adk_product_with_loopback_provider_seeded(
     window_tokens: i64,
     seed: impl FnOnce(&Arc<jftrade_store_sqlite::AdkStore>, &Arc<jftrade_store_sqlite::AdkSessionStore>),
 ) -> (tempfile::TempDir, super::ProductHandle) {
+    start_adk_product_with_loopback_provider_seeded_with_timeout(
+        endpoint,
+        window_tokens,
+        None,
+        seed,
+    )
+    .await
+}
+
+async fn start_adk_product_with_loopback_provider_seeded_with_timeout(
+    endpoint: &str,
+    window_tokens: i64,
+    stream_idle_timeout_ms: Option<i32>,
+    seed: impl FnOnce(&Arc<jftrade_store_sqlite::AdkStore>, &Arc<jftrade_store_sqlite::AdkSessionStore>),
+) -> (tempfile::TempDir, super::ProductHandle) {
     use crate::product::product_adk_model_runtime::{
         ProductionAdkChatRuntime, RunCancellationRegistry,
     };
@@ -1405,7 +1420,22 @@ async fn start_adk_product_with_loopback_provider_seeded(
 
     let directory = tempdir().expect("temporary directory");
     let settings_path = directory.path().join("settings.json");
-    std::fs::write(&settings_path, b"{}\n").expect("seed settings");
+    let settings = stream_idle_timeout_ms.map_or_else(
+        || json!({}),
+        |stream_idle_timeout_ms| {
+            json!({
+                "adk": {
+                    "runTimeoutMs": 1_800_000,
+                    "streamIdleTimeoutMs": stream_idle_timeout_ms,
+                }
+            })
+        },
+    );
+    std::fs::write(
+        &settings_path,
+        serde_json::to_vec_pretty(&settings).expect("encode settings"),
+    )
+    .expect("seed settings");
     for (path, component) in [
         (directory.path().join("adk.db"), "adk"),
         (directory.path().join("adk-session.db"), "adk-session"),
@@ -1475,53 +1505,63 @@ async fn start_adk_product_with_loopback_provider_seeded(
 /// `response.output_text.delta` plus `response.completed`.  Serves exactly one
 /// connection, then returns; the caller joins the thread.
 fn spawn_loopback_model_provider() -> (String, std::thread::JoinHandle<()>) {
+    spawn_loopback_model_provider_with_connections(1)
+}
+
+fn spawn_loopback_model_provider_with_connections(
+    connections: usize,
+) -> (String, std::thread::JoinHandle<()>) {
     let listener =
         std::net::TcpListener::bind("127.0.0.1:0").expect("bind loopback model provider");
     let address = listener.local_addr().expect("model provider address");
     let handle = std::thread::spawn(move || {
-        let (mut stream, _) = listener.accept().expect("accept model request");
-        // Drain the whole request before answering.  The production prompt
-        // plus tool schemas exceed one TCP read, and closing early would make
-        // the client observe a broken pipe instead of the SSE body.
-        let mut request = Vec::new();
-        let mut chunk = [0_u8; 4096];
-        let mut expected = None;
-        loop {
-            let count = std::io::Read::read(&mut stream, &mut chunk).expect("read model request");
-            if count == 0 {
-                break;
+        for _ in 0..connections {
+            let (mut stream, _) = listener.accept().expect("accept model request");
+            // Drain the whole request before answering.  The production prompt
+            // plus tool schemas exceed one TCP read, and closing early would make
+            // the client observe a broken pipe instead of the SSE body.
+            let mut request = Vec::new();
+            let mut chunk = [0_u8; 4096];
+            let mut expected = None;
+            loop {
+                let count =
+                    std::io::Read::read(&mut stream, &mut chunk).expect("read model request");
+                if count == 0 {
+                    break;
+                }
+                request.extend_from_slice(&chunk[..count]);
+                if expected.is_none()
+                    && let Some(headers_end) = request.windows(4).position(|w| w == b"\r\n\r\n")
+                {
+                    let headers_end = headers_end + 4;
+                    let headers =
+                        String::from_utf8_lossy(&request[..headers_end]).to_ascii_lowercase();
+                    let length = headers
+                        .lines()
+                        .find_map(|line| line.strip_prefix("content-length:"))
+                        .and_then(|value| value.trim().parse::<usize>().ok())
+                        .unwrap_or_default();
+                    expected = Some(headers_end + length);
+                }
+                if expected.is_some_and(|expected| request.len() >= expected) {
+                    break;
+                }
             }
-            request.extend_from_slice(&chunk[..count]);
-            if expected.is_none()
-                && let Some(headers_end) = request.windows(4).position(|w| w == b"\r\n\r\n")
-            {
-                let headers_end = headers_end + 4;
-                let headers = String::from_utf8_lossy(&request[..headers_end]).to_ascii_lowercase();
-                let length = headers
-                    .lines()
-                    .find_map(|line| line.strip_prefix("content-length:"))
-                    .and_then(|value| value.trim().parse::<usize>().ok())
-                    .unwrap_or_default();
-                expected = Some(headers_end + length);
-            }
-            if expected.is_some_and(|expected| request.len() >= expected) {
-                break;
-            }
+            let body = concat!(
+                "data: {\"type\":\"response.output_text.delta\",\"delta\":\"hello from loopback\"}\n\n",
+                "data: {\"type\":\"response.completed\",\"response\":{\"text\":\"hello from loopback\"}}\n\n"
+            );
+            let response = format!(
+                "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                body.len(),
+                body
+            );
+            let _ = std::io::Write::write_all(&mut stream, response.as_bytes());
+            let _ = std::io::Write::flush(&mut stream);
+            // Give the client a moment to consume the SSE body before the socket
+            // closes, then accept the next request if this fixture is reused.
+            std::thread::sleep(std::time::Duration::from_millis(200));
         }
-        let body = concat!(
-            "data: {\"type\":\"response.output_text.delta\",\"delta\":\"hello from loopback\"}\n\n",
-            "data: {\"type\":\"response.completed\",\"response\":{\"text\":\"hello from loopback\"}}\n\n"
-        );
-        let response = format!(
-            "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
-            body.len(),
-            body
-        );
-        let _ = std::io::Write::write_all(&mut stream, response.as_bytes());
-        let _ = std::io::Write::flush(&mut stream);
-        // Give the client a moment to consume the SSE body before the socket
-        // closes, then return so the caller can join this thread.
-        std::thread::sleep(std::time::Duration::from_millis(200));
     });
     (
         format!("http://{}:{}/v1/responses", address.ip(), address.port()),
@@ -1603,20 +1643,45 @@ fn closed_model_endpoint() -> String {
 /// Go's live `/api/v1/adk/chat/stream` publishes the preview `session` frame
 /// before the `run` snapshot and before the model call.  The console binds the
 /// transcript to the session id carried by frame one, so the ordering is a wire
-/// contract.  This drives the real production runtime: the model endpoint is a
-/// closed loopback port, so the run fails fast while the preview and run frames
-/// have already been published.
+/// contract.  This drives the real production runtime with a two-connection
+/// loopback Responses provider: one connection proves the chat envelope and the
+/// second proves the successful SSE headers and frame ordering.
 #[tokio::test]
 async fn production_live_chat_stream_emits_session_before_run_and_terminal_frame() {
-    let endpoint = closed_model_endpoint();
-    let (_directory, handle) = start_adk_product_with_loopback_provider(&endpoint).await;
-    let address = handle.startup_record().address;
-    let body = br#"{"clientRequestId":"11111111-1111-4111-8111-111111111111","agentId":"agent-live","message":"hello"}"#;
-
-    let text = request_sse_until(address, "POST", "/api/v1/adk/chat/stream", body, |text| {
-        text.contains("\"type\":\"final\"") || text.contains("\"type\":\"error\"")
-    })
+    let (endpoint, provider) = spawn_loopback_model_provider_with_connections(2);
+    let (_directory, handle) = start_adk_product_with_loopback_provider_seeded_with_timeout(
+        &endpoint,
+        0,
+        Some(420_000),
+        |_, _| {},
+    )
     .await;
+    let address = handle.startup_record().address;
+    let chat_body = br#"{"clientRequestId":"00000000-0000-4000-8000-000000000000","agentId":"agent-live","message":"hello"}"#;
+    let stream_body = br#"{"clientRequestId":"11111111-1111-4111-8111-111111111111","agentId":"agent-live","message":"hello"}"#;
+
+    let chat = request_raw(address, "POST", ADK_CHAT_PATH, chat_body).await;
+    assert_eq!(
+        chat.status, 200,
+        "chat route must return the success envelope"
+    );
+    assert_eq!(
+        chat.headers["content-type"], "application/json; charset=utf-8",
+        "chat route content type"
+    );
+    let chat_body: Value = serde_json::from_slice(&chat.body).expect("chat JSON");
+    assert_eq!(chat_body["ok"], true, "chat route success envelope");
+
+    let (headers, text) = request_sse_raw_until(
+        address,
+        "POST",
+        "/api/v1/adk/chat/stream",
+        stream_body,
+        |text| text.contains("\"type\":\"final\"") || text.contains("\"type\":\"error\""),
+    )
+    .await;
+    assert_eq!(headers["content-type"], "text/event-stream");
+    assert_eq!(headers["x-adk-stream-idle-timeout-ms"], "420000");
 
     let session_at = text
         .find("\"type\":\"session\"")
@@ -1640,6 +1705,7 @@ async fn production_live_chat_stream_emits_session_before_run_and_terminal_frame
         "the preview frame must carry the durable session id"
     );
 
+    provider.join().expect("loopback provider thread");
     handle.shutdown().await.expect("shutdown product");
 }
 

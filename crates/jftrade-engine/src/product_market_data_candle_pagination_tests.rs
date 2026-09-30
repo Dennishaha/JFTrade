@@ -595,6 +595,7 @@ fn port_with_calendar(
 }
 
 #[tokio::test]
+// Parity: go:452dea11:internal/productfeatures/service_test.go:404 TestProductFeatureServiceNormalizesCoreMarketCandlesWithProvider
 async fn us_intraday_futu_candles_carry_calendar_resolved_session_labels() {
     // Parity: go:452dea11:internal/app/apiserver/marketdataapp/market_http_test.go:18
     // TestMarketCandlesResponseUsesExchangeResolvedSessionsForUSIntraday
@@ -772,6 +773,7 @@ async fn candle_route_classifies_unknown_us_session_as_a_data_error() {
 /// out-of-session bar must still be served without the classification check.
 #[tokio::test]
 async fn candle_route_skips_session_classification_for_unannotated_requests() {
+    // Parity: go:452dea11:internal/app/apiserver/marketdataapp/market_http_test.go:91 TestMarketCandlesResponseOmitsSessionMetadataForDailyCandles
     let calendar = Arc::new(
         jftrade_calendar::CalendarManager::new(
             jftrade_calendar::CalendarSourceRegistry::default(),
@@ -788,10 +790,20 @@ async fn candle_route_skips_session_classification_for_unannotated_requests() {
         .read("/api/v1/market-data/candles/US/AAPL", "period=1d&limit=1")
         .await
         .expect("daily candles do not require session classification");
-    let candle = result["candles"][0].as_object().expect("candle object");
+    let candles = result["candles"].as_array().expect("candles array");
+    assert_eq!(candles.len(), 1, "one daily provider candle: {result}");
+    let candle = candles[0].as_object().expect("candle object");
     assert!(
         candle.get("session").is_none(),
         "daily candles stay unannotated: {result}"
+    );
+    assert!(
+        result["meta"].get("session").is_none(),
+        "daily candle metadata stays unannotated: {result}"
+    );
+    assert_eq!(
+        result["meta"]["extendedHours"], false,
+        "daily candles must not claim extended hours: {result}"
     );
 }
 
@@ -801,6 +813,7 @@ async fn candle_route_skips_session_classification_for_unannotated_requests() {
 /// call, and the response reports `meta.fromCache = true` together with the
 /// candle's own `at` timestamp.
 #[tokio::test]
+// Parity: go:452dea11:internal/productfeatures/service_test.go:143 TestProductFeatureServiceRoutesEveryOptionalInterfaceAndCaches
 async fn tick_candles_use_fresh_cache_without_querying_the_provider() {
     let now_ms = current_unix_millis();
     let router = ProviderRouter::new(8);
@@ -989,6 +1002,7 @@ async fn tick_candles_surface_the_ticker_error_when_no_candle_is_retained() {
 /// in Go: the read still succeeds, nothing is ingested, and an empty cache
 /// produces an empty non-paged page rather than an error.
 #[tokio::test]
+// Parity: go:452dea11:pkg/futu/trade_margin_ratio_boundaries_test.go:124 TestBasicQuoteQueriesHandleEmptyDuplicateAndInvalidRequests
 async fn tick_candles_report_an_empty_page_when_the_ticker_returns_no_sample() {
     let ticker = Arc::new(StubTicker::default());
     let port = tick_port(
@@ -1375,6 +1389,7 @@ fn helper_candle_conversion_rejects_malformed_provider_values() {
 }
 
 #[tokio::test]
+// Parity: go:452dea11:internal/productfeatures/service_test.go:404 TestProductFeatureServiceNormalizesCoreMarketCandlesWithProvider
 async fn candle_route_preserves_legacy_query_parsing() {
     // Parity: internal/api/marketdata/routes_test.go:267 TestCandlesRoutePreservesLegacyQueryParsing
     // Legacy `from`/`to` values accept date-only and space-separated datetime
@@ -1406,6 +1421,7 @@ async fn candle_route_preserves_legacy_query_parsing() {
 }
 
 #[tokio::test]
+// Parity: go:452dea11:internal/productfeatures/prediction_quote_candle_bridge_test.go:202 TestCoreCandleBridgeValidatesBoundariesAndProductSemantics
 async fn candle_route_normalizes_repeated_sessions() {
     // Parity: internal/api/marketdata/routes_test.go:302 TestCandlesRouteNormalizesRepeatedSessions
     use jftrade_integration_futu::{SESSION_ALL, SESSION_ETH, SESSION_RTH};
@@ -1469,6 +1485,7 @@ async fn candle_route_rejects_invalid_sessions() {
 }
 
 #[tokio::test]
+// Parity: go:452dea11:internal/productfeatures/prediction_quote_candle_bridge_test.go:202 TestCoreCandleBridgeValidatesBoundariesAndProductSemantics
 async fn candle_route_rejects_unsupported_period() {
     // Parity: internal/api/marketdata/routes_test.go:337 TestCandlesRouteRejectsUnsupportedPeriod
     let reader = Arc::new(PagedHistory::default());
@@ -1558,6 +1575,7 @@ async fn candle_route_clamps_zero_limit_to_one_like_go_query_helper() {
 }
 
 #[tokio::test]
+// Parity: go:452dea11:internal/productfeatures/prediction_quote_candle_bridge_test.go:202 TestCoreCandleBridgeValidatesBoundariesAndProductSemantics
 async fn candle_route_rejects_invalid_limit() {
     // Parity: internal/api/marketdata/routes_test.go:387 TestCandlesRouteRejectsInvalidLimit
     let reader = Arc::new(PagedHistory::default());
@@ -1574,6 +1592,7 @@ async fn candle_route_rejects_invalid_limit() {
 }
 
 #[tokio::test]
+// Parity: go:452dea11:internal/productfeatures/prediction_quote_candle_bridge_test.go:202 TestCoreCandleBridgeValidatesBoundariesAndProductSemantics
 async fn candle_route_forwards_exclusive_before_and_rejects_invalid_combinations() {
     // Parity: internal/api/marketdata/routes_test.go:357 TestCandlesRouteForwardsExclusiveBeforeAndRejectsInvalidCombinations
     let reader = Arc::new(PagedHistory::default());
@@ -1943,6 +1962,7 @@ async fn broker_kline_query_rejects_cursor_and_time_boundary_errors() {
 /// window. OpenD therefore returns buckets the window may not cover, and the
 /// merge step has to trim them.
 #[tokio::test]
+// Parity: go:452dea11:pkg/futu/exchange_kline_test.go:385 TestQueryKLinesIncludesCurrentRealtimeBucketFromGetKL
 async fn candle_route_trims_current_bucket_to_the_callers_window() {
     let now = time::OffsetDateTime::now_utc();
     let bar = |offset_minutes: f64| {
@@ -2182,6 +2202,9 @@ async fn us_regular_only_bounded_window_re_filters_the_merged_page() {
 /// returned 200 with candles and every request reached OpenD as forward(1).
 /// Parity: go:452dea11:internal/assistant/assembly/application_adapter_test.go:164 TestApplicationAdapterRejectsAdvancedCandleInputsBeforeProviderCall
 #[tokio::test]
+// Parity: go:452dea11:internal/productfeatures/prediction_quote_candle_bridge_test.go:202 TestCoreCandleBridgeValidatesBoundariesAndProductSemantics
+// Parity: go:452dea11:internal/productfeatures/service_test.go:404 TestProductFeatureServiceNormalizesCoreMarketCandlesWithProvider
+// Parity: go:452dea11:internal/productfeatures/candle_query_options_test.go:18 TestNormalizeCandleOptionsRejectsUnsupportedValues
 async fn candle_route_validates_adjustment_and_forwards_the_mapped_rehab_type() {
     let reader = Arc::new(PagedHistory::default());
     let error = port(reader.clone())

@@ -37,6 +37,7 @@ fn akshare_port(base_url: String) -> ProductionMarketIndexConstituentsPort {
 
 // Parity: go:452dea11:internal/app/apiserver/marketdataapp/runtime_index_constituents_forwarding_test.go:35 TestRuntimeForwardsIndexConstituentsToCapableActiveProvider
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+// Parity: go:452dea11:internal/assistant/assembly/market_index_constituents_tools_test.go:14 TestADKMarketIndexConstituentsToolForwardsNormalizedInputs
 async fn index_constituents_read_forwards_the_normalized_leaf_and_limit() {
     let listener = TcpListener::bind("127.0.0.1:0").await.expect("listen");
     let address = listener.local_addr().expect("address");
@@ -168,6 +169,8 @@ fn index_constituents_projection_rejects_identity_drift_and_blank_codes() {
 
 // Parity: go:452dea11:internal/app/apiserver/marketdataapp/runtime_index_constituents_forwarding_test.go:61 TestRuntimeIndexConstituentsRejectsProvidersWithoutCapability
 #[test]
+// Parity: go:452dea11:internal/assistant/assembly/market_index_constituents_tools_test.go:60 TestADKMarketIndexConstituentsToolFailsClosedWithoutPort
+// Parity: go:452dea11:internal/assistant/assembly/market_index_constituents_tools_test.go:69 TestADKMarketIndexConstituentsToolSurfacesProviderCapabilityAsClearMessage
 fn index_constituents_read_requires_akshare_and_a_ready_helper() {
     let unconfigured = port(None, false, None);
     match MarketIndexConstituentsReadPort::read(&unconfigured, "SH", "000300", 200) {

@@ -1,0 +1,90 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-integration-futu",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--no-fail-fast",
+    "--message-format",
+    "libtest-json-plus",
+    "-E",
+    "test(public_coordinator_polls_basic_quotes_into_a_generation_fenced_cache) or test(reconnect_replay_contains_only_subscriptions_and_resets_retry_state) or test(margin_ratios_reuse_a_recent_success_within_the_ttl) or test(cancel_order_uses_modify_order_cancel_operation) or test(market_rules_fallback_empty_keeps_the_primary_error_in_the_message) or test(market_rules_fall_back_to_security_snapshot_lot_size_and_report_the_primary_error) or test(market_rules_report_no_rules_when_both_sources_are_empty) or test(market_rules_combine_primary_and_fallback_failures) or test(market_rules_reject_empty_symbol_queries_before_touching_opend) or test(closed_us_session_reports_regular_close_as_previous_close)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-28T07:14:32Z",
+  "sourceState": {
+    "verifiedCommit": "2f5de4172a26c6f2f3ddb3df13e326787e82e54b"
+  },
+  "rawOutputSha256": "6273f3d86391edd80d724589645c1268b512abd3df6516934c65e5f6c2ac96f1",
+  "passedTests": [
+    "jftrade-integration-futu::jftrade_integration_futu$market_rules_query::tests::market_rules_combine_primary_and_fallback_failures",
+    "jftrade-integration-futu::jftrade_integration_futu$market_rules_query::tests::market_rules_fallback_empty_keeps_the_primary_error_in_the_message",
+    "jftrade-integration-futu::jftrade_integration_futu$market_rules_query::tests::market_rules_fall_back_to_security_snapshot_lot_size_and_report_the_primary_error",
+    "jftrade-integration-futu::jftrade_integration_futu$market_rules_query::tests::market_rules_reject_empty_symbol_queries_before_touching_opend",
+    "jftrade-integration-futu::jftrade_integration_futu$market_rules_query::tests::market_rules_report_no_rules_when_both_sources_are_empty",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_market_data::product_production_ports_market_data_quote::quote_snapshot::tests::closed_us_session_reports_regular_close_as_previous_close",
+    "jftrade-integration-futu::jftrade_integration_futu$session_coordinator::tests::reconnect_replay_contains_only_subscriptions_and_resets_retry_state",
+    "jftrade-integration-futu::jftrade_integration_futu$session_coordinator::tests::public_coordinator_polls_basic_quotes_into_a_generation_fenced_cache",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_trade::tests::margin_ratios_reuse_a_recent_success_within_the_ttl",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_execution::product_production_ports_execution_orders::execution_preview_tests::cancel_order_uses_modify_order_cancel_operation"
+  ],
+  "failedTests": [],
+  "ignoredTests": [
+    "jftrade-integration-futu::live_opend_provider_runtime$live_opend_provider_runtime_reads_generation_fenced_hk_quote"
+  ],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 473,
+      "nextest": {
+        "crate": "jftrade-integration-futu",
+        "test_binary": "jftrade_integration_futu",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1631,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 1,
+      "measured": 0,
+      "filtered_out": 18446744073709551615,
+      "nextest": {
+        "crate": "jftrade-integration-futu",
+        "test_binary": "live_opend_provider_runtime",
+        "kind": "test"
+      }
+    }
+  ]
+}

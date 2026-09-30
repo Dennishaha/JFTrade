@@ -2168,3 +2168,29 @@ ADK/Assistant 功能差异，先补失败回归测试再修改领域 owner。
 ## 2026-09-27 P1 provider health backoff 对齐
 
 `runtime_health_test.go:222:TestProviderHealthRetryDelayBacksOffAndCaps` 先以默认策略回归复现 Rust 500ms 首次退避与 Go 100ms 的差异；`HelperRestartPolicy` 及 managed market-data helper 的生产 restart policy 已修复为 initial=100ms、max=1s。新增 `helper_restart_policy_defaults_match_go_provider_health_retry_delays` 逐档断言 100→200→400→800→1000→1000→1000ms，engine 定向 nextest 2/2、sidecar 回归 3/3 通过，映射升为 `function_exact`。`:240` 的 cancellation/error 透传仍保持 partial，receiptDigest 留空；当前全局扫描 Go 4451、Rust 3376、`function_exact=1496`、`partial=2321`、`boundary=634`，anchor 1786/1740/0/0/46。
+
+## 2026-09-28 P1：candle/query strict evidence
+
+复核 `TestTickCandlesVolumeWindowAndLimit`、`TestNormalizeCoreCandleQueryAcceptsSessionParameterShapes` 与 `TestNormalizeCandleOptionsAcceptsSessionsAndAdjustments`。Go 的窗口裁剪、limit、负 volume、session 归一、CSV/重复参数、adjustment 默认值与非法值均逐项对照 Rust owner；candle options 两个 Rust owner 补写 Go 行 8 `Parity:` 锚点，避免把相邻行 9 误记为来源。
+
+验证：与 depth/session-scope 共用的定向 nextest 5/5 passed（live OpenD 1 ignored）；receipt `sha256:69bae53794658676a710eeda191d4e68b5e70c7f243ee3483c441f7919d75b40`；mapping assertion coverage、anchor、verification 已同步，strict gap 降至 3581，整体严格审计仍未通过。
+
+## 2026-09-28 P1：provider facade/search strict evidence
+
+复核 `TestBrokerAdapterSecuritySearchRejectsInvalidQueriesBeforeConnecting`、`TestServiceIndustriesDefaultsEmptyKindToIndustry`、`TestProviderNewsProjectionMapsNullableFieldsAndAsOf`、`TestEmbeddedProviderCompanyResearchForwardsMarketSymbolAndStatement` 与 `TestEmbeddedProviderDefaultsEmptyMarketToProviderDefault`。Go 的空/越界搜索参数前置拒绝、industry 默认值、news 可空字段与最新时间、company financials 参数转发及 provider 默认 market 均逐项对照 Rust owner；未扩展到相邻聚合或 helper-only 断言。
+
+验证：`jftrade-engine`/`jftrade-calendar` 定向 nextest **5/5 passed**，0 failed、0 ignored；receipt `sha256:143648491d86b0a5b7e9495ef6dd97bffc10d6797e5bd08e24396b332a94c20e`（`verification-receipts/p1-provider-boundaries-2026-09-28T1415Z.json`）。五条 mapping 已标记 `assertionCoverage.source=reviewed`、绑定 receipt 并清除 verification blocker；随后 `pnpm run check:quick` **EXIT=0**（2017/2017 Rust tests passed）；全局 strict gap 降至 **3571**，严格审计仍未通过。
+
+## 2026-09-28 P1：Futu marketdata boundary follow-up
+
+US regular 当前桶过滤与 bounded-window 合并页重过滤已按 Go `QueryKLinesForSessions` 断言复核；security snapshot 非法行、部分可用行保留、非法 symbol 前置拒绝和 payload-less ack 空集合也由 integration-futu owner 固定。该批与 Futu funds/market rules 边界共用 receipt `sha256:9304c9ef4cd2b9a4d36385012db4902c61c41bad326f7472345fdcafc0a3bbf7`，定向 nextest 11/11 passed；Rust securities DTO 不提供 Go option strikePrice merge 字段，保持已记录 boundary。
+
+## 2026-09-28 P1：Futu session / market-rules owner follow-up
+
+跨 provider/quote owner 的 5 条 P1 exact 已逐项复核：session coordinator 重连、margin ratio TTL、撤单协议、market-rules fallback 与闭市 previous-close。对应 Rust owner 定向 nextest **10/10 passed**（live OpenD ignored），receipt `sha256:b290cd212da3374c17198d541103085cf5a0b71fedc8f0d1271732534f097167`；该批只补证据与锚点，不把聚合 facade 断言升级为额外覆盖。
+
+## 2026-09-29 P1：Futu snapshot fallback strict evidence
+
+复核六条已有 `function_exact`：`TestStockScreenFallbackParsesRowsAndMarketGroups`、`TestStockScreenFallbackCoordinatesCopiesAndErrors`、`TestStockScreenSnapshotParamsUseStrictDelayedQuoteFields`、`TestFutuStockScreenSnapshotFallbackUsesStaticIDsWithoutSubscription`、`TestStockScreenSnapshotCoordinatorCachesRowsAndNegativeResults`、`TestFutuStockScreenSnapshotFallbackReportsScreenErrors`。Go 断言逐项对应 Rust 的真实 StockScreen parser、coordinator、adapter 与 framed protobuf 行为；未将历史 `legacy-conclusion` 直接视为 reviewed。
+
+`jftrade-integration-futu` 定向 nextest **6/6 passed**，receipt `sha256:5d2e8d55218adc5252b1389a258dbf15803b757a9bb05091ccd10b78c56cb8f6`。六条 mapping 已补 reviewed assertion、Parity anchor、passed receipt；strict gap **3323→3312**。后续仍需处理 API Server/Transport Wire 低测试比例与剩余未 reviewed exact。

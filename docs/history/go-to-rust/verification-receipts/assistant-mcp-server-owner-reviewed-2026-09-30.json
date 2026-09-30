@@ -1,0 +1,49 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "-E",
+    "test(account_orders_forwards_scope_account_environment_and_market_filters) or test(backtest_and_strategy_tools_reject_missing_identifiers_and_unknown_targets) or test(disabled_runtime_has_stopped_status_and_releases_listener) or test(models_list_tool_projects_providers_with_reference_boolean_rules) or test(port_conflict_keeps_previous_listener_and_reset_rebinds) or test(portfolio_summary_merges_positions_balances_and_orders_and_rejects_unknown_brokers) or test(production_catalog_registers_application_tools_from_the_composition_root) or test(production_tools_fail_closed_before_any_domain_service_is_configured) or test(reject_unsafe_host_and_unsafe_addr_classification) or test(reject_unsafe_host_blocks_the_reference_host_table) or test(shutdown_is_idempotent_and_closed_runtime_rejects_rebind) or test(strategy_instance_activity_tool_normalizes_kind_and_paging_before_the_read_port) or test(workflow_wait_tool_rejects_too_long_duration) or test(workflow_wait_tool_returns_context_cancellation)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-30T00:00:00Z",
+  "sourceState": {
+    "verifiedCommit": "2f5de4172a26c6f2f3ddb3df13e326787e82e54b"
+  },
+  "rawOutputSha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "passedTests": [
+    "jftrade-engine::product::product_mcp_server::tests::account_orders_forwards_scope_account_environment_and_market_filters",
+    "jftrade-engine::product::product_mcp_server::tests::backtest_and_strategy_tools_reject_missing_identifiers_and_unknown_targets",
+    "jftrade-engine::product::product_mcp_server::tests::disabled_runtime_has_stopped_status_and_releases_listener",
+    "jftrade-engine::product::product_mcp_server::tests::models_list_tool_projects_providers_with_reference_boolean_rules",
+    "jftrade-engine::product::product_mcp_server::tests::port_conflict_keeps_previous_listener_and_reset_rebinds",
+    "jftrade-engine::product::product_mcp_server::tests::portfolio_summary_merges_positions_balances_and_orders_and_rejects_unknown_brokers",
+    "jftrade-engine::product::product_mcp_server::tests::production_catalog_registers_application_tools_from_the_composition_root",
+    "jftrade-engine::product::product_mcp_server::tests::production_tools_fail_closed_before_any_domain_service_is_configured",
+    "jftrade-engine::product::product_mcp_server::tests::reject_unsafe_host_and_unsafe_addr_classification",
+    "jftrade-engine::product::product_mcp_server::tests::reject_unsafe_host_blocks_the_reference_host_table",
+    "jftrade-engine::product::product_mcp_server::tests::shutdown_is_idempotent_and_closed_runtime_rejects_rebind",
+    "jftrade-engine::product::product_mcp_server::tests::strategy_instance_activity_tool_normalizes_kind_and_paging_before_the_read_port",
+    "jftrade-engine::product::product_mcp_server::tests::workflow_wait_tool_rejects_too_long_duration",
+    "jftrade-engine::product::product_mcp_server::tests::workflow_wait_tool_returns_context_cancellation"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "summary": {
+    "testsRun": 14,
+    "testsPassed": 14,
+    "testsFailed": 0,
+    "testsSkipped": 1998,
+    "relationsReviewed": 14,
+    "functionExactReferencesReleased": 14
+  }
+}

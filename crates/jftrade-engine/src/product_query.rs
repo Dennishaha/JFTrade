@@ -274,6 +274,7 @@ mod tests {
 
     #[test]
     // Parity: go:452dea11:internal/api/watchlist/route_error_handling_test.go:77 TestBindQueryRejectsMalformedAndInvalidValues
+    // Parity: go:452dea11:internal/api/watchlist/routes_test.go:84 TestWatchlistListAndBindingRoutesRejectMalformedQueryEncoding
     fn query_map_handles_percent_plus_and_multi_values() {
         let q =
             QueryMap::parse("q=apple+pie&sessions=regular&sessions=extended%2Covernight&blank=")
@@ -330,6 +331,7 @@ mod tests {
     // trims surrounding whitespace; the pagination half is owned by the candle
     // route clamp in `product_production_ports_market_data_quote_reads.rs`.
     // The padded k_60m alias resolves through the same trim-then-match path.
+    // Parity: go:452dea11:internal/api/httpserver/bindings_boundaries_test.go:27 TestCandlePeriodValueHandlesEmptyAndUnsupportedInputs
     fn candle_period_normalizes_aliases_and_rejects_unsupported() {
         assert_eq!(normalize_candle_period("ticker").unwrap(), "tick");
         assert_eq!(normalize_candle_period("k_tick").unwrap(), "tick");
@@ -434,6 +436,7 @@ mod tests {
     }
 
     // Parity: go:452dea11:internal/app/apiserver/marketdataapp/query_test.go:45 TestDecodeMarketCandlesQueryParsesRepeatedSessions
+    // Parity: go:452dea11:internal/productfeatures/candle_query_options_test.go:8 TestNormalizeCandleOptionsAcceptsSessionsAndAdjustments
     #[test]
     fn candle_sessions_parse_dedup_order_and_reject_invalid() {
         // Parity: go:452dea11:internal/marketdata/candle_sessions_test.go:8
@@ -484,10 +487,12 @@ mod tests {
         assert_ne!(parsed[0], parsed[1], "the two sessions must stay distinct");
     }
 
+    /// Parity: go:452dea11:internal/productfeatures/candle_query_options_test.go:8 TestNormalizeCandleOptionsAcceptsSessionsAndAdjustments
     /// Parity: go:452dea11:internal/productfeatures/candle_query_options_test.go:9
     /// TestNormalizeCandleOptionsAcceptsSessionsAndAdjustments and :17
     /// TestNormalizeCandleOptionsRejectsUnsupportedValues.
     #[test]
+    // Parity: go:452dea11:internal/productfeatures/candle_query_options_test.go:18 TestNormalizeCandleOptionsRejectsUnsupportedValues
     fn candle_adjustment_normalizes_and_rejects_unsupported_labels() {
         assert_eq!(parse_candle_adjustment(Some(" FORWARD ")), Ok("forward"));
         assert_eq!(parse_candle_adjustment(Some("Backward")), Ok("backward"));

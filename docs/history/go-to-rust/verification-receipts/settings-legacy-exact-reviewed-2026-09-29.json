@@ -1,0 +1,152 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-settings",
+    "-p",
+    "jftrade-engine",
+    "-p",
+    "jftrade-integration-futu",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json",
+    "--no-fail-fast",
+    "-E",
+    "test(degraded_current_selection_is_reactivated_only_while_degraded) or test(akshare_selection_is_accepted_and_applied) or test(backtest_provider_is_prepared_before_atomic_persistence) or test(store_and_rollback_failures_propagate_across_settings_writes) or test(system_notification_test_route_fails_closed_without_a_publisher) or test(product_server_persists_ui_settings_and_reports_actual_port) or test(snapshot_normalizes_public_settings_and_reports_unowned_listener_stopped) or test(system_secret_uses_go_compatible_token_and_argon2id_verifier) or test(web_access_password_boundaries_match_go) or test(blank_account_id_is_rejected_before_persistence) or test(configured_default_trading_environment_fills_orders_that_omit_it) or test(broker_descriptor_matches_current_go_wire_fixture) or test(writes_validate_password_port_and_public_access_like_go) or test(listener_failure_rolls_back_password_and_port_together) or test(token_reset_returns_secret_once_and_persists_only_its_verifier) or test(listener_failure_rolls_back_the_persisted_settings) or test(writes_validate_like_go_and_never_accept_a_caller_supplied_token) or test(concurrent_writes_serialize_and_keep_the_newest_password) or test(structured_integration_save_leaves_the_process_environment_untouched)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-29T15:05:00Z",
+  "sourceState": {
+    "verifiedCommit": "2f5de4172a26c6f2f3ddb3df13e326787e82e54b"
+  },
+  "rawOutputSha256": "sha256:2bc75ca653eaf944b8f88dc5496f36ea8658f7cebc06260d75f4f62a6d150690",
+  "passedTests": [
+    "jftrade-integration-futu::jftrade_integration_futu$provider::tests::broker_descriptor_matches_current_go_wire_fixture",
+    "jftrade-settings::managed_account_validation$blank_account_id_is_rejected_before_persistence",
+    "jftrade-settings::settings_failure_propagation$store_and_rollback_failures_propagate_across_settings_writes",
+    "jftrade-settings::jftrade_settings$market_data_provider::tests::akshare_selection_is_accepted_and_applied",
+    "jftrade-settings::jftrade_settings$broker::tests::structured_integration_save_leaves_the_process_environment_untouched",
+    "jftrade-settings::jftrade_settings$market_data_provider::tests::backtest_provider_is_prepared_before_atomic_persistence",
+    "jftrade-settings::jftrade_settings$market_data_provider::tests::degraded_current_selection_is_reactivated_only_while_degraded",
+    "jftrade-settings::jftrade_settings$mcp_server::tests::snapshot_normalizes_public_settings_and_reports_unowned_listener_stopped",
+    "jftrade-settings::jftrade_settings$mcp_server::tests::listener_failure_rolls_back_the_persisted_settings",
+    "jftrade-settings::jftrade_settings$mcp_server::tests::writes_validate_like_go_and_never_accept_a_caller_supplied_token",
+    "jftrade-settings::jftrade_settings$mcp_server::tests::token_reset_returns_secret_once_and_persists_only_its_verifier",
+    "jftrade-settings::jftrade_settings$security::tests::concurrent_writes_serialize_and_keep_the_newest_password",
+    "jftrade-settings::jftrade_settings$security::tests::web_access_password_boundaries_match_go",
+    "jftrade-settings::jftrade_settings$security::tests::listener_failure_rolls_back_password_and_port_together",
+    "jftrade-settings::jftrade_settings$security::tests::writes_validate_password_port_and_public_access_like_go",
+    "jftrade-settings::jftrade_settings$mcp_server::tests::system_secret_uses_go_compatible_token_and_argon2id_verifier",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_execution::product_production_ports_execution_orders::execution_order_validation_tests::configured_default_trading_environment_fills_orders_that_omit_it",
+    "jftrade-engine::jftrade_engine$product::tests::system_notification_test_route_fails_closed_without_a_publisher",
+    "jftrade-engine::jftrade_engine$product::tests::product_server_persists_ui_settings_and_reports_actual_port"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 479,
+      "exec_time": 0.020037167
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 2,
+      "exec_time": 0.007829375
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 3,
+      "exec_time": 0.00983675
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 13
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 13,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 39,
+      "exec_time": 4.32017729
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 3
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1643,
+      "exec_time": 6.387668666
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 1,
+      "measured": 0,
+      "filtered_out": 18446744073709551615,
+      "exec_time": 0
+    }
+  ],
+  "scope": {
+    "module": "internal/settings",
+    "mappingCount": 16,
+    "rustTestCount": 19
+  }
+}

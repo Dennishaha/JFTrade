@@ -321,6 +321,7 @@ mod tests {
 
     // Parity: go:452dea11:internal/app/apiserver/servercore/notifications_lifecycle_test.go:92 TestRecordLiveNotificationCallsSink
     #[tokio::test]
+    // Parity: go:452dea11:internal/app/apiserver/servercore/exec_writeback_test.go:11 TestExecutionPushHandlersWriteBackAndNotify
     async fn test_notification_projector_advances_cursors_and_is_idempotent() {
         let directory = tempfile::tempdir().expect("tempdir");
         let path = directory.path().join("execution-orders.db");

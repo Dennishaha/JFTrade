@@ -102,6 +102,8 @@ mod tests {
     use super::*;
 
     #[test]
+    // Parity: go:452dea11:pkg/futu/adapter_failure_boundaries_test.go:77 TestAdapterAndDecimalConversionBoundaries
+    // Parity: go:452dea11:pkg/futu/exchange_trade_price_test.go:24 TestNormalizeSubmitOrderPriceForUSMarkets
     fn normalize_submit_order_price_rounds_us_prices_to_their_tick() {
         // Parity: go:452dea11:pkg/futu/exchange_trade_price_test.go:25
         // TestNormalizeSubmitOrderPrice. A US order at or above one dollar uses

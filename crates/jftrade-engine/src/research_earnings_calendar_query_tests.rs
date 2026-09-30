@@ -86,6 +86,7 @@ fn item(date: &str, instrument_id: &str, name: &str) -> EarningsCalendarItem {
 }
 
 #[test]
+// Parity: go:452dea11:pkg/futu/adapter_earnings_calendar_test.go:12 TestTranslateEarningsCalendarParamsMapsBusinessSemantics
 fn translate_earnings_calendar_params_maps_business_semantics() {
     let params = translated(
         "sort=iv_percentile&stockScope=watchlist&marketCapMin=1000000000\
@@ -117,6 +118,7 @@ fn translate_earnings_calendar_params_maps_business_semantics() {
 }
 
 #[test]
+// Parity: go:452dea11:pkg/futu/adapter_earnings_calendar_test.go:51 TestTranslateEarningsCalendarParamsRejectsUnsupportedMarketConditions
 fn translate_earnings_calendar_params_rejects_unsupported_market_conditions() {
     assert!(matches!(
         translate_earnings_calendar_params(&query_map("sort=iv"), "SH"),
@@ -129,6 +131,7 @@ fn translate_earnings_calendar_params_rejects_unsupported_market_conditions() {
 }
 
 #[test]
+// Parity: go:452dea11:pkg/futu/adapter_earnings_calendar_test.go:61 TestEarningsCalendarDateChunksLimitEveryOpenDCallToSevenDays
 fn earnings_calendar_date_chunks_limit_every_opend_call_to_seven_days() {
     let chunks =
         earnings_calendar_date_chunks(&query_map("beginDate=2026-06-28&endDate=2026-08-08"))
@@ -151,6 +154,7 @@ fn earnings_calendar_date_chunks_limit_every_opend_call_to_seven_days() {
 }
 
 #[test]
+// Parity: go:452dea11:pkg/futu/adapter_earnings_calendar_test.go:79 TestEarningsCalendarDateChunksSupportsThirtyFiveDayGridAndRejectsLongerThanFortyTwo
 fn earnings_calendar_date_chunks_supports_thirty_five_day_grid_and_rejects_longer_than_forty_two()
 {
     let chunks =
@@ -167,6 +171,7 @@ fn earnings_calendar_date_chunks_supports_thirty_five_day_grid_and_rejects_longe
 }
 
 #[test]
+// Parity: go:452dea11:pkg/futu/adapter_earnings_calendar_test.go:96 TestDeduplicateEarningsCalendarEntriesUsesDateAndSecurity
 fn deduplicate_earnings_calendar_entries_uses_date_and_security() {
     let entries = vec![
         item("2026-07-22", "US.AAPL", "Apple"),
@@ -180,6 +185,7 @@ fn deduplicate_earnings_calendar_entries_uses_date_and_security() {
 }
 
 #[test]
+// Parity: go:452dea11:pkg/futu/adapter_earnings_calendar_test.go:110 TestCollectEarningsCalendarChunksFailsTheWholeRangeWhenOneChunkFails
 fn collect_earnings_calendar_chunks_fails_the_whole_range_when_one_chunk_fails() {
     let runtime = Arc::new(SharedTradeReadRuntime::default());
     let reader = Arc::new(RecordingEarningsCalendarReader::new(Some(2)));
@@ -202,6 +208,7 @@ fn collect_earnings_calendar_chunks_fails_the_whole_range_when_one_chunk_fails()
 }
 
 #[test]
+// Parity: go:452dea11:pkg/futu/adapter_earnings_calendar_test.go:137 TestCollectEarningsCalendarChunksUsesEveryExactSegmentInOrder
 fn collect_earnings_calendar_chunks_uses_every_exact_segment_in_order() {
     let runtime = Arc::new(SharedTradeReadRuntime::default());
     let reader = Arc::new(RecordingEarningsCalendarReader::new(None));
@@ -228,6 +235,7 @@ fn collect_earnings_calendar_chunks_uses_every_exact_segment_in_order() {
 }
 
 #[test]
+// Parity: go:452dea11:pkg/futu/adapter_earnings_calendar_test.go:164 TestEarningsCalendarParameterValidationEdges
 fn earnings_calendar_parameter_validation_edges() {
     let cases = [
         ("sort=unknown", "sort"),
@@ -255,6 +263,7 @@ fn earnings_calendar_parameter_validation_edges() {
 }
 
 #[test]
+// Parity: go:452dea11:pkg/futu/adapter_earnings_calendar_test.go:190 TestEarningsCalendarDateValidationEdges
 fn earnings_calendar_date_validation_edges() {
     let default_chunks = earnings_calendar_date_chunks(&query_map("")).expect("default");
     assert_eq!(default_chunks.len(), 1);
@@ -282,6 +291,7 @@ fn earnings_calendar_date_validation_edges() {
 }
 
 #[test]
+// Parity: go:452dea11:pkg/futu/adapter_earnings_calendar_test.go:217 TestDeduplicateEarningsCalendarEntriesFallsBackForAnonymousRows
 fn deduplicate_earnings_calendar_entries_falls_back_for_anonymous_rows() {
     // Adapter rows always carry a non-empty code, but the shared dedup helper
     // still mirrors the Go fallback for rows without any identity.

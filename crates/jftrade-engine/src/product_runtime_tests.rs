@@ -847,6 +847,8 @@ async fn test_product_runtime_ordered_shutdown_direct_drop() {
 }
 
 #[test]
+// Parity: go:452dea11:internal/app/apiserver/servercoretest/backtest_runs_test.go:279 TestBacktestRoutesCreateRuntimeLayoutForMissingBacktestDir
+// Parity: go:452dea11:internal/app/apiserver/servercoretest/research_runtime_test.go:14 TestServerInitializesResearchDatabaseAndPresetRoutes
 fn test_product_runtime_ordered_shutdown_tokio_runtime_exit_drop() {
     let temp_dir = tempfile::tempdir().unwrap();
     let recorder = ShutdownEventRecorder::new();

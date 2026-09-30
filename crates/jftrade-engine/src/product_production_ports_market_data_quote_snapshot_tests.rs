@@ -197,6 +197,7 @@
     }
 
     #[test]
+    // Parity: go:452dea11:pkg/futu/quote_snapshot_test.go:164 TestQuoteSnapshotPreviousClosePriceZeroCurPrice
     fn zero_current_price_falls_back_to_provider_last_close() {
         let zero_price = TradeQuoteSnapshot {
             last_price: Some(Decimal::ZERO),

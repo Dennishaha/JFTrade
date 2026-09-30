@@ -1,3 +1,4 @@
+use std::collections::BTreeSet;
 use std::str::FromStr;
 
 use super::strategy_runtime_simulate::*;
@@ -453,79 +454,119 @@ fn dispatch_cancel_intent(
         ""
     };
 
-    let resolved_id = if let Some(ord_store) = execution_store {
-        if !target_order_id.is_empty() {
-            if let Ok(Some(existing)) = ord_store.find_order_by_client_identity(
-                broker_id,
-                trading_environment,
-                account_id,
-                target_order_id,
-            ) {
-                if existing.source == "strategy-runtime"
-                    && existing.source_detail == instance_id
-                    && matches!(
-                        existing.status.as_str(),
-                        "SUBMITTING" | "SUBMITTED" | "WAITING" | "OPEN"
-                    )
-                {
-                    existing.internal_order_id
-                } else {
-                    return Err(format!(
-                        "strategy order {target_order_id} is not owned by instance {instance_id}"
-                    ));
-                }
-            } else {
-                return Err(format!(
-                    "strategy order {target_order_id} is not owned by instance {instance_id}"
-                ));
+    let order_ids = resolve_target_cancel_order_ids(
+        execution_store,
+        instance_id,
+        broker_id,
+        account_id,
+        trading_environment,
+        market,
+        symbol,
+        target_order_id,
+    )?;
+    if order_ids.is_empty() {
+        return Ok(false);
+    }
+    let mut failures = Vec::new();
+    for resolved_id in order_ids {
+        let input = ExecutionWriteInput {
+            operation: ExecutionWriteOperation::OrderCancel,
+            internal_order_id: Some(resolved_id.clone()),
+            payload: json!({
+                "brokerId": broker_id,
+                "accountId": account_id,
+                "tradingEnvironment": trading_environment,
+                "market": market,
+                "symbol": symbol,
+                "code": symbol,
+                "orderKind": intent.kind,
+                "remark": format!("strategy runtime cancel {instance_id}"),
+            }),
+            context: crate::product::product_execution_write_port::ExecutionWriteContext::Normal,
+        };
+        match execution.mutate(&input) {
+            Ok(_) => {
+                let _ = store.append_audit_event(
+                    instance_id,
+                    "ORDER_CANCELLED",
+                    &format!("target order {resolved_id}"),
+                    now_millis(),
+                );
             }
-        } else {
-            String::new()
-        }
-    } else {
-        return Err("execution order store is unavailable for targeted cancel".to_owned());
-    };
-
-    let input = ExecutionWriteInput {
-        operation: ExecutionWriteOperation::OrderCancel,
-        internal_order_id: if resolved_id.is_empty() {
-            None
-        } else {
-            Some(resolved_id.clone())
-        },
-        payload: json!({
-            "brokerId": broker_id,
-            "accountId": account_id,
-            "tradingEnvironment": trading_environment,
-            "market": market,
-            "symbol": symbol,
-            "code": symbol,
-            "orderKind": intent.kind,
-            "remark": format!("strategy runtime cancel {instance_id}"),
-        }),
-        context: crate::product::product_execution_write_port::ExecutionWriteContext::Normal,
-    };
-    match execution.mutate(&input) {
-        Ok(_) => {
-            let _ = store.append_audit_event(
-                instance_id,
-                "ORDER_CANCELLED",
-                &format!("target order {resolved_id}"),
-                now_millis(),
-            );
-            Ok(true)
-        }
-        Err(err) => {
-            let err_msg = execution_error_message(err);
-            let _ = store.append_audit_event(
-                instance_id,
-                "ORDER_CANCEL_FAILED",
-                &format!("target order {resolved_id}: {err_msg}"),
-                now_millis(),
-            );
-            Err(err_msg)
+            Err(err) => {
+                let err_msg = execution_error_message(err);
+                let _ = store.append_audit_event(
+                    instance_id,
+                    "ORDER_CANCEL_FAILED",
+                    &format!("target order {resolved_id}: {err_msg}"),
+                    now_millis(),
+                );
+                failures.push(format!("{resolved_id}: {err_msg}"));
+            }
         }
     }
+    if failures.is_empty() {
+        Ok(true)
+    } else {
+        Err(format!(
+            "targeted cancel partially failed: {}",
+            failures.join("; ")
+        ))
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn resolve_target_cancel_order_ids(
+    execution_store: Option<&jftrade_store_sqlite::ExecutionOrderStore>,
+    instance_id: &str,
+    broker_id: &str,
+    account_id: &str,
+    trading_environment: &str,
+    market: &str,
+    symbol: &str,
+    target_order_id: &str,
+) -> Result<Vec<String>, String> {
+    let ord_store = execution_store
+        .ok_or_else(|| "execution order store is unavailable for targeted cancel".to_owned())?;
+    if target_order_id.is_empty() {
+        return Ok(Vec::new());
+    }
+    if let Ok(Some(existing)) = ord_store.find_order_by_client_identity(
+        broker_id,
+        trading_environment,
+        account_id,
+        target_order_id,
+    ) {
+        if existing.source == "strategy-runtime"
+            && existing.source_detail == instance_id
+            && is_active_strategy_order_status(&existing.status)
+        {
+            return Ok(vec![existing.internal_order_id]);
+        }
+        return Err(format!(
+            "strategy order {target_order_id} is not owned by instance {instance_id}"
+        ));
+    }
+    let alias_prefix = format!("strategy-{instance_id}-{market}.{symbol}-{target_order_id}:");
+    let direct_prefix = format!("strategy-{instance_id}-{symbol}-{target_order_id}:");
+    let active = ord_store
+        .list_active_orders_for_instance(instance_id)
+        .map_err(|error| format!("query active orders for cancel: {error}"))?;
+    let ids = active
+        .into_iter()
+        .filter(|order| {
+            is_active_strategy_order_status(&order.status)
+                && order.client_order_id.as_deref().is_some_and(|client_id| {
+                    client_id.starts_with(&alias_prefix) || client_id.starts_with(&direct_prefix)
+                })
+        })
+        .map(|order| order.internal_order_id)
+        .collect::<BTreeSet<_>>();
+    Ok(ids.into_iter().collect())
+}
+
+fn is_active_strategy_order_status(status: &str) -> bool {
+    matches!(status, "SUBMITTING" | "SUBMITTED" | "WAITING" | "OPEN")
 }
 
 #[allow(clippy::too_many_arguments)]

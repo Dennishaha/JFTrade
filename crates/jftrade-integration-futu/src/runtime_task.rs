@@ -590,6 +590,7 @@ mod tests {
     }
 
     #[test]
+    // Parity: go:452dea11:pkg/futu/stream_connection_quote_boundaries_test.go:317 TestStreamReconnectAndClientWatcherExitPaths
     fn runtime_shutdown_cancels_then_joins_its_worker() {
         // Parity: go:452dea11:pkg/futu/stream_connection_quote_boundaries_test.go:22
         // TestStreamCloseCancelsAndJoinsOwnedWorkers.

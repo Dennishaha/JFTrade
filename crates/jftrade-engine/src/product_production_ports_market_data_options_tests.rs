@@ -1854,6 +1854,7 @@ fn option_type_filter(option_type: i64) -> jftrade_integration_futu::EventIndica
 /// option-type enums. Rust performs the same translation in the engine's
 /// query parser, so the equivalent assertions drive the public operation.
 #[test]
+// Parity: go:452dea11:internal/productfeatures/service_routing_and_validation_test.go:187 TestOptionFeatureValidationRejectsMalformedAdvancedFilters
 fn option_event_request_translation_boundaries_match_go_helpers() {
     let port = ready_port();
 
@@ -1908,6 +1909,7 @@ fn option_event_request_translation_boundaries_match_go_helpers() {
 /// Parity: go:452dea11:pkg/futu/adapter_option_fix_test.go:261
 /// TestFutuZeroDteContractTranslationRejectsEachInvalidBoundary
 #[test]
+// Parity: go:452dea11:internal/productfeatures/service_routing_and_validation_test.go:187 TestOptionFeatureValidationRejectsMalformedAdvancedFilters
 fn zero_dte_contract_translation_rejects_each_invalid_boundary() {
     let port = ready_port();
     let valid_locator = "&chainLocator={\"productCode\":\"AAPL\",\"multiplier\":100,\"contractSize\":100}";

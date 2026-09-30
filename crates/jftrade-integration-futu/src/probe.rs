@@ -99,6 +99,7 @@ mod tests {
 
     // Parity: go:452dea11:internal/app/apiserver/futuapp/runtime_probe_contracts_test.go:10 TestCoordinatorDisabledProbeAndSettingsBoundaries
     #[test]
+    // Parity: go:452dea11:internal/app/apiserver/futuapp/runtime_state_boundaries_test.go:26 TestFutuRuntimeRemainingDisconnectedAndResetPaths
     fn probe_opend_reports_closed_port_as_disconnected() {
         // Parity: go:452dea11:internal/integration/futu/probe_test.go:114 TestProbeOpenDReportsClosedPortAsDisconnected
         let disconnected = OpenDProbe::disconnected("connection refused");
@@ -113,6 +114,7 @@ mod tests {
     }
 
     #[test]
+    // Parity: go:452dea11:internal/app/apiserver/futuapp/runtime_state_boundaries_test.go:51 TestFutuRuntimeHealthyProbeAndGlobalStateBoundaries
     fn probe_from_global_state_enforces_minimum_version_and_maps_neutral_state() {
         // Parity: go:452dea11:internal/integration/futu/probe_test.go:137 TestProbeFromGlobalStateEnforcesMinimumVersionAndMapsNeutralState
         let nil_state = OpenDProbe::from_global_state(None, true);

@@ -153,6 +153,7 @@ fn static_info_response(entries: Vec<(u64, i32, &str)>) -> Vec<u8> {
 }
 
 #[test]
+// Parity: go:452dea11:pkg/futu/adapter_stock_screen_test.go:15 TestTranslateResearchScreenParamsBuildsStrictStockScreenRequest
 fn stock_screen_request_encodes_typed_filters_retrieve_sort_and_resolves_mainland_identity() {
     use trade_proto::qot_stock_screen::{Response, S2c, StockScreenItem as WireItem};
 
@@ -303,6 +304,7 @@ fn stock_screen_request_encodes_typed_filters_retrieve_sort_and_resolves_mainlan
 }
 
 #[test]
+// Parity: go:452dea11:pkg/futu/adapter_stock_screen_test.go:367 TestResearchScreenLimiterAllowsTenPerThirtySeconds
 fn stock_screen_reader_rejects_unsupported_market_and_throttles_after_ten_calls() {
     let (address, task) = server(|stream, request| {
         assert_eq!(request.header.proto_id, STOCK_SCREEN);
@@ -364,6 +366,7 @@ fn stock_screen_reader_rejects_unsupported_market_and_throttles_after_ten_calls(
 }
 
 #[test]
+// Parity: go:452dea11:pkg/futu/adapter_stock_screen_test.go:316 TestStockScreenMainlandIdentityMustBeAuthoritative
 fn stock_screen_identity_resolution_fails_closed_without_static_info() {
     use trade_proto::qot_stock_screen::{Response, S2c, StockScreenItem as WireItem};
 

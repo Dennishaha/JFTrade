@@ -41,6 +41,7 @@ fn depth_wire(value: &WsLiveDepthSubscription) -> (String, String, String, i64) 
 
 // Parity: go:452dea11:internal/live/client_test.go:8 TestNormalizeSubscriptions
 #[test]
+// Parity: go:452dea11:internal/api/live/handler_test.go:113 TestHandlerHeartbeatSubscribeNormalizationAndPayloads
 fn subscription_normalization_matches_the_go_table() {
     let normalized = normalized_subscriptions(Some(&WsLiveSubscriptions {
         provider_broker_id: " Alpha ".to_owned(),

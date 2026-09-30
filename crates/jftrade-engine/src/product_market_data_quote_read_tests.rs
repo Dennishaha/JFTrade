@@ -900,6 +900,7 @@ async fn market_microstructure_quote_routes_reject_invalid_queries_before_reader
 }
 
 #[tokio::test]
+// Parity: go:452dea11:internal/api/marketdata/routes_test.go:439 TestDepthRouteRejectsInvalidNum
 async fn market_microstructure_depth_route_rejects_invalid_num_before_reader_call() {
     let reader = Arc::new(MicrostructureReaderFixture::success());
     let port = microstructure_quote_port(reader.clone());
@@ -1063,6 +1064,7 @@ async fn request_market_data_quote_read_json_response(
 /// instead of touching provider state, and the same path succeeds after
 /// `POST /subscriptions` acquires the lease.
 #[tokio::test]
+// Parity: go:452dea11:pkg/futu/advanced_product_adapter_contracts_test.go:22 TestFutuAdvancedSpecializedReadersAndCustomizationSuccess
 async fn live_read_routes_require_a_logical_subscription_lease() {
     let state = Arc::new(ActiveProviderState::new(Some(MarketDataProvider::Futu)));
     let router = Arc::new(Mutex::new(futu_streaming_router()));
@@ -1184,6 +1186,7 @@ async fn poll_only_read_routes_prioritize_capabilities_and_preserve_leases() {
 /// and the cached source, and the response echoes the sample's own observation
 /// time instead of the request clock.
 #[tokio::test]
+// Parity: go:452dea11:internal/productfeatures/service_test.go:143 TestProductFeatureServiceRoutesEveryOptionalInterfaceAndCaches
 async fn snapshot_route_serves_a_fresh_cache_hit_without_provider_access() {
     let state = Arc::new(ActiveProviderState::new(Some(
         jftrade_settings::MarketDataProvider::Futu,

@@ -4,10 +4,49 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use serde_json::{Value, json};
 use tempfile::tempdir;
 
+use super::super::product_adk_chat_stream_port::{
+    AdkChatInput, AdkChatPortOutput, AdkChatRoute, AdkChatStreamPort,
+};
 use super::super::product_adk_mutation_port::{
     AdkMutationInput, AdkMutationPort, AdkMutationPortError,
 };
 use super::*;
+
+#[derive(Debug)]
+struct ProviderProbeWireRuntime;
+
+impl AdkChatStreamPort for ProviderProbeWireRuntime {
+    fn dispatch(
+        &self,
+        route: AdkChatRoute,
+        input: &AdkChatInput,
+    ) -> Result<AdkChatPortOutput, super::super::product_adk_chat_stream_port::AdkChatPortError>
+    {
+        assert_eq!(route, AdkChatRoute::Chat);
+        let request: Value = serde_json::from_slice(&input.body).expect("decode probe request");
+        let mode = request["providerTestMode"]
+            .as_str()
+            .expect("provider test mode");
+        Ok(AdkChatPortOutput::Json(json!({
+            "ok": mode == "quick",
+            "capabilities": {
+                "streaming": true,
+                "tools": mode == "quick",
+                "reasoning": mode == "quick",
+            },
+            "reasoning": {
+                "mode": mode,
+                "requestField": "reasoning.effort",
+                "ok": mode == "quick",
+            },
+            "checkedAt": "2026-01-01T00:00:00Z",
+        })))
+    }
+
+    fn runtime_ready(&self) -> bool {
+        true
+    }
+}
 
 #[derive(Debug)]
 struct FixtureAdkMutationPort;
@@ -89,6 +128,92 @@ async fn adk_mutation_routes_register_only_with_explicit_test_port() {
     assert_eq!(response["data"]["accepted"], true);
     assert_eq!(response["data"]["operation"], "create-agent");
     handle.shutdown().await.expect("shutdown ADK product");
+}
+
+/// Parity: go:452dea11:internal/api/assistant/routes_resource_contracts_test.go:159
+/// `TestProviderAndAgentValidationContracts`: the public provider probe route
+/// defaults to quick mode, preserves the full-mode probe projection, rejects
+/// unsupported modes before dispatch, and maps a missing provider to the Go
+/// 404 not-found envelope.
+#[tokio::test]
+async fn provider_test_routes_match_go_wire_mode_and_missing_provider_contract() {
+    use jftrade_store_sqlite::initialize_current;
+
+    let directory = tempdir().expect("temporary directory");
+    let settings_path = directory.path().join("settings.json");
+    std::fs::write(&settings_path, b"{}\n").expect("seed settings");
+    for (component, filename) in [
+        ("adk", "adk.db"),
+        ("adk-session", "adk-session.db"),
+        ("adk-artifact", "adk-artifact.db"),
+    ] {
+        let connection = rusqlite::Connection::open(directory.path().join(filename))
+            .expect("temporary database");
+        initialize_current(&connection, component).expect("current schema");
+    }
+    let mut port = production_optimization_port(directory.path(), false);
+    port.store
+        .upsert_provider(
+            "provider-wire",
+            &json!({
+                "id": "provider-wire",
+                "displayName": "Wire Provider",
+                "baseUrl": "https://provider.example/v1",
+                "model": "probe-model",
+                "enabled": true,
+            })
+            .to_string(),
+        )
+        .expect("persist provider");
+    Arc::get_mut(&mut port)
+        .expect("port is uniquely owned before composition")
+        .chat_runtime = Some(Arc::new(ProviderProbeWireRuntime));
+    let config =
+        ProductConfig::test_cutover("127.0.0.1:0".parse().expect("address"), &settings_path)
+            .expect("config")
+            .with_adk_mutation_port(port.clone());
+    let handle = start_product(config).await.expect("start product");
+    let address = handle.startup_record().address;
+    let route = "/api/v1/adk/providers/provider-wire/test";
+
+    for (body, mode, ok) in [
+        (None, "quick", true),
+        (Some(r#"{"mode":"full"}"#), "full", false),
+    ] {
+        let (status, response) = request_json_with_status(address, "POST", route, body, &[]).await;
+        assert_eq!(status, 200, "provider test {mode}: {response}");
+        assert_eq!(response["ok"], true);
+        assert_eq!(response["data"]["ok"], ok);
+        assert_eq!(response["data"]["reasoning"]["mode"], mode);
+        assert_eq!(
+            response["data"]["reasoning"]["requestField"],
+            "reasoning.effort"
+        );
+    }
+
+    let (status, response) =
+        request_json_with_status(address, "POST", route, Some(r#"{"mode":"slow"}"#), &[]).await;
+    assert_eq!(status, 400);
+    assert_eq!(response["error"]["code"], "BAD_REQUEST");
+    assert_eq!(
+        response["error"]["message"],
+        "provider test mode must be quick or full"
+    );
+
+    let (status, response) = request_json_with_status(
+        address,
+        "POST",
+        "/api/v1/adk/providers/missing-provider/test",
+        Some(r#"{"mode":"quick"}"#),
+        &[],
+    )
+    .await;
+    assert_eq!(status, 404);
+    assert_eq!(response["ok"], false);
+    assert_eq!(response["error"]["code"], "ADK_PROVIDER_NOT_FOUND");
+    assert_eq!(response["error"]["message"], "provider not found");
+
+    handle.shutdown().await.expect("shutdown product");
 }
 
 #[tokio::test]

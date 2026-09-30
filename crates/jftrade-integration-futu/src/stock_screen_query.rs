@@ -1983,6 +1983,7 @@ mod tests {
     }
 
     #[test]
+    // Parity: go:452dea11:pkg/futu/adapter_stock_screen_test.go:395 TestResearchScreenTranslationEdges
     fn rejects_unknown_factors_and_market_mismatch_during_encoding() {
         // Unknown factor keys are rejected by the protocol encoder itself, so a
         // malformed definition can never reach OpenD.
@@ -2063,6 +2064,7 @@ mod tests {
     }
 
     #[test]
+    // Parity: go:452dea11:pkg/futu/adapter_stock_screen_test.go:607 TestStockScreenNormalizationEdges
     fn decodes_every_value_type_and_keeps_property_unit_semantics() {
         use crate::trade_proto::qot_stock_screen::{
             PropertyBasic, PropertyFinancial, ResultPropertyBasic, ResultPropertyFinancial,

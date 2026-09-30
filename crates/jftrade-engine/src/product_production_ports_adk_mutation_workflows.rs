@@ -97,6 +97,10 @@ pub(super) fn dispatch(
                     object.insert(key.to_owned(), value.clone());
                 }
             }
+            if let Some(tags) = body.get("tags") {
+                let normalized = normalized_string_slice(string_slice(Some(tags), "tags")?);
+                object.insert("tags".to_owned(), json!(normalized));
+            }
             let name = object
                 .get("name")
                 .and_then(Value::as_str)

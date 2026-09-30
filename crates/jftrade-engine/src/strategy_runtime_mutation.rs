@@ -152,11 +152,6 @@ impl StrategyRuntimeWritePort for ProductionStrategyRuntimePort {
                         message: "strategy instance is already stopped".to_owned(),
                     });
                 }
-                if !self.manager.cancel(&input.instance_id) {
-                    return Err(StrategyRuntimeWritePortError::Unavailable(
-                        "strategy stop timed out; task owner retained".to_owned(),
-                    ));
-                }
                 let stopped = self
                     .store
                     .update_status_cas(
@@ -166,6 +161,11 @@ impl StrategyRuntimeWritePort for ProductionStrategyRuntimePort {
                         &timestamp,
                     )
                     .map_err(StrategyRuntimeWritePortError::from)?;
+                if !self.manager.cancel(&input.instance_id) {
+                    return Err(StrategyRuntimeWritePortError::Unavailable(
+                        "strategy stop timed out; task owner retained".to_owned(),
+                    ));
+                }
                 self.manager.release_demand(&input.instance_id);
                 Ok(stopped)
             }
@@ -177,9 +177,17 @@ impl StrategyRuntimeWritePort for ProductionStrategyRuntimePort {
                         message: "strategy instance is not running".to_owned(),
                     });
                 }
-                self.store
+                let paused = self
+                    .store
                     .update_status_cas(&input.instance_id, &["RUNNING"], "PAUSED", &timestamp)
-                    .map_err(Into::into)
+                    .map_err(StrategyRuntimeWritePortError::from)?;
+                if !self.manager.cancel(&input.instance_id) {
+                    return Err(StrategyRuntimeWritePortError::Unavailable(
+                        "strategy pause timed out; task owner retained".to_owned(),
+                    ));
+                }
+                self.manager.release_demand(&input.instance_id);
+                Ok(paused)
             }
             StrategyRuntimeWriteOperation::Delete => {
                 let status_upper = current.status.to_ascii_uppercase();
@@ -278,12 +286,169 @@ mod tests {
         STRATEGY_DEFINITION_TEST_CUTOVER_PROFILE, StrategyDefinitionStore, StrategyRuntimeStore,
     };
     use rusqlite::Connection;
-    use std::sync::Arc;
+    use std::sync::atomic::AtomicBool;
+    use std::sync::{Arc, mpsc};
+    use std::thread;
+    use std::time::Duration;
 
     fn seed_strategy_test_db(path: &std::path::Path) {
         let conn = Connection::open(path).expect("open test db");
         jftrade_store_sqlite::initialize_current(&conn, "strategy")
             .expect("initialize strategy schema");
+    }
+
+    fn insert_test_runtime_task(manager: &Arc<StrategyRuntimeManager>, instance_id: &str) {
+        let cancel = Arc::new(AtomicBool::new(false));
+        let (done_tx, done_rx) = mpsc::channel();
+        let cancel_for_thread = Arc::clone(&cancel);
+        let thread_handle = thread::spawn(move || {
+            while !cancel_for_thread.load(Ordering::Acquire) {
+                thread::sleep(Duration::from_millis(1));
+            }
+            let _ = done_tx.send(());
+        });
+        manager.tasks.lock().expect("runtime task map").insert(
+            instance_id.to_owned(),
+            RuntimeTask {
+                cancel,
+                wake: Arc::new(tokio::sync::Notify::new()),
+                done_rx,
+                thread_handle: Some(thread_handle),
+                close_errors: Arc::new(Mutex::new(Vec::new())),
+            },
+        );
+    }
+
+    fn runtime_port_fixture(
+        path: &std::path::Path,
+        manager: Arc<StrategyRuntimeManager>,
+    ) -> ProductionStrategyRuntimePort {
+        let definitions = Arc::new(
+            StrategyDefinitionStore::open_existing(path, STRATEGY_DEFINITION_TEST_CUTOVER_PROFILE)
+                .expect("open definition store"),
+        );
+        let store = Arc::new(StrategyRuntimeStore::from_definition_store(&definitions));
+        ProductionStrategyRuntimePort {
+            store,
+            definitions,
+            manager,
+        }
+    }
+
+    fn reject_status_transition(path: &std::path::Path) {
+        let connection = Connection::open(path).expect("open rejection connection");
+        connection
+            .execute_batch(
+                "CREATE TRIGGER strategy_runtime_test_reject_lifecycle_status
+                 BEFORE UPDATE OF status ON strategy_catalog_operations
+                 WHEN NEW.status IN ('PAUSED', 'STOPPED') BEGIN
+                     SELECT RAISE(ABORT, 'test lifecycle status rejection');
+                 END;",
+            )
+            .expect("install status rejection trigger");
+    }
+
+    // Parity: go:452dea11:internal/strategy/service_test.go:278 TestServicePauseAndStopInstancesStopRuntimeAfterStateTransition
+    #[test]
+    fn lifecycle_transition_failure_does_not_stop_runtime_before_state_write() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("strategy.db");
+        seed_strategy_test_db(&path);
+        let active_provider =
+            Arc::new(crate::product::product_active_provider_state::ActiveProviderState::default());
+        let manager = Arc::new(StrategyRuntimeManager::new(
+            None,
+            None,
+            None,
+            None,
+            active_provider,
+        ));
+        let port = runtime_port_fixture(&path, Arc::clone(&manager));
+        for instance_id in ["stop-transition", "pause-transition"] {
+            port.store
+                .seed_instance(instance_id, "RUNNING", "2026-08-30T00:00:00Z")
+                .expect("seed running instance");
+            insert_test_runtime_task(&manager, instance_id);
+        }
+        reject_status_transition(&path);
+
+        for (instance_id, operation) in [
+            ("stop-transition", StrategyRuntimeWriteOperation::Stop),
+            ("pause-transition", StrategyRuntimeWriteOperation::Pause),
+        ] {
+            let input = StrategyRuntimeWriteInput {
+                operation,
+                instance_id: instance_id.to_owned(),
+                binding: None,
+                runtime_risk: None,
+            };
+            assert!(port.mutate(&input).is_err(), "transition must fail");
+            assert!(
+                manager.is_task_alive(instance_id),
+                "runtime must remain owned when the state transition fails"
+            );
+        }
+
+        manager.cancel("stop-transition");
+        manager.cancel("pause-transition");
+    }
+
+    // Parity: go:452dea11:internal/strategy/service_test.go:278 TestServicePauseAndStopInstancesStopRuntimeAfterStateTransition
+    #[test]
+    fn pause_and_stop_transition_state_before_stopping_runtime() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("strategy.db");
+        seed_strategy_test_db(&path);
+        let active_provider =
+            Arc::new(crate::product::product_active_provider_state::ActiveProviderState::default());
+        let manager = Arc::new(StrategyRuntimeManager::new(
+            None,
+            None,
+            None,
+            None,
+            active_provider,
+        ));
+        let port = runtime_port_fixture(&path, Arc::clone(&manager));
+        for instance_id in ["stop-success", "pause-success"] {
+            port.store
+                .seed_instance(instance_id, "RUNNING", "2026-08-30T00:00:00Z")
+                .expect("seed running instance");
+            insert_test_runtime_task(&manager, instance_id);
+        }
+
+        for (instance_id, operation, expected_status) in [
+            (
+                "stop-success",
+                StrategyRuntimeWriteOperation::Stop,
+                "STOPPED",
+            ),
+            (
+                "pause-success",
+                StrategyRuntimeWriteOperation::Pause,
+                "PAUSED",
+            ),
+        ] {
+            let input = StrategyRuntimeWriteInput {
+                operation,
+                instance_id: instance_id.to_owned(),
+                binding: None,
+                runtime_risk: None,
+            };
+            let result = port.mutate(&input).expect("lifecycle transition");
+            assert_eq!(result["status"], expected_status);
+            assert_eq!(
+                port.store
+                    .get_instance(instance_id)
+                    .expect("read transitioned instance")
+                    .expect("transitioned instance")
+                    .status,
+                expected_status
+            );
+            assert!(
+                !manager.is_task_alive(instance_id),
+                "{operation:?} must stop the runtime after the persisted state transition"
+            );
+        }
     }
 
     #[test]

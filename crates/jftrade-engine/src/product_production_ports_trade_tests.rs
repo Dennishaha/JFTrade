@@ -2398,6 +2398,7 @@ fn margin_ratios_fall_back_to_recent_cache_only_for_rate_limit_errors() {
 }
 
 #[test]
+// Parity: go:452dea11:pkg/futu/trade_margin_ratio_boundaries_test.go:150 TestMarginRatioUncachedRecoveryAndConversionBoundaries
 fn margin_ratios_surface_invalid_symbol_and_missing_account_input_failures() {
     // Parity: go:452dea11:pkg/futu/trade_margin_ratio_boundaries_test.go:86
     // (its `BAD`-symbol and nil-account assertions) and :150
@@ -2459,6 +2460,7 @@ fn margin_ratios_surface_invalid_symbol_and_missing_account_input_failures() {
 }
 
 #[test]
+// Parity: go:452dea11:pkg/futu/trade_margin_ratio_boundaries_test.go:150 TestMarginRatioUncachedRecoveryAndConversionBoundaries
 fn margin_ratio_empty_requests_and_duplicate_symbols_match_go() {
     // Parity: go:452dea11:pkg/futu/trade_margin_ratio_boundaries_test.go:124
     // TestBasicQuoteQueriesHandleEmptyDuplicateAndInvalidRequests (the
@@ -3202,6 +3204,7 @@ fn broker_capabilities_microstructure_and_research_runtime_ready() {
 }
 
 #[test]
+// Parity: go:452dea11:pkg/futu/advanced_product_adapter_contracts_test.go:336 TestFutuSnapshotProductExtensionsAndSecurityTypeMapping
 fn broker_capabilities_keep_warrants_hk_only_and_futures_discoverable_in_hk_us() {
     // Parity: go:452dea11:pkg/futu/advanced_product_adapter_contracts_test.go:235
     // TestFutuWarrantsStayHKOnlyAndFuturesRemainDiscoverable. Warrants are a
@@ -3525,6 +3528,7 @@ fn trade_runtime_security_snapshots_falls_through_to_tick_cache_on_failure() {
 }
 
 #[test]
+// Parity: go:452dea11:internal/integration/futu/marketdata_runtime_opend_test.go:226 TestMarketDataRuntimePreservesRealtimeTicksWhenDelayedFallbackFails
 fn trade_runtime_security_snapshots_preserves_realtime_when_delayed_fallback_fails() {
     // Parity: go:452dea11:internal/integration/futu/marketdata_runtime_opend_test.go:226
     // A delayed fallback failure must not discard a successful realtime row,

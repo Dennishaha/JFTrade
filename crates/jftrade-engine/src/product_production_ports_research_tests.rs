@@ -156,6 +156,7 @@ impl jftrade_integration_futu::StockScreenReadPort for FutuScreenFixture {
 }
 
 #[test]
+// Parity: go:452dea11:pkg/futu/adapter_stock_screen_test.go:142 TestStockScreenFeatureResultNormalizesIdentityCellsAndOffset
 fn futu_stock_screen_projects_exact_mainland_rows_and_omits_combined_total() {
     use jftrade_integration_futu::{
         StockScreenProperty, StockScreenPropertyParams, StockScreenResult, StockScreenSecurity,
@@ -279,6 +280,7 @@ fn futu_stock_screen_projects_exact_mainland_rows_and_omits_combined_total() {
 }
 
 #[test]
+// Parity: go:452dea11:pkg/futu/adapter_stock_screen_test.go:188 TestNormalizeStockScreenRowPreservesParameterizedInstanceIdentity
 fn futu_stock_screen_selects_parameterized_columns_and_derives_counter_currency() {
     use jftrade_integration_futu::{
         StockScreenProperty, StockScreenPropertyParams, StockScreenResult, StockScreenSecurity,
@@ -422,6 +424,7 @@ fn port_query_futu_screen(
 }
 
 #[test]
+// Parity: go:452dea11:pkg/futu/adapter_stock_screen_test.go:228 TestStockScreenFeatureResultUsesPerRowMainlandIdentityAndFiltersExactMarkets
 fn futu_stock_screen_filters_exact_mainland_markets_and_maps_rate_limit() {
     use jftrade_integration_futu::{
         StockScreenProperty, StockScreenPropertyParams, StockScreenResult, StockScreenSecurity,
@@ -505,6 +508,7 @@ fn futu_stock_screen_filters_exact_mainland_markets_and_maps_rate_limit() {
 }
 
 #[test]
+// Parity: go:452dea11:pkg/futu/adapter_stock_screen_test.go:385 TestResearchScreenRateLimitErrorRoundTrip
 fn futu_stock_screen_rate_limit_maps_to_retry_after_seconds() {
     let error = screen::map_futu_screen_error(
         jftrade_integration_futu::StockScreenQueryError::RateLimited {
@@ -531,6 +535,7 @@ fn futu_stock_screen_rate_limit_maps_to_retry_after_seconds() {
 }
 
 #[test]
+// Parity: go:452dea11:pkg/futu/adapter_stock_screen_test.go:327 TestResearchScreenQuoteCurrencyUsesSecurityCounterIdentity
 fn stock_screen_quote_currency_uses_security_counter_identity() {
     for (market, symbol, name, expected) in [
         ("US", "AAPL", "Apple", Some("USD")),
@@ -839,6 +844,8 @@ async fn research_screen_helper_projects_rows_and_cells_without_fixture_defaults
 /// asserting that the eleven allowed features are served while a control route
 /// outside the set is rejected with the capability error.
 #[test]
+// Parity: go:452dea11:internal/productfeatures/service_routing_and_validation_test.go:14 TestProductFeatureServiceRemainingRoutingAndDegradationBranches
+// Parity: go:452dea11:internal/productfeatures/service_test.go:143 TestProductFeatureServiceRoutesEveryOptionalInterfaceAndCaches
 fn embedded_research_facade_serves_exactly_the_allowed_feature_set() {
     // The allow-list is the *routing* contract: every entry below is a research
     // feature the embedded provider must be able to own. Keep this list sorted

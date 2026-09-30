@@ -1,6 +1,7 @@
 use super::*;
 
 #[test]
+// Parity: go:452dea11:pkg/futu/read_account_test.go:12 TestRecoverableOpenDErrClassifiesConnectionFailures
 fn recoverable_errors_match_go_is_recoverable_opend_err() {
     // Parity: go:pkg/futu/client_exchange_recovery_boundaries_test.go:19
     // TestWithClientReplayPolicyForRecoverableErrors. Go accepts closed
@@ -37,6 +38,7 @@ fn recoverable_errors_match_go_is_recoverable_opend_err() {
 }
 
 #[test]
+// Parity: go:452dea11:pkg/futu/read_account_test.go:12 TestRecoverableOpenDErrClassifiesConnectionFailures
 fn io_error_kinds_are_classified_without_string_matching() {
     for kind in [
         std::io::ErrorKind::BrokenPipe,

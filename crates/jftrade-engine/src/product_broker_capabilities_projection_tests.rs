@@ -234,6 +234,7 @@ fn capabilities_filters_products_and_segments_like_the_catalog() {
 /// runtime list while a feature-id filter narrows the statuses to that feature
 /// and keeps the per-market evaluation attached.
 #[test]
+// Parity: go:452dea11:internal/productfeatures/service_routing_and_validation_test.go:14 TestProductFeatureServiceRemainingRoutingAndDegradationBranches
 fn capabilities_filters_by_broker_market_and_feature_id() {
     let runtime = Arc::new(SharedTradeReadRuntime::default());
     let provider = ready_provider();
@@ -304,6 +305,7 @@ fn capabilities_filters_by_broker_market_and_feature_id() {
 /// has no concrete option-chain/valuation/news reader must publish the read
 /// feature as `unavailable` instead of pretending the catalog entry is usable.
 #[test]
+// Parity: go:452dea11:internal/productfeatures/service_test.go:210 TestProductFeatureServiceFailureBoundaries
 fn capabilities_mark_declared_but_missing_readers_unavailable() {
     let runtime = Arc::new(SharedTradeReadRuntime::default());
     let provider = ready_provider();

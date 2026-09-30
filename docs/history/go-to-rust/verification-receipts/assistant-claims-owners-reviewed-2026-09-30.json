@@ -1,0 +1,8 @@
+{
+  "schemaVersion":"jftrade.go-rust-parity-receipt.v1",
+  "command":["node","scripts/quality/cargo-nextest.mjs","run","--workspace","--all-targets","--locked","-E","test(test_canvas_diamond_graph_deterministic_tie_breaking) or test(completed_tool_output_replays_after_checkpoint_restore) or test(fail_closed_stale_claim_becomes_indeterminate) or test(sibling_approvals_resume_once_after_every_decision) or test(approval_resolution_is_idempotent_and_conflict_safe) or test(same_owner_heartbeat_renews_without_advancing_fence)"],
+  "runnerVersion":"cargo-nextest 0.9.143","toolchain":"rustc 1.97.1 (2026-07-14)","exitCode":0,"status":"passed","verifiedAt":"2026-09-30T00:00:00Z",
+  "sourceState":{"verifiedCommit":"2f5de4172a26c6f2f3ddb3df13e326787e82e54b"},"rawOutputSha256":"sha256:d100bdc4c3bf6e5e5c77e48d8db495259f294334cae5137a63752f23cd182cf3",
+  "passedTests":["jftrade-assistant::assistant_claims_runtime_contracts::same_owner_heartbeat_renews_without_advancing_fence","jftrade-assistant::assistant_claims_runtime_contracts::approval_resolution_is_idempotent_and_conflict_safe","jftrade-assistant::assistant_claims_runtime_contracts::completed_tool_output_replays_after_checkpoint_restore","jftrade-assistant::claims::tests::fail_closed_stale_claim_becomes_indeterminate","jftrade-assistant::runtime::tests::sibling_approvals_resume_once_after_every_decision","jftrade-assistant::workflow_canvas::tests::test_canvas_diamond_graph_deterministic_tie_breaking"],
+  "failedTests":[],"ignoredTests":[],"summary":{"testsRun":6,"testsPassed":6,"testsFailed":0,"testsSkipped":3535,"relationsReviewed":6,"functionExactReferencesReleased":6}
+}

@@ -1,0 +1,141 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "--workspace",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json",
+    "-E",
+    "test(live_close_quantity_percent_sizes_from_the_open_position) or test(live_close_without_quantity_defaults_to_the_full_position) or test(live_entry_quantity_percent_sizes_from_available_equity_at_the_fallback_price) or test(live_entry_without_quantity_is_rejected_before_any_broker_submission) or test(runtime_risk_reason_codes_match_the_live_executor_table) or test(strategy_intents_place_stop_market_orders_with_the_stop_price_and_reduce_only_flag) or test(submitted_order_count_keeps_instance_scope_within_the_market_day)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-29T12:27:15Z",
+  "sourceState": {
+    "verifiedCommit": "2f5de4172a26c6f2f3ddb3df13e326787e82e54b"
+  },
+  "rawOutputSha256": "sha256:dc4d66ed418c004d700714a02b97e5da22571edb94f878e88eb175d7d1f265c6",
+  "passedTests": [
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_strategy::product_production_ports_strategy_runtime::strategy_runtime_execution::tests::submitted_order_count_keeps_instance_scope_within_the_market_day",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_strategy::product_production_ports_strategy_runtime::strategy_runtime_execution::tests::live_entry_without_quantity_is_rejected_before_any_broker_submission",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_strategy::product_production_ports_strategy_runtime::strategy_runtime_execution::tests::live_entry_quantity_percent_sizes_from_available_equity_at_the_fallback_price",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_strategy::product_production_ports_strategy_runtime::strategy_runtime_execution::tests::live_close_quantity_percent_sizes_from_the_open_position",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_strategy::product_production_ports_strategy_runtime::strategy_runtime_execution::tests::live_close_without_quantity_defaults_to_the_full_position",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_strategy::product_production_ports_strategy_runtime::strategy_runtime_execution::tests::strategy_intents_place_stop_market_orders_with_the_stop_price_and_reduce_only_flag",
+    "jftrade-engine::strategy_runtime_lifecycle_bounded_tests$strategy_runtime::strategy_runtime_execution::tests::live_entry_without_quantity_is_rejected_before_any_broker_submission",
+    "jftrade-engine::strategy_runtime_lifecycle_bounded_tests$strategy_runtime::strategy_runtime_execution::tests::live_entry_quantity_percent_sizes_from_available_equity_at_the_fallback_price",
+    "jftrade-engine::strategy_runtime_lifecycle_bounded_tests$strategy_runtime::strategy_runtime_execution::tests::live_close_quantity_percent_sizes_from_the_open_position",
+    "jftrade-engine::strategy_runtime_lifecycle_bounded_tests$strategy_runtime::strategy_runtime_execution::tests::live_close_without_quantity_defaults_to_the_full_position",
+    "jftrade-engine::strategy_runtime_lifecycle_bounded_tests$strategy_runtime::strategy_runtime_execution::tests::submitted_order_count_keeps_instance_scope_within_the_market_day",
+    "jftrade-engine::strategy_runtime_lifecycle_bounded_tests$strategy_runtime::strategy_runtime_execution::tests::strategy_intents_place_stop_market_orders_with_the_stop_price_and_reduce_only_flag",
+    "jftrade-engine::strategy_simulate_closed_loop$strategy_runtime_execution::tests::submitted_order_count_keeps_instance_scope_within_the_market_day",
+    "jftrade-engine::strategy_simulate_closed_loop$strategy_runtime_execution::tests::live_entry_quantity_percent_sizes_from_available_equity_at_the_fallback_price",
+    "jftrade-engine::strategy_simulate_closed_loop$strategy_runtime_execution::tests::live_close_without_quantity_defaults_to_the_full_position",
+    "jftrade-engine::strategy_simulate_closed_loop$strategy_runtime_execution::tests::strategy_intents_place_stop_market_orders_with_the_stop_price_and_reduce_only_flag",
+    "jftrade-engine::strategy_simulate_closed_loop$strategy_runtime_execution::tests::live_close_quantity_percent_sizes_from_the_open_position",
+    "jftrade-engine::strategy_simulate_closed_loop$strategy_runtime_execution::tests::live_entry_without_quantity_is_rejected_before_any_broker_submission",
+    "jftrade-trading::risk_engine_tests$runtime_risk_reason_codes_match_the_live_executor_table"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 6
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1640,
+      "exec_time": 0.6461565
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 6
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 61,
+      "exec_time": 0.444481501
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 6
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 24,
+      "exec_time": 0.433149126
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 7,
+      "exec_time": 0.008287875
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 1,
+      "measured": 0,
+      "filtered_out": 18446744073709551615,
+      "exec_time": 0
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 1,
+      "measured": 0,
+      "filtered_out": 18446744073709551615,
+      "exec_time": 0
+    }
+  ]
+}

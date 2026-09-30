@@ -1,0 +1,34 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "node", "scripts/quality/cargo-nextest.mjs", "run", "-p", "jftrade-engine", "--all-targets", "--locked",
+    "-E", "test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) or test(workflow_bridge_operations_fail_closed_without_their_ports) or test(screen_query_defaults_the_page_and_keeps_catalog_columns) or test(strategy_runtime_write_product_replays_browser_failure_recovery_and_restart) or test(workflow_updates_keep_omitted_fields_and_apply_explicit_clears) or test(execution_read_routes_preserve_the_port_failure_code_and_message) or test(order_scope_defaults_to_current_and_status_lists_merge_case_insensitively) or test(live_read_routes_reject_malformed_instruments_before_any_provider_access) or test(market_candles_compact_tool_forwards_market_symbol_period_and_limit) or test(market_candles_maps_instrument_and_advanced_query) or test(backtest_runs_filters_match_the_go_definition_version_status_and_limit_matrix) or test(portfolio_layered_tools_keep_discovery_overview_and_positions_separate) or test(research_backtest_pending_data_sync_returns_the_sync_task_without_starting_a_run) or test(strategy_optimize_enqueues_every_candidate_and_persists_the_task) or test(execution_order_events_lists_orders_and_propagates_projection_failures) or test(capability_access_classes_bound_the_reviewed_read_only_surface)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-30T00:00:00Z",
+  "sourceState": {"verifiedCommit": "2f5de4172a26c6f2f3ddb3df13e326787e82e54b"},
+  "rawOutputSha256": "sha256:9d64884dbd4dfa97317b1272f9a616f8980daf39aea3b663c90748e49c5b3c69",
+  "passedTests": [
+    "jftrade-engine::product::product_production_ports::product_production_ports_adk::tests::store_parity::workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation",
+    "jftrade-engine::product::adk_workflow_bridge_tests::workflow_bridge_operations_fail_closed_without_their_ports",
+    "jftrade-engine::product::product_research_screen_write_port::research_screen_write_port_tests::screen_query_defaults_the_page_and_keeps_catalog_columns",
+    "jftrade-engine::product::tests::strategy_runtime_write_product_tests::strategy_runtime_write_product_replays_browser_failure_recovery_and_restart",
+    "jftrade-engine::product::product_production_ports::product_production_ports_adk::tests::store_parity::workflow_updates_keep_omitted_fields_and_apply_explicit_clears",
+    "jftrade-engine::product::tests::execution_read_tests::execution_read_routes_preserve_the_port_failure_code_and_message",
+    "jftrade-engine::product::product_production_ports::product_production_ports_trade::tests::order_scope_defaults_to_current_and_status_lists_merge_case_insensitively",
+    "jftrade-engine::product::tests::market_data_quote_read_tests::live_read_routes_reject_malformed_instruments_before_any_provider_access",
+    "jftrade-engine::product::product_mcp_production_executor::market_data::tests::market_candles_compact_tool_forwards_market_symbol_period_and_limit",
+    "jftrade-engine::product::product_mcp_production_executor::market_data::tests::market_candles_maps_instrument_and_advanced_query",
+    "jftrade-engine::product::product_mcp_production_executor::tests::backtest_runs_filters_match_the_go_definition_version_status_and_limit_matrix",
+    "jftrade-engine::product::product_production_ports::product_production_ports_adk::tests::portfolio_parity::portfolio_layered_tools_keep_discovery_overview_and_positions_separate",
+    "jftrade-engine::product::product_production_ports::product_production_ports_adk::tests::research_backtest_pending_data_sync_returns_the_sync_task_without_starting_a_run",
+    "jftrade-engine::product::product_production_ports::product_production_ports_adk::tests::strategy_optimize_enqueues_every_candidate_and_persists_the_task",
+    "jftrade-engine::product::product_mcp_server::tool_catalog_parity::execution_order_events_lists_orders_and_propagates_projection_failures",
+    "jftrade-engine::product::product_production_ports::product_production_ports_trade::product_broker_capabilities_projection::tests::capability_access_classes_bound_the_reviewed_read_only_surface"
+  ],
+  "failedTests": [], "ignoredTests": [],
+  "summary": {"testsRun": 17, "testsPassed": 17, "testsFailed": 0, "testsSkipped": 1995, "relationsReviewed": 16, "functionExactReferencesReleased": 16}
+}

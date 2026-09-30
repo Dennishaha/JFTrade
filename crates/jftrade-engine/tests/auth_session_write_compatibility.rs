@@ -127,6 +127,7 @@ impl AuthSessionWritePort for FixturePort {
 }
 
 #[test]
+// Parity: go:452dea11:internal/app/apiserver/webaccess/auth_boundaries_test.go:195 TestPasswordChangeDuringLoginCannotCreateOldPasswordSession
 fn auth_session_write_fixture_matches_go_owner_for_both_routes() {
     let fixture = auth_session_write_fixture();
     assert_eq!(fixture.version, "stage9.auth-session-write.v1");

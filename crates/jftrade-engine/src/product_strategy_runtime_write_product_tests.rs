@@ -121,6 +121,7 @@ async fn strategy_runtime_write_routes_register_only_with_explicit_test_port() {
 }
 
 #[tokio::test]
+// Parity: go:452dea11:internal/assistant/assembly/application_strategy_lifecycle_test.go:84 TestApplicationAdapterStrategyInstanceLifecyclePorts
 async fn strategy_runtime_write_product_replays_browser_failure_recovery_and_restart() {
     let directory = tempdir().expect("temporary directory");
     let settings_path = directory.path().join("settings.json");

@@ -1,0 +1,159 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "--workspace",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json",
+    "-E",
+    "test(a_failed_launch_never_leaves_a_child_or_a_stale_endpoint) or test(a_naturally_exited_child_reports_stopped_and_can_be_closed_again) or test(activation_after_shutdown_is_rejected_and_leaves_the_snapshot_committed) or test(canonical_search_code_does_not_double_prefix_the_market) or test(depth_read_projects_name_times_and_levels_from_opend_s2c) or test(explicit_activation_fails_closed_and_switch_clears_cache) or test(explicit_activation_requires_ready_health_but_startup_restore_allows_warming) or test(failed_provider_change_restores_the_previous_subscription_owner) or test(helper_provider_switch_preserves_observed_opend_trade_readiness) or test(managed_process_is_reused_until_an_explicit_stop_releases_it) or test(market_microstructure_depth_route_clamps_num_to_the_go_window) or test(order_book_replay_deduplicates_already_active_subscriptions) or test(partial_release_and_clear_operations) or test(provider_change_cannot_restore_subscriptions_after_shutdown) or test(recovery_after_a_failed_health_check_publishes_a_healthy_provider) or test(rejected_activation_never_publishes_a_new_provider_snapshot) or test(retries_transient_readiness_and_sends_optional_bearer) or test(same_provider_activation_is_idempotent_after_a_rejected_switch) or test(search_quote_market_prefixes_follow_the_go_aliases) or test(test_active_provider_mutation_atomic_single_state_source) or test(test_futu_kline_query_window_resets_invalid_begin_to_default_lookback) or test(unknown_provider_activation_is_rejected_without_touching_the_active_selection)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-29T12:16:54Z",
+  "sourceState": {
+    "verifiedCommit": "2f5de4172a26c6f2f3ddb3df13e326787e82e54b"
+  },
+  "rawOutputSha256": "sha256:af682a98cf08d8157b78645a0ea1ce63ce87e8196669be186e1d333de14313bc",
+  "passedTests": [
+    "jftrade-engine::jftrade_engine$product::product_active_provider_state::tests::rejected_activation_never_publishes_a_new_provider_snapshot",
+    "jftrade-engine::jftrade_engine$product::product_active_provider_state::tests::failed_provider_change_restores_the_previous_subscription_owner",
+    "jftrade-engine::jftrade_engine$product::product_active_provider_state::tests::same_provider_activation_is_idempotent_after_a_rejected_switch",
+    "jftrade-engine::jftrade_engine$product::product_active_provider_state::tests::activation_after_shutdown_is_rejected_and_leaves_the_snapshot_committed",
+    "jftrade-engine::jftrade_engine$product::product_active_provider_state::tests::provider_change_cannot_restore_subscriptions_after_shutdown",
+    "jftrade-engine::jftrade_engine$product::product_active_provider_state::tests::helper_provider_switch_preserves_observed_opend_trade_readiness",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_market_data::product_production_ports_market_data_catalog::futu::tests::canonical_search_code_does_not_double_prefix_the_market",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_market_data::product_production_ports_market_data_quote::quote_reads_futu::tests::test_futu_kline_query_window_resets_invalid_begin_to_default_lookback",
+    "jftrade-engine::jftrade_engine$product::tests::market_data_quote_read_tests::market_microstructure_depth_route_clamps_num_to_the_go_window",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_market_data::product_production_ports_market_data_catalog::futu::tests::search_quote_market_prefixes_follow_the_go_aliases",
+    "jftrade-integration-futu::jftrade_integration_futu$subscription_executor::tests::order_book_replay_deduplicates_already_active_subscriptions",
+    "jftrade-integration-futu::jftrade_integration_futu$market_microstructure_query::tests::depth_read_projects_name_times_and_levels_from_opend_s2c",
+    "jftrade-marketdata::jftrade_marketdata$demand::tests::partial_release_and_clear_operations",
+    "jftrade-marketdata::jftrade_marketdata$router::tests::explicit_activation_fails_closed_and_switch_clears_cache",
+    "jftrade-marketdata::jftrade_marketdata$router::tests::recovery_after_a_failed_health_check_publishes_a_healthy_provider",
+    "jftrade-marketdata::jftrade_marketdata$router::tests::explicit_activation_requires_ready_health_but_startup_restore_allows_warming",
+    "jftrade-marketdata::jftrade_marketdata$router::tests::unknown_provider_activation_is_rejected_without_touching_the_active_selection",
+    "jftrade-integration-marketdata-helper::jftrade_integration_marketdata_helper$process::tests::a_failed_launch_never_leaves_a_child_or_a_stale_endpoint",
+    "jftrade-integration-marketdata-helper::jftrade_integration_marketdata_helper$process::tests::managed_process_is_reused_until_an_explicit_stop_releases_it",
+    "jftrade-integration-marketdata-helper::jftrade_integration_marketdata_helper$client::tests::retries_transient_readiness_and_sends_optional_bearer",
+    "jftrade-integration-marketdata-helper::jftrade_integration_marketdata_helper$process::tests::a_naturally_exited_child_reports_stopped_and_can_be_closed_again",
+    "jftrade-engine::market_data_production_compatibility$test_active_provider_mutation_atomic_single_state_source"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 10
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1636,
+      "exec_time": 0.126110543
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 2
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 478,
+      "exec_time": 0.081537167
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 5
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 40,
+      "exec_time": 0.054078
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 4
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 22,
+      "exec_time": 0.231161709
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 8,
+      "exec_time": 2.590990375
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 1,
+      "measured": 0,
+      "filtered_out": 18446744073709551615,
+      "exec_time": 0
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 1,
+      "measured": 0,
+      "filtered_out": 18446744073709551615,
+      "exec_time": 0
+    }
+  ]
+}

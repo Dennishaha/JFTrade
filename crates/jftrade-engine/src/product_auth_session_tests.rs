@@ -154,6 +154,7 @@ fn auth_session_fixture() -> AuthSessionFixture {
 
 // Parity: go:452dea11:internal/app/apiserver/servercore/desktop_token_test.go:101 TestDesktopDevelopmentWebListenerStillRequiresPasswordSession
 #[tokio::test]
+// Parity: go:452dea11:internal/app/apiserver/webaccess/security_integration_test.go:379 TestWebLogoutClearsSessionCookie
 async fn auth_session_route_matches_go_fixture_in_cutover_only() {
     let fixture = auth_session_fixture();
     let directory = tempdir().expect("temporary directory");

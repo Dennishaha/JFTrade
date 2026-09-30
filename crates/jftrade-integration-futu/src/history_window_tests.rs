@@ -303,6 +303,7 @@ fn history_window_normalizes_intraday_history_label_to_bucket_start() {
 }
 
 #[test]
+// Parity: go:452dea11:pkg/futu/exchange_kline_test.go:269 TestQueryKLinesKeepsDailyHistoryLabelAsBucketStart
 fn history_window_keeps_daily_history_label_as_bucket_start() {
     assert_eq!(
         crate::adjust_kline_time("2026-05-20 00:00:00", "1d"),

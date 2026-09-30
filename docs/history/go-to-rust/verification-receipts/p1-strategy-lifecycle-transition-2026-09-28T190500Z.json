@@ -1,0 +1,48 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "-E",
+    "test(lifecycle_transition_failure_does_not_stop_runtime_before_state_write) or test(pause_and_stop_transition_state_before_stopping_runtime)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-28T19:05:00Z",
+  "sourceState": {
+    "verifiedCommit": null,
+    "rawOutputSha256": "6d761bf44026ffcc680076f180a0f83335a640c2e406df004a2489bfac747546",
+    "trackedDiffSha256": "e858f66fb56ce3a8efbd45ec5561f1d6362dc75faa4f1a099de9647ed2fac976"
+  },
+  "passedTests": [
+    "jftrade-engine::strategy_runtime_lifecycle_bounded_tests::strategy_runtime::strategy_runtime_mutation::tests::lifecycle_transition_failure_does_not_stop_runtime_before_state_write",
+    "jftrade-engine::strategy_runtime_lifecycle_bounded_tests::strategy_runtime::strategy_runtime_mutation::tests::pause_and_stop_transition_state_before_stopping_runtime",
+    "jftrade-engine product::product_production_ports::product_production_ports_strategy::product_production_ports_strategy_runtime::strategy_runtime_mutation::tests::lifecycle_transition_failure_does_not_stop_runtime_before_state_write",
+    "jftrade-engine product::product_production_ports::product_production_ports_strategy::product_production_ports_strategy_runtime::strategy_runtime_mutation::tests::pause_and_stop_transition_state_before_stopping_runtime"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 2005,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "all-targets",
+        "kind": "all-targets"
+      }
+    }
+  ]
+}

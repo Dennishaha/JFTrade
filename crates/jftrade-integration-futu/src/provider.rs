@@ -135,6 +135,7 @@ mod tests {
     use super::*;
 
     #[test]
+    // Parity: go:452dea11:pkg/futu/exchange_test.go:23 TestRegistration
     fn futu_descriptor_is_static_and_valid_without_connecting_to_opend() {
         let descriptor = provider_descriptor();
         descriptor.validate().expect("Futu descriptor");
@@ -144,6 +145,8 @@ mod tests {
     }
 
     #[test]
+    // Parity: go:452dea11:internal/app/apiserver/servercoretest/broker_routes_test.go:61 TestBrokerRuntimeDescriptorIncludesReadFeatures
+    // Parity: go:452dea11:internal/settings/service_managed_accounts_test.go:120 TestServiceOptionsCaptureBrokerDescriptorAndDefaultTradingEnvironment
     fn broker_descriptor_matches_current_go_wire_fixture() {
         let expected: serde_json::Value = serde_json::from_str(include_str!(
             "../../../tests/fixtures/compatibility/api-transport/broker-descriptor.json"

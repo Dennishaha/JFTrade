@@ -1,0 +1,91 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-research",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json",
+    "--no-fail-fast",
+    "-E",
+    "test(embedded_catalog_keeps_provider_intersection_roles_and_units) or test(futu_catalog_preserves_stable_shape_and_public_projection) or test(futu_parameters_preserve_editor_bounds_defaults_and_enum_metadata) or test(futu_factor_display_semantics_match_the_editor_table) or test(parameter_validation_rejects_type_range_step_and_enum_errors) or test(union_validation_covers_every_provider_member_shape) or test(normalization_and_field_errors_match_the_go_owner_corpus)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-29T15:50:00Z",
+  "sourceState": {
+    "verifiedCommit": "2f5de4172a26c6f2f3ddb3df13e326787e82e54b"
+  },
+  "rawOutputSha256": "sha256:fc21b9c2fe171626a04b798edb6005ddff57be18304c0484b0f6a9db560d4281",
+  "passedTests": [
+    "jftrade-research::jftrade_research$definition::parameters::tests::union_validation_covers_every_provider_member_shape",
+    "jftrade-research::jftrade_research$definition::parameters::tests::parameter_validation_rejects_type_range_step_and_enum_errors",
+    "jftrade-research::definition_normalization_contracts$normalization_and_field_errors_match_the_go_owner_corpus",
+    "jftrade-research::catalog_parameter_availability_boundaries$futu_parameters_preserve_editor_bounds_defaults_and_enum_metadata",
+    "jftrade-research::catalog_parameter_availability_boundaries$futu_factor_display_semantics_match_the_editor_table",
+    "jftrade-research::catalog_parameter_availability_boundaries$embedded_catalog_keeps_provider_intersection_roles_and_units",
+    "jftrade-research::catalog_parameter_availability_boundaries$futu_catalog_preserves_stable_shape_and_public_projection"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 2
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 3,
+      "exec_time": 0.121310791
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 0,
+      "exec_time": 0.097521834
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 4
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 3,
+      "exec_time": 0.46688775
+    }
+  ],
+  "scope": {
+    "module": "researchscreen",
+    "mappingCount": 7,
+    "rustTestCount": 7
+  }
+}

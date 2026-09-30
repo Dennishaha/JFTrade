@@ -450,6 +450,7 @@ mod tests {
     }
 
     #[test]
+    // Parity: go:452dea11:pkg/futu/trade_margin_ratio_boundaries_test.go:124 TestBasicQuoteQueriesHandleEmptyDuplicateAndInvalidRequests
     fn normalized_instruments_accepts_empty_symbol_list() {
         // Parity: go:452dea11:pkg/futu/adapter_new_methods_test.go:163
         // TestSecuritiesFromSymbolsEmpty. The converter returns an empty list
@@ -558,6 +559,8 @@ mod tests {
     }
 
     #[test]
+    // Parity: go:452dea11:pkg/futu/exchange_quote_request_boundaries_test.go:50 TestBasicQuoteMissingInvalidAndSubscriptionCacheBoundaries
+    // Parity: go:452dea11:pkg/futu/trade_margin_ratio_boundaries_test.go:124 TestBasicQuoteQueriesHandleEmptyDuplicateAndInvalidRequests
     fn basic_quote_query_requires_subscription_and_maps_success_rejection_and_empty() {
         let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
         let address = listener.local_addr().expect("address");
@@ -700,6 +703,8 @@ mod tests {
     }
 
     #[test]
+    // Parity: go:452dea11:pkg/futu/exchange_quote_request_boundaries_test.go:50 TestBasicQuoteMissingInvalidAndSubscriptionCacheBoundaries
+    // Parity: go:452dea11:pkg/futu/trade_margin_ratio_boundaries_test.go:124 TestBasicQuoteQueriesHandleEmptyDuplicateAndInvalidRequests
     fn basic_quote_query_returns_an_empty_list_when_the_success_s2c_is_absent() {
         // Parity: go:452dea11:pkg/futu/opend/new_methods_test.go:752 TestGetBasicQotEmptyS2C
         let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");

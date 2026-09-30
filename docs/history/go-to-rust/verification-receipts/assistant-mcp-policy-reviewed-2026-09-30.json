@@ -1,0 +1,38 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--no-fail-fast",
+    "-E",
+    "test(loopback_policy_rejects_non_loopback_peer_addresses) or test(host_rebinding_and_missing_host_are_rejected)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-30T00:00:00Z",
+  "sourceState": {
+    "verifiedCommit": "2f5de4172a26c6f2f3ddb3df13e326787e82e54b"
+  },
+  "rawOutputSha256": "sha256:ded615b93f06adf18d4b6ec4233b16e0670f58b40f6f74d2103ac6fa0163464e",
+  "passedTests": [
+    "jftrade-engine::product::product_mcp_server::tests::loopback_policy_rejects_non_loopback_peer_addresses",
+    "jftrade-engine::product::product_mcp_server::tests::host_rebinding_and_missing_host_are_rejected"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "summary": {
+    "testsRun": 2,
+    "testsPassed": 2,
+    "testsFailed": 0,
+    "testsSkipped": 2010,
+    "relationsReviewed": 2,
+    "functionExactReferencesReleased": 4
+  }
+}

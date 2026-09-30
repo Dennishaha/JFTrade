@@ -134,6 +134,7 @@ impl AdkToolExecutor for MockSideEffectToolExecutor {
 
 // Parity: go:452dea11:internal/assistant/engine/google_exec_concurrency_test.go:12 TestGoogleADKExecutionSerializesConcurrentToolCallbacks
 #[test]
+// Parity: go:452dea11:internal/assistant/engine/runner_approval_concurrency_test.go:119 TestConcurrentSiblingAsyncApprovalsEnqueueOneContinuation
 fn fail_closed_lease_takeover_blocks_duplicate_tool_execution_and_stale_commit() {
     let (_directory, store, session_store) = initialized_stores();
     let run = create_test_run(&store, "run-fail-closed");

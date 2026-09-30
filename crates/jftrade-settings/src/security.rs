@@ -503,6 +503,7 @@ mod tests {
 
     // Parity: go:452dea11:internal/settings/service_test.go:232 TestSaveSecuritySettingsRejectsInvalidWebPort
     #[test]
+    // Parity: go:452dea11:internal/app/apiserver/servercore/settings_security_test.go:86 TestWebAccessCannotBeEnabledWithoutPassword
     fn writes_validate_password_port_and_public_access_like_go() {
         let service = SecuritySettingsService::with_ports(
             Arc::new(Store::default()),

@@ -182,6 +182,7 @@ fn drop_protocol_server(drop_proto: u32) -> (std::net::SocketAddr, thread::JoinH
 /// and `withRetryingClient` may replay once after a reconnect, gated by
 /// `isRecoverableOpenDErr`.
 #[test]
+// Parity: go:452dea11:pkg/futu/client_exchange_recovery_boundaries_test.go:19 TestWithClientReplayPolicyForRecoverableErrors
 fn recoverable_error_policy_gates_replay_safe_reads() {
     // Go rejects nil and permission/business errors and accepts the closed,
     // timeout and transport families `withRetryingClient` replays. The Rust
@@ -252,6 +253,8 @@ fn recoverable_error_policy_gates_replay_safe_reads() {
 /// closed, ready client is replaced by a new session that owns the replayed
 /// subscriptions.
 #[test]
+// Parity: go:452dea11:pkg/futu/stream_connection_quote_boundaries_test.go:317 TestStreamReconnectAndClientWatcherExitPaths
+// Parity: go:452dea11:pkg/futu/client_exchange_recovery_boundaries_test.go:56 TestExchangeReconnectsClosedReadyClientAndCoversHandlerBoundaries
 fn closed_ready_session_is_replaced_on_peer_close() {
     let listener = TcpListener::bind(("127.0.0.1", 0)).expect("bind");
     let address = listener.local_addr().expect("local_addr");
@@ -308,6 +311,7 @@ fn closed_ready_session_is_replaced_on_peer_close() {
 /// handler may read connection state while a reconnect is in flight, so the
 /// runtime must publish events without holding the coordinator lock.
 #[test]
+// Parity: go:452dea11:pkg/futu/client_exchange_recovery_boundaries_test.go:107 TestReconnectDoesNotDeadlockWithInFlightNotification
 fn reconnect_completes_while_a_notification_listener_reads_coordinator_state() {
     let listener = TcpListener::bind(("127.0.0.1", 0)).expect("bind");
     let address = listener.local_addr().expect("local_addr");
@@ -406,6 +410,8 @@ fn reconnect_completes_while_a_notification_listener_reads_coordinator_state() {
 /// `serverVer`, so an older minor line must fail session initialization before
 /// the session is handed out.
 #[test]
+// Parity: go:452dea11:pkg/futu/exchange_test.go:237 TestConnectRejectsOpenDBelowMinimumVersion
+// Parity: go:452dea11:pkg/futu/client_exchange_recovery_boundaries_test.go:249 TestOldOpenDVersionFailsSessionInitialization
 fn below_minimum_version_fails_session_initialization() {
     let listener = TcpListener::bind(("127.0.0.1", 0)).expect("bind");
     let address = listener.local_addr().expect("local_addr");
@@ -438,6 +444,7 @@ fn below_minimum_version_fails_session_initialization() {
 /// Go `TestInitResponseAndSessionTransportFailures`: every InitConnect failure
 /// mode stays typed and no failure is reported as a usable session.
 #[test]
+// Parity: go:452dea11:pkg/futu/client_exchange_recovery_boundaries_test.go:260 TestInitResponseAndSessionTransportFailures
 fn init_response_and_session_transport_failures_stay_typed() {
     // retType != 0 -> typed rejection carrying OpenD's own message.
     let listener = TcpListener::bind(("127.0.0.1", 0)).expect("bind");
@@ -605,6 +612,7 @@ fn trade_push_subscription_forwards_the_requested_accounts() {
 /// leaves the request unanswered, so the Rust equivalent is the managed
 /// session's request timeout followed by a typed session error.
 #[test]
+// Parity: go:452dea11:pkg/futu/transport_error_propagation_test.go:13 TestTradeReadMethodsPropagateTargetProtocolDisconnects
 fn trade_read_methods_propagate_target_protocol_disconnects() {
     let header = TradeHeader {
         trd_env: 1,
@@ -648,6 +656,7 @@ fn trade_read_methods_propagate_target_protocol_disconnects() {
 /// The subscription half goes through the coordinator, which is the Rust owner
 /// of Qot_Sub replay; the depth half goes through the microstructure reader.
 #[test]
+// Parity: go:452dea11:pkg/futu/transport_error_propagation_test.go:69 TestQuoteKLineAndOrderBookPropagateTargetDisconnects
 fn quote_kline_and_order_book_propagate_target_disconnects() {
     let (address, server) = drop_protocol_server(PROTO_QOT_SUB);
     let config = OpenDTcpProbeConfig::new(address, Duration::from_millis(300));
@@ -692,6 +701,7 @@ fn quote_kline_and_order_book_propagate_target_disconnects() {
 /// subscription helper must reject a closed client, while an empty request
 /// list stays a no-op that does not touch the wire.
 #[test]
+// Parity: go:452dea11:pkg/futu/transport_error_propagation_test.go:207 TestDirectSubscriptionCallsPropagateClosedClientErrors
 fn direct_subscription_calls_propagate_closed_client_errors() {
     let listener = TcpListener::bind(("127.0.0.1", 0)).expect("bind");
     let address = listener.local_addr().expect("local_addr");

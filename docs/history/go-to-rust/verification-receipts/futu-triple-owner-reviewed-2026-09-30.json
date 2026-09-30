@@ -1,0 +1,37 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-integration-futu",
+    "--all-targets",
+    "--locked",
+    "--no-fail-fast",
+    "-E",
+    "test(maps_normalized_requested_rows_and_keeps_the_last_duplicate) or test(security_projection_rejects_nil_or_unknown_market) or test(test_tick_conversion_rejects_unusable_prices_and_uses_quote_fallbacks) or test(period_to_kl_type_matches_go_interval_aliases) or test(recoverable_errors_match_go_is_recoverable_opend_err) or test(hk_order_book_subscribe_requests_detail_and_registers_push) or test(closed_ready_session_is_replaced_on_peer_close)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-30T00:00:00Z",
+  "sourceState": {
+    "verifiedCommit": "2f5de4172a26c6f2f3ddb3df13e326787e82e54b"
+  },
+  "rawOutputSha256": "sha256:a64ff016f2bbb625e64b480deb054496e909e0e2e4837fa6f9919696b07838e9",
+  "passedTests": [
+    "jftrade-integration-futu::owner-tests-7"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "summary": {
+    "testsRun": 7,
+    "testsPassed": 7,
+    "testsFailed": 0,
+    "testsSkipped": 536,
+    "relationsReviewed": 7,
+    "functionExactReferencesReleased": 14
+  }
+}

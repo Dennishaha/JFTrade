@@ -558,6 +558,7 @@ mod tests {
     }
 
     #[test]
+    // Parity: go:452dea11:pkg/futu/adapter_failure_boundaries_test.go:115 TestKLineSessionAndPriceHelperBoundaries
     fn test_adjust_kline_time_semantics() {
         // 1m: -60s
         assert_eq!(

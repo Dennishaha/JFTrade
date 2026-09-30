@@ -1,0 +1,294 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-integration-futu",
+    "-p",
+    "jftrade-engine",
+    "-p",
+    "jftrade-calendar",
+    "-p",
+    "jftrade-integration-pine",
+    "-p",
+    "jftrade-desktop",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json",
+    "--no-fail-fast",
+    "-E",
+    "test(declared_candle_periods_map_to_historical_and_realtime_types) or test(broker_kline_query_rejects_cursor_and_time_boundary_errors) or test(broker_kline_pagination_helpers_cover_sessions_bounds_and_listing_dates) or test(candle_period_catalog_rejects_missing_and_unmappable_intervals) or test(prediction_catalog_pagination_and_identity_follow_the_go_rules) or test(catalog_operations_build_strict_opend_requests_like_go) or test(session_planner_selects_explicit_routes_and_keep_sets) or test(us_history_falls_back_to_session_all_when_a_route_is_rejected) or test(history_window_follows_forward_pages_and_keeps_the_latest_limit) or test(history_window_allows_more_than_eight_pages) or test(history_window_uses_a_larger_upstream_page_size_than_the_limit) or test(response_after_request_timeout_is_not_delivered_to_a_stale_waiter) or test(keep_alive_worker_sends_frames_and_stops_on_close) or test(history_optional_fields_round_trip_and_missing_s2c_is_an_empty_result) or test(security_info_methods_return_empty_collections_for_a_payload_less_ack) or test(history_pagination_round_trips_the_next_req_key_across_pages) or test(depth_read_rejects_a_closed_session_before_any_projection) or test(trading_reads_reject_a_disconnected_session) or test(history_order_call_uses_history_protocol_and_forwards_filters) or test(trade_write_methods_enforce_prerequisites_and_disconnected_state) or test(modify_order_returns_stable_identity_for_an_empty_success_payload) or test(a_rejected_group_query_surfaces_the_opend_message) or test(security_snapshot_coordinator_caches_clones_and_uses_market_batches) or test(security_snapshot_coordinator_enforces_sliding_budget_and_does_not_cache_failures) or test(security_snapshot_coordinator_classifies_remote_rate_limit) or test(security_snapshot_coordinator_handles_empty_and_unexpected_results) or test(basic_quote_pushes_drop_rows_without_a_usable_security_or_price) or test(trading_day_schedule_json_omits_zero_updated_at) or test(frozen_proto_tree_matches_the_recorded_repository_digest) or test(frozen_proto_names_and_extensions_match_the_checksum_manifest) or test(frozen_digest_parser_rejects_malformed_entries) or test(pineworker_proto_inputs_are_verified_before_any_generation) or test(repository_root_walks_up_from_a_nested_directory_to_the_workspace_markers) or test(repository_root_rejects_a_tree_without_the_workspace_markers) or test(development_channel_skips_release_checks_while_the_release_channel_runs_them) or test(rejects_missing_staged_resource_instead_of_serving_without_it) or test(development_pine_runtime_without_staged_bundle_reports_unavailable_asset) or test(accepts_exact_resources_and_rejects_tampering) or test(pine_worker_bundle_file_name_is_platform_independent) or test(targeted_cancel_only_mutates_owned_active_orders_and_removes_successful_tracking) or test(cancel_all_success_removes_each_cancelled_order_from_tracking)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-29T17:08:00Z",
+  "sourceState": {
+    "verifiedCommit": "2f5de4172a26c6f2f3ddb3df13e326787e82e54b"
+  },
+  "rawOutputSha256": "sha256:a68d4a3621db644e0c8792699aa6c276e685d1f471b7b1e06ea9a6331ffc21cb",
+  "passedTests": [
+    "jftrade-calendar::jftrade_calendar$snapshot::tests::trading_day_schedule_json_omits_zero_updated_at",
+    "jftrade-desktop::jftrade_desktop$native::tests::repository_root_walks_up_from_a_nested_directory_to_the_workspace_markers",
+    "jftrade-desktop::jftrade_desktop$native::tests::development_pine_runtime_without_staged_bundle_reports_unavailable_asset",
+    "jftrade-desktop::jftrade_desktop$native::tests::repository_root_rejects_a_tree_without_the_workspace_markers",
+    "jftrade-desktop::jftrade_desktop$native::tests::development_channel_skips_release_checks_while_the_release_channel_runs_them",
+    "jftrade-desktop::jftrade_desktop$native::tests::pine_worker_bundle_file_name_is_platform_independent",
+    "jftrade-desktop::jftrade_desktop$resource_integrity::tests::rejects_missing_staged_resource_instead_of_serving_without_it",
+    "jftrade-desktop::jftrade_desktop$resource_integrity::tests::accepts_exact_resources_and_rejects_tampering",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_market_data::product_production_ports_market_data_quote::quote_reads_futu::tests::broker_kline_pagination_helpers_cover_sessions_bounds_and_listing_dates",
+    "jftrade-engine::jftrade_engine$product::tests::market_data_quote_read_tests::candle_pagination_tests::broker_kline_query_rejects_cursor_and_time_boundary_errors",
+    "jftrade-engine::jftrade_engine$product::tests::market_data_quote_read_tests::candle_pagination_tests::us_history_falls_back_to_session_all_when_a_route_is_rejected",
+    "jftrade-engine::jftrade_engine$product_runtime::product_runtime_opend_listener_tests::basic_quote_pushes_drop_rows_without_a_usable_security_or_price",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_strategy::product_production_ports_strategy_runtime::strategy_runtime_execution::tests::cancel_all_success_removes_each_cancelled_order_from_tracking",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_strategy::product_production_ports_strategy_runtime::strategy_runtime_execution::tests::targeted_cancel_only_mutates_owned_active_orders_and_removes_successful_tracking",
+    "jftrade-engine::strategy_runtime_lifecycle_bounded_tests$strategy_runtime::strategy_runtime_execution::tests::cancel_all_success_removes_each_cancelled_order_from_tracking",
+    "jftrade-engine::strategy_runtime_lifecycle_bounded_tests$strategy_runtime::strategy_runtime_execution::tests::targeted_cancel_only_mutates_owned_active_orders_and_removes_successful_tracking",
+    "jftrade-engine::strategy_simulate_closed_loop$strategy_runtime_execution::tests::cancel_all_success_removes_each_cancelled_order_from_tracking",
+    "jftrade-engine::strategy_simulate_closed_loop$strategy_runtime_execution::tests::targeted_cancel_only_mutates_owned_active_orders_and_removes_successful_tracking",
+    "jftrade-integration-futu::prediction_push_stream$prediction_catalog_pagination_and_identity_follow_the_go_rules",
+    "jftrade-integration-futu::market_read_boundaries$security_info_methods_return_empty_collections_for_a_payload_less_ack",
+    "jftrade-integration-futu::market_read_boundaries$history_optional_fields_round_trip_and_missing_s2c_is_an_empty_result",
+    "jftrade-integration-futu::user_security_protocol$a_rejected_group_query_surfaces_the_opend_message",
+    "jftrade-integration-pine::pineworker_proto_frozen_inputs$pineworker_proto_inputs_are_verified_before_any_generation",
+    "jftrade-integration-futu::futu_proto_frozen_inputs$frozen_digest_parser_rejects_malformed_entries",
+    "jftrade-integration-futu::futu_proto_frozen_inputs$frozen_proto_names_and_extensions_match_the_checksum_manifest",
+    "jftrade-integration-futu::futu_proto_frozen_inputs$frozen_proto_tree_matches_the_recorded_repository_digest",
+    "jftrade-integration-futu::jftrade_integration_futu$history::tests::history_pagination_round_trips_the_next_req_key_across_pages",
+    "jftrade-integration-futu::jftrade_integration_futu$history::window_tests::history_window_allows_more_than_eight_pages",
+    "jftrade-integration-futu::jftrade_integration_futu$history::window_tests::history_window_uses_a_larger_upstream_page_size_than_the_limit",
+    "jftrade-integration-futu::jftrade_integration_futu$history::window_tests::history_window_follows_forward_pages_and_keeps_the_latest_limit",
+    "jftrade-integration-futu::jftrade_integration_futu$history_session_plan::tests::session_planner_selects_explicit_routes_and_keep_sets",
+    "jftrade-integration-futu::jftrade_integration_futu$kline_query::tests::candle_period_catalog_rejects_missing_and_unmappable_intervals",
+    "jftrade-integration-futu::jftrade_integration_futu$kline_query::tests::declared_candle_periods_map_to_historical_and_realtime_types",
+    "jftrade-integration-futu::jftrade_integration_futu$market_microstructure_query::tests::depth_read_rejects_a_closed_session_before_any_projection",
+    "jftrade-integration-futu::jftrade_integration_futu$research_normalization::tests::catalog_operations_build_strict_opend_requests_like_go",
+    "jftrade-integration-futu::jftrade_integration_futu$security_snapshot_coordinator::tests::security_snapshot_coordinator_caches_clones_and_uses_market_batches",
+    "jftrade-integration-futu::jftrade_integration_futu$security_snapshot_coordinator::tests::security_snapshot_coordinator_classifies_remote_rate_limit",
+    "jftrade-integration-futu::jftrade_integration_futu$security_snapshot_coordinator::tests::security_snapshot_coordinator_enforces_sliding_budget_and_does_not_cache_failures",
+    "jftrade-integration-futu::jftrade_integration_futu$trade_session::tests::history_order_call_uses_history_protocol_and_forwards_filters",
+    "jftrade-integration-futu::jftrade_integration_futu$security_snapshot_coordinator::tests::security_snapshot_coordinator_handles_empty_and_unexpected_results",
+    "jftrade-integration-futu::jftrade_integration_futu$trade_session::tests::modify_order_returns_stable_identity_for_an_empty_success_payload",
+    "jftrade-integration-futu::jftrade_integration_futu$trade_session::tests::trade_write_methods_enforce_prerequisites_and_disconnected_state",
+    "jftrade-integration-futu::jftrade_integration_futu$trade_session::tests::trading_reads_reject_a_disconnected_session",
+    "jftrade-integration-futu::jftrade_integration_futu$managed_session::tests::response_after_request_timeout_is_not_delivered_to_a_stale_waiter",
+    "jftrade-integration-futu::jftrade_integration_futu$managed_session::tests::keep_alive_worker_sends_frames_and_stops_on_close"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 35,
+      "exec_time": 0.017906875
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 7
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 15,
+      "exec_time": 0.117351332
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 6
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1640,
+      "exec_time": 0.512706209
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 2
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 65,
+      "exec_time": 0.240579458
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 2
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 28,
+      "exec_time": 0.181089874
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 5,
+      "exec_time": 0.009408334
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 2
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 5,
+      "exec_time": 0.029576083
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 6,
+      "exec_time": 0.011272
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 2,
+      "exec_time": 0.007553875
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 3
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 3,
+      "exec_time": 0.060373458
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 19
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 19,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 461,
+      "exec_time": 0.494470374
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 1,
+      "measured": 0,
+      "filtered_out": 18446744073709551615,
+      "exec_time": 0
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 1,
+      "measured": 0,
+      "filtered_out": 18446744073709551615,
+      "exec_time": 0
+    }
+  ],
+  "scope": {
+    "module": "receipt_refresh_all",
+    "mappingCount": 41,
+    "rustTestCount": 41,
+    "crates": [
+      "jftrade-integration-futu",
+      "jftrade-engine",
+      "jftrade-calendar",
+      "jftrade-integration-pine",
+      "jftrade-desktop"
+    ]
+  }
+}

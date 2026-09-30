@@ -1412,6 +1412,7 @@ fn market_subscriptions_surface_quote_port_failures_without_fixture_payloads() {
 /// target as not found; the Rust owner is the production MCP executor on top
 /// of the production port bundle.
 #[test]
+// Parity: go:452dea11:internal/assistant/assembly/adk_strategy_test.go:308 TestADKStrategyDefinitionVersionToolsExposeImmutableSnapshotsAndFailures
 fn backtest_and_strategy_tools_reject_missing_identifiers_and_unknown_targets() {
     let (_directory, ports) = production_bundle();
     let executor = ProductionMcpToolExecutor::from_production_ports(Arc::new(ports));

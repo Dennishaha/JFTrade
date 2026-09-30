@@ -1,0 +1,178 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-integration-calendar",
+    "-p",
+    "jftrade-calendar",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json",
+    "--no-fail-fast",
+    "-E",
+    "test(fetch_preserves_distinct_transport_parse_and_validation_failures) or test(parsers_tolerate_malformed_and_partial_authority_documents) or test(helper_contracts_match_the_go_authority_boundaries) or test(fetch_range_uses_the_market_local_boundaries) or test(authority_validator_handles_missing_anchors_and_sparse_years) or test(parsers_discard_incomplete_or_out_of_range_authority_rows) or test(source_alert_lifecycle_records_failures_deduplicates_and_recovers) or test(parsers_honor_narrow_fetch_windows_and_discard_impossible_dates) or test(default_registry_registers_the_four_official_providers_with_their_markets) or test(fetch_builds_snapshot_metadata_with_checksum_and_validity) or test(fetch_surfaces_a_provider_status_error) or test(fetch_rejects_a_sparse_annual_schedule_via_the_anchor_validator) or test(anchor_year_validator_allows_missing_future_year_coverage) or test(us_holiday_override_parser_reads_closed_and_early_close_rows) or test(nyse_parser_reads_multi_year_table_and_footnote_early_closes) or test(hk_holiday_override_parser_reads_english_list_items) or test(hk_ical_parser_reads_closed_days_from_events) or test(sse_parser_expands_closed_ranges_and_skips_makeup_days) or test(sse_parser_infers_a_cross_year_range) or test(cn_holiday_override_parser_reads_a_chinese_date_line) or test(holiday_override_parser_drops_dates_outside_the_fetch_window) or test(manager_lifecycle_and_market_lookup_boundaries_match_go) or test(manual_override_status_and_session_window_boundaries_match_go) or test(adapter_validate_snapshot_boundary_passes_market_schedules_and_window_through) or test(source_availability_notes_and_refresh_target_folding_match_go) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go) or test(source_registry_normalization_and_duplicate_boundaries_match_go) or test(nyse_header_year_extraction_skips_malformed_rows_before_a_valid_header) or test(probe_targets_one_market_while_warmup_follows_settings) or test(background_refresh_follows_an_auto_refresh_settings_reload) or test(persistence_failure_keeps_the_fetched_snapshot_served_from_memory) or test(status_reports_manual_and_remote_override_modes_distinctly) or test(failing_provider_falls_back_to_builtin_and_keeps_the_error_visible) or test(status_summaries_expose_snapshot_metadata_and_non_open_samples) or test(manual_override_reopens_a_day_instead_of_the_builtin_closure) or test(shared_mainland_snapshot_applies_to_shanghai_and_shenzhen) or test(stale_remote_snapshot_is_ignored_in_favour_of_builtin_rules) or test(probe_marks_a_productive_provider_healthy_with_its_market_and_count) or test(source_alerts_deduplicate_repeats_and_record_recovery) or test(source_registry_honours_preferred_order_over_registration_order) or test(every_source_row_exposes_an_availability_note) or test(status_explains_why_builtin_rules_serve_a_market) or test(status_credits_the_covering_provider_on_a_regular_day) or test(injected_clock_is_normalized_to_utc_for_projected_timestamps) or test(refresh_and_probe_keep_per_source_health_truthful) or test(fresh_snapshot_without_a_special_day_is_coverage_not_override) or test(nonzero_time_fields_use_wire_rfc3339_and_zero_status_omits_them)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-29T14:50:00Z",
+  "sourceState": {
+    "verifiedCommit": "2f5de4172a26c6f2f3ddb3df13e326787e82e54b"
+  },
+  "rawOutputSha256": "sha256:bdb85e7b823cab1499e69e4faaef6074ef223c99ad0c4e12ac370730dc16dafb",
+  "passedTests": [
+    "jftrade-calendar::jftrade_calendar$sources::tests::nonzero_time_fields_use_wire_rfc3339_and_zero_status_omits_them",
+    "jftrade-calendar::manager_boundaries$source_registry_normalization_and_duplicate_boundaries_match_go",
+    "jftrade-calendar::manager_boundaries$manager_lifecycle_and_market_lookup_boundaries_match_go",
+    "jftrade-calendar::manager_boundaries$source_availability_notes_and_refresh_target_folding_match_go",
+    "jftrade-calendar::manager_boundaries$manual_override_status_and_session_window_boundaries_match_go",
+    "jftrade-calendar::manager_boundaries$cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go",
+    "jftrade-calendar::manager_lifecycle$every_source_row_exposes_an_availability_note",
+    "jftrade-calendar::manager_lifecycle$failing_provider_falls_back_to_builtin_and_keeps_the_error_visible",
+    "jftrade-calendar::manager_lifecycle$fresh_snapshot_without_a_special_day_is_coverage_not_override",
+    "jftrade-calendar::manager_lifecycle$injected_clock_is_normalized_to_utc_for_projected_timestamps",
+    "jftrade-calendar::manager_lifecycle$persistence_failure_keeps_the_fetched_snapshot_served_from_memory",
+    "jftrade-calendar::manager_lifecycle$manual_override_reopens_a_day_instead_of_the_builtin_closure",
+    "jftrade-calendar::manager_lifecycle$probe_marks_a_productive_provider_healthy_with_its_market_and_count",
+    "jftrade-calendar::manager_lifecycle$probe_targets_one_market_while_warmup_follows_settings",
+    "jftrade-calendar::manager_lifecycle$refresh_and_probe_keep_per_source_health_truthful",
+    "jftrade-calendar::manager_lifecycle$shared_mainland_snapshot_applies_to_shanghai_and_shenzhen",
+    "jftrade-calendar::manager_lifecycle$source_alerts_deduplicate_repeats_and_record_recovery",
+    "jftrade-calendar::manager_lifecycle$source_alert_lifecycle_records_failures_deduplicates_and_recovers",
+    "jftrade-calendar::manager_lifecycle$status_credits_the_covering_provider_on_a_regular_day",
+    "jftrade-calendar::manager_lifecycle$source_registry_honours_preferred_order_over_registration_order",
+    "jftrade-calendar::manager_lifecycle$stale_remote_snapshot_is_ignored_in_favour_of_builtin_rules",
+    "jftrade-calendar::manager_lifecycle$status_explains_why_builtin_rules_serve_a_market",
+    "jftrade-calendar::manager_lifecycle$status_reports_manual_and_remote_override_modes_distinctly",
+    "jftrade-calendar::manager_lifecycle$status_summaries_expose_snapshot_metadata_and_non_open_samples",
+    "jftrade-calendar::manager_lifecycle$background_refresh_follows_an_auto_refresh_settings_reload",
+    "jftrade-integration-calendar::jftrade_integration_calendar$parser_helpers::tests::fetch_range_uses_the_market_local_boundaries",
+    "jftrade-integration-calendar::jftrade_integration_calendar$parser_helpers::tests::nyse_header_year_extraction_skips_malformed_rows_before_a_valid_header",
+    "jftrade-integration-calendar::jftrade_integration_calendar$parser_helpers::tests::helper_contracts_match_the_go_authority_boundaries",
+    "jftrade-integration-calendar::http_source$anchor_year_validator_allows_missing_future_year_coverage",
+    "jftrade-integration-calendar::http_source$fetch_surfaces_a_provider_status_error",
+    "jftrade-integration-calendar::http_source$default_registry_registers_the_four_official_providers_with_their_markets",
+    "jftrade-integration-calendar::http_source$cn_holiday_override_parser_reads_a_chinese_date_line",
+    "jftrade-integration-calendar::http_source$fetch_rejects_a_sparse_annual_schedule_via_the_anchor_validator",
+    "jftrade-integration-calendar::http_source$hk_holiday_override_parser_reads_english_list_items",
+    "jftrade-integration-calendar::http_source$hk_ical_parser_reads_closed_days_from_events",
+    "jftrade-integration-calendar::http_source$fetch_builds_snapshot_metadata_with_checksum_and_validity",
+    "jftrade-integration-calendar::http_source$holiday_override_parser_drops_dates_outside_the_fetch_window",
+    "jftrade-integration-calendar::http_source$sse_parser_expands_closed_ranges_and_skips_makeup_days",
+    "jftrade-integration-calendar::http_source$sse_parser_infers_a_cross_year_range",
+    "jftrade-integration-calendar::http_source$nyse_parser_reads_multi_year_table_and_footnote_early_closes",
+    "jftrade-integration-calendar::http_source$us_holiday_override_parser_reads_closed_and_early_close_rows",
+    "jftrade-integration-calendar::http_source_boundaries$authority_validator_handles_missing_anchors_and_sparse_years",
+    "jftrade-integration-calendar::http_source_boundaries$adapter_validate_snapshot_boundary_passes_market_schedules_and_window_through",
+    "jftrade-integration-calendar::http_source_boundaries$fetch_preserves_distinct_transport_parse_and_validation_failures",
+    "jftrade-integration-calendar::http_source_boundaries$parsers_discard_incomplete_or_out_of_range_authority_rows",
+    "jftrade-integration-calendar::http_source_boundaries$parsers_tolerate_malformed_and_partial_authority_documents",
+    "jftrade-integration-calendar::http_source_boundaries$parsers_honor_narrow_fetch_windows_and_discard_impossible_dates"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 35,
+      "exec_time": 0.012413875
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 5
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 4,
+      "exec_time": 0.118453708
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 19
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 19,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 19,
+      "exec_time": 0.276483375
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 3
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 0,
+      "exec_time": 0.063504583
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 13
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 13,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1,
+      "exec_time": 0.292693584
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 6
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 0,
+      "exec_time": 0.161364
+    }
+  ],
+  "scope": {
+    "module": "internal/exchangecalendar",
+    "mappingCount": 45,
+    "rustTestCount": 47
+  }
+}
