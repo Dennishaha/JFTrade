@@ -184,6 +184,23 @@ fn unsupported_moving_average_call_is_rejected_before_planning() {
     );
 }
 
+/// Parity: go:452dea11:pkg/strategy/ir/planner_test.go:265 TestPlanRequirementsCollectsAdvancedIndicatorBindings
+#[test]
+fn unsupported_advanced_indicator_calls_fail_closed() {
+    for body in ["value = ta.bbw(close, 20, 2)", "value = ta.cog(close, 10)"] {
+        let compilation = compile(&script(body));
+        assert!(!compilation.ok, "unsupported advanced call must fail: {body}");
+        assert!(
+            compilation
+                .diagnostics
+                .iter()
+                .any(|item| item.code == "PINE_REQUIREMENTS_INVALID"),
+            "diagnostics = {:?}",
+            compilation.diagnostics
+        );
+    }
+}
+
 /// Parity: go:452dea11:pkg/strategy/pine/compiler_rejection_contracts_test.go:9
 /// TestUnsupportedSyntaxDiagnosticsDescribeUnsafeRequestSecurityContracts
 ///

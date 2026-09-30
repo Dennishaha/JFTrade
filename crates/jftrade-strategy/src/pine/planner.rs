@@ -614,6 +614,12 @@ fn requirement_for_call(
     let mut key_parts = Vec::new();
     let kind;
     match lower.as_str() {
+        "ta.bbw" | "ta.cog" => {
+            return Err(invalid(
+                line,
+                format!("{callee} is not supported by the Pine v6 planner"),
+            ));
+        }
         "ta.ema" | "ta.sma" | "ta.rma" | "ta.wma" | "ta.hma" | "ta.vwma" => {
             let requested = argument_text(arguments.first()).unwrap_or_else(|| "close".to_owned());
             let source = ensure_price_source(line, callee, &requested, aliases)?;
