@@ -318,6 +318,38 @@ fn akshare_rankings_reject_unsupported_market_and_kind() {
     }
 }
 
+#[test]
+// Parity: go:452dea11:internal/integration/akshare/provider_rankings_industries_test.go:108 TestProviderRankingsConvertsEntriesAndNormalizesIdentity
+fn akshare_rankings_route_converts_entries_and_applies_default_limit() {
+    let body = r#"{"market":"CN","kind":"gainers","source":"akshare-rankings","entries":[{"instrument_id":"SH.600519","name":"贵州茅台","price":1680.5,"change_rate":5.42,"pe_ttm":24.6},{"instrument_id":"SZ.000001","name":"平安银行","price":null,"change_rate":null,"pe_ttm":null}]}"#;
+    let fixture = MarketResearchFixture::ok(body.to_owned());
+    let value = read_market_research(
+        MarketDataProvider::Akshare,
+        true,
+        Some(&fixture.client),
+        "/api/v1/research/rankings",
+        "market=cn&operation=top_movers",
+    )
+    .expect("AKShare rankings response");
+    let requests = fixture.join();
+    assert_eq!(requests.len(), 1);
+    assert!(
+        requests[0].starts_with(
+            "GET /providers/akshare/rankings?market=CN&kind=gainers&limit=20 "
+        ),
+        "request = {}",
+        requests[0]
+    );
+    assert_eq!(value["provider"]["featureId"], "research.rankings");
+    assert_eq!(value["entries"].as_array().map(Vec::len), Some(2));
+    assert_eq!(value["entries"][0]["instrumentId"], "SH.600519");
+    assert_eq!(value["entries"][0]["name"], "贵州茅台");
+    assert_eq!(value["entries"][0]["changeRate"], 5.42);
+    assert_eq!(value["entries"][0]["peTTM"], 24.6);
+    assert!(value["entries"][1].get("price").is_none());
+    assert!(value["entries"][1].get("changeRate").is_none());
+}
+
 use std::io::{Read, Write};
 use std::net::TcpListener as StdTcpListener;
 use std::time::Duration;
