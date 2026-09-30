@@ -1,0 +1,101 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-marketdata",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(cache_rejects_stale_generation_and_classifies_freshness) or test(cache_rejects_empty_generation_and_backwards_timestamp_inputs) or test(a_new_trading_day_or_session_resets_the_cumulative_baseline) or test(demand_is_deduplicated_and_managed_leases_do_not_expire) or test(partial_release_and_clear_operations) or test(heartbeat_updates_consumer_and_entry_timestamps) or test(channel_and_interval_validation_rules) or test(router_drives_runtime_recorder_from_provider_and_demand_state) or test(recorder_matches_generation_retry_recovery_and_close_rules) or test(empty_invalid_closed_and_inactive_demand_never_calls_provider)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-30T06:19:34Z",
+  "sourceState": {
+    "verifiedCommit": "79f676e33de9a1060f0ca196136e457b3ef49611",
+    "trackedDiffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "untrackedFiles": [
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/marketdata-lifecycle-boundaries-2026-09-30.json",
+        "sha256": "d9219641eca682cffeb42d04001648b3058cd391968f35b60d7c8910df73174d"
+      }
+    ]
+  },
+  "rawOutputSha256": "9adf68b987892ed1457d3227322db1ee0a55905890f18725ebbdffcd992b7d9e",
+  "passedTests": [
+    "jftrade-marketdata::cache_boundaries$cache_rejects_empty_generation_and_backwards_timestamp_inputs",
+    "jftrade-marketdata::jftrade_marketdata$cache::tests::cache_rejects_stale_generation_and_classifies_freshness",
+    "jftrade-marketdata::jftrade_marketdata$demand::tests::channel_and_interval_validation_rules",
+    "jftrade-marketdata::jftrade_marketdata$demand::tests::demand_is_deduplicated_and_managed_leases_do_not_expire",
+    "jftrade-marketdata::jftrade_marketdata$demand::tests::heartbeat_updates_consumer_and_entry_timestamps",
+    "jftrade-marketdata::jftrade_marketdata$demand::tests::partial_release_and_clear_operations",
+    "jftrade-marketdata::jftrade_marketdata$router::tests::router_drives_runtime_recorder_from_provider_and_demand_state",
+    "jftrade-marketdata::jftrade_marketdata$runtime::tests::recorder_matches_generation_retry_recovery_and_close_rules",
+    "jftrade-marketdata::jftrade_marketdata$snapshot_poll::tests::empty_invalid_closed_and_inactive_demand_never_calls_provider",
+    "jftrade-marketdata::jftrade_marketdata$trade_volume::tests::a_new_trading_day_or_session_resets_the_cumulative_baseline"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 9,
+      "nextest": {
+        "crate": "jftrade-marketdata",
+        "test_binary": "jftrade_marketdata",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1,
+      "nextest": {
+        "crate": "jftrade-marketdata",
+        "test_binary": "cache_boundaries",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 6,
+      "exec_time": 0.007562458,
+      "nextest": {
+        "crate": "jftrade-marketdata",
+        "test_binary": "cache_boundaries",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 36,
+      "exec_time": 0.095600669,
+      "nextest": {
+        "crate": "jftrade-marketdata",
+        "test_binary": "jftrade_marketdata",
+        "kind": "lib"
+      }
+    }
+  ]
+}
