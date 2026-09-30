@@ -183,6 +183,34 @@ impl EngineTestCluster {
     }
 }
 
+/// Parity: go:452dea11:internal/assistant/workflows_resource_recovery_test.go:11 TestWorkflowResourcesRejectCrossWorkflowAndInvalidRequests
+#[test]
+fn workflow_mutation_rejects_invalid_work_mode() {
+    let cluster = EngineTestCluster::new();
+    let agent_id = cluster.create_agent("InvalidModeAgent");
+    let error = cluster
+        .port
+        .mutate(&AdkMutationInput {
+            operation: AdkMutationOperation::CreateWorkflow,
+            identifiers: BTreeMap::new(),
+            body: json!({
+                "name": "Invalid mode",
+                "agentId": agent_id,
+                "promptTemplate": "review",
+                "workMode": "batch"
+            }),
+            webhook_secret: None,
+        })
+        .expect_err("unsupported workflow work mode must be rejected");
+    match error {
+        AdkMutationPortError::Failed { status, message, .. } => {
+            assert_eq!(status, 400);
+            assert_eq!(message, "invalid workflow work mode \"batch\"");
+        }
+        other => panic!("expected validation failure, got {other:?}"),
+    }
+}
+
 // Parity: go:452dea11:internal/assistant/engine/workflow_canvas_test.go:11 TestWorkflowCanvasCompilerSequentialFanOutAndJoin
 // Parity: go:452dea11:internal/api/assistant/workflow_routes_test.go:14 TestWorkflowRoutesCoverDefinitionTriggerRunAndWebhookContracts
 // Parity: go:452dea11:internal/assistant/engine/workflow_canvas_test.go:133 TestRunCanvasWorkflowExecutesAReachableAgentGraph

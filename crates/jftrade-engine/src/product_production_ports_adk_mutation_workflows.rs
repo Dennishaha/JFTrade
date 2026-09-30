@@ -117,7 +117,7 @@ pub(super) fn dispatch(
                 .to_owned();
             validate_session_agent(port, &agent_id)?;
             object.insert("agentId".to_owned(), Value::String(agent_id));
-            let work_mode = normalize_workflow_mode(object.get("workMode"), "loop");
+            let work_mode = normalize_workflow_mode(object.get("workMode"), "loop")?;
             object.insert("workMode".to_owned(), Value::String(work_mode));
             let prompt = object
                 .get("promptTemplate")

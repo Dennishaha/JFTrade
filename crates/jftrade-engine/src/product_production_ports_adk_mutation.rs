@@ -435,17 +435,21 @@ fn normalize_workflow_status(value: Option<&Value>, fallback: &str) -> String {
     }
 }
 
-fn normalize_workflow_mode(value: Option<&Value>, fallback: &str) -> String {
+fn normalize_workflow_mode(
+    value: Option<&Value>,
+    fallback: &str,
+) -> Result<String, AdkMutationPortError> {
     let candidate = value
         .and_then(Value::as_str)
         .map(str::trim)
         .filter(|value| !value.is_empty())
         .unwrap_or(fallback)
         .to_ascii_lowercase();
-    if candidate == "chat" {
-        "chat".to_owned()
-    } else {
-        "loop".to_owned()
+    match candidate.as_str() {
+        "chat" | "loop" => Ok(candidate),
+        _ => Err(invalid_mutation_with_code("BAD_REQUEST", &format!(
+            "invalid workflow work mode {candidate:?}"
+        ))),
     }
 }
 
