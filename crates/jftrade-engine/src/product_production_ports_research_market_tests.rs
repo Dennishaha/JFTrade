@@ -296,6 +296,28 @@ fn akshare_rankings_projection_rejects_kind_mismatch() {
     ));
 }
 
+#[test]
+// Parity: go:452dea11:internal/integration/akshare/provider_rankings_industries_test.go:141 TestProviderRankingsRejectsUnsupportedMarketAndKind
+fn akshare_rankings_reject_unsupported_market_and_kind() {
+    for (market, operation) in [("US", "hot"), ("MO", "hot"), ("CN", "breakout")] {
+        let fixture = MarketResearchFixture::with_responses(Vec::new());
+        let error = read_market_research(
+            MarketDataProvider::Akshare,
+            true,
+            Some(&fixture.client),
+            "/api/v1/research/rankings",
+            &format!("market={market}&operation={operation}"),
+        )
+        .expect_err("unsupported AKShare ranking request");
+        assert!(matches!(
+            error,
+            ResearchReadSnapshotError::Failed { status: 409, ref code, .. }
+                if code == "BROKER_CAPABILITY_UNAVAILABLE"
+        ));
+        assert!(fixture.join().is_empty(), "market={market}, operation={operation}");
+    }
+}
+
 use std::io::{Read, Write};
 use std::net::TcpListener as StdTcpListener;
 use std::time::Duration;
