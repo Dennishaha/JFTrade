@@ -1,0 +1,147 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-store-sqlite",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "-E",
+    "test(aggregate_reads_use_only_the_requested_session_scope) or test(regular_and_extended_session_tables_keep_direct_reads_isolated) or test(test_tc_d4_04_extended_session_pre_market_does_not_pollute_regular_open) or test(custom_period_backward_queries_return_latest_rows_in_ascending_order) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(missing_symbol_table_reports_storage_error_then_recovers_after_insert) or test(schema_kline_table_name_and_session_scope_validation_contracts)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-30T14:20:49Z",
+  "sourceState": {
+    "verifiedCommit": "5cd29353d636152fefda2098518c4919d205e943",
+    "trackedDiffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "untrackedFiles": [
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/backtest-filter-session-20260930.json",
+        "sha256": "17e4ae0d700a68e4fd18c4cf0594b095aa2f6d42ff32872fb56449fda2ea2c19"
+      }
+    ]
+  },
+  "rawOutputSha256": "3b07d775ab61d3d0281d87e4b2d0d5ab70bbbe87c4e07956b88b0f9d6a508eee",
+  "passedTests": [
+    "jftrade-store-sqlite::backtest_market_data_aggregation$custom_period_backward_queries_return_latest_rows_in_ascending_order",
+    "jftrade-store-sqlite::backtest_market_data_aggregation$direct_interval_rows_win_and_paging_is_deterministic",
+    "jftrade-store-sqlite::backtest_market_data_failure_recovery$missing_symbol_table_reports_storage_error_then_recovers_after_insert",
+    "jftrade-store-sqlite::backtest_market_data_session_dst_aggregation$test_tc_d4_04_extended_session_pre_market_does_not_pollute_regular_open",
+    "jftrade-store-sqlite::backtest_market_data_session_scope$aggregate_reads_use_only_the_requested_session_scope",
+    "jftrade-store-sqlite::backtest_market_data_session_scope$regular_and_extended_session_tables_keep_direct_reads_isolated",
+    "jftrade-store-sqlite::backtest_market_data_session_scope$schema_kline_table_name_and_session_scope_validation_contracts"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1,
+      "nextest": {
+        "crate": "jftrade-store-sqlite",
+        "test_binary": "backtest_market_data_session_dst_aggregation",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 2,
+      "nextest": {
+        "crate": "jftrade-store-sqlite",
+        "test_binary": "backtest_market_data_aggregation",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1,
+      "nextest": {
+        "crate": "jftrade-store-sqlite",
+        "test_binary": "backtest_market_data_failure_recovery",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 3,
+      "nextest": {
+        "crate": "jftrade-store-sqlite",
+        "test_binary": "backtest_market_data_session_scope",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 8,
+      "exec_time": 0.089581625,
+      "nextest": {
+        "crate": "jftrade-store-sqlite",
+        "test_binary": "backtest_market_data_aggregation",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 4,
+      "exec_time": 0.063219708,
+      "nextest": {
+        "crate": "jftrade-store-sqlite",
+        "test_binary": "backtest_market_data_failure_recovery",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1,
+      "exec_time": 0.161426374,
+      "nextest": {
+        "crate": "jftrade-store-sqlite",
+        "test_binary": "backtest_market_data_session_scope",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 4,
+      "exec_time": 0.069647333,
+      "nextest": {
+        "crate": "jftrade-store-sqlite",
+        "test_binary": "backtest_market_data_session_dst_aggregation",
+        "kind": "test"
+      }
+    }
+  ]
+}
