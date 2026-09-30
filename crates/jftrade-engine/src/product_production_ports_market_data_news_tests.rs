@@ -412,6 +412,40 @@ fn news_projection_rejects_mismatched_identity_and_invalid_timestamps() {
 }
 
 #[test]
+// Parity: go:452dea11:internal/integration/akshare/provider_news_actions_test.go:71 TestProviderNewsAndCorporateActionsRejectMalformedPayloads
+fn akshare_news_actions_projection_rejects_malformed_payloads() {
+    let news_payload = serde_json::json!({
+        "market": "SH", "symbol": "600519", "instrument_id": "SH.600519",
+        "source": "akshare-news",
+        "entries": [{"title": "t", "published_at": "yesterday"}]
+    });
+    let news_error = super::product_production_ports_market_data_news_actions::validate_news_actions_payload(
+        news_payload, "news", "SH", "600519",
+    )
+    .expect_err("invalid news timestamp must be rejected");
+    assert!(matches!(
+        news_error,
+        MarketDataNewsActionsReadSnapshotError::Failed { status: 502, ref code, ref message, .. }
+            if code == "BAD_GATEWAY" && message == "news entry publishedAt must be RFC3339"
+    ));
+
+    let actions_payload = serde_json::json!({
+        "market": "SH", "symbol": "600519", "instrument_id": "SH.600519",
+        "source": "akshare-actions",
+        "events": [{"kind": "buyback", "ex_date": "2026-05-11"}]
+    });
+    let actions_error = super::product_production_ports_market_data_news_actions::validate_news_actions_payload(
+        actions_payload, "corporate-actions", "SH", "600519",
+    )
+    .expect_err("invalid corporate action kind must be rejected");
+    assert!(matches!(
+        actions_error,
+        MarketDataNewsActionsReadSnapshotError::Failed { status: 502, ref code, ref message, .. }
+            if code == "BAD_GATEWAY" && message == "corporate action event kind must be dividend or split"
+    ));
+}
+
+#[test]
 // Parity: go:452dea11:internal/integration/akshare/provider_news_actions_test.go:100 TestProviderNewsRejectsIdentityMismatch
 fn news_projection_rejects_identity_mismatch() {
     let payload = serde_json::json!({
