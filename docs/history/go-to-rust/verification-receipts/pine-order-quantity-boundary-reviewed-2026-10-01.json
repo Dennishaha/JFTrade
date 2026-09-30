@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": ["node", "scripts/quality/cargo-nextest.mjs", "run", "-p", "jftrade-strategy", "--test", "pine_order_metadata_and_security_rejections", "--locked"],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-10-01T00:00:00Z",
+  "sourceState": {"verifiedCommit": "d38be70d5cbc6b7246867006221f599758c47c28"},
+  "rawOutputSha256": "sha256:6b68595fa7a8314ea3f11c85f74b634bec425abc3d5a66eafaed1d674337e013",
+  "passedTests": ["jftrade-strategy::pine_order_metadata_and_security_rejections compile_rejects_ambiguous_order_metadata_and_missing_ids", "jftrade-strategy::pine_order_metadata_and_security_rejections request_security_rejects_impure_member_and_visual_side_effects", "jftrade-strategy::pine_order_metadata_and_security_rejections compile_propagates_order_metadata_rejections_to_every_order_form", "jftrade-strategy::pine_order_metadata_and_security_rejections compile_accepts_supported_order_positional_metadata", "jftrade-strategy::pine_order_metadata_and_security_rejections request_security_merge_flags_are_rejected_in_named_and_positional_form", "jftrade-strategy::pine_order_metadata_and_security_rejections history_reference_overflow_is_rejected", "jftrade-strategy::pine_order_metadata_and_security_rejections request_security_rejects_unsupported_inner_ta_contracts", "jftrade-strategy::pine_order_metadata_and_security_rejections request_security_tuple_diagnostics_match_go_codes"],
+  "failedTests": [],
+  "ignoredTests": [],
+  "summary": {"testsRun": 8, "testsPassed": 8, "testsFailed": 0, "testsSkipped": 0, "relationsReviewed": 1, "functionExactReferencesReleased": 0}
+}
