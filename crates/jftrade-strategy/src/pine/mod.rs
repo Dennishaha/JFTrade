@@ -205,6 +205,9 @@ mod public_helper_guard_tests {
             ("x = security_source(\"AAPL\", \"1D\", close)", "request.security"),
             ("x = highest(close, 20)", "ta.highest"),
             ("x = lowest(close, 20)", "ta.lowest"),
+            ("x = history(close, 1)", "series[n]"),
+            ("x = ifelse(close > open, close, open)", "condition ? valueWhenTrue : valueWhenFalse"),
+            ("adx = ta.adx(14)", "ta.dmi"),
         ] {
             let source =
                 format!("//@version=6\nstrategy(\"reject helpers\", overlay=true)\n{line}");
