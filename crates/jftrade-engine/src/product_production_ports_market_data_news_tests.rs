@@ -282,6 +282,37 @@ fn futu_news_queries_stay_on_the_broker_path() {
 }
 
 #[test]
+// Parity: go:452dea11:internal/integration/yfinance/provider_news_actions_test.go:67 TestProviderCorporateActionsSortsEventsByExDateAndKind
+fn corporate_actions_projection_sorts_events_by_ex_date_and_kind() {
+    let payload = serde_json::json!({
+        "market": "US",
+        "symbol": "AAPL",
+        "instrument_id": "US.AAPL",
+        "source": "yfinance-actions",
+        "events": [
+            {"kind": "split", "ex_date": "2026-05-11", "amount": null, "ratio": 2},
+            {"kind": "dividend", "ex_date": "2026-05-11", "amount": 1.2, "ratio": null},
+            {"kind": "dividend", "ex_date": "2026-08-10", "amount": 0.5, "ratio": null}
+        ]
+    });
+    let value = super::product_production_ports_market_data_news_actions::validate_news_actions_payload(
+        payload,
+        "corporate-actions",
+        "US",
+        "AAPL",
+    )
+    .expect("corporate actions projection");
+    assert_eq!(
+        value["events"],
+        serde_json::json!([
+            {"kind": "dividend", "exDate": "2026-05-11", "amount": 1.2, "ratio": null},
+            {"kind": "split", "exDate": "2026-05-11", "amount": null, "ratio": 2},
+            {"kind": "dividend", "exDate": "2026-08-10", "amount": 0.5, "ratio": null}
+        ])
+    );
+}
+
+#[test]
 fn corporate_actions_projection_rejects_missing_events() {
     let payload = serde_json::json!({
         "market": "US",

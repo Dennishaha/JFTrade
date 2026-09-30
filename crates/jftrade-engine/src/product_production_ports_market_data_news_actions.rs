@@ -285,11 +285,15 @@ fn project_corporate_events(
             "market-data helper response events must be an array",
         ));
     };
-    events
+    let mut projected = events
         .iter()
         .map(project_corporate_event)
-        .collect::<Result<Vec<_>, _>>()
-        .map(Value::Array)
+        .collect::<Result<Vec<_>, _>>()?;
+    projected.sort_by(|left, right| {
+        let date_order = left["exDate"].as_str().cmp(&right["exDate"].as_str());
+        date_order.then_with(|| left["kind"].as_str().cmp(&right["kind"].as_str()))
+    });
+    Ok(Value::Array(projected))
 }
 
 fn project_corporate_event(value: &Value) -> Result<Value, MarketDataNewsActionsReadSnapshotError> {
