@@ -592,6 +592,44 @@ fn industry_rejects_unsupported_operations_and_plate_types() {
     }
 }
 
+// Parity: go:452dea11:internal/integration/yfinance/provider_rankings_test.go:71 TestProviderRankingsRejectsNonUSMarketsWithoutSidecarCall
+#[test]
+fn yfinance_rankings_reject_non_us_markets_without_helper_calls() {
+    for market in ["HK", "SH", "SZ", "CN"] {
+        let fixture = MarketResearchFixture::with_responses(Vec::new());
+        let error = read_market_research(
+            MarketDataProvider::Yfinance,
+            true,
+            Some(&fixture.client),
+            "/api/v1/research/rankings",
+            &format!("market={market}&operation=hot"),
+        )
+        .expect_err("YFinance rankings must reject non-US markets");
+        assert!(matches!(
+            error,
+            ResearchReadSnapshotError::Failed { status: 409, ref code, .. }
+                if code == "BROKER_CAPABILITY_UNAVAILABLE"
+        ));
+        assert!(fixture.join().is_empty(), "market={market}");
+    }
+
+    let fixture = MarketResearchFixture::with_responses(Vec::new());
+    let error = read_market_research(
+        MarketDataProvider::Yfinance,
+        true,
+        Some(&fixture.client),
+        "/api/v1/research/rankings",
+        "market=US&operation=breakout",
+    )
+    .expect_err("unknown rankings operation must be rejected");
+    assert!(matches!(
+        error,
+        ResearchReadSnapshotError::Failed { status: 409, ref code, .. }
+            if code == "BROKER_CAPABILITY_UNAVAILABLE"
+    ));
+    assert!(fixture.join().is_empty());
+}
+
 /// Parity: go:452dea11:internal/productfeatures/provider_facade_rankings_test.go:235
 /// TestEmbeddedProviderPropagatesRankingsCapabilityErrors
 ///
