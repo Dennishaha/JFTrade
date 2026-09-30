@@ -351,6 +351,37 @@ fn akshare_rankings_route_converts_entries_and_applies_default_limit() {
     assert!(value["entries"][1].get("changeRate").is_none());
 }
 
+#[test]
+// Parity: go:452dea11:internal/integration/yfinance/provider_rankings_test.go:42 TestProviderRankingsConvertsEntriesAndAppliesDefaultLimit
+fn yfinance_rankings_route_converts_entries_and_applies_default_limit() {
+    let body = r#"{"market":"US","kind":"gainers","source":"yfinance-rankings","entries":[{"instrument_id":"US.AAPL","name":"Apple Inc.","price":232.1,"change_rate":1.25},{"instrument_id":"US.MSFT","name":"Microsoft","price":null,"change_rate":null}]}"#;
+    let fixture = MarketResearchFixture::ok(body.to_owned());
+    let value = read_market_research(
+        MarketDataProvider::Yfinance,
+        true,
+        Some(&fixture.client),
+        "/api/v1/research/rankings",
+        "market=us&operation=top_movers",
+    )
+    .expect("YFinance rankings response");
+    let requests = fixture.join();
+    assert_eq!(requests.len(), 1);
+    assert!(
+        requests[0].starts_with(
+            "GET /providers/yfinance/rankings?market=US&kind=gainers&limit=20 "
+        ),
+        "request = {}",
+        requests[0]
+    );
+    assert_eq!(value["metadata"]["source"], "yfinance-rankings");
+    assert_eq!(value["entries"].as_array().map(Vec::len), Some(2));
+    assert_eq!(value["entries"][0]["instrumentId"], "US.AAPL");
+    assert_eq!(value["entries"][0]["name"], "Apple Inc.");
+    assert_eq!(value["entries"][0]["changeRate"], 1.25);
+    assert!(value["entries"][1].get("price").is_none());
+    assert!(value["entries"][1].get("changeRate").is_none());
+}
+
 use std::io::{Read, Write};
 use std::net::TcpListener as StdTcpListener;
 use std::time::Duration;
