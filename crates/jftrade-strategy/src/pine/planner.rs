@@ -748,6 +748,12 @@ fn requirement_for_call(
         // `security_indicator_requirement`.
         "ta.linreg" => {
             kind = "linreg";
+            if arguments.len() != 3 && arguments.len() != 4 {
+                return Err(invalid(
+                    line,
+                    format!("{callee} accepts source, length, offset, and optional time unit"),
+                ));
+            }
             let requested = argument_text(arguments.first()).unwrap_or_else(|| "close".to_owned());
             ensure_price_source(line, callee, &requested, aliases)?;
             let mut parts = source_period_parts(callee, arguments, line, 2)?;
@@ -842,6 +848,12 @@ fn requirement_for_call(
         }
         "ta.percentile_linear_interpolation" | "ta.percentile_nearest_rank" => {
             kind = lower.strip_prefix("ta.").unwrap_or_default();
+            if arguments.len() != 3 && arguments.len() != 4 {
+                return Err(invalid(
+                    line,
+                    format!("{callee} accepts source, length, percentage, and optional time unit"),
+                ));
+            }
             let requested = argument_text(arguments.first()).unwrap_or_else(|| "close".to_owned());
             let source = ensure_price_source(line, callee, &requested, aliases)?;
             let length = argument_text(arguments.get(1))

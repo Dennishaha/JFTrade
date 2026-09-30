@@ -88,11 +88,17 @@ fn window_sources_reject_computed_expressions() {
 /// Parity: go:452dea11:pkg/strategy/ir/planner_internal_boundaries_test.go:101 TestAdvancedIndicatorBindingsRejectTrailingTimeframeArguments
 #[test]
 fn advanced_indicator_rejects_trailing_arguments() {
-    let message = compile_error_message("x = ta.tsi(close, 13, 25, day, extra)");
-    assert!(
-        message.contains("accepts source") && message.contains("optional time unit"),
-        "message {message:?}"
-    );
+    for body in [
+        "x = ta.tsi(close, 13, 25, day, extra)",
+        "x = ta.linreg(close, 20, 1, day, extra)",
+        "x = ta.percentile_nearest_rank(close, 20, 80, day, extra)",
+    ] {
+        let message = compile_error_message(body);
+        assert!(
+            message.contains("accepts source") && message.contains("optional time unit"),
+            "message {message:?} for {body}"
+        );
+    }
 }
 
 /// Parity: go:452dea11:pkg/strategy/indicatorbinding/parse_semantics_test.go:114 TestParsePriceSourceAndBuildMovingAverageKeyWithSource
