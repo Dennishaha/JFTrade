@@ -5591,6 +5591,65 @@ mod product_production_assembly_tests {
         handle.shutdown().await.expect("shutdown product");
     }
 
+    /// Parity: go:452dea11:internal/api/settings/adk_routes_contracts_test.go:18 TestADKRuntimeSettingsDefaultAndSave
+    #[tokio::test]
+    async fn adk_runtime_settings_default_save_readback_and_clamp() {
+        let (_temp_dir, _settings_path, config, _security) = setup_test_env();
+        let handle = start_product(config).await.expect("start product");
+        let address = handle.startup_record().address;
+        let authorization = "Bearer aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+
+        let (status, defaults) = request_json_with_status(
+            address,
+            "GET",
+            "/api/v1/settings/adk",
+            None,
+            &[("Authorization", authorization)],
+        )
+        .await;
+        assert_eq!(status, 200, "default settings: {defaults}");
+        assert_eq!(defaults["data"]["runTimeoutMs"], 1_800_000);
+        assert_eq!(defaults["data"]["streamIdleTimeoutMs"], 300_000);
+
+        let (status, saved) = request_json_with_status(
+            address,
+            "PUT",
+            "/api/v1/settings/adk",
+            Some(r#"{"runTimeoutMs":10000,"streamIdleTimeoutMs":2000000}"#),
+            &[("Authorization", authorization)],
+        )
+        .await;
+        assert_eq!(status, 200, "saved settings: {saved}");
+        assert_eq!(saved["data"]["runTimeoutMs"], 60_000);
+        assert_eq!(saved["data"]["streamIdleTimeoutMs"], 900_000);
+
+        let (status, readback) = request_json_with_status(
+            address,
+            "GET",
+            "/api/v1/settings/adk",
+            None,
+            &[("Authorization", authorization)],
+        )
+        .await;
+        assert_eq!(status, 200, "saved settings readback: {readback}");
+        assert_eq!(readback["data"]["runTimeoutMs"], 60_000);
+        assert_eq!(readback["data"]["streamIdleTimeoutMs"], 900_000);
+
+        let (status, clamped) = request_json_with_status(
+            address,
+            "PUT",
+            "/api/v1/settings/adk",
+            Some(r#"{"runTimeoutMs":99999999,"streamIdleTimeoutMs":300000}"#),
+            &[("Authorization", authorization)],
+        )
+        .await;
+        assert_eq!(status, 200, "clamped settings: {clamped}");
+        assert_eq!(clamped["data"]["runTimeoutMs"], 43_200_000);
+        assert_eq!(clamped["data"]["streamIdleTimeoutMs"], 300_000);
+
+        handle.shutdown().await.expect("shutdown product");
+    }
+
     /// Starts the production HTTP surface with a Futu trade-read fixture, a
     /// history fixture, and a cache-backed quote router, then hands the bound
     /// address to the broker-read boundary tests.
