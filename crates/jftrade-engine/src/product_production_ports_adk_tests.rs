@@ -2805,6 +2805,12 @@ fn test_research_backtest_result_view_projection() {
     assert_eq!(summary_view["summary"]["realizedPnl"], "5000.0");
     assert_eq!(summary_view["summary"]["totalTrades"], 2);
     assert_eq!(summary_view["summary"]["winRate"], "0.50");
+    let mut persisted_provider = real_corpus_payload.clone();
+    persisted_provider["marketDataProvider"] = json!("akshare");
+    assert_eq!(project_result_view(&persisted_provider, Some(&default_options))["run"]["marketDataProvider"], "akshare");
+    let mut default_provider = persisted_provider;
+    default_provider["marketDataProvider"] = Value::Null;
+    assert_eq!(project_result_view(&default_provider, Some(&default_options))["run"]["marketDataProvider"], "futu");
     assert!(
         summary_view["summary"]["warnings"]
             .as_array()
