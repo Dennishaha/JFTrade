@@ -1,0 +1,67 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(execution_read_routes_match_group_fixture_in_cutover_only) or test(system_status_matches_go_stable_fields_without_claiming_migration_ownership) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable) or test(auth_manager_login_validate_and_logout_flow) or test(production_helper_sync_retries_transient_page_and_records_retry) or test(production_helper_sync_rejects_broken_pagination_cursors)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-30T05:55:45Z",
+  "sourceState": {
+    "verifiedCommit": "b869a8bbc2ed6c4d2296de947420be34d08f6111",
+    "trackedDiffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "untrackedFiles": []
+  },
+  "rawOutputSha256": "8e3c147f0062361a8996dc824537f7a2726b458d6cfd47e9a81e66b3c8a2897b",
+  "passedTests": [
+    "jftrade-engine::jftrade_engine$product::product_auth_session_manager::tests::auth_manager_login_validate_and_logout_flow",
+    "jftrade-engine::jftrade_engine$product::product_auth_session_manager::tests::auth_sessions_are_cookie_bound_hashed_and_restart_durable",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_execution::sync_start_tests::production_helper_sync_rejects_broken_pagination_cursors",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_execution::sync_start_tests::production_helper_sync_retries_transient_page_and_records_retry",
+    "jftrade-engine::jftrade_engine$product::tests::execution_read_tests::execution_read_routes_match_group_fixture_in_cutover_only",
+    "jftrade-engine::jftrade_engine$product::tests::system_control_read_tests::system_status_matches_go_stable_fields_without_claiming_migration_ownership"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 6,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1648,
+      "exec_time": 13.971332668,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    }
+  ]
+}
