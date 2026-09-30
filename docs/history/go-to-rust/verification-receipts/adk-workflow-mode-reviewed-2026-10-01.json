@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": ["node", "scripts/quality/cargo-nextest.mjs", "run", "-p", "jftrade-engine", "--test", "adk_workflow_canvas_contracts", "--locked", "-E", "test(workflow_mutation_rejects_invalid_work_mode)"],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-10-01T00:00:00Z",
+  "sourceState": {"verifiedCommit": "5edc6a19d37eb8871e582854c8b5035b8f5f9d3e"},
+  "rawOutputSha256": "sha256:5467be1396373d223be12d93ba405569954b457c71f4b35d5618a1e0899df11e",
+  "passedTests": ["jftrade-engine::adk_workflow_canvas_contracts workflow_mutation_rejects_invalid_work_mode"],
+  "failedTests": [],
+  "ignoredTests": [],
+  "summary": {"testsRun": 1, "testsPassed": 1, "testsFailed": 0, "testsSkipped": 13, "relationsReviewed": 1, "functionExactReferencesReleased": 0}
+}
