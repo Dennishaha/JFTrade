@@ -1,0 +1,114 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-calendar",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "-E",
+    "tests"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-30T16:14:51Z",
+  "sourceState": {
+    "verifiedCommit": "66ae4f3b12e0128bbd9e7887f7b9ff943ccb05c6",
+    "trackedDiffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "untrackedFiles": []
+  },
+  "rawOutputSha256": "9402a88b0fbc87508523d485b489d0147246186cf8c45f2b73e8b9da5d489fa1",
+  "passedTests": [
+    "jftrade-calendar::fetch_window_timezone$refresh_uses_market_local_boundaries_and_not_current_dst_offset",
+    "jftrade-calendar::jftrade_calendar$manager_session::tests::manual_override_is_authoritative_for_closed_and_custom_windows",
+    "jftrade-calendar::jftrade_calendar$manager_session::tests::session_context_handles_us_holidays_early_close_and_sunday_overnight",
+    "jftrade-calendar::manager_boundaries$cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1,
+      "nextest": {
+        "crate": "jftrade-calendar",
+        "test_binary": "manager_boundaries",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 2,
+      "nextest": {
+        "crate": "jftrade-calendar",
+        "test_binary": "jftrade_calendar",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1,
+      "nextest": {
+        "crate": "jftrade-calendar",
+        "test_binary": "fetch_window_timezone",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1,
+      "exec_time": 0.022447166,
+      "nextest": {
+        "crate": "jftrade-calendar",
+        "test_binary": "fetch_window_timezone",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 34,
+      "exec_time": 0.047523417,
+      "nextest": {
+        "crate": "jftrade-calendar",
+        "test_binary": "jftrade_calendar",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 8,
+      "exec_time": 0.036029417,
+      "nextest": {
+        "crate": "jftrade-calendar",
+        "test_binary": "manager_boundaries",
+        "kind": "test"
+      }
+    }
+  ]
+}
