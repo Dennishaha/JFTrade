@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": ["node", "scripts/quality/cargo-nextest.mjs", "run", "-p", "jftrade-strategy", "--test", "pine_indicator_binding_parity", "--locked"],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-10-01T00:00:00Z",
+  "sourceState": {"verifiedCommit": "a4337f27897b4f244dec3a49a5c440bc481e5fae"},
+  "rawOutputSha256": "sha256:63679eab0d5861abbaa0b8a8498c2af6fdf2418223b51b679d06e2e593699c4a",
+  "passedTests": ["jftrade-strategy::pine_indicator_binding_parity window_sources_reject_computed_expressions", "jftrade-strategy::pine_indicator_binding_parity indicator_periods_require_positive_integer_literals", "jftrade-strategy::pine_indicator_binding_parity indicator_sources_follow_the_shared_ohlcv_whitelist", "jftrade-strategy::pine_indicator_binding_parity indicator_sources_resolve_local_ohlcv_aliases", "jftrade-strategy::pine_indicator_binding_parity security_timeframes_use_the_static_pine_whitelist", "jftrade-strategy::pine_indicator_binding_parity percentile_percentage_is_bounded_and_canonicalized", "jftrade-strategy::pine_indicator_binding_parity trailing_indicator_time_units_accept_word_and_bar_forms", "jftrade-strategy::pine_indicator_binding_parity trailing_indicator_time_units_follow_the_dsl_parser"],
+  "failedTests": [],
+  "ignoredTests": [],
+  "summary": {"testsRun": 8, "testsPassed": 8, "testsFailed": 0, "testsSkipped": 0, "relationsReviewed": 1, "functionExactReferencesReleased": 0}
+}
