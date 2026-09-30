@@ -162,6 +162,7 @@ mod tests {
     use super::*;
 
     #[test]
+    // Parity: go:452dea11:internal/pineworkerassets/assets_release_test.go:13 TestSelectReturnsEmbeddedBundleWhenStaged
     // Parity: frozen worker-bundle reference fixture, TestSelectReturnsEmbeddedBundleWhenStaged
     fn accepts_exact_resources_and_rejects_tampering() {
         let directory = tempfile::tempdir().expect("temporary directory");
@@ -204,6 +205,7 @@ mod tests {
     }
 
     #[test]
+    // Parity: go:452dea11:internal/pineworkerassets/asset_selection_boundaries_test.go:52 TestSelectFromFSReturnsUnexpectedReadError
     // Parity: frozen worker-bundle reference fixture, TestSelectFromFSReturnsUnexpectedReadError
     fn rejects_missing_staged_resource_instead_of_serving_without_it() {
         let directory = tempfile::tempdir().expect("temporary directory");
