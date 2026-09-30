@@ -82,6 +82,26 @@ fn embedded_rankings_limit_precedence_and_clamp() {
     );
 }
 
+#[test]
+// Parity: go:452dea11:internal/integration/yfinance/provider_rankings_test.go:42 TestProviderRankingsConvertsEntriesAndAppliesDefaultLimit
+fn provider_rankings_conversion_and_default_limit() {
+    let query = QueryMap::parse("market=us&kind= Gainers &limit=0").expect("query");
+    assert_eq!(request_limit(&query).expect("default limit"), DEFAULT_LIMIT);
+    let payload = serde_json::json!({
+        "market": "US", "kind": "gainers", "entries": [{
+            "instrument_id": "us.aapl", "name": " Apple Inc. ", "price": 232.1,
+            "change_rate": 1.25
+        }], "source": ""
+    });
+    let (entries, source, market) = ranking_entries(&payload, "US", "gainers").expect("projection");
+    assert_eq!(market, "US");
+    assert_eq!(source, "market-data-rankings");
+    assert_eq!(entries.len(), 1);
+    assert_eq!(entries[0]["instrumentId"], "US.AAPL");
+    assert_eq!(entries[0]["name"], "Apple Inc.");
+    assert_eq!(entries[0]["changeRate"], serde_json::json!(1.25));
+}
+
 /// Parity: go:452dea11:internal/productfeatures/provider_projection_test.go:226
 /// TestProviderRankingsProjectionMapsFrontendKeys
 ///

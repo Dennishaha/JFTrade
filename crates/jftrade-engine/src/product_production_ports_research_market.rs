@@ -543,7 +543,9 @@ fn project_ranking_entry(value: &Value) -> Result<Value, ResearchReadSnapshotErr
         projected.insert("market".to_owned(), json!(market));
         projected.insert("symbol".to_owned(), json!(symbol));
     }
-    copy_field(object, &mut projected, "name", "name");
+    if let Some(name) = object.get("name").and_then(Value::as_str) {
+        projected.insert("name".to_owned(), json!(name.trim()));
+    }
     for (source, target) in [
         ("price", "price"),
         ("change_rate", "changeRate"),
