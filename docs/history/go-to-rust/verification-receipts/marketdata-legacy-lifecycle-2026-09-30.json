@@ -1,0 +1,165 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-marketdata",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(test_cache_deduplicates_promotes_and_inherits) or test(test_cache_freshness_retention_and_maximum) or test(test_cache_does_not_inherit_extended_sessions_across_trading_days) or test(test_cache_promotes_us_regular_close_when_after_hours_trade_arrives) or test(test_cache_retains_extended_quote_when_price_is_unchanged) or test(infer_cn_prefix_supports_various_formats_and_preserves_explicit_prefixes) or test(normalize_instrument_rejects_unsupported_market_and_market_mismatch) or test(recorder_matches_generation_retry_recovery_and_close_rules) or test(completion_after_generation_change_cannot_mutate_cache_or_failure_state) or test(deactivation_fences_cache_and_marks_router_inactive) or test(reconfigure_preserves_demand_and_clears_previous_runtime_state) or test(poll_normalizes_demand_writes_only_requested_ticks_and_skips_fresh_cache) or test(empty_invalid_closed_and_inactive_demand_never_calls_provider) or test(disconnected_provider_reports_its_reason_and_keeps_the_previous_selection) or test(missing_cache_poll_respects_one_second_cadence) or test(non_positive_policy_values_retain_collector_defaults) or test(stale_caller_is_rejected_even_when_the_active_generation_cache_is_fresh) or test(retry_delay_is_capped_after_four_failures) or test(failure_preserves_cache_and_enforces_capped_recorder_retry_window) or test(tick_candles_default_to_a_fifteen_minute_window_and_clamp_negative_volume) or test(managed_demand_blocks_provider_switch) or test(managed_streaming_demand_blocks_provider_switch_until_released) or test(provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update) or test(explicit_activation_fails_closed_and_switch_clears_cache) or test(unknown_provider_activation_is_rejected_without_touching_the_active_selection) or test(demand_is_deduplicated_and_managed_leases_do_not_expire) or test(partial_release_and_clear_operations) or test(heartbeat_updates_consumer_and_entry_timestamps) or test(channel_and_interval_validation_rules)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-30T07:03:50Z",
+  "sourceState": {
+    "verifiedCommit": "fee6630d2c61ea6ca695ca4d8a744c98263e430d",
+    "trackedDiffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "untrackedFiles": []
+  },
+  "rawOutputSha256": "6010d1620f1e700a6c542eed70bbac6a846be159e82faba459797a19077ac4e6",
+  "passedTests": [
+    "jftrade-marketdata::cache_boundaries$test_cache_deduplicates_promotes_and_inherits",
+    "jftrade-marketdata::cache_boundaries$test_cache_freshness_retention_and_maximum",
+    "jftrade-marketdata::cache_extended_sessions_parity$test_cache_does_not_inherit_extended_sessions_across_trading_days",
+    "jftrade-marketdata::cache_extended_sessions_parity$test_cache_promotes_us_regular_close_when_after_hours_trade_arrives",
+    "jftrade-marketdata::cache_extended_sessions_parity$test_cache_retains_extended_quote_when_price_is_unchanged",
+    "jftrade-marketdata::jftrade_marketdata$catalog::tests::infer_cn_prefix_supports_various_formats_and_preserves_explicit_prefixes",
+    "jftrade-marketdata::jftrade_marketdata$catalog::tests::normalize_instrument_rejects_unsupported_market_and_market_mismatch",
+    "jftrade-marketdata::jftrade_marketdata$demand::tests::channel_and_interval_validation_rules",
+    "jftrade-marketdata::jftrade_marketdata$demand::tests::demand_is_deduplicated_and_managed_leases_do_not_expire",
+    "jftrade-marketdata::jftrade_marketdata$demand::tests::heartbeat_updates_consumer_and_entry_timestamps",
+    "jftrade-marketdata::jftrade_marketdata$demand::tests::partial_release_and_clear_operations",
+    "jftrade-marketdata::jftrade_marketdata$router::tests::deactivation_fences_cache_and_marks_router_inactive",
+    "jftrade-marketdata::jftrade_marketdata$router::tests::disconnected_provider_reports_its_reason_and_keeps_the_previous_selection",
+    "jftrade-marketdata::jftrade_marketdata$router::tests::explicit_activation_fails_closed_and_switch_clears_cache",
+    "jftrade-marketdata::jftrade_marketdata$router::tests::managed_demand_blocks_provider_switch",
+    "jftrade-marketdata::jftrade_marketdata$router::tests::unknown_provider_activation_is_rejected_without_touching_the_active_selection",
+    "jftrade-marketdata::jftrade_marketdata$runtime::tests::reconfigure_preserves_demand_and_clears_previous_runtime_state",
+    "jftrade-marketdata::jftrade_marketdata$runtime::tests::recorder_matches_generation_retry_recovery_and_close_rules",
+    "jftrade-marketdata::jftrade_marketdata$runtime::tests::retry_delay_is_capped_after_four_failures",
+    "jftrade-marketdata::jftrade_marketdata$snapshot_poll::tests::completion_after_generation_change_cannot_mutate_cache_or_failure_state",
+    "jftrade-marketdata::jftrade_marketdata$snapshot_poll::tests::empty_invalid_closed_and_inactive_demand_never_calls_provider",
+    "jftrade-marketdata::jftrade_marketdata$snapshot_poll::tests::failure_preserves_cache_and_enforces_capped_recorder_retry_window",
+    "jftrade-marketdata::jftrade_marketdata$snapshot_poll::tests::missing_cache_poll_respects_one_second_cadence",
+    "jftrade-marketdata::jftrade_marketdata$snapshot_poll::tests::non_positive_policy_values_retain_collector_defaults",
+    "jftrade-marketdata::jftrade_marketdata$snapshot_poll::tests::poll_normalizes_demand_writes_only_requested_ticks_and_skips_fresh_cache",
+    "jftrade-marketdata::jftrade_marketdata$snapshot_poll::tests::stale_caller_is_rejected_even_when_the_active_generation_cache_is_fresh",
+    "jftrade-marketdata::jftrade_marketdata$tick_candles::tests::tick_candles_default_to_a_fifteen_minute_window_and_clamp_negative_volume",
+    "jftrade-marketdata::provider_activation_recovery$managed_streaming_demand_blocks_provider_switch_until_released",
+    "jftrade-marketdata::provider_activation_recovery$provider_activation_fails_closed_preserves_previous_generation_and_recovers_after_health_update"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 22,
+      "nextest": {
+        "crate": "jftrade-marketdata",
+        "test_binary": "jftrade_marketdata",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 2,
+      "nextest": {
+        "crate": "jftrade-marketdata",
+        "test_binary": "cache_boundaries",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 3,
+      "nextest": {
+        "crate": "jftrade-marketdata",
+        "test_binary": "cache_extended_sessions_parity",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 22,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 23,
+      "exec_time": 0.232176746,
+      "nextest": {
+        "crate": "jftrade-marketdata",
+        "test_binary": "jftrade_marketdata",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 2,
+      "nextest": {
+        "crate": "jftrade-marketdata",
+        "test_binary": "provider_activation_recovery",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 3,
+      "exec_time": 0.034757084,
+      "nextest": {
+        "crate": "jftrade-marketdata",
+        "test_binary": "cache_extended_sessions_parity",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 5,
+      "exec_time": 0.0279125,
+      "nextest": {
+        "crate": "jftrade-marketdata",
+        "test_binary": "cache_boundaries",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1,
+      "exec_time": 0.018798708,
+      "nextest": {
+        "crate": "jftrade-marketdata",
+        "test_binary": "provider_activation_recovery",
+        "kind": "test"
+      }
+    }
+  ]
+}
