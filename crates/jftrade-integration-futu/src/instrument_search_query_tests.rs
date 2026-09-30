@@ -69,6 +69,7 @@ fn response(entries: Vec<wire::SearchQuote>) -> Vec<u8> {
     .encode_to_vec()
 }
 
+// Parity: go:a459e856221c390186eb1eeb2ec4b08696b25928:internal/marketdata/instrument_resolver_test.go:83 TestMarketSubsetInstrumentResolverMarksUnsupportedQualifiedMarketUnavailable
 #[test]
 fn search_response_maps_chinese_stock_and_preserves_unavailable_markets() {
     let entries = decode_response(&response(vec![
@@ -96,6 +97,8 @@ fn search_response_maps_chinese_stock_and_preserves_unavailable_markets() {
     assert_eq!(entries[1].market, "JP");
 }
 
+// Parity: go:a459e856221c390186eb1eeb2ec4b08696b25928:internal/marketdata/instrument_resolver_test.go:397 TestMarketSubsetInstrumentResolverDoesNotCacheSearchErrors
+// Parity: go:a459e856221c390186eb1eeb2ec4b08696b25928:internal/marketdata/instrument_resolver_test.go:437 TestMarketSubsetInstrumentResolverPropagatesContextCancellation
 #[test]
 fn search_failures_and_malformed_responses_are_not_empty_successes() {
     let rejected = wire::Response {
@@ -128,6 +131,7 @@ fn search_failures_and_malformed_responses_are_not_empty_successes() {
     assert!(decode_response(&response(vec![])).unwrap().is_empty());
 }
 
+// Parity: go:a459e856221c390186eb1eeb2ec4b08696b25928:internal/marketdata/instrument_resolver_test.go:45 TestMarketSubsetInstrumentResolverKeepsQualifiedExactLookup
 #[test]
 fn qualified_lookup_encodes_exact_security_without_market_catalog_or_subscription() {
     use crate::trade_proto::qot_get_static_info as static_wire;
@@ -277,6 +281,7 @@ fn search_market_codes_are_mapped_like_go_for_every_stable_display_market() {
     );
 }
 
+// Parity: go:a459e856221c390186eb1eeb2ec4b08696b25928:internal/marketdata/instrument_resolver_test.go:183 TestMarketSubsetInstrumentResolverNormalizesProviderPrefixedCodes
 #[test]
 fn search_symbols_normalize_open_d_prefixed_codes_like_go() {
     // Parity: go:452dea11:pkg/futu/adapter_marketdata_search_test.go:38

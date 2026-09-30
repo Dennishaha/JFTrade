@@ -448,6 +448,8 @@ async fn futu_snapshot_route_projects_cached_extended_quote_contract() {
     }
 }
 
+/// Parity: go:a459e856221c390186eb1eeb2ec4b08696b25928:internal/marketdata/instrument_resolver_test.go:314 TestMarketSubsetInstrumentResolverResetSeparatesProviderGenerations
+/// Parity: go:a459e856221c390186eb1eeb2ec4b08696b25928:internal/marketdata/instrument_resolver_test.go:437 TestMarketSubsetInstrumentResolverPropagatesContextCancellation
 /// Parity: go:452dea11:internal/api/marketdata/routes_boundaries_test.go:273 TestMarketDataReadErrorsExposeProviderSwitchRetrySignal
 ///
 /// Go's `GetSnapshot` reads `providerGeneration` before the provider query and

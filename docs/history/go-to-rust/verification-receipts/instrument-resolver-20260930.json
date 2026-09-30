@@ -1,0 +1,154 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "-p",
+    "jftrade-integration-futu",
+    "-p",
+    "jftrade-marketdata",
+    "--all-targets",
+    "--locked",
+    "--no-fail-fast",
+    "--message-format",
+    "libtest-json-plus",
+    "-E",
+    "test(instrument_search_requests_full_provider_window_before_applying_limit) or test(futu_search_filters_and_deduplicates_before_limiting_without_hiding_ambiguity) or test(futu_search_distinguishes_no_match_unsupported_market_and_runtime_failure) or test(instrument_search_route_returns_subset_resolution_contract) or test(instrument_search_route_validates_input_and_maps_provider_failures) or test(futu_search_rejects_invalid_queries_before_reaching_opend) or test(futu_search_canonicalizes_open_d_prefixed_symbols_like_go) or test(search_response_maps_chinese_stock_and_preserves_unavailable_markets) or test(search_failures_and_malformed_responses_are_not_empty_successes) or test(qualified_lookup_encodes_exact_security_without_market_catalog_or_subscription) or test(search_symbols_normalize_open_d_prefixed_codes_like_go) or test(normalize_instrument_resolves_qualified_sh_and_sz_prefixes) or test(snapshot_read_fences_provider_generation_switch_during_helper_query) or test(deactivation_fences_cache_and_marks_router_inactive)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-30T12:35:57Z",
+  "sourceState": {
+    "verifiedCommit": "5b9eedf0195e8113bd53f32d9dcf55295f3128b4",
+    "trackedDiffSha256": "d915cc286f76d34c47bcbbbfd26208adbcf731f9fa00b7e90f4bd8e5d1fcf8cc",
+    "untrackedFiles": []
+  },
+  "rawOutputSha256": "3cce62b838c8182c4defe96d106a05cdfa33d2f352673fb1240ab7fa048325fe",
+  "passedTests": [
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_market_data::product_production_ports_market_data_actions::tests::normalize_instrument_resolves_qualified_sh_and_sz_prefixes",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_market_data::product_production_ports_market_data_catalog::tests::futu_search_canonicalizes_open_d_prefixed_symbols_like_go",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_market_data::product_production_ports_market_data_catalog::tests::futu_search_distinguishes_no_match_unsupported_market_and_runtime_failure",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_market_data::product_production_ports_market_data_catalog::tests::futu_search_filters_and_deduplicates_before_limiting_without_hiding_ambiguity",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_market_data::product_production_ports_market_data_catalog::tests::futu_search_rejects_invalid_queries_before_reaching_opend",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_market_data::product_production_ports_market_data_catalog::tests::instrument_search_requests_full_provider_window_before_applying_limit",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_market_data::product_production_ports_market_data_catalog::tests::instrument_search_route_returns_subset_resolution_contract",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_market_data::product_production_ports_market_data_catalog::tests::instrument_search_route_validates_input_and_maps_provider_failures",
+    "jftrade-engine::jftrade_engine$product::tests::market_data_quote_read_tests::snapshot_read_fences_provider_generation_switch_during_helper_query",
+    "jftrade-integration-futu::jftrade_integration_futu$instrument_search_query::tests::qualified_lookup_encodes_exact_security_without_market_catalog_or_subscription",
+    "jftrade-integration-futu::jftrade_integration_futu$instrument_search_query::tests::search_failures_and_malformed_responses_are_not_empty_successes",
+    "jftrade-integration-futu::jftrade_integration_futu$instrument_search_query::tests::search_response_maps_chinese_stock_and_preserves_unavailable_markets",
+    "jftrade-integration-futu::jftrade_integration_futu$instrument_search_query::tests::search_symbols_normalize_open_d_prefixed_codes_like_go",
+    "jftrade-marketdata::jftrade_marketdata$router::tests::deactivation_fences_cache_and_marks_router_inactive"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 9,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 4,
+      "nextest": {
+        "crate": "jftrade-integration-futu",
+        "test_binary": "jftrade_integration_futu",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1,
+      "nextest": {
+        "crate": "jftrade-integration-futu",
+        "test_binary": "live_opend_provider_runtime",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1,
+      "nextest": {
+        "crate": "jftrade-marketdata",
+        "test_binary": "jftrade_marketdata",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1648,
+      "exec_time": 0.205062165,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 44,
+      "exec_time": 0.007334583,
+      "nextest": {
+        "crate": "jftrade-marketdata",
+        "test_binary": "jftrade_marketdata",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 476,
+      "exec_time": 0.04585425,
+      "nextest": {
+        "crate": "jftrade-integration-futu",
+        "test_binary": "jftrade_integration_futu",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 1,
+      "measured": 0,
+      "filtered_out": 18446744073709551615,
+      "exec_time": 0,
+      "nextest": {
+        "crate": "jftrade-integration-futu",
+        "test_binary": "live_opend_provider_runtime",
+        "kind": "test"
+      }
+    }
+  ]
+}

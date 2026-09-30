@@ -217,6 +217,8 @@ async fn futu_search_resolves_chinese_name_bare_code_and_qualified_code() {
     }
 }
 
+// Parity: go:a459e856221c390186eb1eeb2ec4b08696b25928:internal/marketdata/instrument_resolver_test.go:158 TestMarketSubsetInstrumentResolverFiltersCNAndDeduplicates
+// Parity: go:a459e856221c390186eb1eeb2ec4b08696b25928:internal/marketdata/instrument_resolver_test.go:136 TestMarketSubsetInstrumentResolverExactCodeWinsAndCrossMarketCodeStaysAmbiguous
 #[tokio::test]
 async fn futu_search_filters_and_deduplicates_before_limiting_without_hiding_ambiguity() {
     let port = futu_search_port(SearchReader {
@@ -259,6 +261,8 @@ async fn futu_search_filters_and_deduplicates_before_limiting_without_hiding_amb
 }
 
 #[tokio::test]
+// Parity: go:a459e856221c390186eb1eeb2ec4b08696b25928:internal/marketdata/instrument_resolver_test.go:83 TestMarketSubsetInstrumentResolverMarksUnsupportedQualifiedMarketUnavailable
+// Parity: go:a459e856221c390186eb1eeb2ec4b08696b25928:internal/marketdata/instrument_resolver_test.go:211 TestMarketSubsetInstrumentResolverUnavailableWhenAllMatchesAreUnsupported
 // Parity: go:452dea11:pkg/futu/advanced_product_adapter_contracts_test.go:22 TestFutuAdvancedSpecializedReadersAndCustomizationSuccess
 async fn futu_search_distinguishes_no_match_unsupported_market_and_runtime_failure() {
     for (entries, status) in [
@@ -468,6 +472,9 @@ async fn markets_route_fails_with_market_data_failed_when_active_provider_is_una
     server.await.expect("markets fixture server");
 }
 
+/// Parity: go:a459e856221c390186eb1eeb2ec4b08696b25928:internal/marketdata/instrument_resolver_test.go:101 TestMarketSubsetInstrumentResolverSearchesNamesAndPreservesRelevance
+/// Parity: go:a459e856221c390186eb1eeb2ec4b08696b25928:internal/marketdata/instrument_resolver_test.go:183 TestMarketSubsetInstrumentResolverNormalizesProviderPrefixedCodes
+/// Parity: go:a459e856221c390186eb1eeb2ec4b08696b25928:internal/marketdata/instrument_resolver_test.go:466 TestClassifyInstrumentResolutionKeepsMultiplePartialCandidatesAmbiguous
 /// Parity: go:452dea11:internal/api/marketdata/routes_test.go:625 TestInstrumentSearchRouteReturnsSubsetResolutionContract
 ///
 /// Go qualifies the request as `market=CN&query=000001&limit=20`, always asks
@@ -571,6 +578,8 @@ async fn instrument_search_route_returns_subset_resolution_contract() {
     );
 }
 
+/// Parity: go:a459e856221c390186eb1eeb2ec4b08696b25928:internal/marketdata/instrument_resolver_test.go:397 TestMarketSubsetInstrumentResolverDoesNotCacheSearchErrors
+/// Parity: go:a459e856221c390186eb1eeb2ec4b08696b25928:internal/marketdata/instrument_resolver_test.go:417 TestMarketSubsetInstrumentResolverValidatesInput
 /// Parity: go:452dea11:internal/api/marketdata/routes_test.go:725 TestInstrumentSearchRouteValidatesInputAndMapsProviderFailures
 ///
 /// Go separates provider failures from caller input errors: unknown results

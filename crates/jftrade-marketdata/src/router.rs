@@ -413,6 +413,7 @@ mod tests {
         );
     }
 
+    // Parity: go:a459e856221c390186eb1eeb2ec4b08696b25928:internal/marketdata/instrument_resolver_test.go:314 TestMarketSubsetInstrumentResolverResetSeparatesProviderGenerations
     #[test]
     fn deactivation_fences_cache_and_marks_router_inactive() {
         let mut router = ProviderRouter::new(2);

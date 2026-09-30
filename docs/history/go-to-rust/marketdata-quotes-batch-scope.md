@@ -2220,3 +2220,11 @@ US regular 当前桶过滤与 bounded-window 合并页重过滤已按 Go `QueryK
 探针：临时将 duplicate 判断改成仅比较 provider update_time，定向测试因 history 1≠2 转红；恢复生产源码后复跑。生产源码未保留探针修改。
 
 验证：定向 receipt 1/1 passed（`cache-extended-quote-assertions-corrected-2026-09-30.json`）；后续完整门禁结果将在本批完成后记录。
+
+## 2026-09-30 instrument resolver 逐条证据复核
+
+逐项读取冻结 Go `internal/marketdata/instrument_resolver_test.go:45,83,101,136,158,183,211,229,248,314,365,397,417,437,466`，为已有 Rust owner 补充 `Parity:` 锚点并将 13 条可执行映射的 assertion coverage 标为 reviewed。限定查询、市场过滤与去重、前缀归一化、不可用候选、完整 provider window、输入校验、失败映射和 generation fence 均绑定到实际测试；Go resolver 的 TTL/singleflight 及单飞内二次 cache 检查继续保留为 boundary，Rust 搜索 owner 没有同形缓存结构。
+
+定向 receipt `verification-receipts/instrument-resolver-20260930.json`：engine/integration-futu/marketdata **14/14 passed**，SHA-256 `a10cbe29ee7ce5aee83325f3285c124bd9a11037fcea64b3b9ba7211b71b6174`。严格 parity audit 与 anchor reconcile 均通过：4451 Go、3414 Rust、1506 function_exact、2310 partial、635 boundary；锚点 1915 unique，unrecorded 0、stale 0、unknown 47。
+
+下一轮目标：继续从 `manual-test-mappings.json` 中选择尚未完成逐条 reviewed 的高风险映射，优先处理 API Server/Transport Wire 低测试比例条目；每批必须保留真实 partial/boundary 差异、补 provenance anchor、生成定向 receipt，并在提交前重跑严格审计和完整 Rust 门禁。
