@@ -264,6 +264,22 @@ fn market_research_projection_rejects_identity_drift() {
     ));
 }
 
+#[test]
+// Parity: go:452dea11:internal/integration/yfinance/provider_rankings_test.go:92 TestProviderRankingsRejectsKindMismatch
+fn yfinance_rankings_projection_rejects_kind_mismatch() {
+    let payload = serde_json::json!({
+        "market": "US",
+        "kind": "losers",
+        "source": "yfinance-rankings",
+        "entries": []
+    });
+    assert!(matches!(
+        ranking_entries(&payload, "US", "gainers"),
+        Err(ResearchReadSnapshotError::Failed { status: 502, ref code, .. })
+            if code == "BAD_GATEWAY"
+    ));
+}
+
 use std::io::{Read, Write};
 use std::net::TcpListener as StdTcpListener;
 use std::time::Duration;
