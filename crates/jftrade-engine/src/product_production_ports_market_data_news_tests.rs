@@ -313,6 +313,40 @@ fn corporate_actions_projection_sorts_events_by_ex_date_and_kind() {
     );
 }
 
+#[test]
+// Parity: go:452dea11:internal/integration/akshare/provider_news_actions_test.go:41 TestProviderCorporateActionsSortsAndValidatesEvents
+fn corporate_actions_projection_sorts_akshare_events_by_ex_date_and_kind() {
+    let payload = serde_json::json!({
+        "market": "SZ",
+        "symbol": "000001",
+        "instrument_id": "SZ.000001",
+        "source": "akshare-actions",
+        "events": [
+            {"kind": "dividend", "ex_date": "2026-08-10", "amount": null, "ratio": null},
+            {"kind": "split", "ex_date": "2026-06-09", "amount": null, "ratio": 2},
+            {"kind": "dividend", "ex_date": "2026-05-11", "amount": 1, "ratio": null}
+        ]
+    });
+    let value = super::product_production_ports_market_data_news_actions::validate_news_actions_payload(
+        payload,
+        "corporate-actions",
+        "SZ",
+        "000001",
+    )
+    .expect("corporate actions projection");
+    assert_eq!(value["source"], "akshare-actions");
+    assert_eq!(
+        value["events"].as_array().unwrap().iter().map(|event| {
+            [event["exDate"].as_str().unwrap(), event["kind"].as_str().unwrap()]
+        }).collect::<Vec<_>>(),
+        vec![
+            ["2026-05-11", "dividend"],
+            ["2026-06-09", "split"],
+            ["2026-08-10", "dividend"],
+        ]
+    );
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 // Parity: go:452dea11:internal/integration/yfinance/provider_news_actions_test.go:67 TestProviderCorporateActionsSortsEventsByExDateAndKind
 async fn production_news_actions_port_forwards_corporate_actions_from_without_to() {
