@@ -60,6 +60,7 @@ impl MarketIndexConstituentsReadPort for ProductionMarketIndexConstituentsPort {
             .helper
             .as_ref()
             .ok_or_else(|| unavailable("market-data helper is not configured"))?;
+        let limit = if limit == 0 { 200 } else { limit };
         let payload = fetch_json(helper, &market, &symbol, limit)?;
         project_constituents(&payload, &market, &symbol)
     }

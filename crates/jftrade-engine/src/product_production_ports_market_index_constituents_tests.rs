@@ -81,6 +81,43 @@ async fn index_constituents_read_forwards_the_normalized_leaf_and_limit() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+// Parity: go:452dea11:internal/integration/akshare/provider_index_constituents_test.go:23 TestProviderIndexConstituentsConvertsEntriesAndAppliesDefaultLimit
+async fn index_constituents_read_applies_default_limit_and_projects_weights() {
+    let listener = TcpListener::bind("127.0.0.1:0").await.expect("listen");
+    let address = listener.local_addr().expect("address");
+    let server = tokio::spawn(async move {
+        let (mut stream, _) = listener.accept().await.expect("accept");
+        let mut request = vec![0_u8; 4096];
+        let read = stream.read(&mut request).await.expect("read");
+        let request = String::from_utf8_lossy(&request[..read]);
+        assert!(
+            request.starts_with(
+                "GET /providers/akshare/index-constituents/SH/000300?limit=200 HTTP/1.1\r\n"
+            ),
+            "request = {request}"
+        );
+        let body = r#"{"market":"SH","symbol":"000300","instrument_id":"SH.000300","constituents":[{"code":"600519","name":"贵州茅台","weight":null},{"code":"300750","name":"宁德时代","weight":3.21}],"source":"akshare-index-constituents"}"#;
+        let response = format!(
+            "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+            body.len(), body
+        );
+        stream.write_all(response.as_bytes()).await.expect("write");
+    });
+    let value = MarketIndexConstituentsReadPort::read(
+        &akshare_port(format!("http://{address}")),
+        "cn",
+        "SH.000300",
+        0,
+    )
+    .expect("index constituents response");
+    assert_eq!(value["instrumentId"], "SH.000300");
+    assert_eq!(value["source"], "akshare-index-constituents");
+    assert!(value["constituents"][0]["weight"].is_null());
+    assert_eq!(value["constituents"][1]["weight"], 3.21);
+    server.await.expect("server");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 // Parity: go:452dea11:internal/marketdata/index_constituents_facade_test.go:73 TestServiceIndexConstituentsResolvesChinaAggregateToExchangeLeaf
 async fn index_constituents_read_accepts_the_cn_aggregate_prefix() {
     for (market, symbol, limit) in [("SZ", "399001", 200), ("SH", "000300", 50)] {
