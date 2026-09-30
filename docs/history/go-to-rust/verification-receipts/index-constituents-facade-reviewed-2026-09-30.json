@@ -1,0 +1,72 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(index_constituents_read_forwards_the_normalized_leaf_and_limit) or test(index_constituents_read_accepts_the_cn_aggregate_prefix) or test(index_constituents_read_requires_akshare_and_a_ready_helper) or test(index_constituents_read_rejects_non_cn_indices_without_touching_the_helper) or test(index_constituents_projection_rejects_identity_drift_and_blank_codes) or test(market_index_constituents_tool_normalizes_its_inputs_before_the_read_port)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-30T12:21:41Z",
+  "sourceState": {
+    "verifiedCommit": "4642f7290339ce866318e4663e7eeaaa04c2c88a",
+    "trackedDiffSha256": "90d1a8464a737f92a9cc090d565ffabcde1d8d5e3666d0914ad5d43d8f84a48f",
+    "untrackedFiles": [
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/index-constituents-facade-reviewed-2026-09-30.json",
+        "sha256": "3e4a4757d50b6efe695aae7e4626c3a0a5959ef95237c3a62d93d689143435a9"
+      }
+    ]
+  },
+  "rawOutputSha256": "42301007a7f094a51d0b1d715af728daf1dd6e702ecc35ef2b855c74d4052b1d",
+  "passedTests": [
+    "jftrade-engine::jftrade_engine$product::product_mcp_server::index_constituents_tool::market_index_constituents_tool_normalizes_its_inputs_before_the_read_port",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_market_index_constituents::tests::index_constituents_projection_rejects_identity_drift_and_blank_codes",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_market_index_constituents::tests::index_constituents_read_accepts_the_cn_aggregate_prefix",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_market_index_constituents::tests::index_constituents_read_forwards_the_normalized_leaf_and_limit",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_market_index_constituents::tests::index_constituents_read_rejects_non_cn_indices_without_touching_the_helper",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_market_index_constituents::tests::index_constituents_read_requires_akshare_and_a_ready_helper"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 6,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1651,
+      "exec_time": 0.340820584,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    }
+  ]
+}

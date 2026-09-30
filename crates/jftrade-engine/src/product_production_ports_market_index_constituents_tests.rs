@@ -37,6 +37,7 @@ fn akshare_port(base_url: String) -> ProductionMarketIndexConstituentsPort {
 
 // Parity: go:452dea11:internal/app/apiserver/marketdataapp/runtime_index_constituents_forwarding_test.go:35 TestRuntimeForwardsIndexConstituentsToCapableActiveProvider
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+// Parity: go:452dea11:internal/marketdata/index_constituents_facade_test.go:41 TestServiceIndexConstituentsValidatesLimitAndForwardsArguments
 // Parity: go:452dea11:internal/assistant/assembly/market_index_constituents_tools_test.go:14 TestADKMarketIndexConstituentsToolForwardsNormalizedInputs
 async fn index_constituents_read_forwards_the_normalized_leaf_and_limit() {
     let listener = TcpListener::bind("127.0.0.1:0").await.expect("listen");
@@ -80,7 +81,9 @@ async fn index_constituents_read_forwards_the_normalized_leaf_and_limit() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+// Parity: go:452dea11:internal/marketdata/index_constituents_facade_test.go:73 TestServiceIndexConstituentsResolvesChinaAggregateToExchangeLeaf
 async fn index_constituents_read_accepts_the_cn_aggregate_prefix() {
+    for (market, symbol, limit) in [("SZ", "399001", 200), ("SH", "000300", 50)] {
     let listener = TcpListener::bind("127.0.0.1:0").await.expect("listen");
     let address = listener.local_addr().expect("address");
     let server = tokio::spawn(async move {
@@ -90,11 +93,11 @@ async fn index_constituents_read_accepts_the_cn_aggregate_prefix() {
         let request = String::from_utf8_lossy(&request[..read]);
         assert!(
             request.starts_with(
-                "GET /providers/akshare/index-constituents/SZ/399001?limit=200 HTTP/1.1\r\n"
+                &format!("GET /providers/akshare/index-constituents/{market}/{symbol}?limit={limit} HTTP/1.1\r\n")
             ),
             "request = {request}"
         );
-        let body = r#"{"market":"SZ","symbol":"399001","instrument_id":"SZ.399001","constituents":[],"source":"akshare-index-constituents"}"#;
+        let body = json!({"market": market, "symbol": symbol, "instrument_id": format!("{market}.{symbol}"), "constituents": [], "source": "akshare-index-constituents"}).to_string();
         let response = format!(
             "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
             body.len(),
@@ -105,16 +108,17 @@ async fn index_constituents_read_accepts_the_cn_aggregate_prefix() {
     let value = MarketIndexConstituentsReadPort::read(
         &akshare_port(format!("http://{address}")),
         "cn",
-        "sz.399001",
-        200,
+        &format!("{market}.{symbol}"),
+        limit,
     )
     .expect("CN aggregate resolves to the SZ leaf");
-    assert_eq!(value["instrumentId"], "SZ.399001");
+    assert_eq!(value["instrumentId"], format!("{market}.{symbol}"));
     assert!(
         value["constituents"].as_array().expect("array").is_empty(),
         "an empty member list is still a valid projection: {value}"
     );
     server.await.expect("server");
+    }
 }
 
 #[test]
@@ -169,6 +173,7 @@ fn index_constituents_projection_rejects_identity_drift_and_blank_codes() {
 
 // Parity: go:452dea11:internal/app/apiserver/marketdataapp/runtime_index_constituents_forwarding_test.go:61 TestRuntimeIndexConstituentsRejectsProvidersWithoutCapability
 #[test]
+// Parity: go:452dea11:internal/marketdata/index_constituents_facade_test.go:31 TestServiceIndexConstituentsRejectsProvidersWithoutCapability
 // Parity: go:452dea11:internal/assistant/assembly/market_index_constituents_tools_test.go:60 TestADKMarketIndexConstituentsToolFailsClosedWithoutPort
 // Parity: go:452dea11:internal/assistant/assembly/market_index_constituents_tools_test.go:69 TestADKMarketIndexConstituentsToolSurfacesProviderCapabilityAsClearMessage
 fn index_constituents_read_requires_akshare_and_a_ready_helper() {
@@ -216,6 +221,7 @@ fn index_constituents_read_requires_akshare_and_a_ready_helper() {
 }
 
 #[test]
+// Parity: go:452dea11:internal/marketdata/index_constituents_facade_test.go:31 TestServiceIndexConstituentsRejectsProvidersWithoutCapability
 fn index_constituents_read_rejects_non_cn_indices_without_touching_the_helper() {
     let port = port(Some(MarketDataProvider::Akshare), true, None);
     match MarketIndexConstituentsReadPort::read(&port, "HK", "HSI", 200) {
