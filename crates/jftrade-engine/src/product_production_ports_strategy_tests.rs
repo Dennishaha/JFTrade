@@ -860,6 +860,7 @@ fn test_result_view_order_fee_aggregation_and_numeric_types() {
     assert_eq!(trades[0]["totalFee"], 12.5);
 }
 
+// Parity: go:452dea11:internal/backtest/result_view_test.go:122 TestResultViewParsingAndResolutionBoundaries
 #[test]
 fn test_result_view_resolution_downsampling() {
     use crate::product::product_research_backtest_projection::project_authoritative_result_view;
