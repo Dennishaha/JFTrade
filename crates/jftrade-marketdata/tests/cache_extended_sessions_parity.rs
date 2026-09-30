@@ -348,4 +348,35 @@ fn test_cache_promotes_us_regular_close_when_after_hours_trade_arrives() {
     assert_eq!(snapshot.previous_close, Some(price_dec("111.14")));
     assert_eq!(snapshot.last_close, Some(price_dec("108.98")));
     assert_eq!(cached.price, price_dec("111.81"));
+
+    let next_after_hours = TradeQuoteSnapshot {
+        symbol: Some("BABA".to_owned()),
+        last_price: Some(price_dec("111.82")),
+        trading_date: Some("2026-07-09".to_owned()),
+        session: Some("after".to_owned()),
+        ..Default::default()
+    };
+    cache
+        .insert(
+            tick_at(
+                "US.BABA",
+                "111.82",
+                "100",
+                2_001,
+                generation,
+                Some(next_after_hours),
+            ),
+            generation,
+        )
+        .expect("subsequent after hours insert");
+    let next = match cache.lookup("US.BABA", 2_001, 0) {
+        CacheLookup::Fresh(tick) => tick,
+        other => panic!("expected fresh subsequent tick, got {other:?}"),
+    };
+    assert_eq!(
+        next.snapshot
+            .as_ref()
+            .and_then(|value| value.previous_close),
+        Some(price_dec("111.14"))
+    );
 }
