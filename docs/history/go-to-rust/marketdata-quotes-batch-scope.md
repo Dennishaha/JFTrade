@@ -2202,3 +2202,5 @@ US regular 当前桶过滤与 bounded-window 合并页重过滤已按 Go `QueryK
 撤回此前批量复用历史结论得到的 reviewed 标签：其余 31 条 marketdata 与 16 条 broker 保留原始 legacy-conclusion 审查状态，已执行测试 receipt 保留。跨域 receipt 只证明实际运行的测试，不证明未执行的 owner 或 Go 断言。源码未有 provenance 注释时不以函数行号伪造 Parity anchor。
 
 验证：marketdata 定向 29/29、broker catalog 定向 8/8 passed；严格审计通过（仅现有 1505 条 exact），anchor reconcile 为 1903/1856/0/0/47，`check:ai-context` 与 `git diff --check` 通过。已预览 quick 计划并运行 `check:quick`；该检查失败于 `check:zero-go`：desktop 与 market-data helper 的 8 处既有源码注释含已退役 asset 路径，其余 policy 检查通过。整体迁移审查仍未完成。
+
+缓存后续回归：新增 quote update_time 去重、独立 trade 保留、capacity=3 顺序与 stale require_fresh 测试，定向 receipt 为 5/5 passed。Rust cache 仍没有 Go `now` 注入的 30 分钟 retention owner，也没有 Source 字段的 promotion 语义；两项继续保持 partial。随后完整 Rust 门禁曾在既有 Assistant resolved-approval timeline 测试失败（755/1），修正测试对 fixture 后缀的误匹配后单测 1/1 passed；完整门禁需重新运行。

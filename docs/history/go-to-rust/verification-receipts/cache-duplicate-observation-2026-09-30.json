@@ -1,0 +1,71 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-marketdata",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(test_cache_deduplicates_promotes_and_inherits) or test(test_cache_freshness_retention_and_maximum) or test(cache_deduplicates_identical_observations_without_advancing_observed_at) or test(cache_retains_distinct_trade_events_with_identical_price_and_quantity) or test(cache_retains_same_price_quotes_with_a_new_provider_timestamp)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-30T07:38:35Z",
+  "sourceState": {
+    "verifiedCommit": "5f9f8592fa42568f99de0c6fb5a224bac980bb80",
+    "trackedDiffSha256": "f87b9082a52b14188f55f451b85ba852f6f6d97eff72cab85e267280caa87eea",
+    "untrackedFiles": [
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/cache-duplicate-observation-2026-09-30.json",
+        "sha256": "bb58903c92bf394db65dc33d78a785c575a98c6e1dd19f4a4c72e4708262b211"
+      }
+    ]
+  },
+  "rawOutputSha256": "b3ad0f60daae65ce4cb4dbf53a765074478d8d5edfd3d8833fcf8545bd38c983",
+  "passedTests": [
+    "jftrade-marketdata::cache_boundaries$cache_deduplicates_identical_observations_without_advancing_observed_at",
+    "jftrade-marketdata::cache_boundaries$cache_retains_distinct_trade_events_with_identical_price_and_quantity",
+    "jftrade-marketdata::cache_boundaries$cache_retains_same_price_quotes_with_a_new_provider_timestamp",
+    "jftrade-marketdata::cache_boundaries$test_cache_deduplicates_promotes_and_inherits",
+    "jftrade-marketdata::cache_boundaries$test_cache_freshness_retention_and_maximum"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 5,
+      "nextest": {
+        "crate": "jftrade-marketdata",
+        "test_binary": "cache_boundaries",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 5,
+      "exec_time": 0.13754175,
+      "nextest": {
+        "crate": "jftrade-marketdata",
+        "test_binary": "cache_boundaries",
+        "kind": "test"
+      }
+    }
+  ]
+}

@@ -258,6 +258,113 @@ fn test_cache_freshness_retention_and_maximum() {
         cache.lookup("US.AAPL", 12_000, 1_000),
         CacheLookup::Stale(_)
     ));
+
+    let mut bounded = TickCache::new(3);
+    for (index, price) in ["100", "101", "102", "103"].into_iter().enumerate() {
+        bounded
+            .insert(
+                tick(
+                    "HK.00700",
+                    price,
+                    "1",
+                    30_000 + index as i64,
+                    generation,
+                    None,
+                ),
+                generation,
+            )
+            .expect("capacity sample");
+    }
+    let prices: Vec<_> = bounded
+        .history("HK.00700")
+        .iter()
+        .map(|tick| tick.price)
+        .collect();
+    assert_eq!(
+        prices,
+        vec![price_dec("101"), price_dec("102"), price_dec("103")]
+    );
+    assert_eq!(
+        bounded.require_fresh("HK.00700", 35_000, 1_000),
+        Err(MarketDataError::CacheStale("HK.00700".to_owned()))
+    );
+}
+
+#[test]
+fn cache_deduplicates_identical_observations_without_advancing_observed_at() {
+    let generation = 9;
+    let mut cache = TickCache::new(3);
+    let snapshot = TradeQuoteSnapshot {
+        update_time: Some("2026-06-15T14:00:00Z".to_owned()),
+        ..TradeQuoteSnapshot::default()
+    };
+    let first = tick(
+        "US.AAPL",
+        "100",
+        "10",
+        20_000,
+        generation,
+        Some(snapshot.clone()),
+    );
+    cache
+        .insert(first.clone(), generation)
+        .expect("first sample");
+    let duplicate = tick("US.AAPL", "100", "10", 20_001, generation, Some(snapshot));
+    cache
+        .insert(duplicate, generation)
+        .expect("duplicate sample");
+    assert_eq!(cache.history("US.AAPL").len(), 1);
+    assert_eq!(cache.history("US.AAPL")[0].observed_at_ms, 20_000);
+}
+
+#[test]
+fn cache_retains_distinct_trade_events_with_identical_price_and_quantity() {
+    let generation = 9;
+    let mut cache = TickCache::new(3);
+    for observed_at_ms in [20_000, 20_001] {
+        let snapshot = TradeQuoteSnapshot {
+            update_time: Some("2026-06-15T14:00:00Z".to_owned()),
+            ..TradeQuoteSnapshot::default()
+        };
+        let mut trade = tick(
+            "US.AAPL",
+            "100",
+            "0",
+            observed_at_ms,
+            generation,
+            Some(snapshot),
+        );
+        trade.volume_delta = Some(decimal("25"));
+        cache.insert(trade, generation).expect("trade event");
+    }
+    assert_eq!(cache.history("US.AAPL").len(), 2);
+}
+
+#[test]
+fn cache_retains_same_price_quotes_with_a_new_provider_timestamp() {
+    let generation = 9;
+    let mut cache = TickCache::new(3);
+    for (observed_at_ms, time) in [(20_000, "14:00:00"), (20_001, "14:00:01")] {
+        let snapshot = TradeQuoteSnapshot {
+            update_time: Some(time.to_owned()),
+            ..TradeQuoteSnapshot::default()
+        };
+        cache
+            .insert(
+                tick(
+                    "US.AAPL",
+                    "100",
+                    "10",
+                    observed_at_ms,
+                    generation,
+                    Some(snapshot),
+                ),
+                generation,
+            )
+            .expect("new quote observation");
+    }
+    assert_eq!(cache.history("US.AAPL").len(), 2);
+    assert_eq!(cache.history("US.AAPL")[1].observed_at_ms, 20_001);
 }
 
 #[test]

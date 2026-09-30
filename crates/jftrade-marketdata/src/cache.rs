@@ -46,6 +46,9 @@ impl TickCache {
         let mut tick = tick;
         if let Some(last) = entries.back().cloned() {
             inherit_snapshot_context(&mut tick, &last);
+            if is_duplicate_quote(&tick, &last) {
+                return Ok(());
+            }
         }
         entries.push_back(tick);
         while entries.len() > self.capacity_per_instrument {
@@ -147,6 +150,24 @@ impl TickCache {
     pub fn instrument_count(&self) -> usize {
         self.ticks.len()
     }
+}
+
+// Parity: go:452dea11:internal/marketdata/cache_test.go:12 TestCacheDeduplicatesPromotesAndInherits
+fn is_duplicate_quote(incoming: &Tick, latest: &Tick) -> bool {
+    // Only snapshots with a provider quote time identify the same observation.
+    // Trade deltas are separate events even at the same price and quantity.
+    incoming.volume_delta.is_none()
+        && latest.volume_delta.is_none()
+        && incoming.snapshot.as_ref().is_some_and(|snapshot| {
+            snapshot
+                .update_time
+                .as_deref()
+                .is_some_and(|time| !time.is_empty())
+        })
+        && incoming.provider_generation == latest.provider_generation
+        && incoming.price == latest.price
+        && incoming.volume == latest.volume
+        && incoming.snapshot == latest.snapshot
 }
 
 /// Preserve the context that BasicQot deliberately omits from trade pushes.
