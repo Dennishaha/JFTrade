@@ -51,6 +51,7 @@ fn compile_error_message(body: &str) -> String {
 }
 
 /// Parity: go:452dea11:pkg/strategy/indicatorbinding/parse_test.go:509 TestParsePositiveInt
+/// Parity: go:452dea11:pkg/strategy/ir/planner_test.go:254 TestPlanRequirementsRejectsUnsupportedWindowSource
 /// Parity: go:452dea11:pkg/strategy/ir/planner_test.go:51 TestPlanRequirementsRejectsInvalidIndicatorBinding
 #[test]
 fn indicator_periods_require_positive_integer_literals() {
@@ -72,6 +73,15 @@ fn indicator_periods_require_positive_integer_literals() {
             "message {message:?} for {body}"
         );
     }
+}
+
+#[test]
+fn window_sources_reject_computed_expressions() {
+    let message = compile_error_message("x = ta.highest(close - open, 20)");
+    assert!(
+        message.contains("source") && message.contains("is not supported"),
+        "message {message:?}"
+    );
 }
 
 /// Parity: go:452dea11:pkg/strategy/indicatorbinding/parse_semantics_test.go:114 TestParsePriceSourceAndBuildMovingAverageKeyWithSource
