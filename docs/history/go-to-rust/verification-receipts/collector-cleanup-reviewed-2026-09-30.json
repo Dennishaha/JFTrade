@@ -1,0 +1,63 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-marketdata",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(router_drives_runtime_recorder_from_provider_and_demand_state) or test(recorder_matches_generation_retry_recovery_and_close_rules)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-30T06:35:53Z",
+  "sourceState": {
+    "verifiedCommit": "933467487f77ad4213bb9974e0f2fe8007db47e6",
+    "trackedDiffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "untrackedFiles": []
+  },
+  "rawOutputSha256": "f5ad2009b0cd9dc5083e9802c1a7acb0dfcb8d33274d3439f968b572f9a0ec9d",
+  "passedTests": [
+    "jftrade-marketdata::jftrade_marketdata$router::tests::router_drives_runtime_recorder_from_provider_and_demand_state",
+    "jftrade-marketdata::jftrade_marketdata$runtime::tests::recorder_matches_generation_retry_recovery_and_close_rules"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 2,
+      "nextest": {
+        "crate": "jftrade-marketdata",
+        "test_binary": "jftrade_marketdata",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 43,
+      "exec_time": 0.015958584,
+      "nextest": {
+        "crate": "jftrade-marketdata",
+        "test_binary": "jftrade_marketdata",
+        "kind": "lib"
+      }
+    }
+  ]
+}
