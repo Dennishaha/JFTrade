@@ -1,0 +1,100 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "-p",
+    "jftrade-api",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(subscription_routes_preserve_instrument_request_contract_through_acquire_release_and_clear) or test(live_hub_demand_listener_tracks_subscriptions_and_disconnect) or test(market_data_runtime_projection_matches_go_status_corpus)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-30T06:44:38Z",
+  "sourceState": {
+    "verifiedCommit": "31dadd11df9c6c6d1b977a88e46ab315b136d69e",
+    "trackedDiffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "untrackedFiles": [
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/marketdata-subscriptions-api-2026-09-30.json",
+        "sha256": "d9b6f05764c5a3ac6febd3d3428f423da9cab59fd2d3f753001f316c0379f83d"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/marketdata-subscriptions-engine-2026-09-30.json",
+        "sha256": "624e469225015da0d0f76bfa3af770d211003aa7a52e28f5c016cebb79553a0e"
+      }
+    ]
+  },
+  "rawOutputSha256": "92c4dd5cc34c19081877135a8ffd5cbd733123f9b194f5b06f64df42e16bbc74",
+  "passedTests": [
+    "jftrade-api::jftrade_api$websocket::tests::live_hub_demand_listener_tracks_subscriptions_and_disconnect",
+    "jftrade-engine::jftrade_engine$product::product_market_data_runtime_status::tests::market_data_runtime_projection_matches_go_status_corpus",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_market_data::product_production_ports_market_data_subscription::tests::subscription_routes_preserve_instrument_request_contract_through_acquire_release_and_clear"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 2,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1,
+      "nextest": {
+        "crate": "jftrade-api",
+        "test_binary": "jftrade_api",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 47,
+      "exec_time": 0.015301375,
+      "nextest": {
+        "crate": "jftrade-api",
+        "test_binary": "jftrade_api",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1652,
+      "exec_time": 0.08124425,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    }
+  ]
+}

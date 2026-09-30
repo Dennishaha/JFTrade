@@ -1,0 +1,67 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-api",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(live_hub_demand_listener_tracks_subscriptions_and_disconnect)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-30T06:41:55Z",
+  "sourceState": {
+    "verifiedCommit": "31dadd11df9c6c6d1b977a88e46ab315b136d69e",
+    "trackedDiffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "untrackedFiles": [
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/marketdata-subscriptions-engine-2026-09-30.json",
+        "sha256": "624e469225015da0d0f76bfa3af770d211003aa7a52e28f5c016cebb79553a0e"
+      }
+    ]
+  },
+  "rawOutputSha256": "a856aae68c378058d2d3dfbc2833a781683ebd5e687702889becbffa66677f2f",
+  "passedTests": [
+    "jftrade-api::jftrade_api$websocket::tests::live_hub_demand_listener_tracks_subscriptions_and_disconnect"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1,
+      "nextest": {
+        "crate": "jftrade-api",
+        "test_binary": "jftrade_api",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 47,
+      "exec_time": 0.010240625,
+      "nextest": {
+        "crate": "jftrade-api",
+        "test_binary": "jftrade_api",
+        "kind": "lib"
+      }
+    }
+  ]
+}
