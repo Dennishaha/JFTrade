@@ -379,6 +379,34 @@ async fn production_news_actions_port_forwards_corporate_actions_from_without_to
 }
 
 #[test]
+// Parity: go:452dea11:internal/integration/akshare/provider_news_actions_test.go:100 TestProviderNewsRejectsIdentityMismatch
+fn news_projection_rejects_identity_mismatch() {
+    let payload = serde_json::json!({
+        "market": "SH",
+        "symbol": "000001",
+        "instrument_id": "SH.000001",
+        "source": "akshare-news",
+        "entries": []
+    });
+    let error = super::product_production_ports_market_data_news_actions::validate_news_actions_payload(
+        payload,
+        "news",
+        "SH",
+        "600519",
+    )
+    .expect_err("identity drift must be rejected");
+    assert!(matches!(
+        error,
+        MarketDataNewsActionsReadSnapshotError::Failed {
+            status: 502,
+            ref code,
+            ref message,
+            ..
+        } if code == "BAD_GATEWAY" && message == "news/actions response identity does not match request"
+    ));
+}
+
+#[test]
 // Parity: go:452dea11:internal/integration/yfinance/provider_news_actions_test.go:102 TestProviderCorporateActionsRejectsUnknownKindsAndBadExDates
 fn corporate_actions_projection_rejects_unknown_kinds_and_bad_ex_dates() {
     for (event, expected) in [
