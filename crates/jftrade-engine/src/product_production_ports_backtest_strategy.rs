@@ -670,7 +670,7 @@ mod execution_model_tests {
     }
 
     #[test]
-    fn execution_model_rejects_unsupported_name_with_original_value() {
+    fn execution_model_rejects_unsupported_name_with_trimmed_value() {
         let error = parse_start_request(&request_with_execution_model(Some(json!(
             "  optimistic  "
         ))))
@@ -678,7 +678,7 @@ mod execution_model_tests {
         assert_eq!(
             error,
             BacktestsWritePortError::BadRequest(
-                "unsupported backtest executionModel:   optimistic  ".to_owned()
+                "unsupported backtest executionModel: optimistic".to_owned()
             )
         );
     }

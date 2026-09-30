@@ -43,7 +43,7 @@ pub(crate) fn normalize_execution_model_name(
         return Ok(DEFAULT_EXECUTION_MODEL.to_owned());
     }
     Err(BacktestsWritePortError::BadRequest(format!(
-        "unsupported backtest executionModel: {value}"
+        "unsupported backtest executionModel: {normalized}"
     )))
 }
 
