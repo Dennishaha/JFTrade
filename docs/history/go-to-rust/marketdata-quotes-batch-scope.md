@@ -2212,3 +2212,11 @@ US regular 当前桶过滤与 bounded-window 合并页重过滤已按 Go `QueryK
 随后复核 `TestServiceUsesSingleCacheForSnapshotCandlesAndLatest` 与 `TestServiceTickCandleFallsBackToRetainedCache`：Rust 逐项覆盖 snapshot/tick candle/cache fallback/provider call count，以及 HK security snapshot 的批量与重复查询复用；同一 Go Service 串联四种读取的单 fixture 仍缺失，fallback 测试因与相邻 HTTP mapping 共用 owner 保持 partial。定向 receipt `cache-service-shared-owner-2026-09-30.json` 为 4/4 passed。
 
 验证：本批新增 serialization 2/2、shared-owner 4/4 定向测试均通过；严格 parity audit 和 anchor reconcile 通过。完整迁移目标仍未完成。
+
+## 2026-09-30 同价扩展行情断言纠正
+
+重新读取冻结 Go `cache_test.go:185`：该测试仅断言 Store 非空、Count=2、AfterMarket.Price=100.25。此前把 quoteTime、previous/last close 以及 retention clock 当作该测试独立断言的结论错误；这些字段属于 fixture，不再列为此行未覆盖断言。Rust fixture 现在复用相同 provider update_time、closed session 与 close 字段，仅新增 after-market quote；既有 history 数量与 after.price 断言覆盖全部 Go 断言，此行升级为 function_exact，reuse 为单引用。
+
+探针：临时将 duplicate 判断改成仅比较 provider update_time，定向测试因 history 1≠2 转红；恢复生产源码后复跑。生产源码未保留探针修改。
+
+验证：定向 receipt 1/1 passed（`cache-extended-quote-assertions-corrected-2026-09-30.json`）；后续完整门禁结果将在本批完成后记录。

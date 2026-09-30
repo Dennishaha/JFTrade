@@ -70,7 +70,6 @@ fn test_cache_deduplicates_and_retains_latest_tick() {
 #[test]
 fn test_cache_retains_extended_quote_when_price_is_unchanged() {
     // Parity: go:452dea11:internal/marketdata/cache_test.go:185 TestCacheRetainsNewExtendedQuoteWhenPriceIsUnchanged
-    // Parity with Go TestCacheRetainsNewExtendedQuoteWhenPriceIsUnchanged
     let mut cache = TickCache::new(5);
     let generation = 2;
     let base_time = 1_720_555_200_000i64; // arbitrary ms
@@ -78,6 +77,9 @@ fn test_cache_retains_extended_quote_when_price_is_unchanged() {
     let first_snapshot = TradeQuoteSnapshot {
         symbol: Some("AAPL".to_string()),
         previous_close: Some(price_dec("99")),
+        last_close: Some(price_dec("98")),
+        session: Some("closed".to_owned()),
+        update_time: Some("2026-07-09T19:59:59Z".to_owned()),
         ..Default::default()
     };
     let tick1 = tick_at(
@@ -86,22 +88,19 @@ fn test_cache_retains_extended_quote_when_price_is_unchanged() {
         "100",
         base_time,
         generation,
-        Some(first_snapshot),
+        Some(first_snapshot.clone()),
     );
     assert_eq!(cache.insert(tick1, generation), Ok(()));
 
     // Refreshed tick with same price but new AfterMarket extended quote at a later timestamp
     let post_price = price_dec("100.25");
     let refreshed_snapshot = TradeQuoteSnapshot {
-        symbol: Some("AAPL".to_string()),
-        previous_close: Some(price_dec("99")),
         after_market: Some(ExtendedQuoteSnapshot {
             price: Some(post_price),
-            volume: Some(decimal("50")),
             quote_time: Some("2026-07-09T19:59:59.500Z".to_owned()),
             ..Default::default()
         }),
-        ..Default::default()
+        ..first_snapshot
     };
     let tick2 = tick_at(
         "US.AAPL",
