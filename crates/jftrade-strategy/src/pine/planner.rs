@@ -1463,6 +1463,7 @@ fn invalid(line: usize, message: impl Into<String>) -> PlannerError {
 mod tests {
     use super::*;
 
+    /// Parity: go:452dea11:pkg/strategy/indicatorwarmup/spec_parse_invalid_test.go:203 TestIndicatorTimeUnitAndSourceNormalizationBoundaries
     /// Parity: go:452dea11:pkg/strategy/indicatorbinding/parse_test.go:235 TestParseIndicatorTimeUnitValue
     /// Parity: go:452dea11:pkg/strategy/indicatorbinding/parse_semantics_test.go:20 TestParseIndicatorTimeUnitValueSupportsQuotedAndMinuteCountInputs
     #[test]
