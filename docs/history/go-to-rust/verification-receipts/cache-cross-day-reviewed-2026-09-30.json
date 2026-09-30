@@ -1,0 +1,62 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-marketdata",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(test_cache_does_not_inherit_extended_sessions_across_trading_days)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-30T07:57:50Z",
+  "sourceState": {
+    "verifiedCommit": "20cd85943bf63b205def785ced0056d6282658d6",
+    "trackedDiffSha256": "8cf99ed9881cb32280d725746d67f0fc4c6093779fac6aac8e0574f9496388a3",
+    "untrackedFiles": []
+  },
+  "rawOutputSha256": "5f4dc941048d4f99d7783be889d30b0e9bbcea4330413fa299a50dfdda469014",
+  "passedTests": [
+    "jftrade-marketdata::cache_extended_sessions_parity$test_cache_does_not_inherit_extended_sessions_across_trading_days"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1,
+      "nextest": {
+        "crate": "jftrade-marketdata",
+        "test_binary": "cache_extended_sessions_parity",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 5,
+      "exec_time": 0.006141958,
+      "nextest": {
+        "crate": "jftrade-marketdata",
+        "test_binary": "cache_extended_sessions_parity",
+        "kind": "test"
+      }
+    }
+  ]
+}

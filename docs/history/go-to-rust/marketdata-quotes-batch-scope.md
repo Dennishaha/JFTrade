@@ -2204,3 +2204,5 @@ US regular 当前桶过滤与 bounded-window 合并页重过滤已按 Go `QueryK
 验证：marketdata 定向 29/29、broker catalog 定向 8/8 passed；严格审计通过（仅现有 1505 条 exact），anchor reconcile 为 1903/1856/0/0/47，`check:ai-context` 与 `git diff --check` 通过。已预览 quick 计划并运行 `check:quick`；该检查失败于 `check:zero-go`：desktop 与 market-data helper 的 8 处既有源码注释含已退役 asset 路径，其余 policy 检查通过。整体迁移审查仍未完成。
 
 缓存后续回归：新增 quote update_time 去重、独立 trade 保留、capacity=3 顺序与 stale require_fresh 测试，定向 receipt 为 5/5 passed。Rust cache 仍没有 Go `now` 注入的 30 分钟 retention owner，也没有 Source 字段的 promotion 语义；两项继续保持 partial。随后完整 Rust 门禁曾在既有 Assistant resolved-approval timeline 测试失败（755/1），修正测试对 fixture 后缀的误匹配后单测 1/1 passed；完整门禁需重新运行。
+
+验证：修正后完整 `check:rust` 通过，workspace nextest 3552/3552 passed（2 skipped），clippy/static 与七类 compatibility replay 通过；缓存定向 receipt 5/5 passed，SHA-256 `8b8e9782cc9d6b7cb094e2e1c25b1724c24c235d3e6fbf088c53f14c4e9f03b4`。两条 cache 映射绑定新的真实 receipt、断言列表与 duplicate owner anchor；整体目标仍未完成。
