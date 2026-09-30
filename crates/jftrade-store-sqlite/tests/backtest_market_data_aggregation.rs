@@ -115,6 +115,53 @@ fn direct_interval_rows_win_and_paging_is_deterministic() {
 }
 
 #[test]
+fn custom_period_backward_queries_return_latest_rows_in_ascending_order() {
+    let directory = tempfile::tempdir().expect("temporary directory");
+    let path = directory.path().join("period-backward.db");
+    let store = store(&path);
+    let daily = (0..3)
+        .map(|index| {
+            let mut row = candle(index * 1_440);
+            row.start_time = index * 86_400_000;
+            row.end_time = row.start_time + 86_400_000 - 1;
+            row
+        })
+        .collect::<Vec<_>>();
+    store
+        .insert_candles("futu", "US.AAPL", "1d", "forward", "extended", &daily)
+        .expect("insert daily rows");
+    let intraday = (0..3)
+        .map(|index| {
+            let mut row = candle(index * 120);
+            row.start_time = index * 7_200_000;
+            row.end_time = row.start_time + 7_200_000 - 1;
+            row
+        })
+        .collect::<Vec<_>>();
+    store
+        .insert_candles("futu", "US.AAPL", "2h", "forward", "extended", &intraday)
+        .expect("insert intraday rows");
+
+    let daily_page = store
+        .query_candles_backward(
+            "futu", "US.AAPL", "1d", "forward", "extended", 3 * 86_400_000, 2,
+        )
+        .expect("query daily page");
+    assert_eq!(daily_page.len(), 2);
+    assert_eq!(daily_page[0].start_time, 86_400_000);
+    assert_eq!(daily_page[1].start_time, 2 * 86_400_000);
+
+    let intraday_page = store
+        .query_candles_backward(
+            "futu", "US.AAPL", "2h", "forward", "extended", 3 * 7_200_000, 2,
+        )
+        .expect("query intraday page");
+    assert_eq!(intraday_page.len(), 2);
+    assert_eq!(intraday_page[0].start_time, 7_200_000);
+    assert_eq!(intraday_page[1].start_time, 2 * 7_200_000);
+}
+
+#[test]
 fn interval_aliases_share_a_canonical_storage_table() {
     let directory = tempfile::tempdir().expect("temporary directory");
     let path = directory.path().join("interval-alias.db");

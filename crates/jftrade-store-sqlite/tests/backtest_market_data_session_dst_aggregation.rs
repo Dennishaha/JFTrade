@@ -194,6 +194,9 @@ fn test_tc_d4_02_and_03_dst_boundary_and_60m_session_anchored_aggregation() {
 /// TC-D4-04: Extended session isolation.
 /// Data written from 04:00 to 10:30 ET.
 /// Pre-market data (04:00~09:30) must NOT contaminate the 09:30 official open price in 60m output.
+// Parity: go:452dea11:pkg/backtest/filter_store_session_queries_test.go:276 TestSessionFilteredStoreUsesCustomExtendedHoursRangeQueries
+// Parity: go:452dea11:pkg/backtest/filter_store_session_queries_test.go:346 TestSessionFilteredStoreQueryKLinesChIncludesCustomExtendedHoursRows
+// Parity: go:452dea11:pkg/backtest/filter_store_session_queries_test.go:540 TestSessionFilteredStoreStreamKLinesUsesStreamerAndCustomExtendedHoursRows
 #[test]
 fn test_tc_d4_04_extended_session_pre_market_does_not_pollute_regular_open() {
     let dir = tempfile::tempdir().expect("tempdir");

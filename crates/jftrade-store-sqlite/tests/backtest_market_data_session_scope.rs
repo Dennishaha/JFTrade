@@ -177,6 +177,7 @@ fn unknown_session_scope_is_rejected_without_creating_a_table() {
     assert_eq!(store.kline_table_count().expect("count tables"), 1);
 }
 
+// Parity: go:452dea11:pkg/backtest/filter_store_session_queries_test.go:627 TestSessionFilteredStoreHelperFunctions
 #[test]
 fn schema_kline_table_name_and_session_scope_validation_contracts() {
     let directory = tempfile::tempdir().expect("temporary directory");

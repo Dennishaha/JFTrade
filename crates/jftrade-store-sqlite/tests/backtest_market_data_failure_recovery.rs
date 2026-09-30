@@ -69,6 +69,7 @@ fn opening_database_with_damaged_dynamic_schema_fails_closed_without_replacing_f
     );
 }
 
+// Parity: go:452dea11:pkg/backtest/filter_store_session_queries_test.go:413 TestSessionFilteredStoreQueryKLinesChPropagatesBaseAndCustomErrors
 #[test]
 fn missing_symbol_table_reports_storage_error_then_recovers_after_insert() {
     let directory = tempfile::tempdir().expect("temporary directory");
