@@ -1308,16 +1308,13 @@ fn planner_expression_text(expression: &Expr) -> String {
     }
 }
 
-/// Go rejects a non-positive literal period while planning (`ma() period must
-/// be a positive integer`). Rust keeps non-literal arguments such as alias
-/// identifiers untouched and only rejects literal values it can prove are not
-/// positive integers.
+/// Go requires indicator periods to be positive integer literals while
+/// planning (`ma() period must be a positive integer`). Reject identifiers and
+/// fractional values instead of allowing them to become malformed requirement
+/// keys.
 fn ensure_positive_period(line: usize, callee: &str, period: &str) -> Result<(), PlannerError> {
     let trimmed = period.trim();
-    let positive_integer = trimmed
-        .parse::<i64>()
-        .map(|value| value > 0)
-        .unwrap_or_else(|_| trimmed.parse::<f64>().is_err());
+    let positive_integer = trimmed.parse::<i64>().is_ok_and(|value| value > 0);
     if positive_integer {
         return Ok(());
     }

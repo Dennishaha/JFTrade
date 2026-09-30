@@ -51,6 +51,7 @@ fn compile_error_message(body: &str) -> String {
 }
 
 /// Parity: go:452dea11:pkg/strategy/indicatorbinding/parse_test.go:509 TestParsePositiveInt
+/// Parity: go:452dea11:pkg/strategy/ir/planner_test.go:51 TestPlanRequirementsRejectsInvalidIndicatorBinding
 #[test]
 fn indicator_periods_require_positive_integer_literals() {
     assert_eq!(requirement_keys("x = ta.sma(close, 3)"), vec!["ma:SMA:3"]);
@@ -62,6 +63,7 @@ fn indicator_periods_require_positive_integer_literals() {
         "x = ta.sma(close, 0)",
         "x = ta.sma(close, -3)",
         "x = ta.sma(close, 2.5)",
+        "x = ta.sma(close, nope)",
         "x = ta.highest(high, 0)",
     ] {
         let message = compile_error_message(body);
