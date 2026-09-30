@@ -12,6 +12,7 @@ use std::sync::{Arc, RwLock};
 #[derive(Clone)]
 pub(crate) struct BacktestMarketDataProviderState {
     provider: Arc<RwLock<MarketDataProvider>>,
+    prepare_failure: Arc<RwLock<Option<String>>>,
 }
 
 impl std::fmt::Debug for BacktestMarketDataProviderState {
@@ -28,6 +29,7 @@ impl BacktestMarketDataProviderState {
     pub(crate) fn new(initial: MarketDataProvider) -> Self {
         Self {
             provider: Arc::new(RwLock::new(initial)),
+            prepare_failure: Arc::new(RwLock::new(None)),
         }
     }
 
@@ -48,6 +50,14 @@ impl BacktestMarketDataProviderState {
         *current = provider;
         previous
     }
+
+    #[cfg(test)]
+    pub(crate) fn set_prepare_failure(&self, message: Option<&str>) {
+        *self
+            .prepare_failure
+            .write()
+            .unwrap_or_else(|error| error.into_inner()) = message.map(str::to_owned);
+    }
 }
 
 impl MarketDataProviderRuntimePort for BacktestMarketDataProviderState {
@@ -61,6 +71,14 @@ impl MarketDataProviderRuntimePort for BacktestMarketDataProviderState {
     }
 
     fn prepare_backtest(&self, provider: MarketDataProvider) -> Result<(), String> {
+        if let Some(message) = self
+            .prepare_failure
+            .read()
+            .unwrap_or_else(|error| error.into_inner())
+            .clone()
+        {
+            return Err(message);
+        }
         self.set(provider);
         Ok(())
     }

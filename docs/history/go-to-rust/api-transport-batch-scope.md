@@ -6575,3 +6575,136 @@ Parity anchor 已同步；最窄验证为 engine nextest 两条新增测试 2/2 
 ## 2026-09-27 provider health backoff P1 correction
 
 `runtime_health_test.go:222:TestProviderHealthRetryDelayBacksOffAndCaps` 已完成先红后修：新增 `helper_restart_policy_defaults_match_go_provider_health_retry_delays` 先复现默认 500ms 与 Go 100ms 的差异，再将 `HelperRestartPolicy` 和 managed market-data helper restart policy 对齐为 initial=100ms、max=1s，逐档锁定 Go 的 100→200→400→800→1000→1000→1000ms。定向 engine nextest 2/2、sidecar 回归 3/3 通过，映射由 partial 升为 `function_exact`；同文件 `:240` cancellation/error 透传继续保留 partial。当前扫描 Go 4451、Rust 3376、`function_exact=1496`、`partial=2321`、`boundary=634`、`missing=0`；receiptDigest 留空，strict evidence/receipt gaps 仍未收口。
+
+## 2026-09-28 Strategy/Pine subscription rollback evidence
+
+`subscription_lifecycle_test.go:14` 新增 Rust owner `failed_pine_warmup_releases_only_its_own_subscription_once`，
+用共享 KLINE consumer 锁定预热失败后的单次租约释放与重复清理幂等；engine nextest 4/4 通过，receipt
+`sha256:49469ad896186b5f59c614381ff653c63720c7df59c98fd01cfb557c937b01e9`。租约获取失败时不创建运行时
+仍无可注入 seam，故该映射保持 partial。
+
+同批订阅边界补充：`subscription_lifecycle_test.go:81` 的 Rust owner
+`strategy_kline_subscription_refs_normalize_valid_targets_and_skip_malformed` 先红后修，
+修复 `market=\".\"` 畸形目标过滤并断言大小写、空白、`15m` 周期归一为唯一
+`KLINE:US:AAPL:15m`；定向 engine nextest 1/1 通过，receipt
+`sha256:38704e6be9b4cbe98401245af9407ae949eafb5e2a2df0eced6ebdbda5f2b654`，映射升级为 function_exact。
+## 2026-09-28 Trading/Broker cancel rejection P1 correction
+
+`internal/trading/broker_conformance_test.go:58:TestFakeBrokerConformanceCancelAcceptedAndCancelRejected` 已完成真实行为对齐。先红阶段让 `TradeWritePort::modify_order` 返回明确的 `ResponseError::ReturnCode`，旧实现把本地订单写成 `UNKNOWN`；红测输出固定为 `left: "UNKNOWN" / right: "CANCEL_SUBMITTED"`。修复后，只有明确的券商 `Response` 拒单分支保留 Rust 存储态 `CANCEL_SUBMITTED`（对应 Go `CANCEL_REQUESTED`），写入 `lastError`、`lastErrorSource=broker.cancel` 并记录 `BROKER_CANCEL_REJECTED`；连接关闭、协调器不可用等不可知失败仍保持 `UNKNOWN` fail-closed。
+
+新增 `broker_cancel_rejection_keeps_cancel_requested_and_records_rejection_event`，与撤单受理收敛、终态/未识别订单拒绝用例组合覆盖 Go 测试全部断言。定向 engine nextest 3/3 通过；绿色 receipt：`verification-receipts/p1-broker-cancel-rejection-2026-09-28T184500Z.json`，红测证据：`verification-receipts/p1-broker-cancel-rejection-red-2026-09-28T184300Z.json`。映射由 `partial` 升为 `function_exact`，保留不可知外部失败的独立 fail-closed 语义。
+## 2026-09-30 API SSE strict evidence batch
+
+复核并验证 5 条 API Server/Transport Wire SSE 行为：序列化/写入错误透传、无 callback 的 trigger 取消、并发 writer 串行化、flush panic 错误化。Go 与 Rust 测试体逐条核对，Rust `stream_loop_ignores_trigger_without_callback` 补充显式取消任务成功断言；联合 `jftrade-api` nextest 5/5 通过，receipt `sha256:23cb9085910da407cffce794533dee1ff1eea1154a3a50a766fa6afd67ed9ec9`（`verification-receipts/api-sse-reviewed-2026-09-30.json`）。5 条映射的 assertion coverage 已升为 `reviewed`，保留现有单引用 reuse 与 Parity anchor。strict gap 由 3395 降至 3391；全局 strict 仍未通过。
+
+## 2026-09-29 API SSE frame/loop strict evidence batch
+
+本轮按 Go 断言逐项复核并收口 5 条 SSE exact：`TestRunSSEStreamLoopPropagatesTriggerAndTickerFailures`、`TestSSEWriterReturnsWritePanicAsError`、`TestPrepareSSEWriterAndFrameFormatting`、`TestPrepareSSEWriterRejectsWriterWithoutFlusher`、`TestRunSSEStreamLoopPropagatesInitialError`。frame formatting 不再只引用 `SseWriter` 单测：Rust 联合断言 `no_retry_writer_keeps_the_existing_body`、`buffered_sse_output_writes_retry_and_frames_through_the_router`，覆盖 Go 的三个响应头、完整 retry/id+data/comment wire body 与 retry=0 不追加输出。
+
+`jftrade-api` 定向 nextest 7/7 通过；结构化 receipt 为 `sha256:8f5cf46fdb2e9bcd5af4d3de9b52781eb5cbbcc4af2ebdde8c267252e0c05ec4`（`verification-receipts/api-sse-frame-loop-reviewed-2026-09-29.json`）。5 条映射的 `assertionCoverage.source` 已升为 `reviewed`，Parity anchors 保持有效。strict gap 从 3378 降至 3368；全局 strict 仍未通过。
+
+## 2026-09-29 cross-domain strict checkpoint
+
+本轮未修改 API transport 行为；全局审计在 Futu P2 三条行为证据收口后复核，strict gap 为 3353。API Server 测试比例仍只作为风险信号，不计入完成率。
+
+## 2026-09-29 audit checkpoint
+
+本轮审计没有把 Futu history helper/frame 子测试误算为 API transport exact；相关 Go 行已按真实 client seam 保留 partial。当前全局 strict gap 为 3341。
+
+## 2026-09-29 strict audit checkpoint
+
+本轮跨域断言复核后，全局 strict gap 3323。API transport 前批 SSE 行保持 reviewed；本轮未新增 API 行为，因此不把跨域 gap 下降计入 API 完成率。
+
+## 2026-09-29 API auth/SSE strict evidence
+
+SSE loop 两条已有 exact（trigger/ticker 两种 tick 取消、nil ticker 不触发）已逐项核对 Go 断言，`jftrade-api` nextest 2/2 passed，receipt `sha256:803a99b17ac95ec97490cbf3f1f91ee8c3aa95d061ee9966dfdd9217f3bae18e`。三条 auth middleware exact（system status 未认证、trusted caller 无 Origin、trusted caller 拒绝恶意 Origin）以 `transport_contracts` 真实路由测试复核，nextest 3/3 passed，receipt `sha256:d9491a62ef3b46d0ff5ee03f652748d32fa1bd219460c95a0edd7e3748702b89`。五条 mapping 已升级 reviewed 并绑定 receipt；strict gap 由 3303 降至 **3297**。
+
+复核同时纠正两条旧 exact：`TestAuthSkipsPublicPaths` 缺少 Go `/health` 与精确 204 断言，`TestAuthProtectsLogout` 的 generic harness 断言 200 而 Go 要求 204，均收窄为 reviewed `partial`，不把状态码差异写成 exact。
+
+本轮继续收口 `TestAuthRejectsNilAuthenticator` 与 `TestAuthRejectsUntrustedOrigin`：`transport_contracts` nextest 2/2 passed，receipt `sha256:d302cddef14057dec554dd8d48e00892a71e7c5a2e4c565fff7010970fbe800e`；两条 mapping 已升级 reviewed。strict gap 由 3297 降至 **3293**。
+
+P1 Web 行为批次：禁用 Web 导航页、cookie+CSRF 浏览器读写、以及仅 cookie 的 WebSocket 握手均完成 reviewed，联合 nextest 3/3 passed，receipt `sha256:02d835502c6392862c7678ed3087c19e51198186c265a1583cc181bbac8d5b92`。执行订单 ETH session 批次的 normalization/wire 测试 3/3 passed，receipt `sha256:8abeb1dae760d9861b6bd1f5070052482df98eb3047d517386db66084255dce8`；由于没有同形 HTTP route 测试，保留为 reviewed partial。前端完整资源矩阵、密码修改触发会话失效、POST logout route 仍明确保留 partial。strict gap 降至 **3274**。
+
+启动回滚 P1 复核：`TestHandleRollsBackAndStopsAfterOpenFailure` 的 Rust production startup/migration rollback 两条测试 2/2 passed，receipt `sha256:5ff41a57feb4610daf6dfae3a59381aad5bf567d79b1f659a0da8068872fa066`。由于 Go 测试是 generic `stores.Handle` callback/error-chain seam，Rust 证据保留为 reviewed partial；strict gap 降至 **3270**。
+
+## 2026-09-29 P2 query/URI strict evidence
+
+四条已有 exact 完成真实断言复核：`TestNormalizeCandlePeriodSupportsEveryDocumentedFamily`、`TestParseQueryTimeNormalizesToUTC`、`TestBindURIRejectsMalformedEscapeInRequestURI`、`TestBindURIAllowsEscapedLiteralPercent`。对应 Rust candle period、query time、URI percent 校验/解码和 execution write path 参数测试以 `jftrade-engine` nextest 5/5 通过；receipt `sha256:97726dfe188f6691db04e9b03f19dec666d366f4c48d8498c5a06526966a9f23`。四条 mapping 的 assertion coverage 已升为 reviewed 并绑定 receipt，既有 Parity anchor 保持有效。
+
+`TestParseQueryTimeReturnsCallerFallback` 的非法值 fallback，以及 Gin `BindURI` required 参数缺失/绑定器 fallback 仍没有 Rust 同形 seam，继续保持 reviewed partial。strict gap 实际 **3270→3262**；API Server / Transport Wire 10.2% 测试数量比例仅作风险信号，不作为完成率。
+
+## 2026-09-29 P2 route strict evidence
+
+第二批六条已有 exact 完成真实 route 断言复核：optional bool/time/limit 解析、instrument 缺失 URI 参数、markets provider failure、malformed refresh 早拒绝，以及 live read 缺租约时的 409/恢复。`jftrade-engine` nextest 8/8 通过，receipt `sha256:84dbc60dbeb07184ad3c0cbc750321351de2bd6b052e61ea613ea329e0ba553c`；六条 mapping assertion coverage 升为 reviewed 并绑定 receipt。strict gap 实际 **3262→3250**，API Server / Transport Wire 10.2% 测试数量比例仍只作风险信号。
+
+## 2026-09-29 P2 auth/origin strict evidence
+
+第三批六条 middleware/origin exact 完成真实断言复核：CORS trusted/unknown preflight、认证器与 Origin 边界、无 browser Origin 会话、Referer/Origin 优先级和 canonical origin 表。`jftrade-api` nextest 7/7 通过，receipt `sha256:a90d53c5245a42b16cb1397efcf98d666f3bc7aa3c02e56a9dda6e60b19d59e2`；六条 mapping 升为 reviewed 并绑定 receipt。wails/tauri scheme 差异保持已登记 boundary，strict gap 实际 **3250→3238**。
+
+## 2026-09-29 P2 subscription strict evidence
+
+第四批七条已有 exact 完成真实断言复核：poll-only capability 优先、malformed/incomplete subscription fixture、valid target filtering、instrument request contract、broker-neutral polling、consumer-only release 与 managed strategy lease preservation。`jftrade-engine` nextest 7/7 通过，receipt `sha256:66229dc2cec638a02dc06384b47949a7bca05c593b67daa57dbbce6cecb41710`；七条 mapping 升为 reviewed 并绑定 receipt。strict gap 实际 **3238→3224**；subscription wire/owner 形状差异仍按逐条断言边界处理。
+
+## 2026-09-29 P2 WebSocket live strict evidence
+
+WebSocket live 5 条候选行为测试以 `jftrade-engine` nextest 5/5 通过，receipt `sha256:d5630dbcfc1a2e7e10bdaf5bf09f96e992fbff7c53addf84023fa4f0880510dd`。provider-scoped tick dedupe、provider-switch tagging 和 untrusted Origin rejection 三条升为 reviewed exact；heartbeat `liveClients` 字段缺失与 Go Host-based same-origin/Rust allowlist 差异收窄为 reviewed partial。strict gap 实际 **3224→3210**。
+
+## 2026-09-29 API lease strict follow-up
+
+`TestMarketDepthEndpointRouting` 的 Futu lease-required 与 poll-only capability
+优先级，以及 `TestStrategyRuntimeHoldsExactKLineLeasesUntilStopAndClose` 的
+strategy lease 持有/clear/stop/shutdown 行为，已由真实 Rust owner tests 覆盖并
+标记 `assertionCoverage.source=reviewed`。联合目标集 8/8 passed，receipt
+`sha256:c6a21e20592a76fa5537c3650978925468b2675a4c0ff92d774a9f08413a6619`；
+同时补齐该批共享 evidence 的代码锚点，strict gap 由 3196 降至 3178。
+
+## 2026-09-29 API boundary strict follow-up
+
+`TestStrategyDefinitionPreviewQueryRejectsInvalidBooleans`、
+`TestHandleGetDefinitionReturnsNotFoundAndBadQuery`、交易 query 编码/数值边界、
+已移除 auth token 路由和两条 Swagger 合同均由独立 Rust owner test 逐项复核；
+真实 `jftrade-api`/`jftrade-engine` nextest 7/7 passed，receipt
+`sha256:66c7dc3e04676d72b054ac13f9a9a92bcc0e52a78652a954e5b1d9022eaed99b`。
+这些条目为单引用 reuse，未借用聚合 corpus；strict gap 由 3178 降至 3164。
+
+## 2026-09-29 后续 strict batches
+
+- 生产 broker/backtest/research 边界 11 条已有 exact：7/7 passed，receipt `sha256:ca4c5fc102f6467c890fbd22e5cd409bc6ace00a1feafe7e6fd5b30edfa39cb9`。
+- Assistant API route/transport 8 条单引用 exact：8/8 passed，receipt `sha256:bdf00cc6589295500b7a80c580b0efd34a206f268f441f174306f5e24245c9f8`。
+
+两批均完成 Go/Rust 断言复核、reviewed assertion、passed receipt 与 mapping 同步；strict gap 实际继续降至 **3112**。
+
+## 2026-09-29 继续 strict batches
+
+- Assistant route 4 条：4/4 passed，receipt `sha256:be396063e4b089be09ef9d33ff13c02565bf533b74d5fb34198b675b4a6e01da`。
+- Swagger/OpenAPI contract 4 条：4/4 passed，receipt `sha256:b98a7bd55fe062644991008420a3ca043c18b6fd76f9225fa1234adfe435a02a`。
+- webaccess transport boundary 4 条：4/4 passed，receipt `sha256:938c081bf90acfe483b1047d9a2147fc15dfdbe5e1e0cf8e0cb0a4fe10ae7b37`。
+
+三批均为独立 owner tests，已同步 reviewed assertion、reuse、receipt 与 mapping；strict gap 实际 **3112→3088**。
+
+## 2026-09-30 HTTPS proxy login behavior
+
+`TestSameHostHTTPSProxyUsesSecureSessionCookie` 新增真实 Product HTTP + `ProductionAuthSessionManager` 回归：loopback + `X-Forwarded-Proto=https` 返回 Secure/HttpOnly/SameSite=Strict cookie 与 `Cache-Control: no-store`，无转发头对照不带 Secure；session token 由真实 manager 持久化并验证。定向 nextest 1/1 passed，receipt `api-webaccess-secure-cookie-reviewed-2026-09-30.json`，文件 digest `sha256:4c614ca808796890f14ef8e95b941b44c630dcf03733c8947769852279de644a`。mapping 从 partial 升 reviewed `function_exact`，partial 实际 **2317→2316**；strict evidence gap 保持 0，不把该批当作 strict gap 净下降。
+
+## 2026-09-30 current-KL missing-S2C behavior
+
+`TestGetKLReturnsEmptyResultWhenOpenDOmitsS2C` 使用独立的真实 framed-socket reader owner：retType=0、S2C 缺失时返回空 current-KL 结果，name 为空并确认 GET_KL 协议请求。与另一条 Go pure-decoder 测试不共享 Rust test entry；mapping 从 partial 升 reviewed `function_exact`。定向 nextest 1/1 passed，receipt `futu-current-kl-empty-s2c-reviewed-2026-09-30.json`，文件 digest `sha256:eb09e7f11ce37faa435c2f6072739f742e49cb024efcdf1bbe0f9e35b52badbf`；partial **2316→2315**。
+
+## 2026-09-30 backtest provider HTTP route
+
+`TestBacktestMarketDataSettingsRoutesExposeCatalogAndRollbackPreparationFailure` 由真实 Product HTTP fixture 收口：catalog/yfinance capability、prepare failure 的 409 `MARKET_DATA_PROVIDER_UPDATE_FAILED`、旧值保持、成功 PUT 和 GET 回读均在同一测试中断言。定向 nextest 1/1 passed，receipt `api-backtest-provider-http-reviewed-2026-09-30.json`，文件 digest `sha256:bfa7c9803beaa15ab798a1ea7a0dd3f5f14766b6bd44e9997590b0817fbd9fbc`；partial **2315→2314**。
+
+
+## 2026-09-30 live provider HTTP callback 收口
+
+`internal/api/settings/routes_market_data_test.go:18:TestMarketDataSettingsRoutesReadSaveAndApplyProvider` 已由 `crates/jftrade-engine/src/product_tests.rs::live_provider_http_route_applies_each_selection_once` 提供真实 Product HTTP GET/PUT 行为证据。测试断言 `yfinance → futu → yfinance` 的 active provider 投影，以及 `ActiveProviderState` activation callback 对两次实际 selection 恰好调用两次；不是仅凭共享 owner 或 receipt 推断。定向 nextest 1/1 passed，receipt digest `sha256:052d983ca4fc111bb019ea843dd3f3644eb84c9dc8aa5ffac63a9f94ce9bd004`。该 mapping 已升为 reviewed `function_exact`，strict gap 实际下降（partial 2314→2313、function_exact 1502→1503）；API Server / Transport Wire Rust/Go 测试数量比为 10.8%，继续作为待推进信号而非完成率。
+
+
+## 2026-09-30 Web 密码保护 API 收口
+
+`internal/app/apiserver/webaccess/security_integration_test.go:175:TestWebPasswordIsRequiredForProtectedAPI` 已由 `crates/jftrade-engine/src/product_auth_session_write_product_tests.rs::protected_system_status_requires_web_password_over_product_http` 提供真实 Product HTTP 证据。启用密码保护后，无 session 访问 `/api/v1/system/status` 实际返回 `401` 与 `WEB_AUTH_REQUIRED`；定向 nextest 1/1 passed，receipt digest `sha256:26640e64417f4739d20bb1d629adbb242bc60d4ffa8743f05f398ba3676d69ce`。mapping 已升为 reviewed `function_exact`，partial 2313→2312；API Server / Transport Wire 的 10.8% 数量比仍只是待推进信号。
+
+
+## 2026-09-30 provider 写路由错误矩阵收口
+
+`internal/api/settings/routes_market_data_test.go:128:TestMarketDataSettingsRoutesMapValidationPersistenceAndRuntimeErrors` 已由 `crates/jftrade-engine/src/product_tests.rs::live_provider_http_route_maps_validation_persistence_and_runtime_failures` 提供真实 Product HTTP 行为证据。测试逐项锁定 malformed JSON、非法 provider、runtime activation failure 的 409 回滚，以及 settings persistence failure 的 500 错误码；定向 nextest 1/1 passed，receipt digest `sha256:b5cfb9b3a9b816624477a39a9913528b2801a26c31b1df60eaa4276f67cd2c53`。mapping 已升为 reviewed `function_exact`，partial 2312→2311；API Server / Transport Wire 的 10.8% 数量比仍只是待推进信号。

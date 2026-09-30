@@ -470,7 +470,7 @@ async fn dispatch(State(state): State<ApiState>, request: Request) -> Response<B
         return response;
     }
     if !uri.path().starts_with("/api/") && !uri.path().starts_with("/swagger") {
-        return static_response(&state.assets, &method, &uri);
+        return static_response(&state.assets, &method, &uri, request.headers().get(ACCEPT));
     }
     if !state.routes.allows(method.as_str(), uri.path()) {
         return error_response(
@@ -574,7 +574,12 @@ impl ResponseHeaders for Response<Body> {
     }
 }
 
-fn static_response(assets: &AssetBundle, method: &Method, uri: &Uri) -> Response<Body> {
+fn static_response(
+    assets: &AssetBundle,
+    method: &Method,
+    uri: &Uri,
+    accept: Option<&HeaderValue>,
+) -> Response<Body> {
     if *method != Method::GET && *method != Method::HEAD {
         return empty_response(StatusCode::NOT_FOUND);
     }
@@ -583,8 +588,12 @@ fn static_response(assets: &AssetBundle, method: &Method, uri: &Uri) -> Response
     } else {
         uri.path().trim_start_matches('/')
     };
+    let accepts_html = accept
+        .and_then(|value| value.to_str().ok())
+        .map(|value| value.to_ascii_lowercase().contains("text/html"))
+        .unwrap_or(true);
     let asset = assets.get(requested).or_else(|| {
-        should_use_spa_fallback(uri.path())
+        (accepts_html && should_use_spa_fallback(uri.path()))
             .then(|| assets.spa_index())
             .flatten()
     });

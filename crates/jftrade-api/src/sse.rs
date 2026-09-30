@@ -577,7 +577,7 @@ mod tests {
         )
         .await
         .expect("stream loop");
-        canceller.await.expect("canceller");
+        assert!(canceller.await.is_ok(), "canceller task must exit cleanly");
     }
 
     #[tokio::test]

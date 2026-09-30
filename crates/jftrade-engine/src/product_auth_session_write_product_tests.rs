@@ -130,6 +130,123 @@ async fn auth_session_write_routes_register_only_with_explicit_test_port() {
     handle.shutdown().await.expect("shutdown auth product");
 }
 
+// Parity: go:452dea11:internal/app/apiserver/webaccess/security_integration_test.go:210 TestSameHostHTTPSProxyUsesSecureSessionCookie
+#[tokio::test]
+async fn auth_login_over_loopback_https_proxy_sets_secure_cookie_and_no_store() {
+    let directory = tempdir().expect("temporary directory");
+    let settings_path = directory.path().join("settings.json");
+    let store = Arc::new(SettingsFileStore::open(&settings_path).expect("settings store"));
+    let security = SecuritySettingsService::new(store);
+    security
+        .save(&SecuritySettingsUpdate {
+            web_access_enabled: true,
+            new_password: "fixture-password".to_owned(),
+            ..Default::default()
+        })
+        .expect("enable password authentication");
+    let manager = Arc::new(
+        ProductionAuthSessionManager::open(security, &settings_path).expect("auth manager"),
+    );
+    let mut config =
+        ProductConfig::test_cutover("127.0.0.1:0".parse().expect("address"), &settings_path)
+            .expect("config")
+            .with_auth_session_write_port(manager.clone());
+    config.access = AccessPolicy {
+        session_token: Some("fixture-session".to_owned()),
+        csrf_token: Some("fixture-csrf".to_owned()),
+        enforce_access: true,
+        desktop_mode: false,
+        ..AccessPolicy::default()
+    }
+    .with_allowed_origins(["https://fixture.jftrade.local".to_owned()]);
+    let handle = start_product(config).await.expect("start product");
+
+    let (status, headers, response) = request_json_with_status_and_headers(
+        handle.startup_record().address,
+        "POST",
+        "/api/v1/auth/login",
+        Some(r#"{"password":"fixture-password"}"#),
+        &[
+            ("Origin", "https://fixture.jftrade.local"),
+            ("X-Forwarded-Proto", "https"),
+        ],
+    )
+    .await;
+    assert_eq!(status, 200);
+    assert_eq!(response["data"]["authenticated"], true);
+    assert_eq!(headers.get("cache-control"), Some(&"no-store".to_owned()));
+    let cookie = headers.get("set-cookie").expect("login cookie");
+    assert!(cookie.contains("Secure"), "cookie = {cookie}");
+    assert!(cookie.contains("HttpOnly"), "cookie = {cookie}");
+    assert!(cookie.contains("SameSite=Strict"), "cookie = {cookie}");
+    let token = cookie
+        .split(';')
+        .next()
+        .expect("cookie pair")
+        .strip_prefix("jftrade_web_session=")
+        .expect("session cookie");
+    assert!(jftrade_api::WebSessionValidator::is_session_valid(
+        manager.as_ref(),
+        token
+    ));
+
+    let (plain_status, plain_headers, _) = request_json_with_status_and_headers(
+        handle.startup_record().address,
+        "POST",
+        "/api/v1/auth/login",
+        Some(r#"{"password":"fixture-password"}"#),
+        &[("Origin", "https://fixture.jftrade.local")],
+    )
+    .await;
+    assert_eq!(plain_status, 200);
+    assert!(!plain_headers["set-cookie"].contains("; Secure"));
+    assert_eq!(plain_headers["cache-control"], "no-store");
+
+    handle.shutdown().await.expect("shutdown product");
+}
+
+// Parity: go:452dea11:internal/app/apiserver/webaccess/security_integration_test.go:175 TestWebPasswordIsRequiredForProtectedAPI
+#[tokio::test]
+async fn protected_system_status_requires_web_password_over_product_http() {
+    let directory = tempdir().expect("temporary directory");
+    let settings_path = directory.path().join("settings.json");
+    let store = Arc::new(SettingsFileStore::open(&settings_path).expect("settings store"));
+    let security = SecuritySettingsService::new(store);
+    security
+        .save(&SecuritySettingsUpdate {
+            web_access_enabled: true,
+            new_password: "fixture-password".to_owned(),
+            ..Default::default()
+        })
+        .expect("enable password authentication");
+    let manager = Arc::new(
+        ProductionAuthSessionManager::open(security, &settings_path).expect("auth manager"),
+    );
+    let mut config =
+        ProductConfig::test_cutover("127.0.0.1:0".parse().expect("address"), &settings_path)
+            .expect("config")
+            .with_auth_session_write_port(manager);
+    config.access = AccessPolicy {
+        enforce_access: true,
+        desktop_mode: false,
+        ..AccessPolicy::default()
+    };
+    let handle = start_product(config).await.expect("start product");
+    let (status, response) = request_json_with_status(
+        handle.startup_record().address,
+        "GET",
+        "/api/v1/system/status",
+        None,
+        &[],
+    )
+    .await;
+    assert_eq!(status, 401);
+    assert_eq!(response["ok"], false);
+    assert_eq!(response["error"]["code"], "WEB_AUTH_REQUIRED");
+    handle.shutdown().await.expect("shutdown product");
+}
+
+// Parity: go:452dea11:internal/app/apiserver/webaccess/security_integration_test.go:379 TestWebLogoutClearsSessionCookie
 #[tokio::test]
 async fn auth_session_write_product_preserves_browser_context_and_recovers() {
     let directory = tempdir().expect("temporary directory");
@@ -194,7 +311,7 @@ async fn auth_session_write_product_preserves_browser_context_and_recovers() {
         ("Origin", "https://fixture.jftrade.local"),
         ("X-CSRF-Token", "fixture-csrf"),
     ];
-    let (status, response) = request_json_with_status(
+    let (status, headers, response) = request_json_with_status_and_headers(
         address,
         "POST",
         "/api/v1/auth/logout",
@@ -204,6 +321,11 @@ async fn auth_session_write_product_preserves_browser_context_and_recovers() {
     .await;
     assert_eq!(status, 200);
     assert_eq!(response["data"]["authenticated"], false);
+    let clear_cookie = headers
+        .get("set-cookie")
+        .expect("logout must clear the browser cookie");
+    assert!(clear_cookie.starts_with("jftrade_web_session=;"));
+    assert!(clear_cookie.contains("Max-Age=0"));
 
     let invalid_csrf_headers = [
         ("Cookie", "jftrade_web_session=fixture-session"),

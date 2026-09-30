@@ -80,6 +80,15 @@ impl ProductConfig {
         self
     }
 
+    #[cfg(test)]
+    pub(crate) fn with_backtest_market_data_provider_state(
+        mut self,
+        state: Arc<BacktestMarketDataProviderState>,
+    ) -> Self {
+        self.backtest_market_data_provider_state = Some(state);
+        self
+    }
+
     pub(crate) fn with_strategy_pine_worker_port(
         mut self,
         port: Arc<jftrade_integration_pine::GrpcPineExecutionPort>,

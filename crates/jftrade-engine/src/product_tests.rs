@@ -665,6 +665,8 @@ impl AlertSnapshotPort for FixtureAlertSnapshotPort {
 // Parity: go:452dea11:internal/app/apiserver/servercore/settings_security_test.go:37 TestDesktopCanEnablePasswordProtectedWebWithoutExposingPassword
 // Parity: go:452dea11:internal/app/apiserver/servercore/settings_security_test.go:86 TestWebAccessCannotBeEnabledWithoutPassword
 #[tokio::test]
+// Parity: go:452dea11:internal/api/settings/routes_test.go:376 TestCreateManagedAccountRejectsMissingAccountID
+// Parity: go:452dea11:internal/api/settings/routes_test.go:393 TestCreateManagedAccountDropsServerManagedFields
 async fn product_server_persists_ui_settings_and_reports_actual_port() {
     let directory = tempdir().expect("temporary directory");
     let settings_path = directory.path().join("settings.json");
@@ -1230,6 +1232,200 @@ async fn product_server_persists_ui_settings_and_reports_actual_port() {
     );
 }
 
+// Parity: go:452dea11:internal/api/settings/routes_market_data_test.go:63 TestBacktestMarketDataSettingsRoutesExposeCatalogAndRollbackPreparationFailure
+#[tokio::test]
+async fn backtest_provider_http_route_keeps_old_value_when_prepare_fails() {
+    let directory = tempdir().expect("temporary directory");
+    let settings_path = directory.path().join("settings.json");
+    std::fs::write(&settings_path, r#"{"backtestMarketDataProvider":"futu"}"#)
+        .expect("seed settings");
+    let state = Arc::new(BacktestMarketDataProviderState::new(
+        jftrade_settings::MarketDataProvider::Futu,
+    ));
+    state.set_prepare_failure(Some("akshare helper unavailable"));
+    let config =
+        ProductConfig::test_cutover("127.0.0.1:0".parse().expect("address"), &settings_path)
+            .expect("config")
+            .with_backtest_market_data_provider_state(Arc::clone(&state));
+    let handle = start_product(config).await.expect("start product");
+    let address = handle.startup_record().address;
+
+    let catalog = request_json(
+        address,
+        "GET",
+        "/api/v1/settings/backtest-market-data-provider",
+        None,
+    )
+    .await;
+    assert_eq!(catalog["data"]["activeProvider"], "futu");
+    assert_eq!(
+        catalog["data"]["availableProviders"][1]["selectionId"],
+        "yfinance"
+    );
+    assert_eq!(
+        catalog["data"]["availableProviders"][1]["capabilities"]["historicalCandles"],
+        true
+    );
+
+    let failed = request_json(
+        address,
+        "PUT",
+        "/api/v1/settings/backtest-market-data-provider",
+        Some(r#"{"activeProvider":"akshare"}"#),
+    )
+    .await;
+    assert_eq!(failed["ok"], false);
+    assert_eq!(
+        failed["error"]["code"],
+        "MARKET_DATA_PROVIDER_UPDATE_FAILED"
+    );
+    assert_eq!(state.get(), jftrade_settings::MarketDataProvider::Futu);
+
+    state.set_prepare_failure(None);
+    let switched = request_json(
+        address,
+        "PUT",
+        "/api/v1/settings/backtest-market-data-provider",
+        Some(r#"{"activeProvider":"yfinance"}"#),
+    )
+    .await;
+    assert_eq!(switched["ok"], true);
+    assert_eq!(switched["data"]["activeProvider"], "yfinance");
+    let reread = request_json(
+        address,
+        "GET",
+        "/api/v1/settings/backtest-market-data-provider",
+        None,
+    )
+    .await;
+    assert_eq!(reread["data"]["activeProvider"], "yfinance");
+    handle.shutdown().await.expect("shutdown product");
+}
+
+// Parity: go:452dea11:internal/api/settings/routes_market_data_test.go:18 TestMarketDataSettingsRoutesReadSaveAndApplyProvider
+#[tokio::test]
+async fn live_provider_http_route_applies_each_selection_once() {
+    let directory = tempdir().expect("temporary directory");
+    let settings_path = directory.path().join("settings.json");
+    std::fs::write(&settings_path, r#"{"activeMarketDataProvider":"yfinance"}"#)
+        .expect("seed settings");
+    let callback_count = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let callback_counter = Arc::clone(&callback_count);
+    let state = ActiveProviderState::new(Some(jftrade_settings::MarketDataProvider::Yfinance))
+        .with_activation(Arc::new(move |_next, _previous| {
+            callback_counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            Ok(())
+        }));
+    let config =
+        ProductConfig::test_cutover("127.0.0.1:0".parse().expect("address"), &settings_path)
+            .expect("config")
+            .with_active_provider_state(Arc::new(state));
+    let handle = start_product(config).await.expect("start product");
+    let address = handle.startup_record().address;
+    assert_eq!(
+        request_json(
+            address,
+            "GET",
+            "/api/v1/settings/market-data-provider",
+            None
+        )
+        .await["data"]["activeProvider"],
+        "yfinance"
+    );
+    for provider in ["futu", "yfinance"] {
+        let response = request_json(
+            address,
+            "PUT",
+            "/api/v1/settings/market-data-provider",
+            Some(&format!(r#"{{"activeProvider":"{provider}"}}"#)),
+        )
+        .await;
+        assert_eq!(response["ok"], true);
+        assert_eq!(response["data"]["activeProvider"], provider);
+    }
+    assert_eq!(callback_count.load(std::sync::atomic::Ordering::SeqCst), 2);
+    handle.shutdown().await.expect("shutdown product");
+}
+
+// Parity: go:452dea11:internal/api/settings/routes_market_data_test.go:128 TestMarketDataSettingsRoutesMapValidationPersistenceAndRuntimeErrors
+#[tokio::test]
+async fn live_provider_http_route_maps_validation_persistence_and_runtime_failures() {
+    let directory = tempdir().expect("temporary directory");
+    let settings_path = directory.path().join("settings.json");
+    std::fs::write(&settings_path, r#"{"activeMarketDataProvider":"yfinance"}"#)
+        .expect("seed settings");
+    let state = ActiveProviderState::new(Some(jftrade_settings::MarketDataProvider::Yfinance))
+        .with_activation(Arc::new(|provider, _previous| {
+            if provider == jftrade_settings::MarketDataProvider::Futu {
+                Err("provider unavailable".to_owned())
+            } else {
+                Ok(())
+            }
+        }));
+    let config =
+        ProductConfig::test_cutover("127.0.0.1:0".parse().expect("address"), &settings_path)
+            .expect("config")
+            .with_active_provider_state(Arc::new(state));
+    let handle = start_product(config).await.expect("start product");
+    let address = handle.startup_record().address;
+
+    let malformed = request_json(
+        address,
+        "PUT",
+        "/api/v1/settings/market-data-provider",
+        Some("{"),
+    )
+    .await;
+    assert_eq!(malformed["error"]["code"], "BAD_REQUEST");
+    let invalid = request_json(
+        address,
+        "PUT",
+        "/api/v1/settings/market-data-provider",
+        Some(r#"{"activeProvider":"other"}"#),
+    )
+    .await;
+    assert_eq!(invalid["error"]["code"], "MARKET_DATA_PROVIDER_INVALID");
+
+    let (runtime_status, runtime_failed) = request_json_with_status(
+        address,
+        "PUT",
+        "/api/v1/settings/market-data-provider",
+        Some(r#"{"activeProvider":"futu"}"#),
+        &[],
+    )
+    .await;
+    assert_eq!(
+        runtime_failed["error"]["code"],
+        "MARKET_DATA_PROVIDER_UPDATE_FAILED"
+    );
+    assert_eq!(runtime_status, 409);
+    let after_runtime_failure = request_json(
+        address,
+        "GET",
+        "/api/v1/settings/market-data-provider",
+        None,
+    )
+    .await;
+    assert_eq!(after_runtime_failure["data"]["activeProvider"], "yfinance");
+
+    let backup = directory.path().join("settings.backup.json");
+    std::fs::rename(&settings_path, &backup).expect("move settings aside");
+    std::fs::create_dir(&settings_path).expect("block settings path");
+    let (persistence_status, persistence_failed) = request_json_with_status(
+        address,
+        "PUT",
+        "/api/v1/settings/market-data-provider",
+        Some(r#"{"activeProvider":"futu"}"#),
+        &[],
+    )
+    .await;
+    assert_eq!(persistence_failed["error"]["code"], "SETTINGS_SAVE_FAILED");
+    assert_eq!(persistence_status, 500);
+    std::fs::remove_dir(&settings_path).expect("remove blocked settings path");
+    std::fs::rename(&backup, &settings_path).expect("restore settings");
+    handle.shutdown().await.expect("shutdown product");
+}
+
 // Parity: go:452dea11:internal/api/settings/routes_failure_boundaries_test.go:20 TestSettingWriteRoutesRejectMalformedJSON
 // Every settings write leaf answers 400 BAD_REQUEST for a truncated JSON body
 // instead of persisting a partial value or surfacing a 500 save failure.
@@ -1321,6 +1517,7 @@ async fn managed_account_write_routes_map_missing_records_to_not_found() {
 
 // Parity: go:452dea11:internal/app/apiserver/servercore/data_management_test.go:191 TestTranslateDataManagementErrors
 #[tokio::test]
+// Parity: go:452dea11:internal/app/apiserver/servercore/data_management_test.go:124 TestDataManagementAdaptersRejectBusyRuntimeAndMapStalePreview
 async fn cleanup_preview_route_returns_candidates_and_rejects_bad_payloads() {
     let directory = tempdir().expect("temporary directory");
     let settings_path = directory.path().join("settings.json");
@@ -1815,6 +2012,7 @@ async fn calendar_unknown_market_control_requests_keep_the_go_noop_wire() {
 }
 
 #[tokio::test]
+// Parity: go:452dea11:internal/api/watchlist/routes_business_test.go:126 TestWatchlistRoutesMapValidationNotFoundAndProtectedConflicts
 async fn watchlist_memberships_route_matches_go_fixture_in_cutover_only() {
     let fixture: Value = serde_json::from_str(include_str!(
         "../../../tests/fixtures/compatibility/api-transport/watchlist-memberships.json"
@@ -2486,6 +2684,18 @@ async fn request_json_with_status(
     body: Option<&str>,
     headers: &[(&str, &str)],
 ) -> (u16, Value) {
+    let (status, _headers, body) =
+        request_json_with_status_and_headers(address, method, path, body, headers).await;
+    (status, body)
+}
+
+async fn request_json_with_status_and_headers(
+    address: SocketAddr,
+    method: &str,
+    path: &str,
+    body: Option<&str>,
+    headers: &[(&str, &str)],
+) -> (u16, std::collections::BTreeMap<String, String>, Value) {
     let body = body.unwrap_or_default();
     let mut stream = TcpStream::connect(address)
         .await
@@ -2508,14 +2718,24 @@ async fn request_json_with_status(
         .await
         .expect("read response");
     let response = String::from_utf8(response).expect("UTF-8 response");
-    let (headers, body) = response.split_once("\r\n\r\n").expect("HTTP body");
-    let status = headers
+    let (header_text, body) = response.split_once("\r\n\r\n").expect("HTTP body");
+    let status = header_text
         .lines()
         .next()
         .and_then(|line| line.split_whitespace().nth(1))
         .and_then(|value| value.parse().ok())
         .expect("HTTP status");
-    (status, serde_json::from_str(body).expect("JSON response"))
+    let response_headers = header_text
+        .lines()
+        .skip(1)
+        .filter_map(|line| line.split_once(':'))
+        .map(|(name, value)| (name.trim().to_ascii_lowercase(), value.trim().to_owned()))
+        .collect();
+    (
+        status,
+        response_headers,
+        serde_json::from_str(body).expect("JSON response"),
+    )
 }
 
 async fn request_json_with_headers(

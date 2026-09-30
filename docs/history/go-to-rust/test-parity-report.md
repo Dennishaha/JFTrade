@@ -6,9 +6,9 @@
 
 - **Go 分支（`go:452dea11`）测试总数**：4451
 - **Go 高风险测试用例数**（涉及分页、缓存、时区、对账、断连重连等）：952
-- **Rust 当前测试总数**：3382
-- **总体测试数量比（非覆盖率）**：76.0%
-- **Rust 基线（`4d30d145`）**：当前工作树
+- **Rust 当前测试总数**：3408
+- **总体测试数量比（非覆盖率）**：76.6%
+- **Rust 基线（`2f5de417`）**：当前工作树
 
 - **同名 Go 测试组**：32（映射必须使用文件路径与行号，不能仅按测试名）
 ## 2. 分领域对齐矩阵
@@ -16,15 +16,15 @@
 | 业务领域 | Go 测试数 | Go 高风险数 | Rust 测试数 | 测试数量比（非覆盖率） |
 | :--- | :--- | :--- | :--- | :--- |
 | Futu / OpenD Protocol & Integration | 524 | 152 | 568 | 108.4% |
-| MarketData / Quotes & Providers | 256 | 74 | 380 | 148.4% |
-| Trading & Broker Execution | 138 | 36 | 468 | 339.1% |
-| Strategy & Pine Runtime | 538 | 82 | 269 | 50.0% |
+| MarketData / Quotes & Providers | 256 | 74 | 381 | 148.8% |
+| Trading & Broker Execution | 138 | 36 | 474 | 343.5% |
+| Strategy & Pine Runtime | 538 | 82 | 274 | 50.9% |
 | Backtest & Exchange Calendar | 376 | 101 | 252 | 67.0% |
-| Assistant & Workflow ADK | 810 | 213 | 449 | 55.4% |
+| Assistant & Workflow ADK | 810 | 213 | 451 | 55.7% |
 | Storage & SQLite Persistence | 228 | 39 | 212 | 93.0% |
 | Settings & Watchlist | 63 | 18 | 104 | 165.1% |
-| API Server & Transport Wire | 951 | 163 | 97 | 10.2% |
-| Other / Tooling / Core | 567 | 74 | 583 | 102.8% |
+| API Server & Transport Wire | 951 | 163 | 103 | 10.8% |
+| Other / Tooling / Core | 567 | 74 | 589 | 103.9% |
 
 > 注意：测试数量比只表示数量关系，不证明行为等价；行为证据以逐项清单中的 `evidence_type` 为准。
 

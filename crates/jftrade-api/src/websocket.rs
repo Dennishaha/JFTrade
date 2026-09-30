@@ -644,6 +644,33 @@ mod tests {
         assert!(metrics.snapshot().active_instruments.is_empty());
     }
 
+    // Parity: go:452dea11:internal/live/client_test.go:47 TestClientRegistryTracksActiveInstruments
+    #[test]
+    fn client_registry_tracks_active_instruments_go_contract() {
+        let metrics = Arc::new(LiveConnectionMetrics::new(2));
+        let first = metrics.try_acquire().expect("first connection");
+        let second = metrics.try_acquire().expect("second connection");
+        first.set_active_instruments(&[
+            " us.aapl ".to_owned(),
+            "HK.00700".to_owned(),
+            "US.AAPL".to_owned(),
+        ]);
+        second.set_active_instruments(&[" cn.600000 ".to_owned(), "us.aapl".to_owned()]);
+        assert_eq!(
+            metrics.snapshot().active_instruments,
+            ["CN.600000", "HK.00700", "US.AAPL"]
+        );
+        first.set_active_instruments(&["US.MSFT".to_owned()]);
+        assert_eq!(
+            metrics.snapshot().active_instruments,
+            ["CN.600000", "US.AAPL", "US.MSFT"]
+        );
+        drop(second);
+        assert_eq!(metrics.snapshot().active_instruments, ["US.MSFT"]);
+        drop(first);
+        assert!(metrics.snapshot().active_instruments.is_empty());
+    }
+
     #[test]
     fn live_hub_lifecycle_transitions_match_server_exposure_and_shutdown() {
         let hub = LiveHub::new(8);

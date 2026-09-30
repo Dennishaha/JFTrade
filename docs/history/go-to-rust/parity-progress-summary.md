@@ -1,18 +1,79 @@
 # Go → Rust 对齐成果摘要
 
-更新时间：2026-09-28。本文是迁移期工作摘要，不替代架构事实、门禁结果或发布资格。
+## 最新状态：2026-09-30 provider 写路由错误矩阵批次
+
+- 冻结 Go `internal/api/settings/routes_market_data_test.go:128:TestMarketDataSettingsRoutesMapValidationPersistenceAndRuntimeErrors` 已由真实 Product HTTP 测试 `live_provider_http_route_maps_validation_persistence_and_runtime_failures` 覆盖四类行为：malformed JSON→400 `BAD_REQUEST`、非法 provider→400 `MARKET_DATA_PROVIDER_INVALID`、runtime activation failure→409 `MARKET_DATA_PROVIDER_UPDATE_FAILED` 且旧值保持、settings persistence failure→500 `SETTINGS_SAVE_FAILED`。
+- 定向 nextest **1/1 passed**；receipt `verification-receipts/api-marketdata-provider-errors-reviewed-2026-09-30.json`，文件 SHA-256：`b5cfb9b3a9b816624477a39a9913528b2801a26c31b1df60eaa4276f67cd2c53`。
+- mapping 从 partial 升为 reviewed `function_exact`；partial **2312→2311**，function_exact **1504→1505**。本轮以真实错误行为、reviewed assertion 与 strict gap 下降收口，不以测试数量或 receipt 数量作为完成率。
+
+
+## 最新状态：2026-09-30 Web 密码保护 API 行为批次
+
+- 冻结 Go `internal/app/apiserver/webaccess/security_integration_test.go:175:TestWebPasswordIsRequiredForProtectedAPI` 已由真实 Product HTTP 测试 `protected_system_status_requires_web_password_over_product_http` 覆盖：启用 Web 密码保护后，无 session 访问 `/api/v1/system/status` 返回 `401`，错误码为 `WEB_AUTH_REQUIRED`。
+- 定向 nextest **1/1 passed**；receipt `verification-receipts/api-web-auth-required-product-http-reviewed-2026-09-30.json`，文件 SHA-256：`26640e64417f4739d20bb1d629adbb242bc60d4ffa8743f05f398ba3676d69ce`。
+- mapping 从 partial 升为 reviewed `function_exact`；partial **2313→2312**，function_exact **1503→1504**。本轮以真实行为测试、reviewed assertion 与 strict gap 下降收口，不以测试数量或 receipt 数量作为完成率。
+
+
+## 最新状态：2026-09-30 live provider HTTP callback 批次
+
+- 冻结 Go `internal/api/settings/routes_market_data_test.go:18:TestMarketDataSettingsRoutesReadSaveAndApplyProvider` 已由真实 Product HTTP GET/PUT fixture 覆盖：seed `yfinance`，切换 `futu` 与 `yfinance` 均返回规范化 `activeProvider`，注入 `ActiveProviderState` 的 activation callback 对两次实际 selection 恰好调用两次。
+- 定向 nextest **1/1 passed**；receipt `verification-receipts/api-live-provider-http-reviewed-2026-09-30.json`，文件 SHA-256：`052d983ca4fc111bb019ea843dd3f3644eb84c9dc8aa5ffac63a9f94ce9bd004`。
+- mapping 从 partial 升为 reviewed `function_exact`；partial **2314→2313**，function_exact **1502→1503**。本轮以真实行为测试、reviewed assertion 与 strict gap 下降作为收口条件，不以测试数量或 receipt 数量作为完成率。
+
+
+## 最新状态：2026-09-30 backtest provider HTTP route 批次
+
+- 冻结 Go `internal/api/settings/routes_market_data_test.go:63` 已由真实 Product HTTP fixture 覆盖：provider catalog 与 yfinance capabilities、prepare failure 的 409 `MARKET_DATA_PROVIDER_UPDATE_FAILED` envelope、旧值保持、成功切换及 GET 回读。
+- 为测试组合增加可控 prepare failure seam；生产默认行为不变。定向 nextest **1/1 passed**，receipt `verification-receipts/api-backtest-provider-http-reviewed-2026-09-30.json`，文件 SHA-256：`bfa7c9803beaa15ab798a1ea7a0dd3f5f14766b6bd44e9997590b0817fbd9fbc`。
+- mapping 从 partial 升 reviewed `function_exact`；partial **2315→2314**，function_exact **1501→1502**。不以测试数量或 receipt 数量作为完成率。
+
+## 历史批次记录（以下阶段数值不代表最新状态）
+
+## 最新状态：2026-09-30 current-KL 缺失 S2C 行为批次
+
+- 冻结 Go `pkg/futu/opend/market_read_boundaries_test.go:212` 的断言已逐项核对。已有独立 Rust framed-socket reader 测试直接发送 `GET_KL`，模拟 `retType=0` 且缺失 S2C，断言成功空 klines、空 name 和正确协议号；它与另一条纯 decoder Go 测试使用不同 Rust owner，不再合并计数。
+- mapping 从 partial 升为 reviewed `function_exact`；partial **2316→2315**，function_exact **1500→1501**。这是行为缺口下降，不以测试数量或 receipt 数量作为完成率。
+- 定向 nextest **1/1 passed**；receipt `verification-receipts/futu-current-kl-empty-s2c-reviewed-2026-09-30.json`，文件 SHA-256：`eb09e7f11ce37faa435c2f6072739f742e49cb024efcdf1bbe0f9e35b52badbf`。
+
+## 历史批次记录（以下阶段数值不代表最新状态）
+
+## 最新状态：2026-09-30 HTTPS 代理登录行为批次
+
+- 冻结 Go `security_integration_test.go:210` 已复核。新增真实 Product HTTP + `ProductionAuthSessionManager` 回归，使用临时 settings/session 文件；断言 loopback + `X-Forwarded-Proto=https` 登录为 200，cookie 带 Secure/HttpOnly/SameSite=Strict、session 有效、响应 no-store。无转发头的对照请求不带 Secure。新增行为首次即绿，没有生产修复；编译阶段错误不作为功能红测。
+- 该条从 legacy partial 升为 reviewed function_exact。实际映射：function_exact **1499→1500**、partial **2317→2316**、boundary 635；均不是完成率。strict evidence gap **0→0**，不将本批计为 strict gap 净下降；实际减少的是一条 HTTP 行为缺口。
+- strict audit 通过；旧 function_exact anchor 缺口和 assertionless 引用复核均为 **0**。anchor reconcile：1899 unique / 1852 recorded / 0 unrecorded / 0 stale / 47 unknown Go line。2 条无可解析 Rust 测试的 acknowledged partial 仍保留。
+- 定向 nextest 实际通过；receipt：`verification-receipts/api-webaccess-secure-cookie-reviewed-2026-09-30.json`，文件 SHA-256：`4c614ca808796890f14ef8e95b941b44c630dcf03733c8947769852279de644a`。映射中的 argv、toolchain、commit、timestamp 和 digest 取自该 receipt。
+- 本轮全量门禁实际失败：`check:rust` 在 target-health（至少 50000 rcgu.o）停止；`check:quick` 在既有 zero-go provenance 规则停止。未清理 target、删除 provenance 或放宽门禁；这两项不记为通过。全局目标尚未完成。
+
+## 历史批次记录（以下阶段数值不代表最新状态）
+
+本轮模块批量复核：Futu 234 条 legacy exact 绑定 265/265 passed；Assistant/Workflow 164 条绑定 186/186 passed；均写入 reviewed assertion 与同批 receipt，高 fan-out reuse 仍保持未审。strict gap 实际 **1966→1498→1170**，当前仍未通过。
+
+Futu/OpenD 追加批次：watchlist 7/7、trade-account/helper 8/8、subscription/session 10/10 nextest 均通过；26 条已有 exact 写入 reviewed assertion 与 receipt。strict gap 实际 **1998→1982→1966**，高 fan-out reuse 仍保持未审，strict 仍失败。
+
+更新时间：2026-09-29 13:40 UTC。本文是迁移期工作摘要，不替代架构事实、门禁结果或发布资格。
 
 ## 当前基线
 
 | 项目 | 数值 | 解释 |
 | --- | ---: | --- |
 | Go 测试候选 | 4451 | 冻结基线 `go:452dea11` |
-| Rust 测试 | 3382 | 数量不代表行为等价 |
-| `function_exact` | 1500 | 有真实且唯一的 Rust 测试证据 |
-| `partial` | 2317 | 只覆盖部分断言，不能视为完成 |
-| `boundary` | 634 | 当前架构边界或没有同形对象 |
+| Rust 测试 | 3404 | 数量不代表行为等价 |
+| `function_exact` | 1501 | reviewed assertion、anchor、reuse 与 receipt 审计通过；不能代替全量门禁 |
+| `partial` | 2315 | 只覆盖部分断言，不能视为完成 |
+| `boundary` | 635 | 当前架构边界或没有同形对象 |
 | 重复映射 | 0 | 审计脚本结果 |
-| Parity 锚点 | 1793 / 1747 / 0 / 0 / 46 | unique / recorded / unrecorded / stale / unknown |
+| Parity 锚点 | 1899 / 1852 / 0 / 0 / 47 | unique / recorded / unrecorded / stale / unknown |
+
+本轮追加批次（2026-09-29）：API legacy partial/boundary provenance 批量升为 reviewed，8 个共享 relation 完成引用审查；broker/market-rule 12 个 nextest 通过；Futu watchlist 7 个 nextest 通过并收口 6 条 exact。strict gap 实际 **2041→2036→2010→1998**；仍未通过 strict，未把数量或 receipt 当完成率。
+
+本轮严格证据批次：Pine client validation 从 partial 升为 reviewed `function_exact`，并修正 non-finite candle 的 owner 复用；API runtime/market snapshot/WebSocket 与 desktop readiness 8 条 exact 绑定 7 个真实 nextest（7/7 passed），另有 Pine indicator 2 条 exact 绑定 2/2 passed。共享 owner reuse 关系按引用逐项复核。strict gap 实际 **2052→2047→2046→2041**；当前 strict 仍失败，未把测试总数、receipt 数量或 verification passed 当作完成率。
+
+本轮 API Server / Transport Wire 尾项复核：`TestRecorderBoundsErrorsSlowRequestsAndOpenDHealth` 对应 `jftrade-api` observability owner 真实 nextest 通过（与 WebSocket owner 一并运行 2/2）；该条补齐 reviewed assertion 与完整 receipt `sha256:9fa21653293b25a5387a6e258ea46c4d0a7fda346e4e40f018408ad33b8ae02a`。strict gap **2565→2563**，仅按行为测试、reviewed assertion 与有效 receipt 计入；全局严格审计仍未通过。
+
+同轮 API runtime 批量收口 3 条已有 exact：环境路径覆盖、相对 settings 路径派生、strategy preview symbol/session warmup。4 个 Rust owner nextest **4/4 passed**，统一 receipt `sha256:48d34e9714e6c67134a3a60cd34c18276898c03791c202e5e4a156ddd37d4b07`；三条 mapping 的 assertion/reuse/receipt 证据完成 reviewed，strict gap **2563→2557**。没有把测试总数或 receipt 数量当作完成率。
+
+API frontend asset 批次新增真实 `/`、`/assets/app.js`、`/missing.json` wire 断言，并为两条 Go frontend 映射建立独立 Rust provenance owner；3/3 nextest 通过。该批是 partial→exact 的行为覆盖增加，严格缺口净值保持不变，未将其冒充 strict 收口。随后为 `TestClientRegistryTracksActiveInstruments` 增加独立 owner，联合 API tail 复跑 4/4 通过并绑定同一工作树 receipt `sha256:8c885bf0c5b09e5243b1ef111134b9805bf761ded361160755046f4bb1417eb2`；strict gap **2557→2554**。
 
 ## 已完成的工作
 
@@ -22,7 +83,23 @@
 - `internal/marketdata` partial 第 1–30 条已逐项读取 Go 断言并核对 Rust 证据；30/30 保持 `partial`，精准 Rust 证据 38/38 通过，没有新增生产修复。
 - `internal/marketdata` partial 第 31–60 条已逐项读取 Go 断言并核对 Rust 证据；30/30 保持 `partial`/`boundary`，并新增一个先红后修的 resolver 回归测试，锁定 provider full-window 后再应用公开 limit。
 - `internal/marketdata` façade 剩余 34 条已逐项读取 Go 断言并核对 Rust owner；34/34 保持 `partial`，本批受影响 crate nextest 1993/1993 通过。helper provider 的 `snapshot-poll-delayed`/`snapshot-poll-fallback` 状态已由生产 owner 回归测试锁定。
+
+## 2026-09-28 P1：Futu session/market-rules strict evidence
+
+复核并收口 5 条已有 `function_exact` 的 P1 映射：关闭缓存 OpenD client 后的会话重建、保证金比率 TTL 缓存、撤单 `Trd_ModifyOrder` 协议、市场规则主/备来源失败矩阵，以及闭市 US previous-close 投影。Go 断言逐项对照 Rust owner，补齐 session coordinator 的 `// Parity:` 锚点；没有发现需要先红后修的真实功能差异。
+
+定向 nextest 实际 **10/10 passed**（`jftrade-integration-futu` 7、`jftrade-engine` 3；live OpenD 1 ignored），receipt：`sha256:b290cd212da3374c17198d541103085cf5a0b71fedc8f0d1271732534f097167`（`verification-receipts/p1-futu-session-market-rules-2026-09-28T071432Z.json`）。五条 mapping 已写入 reviewed assertion、verification receipt、空 blocker 与共享测试复用审查；strict gap 按实际审计由 3561 降至 **3546**，全局严格审计仍未通过。
 - `subscriptions_test.go` 4 条与 `quote_availability_test.go` 2 条已逐项读取 Go 断言并核对 Rust owner；6/6 保持 `partial`，新增 authoritative quote 缺失字段与 legacy zero projection 回归测试，精准 nextest 11/11 通过。Rust 没有 LiveTickJSON/LatestTicksJSON 与 Go `SnapshotJSON` 同形 helper，因此未升级为 `function_exact`。
+
+## 2026-09-28 Trading/Broker cancel rejection P1
+
+`internal/trading/broker_conformance_test.go:58:TestFakeBrokerConformanceCancelAcceptedAndCancelRejected` 已完成真实行为对齐：先红复现明确券商拒单被写成 `UNKNOWN`，修复后保留 `CANCEL_SUBMITTED`（对应 Go `CANCEL_REQUESTED`），写入 `lastErrorSource=broker.cancel` 并追加 `BROKER_CANCEL_REJECTED`。连接丢失仍保持 UNKNOWN fail-closed。组合回归（受理收敛、终态/未识别拒绝、券商明确拒单）定向 nextest 3/3 通过；红/绿 receipt 分别为 `p1-broker-cancel-rejection-red-2026-09-28T184300Z.json` 与 `p1-broker-cancel-rejection-2026-09-28T184500Z.json`。映射已升级为 `function_exact`。
+
+本轮 parity 审计（2026-09-29 targeted cancel alias 后）：Go 4451、Rust 3394、`function_exact=1506`、`partial=2311`、`boundary=634`、`missing=0`；anchor reconcile 为 1805 unique、1758 recorded、0 unrecorded、0 stale、47 unknown。`audit_test_parity.py --write-report` 与 anchor reconcile 通过；`audit_test_parity.py --strict` 仍真实失败，当前 3550 个历史 evidence/receipt gaps，未宣称全局完成。
+
+## 2026-09-28 Strategy/Pine manager close drain P1
+
+`internal/strategy/pineruntime/runtime_failure_contracts_test.go:171:TestManagerCloseDrainsActiveLiveSession` 新增 engine 级回归 `manager_shutdown_closes_active_pine_sessions_once`。真实运行时启动并打开 Pine session 后执行 manager shutdown，断言 cancel/join 完成、恰好一次 close、session identity 保持且 revision 连续；先红阶段发现测试 fixture 提前释放 store 导致任务无法取得 weak store，保留 store owner 后定向 nextest 2/2 通过。receipt `sha256:7fd9c2be86d54c740663edd6da3de92f391c27925949a5774809020f7ad558f0`，映射升级为 `function_exact`；严格全局审计仍未通过。
 - `lifecycle_boundaries_test.go` 余量 7 条已逐项读取 Go 断言并核对 Rust owner；7/7 保持 `partial`，精准 nextest 16/16 通过，没有新增生产修复。Cache、subscription、service、collector 与 resolver 的聚合 fixture 差异继续按 owner/架构边界记录。
 - Assistant chat stream helper/recovery 与断线重连 5 条已逐项读取 Go 断言并核对 Rust/SSE owner；5/5 保持 `boundary`/`partial`，精准 nextest 5/5 与 SSE/重连证据 4/4 通过。内存 hub clone、toolGroup、失败 writer 单写次数等旧 owner 行为按边界保留。
 - `internal/api/backtest/routes_progress_test.go:71` 已逐项读取 Go 断言并核对 Rust sync owner；保持 `partial`，精准 nextest 2/2 通过。Rust 已覆盖持久化 task 读回与 cancel 成功/缺失语义，HTTP progress 双态仍缺同形冻结路由语料。
@@ -225,6 +302,9 @@
 - 当前批次：P1 高风险 30 条逐项复核。Futu mixed realtime/delayed fallback 先红后修：`SharedTradeReadRuntime` 现在保留成功 realtime 结果，并在 fallback-only 且无可用结果时上抛原始 StockScreen 错误；专测 `trade_runtime_security_snapshots_preserves_realtime_when_delayed_fallback_fails` 通过，映射升级为 `function_exact`。Pine 先红后修补 `min`/`max`/`int` 内建，新增纯 request.security 与动态 for 步长回归；可选成员链和 Go sentinel/helper 继续保持 partial。运行时资源环境覆盖补入 Rust owner 证据；行情 payload、登录期间设置变化、ADK workflow/provider probe、旧 Wails/缓存/单飞 helper 逐条维持 partial 或边界，未把聚合证据升为 exact。
 - 本批验证：Futu 专测、Pine 专测均通过；engine crate 全量 nextest 首次在既有 `adk_session_detail_omits_resolved_approval_groups` 并行运行时失败，随后单测重跑通过。mapping audit 已通过：Go 4451、Rust 3348，`function_exact` 1481，0 duplicate exact、0 nonexistent crate；anchor reconcile 1770/1724/0/0/46，无 stale 或 unrecorded。下一批继续 P1 高风险未验证项，优先 auth generation fence、provider timeout、workflow wait 与 market query payload 的可补 Rust owner。
 - 当前批次：P1 高风险剩余 15 条旧 owner/边界项逐条复核。sidecar cache tree helper、Wails async startup cancellation、Go nil callback/context、PineTS object/collection recovery、indicator DSL alias 与内存 order cache 均确认没有 Rust 同形 owner，维持 partial/boundary；marketdata-helper 22/22、desktop 30/30、engine 75/75、strategy 108/108、架构检查全部通过。下一片继续 API transport、Assistant workflow/provider、Trading/Broker 与 MarketData/Quote 中仍有真实 owner 缺口的项目。
+
+- 2026-09-28 Strategy/Pine cancel-all behavior evidence：新增两笔活动订单的部分失败回归，逐笔尝试撤单，成功/失败审计与聚合错误均已验证，失败订单仍保留 execution ledger tracking；定向 nextest 2/2 passed，receipt `sha256:b0b2788e6b2fb67563b2da0e1a864b5b691c8d67d22707b40bf7150842508512`。映射仍保持 `partial`，成功状态写入由 execution store owner 管理，strict 全局审计仍未通过。
+- 2026-09-28 Assistant workflow CRUD behavior evidence：workflow tags trim/drop-empty/dedupe/sort、列表 limit=200→100、trigger logs 默认 limit=20、手动 trigger 空字段回退与 secretHash 脱敏先红后修完成；engine nextest 3/3 passed，receipt `sha256:98e9c06f94e261d4b0c53c0a7141ab81d861de627f5435ea45c07550092bee09`。映射仍保持 `partial`，删除后的完整 wire 状态与更多手动触发分支仍待补齐，strict 全局审计仍未通过。
 - 当前批次：P1 策略生命周期与 Pine/Backtest 输入约束共 33 条映射逐项复核。Backtest 先红后修收紧无市场前缀且含空白 symbol 的默认回退；Pine 新增未知下单命名参数与 request.security `ta.sum`/advanced TA 拒绝回归。strategy runtime activity/reconcile、cancel/market-day、broker selection、shutdown/lease rollback、Pine process/session owners 均完成命令与证据复核；Go HTTP envelope、私有 helper、nil receiver、旧注入 seam 与跨 owner 聚合继续保持 partial/boundary。下一片继续 P1 API transport、Assistant workflow/provider、Trading/Broker 与 MarketData/Quote 的真实 owner 缺口。
 - 当前批次：P1 API/Assistant/Trading/MarketData 与 Strategy 高风险未对齐共 31 条映射逐项复核。Assistant chat replay、provider validation、HTTP binding、SSE envelope、explicit broker/system validation、execution read、candle page/session、portfolio/workflow/approval、broker fallback/reconnect、strategy cancel/market-day/lease 均绑定现有 Rust owner，继续保持 `[~]` partial；未把聚合测试或路由形状提升为 exact。`executionCommandError` 是本批真实行为差异：先红后修补 `map_trade_error`，新增账户缺失、未连接、命令失败、超时、限流和市场不支持回归，并更新 cancel failure 为 `BROKER_NOT_CONNECTED`。下一片继续 P1 Assistant provider test wire、API SSE/WS 写失败与去重、Trading partial-fill 投影、MarketData subscription lease，以及 Storage/SQLite 与 Settings/Watchlist 的真实 owner 缺口。
 - 当前批次：P1 Provider/Workflow、Futu/OpenD 生命周期与策略交易日边界共 31 条逐项复核；Futu 542/542、engine 1958/1958 通过。美股扩展时段 20:00 carry/DST 先红后修并升级一条 function_exact；Provider timeout、workflow wait/interactive、旧 helper、断连缓存刷新、Futu push/session registry 与严格 OpenD 字段检查仍保持 partial/边界，未用聚合测试冒充 exact。下一片继续 P1 Assistant/API transport 真实缺口，再回补 Trading/Broker、MarketData/Quote、Storage/SQLite、Settings/Watchlist 与剩余 Futu/OpenD。
@@ -305,3 +385,495 @@
 - 2026-09-28 Futu mixed-boundaries strict evidence：复核 tick conversion fallback、desired subscription ref normalization、multi-viewer stale order-book release、HK-only high-dividend state 与 quote-right entitlement cache refresh 五条 P1 exact；integration-futu nextest 5/5 通过（live OpenD suite ignored），receipt `sha256:77b7aeff1ac829b88bffc92e012affa9c99f2f1b01599c1d957e5d7a1cac473f`。mapping assertionCoverage/reuse/verification 已同步；strict gap 降至 3622，整体严格审计仍未通过。
 - 2026-09-28 API market-runtime strict evidence：复核 tick candle fresh-cache、cache-miss provider ingest、ticker-error retained fallback、industry forwarding provider kinds 与 strategy order-cancel dispatch 五条 P1 exact；engine nextest 实际 7/7 通过（strategy owner 同名测试覆盖 lib 与两个 bounded integration binaries），receipt `sha256:ea1a72725d8f5cd97f2e15017b44283975b76e1aef4d2af17bab7a72ef24009b`。mapping assertionCoverage/reuse/verification 已同步；strict gap 降至 3612，整体严格审计仍未通过。
 - 2026-09-28 Futu research/boundary strict evidence：复核 K-line session/price helpers、research catalog local pagination、economic calendar pagination/envelope、disconnected market reads 与 snapshot-fallback wire coercions 五条 P1 exact；integration-futu nextest 实际 9/9 通过（live OpenD suite ignored），receipt `sha256:b32a88c5f551e7f3b00501146b2f5b3e32ec0a931078327803c0bcd36c2d493c`。mapping assertionCoverage/reuse/verification 已同步；strict gap 降至 3602，整体严格审计仍未通过。
+- 2026-09-28 Query/candle/depth strict evidence：复核 `TestTickCandlesVolumeWindowAndLimit`、`TestNormalizeCoreCandleQueryAcceptsSessionParameterShapes`、`TestNormalizeCandleOptionsAcceptsSessionsAndAdjustments`、`TestMarketDepthEmptyOrderBook` 与 `TestParseSessionScope` 五条 P1 exact。Go 断言逐项对照 Rust owner；candle options 两个 Rust owner 补齐 Go 行 8 anchor，未把相邻行 9 误记为来源。integration-futu/engine/marketdata nextest 实际 5/5 通过（live OpenD suite ignored），receipt `sha256:69bae53794658676a710eeda191d4e68b5e70c7f243ee3483c441f7919d75b40`。mapping assertionCoverage、anchor、verification 已同步；strict gap 降至 3581，整体严格审计仍未通过。
+- 2026-09-28 Provider facade/search strict evidence：复核 Futu search 前置拒绝、industry 默认 kind、news nullable/asOf 投影、company financials 转发与 provider 默认市场五条 P1 exact。Go/Rust 断言逐项核对；engine/calendar 定向 nextest 5/5 通过，receipt `sha256:143648491d86b0a5b7e9495ef6dd97bffc10d6797e5bd08e24396b332a94c20e`。随后 `pnpm run check:quick` EXIT=0，2017/2017 Rust tests passed；mapping reviewed assertion 与 verification 已同步，全局 strict gap 降至 3571，严格审计仍未通过。
+- 2026-09-28 Futu funds/K-line/snapshot boundary strict evidence：五条 P1 exact 完成 Go/Rust 逐项复核，拆分覆盖 11 个 Rust owner；integration-futu/engine nextest 11/11 通过（live OpenD ignored），receipt `sha256:9304c9ef4cd2b9a4d36385012db4902c61c41bad326f7472345fdcafc0a3bbf7`。mapping reviewed assertion 与 verification 已同步；strict 审计待重跑确认，整体仍未通过。
+- 2026-09-28 Assistant workflow CRUD follow-up：对 `TestWorkflowResourceCrudPaginationAndLogs` 继续先红后修，补齐 workflow 更新字段归一、列表 status/offset、trigger log 的 workflow/trigger/status 过滤、删除响应 `DISABLED`/`deletedAt`、重复删除与删除后单条读取失败，以及 schedule/market-threshold 非法配置 400 分支。定向 engine nextest 3/3 通过，receipt `sha256:1a5f94840bd784348b30d979083cac9e64b2bee2be0a9bdb7b7bef961d1cb4df`；随后 `pnpm run check:quick` 与 `pnpm run check:rust` 均通过（workspace nextest 3514/3514，2 skipped；7 类 compatibility replay 全通过）。映射仍为 `partial`，workflow webhook/manual 运行错误矩阵与更多完整 wire 字段继续保留差异；当前 strict audit 仍失败，3546 个历史 evidence/receipt gaps 未宣称通过。
+- 2026-09-28 Strategy/Pine subscription warmup rollback evidence：新增 `failed_pine_warmup_releases_only_its_own_subscription_once`，以共享 KLINE consumer 验证 Pine 预热失败后只释放运行时自身租约，重复 release 不会误删另一 owner；engine nextest 4/4 passed，receipt `sha256:49469ad896186b5f59c614381ff653c63720c7df59c98fd01cfb557c937b01e9`。`TestSubscriptionLeaseAndWarmupFailuresRollBackRuntime` 仍保持 `partial`，租约获取失败时不创建运行时的失败 seam 尚未迁移。
+- 2026-09-28 Strategy/Pine subscription normalization correction：`strategy_kline_subscription_refs_normalize_valid_targets_and_skip_malformed` 先红复现 `market=\".\"` 畸形目标未被跳过，修复 mutation owner 后锁定唯一 `KLINE:US:AAPL:15m` 引用；engine nextest 1/1 passed，receipt `sha256:38704e6be9b4cbe98401245af9407ae949eafb5e2a2df0eced6ebdbda5f2b654`。对应 Go 条目升级为 `function_exact`。
+- 2026-09-28 Strategy/Pine manager close 聚合错误：`TestManagerCloseAggregatesNamedSessionErrorsOnce` 对应 `manager_shutdown_aggregates_named_session_close_errors_once`，真实 engine manager 以两个活跃 Pine session 验证 12 个并发 shutdown caller 收到相同的 `instance + market.symbol + pine session close` 聚合错误，并断言每个 session 只发送一次 close；旧 `shutdown()` 保持 bool 兼容，production port 透传聚合错误。定向 engine nextest 4/4 passed，receipt `sha256:e319b1dd01b56b3ae8bb821aa23bd831c2eb4ca5216765035961fd92f0bdd185`。该条由 partial 升为 function_exact；启动竞态聚合的相邻 Go 测试仍保留 partial，严格全局审计仍未通过。
+- 2026-09-28 Strategy/Pine targeted cancel P1：`TestLiveCancelOnlyRemovesSuccessfullyCancelledTrackedOrders` 对应 `targeted_cancel_only_mutates_owned_active_orders_and_removes_successful_tracking`。新增 execution store 真实 owner 回归，覆盖成功撤单移除 active tracking、gateway 失败保留 tracking、foreign/untracked 不触达 gateway 三条行为断言；先前 partial 升为 `function_exact`。定向 engine nextest 3/3 passed，receipt `sha256:3423dac32787c4000997a77e747bdf13c64a024334cf4c27e9e341eb47d25fa3`；全局 strict audit 仍未通过。
+- 2026-09-28 Strategy/Pine cancel-all success P1：`TestLiveCommandExecutorCancelAll` 新增 store-backed execution owner 回归，覆盖两笔 active order 逐笔派发及成功后 active ledger 清空；失败聚合/保留跟踪由相邻测试覆盖。该条由 partial 升为 `function_exact`，定向 nextest 9/9 passed，receipt `sha256:fc615c228ba5af017d074b6793421fc3e624cc447a0abd801c9a8ad8c8eb6901`；strict audit 仍未通过。
+
+- 2026-09-28 Strategy/Pine lifecycle transition P1：针对 `TestServicePauseAndStopInstancesStopRuntimeAfterStateTransition`，先红复现状态写入失败时 Stop 提前取消 runtime、Pause 成功后 runtime 仍存活；现由 mutation owner 先 CAS 写入 `STOPPED`/`PAUSED`，再取消 task 并释放 market-data demand。新增 `lifecycle_transition_failure_does_not_stop_runtime_before_state_write` 与 `pause_and_stop_transition_state_before_stopping_runtime`，定向 nextest 4/4 passed，raw output `sha256:6d761bf44026ffcc680076f180a0f83335a640c2e406df004a2489bfac747546`。该条仍为 `partial`：Go refresher callback 的两次刷新计数没有 Rust 同形注入 seam，生产 router reconcile 不冒充计数证据。
+
+- 2026-09-29 Strategy/Pine targeted cancel alias：`TestCancelByIntentDeduplicatesAliasesAndToleratesStaleMappings` 先红确认 Rust 对陈旧意图返回 ownership error，随后修复 `dispatch_cancel_intent`：按 execution-store 活动订单解析确定性 clientOrderId alias、internal id 去重、逐笔撤单，并将无活动映射收敛为幂等 no-op。定向 nextest 3/3 passed，receipt `sha256:a3e1e7ac8664d078feccbdd1fd234bb2abf8e0ec6e2e51a2d3ad5c43de7f9fc7`；映射仍为 `partial`，显式多腿 `activeOrderAliases` owner 尚未存在，strict audit 仍未通过。
+## 2026-09-30 API SSE strict evidence batch
+
+API Server/Transport Wire 批量收口 5 条 SSE exact：序列化/写入错误、无 callback trigger 取消、并发 writer 串行化、flush panic。逐条复核 Go/Rust 断言；Rust 取消路径补显式 task-success assertion。`jftrade-api` nextest 5/5 passed，receipt `sha256:23cb9085910da407cffce794533dee1ff1eea1154a3a50a766fa6afd67ed9ec9`。5 条 assertion coverage 升为 `reviewed`，strict gap 3395→3391；全局 strict 仍失败。
+## 2026-09-30 Futu transport strict evidence batch
+
+5 条 Futu transport exact 完成 Go/Rust 断言复核：trade reads、quote/K-line/order-book、trade writes、response-lost no replay、closed-client subscriptions。联合 nextest 5/5 passed，receipt `sha256:a0906c826c136f6c21afaaf156d85bc399947b9047e47431aa33fcc242ad4290`；补齐 Parity anchors/reviewed/receipt。strict gap 3385→3378，整体仍未通过。
+
+- 2026-09-29 API Server/Transport Wire SSE frame-loop strict evidence：复核 5 条 Go exact（trigger/ticker 错误传播、write panic、PrepareSSEWriter frame/header/no-retry、无 flusher 拒绝、initial 错误传播），Rust 以 6 个 lib/transport 行为断言联合覆盖，`jftrade-api` nextest 7/7 通过；receipt `sha256:8f5cf46fdb2e9bcd5af4d3de9b52781eb5cbbcc4af2ebdde8c267252e0c05ec4`。映射 assertion coverage 已升为 reviewed；strict gap 3378→3368，整体仍未通过。
+
+- 2026-09-29 Futu P2 strict evidence：复核并收口 3 条已有 exact（默认 OpenD 地址、Qot_Sub 订阅/退订 framed wire、零当前价 previous-close 回退），补齐正确 Go 行 anchor 与 reviewed assertion；engine/Futu nextest 3/3 passed，receipt `sha256:c121cb50db0c539b0df79c1bea408c2aaa59111be0295c6b9169b2bc875b30c2`。strict gap 3362→3353，anchor 1890/1843/0/47，整体仍未通过。
+
+- 2026-09-29 Futu history seam correction：`TestQueryKLinesKeepsDailyHistoryLabelAsBucketStart`、`TestRequestHistoryKL` 经断言核对后由 legacy exact 收窄为 reviewed partial；Rust 仅证明 helper/frame 子行为，未覆盖 Go 真实 client response。integration-futu nextest 2/2 passed，receipt `sha256:635332bacd351da3b2c6735ed4f467aa441967d1229b6c2170c5297b2e39f2d3`；strict gap 3347→3341。
+
+- 2026-09-29 Prediction push P1：注册幂等、重复/无 sequence、key 归一、5 秒 freshness 的 Rust 行为断言 3/3 passed，reviewed assertion + anchor + receipt `sha256:be911c287f663bb6151394cb091665b1e326ea59b6d42a81c4ecf3bd99a7bbf9`；strict gap 3353→3350。
+- 2026-09-29 Assistant research backtest P2：三种模式均不需审批且 allowed 的 Rust 断言 1/1 passed，reviewed assertion + anchor + receipt `sha256:b4abf64334b6bc0f6d636a85b5acd3a32e9b2acbbb08e2b2fe278c7a2c487843`；strict gap 3350→3347。
+- 2026-09-29 Candle adjustment P2：Rust parser 与 route/provider-before-call 断言 2/2 passed，reviewed assertion + 双 anchor + receipt `sha256:ef32d0c83f7b0df316aef3ae093965f5fc9970bed9693ef6fbdacb3a41c86edd`；strict gap 3341→3338。
+- 2026-09-29 exact 纠偏：Futu funds、broker order 枚举转换与 Pine asset metadata/missing-empty 四条由未覆盖全断言的 legacy exact 收窄为 reviewed partial，strict gap 3338→3323；下降只表示错误 exact 被移除，不计新增行为。全局 strict 仍失败。
+- 2026-09-29 Futu snapshot fallback strict evidence：六条已有 exact 完成 Go/Rust 断言复核，覆盖 StockScreen 行/market 投影、输入边界与取消、strict delayed quote wire、无订阅 static-id 回退、15 秒正负缓存和错误透传。`jftrade-integration-futu` nextest 6/6 passed，receipt `sha256:5d2e8d55218adc5252b1389a258dbf15803b757a9bb05091ccd10b78c56cb8f6`；六条 assertion coverage 升为 reviewed，strict gap 3323→3312。整体 strict 仍失败，下降按实际 reviewed 行为证据计入，不按测试总数或 receipt 数量计入。
+
+- 2026-09-29 API auth/SSE strict evidence：SSE loop 2 条与 auth middleware 3 条已有 exact 完成 Go/Rust 断言复核，分别以 `jftrade-api` nextest 2/2、`transport_contracts` nextest 3/3 通过；receipt 分别为 `sha256:803a99b17ac95ec97490cbf3f1f91ee8c3aa95d061ee9966dfdd9217f3bae18e`、`sha256:d9491a62ef3b46d0ff5ee03f652748d32fa1bd219460c95a0edd7e3748702b89`。同时将 public-path 与 logout 状态码证据不足的两条 legacy exact 收窄为 reviewed partial；strict gap 3303→3297，整体仍未通过。
+
+- 2026-09-29 API auth rejection follow-up：`TestAuthRejectsNilAuthenticator` 与 `TestAuthRejectsUntrustedOrigin` 完成断言复核，`jftrade-api` transport contract nextest 2/2 passed，receipt `sha256:d302cddef14057dec554dd8d48e00892a71e7c5a2e4c565fff7010970fbe800e`；strict gap 3297→3293，整体仍未通过。
+
+- 2026-09-29 API P1 Web/Execution follow-up：禁用 Web 导航、cookie+CSRF 浏览器流程、cookie-only WebSocket 三条 reviewed，nextest 3/3，receipt `sha256:02d835502c6392862c7678ed3087c19e51198186c265a1583cc181bbac8d5b92`。ETH execution session 的 normalization/wire 证据 3/3 passed，receipt `sha256:8abeb1dae760d9861b6bd1f5070052482df98eb3047d517386db66084255dce8`，因缺同形 HTTP route 保留 partial；另将前端资源、密码改密触发、POST logout 三条 legacy exact 收窄为 reviewed partial。strict gap 3293→3274。
+
+- 2026-09-29 API startup rollback follow-up：`TestHandleRollsBackAndStopsAfterOpenFailure` 对应的 production startup/migration rollback 测试 2/2 passed，receipt `sha256:5ff41a57feb4610daf6dfae3a59381aad5bf567d79b1f659a0da8068872fa066`；generic Handle callback/error-chain seam 保留 reviewed partial，strict gap 3274→3270。
+
+## 2026-09-29 API Server / Transport Wire P2 query/URI strict batch
+
+本批逐项复核四条已有 `function_exact`：`TestNormalizeCandlePeriodSupportsEveryDocumentedFamily`、`TestParseQueryTimeNormalizesToUTC`、`TestBindURIRejectsMalformedEscapeInRequestURI`、`TestBindURIAllowsEscapedLiteralPercent`。Rust 的 candle period alias 表、query time UTC 归一、畸形 percent 拒绝/合法 percent 解码，以及 execution write 真实路径参数解码均有断言；`jftrade-engine` 联合 nextest 5/5 passed，receipt `sha256:97726dfe188f6691db04e9b03f19dec666d366f4c48d8498c5a06526966a9f23`。四条 mapping 已升级为 `reviewed` 并绑定 receipt，既有 Parity anchor 保持有效。
+
+本批没有把 `TestParseQueryTimeReturnsCallerFallback` 的非法值 fallback 或 Gin `BindURI` required 参数缺失误升为 exact；这两处继续以 reviewed partial 记录结构差异。strict audit 实际由 **3270 降至 3262**；API Server / Transport Wire 测试数量比例 10.2% 仍是补行为的风险信号，不作为完成率。
+
+## 2026-09-29 API Server / Transport Wire P2 route strict batch
+
+第二批复核六条已有 `function_exact`：可选 bool/时间/limit 解析、缺失 instrument URI 参数、active provider 不可用的 markets 错误、非法 refresh 早拒绝，以及缺少订阅租约时的三路 409。Rust 联合 nextest 8/8 passed，receipt `sha256:84dbc60dbeb07184ad3c0cbc750321351de2bd6b052e61ea613ea329e0ba553c`；六条 mapping 已升级为 `reviewed` 并绑定 receipt。
+
+本轮 strict audit 实际由 **3262 降至 3250**。未把 API 测试数量 10.2% 当作完成率；仍缺同形 Gin binding/HTTP handler 的条目继续保持 partial 或单独记录。
+
+## 2026-09-29 API Server / Transport Wire P2 auth/origin strict batch
+
+第三批复核六条 middleware/origin exact：CORS trusted/unknown preflight、认证器缺失/不可信 Origin/无浏览器 Origin 会话、Referer/Origin precedence，以及 canonical origin 输入表。`jftrade-api` nextest 7/7 passed，receipt `sha256:a90d53c5245a42b16cb1397efcf98d666f3bc7aa3c02e56a9dda6e60b19d59e2`；六条 mapping 已升级为 `reviewed` 并绑定 receipt。strict audit 实际由 **3250 降至 3238**。wails/tauri 桌面 scheme 差异仍按已登记边界处理，未伪造成新功能等价。
+
+## 2026-09-29 API Server / Transport Wire P2 subscription strict batch
+
+第四批复核七条已有 `function_exact`：poll-only capability 优先级、12 条 malformed/incomplete subscription wire fixture、合法 target 过滤、instrument request contract、broker-neutral polling、consumer-only release 与 strategy lease preservation。`jftrade-engine` 联合 nextest 7/7 passed，receipt `sha256:66229dc2cec638a02dc06384b47949a7bca05c593b67daa57dbbce6cecb41710`；七条 mapping 已升级为 `reviewed` 并绑定 receipt。strict audit 实际由 **3238 降至 3224**，API 测试数量比例仍不作为完成率。
+
+## 2026-09-29 API Server / Transport Wire P2 WebSocket live strict batch
+
+WebSocket live 5 条候选行为测试全部通过，receipt `sha256:d5630dbcfc1a2e7e10bdaf5bf09f96e992fbff7c53addf84023fa4f0880510dd`。3 条 tick/origin rejection 与 provider-switch exact 完成 reviewed assertion；heartbeat 的 `liveClients` 字段缺失、以及 Go Host-based same-origin 与 Rust allowlist 判定差异被纠偏为 reviewed partial。strict audit 实际由 **3224 降至 3210**，没有把 WS 语料总量当作完成率。
+
+## 2026-09-29 API Server / Transport Wire P2 behavior review
+
+本轮按行为证据收口 7 条已有 `function_exact`：request observability 稳定上下文与错误摘要、非法 request id 替换、market-depth 方法/路径隔离、Swagger 核心路径、system status request id 传播、Web 登录连续失败限流与 `Retry-After`。Go 断言逐项复核，Rust owner 测试联合 nextest **9/9 passed**；receipt `sha256:ce452bd3c5eb1ac54fa17c8f9bd952a69c8e811dc9abc3b0bcd2e9503492a19d`。共享 observability/route/transport owner 的 reuse 关系已审核，7 条 mapping 的 `assertionCoverage.source` 已升为 `reviewed`。
+
+本轮 strict audit 实际由 **3088 降至 3065**；当前全局仍有 3065 个历史 evidence gaps，未宣称完成。anchor reconcile 保持 `1894 / 1847 / 0 / 0 / 47`，assertionless exact 当前扫描为 **0**。API Server / Transport Wire 的 10.2% 测试数量比例只作为补行为风险信号，不作为完成率。
+
+锚点收口补充：为 margin-ratio unknown-stock owner 补齐唯一缺失的 `rustEvidence.anchor`（`trade_session_tests.rs:1969`），strict gap 进一步 **3065→3064**；strict anchor error 已归零，整体仍未通过。
+
+## 2026-09-29 API Server / Transport Wire P2 runtime behavior review
+
+本轮收口 8 条已有 `function_exact`：watchlist 不可用时 provider switch 仍成功、startup restore 才允许 warming provider、Node 依赖配置路径缺失不回退、macOS Finder/attempts/Settings 缺失提示、strategy 显式 quantity 优先级、close quantityPct 按持仓计算、managed broker account normalization、combo quantity mode 映射。Go 断言逐项核对，Rust engine/marketdata/settings 联合 nextest **12/12 passed**（strategy owner 在多个 integration binary 中重复命中）；receipt `sha256:652cbc5eae4d4533af8b22ff2ea8f098cb6398bea05bf7f3d6e9871403d18d6b`。8 条 mapping 已升为 `reviewed` 并绑定真实 receipt。
+
+strict gap 实际由 **3064 降至 3048**；anchor reconcile 仍为 `1894 / 1847 / 0 / 0 / 47`，assertionless exact 为 0。API 测试数量比例 10.2% 仅作为行为补齐风险信号，不作为完成率。
+
+## 2026-09-29 API Server / Transport Wire P2 datamigration review
+
+本轮收口 8 条 SQLite/datamigration exact：备份容量清理失败、不可兼容源库字节不变、受管快照清理与 quota、current snapshot retention、失败快照清理/SQLite 验证、rebuild selection 拒绝矩阵、manifest drift、schema catalog descriptor。Go 断言逐项核对，`jftrade-store-sqlite` 联合 nextest **8/8 passed**；receipt `sha256:4d739bd52477eb28f8bf1dbdcaba199570f595d524ea28b7b89a9793aa5397a4d`。8 条 mapping 已升为 `reviewed`。
+
+strict gap 实际由 **3048 降至 3032**；anchor reconcile 保持 `1894 / 1847 / 0 / 0 / 47`。备份权限错误在 root 环境下的不可复现分支仍由 Go 测试自身 skip 规则保留，未扩张为额外行为结论。
+
+## 2026-09-29 API Server / Transport Wire P2 datamigration safety review
+
+第二批收口 8 条 rebuild-safety/backtest/broker route exact：marker backup 不可信字段拒绝、pending marker 缺 verified backup、已存在 marker 的 backup prerequisite、verified backup 调度幂等与 digest 复核、protected backup/digest error、backtest compaction 非文件路径、backtest list/detail 读投影、broker incomplete path 404。Rust store-sqlite/engine 联合 nextest **8/8 passed**；receipt `sha256:c91a4ac3fe696e1fbebd5897d1f96b81b9e42433c0ea3761390452bc25ae0119`。8 条 mapping 已升为 `reviewed`。
+
+strict gap 实际由 **3032 降至 3016**；仍保留 root 权限下 Go skip 的 removal-permission 分支边界，不将环境不可复现误记为通过。
+
+## 2026-09-29 API Server / Transport Wire P2 read/settings behavior review
+
+本轮收口 10 条 exact：AKShare market-scoped lookback、preview ID secure-random failure、已结束 sidecar stop、settings appearance fixture、market catalog fixture、market profile metadata、research preset fail-closed、settings save 不改环境变量、onboarding defaults/save、依赖失败重新打开 OOBE。Go 断言逐项核对，engine/datamanagement/settings/helper/storage 联合 nextest **10/10 passed**；receipt `sha256:77a4805fce48b4565c50fe4d7475287a2977f08bae3486c1007be627fdbb65fc`。10 条 mapping 已升为 `reviewed`。
+
+strict gap 实际由 **3016 降至 2996**；API 低测试比例仍只是行为缺口信号，不作为完成率。
+
+## 2026-09-29 API Server / Transport Wire P2 shared-owner review
+
+本轮复核 5 条已有 exact：rebuild marker snapshot retention、explicit K-line query bounds、strategy current-bar worker intent、market-depth PUT method rejection、legacy strategy source-format instantiate rejection。涉及 8 个真实 Rust owner 测试，联合 nextest **8/8 passed**；已确认共享 owner reuse 关系此前已有 reviewed allow，receipt `sha256:9c451f9dc06c5c9679f7299c2d089593a3526086b535c497b1210fa8dc3f9080`。5 条 mapping 升为 `reviewed`。
+
+strict gap 实际由 **2996 降至 2986**；共享测试只在对应 Go 断言关系已审核的范围内计入。
+
+## 2026-09-29 API runtime-dependency shared-owner review
+
+复核 Node runtime dependency 两条 exact：配置脚本成功路径与 settings precedence，以及 outdated/invalid/non-zero command 三种失败状态。共享 Rust probe owner 逐案断言 status、detectedVersion、source、resolvedPath、版本提示与 stdout/stderr 诊断；`jftrade-engine` nextest **1/1 passed**，receipt `sha256:e12b481f0265f0680e5e6ca822d09c2ff5770ca08cd2924ddffe996a56c395a0`。两条 mapping 升为 `reviewed`，共享 reuse 关系同步审核。
+
+strict gap 实际由 **2986 降至 2980**。
+
+补充 reuse 审核：对已完成 assertion review、已有 passed receipt 的 optional query bool alias 与 candle adjustment normalization 两个共享 owner，复核其全部 Go referenceKeys 后将 reuse 关系升为 `reviewed/allowed`。本次不新增行为测试，仅清理证据关系缺口；strict gap **2980→2976**。
+
+## 2026-09-29 broker runtime exact correction
+
+复核 `TestBrokerRuntimeDescriptorIncludesReadFeatures` 与 `TestContractBrokerRuntime` 后发现现有 Rust owner 只直接调用 `ProductionBrokerPort::read`，虽覆盖 projection 字段，却没有证明 Go 的真实 HTTP route status、ok envelope 与 server assembly wiring。两条旧 `function_exact` 已准确收窄为 `partial`，并记录新增 HTTP owner 缺口；strict gap **2976→2969**。该下降是错误 exact 清理，不计为新增行为覆盖。
+
+## 2026-09-29 API Server / Transport Wire P2 batch closure
+
+本轮按真实行为批量收口已有 `function_exact`，不以 receipt 数量或 Rust 测试总数计完成率：
+
+- Execution API：9 条 route exact（buying-power/combo、validation/error envelope、risk rejection、amount spoof、cancel、preview/events、push writeback、bare-symbol validation），7 个 owner tests 通过；receipt `sha256:908dd3ccbeb7cc812691cb3f9a4a3da31acc4da56689cff37c8fa276e6d8319e5`。
+- Backtest API：6 条 sync/start/status/delete exact，6 个 owner tests 通过；receipt `sha256:8112ca0221bc3297e0d325c6778eda46484126247e7f90586e945c21860176f8`。
+- Strategy/Pine API：3 条 sourceFormat/AST/warmup/validation exact，3 个 owner tests 通过；receipt `sha256:006d1777d3ddf4b8b1ca5dbe3eec152adbe879252316d462a2ea97d0cbc2a4a5`。
+- Assistant workflow API：2 条 workflow/canvas route exact，3 个 owner tests 通过；receipt `sha256:b49cb003e98c5109ecf876bcadff2a930a1ad87f60ca77ce40a1a71d5c7c5bb2`。
+- Watchlist API：7 条 route/read/query exact，4 个 owner tests 通过；receipt `sha256:3ed7a53929b236bd9372cd098c5e7672970846bdc17f27bd903bfee8a05466dc`。
+- Provider Research API：7 条 capability/lifecycle exact，4 个 owner tests 通过；receipt `sha256:9e32c31f0abd2449195e807ff7ddc0342e14e4c40968c1959fbec197eaae2750`。
+
+每批均完成 Go assertion review、Rust anchor/reuse 审核及 passed receipt 绑定；共享 owner 的 partial 引用保持原结论。strict gap 由 **2969 降至 2853**，anchor reconcile 仍为 `1894 / 1847 / 0 / 0 / 47`，assertionless exact 仍为 0。全局 strict 仍未通过，API Server / Transport Wire 的 10.2% 测试数量比例继续只作为行为缺口信号。
+
+## 2026-09-29 API live volume/heartbeat batch
+
+本轮收口 13 条已有 `function_exact`：OpenD listener 的显式 volumeDelta、累计量超过 2^53 的精确保持、trade/depth 同订阅推送，以及 ws-live fixture 的 heartbeat、通知、console refresh、provider switch 与 observedAt 行为。`jftrade-engine` nextest **4/4 passed**，receipt `sha256:ec10dda614a774af706ee1aecc442d08f4e8770edbb9843c005bdd96b5c4472e`；共享 owner reuse 与 assertion coverage 已审核。
+
+strict gap 实际 **2853→2821**；所有 partial/boundary 结论保持不变。API 测试数量比例仍不是完成率。
+
+## 2026-09-29 API execution validation batch
+
+补齐 2 条 execution validation exact：US 限价价格 tick/session/market code 与显式 market+code 解析。`jftrade-engine`/`jftrade-integration-futu` nextest **5/5 passed**，receipt `sha256:53e2f159b30ba83c635eb62d2b54c3ee703e8a55ebe260392c70073b84a78df1`；price/session/parser 共享 owner reuse 已审核。
+
+strict gap 实际 **2821→2805**；只计 reviewed assertions、有效 anchors、passed receipt 和 reuse 审核。
+
+## 2026-09-29 API system status batch
+
+收口 4 条 system/runtime exact：runtime resource count/items、system status stable fields、application adapter projection、injected summaries。`jftrade-engine` nextest **3/3 passed**，receipt `sha256:9a870aa32803da5277ec22731f5f85cf693f518d14e72ea28a484c1440d8354f`；typed status/runtime resource reuse 已审核，status-mapper partial 保持 partial。
+
+strict gap 实际 **2805→2794**。
+
+## 2026-09-29 receipt coverage repair
+
+严格复核发现部分既有 reviewed rows 的 `testFilter` 未覆盖全部 `rustEvidence` owner。本轮补跑并替换 receipt：live/WebSocket 9 tests、watchlist 7 tests、execution+notification 10 tests、data-plane cache 5 tests、web disabled 2 tests、reasoning 3 tests、snapshot fallback 2 tests、settings defaults 4 tests。所有修复后的 rows 已验证 `rustEvidence ⊆ testFilter`，未扩大 exact 结论。
+
+strict gap 实际 **2794→2775**；该下降来自证据关系修正和有效 receipt 覆盖，不以 receipt 数量作为完成率。
+
+## 2026-09-29 ADK catalog owner batch
+
+收口 3 条 ADK catalog/middleware exact：snapshot/tools 目录、agent template/delete 保护和 runtime 可用性直通。`jftrade-engine` nextest **2/2 passed**，receipt `sha256:30fe272d6caf798028ac0e5e33bc72c519a2cf460bce7cc5a7ad3d50960125d8`；两个 production assembly reuse owner 已审核。
+
+strict gap **2775→2764**，partial 引用保持原结论。
+
+## 2026-09-29 runtime resource ownership batch
+
+收口 3 条 runtime resource exact：research DB 派生与覆盖、全量 resource owner/kind/path/critical 清单、strategy runtime DB 环境覆盖。`jftrade-engine` nextest **4/4 passed**，receipt `sha256:9675f546e7c02833ebe266297914dd43faf3242a6c139eba0e0d891d072a0535`；partial/boundary 的集中 layout 差异保持原结论。
+
+strict gap **2764→2752**。
+
+## 2026-09-29 runtime lifecycle batch
+
+收口 6 条 lifecycle exact：startup rollback、ordered shutdown、direct drop、并发幂等 close、失败 stage stop、consumer/provider reverse order。engine/desktop nextest **4/4 passed**，receipt `sha256:8e29d9b65d8f849d562355f29993e55daff5b6ec517717bc3e7f1211ea1770b4`；多引用 reuse 已审核。
+
+strict gap **2752→2732**。
+
+## 2026-09-30 lifecycle evidence repair
+
+补跑 `startup_failure_restores_previously_migrated_descriptor_files` 与 `readiness_failure_reclaims_every_started_process_without_starting_dependents`，并替换 4 条 lifecycle mapping 的 receipt/testFilter。两项真实 owner 均通过，strict gap **2732→2729**；未删除既有 Rust evidence。
+
+## 2026-09-30 API/Assistant route batches
+
+按 route owner 批量复核 Assistant API：approval/provider/pause-resume/optimization、chat stream failure/recovery/audit/validation、unavailable/store-failure/catalog、task-memory CRUD、provider default 与 skill failure。四个真实 nextest 批次分别通过 **7/7、6/6、6/6、3/3、6/6**；每条 reviewed exact 绑定对应 receipt，shared owner reuse 逐项审核。strict gap **2729→2657**。
+
+## 2026-09-30 reuse audit
+
+对 8 个已有 passed receipt 且所有引用行均为 reviewed exact 的 shared Rust owner 完成 reuse 审核；没有新增 exact 结论。strict gap **2657→2641**。当前 strict audit 仍未通过，API Server/Transport Wire 的行为覆盖比例仍为 **10.2%**，继续按真实 route owner 推进。
+
+## 2026-09-30 transport and data-management batches
+
+API/Transport route owner 批次通过 **13/13**，收口 backtest/research/prediction/broker/watchlist 路由 9 条 exact；strict gap **2641→2620**。随后补齐 8 条 reviewed mapping 的 receipt 元数据，gap **2620→2612**。SQLite/data-management 批次通过 **10/10**，收口 schema failure、backup retention、overview、cleanup 与 pending-rebuild rollback 10 条 exact，strict gap **2612→2592**。
+
+## 2026-09-30 replay and assembly evidence
+
+重跑旧 backtest receipt 的 10 个 owner（**10/10 passed**）并替换短 commit/不完整 testFilter 证据，strict gap **2592→2589**。随后重跑 Assistant P1 旧 receipt 的 9 个 owner（**9/9 passed**），并收口 5 个无共享 owner 的 assembly/MCP exact（**5/5 passed**），strict gap **2589→2579**。共享 owner 仍按全部引用行复核，未强行升级。
+## 2026-09-30 API marketdata forwarding reviewed batch
+
+针对 API Server/Transport Wire 的 marketdata forwarding 路径，逐项复核 `runtime_calendar_forwarding`、`runtime_company_forwarding`、`runtime_news_forwarding`、`runtime_rankings_industry_forwarding`、`runtime_screen_forwarding` 与 `runtime_index_constituents_forwarding` 的 15 条 `function_exact`。Rust owner 测试覆盖 provider wire projection、capability/lifecycle rejection、helper isolation、分页与 limit clamp；定向 engine nextest **29/29 passed**，receipt `sha256:51abd6e018b42e2f4f3a8ee2acd76ecb8e53cc80fbc64c4a176cddc17e9a6528`。15 条 mapping 从 `legacy-conclusion` 升为 `assertionCoverage.source=reviewed`，绑定当前 commit/testFilter；15 个小 fan-out shared owner reuse 完成 reviewed，high fan-out reuse 保留 backlog。
+
+strict gap **2554→2503**。本轮下降来自真实行为测试、reviewed assertion、有效 receipt 与受限 reuse 审查；没有用 Rust 测试总数、receipt 数量或 verification passed 代替完成率。全局 strict audit 仍未通过，API Server/Transport Wire 数量比例仍为 10.5%。
+## 2026-09-30 API servercoretest reviewed batch
+
+针对 API Server/Transport Wire 的 `servercoretest` 路径，逐项复核 backtest sync、broker projection、system/strategy contract、settings normalization、onboarding 与 watchlist runtime 的 19 条 `function_exact`。Rust owner 测试覆盖 23 个真实行为测试；workspace nextest **23/23 passed**，receipt `sha256:d0f9cbb88920c3bed3fa60b9a47c6fea80a6e277a0b7ad06e844d33bff7f2463`。19 条 mapping 从 `legacy-conclusion` 升为 `assertionCoverage.source=reviewed`，绑定当前 commit/testFilter；17 个小 fan-out reuse 完成 reviewed，高 fan-out reuse 保留 backlog。
+
+strict gap **2503→2441**。下降来自真实 route/contract 行为测试、reviewed assertion、有效 receipt 与受限 reuse 审查；没有将 Rust 测试总数、receipt 数量或 verification passed 当作完成率。全局 strict audit 仍未通过，API Server/Transport Wire 数量比例仍为 10.5%。
+## 2026-09-30 API servercore behavior batch
+
+继续收口 API Server/Transport Wire 的 `servercore` 路径，逐项复核 data-management、live volume、notification、capability catalog、strategy runtime/trading、OpenD health、security 与 strategy delete 的 17 条 `function_exact`。workspace nextest 实际运行 33 个匹配 owner（含多 target 重复实例）并 **33/33 passed**，receipt `sha256:022cdab8ccecceae349bab2bb53c3a545b4aee938098f712474abbc84edbc1f1`。17 条 mapping 升为 `assertionCoverage.source=reviewed`，绑定当前 commit/testFilter；19 个 fan-out ≤6 的 reuse relation 完成 reviewed，高 fan-out 保留 backlog。
+
+strict gap **2441→2376**。本轮仍以真实行为断言、reviewed assertion、有效 receipt 和受限 reuse 审查计数，未以测试总数或 receipt 数量代替完成率。全局 strict audit 仍未通过，API Server/Transport Wire 数量比例仍为 10.5%。
+## 2026-09-30 API marketdataapp behavior batch
+
+收口剩余 API `marketdataapp` 的 19 条 `function_exact`：provider switch、sidecar 生命周期、health retry、search prefix、depth/kline query 与 subscription idempotency。Rust workspace nextest **22/22 passed**，receipt `sha256:af682a98cf08d8157b78645a0ea1ce63ce87e8196669be186e1d333de14313bc`；19 条 mapping 升为 reviewed assertion，绑定当前 commit/testFilter；19 个 fan-out ≤6 reuse relation 完成 reviewed，高 fan-out保留 backlog。
+
+strict gap **2376→2308**。本轮仍只按真实行为测试、reviewed assertion、有效 receipt 与受限 reuse 审查计数；全局 strict audit 仍未通过，API Server/Transport Wire 数量比例仍为 10.5%。
+## 2026-09-30 API remaining legacy exact closure
+
+完成 API Server/Transport Wire 剩余 19 条 `function_exact` legacy 映射的断言复核，覆盖 application、backtest startup、desktop startup、Futu probe、lifecycle、runtime/status、combo transport、web auth 与 settings validation。workspace nextest **25/25 passed**，receipt `sha256:848b85e4751fa1f1c3addb93b9188624f8de95c12413857c5f367ea7ad4be9e7`；19 条 mapping 升为 reviewed assertion，绑定当前 commit/testFilter；21 个 fan-out ≤6 reuse relation 完成 reviewed。
+
+API transport owner 的 `legacy-conclusion` exact 已清零。全局 strict gap **2308→2244**；分类为 reuse 566、receipt 880、assertion 798。全局 strict audit 仍未通过，API Server/Transport Wire 数量比例仍为 10.5%，后续转向其他领域与 API 高 fan-out reuse。
+## 2026-09-30 Strategy/Pine parse reviewed batch
+
+转入 P1 Strategy/Pine，完成 `pkg/strategy/pine/parse_test.go` 21 条 legacy `function_exact` 的断言复核。Rust owner 覆盖 parse IR、metadata、request.security、history reference、advanced indicators/orders、risk declarations 与 structured diagnostics；workspace nextest **21/21 passed**，receipt `sha256:fa86abe492eedff72da09451189fa1e17fd7f07e0bd0059b65ee2efbd77bd483`。21 条 mapping 升为 reviewed assertion，13 个 fan-out ≤6 reuse relation 完成 reviewed；framework-language 的 47-way reuse 保留 backlog。
+
+strict gap **2244→2188**。本轮仍按真实行为测试、reviewed assertion、有效 receipt 与受限 reuse 审查计数；全局 strict audit 仍未通过，Strategy/Pine 的其余 legacy 与 partial 继续按 P1 顺序推进。
+## 2026-09-30 Strategy/Pine live execution batch
+
+继续收口 P1 Strategy/Pine live execution，复核 7 条 exact：stop price/reduce-only、risk reason table、submitted-order instance scope、entry/close quantity sizing 与 missing quantity rejection。workspace nextest 实际 19 个 target 实例 **19/19 passed**，receipt `sha256:dc4d66ed418c004d700714a02b97e5da22571edb94f878e88eb175d7d1f265c6`；7 条 mapping 升为 reviewed assertion，低 fan-out reuse 已核对。
+
+strict gap **2188→2172**；当前 Strategy/Pine legacy exact 还剩 42 条。全局 strict audit 仍未通过，未把 target 实例数或 receipt 数量当作完成率。
+## 2026-09-30 Strategy/Pine risk and order-boundary batch
+
+复核 Strategy/Pine 风控与 order-boundary 的 8 条 exact：risk-off/monitor/normalization、qualified position matching、order metadata rejection、trailing offset 与 truncated expressions。workspace nextest **10/10 passed**，receipt `sha256:a8d9603e2f3f9cd70b93eac40093f44326cab698c15a00a7f628552b41606de6`；8 条 mapping 升为 reviewed assertion，5 个低 fan-out reuse relation 完成 reviewed。
+
+strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 strict audit 仍未通过。
+
+## 2026-09-30 Strategy/Pine legacy exact closure
+
+- 29 条已有真实 Rust 行为 owner 完成逐项 Go assertion 复核，覆盖 runtime reconciliation、definition version、warmup/planner、Pine parser/tuple/security、Pine worker pool 与 request validation。
+- workspace nextest **35/35 passed**；receipt `strategy-pine-legacy-exact-reviewed-2026-09-30.json`，digest `sha256:22918fba9517443a7ed1bcac3a5ad269d4e35c9ef1e6b476b3f5487974008a6e`。
+- 29 条 mapping 的 `assertionCoverage.source` 已从 `legacy-conclusion` 升为 `reviewed`；fan-out ≤6 的 19 个 reuse relation 已审核，高 fan-out 继续 backlog。
+- strict gap **2139→2067**；本轮按行为断言、reviewed assertion、有效 receipt 与受限 reuse 计数。
+
+## 2026-09-30 API transport envelope and reuse review
+
+- 新增 `jftrade-api` envelope owner 测试，逐项锁定 Go `WriteOK`、`WriteError` 与 `WriteNotFound` 的状态、ok、data、timestamp、code/message 形状；mapping `TestResponseEnvelopeWriters` 由 partial 升为 reviewed `function_exact`。
+- envelope/transport 定向 nextest **2/2 passed**；receipt `api-transport-envelope-writers-reviewed-2026-09-29.json`，digest `sha256:552d9d0eb2f091ee9f829c65a37d7637361ba4ac1fce173c8e0b635f99c480cf`。
+- 复核 API auth/origin/CSRF/CORS/SSE 的 9 个低 fan-out shared owner，定向 nextest **9/9 passed**；receipt `api-transport-reuse-reviewed-2026-09-29.json`，digest `sha256:720c76ce1c5c9c27c9c5c5cc879ebc9845cd4b0e946440a467d5c71c4231284e`。
+- 严格 gap **2067→2053**；API Server/Transport Wire 行为比例为 10.6%，仍不作为完成率。
+
+## 2026-09-30 API logout HTTP projection batch
+
+- 针对 `TestWebLogoutClearsSessionCookie`，补充真实 product TCP HTTP 断言：logout 返回 200、`authenticated=false`，并透传 `Set-Cookie: jftrade_web_session=; Max-Age=0`；manager owner 同时断言旧 token 失效及 HttpOnly/SameSite/Path 属性。
+- 真实 nextest **3/3 passed**；receipt `api-transport-logout-http-reviewed-2026-09-29.json`，digest `sha256:3a34c8940c101b5df7007725f978618f735b8abbecab510454fdb5979c9080d4`。
+- mapping 从 partial 升为 reviewed `function_exact`；共享 auth-session route fixture 的 3-way reuse 已逐项复核。
+- strict gap **2053→2052**。`TestAuthProtectsLogout` 仍保留 partial，因为 Go middleware 的测试 stub 要求 204，而生产 logout endpoint 合同为 200，未强行抹平该边界。
+
+## 2026-09-29 批量 legacy exact 与 API receipt 收口
+
+- `internal/exchangecalendar` 45 条 legacy `function_exact` 完成 assertion reviewed；47 个日历 parser/manager/source 行为测试真实 **47/47 passed**，receipt `exchangecalendar-legacy-exact-reviewed-2026-09-29.json`，digest `sha256:bdb85e7b823cab1499e69e4faaef6074ef223c99ad0c4e12ac370730dc16dafb`。
+- `internal/store` 28 条 legacy exact 的 30 个 owner 测试真实 **30/30 passed**，receipt digest `sha256:269e5473ac3ace141090615278dd73cdc32a3d6355b305904cf6a14a5b7e50ae`；`internal/settings` 16 条、19 个 owner 测试真实 **19/19 passed**，receipt digest `sha256:2bc75ca653eaf944b8f88dc5496f36ea8658f7cebc06260d75f4f62a6d150690`。
+- API Server/Transport Wire 重新运行 16 个真实 engine owner 测试 **16/16 passed**，修复 11 条旧短 SHA receipt 的严格可验证字段，receipt `api-transport-receipt-refresh-2026-09-29.json`，digest `sha256:32fe1451be0c9565c8fab2733dbb134212bfb3221d39e338f8e985b24c49e506`。
+- API 低 fan-out（≤5）共享 owner 的 27 个 reuse relation 已逐项 reviewed；fan-out 6、7、11、20 的共享 owner 继续 backlog。
+- strict gap **908→818→762→730→689→678**；anchor reconcile 仍为 `1895/1848/0/0/47`。数量比例与 receipt 数量不作为完成率，严格审计仍未通过。
+
+## 2026-09-29 继续批量收口与受控 fan-out review
+
+- `internal/app/apiserver` 8 条旧 receipt 重新验证，10/10 owner tests passed，digest `sha256:d80813b72ec8bac46581fee167f0557ac764593319771b70665b8a286f22be8f`；`internal/assistant` 30 条旧 receipt 重新验证，30/30 passed，digest `sha256:b051bebb952afa819447ac98af1767b5e1b9cf3de737c2814a915aca2d9787dc`。
+- `internal/system` 9 条 legacy exact 完成 reviewed，9/9 passed，digest `sha256:eb4c5569345b8c63ebd052664548e09aade15e837758df37539ecc6fc5169afd`；`internal/backtest` 4 条完成 reviewed，4/4 passed，digest `sha256:10cd6f60b642e35ffce5f6d3f78a7aa7c3c8bb1e0c03b6a01f50480076de6f00`；`pkg/researchscreen` 7 条完成 reviewed，7/7 passed，digest `sha256:fc21b9c2fe171626a04b798edb6005ddff57be18304c0484b0f6a9db560d4281`。
+- 对 3 个已人工逐引用核对的高 fan-out relation 记录 reviewed；instrument search、settings product、watchlist 与 migration 等更高 fan-out 继续 backlog。
+- strict gap **908→818→762→730→689→678→670→640→614→600→595**；本链只反映真实行为、reviewed assertion、有效 receipt 与受控 relation，严格审计仍未通过。
+
+## 2026-09-29 小模块行为批次与 API relation 收口
+
+- asset/security/retry/integration 小模块分别完成真实测试 **4/4、4/4、3/3、6/6**，对应 mapping 批量升为 reviewed；receipts：`sha256:7e307064cd641c432bddba1bd8b3426522f8821d6e5cfbac759af8c1ccbbcf88`、`sha256:37f123fb6d929139732d328c486be65416b8e015eee555726339d85674431589`、`sha256:c90c3bf12ebf14975a85f5f370086ae39541cc11bc83baffd4188228b4226407`、`sha256:def9669e86f1f6f3c562862b6f03115be842b0ade71b73e9c93213f9f8c0bb6f`。
+- 合并 jftsettings/desktop/watchlist/research 的 18 个 owner 测试 **18/18 passed**，receipt digest `sha256:0e58f1a26859c7ae40dccd4e1943c9d03a3748c48b9df4a2ad770f6d50af68fd`；此前小 legacy 批次 8 mappings/9 tests **9/9 passed**，digest `sha256:df8913aafcc1d319f151c644d90677dba118164de52a63cb441b8c20b83768df`。
+- instrument-search 两个高 fan-out owner 经逐引用比较后 reviewed；更高 fan-out settings product、watchlist、maintenance 仍未放行。
+- strict gap **908→818→762→730→689→678→670→640→614→600→595→587→581→575→559→523→511→509**；严格审计仍未通过。
+
+## 2026-09-29 Assertion review batch
+
+- 对 13 条已有真实 `function_exact` owner 的 legacy/manual assertion coverage 完成统一复核：ADK reasoning effort matrix、calendar JSON、Futu/Pine proto guards、repository-root、desktop update/asset guards 共 13 条。
+- 定向 nextest **13/13 passed**（2712 skipped）；receipt `assertion-review-2026-09-29.json`，raw output digest `sha256:0c0cd9360e979c1b0ca737052037eee818f431ae89b9715f8357f4f058c50ea5`。
+- 13 条 mapping 的 `assertionCoverage.source` 已升为 `reviewed`；reasoning effort 的缺省、low/medium/high/xhigh/max 五档断言逐项列入 covered assertions，未覆盖项清零。
+- strict gap **468→455**；剩余 455 项全部属于未完成逐引用审核的 shared-owner reuse relation。测试总数、receipt 数量和 verification passed 不作为完成率。
+
+## 2026-09-29 API/settings high-fan-out owner review
+
+- 逐项复核 `product_server_persists_ui_settings_and_reports_actual_port` 的全部 20 个 `referenceKeys`：4 条 `function_exact` 保留各自 service/port 组合证据，16 条 partial 的 GET/PUT、失败 envelope、登录、callback、apiBind 缺口继续保留。
+- 真实 engine owner nextest **1/1 passed**；receipt `api-settings-product-owner-reviewed-2026-09-29.json`，raw output digest `sha256:9d9a7491868053886619fb1edef4e9617c45f4a022132a86ef4078812dccf36f`。
+- shared reuse relation 标记 `allowed=true, reviewStatus=reviewed`，不改变任何 partial 结论；strict gap **455→451**，剩余仍全部是未审核 shared-owner reuse。
+
+## 2026-09-29 API/datamigration maintenance owner batch
+
+- 逐项复核 8 个 maintenance relation 的全部 referenceKeys，覆盖 backup filename/retention、overview WAL/SHM、summary filter、cleanup schema failure、rebuild marker、failed rebuild cleanup、tampered pending rebuild 与 backtest preview；9 条 exact 引用释放，其他 partial/boundary 保持原结论。
+- SQLite/engine 定向 nextest **9/9 passed**（2191 skipped）；receipt `api-maintenance-owners-reviewed-2026-09-29.json`，raw output digest `sha256:2ec3da6ae462d9ddd856d2ad3f07e6b90085e49ba1722e71eb38d2cf33926b11`。
+- strict gap **451→442**；剩余全部是尚未逐引用审核的 shared-owner reuse，未把维护测试数量或 receipt 数量当作完成率。
+
+## 2026-09-29 API/watchlist read-owner review
+
+- 逐项复核 watchlist read owner 的 11 个 referenceKeys；唯一 `function_exact` route mapping 结合 SQLite read-page 与 engine write fixture，其他 10 条 source-health、multi-source expiry、duplicate-name、query-plan、cursor/detail、failure 与 snapshot rows 保持 partial/boundary。
+- store-sqlite/engine nextest **2/2 passed**（2198 skipped）；receipt `api-watchlist-read-owner-reviewed-2026-09-29.json`，raw output digest `sha256:ce73e5c1ec405a4d571db8ba59fd37229c8649df3feb4f9146c6fb02ba088e70`。
+- strict gap **442→441**；行为结论未因 shared owner review 扩大。
+
+## 2026-09-29 API marketdata forwarding/cache owner batch
+
+- 逐项复核 9 个 marketdata/Futu shared owner relation：probe connectivity、provider activation rollback、cache freshness、subscription demand、snapshot cache hit/miss、tick fallback/cache miss 与 US session labels；对应 referenceKeys 的 partial/provider/conversion 差异继续保留。
+- Futu/marketdata/engine 定向 nextest **9/9 passed**（2607 skipped）；receipt `api-marketdata-owners-reviewed-2026-09-29.json`，raw output digest `sha256:e18e93372b58803d03bb62430a16c4986d1be8fa7fbd11769728c7656a8312a0`。
+- strict gap **441→429**；本轮只释放通过逐引用比较的 exact reuse，未把 marketdata 测试数量当作 API 行为完成率。
+
+## 2026-09-29 API forwarding-wire owner batch
+
+- 逐项复核 18 个 API forwarding shared owner relation，覆盖 calendar/macro、company、news、rankings/industry、index constituents、screen、market depth、unknown-session 与 sidecar health；34 条 exact 引用释放，其他 provider/capability/conversion/collector 边界保持原结论。
+- engine/marketdata-helper 定向 nextest **18/18 passed**（2020 skipped）；receipt `api-forwarding-wire-owners-reviewed-2026-09-29.json`，raw output digest `sha256:eaf29e07e48c810bcb4b966db1af2b5eb6dd402f9d52a0693e88e5b8c5a87117`。
+- strict gap **429→395**；API Server/Transport 的行为证据继续按逐引用 owner 审核推进，不以 10.6% 数量比或测试总数计完成率。
+
+## 2026-09-29 API/runtime tail owner batch
+
+- 逐项复核 6 个 API/runtime shared owner relation：sidecar stop、strategy cancel、backtest sync validation、settings corpus、watchlist group restart、market-data status；6 条 exact 引用释放，partial rows 的 cancellation/facade/schema/in-memory/provider-state 差异保持。
+- helper/engine/settings-file/store-sqlite nextest **8/8 passed**（2237 skipped）；receipt `api-runtime-tail-owners-reviewed-2026-09-29.json`，raw output digest `sha256:fb934a7746ba8b0769a53ab160c8227f33566121feef6a502767f4c65f60a3f9`。
+- strict gap **395→387**；随后 candle adjustment 4-way relation 也完成 reviewed，strict gap **387→377**。
+
+## 2026-09-30 Assistant MCP policy owner review
+
+- 逐项复核 MCP loopback/Host protection 两个 shared owner relation（4 条 exact 引用）；engine nextest **2/2 passed**（2010 skipped），receipt `assistant-mcp-policy-reviewed-2026-09-30.json`，raw output digest `sha256:ded615b93f06adf18d4b6ec4233b16e0670f58b40f6f74d2103ac6fa0163464e`。
+- strict gap **377→373**；只释放逐引用确认的 route/handler exact，其他 MCP lifecycle partial 继续 backlog。
+
+## 2026-09-30 Assistant shared-owner batch
+
+- 逐项复核 9 个 Assistant shared owner relation：claims fencing/lease、tool-failure degraded projection、run-timeout fallback、approval wakeup、workflow thresholds 与 continuation supervisor；18 条 exact 引用释放，partial 的 stub/failure/long-running 差异继续保留。
+- assistant/engine/store-sqlite nextest **9/9 passed**（2234 skipped）；receipt `assistant-shared-owner-batch-2026-09-30.json`，raw output digest `sha256:90f36484e3ef5ed3d742f8eb111b59fb68fd9e9cb54a0f6b5948174ab810825e`。
+- strict gap **373→355**；仍未完成的主要是 MCP/application adapter/tool catalog 高 fan-out reuse。
+
+## 2026-09-30 Futu/marketdata shared-owner batch
+
+- 逐项复核 4 个 shared owner relation：research normalization、basic quote empty-S2C、batch snapshot validation、embedded research allow-list；12 条 exact 引用释放，catalog partial 仍保持。
+- engine/integration-futu nextest **4/4 passed**（2551 skipped）；receipt `futu-marketdata-shared-owners-reviewed-2026-09-30.json`，raw output digest `sha256:d6d7efaaf8bab7719f70c1000de9044374b303b4b8d543a6526a1f8d7be557e7`。
+- strict gap **355→343**。
+
+## 2026-09-30 Futu/engine exact-pair batch
+
+- 21 个 2-way/2-exact shared owner relation 完成逐引用复核，覆盖 OpenD version/session/trade/quote/subscription/runtime、engine market-data、trade、prediction 与 execution guard；释放 42 条 exact。
+- Futu/engine 定向 nextest **21/21 passed**（2534 skipped）；receipt `futu-engine-exact-pairs-reviewed-2026-09-30.json`，raw output digest `sha256:db5bfa62fdacea96e71ca5c648e3a554eca3ad6ca4f1aff7142a7cbe1360951a`。
+- strict gap **343→301**；只按逐引用行为 owner 下降，未使用测试数量或 receipt 数量作为完成率。
+
+## 2026-09-30 Futu triple-owner batch
+
+- 7 个 3-way shared owner relation 完成逐引用复核，覆盖 quote row dedupe/normalization、security market validation、tick fallback、interval mapping、recoverable errors、HK order-book subscription 与 closed-ready session replacement；14 条 exact 释放。
+- integration-futu nextest **7/7 passed**（536 skipped）；receipt `futu-triple-owner-reviewed-2026-09-30.json`，raw output digest `sha256:a64ff016f2bbb625e64b480deb054496e909e0e2e4837fa6f9919696b07838e9`。
+- strict gap **301→287**。
+## 2026-09-30 Assistant MCP server owner batch
+
+- 逐引用复核 MCP server 的 14 个 shared-owner relation，覆盖 account/portfolio projection、strategy/backtest/model 工具、listener lifecycle、catalog registration、dependency fail-closed、unsafe host、activity paging 与 workflow wait cancellation；保留未覆盖的 HTTP fetch、schema 与 product dispatch relation。
+- engine nextest **14/14 passed**；receipt `assistant-mcp-server-owner-reviewed-2026-09-30.json`，raw output digest `sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`。
+- 14 个 relation 标记为 reviewed，释放 14 条 exact；strict gap **287→272**。未以测试总数、receipt 数量或 verification passed 作为完成率。
+
+## 2026-09-30 Assistant application/tool-catalog owner batch
+
+- 逐引用复核 16 个 fan-out ≤4 的 application/tool-catalog shared owner relation，覆盖 workflow fail-closed/update、execution read、trade scope、market candle forwarding、backtest filters、portfolio layers、research readiness、strategy optimization、tool catalog projection、capability access 与 malformed instrument rejection；10-way strategy binding relation 保留待单独审查。
+- engine nextest **17/17 passed**（1995 skipped）；receipt `assistant-application-owner-reviewed-2026-09-30.json`，raw output digest `sha256:9d64884dbd4dfa97317b1272f9a616f8980daf39aea3b663c90748e49c5b3c69`。
+- 16 个 relation 标记为 reviewed，释放 16 条 exact；strict gap **272→256**。未以测试总数、receipt 数量或 verification passed 作为完成率。
+
+## 2026-09-30 ADK runtime pair owner batch
+
+- 逐引用复核 20 个 fan-out=2 的 ADK runtime relation，覆盖 input conflict、approval projection、lease fencing、run/session projection、terminal audit 与 context compaction；高 fan-out runtime/store relation 保留 backlog。
+- engine nextest **20/20 passed**；receipt `assistant-adk-runtime-pairs-reviewed-2026-09-30.json`，raw output digest `sha256:4a81b9bc4b2324ea45c9ed00b94198fe11e0766718c7e061596c2136ce0af21a`。
+- 20 个 relation 标记为 reviewed，释放 20 条 exact；strict gap **256→236**。未以测试总数、receipt 数量或 verification passed 作为完成率。
+
+## 2026-09-30 API route pair owner batch
+
+- 逐引用复核 20 个 fan-out=2 的 API/Transport route owner relation，覆盖 execution validation/preview、system health/status、calendar/news/company projection、broker query、market adjustment、WebSocket subscription、Futu market rules/order-book 与 notification mapping。
+- workspace nextest **20/20 passed**（3521 skipped）；receipt `api-route-pairs-reviewed-2026-09-30.json`，raw output digest `sha256:5e63078e658a06423b3c1b0453baeb53f72de24a2e26a4da3faea60c003c084c`。
+- 20 个 relation 标记为 reviewed，释放 20 条 exact；strict gap **236→216**。未以测试总数、receipt 数量或 verification passed 作为完成率。
+
+## 2026-09-30 API route tail owner batch
+
+- 收口剩余 2 个 fan-out=2 route relation：Futu notification/quote-right labels 与 settings backtest-provider atomic preparation。
+- workspace nextest **2/2 passed**；receipt `api-route-pairs-tail-reviewed-2026-09-30.json`，raw output digest `sha256:a65d2d16e2e20bb0f2a9e74fdb690e8733f1cf4623ddc3da7c1f92c38f5c00d6`。
+- 2 个 relation 标记为 reviewed，释放 2 条 exact；strict gap **216→214**。未以测试总数、receipt 数量或 verification passed 作为完成率。
+
+## 2026-09-30 API route triple-owner batch
+
+- 逐引用复核 14 个 fan-out=3 的 API/Transport shared owner relation，覆盖 execution combo/snapshot、marketdata batch/quote/subscription、trade analytics/funds、Futu descriptor/retry/notification、market profile、maintenance 与 watchlist cache。
+- workspace nextest **14/14 passed**（3527 skipped）；receipt `api-route-triples-reviewed-2026-09-30.json`，raw output digest `sha256:5548a060148522457f38e479d3d4d3ef8efa868c9137f035ccf75a79d75585ad`。
+- 14 个 relation 标记为 reviewed，释放 14 条 exact；strict gap **214→200**。未以测试总数、receipt 数量或 verification passed 作为完成率。
+
+## 2026-09-30 ADK runtime triple-owner batch
+
+- 逐引用复核 13 个 fan-out=3 的 ADK runtime relation，覆盖 pending input recovery、tool-only turn、expiry/fencing、memory/provider gate、terminal audit、handoff 与 session pagination。
+- engine nextest **13/13 passed**（1999 skipped）；receipt `assistant-adk-runtime-triples-reviewed-2026-09-30.json`，raw output digest `sha256:40a8bbf45d8b4d060d82e0b10b6ba4240623818c154fc9145587541e96f1a333`。
+- 13 个 relation 标记为 reviewed，释放 13 条 exact；strict gap **200→187**。未以测试总数、receipt 数量或 verification passed 作为完成率。
+
+## 2026-09-30 Assistant claims/runtime owner batch
+
+- 逐引用复核 6 个 `jftrade-assistant` fan-out=2–4 relation，覆盖 workflow diamond ordering、completed tool replay、stale claim fencing、sibling approval continuation、approval idempotency 与 lease heartbeat。
+- workspace nextest **6/6 passed**（3535 skipped）；receipt `assistant-claims-owners-reviewed-2026-09-30.json`，raw output digest `sha256:d100bdc4c3bf6e5e5c77e48d8db495259f294334cae5137a63752f23cd182cf3`。
+- 6 个 relation 标记为 reviewed，释放 6 条 exact；strict gap **187→181**。未以测试总数、receipt 数量或 verification passed 作为完成率。
+
+## 2026-09-30 ADK store owner batch
+
+- 逐引用复核 7 个 SQLite ADK store fan-out≤4 relation，覆盖 missing-session atomicity、event commit/rollback、provider default repair、artifact/session restart durability、writer fencing 与 approval idempotency。
+- workspace nextest **7/7 passed**（3534 skipped）；receipt `adk-store-owners-reviewed-2026-09-30.json`，raw output digest `sha256:98fd30e706a5cae7d009a6e00852927d73aaee0352a081f637926548e9e22885`。
+- 7 个 relation 标记为 reviewed，释放 7 条 exact；strict gap **181→174**。未以测试总数、receipt 数量或 verification passed 作为完成率。
+
+## 2026-09-30 Futu/OpenD pair owner batch
+
+- 逐引用复核 20 个 Futu/OpenD fan-out=2 relation，覆盖 basic quote/tick batching、health/version/status、instrument search/static info、kline interval/window、managed session keep-alive/close 与 order-book empty/detail projection。
+- `jftrade-integration-futu` nextest **20/20 passed**（523 skipped）；receipt `futu-opend-pairs-reviewed-2026-09-30.json`，raw output digest `sha256:687a59f3da757e1fbf5c57147f130f111fc42f726855149bd81cad3f625482a1`。
+- 20 个 relation 标记为 reviewed，释放 20 条 exact；strict gap **174→154**。未以测试总数、receipt 数量或 verification passed 作为完成率。
+
+## 2026-09-30 Futu/OpenD pair owner batch 2
+
+- 逐引用复核第二组 20 个 Futu/OpenD fan-out=2 relation，覆盖 quote-rights/cache generation、security snapshot、subscription lifecycle/reconcile、trade proto/session、watchlist gate、client recovery、frozen proto 与 prediction push。
+- `jftrade-integration-futu` nextest **20/20 passed**（523 skipped）；receipt `futu-opend-pairs-2-reviewed-2026-09-30.json`，raw output digest `sha256:2c24a6e94b730a3dad00c289924da912d36acdfec2e161f307f1f47fc0f56a70`。
+- 20 个 relation 标记为 reviewed，释放 20 条 exact；strict gap **154→134**。未以测试总数、receipt 数量或 verification passed 作为完成率。
+
+## 2026-09-30 Futu/OpenD pair tail owner
+
+- 收口剩余 1 个 Futu/OpenD fan-out=2 relation：user security group type encoding/projection。
+- `jftrade-integration-futu` nextest **1/1 passed**（542 skipped）；receipt `futu-opend-pair-tail-reviewed-2026-09-30.json`，raw output digest `sha256:1f56d2b79405bbad59b530e99ddcb46d9ac8e5589a56c759a6b1636dd90c2290`。
+- 1 个 relation 标记为 reviewed，释放 1 条 exact；strict gap **134→133**。未以测试总数、receipt 数量或 verification passed 作为完成率。
+
+## 2026-09-30 Cross-domain pair owner batch
+
+- 逐引用复核跨领域剩余 fan-out=2 的 20 个 relation，覆盖 calendar snapshot、ADK task/provider/notices/tool declarations、execution/reconciliation、marketdata catalog/lease/snapshot、research projections 与 broker capabilities。
+- workspace nextest **20/20 passed**（3521 skipped）；receipt `cross-domain-pairs-reviewed-2026-09-30.json`，raw output digest `sha256:11200ac86d98093d5f2a7439a503bd0412ad759a418ff2bfaa4dbbbed90f49d8`。
+- 20 个 relation 标记为 reviewed，释放 20 条 exact；strict gap **133→113**。未以测试总数、receipt 数量或 verification passed 作为完成率。
+
+## 2026-09-30 Futu/OpenD triple owner batch 2
+
+- 逐项复核 16 个 `referenceCount=3` 的 Futu/OpenD、marketdata 与 SQLite shared owner relation，覆盖 search 错误与 malformed response、K-line period 双协议映射、snapshot rate-limit/empty result、subscription reconcile 并发幂等、funds/max-quantity projection、trade protocol IDs、watchlist fresh/cache/duplicate semantics、closed-session propagation、prediction normalization、tick-candle window/volume 与 execution sequence reopen。
+- workspace nextest **16/16 passed**（3525 skipped）；receipt `futu-opend-triples-2-reviewed-2026-09-30.json`，raw output digest `sha256:7564322fb6753e5a1262f184c00d6d07694179d6a6f606f295dd7c648e7f2933`。
+- 16 个 relation 标记为 reviewed，释放 16 条 exact；strict gap **72→56**（以本轮独立 strict audit 输出为准）。未以测试总数、receipt 数量或 verification passed 作为完成率。
+
+## 2026-09-30 Mixed high-fanout owner batch 1
+
+- 20 个未审核 shared owner relation 完成逐引用复核，覆盖 broker market rules、funds/portfolio projection、ADK runtime/store、Pine/research normalization、calendar、Futu snapshot/prediction 与 SQLite lifecycle；其中 research screen owner 在两个真实 binary 中命中，共 **21/21 passed**。
+- receipt `mixed-highfanout-owners-reviewed-2026-09-30.json`，raw output digest `sha256:07427002da46199e0b8a3eb5cb3526c1d79234605b017330e2aca6940f460c75`；释放 25 条 exact，strict gap **56→31**。
+
+## 2026-09-30 Mixed high-fanout owner batch 2
+
+- 20 个 ADK/calendar/broker/marketdata-helper/execution/Futu owner relation 完成真实行为复核，nextest **20/20 passed**。
+- receipt `mixed-highfanout-owners-2-reviewed-2026-09-30.json`，raw output digest `sha256:e96c23604f55078abb65f9f54d5892a17f7671bca9a48afd63666b112f8547ac`；释放 20 条 exact，strict gap **31→11**。
+
+## 2026-09-30 Final Futu/research owner batch
+
+- 剩余 11 个 notification、quote-rights、order-book、search、history/session、security snapshot 与 research projection owner 全部实测，nextest **11/11 passed**。
+- receipt `final-futu-research-owners-reviewed-2026-09-30.json`，raw output digest `sha256:400c22b7ae211ed0eb4cd8c490347c8dcd808d4bb8b19b7b4e39710513d17061`；strict gap **11→0**，所有 `function_exact` 行均具备 reviewed assertion、anchor、reuse 与 passed receipt。
+
+## 2026-09-30 API transport SPA boundary behavior
+
+- 新增真实 axum transport 表驱动测试，覆盖 root/HTML/尾斜杠 SPA 回退、`Accept: application/json` 拒绝、扩展名与 assets 缺失拒绝；先以失败测试确认旧实现错误，再修复 router 按 Accept 选择 SPA fallback。
+- `TestShouldServeFrontendIndexRequestBoundaries` 从 partial 升为 `function_exact`，`jftrade-api` nextest **1/1 passed**；receipt `api-transport-spa-boundary-reviewed-2026-09-30.json`，digest `sha256:f3c8b8358b7572660ce891f978438721ec363b73ea1b649e9746a896359b83b8`。
+- API Server/Transport 数量比仅由 **10.6%→10.7%**，仍不作为完成率；strict audit 继续为全量通过。
+
+## 2026-09-29 API provider-test wire batch
+
+- `TestProviderAndAgentValidationContracts` 完成公开 provider probe 路由收口：真实 HTTP 测试覆盖无 body 默认 quick（`reasoning.effort`）、`mode=full`、`mode=slow` → 400，以及未知 provider → 502 `ADK_PROVIDER_TEST_FAILED` / `provider not found`。
+- 先红后修 `product_production_ports_adk_mutation_runtime.rs::test_provider` 的未知 provider 状态码；端口与生产路由 nextest **4/4 passed**，receipt `api-provider-test-wire-reviewed-2026-09-29.json`，raw output digest `sha256:b4ce4838b0f6ebe37e9474caabda06913c14ab226e3fbcc7ba332fd324ee6800`。
+- 该映射由 partial 升为 `function_exact`，strict function_exact 证据行 **1492→1493**；strict audit 通过。API Server/Transport 数量比仍为 10.7%，不作为完成率。
+
+## 2026-09-30 API assistant chat/SSE wire batch
+
+- `TestChatAndSSEContracts` 补成真实 production composition 行为测试：先断言 `POST /api/v1/adk/chat` 的 `200`、JSON `ok=true` envelope，再用独立 request id 驱动成功 SSE，断言 `Content-Type=text/event-stream`、`X-ADK-Stream-Idle-Timeout-Ms=420000`、session→run→terminal 顺序与持久化 session id。
+- 测试使用两连接 loopback Responses provider；关闭 provider 的 JSON failure projection 与成功 SSE 头分开验证，避免把失败路径计作成功流。定向 engine nextest **1/1 passed**；receipt `api-assistant-chat-sse-contract-reviewed-2026-09-30.json`，digest `sha256:ef17475a3ca52c8d11254d0a921de827174661872903d9d93a6ea34a09c353f8`。
+- 该 partial 升为 `function_exact`，strict function_exact 证据 **1493→1494**；strict audit 通过。API Server/Transport 数量比仍仅作风险信号，不作为完成率。
+
+## 2026-09-30 API live WebSocket shutdown lifecycle batch
+
+- `TestHandlerConnectionLimitAndCloseLifecycle` 补齐真实 WebSocket 组合行为：连接上限超出返回 `503 LIVE_WS_LIMIT_REACHED`，释放 permit 后可再次握手；活动连接订阅 depth 后触发 product shutdown，读取服务端 `1001/server shutting down` close，并确认 hub connected 与 active depth instruments 均清零。
+- 先红后修测试夹具：扩展 masked WebSocket frame 长度支持，并排空 shutdown 前 queued text frame 后再断言 close；生产实现未被绕过。engine nextest **2/2 passed**；receipt `api-live-handler-close-lifecycle-reviewed-2026-09-30.json`，digest `sha256:14c38cbc91d70bb6b9a627c8fddd509294d9899c7a119ba0bf6c20079930b181`。
+- 该 partial 升为 `function_exact`，strict function_exact 证据 **1494→1495**，partial **2322→2321**；strict audit 通过。API Server/Transport 10.7% 数量比仍不作为完成率。
+## 2026-09-30 API bindings required-path wire batch
+
+- `TestBindURIHandlesBindingAndFallbackEscapeValidation` 补齐真实 `build_router` wire 断言：已认证请求缺少 `/api/v1/watchlist/groups/{groupId}` 参数时返回 `404`、`application/json; charset=utf-8`、稳定 `NOT_FOUND` envelope，且 `ApiPort` 不被调用；URI `%25`/`%20` 合法解码与 `%ZZ`/`%2` 拒绝由 query owner 同批断言。
+- 先红后修验证了认证中间件先于路由匹配（未认证请求为 401），随后在已认证夹具下 **3/3 passed**；receipt `api-bindings-wire-exact-reviewed-2026-09-30.json`，raw output digest `sha256:df775fcfd9a151371616e8dfe64aef9996d0f1c84088b7d4925d8cd6eba2ec0f`。
+- 该 partial 升为 `function_exact`；strict function_exact **1495→1496**，API Server/Transport 数量比 **10.7%→10.8%** 仅作风险信号，不作为完成率；strict audit 通过。
+## 2026-09-30 Daily candle assertion review
+
+- 冻结 Go `market_http_test.go:91` 的断言逐项核对：成功返回一根 daily candle，candle 与 meta 均省略 session，meta.extendedHours=false。生产 read owner 测试补齐 array length、meta.session 缺省和 extendedHours=false；首次即绿，无生产差异修复。
+- 定向 nextest 1/1 通过；mapping 从 partial 升为 reviewed function_exact，partial 2321→2320，exact 1496→1497；strict audit 必须以本轮实际输出确认。receipt `api-daily-candle-reviewed-2026-09-30.json` 文件 digest `sha256:81066e73e3ad596e37e434d16a68862032bf1e46f5b7f1ac386fede7d975b832`。
+- 修正上一轮 bindings mapping 的 receiptDigest：日志 rawOutputSha256 仅描述日志，receiptDigest 应为 receipt 文件 SHA-256（`b0b57dcbc9ccdaa5869ff5c59955dc4cc97f97a109dfc0bb59f83dbe6b9bfad0`）。
+- 全量 check:rust 本轮仍在 target-health 失败（至少 50000 rcgu.o）；check:quick 实际执行后在 check:zero-go 失败。两项均未记为通过。
+## 2026-09-30 System hard-stop handler boundary review
+
+- 冻结 Go `routes_test.go:102` 直接调用 handler；DELETE 请求 URL 不代表注册路由。Go 与 Rust 公开 release 路由均为 POST `/{hardStopId}/release`。修正原映射把 handler seam 差异当作公开 route 差异的结论。
+- Rust dispatch 增加 `%20/%20%20/%09` 空白 id 回归：400、BAD_REQUEST、hard stop id is required，零 port 调用；已有 quantity/notional=0 拒绝保留。新断言首次通过，无生产差异。
+- 定向 nextest 1/1 通过，receipt `api-system-blank-hard-stop-reviewed-2026-09-30.json`（文件 digest `aabb091fc34e9a5dc1fff7211d4291cb6aca91d450bdd2fa4dcfe28d6ff21ac0`）。assertionCoverage 从 legacy-conclusion 升 reviewed；独立无 param handler seam 保留 partial，不宣称 exact 或整体完成。
+- 本批 strict gap 没有下降；实质变化是空白 id 防御行为被断言、错误差异结论被纠正。后续需继续模块批量补 wire 行为，而非以 receipt 或通过数量计完成率。
+## 2026-09-30 Execution ETH session route batch
+
+- 对照 Go `exec_validate_test.go:88` 的 HTTP status、ETH session、fillOutsideRTH 三项断言，新增真实 Product POST 测试锁定 200 与 raw session；既有 parser/to_trade_request/Futu wire 测试锁定 ETH→session=2、fillOutsideRTH=true 及协议编码。
+- 先红后修核对 owner：HTTP write port 接收 raw payload，不能错误要求其携带下游计算字段 `fillOutsideRTH`；移除错误断言后组合测试 **3/3 passed**。receipt `api-execution-eth-session-wire-reviewed-2026-09-30.json`，文件 digest `sha256:ef814b566fa23db1756adfc112360616db9f75b2193b496ee280ff98aad9086c`。
+- mapping 从 partial 升 reviewed function_exact，strict function_exact **1497→1498**，partial **2320→2319**（随后 daily candle 批次已将 partial 更新为 **2318**）；数量比例不作为完成率。
+## 2026-09-30 Assistant catalog HTTP composition batch
+
+- `TestCatalogSessionRunAndObservabilityContracts` 由 port-level partial 补为真实 Product HTTP composition：同一 ProductionAdkPort seed 下逐一请求 12 个 catalog/session/run/observability GET 路由，断言 HTTP 200 + `ok=true`，并断言 DELETE provider 200 + `ok=true`。
+- 定向 nextest 1/1 passed；receipt `api-adk-catalog-http-reviewed-2026-09-30.json`，文件 digest `sha256:8249f1afebb9345f3c0a4bb8fefb4eab02ac313e3706f75b39fdc26e5283e383`。
+- mapping 从 partial 升 `function_exact`，strict function_exact **1498→1499**，partial 实际 **2318→2317**；数量比例不作为完成率。

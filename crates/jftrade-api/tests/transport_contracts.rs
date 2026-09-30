@@ -104,6 +104,7 @@ impl ApiPort for RetryAfterPort {
 }
 
 #[tokio::test]
+// Parity: go:452dea11:internal/app/apiserver/webaccess/security_integration_test.go:335 TestWebLoginRejectsWrongPasswordAndRateLimits
 async fn error_envelope_preserves_optional_retry_after_header() {
     let routes = RouteCatalog::new([RouteSpec {
         method: "GET".into(),
@@ -157,6 +158,56 @@ async fn error_envelope_preserves_optional_retry_after_header() {
         .expect("unknown response");
     assert_eq!(unknown.status(), StatusCode::NOT_FOUND);
     assert!(unknown.headers().get("retry-after").is_none());
+}
+
+#[tokio::test]
+// Parity: go:452dea11:internal/api/httpserver/bindings_boundaries_test.go:70 TestBindURIHandlesBindingAndFallbackEscapeValidation
+async fn missing_path_parameter_returns_not_found_json_without_dispatch() {
+    let port = Arc::new(RecordingPort::default());
+    let routes = RouteCatalog::new([RouteSpec {
+        method: "GET".into(),
+        path: "/api/v1/watchlist/groups/{groupId}".into(),
+    }])
+    .expect("routes");
+    let router = build_router(ApiState::new(
+        routes,
+        AccessPolicy {
+            desktop_token: Some("desktop-token".into()),
+            ..AccessPolicy::default()
+        },
+        port.clone(),
+    ));
+
+    let response = router
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/watchlist/groups/")
+                .header("authorization", "Bearer desktop-token")
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    assert_eq!(
+        response.headers()["content-type"],
+        "application/json; charset=utf-8"
+    );
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("body")
+        .to_bytes();
+    let value: Value = serde_json::from_slice(&body).expect("error envelope");
+    assert_eq!(value["ok"], false);
+    assert_eq!(value["error"]["code"], "NOT_FOUND");
+    assert_eq!(
+        value["error"]["message"],
+        "unknown endpoint /api/v1/watchlist/groups/"
+    );
+    assert!(port.requests.lock().expect("requests").is_empty());
 }
 
 struct SsePort;
@@ -249,13 +300,22 @@ fn fixture() -> (axum::Router, Arc<RecordingPort>) {
         ..AccessPolicy::default()
     }
     .with_allowed_origins(["https://jftrade.local".into()]);
-    let assets = AssetBundle::new([(
-        "index.html".into(),
-        Asset {
-            content_type: "text/html; charset=utf-8".into(),
-            bytes: b"<html>JFTrade</html>".to_vec(),
-        },
-    )]);
+    let assets = AssetBundle::new([
+        (
+            "index.html".into(),
+            Asset {
+                content_type: "text/html; charset=utf-8".into(),
+                bytes: b"<html>JFTrade</html>".to_vec(),
+            },
+        ),
+        (
+            "assets/app.js".into(),
+            Asset {
+                content_type: "text/javascript; charset=utf-8".into(),
+                bytes: b"console.log('jftrade')".to_vec(),
+            },
+        ),
+    ]);
     let state = ApiState::new(routes, access, port.clone())
         .with_assets(assets)
         .with_clock(Arc::new(FixedClock("2026-08-19T00:00:00Z".into())));
@@ -265,6 +325,7 @@ fn fixture() -> (axum::Router, Arc<RecordingPort>) {
 #[tokio::test]
 // Parity: go:452dea11:internal/app/apiserver/servercoretest/system_routes_test.go:89 TestRequestObservabilityMiddlewarePropagatesRequestID
 // Parity: go:452dea11:internal/api/httpserver/bindings_test.go:224 TestResponseEnvelopeWriters
+// Parity: go:452dea11:internal/app/apiserver/servercore/request_observability_test.go:14 TestRequestObservabilityInjectsStableContextAndRecordsSummary
 async fn desktop_token_reaches_port_with_stable_envelope_and_request_id() {
     let (router, port) = fixture();
     let response = router
@@ -365,6 +426,7 @@ async fn browser_write_requires_allowed_origin_and_csrf() {
 }
 
 #[tokio::test]
+// Parity: go:452dea11:internal/api/middleware/security_boundaries_test.go:108 TestCanonicalOriginRejectsMalformedAndUnsupportedValues
 async fn cors_preflight_reflects_allowed_origin_and_rejects_unknown_origin() {
     let (router, _) = fixture();
     let allowed = router
@@ -532,8 +594,7 @@ async fn unknown_portfolio_reconciliation_route_returns_json_not_found() {
 
 // Parity: go:452dea11:internal/app/apiserver/servercoretest/frontend_test.go:25 TestServerServesFrontendAssetsAndSPAFallback
 // Parity: go:452dea11:internal/app/apiserver/webaccess/frontend_test.go:28 TestFrontendServesAssetsAndSPAFallback
-#[tokio::test]
-async fn unknown_api_is_json_but_frontend_uses_spa_fallback() {
+async fn frontend_assets_match_go_contract_inner() {
     let (router, _) = fixture();
     let unknown = router
         .clone()
@@ -568,6 +629,74 @@ async fn unknown_api_is_json_but_frontend_uses_spa_fallback() {
         "text/html; charset=utf-8"
     );
 
+    let root = router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/")
+                .body(Body::empty())
+                .expect("root"),
+        )
+        .await
+        .expect("root response");
+    assert_eq!(root.status(), StatusCode::OK);
+    assert_eq!(
+        root.into_body()
+            .collect()
+            .await
+            .expect("root body")
+            .to_bytes()
+            .as_ref(),
+        b"<html>JFTrade</html>"
+    );
+
+    let asset = router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/assets/app.js")
+                .body(Body::empty())
+                .expect("asset"),
+        )
+        .await
+        .expect("asset response");
+    assert_eq!(asset.status(), StatusCode::OK);
+    assert_eq!(
+        asset.headers()["content-type"],
+        "text/javascript; charset=utf-8"
+    );
+    assert_eq!(
+        asset
+            .into_body()
+            .collect()
+            .await
+            .expect("asset body")
+            .to_bytes()
+            .as_ref(),
+        b"console.log('jftrade')"
+    );
+
+    let missing = router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/missing.json")
+                .body(Body::empty())
+                .expect("missing"),
+        )
+        .await
+        .expect("missing response");
+    assert_eq!(missing.status(), StatusCode::NOT_FOUND);
+    assert!(
+        missing
+            .into_body()
+            .collect()
+            .await
+            .expect("missing body")
+            .to_bytes()
+            .is_empty()
+    );
+
     let head = router
         .oneshot(
             Request::builder()
@@ -587,6 +716,98 @@ async fn unknown_api_is_json_but_frontend_uses_spa_fallback() {
             .to_bytes()
             .is_empty()
     );
+}
+
+#[tokio::test]
+async fn unknown_api_is_json_but_frontend_uses_spa_fallback() {
+    frontend_assets_match_go_contract_inner().await;
+}
+
+// Parity: go:452dea11:internal/app/apiserver/webaccess/frontend_test.go:106 TestShouldServeFrontendIndexRequestBoundaries
+#[tokio::test]
+async fn frontend_spa_fallback_respects_path_and_accept_boundaries() {
+    let cases = [
+        ("/", None, StatusCode::OK, true),
+        ("/strategy", Some("text/html"), StatusCode::OK, true),
+        ("/strategy/", Some("text/html"), StatusCode::OK, true),
+        (
+            "/strategy",
+            Some("application/json"),
+            StatusCode::NOT_FOUND,
+            false,
+        ),
+        (
+            "/missing.json",
+            Some("text/html"),
+            StatusCode::NOT_FOUND,
+            false,
+        ),
+        (
+            "/assets/missing.js",
+            Some("text/html"),
+            StatusCode::NOT_FOUND,
+            false,
+        ),
+        ("/missing", Some("text/html"), StatusCode::OK, true),
+    ];
+    for (uri, accept, status, has_body) in cases {
+        let (router, _) = fixture();
+        let mut request = Request::builder().uri(uri);
+        if let Some(accept) = accept {
+            request = request.header("accept", accept);
+        }
+        let response = router
+            .oneshot(request.body(Body::empty()).expect("request"))
+            .await
+            .expect("response");
+        assert_eq!(response.status(), status, "{uri} accept={accept:?}");
+        let body = response
+            .into_body()
+            .collect()
+            .await
+            .expect("body")
+            .to_bytes();
+        assert_eq!(
+            !body.is_empty(),
+            has_body,
+            "{uri} accept={accept:?} body shape"
+        );
+    }
+}
+
+// Parity: go:452dea11:internal/app/apiserver/servercoretest/frontend_test.go:25 TestServerServesFrontendAssetsAndSPAFallback
+// Parity: go:452dea11:internal/app/apiserver/webaccess/frontend_test.go:28 TestFrontendServesAssetsAndSPAFallback
+#[tokio::test]
+async fn frontend_assets_match_go_contract() {
+    frontend_assets_match_go_contract_inner().await;
+    let (router, _) = fixture();
+    let asset = router
+        .oneshot(
+            Request::builder()
+                .uri("/assets/app.js")
+                .body(Body::empty())
+                .expect("asset request"),
+        )
+        .await
+        .expect("asset response");
+    assert_eq!(asset.status(), StatusCode::OK);
+}
+
+// Parity: go:452dea11:internal/app/apiserver/webaccess/frontend_test.go:28 TestFrontendServesAssetsAndSPAFallback
+#[tokio::test]
+async fn frontend_webaccess_assets_match_go_contract() {
+    frontend_assets_match_go_contract_inner().await;
+    let (router, _) = fixture();
+    let missing = router
+        .oneshot(
+            Request::builder()
+                .uri("/missing.json")
+                .body(Body::empty())
+                .expect("missing request"),
+        )
+        .await
+        .expect("missing response");
+    assert_eq!(missing.status(), StatusCode::NOT_FOUND);
 }
 
 #[tokio::test]
