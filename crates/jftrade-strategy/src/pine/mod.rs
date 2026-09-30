@@ -200,6 +200,11 @@ mod public_helper_guard_tests {
             ("x = cross_over(fast, slow)", "ta.crossover"),
             ("x = cross_under(fast, slow)", "ta.crossunder"),
             ("notify(\"hello\")", "alert"),
+            ("x = barssince(close > open)", "ta.barssince"),
+            ("x = valuewhen(close > open, close, 0)", "ta.valuewhen"),
+            ("x = security_source(\"AAPL\", \"1D\", close)", "request.security"),
+            ("x = highest(close, 20)", "ta.highest"),
+            ("x = lowest(close, 20)", "ta.lowest"),
         ] {
             let source =
                 format!("//@version=6\nstrategy(\"reject helpers\", overlay=true)\n{line}");
