@@ -22,6 +22,21 @@ impl ExecutionWritePort for FixtureExecutionWritePort {
     }
 }
 
+#[derive(Debug, Default)]
+struct RecordingExecutionWritePort {
+    inputs: Mutex<Vec<ExecutionWriteInput>>,
+}
+
+impl ExecutionWritePort for RecordingExecutionWritePort {
+    fn mutate(&self, input: &ExecutionWriteInput) -> Result<Value, ExecutionWritePortError> {
+        self.inputs
+            .lock()
+            .expect("execution inputs")
+            .push(input.clone());
+        Ok(json!({"accepted": true, "operation": input.operation.name()}))
+    }
+}
+
 #[derive(Debug)]
 struct SequencedExecutionWritePort {
     responses: Mutex<VecDeque<Result<Value, ExecutionWritePortError>>>,
@@ -117,6 +132,39 @@ async fn execution_write_routes_register_only_with_explicit_test_port() {
         .shutdown()
         .await
         .expect("shutdown execution write product");
+}
+
+#[tokio::test]
+// Parity: go:452dea11:internal/app/apiserver/servercoretest/exec_validate_test.go:88 TestExecutionOrderRoutesPropagateUSSessionSelection
+async fn execution_order_route_preserves_eth_session_in_http_write_input() {
+    let directory = tempdir().expect("temporary directory");
+    let settings_path = directory.path().join("settings.json");
+    let port = Arc::new(RecordingExecutionWritePort::default());
+    let config =
+        ProductConfig::test_cutover("127.0.0.1:0".parse().expect("address"), &settings_path)
+            .expect("config")
+            .with_execution_write_port(port.clone());
+    let handle = start_product(config)
+        .await
+        .expect("start execution product");
+    let (status, response) = request_json_with_status(
+        handle.startup_record().address,
+        "POST",
+        "/api/v1/execution/orders",
+        Some(
+            r#"{"brokerId":"futu","accountId":"1001","market":"US","symbol":"TME","side":"BUY","orderType":"LIMIT","timeInForce":"DAY","session":"ETH","quantity":100,"price":10.12,"tradingEnvironment":"SIMULATE"}"#,
+        ),
+        &[],
+    )
+    .await;
+    assert_eq!(status, 200);
+    assert_eq!(response["ok"], true);
+    {
+        let inputs = port.inputs.lock().expect("execution inputs");
+        assert_eq!(inputs.len(), 1);
+        assert_eq!(inputs[0].payload["session"], "ETH");
+    }
+    handle.shutdown().await.expect("shutdown execution product");
 }
 
 // Parity: go:452dea11:internal/app/apiserver/servercore/exec_writeback_test.go:11 TestExecutionPushHandlersWriteBackAndNotify
@@ -423,6 +471,7 @@ impl ExecutionReadSnapshotPort for FailedExecutionReadPort {
 #[tokio::test]
 // Parity: go:452dea11:internal/api/trading/execution_validation_contracts_test.go:52 TestExecutionRoutesValidatePayloadsAndMapHandlerErrors
 // Parity: go:452dea11:internal/api/trading/execution_products_test.go:73 TestExecutionProductRoutesValidationAndServiceErrors
+// Parity: go:452dea11:internal/app/apiserver/servercoretest/exec_validate_test.go:211 TestExecutionOrderRoutesRejectBareSymbolWithoutMarket
 async fn execution_error_envelopes_keep_request_errors_distinct_from_upstream_failures() {
     let directory = tempdir().expect("temporary directory");
     let settings_path = directory.path().join("settings.json");
