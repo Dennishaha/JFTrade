@@ -372,6 +372,7 @@ mod tests {
         let missing = root.join("missing");
         AssetBundle::prune_cached(&missing, "current", Duration::from_secs(1), now)
             .expect("missing cache root is a no-op");
+        assert!(!missing.exists(), "pruning must not create a missing root");
         let _ = fs::remove_dir_all(root);
     }
 
@@ -383,12 +384,20 @@ mod tests {
             bytes: b"fixture",
             sha256: "f16d05ec6b29248d2c61adb1e9263f78e4f7bace1b955014a2d17872cfe4064d",
         });
-        let paths = (0..6)
+        let barrier = Arc::new(std::sync::Barrier::new(6));
+        let workers = (0..6)
             .map(|_| {
                 let bundle = Arc::clone(&bundle);
                 let root = root.clone();
-                std::thread::spawn(move || bundle.materialize(&root).expect("materialize"))
+                let barrier = Arc::clone(&barrier);
+                std::thread::spawn(move || {
+                    barrier.wait();
+                    bundle.materialize(&root).expect("materialize")
+                })
             })
+            .collect::<Vec<_>>();
+        let paths = workers
+            .into_iter()
             .map(|worker| worker.join().expect("worker"))
             .collect::<Vec<_>>();
         assert!(paths.iter().all(|path| path == &paths[0]));

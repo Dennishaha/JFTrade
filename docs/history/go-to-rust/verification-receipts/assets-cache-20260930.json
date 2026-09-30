@@ -20,13 +20,13 @@
   "toolchain": "rustc 1.97.1 (2026-07-14)",
   "exitCode": 0,
   "status": "passed",
-  "verifiedAt": "2026-09-30T13:42:13Z",
+  "verifiedAt": "2026-09-30T13:52:22Z",
   "sourceState": {
-    "verifiedCommit": "6106c434ae35f7bb361af91e44a794d5d4976b31",
-    "trackedDiffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "verifiedCommit": "62716d15ef81cd78065f8e46febe55d4304b81d3",
+    "trackedDiffSha256": "ba3fdf7d8875cdffaeb789c4b7078fa011556445e57978ed112643c36281d896",
     "untrackedFiles": []
   },
-  "rawOutputSha256": "059b9ea3f2f96207567777576e5250d4f680d16faad0813478c5fba240946b75",
+  "rawOutputSha256": "2ecf33473c8bc20db1dd6333f5a75aedc12d9a5965b0b666e67fbc15af44feae",
   "passedTests": [
     "jftrade-integration-marketdata-helper::jftrade_integration_marketdata_helper$asset::tests::concurrent_materialization_publishes_one_verified_file",
     "jftrade-integration-marketdata-helper::jftrade_integration_marketdata_helper$asset::tests::prunes_only_expired_cache_directories_and_ignores_missing_root",
@@ -57,7 +57,7 @@
       "ignored": 0,
       "measured": 0,
       "filtered_out": 19,
-      "exec_time": 0.333765668,
+      "exec_time": 0.175631916,
       "nextest": {
         "crate": "jftrade-integration-marketdata-helper",
         "test_binary": "jftrade_integration_marketdata_helper",
