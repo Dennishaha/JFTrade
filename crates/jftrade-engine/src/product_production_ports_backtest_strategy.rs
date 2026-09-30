@@ -656,6 +656,7 @@ mod execution_model_tests {
         assert_eq!(parsed.session_scope, "regular");
     }
 
+    // Parity: go:452dea11:pkg/backtest/conservative_bar_executor_test.go:21 TestNormalizeExecutionModelName
     #[test]
     fn execution_model_defaults_and_normalizes_ascii_case() {
         let omitted = parse_start_request(&request_with_execution_model(None))
