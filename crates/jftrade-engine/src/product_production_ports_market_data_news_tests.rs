@@ -345,6 +345,45 @@ async fn production_news_actions_port_forwards_corporate_actions_from_without_to
 }
 
 #[test]
+// Parity: go:452dea11:internal/integration/yfinance/provider_news_actions_test.go:102 TestProviderCorporateActionsRejectsUnknownKindsAndBadExDates
+fn corporate_actions_projection_rejects_unknown_kinds_and_bad_ex_dates() {
+    for (event, expected) in [
+        (
+            serde_json::json!({"kind": "buyback", "ex_date": "2026-05-11", "amount": null, "ratio": null}),
+            "corporate action event kind must be dividend or split",
+        ),
+        (
+            serde_json::json!({"kind": "dividend", "ex_date": "2026-05", "amount": 1, "ratio": null}),
+            "corporate action event exDate must be YYYY-MM-DD",
+        ),
+    ] {
+        let payload = serde_json::json!({
+            "market": "US",
+            "symbol": "AAPL",
+            "instrument_id": "US.AAPL",
+            "source": "yfinance-actions",
+            "events": [event]
+        });
+        let error = super::product_production_ports_market_data_news_actions::validate_news_actions_payload(
+            payload,
+            "corporate-actions",
+            "US",
+            "AAPL",
+        )
+        .expect_err("malformed corporate action must be rejected");
+        assert!(matches!(
+            error,
+            MarketDataNewsActionsReadSnapshotError::Failed {
+                status: 502,
+                ref code,
+                ref message,
+                ..
+            } if code == "BAD_GATEWAY" && message == expected
+        ));
+    }
+}
+
+#[test]
 fn corporate_actions_projection_rejects_missing_events() {
     let payload = serde_json::json!({
         "market": "US",
