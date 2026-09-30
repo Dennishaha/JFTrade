@@ -813,6 +813,7 @@ async fn candle_route_skips_session_classification_for_unannotated_requests() {
 /// call, and the response reports `meta.fromCache = true` together with the
 /// candle's own `at` timestamp.
 #[tokio::test]
+// Parity: go:452dea11:internal/marketdata/cache_test.go:301 TestServiceUsesSingleCacheForSnapshotCandlesAndLatest
 // Parity: go:452dea11:internal/productfeatures/service_test.go:143 TestProductFeatureServiceRoutesEveryOptionalInterfaceAndCaches
 async fn tick_candles_use_fresh_cache_without_querying_the_provider() {
     let now_ms = current_unix_millis();

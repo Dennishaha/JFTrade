@@ -1189,6 +1189,7 @@ async fn poll_only_read_routes_prioritize_capabilities_and_preserve_leases() {
 /// and the cached source, and the response echoes the sample's own observation
 /// time instead of the request clock.
 #[tokio::test]
+// Parity: go:452dea11:internal/marketdata/cache_test.go:301 TestServiceUsesSingleCacheForSnapshotCandlesAndLatest
 // Parity: go:452dea11:internal/productfeatures/service_test.go:143 TestProductFeatureServiceRoutesEveryOptionalInterfaceAndCaches
 async fn snapshot_route_serves_a_fresh_cache_hit_without_provider_access() {
     let state = Arc::new(ActiveProviderState::new(Some(
@@ -1905,6 +1906,7 @@ impl jftrade_integration_futu::SecuritySnapshotBatchReader for RecordingSnapshot
 }
 
 #[test]
+// Parity: go:452dea11:internal/marketdata/cache_test.go:301 TestServiceUsesSingleCacheForSnapshotCandlesAndLatest
 fn cached_security_snapshot_reader_batches_hk_and_serves_repeats_from_cache() {
     use jftrade_integration_futu::{CachedSecuritySnapshotReader, SECURITY_SNAPSHOT_HK_BATCH_SIZE};
 

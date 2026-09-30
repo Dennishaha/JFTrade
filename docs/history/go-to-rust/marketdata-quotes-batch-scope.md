@@ -2208,3 +2208,7 @@ US regular 当前桶过滤与 bounded-window 合并页重过滤已按 Go `QueryK
 验证：修正后完整 `check:rust` 通过，workspace nextest 3552/3552 passed（2 skipped），clippy/static 与七类 compatibility replay 通过；缓存定向 receipt 5/5 passed，SHA-256 `8b8e9782cc9d6b7cb094e2e1c25b1724c24c235d3e6fbf088c53f14c4e9f03b4`。两条 cache 映射绑定新的真实 receipt、断言列表与 duplicate owner anchor；整体目标仍未完成。
 
 本轮继续复核 `TestCacheRetainsNewExtendedQuoteWhenPriceIsUnchanged`：Go 的同价新扩展行情要求 Count=2、after-market price/time、previous close 和 last close 保留；Rust 增加 Count=2、quote_time、previous_close 断言，last_close 与 retention clock 仍列为未覆盖。`jftrade-marketdata` 64/64 定向测试通过，新增 receipt `cache-extended-quote-reviewed-2026-09-30.json`。
+
+随后复核 `TestServiceUsesSingleCacheForSnapshotCandlesAndLatest` 与 `TestServiceTickCandleFallsBackToRetainedCache`：Rust 逐项覆盖 snapshot/tick candle/cache fallback/provider call count，以及 HK security snapshot 的批量与重复查询复用；同一 Go Service 串联四种读取的单 fixture 仍缺失，fallback 测试因与相邻 HTTP mapping 共用 owner 保持 partial。定向 receipt `cache-service-shared-owner-2026-09-30.json` 为 4/4 passed。
+
+验证：本批新增 serialization 2/2、shared-owner 4/4 定向测试均通过；严格 parity audit 和 anchor reconcile 通过。完整迁移目标仍未完成。
