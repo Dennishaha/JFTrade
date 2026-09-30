@@ -1,0 +1,156 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(stream_terminal_projection_trims_tool_outputs_from_final_response) or test(adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart) or test(persisted_terminal_run_is_published_as_final_instead_of_a_second_error) or test(recovered_terminal_stream_frame_carries_the_replay_marker) or test(auxiliary_provider_failure_skips_only_the_failing_subscription_family) or test(news_actions_helper_request_rejects_a_missing_instrument_uri) or test(embedded_capability_errors_keep_the_broker_code_and_lifecycle_sentinels) or test(explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback) or test(screen_query_rejects_wrong_catalog_and_schema_versions) or test(route_and_page_validation_precede_provider_calls) or test(futu_screen_capability_errors_use_the_broker_code) or test(research_screen_fixture_replays_go_wire_for_the_post_route) or test(execution_write_fixture_replays_all_seven_go_owned_mutations)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-30T06:02:59Z",
+  "sourceState": {
+    "verifiedCommit": "08280101d182144955c32dcd14eb26e11f9aeef5",
+    "trackedDiffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "untrackedFiles": [
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/engine-boundary-owners-2-2026-09-30.json",
+        "sha256": "840902d960fb03306b079ae26c0be49cc08d449e2e53ddb61c9de564019ded21"
+      }
+    ]
+  },
+  "rawOutputSha256": "8f23906159dc726f9f4692ed222e43f648cdaf957265c214b315533f870dd415",
+  "passedTests": [
+    "jftrade-engine::execution_write_compatibility$execution_write_fixture_replays_all_seven_go_owned_mutations",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::run_projection_tests::stream_terminal_projection_trims_tool_outputs_from_final_response",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::runtime_recovery::health_tests::persisted_terminal_run_is_published_as_final_instead_of_a_second_error",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::runtime_recovery::health_tests::recovered_terminal_stream_frame_carries_the_replay_marker",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_market_data::product_production_ports_market_data_news_tests::explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_market_data::product_production_ports_market_data_news_tests::news_actions_helper_request_rejects_a_missing_instrument_uri",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_strategy::product_production_ports_research::research_helper_tests::embedded_capability_errors_keep_the_broker_code_and_lifecycle_sentinels",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_strategy::product_production_ports_research::screen_query::tests::futu_screen_capability_errors_use_the_broker_code",
+    "jftrade-engine::jftrade_engine$product::product_research_screen_write_port::research_screen_write_port_tests::route_and_page_validation_precede_provider_calls",
+    "jftrade-engine::jftrade_engine$product::product_research_screen_write_port::research_screen_write_port_tests::screen_query_rejects_wrong_catalog_and_schema_versions",
+    "jftrade-engine::jftrade_engine$product::tests::adk_chat_stream_product_tests::adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart",
+    "jftrade-engine::research_screens_compatibility$product_research_screen_write_port::research_screen_write_port_tests::route_and_page_validation_precede_provider_calls",
+    "jftrade-engine::research_screens_compatibility$product_research_screen_write_port::research_screen_write_port_tests::screen_query_rejects_wrong_catalog_and_schema_versions",
+    "jftrade-engine::research_screens_compatibility$research_screen_fixture_replays_go_wire_for_the_post_route",
+    "jftrade-engine::ws_live_compatibility$product_ws_live::tests::auxiliary_provider_failure_skips_only_the_failing_subscription_family"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 10,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "execution_write_compatibility",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 3,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "research_screens_compatibility",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "ws_live_compatibility",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 4,
+      "exec_time": 0.022175917,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "execution_write_compatibility",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 4,
+      "exec_time": 0.010013292,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "ws_live_compatibility",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 8,
+      "exec_time": 0.634495001,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "research_screens_compatibility",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1644,
+      "exec_time": 2.831307,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    }
+  ]
+}
