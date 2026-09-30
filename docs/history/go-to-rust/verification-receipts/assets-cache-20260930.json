@@ -1,0 +1,68 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-integration-marketdata-helper",
+    "--all-targets",
+    "--locked",
+    "--no-fail-fast",
+    "--message-format",
+    "libtest-json-plus",
+    "-E",
+    "test(reuses_a_published_asset_without_rewriting_it) or test(repairs_tampered_asset_and_symlink_targets) or test(concurrent_materialization_publishes_one_verified_file) or test(prunes_only_expired_cache_directories_and_ignores_missing_root) or test(rejects_a_cache_root_that_is_a_file) or test(rejects_a_bundle_whose_bytes_no_longer_match_the_digest) or test(rejects_escaping_asset_names_before_writing)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+  "toolchain": "rustc 1.97.1 (2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-30T13:42:13Z",
+  "sourceState": {
+    "verifiedCommit": "6106c434ae35f7bb361af91e44a794d5d4976b31",
+    "trackedDiffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "untrackedFiles": []
+  },
+  "rawOutputSha256": "059b9ea3f2f96207567777576e5250d4f680d16faad0813478c5fba240946b75",
+  "passedTests": [
+    "jftrade-integration-marketdata-helper::jftrade_integration_marketdata_helper$asset::tests::concurrent_materialization_publishes_one_verified_file",
+    "jftrade-integration-marketdata-helper::jftrade_integration_marketdata_helper$asset::tests::prunes_only_expired_cache_directories_and_ignores_missing_root",
+    "jftrade-integration-marketdata-helper::jftrade_integration_marketdata_helper$asset::tests::rejects_a_bundle_whose_bytes_no_longer_match_the_digest",
+    "jftrade-integration-marketdata-helper::jftrade_integration_marketdata_helper$asset::tests::rejects_a_cache_root_that_is_a_file",
+    "jftrade-integration-marketdata-helper::jftrade_integration_marketdata_helper$asset::tests::rejects_escaping_asset_names_before_writing",
+    "jftrade-integration-marketdata-helper::jftrade_integration_marketdata_helper$asset::tests::repairs_tampered_asset_and_symlink_targets",
+    "jftrade-integration-marketdata-helper::jftrade_integration_marketdata_helper$asset::tests::reuses_a_published_asset_without_rewriting_it"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 7,
+      "nextest": {
+        "crate": "jftrade-integration-marketdata-helper",
+        "test_binary": "jftrade_integration_marketdata_helper",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 19,
+      "exec_time": 0.333765668,
+      "nextest": {
+        "crate": "jftrade-integration-marketdata-helper",
+        "test_binary": "jftrade_integration_marketdata_helper",
+        "kind": "lib"
+      }
+    }
+  ]
+}

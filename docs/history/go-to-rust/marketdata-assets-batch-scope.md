@@ -118,3 +118,9 @@
 - `assets_release_test.go:72:TestMaterializeCachedReleaseAssetReusesBundleAndFallsBack`：复用/修复/根目录校验已有 Rust owner；release 资源目录没有 Go 的临时 fallback，保留 partial。
 
 先红后修探针：移除 cache-root 类型检查、并发赢家复用或篡改重写分支时，对应 helper nextest 会失败；恢复后 `jftrade-integration-marketdata-helper` 26/26 通过。该批没有把多文件 onedir 行为升级为 exact。
+
+## 2026-09-30 cache assertion evidence follow-up
+
+重新逐项核对冻结 Go `internal/marketdataassets/cache_test.go` 的 14 条映射，Rust 证据仍由 content-addressed 单文件 `AssetBundle` 持有。对可执行 owner 使用定向 receipt `verification-receipts/assets-cache-20260930.json`（7/7 passed），SHA-256 `fdccfa154105ca650cb94fb891937f7711d7a0a3dcd90c79f7f0171efd07bc7d`。单文件复用、篡改修复、并发物化、过期目录清理、空根 no-op、非法根与逃逸名称已有回归；Go onedir 的依赖树、权限、无效并发赢家、目录删除和 socket 形状检查继续保留 partial/boundary，不把 helper 7 个用例聚合当作这些剩余断言的等价证据。
+
+本批只补 reviewed assertion 来源与真实 receipt，不改变生产 API 或 cache owner。严格 audit 与 anchor reconcile 通过；整体全量迁移审查仍未完成。
