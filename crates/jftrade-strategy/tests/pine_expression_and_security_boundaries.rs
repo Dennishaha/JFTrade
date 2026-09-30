@@ -169,6 +169,21 @@ fn moving_average_period_must_be_positive() {
     );
 }
 
+/// Parity: go:452dea11:pkg/strategy/ir/planner_test.go:62 TestPlanRequirementsRejectsInvalidMovingAverageType
+#[test]
+fn unsupported_moving_average_call_is_rejected_before_planning() {
+    let compilation = compile(&script("value = ta.wild(close, 5)"));
+    assert!(!compilation.ok, "unknown moving-average calls must be rejected");
+    assert!(
+        compilation
+            .diagnostics
+            .iter()
+            .any(|item| item.code == "PINE_CALL_UNSUPPORTED"),
+        "diagnostics = {:?}",
+        compilation.diagnostics
+    );
+}
+
 /// Parity: go:452dea11:pkg/strategy/pine/compiler_rejection_contracts_test.go:9
 /// TestUnsupportedSyntaxDiagnosticsDescribeUnsafeRequestSecurityContracts
 ///
