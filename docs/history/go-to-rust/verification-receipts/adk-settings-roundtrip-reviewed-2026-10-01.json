@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": ["node", "scripts/quality/cargo-nextest.mjs", "run", "-p", "jftrade-engine", "--lib", "--locked", "-E", "test(adk_runtime_settings_default_save_readback_and_clamp)"],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-10-01T00:00:00Z",
+  "sourceState": {"verifiedCommit": "aab4954f2ca368ce147975e45d9a5b80455e9521"},
+  "rawOutputSha256": "sha256:9171583a1f487fec6254715b02b11241a9ba1fb6bbc9a141b79b0fdc36e595e6",
+  "passedTests": ["jftrade-engine::product::tests::production_assembly_tests::product_production_assembly_tests::adk_runtime_settings_default_save_readback_and_clamp"],
+  "failedTests": [],
+  "ignoredTests": [],
+  "summary": {"testsRun": 1, "testsPassed": 1, "testsFailed": 0, "testsSkipped": 1658, "relationsReviewed": 1, "functionExactReferencesReleased": 0}
+}
