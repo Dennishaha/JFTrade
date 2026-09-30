@@ -78,7 +78,11 @@ pub(super) fn research_helper_request(
             .map(str::trim)
             .filter(|value| !value.is_empty())
         {
-            extra_query.push(("statement", statement.to_owned()));
+            let statement = statement.to_ascii_lowercase();
+            if !matches!(statement.as_str(), "income" | "balance" | "cashflow") {
+                return Err(invalid("statement must be income, balance, or cashflow"));
+            }
+            extra_query.push(("statement", statement));
         }
     } else if operation == "corporate-actions" {
         for key in ["from", "to"] {

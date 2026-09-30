@@ -522,6 +522,21 @@ fn company_financials_forwards_market_symbol_and_statement() {
     assert_eq!(result["resolvedInstrument"]["instrumentId"], "SH.600519");
 }
 
+// Parity: go:452dea11:internal/marketdata/company_research_facade_test.go:109
+// TestServiceFinancialStatementsValidatesStatementAndDefaultsToIncome.
+#[test]
+fn company_financials_reject_invalid_statement_before_helper_access() {
+    let fixture = CompanyResearchFixture::new(Vec::new());
+    let error = production_research_client(&fixture.client)
+        .read(
+            "/api/v1/research/financials/US.AAPL",
+            "operation=statements&statement=annual",
+        )
+        .expect_err("annual is not a supported statement kind");
+    assert!(matches!(error, ResearchReadSnapshotError::Invalid(_)));
+    assert!(fixture.join().is_empty(), "invalid statement must not reach helper");
+}
+
 /// Parity: go:452dea11:internal/productfeatures/provider_facade_company_test.go:170
 /// TestEmbeddedProviderCompanyResearchAcceptsOmittedOperation
 ///

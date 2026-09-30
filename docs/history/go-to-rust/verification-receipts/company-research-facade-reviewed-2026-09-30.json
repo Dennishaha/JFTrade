@@ -1,0 +1,66 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(company_financials_reject_invalid_statement_before_helper_access) or test(company_financials_forwards_market_symbol_and_statement) or test(embedded_research_instrument_derives_market_and_symbol) or test(company_research_propagates_capability_and_lifecycle_errors) or test(company_research_stays_off_the_helper_for_futu)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-30T11:00:00Z",
+  "sourceState": {
+    "verifiedCommit": "20a2be110f9e22d5fdd3d8d7e9aee0dba90f4a2b",
+    "trackedDiffSha256": "5b5e6c9043db247e1979925c64a13f98bea0560c361195352a331defe6c94a04",
+    "untrackedFiles": []
+  },
+  "rawOutputSha256": "9c58b4062583394eaed4ba08142047f274929b5f9ffbe5d2e7b096bbf9dd34a8",
+  "passedTests": [
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_strategy::product_production_ports_research::company::tests::company_financials_forwards_market_symbol_and_statement",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_strategy::product_production_ports_research::company::tests::company_financials_reject_invalid_statement_before_helper_access",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_strategy::product_production_ports_research::company::tests::company_research_propagates_capability_and_lifecycle_errors",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_strategy::product_production_ports_research::company::tests::company_research_stays_off_the_helper_for_futu",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_strategy::product_production_ports_research::company::tests::embedded_research_instrument_derives_market_and_symbol"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 5,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1652,
+      "exec_time": 0.080188,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    }
+  ]
+}
