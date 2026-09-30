@@ -158,6 +158,19 @@ fn sync_request_rejects_invalid_ranges_and_intervals() {
         parse_sync_request(&invalid_range),
         Err(BacktestsWritePortError::BadRequest(_))
     ));
+
+    for payload in [
+        json!({"market": "US", "code": "AAPL", "startDate": "2026-08-01"}),
+        json!({"market": "US", "code": "AAPL", "endDate": "2026-08-02"}),
+        json!({"market": "US", "code": "AAPL", "startDate": "2026-02-30", "endDate": "2026-03-01"}),
+        json!({"market": "US", "code": "AAPL", "since": "2026-08-01T00:00:00Z", "until": "bad"}),
+        json!({"market": "EU", "code": "ABC", "since": "2026-08-01T00:00:00Z", "until": "2026-08-02T00:00:00Z"}),
+    ] {
+        assert!(matches!(
+            parse_sync_request(&payload),
+            Err(BacktestsWritePortError::BadRequest(_))
+        ), "payload must be rejected: {payload}");
+    }
 }
 
 // Parity: go:452dea11:internal/app/apiserver/servercoretest/backtest_provider_runtime_test.go:55 TestBacktestSyncRejectsActualAKShareOneYearUSFiveMinuteRange
