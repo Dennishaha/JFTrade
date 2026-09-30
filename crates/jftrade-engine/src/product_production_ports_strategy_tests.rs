@@ -909,6 +909,7 @@ fn test_result_view_resolution_downsampling() {
         "status": "completed",
         "result": {
             "candles": [
+                {"time": "not-a-time", "open": 1.0, "high": 2.0, "low": 0.5, "close": 1.5, "volume": 999.0},
                 {"time": "2026-01-01T10:00:00Z", "open": 100.0, "high": 105.0, "low": 99.0, "close": 102.0, "volume": 10.0},
                 {"time": "2026-01-01T10:01:00Z", "open": 102.0, "high": 108.0, "low": 101.0, "close": 107.0, "volume": 20.0},
                 {"time": "2026-01-01T10:05:00Z", "open": 107.0, "high": 110.0, "low": 106.0, "close": 108.0, "volume": 30.0},
@@ -933,6 +934,7 @@ fn test_result_view_resolution_downsampling() {
     let res = project_authoritative_result_view(&payload, None, &req).unwrap();
     let candles = res["series"]["candles"].as_array().unwrap();
     assert_eq!(candles.len(), 2, "4 minutes bucketed into two 5m candles");
+    assert!(candles.iter().all(|c| c["time"] != "not-a-time"));
     assert_eq!(candles[0]["open"], 100.0);
     assert_eq!(candles[0]["high"], 108.0);
     assert_eq!(candles[0]["low"], 99.0);
