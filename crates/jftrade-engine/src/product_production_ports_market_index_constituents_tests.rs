@@ -174,6 +174,27 @@ fn index_constituents_projection_rejects_identity_drift_and_blank_codes() {
     );
 }
 
+#[test]
+// Parity: go:452dea11:internal/integration/akshare/provider_index_constituents_test.go:65 TestProviderIndexConstituentsRejectsIdentityMismatch
+fn index_constituents_projection_rejects_identity_mismatch() {
+    let payload = json!({
+        "market": "SH",
+        "symbol": "000001",
+        "instrument_id": "SH.000001",
+        "constituents": [],
+        "source": "akshare-index-constituents"
+    });
+    match project_constituents(&payload, "SH", "000300") {
+        Err(MarketIndexConstituentsReadError::Failed {
+            status, code, message, ..
+        }) => {
+            assert_eq!((status, code.as_str()), (502, "BAD_GATEWAY"));
+            assert!(message.contains("SH.000300"), "message = {message}");
+        }
+        other => panic!("expected identity rejection, got {other:?}"),
+    }
+}
+
 // Parity: go:452dea11:internal/app/apiserver/marketdataapp/runtime_index_constituents_forwarding_test.go:61 TestRuntimeIndexConstituentsRejectsProvidersWithoutCapability
 #[test]
 // Parity: go:452dea11:internal/marketdata/index_constituents_facade_test.go:31 TestServiceIndexConstituentsRejectsProvidersWithoutCapability
