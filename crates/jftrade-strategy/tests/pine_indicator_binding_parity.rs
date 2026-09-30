@@ -66,6 +66,7 @@ fn indicator_periods_require_positive_integer_literals() {
         "x = ta.sma(close, 2.5)",
         "x = ta.sma(close, nope)",
         "x = ta.highest(high, 0)",
+        "x = ta.macd(close, 0, 26, 9)",
     ] {
         let message = compile_error_message(body);
         assert!(

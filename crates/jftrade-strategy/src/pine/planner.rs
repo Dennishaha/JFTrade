@@ -657,7 +657,11 @@ fn requirement_for_call(
         }
         "ta.macd" => {
             kind = "macd";
-            for argument in arguments {
+            for (index, argument) in arguments.iter().enumerate() {
+                if index > 0 {
+                    let value = argument_text(Some(argument)).unwrap_or_default();
+                    ensure_positive_period(line, callee, &value)?;
+                }
                 key_parts
                     .push(argument_text(Some(argument)).unwrap_or_else(|| argument.to_string()));
             }
