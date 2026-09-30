@@ -5817,6 +5817,51 @@ mod product_production_assembly_tests {
         handle.shutdown().await.expect("shutdown");
     }
 
+    // Parity: go:452dea11:internal/app/apiserver/servercoretest/broker_new_test.go:286 TestBrokerUnlockInvalidPayload
+    // Parity: go:452dea11:internal/app/apiserver/servercoretest/broker_new_test.go:319 TestBrokerPlaceOrderInvalidPayload
+    // Parity: go:452dea11:internal/app/apiserver/servercoretest/broker_new_test.go:359 TestBrokerCancelOrdersInvalidPayload
+    #[tokio::test]
+    async fn production_http_broker_writes_reject_malformed_payloads_before_provider_access() {
+        let (_directory, address, handle) = start_broker_read_http_product().await;
+        for (method, path, body) in [
+            (
+                "POST",
+                "/api/v1/brokers/futu/unlock",
+                r#"{"unlock":{"bad":true}}"#,
+            ),
+            (
+                "POST",
+                "/api/v1/brokers/futu/orders",
+                r#"{"symbol":123,"quantity":"bad"}"#,
+            ),
+            (
+                "DELETE",
+                "/api/v1/brokers/futu/orders",
+                r#"{"orders":"bad"}"#,
+            ),
+            ("DELETE", "/api/v1/brokers/futu/orders", r#"{"orders":"#),
+        ] {
+            let (status, response) = request_json_with_status(
+                address,
+                method,
+                path,
+                Some(body),
+                &[("Authorization", "Bearer aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")],
+            )
+            .await;
+            assert_eq!(status, 400, "{method} {path} response={response}");
+            assert_eq!(response["ok"], false, "{method} {path} response={response}");
+            assert_eq!(response["error"]["code"], "BAD_REQUEST");
+            assert!(
+                response["error"]["message"]
+                    .as_str()
+                    .is_some_and(|message| message.contains("invalid request body:")),
+                "{method} {path} response={response}"
+            );
+        }
+        handle.shutdown().await.expect("shutdown");
+    }
+
     // Parity: go:452dea11:internal/app/apiserver/servercoretest/broker_new_test.go:167 TestBrokerKLinesMissingSymbol
     #[tokio::test]
     async fn production_http_broker_klines_requires_symbol_with_go_message() {

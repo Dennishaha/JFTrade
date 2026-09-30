@@ -1,0 +1,71 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--no-fail-fast",
+    "--message-format",
+    "libtest-json-plus",
+    "-E",
+    "test(production_http_broker_writes_reject_malformed_payloads_before_provider_access) or test(canonical_278_routes_table_driven_reachability_and_auth_matrix) or test(production_http_broker_klines_maps_typed_opend_error_to_unavailable) or test(production_http_broker_reads_serve_orders_fills_quotes_klines_and_securities) or test(broker_securities_returns_real_empty_result_when_cache_has_no_symbol)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143 (60fa45f638ffc3f35e74afa65737f45fcd32db2a)",
+  "toolchain": "rustc 1.97.1 (2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-30T13:11:31Z",
+  "sourceState": {
+    "verifiedCommit": "4bd2736f74c1611f05577757000c38dfbd185af0",
+    "trackedDiffSha256": "f958aca69a02de74c5a291f9bf9cc8fca3e618e06dc1850f9b6814f8f85699e6",
+    "untrackedFiles": [
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/broker-new-payloads-20260930.json",
+        "sha256": "3d8d9b8eade656d2e3f1b0c4f4222cc57c71a965b39d7acf873d667fdf11d9c2"
+      }
+    ]
+  },
+  "rawOutputSha256": "a0ed606065539bd703fc4f4a8a67b85892ef9944313cade60c11af33f97d23eb",
+  "passedTests": [
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_trade::tests::broker_securities_returns_real_empty_result_when_cache_has_no_symbol",
+    "jftrade-engine::jftrade_engine$product::tests::production_assembly_tests::product_production_assembly_tests::canonical_278_routes_table_driven_reachability_and_auth_matrix",
+    "jftrade-engine::jftrade_engine$product::tests::production_assembly_tests::product_production_assembly_tests::production_http_broker_klines_maps_typed_opend_error_to_unavailable",
+    "jftrade-engine::jftrade_engine$product::tests::production_assembly_tests::product_production_assembly_tests::production_http_broker_reads_serve_orders_fills_quotes_klines_and_securities",
+    "jftrade-engine::jftrade_engine$product::tests::production_assembly_tests::product_production_assembly_tests::production_http_broker_writes_reject_malformed_payloads_before_provider_access"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 5,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1653,
+      "exec_time": 24.339893375,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    }
+  ]
+}

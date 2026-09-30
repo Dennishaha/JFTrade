@@ -2228,3 +2228,9 @@ US regular 当前桶过滤与 bounded-window 合并页重过滤已按 Go `QueryK
 定向 receipt `verification-receipts/instrument-resolver-20260930.json`：engine/integration-futu/marketdata **14/14 passed**，SHA-256 `a10cbe29ee7ce5aee83325f3285c124bd9a11037fcea64b3b9ba7211b71b6174`。严格 parity audit 与 anchor reconcile 均通过：4451 Go、3414 Rust、1506 function_exact、2310 partial、635 boundary；锚点 1915 unique，unrecorded 0、stale 0、unknown 47。
 
 下一轮目标：继续从 `manual-test-mappings.json` 中选择尚未完成逐条 reviewed 的高风险映射，优先处理 API Server/Transport Wire 低测试比例条目；每批必须保留真实 partial/boundary 差异、补 provenance anchor、生成定向 receipt，并在提交前重跑严格审计和完整 Rust 门禁。
+
+## 2026-09-30 broker read/write HTTP evidence follow-up
+
+复核 `internal/app/apiserver/servercoretest/broker_new_test.go:155,181,237,264,286,302,319,336,359`。新增生产 HTTP 回归覆盖 unlock、下单和撤单的畸形 payload：请求在 broker write port 前返回 400/BAD_REQUEST，且绑定 Go 的具体输入形状；截断的撤单 JSON 也单独保留。定向 receipt `verification-receipts/broker-new-payloads-20260930.json` 为 1/1 passed，SHA-256 `94dff5c6e2f421fcadac5feeb06b97678464c7ceb9d4db12078037afd78339b2`。
+
+同批对 broker 断连读取、无 provider 写入和正常读取 owner 做了逐条核对。Rust 生产组合采用 fail-closed 503，而冻结 Go servercore fixture 对部分断连 reads 返回 200 degraded/disconnected；这些差异继续保留为 partial/boundary，没有把共享 278 路由矩阵当作特定断言的替代证据。批次 targeted receipt `verification-receipts/broker-new-20260930.json` 记录 5/5 passed；完整门禁在清理 target 中间产物后继续执行。
