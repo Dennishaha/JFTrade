@@ -341,6 +341,7 @@ fn akshare_rankings_route_converts_entries_and_applies_default_limit() {
         requests[0]
     );
     assert_eq!(value["provider"]["featureId"], "research.rankings");
+    assert_eq!(value["metadata"]["source"], "akshare-rankings");
     assert_eq!(value["entries"].as_array().map(Vec::len), Some(2));
     assert_eq!(value["entries"][0]["instrumentId"], "SH.600519");
     assert_eq!(value["entries"][0]["name"], "贵州茅台");
