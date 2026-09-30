@@ -280,6 +280,22 @@ fn yfinance_rankings_projection_rejects_kind_mismatch() {
     ));
 }
 
+#[test]
+// Parity: go:452dea11:internal/integration/akshare/provider_rankings_industries_test.go:159 TestProviderRankingsRejectsKindMismatch
+fn akshare_rankings_projection_rejects_kind_mismatch() {
+    let payload = serde_json::json!({
+        "market": "CN",
+        "kind": "losers",
+        "source": "akshare-rankings",
+        "entries": []
+    });
+    assert!(matches!(
+        ranking_entries(&payload, "CN", "gainers"),
+        Err(ResearchReadSnapshotError::Failed { status: 502, ref code, .. })
+            if code == "BAD_GATEWAY"
+    ));
+}
+
 use std::io::{Read, Write};
 use std::net::TcpListener as StdTcpListener;
 use std::time::Duration;
