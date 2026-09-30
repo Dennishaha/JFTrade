@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": ["node", "scripts/quality/cargo-nextest.mjs", "run", "-p", "jftrade-strategy", "--test", "pine_expression_and_security_boundaries", "--locked"],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-10-01T00:00:00Z",
+  "sourceState": {"verifiedCommit": "d3ad189ca68b9790f6673cc495c4a23a458063d9"},
+  "rawOutputSha256": "sha256:9363e4156c7802ea1c36884bc5c906fb2ef7b6aa078437cfef3aba8ab903bec6",
+  "passedTests": ["jftrade-strategy::pine_expression_and_security_boundaries unsupported_moving_average_call_is_rejected_before_planning", "jftrade-strategy::pine_expression_and_security_boundaries moving_average_period_must_be_positive", "jftrade-strategy::pine_expression_and_security_boundaries expression_parser_accepts_trimmed_expressions", "jftrade-strategy::pine_expression_and_security_boundaries expression_parser_rejects_blank_assignment", "jftrade-strategy::pine_expression_and_security_boundaries expression_parser_rejects_trailing_operator", "jftrade-strategy::pine_expression_and_security_boundaries extended_ticker_and_chart_flags_keep_requirements", "jftrade-strategy::pine_expression_and_security_boundaries request_security_rejects_unlisted_static_timeframe_strings", "jftrade-strategy::pine_expression_and_security_boundaries request_security_tickers_follow_the_go_whitelist", "jftrade-strategy::pine_expression_and_security_boundaries window_family_defaults_keep_the_go_source_and_period"],
+  "failedTests": [],
+  "ignoredTests": [],
+  "summary": {"testsRun": 9, "testsPassed": 9, "testsFailed": 0, "testsSkipped": 0, "relationsReviewed": 1, "functionExactReferencesReleased": 0}
+}
