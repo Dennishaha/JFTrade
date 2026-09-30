@@ -84,6 +84,16 @@ fn window_sources_reject_computed_expressions() {
     );
 }
 
+/// Parity: go:452dea11:pkg/strategy/ir/planner_internal_boundaries_test.go:101 TestAdvancedIndicatorBindingsRejectTrailingTimeframeArguments
+#[test]
+fn advanced_indicator_rejects_trailing_arguments() {
+    let message = compile_error_message("x = ta.tsi(close, 13, 25, day, extra)");
+    assert!(
+        message.contains("accepts source") && message.contains("optional time unit"),
+        "message {message:?}"
+    );
+}
+
 /// Parity: go:452dea11:pkg/strategy/indicatorbinding/parse_semantics_test.go:114 TestParsePriceSourceAndBuildMovingAverageKeyWithSource
 #[test]
 fn indicator_sources_follow_the_shared_ohlcv_whitelist() {
