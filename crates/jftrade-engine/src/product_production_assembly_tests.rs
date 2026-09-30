@@ -5419,6 +5419,7 @@ mod product_production_assembly_tests {
     }
 
     /// Parity: go:452dea11:internal/api/assistant/adk_ops_test.go:468 TestADKSnapshotAndToolsRoutesReturnCatalogData
+    /// Parity: go:452dea11:internal/api/settings/adk_routes_contracts_test.go:18 TestADKRuntimeSettingsDefaultAndSave
     /// Parity: go:452dea11:internal/assistant/assembly/application_adapter_boundaries_test.go:71 TestApplicationAdapterUsesConfiguredRuntimeAndSettings
     /// TestADKSnapshotAndToolsRoutesReturnCatalogData.
     ///
@@ -5471,6 +5472,18 @@ mod product_production_assembly_tests {
         let handle = start_product(config).await.expect("start product");
         let address = handle.startup_record().address;
         let authorization = "Bearer aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+        let (default_status, default_settings) = request_json_with_status(
+            address,
+            "GET",
+            "/api/v1/settings/adk",
+            None,
+            &[("Authorization", authorization)],
+        )
+        .await;
+        assert_eq!(default_status, 200, "default settings response: {default_settings}");
+        assert_eq!(default_settings["ok"], true);
+        assert_eq!(default_settings["data"]["runTimeoutMs"], 1_800_000);
+        assert_eq!(default_settings["data"]["streamIdleTimeoutMs"], 300_000);
         let (settings_status, settings_response) = request_json_with_status(
             address,
             "PUT",
@@ -5483,6 +5496,17 @@ mod product_production_assembly_tests {
             settings_status, 200,
             "save runtime settings: {settings_response}"
         );
+        let (readback_status, readback) = request_json_with_status(
+            address,
+            "GET",
+            "/api/v1/settings/adk",
+            None,
+            &[("Authorization", authorization)],
+        )
+        .await;
+        assert_eq!(readback_status, 200, "settings readback: {readback}");
+        assert_eq!(readback["data"]["runTimeoutMs"], 660_000);
+        assert_eq!(readback["data"]["streamIdleTimeoutMs"], 420_000);
 
         let (status, snapshot) = request_json_with_status(
             address,
@@ -5551,6 +5575,18 @@ mod product_production_assembly_tests {
             tools_from_route, tools_from_snapshot,
             "the snapshot and tools routes must expose the same catalog"
         );
+
+        let (max_status, max_response) = request_json_with_status(
+            address,
+            "PUT",
+            "/api/v1/settings/adk",
+            Some(r#"{"runTimeoutMs":99999999,"streamIdleTimeoutMs":300000}"#),
+            &[("Authorization", authorization)],
+        )
+        .await;
+        assert_eq!(max_status, 200, "max settings response: {max_response}");
+        assert_eq!(max_response["data"]["runTimeoutMs"], 43_200_000);
+        assert_eq!(max_response["data"]["streamIdleTimeoutMs"], 300_000);
 
         handle.shutdown().await.expect("shutdown product");
     }
