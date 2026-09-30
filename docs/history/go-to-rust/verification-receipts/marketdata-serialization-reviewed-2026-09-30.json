@@ -20,18 +20,13 @@
   "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
   "exitCode": 0,
   "status": "passed",
-  "verifiedAt": "2026-09-30T08:10:34Z",
+  "verifiedAt": "2026-09-30T10:00:00Z",
   "sourceState": {
-    "verifiedCommit": "57b03e713543079c828dac212e91f1c43a2148f6",
-    "trackedDiffSha256": "0dad0cadf4f5813ca77af557d1ecc70fb414f93c30937e985e1ee9b48c48a039",
-    "untrackedFiles": [
-      {
-        "path": "docs/history/go-to-rust/verification-receipts/marketdata-serialization-reviewed-2026-09-30.json",
-        "sha256": "0dc6daf99cf9caf2cc23797eca047944dcb13806c7fb7f664e969c99c841c176"
-      }
-    ]
+    "verifiedCommit": "459d7266a3a3d04e117070fc41cc441ae037d9ab",
+    "trackedDiffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "untrackedFiles": []
   },
-  "rawOutputSha256": "2e1aa35a8ef45346eda01dfc562748541852cafb1a9f8485d237ac4acb798cfe",
+  "rawOutputSha256": "1116f367a6584818a624edb9e417bd9ef17ab8409a0b8f0d3774e76cf40702bd",
   "passedTests": [
     "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_market_data::product_production_ports_market_data_quote::quote_snapshot::tests::cached_projection_uses_active_after_quote_and_separates_closes",
     "jftrade-engine::jftrade_engine$product::tests::market_data_quote_read_tests::futu_snapshot_route_projects_cached_extended_quote_contract"
@@ -57,7 +52,7 @@
       "ignored": 0,
       "measured": 0,
       "filtered_out": 1652,
-      "exec_time": 0.037212957,
+      "exec_time": 0.039629167,
       "nextest": {
         "crate": "jftrade-engine",
         "test_binary": "jftrade_engine",
