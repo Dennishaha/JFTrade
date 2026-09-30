@@ -1,0 +1,67 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(calendar_date_validation_rejects_malformed_and_reversed_ranges) or test(macro_history_rejects_blank_indicator_before_helper_access) or test(calendar_and_macro_routes_fail_closed_for_other_providers) or test(calendar_operations_map_to_provider_reads_on_the_wire) or test(macro_history_limit_is_bounded_and_defaults) or test(calendar_and_macro_propagate_capability_and_busy_errors)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-30T10:30:00Z",
+  "sourceState": {
+    "verifiedCommit": "8ca65d5b6cd8b9983e378d0b3a837cdc3d74f36f",
+    "trackedDiffSha256": "5b5b0fee8d2d50405ec08dffda097e74416de2ae0a8df1791faa9902223c83be",
+    "untrackedFiles": []
+  },
+  "rawOutputSha256": "9627ea9e075e1439d50ab1faba5c96b308a61a9575bf72ee484addc6ea2c835f",
+  "passedTests": [
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_strategy::product_production_ports_research_calendar::tests::calendar_and_macro_propagate_capability_and_busy_errors",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_strategy::product_production_ports_research_calendar::tests::calendar_and_macro_routes_fail_closed_for_other_providers",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_strategy::product_production_ports_research_calendar::tests::calendar_date_validation_rejects_malformed_and_reversed_ranges",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_strategy::product_production_ports_research_calendar::tests::calendar_operations_map_to_provider_reads_on_the_wire",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_strategy::product_production_ports_research_calendar::tests::macro_history_limit_is_bounded_and_defaults",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_strategy::product_production_ports_research_calendar::tests::macro_history_rejects_blank_indicator_before_helper_access"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 6,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1650,
+      "exec_time": 0.082203249,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    }
+  ]
+}

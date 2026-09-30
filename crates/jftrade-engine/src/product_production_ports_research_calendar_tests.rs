@@ -22,6 +22,37 @@ fn macro_history_limit_is_bounded_and_defaults() {
     assert_eq!(macro_limit(&legacy).expect("legacy fallback"), 5);
 }
 
+// Parity: go:452dea11:internal/marketdata/calendar_macro_facade_test.go:109
+// TestServiceCalendarValidatesDateFormats.
+#[test]
+fn calendar_date_validation_rejects_malformed_and_reversed_ranges() {
+    for (key, value) in [("beginDate", "2026/08/01"), ("endDate", "08-31"), ("date", "2026-13-01")] {
+        let query = QueryMap::parse(&format!("{key}={value}")).expect("query");
+        assert!(required_date(&query, key).is_err(), "{key}={value} must fail");
+    }
+    let reversed = QueryMap::parse("beginDate=2026-08-31&endDate=2026-08-01").expect("query");
+    assert!(date_window(&reversed).is_err(), "reversed range must fail");
+    let valid = QueryMap::parse("beginDate=2026-08-01&endDate=2026-08-31").expect("query");
+    assert_eq!(date_window(&valid).expect("valid range"), ("2026-08-01".into(), "2026-08-31".into()));
+}
+
+// Parity: go:452dea11:internal/marketdata/calendar_macro_facade_test.go:144
+// TestServiceMacroIndicatorHistoryValidatesIDAndLimit.
+#[test]
+fn macro_history_rejects_blank_indicator_before_helper_access() {
+    let fixture = CalendarRouteFixture::new(Vec::new());
+    let error = read_market_calendar(
+        MarketDataProvider::Akshare,
+        true,
+        Some(&fixture.client),
+        "/api/v1/research/macro",
+        "operation=indicator_history&indicatorId= ",
+    )
+    .expect_err("blank indicator id must fail");
+    assert!(matches!(error, ResearchReadSnapshotError::Failed { status: 409, .. }));
+    assert!(fixture.join().is_empty(), "invalid identity must not reach helper");
+}
+
 #[test]
 fn macro_projection_rejects_missing_or_malformed_typed_fields() {
     let mut indicator = Map::new();

@@ -6,9 +6,9 @@
 
 - **Go 分支（`go:452dea11`）测试总数**：4451
 - **Go 高风险测试用例数**（涉及分页、缓存、时区、对账、断连重连等）：952
-- **Rust 当前测试总数**：3411
-- **总体测试数量比（非覆盖率）**：76.6%
-- **Rust 基线（`b5f056fc`）**：当前工作树
+- **Rust 当前测试总数**：3413
+- **总体测试数量比（非覆盖率）**：76.7%
+- **Rust 基线（`8ca65d5b`）**：当前工作树
 
 - **同名 Go 测试组**：32（映射必须使用文件路径与行号，不能仅按测试名）
 ## 2. 分领域对齐矩阵
@@ -19,7 +19,7 @@
 | MarketData / Quotes & Providers | 256 | 74 | 384 | 150.0% |
 | Trading & Broker Execution | 138 | 36 | 474 | 343.5% |
 | Strategy & Pine Runtime | 538 | 82 | 274 | 50.9% |
-| Backtest & Exchange Calendar | 376 | 101 | 252 | 67.0% |
+| Backtest & Exchange Calendar | 376 | 101 | 254 | 67.6% |
 | Assistant & Workflow ADK | 810 | 213 | 451 | 55.7% |
 | Storage & SQLite Persistence | 228 | 39 | 212 | 93.0% |
 | Settings & Watchlist | 63 | 18 | 104 | 165.1% |
