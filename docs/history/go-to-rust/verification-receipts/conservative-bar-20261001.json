@@ -1,0 +1,78 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-backtest",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "-E",
+    "tests"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-09-30T16:22:11Z",
+  "sourceState": {
+    "verifiedCommit": "bc75b25dea60d83e55994355bbcedf3a87b2320b",
+    "trackedDiffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "untrackedFiles": []
+  },
+  "rawOutputSha256": "ff142758832dc41424fc792b3b4ea5c39af8274a83945e61d323f1c7a869fb71",
+  "passedTests": [
+    "jftrade-backtest::conservative_bar_execution$atomic_bracket_fills_on_signal_close",
+    "jftrade-backtest::conservative_bar_execution$atomic_child_without_parent_is_rejected",
+    "jftrade-backtest::conservative_bar_execution$cancel_skips_unmatched_pending_orders_without_side_effects",
+    "jftrade-backtest::conservative_bar_execution$canceling_parent_order_cancels_all_protective_children",
+    "jftrade-backtest::conservative_bar_execution$explicit_cancel_orders_and_unmatched_target_handling",
+    "jftrade-backtest::conservative_bar_execution$input_and_atomic_bracket_validation_errors",
+    "jftrade-backtest::conservative_bar_execution$limit_order_receives_favorable_gap_improvement",
+    "jftrade-backtest::conservative_bar_execution$limit_sell_open_improvement_intrabar_and_close_point",
+    "jftrade-backtest::conservative_bar_execution$liquidity_warnings_for_sub_step_and_below_min_quantity",
+    "jftrade-backtest::conservative_bar_execution$market_order_fills_on_next_open_with_liquidity_cap",
+    "jftrade-backtest::conservative_bar_execution$matching_and_pricing_helper_branches_behavior",
+    "jftrade-backtest::conservative_bar_execution$parent_bracket_runs_atomically_with_stop_first_protection",
+    "jftrade-backtest::conservative_bar_execution$process_orders_on_close_executes_at_signal_close_price",
+    "jftrade-backtest::conservative_bar_execution$reduce_only_fill_is_limited_to_open_position",
+    "jftrade-backtest::conservative_bar_execution$reduce_only_order_without_position_is_canceled",
+    "jftrade-backtest::conservative_bar_execution$sell_market_order_applies_downward_slippage",
+    "jftrade-backtest::conservative_bar_execution$stop_market_and_stop_limit_orders_execution",
+    "jftrade-backtest::conservative_bar_execution$warnings_emitted_and_deduplicated_for_zero_volume_and_unsupported_order"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 18,
+      "nextest": {
+        "crate": "jftrade-backtest",
+        "test_binary": "conservative_bar_execution",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 18,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 5,
+      "exec_time": 0.178992083,
+      "nextest": {
+        "crate": "jftrade-backtest",
+        "test_binary": "conservative_bar_execution",
+        "kind": "test"
+      }
+    }
+  ]
+}
