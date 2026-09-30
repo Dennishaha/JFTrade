@@ -322,7 +322,7 @@ mod tests {
     }
 
     #[test]
-    // Parity: go:452dea11:internal/pineworkerassets/assets_dev_test.go:7 TestSelectReturnsUnavailableWhenAssetMissing
+    // Parity: frozen worker-bundle reference fixture, TestSelectReturnsUnavailableWhenAssetMissing
     fn development_pine_runtime_without_staged_bundle_reports_unavailable_asset() {
         let repository = tempfile::tempdir().expect("temporary repository root");
         let result = retained_runtime_config(Some(repository.path()), Path::new("/unused"), None);
@@ -336,7 +336,7 @@ mod tests {
     }
 
     #[test]
-    // Parity: go:452dea11:internal/pineworkerassets/assets_test.go:5 TestBundleNameIsPlatformIndependent
+    // Parity: frozen worker-bundle reference fixture, TestBundleNameIsPlatformIndependent
     fn pine_worker_bundle_file_name_is_platform_independent() {
         assert_eq!(PINE_WORKER_BUNDLE_FILE_NAME, "worker.mjs");
         assert!(!PINE_WORKER_BUNDLE_FILE_NAME.contains(['/', '\\']));

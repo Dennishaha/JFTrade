@@ -261,7 +261,7 @@ fn frontend_facade_contract_names_are_versioned_in_one_place() {
 }
 
 #[test]
-// Parity: go:452dea11:internal/frontendassets/dev_test.go:7 TestFileSystemReportsExternalAssetsForDevelopmentBuild
+// Parity: frozen desktop asset reference fixture, TestFileSystemReportsExternalAssetsForDevelopmentBuild
 fn desktop_shell_keeps_development_frontend_external_and_embeds_staged_dist_for_release() {
     let manifest_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
     let config: serde_json::Value = serde_json::from_slice(
