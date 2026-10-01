@@ -185,6 +185,8 @@ mod tests {
     }
 
     #[test]
+    // Parity: go:452dea11:pkg/market/us/us_test.go:56
+    // TestUSTradingCalendarEdgeBoundaries
     fn session_context_handles_us_holidays_early_close_and_sunday_overnight() {
         let manager = manager();
         for timestamp in [
