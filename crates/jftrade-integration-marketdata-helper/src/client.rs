@@ -580,6 +580,49 @@ mod tests {
         server.await.expect("server");
     }
 
+    // Parity: go:452dea11:internal/integration/yfinance/client_test.go:136 TestClientRejectsMalformedEmptyTrailingAndOversizedResponses
+    #[tokio::test]
+    async fn helper_health_rejects_malformed_empty_trailing_and_oversized_responses() {
+        let cases = vec![
+            ("200 OK", "{".to_owned()),
+            ("204 No Content", String::new()),
+            ("200 OK", r#"{"ok":true} {"extra":true}"#.to_owned()),
+            ("200 OK", format!("\"{}\"", "x".repeat(MAX_RESPONSE_BYTES))),
+        ];
+        for (status, body) in cases {
+            let listener = TcpListener::bind("127.0.0.1:0").await.expect("listen");
+            let address = listener.local_addr().expect("address");
+            let server = tokio::spawn(async move {
+                let (mut stream, _) = listener.accept().await.expect("accept");
+                let mut request = vec![0_u8; 4096];
+                let read = stream.read(&mut request).await.expect("read request");
+                assert!(String::from_utf8_lossy(&request[..read])
+                    .starts_with("GET /providers/yfinance/health HTTP/1.1\r\n"));
+                let response = format!(
+                    "HTTP/1.1 {status}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                    body.len(), body
+                );
+                stream
+                    .write_all(response.as_bytes())
+                    .await
+                    .expect("write response");
+            });
+            let client = HelperClient::new(HelperClientConfig {
+                base_url: format!("http://{address}"),
+                bearer_token: None,
+                request_timeout: Duration::from_secs(1),
+                max_attempts: 1,
+                retry_delay: Duration::ZERO,
+            })
+            .expect("client");
+            assert!(matches!(
+                client.health("yfinance").await,
+                Err(HttpAdapterError::InvalidResponse(_))
+            ));
+            server.await.expect("server");
+        }
+    }
+
     #[tokio::test]
     async fn provider_aware_methods_prefix_providers_and_validate_provider_names() {
         let listener = TcpListener::bind("127.0.0.1:0").await.expect("listen");
