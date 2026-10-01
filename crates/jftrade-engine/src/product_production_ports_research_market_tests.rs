@@ -646,6 +646,32 @@ fn industry_board_operations_map_to_provider_kinds_on_the_wire() {
     }
 }
 
+// Parity: go:452dea11:internal/integration/akshare/provider_rankings_industries_test.go:53 TestClientIndustriesEncodesKindAndDecodesBoards
+#[test]
+fn akshare_industries_route_encodes_concept_kind_and_decodes_board_fields() {
+    let fixture = MarketResearchFixture::ok(
+        r#"{"market":"CN","kind":"concept","boards":[{"name":"人工智能","change_rate":2.31,"turnover":1500000000.0,"volume":88000000.0,"leading_stock_name":"宁德时代","leading_stock_change_rate":7.02}],"source":"akshare-industries"}"#.to_owned(),
+    );
+    let value = read_market_research(
+        MarketDataProvider::Akshare,
+        true,
+        Some(&fixture.client),
+        "/api/v1/research/industries",
+        "market=CN&operation=plate_list&plateType=concept",
+    )
+    .expect("AKShare concept industries response");
+    let requests = fixture.join();
+    assert_eq!(requests.len(), 1);
+    assert!(requests[0].starts_with(
+        "GET /providers/akshare/industries?kind=concept&market=CN "
+    ));
+    assert_eq!(value["entries"][0]["instrumentId"], "CN.人工智能");
+    assert_eq!(value["entries"][0]["changeRate"], 2.31);
+    assert_eq!(value["entries"][0]["turnover"], 1500000000.0);
+    assert_eq!(value["entries"][0]["leadingStockName"], "宁德时代");
+    assert_eq!(value["entries"][0]["leadingStockChangeRate"], 7.02);
+}
+
 /// Parity: go:452dea11:internal/productfeatures/provider_facade_rankings_test.go:173
 /// TestEmbeddedProviderServesPlateMembersFromInstrumentID
 ///
