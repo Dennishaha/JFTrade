@@ -302,6 +302,38 @@ fn provider_analyst_consensus_projection_omits_absent_sections() {
     );
 }
 
+// Parity: go:452dea11:internal/integration/akshare/provider_company_research_test.go:254 TestProviderAnalystConsensusConvertsEastmoneyAggregate
+#[test]
+fn akshare_analyst_consensus_projection_converts_eastmoney_aggregate() {
+    let payload = json!({
+        "instrument_id": "SH.600519",
+        "source": "akshare-analyst",
+        "rating": 4.2,
+        "analyst_count": 12,
+        "target_price": null,
+        "distribution": {
+            "strong_buy": 45.0,
+            "buy": 30.0,
+            "hold": 20.0,
+            "underperform": 5.0,
+            "sell": 0.0
+        },
+        "update_time": "2026-08-10"
+    });
+    let result = project_research_payload("analyst", payload, "SH", "600519", "akshare", None)
+        .expect("AKShare analyst projection");
+    let entry = &result["entries"][0];
+    assert_eq!(result["metadata"]["source"], "akshare-analyst");
+    assert_eq!(result["resolvedInstrument"]["instrumentId"], "SH.600519");
+    assert_eq!(entry["rating"], 4.2);
+    assert_eq!(entry["analystCount"], 12);
+    assert!(entry.get("lowest").is_none());
+    assert_eq!(entry["strongBuy"], 45.0);
+    assert_eq!(entry["underperform"], 5.0);
+    assert_eq!(entry["sell"], 0.0);
+    assert_eq!(entry["updateTimeStr"], "2026-08-10");
+}
+
 /// Parity: go:452dea11:internal/productfeatures/provider_projection_test.go:547
 /// TestProviderOwnershipProjectionMapsFrontendKeys
 ///
