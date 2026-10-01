@@ -49,6 +49,8 @@ fn strategy_definition_store_rejects_missing_drifted_and_corrupted_go_databases(
     assert!(matches!(error, StrategyDefinitionStoreError::Schema(_)));
 }
 
+// Parity: go:452dea11:internal/store/strategy/store_test.go:251
+// TestStrategyDesignStorePersistsImmutableDefinitionVersionSnapshots
 #[test]
 fn strategy_definition_lifecycle_versioning_and_restart_durability() {
     let directory = tempfile::tempdir().expect("temporary directory");
