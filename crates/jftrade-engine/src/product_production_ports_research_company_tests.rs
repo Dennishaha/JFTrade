@@ -813,6 +813,7 @@ fn production_research_client(
 ///
 /// This guard had no Rust test before this batch: removing it kept every other
 /// company-research test green, so it is asserted here rather than assumed.
+// Parity: go:452dea11:internal/integration/yfinance/provider_company_research_test.go:236 TestProviderCompanyResearchRejectsIdentityMismatch
 #[test]
 fn company_research_rejects_provider_identity_drift() {
     // instrument_id belongs to a different instrument than the request.
