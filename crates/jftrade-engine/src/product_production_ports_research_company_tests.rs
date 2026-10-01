@@ -208,6 +208,38 @@ fn provider_financial_statements_projection_maps_frontend_keys() {
     assert_eq!(entries[1]["itemList"], json!([]));
 }
 
+// Parity: go:452dea11:internal/integration/akshare/provider_company_research_test.go:106 TestProviderFinancialStatementsConvertsPeriodsAndValidatesEcho
+#[test]
+fn akshare_financial_statements_projection_converts_periods_and_nullable_ratios() {
+    let payload = json!({
+        "instrument_id": "SH.600519",
+        "statement": "income",
+        "currency": "CNY",
+        "source": "akshare-financials",
+        "fields": [{"field_id": "revenue", "display_name": "营业收入"}],
+        "periods": [{
+            "period_text": "2025FY",
+            "values": {"revenue": {"data": 1200000000.0, "yoy": 12.5, "qoq": null}}
+        }]
+    });
+    let result = project_research_payload(
+        "financials",
+        payload,
+        "SH",
+        "600519",
+        "akshare",
+        Some("income"),
+    )
+    .expect("AKShare financials projection");
+    assert_eq!(result["metadata"]["source"], "akshare-financials");
+    assert_eq!(result["resolvedInstrument"]["instrumentId"], "SH.600519");
+    assert_eq!(result["metadata"]["structureList"][0]["fieldId"], "revenue");
+    assert_eq!(result["entries"][0]["periodText"], "2025FY");
+    assert_eq!(result["entries"][0]["itemList"][0]["data"], 1200000000.0);
+    assert_eq!(result["entries"][0]["itemList"][0]["yoy"], 12.5);
+    assert!(result["entries"][0]["itemList"][0].get("qoq").is_none());
+}
+
 /// Parity: go:452dea11:internal/productfeatures/provider_projection_test.go:486
 /// TestProviderAnalystConsensusProjectionMapsFrontendKeys
 ///
