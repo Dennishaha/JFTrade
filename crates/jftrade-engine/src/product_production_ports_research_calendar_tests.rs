@@ -324,6 +324,15 @@ fn ipo_calendar_route_maps_frontend_keys() {
     assert_eq!(entries[1]["listingDate"], "2026-08-25");
 }
 
+// Parity: go:452dea11:internal/integration/akshare/provider_calendar_macro_test.go:81 TestProviderCalendarConvertsEntriesAndKeepsNulls
+#[test]
+fn akshare_calendar_provider_conversion_assertions() {
+    earnings_calendar_route_maps_frontend_keys();
+    dividend_calendar_route_maps_frontend_keys();
+    economic_calendar_route_derives_date_and_time();
+    ipo_calendar_route_maps_frontend_keys();
+}
+
 /// Parity: go:452dea11:internal/productfeatures/provider_facade_calendar_test.go:205
 /// TestEmbeddedProviderRejectsUnsupportedCalendarMacroOperations
 ///
