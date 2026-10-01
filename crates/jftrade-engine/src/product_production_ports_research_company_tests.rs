@@ -561,6 +561,25 @@ fn yfinance_analyst_route_converts_rating_targets_and_distribution() {
     assert_eq!(entry["updateTimeStr"], "2026-08-15T20:00:00Z");
 }
 
+// Parity: go:452dea11:internal/integration/yfinance/provider_company_research_test.go:161 TestProviderOwnershipConvertsGroupsAndValidatesKind
+#[test]
+fn yfinance_ownership_route_converts_groups_and_nullable_dates() {
+    let fixture = CompanyResearchFixture::ok(
+        r#"{"instrument_id":"US.AAPL","groups":[{"kind":"major_holders","static_date":"2026-06-30","items":[{"name":"Vanguard","holder_pct":8.6}]},{"kind":"holder_types","static_date":null,"items":[{"name":"Institutions","holder_pct":61.2}]}]}"#,
+    );
+    let result = production_research_client(&fixture.client)
+        .read("/api/v1/research/ownership/US.AAPL", "operation=overview")
+        .expect("ownership");
+    let requests = fixture.join();
+    assert!(requests[0].starts_with("GET /providers/yfinance/ownership/US/AAPL "));
+    assert_eq!(result["metadata"]["mainHolderInfoList"][0]["staticDateStr"], "2026-06-30");
+    assert_eq!(result["metadata"]["mainHolderInfoList"][0]["itemList"][0]["name"], "Vanguard");
+    assert_eq!(result["metadata"]["mainHolderInfoList"][0]["itemList"][0]["holderPct"], 8.6);
+    assert_eq!(result["metadata"]["holderTypeInfoList"][0]["itemList"][0]["name"], "Institutions");
+    assert_eq!(result["metadata"]["holderTypeInfoList"][0]["itemList"][0]["holderPct"], 61.2);
+    assert!(result["metadata"]["holderTypeInfoList"][0].get("staticDateStr").is_none());
+}
+
 /// The financials read forwards the request's market, symbol, and statement
 /// selection verbatim to the provider path.
 #[test]
