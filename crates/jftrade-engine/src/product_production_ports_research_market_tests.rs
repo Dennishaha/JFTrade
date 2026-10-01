@@ -706,6 +706,31 @@ fn industry_plate_members_read_the_board_from_the_instrument_id() {
     assert_eq!(result["resolvedInstrument"]["instrumentId"], "CN.半导体");
 }
 
+// Parity: go:452dea11:internal/integration/akshare/provider_rankings_industries_test.go:82 TestClientIndustryMembersEscapesBoardNameAndOmitsEmptyKind
+#[test]
+fn akshare_industry_members_route_escapes_board_and_omits_kind() {
+    let fixture = MarketResearchFixture::ok(
+        r#"{"market":"CN","kind":"industry","board":"人工智能","entries":[{"instrument_id":"SZ.300750","name":"宁德时代"}],"source":"akshare-industries"}"#.to_owned(),
+    );
+    let value = read_market_research(
+        MarketDataProvider::Akshare,
+        true,
+        Some(&fixture.client),
+        "/api/v1/research/industries",
+        "market=CN&instrumentId=CN.人工智能&operation=plate_members&pageSize=50",
+    )
+    .expect("AKShare industry members response");
+    let requests = fixture.join();
+    assert_eq!(requests.len(), 1);
+    assert!(requests[0].starts_with(
+        "GET /providers/akshare/industries/%E4%BA%BA%E5%B7%A5%E6%99%BA%E8%83%BD/members?"
+    ));
+    assert!(requests[0].contains("limit=50") && requests[0].contains("market=CN"));
+    assert!(!requests[0].contains("kind="));
+    assert_eq!(value["entries"][0]["instrumentId"], "SZ.300750");
+    assert_eq!(value["entries"][0]["name"], "宁德时代");
+}
+
 // Parity: go:452dea11:internal/integration/akshare/provider_rankings_industries_test.go:172 TestProviderIndustriesConvertsBoardsAndMembers
 #[test]
 fn akshare_industries_route_converts_boards_and_members_with_default_limit() {
