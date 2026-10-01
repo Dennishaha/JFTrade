@@ -308,6 +308,20 @@ fn provider_ownership_projection_maps_frontend_keys() {
     assert_eq!(type_items[1]["name"], "流通A股");
 }
 
+// Parity: go:452dea11:internal/integration/akshare/provider_company_research_test.go:238 TestProviderOwnershipRejectsUnknownGroupKind
+#[test]
+fn provider_ownership_projection_rejects_unknown_group_kind() {
+    let payload = json!({
+        "instrument_id": "SH.600519",
+        "market": "SH",
+        "symbol": "600519",
+        "groups": [{"kind": "executives", "items": []}]
+    });
+    let error = project_research_payload("ownership", payload, "SH", "600519", "akshare", None)
+        .expect_err("unknown ownership group kind must fail closed");
+    assert!(matches!(error, ResearchReadSnapshotError::Failed { status: 502, .. }));
+}
+
 /// Parity: go:452dea11:internal/productfeatures/provider_projection_test.go:186
 /// TestEmbeddedResearchInstrumentDerivesMarketAndSymbol
 ///
