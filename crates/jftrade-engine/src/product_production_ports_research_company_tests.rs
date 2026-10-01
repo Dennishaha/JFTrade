@@ -124,6 +124,29 @@ fn provider_company_profile_projection_maps_frontend_keys() {
     assert_eq!(result["total"], 3);
 }
 
+// Parity: go:452dea11:internal/integration/akshare/provider_company_research_test.go:72 TestProviderCompanyProfileConvertsCNInstrument
+#[test]
+fn akshare_company_profile_projection_converts_cn_instrument() {
+    let payload = json!({
+        "instrument_id": "SH.600519",
+        "market": "SH",
+        "symbol": "600519",
+        "currency": "CNY",
+        "source": "akshare-profile",
+        "groups": [{
+            "title": "公司资料",
+            "fields": [{"name": "行业", "value": "白酒"}, {"name": "", "value": ""}]
+        }]
+    });
+    let result = project_research_payload("profile", payload, "SH", "600519", "akshare", None)
+        .expect("AKShare profile projection");
+    assert_eq!(result["resolvedInstrument"]["instrumentId"], "SH.600519");
+    assert_eq!(result["metadata"]["source"], "akshare-profile");
+    assert_eq!(result["entries"].as_array().map(Vec::len), Some(2));
+    assert_eq!(result["entries"][1]["name"], "行业");
+    assert_eq!(result["entries"][1]["value"], "白酒");
+}
+
 /// Parity: go:452dea11:internal/productfeatures/provider_projection_test.go:421
 /// TestProviderFinancialStatementsProjectionMapsFrontendKeys
 ///
