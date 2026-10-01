@@ -334,8 +334,8 @@ fn sync_request_validates_provider_adjustment_and_lookback_capabilities() {
         "market": "US",
         "code": "AAPL",
         "intervals": ["1d"],
-        "since": "2026-09-24T00:00:00Z",
-        "until": "2026-09-25T00:00:00Z",
+        "since": "2026-09-29T00:00:00Z",
+        "until": "2026-09-30T00:00:00Z",
         "rehabType": "backward",
         "sessionScope": "regular",
     }))
@@ -366,8 +366,8 @@ fn sync_request_validates_provider_adjustment_and_lookback_capabilities() {
         "market": "US",
         "code": "AAPL",
         "intervals": ["5m"],
-        "since": "2026-09-24T00:00:00Z",
-        "until": "2026-09-25T00:00:00Z",
+        "since": "2026-09-29T00:00:00Z",
+        "until": "2026-09-30T00:00:00Z",
         "rehabType": "forward",
         "sessionScope": "regular",
     }))
@@ -401,8 +401,8 @@ fn production_sync_rejects_provider_capability_before_queuing() {
                 "market": "US",
                 "code": "AAPL",
                 "intervals": ["1d"],
-                "since": "2026-09-24T00:00:00Z",
-                "until": "2026-09-25T00:00:00Z",
+                "since": "2026-09-29T00:00:00Z",
+                "until": "2026-09-30T00:00:00Z",
                 "rehabType": "backward",
                 "marketDataProvider": "yfinance",
             }),
@@ -583,7 +583,7 @@ async fn production_helper_sync_forwards_page_query_and_persists_provider_values
             "period": "1m",
             "extendedHours": false,
             "candles": [{
-                "at": "2026-09-24T12:00:00Z",
+                "at": "2026-09-29T12:00:00Z",
                 "open": "100.25",
                 "high": 102.5,
                 "low": 99.5,
@@ -625,8 +625,8 @@ async fn production_helper_sync_forwards_page_query_and_persists_provider_values
                 "market": "US",
                 "code": "AAPL",
                 "intervals": ["1m"],
-                "since": "2026-09-24T00:00:00Z",
-                "until": "2026-09-25T00:00:00Z",
+                "since": "2026-09-29T00:00:00Z",
+                "until": "2026-09-30T00:00:00Z",
                 "rehabType": "forward",
                 "sessionScope": "regular",
                 "marketDataProvider": "yfinance"
@@ -717,7 +717,7 @@ async fn production_helper_sync_retries_transient_page_and_records_retry() {
                         "period": "1m",
                         "extendedHours": false,
                         "candles": [{
-                            "at": "2026-09-24T12:00:00Z",
+                            "at": "2026-09-29T12:00:00Z",
                             "open": "100.25",
                             "high": 102.5,
                             "low": 99.5,
@@ -762,8 +762,8 @@ async fn production_helper_sync_retries_transient_page_and_records_retry() {
                 "market": "US",
                 "code": "AAPL",
                 "intervals": ["1m"],
-                "since": "2026-09-24T00:00:00Z",
-                "until": "2026-09-25T00:00:00Z",
+                "since": "2026-09-29T00:00:00Z",
+                "until": "2026-09-30T00:00:00Z",
                 "rehabType": "forward",
                 "sessionScope": "regular",
                 "marketDataProvider": "yfinance"
@@ -794,8 +794,8 @@ async fn production_helper_sync_retries_transient_page_and_records_retry() {
 async fn production_helper_sync_rejects_broken_pagination_cursors() {
     let cases = [
         ("missing cursor", None, false),
-        ("forward cursor", Some("2026-09-26T00:00:00Z"), false),
-        ("cursor reaches boundary", Some("2026-09-24T00:00:00Z"), true),
+        ("forward cursor", Some("2026-10-01T00:00:00Z"), false),
+        ("cursor reaches boundary", Some("2026-09-29T00:00:00Z"), true),
     ];
 
     for (name, next_before, expected_success) in cases {
@@ -830,7 +830,7 @@ async fn production_helper_sync_rejects_broken_pagination_cursors() {
                 "period": "1m",
                 "extendedHours": false,
                 "candles": [{
-                    "at": "2026-09-24T12:00:00Z",
+                    "at": "2026-09-29T12:00:00Z",
                     "open": "100.25",
                     "high": 102.5,
                     "low": 99.5,
@@ -873,8 +873,8 @@ async fn production_helper_sync_rejects_broken_pagination_cursors() {
                     "market": "US",
                     "code": "AAPL",
                     "intervals": ["1m"],
-                    "since": "2026-09-24T00:00:00Z",
-                    "until": "2026-09-25T00:00:00Z",
+                    "since": "2026-09-29T00:00:00Z",
+                    "until": "2026-09-30T00:00:00Z",
                     "rehabType": "forward",
                     "sessionScope": "regular",
                     "marketDataProvider": "yfinance"
@@ -976,8 +976,8 @@ async fn production_helper_sync_cancel_aborts_in_flight_request() {
                 "market": "US",
                 "code": "AAPL",
                 "intervals": ["1m"],
-                "since": "2026-09-24T00:00:00Z",
-                "until": "2026-09-25T00:00:00Z",
+                "since": "2026-09-29T00:00:00Z",
+                "until": "2026-09-30T00:00:00Z",
                 "rehabType": "forward",
                 "sessionScope": "regular",
                 "marketDataProvider": "yfinance"
