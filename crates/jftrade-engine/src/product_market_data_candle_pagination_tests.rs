@@ -1404,6 +1404,80 @@ fn helper_candle_conversion_rejects_malformed_provider_values() {
     );
 }
 
+#[test]
+// Parity: go:452dea11:internal/marketdata/broker_candles_test.go:12
+// The broker candle projection keeps the provider's wire values, session,
+// source attribution, and pagination envelope together.
+fn broker_candle_projection_preserves_wire_fields() {
+    use crate::product::product_candle_converter::{
+        HelperCandleConversionParams, convert_helper_candles_response,
+    };
+    use jftrade_integration_marketdata_helper::{
+        HelperCandle, HelperCandlesResponse, HelperPriceValue,
+    };
+
+    let response = HelperCandlesResponse {
+        market: "US".to_owned(),
+        symbol: "AAPL".to_owned(),
+        instrument_id: "US.AAPL".to_owned(),
+        period: "1h".to_owned(),
+        extended_hours: false,
+        total_returned: 2,
+        candles: vec![
+            HelperCandle {
+                at: "2026-07-15T14:00:00Z".to_owned(),
+                open: HelperPriceValue("99.5".to_owned()),
+                high: HelperPriceValue("101".to_owned()),
+                low: HelperPriceValue("99".to_owned()),
+                close: HelperPriceValue("100".to_owned()),
+                volume: Some(HelperPriceValue("1000".to_owned())),
+                session: Some("regular".to_owned()),
+            },
+            HelperCandle {
+                at: "2026-07-15T15:00:00Z".to_owned(),
+                open: HelperPriceValue("100".to_owned()),
+                high: HelperPriceValue("102".to_owned()),
+                low: HelperPriceValue("99.5".to_owned()),
+                close: HelperPriceValue("101".to_owned()),
+                volume: Some(HelperPriceValue("1100".to_owned())),
+                session: Some("regular".to_owned()),
+            },
+        ],
+        has_more: true,
+        next_before: Some("2026-07-15T14:00:00Z".to_owned()),
+        source: "broker:futu".to_owned(),
+        adjustment: "none".to_owned(),
+    };
+    let projected = convert_helper_candles_response(
+        response,
+        HelperCandleConversionParams {
+            market: "US",
+            symbol: "AAPL",
+            period: "1h",
+            limit: 2,
+            from_time: None,
+            to_time: None,
+            before: None,
+            sessions: &["regular"],
+            is_yfinance: false,
+            is_akshare: false,
+            calendar: None,
+        },
+    )
+    .expect("broker candle projection");
+    assert_eq!(projected["totalReturned"], 2);
+    assert_eq!(projected["candles"][0]["at"], "2026-07-15T14:00:00Z");
+    assert_eq!(projected["candles"][0]["close"], "100");
+    assert_eq!(projected["candles"][0]["session"], "regular");
+    assert_eq!(projected["candles"][0]["closed"], true);
+    assert_eq!(projected["candles"][1]["closed"], true);
+    assert_eq!(projected["pagination"]["hasMore"], true);
+    assert_eq!(projected["pagination"]["nextBefore"], "2026-07-15T14:00:00Z");
+    assert_eq!(projected["meta"]["source"], "broker:futu");
+    assert_eq!(projected["meta"]["extendedHours"], false);
+    assert_eq!(projected["meta"]["session"], "regular");
+}
+
 #[tokio::test]
 // Parity: go:452dea11:internal/productfeatures/service_test.go:404 TestProductFeatureServiceNormalizesCoreMarketCandlesWithProvider
 async fn candle_route_preserves_legacy_query_parsing() {
