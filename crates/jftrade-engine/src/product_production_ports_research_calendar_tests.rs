@@ -765,6 +765,38 @@ fn macro_operations_map_to_provider_reads_on_the_wire() {
     assert_eq!(result["provider"]["featureId"], "research.macro");
 }
 
+// Parity: go:452dea11:internal/integration/akshare/provider_calendar_macro_test.go:183 TestProviderMacroConvertsCatalogAndHistory
+#[test]
+fn akshare_macro_route_converts_catalog_and_history_with_default_limit() {
+    let fixture = CalendarRouteFixture::ok(
+        r#"{"source":"akshare-macro","categories":[{"category_name":"价格","indicators":[{"indicator_id":"cpi_yoy","name":"CPI同比","region":"中国","unit":"%","unit_type":1,"frequency":"月"}]}]}"#,
+    );
+    let catalog = akshare_calendar_route(&fixture.client, "/api/v1/research/macro", "operation=indicators")
+        .expect("macro catalog");
+    fixture.join();
+    assert_eq!(catalog["entries"][0]["categoryName"], "价格");
+    assert_eq!(catalog["entries"][0]["indicatorList"][0]["indicatorId"], "cpi_yoy");
+    assert_eq!(catalog["entries"][0]["indicatorList"][0]["unitType"], 1);
+
+    let fixture = CalendarRouteFixture::ok(
+        r#"{"indicator_id":"cpi_yoy","source":"akshare-macro","entries":[{"data_time":"2026-07","value":0.5,"predict_value":null,"previous_value":null,"unit":"%","unit_type":1}]}"#,
+    );
+    let history = akshare_calendar_route(
+        &fixture.client,
+        "/api/v1/research/macro",
+        "operation=indicator_history&indicatorId=cpi_yoy&pageSize=0",
+    )
+    .expect("macro history");
+    let requests = fixture.join();
+    assert!(requests[0].starts_with(
+        "GET /providers/akshare/macro/indicator-history?indicator_id=cpi_yoy&limit=100 "
+    ));
+    assert_eq!(history["entries"][0]["dataTime"], "2026-07");
+    assert_eq!(history["entries"][0]["value"], 0.5);
+    assert_eq!(history["entries"][0]["unitType"], 1);
+    assert!(history["entries"][0].get("predictValue").is_none());
+}
+
 // Parity: go:452dea11:internal/app/apiserver/marketdataapp/runtime_calendar_forwarding_test.go:131 TestRuntimeCalendarMacroCapabilityUnsupported
 /// Parity: go:452dea11:internal/productfeatures/provider_facade_calendar_test.go:205
 /// TestEmbeddedProviderRejectsUnsupportedCalendarMacroOperations
