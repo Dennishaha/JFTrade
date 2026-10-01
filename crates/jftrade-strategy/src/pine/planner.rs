@@ -629,9 +629,8 @@ fn requirement_for_call(
         "ta.dmi" | "ta.supertrend" => {
             kind = lower.strip_prefix("ta.").unwrap_or_default();
             for argument in arguments {
-                key_parts.push(
-                    argument_text(Some(argument)).unwrap_or_else(|| argument.to_string()),
-                );
+                key_parts
+                    .push(argument_text(Some(argument)).unwrap_or_else(|| argument.to_string()));
             }
         }
         "ta.ema" | "ta.sma" | "ta.rma" | "ta.wma" | "ta.hma" | "ta.vwma" => {
