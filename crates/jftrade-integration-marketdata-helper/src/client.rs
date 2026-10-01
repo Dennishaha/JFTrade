@@ -124,12 +124,19 @@ impl HelperClient {
 
     pub async fn health(&self, provider: &str) -> Result<HelperHealth, HttpAdapterError> {
         let provider = Self::normalize_provider(provider)?;
-        self.request_json(
+        let health: HelperHealth = self
+            .request_json(
             Method::GET,
             &["providers", provider, "health"],
             Option::<&()>::None,
         )
-        .await
+        .await?;
+        if health.version.trim().is_empty() {
+            return Err(HttpAdapterError::InvalidResponse(
+                "health response missing provider version".to_owned(),
+            ));
+        }
+        Ok(health)
     }
 
     pub fn endpoint(&self) -> &str {
@@ -470,6 +477,50 @@ mod tests {
         assert_eq!(health["runtime_state"], "ready");
         server.await.expect("server");
         assert_eq!(attempts.load(Ordering::SeqCst), 3);
+    }
+
+    // Parity: go:452dea11:internal/integration/yfinance/client_test.go:56 TestClientHealthRequiresYFinanceVersion
+    // Parity: go:452dea11:internal/integration/yfinance/client_test.go:75 TestClientHealthRequiresKnownRuntimeState
+    #[tokio::test]
+    async fn helper_health_rejects_missing_version_and_unknown_runtime_state() {
+        let listener = TcpListener::bind("127.0.0.1:0").await.expect("listen");
+        let address = listener.local_addr().expect("address");
+        let server = tokio::spawn(async move {
+            for body in [
+                r#"{"provider":"yfinance","runtime_state":"ready"}"#,
+                r#"{"provider":"yfinance","runtime_state":"ready","yfinance_version":"   "}"#,
+                r#"{"provider":"yfinance","runtime_state":"starting","yfinance_version":"1.6.0"}"#,
+            ] {
+                let (mut stream, _) = listener.accept().await.expect("accept");
+                let mut request = vec![0_u8; 4096];
+                let read = stream.read(&mut request).await.expect("read request");
+                assert!(String::from_utf8_lossy(&request[..read])
+                    .starts_with("GET /providers/yfinance/health HTTP/1.1\r\n"));
+                let response = format!(
+                    "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                    body.len(), body
+                );
+                stream
+                    .write_all(response.as_bytes())
+                    .await
+                    .expect("write response");
+            }
+        });
+        let client = HelperClient::new(HelperClientConfig {
+            base_url: format!("http://{address}"),
+            bearer_token: None,
+            request_timeout: Duration::from_secs(1),
+            max_attempts: 1,
+            retry_delay: Duration::ZERO,
+        })
+        .expect("client");
+        for _ in 0..3 {
+            assert!(matches!(
+                client.health("yfinance").await,
+                Err(HttpAdapterError::InvalidResponse(_))
+            ));
+        }
+        server.await.expect("server");
     }
 
     #[tokio::test]
