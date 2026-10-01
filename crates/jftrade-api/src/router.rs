@@ -380,6 +380,16 @@ mod tests {
         }
     }
 
+    #[test]
+    // Parity: go:452dea11:internal/api/httpserver/bindings_boundaries_test.go:109
+    // `http::Uri` exposes the escaped request target directly; the transport
+    // must preserve that spelling for route dispatch and query parsing.
+    fn escaped_api_uri_preserves_raw_path_and_query() {
+        let uri: Uri = "/api/v1/watchlist/a%2Fb?q=one%2Btwo&x=%2F".parse().unwrap();
+        assert_eq!(uri.path(), "/api/v1/watchlist/a%2Fb");
+        assert_eq!(uri.query(), Some("q=one%2Btwo&x=%2F"));
+    }
+
     fn request_from_peer(peer: &str) -> Request {
         let mut request = Request::builder()
             .uri("/")
