@@ -541,6 +541,26 @@ fn yfinance_financials_route_converts_periods_and_nullable_ratios() {
     assert!(result["entries"][1]["itemList"][0].get("yoy").is_none());
 }
 
+// Parity: go:452dea11:internal/integration/yfinance/provider_company_research_test.go:134 TestProviderAnalystConsensusConvertsRatingTargetAndDistribution
+#[test]
+fn yfinance_analyst_route_converts_rating_targets_and_distribution() {
+    let fixture = CompanyResearchFixture::ok(
+        r#"{"instrument_id":"US.AAPL","rating":4,"analyst_count":38,"target_price":{"lowest":180.5,"average":240.1,"highest":300},"distribution":{"strong_buy":42.1,"buy":31.6,"hold":21.1,"underperform":5.2,"sell":0},"update_time":" 2026-08-15T20:00:00Z "}"#,
+    );
+    let result = production_research_client(&fixture.client)
+        .read("/api/v1/research/analyst/US.AAPL", "operation=consensus")
+        .expect("analyst consensus");
+    let requests = fixture.join();
+    assert!(requests[0].starts_with("GET /providers/yfinance/analyst/US/AAPL "));
+    let entry = &result["entries"][0];
+    assert_eq!(entry["rating"], 4);
+    assert_eq!(entry["analystCount"], 38);
+    assert_eq!(entry["average"], 240.1);
+    assert_eq!(entry["strongBuy"], 42.1);
+    assert_eq!(entry["sell"], 0.0);
+    assert_eq!(entry["updateTimeStr"], "2026-08-15T20:00:00Z");
+}
+
 /// The financials read forwards the request's market, symbol, and statement
 /// selection verbatim to the provider path.
 #[test]
