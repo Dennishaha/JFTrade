@@ -621,6 +621,8 @@ mod tests {
     }
 
     #[test]
+    // Parity: go:452dea11:pkg/market/calendar/builtin_test.go:8
+    // TestBuiltinResolverUSHolidayAndEarlyClose (holiday branch)
     fn builtin_us_closed_holidays_have_no_session_windows() {
         for (date, reason, observed) in [
             ("2026-06-19", "juneteenth", false),
@@ -638,6 +640,8 @@ mod tests {
     }
 
     #[test]
+    // Parity: go:452dea11:pkg/market/calendar/builtin_test.go:8
+    // TestBuiltinResolverUSHolidayAndEarlyClose (early-close branch)
     fn builtin_us_early_close_preserves_extended_windows_and_shortens_regular_session() {
         for (date, reason) in [
             ("2026-07-02", "independence_day_early_close"),
