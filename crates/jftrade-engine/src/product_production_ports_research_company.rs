@@ -49,6 +49,9 @@ pub(super) fn research_helper_request(
         return Err(invalid("research instrument path is invalid"));
     }
     let market = market.to_ascii_uppercase();
+    if matches!(market.as_str(), "SH" | "SZ" | "CN" | "BJ") {
+        return Err(capability(operation, &market));
+    }
     let symbol = canonical_symbol(&market, symbol);
     let query_map = QueryMap::parse(query).map_err(|_| invalid("invalid URL escape"))?;
     if let Some(requested) = query_map

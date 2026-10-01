@@ -619,6 +619,28 @@ fn company_financials_reject_invalid_statement_before_helper_access() {
     assert!(fixture.join().is_empty(), "invalid statement must not reach helper");
 }
 
+// Parity: go:452dea11:internal/integration/yfinance/provider_company_research_test.go:192 TestProviderCompanyResearchRejectsUnsupportedMarketsWithoutSidecarCall
+#[test]
+fn yfinance_company_research_rejects_unsupported_markets_without_helper_calls() {
+    for (path, operation) in [
+        ("/api/v1/research/instruments/SH.600519", "profile"),
+        ("/api/v1/research/financials/CN.SH.600519", "statements&statement=income"),
+        ("/api/v1/research/analyst/SZ.000001", "consensus"),
+        ("/api/v1/research/ownership/BJ.430047", "overview"),
+    ] {
+        let fixture = CompanyResearchFixture::new(Vec::new());
+        let error = production_research_client(&fixture.client)
+            .read(path, &format!("operation={operation}"))
+            .expect_err("unsupported market must fail closed");
+        assert!(matches!(
+            error,
+            ResearchReadSnapshotError::Failed { status: 409, ref code, .. }
+                if code == "BROKER_CAPABILITY_UNAVAILABLE"
+        ));
+        assert!(fixture.join().is_empty(), "{path} reached helper");
+    }
+}
+
 /// Parity: go:452dea11:internal/productfeatures/provider_facade_company_test.go:170
 /// TestEmbeddedProviderCompanyResearchAcceptsOmittedOperation
 ///
