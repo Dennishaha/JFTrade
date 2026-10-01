@@ -1143,11 +1143,23 @@ async fn test_broker_k_line_candles_response_projects_strict_page() {
     assert_eq!(result["totalReturned"], 2);
     let candles = result["candles"].as_array().expect("candles array");
     assert_eq!(candles.len(), 2);
-    assert!(candles[0]["at"].as_str().is_some());
-    assert!(candles[0]["close"].is_string() || candles[0]["close"].is_number());
+    assert_eq!(candles[0]["at"], "2026-01-05T02:03:00Z");
+    assert_eq!(candles[0]["open"], "100");
+    assert_eq!(candles[0]["high"], "100");
+    assert_eq!(candles[0]["low"], "100");
+    assert_eq!(candles[0]["close"], "100");
+    assert_eq!(candles[0]["volume"], "100");
+    assert_eq!(candles[0]["closed"], true);
+    assert!(candles[1]["at"].as_str().is_some());
+    assert_eq!(candles[1]["close"], "100");
+    assert_eq!(candles[1]["closed"], true);
     assert_eq!(result["pagination"]["hasMore"], true);
     assert!(result["pagination"]["nextBefore"].as_str().is_some());
-    assert!(result["meta"].is_object());
+    assert_eq!(result["meta"]["source"], "futu");
+    assert_eq!(result["meta"]["extendedHours"], false);
+    assert!(result["meta"].get("session").is_none());
+    assert_eq!(result["request"]["period"], "1m");
+    assert_eq!(result["request"]["limit"], 2);
 }
 
 #[tokio::test]
@@ -1164,6 +1176,9 @@ async fn test_broker_k_line_candles_response_handles_terminal_and_bounded_pages(
         .await
         .unwrap();
     assert_eq!(result["pagination"]["hasMore"], false);
+    assert!(result["pagination"].get("nextBefore").is_none());
+    assert_eq!(result["request"]["limit"], 2);
+    assert_eq!(result["meta"]["source"], "futu");
 }
 
 #[test]
