@@ -675,6 +675,24 @@ mod tests {
         }
     }
 
+    // Parity: go:452dea11:pkg/market/calendar/builtin_test.go:8
+    // TestBuiltinResolverUSHolidayAndEarlyClose
+    #[test]
+    fn builtin_us_holiday_and_early_close_match_go_fixture() {
+        let holiday = builtin_schedule("US", at("2026-06-19"));
+        assert_eq!(holiday.status, "closed");
+        assert!(holiday.sessions.is_empty());
+
+        let early_close = builtin_schedule("US", at("2026-11-27"));
+        assert_eq!(early_close.status, "early_close");
+        let regular = early_close
+            .sessions
+            .iter()
+            .find(|session| session.kind == "regular")
+            .expect("regular session");
+        assert_eq!(regular.end_minute, 13 * 60);
+    }
+
     #[test]
     fn builtin_hk_and_mainland_weekday_weekend_and_alias_boundaries_match_go() {
         let hk_weekday = builtin_schedule("HK", at("2026-06-22"));
