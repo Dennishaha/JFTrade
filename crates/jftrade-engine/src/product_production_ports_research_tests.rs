@@ -149,8 +149,10 @@ impl jftrade_integration_futu::StockScreenReadPort for FutuScreenFixture {
     fn query(
         &self,
         _query: &jftrade_integration_futu::StockScreenQuery,
-    ) -> Result<jftrade_integration_futu::StockScreenPage, jftrade_integration_futu::StockScreenQueryError>
-    {
+    ) -> Result<
+        jftrade_integration_futu::StockScreenPage,
+        jftrade_integration_futu::StockScreenQueryError,
+    > {
         Ok(self.page.clone())
     }
 }
@@ -270,7 +272,10 @@ fn futu_stock_screen_projects_exact_mainland_rows_and_omits_combined_total() {
     assert_eq!(value["entries"].as_array().map(Vec::len), Some(1));
     assert_eq!(value["entries"][0]["instrumentId"], "SH.600519");
     assert_eq!(value["entries"][0]["quoteCurrency"], "CNY");
-    assert_eq!(value["entries"][0]["cells"]["price"]["value"]["number"], 1_700.0);
+    assert_eq!(
+        value["entries"][0]["cells"]["price"]["value"]["number"],
+        1_700.0
+    );
     assert!(value.get("total").is_none());
     assert_eq!(
         value["warnings"][0],
@@ -524,9 +529,7 @@ fn futu_stock_screen_rate_limit_maps_to_retry_after_seconds() {
     ));
     // A sub-second window must still be surfaced as at least one second.
     let error = screen::map_futu_screen_error(
-        jftrade_integration_futu::StockScreenQueryError::RateLimited {
-            retry_after_ms: 40,
-        },
+        jftrade_integration_futu::StockScreenQueryError::RateLimited { retry_after_ms: 40 },
     );
     assert!(matches!(
         error,
@@ -561,7 +564,6 @@ fn stock_screen_quote_currency_uses_security_counter_identity() {
         );
     }
 }
-
 
 #[test]
 fn research_helper_request_rejects_unsupported_or_malformed_paths() {
@@ -890,7 +892,10 @@ fn embedded_research_facade_serves_exactly_the_allowed_feature_set() {
             "/api/v1/research/corporate-actions/US.AAPL",
             "research.corporate_actions",
         ),
-        ("/api/v1/research/instruments/US.AAPL", "research.instrument"),
+        (
+            "/api/v1/research/instruments/US.AAPL",
+            "research.instrument",
+        ),
     ];
     for (path, feature) in allowed_routes {
         let error = port
@@ -992,6 +997,28 @@ fn embedded_capability_errors_keep_the_broker_code_and_lifecycle_sentinels() {
     ));
 }
 
+// Parity: go:452dea11:internal/integration/yfinance/client_test.go:172 TestClientClassifiesRuntimeWarmingAfterRetryBudget
+#[test]
+fn yfinance_runtime_warming_maps_to_public_lifecycle_error() {
+    let warming = map_research_helper_error(
+        jftrade_integration_marketdata_helper::HttpAdapterError::Remote {
+            status: 503,
+            code: "YFINANCE_RUNTIME_WARMING".to_owned(),
+            message: "warming".to_owned(),
+            retry_after_seconds: Some(1),
+        },
+    );
+    assert!(matches!(
+        warming,
+        ResearchReadSnapshotError::Failed {
+            status: 503,
+            ref code,
+            retry_after_seconds: Some(1),
+            ..
+        } if code == "MARKET_DATA_PROVIDER_WARMING"
+    ));
+}
+
 /// Parity: go:452dea11:internal/productfeatures/provider_facade_interception_test.go:294
 /// TestEmbeddedProviderPropagatesCapabilityAndLifecycleErrors
 ///
@@ -1016,10 +1043,22 @@ fn embedded_facade_propagates_capability_and_lifecycle_sentinels() {
     ));
 
     for (raw_code, expected_code, expected_retry_after) in [
-        ("AKSHARE_RUNTIME_WARMING", "MARKET_DATA_PROVIDER_WARMING", 1_u64),
+        (
+            "AKSHARE_RUNTIME_WARMING",
+            "MARKET_DATA_PROVIDER_WARMING",
+            1_u64,
+        ),
         ("AKSHARE_POOL_BUSY", "MARKET_DATA_PROVIDER_BUSY", 2_u64),
-        ("AKSHARE_UPSTREAM_TIMEOUT", "MARKET_DATA_PROVIDER_BUSY", 2_u64),
-        ("PROVIDER_RUNTIME_WARMING", "MARKET_DATA_PROVIDER_WARMING", 1_u64),
+        (
+            "AKSHARE_UPSTREAM_TIMEOUT",
+            "MARKET_DATA_PROVIDER_BUSY",
+            2_u64,
+        ),
+        (
+            "PROVIDER_RUNTIME_WARMING",
+            "MARKET_DATA_PROVIDER_WARMING",
+            1_u64,
+        ),
     ] {
         let mapped = map_research_helper_error(HttpAdapterError::Remote {
             status: 503,
@@ -1078,20 +1117,48 @@ fn active_provider_matching_accepts_descriptor_aliases_and_rejects_other_brokers
     // models "no descriptor" as None, not as a zero-valued descriptor.
     let cases = [
         (jftrade_settings::MarketDataProvider::Yfinance, "", true),
-        (jftrade_settings::MarketDataProvider::Yfinance, "yfinance", true),
+        (
+            jftrade_settings::MarketDataProvider::Yfinance,
+            "yfinance",
+            true,
+        ),
         (
             jftrade_settings::MarketDataProvider::Yfinance,
             "yahoo-finance",
             true,
         ),
-        (jftrade_settings::MarketDataProvider::Yfinance, "YFINANCE", true),
-        (jftrade_settings::MarketDataProvider::Yfinance, "akshare", false),
-        (jftrade_settings::MarketDataProvider::Yfinance, "futu", false),
+        (
+            jftrade_settings::MarketDataProvider::Yfinance,
+            "YFINANCE",
+            true,
+        ),
+        (
+            jftrade_settings::MarketDataProvider::Yfinance,
+            "akshare",
+            false,
+        ),
+        (
+            jftrade_settings::MarketDataProvider::Yfinance,
+            "futu",
+            false,
+        ),
         (jftrade_settings::MarketDataProvider::Futu, "", false),
-        (jftrade_settings::MarketDataProvider::Futu, "yfinance", false),
+        (
+            jftrade_settings::MarketDataProvider::Futu,
+            "yfinance",
+            false,
+        ),
         (jftrade_settings::MarketDataProvider::Futu, "futu", false),
-        (jftrade_settings::MarketDataProvider::Akshare, "AKSHARE", true),
-        (jftrade_settings::MarketDataProvider::Akshare, "yfinance", false),
+        (
+            jftrade_settings::MarketDataProvider::Akshare,
+            "AKSHARE",
+            true,
+        ),
+        (
+            jftrade_settings::MarketDataProvider::Akshare,
+            "yfinance",
+            false,
+        ),
     ];
     for (provider, requested, served) in cases {
         assert_eq!(
@@ -1127,7 +1194,10 @@ fn active_provider_matching_accepts_descriptor_aliases_and_rejects_other_brokers
         trade_runtime: None,
     };
     for requested in ["akshare", "futu"] {
-        match port.read("/api/v1/research/rankings", &format!("brokerId={requested}")) {
+        match port.read(
+            "/api/v1/research/rankings",
+            &format!("brokerId={requested}"),
+        ) {
             Err(ResearchReadSnapshotError::Failed {
                 status,
                 code,
