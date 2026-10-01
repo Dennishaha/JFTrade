@@ -658,6 +658,7 @@ fn industry_plate_members_read_the_board_from_the_instrument_id() {
 // Parity: go:452dea11:internal/integration/akshare/provider_rankings_industries_test.go:172 TestProviderIndustriesConvertsBoardsAndMembers
 #[test]
 fn akshare_industries_route_converts_boards_and_members_with_default_limit() {
+    // Keep board and member requests in one production-route evidence chain.
     let fixture = MarketResearchFixture::with_responses(vec![
         (
             "200 OK".to_owned(),
