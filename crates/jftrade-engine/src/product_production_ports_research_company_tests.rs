@@ -498,6 +498,27 @@ fn company_research_default_operations_project_on_the_wire() {
 /// Parity: go:452dea11:internal/productfeatures/provider_facade_company_test.go:148
 /// TestEmbeddedProviderCompanyResearchForwardsMarketSymbolAndStatement
 ///
+// Parity: go:452dea11:internal/integration/yfinance/provider_company_research_test.go:69 TestProviderCompanyProfileConvertsGroupsAndSkipsEmptyFields
+#[test]
+fn yfinance_profile_route_converts_groups_and_currency() {
+    let fixture = CompanyResearchFixture::ok(
+        r#"{"instrument_id":"US.AAPL","market":"US","symbol":"AAPL","currency":" USD ","groups":[{"title":" Company ","fields":[{"name":" Sector ","value":" Technology "},{"name":"","value":""}]},{"title":"Listing","fields":[{"name":"Exchange","value":"NASDAQ"}]}]}"#,
+    );
+    let result = production_research_client(&fixture.client)
+        .read("/api/v1/research/instruments/US.AAPL", "operation=profile")
+        .expect("profile");
+    let requests = fixture.join();
+    assert!(requests[0].starts_with("GET /providers/yfinance/profile/US/AAPL "));
+    assert_eq!(result["resolvedInstrument"]["instrumentId"], "US.AAPL");
+    assert_eq!(result["metadata"]["source"], "yfinance-profile");
+    assert_eq!(result["entries"].as_array().map(Vec::len), Some(4));
+    assert_eq!(result["entries"][0]["name"], "Company");
+    assert_eq!(result["entries"][1]["name"], "Sector");
+    assert_eq!(result["entries"][1]["value"], "Technology");
+    assert_eq!(result["entries"][2]["name"], "Listing");
+    assert_eq!(result["entries"][3]["value"], "NASDAQ");
+}
+
 /// The financials read forwards the request's market, symbol, and statement
 /// selection verbatim to the provider path.
 #[test]
