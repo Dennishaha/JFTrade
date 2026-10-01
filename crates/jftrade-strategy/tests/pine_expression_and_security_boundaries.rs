@@ -173,7 +173,10 @@ fn moving_average_period_must_be_positive() {
 #[test]
 fn unsupported_moving_average_call_is_rejected_before_planning() {
     let compilation = compile(&script("value = ta.wild(close, 5)"));
-    assert!(!compilation.ok, "unknown moving-average calls must be rejected");
+    assert!(
+        !compilation.ok,
+        "unknown moving-average calls must be rejected"
+    );
     assert!(
         compilation
             .diagnostics
@@ -197,7 +200,10 @@ fn unsupported_advanced_indicator_calls_fail_closed() {
         "value = ta.sar(0.02, 0.02, 0.2)",
     ] {
         let compilation = compile(&script(body));
-        assert!(!compilation.ok, "unsupported advanced call must fail: {body}");
+        assert!(
+            !compilation.ok,
+            "unsupported advanced call must fail: {body}"
+        );
         assert!(
             compilation
                 .diagnostics

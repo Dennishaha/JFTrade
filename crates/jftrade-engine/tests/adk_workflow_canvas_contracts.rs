@@ -203,7 +203,9 @@ fn workflow_mutation_rejects_invalid_work_mode() {
         })
         .expect_err("unsupported workflow work mode must be rejected");
     match error {
-        AdkMutationPortError::Failed { status, message, .. } => {
+        AdkMutationPortError::Failed {
+            status, message, ..
+        } => {
             assert_eq!(status, 400);
             assert_eq!(message, "invalid workflow work mode \"batch\"");
         }

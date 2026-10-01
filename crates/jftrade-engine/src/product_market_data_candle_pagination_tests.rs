@@ -1482,7 +1482,10 @@ fn broker_candle_projection_preserves_wire_fields() {
     assert_eq!(projected["candles"][0]["closed"], true);
     assert_eq!(projected["candles"][1]["closed"], true);
     assert_eq!(projected["pagination"]["hasMore"], true);
-    assert_eq!(projected["pagination"]["nextBefore"], "2026-07-15T14:00:00Z");
+    assert_eq!(
+        projected["pagination"]["nextBefore"],
+        "2026-07-15T14:00:00Z"
+    );
     assert_eq!(projected["meta"]["source"], "broker:futu");
     assert_eq!(projected["meta"]["extendedHours"], false);
     assert_eq!(projected["meta"]["session"], "regular");

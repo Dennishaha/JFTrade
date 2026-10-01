@@ -5480,7 +5480,10 @@ mod product_production_assembly_tests {
             &[("Authorization", authorization)],
         )
         .await;
-        assert_eq!(default_status, 200, "default settings response: {default_settings}");
+        assert_eq!(
+            default_status, 200,
+            "default settings response: {default_settings}"
+        );
         assert_eq!(default_settings["ok"], true);
         assert_eq!(default_settings["data"]["runTimeoutMs"], 1_800_000);
         assert_eq!(default_settings["data"]["streamIdleTimeoutMs"], 300_000);

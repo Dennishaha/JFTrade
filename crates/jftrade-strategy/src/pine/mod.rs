@@ -202,11 +202,17 @@ mod public_helper_guard_tests {
             ("notify(\"hello\")", "alert"),
             ("x = barssince(close > open)", "ta.barssince"),
             ("x = valuewhen(close > open, close, 0)", "ta.valuewhen"),
-            ("x = security_source(\"AAPL\", \"1D\", close)", "request.security"),
+            (
+                "x = security_source(\"AAPL\", \"1D\", close)",
+                "request.security",
+            ),
             ("x = highest(close, 20)", "ta.highest"),
             ("x = lowest(close, 20)", "ta.lowest"),
             ("x = history(close, 1)", "series[n]"),
-            ("x = ifelse(close > open, close, open)", "condition ? valueWhenTrue : valueWhenFalse"),
+            (
+                "x = ifelse(close > open, close, open)",
+                "condition ? valueWhenTrue : valueWhenFalse",
+            ),
             ("adx = ta.adx(14)", "ta.dmi"),
         ] {
             let source =

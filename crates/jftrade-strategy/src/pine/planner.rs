@@ -830,7 +830,9 @@ fn requirement_for_call(
             if arguments.len() != 3 && arguments.len() != 4 {
                 return Err(invalid(
                     line,
-                    format!("{callee} accepts source, short length, long length, and optional time unit"),
+                    format!(
+                        "{callee} accepts source, short length, long length, and optional time unit"
+                    ),
                 ));
             }
             let requested = argument_text(arguments.first()).unwrap_or_else(|| "close".to_owned());
