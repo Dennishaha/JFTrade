@@ -926,6 +926,34 @@ fn akshare_calendar_route_preserves_sidecar_not_found_error() {
     assert_eq!(fixture.join().len(), 1);
 }
 
+// Parity: go:452dea11:internal/integration/akshare/provider_calendar_macro_test.go:157 TestProviderCalendarRejectsMalformedEntries
+#[test]
+fn akshare_calendar_route_rejects_malformed_entries() {
+    let (client, server) = calendar_fixture(
+        r#"{"source":"akshare-calendar","entries":[{"instrument_id":"","name":"无名"}]}"#,
+    );
+    let error = akshare_calendar_route(
+        &client,
+        "/api/v1/research/calendars",
+        "operation=earnings&beginDate=2026-08-01&endDate=2026-08-31",
+    )
+    .expect_err("missing instrument id");
+    server.join().expect("server");
+    assert!(matches!(error, ResearchReadSnapshotError::Failed { status: 502, .. }));
+
+    let (client, server) = calendar_fixture(
+        r#"{"source":"akshare-calendar","entries":[{"instrument_id":"SH.600001","status":"withdrawn"}]}"#,
+    );
+    let error = akshare_calendar_route(
+        &client,
+        "/api/v1/research/calendars",
+        "operation=ipos",
+    )
+    .expect_err("unknown IPO status");
+    server.join().expect("server");
+    assert!(matches!(error, ResearchReadSnapshotError::Failed { status: 502, .. }));
+}
+
 /// Parity: go:452dea11:internal/productfeatures/provider_facade_calendar_test.go:262
 /// TestEmbeddedProviderCalendarMacroStayOnBrokerPathForFutu
 ///

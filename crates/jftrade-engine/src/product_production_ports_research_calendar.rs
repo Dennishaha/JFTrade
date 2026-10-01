@@ -156,7 +156,11 @@ fn read_calendar(
                 let mut output = identity(entry, id);
                 copy_text(entry, &mut output, "name", "name");
                 copy_text(entry, &mut output, "symbol", "symbol");
-                copy_text(entry, &mut output, "status", "status");
+                let status = required_text(entry, "status")?;
+                if !matches!(status, "pending" | "listed") {
+                    return Err(bad_gateway("research IPO status is unsupported"));
+                }
+                output.insert("status".to_owned(), json!(status));
                 copy_text(entry, &mut output, "listing_date", "listingDate");
                 for (from, to) in [
                     ("issue_volume", "issueVolume"),
