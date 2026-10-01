@@ -730,6 +730,7 @@ mod tests {
     }
 
     #[test]
+    // Parity: go:452dea11:pkg/market/calendar/builtin_test.go:38
     fn builtin_hk_weekday_fallback_matches_go_fixture() {
         let schedule = builtin_schedule("HK", at("2026-06-22"));
         assert_eq!(schedule.status, "open");
@@ -742,6 +743,7 @@ mod tests {
     }
 
     #[test]
+    // Parity: go:452dea11:pkg/market/calendar/builtin_test.go:54
     fn builtin_mainland_holiday_fallback_matches_go_fixture() {
         let schedule = builtin_schedule("CN", at("2026-06-19"));
         assert_eq!(schedule.status, "closed");
@@ -750,6 +752,7 @@ mod tests {
     }
 
     #[test]
+    // Parity: go:452dea11:pkg/market/calendar/builtin_test.go:73
     fn builtin_mainland_weekday_fallback_matches_go_fixture() {
         let schedule = builtin_schedule("CN", at("2040-01-02"));
         assert_eq!(schedule.status, "open");
@@ -762,6 +765,7 @@ mod tests {
     }
 
     #[test]
+    // Parity: go:452dea11:pkg/market/calendar/builtin_test.go:92
     fn builtin_mainland_aliases_share_holiday_fallback_matches_go_fixture() {
         for market in ["CN", "SH", "SZ"] {
             let schedule = builtin_schedule(market, at("2026-10-01"));
