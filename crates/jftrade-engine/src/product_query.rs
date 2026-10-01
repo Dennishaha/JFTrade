@@ -482,6 +482,23 @@ mod tests {
         assert_eq!(sessions, vec!["regular", "extended", "overnight"]);
     }
 
+    // Parity: go:452dea11:internal/marketdata/candle_sessions_test.go:18
+    // TestParseCandleSessionsRejectsEmptyAndUnknownValues
+    #[test]
+    fn candle_sessions_reject_empty_and_unknown_values_for_parity() {
+        let empty = vec!["".to_owned()];
+        assert_eq!(
+            parse_candle_sessions(Some(&empty)).unwrap_err(),
+            CandleSessionError::Empty
+        );
+
+        let unknown = vec!["regular,invalid".to_owned()];
+        assert_eq!(
+            parse_candle_sessions(Some(&unknown)).unwrap_err(),
+            CandleSessionError::Invalid("invalid".to_owned())
+        );
+    }
+
     /// Parity: go:452dea11:internal/productfeatures/market_data_reads_test.go:226
     /// TestNormalizeCoreCandleQueryAcceptsSessionParameterShapes
     ///
