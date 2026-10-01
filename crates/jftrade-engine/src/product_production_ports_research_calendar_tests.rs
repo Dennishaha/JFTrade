@@ -905,6 +905,27 @@ fn calendar_and_macro_propagate_capability_and_busy_errors() {
     assert_eq!(fixture.join().len(), 1);
 }
 
+// Parity: go:452dea11:internal/integration/akshare/provider_calendar_macro_test.go:256 TestProviderCalendarMacroPassesSidecarErrorsThrough
+#[test]
+fn akshare_calendar_route_preserves_sidecar_not_found_error() {
+    let fixture = CalendarRouteFixture::new(vec![(
+        "404 Not Found".to_owned(),
+        r#"{"error":{"code":"not_found","message":"no calendar data"}}"#.to_owned(),
+    )]);
+    let error = akshare_calendar_route(
+        &fixture.client,
+        "/api/v1/research/calendars",
+        "operation=ipos",
+    )
+    .expect_err("404");
+    assert!(matches!(
+        error,
+        ResearchReadSnapshotError::Failed { status: 404, ref code, .. }
+            if code == "not_found"
+    ));
+    assert_eq!(fixture.join().len(), 1);
+}
+
 /// Parity: go:452dea11:internal/productfeatures/provider_facade_calendar_test.go:262
 /// TestEmbeddedProviderCalendarMacroStayOnBrokerPathForFutu
 ///
