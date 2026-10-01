@@ -604,6 +604,52 @@ fn company_financials_forwards_market_symbol_and_statement() {
     assert_eq!(result["resolvedInstrument"]["instrumentId"], "SH.600519");
 }
 
+// Parity: go:452dea11:internal/integration/yfinance/provider_company_research_test.go:14 TestClientCompanyResearchEndpointsEncodePathAndStatement
+#[test]
+fn yfinance_company_research_routes_encode_paths_and_statement() {
+    let fixture = CompanyResearchFixture::new(vec![
+        (
+            "200 OK".to_owned(),
+            r#"{"instrument_id":"US.AAPL","market":"US","symbol":"AAPL","groups":[]}"#.to_owned(),
+        ),
+        (
+            "200 OK".to_owned(),
+            r#"{"instrument_id":"US.AAPL","statement":"cashflow","fields":[],"periods":[]}"#.to_owned(),
+        ),
+        (
+            "200 OK".to_owned(),
+            r#"{"instrument_id":"US.AAPL","rating":4}"#.to_owned(),
+        ),
+        (
+            "200 OK".to_owned(),
+            r#"{"instrument_id":"US.AAPL","groups":[]}"#.to_owned(),
+        ),
+    ]);
+    production_research_client(&fixture.client)
+        .read("/api/v1/research/instruments/US.AAPL", "operation=profile")
+        .expect("profile");
+    production_research_client(&fixture.client)
+        .read(
+            "/api/v1/research/financials/US.AAPL",
+            "operation=statements&statement=cashflow",
+        )
+        .expect("financials");
+    production_research_client(&fixture.client)
+        .read("/api/v1/research/analyst/US.AAPL", "operation=consensus")
+        .expect("analyst");
+    production_research_client(&fixture.client)
+        .read("/api/v1/research/ownership/US.AAPL", "operation=overview")
+        .expect("ownership");
+    let requests = fixture.join();
+    assert_eq!(requests.len(), 4);
+    assert!(requests[0].starts_with("GET /providers/yfinance/profile/US/AAPL "));
+    assert!(requests[1].starts_with(
+        "GET /providers/yfinance/financials/US/AAPL?statement=cashflow "
+    ));
+    assert!(requests[2].starts_with("GET /providers/yfinance/analyst/US/AAPL "));
+    assert!(requests[3].starts_with("GET /providers/yfinance/ownership/US/AAPL "));
+}
+
 // Parity: go:452dea11:internal/marketdata/company_research_facade_test.go:109
 // TestServiceFinancialStatementsValidatesStatementAndDefaultsToIncome.
 #[test]
