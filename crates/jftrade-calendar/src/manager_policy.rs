@@ -760,4 +760,14 @@ mod tests {
         assert_eq!(schedule.sessions[1].start_minute, 780);
         assert_eq!(schedule.sessions[1].end_minute, 900);
     }
+
+    #[test]
+    fn builtin_mainland_aliases_share_holiday_fallback_matches_go_fixture() {
+        for market in ["CN", "SH", "SZ"] {
+            let schedule = builtin_schedule(market, at("2026-10-01"));
+            assert_eq!(schedule.status, "closed", "market={market}");
+            assert_eq!(schedule.reason, "national_day_holiday", "market={market}");
+            assert!(schedule.sessions.is_empty(), "market={market}");
+        }
+    }
 }
