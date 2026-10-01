@@ -377,6 +377,36 @@ fn provider_ownership_projection_rejects_unknown_group_kind() {
     assert!(matches!(error, ResearchReadSnapshotError::Failed { status: 502, .. }));
 }
 
+// Parity: go:452dea11:internal/integration/akshare/provider_company_research_test.go:142 TestProviderOwnershipConvertsMajorHoldersAndHolderTypes
+#[test]
+fn akshare_ownership_projection_converts_major_holders_and_holder_types() {
+    let payload = json!({
+        "instrument_id": "SZ.000001",
+        "source": "akshare-ownership",
+        "groups": [
+            {
+                "kind": "major_holders",
+                "static_date": "2026-06-30",
+                "items": [{"name": "平安集团", "holder_pct": 49.6}]
+            },
+            {
+                "kind": "holder_types",
+                "static_date": null,
+                "items": [{"name": "机构", "holder_pct": 55.3}]
+            }
+        ]
+    });
+    let result = project_research_payload("ownership", payload, "SZ", "000001", "akshare", None)
+        .expect("AKShare ownership projection");
+    assert_eq!(result["metadata"]["source"], "akshare-ownership");
+    assert_eq!(result["metadata"]["mainHolderInfoList"][0]["staticDateStr"], "2026-06-30");
+    assert_eq!(result["metadata"]["mainHolderInfoList"][0]["itemList"][0]["name"], "平安集团");
+    assert_eq!(result["metadata"]["mainHolderInfoList"][0]["itemList"][0]["holderPct"], 49.6);
+    assert_eq!(result["metadata"]["holderTypeInfoList"][0]["itemList"][0]["name"], "机构");
+    assert_eq!(result["metadata"]["holderTypeInfoList"][0]["itemList"][0]["holderPct"], 55.3);
+    assert!(result["metadata"]["holderTypeInfoList"][0].get("staticDateStr").is_none());
+}
+
 /// Parity: go:452dea11:internal/productfeatures/provider_projection_test.go:186
 /// TestEmbeddedResearchInstrumentDerivesMarketAndSymbol
 ///
