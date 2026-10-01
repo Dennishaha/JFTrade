@@ -87,3 +87,13 @@ fn parsing_normalizes_percent_scientific_empty_and_non_finite_forms() {
         );
     }
 }
+
+// Parity: go:452dea11:pkg/bbgo/fixedpoint/dec_test.go:200
+// TestNewFromString
+#[test]
+fn new_from_string_preserves_eight_digit_text() {
+    let value = "0.00000003"
+        .parse::<Fixed8>()
+        .expect("fixed8 input should parse");
+    assert_eq!(value.fixed_text(), "0.00000003");
+}
