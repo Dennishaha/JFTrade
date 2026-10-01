@@ -126,11 +126,11 @@ impl HelperClient {
         let provider = Self::normalize_provider(provider)?;
         let health: HelperHealth = self
             .request_json(
-            Method::GET,
-            &["providers", provider, "health"],
-            Option::<&()>::None,
-        )
-        .await?;
+                Method::GET,
+                &["providers", provider, "health"],
+                Option::<&()>::None,
+            )
+            .await?;
         if health.version.trim().is_empty() {
             return Err(HttpAdapterError::InvalidResponse(
                 "health response missing provider version".to_owned(),
@@ -451,8 +451,10 @@ mod tests {
                 let (mut stream, _) = listener.accept().await.expect("accept");
                 let mut request = vec![0_u8; 4096];
                 let read = stream.read(&mut request).await.expect("read request");
-                assert!(String::from_utf8_lossy(&request[..read])
-                    .starts_with("GET /health HTTP/1.1\r\n"));
+                assert!(
+                    String::from_utf8_lossy(&request[..read])
+                        .starts_with("GET /health HTTP/1.1\r\n")
+                );
                 server_attempts.fetch_add(1, Ordering::SeqCst);
                 stream
                     .write_all(response.as_bytes())
@@ -486,11 +488,14 @@ mod tests {
             let (mut stream, _) = listener.accept().await.expect("accept");
             let mut request = vec![0_u8; 4096];
             let read = stream.read(&mut request).await.expect("read request");
-            assert!(String::from_utf8_lossy(&request[..read])
-                .starts_with("GET /providers/yfinance/health HTTP/1.1\r\n"));
+            assert!(
+                String::from_utf8_lossy(&request[..read])
+                    .starts_with("GET /providers/yfinance/health HTTP/1.1\r\n")
+            );
             let response = format!(
                 "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
-                body.len(), body
+                body.len(),
+                body
             );
             stream
                 .write_all(response.as_bytes())
@@ -516,23 +521,38 @@ mod tests {
     // Parity: go:452dea11:internal/integration/yfinance/client_test.go:56 TestClientHealthRequiresYFinanceVersion
     #[tokio::test]
     async fn helper_health_rejects_missing_version() {
-        assert!(health_body_is_rejected(
-            r#"{"provider":"yfinance","runtime_state":"ready"}"#
-        )
-        .await);
-        assert!(health_body_is_rejected(
-            r#"{"provider":"yfinance","runtime_state":"ready","yfinance_version":"   "}"#
-        )
-        .await);
+        assert!(
+            health_body_is_rejected(r#"{"provider":"yfinance","runtime_state":"ready"}"#).await
+        );
+        assert!(
+            health_body_is_rejected(
+                r#"{"provider":"yfinance","runtime_state":"ready","yfinance_version":"   "}"#
+            )
+            .await
+        );
     }
 
     // Parity: go:452dea11:internal/integration/yfinance/client_test.go:75 TestClientHealthRequiresKnownRuntimeState
     #[tokio::test]
     async fn helper_health_rejects_unknown_runtime_state() {
-        assert!(health_body_is_rejected(
-            r#"{"provider":"yfinance","runtime_state":"starting","yfinance_version":"1.6.0"}"#
-        )
-        .await);
+        assert!(
+            health_body_is_rejected(
+                r#"{"provider":"yfinance","runtime_state":"","yfinance_version":"1.6.0"}"#
+            )
+            .await
+        );
+        assert!(
+            health_body_is_rejected(
+                r#"{"provider":"yfinance","runtime_state":"starting","yfinance_version":"1.6.0"}"#
+            )
+            .await
+        );
+        assert!(
+            health_body_is_rejected(
+                r#"{"provider":"yfinance","runtime_state":"READY","yfinance_version":"1.6.0"}"#
+            )
+            .await
+        );
     }
 
     // Parity: go:452dea11:internal/integration/yfinance/client_test.go:86 TestClientPreservesStructuredHTTPErrorWithoutRetryingCallerFailures
@@ -544,17 +564,34 @@ mod tests {
             let (mut stream, _) = listener.accept().await.expect("accept");
             let mut request = vec![0_u8; 4096];
             let read = stream.read(&mut request).await.expect("read request");
-            assert!(String::from_utf8_lossy(&request[..read])
-                .starts_with("GET /providers/yfinance/search HTTP/1.1\r\n"));
+            assert!(
+                String::from_utf8_lossy(&request[..read])
+                    .starts_with("GET /providers/yfinance/search HTTP/1.1\r\n")
+            );
             let body = r#"{"error":{"code":"INVALID_QUERY","message":"query is required"}}"#;
             let response = format!(
                 "HTTP/1.1 400 Bad Request\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
-                body.len(), body
+                body.len(),
+                body
             );
             stream
                 .write_all(response.as_bytes())
                 .await
                 .expect("write response");
+            drop(stream);
+            let (mut stream, _) = listener.accept().await.expect("health accept");
+            let read = stream
+                .read(&mut request)
+                .await
+                .expect("read health request");
+            assert!(
+                String::from_utf8_lossy(&request[..read])
+                    .starts_with("GET /providers/yfinance/health HTTP/1.1\r\n")
+            );
+            stream
+                .write_all(b"HTTP/1.1 418 I'm a teapot\r\nContent-Length: 13\r\nConnection: close\r\n\r\nplain failure")
+                .await
+                .expect("write plain error");
         });
         let client = HelperClient::new(HelperClientConfig {
             base_url: format!("http://{address}"),
@@ -577,6 +614,11 @@ mod tests {
                 ..
             } if code == "INVALID_QUERY" && message == "query is required"
         ));
+        assert!(matches!(
+            client.health("yfinance").await,
+            Err(HttpAdapterError::Remote { status: 418, ref message, .. })
+                if message == "plain failure"
+        ));
         server.await.expect("server");
     }
 
@@ -596,11 +638,14 @@ mod tests {
                 let (mut stream, _) = listener.accept().await.expect("accept");
                 let mut request = vec![0_u8; 4096];
                 let read = stream.read(&mut request).await.expect("read request");
-                assert!(String::from_utf8_lossy(&request[..read])
-                    .starts_with("GET /providers/yfinance/health HTTP/1.1\r\n"));
+                assert!(
+                    String::from_utf8_lossy(&request[..read])
+                        .starts_with("GET /providers/yfinance/health HTTP/1.1\r\n")
+                );
                 let response = format!(
                     "HTTP/1.1 {status}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
-                    body.len(), body
+                    body.len(),
+                    body
                 );
                 stream
                     .write_all(response.as_bytes())
