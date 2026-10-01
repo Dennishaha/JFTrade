@@ -428,6 +428,50 @@ mod tests {
         assert_eq!(attempts.load(Ordering::SeqCst), 2);
     }
 
+    // Parity: go:452dea11:internal/integration/yfinance/client_test.go:30 TestClientRetriesSafeServerFailuresThenReturnsDecodedResponse
+    #[tokio::test]
+    async fn retries_safe_server_failures_then_returns_decoded_response() {
+        let listener = TcpListener::bind("127.0.0.1:0").await.expect("listen");
+        let address = listener.local_addr().expect("address");
+        let attempts = Arc::new(AtomicUsize::new(0));
+        let server_attempts = Arc::clone(&attempts);
+        let server = tokio::spawn(async move {
+            for response in [
+                "HTTP/1.1 502 Bad Gateway\r\nContent-Type: application/json\r\nContent-Length: 51\r\nConnection: close\r\n\r\n{\"error\":{\"code\":\"UPSTREAM\",\"message\":\"temporary\"}}",
+                "HTTP/1.1 429 Too Many Requests\r\nRetry-After: 0\r\nContent-Type: application/json\r\nContent-Length: 53\r\nConnection: close\r\n\r\n{\"error\":{\"code\":\"RATE_LIMIT\",\"message\":\"slow down\"}}",
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 62\r\nConnection: close\r\n\r\n{\"ok\":true,\"yfinance_version\":\"1.6.0\",\"runtime_state\":\"ready\"}",
+            ] {
+                let (mut stream, _) = listener.accept().await.expect("accept");
+                let mut request = vec![0_u8; 4096];
+                let read = stream.read(&mut request).await.expect("read request");
+                assert!(String::from_utf8_lossy(&request[..read])
+                    .starts_with("GET /health HTTP/1.1\r\n"));
+                server_attempts.fetch_add(1, Ordering::SeqCst);
+                stream
+                    .write_all(response.as_bytes())
+                    .await
+                    .expect("write response");
+            }
+        });
+        let client = HelperClient::new(HelperClientConfig {
+            base_url: format!("http://{address}"),
+            bearer_token: None,
+            request_timeout: Duration::from_secs(1),
+            max_attempts: 3,
+            retry_delay: Duration::ZERO,
+        })
+        .expect("client");
+        let health = client
+            .get_json::<serde_json::Value>(&["health"])
+            .await
+            .expect("health after retries");
+        assert_eq!(health["ok"], true);
+        assert_eq!(health["yfinance_version"], "1.6.0");
+        assert_eq!(health["runtime_state"], "ready");
+        server.await.expect("server");
+        assert_eq!(attempts.load(Ordering::SeqCst), 3);
+    }
+
     #[tokio::test]
     async fn provider_aware_methods_prefix_providers_and_validate_provider_names() {
         let listener = TcpListener::bind("127.0.0.1:0").await.expect("listen");
