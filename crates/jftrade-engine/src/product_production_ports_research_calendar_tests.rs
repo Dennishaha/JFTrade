@@ -622,6 +622,7 @@ fn akshare_calendar_route(
 /// All four calendar operations (earnings/dividends/economic/ipos) are served
 /// by the embedded provider, forward their business parameters verbatim, keep
 /// the request envelope (no resolved instrument), and never resolve a broker.
+// Parity: go:452dea11:internal/integration/akshare/provider_calendar_macro_test.go:12 TestClientCalendarMacroEndpointsEncodePathsAndQuery
 #[test]
 fn calendar_operations_map_to_provider_reads_on_the_wire() {
     let fixture = CalendarRouteFixture::ok(
