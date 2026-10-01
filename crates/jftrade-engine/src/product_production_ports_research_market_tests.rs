@@ -351,6 +351,30 @@ fn akshare_rankings_route_converts_entries_and_applies_default_limit() {
     assert!(value["entries"][1].get("changeRate").is_none());
 }
 
+// Parity: go:452dea11:internal/integration/akshare/provider_rankings_industries_test.go:29 TestClientRankingsEncodesMarketKindAndLimit
+#[test]
+fn akshare_rankings_route_encodes_kind_and_explicit_limit() {
+    let fixture = MarketResearchFixture::ok(
+        r#"{"market":"CN","kind":"gainers","entries":[{"instrument_id":"sh.600519","name":"贵州茅台","price":1680.5,"change_rate":5.42,"turnover":null,"pe_ttm":24.6}],"source":"akshare-rankings"}"#.to_owned(),
+    );
+    let value = read_market_research(
+        MarketDataProvider::Akshare,
+        true,
+        Some(&fixture.client),
+        "/api/v1/research/rankings",
+        "market=CN&operation=top_movers&pageSize=30",
+    )
+    .expect("AKShare rankings response");
+    let requests = fixture.join();
+    assert_eq!(requests.len(), 1);
+    assert!(requests[0].starts_with(
+        "GET /providers/akshare/rankings?market=CN&kind=gainers&limit=30 "
+    ));
+    assert_eq!(value["entries"][0]["instrumentId"], "SH.600519");
+    assert_eq!(value["entries"][0]["peTTM"], 24.6);
+    assert!(value["entries"][0].get("turnover").is_none());
+}
+
 #[test]
 // Parity: go:452dea11:internal/integration/yfinance/provider_rankings_test.go:42 TestProviderRankingsConvertsEntriesAndAppliesDefaultLimit
 fn yfinance_rankings_route_converts_entries_and_applies_default_limit() {
