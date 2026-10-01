@@ -728,4 +728,36 @@ mod tests {
             assert!(alias_holiday.sessions.is_empty(), "market={market}");
         }
     }
+
+    #[test]
+    fn builtin_hk_weekday_fallback_matches_go_fixture() {
+        let schedule = builtin_schedule("HK", at("2026-06-22"));
+        assert_eq!(schedule.status, "open");
+        assert_eq!(schedule.sessions.len(), 2);
+        assert_eq!(schedule.sessions[0].kind, "regular");
+        assert_eq!(schedule.sessions[0].start_minute, 570);
+        assert_eq!(schedule.sessions[0].end_minute, 720);
+        assert_eq!(schedule.sessions[1].start_minute, 780);
+        assert_eq!(schedule.sessions[1].end_minute, 960);
+    }
+
+    #[test]
+    fn builtin_mainland_holiday_fallback_matches_go_fixture() {
+        let schedule = builtin_schedule("CN", at("2026-06-19"));
+        assert_eq!(schedule.status, "closed");
+        assert_eq!(schedule.reason, "dragon_boat_festival_holiday");
+        assert!(schedule.sessions.is_empty());
+    }
+
+    #[test]
+    fn builtin_mainland_weekday_fallback_matches_go_fixture() {
+        let schedule = builtin_schedule("CN", at("2040-01-02"));
+        assert_eq!(schedule.status, "open");
+        assert_eq!(schedule.sessions.len(), 2);
+        assert_eq!(schedule.sessions[0].kind, "regular");
+        assert_eq!(schedule.sessions[0].start_minute, 570);
+        assert_eq!(schedule.sessions[0].end_minute, 690);
+        assert_eq!(schedule.sessions[1].start_minute, 780);
+        assert_eq!(schedule.sessions[1].end_minute, 900);
+    }
 }
