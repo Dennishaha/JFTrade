@@ -655,6 +655,54 @@ fn industry_plate_members_read_the_board_from_the_instrument_id() {
     assert_eq!(result["resolvedInstrument"]["instrumentId"], "CN.半导体");
 }
 
+// Parity: go:452dea11:internal/integration/akshare/provider_rankings_industries_test.go:172 TestProviderIndustriesConvertsBoardsAndMembers
+#[test]
+fn akshare_industries_route_converts_boards_and_members_with_default_limit() {
+    let fixture = MarketResearchFixture::with_responses(vec![
+        (
+            "200 OK".to_owned(),
+            r#"{"market":"CN","kind":"industry","boards":[{"name":"半导体","change_rate":1.8,"turnover":960000000.0,"leading_stock_name":"中芯国际","leading_stock_change_rate":4.1}],"source":""}"#.to_owned(),
+        ),
+        (
+            "200 OK".to_owned(),
+            r#"{"market":"CN","kind":"industry","board":"半导体","entries":[{"instrument_id":"SH.688981","name":"中芯国际"}],"source":"akshare-industries"}"#.to_owned(),
+        ),
+    ]);
+
+    let boards = read_market_research(
+        MarketDataProvider::Akshare,
+        true,
+        Some(&fixture.client),
+        "/api/v1/research/industries",
+        "market=CN&operation=plate_list&plateType=INDUSTRY",
+    )
+    .expect("industry boards");
+    assert_eq!(boards["metadata"]["source"], "market-data-industries");
+    assert_eq!(boards["entries"][0]["instrumentId"], "CN.半导体");
+    assert_eq!(boards["entries"][0]["changeRate"], serde_json::json!(1.8));
+    assert_eq!(boards["entries"][0]["leadingStockName"], "中芯国际");
+
+    let members = read_market_research(
+        MarketDataProvider::Akshare,
+        true,
+        Some(&fixture.client),
+        "/api/v1/research/industries",
+        "market=CN&instrumentId=CN.半导体&operation=plate_members&pageSize=0",
+    )
+    .expect("industry members");
+    assert_eq!(members["metadata"]["source"], "akshare-industries");
+    assert_eq!(members["entries"][0]["instrumentId"], "SH.688981");
+    assert_eq!(members["entries"][0]["symbol"], "688981");
+    assert_eq!(members["entries"][0]["name"], "中芯国际");
+
+    let requests = fixture.join();
+    assert_eq!(requests.len(), 2);
+    assert!(requests[0].starts_with("GET /providers/akshare/industries?"));
+    assert!(requests[0].contains("kind=industry") && requests[0].contains("market=CN"));
+    assert!(requests[1].starts_with("GET /providers/akshare/industries/%E5%8D%8A%E5%AF%BC%E4%BD%93/members?"));
+    assert!(requests[1].contains("limit=20") && requests[1].contains("market=CN"));
+}
+
 /// Parity: go:452dea11:internal/productfeatures/provider_facade_rankings_test.go:199
 /// TestEmbeddedProviderRejectsUnsupportedIndustryOperationsAndPlateTypes
 ///
