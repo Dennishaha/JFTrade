@@ -1175,8 +1175,7 @@ async fn test_broker_k_line_candles_response_handles_terminal_and_bounded_pages(
         )
         .await
         .unwrap();
-    assert_eq!(result["pagination"]["hasMore"], false);
-    assert!(result["pagination"].get("nextBefore").is_none());
+    assert_eq!(result["pagination"], serde_json::json!({"hasMore": false}));
     assert_eq!(result["request"]["limit"], 2);
     assert_eq!(result["meta"]["source"], "futu");
 
