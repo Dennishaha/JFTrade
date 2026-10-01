@@ -535,6 +535,51 @@ mod tests {
         .await);
     }
 
+    // Parity: go:452dea11:internal/integration/yfinance/client_test.go:86 TestClientPreservesStructuredHTTPErrorWithoutRetryingCallerFailures
+    #[tokio::test]
+    async fn structured_http_error_is_preserved_without_retrying_caller_failures() {
+        let listener = TcpListener::bind("127.0.0.1:0").await.expect("listen");
+        let address = listener.local_addr().expect("address");
+        let server = tokio::spawn(async move {
+            let (mut stream, _) = listener.accept().await.expect("accept");
+            let mut request = vec![0_u8; 4096];
+            let read = stream.read(&mut request).await.expect("read request");
+            assert!(String::from_utf8_lossy(&request[..read])
+                .starts_with("GET /providers/yfinance/search HTTP/1.1\r\n"));
+            let body = r#"{"error":{"code":"INVALID_QUERY","message":"query is required"}}"#;
+            let response = format!(
+                "HTTP/1.1 400 Bad Request\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                body.len(), body
+            );
+            stream
+                .write_all(response.as_bytes())
+                .await
+                .expect("write response");
+        });
+        let client = HelperClient::new(HelperClientConfig {
+            base_url: format!("http://{address}"),
+            bearer_token: None,
+            request_timeout: Duration::from_secs(1),
+            max_attempts: 3,
+            retry_delay: Duration::ZERO,
+        })
+        .expect("client");
+        let error = client
+            .get_provider_json::<serde_json::Value>("yfinance", &["search"])
+            .await
+            .expect_err("caller error must be returned");
+        assert!(matches!(
+            error,
+            HttpAdapterError::Remote {
+                status: 400,
+                ref code,
+                ref message,
+                ..
+            } if code == "INVALID_QUERY" && message == "query is required"
+        ));
+        server.await.expect("server");
+    }
+
     #[tokio::test]
     async fn provider_aware_methods_prefix_providers_and_validate_provider_names() {
         let listener = TcpListener::bind("127.0.0.1:0").await.expect("listen");
