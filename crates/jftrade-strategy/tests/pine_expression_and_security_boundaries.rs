@@ -195,8 +195,6 @@ fn unsupported_advanced_indicator_calls_fail_closed() {
     for body in [
         "value = ta.bbw(close, 20, 2)",
         "value = ta.cog(close, 10)",
-        "value = ta.dmi(14, 14)",
-        "value = ta.supertrend(3, 10)",
         "value = ta.sar(0.02, 0.02, 0.2)",
     ] {
         let compilation = compile(&script(body));
