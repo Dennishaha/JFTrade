@@ -641,6 +641,24 @@ fn yfinance_company_research_rejects_unsupported_markets_without_helper_calls() 
     }
 }
 
+// Parity: go:452dea11:internal/integration/yfinance/provider_company_research_test.go:220 TestProviderCompanyResearchMapsSidecarUnsupportedMarket
+#[test]
+fn yfinance_profile_route_maps_sidecar_unsupported_market() {
+    let fixture = CompanyResearchFixture::new(vec![(
+        "400 Bad Request".to_owned(),
+        r#"{"error":{"code":"unsupported_market","message":"HK profile is not covered"}}"#.to_owned(),
+    )]);
+    let error = production_research_client(&fixture.client)
+        .read("/api/v1/research/instruments/HK.00700", "operation=profile")
+        .expect_err("unsupported market");
+    assert!(matches!(
+        error,
+        ResearchReadSnapshotError::Failed { status: 409, ref code, .. }
+            if code == "BROKER_CAPABILITY_UNAVAILABLE"
+    ));
+    assert_eq!(fixture.join().len(), 1);
+}
+
 /// Parity: go:452dea11:internal/productfeatures/provider_facade_company_test.go:170
 /// TestEmbeddedProviderCompanyResearchAcceptsOmittedOperation
 ///

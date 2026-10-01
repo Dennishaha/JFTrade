@@ -519,6 +519,9 @@ fn map_research_helper_error(error: HttpAdapterError) -> ResearchReadSnapshotErr
             message,
             retry_after_seconds,
         } => {
+            if code.eq_ignore_ascii_case("unsupported_market") {
+                return capability("research.company", "market");
+            }
             let (status, code, message, retry_after_seconds) = normalize_helper_remote_error(
                 status,
                 &code,
