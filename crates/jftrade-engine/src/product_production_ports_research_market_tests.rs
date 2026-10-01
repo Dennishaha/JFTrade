@@ -382,6 +382,31 @@ fn yfinance_rankings_route_converts_entries_and_applies_default_limit() {
     assert!(value["entries"][1].get("changeRate").is_none());
 }
 
+// Parity: go:452dea11:internal/integration/yfinance/provider_rankings_test.go:14 TestClientRankingsEncodesMarketKindAndLimit
+#[test]
+fn yfinance_rankings_route_encodes_active_kind_and_limit() {
+    let fixture = MarketResearchFixture::ok(
+        r#"{"market":"US","kind":"active","entries":[{"instrument_id":"us.aapl","name":"Apple Inc.","price":232.1,"change_rate":1.25,"pe_ttm":31.2,"turnover":null}],"source":"yfinance-rankings"}"#.to_owned(),
+    );
+    let value = read_market_research(
+        MarketDataProvider::Yfinance,
+        true,
+        Some(&fixture.client),
+        "/api/v1/research/rankings",
+        "market=US&operation=hot&pageSize=25",
+    )
+    .expect("YFinance active rankings response");
+    let requests = fixture.join();
+    assert_eq!(requests.len(), 1);
+    assert!(requests[0].starts_with(
+        "GET /providers/yfinance/rankings?market=US&kind=active&limit=25 "
+    ));
+    assert_eq!(value["metadata"]["source"], "yfinance-rankings");
+    assert_eq!(value["entries"][0]["instrumentId"], "US.AAPL");
+    assert_eq!(value["entries"][0]["peTTM"], 31.2);
+    assert!(value["entries"][0].get("turnover").is_none());
+}
+
 use std::io::{Read, Write};
 use std::net::TcpListener as StdTcpListener;
 use std::time::Duration;
