@@ -519,6 +519,28 @@ fn yfinance_profile_route_converts_groups_and_currency() {
     assert_eq!(result["entries"][3]["value"], "NASDAQ");
 }
 
+// Parity: go:452dea11:internal/integration/yfinance/provider_company_research_test.go:100 TestProviderFinancialStatementsConvertsFieldsPeriodsAndNullableRatios
+#[test]
+fn yfinance_financials_route_converts_periods_and_nullable_ratios() {
+    let fixture = CompanyResearchFixture::ok(
+        r#"{"instrument_id":"HK.00700","statement":"income","currency":null,"fields":[{"field_id":"revenue","display_name":"Revenue"}],"periods":[{"period_text":"2025FY","values":{"revenue":{"data":660000000000.0,"yoy":8.4,"qoq":null}}},{"period_text":"2024FY","values":{"revenue":{"data":609000000000.0,"yoy":null,"qoq":null}}}]}"#,
+    );
+    let result = production_research_client(&fixture.client)
+        .read("/api/v1/research/financials/HK.00700", "operation=statements&statement=income")
+        .expect("financials");
+    let requests = fixture.join();
+    assert!(requests[0].starts_with(
+        "GET /providers/yfinance/financials/HK/00700?statement=income "
+    ));
+    assert_eq!(result["resolvedInstrument"]["instrumentId"], "HK.00700");
+    assert_eq!(result["metadata"]["structureList"][0]["fieldId"], "revenue");
+    assert_eq!(result["entries"].as_array().map(Vec::len), Some(2));
+    assert_eq!(result["entries"][0]["itemList"][0]["data"], 660000000000.0);
+    assert_eq!(result["entries"][0]["itemList"][0]["yoy"], 8.4);
+    assert!(result["entries"][0]["itemList"][0].get("qoq").is_none());
+    assert!(result["entries"][1]["itemList"][0].get("yoy").is_none());
+}
+
 /// The financials read forwards the request's market, symbol, and statement
 /// selection verbatim to the provider path.
 #[test]
