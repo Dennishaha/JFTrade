@@ -467,6 +467,21 @@ mod tests {
         assert!(parse_candle_sessions(None).unwrap().is_none());
     }
 
+    // Parity: go:452dea11:internal/marketdata/candle_sessions_test.go:8
+    // TestParseCandleSessionsNormalizesCSVAndRepeatedValues
+    #[test]
+    fn candle_sessions_normalize_csv_and_repeated_values_for_parity() {
+        let values = vec![
+            "overnight,regular".to_owned(),
+            "extended".to_owned(),
+            "regular".to_owned(),
+        ];
+        let sessions = parse_candle_sessions(Some(&values))
+            .expect("session input should parse")
+            .expect("session input should be present");
+        assert_eq!(sessions, vec!["regular", "extended", "overnight"]);
+    }
+
     /// Parity: go:452dea11:internal/productfeatures/market_data_reads_test.go:226
     /// TestNormalizeCoreCandleQueryAcceptsSessionParameterShapes
     ///
