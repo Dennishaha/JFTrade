@@ -1179,6 +1179,17 @@ async fn test_broker_k_line_candles_response_handles_terminal_and_bounded_pages(
     assert!(result["pagination"].get("nextBefore").is_none());
     assert_eq!(result["request"]["limit"], 2);
     assert_eq!(result["meta"]["source"], "futu");
+
+    // A bounded query must also terminate without a cursor, even when the
+    // provider has older pages available.
+    let bounded = port
+        .read(
+            "/api/v1/market-data/candles/HK/00700",
+            "period=1m&limit=2&from=2026-01-05T02:00:00Z&to=2026-01-05T02:04:00Z",
+        )
+        .await
+        .unwrap();
+    assert_eq!(bounded["pagination"], serde_json::json!({"hasMore": false}));
 }
 
 #[test]
