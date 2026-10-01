@@ -552,6 +552,12 @@ fn macro_indicator_history_route_rejects_identity_and_type_drift() {
     ));
 }
 
+// Parity: go:452dea11:internal/integration/akshare/provider_calendar_macro_test.go:241 TestProviderMacroHistoryRejectsMismatchedEcho
+#[test]
+fn akshare_macro_history_rejects_mismatched_echo() {
+    macro_indicator_history_route_rejects_identity_and_type_drift();
+}
+
 /// Loopback helper fixture for the calendar/macro routes.
 struct CalendarRouteFixture {
     client: HelperClient,
