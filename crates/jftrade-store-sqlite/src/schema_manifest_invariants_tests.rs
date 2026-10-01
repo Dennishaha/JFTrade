@@ -325,6 +325,37 @@ fn foreign_keys_triggers_views_and_orphaned_rows_fail_closed() {
     assert_incompatible(validate(&path, sessions), "foreign_key_check failed");
 }
 
+// Parity: go:452dea11:internal/store/sqliteschema/catalog_test.go:253
+// TestValidateIntegrityDetectsForeignKeyViolations
+#[test]
+fn validate_integrity_rejects_an_orphaned_foreign_key_row() {
+    let sessions = definition("adk-session").expect("adk-session definition");
+    let root = tempdir().expect("temporary database directory");
+    let path = create_database(&root, sessions, None);
+    mutate(&path, |connection| {
+        connection
+            .execute_batch("PRAGMA foreign_keys = OFF")
+            .expect("disable writer foreign keys");
+        connection
+            .execute(
+                "INSERT INTO events (id, app_name, user_id, session_id) VALUES ('orphan-test', 'app', 'user', 'missing-session')",
+                [],
+            )
+            .expect("insert orphan event");
+    });
+
+    let error = validate(&path, sessions).expect_err("orphaned foreign key must be rejected");
+    match error {
+        SchemaManifestError::Incompatible { reason, .. } => {
+            assert!(
+                reason.contains("foreign_key_check failed"),
+                "unexpected integrity error: {reason}"
+            );
+        }
+        other => panic!("expected incompatible integrity error, got {other:?}"),
+    }
+}
+
 #[test]
 fn truncated_database_is_rejected_without_repair_or_rewrite() {
     let definition = definition("research").expect("research definition");
