@@ -266,6 +266,8 @@ fn fee_rule_text_is_case_insensitive_and_trimmed_before_calculation() {
     );
 }
 
+// Parity: go:452dea11:pkg/backtest/trading_costs_test.go:248
+// TestBacktestFeeEngineAppliesUSBrokerCapAndSellSideMarketFees
 #[test]
 fn us_market_rules_apply_broker_rate_caps_and_sell_side_regulatory_fees() {
     let rules = vec![
