@@ -716,23 +716,23 @@ fn yfinance_ownership_route_converts_groups_and_nullable_dates() {
 #[test]
 fn company_financials_forwards_market_symbol_and_statement() {
     let fixture = CompanyResearchFixture::ok(
-        r#"{"instrument_id":"SH.600519","statement":"cashflow","source":"akshare-financials","fields":[]}"#,
+        r#"{"instrument_id":"US.AAPL","statement":"cashflow","source":"yfinance-financials","fields":[]}"#,
     );
     let result = production_research_client(&fixture.client)
         .read(
-            "/api/v1/research/financials/SH.600519",
+            "/api/v1/research/financials/US.AAPL",
             "operation=statements&statement=cashflow",
         )
         .expect("financials");
     let requests = fixture.join();
     assert!(
         requests[0].starts_with(
-            "GET /providers/yfinance/financials/SH/600519?statement=cashflow "
+            "GET /providers/yfinance/financials/US/AAPL?statement=cashflow "
         ),
         "request = {}",
         requests[0]
     );
-    assert_eq!(result["resolvedInstrument"]["instrumentId"], "SH.600519");
+    assert_eq!(result["resolvedInstrument"]["instrumentId"], "US.AAPL");
 }
 
 // Parity: go:452dea11:internal/integration/yfinance/provider_company_research_test.go:14 TestClientCompanyResearchEndpointsEncodePathAndStatement
