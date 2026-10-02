@@ -1098,3 +1098,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - 当前批次：Desktop API startup 与 Futu/OpenD coordinator/probe 的 8 条映射完成复核。Rust native lifecycle、readiness snapshot、connection replacement、OpenD diagnostics、onboarding/system status、probe/version/neutral-state 证据已拆分；Wails helper、HTTP polling timeout、应用顺序、retry diagnostics、runtime/account 合并、market-health 文案、disabled probe/settings error 与 bool matrix 差异逐项记录。
 
 - 当前批次：Databaseguard route-family availability 1 条映射完成复核。Rust corruption/WriterLease startup fail-closed 作为更强 ownership 证据，Go API-online partial DATABASE_INCOMPATIBLE 语义明确记录为结构边界。
+
+- 当前批次：Apiserver lifecycle 的 13 条映射完成复核。Rust web runtime bind/conflict/rebind、startup/shutdown ownership、Tauri frontend/API 分离与 readiness/oneshot 证据已拆分；Go noop/value matrix、public loopback policy、共存编排、hot rebind、注入恢复、handler 关闭聚合、embedded/integrated 模式与 context cancellation 差异逐项记录。
