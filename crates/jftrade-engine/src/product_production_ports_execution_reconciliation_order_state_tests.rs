@@ -328,6 +328,7 @@ fn apply_order_snapshot(
 
 // Parity: go:452dea11:internal/store/trading/out_of_order_reconciliation_test.go:43 TestExecutionOrderStoreIgnoresOutOfOrderRegressionPushAfterTerminalState
 #[test]
+// Parity: go:452dea11:internal/store/trading/broker_fill_reconciliation_test.go:144 TestExecutionOrderStoreRejectsStaleBrokerSnapshotRegression
 fn reconciliation_rejects_terminal_and_partial_status_regressions() {
     let cases = [
         (
@@ -937,6 +938,10 @@ fn challenge_edge_case_4_order_state_transitions_filled_cancelled_rejected() {
 /// later terminal snapshot cannot regress the filled order. Rust applies the
 /// same walk to the production port and the SQLite execution ledger.
 #[test]
+// Parity: go:452dea11:internal/store/trading/broker_fill_reconciliation_test.go:11 TestExecutionOrderStoreReconcilesFillBeforeOrderSnapshot
+// Parity: go:452dea11:internal/store/trading/broker_fill_reconciliation_test.go:97 TestExecutionOrderStoreDoesNotDoubleCountSnapshotCoveredFill
+// Parity: go:452dea11:internal/store/trading/broker_fill_reconciliation_test.go:144 TestExecutionOrderStoreRejectsStaleBrokerSnapshotRegression
+// Parity: go:452dea11:internal/store/trading/out_of_order_reconciliation_test.go:140 TestExecutionOrderStoreKeepsUpdatedAtMonotonicForOlderFill
 fn conformance_partial_full_fill_average_and_out_of_order_updates_hold() {
     let (store, directory) = reconciliation_store();
     let mut order = pending_order("SUBMITTED");

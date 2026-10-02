@@ -502,6 +502,7 @@ fn reconciliation_fill_identity_prefers_broker_extended_id() {
 }
 
 #[test]
+// Parity: go:452dea11:internal/store/trading/broker_fill_reconciliation_test.go:97 TestExecutionOrderStoreDoesNotDoubleCountSnapshotCoveredFill
 fn reconciliation_snapshot_coverage_prevents_duplicate_fill_quantity() {
     let events = vec![jftrade_store_sqlite::StoredExecutionOrderEventRecord {
         id: "event-1".to_owned(),
@@ -537,6 +538,8 @@ fn ledger_event(
 
 // Parity: go:452dea11:internal/store/trading/broker_ledger_test.go:10 TestBrokerSnapshotCoveredFillQuantityLedgerBoundaries
 #[test]
+// Parity: go:452dea11:internal/store/trading/broker_fill_reconciliation_test.go:97 TestExecutionOrderStoreDoesNotDoubleCountSnapshotCoveredFill
+// Parity: go:452dea11:internal/store/trading/out_of_order_reconciliation_test.go:140 TestExecutionOrderStoreKeepsUpdatedAtMonotonicForOlderFill
 fn reconciliation_snapshot_coverage_caps_partial_and_exhausted_credit() {
     let events = vec![
         ledger_event(
@@ -752,6 +755,7 @@ fn reconciliation_replays_history_fill_and_fee_once_after_restart() {
 }
 
 #[test]
+// Parity: go:452dea11:internal/store/trading/broker_fill_reconciliation_test.go:11 TestExecutionOrderStoreReconcilesFillBeforeOrderSnapshot
 fn reconciliation_discovers_external_order_into_empty_ledger() {
     let (store, _directory) = reconciliation_store();
     let mut account = account();
