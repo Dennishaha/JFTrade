@@ -801,6 +801,20 @@ fn resolve_strategy_intent_quantity(
         binding_scalar_f64(binding, &["lotSize", "lot_size"]).filter(|lot| *lot > 0.0)
     {
         qty = (qty / lot).floor() * lot;
+    } else if let Some(precision) =
+        binding_scalar_f64(binding, &["volumePrecision", "volume_precision"])
+            .filter(|precision| *precision >= 0.0 && *precision <= 15.0)
+    {
+        let scale = 10_f64.powf(precision.floor());
+        qty = (qty * scale).floor() / scale;
+    }
+
+    if let Some(minimum) = binding_scalar_f64(binding, &["minQuantity", "min_quantity"])
+        .filter(|minimum| *minimum > 0.0)
+    {
+        if qty < minimum {
+            return Ok(None);
+        }
     }
 
     if !qty.is_finite() {

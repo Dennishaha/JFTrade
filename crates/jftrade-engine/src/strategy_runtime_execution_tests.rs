@@ -908,6 +908,57 @@ fn live_order_below_market_lot_step_is_skipped_without_submission() {
     }));
 }
 
+// Parity: go:452dea11:internal/strategy/live_command_business_boundaries_test.go:490 TestLiveOrderQuantityRespectsMinimumAndPrecision
+#[test]
+fn live_order_quantity_applies_market_minimum_and_volume_precision() {
+    let (_dir, _def_store, store, execution, provider, mut binding) = sizing_execution_fixture();
+    binding["minQuantity"] = json!(10.0);
+    let ctx = StrategyExecutionContext {
+        execution: Some(&execution),
+        execution_store: None,
+        provider: &provider,
+        store: &store,
+        instance_id: "inst-sizing",
+        market: "US",
+        symbol: "US.AAPL",
+        binding: &binding,
+        expected_risk_revision: None,
+        fallback_price: Some(100.0),
+        sellable_quantity: Some(20.0),
+        current_position: None,
+        available_cash: Some(1_000.0),
+        virtual_account: None,
+    };
+    execute_strategy_intents(ctx, &[test_intent(5.0, 100.0)])
+        .expect("below-minimum quantity should be skipped");
+    assert!(execution.mutations.lock().unwrap().is_empty());
+
+    let (_dir, _def_store, store, execution, provider, mut binding) = sizing_execution_fixture();
+    binding["volumePrecision"] = json!(2.0);
+    let ctx = StrategyExecutionContext {
+        execution: Some(&execution),
+        execution_store: None,
+        provider: &provider,
+        store: &store,
+        instance_id: "inst-sizing",
+        market: "US",
+        symbol: "US.AAPL",
+        binding: &binding,
+        expected_risk_revision: None,
+        fallback_price: Some(100.0),
+        sellable_quantity: Some(20.0),
+        current_position: None,
+        available_cash: Some(1_000.0),
+        virtual_account: None,
+    };
+    execute_strategy_intents(ctx, &[test_intent(1.239, 100.0)])
+        .expect("precision quantity should execute");
+    assert_eq!(
+        execution.mutations.lock().unwrap()[0].payload["quantity"],
+        1.23
+    );
+}
+
 #[test]
 fn test_execute_strategy_intents_revision_fence_mismatch_blocks_and_audits() {
     let dir = tempfile::tempdir().expect("tempdir");
