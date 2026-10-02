@@ -902,3 +902,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - market-data runtime/sidecar 的 5 条 P1 partial（generic/legacy cache、health cancellation、真实 sidecar process、bounded wait、unavailable provider retry）已逐项读取 Go 断言并核对 Rust helper/router/state owner；现有 receipts 支持 covered assertions，配置 seam、取消循环、typed lifecycle 与内容寻址资产差异已分别登记，coverage 改为 reviewed，状态保持 partial。
 
 - `internal/api/assistant/chat_transport_disconnect_test.go:110:TestChatStreamReconnectAndReplayRespectClientDisconnect` 已逐项读取四个 failing-writer/cancel 分支；Rust production ADK replay、after 游标、499 终态和 SseWriter frame/error owner 均有证据，但 API 物化与 Go socket-like writer 的单写次数 seam 不同，已改为 reviewed partial 并保留未来流式化回归条件。
+
+- backtest historical source 13 条 partial（provider session/adjustment、page fetch/error、decimal conversion、sync lifecycle/cancel/pagination、instrument rules/readiness 与 positiveFloat）已逐条复核 Go 原始断言和 Rust owner。现有生产/ helper receipts 支持 covered assertions；provider injection、typed error、progress、lifecycle、resolver 和 signed value seam 作为逐项 residual 登记，coverage 改为 reviewed，未将 partial 误升为 exact。
