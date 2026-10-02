@@ -1052,3 +1052,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - 当前批次：Assistant workflow CRUD、lifecycle、store failure 的 14 条映射逐项复核。Rust workflow owner 的 tags/pagination/log/delete、webhook/error codes、definition validation、canvas interpolation/cascade、bridge/preflight、manager errors、queue guard、threshold scheduler、shutdown/join 与 not-found 路由证据已拆为 reviewed coverage；逐分支 validation、后台日志、stale resources、写入故障矩阵、helper 边界、Close/store 时序及 in-flight tick join 等剩余差异逐项记录。
 
 - 当前批次：Assistant workflows_extended 与 workflows_resource_recovery 的 9 条映射完成复核。Rust trigger validation resilience、built-in/schedule projection、scheduler tick/worker、active-run CAS、status projection、invalid work mode/not-found、template validation 与 durable failure winner 证据已拆分；完整输入边界矩阵、模板幂等与 watched instruments、事件/调度合并后台链、状态调和矩阵、异步 trigger clone/panic 及 running-transition 写失败注入缺口逐项记录。
+
+- 当前批次：Assistant workflows.go 的 canvas graph round-trip、node trace/result、缺图运行语义与节点输出共 4 条完成复核。Rust write/schema、多节点 pipeline、compiler rejection、failure cascade/node-run persistence 已列为覆盖；逐字段 graph/output 对比缺口明确记录。缺图运行保留 Rust 当前 legacy single-agent fallback，与 Go 必须失败且不回退的语义差异作为显式 compatibility boundary，未伪造 exact。
