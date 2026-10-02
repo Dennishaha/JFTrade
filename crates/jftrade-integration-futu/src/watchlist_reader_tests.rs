@@ -12,6 +12,7 @@ struct FixtureWatchlistRead {
     members: Mutex<Vec<Value>>,
     group_calls: AtomicUsize,
     member_calls: AtomicUsize,
+    fail_groups: bool,
     fail_members: bool,
 }
 
@@ -30,6 +31,7 @@ impl FixtureWatchlistRead {
             members: Mutex::new(members),
             group_calls: AtomicUsize::new(0),
             member_calls: AtomicUsize::new(0),
+            fail_groups: false,
             fail_members: false,
         }
     }
@@ -60,6 +62,9 @@ impl FixtureWatchlistRead {
 impl RemoteWatchlistReadPort for FixtureWatchlistRead {
     fn groups(&self) -> Result<Vec<Value>, CustomizationError> {
         self.group_calls.fetch_add(1, Ordering::SeqCst);
+        if self.fail_groups {
+            return Err(CustomizationError::Rejected("group failure".to_owned()));
+        }
         Ok(self
             .groups
             .lock()
@@ -78,6 +83,28 @@ impl RemoteWatchlistReadPort for FixtureWatchlistRead {
             .unwrap_or_else(|error| error.into_inner())
             .clone())
     }
+}
+
+#[test]
+fn watchlist_member_reads_propagate_group_and_remote_failures() {
+    let groups = vec![group("Growth", "custom")];
+    let mut group_fixture = FixtureWatchlistRead::new(groups.clone(), Vec::new());
+    group_fixture.fail_groups = true;
+    let group_failure = Arc::new(group_fixture);
+    let group_reader = reader(group_failure, WATCHLIST_CACHE_TTL);
+    assert!(
+        group_reader.members("Growth").is_err(),
+        "group lookup failure must propagate"
+    );
+
+    let mut member_fixture = FixtureWatchlistRead::new(groups, Vec::new());
+    member_fixture.fail_members = true;
+    let member_failure = Arc::new(member_fixture);
+    let member_reader = reader(member_failure, WATCHLIST_CACHE_TTL);
+    assert!(
+        member_reader.members_fresh("Growth").is_err(),
+        "remote member failure must propagate"
+    );
 }
 
 fn group(name: &str, kind: &str) -> Value {
