@@ -1332,3 +1332,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - 当前批次：broker registry/pointer helper 的 6 条映射完成逐条复核。Rust 静态 ProductionRouteAdapter/installed_adapters、route readiness、ProviderRouter 代际切换与 catalog 唯一性 owner 已记录为 reviewed；Go 空/注册/替换/删除/重复 panic 的运行时 BrokerRegistry 语义及 pointer helper 独立地址断言在 Rust 无对应入口，由组合根静态安装与 Option 所有权规则替代，逐项保留为 boundary residual。
 
 - 当前批次：observability 的 6 条映射完成逐条复核。Rust correlation snapshot keys、importance threshold/aliases、bounded recent errors/summary sanitization、OpenD success/failure health 与 explicit request context owner 已记录为 reviewed；Go slog JSON 九字段、global mutable recorder、context Detach/cancellation、nil receiver no-op 与 GlobalOpenDLogging 发射层在 Rust 无同形对象，逐项保留为 partial/boundary residual。
+
+- 当前批次：market calendar helper boundaries 的 5 条映射完成逐条复核。Rust snapshot local-year/archive、manual override/session window、US early-close extended windows、cached fallback freshness 与 market alias/timezone policy owner 已记录为 reviewed；Go from/to coverage window、Christmas Eve/template copy、跨年/月末/周末具体 schedule、session sort/dedup/非法窗口与 Location fallback 仍保留为 partial residual。
