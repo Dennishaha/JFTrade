@@ -57,9 +57,17 @@ impl PineWorkerSettingsService {
 
 pub fn normalize_pine_worker_settings(input: &PineWorkerSettings) -> PineWorkerSettings {
     PineWorkerSettings {
-        backtest_worker_limit: input.backtest_worker_limit.clamp(1, 1_000),
-        instance_worker_limit: input.instance_worker_limit.clamp(1, 1_000),
+        backtest_worker_limit: normalize_worker_limit(input.backtest_worker_limit, 2),
+        instance_worker_limit: normalize_worker_limit(input.instance_worker_limit, 10),
         node_binary_path: normalize_executable_path(&input.node_binary_path),
+    }
+}
+
+fn normalize_worker_limit(value: i32, default: i32) -> i32 {
+    if value <= 0 {
+        default
+    } else {
+        value.min(1_000)
     }
 }
 
@@ -93,10 +101,18 @@ mod tests {
                 node_binary_path: " \' \"/opt/node\" \' ".to_owned(),
             }),
             PineWorkerSettings {
-                backtest_worker_limit: 1,
+                backtest_worker_limit: 2,
                 instance_worker_limit: 1_000,
                 node_binary_path: "/opt/node".to_owned(),
             }
+        );
+        assert_eq!(
+            normalize_pine_worker_settings(&PineWorkerSettings {
+                backtest_worker_limit: -4,
+                instance_worker_limit: 0,
+                node_binary_path: String::new(),
+            }),
+            PineWorkerSettings::default()
         );
         assert_eq!(PineWorkerSettings::default().backtest_worker_limit, 2);
         assert_eq!(PineWorkerSettings::default().instance_worker_limit, 10);
