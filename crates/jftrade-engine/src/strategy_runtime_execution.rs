@@ -166,12 +166,7 @@ pub(super) fn execute_strategy_intents(
                 }
             };
             let wrong_position_alias = requested_position.is_some_and(|side| side * position < 0.0);
-            let wrong_order_side = match direction.as_str() {
-                "buy" => position > 0.0,
-                "sell" => position < 0.0,
-                _ => false,
-            };
-            if wrong_position_alias || wrong_order_side {
+            if wrong_position_alias {
                 let _ = ctx.store.append_audit_event(
                     ctx.instance_id,
                     "INTENT_SKIPPED",
