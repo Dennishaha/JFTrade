@@ -185,6 +185,45 @@ mod tests {
     }
 
     #[test]
+    fn session_context_fails_closed_when_classified_window_is_missing() {
+        // Parity: go:452dea11:pkg/market/market_normalization_test.go:330
+        // TestSessionWindowBoundsRejectsMissingSessionWindows. A classified
+        // pre, after, or overnight instant must not fabricate bounds from the
+        // regular window when that session is absent from the schedule.
+        for (name, instant) in [
+            ("pre", "2026-07-02T05:00:00-04:00"),
+            ("after", "2026-07-02T17:00:00-04:00"),
+            ("overnight", "2026-07-02T02:00:00-04:00"),
+        ] {
+            let manager = CalendarManager::new(
+                CalendarSourceRegistry::default(),
+                None,
+                CalendarManagerSettings {
+                    manual_overrides: vec![CalendarManualOverride {
+                        market: "US".to_owned(),
+                        date: "2026-07-02".to_owned(),
+                        status: "open".to_owned(),
+                        sessions: vec![CalendarSessionOverride {
+                            kind: "regular".to_owned(),
+                            start_minute: 570,
+                            end_minute: 960,
+                        }],
+                        reason: "missing session fixture".to_owned(),
+                        observed: false,
+                    }],
+                    ..CalendarManagerSettings::default()
+                },
+            )
+            .expect("calendar manager");
+            let context = manager
+                .session_context("US", at(instant))
+                .expect("session context")
+                .expect("supported market");
+            assert_eq!(context.session, "closed", "missing {name} window");
+        }
+    }
+
+    #[test]
     // Parity: go:452dea11:pkg/market/us/us_test.go:56
     // TestUSTradingCalendarEdgeBoundaries
     fn session_context_handles_us_holidays_early_close_and_sunday_overnight() {
