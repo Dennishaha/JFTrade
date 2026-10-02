@@ -918,3 +918,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - assistant approval/idempotency/canvas 第五批 8 条 partial 已逐项复核：sibling cancellation、busy retry、approval stage/corruption、stale claim、fresh timeout、canvas provider/model override 与 chat fingerprint 均已绑定 Rust owner；取消循环、字段级损坏、claimed 列、节点 override 等残余保持明确，coverage 改为 reviewed。
 
 - assistant context/projection 第六批 8 条 partial 已逐项复核 completion SSE 顺序、provider prefix/handoff、空存储与 fallback id、session read/missing、latest text anchor 及 genai execution descriptor；Rust durable projection/runtime owner 已确认，字符串级 handoff、空存储、字段级 anchor 与 Go genai helper 差异明确登记，coverage 改为 reviewed。
+
+- assistant execution bounds 第七批 8 条 partial 已逐项复核 tool-call reuse/completion、run/event error、pause、final synthesis、approval resolution、rehydrate、run-scoped state 与 buffered delta；Rust runtime/projection/recovery owner 已核对，TIMED_OUT/no-op、genai Content、rehydrate 构造与 delta flush/解绑等差异保留为 reviewed residual。
