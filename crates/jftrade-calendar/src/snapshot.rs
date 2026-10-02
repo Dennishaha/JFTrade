@@ -1120,5 +1120,30 @@ mod tests {
         let path = store.save(&valid).expect("save valid snapshot");
         assert!(path.ends_with("US/2026/nyse_official.json"));
         assert!(path.exists());
+
+        let mut to_only = valid.clone();
+        to_only.from = WireTimestamp::from_str("0001-01-01T00:00:00Z").unwrap();
+        to_only.to = WireTimestamp::from_str("2027-12-31T00:00:00Z").unwrap();
+        let to_path = store.save(&to_only).expect("save to-only snapshot");
+        assert!(to_path.ends_with("US/2027/nyse_official.json"));
+
+        let mut schedule_only = valid;
+        schedule_only.from = WireTimestamp::from_str("0001-01-01T00:00:00Z").unwrap();
+        schedule_only.to = WireTimestamp::from_str("0001-01-01T00:00:00Z").unwrap();
+        schedule_only.schedules = vec![TradingDaySchedule {
+            market_code: "HK".to_owned(),
+            date: WireTimestamp::from_str("2028-06-19T00:00:00+08:00").unwrap(),
+            status: "closed".to_owned(),
+            sessions: Vec::new(),
+            reason: String::new(),
+            source_id: String::new(),
+            observed: false,
+            updated_at: None,
+        }];
+        schedule_only.market_code = "HK".to_owned();
+        let schedule_path = store
+            .save(&schedule_only)
+            .expect("save schedule-only snapshot");
+        assert!(schedule_path.ends_with("HK/2028/nyse_official.json"));
     }
 }
