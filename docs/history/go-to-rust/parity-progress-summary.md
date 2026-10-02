@@ -986,3 +986,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - assistant schema/SQLite 第39批 8 条 partial/boundary 已逐项复核 market skill 文档、workflow/schema 严格性、tool metadata、backtest/strategy nested schema，以及 GORM SQLite dialector 的 migration、类型、clause、版本比较边界。Rust MCP fixture/schema、ADK store、migration/query-plan owner 已核对；skill 文本归属和 GORM dialect 语义差异均登记为 reviewed residual。
 
 - assistant schema/store approval/audit 第40批 8 条 partial 已逐项复核业务关键 tool schema、registry alias/mode/numeric helper、审批幂等、运行+审批拒绝、session context 删除、兄弟审批拒绝、完成运行重试和 audit SQL 分页。Rust MCP schema/approval CAS/session lifecycle/audit read owner 已核对；完整 schema required 集、helper 聚合、字段级原始记录、单事务组合、零工具执行及 SQL count/order 细节均登记为 reviewed residual。
+
+- assistant store business/failure 第41批 8 条 partial 已逐项复核 provider 生命周期、agent/session cascade、run/approval/skill/optimization 查询、运营边界、provider 默认/secret/list、实体生命周期、损坏库归一化及默认/失败传播。Rust store/CAS/projection owner 已核对；完整 provider matrix、级联行集、分页/去重字段、逐项 defaults、畸形 JSON/nil patch 和故障注入差异均登记为 reviewed residual。
