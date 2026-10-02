@@ -1364,3 +1364,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - 当前批次：backtest store 的 5 条映射完成逐条复核。Rust canceled-maintenance immutability、run lifecycle/restart durability、byte-preserving snapshot inspection 与 in-memory cancellation owner 已记录为 reviewed；Go request date metadata 不推断否定断言、路径 override/settings-directory 派生优先级，以及完整 in-memory create/query/update/finish/cancel/missing-task 矩阵仍保留为 partial/boundary residual。
 
 - 当前批次：market session window 的 5 条映射完成逐条复核。Rust manual override/session schedule、weekend/overnight trading-day attribution、cached fallback freshness 与 market-local/DST boundary owner 已记录为 reviewed；Go from/to 完整窗口结构、regular/pre/after/overnight named session、未知/零时间输入、缺失 US 模板 not-ok 与 DST 具体偏移矩阵继续保留为 partial residual。
+
+- 当前批次：desktop startup/shutdown 的 5 条映射完成逐条复核。Rust dependency-order startup、ready/reverse shutdown、readiness failure reclamation 与 concurrent stop idempotency owner 已记录为 reviewed；Go Tauri/Wails setup 中窗口状态先于 API、startup snapshot 脱敏、可注入异步 starter/late resource、shutdown closure 调用计数在 Rust 无同形 headless seam，保留为 partial/boundary residual。
