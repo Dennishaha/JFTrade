@@ -950,3 +950,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - assistant runner concurrency/callback/continuation/runtime 第二十一批 8 条 partial/boundary 已逐项复核输入续跑租约、chat callback/event projection、continuation-only 识别与审计、同会话新鲜完成条件，以及执行/续跑/runner 构造分支。Rust fencing、input parity、audit、tool failure 和 runtime owner 已核对；消息分类、continuation_only 审计、陈旧性判定、完整故障矩阵与 Google ADK runner attach/synthesis 层差异均登记为 reviewed residual。
 
 - assistant chat/continuation/goal 第22批 8 条 partial/boundary 已逐项复核 chat runtime 失败传播、RequestedInput unsupported code、execution lease claim/storage、goal resume lease ownership、background context、resume error matrix 与 PauseGoalRun 状态边界。Rust product chat、terminal mapping、recovery/fencing、input continuation 与 mutation route owner 已核对；Go 事件触发面、固定 failure reason、表名错误文本、foreign lease、nullable context 和逐分支 goal 状态差异均登记为 reviewed residual。
+
+- assistant goal/lifecycle/reconciliation 第23批 8 条 partial 已逐项复核恢复状态拒绝、过期调和、CancelRun 树与 helper、目标更新、runner lifecycle、陈旧运行、终态工作流和自引用修复。Rust mutation/expiry/cancellation/recovery/CAS owner 已核对；nil runtime、完整过期矩阵、CancelRun helper 集、目标更新入口、facade 生命周期、自引用任务重置与父级暂停等差异均登记为 reviewed residual。
