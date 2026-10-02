@@ -1094,3 +1094,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - 当前批次：Datamigration maintenance failure paths 的 7 条映射完成复核。Rust candidate fingerprint/rollback、WriterLease busy、backup discovery、preview defaults/expiry/confirmation、storage inspection/candidate fail-closed 与 corrupt-marker compact 证据已拆分；Go hook/context/VACUUM 注入、marker 并发重读、empty-path error、incompatible backup/missing compact 与 descriptor 注入差异逐项记录。
 
 - 当前批次：Datamigration maintenance/manager/rebuild/research 的 16 条映射完成复核。Rust backup/privacy/lease/preview/inspection/marker/rebuild/research owner 证据已拆分；Go rate-limit、busy re-read、hook/context 注入、SetUnavailable、CompletePending、version drift、atomic marker faults、single rebuild/global lock/file sets/select boundaries 与 research apply/reopen/complete 缺口逐项记录。
+
+- 当前批次：Desktop API startup 与 Futu/OpenD coordinator/probe 的 8 条映射完成复核。Rust native lifecycle、readiness snapshot、connection replacement、OpenD diagnostics、onboarding/system status、probe/version/neutral-state 证据已拆分；Wails helper、HTTP polling timeout、应用顺序、retry diagnostics、runtime/account 合并、market-health 文案、disabled probe/settings error 与 bool matrix 差异逐项记录。
