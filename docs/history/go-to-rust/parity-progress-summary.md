@@ -1106,3 +1106,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - 当前批次：MarketData data-plane switch 与 live heartbeat 的 7 条映射完成复核。Rust demand/reconfigure、failed warmup、provider readiness、uncomposed runtime、WS heartbeat/snapshot poll 证据已拆分；同步恢复、active failed selection、nil callback、heartbeat freshness/retry/transport 统计、legacy timestamp 与 policy matrix 缺口逐项记录。
 
 - 当前批次：MarketData depth 与 security HTTP 的 10 条映射完成复核。Rust OpenD depth projection、US/HK normalization、security snapshot 与九字段 broker-neutral envelope 证据已拆分；Go request/depth/meta envelope、exchangeType/fromCache/static-info 及 warrant/option/future/trust/index/plate 研究块契约差异逐项记录。
+
+- 当前批次：MarketData provider boundary/delegation 的 6 条映射完成复核。Rust disconnected provider、catalog search/filter/failure、candle pagination/conversion、production port forwarding 与 prefix inference 证据已拆分；Go Provider 构造/nil/disabled envelope、nil snapshot/UnavailableReason、cache wrapper、单对象 callback 委派及 BAD.CODE 大小写差异逐项记录。
