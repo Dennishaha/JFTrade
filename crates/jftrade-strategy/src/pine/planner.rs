@@ -982,6 +982,9 @@ fn requirement_for_call(
         }
         "ta.swma" => {
             kind = "swma";
+            if arguments.len() != 1 {
+                return Err(invalid(line, format!("{callee} accepts source only")));
+            }
             let requested = argument_text(arguments.first()).unwrap_or_else(|| "close".to_owned());
             key_parts.push(ensure_price_source(line, callee, &requested, aliases)?);
         }
