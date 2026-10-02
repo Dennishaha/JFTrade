@@ -1084,3 +1084,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - 当前批次：Strategy lifecycle/plugin 的 7 条映射完成复核。Rust definition ID/delete guard、version cutover、七路由状态转换、delete busy、malformed/start failures、plugin catalog/mutations/guidance 与 fail-closed 证据已拆分；linked delete 序列、version wire/缺参、runtime.Stop/参数、missing delete、九分支错误矩阵、五路由组合与 plugin 404/500 矩阵缺口逐项记录。
 
 - 当前批次：Strategy error helper 与 system status mapper 2 条映射完成复核。Rust typed error projection 与 canonical status JSON 证据已列为覆盖；Busy 空消息/generic fallback 及 Go typed DTO unknown-field 伪断言边界明确记录。
+
+- 当前批次：Trading execution command/read/validation 与 OpenAPI route alignment 的 6 条映射完成复核。Rust trade error branches、orders filters、receipt/not-found、account.orders forwarding、ID trim/encoding、route registry/OpenAPI transport gate 证据已拆分；九分支合并矩阵、worker current/history 计数、PARTIALLY_FILLED fixture、空 ID 400 与逐标识 route 集合等式缺口逐项记录。
