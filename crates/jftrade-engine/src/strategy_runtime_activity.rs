@@ -783,4 +783,29 @@ mod tests {
             }
         }
     }
+
+    #[test]
+    fn split_strategy_symbol_matches_market_and_code_boundaries() {
+        let cases = [
+            (" US . AAPL ", "HK", ("US", "AAPL")),
+            ("HK: 00700", "US", ("HK", "00700")),
+            (" 600000 ", "CN", ("CN", "600000")),
+            ("NASDAQ", "", ("", "NASDAQ")),
+        ];
+
+        for (raw, default_market, expected) in cases {
+            assert_eq!(
+                split_strategy_symbol(raw, default_market),
+                (expected.0.to_owned(), expected.1.to_owned()),
+                "symbol input {raw:?}"
+            );
+        }
+
+        // The first separator determines the market/code split, matching the
+        // runtime's accepted symbol syntax when a code itself contains ':'.
+        assert_eq!(
+            split_strategy_symbol("US:AAPL:CLASSA", "HK"),
+            ("US".to_owned(), "AAPL:CLASSA".to_owned())
+        );
+    }
 }
