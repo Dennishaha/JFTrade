@@ -314,7 +314,10 @@ impl SemanticContext<'_> {
         step: Option<&Expr>,
         range: SourceRange,
     ) {
-        let line = range.start_line;
+        // The reference validator reports static-loop failures at the first
+        // executable body line, preserving the user's source location rather
+        // than anchoring the diagnostic to the `for` header.
+        let line = range.start_line.saturating_add(1);
         let (Some(start), Some(end)) = (constant_int(start), constant_int(end)) else {
             return;
         };

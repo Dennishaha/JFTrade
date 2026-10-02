@@ -29,7 +29,7 @@ fn unsupported_security_symbols_report_the_original_line() {
 fn blank_lines_before_the_script_keep_later_diagnostic_lines() {
     // Go keeps the original line numbers, so a script that starts with blank
     // lines must still report the loop on the line the author wrote.
-    for (leading_blank_lines, expected_line) in [(0usize, 3usize), (1, 4), (2, 5)] {
+    for (leading_blank_lines, expected_line) in [(0usize, 4usize), (1, 5), (2, 6)] {
         let script = format!(
             "{}//@version=6\nstrategy(\"Loop\", overlay=true)\nfor i = 0 to 3 by 0\n    log.info(\"nope\")",
             "\n".repeat(leading_blank_lines)
