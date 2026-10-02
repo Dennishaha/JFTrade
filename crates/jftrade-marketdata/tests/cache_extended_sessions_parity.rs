@@ -255,6 +255,10 @@ fn test_cache_does_not_inherit_extended_sessions_across_trading_days() {
             price: Some(price_dec("100.5")),
             ..Default::default()
         }),
+        overnight: Some(ExtendedQuoteSnapshot {
+            price: Some(price_dec("98.5")),
+            ..Default::default()
+        }),
         ..Default::default()
     };
     cache
@@ -268,6 +272,9 @@ fn test_cache_does_not_inherit_extended_sessions_across_trading_days() {
     let day2 = TradeQuoteSnapshot {
         symbol: Some("AAPL".to_owned()),
         last_price: Some(price_dec("101.0")),
+        bid_price: Some(price_dec("100.9")),
+        ask_price: Some(price_dec("101.1")),
+        volume: Some(decimal("7")),
         trading_date: Some("2026-06-19".to_owned()),
         session: Some("unknown".to_owned()),
         ..Default::default()
@@ -288,6 +295,10 @@ fn test_cache_does_not_inherit_extended_sessions_across_trading_days() {
     assert_eq!(snapshot.session.as_deref(), Some("unknown"));
     assert!(snapshot.pre_market.is_none());
     assert!(snapshot.after_market.is_none());
+    assert!(snapshot.overnight.is_none());
+    assert_eq!(snapshot.bid_price, Some(price_dec("100.9")));
+    assert_eq!(snapshot.ask_price, Some(price_dec("101.1")));
+    assert_eq!(snapshot.volume, Some(decimal("7")));
 }
 
 #[test]
