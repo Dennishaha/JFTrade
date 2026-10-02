@@ -1178,3 +1178,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - 当前批次：Strategy definition store 的 12 条映射完成逐条复核。Rust SQLite definition versioning/restart durability、legacy/corrupt/drift rejection、transactional writes、soft-delete/history、normalized binding persistence 与 maintenance lease/fail-closed owner 证据已收口；Go legacy JSON/v1/runtime-source migration、unchanged snapshot/purge、trigger-injected rollback、UUID format、逐字段 error mapping、不可持久化模型与 stale-candidate 判定差异逐项记录。
 
 - 当前批次：bbgo market helper 的 9 条映射完成逐条复核。Rust market rules/tick-size、Fixed8/Decimal truncation、pre-trade notional/option multiplier 与 liquidity warning owner 证据已收口；Go Market 方法、定宽文本格式化、Duration 字符串解析、自动调高 min-notional/contract-size 数量等 API/展示语义差异逐项记录。
+
+- 当前批次：Pine semantic parse 的 12 条映射完成逐条复核。Rust planner semantic feature/TA support、visual warning/metadata 与 compile/analyze owner 证据已收口；Go typed IR/semantic summary 字段、未实现 TA/utility/signature/static-for 族及视觉 namedArgs/variable 精细字段差异逐项记录。
