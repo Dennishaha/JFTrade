@@ -952,3 +952,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - assistant chat/continuation/goal 第22批 8 条 partial/boundary 已逐项复核 chat runtime 失败传播、RequestedInput unsupported code、execution lease claim/storage、goal resume lease ownership、background context、resume error matrix 与 PauseGoalRun 状态边界。Rust product chat、terminal mapping、recovery/fencing、input continuation 与 mutation route owner 已核对；Go 事件触发面、固定 failure reason、表名错误文本、foreign lease、nullable context 和逐分支 goal 状态差异均登记为 reviewed residual。
 
 - assistant goal/lifecycle/reconciliation 第23批 8 条 partial 已逐项复核恢复状态拒绝、过期调和、CancelRun 树与 helper、目标更新、runner lifecycle、陈旧运行、终态工作流和自引用修复。Rust mutation/expiry/cancellation/recovery/CAS owner 已核对；nil runtime、完整过期矩阵、CancelRun helper 集、目标更新入口、facade 生命周期、自引用任务重置与父级暂停等差异均登记为 reviewed residual。
+
+- assistant lifecycle/plugin/lease 第二十四批 8 条 partial/boundary 已逐项复核父引用与对账 helper、存储停止时 fail-closed、ADK execution plugin、nil execution、租约上下文复用、heartbeat 失败取消、过期刷新和 near-expiry TTL。Rust workflow graph/recovery/projection/claims/cancellation owner 已核对；插件层、nullable execution、公开 lease context、heartbeat 关联、无写入顺序和 remaining-TTL 细节均登记为 reviewed residual。
