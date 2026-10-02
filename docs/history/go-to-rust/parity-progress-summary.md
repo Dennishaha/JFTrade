@@ -898,3 +898,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - system routes 的 6 条未收口 partial（system envelope、calendar refresh/probe、validator、malformed release payload、真实交易控制委派/错误映射）已逐项读取 Go 断言并核对 Rust production/system-write owner；可达 HTTP 行为与错误映射已有 receipt，Gin callback、固定 ID、handler seam 差异已分别登记，coverage 改为 reviewed，状态保持 partial。
 
 - system routes 的 6 条未收口 partial（system envelope、calendar refresh/probe、validator、malformed release payload、真实交易控制委派/错误映射）已逐项读取 Go 断言并核对 Rust production/system-write owner；可达 HTTP 行为与错误映射已有 receipt，Gin callback、固定 ID、handler seam 差异已分别登记，coverage 改为 reviewed，状态保持 partial。
+
+- market-data runtime/sidecar 的 5 条 P1 partial（generic/legacy cache、health cancellation、真实 sidecar process、bounded wait、unavailable provider retry）已逐项读取 Go 断言并核对 Rust helper/router/state owner；现有 receipts 支持 covered assertions，配置 seam、取消循环、typed lifecycle 与内容寻址资产差异已分别登记，coverage 改为 reviewed，状态保持 partial。
