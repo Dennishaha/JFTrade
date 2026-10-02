@@ -94,6 +94,31 @@ fn window_and_oscillator_keys_keep_the_requested_source() {
     );
 }
 
+#[test]
+fn advanced_indicator_parameters_fail_closed_before_requirement_keys() {
+    for body in [
+        "value = ta.kc(close, 0, 1.5, true)",
+        "value = ta.kc(close, 20, -1.0, true)",
+        "value = ta.kc(close, 20, 1.5, maybe)",
+        "value = ta.alma(close, 20.5, 0.85, 6)",
+        "value = ta.tsi(close, 0, 25)",
+        "value = ta.percentile_nearest_rank(close, -1, 50)",
+    ] {
+        let compilation = compile(&format!(
+            "//@version=6\nstrategy(\"Invalid indicator parameters\")\n{body}"
+        ));
+        assert!(!compilation.ok, "invalid indicator call must fail: {body}");
+        assert!(
+            compilation
+                .diagnostics
+                .iter()
+                .any(|item| item.code == "PINE_REQUIREMENTS_INVALID"),
+            "diagnostics = {:?}",
+            compilation.diagnostics
+        );
+    }
+}
+
 const POSITION_VARIABLES: &str = r#"//@version=6
 strategy("Position Variables", overlay=true)
 stopPrice = strategy.position_avg_price * 0.95

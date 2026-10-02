@@ -823,8 +823,11 @@ fn requirement_for_call(
                 .ok_or_else(|| invalid(line, format!("{callee} length must be positive")))?;
             let multiplier = argument_text(arguments.get(2))
                 .ok_or_else(|| invalid(line, format!("{callee} multiplier must be positive")))?;
+            ensure_positive_period(line, callee, &length)?;
+            ensure_positive_number(line, callee, &multiplier, "multiplier")?;
             let use_true_range =
                 argument_text(arguments.get(3)).unwrap_or_else(|| "true".to_owned());
+            ensure_boolean_literal(line, callee, &use_true_range, "useTrueRange")?;
             key_parts.extend([source, length, multiplier, use_true_range]);
         }
         "ta.alma" => {
@@ -837,13 +840,17 @@ fn requirement_for_call(
                 .ok_or_else(|| invalid(line, "ta.alma offset must be numeric"))?;
             let sigma = argument_text(arguments.get(3))
                 .ok_or_else(|| invalid(line, "ta.alma sigma must be positive"))?;
+            ensure_positive_period(line, callee, &length)?;
+            ensure_positive_number(line, callee, &sigma, "sigma")?;
             key_parts.extend([source, length, offset, sigma]);
         }
         "ta.cmo" | "ta.dev" | "ta.median" | "ta.percentrank" => {
             kind = lower.strip_prefix("ta.").unwrap_or_default();
             let requested = argument_text(arguments.first()).unwrap_or_else(|| "close".to_owned());
             ensure_price_source(line, callee, &requested, aliases)?;
-            key_parts.extend(source_period_parts(callee, arguments, line, 2)?);
+            let parts = source_period_parts(callee, arguments, line, 2)?;
+            ensure_positive_period(line, callee, &parts[1])?;
+            key_parts.extend(parts);
         }
         "ta.tsi" => {
             kind = "tsi";
@@ -861,6 +868,8 @@ fn requirement_for_call(
                 .ok_or_else(|| invalid(line, "ta.tsi short length must be positive"))?;
             let long = argument_text(arguments.get(2))
                 .ok_or_else(|| invalid(line, "ta.tsi long length must be positive"))?;
+            ensure_positive_period(line, callee, &short)?;
+            ensure_positive_period(line, callee, &long)?;
             key_parts.extend([source, short, long]);
         }
         "ta.correlation" => {
@@ -872,6 +881,7 @@ fn requirement_for_call(
             let second = ensure_price_source(line, callee, &second, aliases)?;
             let length = argument_text(arguments.get(2))
                 .ok_or_else(|| invalid(line, "ta.correlation length must be positive"))?;
+            ensure_positive_period(line, callee, &length)?;
             key_parts.extend([source, second, length]);
         }
         "ta.percentile_linear_interpolation" | "ta.percentile_nearest_rank" => {
@@ -886,6 +896,7 @@ fn requirement_for_call(
             let source = ensure_price_source(line, callee, &requested, aliases)?;
             let length = argument_text(arguments.get(1))
                 .ok_or_else(|| invalid(line, format!("{callee} length must be positive")))?;
+            ensure_positive_period(line, callee, &length)?;
             let percentage = argument_text(arguments.get(2)).ok_or_else(|| {
                 invalid(
                     line,
@@ -1377,6 +1388,37 @@ fn ensure_positive_period(line: usize, callee: &str, period: &str) -> Result<(),
     Err(invalid(
         line,
         format!("{callee} period must be a positive integer"),
+    ))
+}
+
+fn ensure_positive_number(
+    line: usize,
+    callee: &str,
+    value: &str,
+    label: &str,
+) -> Result<(), PlannerError> {
+    let valid = value
+        .trim()
+        .parse::<f64>()
+        .is_ok_and(|number| number.is_finite() && number > 0.0);
+    if valid {
+        return Ok(());
+    }
+    Err(invalid(line, format!("{callee} {label} must be positive")))
+}
+
+fn ensure_boolean_literal(
+    line: usize,
+    callee: &str,
+    value: &str,
+    label: &str,
+) -> Result<(), PlannerError> {
+    if matches!(value.trim(), "true" | "false") {
+        return Ok(());
+    }
+    Err(invalid(
+        line,
+        format!("{callee} {label} must be true or false"),
     ))
 }
 
