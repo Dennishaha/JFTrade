@@ -678,6 +678,79 @@ async fn production_helper_sync_forwards_page_query_and_persists_provider_values
 }
 
 #[tokio::test]
+// Parity: go:452dea11:internal/app/apiserver/backtestapp/historical_source_test.go:226 TestProviderHistoricalSourceFetchesAndParsesProviderPage
+async fn production_helper_sync_preserves_non_retryable_provider_fetch_error() {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("bind failing helper fixture");
+    let helper_address = listener.local_addr().expect("failing helper address");
+    let helper_task = tokio::spawn(async move {
+        let (mut stream, _) = listener.accept().await.expect("failing helper connection");
+        let mut request = [0_u8; 1024];
+        let _ = tokio::io::AsyncReadExt::read(&mut stream, &mut request)
+            .await
+            .expect("read failing helper request");
+        let body = "provider exploded";
+        let response = format!(
+            "HTTP/1.1 400 Bad Request\r\nContent-Type: text/plain\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+            body.len()
+        );
+        tokio::io::AsyncWriteExt::write_all(&mut stream, response.as_bytes())
+            .await
+            .expect("write failing helper response");
+    });
+
+    let (mut port, _directory) = production_port();
+    port.helper = Some(
+        jftrade_integration_marketdata_helper::HelperClient::new(
+            jftrade_integration_marketdata_helper::HelperClientConfig {
+                base_url: format!("http://{helper_address}"),
+                bearer_token: None,
+                request_timeout: std::time::Duration::from_secs(2),
+                max_attempts: 1,
+                retry_delay: std::time::Duration::ZERO,
+            },
+        )
+        .expect("helper client"),
+    );
+    let response = port
+        .mutate(&BacktestsWriteInput::Sync {
+            payload: json!({
+                "market": "US",
+                "code": "AAPL",
+                "intervals": ["1m"],
+                "since": "2026-09-29T00:00:00Z",
+                "until": "2026-09-30T00:00:00Z",
+                "rehabType": "forward",
+                "sessionScope": "regular",
+                "marketDataProvider": "yfinance"
+            }),
+        })
+        .expect("start failing helper sync");
+    let BacktestsWritePortResult::Data(data) = response else {
+        panic!("unexpected sync response");
+    };
+    let task_id = data["taskId"].as_str().expect("task id").to_owned();
+    for _ in 0..100 {
+        if let Some(task) = port.sync_tasks.get(&task_id).expect("task")
+            && task.status == "failed"
+        {
+            assert!(
+                task.error
+                    .as_deref()
+                    .is_some_and(|error| error.contains("provider exploded")),
+                "task error = {:?}",
+                task.error
+            );
+            helper_task.await.expect("failing helper task");
+            return;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+    }
+    panic!("failing helper sync did not reach failed state");
+}
+
+#[tokio::test]
 // Parity: go:452dea11:internal/backtest/historical_source_test.go:147 TestHistoricalKLineSyncerRetriesTransientPageAndRejectsCapabilitiesDuringPreflight
 async fn production_helper_sync_retries_transient_page_and_records_retry() {
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
