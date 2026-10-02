@@ -427,3 +427,12 @@ fn history_reference_overflow_is_rejected() {
         "analysis must reject the overflowing lookback"
     );
 }
+
+#[test]
+fn negative_history_lookback_is_rejected_inside_request_security() {
+    assert_error(
+        r#"value = request.security(syminfo.tickerid, "60", close[-1])"#,
+        "PINE_HISTORY_REF_UNSUPPORTED",
+        "history reference lookback must be a non-negative integer",
+    );
+}

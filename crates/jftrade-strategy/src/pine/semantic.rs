@@ -392,7 +392,15 @@ impl SemanticContext<'_> {
             ));
             return;
         }
-        if let ExprKind::Number { value } = &index.kind {
+        let lookback_text = match &index.kind {
+            ExprKind::Number { value } => Some(value.as_str()),
+            ExprKind::Unary {
+                op: UnaryOp::Negate,
+                ..
+            } => Some("-1"),
+            _ => None,
+        };
+        if let Some(value) = lookback_text {
             match value.trim().parse::<u64>() {
                 Ok(lookback) if lookback > MAX_HISTORY_LOOKBACK => {
                     self.summary.diagnostics.push(Diagnostic::error(
