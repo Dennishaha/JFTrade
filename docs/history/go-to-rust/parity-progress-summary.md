@@ -1112,3 +1112,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - 当前批次：MarketData runtime health 的 5 条映射完成复核。Rust failed-health recovery、failed warmup、unsubscribe retry、startup/explicit readiness 与 last_error 证据已拆分；sidecar 计数/合并错误、激活后延迟 release 序列、provider-type health 调用次数及 Failed 单探针停止重试缺口逐项记录。
 
 - 当前批次：MarketData runtime provider-switch/cleanup/backtest 的 17 条映射完成复核。Rust ActiveProviderState transitions、reject/close races、unsubscribe retry、startup fail-closed、catalog/backtest selection 与 shutdown ownership 证据已拆分；Go sidecar deferred cleanup、lease pinning/refcount、inactive cleanup gate、context expiry/cancel、health-preparer failure及详细 push/quote matrix 等差异逐项记录。
+
+- 当前批次：MarketData runtime 的 Python helper 解析/探针、query-time fallback、AKShare shared-sidecar recovery 与 forwarding/close 9 条映射完成逐条复核。Rust asset/process/health、provider activation recovery、query 400、canonical forwarding 与 shutdown selection 证据已改为 reviewed coverage；Go 解释器 env/venv/PATH、external/embedded 状态结构、旧环境变量别名、python -c module probe、shared-sidecar 计数、全数据面聚合转发、四能力错误矩阵及 close/ensure 错误路径缺口逐项记录为 boundary/partial residual。
