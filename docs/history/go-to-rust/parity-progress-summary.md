@@ -974,3 +974,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - assistant assembly runtime/tool catalog 第33批 8 条 partial/boundary 已逐项复核 runtime handle 审计/工具操作、nil handle、helper 输入归一化、kline polling、read-tool handlers、metadata helper、核心 market/portfolio flows 与 watchlist paging。Rust audit/read/catalog/watchlist owner 已核对；handle 方法级契约、nullable lifecycle、完整 helper 分支、polling payload 细节、跨工具矩阵和 metadata/response shape 差异均登记为 reviewed residual。
 
 - assistant assembly watchlist/workflow 第34批 8 条 partial/boundary 已逐项复核 watchlist 真实读取与 quote omission、workflow bridge CRUD/run、注入式 workflow executor、管理工具错误传播、session/payload 错误、工具目录/审批矩阵及 workflow wait 边界。Rust watchlist/API/port/canvas/workflow.wait owner 已核对；完整响应矩阵、Go manager/tool catalog、SetWorkflowExecutor、nil manager、workflow_runs.wait 信封与 deadline polling 差异均登记为 reviewed residual。
+
+- assistant workflow tool 第35批 4 条 partial/boundary 已逐项复核 patch 语义、workflow/trigger CRUD、interactive session gate 与 unavailable manager fail-closed。Rust workflow REST/CAS/canvas/runtime owner 已核对；tool-level 完整字段矩阵、session 来源门禁、nil manager 及全量 finalisation 分支差异均登记为 reviewed residual。
