@@ -374,6 +374,10 @@ fn reconciliation_rejects_terminal_and_partial_status_regressions() {
             apply_order_snapshot(&port, &store, advance_status, advance_fill),
             "{name}: forward snapshot must be accepted"
         );
+        let before_regression = store
+            .get_order("rust-order-reconcile")
+            .expect("reload forward order")
+            .expect("forward order exists");
         let events_before = store
             .list_order_events("rust-order-reconcile")
             .expect("list forward events")
@@ -390,6 +394,11 @@ fn reconciliation_rejects_terminal_and_partial_status_regressions() {
             .expect("regressed order exists");
         assert_eq!(saved.status, expected_status, "{name}: status");
         assert_eq!(saved.filled_quantity, Some(expected_fill), "{name}: fill");
+        assert_eq!(
+            saved.raw_broker_status,
+            before_regression.raw_broker_status,
+            "{name}: regression must preserve raw broker status"
+        );
         assert_eq!(
             store
                 .list_order_events("rust-order-reconcile")
