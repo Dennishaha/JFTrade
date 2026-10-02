@@ -1350,3 +1350,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - 当前批次：bbgo Position 的 6 条映射完成逐条复核。Rust Decimal PnL/weighted average cost、fee cap/market fee rules、virtual account snapshot 与 idempotent close state owner 已记录为 reviewed；Go ROI/Percentage 展示、Position 内置 ExchangeFeeRate、字段式 getter/closing bool 与完整 Quote/Base/AverageCost 结构仍保留为 partial residual。
 
 - 当前批次：bbgo StandardStream 的 6 条映射完成逐条复核。Rust typed Futu frame guards、quote push lifecycle dispatch、closed-session preflight、keep-alive interval guard、recoverable timeout replay 与 idempotent reader shutdown owner 已记录为 reviewed；Go 可插拔 raw/parser/dispatcher、beforeConnect hook、应用层 ping、重连信号与 StandardStream 抽象均无 Rust 同形对象，保留为 partial residual。
+
+- 当前批次：Pine worker live business 的 6 条映射完成逐条复核。Rust live session/revision execution contract、checkpoint restore、remote error mapping、simulation cash/position limits、account inputs、stale session rejection 与 market-rule warning owner 已记录为 reviewed；Go 同一会话预热载荷单点断言、逐条 sizing/equity/price 参数矩阵、运行时层 session failure 与 actionable warning sink 过滤仍保留为 P2/partial residual。
