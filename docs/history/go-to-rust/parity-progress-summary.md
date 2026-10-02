@@ -1390,3 +1390,8 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - 复核并标记 18 条映射为 `assertionCoverage.source = reviewed`，覆盖 `client_news_actions_test.go`、`provider_screen_test.go` 与 `internal/store/settingsfile/store_test.go`。
 - 逐项确认 Rust production owner 与测试函数存在；保留 settings file 引导写入、SecuritySettings、scope ID、enabled source 列表等未逐字段覆盖 residual。
 - 清理 1 条陈旧的 targeted engine receipt；未改变真实行为差异或 partial 结论。
+
+### 本批：生成器 manifest、YFinance、市场数据、watchlist、Pine 边界与 broker catalog
+
+- 复核并标记 35 条映射为 `reviewed`，逐项保留生成器 owner 退场、Pine 语法/控制流缺口、watchlist 故障注入、broker capability wire 差异等 residual。
+- 对有 Rust anchor 的条目确认测试入口；明确无对应 Rust 入口的条目保持 boundary/partial 事实，不升级覆盖结论。
