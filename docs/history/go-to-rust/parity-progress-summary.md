@@ -1148,3 +1148,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - 当前批次：Backtest K-line store 的 13 条映射完成逐条复核。Rust manifest/schema、维度表名、同步 CAS、scope fail-closed、覆盖验证、低周期聚合、5m→15m 来源优先级与 interval alias owner 证据已收口；Go compact schema/逐字段 round-trip、scoped version、regular/extended fallback、rehab 查询过滤、overlap Verify、非零 UTC backward limit 与完整周期映射矩阵差异逐项记录。
 
 - 当前批次：Pine worker backtest adapter 的 12 条映射完成逐条复核。Rust worker intent→确定性撮合、short close/buy、数量解析、stop/stop-limit、atomic bracket 校验、worker invalid/unavailable 与结果模型 owner 证据已收口；Go command 转换层、command 字段、sell-entry short/cover 归一、默认 quantity、OCO 双腿展开、逐类错误矩阵及 metadata/commands wire 形态差异逐项记录。
+
+- 当前批次：Backtest storage runtime invariants 的 14 条映射完成逐条复核。Rust maintenance fail-closed/lease、schema/session scope、canonical interval table、calendar aggregation、paging、coverage validation、transactional write、DST cutoff 与 recovery owner 证据已收口；Go dynamic-type/table-existence cache、候选表 fallback、limit helper、批量中途失败回滚、边界助手、closed-store、unavailable storage、session-aware gap 与不变量错误文案差异逐项记录。
