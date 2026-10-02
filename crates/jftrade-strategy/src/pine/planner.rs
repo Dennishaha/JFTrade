@@ -641,9 +641,17 @@ fn requirement_for_call(
         }
         "ta.dmi" | "ta.supertrend" => {
             kind = lower.strip_prefix("ta.").unwrap_or_default();
+            let expected = 2;
+            if arguments.len() != expected {
+                return Err(invalid(
+                    line,
+                    format!("{callee} requires {expected} positive integer arguments"),
+                ));
+            }
             for argument in arguments {
-                key_parts
-                    .push(argument_text(Some(argument)).unwrap_or_else(|| argument.to_string()));
+                let value = argument_text(Some(argument)).unwrap_or_else(|| argument.to_string());
+                ensure_positive_period(line, callee, &value)?;
+                key_parts.push(value);
             }
         }
         "ta.ema" | "ta.sma" | "ta.rma" | "ta.wma" | "ta.hma" | "ta.vwma" => {
@@ -737,9 +745,9 @@ fn requirement_for_call(
                 key_parts.insert(0, source);
             }
         }
-        "ta.atr" | "ta.variance" | "ta.vwap" | "ta.mfi" => {
+        "ta.atr" | "ta.variance" | "ta.vwap" => {
             kind = lower.strip_prefix("ta.").unwrap_or_default();
-            if matches!(kind, "vwap" | "mfi")
+            if kind == "vwap"
                 && let Some(source) = argument_text(arguments.first())
             {
                 ensure_price_source(line, callee, &source, aliases)?;
@@ -748,6 +756,19 @@ fn requirement_for_call(
                 key_parts
                     .push(argument_text(Some(argument)).unwrap_or_else(|| argument.to_string()));
             }
+        }
+        "ta.mfi" => {
+            kind = "mfi";
+            if let Some(source) = argument_text(arguments.first()) {
+                ensure_price_source(line, callee, &source, aliases)?;
+            }
+            let length = argument_text(arguments.get(1))
+                .ok_or_else(|| invalid(line, "ta.mfi requires a length"))?;
+            ensure_positive_period(line, callee, &length)?;
+            key_parts.extend([
+                argument_text(arguments.first()).unwrap_or_else(|| "hlc3".to_owned()),
+                length,
+            ]);
         }
         "ta.highest" | "ta.lowest" | "ta.highestbars" | "ta.lowestbars" | "ta.change"
         | "ta.mom" | "ta.roc" | "ta.range" | "ta.mode" | "ta.sum" | "ta.rising" | "ta.falling" => {
