@@ -1348,3 +1348,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - 当前批次：bbgo floats slice 的 6 条映射完成逐条复核。Rust 指标内部 f64 窗口/累加兼容测试已记录为序列算术的实际 owner；Go 正态/泊松/均匀随机生成器、独立 Slice.Sub/Truncate/Add 容器 API 在 Rust 产品链路无对应对象，保留为不适用/partial residual。
 
 - 当前批次：bbgo Position 的 6 条映射完成逐条复核。Rust Decimal PnL/weighted average cost、fee cap/market fee rules、virtual account snapshot 与 idempotent close state owner 已记录为 reviewed；Go ROI/Percentage 展示、Position 内置 ExchangeFeeRate、字段式 getter/closing bool 与完整 Quote/Base/AverageCost 结构仍保留为 partial residual。
+
+- 当前批次：bbgo StandardStream 的 6 条映射完成逐条复核。Rust typed Futu frame guards、quote push lifecycle dispatch、closed-session preflight、keep-alive interval guard、recoverable timeout replay 与 idempotent reader shutdown owner 已记录为 reviewed；Go 可插拔 raw/parser/dispatcher、beforeConnect hook、应用层 ping、重连信号与 StandardStream 抽象均无 Rust 同形对象，保留为 partial residual。
