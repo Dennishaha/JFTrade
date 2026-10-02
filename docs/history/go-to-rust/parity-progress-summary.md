@@ -1134,3 +1134,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - 当前批次：MarketData TickCache 与 dev/release asset 入口的 11 条映射完成逐条复核。Rust cache dedup/freshness/session promotion、tick-candle volume/limit、serialization、shared cache/read fallback、平台资源 integrity 与开发/发布 helper 选择证据已收口为 reviewed；Go wall-clock 注入、SnapshotJSON 串联、Service 端到端单 cache、Release/Materialize 双 API、临时目录 fallback、PyInstaller onedir/cache wrapper 与可传平台参数等差异逐项保留。
 
 - 当前批次：MarketData service facade、calendar/macro、company research、index constituents、news/actions、rankings/industries 与 screen 的 26 条映射完成逐条复核。Rust provider capability/lifecycle fail-closed、参数映射与投影、CN 叶市场归一、缓存/refresh、provider status/demand、screen shape/page 与错误分类证据已收口为 reviewed；Go 逐操作错误文本、limit/offset 全矩阵、CN 三类读逐调用转发、broker 装饰/nil 序列化、纯 helper、provider call-count 及默认值串联差异逐项保留。
+
+- 当前批次：bbgo indicator/types 的 23 条映射完成逐条复核。Rust 指标窗口/算术与权益峰值的有限兼容证据已收口；Go Queue/Series/Array/switchIface/Clone、NextCross、Pearson/Spearman/Cov/Skew/Entropy/Softmax/Sigmoid、LogisticRegression/OLS/Dot/Filter 及 go-chart Plot 等专用助手逐项确认无 Rust 生产 owner，保留为明确语言/职责边界。
