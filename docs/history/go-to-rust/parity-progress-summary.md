@@ -1062,3 +1062,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - 当前批次：API live handler 与 marketdata route boundary 的 9 条映射完成复核。Rust WS close/origin/depth/notification、candles provider code、microstructure capability 与 active-provider ownership 证据已拆分；Close code/corpus、resolvedAt refresh、真实通知重放、Host same-origin、非 Futu depth、brokerId 优先级以及 Go broker-reader 错误通道差异逐项保留。
 
 - 当前批次：API marketdata news/actions 与核心 read routes 的 5 条映射完成复核。Rust instrument URI 400、capability 409、explicit broker fail-closed、catalog/security/snapshot/heartbeat/normalize 分散证据与 provider error fixtures 已列为覆盖；route template 404/handler 400、news/actions 错误码与 Retry-After、broker-reader 架构差异、七段合并顺序及 Futu snapshot 502/503 分类差异逐项记录。
+
+- 当前批次：API middleware 的 ADK availability、public auth paths、trusted request context、logout protection 与 write-method detection 共 5 条映射完成复核。Rust route fail-closed/503、login/session bypass、origin/CSRF、写方法分类证据已拆分；/health 缺失、ADK read 错误码、logout 200/204、Go request marker/nil pointer 语言与所有权差异逐项保留。
