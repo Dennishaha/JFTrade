@@ -1144,3 +1144,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - 当前批次：Conservative bar executor 的 17 条未审查映射完成逐条复核。Rust 撮合校验、next-open/liquidity cap、atomic bracket、reduce-only、取消、收盘价、滑点/gap、stop order、告警与 helper 分支 owner 证据已收口；Go PARTIALLY_FILLED→FILLED 状态流、警告文案/集合、内部 pending 切片、逐形态错误矩阵及结果模型字段差异逐项保留。
 
 - 当前批次：Backtest service 的 14 条映射完成逐条复核。Rust backtest start/研究回测 dispatch、chart normalization、data readiness/sync 生命周期、warmup、result view、validation、worker failure、shutdown cancellation、store lifecycle 与 single-writer owner 证据已收口；Go 默认字段/定义派生、coverage 参数与最大 warmup、任务清理/调用次数、结果游标/OHLCV 精确值、Close 后拒启、runner error 文本和内存兜底差异逐项记录。
+
+- 当前批次：Backtest K-line store 的 13 条映射完成逐条复核。Rust manifest/schema、维度表名、同步 CAS、scope fail-closed、覆盖验证、低周期聚合、5m→15m 来源优先级与 interval alias owner 证据已收口；Go compact schema/逐字段 round-trip、scoped version、regular/extended fallback、rehab 查询过滤、overlap Verify、非零 UTC backward limit 与完整周期映射矩阵差异逐项记录。
