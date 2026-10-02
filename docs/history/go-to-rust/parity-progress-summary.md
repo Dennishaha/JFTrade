@@ -877,3 +877,7 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - `TestCatalogSessionRunAndObservabilityContracts` 由 port-level partial 补为真实 Product HTTP composition：同一 ProductionAdkPort seed 下逐一请求 12 个 catalog/session/run/observability GET 路由，断言 HTTP 200 + `ok=true`，并断言 DELETE provider 200 + `ok=true`。
 - 定向 nextest 1/1 passed；receipt `api-adk-catalog-http-reviewed-2026-09-30.json`，文件 digest `sha256:8249f1afebb9345f3c0a4bb8fefb4eab02ac313e3706f75b39fdc26e5283e383`。
 - mapping 从 partial 升 `function_exact`，strict function_exact **1498→1499**，partial 实际 **2318→2317**；数量比例不作为完成率。
+
+## 当前批次
+
+- `cmd/jftrade-desktop/main_test.go:131:TestDesktopAssetHandlerDoesNotFallbackForMissingStaticAsset` 已完成逐项收口：Rust transport owner 对 `/assets/`、`/docs/` 和带扩展名缺失路径逐一断言 404 与空响应体，定向 nextest 1/1 通过，映射由 `partial` 升为 `function_exact`；receipt `sha256:6bfd058c06d76673f62c47c740f73745ef09666cf0c60e1db1a472e08f13ff89`。
