@@ -954,3 +954,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - assistant goal/lifecycle/reconciliation 第23批 8 条 partial 已逐项复核恢复状态拒绝、过期调和、CancelRun 树与 helper、目标更新、runner lifecycle、陈旧运行、终态工作流和自引用修复。Rust mutation/expiry/cancellation/recovery/CAS owner 已核对；nil runtime、完整过期矩阵、CancelRun helper 集、目标更新入口、facade 生命周期、自引用任务重置与父级暂停等差异均登记为 reviewed residual。
 
 - assistant lifecycle/plugin/lease 第二十四批 8 条 partial/boundary 已逐项复核父引用与对账 helper、存储停止时 fail-closed、ADK execution plugin、nil execution、租约上下文复用、heartbeat 失败取消、过期刷新和 near-expiry TTL。Rust workflow graph/recovery/projection/claims/cancellation owner 已核对；插件层、nullable execution、公开 lease context、heartbeat 关联、无写入顺序和 remaining-TTL 细节均登记为 reviewed residual。
+
+- assistant runtime lease/store 第二十五批 8 条 partial/boundary 已逐项复核安全默认、关闭闸门、builtin agent/session 初始化、策略刷新、builtin 保护、models.list 过滤、runtime snapshot/probe 和 DeleteSession 缺失运行时。Rust claims/fencing/assembly/catalog/session owner 已核对；默认字段逐项断言、run-lease close API、store ordering、持久 agent 刷新、完整 models.list 过滤及远端缺失/不可用 runtime 语义差异均登记为 reviewed residual。
