@@ -959,6 +959,32 @@ fn conformance_partial_full_fill_average_and_out_of_order_updates_hold() {
     assert_eq!(partial.status, "PARTIALLY_FILLED", "{partial:?}");
     assert_eq!(partial.filled_quantity, Some(4.0));
 
+    // A broker order snapshot arriving after the fill must merge into the
+    // fill-discovered row instead of creating a second internal order.
+    let revision = store
+        .order_revision(&partial.internal_order_id)
+        .expect("order revision");
+    let mut snapshot = correlated_order_snapshot(10, Some(4.0));
+    snapshot.qty = 10.0;
+    assert!(
+        port.apply_broker_snapshot(&partial, &snapshot, revision)
+            .expect("merge broker snapshot after fill")
+    );
+    let merged = store
+        .get_order("rust-order-reconcile")
+        .expect("load merged order")
+        .expect("merged order exists");
+    assert_eq!(merged.internal_order_id, partial.internal_order_id);
+    assert_eq!(merged.client_order_id, partial.client_order_id);
+    assert_eq!(merged.remark.as_deref(), Some("client-reconcile"));
+    assert_eq!(
+        store
+            .list_order_events("rust-order-reconcile")
+            .expect("list merged events")
+            .len(),
+        2
+    );
+
     // (b) an older broker snapshot (SUBMITTED, 1 share) cannot regress it
     let revision = store
         .order_revision(&partial.internal_order_id)
@@ -967,7 +993,7 @@ fn conformance_partial_full_fill_average_and_out_of_order_updates_hold() {
     stale.fill_avg_price = Some(100.0);
     assert!(
         !port
-            .apply_broker_snapshot(&partial, &stale, revision)
+            .apply_broker_snapshot(&merged, &stale, revision)
             .expect("apply stale snapshot"),
         "an out-of-order snapshot must not regress the partial fill"
     );
