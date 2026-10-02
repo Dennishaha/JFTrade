@@ -1008,3 +1008,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - assistant workflow approval/canvas/child 第50批 8 条 partial 已逐项复核 approval recovery pause/context、父流程错误、canvas fan-out/join、非法图、可达图执行、子输入挂起恢复、父暂停优先和子完成重开。Rust workflow/canvas/scheduler owner 已核对；二次暂停失败、缺父、完整步骤 metadata、nil canvas、终态字段矩阵、child plan/approval mirror、父重开状态机差异均登记为 reviewed residual。
 
 - assistant workflow child/compiler/goal 第51批 8 条 boundary/partial 已逐项复核非 workflow 父回调、依赖去重/空白、plan step 清洗、父子执行登记、loop 模式选择、缺失 decision、最大迭代和 continue-pause-resume 生命周期。Rust scheduler/canvas/workflow write/goal mutation/assembly owner 已核对；回调抑制、空白依赖、echo rewrite、原子 parent-child registration、决策继续、iteration cap 和完整终态提醒差异均登记为 reviewed residual。
+
+- assistant workflow goal/observation 第52批 8 条 partial 已逐项复核 pause-before-complete、子完成阻塞、PAUSED snapshot、updated objective prompt、active-parent objective 更新、helper/provider failure、节点生命周期投影和 observation helper。Rust CAS/goal mutation/canvas/OpenAPI/catalog owner 已核对；暂停与完成时序、child continuation、活动快照合并、prompt 文本、provider/skill 错误矩阵及摘要 helper 差异均登记为 reviewed residual。
