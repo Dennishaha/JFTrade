@@ -1128,3 +1128,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - 当前批次：Marketdata asset selection/cache 的 27 条映射完成逐条复核。Rust content-addressed AssetBundle 的命名/摘要校验、原子物化、篡改修复、并发赢家、过期清理、cache-root 防护、缺失资产与 fail-closed IO 证据已收口为 reviewed；Go PyInstaller onedir 多文件遍历、权限/符号链接/非常规文件形状、私有临时目录与 Cleanup、TMPDIR 注入、digest 对账和旧错误文案在 Rust 单文件资源模型中无同形 owner，逐项保留为 partial/boundary residual。
 
 - 当前批次：AKShare client/conversion boundaries 的 14 条映射完成逐条复核。Rust helper health/retry、typed capability/busy propagation、market/security/candle validation、fundamentals omission、pagination、provider unavailable 与 malformed projection 证据已收口为 reviewed；Go Retry-After/attempt 计数、adjustment 缺省不编码、候选 selectable、continued/cursor 布尔、legacy batch/defaultSource、单次 read failure 及完整错误文案差异逐项保留。
+
+- 当前批次：MarketData provider-switch lifecycle/boundary 的 13 条映射完成逐条复核。Rust managed-consumer gate、generation fence、failed-change rollback、poll-only health/read capability、cache invalidation、single-commit races 与 bounded close 证据已收口为 reviewed；Go nil 指针/辅助 deadline、ErrProviderChanged 文本、poll-only managed lease、health probe 原文、激活阻塞/等待屏障、goroutine 顺序竞争、stream close 计数和 decimal pointer identity 差异逐项保留。
