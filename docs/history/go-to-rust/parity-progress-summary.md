@@ -1340,3 +1340,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - 当前批次：watchlist store 的 6 条映射完成逐条复核。Rust revision fencing/restart persistence、membership mutation lifecycle、read-page group/source/remote catalog projection owner 已记录为 reviewed；Go default group seed、冲突回滚、metadata enrich 不增 revision 与完整 source/remote snapshot round-trip 仍保留为 partial/P2 residual。
 
 - 当前批次：strategy runtime activity store 的 6 条映射完成逐条复核。Rust schema manifest rejection、definition version/restart durability、persisted activity/corrupt payload、observation projection、activity paging/filter owner 已记录为 reviewed；Go 新建 schema 精确形状、缺失 observation、closed DB/path 处理与日志/审计/观测完整 round-trip 仍保留为 partial residual。
+
+- 当前批次：research screen definition normalization 的 6 条映射完成逐条复核。Rust frozen compatibility corpus 与 definition normalization contracts 已逐例覆盖 parameterized identity、V2 schema/catalog、duplicate paths、market factor compatibility、parameter enum/union 与 operator kind 错误；Go 与 Rust identity hash 字面形状差异及 [x] 证据复用约束保留在条目中。
