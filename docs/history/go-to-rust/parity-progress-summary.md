@@ -968,3 +968,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - assistant assembly summary/adapter 第三十批 8 条 partial/boundary 已逐项复核策略摘要脱敏与实例计数、工具失败业务契约、领域输入校验、provider/runtime 端口、visual model 归一化、backtest 状态投影、非法 instrument 和 strategy instance 生命周期。Rust catalog/tool/read/dispatch owner 已核对；分散 failure family、adapter 聚合对象、Vue 归属 visual model、完整状态字段矩阵及逐方法空 id 映射差异均登记为 reviewed residual。
 
 - assistant assembly lifecycle/maintenance/news/MCP/portfolio 第31批 8 条 partial 已逐项复核策略实例生命周期、ADK maintenance purge/compact、无 runtime fail-closed、news/corporate-actions 输入规范化与能力错误、MCP server 生命周期及 portfolio 汇总/分层状态。Rust lifecycle/maintenance/market-news/MCP/portfolio owner 已核对；完整 adapter 分支、nil handle、工具命名差异、精确 capability 文案、并发账户排序和 partial warning 字段均登记为 reviewed residual。
+
+- assistant portfolio/adapter/runtime 第32批 8 条 partial 已逐项复核 partial account/discovery、broker funds/positions 拆分、product input helpers、dispatch failure、research-screen 校验、特殊 dispatch/snapshot、跨域 execution contract 与 runtime lifecycle。Rust portfolio/MCP/research-screen/product-runtime owner 已核对；超时 partial warning、combined read call shape、完整 helper coercion、跨域错误矩阵和 Go Open facade 差异均登记为 reviewed residual。
