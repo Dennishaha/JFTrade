@@ -888,3 +888,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 2. **Backtest provider error 所有权**：复核 `internal/app/apiserver/backtestapp/historical_source_test.go:226`，保留 Rust durable task 的 provider message 证据，同时登记 Go typed error identity 与 Rust worker error 字符串化的边界；只有生产 API 暴露稳定错误分类时才新增映射或测试。
 3. **HTTP 时间解析契约**：复核 `internal/api/httpserver/bindings_boundaries_test.go:61`，以公开 route 契约决定非法时间继续 `400` 还是恢复 caller fallback；先锁定现有 route 行为和调用方影响，再做最小生产修改。
 4. **持续门禁**：每个子批次先跑受影响 nextest，再跑 `git diff --check`、`audit_test_parity.py --strict`；文档/清单变更追加 `check:ai-context` 与 `check:quick`，并保留 `check:zero-go` 现有基线失败证据。
+
+- `internal/api/httpserver/bindings_boundaries_test.go:61:TestParseQueryTimeReturnsCallerFallback` 与 `internal/api/httpserver/bindings_test.go:186:TestCandlePeriodAndPaginationNormalization` 已完成逐项断言复核：Rust 周期、空值、公开分页 route 和错误映射均有生产 owner；Go caller fallback、signed pagination helper 与 Rust typed route 存在明确边界，已登记 reviewed residual，未伪装成 exact。定向 nextest 3/3 通过；receipt `sha256:ae87435eb21cbfbcdb9f0bf6216b891f9ec2effccec7dbb7fa95366f7a489dfc`。

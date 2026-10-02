@@ -1,0 +1,62 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(optional_query_time_normalizes_to_utc_and_blank_means_absent) or test(candle_period_normalizes_aliases_and_rejects_unsupported) or test(candle_route_treats_blank_period_as_unset_and_rejects_unsupported)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-10-02T00:00:00Z",
+  "sourceState": {
+    "verifiedCommit": "f7aba3a4bdef41582cf91685db35be776242247c",
+    "trackedDiffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "untrackedFiles": []
+  },
+  "rawOutputSha256": "0e6d3e832f978ede873bec91c872e78167b79ed5a114c2546edb6b3daff422c7",
+  "passedTests": [
+    "jftrade-engine::jftrade_engine$product::product_query::tests::candle_period_normalizes_aliases_and_rejects_unsupported",
+    "jftrade-engine::jftrade_engine$product::product_query::tests::optional_query_time_normalizes_to_utc_and_blank_means_absent",
+    "jftrade-engine::jftrade_engine$product::tests::market_data_quote_read_tests::candle_pagination_tests::candle_route_treats_blank_period_as_unset_and_rejects_unsupported"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 3,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1712,
+      "exec_time": 0.071453917,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    }
+  ]
+}
