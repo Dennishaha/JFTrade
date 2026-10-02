@@ -999,6 +999,25 @@ async fn tick_candles_surface_the_ticker_error_when_no_candle_is_retained() {
     ));
 }
 
+// Parity: go:452dea11:internal/marketdata/service_facade_test.go:162 TestServiceTickCandlesProviderAndFallbackBoundaries
+#[tokio::test]
+async fn tick_candles_reject_unsupported_sessions_before_provider_read() {
+    let ticker = Arc::new(StubTicker::default());
+    let port = tick_port(
+        Some(Arc::new(Mutex::new(ProviderRouter::new(8)))),
+        ticker.clone(),
+    );
+    let error = port
+        .read(
+            "/api/v1/market-data/candles/US/AAPL",
+            "period=tick&sessions=overnight",
+        )
+        .await
+        .expect_err("tick candles must reject unsupported sessions");
+    assert!(error.to_string().contains("session"));
+    assert_eq!(ticker.calls.load(Ordering::SeqCst), 0);
+}
+
 /// A provider ticker read that answers without a usable sample is `(nil, nil)`
 /// in Go: the read still succeeds, nothing is ingested, and an empty cache
 /// produces an empty non-paged page rather than an error.

@@ -142,6 +142,7 @@ impl ProductionMarketDataQuotePort {
                 }
             })?;
 
+        let sessions_were_requested = sessions_opt.is_some();
         let sessions = match sessions_opt {
             Some(s) => s,
             None => {
@@ -155,6 +156,20 @@ impl ProductionMarketDataQuotePort {
                 }
             }
         };
+
+        if period == "tick"
+            && sessions_were_requested
+            && sessions
+                .iter()
+                .any(|session| !matches!(*session, "regular" | "extended"))
+        {
+            return Err(MarketDataQuoteReadSnapshotError::Failed {
+                status: 400,
+                code: "MARKET_CANDLE_SESSIONS_INVALID".to_owned(),
+                message: "tick candles support only regular and extended sessions".to_owned(),
+                retry_after_seconds: None,
+            });
+        }
 
         let from_time = match query_map
             .get_first("from")
