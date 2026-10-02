@@ -1312,3 +1312,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - 当前批次：marketdata lifecycle boundaries 的 7 条映射完成逐条复核。Rust cache freshness/generation、demand dedup/release、snapshot poll fail-closed、router recorder、retry/900ms deadline、shutdown lease ordering 与 Futu catalog/helper resolver owner 已记录为 reviewed；Go Latest/LatestMany 空集合、Clear 保留样本、TTL=0、inactive cleanup retry、Close 清理 deadline、detached stream/nil source 与 provider fallback 分支继续保留为 partial residual，其中 subscription cleanup deadline 是明确未同形覆盖的缺口。
 
 - 当前批次：sqliteconn coordinator 的 7 条映射完成逐条复核。Rust WriterLease 单写者冲突、释放后重取与锁文件生命周期 owner 已记录为 reviewed；Go writer queue/read barrier overlap、取消传播、数据库路径注册表归一化、引用计数摘除与 outstanding write 延迟摘除在 Rust 单连接互斥模型中无同形实现，保留为明确 boundary/partial residual。
+
+- 当前批次：bbgo ValueMap 的 7 条映射完成逐条复核。Rust 没有 symbol→quantity ValueMap 容器或逐键 add/div/normalize API，组合权重由名义金额/数量结构表达；ValueMap 相等、键不一致 panic、标量运算、sum、零和 normalize 均确认无 Rust owner，保留为明确不适用边界。
