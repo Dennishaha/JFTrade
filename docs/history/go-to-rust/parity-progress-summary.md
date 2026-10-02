@@ -926,3 +926,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - assistant execution state/concurrency 第九批 8 条 partial 已逐项复核 lease fencing、tool response lifecycle、派生运行状态、recovery、approval terminal timeline、父子状态、并发 callback 与 event replay；Rust durable owner 已核对，ErrRunLeaseLost/直接审批入口、状态表、delta overlap、父子映射等差异保留为 reviewed residual。
 
 - assistant memory/diagnostics/handoff/input recovery 第十批 8 条 partial 已逐项复核 workspace memory scope、agent ID helper、resumed failure diagnostics、child construction、handoff replacement/revision、session notices 与 input continuation failures；Rust owner 已核对，缺少 appName helper、supersededBy、缺会话/过滤 payload、逐段故障注入等 residual 已明确登记，coverage 改为 reviewed。
+
+- assistant input/lifecycle/normalization 第十一批 7 条 partial 已逐项复核 crash recovery lease、input resolve/requeue/errors、workflow blocking、stale reconciliation、lifecycle store failure 与 response normalization；Rust owner 已核对，关闭库/缺表注入、自引用修复、父运行 plan 与单一 normalize helper 等 residual 明确登记，coverage 改为 reviewed。
