@@ -1268,6 +1268,12 @@ fn targeted_cancel_resolves_intent_aliases_once_and_tolerates_stale_mapping() {
     exec_store
         .save_order(aliased, "2026-08-30T00:00:00Z")
         .expect("save aliased order");
+    let mut second_aliased = active_strategy_order("inst-alias-cancel", "ord-alias-stop");
+    second_aliased.client_order_id =
+        Some("strategy-inst-alias-cancel-US.AAPL-protect:stop-entry-2".to_owned());
+    exec_store
+        .save_order(second_aliased, "2026-08-30T00:00:00Z")
+        .expect("save second aliased order");
 
     let execution = SuccessfulCancelExecutionPort::new(&exec_store);
     let provider = ActiveProviderState::default();
@@ -1305,8 +1311,8 @@ fn targeted_cancel_resolves_intent_aliases_once_and_tolerates_stale_mapping() {
         .expect("an intent alias should cancel its tracked order");
     assert_eq!(
         execution.mutations.lock().unwrap().len(),
-        1,
-        "duplicate aliases must dispatch one broker cancellation"
+        2,
+        "one intent alias must cancel every matching tracked order exactly once"
     );
     assert!(
         exec_store
@@ -1320,7 +1326,7 @@ fn targeted_cancel_resolves_intent_aliases_once_and_tolerates_stale_mapping() {
         .expect("a stale alias must be an idempotent no-op");
     assert_eq!(
         execution.mutations.lock().unwrap().len(),
-        1,
+        2,
         "stale aliases must not reach the broker"
     );
 }
