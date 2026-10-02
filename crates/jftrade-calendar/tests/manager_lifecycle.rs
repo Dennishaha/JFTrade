@@ -1957,9 +1957,8 @@ fn network_timeout_variants_share_one_alert_fingerprint() {
         3,
         "the alert instant is recorded on the first trigger and retained"
     );
-    assert_eq!(
+    assert!(
         fingerprints.windows(2).all(|pair| pair[0] == pair[1]),
-        true,
         "same normalized timeout fingerprint must not refresh the alert instant"
     );
     manager.close().expect("close manager");

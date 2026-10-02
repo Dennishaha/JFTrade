@@ -149,7 +149,11 @@ modeValue = ta.mode(close, 5)
 if signal
     strategy.entry("Long", strategy.long, qty=1)"#;
     let compilation = compile(script);
-    assert!(compilation.ok, "diagnostics = {:?}", compilation.diagnostics);
+    assert!(
+        compilation.ok,
+        "diagnostics = {:?}",
+        compilation.diagnostics
+    );
     // The Rust public lowered program preserves typed AST expressions rather
     // than Go's rendered IR strings; requirement keys are the stable parity
     // surface for this production owner.

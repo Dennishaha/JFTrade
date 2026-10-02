@@ -1401,3 +1401,11 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - 对剩余 505 条映射完成最终逐条复核，统一设置 `assertionCoverage.source = reviewed`。
 - 保留每条已有的 covered/uncovered residual、语言差异、所有权差异与明确 boundary 结论；清理陈旧 targeted/owner review receipt，不把 partial 或 boundary 升级为 exact。
 - 4451 条 Go→Rust 映射现已全部进入 reviewed 状态，后续仅需按门禁结果维护真实测试证据。
+
+### 最终证据审计与 Pine request.security owner 修复（2026-10-03）
+
+- 复查发现旧映射中 3893 条 receiptDigest 指向工作树不存在的历史文件；未将其视为有效 receipt。
+- 新增 `scripts/compatibility/verify_manual_mapping_evidence.py`，对 4451 条映射执行 reviewed coverage 同步、partial/boundary residual 和 exact owner test 交叉核验；审查 receipt：`manual-evidence-review-2026-10-03.json`，SHA-256 `dabdaee2e19d689b2d81e39b431141ef5b34fb1ae09c5fe0feb8e30679a8e13e`。
+- 重新运行最终工作树 workspace nextest：3657/3657 passed、2 skipped；receipt：`workspace-nextest-2026-10-03-final.json`，SHA-256 `4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85`。
+- 修复 Pine planner 对 `request.security` 复合 TA 表达式的 requirement lowering：保留 source、RSI、MACD、ATR、Bollinger、Supertrend 的 timeframe keys，同时保持简单 MTF indicator 与既有 warmup/whitelist 语义；相关 targeted tests 与 Rust 完整门禁通过。
+- 清理一个既有 clippy 阻塞（calendar 测试中的布尔 `assert_eq!`），未改变业务语义。

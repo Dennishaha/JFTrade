@@ -553,6 +553,54 @@ impl PlannerContext {
                 }
             }
             ExprKind::Call { callee, arguments } => {
+                if callee.eq_ignore_ascii_case("request.security")
+                    && arguments.len() >= 3
+                    && let Some(time_unit) =
+                        indicator_time_unit(&argument_text(arguments.get(1)).unwrap_or_default())
+                {
+                    self.visit_expr(arguments.first().expect("request.security symbol"))?;
+                    self.visit_expr(arguments.get(1).expect("request.security timeframe"))?;
+                    let mut nested = 0usize;
+                    let mut sources = Vec::new();
+                    let inner_expression = arguments.get(2).expect("request.security expression");
+                    self.collect_security_inner_requirements(
+                        inner_expression,
+                        &time_unit,
+                        expression.range.start_line,
+                        &mut nested,
+                    )?;
+                    let is_simple_inner_call = matches!(
+                        &inner_expression.kind,
+                        ExprKind::Call { callee, .. } if callee.to_ascii_lowercase().starts_with("ta.")
+                    );
+                    if nested > 0 && !is_simple_inner_call {
+                        self.collect_security_sources(inner_expression, &mut sources);
+                        for source in sources {
+                            let key = format!("security_source:{time_unit}:{source}");
+                            self.indicators.insert(
+                                key.clone(),
+                                IndicatorRequirement {
+                                    alias: String::new(),
+                                    kind: "security_source".to_owned(),
+                                    key,
+                                },
+                            );
+                        }
+                    }
+                    if nested == 0
+                        && let Some(requirement) = requirement_for_call(
+                            callee,
+                            arguments,
+                            "",
+                            expression.range.start_line,
+                            &self.aliases,
+                            &self.timeframe_aliases,
+                        )?
+                    {
+                        self.indicators.insert(requirement.key.clone(), requirement);
+                    }
+                    return Ok(());
+                }
                 // A supported `request.security` wrapper lowers the wrapped
                 // indicator into the timeframe-suffixed key, and Go then keeps
                 // only that key. Collecting the inner call as well would add a
@@ -590,6 +638,116 @@ impl PlannerContext {
             | ExprKind::Null => {}
         }
         Ok(())
+    }
+
+    fn collect_security_inner_requirements(
+        &mut self,
+        expression: &Expr,
+        time_unit: &str,
+        line: usize,
+        count: &mut usize,
+    ) -> Result<(), PlannerError> {
+        match &expression.kind {
+            ExprKind::Call { callee, arguments } => {
+                if callee.to_ascii_lowercase().starts_with("ta.")
+                    && let Some((kind, mut parts)) = security_inner_binding(Some(expression), line)?
+                {
+                    if kind == "ma" {
+                        parts.insert(2.min(parts.len()), time_unit.to_owned());
+                    } else {
+                        parts.push(time_unit.to_owned());
+                    }
+                    let key = format!("{kind}:{}", parts.join(":"));
+                    self.indicators.insert(
+                        key.clone(),
+                        IndicatorRequirement {
+                            alias: String::new(),
+                            kind,
+                            key,
+                        },
+                    );
+                    *count += 1;
+                }
+                for argument in arguments {
+                    self.collect_security_inner_requirements(argument, time_unit, line, count)?;
+                }
+            }
+            ExprKind::Unary { expression, .. } => {
+                self.collect_security_inner_requirements(expression, time_unit, line, count)?;
+            }
+            ExprKind::Binary { left, right, .. } => {
+                self.collect_security_inner_requirements(left, time_unit, line, count)?;
+                self.collect_security_inner_requirements(right, time_unit, line, count)?;
+            }
+            ExprKind::Ternary {
+                condition,
+                when_true,
+                when_false,
+            } => {
+                self.collect_security_inner_requirements(condition, time_unit, line, count)?;
+                self.collect_security_inner_requirements(when_true, time_unit, line, count)?;
+                self.collect_security_inner_requirements(when_false, time_unit, line, count)?;
+            }
+            ExprKind::Member { object, .. } | ExprKind::Index { object, .. } => {
+                self.collect_security_inner_requirements(object, time_unit, line, count)?;
+            }
+            ExprKind::Tuple { items } => {
+                for item in items {
+                    self.collect_security_inner_requirements(item, time_unit, line, count)?;
+                }
+            }
+            ExprKind::Identifier { .. }
+            | ExprKind::Number { .. }
+            | ExprKind::String { .. }
+            | ExprKind::Boolean { .. }
+            | ExprKind::Null => {}
+        }
+        Ok(())
+    }
+
+    fn collect_security_sources(&self, expression: &Expr, sources: &mut Vec<String>) {
+        match &expression.kind {
+            ExprKind::Identifier { name } => {
+                if let Some(source) = price_source(name)
+                    && !sources.iter().any(|item| item == &source)
+                {
+                    sources.push(source);
+                }
+            }
+            ExprKind::Unary { expression, .. } => {
+                self.collect_security_sources(expression, sources)
+            }
+            ExprKind::Binary { left, right, .. } => {
+                self.collect_security_sources(left, sources);
+                self.collect_security_sources(right, sources);
+            }
+            ExprKind::Ternary {
+                condition,
+                when_true,
+                when_false,
+            } => {
+                self.collect_security_sources(condition, sources);
+                self.collect_security_sources(when_true, sources);
+                self.collect_security_sources(when_false, sources);
+            }
+            ExprKind::Member { object, .. } | ExprKind::Index { object, .. } => {
+                self.collect_security_sources(object, sources)
+            }
+            ExprKind::Call { arguments, .. } => {
+                for argument in arguments {
+                    self.collect_security_sources(argument, sources);
+                }
+            }
+            ExprKind::Tuple { items } => {
+                for item in items {
+                    self.collect_security_sources(item, sources);
+                }
+            }
+            ExprKind::Number { .. }
+            | ExprKind::String { .. }
+            | ExprKind::Boolean { .. }
+            | ExprKind::Null => {}
+        }
     }
 }
 
@@ -1276,11 +1434,19 @@ fn security_inner_binding(
             };
             let (source, length) = source_length_arguments(arguments, defaults);
             ensure_positive_period(line, callee, &length)?;
-            if legacy_source_for(&kind) == Some(source.as_str()) {
-                vec![length]
-            } else {
-                vec![source, length]
+            // request.security lowering keeps the source explicit even when
+            // it is the chart-timeframe legacy default. The Go MTF helper
+            // emits `rsi(close, period, timeframe)` and downstream parity
+            // keys therefore retain `close` in the nested form.
+            vec![source, length]
+        }
+        "atr" => {
+            let length = argument_text(arguments.first()).unwrap_or_else(|| "14".to_owned());
+            if arguments.len() > 1 {
+                return Ok(None);
             }
+            ensure_positive_period(line, callee, &length)?;
+            vec![length]
         }
         "stdev" => {
             let source = argument_text(arguments.first()).unwrap_or_else(|| "close".to_owned());
@@ -1295,12 +1461,19 @@ fn security_inner_binding(
             }
         }
         "bb" => {
+            let source = argument_text(arguments.first()).unwrap_or_else(|| "close".to_owned());
+            if price_source(&source).is_none() {
+                return Ok(None);
+            }
             let length = argument_text(arguments.get(1))
                 .ok_or_else(|| invalid(line, format!("{callee} requires a length")))?;
             ensure_positive_period(line, callee, &length)?;
             let multiplier = argument_text(arguments.get(2))
                 .ok_or_else(|| invalid(line, format!("{callee} requires a multiplier")))?;
-            return Ok(Some(("bollinger".to_owned(), vec![length, multiplier])));
+            return Ok(Some((
+                "bollinger".to_owned(),
+                vec![source, length, multiplier],
+            )));
         }
         "macd" | "dmi" | "supertrend" | "sar" => arguments
             .iter()
