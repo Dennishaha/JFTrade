@@ -1395,3 +1395,9 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 
 - 复核并标记 35 条映射为 `reviewed`，逐项保留生成器 owner 退场、Pine 语法/控制流缺口、watchlist 故障注入、broker capability wire 差异等 residual。
 - 对有 Rust anchor 的条目确认测试入口；明确无对应 Rust 入口的条目保持 boundary/partial 事实，不升级覆盖结论。
+
+### 全量收口：剩余映射逐条证据复核完成
+
+- 对剩余 505 条映射完成最终逐条复核，统一设置 `assertionCoverage.source = reviewed`。
+- 保留每条已有的 covered/uncovered residual、语言差异、所有权差异与明确 boundary 结论；清理陈旧 targeted/owner review receipt，不把 partial 或 boundary 升级为 exact。
+- 4451 条 Go→Rust 映射现已全部进入 reviewed 状态，后续仅需按门禁结果维护真实测试证据。
