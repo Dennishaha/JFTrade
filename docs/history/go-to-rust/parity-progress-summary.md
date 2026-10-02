@@ -1136,3 +1136,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - 当前批次：MarketData service facade、calendar/macro、company research、index constituents、news/actions、rankings/industries 与 screen 的 26 条映射完成逐条复核。Rust provider capability/lifecycle fail-closed、参数映射与投影、CN 叶市场归一、缓存/refresh、provider status/demand、screen shape/page 与错误分类证据已收口为 reviewed；Go 逐操作错误文本、limit/offset 全矩阵、CN 三类读逐调用转发、broker 装饰/nil 序列化、纯 helper、provider call-count 及默认值串联差异逐项保留。
 
 - 当前批次：bbgo indicator/types 的 23 条映射完成逐条复核。Rust 指标窗口/算术与权益峰值的有限兼容证据已收口；Go Queue/Series/Array/switchIface/Clone、NextCross、Pearson/Spearman/Cov/Skew/Entropy/Softmax/Sigmoid、LogisticRegression/OLS/Dot/Filter 及 go-chart Plot 等专用助手逐项确认无 Rust 生产 owner，保留为明确语言/职责边界。
+
+- 当前批次：Strategy indicatorbinding/parse 的 22 条映射完成逐条复核。Rust Pine parser/planner 的均线键、时间单位、正整数周期、百分位边界与风险声明 owner 证据已收口；Go DSL 函数/参数切分、函数名/均线/数量/保护模式归一、窗口策略、正浮点/百分比助手、参数元数与整数转字符串等无同形 Rust helper 的语言/架构差异逐项记录。
