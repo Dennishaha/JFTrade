@@ -85,6 +85,27 @@ pub(super) fn execute_strategy_intents(
     }
     let risk_settings = risk_settings.normalize();
 
+    for (index, intent) in intents.iter().enumerate() {
+        let kind = intent.kind.trim().to_ascii_lowercase();
+        if !matches!(
+            kind.as_str(),
+            "order" | "entry" | "close" | "close_all" | "exit" | "cancel" | "cancel_all"
+        ) {
+            return Err(format!(
+                "unsupported strategy order intent kind at index {index}: {}",
+                intent.kind
+            ));
+        }
+        if kind == "cancel"
+            && intent.id.trim().is_empty()
+            && intent.from_entry.trim().is_empty()
+        {
+            return Err(format!(
+                "cancel command id is required at index {index}"
+            ));
+        }
+    }
+
     let now_utc = OffsetDateTime::now_utc();
     let today_midnight_ms = strategy_market_day_start_ms(ctx.market, now_utc);
     let mut placed = false;

@@ -426,6 +426,56 @@ fn test_execute_strategy_intents_unknown_kind_fails_before_broker_side_effects()
     assert!(execution.mutations.lock().unwrap().is_empty());
 }
 
+#[test]
+fn test_execute_strategy_intents_preflights_later_cancel_before_earlier_order() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let path = dir.path().join("strategy.db");
+    seed_strategy_test_db(&path);
+    let def_store = Arc::new(
+        StrategyDefinitionStore::open_existing(&path, STRATEGY_DEFINITION_TEST_CUTOVER_PROFILE)
+            .expect("open def store"),
+    );
+    let store = StrategyRuntimeStore::from_definition_store(&def_store);
+    store
+        .seed_instance("inst-preflight-cancel", "RUNNING", "2026-08-30T00:00:00Z")
+        .expect("seed instance");
+    let execution = MockExecutionPort::default();
+    let provider = ActiveProviderState::default();
+    let binding = json!({
+        "brokerId": "futu",
+        "accountId": "12345",
+        "tradingEnvironment": "SIMULATE"
+    });
+    let ctx = StrategyExecutionContext {
+        execution: Some(&execution),
+        execution_store: None,
+        provider: &provider,
+        store: &store,
+        instance_id: "inst-preflight-cancel",
+        market: "US",
+        symbol: "US.AAPL",
+        binding: &binding,
+        expected_risk_revision: None,
+        fallback_price: None,
+        sellable_quantity: None,
+        virtual_account: None,
+        current_position: None,
+        available_cash: None,
+    };
+    let order = test_intent(10.0, 150.0);
+    let mut cancel = test_intent(0.0, 0.0);
+    cancel.kind = "cancel".to_owned();
+    cancel.id.clear();
+    cancel.from_entry.clear();
+    cancel.has_quantity = false;
+    cancel.has_limit_price = false;
+
+    let error = execute_strategy_intents(ctx, &[order, cancel])
+        .expect_err("blank cancellation identity must reject the whole batch");
+    assert!(error.contains("cancel command id is required"));
+    assert!(execution.mutations.lock().unwrap().is_empty());
+}
+
 // Parity: go:452dea11:internal/app/apiserver/servercore/runtime_trading_test.go:181 TestStrategyRuntimeLiveSizesEntryQuantityPctFromEquity
 // Parity: go:452dea11:internal/app/apiserver/servercore/runtime_trading_test.go:334 TestStrategyRuntimeLiveDefaultsCloseToFullPosition
 #[test]
