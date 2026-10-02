@@ -785,6 +785,7 @@ fn requirement_for_call(
             let mut parts = source_period_parts(callee, arguments, line, 2)?;
             let offset = argument_text(arguments.get(2))
                 .ok_or_else(|| invalid(line, "ta.linreg offset must be a non-negative integer"))?;
+            ensure_nonnegative_integer(line, callee, &offset, "offset")?;
             parts.push(offset);
             key_parts.extend(parts);
         }
@@ -1234,6 +1235,12 @@ fn security_inner_binding(
                     invalid(line, "ta.linreg offset must be a non-negative integer")
                 })?,
             );
+            ensure_nonnegative_integer(
+                line,
+                callee,
+                parts.last().expect("offset was pushed"),
+                "offset",
+            )?;
             parts
         }
         "obv" => vec![argument_text(arguments.first()).unwrap_or_else(|| "close".to_owned())],
@@ -1419,6 +1426,22 @@ fn ensure_boolean_literal(
     Err(invalid(
         line,
         format!("{callee} {label} must be true or false"),
+    ))
+}
+
+fn ensure_nonnegative_integer(
+    line: usize,
+    callee: &str,
+    value: &str,
+    label: &str,
+) -> Result<(), PlannerError> {
+    let valid = value.trim().parse::<i64>().is_ok_and(|number| number >= 0);
+    if valid {
+        return Ok(());
+    }
+    Err(invalid(
+        line,
+        format!("{callee} {label} must be a non-negative integer"),
     ))
 }
 

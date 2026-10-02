@@ -103,6 +103,7 @@ fn advanced_indicator_parameters_fail_closed_before_requirement_keys() {
         "value = ta.alma(close, 20.5, 0.85, 6)",
         "value = ta.tsi(close, 0, 25)",
         "value = ta.percentile_nearest_rank(close, -1, 50)",
+        "value = ta.linreg(close, 20, -1)",
     ] {
         let compilation = compile(&format!(
             "//@version=6\nstrategy(\"Invalid indicator parameters\")\n{body}"
