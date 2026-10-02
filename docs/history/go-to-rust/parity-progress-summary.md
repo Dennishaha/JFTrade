@@ -1038,3 +1038,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - 当前批次：Assistant service 审计分页、内置 agent 字段保护、provider/chat/skill wrapper、session context compaction、runtime unavailable 分支及 optimization metrics 共 6 条映射完成复核。Rust 路由过滤/分页夹取、agent merge revalidation/protected status、技能错误码、会话自动压缩、runtime fail-closed 与持久指标聚合已记录为覆盖；服务 wrapper 合并断言、字段白名单、逐入口 unavailable 文案及优化生命周期合并统计缺口保持 partial。
 
 - 当前批次：Assistant service business 的 PreviewSession、终态聊天投影恢复、CRUD/snapshot 与 run/approval wrapper 4 条映射完成复核。Rust session filter/pagination、完成运行聊天信封重放、snapshot fail-closed、tool catalog、run/approval filters 与幂等结清作为覆盖；PreviewSession 标题截断、运行中 nil 与完整 timeline 恢复、合并 snapshot 字段及服务 wrapper 编排缺口保持 partial。
+
+- 当前批次：Assistant service contract/lifecycle 的 catalog audit、session/run read、runtime unavailable、shutdown、settings timeout、approval-wait duration、PreviewSession fallback 与 terminal chat recovery 共 8 条完成复核。Rust mutation/audit/delete、dynamic routes、fail-closed ports、shutdown lease ordering、settings round-trip、lifecycle audit、session paging 与 nonterminal replay 证据已拆分；逐入口 unavailable、合并 CRUD/read boundary、幂等 Close、等待时长边界、预览回退和 blank run-id 恢复缺口保持 partial。
