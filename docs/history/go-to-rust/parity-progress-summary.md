@@ -1320,3 +1320,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - 当前批次：Pine spec/MCP payload 的 7 条映射完成逐条复核。Rust spec examples、validation payload field/default contract、support matrix、broker boundary diagnostics 与 skill resource projection owner 已记录为 reviewed；Go generated support snapshot freshness 校验在 Rust 静态冻结规范与仓库门禁中无同形生成物，保留为 boundary residual；逐示例 analyze/plan 断言仍按现有管线证据记录。
 
 - 当前批次：Pine worker process launcher 的 7 条映射完成逐条复核。Rust bundle checksum/availability、readiness shutdown/join、loopback startup validation 与临时资产生命周期 owner 已记录为 reviewed；Go Node 参数/cwd 逐参数矩阵、构造期错误位置、NODE_OPTIONS/old-space 环境规则、nil receiver 与启动失败临时文件清理无 Rust 同形语义，保留为 partial/boundary residual。
+
+- 当前批次：Pine worker runtime boundaries 的 7 条映射完成逐条复核。Rust bounded command diagnostics、worker settings/candle validation、endpoint/token fail-closed、RPC failure classification、pool capacity/open rollback 与 gRPC probe identity owner 已记录为 reviewed；Go latency/throughput performance gate 明确无 Rust 实现，默认 timeout、job-id/nil transport、逐状态码与诊断字符串格式仍保留为 partial residual。
