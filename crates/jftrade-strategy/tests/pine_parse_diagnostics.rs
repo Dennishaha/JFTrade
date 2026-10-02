@@ -47,3 +47,38 @@ fn blank_lines_before_the_script_keep_later_diagnostic_lines() {
         );
     }
 }
+
+/// Parity: go:452dea11:pkg/strategy/pine/parser_and_lowering_recovery_test.go:119 TestNestedLoopStateAndImportRecoveryRemainStable
+#[test]
+fn unsupported_while_and_import_statements_fail_with_stable_diagnostics() {
+    let while_script = r#"//@version=6
+strategy("While", overlay=true)
+while close > open
+    log.info("unsupported")"#;
+    let while_compilation = compile(while_script);
+    assert!(
+        !while_compilation.ok,
+        "while loops are outside the executable subset"
+    );
+    let while_diagnostic = while_compilation
+        .diagnostics
+        .first()
+        .expect("while diagnostic");
+    assert_eq!(while_diagnostic.code, "PINE_INDENT_UNEXPECTED");
+    assert_eq!(while_diagnostic.line, 4);
+
+    let import_script = r#"//@version=6
+strategy("Import", overlay=true)
+import TradingView/ta/7"#;
+    let import_compilation = compile(import_script);
+    assert!(
+        !import_compilation.ok,
+        "imports are not executable worker statements"
+    );
+    let import_diagnostic = import_compilation
+        .diagnostics
+        .first()
+        .expect("import diagnostic");
+    assert_eq!(import_diagnostic.code, "PINE_DECLARATION_UNSUPPORTED");
+    assert_eq!(import_diagnostic.line, 3);
+}
