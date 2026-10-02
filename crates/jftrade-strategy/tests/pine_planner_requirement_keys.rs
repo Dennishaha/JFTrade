@@ -110,6 +110,8 @@ fn advanced_indicator_parameters_fail_closed_before_requirement_keys() {
         "value = ta.bb(close, 20)",
         "value = ta.stoch(volume, high, low, 14)",
         "value = ta.swma(close, \"quarter\")",
+        "value = ta.cum(spread)",
+        "value = ta.highest(close - open, 20)",
     ] {
         let compilation = compile(&format!(
             "//@version=6\nstrategy(\"Invalid indicator parameters\")\n{body}"
