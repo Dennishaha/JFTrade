@@ -912,3 +912,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - assistant engine recovery/approval/schema/skill 第二批 8 条 partial 已逐项读取 Go 原始分支和 Rust owner；取消后继、父子续跑、CompleteChatRun 三态、confirmation 去重、schema map helper、技能目录替换/文档保留等未覆盖分支已保留为明确 residual，coverage 改为 reviewed。
 
 - assistant store/normalization 第三批 8 条 partial 已逐项复核 session context、store open/delete、provider secret/default、run/approval/memory、低层 JSON、workflow CRUD/log、composer 与 entity normalization；Rust durable invariants 已确认，目录权限、helper fault injection、JSON 错误形态等差异明确登记，coverage 改为 reviewed。
+
+- assistant tool/projection/approval 第四批 8 条 partial 已逐项复核：models/tool helper 边界、projection merge、approval normalization、timeline filtering、审批持久化故障、reconcile 父子生命周期与恢复资格均已绑定 Rust owner；缺少同形 helper、failure injection 或父子 reconcile seam 的残余已明确登记，coverage 改为 reviewed。
