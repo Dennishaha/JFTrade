@@ -964,3 +964,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - assistant session stale/skill 第二十八批 8 条 partial/boundary 已逐项复核 unexpected session type、synthetic session、handoff raw session、超大/小工具响应、stale append、wrapped session accessor 和技能目录排序/删除。Rust session store/atomic projection/pending input/context compaction/skill catalog owner 已核对；stale 句柄重试、合成会话创建、raw handoff、阈值裁剪、包装 State 访问器和 builtin-first/ID 规范化差异均登记为 reviewed residual。
 
 - assistant assembly strategy/runtime 第二十九批 8 条 partial 已逐项复核优化任务注册/候选持久化、策略输入与摘要、workflow audit/adapter、系统/任务工具、负例与 fallback、工具可用性/结果视图，以及 provider 默认冻结和并发隔离。Rust optimize/tool/CRUD/trade normalization owner 已核对；注册表查找、完整文案矩阵、audit handler、fallback envelope、默认 provider 无显式覆盖和并发请求隔离差异均登记为 reviewed residual。
+
+- assistant assembly summary/adapter 第三十批 8 条 partial/boundary 已逐项复核策略摘要脱敏与实例计数、工具失败业务契约、领域输入校验、provider/runtime 端口、visual model 归一化、backtest 状态投影、非法 instrument 和 strategy instance 生命周期。Rust catalog/tool/read/dispatch owner 已核对；分散 failure family、adapter 聚合对象、Vue 归属 visual model、完整状态字段矩阵及逐方法空 id 映射差异均登记为 reviewed residual。
