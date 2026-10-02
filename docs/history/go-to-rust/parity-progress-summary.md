@@ -928,3 +928,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - assistant memory/diagnostics/handoff/input recovery 第十批 8 条 partial 已逐项复核 workspace memory scope、agent ID helper、resumed failure diagnostics、child construction、handoff replacement/revision、session notices 与 input continuation failures；Rust owner 已核对，缺少 appName helper、supersededBy、缺会话/过滤 payload、逐段故障注入等 residual 已明确登记，coverage 改为 reviewed。
 
 - assistant input/lifecycle/normalization 第十一批 7 条 partial 已逐项复核 crash recovery lease、input resolve/requeue/errors、workflow blocking、stale reconciliation、lifecycle store failure 与 response normalization；Rust owner 已核对，关闭库/缺表注入、自引用修复、父运行 plan 与单一 normalize helper 等 residual 明确登记，coverage 改为 reviewed。
+
+- assistant normalization/persistence/artifact 第十二批 8 条 partial 已逐项复核 workflow/session normalize、approval partial-index query、composer、claims 跨连接串行化、artifact 版本读写/并发分配/边界与路径派生；Rust schema/transaction/artifact owner 已核对，EXPLAIN、逐版本读回、并发分配和 session-service 实例路径等 residual 已明确登记，coverage 改为 reviewed。
