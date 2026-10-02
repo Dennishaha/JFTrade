@@ -1308,3 +1308,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - 当前批次：settings-file persistence contracts 的 9 条映射完成逐条复核。Rust settings-file 文档缺失/空/损坏区分、MCP 写入冻结契约、appearance/notification/Pine worker/calendar 归一化、managed account identity 与空 ID 拒绝 owner 已记录为 reviewed；Go 路径暴露、逐通道 notification default、显式 false 专项与完整 legacy 字段逐项矩阵仍保留为 partial residual。
 
 - 当前批次：SQLite schema boundaries 的 8 条映射完成逐条复核。Rust downgrade strict rejection、损坏/截断库 fail-closed、不覆盖原文件、迁移原子回滚、metadata error precedence 与修复后恢复 owner 已记录为 reviewed；Go recovery context 文案、空 statement、托管写事务显式判定、权限/只读文件系统与 deferred constraint 注入矩阵仍保留为 partial residual。
+
+- 当前批次：marketdata lifecycle boundaries 的 7 条映射完成逐条复核。Rust cache freshness/generation、demand dedup/release、snapshot poll fail-closed、router recorder、retry/900ms deadline、shutdown lease ordering 与 Futu catalog/helper resolver owner 已记录为 reviewed；Go Latest/LatestMany 空集合、Clear 保留样本、TTL=0、inactive cleanup retry、Close 清理 deadline、detached stream/nil source 与 provider fallback 分支继续保留为 partial residual，其中 subscription cleanup deadline 是明确未同形覆盖的缺口。
