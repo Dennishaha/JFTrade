@@ -206,12 +206,20 @@ fn unsupported_moving_average_call_is_rejected_before_planning() {
 /// Parity: go:452dea11:pkg/strategy/ir/planner_test.go:310 TestPlanRequirementsCollectsExpressionIndicatorsAcrossStatementShapes
 #[test]
 fn advanced_band_cycle_and_sar_indicators_keep_requirement_keys() {
-    let indicators = keys(
-        "bbw = ta.bbw(close, 20, 2)\ncog = ta.cog(close, 10)\nsar = ta.sar(0.02, 0.02, 0.2)",
+    let indicators =
+        keys("bbw = ta.bbw(close, 20, 2)\ncog = ta.cog(close, 10)\nsar = ta.sar(0.02, 0.02, 0.2)");
+    assert!(
+        indicators.contains(&"bbw:close:20:2".to_owned()),
+        "{indicators:?}"
     );
-    assert!(indicators.contains(&"bbw:close:20:2".to_owned()), "{indicators:?}");
-    assert!(indicators.contains(&"cog:close:10".to_owned()), "{indicators:?}");
-    assert!(indicators.contains(&"sar:0.02:0.02:0.2".to_owned()), "{indicators:?}");
+    assert!(
+        indicators.contains(&"cog:close:10".to_owned()),
+        "{indicators:?}"
+    );
+    assert!(
+        indicators.contains(&"sar:0.02:0.02:0.2".to_owned()),
+        "{indicators:?}"
+    );
 }
 
 /// Parity: go:452dea11:pkg/strategy/pine/compiler_rejection_contracts_test.go:9

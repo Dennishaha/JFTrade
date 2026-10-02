@@ -629,10 +629,14 @@ fn requirement_for_call(
         "ta.sar" => {
             kind = "sar";
             if arguments.len() != 3 {
-                return Err(invalid(line, format!("{callee} requires start, increment, and maximum")));
+                return Err(invalid(
+                    line,
+                    format!("{callee} requires start, increment, and maximum"),
+                ));
             }
             for argument in arguments {
-                key_parts.push(argument_text(Some(argument)).unwrap_or_else(|| argument.to_string()));
+                key_parts
+                    .push(argument_text(Some(argument)).unwrap_or_else(|| argument.to_string()));
             }
         }
         "ta.dmi" | "ta.supertrend" => {
