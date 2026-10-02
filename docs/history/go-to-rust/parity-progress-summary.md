@@ -1156,3 +1156,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - 当前批次：Pine collection parse/compile 的 17 条映射完成逐条复核。每条 Go V20–V26 collection/UDT/method/tuple/dynamic-loop/request.security 场景均核对 Rust 同脚本拒绝诊断与 compiler owner；语言版本闸门和未实现特性族的差异、升级路径及缺少 typed projection 逐项保留为明确 residual，未伪造 exact。
 
 - 当前批次：Pine parse/compile 剩余 13 条映射完成逐条复核。Rust helper diagnostics、strategy quantity/notification、exit/stop/cancel/close metadata、UDF/static-for、unsupported case 与 switch 多语句边界 owner 证据已收口；Go command 字段/数量模式、when 专字段、profit/loss ticks、逐形态 advanced-order 错误、UDF/switch 完整语言族差异逐项记录。
+
+- 当前批次：Backtest session-filter store/query 的 11 条映射完成逐条复核。Rust scope/table 隔离、extended/regular 防污染、确定性分页、自定义周期、存储错误恢复与 schema 校验证据已收口；Go wrapper 委托计数、streamer/channel fallback、custom extended-hours range、nil 行过滤、游标回退/裁剪及 helper 层边界在 Rust 无同形 API，逐项记录。
