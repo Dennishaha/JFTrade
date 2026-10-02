@@ -1074,3 +1074,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - 当前批次：Settings routes 的 legacy response、MCP token、execution/calendar、UI/onboarding/security/ADK、data-management 与 notification test 共 9 条完成复核。Rust broker/delete shapes、removed-route registration、one-time hashed token、settings normalization/reload、typed cleanup preview 与 notification delivery 证据已拆分；移除路由 HTTP 404、旧 token 失效、注入 service 调用计数、pine-worker round-trip、组合矩阵、typed callbacks 与 unavailable error 缺口逐项记录。
 
 - 当前批次：Settings legacy yfinance route removal 与 URI boundary 2 条映射完成复核。Rust unknown-route JSON 404 与 typed path matching 证据已记录；Go 专门 legacy-prefix 四方法 fixture 及缺 URI 400 handler 形状在 Rust router ownership 下保持 boundary。
+
+- 当前批次：Origin、prediction combo 与 embedded provider research/news/company/calendar 的 7 条映射完成复核。Rust production origin/CORS、prediction defaults/errors、corporate/news、research capability/lifecycle、ranking/industry/company/calendar wire owner 证据已列为覆盖；Go helper fallback、合并错误路由、逐操作参数/字段矩阵及 news/actions Retry-After 路由驱动缺口逐项记录。
