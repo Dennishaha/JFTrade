@@ -1193,35 +1193,39 @@ fn cancel_boundaries_match_live_executor_contract() {
     missing_cancel.id = "missing".to_owned();
     missing_cancel.has_quantity = false;
     missing_cancel.has_limit_price = false;
-    assert!(!execute_strategy_intents(
-        cancel_boundary_context(
-            &execution,
-            &execution_store,
-            &provider,
-            &store,
-            "inst-cancel-boundaries",
-            &binding,
-        ),
-        &[missing_cancel],
-    )
-    .expect("missing tracked cancel is idempotent"));
+    assert!(
+        !execute_strategy_intents(
+            cancel_boundary_context(
+                &execution,
+                &execution_store,
+                &provider,
+                &store,
+                "inst-cancel-boundaries",
+                &binding,
+            ),
+            &[missing_cancel],
+        )
+        .expect("missing tracked cancel is idempotent")
+    );
 
     let mut empty_cancel_all = test_intent(0.0, 0.0);
     empty_cancel_all.kind = "cancel_all".to_owned();
     empty_cancel_all.has_quantity = false;
     empty_cancel_all.has_limit_price = false;
-    assert!(!execute_strategy_intents(
-        cancel_boundary_context(
-            &execution,
-            &execution_store,
-            &provider,
-            &store,
-            "inst-cancel-empty",
-            &binding,
-        ),
-        &[empty_cancel_all],
-    )
-    .expect("empty cancel_all is idempotent"));
+    assert!(
+        !execute_strategy_intents(
+            cancel_boundary_context(
+                &execution,
+                &execution_store,
+                &provider,
+                &store,
+                "inst-cancel-empty",
+                &binding,
+            ),
+            &[empty_cancel_all],
+        )
+        .expect("empty cancel_all is idempotent")
+    );
 
     let mut cancel_all = test_intent(0.0, 0.0);
     cancel_all.kind = "cancel_all".to_owned();
@@ -1241,7 +1245,11 @@ fn cancel_boundaries_match_live_executor_contract() {
     .expect_err("cancel_all must surface a failed tracked cancellation");
     assert!(error.contains("cancel_all partially failed"));
     let mutations = execution.mutations.lock().unwrap();
-    assert_eq!(mutations.len(), 2, "cancel_all attempts every tracked order");
+    assert_eq!(
+        mutations.len(),
+        2,
+        "cancel_all attempts every tracked order"
+    );
     drop(mutations);
     assert_eq!(
         execution_store
