@@ -1384,3 +1384,9 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - 当前批次：Pine parse/request security 的 5 条映射完成逐条复核。Rust request.security moving-average/source/lookback keys、common TA window defaults/bollinger、V14 fixture requirement keys、V14/V16 compile whitelist owner 已记录为 reviewed；Go 完整 typed expression/condition/AnalyzeScript 字段与 binding.Args 观测面仍未完全投影，继续保留为 partial residual。
 
 - 当前批次：Pine worker proto mapping 的 5 条映射完成逐条复核。Rust binary request/order-intent mapping、encoded message-limit boundaries、Result/Option absence/error classification、health probe authentication 与 ownership no-alias owner 已记录为 reviewed；Go 逐字段 proto golden vector、nil response empty-result、capabilities 全字段复制与 include_plots/图表/诊断完整 round-trip 仍保留为 partial/boundary residual。
+
+### 本批：AKShare 新闻/筛选与 settings file 映射复核
+
+- 复核并标记 18 条映射为 `assertionCoverage.source = reviewed`，覆盖 `client_news_actions_test.go`、`provider_screen_test.go` 与 `internal/store/settingsfile/store_test.go`。
+- 逐项确认 Rust production owner 与测试函数存在；保留 settings file 引导写入、SecuritySettings、scope ID、enabled source 列表等未逐字段覆盖 residual。
+- 清理 1 条陈旧的 targeted engine receipt；未改变真实行为差异或 partial 结论。
