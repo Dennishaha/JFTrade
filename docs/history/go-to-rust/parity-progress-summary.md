@@ -984,3 +984,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - assistant skill archive/http/schema 第38批 8 条 partial 已逐项复核 archive/bundle file helpers、filesystem/archive 分支、HTTP/source 分支、确定性安装错误、额外安装边界及 market index/news/corporate-actions schema。Rust archive/http/MCP descriptor/catalog owner 已核对；bundle 内容匹配、frontmatter/source matrix、URL 错误/体积、写盘失败和 skill-document 文本契约差异均登记为 reviewed residual。
 
 - assistant schema/SQLite 第39批 8 条 partial/boundary 已逐项复核 market skill 文档、workflow/schema 严格性、tool metadata、backtest/strategy nested schema，以及 GORM SQLite dialector 的 migration、类型、clause、版本比较边界。Rust MCP fixture/schema、ADK store、migration/query-plan owner 已核对；skill 文本归属和 GORM dialect 语义差异均登记为 reviewed residual。
+
+- assistant schema/store approval/audit 第40批 8 条 partial 已逐项复核业务关键 tool schema、registry alias/mode/numeric helper、审批幂等、运行+审批拒绝、session context 删除、兄弟审批拒绝、完成运行重试和 audit SQL 分页。Rust MCP schema/approval CAS/session lifecycle/audit read owner 已核对；完整 schema required 集、helper 聚合、字段级原始记录、单事务组合、零工具执行及 SQL count/order 细节均登记为 reviewed residual。
