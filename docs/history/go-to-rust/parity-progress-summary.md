@@ -1254,3 +1254,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - 当前批次：backtest storage codec/query failure 的 4 条映射完成逐条复核。Rust Decimal 文本存取、冻结金标准、fail-closed coverage/source errors 与 empty scoped tables owner 已收口为 reviewed；Go 的定点字符串往返/上游兜底解析、多标的/通道查询错误传播及前向/后向双向 API 逐项保留为 boundary/partial residual。
 
 - 当前批次：backtest storage business aggregation、connection model 与 failure boundaries 的 15 条映射完成逐条复核。Rust transactional upsert/query pagination、coverage fail-closed、calendar aggregation、extended-session source selection、WriterLease/single-connection、schema recovery 与 typed ownership owner 已收口为 reviewed；Go 的 upsert 专项、open-window Verify、前后向 API、错误文案、无标签行、8 连接池/WAL 并发、queued write、closed-handle 错误矩阵、legacy 列形状、session scope fallback 与 stream 空输入逐项保留为 partial/boundary residual。
+
+- 当前批次：backtest storage query/session aggregation 与 stream sorting 的 9 条映射完成逐条复核。Rust scoped reads、1m→5m/日/周聚合、extended session scope、单标的分页确定性、损坏行 fail-closed 与 schema/作用域 helpers owner 已收口为 reviewed；Go 的前向/后向/stream/channel/EnsureCoverage 多入口、列清单/数值往返、港股跨时段、混合周期多标的排序、通道错误可见性与 symbol 最终排序键逐项保留为 partial/boundary residual。
