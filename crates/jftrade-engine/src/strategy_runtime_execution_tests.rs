@@ -175,6 +175,28 @@ fn test_intent(qty: f64, limit_price: f64) -> PineOrderIntent {
     }
 }
 
+// Parity: go:11a0f579:internal/strategy/pine_live_executor_test.go:601 TestLiveCommandExecutorGeneratedOrderIDStopsAndTrackingFallbacks
+#[test]
+fn strategy_client_order_id_preserves_named_and_index_fallbacks() {
+    let mut named = test_intent(1.0, 0.0);
+    named.kind = "entry".to_owned();
+    named.id = "Long".to_owned();
+    named.bar_index = 43;
+    named.time = 0;
+    assert_eq!(
+        strategy_client_order_id("inst", "US.AAPL", &named, 0),
+        "strategy-inst-US.AAPL-Long-entry-43"
+    );
+
+    let mut generated = named;
+    generated.id.clear();
+    generated.bar_index = 7;
+    assert_eq!(
+        strategy_client_order_id("inst", "US.AAPL", &generated, 2),
+        "strategy-inst-US.AAPL-intent-2-entry-7"
+    );
+}
+
 fn cancel_boundary_context<'a>(
     execution: &'a dyn ExecutionWritePort,
     execution_store: &'a ExecutionOrderStore,
