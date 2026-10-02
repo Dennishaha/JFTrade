@@ -626,6 +626,7 @@ mod execution_model_tests {
 
     // Parity: go:452dea11:internal/app/apiserver/servercore/server_backtest_test.go:19 TestBacktestRouteAcceptsExplicitMarketAndCode
     #[test]
+    // Parity: internal/strategy/liveruntime/runtime_boundaries_test.go:258 TestStrategyRuntimeSymbolMarketAndStartErrorBoundaries
     fn start_request_accepts_explicit_market_and_code_without_symbol() {
         // The reference route test posts definitionId + market + code and
         // expects the run to keep `US.AAPL`; the parser must accept that shape.

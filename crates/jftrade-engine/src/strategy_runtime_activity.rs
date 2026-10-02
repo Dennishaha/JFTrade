@@ -785,6 +785,7 @@ mod tests {
     }
 
     #[test]
+    // Parity: internal/strategy/liveruntime/runtime_boundaries_test.go:258 TestStrategyRuntimeSymbolMarketAndStartErrorBoundaries
     fn split_strategy_symbol_matches_market_and_code_boundaries() {
         let cases = [
             (" US . AAPL ", "HK", ("US", "AAPL")),
