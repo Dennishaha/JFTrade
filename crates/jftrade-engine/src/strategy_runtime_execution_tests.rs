@@ -320,7 +320,14 @@ fn test_execute_strategy_intents_success_calls_execution_and_audits() {
     let res = execute_strategy_intents(ctx, &intents);
     assert!(res.is_ok());
 
-    assert_eq!(execution.mutations.lock().unwrap().len(), 1);
+    let mutations = execution.mutations.lock().unwrap();
+    assert_eq!(mutations.len(), 1);
+    assert_eq!(
+        mutations[0].payload["clientOrderId"],
+        "strategy-inst-ok-US.AAPL-entry-1-order-1700000000"
+    );
+    assert_eq!(mutations[0].payload["orderType"], "LIMIT");
+    drop(mutations);
 
     let audit = store.list_audit_events("inst-ok").expect("audit events");
     assert!(audit.iter().any(|ev| ev.kind == "ORDER_SUBMITTED"));
