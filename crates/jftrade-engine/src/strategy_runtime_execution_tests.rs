@@ -175,6 +175,32 @@ fn test_intent(qty: f64, limit_price: f64) -> PineOrderIntent {
     }
 }
 
+fn cancel_boundary_context<'a>(
+    execution: &'a dyn ExecutionWritePort,
+    execution_store: &'a ExecutionOrderStore,
+    provider: &'a ActiveProviderState,
+    store: &'a StrategyRuntimeStore,
+    instance_id: &'a str,
+    binding: &'a Value,
+) -> StrategyExecutionContext<'a> {
+    StrategyExecutionContext {
+        execution: Some(execution),
+        execution_store: Some(execution_store),
+        provider,
+        store,
+        instance_id,
+        market: "US",
+        symbol: "US.AAPL",
+        binding,
+        expected_risk_revision: None,
+        fallback_price: None,
+        sellable_quantity: None,
+        current_position: None,
+        available_cash: None,
+        virtual_account: None,
+    }
+}
+
 // Parity: go:452dea11:internal/app/apiserver/servercore/runtime_test.go:16 TestStrategyRuntimeNotifyOnlyEmitsSignalNotification
 #[test]
 fn test_notify_strategy_intents_delivers_and_records_audit() {
@@ -1097,6 +1123,134 @@ fn test_execute_strategy_intents_cancel_dispatches_order_cancel() {
         .list_audit_events("inst-cancel")
         .expect("audit events");
     assert!(!audit.iter().any(|ev| ev.kind == "ORDER_CANCELLED"));
+}
+
+// Parity: go:452dea11:internal/strategy/pine_live_executor_test.go:648 TestLiveCommandExecutorCancelBoundaries
+#[test]
+fn cancel_boundaries_match_live_executor_contract() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let strategy_path = dir.path().join("strategy.db");
+    seed_strategy_test_db(&strategy_path);
+    let definition_store = Arc::new(
+        StrategyDefinitionStore::open_existing(
+            &strategy_path,
+            STRATEGY_DEFINITION_TEST_CUTOVER_PROFILE,
+        )
+        .expect("open definition store"),
+    );
+    let store = StrategyRuntimeStore::from_definition_store(&definition_store);
+    store
+        .seed_instance("inst-cancel-boundaries", "RUNNING", "2026-08-30T00:00:00Z")
+        .expect("seed boundary instance");
+    store
+        .seed_instance("inst-cancel-empty", "RUNNING", "2026-08-30T00:00:00Z")
+        .expect("seed empty instance");
+
+    let execution_path = dir.path().join("execution.db");
+    seed_execution_test_db(&execution_path);
+    let execution_store =
+        ExecutionOrderStore::open_existing(&execution_path, EXECUTION_ORDERS_TEST_CUTOVER_PROFILE)
+            .expect("open execution store");
+    for order_id in ["ord-boundary-ok", "ord-boundary-failed"] {
+        execution_store
+            .save_order(
+                active_strategy_order("inst-cancel-boundaries", order_id),
+                "2026-08-30T00:00:00Z",
+            )
+            .expect("save active order");
+    }
+
+    let provider = ActiveProviderState::default();
+    let binding = json!({
+        "brokerId": "futu",
+        "accountId": "12345",
+        "tradingEnvironment": "SIMULATE"
+    });
+    let execution = FailingCancelExecutionPort::for_order("ord-boundary-failed");
+    let mut blank_cancel = test_intent(0.0, 0.0);
+    blank_cancel.kind = "cancel".to_owned();
+    blank_cancel.id.clear();
+    blank_cancel.from_entry.clear();
+    blank_cancel.has_quantity = false;
+    blank_cancel.has_limit_price = false;
+    let error = execute_strategy_intents(
+        cancel_boundary_context(
+            &execution,
+            &execution_store,
+            &provider,
+            &store,
+            "inst-cancel-boundaries",
+            &binding,
+        ),
+        &[blank_cancel],
+    )
+    .expect_err("blank cancel identity must fail before store lookup");
+    assert!(error.contains("cancel command id is required"));
+    assert!(execution.mutations.lock().unwrap().is_empty());
+
+    let mut missing_cancel = test_intent(0.0, 0.0);
+    missing_cancel.kind = "cancel".to_owned();
+    missing_cancel.id = "missing".to_owned();
+    missing_cancel.has_quantity = false;
+    missing_cancel.has_limit_price = false;
+    assert!(!execute_strategy_intents(
+        cancel_boundary_context(
+            &execution,
+            &execution_store,
+            &provider,
+            &store,
+            "inst-cancel-boundaries",
+            &binding,
+        ),
+        &[missing_cancel],
+    )
+    .expect("missing tracked cancel is idempotent"));
+
+    let mut empty_cancel_all = test_intent(0.0, 0.0);
+    empty_cancel_all.kind = "cancel_all".to_owned();
+    empty_cancel_all.has_quantity = false;
+    empty_cancel_all.has_limit_price = false;
+    assert!(!execute_strategy_intents(
+        cancel_boundary_context(
+            &execution,
+            &execution_store,
+            &provider,
+            &store,
+            "inst-cancel-empty",
+            &binding,
+        ),
+        &[empty_cancel_all],
+    )
+    .expect("empty cancel_all is idempotent"));
+
+    let mut cancel_all = test_intent(0.0, 0.0);
+    cancel_all.kind = "cancel_all".to_owned();
+    cancel_all.has_quantity = false;
+    cancel_all.has_limit_price = false;
+    let error = execute_strategy_intents(
+        cancel_boundary_context(
+            &execution,
+            &execution_store,
+            &provider,
+            &store,
+            "inst-cancel-boundaries",
+            &binding,
+        ),
+        &[cancel_all],
+    )
+    .expect_err("cancel_all must surface a failed tracked cancellation");
+    assert!(error.contains("cancel_all partially failed"));
+    let mutations = execution.mutations.lock().unwrap();
+    assert_eq!(mutations.len(), 2, "cancel_all attempts every tracked order");
+    drop(mutations);
+    assert_eq!(
+        execution_store
+            .list_active_orders_for_instance("inst-cancel-boundaries")
+            .expect("list active orders")
+            .len(),
+        2,
+        "failed cancel_all retains active tracking"
+    );
 }
 
 // Parity: go:452dea11:internal/strategy/liveruntime/order_risk_business_test.go:135 TestLiveCancelOnlyRemovesSuccessfullyCancelledTrackedOrders
