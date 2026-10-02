@@ -914,3 +914,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - assistant store/normalization 第三批 8 条 partial 已逐项复核 session context、store open/delete、provider secret/default、run/approval/memory、低层 JSON、workflow CRUD/log、composer 与 entity normalization；Rust durable invariants 已确认，目录权限、helper fault injection、JSON 错误形态等差异明确登记，coverage 改为 reviewed。
 
 - assistant tool/projection/approval 第四批 8 条 partial 已逐项复核：models/tool helper 边界、projection merge、approval normalization、timeline filtering、审批持久化故障、reconcile 父子生命周期与恢复资格均已绑定 Rust owner；缺少同形 helper、failure injection 或父子 reconcile seam 的残余已明确登记，coverage 改为 reviewed。
+
+- assistant approval/idempotency/canvas 第五批 8 条 partial 已逐项复核：sibling cancellation、busy retry、approval stage/corruption、stale claim、fresh timeout、canvas provider/model override 与 chat fingerprint 均已绑定 Rust owner；取消循环、字段级损坏、claimed 列、节点 override 等残余保持明确，coverage 改为 reviewed。
