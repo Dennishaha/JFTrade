@@ -91,6 +91,15 @@ pub(super) fn execute_strategy_intents(
     let mut submitted_count = 0_i64;
     for (index, intent) in intents.iter().enumerate() {
         let kind = intent.kind.trim().to_ascii_lowercase();
+        if !matches!(
+            kind.as_str(),
+            "order" | "entry" | "close" | "close_all" | "exit" | "cancel" | "cancel_all"
+        ) {
+            return Err(format!(
+                "unsupported strategy order intent kind at index {index}: {}",
+                intent.kind
+            ));
+        }
         if kind == "cancel" || kind == "cancel_all" {
             if let Some(exec) = execution {
                 let cancelled = dispatch_cancel_intent(
