@@ -1409,3 +1409,4 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - 重新运行最终工作树 workspace nextest：3657/3657 passed、2 skipped；receipt：`workspace-nextest-2026-10-03-final.json`，SHA-256 `4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85`。
 - 修复 Pine planner 对 `request.security` 复合 TA 表达式的 requirement lowering：保留 source、RSI、MACD、ATR、Bollinger、Supertrend 的 timeframe keys，同时保持简单 MTF indicator 与既有 warmup/whitelist 语义；相关 targeted tests 与 Rust 完整门禁通过。
 - 清理一个既有 clippy 阻塞（calendar 测试中的布尔 `assert_eq!`），未改变业务语义。
+- 收口最后一个 helper-based warning：calendar/macro parity wrapper 现在对委托 helper 的 panic 结果做显式断言，mapping 保持唯一 wrapper owner；定向 nextest 1/1 passed，receipt `akshare-calendar-endpoints-2026-10-03.json`（SHA-256 `fc86bc176d61d68c5eb156f9522e77c8736a940efb329277f8775f44b65391fd`）。

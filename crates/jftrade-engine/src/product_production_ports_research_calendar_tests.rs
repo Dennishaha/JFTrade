@@ -727,7 +727,11 @@ fn calendar_operations_map_to_provider_reads_on_the_wire() {
 // Parity: go:452dea11:internal/integration/akshare/provider_calendar_macro_test.go:12 TestClientCalendarMacroEndpointsEncodePathsAndQuery
 #[test]
 fn akshare_calendar_client_endpoints_encode_paths_and_queries() {
-    calendar_operations_map_to_provider_reads_on_the_wire();
+    let result = std::panic::catch_unwind(calendar_operations_map_to_provider_reads_on_the_wire);
+    assert!(
+        result.is_ok(),
+        "calendar endpoint helper must preserve every path and query assertion"
+    );
 }
 
 /// Parity: go:452dea11:internal/productfeatures/provider_facade_calendar_test.go:147
