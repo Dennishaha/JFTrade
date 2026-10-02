@@ -1376,3 +1376,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - 当前批次：strategy live runtime boundaries 的 5 条映射完成逐条复核。Rust explicit dependency/port architecture、runtime write validation、candle lifecycle/idempotence、account projection 与 audit/error paths owner 已记录为 reviewed；Go reflection-based structure assertions、start reservation duplicate/release fencing、trade bucket merge/roll semantics、display formatting 优先级与 refresh failure error reporting 仍保留为 P1/P2 residual。
 
 - 当前批次：indicator binding parse semantics 的 5 条映射完成逐条复核。Rust Pine lexer/planner nested-call handling、DSL time-unit table、moving-average key/source semantics 与 shared OHLCV whitelist owner 已记录为 reviewed；Go 独立括号助手、可选参数过多/非法 source 错误文案、非法 source 静默丢弃差异及已退役 alias normalization helper 继续保留为 partial/boundary residual。
+
+- 当前批次：Pine planner internal boundaries 的 5 条映射完成逐条复核。Rust indicator binding keys、advanced trailing-argument rejection、compound requirement deduplication与 source/time-unit semantics owner 已记录为 reviewed；Go 缺失 indicator families、非法周期/source 逐类拒绝、Args 导出契约以及 protect/divergence 键族在 Rust 后端无同形实现，保留为明确 partial/boundary residual。
