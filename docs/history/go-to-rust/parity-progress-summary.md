@@ -908,3 +908,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - runtime handle/server lifecycle 的 2 条 P1 partial 已逐项读取 Go 并核对 Rust owner：并发 close、逆序资源、错误聚合、稳定重复 close 与 backtest-before-marketdata 顺序已有对应 Rust shutdown 证据；generic Resources registry、动态命名和 per-caller aggregation seam 保留为 reviewed residual。
 
 - assistant assembly 首批 8 条 partial（strategy validation/visual model、capability tools/handlers、dependency closures、catalog/operation schemas、runtime strategy tools）已逐项读取 Go registry/tool assertions 与 Rust production/MCP owner；模型写工具缺失、visualModel 校验缺口、ToolDeps callback 与 fail-closed 语义等 residual 已保留并改为 reviewed，未升级为 exact。
+
+- assistant engine recovery/approval/schema/skill 第二批 8 条 partial 已逐项读取 Go 原始分支和 Rust owner；取消后继、父子续跑、CompleteChatRun 三态、confirmation 去重、schema map helper、技能目录替换/文档保留等未覆盖分支已保留为明确 residual，coverage 改为 reviewed。
