@@ -1170,3 +1170,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - 当前批次：bbgo RBTree 的 10 条映射完成逐条复核。Rust 以 BTreeMap/Vec 和订单簿/深度投影承担有序价格层级；红黑树旋转、父指针、不变量、CopyInorder/独立拷贝、随机/压力插删等 Go 专用容器行为逐项确认无 Rust 生产 owner，边界依据已收口为 reviewed。
 
 - 当前批次：yfinance provider 的 11 条映射完成逐条复核。Rust helper descriptor/client、candle/session conversion、CN/US normalization、strict window、identity drift 与 snapshot batch owner 证据已收口；Go Yahoo polling/forward-only descriptor、sidecar 端点串联、depth unsupported、extended volume、7-day 1m 上限、部分成功错误聚合和 limit clamp 的字段/调用粒度差异逐项记录。
+
+- 当前批次：Futu watchlist source 的 10 条映射完成逐条复核。Rust group/member conversion、security snapshot coordinator 分片/单项错误/rate-limit、delayed fallback、quote metadata/session projection、remote source identity/unavailable 与 OpenD readiness owner 证据已收口；Go remoteGroupId/cache call-count、完整失败重试批次、市场级文案/顺序、未知时区精确字段、source.Status/Error/IsConflict 投影差异逐项记录。
