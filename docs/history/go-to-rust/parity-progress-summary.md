@@ -1080,3 +1080,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - 当前批次：Strategy Pine API contract 的 7 条诊断/元数据映射完成复核。Rust success/unsupported-source/syntax-shadow/opaque projection fixture 证据已拆分；indicator requirements 独立键、pine-v6 文案、syntax code/line、v20 parse-only、object signature、import alias 与 type/method registry 专项断言缺口逐项记录。
 
 - 当前批次：Strategy route boundary/failure 的 8 条映射完成复核。Rust typed path 404、runtime start rollback、Pine fixtures、definition failure recovery、instantiate/input、mutation isolation、plugin fail-closed 与统一 ApiFailure 模型证据已拆分；缺 URI 400、start preflight/capacity、Pine 400/502、list/read/preview、orchestration/instance 逐路由错误、plugin whitespace 及 nil error 结构差异逐项保留。
+
+- 当前批次：Strategy lifecycle/plugin 的 7 条映射完成复核。Rust definition ID/delete guard、version cutover、七路由状态转换、delete busy、malformed/start failures、plugin catalog/mutations/guidance 与 fail-closed 证据已拆分；linked delete 序列、version wire/缺参、runtime.Stop/参数、missing delete、九分支错误矩阵、五路由组合与 plugin 404/500 矩阵缺口逐项记录。
