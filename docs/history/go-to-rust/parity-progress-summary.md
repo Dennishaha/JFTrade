@@ -1004,3 +1004,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - assistant usage/workflow native 第48批 8 条 partial/boundary 已逐项复核 usage tracker 忽略/续接、native agent partial/final、consumer stop、branch/isolation、confirmation recreation、root adapter runtime 分支和 interruptID 匹配。Rust compatibility/stream/cancellation/workflow/input/approval owner 已核对；独立 tracker、native node forwarding/backpressure、branch scope、重建 exactly-once 和 interrupt identity 差异均登记为 reviewed residual。
 
 - assistant workflow agent resume 第49批 8 条 partial/boundary 已逐项复核 long-running call 匹配、unmatched functionResponse、consumed interrupt、resume fail-closed helper、fresh-run 防止、native workflow agent、child NodeConfig 和 tool confirmation resume。Rust approval/input/canvas/workflow graph owner 已核对；Google ADK event/interrupt/native-node 配置语义差异均登记为 reviewed residual。
+
+- assistant workflow approval/canvas/child 第50批 8 条 partial 已逐项复核 approval recovery pause/context、父流程错误、canvas fan-out/join、非法图、可达图执行、子输入挂起恢复、父暂停优先和子完成重开。Rust workflow/canvas/scheduler owner 已核对；二次暂停失败、缺父、完整步骤 metadata、nil canvas、终态字段矩阵、child plan/approval mirror、父重开状态机差异均登记为 reviewed residual。
