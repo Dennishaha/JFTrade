@@ -1316,3 +1316,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - 当前批次：bbgo ValueMap 的 7 条映射完成逐条复核。Rust 没有 symbol→quantity ValueMap 容器或逐键 add/div/normalize API，组合权重由名义金额/数量结构表达；ValueMap 相等、键不一致 panic、标量运算、sum、零和 normalize 均确认无 Rust owner，保留为明确不适用边界。
 
 - 当前批次：Pine IR planner 的 7 条映射完成逐条复核。Rust planner requirement keys、unsupported MA/order metadata/window source fail-closed、advanced bbw/cog/sar bindings 与 runtime account-value owner 已记录为 reviewed；Go divergence requirement、protect time-unit 词表、24 键全矩阵（kdj/bollinger/sar/risk 与 MTF macd/rsi/atr）仍保留为 P1/partial residual。
+
+- 当前批次：Pine spec/MCP payload 的 7 条映射完成逐条复核。Rust spec examples、validation payload field/default contract、support matrix、broker boundary diagnostics 与 skill resource projection owner 已记录为 reviewed；Go generated support snapshot freshness 校验在 Rust 静态冻结规范与仓库门禁中无同形生成物，保留为 boundary residual；逐示例 analyze/plan 断言仍按现有管线证据记录。
