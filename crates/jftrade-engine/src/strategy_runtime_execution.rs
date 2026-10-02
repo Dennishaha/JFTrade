@@ -811,10 +811,9 @@ fn resolve_strategy_intent_quantity(
 
     if let Some(minimum) = binding_scalar_f64(binding, &["minQuantity", "min_quantity"])
         .filter(|minimum| *minimum > 0.0)
+        && qty < minimum
     {
-        if qty < minimum {
-            return Ok(None);
-        }
+        return Ok(None);
     }
 
     if !qty.is_finite() {
