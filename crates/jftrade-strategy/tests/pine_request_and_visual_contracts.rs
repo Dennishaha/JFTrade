@@ -139,6 +139,28 @@ fn request_security_moving_average_keys_keep_type_period_source_and_time_unit() 
     }
 }
 
+#[test]
+fn request_security_common_ta_keys_keep_the_inner_family_and_time_unit() {
+    let keys = planned_keys(
+        r#"//@version=6
+strategy("MTF common TA", overlay=true)
+r = request.security(syminfo.tickerid, "D", ta.rsi(close, 14))
+s = request.security(syminfo.tickerid, "60", ta.stdev(close, 20))
+b = request.security(syminfo.tickerid, "15", ta.bb(close, 20, 2))
+m = request.security(syminfo.tickerid, "240", ta.macd(close, 12, 26, 9))
+d = request.security(syminfo.tickerid, "W", ta.dmi(14, 14))"#,
+    );
+    for wanted in [
+        "rsi:14:day",
+        "stdev:20:hour",
+        "bollinger:20:2:15m",
+        "macd:close:12:26:9:240m",
+        "dmi:14:14:week",
+    ] {
+        assert!(keys.iter().any(|key| key == wanted), "{wanted} in {keys:?}");
+    }
+}
+
 /// Parity: go:452dea11:pkg/strategy/pine/parse_request_test.go:141
 /// TestCompileSupportsV14WindowMomentumAndStatefulIndicators
 #[test]

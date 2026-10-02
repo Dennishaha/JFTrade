@@ -1244,6 +1244,58 @@ fn security_inner_binding(
             parts
         }
         "obv" => vec![argument_text(arguments.first()).unwrap_or_else(|| "close".to_owned())],
+        "rsi" | "cci" => {
+            let defaults = if kind == "rsi" {
+                ("close", "14")
+            } else {
+                ("hlc3", "20")
+            };
+            let (source, length) = source_length_arguments(arguments, defaults);
+            ensure_positive_period(line, callee, &length)?;
+            if legacy_source_for(&kind) == Some(source.as_str()) {
+                vec![length]
+            } else {
+                vec![source, length]
+            }
+        }
+        "stdev" => {
+            let source = argument_text(arguments.first()).unwrap_or_else(|| "close".to_owned());
+            let length = argument_text(arguments.get(1))
+                .or_else(|| argument_text(arguments.first()))
+                .ok_or_else(|| invalid(line, format!("{callee} requires a length")))?;
+            ensure_positive_period(line, callee, &length)?;
+            if legacy_source_for("stdev") == Some(source.as_str()) {
+                vec![length]
+            } else {
+                vec![source, length]
+            }
+        }
+        "bb" => {
+            let length = argument_text(arguments.get(1))
+                .ok_or_else(|| invalid(line, format!("{callee} requires a length")))?;
+            ensure_positive_period(line, callee, &length)?;
+            let multiplier = argument_text(arguments.get(2))
+                .ok_or_else(|| invalid(line, format!("{callee} requires a multiplier")))?;
+            return Ok(Some(("bollinger".to_owned(), vec![length, multiplier])));
+        }
+        "macd" | "dmi" | "supertrend" | "sar" => arguments
+            .iter()
+            .map(|argument| argument_text(Some(argument)).unwrap_or_else(|| argument.to_string()))
+            .collect(),
+        "bbw" => {
+            let source = argument_text(arguments.first()).unwrap_or_else(|| "close".to_owned());
+            let length = argument_text(arguments.get(1))
+                .ok_or_else(|| invalid(line, format!("{callee} requires a length")))?;
+            let multiplier = argument_text(arguments.get(2))
+                .ok_or_else(|| invalid(line, format!("{callee} requires a multiplier")))?;
+            ensure_positive_period(line, callee, &length)?;
+            vec![source, length, multiplier]
+        }
+        "cog" => {
+            let parts = source_period_parts(callee, arguments, line, 2)?;
+            ensure_positive_period(line, callee, &parts[1])?;
+            parts
+        }
         "pivothigh" | "pivotlow" => {
             let default_source = if kind == "pivotlow" { "low" } else { "high" };
             let (source, lengths): (String, &[Expr]) = match arguments.len() {
