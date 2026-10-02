@@ -1368,3 +1368,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - 当前批次：desktop startup/shutdown 的 5 条映射完成逐条复核。Rust dependency-order startup、ready/reverse shutdown、readiness failure reclamation 与 concurrent stop idempotency owner 已记录为 reviewed；Go Tauri/Wails setup 中窗口状态先于 API、startup snapshot 脱敏、可注入异步 starter/late resource、shutdown closure 调用计数在 Rust 无同形 headless seam，保留为 partial/boundary residual。
 
 - 当前批次：research preset store 的 5 条映射完成逐条复核。Rust preset revision fencing/restart durability、missing/drifted/corrupted DB rejection、旧版本 payload rejection 与 open/write failure owner 已记录为 reviewed；Go path/missing-row 错误文案、unavailable receiver 与逐边界 open/write 矩阵仍保留为 partial residual。
+
+- 当前批次：trading execution-order ledger 的 5 条映射完成逐条复核。Rust lifecycle/restart durability、reservation replay identity、broker reconciliation sparse-order repair、concurrent transactional persistence 与 sequence high-water marks owner 已记录为 reviewed；Go broker/market filtered list 与 tie-break/not-found、placed-merge/source promotion、异步 FIFO queue/backpressure/Close、空白 identifier 与 zero-cutoff 语义仍保留为 partial/boundary residual。
