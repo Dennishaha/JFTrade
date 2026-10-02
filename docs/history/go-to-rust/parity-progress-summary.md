@@ -1172,3 +1172,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - 当前批次：yfinance provider 的 11 条映射完成逐条复核。Rust helper descriptor/client、candle/session conversion、CN/US normalization、strict window、identity drift 与 snapshot batch owner 证据已收口；Go Yahoo polling/forward-only descriptor、sidecar 端点串联、depth unsupported、extended volume、7-day 1m 上限、部分成功错误聚合和 limit clamp 的字段/调用粒度差异逐项记录。
 
 - 当前批次：Futu watchlist source 的 10 条映射完成逐条复核。Rust group/member conversion、security snapshot coordinator 分片/单项错误/rate-limit、delayed fallback、quote metadata/session projection、remote source identity/unavailable 与 OpenD readiness owner 证据已收口；Go remoteGroupId/cache call-count、完整失败重试批次、市场级文案/顺序、未知时区精确字段、source.Status/Error/IsConflict 投影差异逐项记录。
+
+- 当前批次：SQLite connection/DSN 的 10 条映射完成逐条复核。Rust single-connection/busy-timeout、WriterLease、read-only shadow、PRAGMA persistence、fail-closed open、schema invariants 与 foreign-key owner 证据已收口；Go connection-pool size/read concurrency、DSN query 拼接、空字符串专测、跨连接 cascade、driver error 文案和 pool normalization 无同形 Rust API，逐项记录结构边界。
