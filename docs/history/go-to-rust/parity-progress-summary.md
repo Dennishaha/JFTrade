@@ -1164,3 +1164,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - 当前批次：live strategy command/executor/runtime manager 的 38 条映射完成逐条复核。Rust intent execution、short/close/quantity、conditional orders、market-step、audit skip、broker/provider guards、streaming capability、health/binding gates、session reservation 与 lifecycle owner 证据已收口；Go command DTO、warning sink/tag、board-lot/market-rules 开关、实时 OCO、逐字段缺失依赖、账户解析调用计数、重复激活取消、callback 文案与逐类错误矩阵差异逐项记录。
 
 - 当前批次：Pine object/collection V27–V30 与 request.security diagnostics 的 11 条映射完成逐条复核。Rust 七类 request.security 诊断矩阵已核对 executable owner；V27–V30 object/history/method/MTF/declaration/type/import 语言族的同脚本拒绝诊断、缺少 typed IR 与升级路径逐项记录，未将拒绝误记为功能等价。
+
+- 当前批次：Market/calendar market 与 normalization 的 21 条映射完成逐条复核。Rust session context、holiday/early-close/DST、HK/China lunch、instrument normalization/profile、calendar lifecycle/manual override 与 daily/weekly/monthly completion owner 证据已收口；Go 全矩阵 TradingPeriod/TradingDay/LabelStart/Bucket helper、精确分钟与 timestamp、global resolver swap/reset、SG/CNSH alias、US/non-US fallback 和错误文案差异逐项记录。
