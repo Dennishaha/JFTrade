@@ -1358,3 +1358,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - 当前批次：fixedpoint ExpirableValue 的 5 条映射完成逐条复核。Rust TickCache Fresh/Stale/Missing 分类、TTL 过期与 demand lease 清理 owner 已记录为 reviewed；Go ExpirableValue 容器、IsExpired/Get Zero+ok、未知键专项与 RFC3339 String 展示在 Rust 缓存/租约模型中无同形 API，保留为 partial/boundary residual。
 
 - 当前批次：trade statistics 的 5 条映射完成逐条复核。Rust equity report peak/max/current drawdown owner 已记录为 reviewed；Go CAGR、Kelly、annualized volatility、Optimal F 无 Rust 产品链路，drawdown sequence average/squared-average 也不输出，逐项保留为不适用/partial residual。
+
+- 当前批次：backtest store failure 的 5 条映射完成逐条复核。Rust missing/drifted/corrupted DB rejection、restart durability、canceled maintenance no-mutation 与 persistence decoder fail-closed owner 已记录为 reviewed；Go closed-database write failure 的内存回滚注入、missing-row/full-read 精确矩阵与完整快照对比仍保留为 partial residual。
