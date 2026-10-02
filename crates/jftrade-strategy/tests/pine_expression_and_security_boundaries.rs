@@ -21,6 +21,20 @@ fn keys(body: &str) -> Vec<String> {
     keys
 }
 
+#[test]
+fn advanced_trend_indicators_keep_requirement_keys() {
+    let indicators =
+        keys("[plusDi, minusDi, adx] = ta.dmi(14, 14)\n[trend, direction] = ta.supertrend(3, 10)");
+    assert!(
+        indicators.contains(&"dmi:14:14".to_owned()),
+        "{indicators:?}"
+    );
+    assert!(
+        indicators.contains(&"supertrend:3:10".to_owned()),
+        "{indicators:?}"
+    );
+}
+
 fn codes(body: &str) -> Vec<String> {
     compile(&script(body))
         .diagnostics
