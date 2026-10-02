@@ -1066,3 +1066,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - 当前批次：API middleware 的 ADK availability、public auth paths、trusted request context、logout protection 与 write-method detection 共 5 条映射完成复核。Rust route fail-closed/503、login/session bypass、origin/CSRF、写方法分类证据已拆分；/health 缺失、ADK read 错误码、logout 200/204、Go request marker/nil pointer 语言与所有权差异逐项保留。
 
 - 当前批次：Research Screen productfeature 的 9 条 API 映射完成复核。Rust catalog/版本/page/definition 校验、fixture projection、capability/operator 错误证据已拆分；dirty broker/market normalization、typed definition forwarding、v2 保留/V1 shape、unknown total、embedded provider selection、完整 POST projection 与 conflict matrix 未覆盖项逐项记录。
+
+- 当前批次：Productfeatures 总路由 4 条复合映射完成复核。Rust prediction/market-data/options/snapshot/subscription、typed research forwarding、capability/lifecycle/eligibility/provider errors 与 query/instrument helper 证据已列为覆盖；完整 route catalog、全类型化 wire/query 矩阵、跨路由错误矩阵及 predictionRoute 归一缺口逐项记录。
