@@ -773,6 +773,37 @@ fn live_entry_without_quantity_is_rejected_before_any_broker_submission() {
 }
 
 #[test]
+fn live_order_below_market_lot_step_is_skipped_without_submission() {
+    let (_dir, _def_store, store, execution, provider, mut binding) = sizing_execution_fixture();
+    binding["lotSize"] = json!(1.0);
+    let ctx = StrategyExecutionContext {
+        execution: Some(&execution),
+        execution_store: None,
+        provider: &provider,
+        store: &store,
+        instance_id: "inst-sizing",
+        market: "US",
+        symbol: "US.AAPL",
+        binding: &binding,
+        expected_risk_revision: None,
+        fallback_price: Some(100.0),
+        sellable_quantity: Some(10.0),
+        current_position: None,
+        available_cash: Some(1_000.0),
+        virtual_account: None,
+    };
+    let intent = test_intent(0.5, 100.0);
+    execute_strategy_intents(ctx, &[intent]).expect("sub-step quantity should be ignored");
+    assert!(execution.mutations.lock().unwrap().is_empty());
+    let audit = store
+        .list_audit_events("inst-sizing")
+        .expect("audit events");
+    assert!(audit.iter().any(|event| {
+        event.kind == "INTENT_SKIPPED" && event.detail.contains("rounded down to 0")
+    }));
+}
+
+#[test]
 fn test_execute_strategy_intents_revision_fence_mismatch_blocks_and_audits() {
     let dir = tempfile::tempdir().expect("tempdir");
     let path = dir.path().join("strategy.db");
