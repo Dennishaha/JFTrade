@@ -946,3 +946,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - assistant Responses/provider safety 第十九批 8 条 partial/boundary 已逐项复核工具名消毒与还原、流式 usage、碰撞拒绝、响应边界、probe 畸形响应及 safe HTTP dial 地址校验。Rust 非流式 adapter、tool extraction、terminal audit 与 reqwest owner 已核对；消毒/流式增量、probe 入口、dial-time DNS rebinding 防护和固定 dial 错误面均保留为 reviewed residual。
 
 - assistant reasoning/resume/timeline 第二十批 8 条 partial/boundary 已逐项复核 reasoning 优先级与快照恢复、Responses 模型选择、流式 final 去重、恢复执行失败传播、rehydrate 失败、子审批回退及空/缺失会话时间线。Rust gate/store/runtime/read owner 已核对；多级优先级、恢复快照重建、流式 delta、逐段故障注入、子审批回退及 Go optional-success store 语义均保留为 reviewed residual。
+
+- assistant runner concurrency/callback/continuation/runtime 第二十一批 8 条 partial/boundary 已逐项复核输入续跑租约、chat callback/event projection、continuation-only 识别与审计、同会话新鲜完成条件，以及执行/续跑/runner 构造分支。Rust fencing、input parity、audit、tool failure 和 runtime owner 已核对；消息分类、continuation_only 审计、陈旧性判定、完整故障矩阵与 Google ADK runner attach/synthesis 层差异均登记为 reviewed residual。
