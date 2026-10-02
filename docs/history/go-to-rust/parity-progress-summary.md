@@ -1032,3 +1032,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - 当前批次：Assistant workflowexec resume/task state、runtime limit、task toolset lookup/business/error/goal/persistence 的 14 条映射逐项复核。Rust CAS、stream error wire mapping、tool-call failure persistence、gated-call parking、expiry reconciliation、ADK CRUD、deterministic ready-task 和 durable-store error 证据均拆为 reviewed coverage；runtime task overflow、父子 resume 编排、delegate/merge、goal decision tool、current/ready 聚合及 partial-result error 形状等差异明确记录为 uncovered，保留原 partial/boundary 状态。
 
 - 当前批次：Assistant workflowruntime facade 的 2 条构造与运行时装配映射逐项复核。Rust composition-root 路由适配器及内置技能工具目录投影作为实际覆盖，Go facade/session helper、local MCP nil handler、内置 agent/judgment helper 无 Rust 同形 owner 的边界明确记录，保留 boundary 状态。
+
+- 当前批次：Assistant model 的 timeline、workflow graph identity/plan、approval scoping、goal decision/utility 共 7 条映射逐项复核。Rust run projection、restart identity、TaskGraph 排序/环检测/依赖归一与 approval run_id 事实完成 reviewed coverage；时间线 helper 细节、最终回复相对工具顺序、图指纹漂移、展示文案、子运行计划更新、run 作用域读取及 goal decision/planner 强制缺口均明确记录。
