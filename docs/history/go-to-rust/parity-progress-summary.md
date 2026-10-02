@@ -1166,3 +1166,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - 当前批次：Pine object/collection V27–V30 与 request.security diagnostics 的 11 条映射完成逐条复核。Rust 七类 request.security 诊断矩阵已核对 executable owner；V27–V30 object/history/method/MTF/declaration/type/import 语言族的同脚本拒绝诊断、缺少 typed IR 与升级路径逐项记录，未将拒绝误记为功能等价。
 
 - 当前批次：Market/calendar market 与 normalization 的 21 条映射完成逐条复核。Rust session context、holiday/early-close/DST、HK/China lunch、instrument normalization/profile、calendar lifecycle/manual override 与 daily/weekly/monthly completion owner 证据已收口；Go 全矩阵 TradingPeriod/TradingDay/LabelStart/Bucket helper、精确分钟与 timestamp、global resolver swap/reset、SG/CNSH alias、US/non-US fallback 和错误文案差异逐项记录。
+
+- 当前批次：bbgo RBTree 的 10 条映射完成逐条复核。Rust 以 BTreeMap/Vec 和订单簿/深度投影承担有序价格层级；红黑树旋转、父指针、不变量、CopyInorder/独立拷贝、随机/压力插删等 Go 专用容器行为逐项确认无 Rust 生产 owner，边界依据已收口为 reviewed。
