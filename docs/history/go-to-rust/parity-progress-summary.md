@@ -1124,3 +1124,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - 当前批次：MarketData instrument resolver 的 15 条映射完成逐条复核。Rust qualified lookup、unsupported/ambiguous resolution、CN 过滤去重、provider-prefix 归一、先全窗口后 limit、generation fence、输入/错误/取消边界及路由投影证据已收口为 reviewed；Go 进程内 TTL/singleflight/cache recheck/error-cache、调用参数粒度、纯函数分类、精确排序与 context.Canceled 专项断言在 Rust 无同形 owner，逐项保留为 partial/boundary residual。
 
 - 当前批次：MarketData collector 与 subscription lifecycle 的未审查映射完成逐条复核。Rust generation fence、stale callback rejection、bounded/idempotent close、poll retry/backoff、demand TTL/managed lease、atomic acquire/clear、capability-before-lease、provider rollback/reconcile 与 shutdown release 证据已收口为 reviewed；Go 阻塞 Connect/Reset 时序、handler/stream 调用计数、动态 source 分流、重叠 poll/cancel 计数、64-goroutine 压力、deferred nil-return 错误诊断、broker 装饰字段和逐次 refs 集合等差异逐项保留为 partial residual。
+
+- 当前批次：Marketdata asset selection/cache 的 27 条映射完成逐条复核。Rust content-addressed AssetBundle 的命名/摘要校验、原子物化、篡改修复、并发赢家、过期清理、cache-root 防护、缺失资产与 fail-closed IO 证据已收口为 reviewed；Go PyInstaller onedir 多文件遍历、权限/符号链接/非常规文件形状、私有临时目录与 Cleanup、TMPDIR 注入、digest 对账和旧错误文案在 Rust 单文件资源模型中无同形 owner，逐项保留为 partial/boundary residual。
