@@ -572,7 +572,7 @@
   },
   "expectedStoredPineWorker": {
     "backtestWorkerLimit": 1000,
-    "instanceWorkerLimit": 1,
+    "instanceWorkerLimit": 10,
     "nodeBinaryPath": "/managed/node"
   },
   "notificationForwardCases": [
