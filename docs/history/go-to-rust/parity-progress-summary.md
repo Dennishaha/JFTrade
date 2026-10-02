@@ -1304,3 +1304,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - 当前批次：PineTS payload、worker client/process/readiness 的 8 条映射完成逐条复核。Rust external mode、shadow payload success/error projection、endpoint/token fail-closed、structured gRPC error、loopback startup validation、bounded stderr 与 monitor join owner 已记录为 reviewed；Go env setter wrapper、真实 Node worker 仅 live smoke、workerError/stderrSuffix 字符串形状、逐 worker Close 等差异继续保留为 partial residual。
 
 - 当前批次：fixedpoint dec 的 7 条映射完成逐条复核。Rust Fixed8 arithmetic、8 位文本 golden corpus、step/increment truncation 与百分号输入解析 owner 已记录为 reviewed；Go 任意精度 FormatString/Round、MulExp/NumIntDigits、Percentage 展示、YAML 编解码与 NumFractionalDigits 助手在 Rust 产品链路无对应 API，保留为 boundary/partial residual。
+
+- 当前批次：settings-file persistence contracts 的 9 条映射完成逐条复核。Rust settings-file 文档缺失/空/损坏区分、MCP 写入冻结契约、appearance/notification/Pine worker/calendar 归一化、managed account identity 与空 ID 拒绝 owner 已记录为 reviewed；Go 路径暴露、逐通道 notification default、显式 false 专项与完整 legacy 字段逐项矩阵仍保留为 partial residual。
