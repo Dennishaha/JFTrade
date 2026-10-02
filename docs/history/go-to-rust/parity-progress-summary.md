@@ -1154,3 +1154,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - 当前批次：Pine runtime manager/process 的 13 条映射完成逐条复核。Rust settings worker limits、asset selection/integrity、explicit process injection、loopback auth、pool reservation/rollback、readiness、live session revisions 与 stop/open failure owner 证据已收口；Go 20 项环境变量合并、embedded/external Source、禁用非法值、repo/workdir fallback、Option factory、Manager/Runner 成对发布、nil/Close 聚合、容量/超时与第二组件失败回滚等差异逐项记录。
 
 - 当前批次：Pine collection parse/compile 的 17 条映射完成逐条复核。每条 Go V20–V26 collection/UDT/method/tuple/dynamic-loop/request.security 场景均核对 Rust 同脚本拒绝诊断与 compiler owner；语言版本闸门和未实现特性族的差异、升级路径及缺少 typed projection 逐项保留为明确 residual，未伪造 exact。
+
+- 当前批次：Pine parse/compile 剩余 13 条映射完成逐条复核。Rust helper diagnostics、strategy quantity/notification、exit/stop/cancel/close metadata、UDF/static-for、unsupported case 与 switch 多语句边界 owner 证据已收口；Go command 字段/数量模式、when 专字段、profit/loss ticks、逐形态 advanced-order 错误、UDF/switch 完整语言族差异逐项记录。
