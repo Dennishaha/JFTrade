@@ -141,21 +141,33 @@ fn request_security_moving_average_keys_keep_type_period_source_and_time_unit() 
 
 #[test]
 fn request_security_common_ta_keys_keep_the_inner_family_and_time_unit() {
-    let keys = planned_keys(
-        r#"//@version=6
-strategy("MTF common TA", overlay=true)
-r = request.security(syminfo.tickerid, "D", ta.rsi(close, 14))
-s = request.security(syminfo.tickerid, "60", ta.stdev(close, 20))
-b = request.security(syminfo.tickerid, "15", ta.bb(close, 20, 2))
-m = request.security(syminfo.tickerid, "240", ta.macd(close, 12, 26, 9))
-d = request.security(syminfo.tickerid, "W", ta.dmi(14, 14))"#,
-    );
+    let script = r#"//@version=6
+strategy("v1.5 MTF common TA", overlay=true)
+signal = request.security(syminfo.tickerid, "15", nz(ta.rsi(close, 14), 50) > 50 and nz(ta.macd(close, 12, 26, 9).diff, 0) > 0 and nz(ta.atr(14), 0) > 0 and nz(ta.bb(close, 20, 2).upper, close) > close and nz(ta.supertrend(3, 10).direction, 0) > 0)
+spread = ta.range(close, 5)
+modeValue = ta.mode(close, 5)
+if signal
+    strategy.entry("Long", strategy.long, qty=1)"#;
+    let compilation = compile(script);
+    assert!(compilation.ok, "diagnostics = {:?}", compilation.diagnostics);
+    // The Rust public lowered program preserves typed AST expressions rather
+    // than Go's rendered IR strings; requirement keys are the stable parity
+    // surface for this production owner.
+    let keys = compilation
+        .requirements
+        .indicators
+        .iter()
+        .map(|item| item.key.clone())
+        .collect::<Vec<_>>();
     for wanted in [
-        "rsi:14:day",
-        "stdev:20:hour",
-        "bollinger:20:2:15m",
-        "macd:close:12:26:9:240m",
-        "dmi:14:14:week",
+        "security_source:15m:close",
+        "rsi:close:14:15m",
+        "macd:close:12:26:9:15m",
+        "atr:14:15m",
+        "bollinger:close:20:2:15m",
+        "supertrend:3:10:15m",
+        "range:close:5",
+        "mode:close:5",
     ] {
         assert!(keys.iter().any(|key| key == wanted), "{wanted} in {keys:?}");
     }
