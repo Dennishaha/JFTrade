@@ -1378,3 +1378,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - 当前批次：indicator binding parse semantics 的 5 条映射完成逐条复核。Rust Pine lexer/planner nested-call handling、DSL time-unit table、moving-average key/source semantics 与 shared OHLCV whitelist owner 已记录为 reviewed；Go 独立括号助手、可选参数过多/非法 source 错误文案、非法 source 静默丢弃差异及已退役 alias normalization helper 继续保留为 partial/boundary residual。
 
 - 当前批次：Pine planner internal boundaries 的 5 条映射完成逐条复核。Rust indicator binding keys、advanced trailing-argument rejection、compound requirement deduplication与 source/time-unit semantics owner 已记录为 reviewed；Go 缺失 indicator families、非法周期/source 逐类拒绝、Args 导出契约以及 protect/divergence 键族在 Rust 后端无同形实现，保留为明确 partial/boundary residual。
+
+- 当前批次：live publisher 的 5 条映射完成逐条复核。Rust LiveHub lag/resync control、UTC marketdata projection、shutdown idempotency/session rejection owner 已记录为 reviewed；Go retention+global sequence/After replay window、显式 At parse fallback、attached-source stop-once 回调与并发无丢失连续序号不属于 Rust broadcast/resync 不变式，逐项保留为 boundary/partial residual。
