@@ -894,3 +894,7 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - `internal/api/live/dispatcher_boundaries_test.go:205:TestDispatcherEnvelopeDefaultsAndMapFallback` 已逐项复核 Go 的缺省 envelope 与 `mapString` fallback；Rust SSE wire frame 已有真实断言，但 typed event owner 没有同形通用 helper，残余所有权差异已登记 reviewed partial。
 
 - `internal/api/trading/execution_validation_contracts_test.go:238:TestExecutionOrderDetailsRouteMapsMissingAndStoreFailures` 已逐项复核：缺失订单与 store failure 的 HTTP code/error code 已由 Rust execution-read owner 断言；空 ID 的 Gin handler 400 与 Rust typed route 404 路由边界已明确登记，coverage 改为 reviewed partial。
+
+- system routes 的 6 条未收口 partial（system envelope、calendar refresh/probe、validator、malformed release payload、真实交易控制委派/错误映射）已逐项读取 Go 断言并核对 Rust production/system-write owner；可达 HTTP 行为与错误映射已有 receipt，Gin callback、固定 ID、handler seam 差异已分别登记，coverage 改为 reviewed，状态保持 partial。
+
+- system routes 的 6 条未收口 partial（system envelope、calendar refresh/probe、validator、malformed release payload、真实交易控制委派/错误映射）已逐项读取 Go 断言并核对 Rust production/system-write owner；可达 HTTP 行为与错误映射已有 receipt，Gin callback、固定 ID、handler seam 差异已分别登记，coverage 改为 reviewed，状态保持 partial。
