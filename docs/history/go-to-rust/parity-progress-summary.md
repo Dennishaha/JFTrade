@@ -1188,3 +1188,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - 当前批次：SQLite schema catalog 的 16 条映射完成逐条复核。Rust schema manifest/static-dynamic shape、metadata/error precedence、drift/integrity/foreign-key、migration rollback/downgrade、non-mutating validation 与 managed database owner 证据已收口；Go 防御性副本、未知 ID/非法路径、逐查询注入失败、版本漂移文案、v2→v3 rebuild 判定及公共参数边界差异逐项记录。
 
 - 当前批次：Backtest input/readiness/sync 的 19 条映射完成逐条复核。Rust range/provider/session defaults、missing coverage fail-closed、readiness/sync lifecycle、persisted progress、orphan recovery、worker cleanup 与 request validation owner 证据已收口；Go RequestError 动态类型/文案、adapter 工厂/关闭时序、provider pin call-count、终态清理矩阵、TaskID 唯一性、unknown rehab fallback 与完整参数组合差异逐项记录。
+
+- 当前批次：Trading order-updates 的未审查映射完成逐条复核。Rust reconciliation worker polling/wake、store scan fencing、bounded invalidations、inactive/degraded status、terminal fee fail-closed 与 lifecycle owner 证据已收口；Go 内存 TTL/cache copy、broker subscription/resubscribe/refresh、per-subscription metadata、batch fee dedup、nil helper/upsert/query builder 与订阅失败 fallback 差异逐项记录。
