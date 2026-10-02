@@ -1354,3 +1354,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - 当前批次：Pine worker live business 的 6 条映射完成逐条复核。Rust live session/revision execution contract、checkpoint restore、remote error mapping、simulation cash/position limits、account inputs、stale session rejection 与 market-rule warning owner 已记录为 reviewed；Go 同一会话预热载荷单点断言、逐条 sizing/equity/price 参数矩阵、运行时层 session failure 与 actionable warning sink 过滤仍保留为 P2/partial residual。
 
 - 当前批次：Pine runtime failure contracts 的 6 条映射完成逐条复核。Rust embedded asset availability、runtime path precedence、process asset metadata、pool open rollback、loopback/startup errors、stopped-state late-result rejection owner 已记录为 reviewed；Go enabled/error identity、worker-limit→实际 worker 数映射、bundle 反推工作目录、Manager 不发布/不重试、容量等待取消队列与 nil receiver lifecycle 仍保留为 P1/P2 residual。
+
+- 当前批次：fixedpoint ExpirableValue 的 5 条映射完成逐条复核。Rust TickCache Fresh/Stale/Missing 分类、TTL 过期与 demand lease 清理 owner 已记录为 reviewed；Go ExpirableValue 容器、IsExpired/Get Zero+ok、未知键专项与 RFC3339 String 展示在 Rust 缓存/租约模型中无同形 API，保留为 partial/boundary residual。
