@@ -195,3 +195,32 @@ fn probe_uses_market_local_year_when_us_crosses_utc_new_year() {
     );
     manager.close().expect("close manager");
 }
+
+#[test]
+fn probe_uses_market_local_year_when_hk_crosses_utc_new_year() {
+    let (source, calls) = RecordingSource::new();
+    let now = Arc::new(Mutex::new(timestamp("2025-12-31T15:30:00Z")));
+    let manager = manager(source, Arc::clone(&now));
+    manager.start().expect("start manager");
+
+    let result = manager.probe_market("HK").expect("probe HK");
+    assert_eq!((result.healthy, result.failures), (1, 0));
+    assert_call(
+        &calls.lock().expect("recording calls")[0],
+        "HK",
+        "2025-01-01T00:00:00+08:00",
+        "2026-12-31T23:59:59+08:00",
+    );
+
+    calls.lock().expect("recording calls").clear();
+    *now.lock().expect("clock") = timestamp("2026-01-01T16:30:00Z");
+    let result = manager.probe_market("HK").expect("probe HK after midnight");
+    assert_eq!((result.healthy, result.failures), (1, 0));
+    assert_call(
+        &calls.lock().expect("recording calls")[0],
+        "HK",
+        "2026-01-01T00:00:00+08:00",
+        "2027-12-31T23:59:59+08:00",
+    );
+    manager.close().expect("close manager");
+}
