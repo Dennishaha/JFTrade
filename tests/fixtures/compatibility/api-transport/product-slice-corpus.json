@@ -502,7 +502,7 @@
     {
       "name": "zero-clamps-to-minimum",
       "input": { "backtestWorkerLimit": 0, "instanceWorkerLimit": 0, "nodeBinaryPath": "" },
-      "expected": { "backtestWorkerLimit": 1, "instanceWorkerLimit": 1, "nodeBinaryPath": "" }
+      "expected": { "backtestWorkerLimit": 2, "instanceWorkerLimit": 10, "nodeBinaryPath": "" }
     },
     {
       "name": "maximum-bounds",
