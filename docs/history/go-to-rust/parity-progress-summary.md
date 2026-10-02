@@ -938,3 +938,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - assistant schema/tool-edge/completion-review 第十五批 8 条 boundary/partial 已逐项复核 `nil` schema、task-local goal/剪枝、planner 草稿编译及 completion review 的 unchanged/append/fail-open/一次性收尾/请求约束分支。Rust schema、TaskGraph/CanvasCompiler 和模型 adapter owner 已核对；nil 值、goal 决策快照、planner 专用层、completion-review 端口与 fail-open/append 语义等功能或语言边界均明确登记为 reviewed residual，未将 boundary 误升为 exact。
 
 - assistant completion-review policy/error 第十六批 8 条 boundary 已逐项复核资格/memo、响应解析、提示构造、不适用原因、coordinator 去重，以及 ADK 错误哨兵序列化/原因保留/源码守卫。Rust session projection、typed error 与终态映射 owner 已核对；completion-review 层缺失、errors.Is 级别往返和 AST 禁止字符串匹配守卫均保留为 reviewed residual。
+
+- assistant replay/input/normalization/observability/persistence 第十七批 8 条 boundary/partial 已逐项复核事件重放守卫、输入卡片时间线、nil slice 归一化、关联字段、secret 文件边界、reasoning 快照及 workflow 任务/初始化失败。Rust durable projection、audit、secret writer 与 fail-closed bridge owner 已核对；事件级 helper、卡片排序、nil 语义、reasoning slot、文件故障注入和 workflow task/blocker facade 差异均明确登记为 reviewed residual。
