@@ -890,3 +890,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 4. **持续门禁**：每个子批次先跑受影响 nextest，再跑 `git diff --check`、`audit_test_parity.py --strict`；文档/清单变更追加 `check:ai-context` 与 `check:quick`，并保留 `check:zero-go` 现有基线失败证据。
 
 - `internal/api/httpserver/bindings_boundaries_test.go:61:TestParseQueryTimeReturnsCallerFallback` 与 `internal/api/httpserver/bindings_test.go:186:TestCandlePeriodAndPaginationNormalization` 已完成逐项断言复核：Rust 周期、空值、公开分页 route 和错误映射均有生产 owner；Go caller fallback、signed pagination helper 与 Rust typed route 存在明确边界，已登记 reviewed residual，未伪装成 exact。定向 nextest 3/3 通过；receipt `sha256:ae87435eb21cbfbcdb9f0bf6216b891f9ec2effccec7dbb7fa95366f7a489dfc`。
+
+- `internal/api/live/dispatcher_boundaries_test.go:205:TestDispatcherEnvelopeDefaultsAndMapFallback` 已逐项复核 Go 的缺省 envelope 与 `mapString` fallback；Rust SSE wire frame 已有真实断言，但 typed event owner 没有同形通用 helper，残余所有权差异已登记 reviewed partial。
