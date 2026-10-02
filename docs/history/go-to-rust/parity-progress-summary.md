@@ -1012,3 +1012,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - assistant workflow goal/observation 第52批 8 条 partial 已逐项复核 pause-before-complete、子完成阻塞、PAUSED snapshot、updated objective prompt、active-parent objective 更新、helper/provider failure、节点生命周期投影和 observation helper。Rust CAS/goal mutation/canvas/OpenAPI/catalog owner 已核对；暂停与完成时序、child continuation、活动快照合并、prompt 文本、provider/skill 错误矩阵及摘要 helper 差异均登记为 reviewed residual。
 
 - assistant workflow persistence/planner/reconcile/resume 第53批 8 条 partial 已逐项复核过期终态写入失败、计划 agent 解析、planner runtime、审批通过/拒绝、pending child 重开、父级收敛和 resume loop。Rust CAS/workflow write/runtime/approval/scheduler owner 已核对；父子完成回填、父终止、计划 BLOCKED/暂停、session fallback、error propagation 与 resume-loop 合并状态差异均登记为 reviewed residual。
+
+- assistant workflow store/toolset 第54批 8 条 partial/boundary 已逐项复核 child/workflow resume edge、store malformed/missing/delete、CRUD/soft-delete/logs、registered tool 执行/归一化、product tool schema、不可编码 schema、空 selection 和 agent permission filtering。Rust workflow/store/catalog/tool failure owner 已核对；父失败传播、完整 store 矩阵、toolset exactly-once/response shapes、Go channel 编码错误、nil toolset seam 与权限组合差异均登记为 reviewed residual。
