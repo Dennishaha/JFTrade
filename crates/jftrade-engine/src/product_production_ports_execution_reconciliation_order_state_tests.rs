@@ -966,6 +966,7 @@ fn conformance_partial_full_fill_average_and_out_of_order_updates_hold() {
         .expect("order revision");
     let mut snapshot = correlated_order_snapshot(10, Some(4.0));
     snapshot.qty = 10.0;
+    snapshot.fill_avg_price = Some(100.0);
     assert!(
         port.apply_broker_snapshot(&partial, &snapshot, revision)
             .expect("merge broker snapshot after fill")
@@ -985,6 +986,33 @@ fn conformance_partial_full_fill_average_and_out_of_order_updates_hold() {
         2
     );
 
+    // A delayed fill already covered by the broker snapshot must be a no-op
+    // and must not replace the snapshot's cumulative average price.
+    let revision = store
+        .order_revision(&merged.internal_order_id)
+        .expect("order revision");
+    let mut delayed = fill("2026-08-30T23:59:00Z", 4.0, "delayed-covered-fill");
+    delayed.price = 90.0;
+    assert!(
+        !port
+            .apply_fill_snapshot(&merged, &delayed, revision)
+            .expect("apply covered delayed fill"),
+        "a snapshot-covered delayed fill must not create a second event"
+    );
+    let after_covered = store
+        .get_order("rust-order-reconcile")
+        .expect("load covered order")
+        .expect("covered order exists");
+    assert_eq!(after_covered.filled_quantity, Some(4.0));
+    assert_eq!(after_covered.filled_average_price, Some(100.0));
+    assert_eq!(
+        store
+            .list_order_events("rust-order-reconcile")
+            .expect("list covered events")
+            .len(),
+        2
+    );
+
     // (b) an older broker snapshot (SUBMITTED, 1 share) cannot regress it
     let revision = store
         .order_revision(&partial.internal_order_id)
@@ -993,7 +1021,7 @@ fn conformance_partial_full_fill_average_and_out_of_order_updates_hold() {
     stale.fill_avg_price = Some(100.0);
     assert!(
         !port
-            .apply_broker_snapshot(&merged, &stale, revision)
+        .apply_broker_snapshot(&after_covered, &stale, revision)
             .expect("apply stale snapshot"),
         "an out-of-order snapshot must not regress the partial fill"
     );

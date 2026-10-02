@@ -466,32 +466,33 @@ impl ProductionExecutionPort {
         }
         let covered = covered_by_snapshot(&events, fill)?;
         let applied_quantity = (fill.qty - covered).max(0.0);
+        if applied_quantity <= 0.0 {
+            return Ok(false);
+        }
         let mut next = current.clone();
-        if applied_quantity > 0.0 {
-            let previous_quantity = current.filled_quantity.unwrap_or(0.0).max(0.0);
-            let next_quantity = previous_quantity + applied_quantity;
-            if let Some(price) = finite_positive(fill.price) {
-                let previous_value = current
-                    .filled_average_price
-                    .filter(|value| value.is_finite() && *value >= 0.0)
-                    .unwrap_or(price)
-                    * previous_quantity;
-                next.filled_average_price = Some(
-                    (previous_value + price * applied_quantity) / next_quantity.max(f64::EPSILON),
-                );
-            }
-            next.filled_quantity = Some(next_quantity);
-            if current
-                .requested_quantity
-                .is_some_and(|qty| next_quantity >= qty)
-            {
-                next.status = "FILLED".to_owned();
-            } else if matches!(
-                canonical_stored_status(&current.status),
-                OrderStatus::Submitting | OrderStatus::Submitted | OrderStatus::BrokerAccepted
-            ) {
-                next.status = "PARTIALLY_FILLED".to_owned();
-            }
+        let previous_quantity = current.filled_quantity.unwrap_or(0.0).max(0.0);
+        let next_quantity = previous_quantity + applied_quantity;
+        if let Some(price) = finite_positive(fill.price) {
+            let previous_value = current
+                .filled_average_price
+                .filter(|value| value.is_finite() && *value >= 0.0)
+                .unwrap_or(price)
+                * previous_quantity;
+            next.filled_average_price = Some(
+                (previous_value + price * applied_quantity) / next_quantity.max(f64::EPSILON),
+            );
+        }
+        next.filled_quantity = Some(next_quantity);
+        if current
+            .requested_quantity
+            .is_some_and(|qty| next_quantity >= qty)
+        {
+            next.status = "FILLED".to_owned();
+        } else if matches!(
+            canonical_stored_status(&current.status),
+            OrderStatus::Submitting | OrderStatus::Submitted | OrderStatus::BrokerAccepted
+        ) {
+            next.status = "PARTIALLY_FILLED".to_owned();
         }
         if fill.order_id.is_some_and(|value| value > 0) && next.broker_order_id.is_none() {
             next.broker_order_id = fill.order_id.map(|value| value.to_string());
