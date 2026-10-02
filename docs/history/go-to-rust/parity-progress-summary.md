@@ -1324,3 +1324,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - 当前批次：Pine worker runtime boundaries 的 7 条映射完成逐条复核。Rust bounded command diagnostics、worker settings/candle validation、endpoint/token fail-closed、RPC failure classification、pool capacity/open rollback 与 gRPC probe identity owner 已记录为 reviewed；Go latency/throughput performance gate 明确无 Rust 实现，默认 timeout、job-id/nil transport、逐状态码与诊断字符串格式仍保留为 partial residual。
 
 - 当前批次：AkShare company research/analyst consensus 的 7 条映射完成逐条复核。Rust company financials/default operation projection、unsupported market/stable-key preflight、capability/busy propagation、absent-section projection 与 HK capability matrix owner 已记录为 reviewed；Go helper path/statement 编码、sidecar 具体 unsupported_market/not-found 文案与 Go 侧市场集合仍保留为 partial residual。
+
+- 当前批次：Pine parser/lowering recovery 的 7 条映射完成逐条复核。Rust 稳定 while/import diagnostics、tuple/order rejection、public compile unknown-argument guard、history reference lexer 与 UDF/semantic failure owner 已记录为 reviewed；Go 不完整 color/request 可恢复文本、UDF 展开 whitespace/rollback、method/控制流逐行位置契约、while/import 可执行语义与注释/注解分类仍保留为 partial/P2 residual。
