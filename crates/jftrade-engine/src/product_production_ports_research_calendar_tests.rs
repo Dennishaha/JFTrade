@@ -505,6 +505,7 @@ fn macro_indicator_history_route_maps_frontend_keys() {
     );
 }
 
+// Parity: go:452dea11:internal/integration/akshare/provider_calendar_macro_test.go:241 TestProviderMacroHistoryRejectsMismatchedEcho
 /// The macro history route validates the helper's echoed indicator identity and
 /// the typed numeric cells instead of publishing a silently mismatched series.
 #[test]
