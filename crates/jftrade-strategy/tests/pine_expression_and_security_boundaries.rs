@@ -205,26 +205,13 @@ fn unsupported_moving_average_call_is_rejected_before_planning() {
 /// Parity: go:452dea11:pkg/strategy/ir/planner_indicator_matrix_test.go:8 TestParseIndicatorBindingSupportedMatrix
 /// Parity: go:452dea11:pkg/strategy/ir/planner_test.go:310 TestPlanRequirementsCollectsExpressionIndicatorsAcrossStatementShapes
 #[test]
-fn unsupported_advanced_indicator_calls_fail_closed() {
-    for body in [
-        "value = ta.bbw(close, 20, 2)",
-        "value = ta.cog(close, 10)",
-        "value = ta.sar(0.02, 0.02, 0.2)",
-    ] {
-        let compilation = compile(&script(body));
-        assert!(
-            !compilation.ok,
-            "unsupported advanced call must fail: {body}"
-        );
-        assert!(
-            compilation
-                .diagnostics
-                .iter()
-                .any(|item| item.code == "PINE_REQUIREMENTS_INVALID"),
-            "diagnostics = {:?}",
-            compilation.diagnostics
-        );
-    }
+fn advanced_band_cycle_and_sar_indicators_keep_requirement_keys() {
+    let indicators = keys(
+        "bbw = ta.bbw(close, 20, 2)\ncog = ta.cog(close, 10)\nsar = ta.sar(0.02, 0.02, 0.2)",
+    );
+    assert!(indicators.contains(&"bbw:close:20:2".to_owned()), "{indicators:?}");
+    assert!(indicators.contains(&"cog:close:10".to_owned()), "{indicators:?}");
+    assert!(indicators.contains(&"sar:0.02:0.02:0.2".to_owned()), "{indicators:?}");
 }
 
 /// Parity: go:452dea11:pkg/strategy/pine/compiler_rejection_contracts_test.go:9

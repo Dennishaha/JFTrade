@@ -614,17 +614,26 @@ fn requirement_for_call(
     let mut key_parts = Vec::new();
     let kind;
     match lower.as_str() {
-        "ta.bbw" | "ta.cog" => {
-            return Err(invalid(
-                line,
-                format!("{callee} is not supported by the Pine v6 planner"),
-            ));
+        "ta.bbw" => {
+            kind = "bbw";
+            let mut parts = source_period_parts(callee, arguments, line, 2)?;
+            let multiplier = argument_text(arguments.get(2))
+                .ok_or_else(|| invalid(line, "ta.bbw requires a multiplier"))?;
+            parts.push(multiplier);
+            key_parts.extend(parts);
+        }
+        "ta.cog" => {
+            kind = "cog";
+            key_parts.extend(source_period_parts(callee, arguments, line, 2)?);
         }
         "ta.sar" => {
-            return Err(invalid(
-                line,
-                format!("{callee} is not supported by the Pine v6 planner"),
-            ));
+            kind = "sar";
+            if arguments.len() != 3 {
+                return Err(invalid(line, format!("{callee} requires start, increment, and maximum")));
+            }
+            for argument in arguments {
+                key_parts.push(argument_text(Some(argument)).unwrap_or_else(|| argument.to_string()));
+            }
         }
         "ta.dmi" | "ta.supertrend" => {
             kind = lower.strip_prefix("ta.").unwrap_or_default();
