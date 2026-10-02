@@ -1152,3 +1152,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - 当前批次：Backtest storage runtime invariants 的 14 条映射完成逐条复核。Rust maintenance fail-closed/lease、schema/session scope、canonical interval table、calendar aggregation、paging、coverage validation、transactional write、DST cutoff 与 recovery owner 证据已收口；Go dynamic-type/table-existence cache、候选表 fallback、limit helper、批量中途失败回滚、边界助手、closed-store、unavailable storage、session-aware gap 与不变量错误文案差异逐项记录。
 
 - 当前批次：Pine runtime manager/process 的 13 条映射完成逐条复核。Rust settings worker limits、asset selection/integrity、explicit process injection、loopback auth、pool reservation/rollback、readiness、live session revisions 与 stop/open failure owner 证据已收口；Go 20 项环境变量合并、embedded/external Source、禁用非法值、repo/workdir fallback、Option factory、Manager/Runner 成对发布、nil/Close 聚合、容量/超时与第二组件失败回滚等差异逐项记录。
+
+- 当前批次：Pine collection parse/compile 的 17 条映射完成逐条复核。每条 Go V20–V26 collection/UDT/method/tuple/dynamic-loop/request.security 场景均核对 Rust 同脚本拒绝诊断与 compiler owner；语言版本闸门和未实现特性族的差异、升级路径及缺少 typed projection 逐项保留为明确 residual，未伪造 exact。
