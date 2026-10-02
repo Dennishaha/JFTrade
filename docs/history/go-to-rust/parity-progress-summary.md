@@ -1160,3 +1160,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - 当前批次：Backtest session-filter store/query 的 11 条映射完成逐条复核。Rust scope/table 隔离、extended/regular 防污染、确定性分页、自定义周期、存储错误恢复与 schema 校验证据已收口；Go wrapper 委托计数、streamer/channel fallback、custom extended-hours range、nil 行过滤、游标回退/裁剪及 helper 层边界在 Rust 无同形 API，逐项记录。
 
 - 当前批次：Futu marketdata runtime 的剩余 11 条映射完成逐条复核。Rust provider runtime shutdown/rollback、ActiveProviderState publish fence、OpenD listener/tick projection、fallback instrument filtering、extended quote/session windows、unavailable ports 与 delayed snapshot owners 已收口；Go Ensure/Reset 并发窗口、幂等 Close 计数、nil runtime、热替换、bbgo trade channel、逐查询 fallback 合并与 source 字段差异逐项记录。
+
+- 当前批次：live strategy command/executor/runtime manager 的 38 条映射完成逐条复核。Rust intent execution、short/close/quantity、conditional orders、market-step、audit skip、broker/provider guards、streaming capability、health/binding gates、session reservation 与 lifecycle owner 证据已收口；Go command DTO、warning sink/tag、board-lot/market-rules 开关、实时 OCO、逐字段缺失依赖、账户解析调用计数、重复激活取消、callback 文案与逐类错误矩阵差异逐项记录。
