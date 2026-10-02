@@ -881,3 +881,10 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 ## 当前批次
 
 - `cmd/jftrade-desktop/main_test.go:131:TestDesktopAssetHandlerDoesNotFallbackForMissingStaticAsset` 已完成逐项收口：Rust transport owner 对 `/assets/`、`/docs/` 和带扩展名缺失路径逐一断言 404 与空响应体，定向 nextest 1/1 通过，映射由 `partial` 升为 `function_exact`；receipt `sha256:6bfd058c06d76673f62c47c740f73745ef09666cf0c60e1db1a472e08f13ff89`。
+
+## 下一轮目标（2026-10-02）
+
+1. **Assistant 断线传输 owner**：复核 `internal/api/assistant/chat_transport_disconnect_test.go:110`，确认 Rust SSE 物化模型是否足以覆盖 retry/event 写失败的单写即退；若无法构造同形 socket loop，补齐 reviewed boundary 与回归条件，不把通用 `SseWriter` 错当成 socket loop 等价证据。
+2. **Backtest provider error 所有权**：复核 `internal/app/apiserver/backtestapp/historical_source_test.go:226`，保留 Rust durable task 的 provider message 证据，同时登记 Go typed error identity 与 Rust worker error 字符串化的边界；只有生产 API 暴露稳定错误分类时才新增映射或测试。
+3. **HTTP 时间解析契约**：复核 `internal/api/httpserver/bindings_boundaries_test.go:61`，以公开 route 契约决定非法时间继续 `400` 还是恢复 caller fallback；先锁定现有 route 行为和调用方影响，再做最小生产修改。
+4. **持续门禁**：每个子批次先跑受影响 nextest，再跑 `git diff --check`、`audit_test_parity.py --strict`；文档/清单变更追加 `check:ai-context` 与 `check:quick`，并保留 `check:zero-go` 现有基线失败证据。
