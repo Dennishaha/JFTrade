@@ -959,6 +959,39 @@ fn live_order_quantity_applies_market_minimum_and_volume_precision() {
     );
 }
 
+// Parity: go:452dea11:internal/strategy/live_command_business_boundaries_test.go:85 TestWorkerIntentDirectionAliasesPreserveTradingSide
+#[test]
+fn strategy_intent_direction_aliases_preserve_entry_and_close_sides() {
+    let (_dir, _def_store, store, execution, provider, binding) = sizing_execution_fixture();
+    let ctx = StrategyExecutionContext {
+        execution: Some(&execution),
+        execution_store: None,
+        provider: &provider,
+        store: &store,
+        instance_id: "inst-sizing",
+        market: "US",
+        symbol: "US.AAPL",
+        binding: &binding,
+        expected_risk_revision: None,
+        fallback_price: Some(100.0),
+        sellable_quantity: Some(10.0),
+        current_position: Some(10.0),
+        available_cash: Some(1_000.0),
+        virtual_account: None,
+    };
+    let mut entry = test_intent(1.0, 100.0);
+    entry.kind = "entry".to_owned();
+    entry.direction = "buy".to_owned();
+    let mut close = test_intent(1.0, 100.0);
+    close.kind = "close".to_owned();
+    close.direction = "sell".to_owned();
+    execute_strategy_intents(ctx, &[entry, close]).expect("aliases should execute");
+    let mutations = execution.mutations.lock().unwrap();
+    assert_eq!(mutations.len(), 2);
+    assert_eq!(mutations[0].payload["side"], "BUY");
+    assert_eq!(mutations[1].payload["side"], "SELL");
+}
+
 #[test]
 fn test_execute_strategy_intents_revision_fence_mismatch_blocks_and_audits() {
     let dir = tempfile::tempdir().expect("tempdir");
