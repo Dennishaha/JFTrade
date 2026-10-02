@@ -1050,3 +1050,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - 当前批次：Assistant workflow rules 与 async tools 的 6 条映射完成复核。Rust threshold cooldown、cron parse/semantics、queue atomicity、failure-CAS、trigger/job lifecycle 证据已列为覆盖；EventMatches/冷却三态/标题回退、完整规则边界组合、后台 accepted→完成/跳过/失败日志合并断言缺口保持 partial。
 
 - 当前批次：Assistant workflow CRUD、lifecycle、store failure 的 14 条映射逐项复核。Rust workflow owner 的 tags/pagination/log/delete、webhook/error codes、definition validation、canvas interpolation/cascade、bridge/preflight、manager errors、queue guard、threshold scheduler、shutdown/join 与 not-found 路由证据已拆为 reviewed coverage；逐分支 validation、后台日志、stale resources、写入故障矩阵、helper 边界、Close/store 时序及 in-flight tick join 等剩余差异逐项记录。
+
+- 当前批次：Assistant workflows_extended 与 workflows_resource_recovery 的 9 条映射完成复核。Rust trigger validation resilience、built-in/schedule projection、scheduler tick/worker、active-run CAS、status projection、invalid work mode/not-found、template validation 与 durable failure winner 证据已拆分；完整输入边界矩阵、模板幂等与 watched instruments、事件/调度合并后台链、状态调和矩阵、异步 trigger clone/panic 及 running-transition 写失败注入缺口逐项记录。
