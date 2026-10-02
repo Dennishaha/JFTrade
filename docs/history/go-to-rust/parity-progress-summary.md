@@ -1046,3 +1046,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - 当前批次：Assistant service recovery/skill-state 的终态聊天回退、技能恢复契约、审计/optimization 状态恢复与取消持久化失败传播共 4 条完成复核。Rust terminal frame recovery、skill document registration、audit subject filtering、optimization negative/cancel routes 与 restart persistence 作为覆盖；latest-assistant 优先级、畸形技能/缺失删除合并断言、optimization 恢复合并语义及 context.Canceled 原样传播缺口保持 partial。
 
 - 当前批次：Assistant 基础 service 的 timeline error chain、runtime unavailable、runtime settings 与 runtime-free agent templates 共 4 条完成复核。Rust legacy error code/底层错误、unready dispatch、timeout fallback、compile-time catalog 作为覆盖；Go sentinel+cause 前缀、Available/Snapshot/Close 服务 API、StreamIdleTimeoutMillis 暴露值及无 runtime 模板读取形态缺口保持 partial。
+
+- 当前批次：Assistant workflow rules 与 async tools 的 6 条映射完成复核。Rust threshold cooldown、cron parse/semantics、queue atomicity、failure-CAS、trigger/job lifecycle 证据已列为覆盖；EventMatches/冷却三态/标题回退、完整规则边界组合、后台 accepted→完成/跳过/失败日志合并断言缺口保持 partial。
