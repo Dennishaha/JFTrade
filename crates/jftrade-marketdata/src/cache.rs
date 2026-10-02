@@ -4,6 +4,8 @@ use jiff::Timestamp;
 
 use crate::{MarketDataError, Tick};
 
+const DEFAULT_RETENTION_MS: i64 = 30 * 60 * 1_000;
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum CacheLookup {
     Fresh(Tick),
@@ -51,6 +53,15 @@ impl TickCache {
             }
         }
         entries.push_back(tick);
+        let newest_observed_at = entries
+            .back()
+            .map(|tick| tick.observed_at_ms)
+            .unwrap_or_default();
+        while entries.front().is_some_and(|oldest| {
+            newest_observed_at.saturating_sub(oldest.observed_at_ms) > DEFAULT_RETENTION_MS
+        }) {
+            entries.pop_front();
+        }
         while entries.len() > self.capacity_per_instrument {
             entries.pop_front();
         }

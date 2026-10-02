@@ -291,6 +291,41 @@ fn test_cache_freshness_retention_and_maximum() {
 }
 
 #[test]
+fn test_cache_prunes_samples_outside_wall_clock_retention() {
+    let mut cache = TickCache::new(10);
+    let generation = 2;
+    cache
+        .insert(tick("HK.00700", "99", "1", 0, generation, None), generation)
+        .expect("seed old sample");
+    cache
+        .insert(
+            tick("HK.00700", "100", "1", 30 * 60 * 1_000, generation, None),
+            generation,
+        )
+        .expect("insert boundary sample");
+    cache
+        .insert(
+            tick(
+                "HK.00700",
+                "101",
+                "1",
+                30 * 60 * 1_000 + 1,
+                generation,
+                None,
+            ),
+            generation,
+        )
+        .expect("insert newer sample");
+
+    let prices: Vec<_> = cache
+        .history("HK.00700")
+        .iter()
+        .map(|sample| sample.price)
+        .collect();
+    assert_eq!(prices, vec![price_dec("100"), price_dec("101")]);
+}
+
+#[test]
 fn cache_deduplicates_identical_observations_without_advancing_observed_at() {
     let generation = 9;
     let mut cache = TickCache::new(3);
