@@ -990,3 +990,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - assistant store business/failure 第41批 8 条 partial 已逐项复核 provider 生命周期、agent/session cascade、run/approval/skill/optimization 查询、运营边界、provider 默认/secret/list、实体生命周期、损坏库归一化及默认/失败传播。Rust store/CAS/projection owner 已核对；完整 provider matrix、级联行集、分页/去重字段、逐项 defaults、畸形 JSON/nil patch 和故障注入差异均登记为 reviewed residual。
 
 - assistant store identity/lifecycle 第42批 8 条 partial 已逐项复核 provider/skill/task/optimization identity、session cascade、provider reference/default、SaveRun 终态防回退、fresh approval 重开和 paused workflow 更新。Rust store/CAS/engine projection owner 已核对；生成 ID/createdAt、级联全行集、secret/ordering 矩阵、whole-row SaveRun 及字段级 reopen/pause payload 差异均登记为 reviewed residual。
+
+- assistant store lifecycle/maintenance 第43批 8 条 partial 已逐项复核 goal pause 生命周期、session delete 分类、tool tag/canonical dispatch、skill metadata/tools、maintenance candidate/error、handoff revision、purge cascade/history 和 compact freelist。Rust CAS/session/MCP/catalog/maintenance owner 已核对；whole-row merge、Go/Rust 删除分类、tag 语义、资产 metadata、逐表故障、序列分配、历史保留和 freelist 数量差异均登记为 reviewed residual。
