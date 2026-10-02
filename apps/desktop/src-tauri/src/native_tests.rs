@@ -123,6 +123,32 @@ mod tests {
         assert_eq!(page.offset, 200);
         assert_eq!(page.items.len(), 51);
         assert!(page.items[0].text.contains("item-400"));
+
+        let mut full = String::new();
+        for index in 1..=2_000 {
+            full.push_str(&format!("INFO line-{index:04}\n"));
+        }
+        fs::write(
+            port.log_dir.join("desktop-2026-08-20.log"),
+            full.as_bytes(),
+        )
+        .expect("write full tail fixture");
+        let full_tail = port
+            .log_read_page("2026-08-20", "ALL", "", LATEST_LOG_OFFSET, 500)
+            .expect("read full last page");
+        assert_eq!(full_tail.total, 2_000);
+        assert_eq!(full_tail.offset, 1_500);
+        assert_eq!(full_tail.items.len(), 500);
+        assert_eq!(full_tail.items[0].text, "INFO line-1501");
+        assert_eq!(full_tail.items[499].text, "INFO line-2000");
+
+        let filtered_tail = port
+            .log_read_page("2026-08-19", "WARN", "item-", LATEST_LOG_OFFSET, 1)
+            .expect("read filtered last page");
+        assert_eq!(filtered_tail.total, 251);
+        assert_eq!(filtered_tail.offset, 250);
+        assert_eq!(filtered_tail.items.len(), 1);
+        assert_eq!(filtered_tail.items[0].text, "WARN item-500");
         let default_page = port
             .log_read_page("2026-08-18", "ALL", "", 0, 0)
             .expect("default page");
