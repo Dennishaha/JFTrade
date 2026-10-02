@@ -96,13 +96,8 @@ pub(super) fn execute_strategy_intents(
                 intent.kind
             ));
         }
-        if kind == "cancel"
-            && intent.id.trim().is_empty()
-            && intent.from_entry.trim().is_empty()
-        {
-            return Err(format!(
-                "cancel command id is required at index {index}"
-            ));
+        if kind == "cancel" && intent.id.trim().is_empty() && intent.from_entry.trim().is_empty() {
+            return Err(format!("cancel command id is required at index {index}"));
         }
     }
 
