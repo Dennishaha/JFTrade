@@ -960,3 +960,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - assistant runtime/session context 第二十六批 8 条 partial/boundary 已逐项复核 runtime 初始化/关闭、nil-safe helper、审批摘要与用户错误、压缩服务、缺失资源/冲突、snapshot JSON、protected tail 和业务语义 helper。Rust assembly/shutdown/approval/session-context owner 已核对；注册表字段、nil 所有权、错误重写矩阵、压缩 fallback、omitempty、事件保护/裁剪和展示 helper 差异均登记为 reviewed residual。
 
 - assistant session context/retry 第27批 8 条 partial 已逐项复核 manager/wrapped events、审批事件索引、纯 helper、恢复边界、append retry、manager 分支和 stale-session 并发追加。Rust protected-tail/compaction/atomic projection owner 已核对；nil manager、事件索引/摘要/token helper、provider fallback、retry 计数、并发刷新以及 non-stale error bypass 差异均登记为 reviewed residual。
+
+- assistant session stale/skill 第二十八批 8 条 partial/boundary 已逐项复核 unexpected session type、synthetic session、handoff raw session、超大/小工具响应、stale append、wrapped session accessor 和技能目录排序/删除。Rust session store/atomic projection/pending input/context compaction/skill catalog owner 已核对；stale 句柄重试、合成会话创建、raw handoff、阈值裁剪、包装 State 访问器和 builtin-first/ID 规范化差异均登记为 reviewed residual。
