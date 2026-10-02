@@ -1092,3 +1092,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - 当前批次：Watchlist route/lifecycle 与 apiserver application ownership/runtime 的 10 条映射完成复核。Rust watchlist fixtures/cutover、composition dependency order、WriterLease ownership、shutdown idempotence、resource failure/logging 与 runtime dependency snapshot 证据已拆分；URI 400/404、完整单条 watchlist 生命周期、nil-safe paths、generic Installers、懒注册/late registration、errors.Join 聚合及 nil service 形态差异逐项保留。
 
 - 当前批次：Datamigration maintenance failure paths 的 7 条映射完成复核。Rust candidate fingerprint/rollback、WriterLease busy、backup discovery、preview defaults/expiry/confirmation、storage inspection/candidate fail-closed 与 corrupt-marker compact 证据已拆分；Go hook/context/VACUUM 注入、marker 并发重读、empty-path error、incompatible backup/missing compact 与 descriptor 注入差异逐项记录。
+
+- 当前批次：Datamigration maintenance/manager/rebuild/research 的 16 条映射完成复核。Rust backup/privacy/lease/preview/inspection/marker/rebuild/research owner 证据已拆分；Go rate-limit、busy re-read、hook/context 注入、SetUnavailable、CompletePending、version drift、atomic marker faults、single rebuild/global lock/file sets/select boundaries 与 research apply/reopen/complete 缺口逐项记录。
