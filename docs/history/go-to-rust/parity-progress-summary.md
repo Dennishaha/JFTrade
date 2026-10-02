@@ -1048,3 +1048,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - 当前批次：Assistant 基础 service 的 timeline error chain、runtime unavailable、runtime settings 与 runtime-free agent templates 共 4 条完成复核。Rust legacy error code/底层错误、unready dispatch、timeout fallback、compile-time catalog 作为覆盖；Go sentinel+cause 前缀、Available/Snapshot/Close 服务 API、StreamIdleTimeoutMillis 暴露值及无 runtime 模板读取形态缺口保持 partial。
 
 - 当前批次：Assistant workflow rules 与 async tools 的 6 条映射完成复核。Rust threshold cooldown、cron parse/semantics、queue atomicity、failure-CAS、trigger/job lifecycle 证据已列为覆盖；EventMatches/冷却三态/标题回退、完整规则边界组合、后台 accepted→完成/跳过/失败日志合并断言缺口保持 partial。
+
+- 当前批次：Assistant workflow CRUD、lifecycle、store failure 的 14 条映射逐项复核。Rust workflow owner 的 tags/pagination/log/delete、webhook/error codes、definition validation、canvas interpolation/cascade、bridge/preflight、manager errors、queue guard、threshold scheduler、shutdown/join 与 not-found 路由证据已拆为 reviewed coverage；逐分支 validation、后台日志、stale resources、写入故障矩阵、helper 边界、Close/store 时序及 in-flight tick join 等剩余差异逐项记录。
