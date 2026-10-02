@@ -1058,3 +1058,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - 当前批次：CLI launcher 8 条与 API Assistant stream helper/recovery 7 条映射完成复核。Rust launcher E2E、durable stream snapshot/reconnect、terminal frame/replay、agent validation 与 bearer auth 证据已拆分；Go CLI wrapper、进程内 hub TTL/clone/currentRunID、delta 分类、preview state、不可序列化 tool output 与跨 owner helper 形状差异逐项记录为 boundary/partial residual。
 
 - 当前批次：API backtest route 与 live dispatcher 的 8 条映射完成复核。Rust backtest request/route 错误、SSE 初始/provider/trigger/ticker 传播、live provider-family skip、WS provider/origin 帧、subscription 生命周期与 depth subscribe/unsubscribe 证据已拆分；handler 400/404 形状、tick/notification/send failure、resolvedAt 去重、WS 分支错误对象、逐调用 broker 透传、Close 生命周期和 depth coalescing 缺口逐项保留。
+
+- 当前批次：API live handler 与 marketdata route boundary 的 9 条映射完成复核。Rust WS close/origin/depth/notification、candles provider code、microstructure capability 与 active-provider ownership 证据已拆分；Close code/corpus、resolvedAt refresh、真实通知重放、Host same-origin、非 Futu depth、brokerId 优先级以及 Go broker-reader 错误通道差异逐项保留。
