@@ -1218,3 +1218,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - 当前批次：strategy runtime 启动、polling、worker 请求/错误与 security stream 的 6 条映射完成逐条复核。Rust provider catalog metadata gate、Pine worker capacity、RunScriptRequest 构造、worker diagnostics/recovery 与 web listener invalidate-all owner 已收口为 reviewed；Go 的启动补写 market metadata、实例级 worker limit、live request 字段快照、runtime error 状态、停滞后新 bar 推进下单/observation 与现有 SSE 直接取消断言逐项保留为 partial/boundary residual。
 
 - 当前批次：strategy runtime trading 的 4 条映射完成逐条复核。Rust execution port 的最小交易单位拒绝/审计、current-bar 缓存过滤、账户快照 position/sellable 输入与断连 fail-closed owner 已收口为 reviewed；Go 的 ignored reason runtime evidence、空 intent 数组专门分支、K 线前主动刷新券商持仓以及断连时保留缓存继续下单逐项保留为 partial/boundary residual。
+
+- 当前批次：`servercoretest/broker_new_test.go` 的 13 条 broker read/write、断连、参数校验与 JSON 路由映射完成逐条复核。Rust broker-read fail-closed、market-data unavailable、trade write error mapping、生产 HTTP invalid-query/body 矩阵、订单状态 guard 与 JSON route resolver owner 已收口为 reviewed；Go 的 200 degraded/disconnected wire、无租约 quote、OpenD 断连 unlock、未配置 broker 的下单/撤单、strconv 原文错误、合法断连 shape 与 broker 路由 content-type 逐项保留为 partial/boundary residual。
