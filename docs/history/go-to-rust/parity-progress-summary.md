@@ -1072,3 +1072,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - 当前批次：Settings account/failure boundary 的 7 条映射完成复核。Rust managed-account identity、rebuild errors、settings rollback、notification normalization、onboarding state、data-management auth 与 MCP/security errors 已列为覆盖；HTTP 级 body-id/500、rebuild 合并矩阵、11 路写入失败、通知回读落盘、onboarding reset、callback failure 及 listener/token persistence failure 缺口逐项记录。
 
 - 当前批次：Settings routes 的 legacy response、MCP token、execution/calendar、UI/onboarding/security/ADK、data-management 与 notification test 共 9 条完成复核。Rust broker/delete shapes、removed-route registration、one-time hashed token、settings normalization/reload、typed cleanup preview 与 notification delivery 证据已拆分；移除路由 HTTP 404、旧 token 失效、注入 service 调用计数、pine-worker round-trip、组合矩阵、typed callbacks 与 unavailable error 缺口逐项记录。
+
+- 当前批次：Settings legacy yfinance route removal 与 URI boundary 2 条映射完成复核。Rust unknown-route JSON 404 与 typed path matching 证据已记录；Go 专门 legacy-prefix 四方法 fixture 及缺 URI 400 handler 形状在 Rust router ownership 下保持 boundary。
