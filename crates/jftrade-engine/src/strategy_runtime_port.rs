@@ -755,5 +755,19 @@ mod tests {
         );
         assert!(store.list_audit_events("stopped-1").unwrap().is_empty());
         assert!(store.list_log_events("stopped-1").unwrap().is_empty());
+
+        let paused_audit_count = store.list_audit_events("paused-1").unwrap().len();
+        let paused_log_count = store.list_log_events("paused-1").unwrap().len();
+        port.restore_running_instances().expect("reconcile is idempotent");
+        assert_eq!(
+            store.list_audit_events("paused-1").unwrap().len(),
+            paused_audit_count,
+            "a second startup reconcile must not append another audit"
+        );
+        assert_eq!(
+            store.list_log_events("paused-1").unwrap().len(),
+            paused_log_count,
+            "a second startup reconcile must not append another log"
+        );
     }
 }
