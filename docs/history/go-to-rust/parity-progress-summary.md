@@ -944,3 +944,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - assistant planner/projection/provider 第十八批 8 条 boundary/partial 已逐项复核 planner 注册名、草稿生命周期与参数依赖、审批恢复错误资格，以及 provider URL、header、私网与 redirect 安全边界。Rust tool catalog、CanvasCompiler/TaskGraph、approval projection 与 HTTP guard owner 已核对；planner 状态机、终局资格、metadata 拦截、header 归一化和 redirect DNS 重解析差异均登记为 reviewed residual。
 
 - assistant Responses/provider safety 第十九批 8 条 partial/boundary 已逐项复核工具名消毒与还原、流式 usage、碰撞拒绝、响应边界、probe 畸形响应及 safe HTTP dial 地址校验。Rust 非流式 adapter、tool extraction、terminal audit 与 reqwest owner 已核对；消毒/流式增量、probe 入口、dial-time DNS rebinding 防护和固定 dial 错误面均保留为 reviewed residual。
+
+- assistant reasoning/resume/timeline 第二十批 8 条 partial/boundary 已逐项复核 reasoning 优先级与快照恢复、Responses 模型选择、流式 final 去重、恢复执行失败传播、rehydrate 失败、子审批回退及空/缺失会话时间线。Rust gate/store/runtime/read owner 已核对；多级优先级、恢复快照重建、流式 delta、逐段故障注入、子审批回退及 Go optional-success store 语义均保留为 reviewed residual。
