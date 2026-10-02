@@ -1088,3 +1088,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - 当前批次：Trading execution command/read/validation 与 OpenAPI route alignment 的 6 条映射完成复核。Rust trade error branches、orders filters、receipt/not-found、account.orders forwarding、ID trim/encoding、route registry/OpenAPI transport gate 证据已拆分；九分支合并矩阵、worker current/history 计数、PARTIALLY_FILLED fixture、空 ID 400 与逐标识 route 集合等式缺口逐项记录。
 
 - 当前批次：Trading broker/portfolio read-write 的 7 条映射完成复核。Rust positions/funds/orders/fees/cash projections、broker write cutover、fail-closed 与 unsupported-write probes 证据已拆分；缺 broker/错误 broker、degraded 200 vs 503、helper 六类 HTTP 错误、参数归一、no-active fallback 与 validation-order 差异逐项记录。
+
+- 当前批次：Watchlist route/lifecycle 与 apiserver application ownership/runtime 的 10 条映射完成复核。Rust watchlist fixtures/cutover、composition dependency order、WriterLease ownership、shutdown idempotence、resource failure/logging 与 runtime dependency snapshot 证据已拆分；URI 400/404、完整单条 watchlist 生命周期、nil-safe paths、generic Installers、懒注册/late registration、errors.Join 聚合及 nil service 形态差异逐项保留。
