@@ -1140,3 +1140,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - 当前批次：Strategy indicatorbinding/parse 的 22 条映射完成逐条复核。Rust Pine parser/planner 的均线键、时间单位、正整数周期、百分位边界与风险声明 owner 证据已收口；Go DSL 函数/参数切分、函数名/均线/数量/保护模式归一、窗口策略、正浮点/百分比助手、参数元数与整数转字符串等无同形 Rust helper 的语言/架构差异逐项记录。
 
 - 当前批次：Pine worker command executor 的 22 条 backtest/strategy execution 映射完成逐条复核。Rust intent sizing/close/cancel、market-step skip、unavailable fail-closed、warning dedup、atomic bracket、OCO/审计、clientOrderId fallback 与 signal validation owner 证据已收口；Go worker-local activeOrders、short replay tag、board-lot 专项、warning collector 形态、逐腿 OCO cancel、完整 malformed bracket 矩阵及未跟踪/已终结撤单边界逐项记录。
+
+- 当前批次：Conservative bar executor 的 17 条未审查映射完成逐条复核。Rust 撮合校验、next-open/liquidity cap、atomic bracket、reduce-only、取消、收盘价、滑点/gap、stop order、告警与 helper 分支 owner 证据已收口；Go PARTIALLY_FILLED→FILLED 状态流、警告文案/集合、内部 pending 切片、逐形态错误矩阵及结果模型字段差异逐项保留。
