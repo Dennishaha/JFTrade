@@ -1015,6 +1015,10 @@ fn conformance_partial_full_fill_average_and_out_of_order_updates_hold() {
     assert_eq!(after_covered.filled_quantity, Some(4.0));
     assert_eq!(after_covered.filled_average_price, Some(100.0));
     assert_eq!(
+        after_covered.updated_at, merged.updated_at,
+        "a covered delayed fill must not move updated_at"
+    );
+    assert_eq!(
         store
             .list_order_events("rust-order-reconcile")
             .expect("list covered events")
