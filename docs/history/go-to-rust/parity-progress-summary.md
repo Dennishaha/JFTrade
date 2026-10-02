@@ -1190,3 +1190,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - 当前批次：Backtest input/readiness/sync 的 19 条映射完成逐条复核。Rust range/provider/session defaults、missing coverage fail-closed、readiness/sync lifecycle、persisted progress、orphan recovery、worker cleanup 与 request validation owner 证据已收口；Go RequestError 动态类型/文案、adapter 工厂/关闭时序、provider pin call-count、终态清理矩阵、TaskID 唯一性、unknown rehab fallback 与完整参数组合差异逐项记录。
 
 - 当前批次：Trading order-updates 的未审查映射完成逐条复核。Rust reconciliation worker polling/wake、store scan fencing、bounded invalidations、inactive/degraded status、terminal fee fail-closed 与 lifecycle owner 证据已收口；Go 内存 TTL/cache copy、broker subscription/resubscribe/refresh、per-subscription metadata、batch fee dedup、nil helper/upsert/query builder 与订阅失败 fallback 差异逐项记录。
+
+- 当前批次：AKShare provider 的 8 条映射完成逐条复核。Rust helper descriptor/loopback client、adjustment/session rejection、DTO snake_case、generic error/partial result、identity normalization 与 snapshot batching owner 证据已收口；Go polling-only capability/端点矩阵、sidecar 不触达计数、not-found/warming 文案、指数前缀、regular-only 与 batch size 具体值差异逐项记录。
