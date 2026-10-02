@@ -920,3 +920,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - assistant context/projection 第六批 8 条 partial 已逐项复核 completion SSE 顺序、provider prefix/handoff、空存储与 fallback id、session read/missing、latest text anchor 及 genai execution descriptor；Rust durable projection/runtime owner 已确认，字符串级 handoff、空存储、字段级 anchor 与 Go genai helper 差异明确登记，coverage 改为 reviewed。
 
 - assistant execution bounds 第七批 8 条 partial 已逐项复核 tool-call reuse/completion、run/event error、pause、final synthesis、approval resolution、rehydrate、run-scoped state 与 buffered delta；Rust runtime/projection/recovery owner 已核对，TIMED_OUT/no-op、genai Content、rehydrate 构造与 delta flush/解绑等差异保留为 reviewed residual。
+
+- assistant execution claims 第八批 8 条 partial 已逐项复核 run/tool lease 输入校验、claim update RowsAffected、closed DB、durable invocation replay、失败调用投影与 keyed handler fencing；Rust claims/store owner 已核对，TTL/空 ID/Abandon、SQL stub、失败 COMPLETED→FAILED 成对投影等残余明确登记，coverage 改为 reviewed。
