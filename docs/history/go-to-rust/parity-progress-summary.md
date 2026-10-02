@@ -1206,3 +1206,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - 当前批次：servercore data management 的 7 条映射完成逐条复核。Rust typed CleanupPreview/Maintenance/Overview 服务、DatabaseId fail-closed、维护 busy 预览/执行 fence、SQLite 单一运行记录、局部化 purge 错误与取消/冲突/过期映射 owner 已收口为 reviewed；Go 的 datamigration.Backend 薄封装、行情/策略逐库 busy reason 注册表与中文文案、nil/closed store 注入、损坏 marker 的路径查找静默忽略、内存与 DB 双写同步及 ErrBackupRateLimited 映射逐项保留为 partial/boundary residual。
 
 - 当前批次：servercore ADK maintenance、assistant transport、broker read default 与 desktop token 的 6 条映射完成逐条复核。Rust 数据维护 busy/candidate fence、ADK port 有序关闭、交易请求市场归一、system-control bearer 认证、独立 web listener 与 Tauri token fail-closed owner 已收口为 reviewed；Go 的 ADK 运行探测/四类 DB_BUSY 注册表、关闭后 chat stream 503、TradeMarket(US) 默认注入、WebSocket 协议头 token、sidecar/browser listener 混用与无 token 开发信任逐项保留为 partial/boundary residual。
+
+- 当前批次：servercore execution writeback、instrument normalization、live heartbeat 与 diagnostics 的 4 条映射完成逐条复核。Rust 对账身份复用/分页去重、CN 前缀推断、live transport metrics 去重排序、WebSocket limit/origin fail-closed 与 permit 释放 owner 已收口为 reviewed；Go 的 placed 回写已发现订单专用事件矩阵、CN 裸 code 歧义拒绝、策略持仓排除/nil service、诊断载荷字段回显逐项保留为 partial residual。
