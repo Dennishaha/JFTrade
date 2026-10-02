@@ -1583,6 +1583,7 @@ fn test_execute_strategy_intents_parameterless_close_skips_when_no_position() {
     );
 }
 
+// Parity: go:452dea11:pkg/backtest/pineworker_command_executor_test.go:626 TestPineWorkerCommandExecutorCancelBoundaries
 #[test]
 fn test_execute_strategy_intents_cancel_all_queries_and_cancels_active_orders() {
     let dir = tempfile::tempdir().expect("tempdir");
@@ -1646,6 +1647,12 @@ fn test_execute_strategy_intents_cancel_all_queries_and_cancels_active_orders() 
     exec_store
         .save_order(order, "2026-08-30T00:00:00Z")
         .expect("save order");
+    let mut terminal = active_strategy_order("inst-cancel-all", "ord-terminal-1");
+    terminal.status = "FILLED".to_owned();
+    terminal.client_order_id = Some("strat-terminal-1".to_owned());
+    exec_store
+        .save_order(terminal, "2026-08-30T00:00:00Z")
+        .expect("save terminal order");
 
     let execution = MockExecutionPort::default();
     let provider = ActiveProviderState::default();
@@ -1686,6 +1693,13 @@ fn test_execute_strategy_intents_cancel_all_queries_and_cancels_active_orders() 
     assert_eq!(
         mutations[0].internal_order_id,
         Some("ord-active-1".to_owned())
+    );
+    assert!(
+        exec_store
+            .get_order("ord-terminal-1")
+            .expect("read terminal order")
+            .is_some_and(|order| order.status == "FILLED"),
+        "cancel_all must not mutate terminal orders"
     );
 
     let audit = store
