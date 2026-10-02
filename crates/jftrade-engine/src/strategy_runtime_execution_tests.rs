@@ -1583,6 +1583,7 @@ fn test_execute_strategy_intents_parameterless_close_skips_when_no_position() {
     );
 }
 
+// Parity: go:452dea11:pkg/backtest/pineworker_command_executor_test.go:421 TestPineWorkerCommandExecutorCancelAll
 // Parity: go:452dea11:pkg/backtest/pineworker_command_executor_test.go:626 TestPineWorkerCommandExecutorCancelBoundaries
 #[test]
 fn test_execute_strategy_intents_cancel_all_queries_and_cancels_active_orders() {
