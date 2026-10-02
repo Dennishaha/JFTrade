@@ -1298,3 +1298,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - 当前批次：strategy Service facade/lifecycle 的 9 条映射完成逐条复核。Rust product routes、strategy runtime mutation owner、Pine route retry-after、定义版本/删除历史与 strategy write compatibility fixtures 已记录为 reviewed；Go 单一 Service 门面、errors.Is 原样传播、缺分析器、启动前零副作用、容量指引文案、启动失败回滚、live stream 刷新计数与 facade→route 清单式断言仍保留为 partial residual。
 
 - 当前批次：strategy instancebinding normalization/conversion 的 8 条映射完成逐条复核。Rust binding normalization、实例化/运行时更新一致性、serde legacy compatibility、Option 类型边界与 chartType 白名单 owner 已记录为 reviewed；Go ApplyParams 写回层、逐字段 legacy 回填、未知 chartType 静默清空、审计文案与旧数组/类型组合矩阵逐项保留为 partial residual。
+
+- 当前批次：Pine language execution boundaries 的 8 条映射完成逐条复核。Rust request.security/timeframe、TA window defaults、tuple contracts、Pine v6/version header rejection owner 已记录为 reviewed；Go collection/UDT execution、词法 helper、UDF 多行体与 runtime loop、TA rewrite 原文保留、18 类 MTF key 完整矩阵与颜色/缓存 helper 在 Rust 无同形执行面，继续保留为 partial/boundary residual。
