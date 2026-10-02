@@ -715,6 +715,7 @@ async fn websocket_handler(
     };
     let timestamp = state.clock.now_rfc3339();
     let live_market_data_status = state.live_market_data_status.clone();
+    let live_connections = Arc::clone(&state.live_connections);
     let Some(live_hub_connection) = state.live_hub.try_connect() else {
         return error_response(
             &state.clock,
@@ -735,6 +736,7 @@ async fn websocket_handler(
                 live_hub_connection,
                 timestamp,
                 live_market_data_status,
+                live_connections,
                 shutdown,
             )
         })
@@ -784,6 +786,7 @@ async fn websocket_session(
     mut live_hub_connection: LiveHubConnection,
     timestamp: String,
     live_market_data_status: Option<Arc<dyn LiveMarketDataStatusPort>>,
+    live_connections: Arc<LiveConnectionMetrics>,
     mut shutdown: tokio::sync::watch::Receiver<bool>,
 ) {
     if *shutdown.borrow() {
@@ -799,6 +802,7 @@ async fn websocket_session(
         &timestamp,
         live_market_data_status.as_deref(),
         &live_hub_connection,
+        &live_connections,
     );
     if socket
         .send(Message::Text(heartbeat.to_string().into()))
@@ -818,6 +822,7 @@ async fn websocket_session(
                     &timestamp,
                     live_market_data_status.as_deref(),
                     &live_hub_connection,
+                    &live_connections,
                 );
                 if socket.send(Message::Text(hb.to_string().into())).await.is_err() {
                     break;
@@ -892,20 +897,31 @@ fn live_heartbeat(
     status: Option<&dyn LiveMarketDataStatusPort>,
 ) -> serde_json::Value {
     let stale = status.is_some_and(|port| !port.snapshot().connected);
-    live_heartbeat_payload(timestamp, stale, "", 0)
+    live_heartbeat_payload(
+        timestamp,
+        stale,
+        "",
+        0,
+        0,
+        crate::websocket::DEFAULT_WEBSOCKET_LIMIT,
+    )
 }
 
 fn live_heartbeat_with_subscription(
     timestamp: &str,
     status: Option<&dyn LiveMarketDataStatusPort>,
     connection: &LiveHubConnection,
+    live_connections: &LiveConnectionMetrics,
 ) -> serde_json::Value {
     let stale = status.is_some_and(|port| !port.snapshot().connected);
+    let clients = live_connections.snapshot();
     live_heartbeat_payload(
         timestamp,
         stale,
         &connection.provider_broker_id(),
         connection.active_instrument_count(),
+        clients.connected,
+        clients.limit,
     )
 }
 
@@ -914,6 +930,8 @@ fn live_heartbeat_payload(
     stale: bool,
     provider_broker_id: &str,
     active_instruments: usize,
+    live_clients_connected: usize,
+    live_clients_limit: usize,
 ) -> serde_json::Value {
     // Go's live backend marks any explicitly selected non-Futu broker as a
     // polling transport, even when the shared runtime itself is healthy.
@@ -953,6 +971,11 @@ fn live_heartbeat_payload(
                 "retryAfter": Value::Null,
                 "failureCount": if stale { 1 } else { 0 },
                 "lastError": if stale { Value::String("provider unavailable".to_owned()) } else { Value::Null },
+            },
+            "liveClients": {
+                "connected": live_clients_connected,
+                "limit": live_clients_limit,
+                "atLimit": live_clients_connected >= live_clients_limit,
             },
         },
     })

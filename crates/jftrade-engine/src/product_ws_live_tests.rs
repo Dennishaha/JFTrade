@@ -209,6 +209,9 @@ async fn ws_live_transport_accepts_trusted_origin_and_streams_heartbeat_first() 
     assert_eq!(heartbeat["source"], "system");
     assert_eq!(heartbeat["entityId"], "live-websocket");
     assert_eq!(heartbeat["payload"]["type"], "heartbeat");
+    assert_eq!(heartbeat["payload"]["liveClients"]["connected"], 1);
+    assert_eq!(heartbeat["payload"]["liveClients"]["limit"], 20);
+    assert_eq!(heartbeat["payload"]["liveClients"]["atLimit"], false);
     drop(stream);
     wait_for_live_projection(address, 0, &[]).await;
     handle.shutdown().await.expect("shutdown product");
