@@ -758,7 +758,8 @@ mod tests {
 
         let paused_audit_count = store.list_audit_events("paused-1").unwrap().len();
         let paused_log_count = store.list_log_events("paused-1").unwrap().len();
-        port.restore_running_instances().expect("reconcile is idempotent");
+        port.restore_running_instances()
+            .expect("reconcile is idempotent");
         assert_eq!(
             store.list_audit_events("paused-1").unwrap().len(),
             paused_audit_count,
