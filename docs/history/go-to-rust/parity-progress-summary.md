@@ -1078,3 +1078,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - 当前批次：Origin、prediction combo 与 embedded provider research/news/company/calendar 的 7 条映射完成复核。Rust production origin/CORS、prediction defaults/errors、corporate/news、research capability/lifecycle、ranking/industry/company/calendar wire owner 证据已列为覆盖；Go helper fallback、合并错误路由、逐操作参数/字段矩阵及 news/actions Retry-After 路由驱动缺口逐项记录。
 
 - 当前批次：Strategy Pine API contract 的 7 条诊断/元数据映射完成复核。Rust success/unsupported-source/syntax-shadow/opaque projection fixture 证据已拆分；indicator requirements 独立键、pine-v6 文案、syntax code/line、v20 parse-only、object signature、import alias 与 type/method registry 专项断言缺口逐项记录。
+
+- 当前批次：Strategy route boundary/failure 的 8 条映射完成复核。Rust typed path 404、runtime start rollback、Pine fixtures、definition failure recovery、instantiate/input、mutation isolation、plugin fail-closed 与统一 ApiFailure 模型证据已拆分；缺 URI 400、start preflight/capacity、Pine 400/502、list/read/preview、orchestration/instance 逐路由错误、plugin whitespace 及 nil error 结构差异逐项保留。
