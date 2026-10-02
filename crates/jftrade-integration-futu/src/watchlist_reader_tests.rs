@@ -307,6 +307,32 @@ fn watchlist_fresh_member_read_rechecks_remote_ambiguity() {
 }
 
 #[test]
+fn watchlist_member_read_rechecks_cache_after_group_resolution() {
+    // Parity: go:452dea11:pkg/futu/watchlist_reader_boundaries_test.go:49
+    // TestWatchlistMemberReaderCoversSecondCacheAndFailures. A member lookup
+    // resolves groups first, then must perform the second cache check before
+    // reserving another physical read.
+    let inner = Arc::new(FixtureWatchlistRead::new(
+        vec![group("Growth", "custom")],
+        vec![member("HK.00700", "Tencent", 3, "00700", 700)],
+    ));
+    let reader = CachedRemoteWatchlistReader::with_inner(
+        Arc::clone(&inner) as Arc<dyn RemoteWatchlistReadPort>,
+        Arc::new(|| at(1_000)),
+        WATCHLIST_CACHE_TTL,
+    );
+    let first = reader.members("Growth").expect("initial members");
+    assert_eq!(first[0]["instrumentId"], "HK.00700");
+    assert_eq!(inner.group_calls(), 1);
+    assert_eq!(inner.member_calls(), 1);
+
+    let cached = reader.members(" growth ").expect("cached members");
+    assert_eq!(cached[0]["name"], "Tencent");
+    assert_eq!(inner.group_calls(), 1);
+    assert_eq!(inner.member_calls(), 1);
+}
+
+#[test]
 fn watchlist_reader_rejects_blank_and_unknown_group_names() {
     // Parity: go:452dea11:pkg/futu/watchlist_reader.go:176/:198 - a blank name
     // is rejected before any read and an unknown name fails after group
