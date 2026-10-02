@@ -1180,3 +1180,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - 当前批次：bbgo market helper 的 9 条映射完成逐条复核。Rust market rules/tick-size、Fixed8/Decimal truncation、pre-trade notional/option multiplier 与 liquidity warning owner 证据已收口；Go Market 方法、定宽文本格式化、Duration 字符串解析、自动调高 min-notional/contract-size 数量等 API/展示语义差异逐项记录。
 
 - 当前批次：Pine semantic parse 的 12 条映射完成逐条复核。Rust planner semantic feature/TA support、visual warning/metadata 与 compile/analyze owner 证据已收口；Go typed IR/semantic summary 字段、未实现 TA/utility/signature/static-for 族及视觉 namedArgs/variable 精细字段差异逐项记录。
+
+- 当前批次：Backtest aggregation/result collector/session synthesis 的 24 条映射完成逐条复核。Rust interval/session scope、calendar aggregation、result trades/PnL/drawdown/partial fills、fees/warnings/finalization 与 deterministic paging owner 证据已收口；Go 自定义 interval 反解析、纯 helper 越界、US/HK 2h session buckets、stream/channel fallback、fee 空分支、identity 回退、heikinashi seed、逐市场午休/会话分页矩阵差异逐项记录。
