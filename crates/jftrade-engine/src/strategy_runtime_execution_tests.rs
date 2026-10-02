@@ -849,7 +849,7 @@ fn test_execute_strategy_intents_close_short_maps_to_buy() {
         "tradingEnvironment": "SIMULATE"
     });
 
-    let ctx = StrategyExecutionContext {
+    let ctx = || StrategyExecutionContext {
         execution: Some(&execution),
         execution_store: None,
         provider: &provider,
@@ -871,7 +871,12 @@ fn test_execute_strategy_intents_close_short_maps_to_buy() {
     close_short.direction = "short".to_owned();
     close_short.has_limit_price = false;
 
-    let res = execute_strategy_intents(ctx, &[close_short]);
+    let mut wrong_side = close_short.clone();
+    wrong_side.direction = "long".to_owned();
+    execute_strategy_intents(ctx(), &[wrong_side]).expect("wrong-side close should be skipped");
+    assert!(execution.mutations.lock().unwrap().is_empty());
+
+    let res = execute_strategy_intents(ctx(), &[close_short]);
     assert!(res.is_ok());
 
     let mutations = execution.mutations.lock().unwrap();

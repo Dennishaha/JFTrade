@@ -137,6 +137,28 @@ pub(super) fn execute_strategy_intents(
             .or(ctx.current_position)
             .or(ctx.sellable_quantity);
 
+        if is_close && let Some(position) = current_pos.filter(|position| *position != 0.0) {
+            let requested_side = match intent.direction.trim().to_ascii_lowercase().as_str() {
+                "buy" | "long" | "bull" | "bullish" => Some(1.0_f64),
+                "sell" | "short" | "bear" | "bearish" => Some(-1.0_f64),
+                "" => None,
+                _ => {
+                    return Err(format!(
+                        "strategy order intent {index} has invalid close direction"
+                    ));
+                }
+            };
+            if requested_side.is_some_and(|side| side * position < 0.0) {
+                let _ = ctx.store.append_audit_event(
+                    ctx.instance_id,
+                    "INTENT_SKIPPED",
+                    "close direction does not match open position",
+                    now_millis(),
+                );
+                continue;
+            }
+        }
+
         if is_close
             && current_pos.unwrap_or(0.0) == 0.0
             && (!intent.has_quantity || intent.quantity <= 0.0)
