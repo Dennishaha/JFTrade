@@ -932,3 +932,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - assistant normalization/persistence/artifact 第十二批 8 条 partial 已逐项复核 workflow/session normalize、approval partial-index query、composer、claims 跨连接串行化、artifact 版本读写/并发分配/边界与路径派生；Rust schema/transaction/artifact owner 已核对，EXPLAIN、逐版本读回、并发分配和 session-service 实例路径等 residual 已明确登记，coverage 改为 reviewed。
 
 - assistant session SQLite/store 第十三批 8 条 partial 已逐项复核 direct service/schema health、V1 schema 不变性、Close/nil、current schema、closed/broken metadata 与 prepared run payload；Rust store lifecycle/schema owner 已核对，health API、字节不变、nil/关闭调用和 prepared-run executor seam 等 residual 明确登记，coverage 改为 reviewed。
+
+- assistant persistence/projection 第十四批 8 条 partial 已逐项复核 `ApplyTaskPatch` nil task、陈旧运行恢复持久化失败聚合、审批续跑可重试、子工作流恢复决策、读修复与父级终止、父子续跑 closeout，以及 session projection、approval/memory/canvas 边界。Rust normalization/recovery/CAS/projection owner 已核对；nil 指针、稳定错误文本、失败后重试、子任务字段集、父级终止/read-repair 顺序、父子续跑编排、reasoning 槽/中断剪枝和分散契约等差异均作为 reviewed residual 明确登记，未将 partial 误升为 exact。
