@@ -1266,3 +1266,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - 当前批次：result collector trade stats、run result、runner hardcut/helpers 的 10 条映射完成逐条复核。Rust weighted cost、long/short/reversal、partial close/cancel、warmup equity、zero-trade result 与 pineworker-only execution owner 已收口为 reviewed；Go 的统计防御边界集合、Snapshot 深拷贝 API、runtime error count/sample、旧 Go-Pine hardcut 负向断言及报价货币/周期/市场 runner helper 族逐项保留为 partial/boundary residual。
 
 - 当前批次：backtest session-filter、short replay、source exchange、sync progress 与 trading-cost replay 的 16 条映射完成逐条复核。Rust 参数化 session scope、表隔离、撮合/空头回补、市场规则/lot size、sync CAS 与 fee/worker validation owner 已收口为 reviewed；Go 的 wrapper store/streaming/cursor、US-only 自定义聚合开关、synthetic order 委托/校验/价格回退、source exchange live-operation 拒绝、market profile default matrix、snapshot alias 与 pump 层逐项保留为 partial/boundary residual。
+
+- 当前批次：backtest trading costs 的 7 条映射完成逐条复核。Rust fee rules、HK currency rounding、broker/market fee group separation、incremental per-order minimum与 typed value normalization owner 已收口为 reviewed；Go 的市场/合约默认值与 CN/HK currency 矩阵、自定义规则 clone、生效日期闭区间及 Pine commission→broker-only 映射逐项保留为 partial/boundary residual。
