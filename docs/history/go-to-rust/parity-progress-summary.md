@@ -1208,3 +1208,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - 当前批次：servercore ADK maintenance、assistant transport、broker read default 与 desktop token 的 6 条映射完成逐条复核。Rust 数据维护 busy/candidate fence、ADK port 有序关闭、交易请求市场归一、system-control bearer 认证、独立 web listener 与 Tauri token fail-closed owner 已收口为 reviewed；Go 的 ADK 运行探测/四类 DB_BUSY 注册表、关闭后 chat stream 503、TradeMarket(US) 默认注入、WebSocket 协议头 token、sidecar/browser listener 混用与无 token 开发信任逐项保留为 partial/boundary residual。
 
 - 当前批次：servercore execution writeback、instrument normalization、live heartbeat 与 diagnostics 的 4 条映射完成逐条复核。Rust 对账身份复用/分页去重、CN 前缀推断、live transport metrics 去重排序、WebSocket limit/origin fail-closed 与 permit 释放 owner 已收口为 reviewed；Go 的 placed 回写已发现订单专用事件矩阵、CN 裸 code 歧义拒绝、策略持仓排除/nil service、诊断载荷字段回显逐项保留为 partial residual。
+
+- 当前批次：`cmd/jftrade-desktop/main_test.go` 的 21 条桌面 CLI/Tauri 入口映射完成逐条复核。Rust desktop contract、profile identity/data isolation、bearer token、asset/runtime facade 与 native lifecycle owner 已收口为 reviewed；Go Wails zoom/CSS/menu/backdrop、single-instance callback 注入、完整 application object、runtime-config.js HTTP handler、窗口/协议/退出码与 CLI 参数细节逐项保留为 boundary/partial residual。
