@@ -1344,3 +1344,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - 当前批次：research screen definition normalization 的 6 条映射完成逐条复核。Rust frozen compatibility corpus 与 definition normalization contracts 已逐例覆盖 parameterized identity、V2 schema/catalog、duplicate paths、market factor compatibility、parameter enum/union 与 operator kind 错误；Go 与 Rust identity hash 字面形状差异及 [x] 证据复用约束保留在条目中。
 
 - 当前批次：YFinance/helper client 的 6 条映射完成逐条复核。Rust loopback/weak-token validation、bounded readiness retries、generic market-data error mapping、provider-aware method validation 与 capability/busy propagation owner 已记录为 reviewed；Go 任意 base URL/default transport、retry exhaustion counter、context cancellation、整体 timeout budget、具体 HTTP path/query 与错误文案模板仍保留为 partial residual。
+
+- 当前批次：bbgo floats slice 的 6 条映射完成逐条复核。Rust 指标内部 f64 窗口/累加兼容测试已记录为序列算术的实际 owner；Go 正态/泊松/均匀随机生成器、独立 Slice.Sub/Truncate/Add 容器 API 在 Rust 产品链路无对应对象，保留为不适用/partial residual。
