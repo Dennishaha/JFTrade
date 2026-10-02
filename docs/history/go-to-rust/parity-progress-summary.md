@@ -978,3 +978,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - assistant workflow tool 第35批 4 条 partial/boundary 已逐项复核 patch 语义、workflow/trigger CRUD、interactive session gate 与 unavailable manager fail-closed。Rust workflow REST/CAS/canvas/runtime owner 已核对；tool-level 完整字段矩阵、session 来源门禁、nil manager 及全量 finalisation 分支差异均登记为 reviewed residual。
 
 - assistant session/skill registry 第36批 8 条 partial/boundary 已逐项复核 compact wrapper List、frontmatter/registry 错误、builtin sync、目录 copy/replace、来源排序/文件元数据、zip 目录项、未知工具告警和 filesystem failure。Rust session/skill install/archive/catalog owner 已核对；包装委托、mtime 同步、目录替换、来源排序、目录项、warning-vs-reject 和 nil/filesystem 故障差异均登记为 reviewed residual。
+
+- assistant skill registry 第二批（第37批）8 条 partial 已逐项复核额外边界、损坏 builtin sync、filtered Source、bundle metadata、压缩包安全、URL/目录安装、纯文档重定向及 archive/uninstall。Rust skill install/archive/download/catalog owner 已核对；nil registry、source allowlist、mtime/compile-time sync、bundle ambiguity/size、URL error/redirect 和卸载响应差异均登记为 reviewed residual。
