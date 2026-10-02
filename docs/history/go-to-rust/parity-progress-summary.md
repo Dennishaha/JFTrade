@@ -1292,3 +1292,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - 当前批次：cmd/check-go-coverage profile analysis、main 与 runner 的 32 条 Go 专用质量门禁映射完成逐条复核。该域无 Rust owner；Node web diff coverage 对缺失条目/rename 提供部分等价证据，其余 profile 解析、Windows 路径归一、业务语句排除、critical scope/threshold 聚合、writer error 与 runner orchestration 均保留为明确 uncovered residual；空 profile/零业务语句与“无改动即通过”的 fail-closed/fail-open 差异也已逐项登记。
 
 - 当前批次：scripts/go-test-quality 的 10 条 Go AST 测试质量工具映射完成逐条复核。Rust 以 clippy、架构测试、测试命名规范、nextest 与 parity audit 承担质量门禁；Go 的标准/testify 断言识别、跨文件 helper/subtest 跟踪、发布形态与 exemption freshness 在 Rust 无对应工具，均保留为明确 boundary/uncovered residual。
+
+- 当前批次：strategy live command business boundaries 的 10 条映射完成逐条复核。Rust strategy intent execution、方向/持仓感知平仓、全批预检、数量 lot/precision 归一、stale alias 幂等与回测 bracket validation owner 已记录为 reviewed；Go DefaultPine 模板、实时 OCO/atomic group、WarningSink 身份/文案、MarketResolver seam、worker command layer 与逐分支错误矩阵在 Rust 无同形 owner，继续保留为 boundary/partial residual。
