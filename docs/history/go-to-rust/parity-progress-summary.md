@@ -1338,3 +1338,5 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 - 当前批次：settings-file recovery 的 6 条映射完成逐条复核。Rust malformed/missing/empty document classification、bootstrap/migration rollback、frozen compatibility corpus、unknown-field round-trip、security write expectations 与 MCP listener failure rollback owner 已记录为 reviewed；Go 缺外观自动修复、未知安全字段只读不重写、磁盘与 runtime 双态原子性及完整 persisted branch 矩阵仍保留为 partial residual。
 
 - 当前批次：watchlist store 的 6 条映射完成逐条复核。Rust revision fencing/restart persistence、membership mutation lifecycle、read-page group/source/remote catalog projection owner 已记录为 reviewed；Go default group seed、冲突回滚、metadata enrich 不增 revision 与完整 source/remote snapshot round-trip 仍保留为 partial/P2 residual。
+
+- 当前批次：strategy runtime activity store 的 6 条映射完成逐条复核。Rust schema manifest rejection、definition version/restart durability、persisted activity/corrupt payload、observation projection、activity paging/filter owner 已记录为 reviewed；Go 新建 schema 精确形状、缺失 observation、closed DB/path 处理与日志/审计/观测完整 round-trip 仍保留为 partial residual。
