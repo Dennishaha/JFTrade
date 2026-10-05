@@ -23,6 +23,7 @@ pub use aggregation::{CalendarDaySchedule, CalendarDaySession, CalendarScheduleR
 
 const BACKTEST_COMPONENT: &str = "backtest";
 const BACKTEST_SCHEMA_VERSION: i64 = 3;
+const STREAM_PAGE_SIZE: usize = 256;
 
 pub const BACKTEST_MARKET_DATA_TEST_CUTOVER_PROFILE: &str = "cutover-test-only.v1";
 pub const BACKTEST_MARKET_DATA_PRODUCTION_PROFILE: &str = "production.v1";
@@ -570,6 +571,208 @@ impl BacktestMarketDataStore {
             "ASC",
             limit,
         )
+    }
+
+    /// Stream a bounded candle range in the same deterministic order as
+    /// `read_candles`.  The callback keeps the store owner in control of the
+    /// leased connection while callers consume synthesized aggregate rows.
+    #[allow(clippy::too_many_arguments)]
+    pub fn stream_candles<F>(
+        &self,
+        provider_id: &str,
+        symbol: &str,
+        interval: &str,
+        rehab_type: &str,
+        session_scope: &str,
+        start_time_ms: i64,
+        end_time_ms: i64,
+        emit: F,
+    ) -> Result<(), BacktestMarketDataStoreError>
+    where
+        F: FnMut(&StoredBacktestCandle),
+    {
+        if end_time_ms <= start_time_ms {
+            return Err(BacktestMarketDataStoreError::Validation(
+                "candle query end_time must be after start_time".to_owned(),
+            ));
+        }
+
+        if let Some(minutes) = interval_minutes(interval).filter(|minutes| *minutes > 1) {
+            return self.stream_minute_aggregates(
+                provider_id,
+                symbol,
+                interval,
+                rehab_type,
+                session_scope,
+                start_time_ms,
+                end_time_ms,
+                minutes,
+                emit,
+            );
+        }
+
+        if period_interval(interval).is_some() {
+            return self.stream_materialized_range(
+                provider_id,
+                symbol,
+                interval,
+                rehab_type,
+                session_scope,
+                start_time_ms,
+                end_time_ms,
+                emit,
+            );
+        }
+
+        self.stream_direct_pages(
+            provider_id,
+            symbol,
+            interval,
+            rehab_type,
+            session_scope,
+            start_time_ms,
+            end_time_ms,
+            emit,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn stream_minute_aggregates<F>(
+        &self,
+        provider_id: &str,
+        symbol: &str,
+        interval: &str,
+        rehab_type: &str,
+        session_scope: &str,
+        start_time_ms: i64,
+        end_time_ms: i64,
+        minutes: i64,
+        mut emit: F,
+    ) -> Result<(), BacktestMarketDataStoreError>
+    where
+        F: FnMut(&StoredBacktestCandle),
+    {
+        let calendar_resolver = self
+            .calendar_resolver
+            .read()
+            .map_err(|_| BacktestMarketDataStoreError::LockUnavailable)?
+            .clone();
+        let buckets = resolve_aggregation_buckets(
+            symbol,
+            session_scope,
+            calendar_resolver.as_deref(),
+            minutes.saturating_mul(60_000),
+            start_time_ms,
+            end_time_ms,
+        );
+        for (bucket_start, bucket_end) in buckets {
+            for candle in self.read_candles(
+                provider_id,
+                symbol,
+                interval,
+                rehab_type,
+                session_scope,
+                bucket_start,
+                bucket_end,
+            )? {
+                emit(&candle);
+            }
+        }
+        Ok(())
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn stream_materialized_range<F>(
+        &self,
+        provider_id: &str,
+        symbol: &str,
+        interval: &str,
+        rehab_type: &str,
+        session_scope: &str,
+        start_time_ms: i64,
+        end_time_ms: i64,
+        mut emit: F,
+    ) -> Result<(), BacktestMarketDataStoreError>
+    where
+        F: FnMut(&StoredBacktestCandle),
+    {
+        for candle in self.read_candles(
+            provider_id,
+            symbol,
+            interval,
+            rehab_type,
+            session_scope,
+            start_time_ms,
+            end_time_ms,
+        )? {
+            emit(&candle);
+        }
+        Ok(())
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn stream_direct_pages<F>(
+        &self,
+        provider_id: &str,
+        symbol: &str,
+        interval: &str,
+        rehab_type: &str,
+        session_scope: &str,
+        start_time_ms: i64,
+        end_time_ms: i64,
+        mut emit: F,
+    ) -> Result<(), BacktestMarketDataStoreError>
+    where
+        F: FnMut(&StoredBacktestCandle),
+    {
+        let page_limit = STREAM_PAGE_SIZE;
+        let mut cursor = start_time_ms;
+        while cursor < end_time_ms {
+            let page = self.query_candles_forward(
+                provider_id,
+                symbol,
+                interval,
+                rehab_type,
+                session_scope,
+                cursor,
+                page_limit,
+            )?;
+            if page.is_empty() {
+                let step = interval_duration_ms(interval).unwrap_or(1);
+                let next_cursor = cursor.saturating_add(step);
+                if next_cursor <= cursor {
+                    break;
+                }
+                cursor = next_cursor;
+                continue;
+            }
+
+            let page_cursor = cursor;
+            let mut next_cursor = cursor;
+            for candle in &page {
+                if candle.start_time >= end_time_ms {
+                    next_cursor = end_time_ms;
+                    break;
+                }
+                if candle.start_time >= start_time_ms && candle.start_time >= page_cursor {
+                    emit(candle);
+                }
+                let candidate = if candle.start_time < page_cursor {
+                    candle.end_time.saturating_add(1)
+                } else {
+                    candle.start_time.saturating_add(1)
+                };
+                next_cursor = next_cursor.max(candidate);
+            }
+
+            if next_cursor <= cursor {
+                return Err(BacktestMarketDataStoreError::Validation(
+                    "candle stream cursor did not advance".to_owned(),
+                ));
+            }
+            cursor = next_cursor;
+        }
+        Ok(())
     }
 }
 

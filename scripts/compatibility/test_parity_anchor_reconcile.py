@@ -49,6 +49,12 @@ class AnchorCollectionTest(unittest.TestCase):
         )
         self.assertIn(("internal/api/routes_test.go", 7), anchors)
 
+    def test_url_encoded_anchor_is_decoded_for_zero_go_sources(self) -> None:
+        anchors = self.collect(
+            "// Parity: internal%2Fapi%2Froutes_test.go:8 TestEncodedBehaviour\n"
+        )
+        self.assertIn(("internal/api/routes_test.go", 8), anchors)
+
     def test_anchor_without_test_name(self) -> None:
         anchors = self.collect("/// Parity: go:452dea11:pkg/futu/exchange_test.go:120\n")
         self.assertIn(("pkg/futu/exchange_test.go", 120), anchors)

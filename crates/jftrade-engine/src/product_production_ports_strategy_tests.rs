@@ -3,6 +3,42 @@ use jftrade_store_sqlite::StrategyDefinitionStore;
 use tempfile::tempdir;
 
 #[test]
+/// Parity: go:452dea11:internal/api/strategy/routes_failure_boundaries_test.go:16
+/// `TestAnalyzePineRouteCoversSuccessMalformedAndAnalysisFailure`.
+fn pine_analysis_errors_keep_client_and_gateway_failures_distinct() {
+    use jftrade_integration_pine::PineExecutionError;
+
+    let client_error = map_pine_analysis_error(PineExecutionError::Remote(
+        "unsupported Pine declaration".to_owned(),
+    ));
+    assert!(matches!(
+        client_error,
+        StrategyPineAnalyzeSnapshotError::Failed {
+            status: 400,
+            ref code,
+            ref message,
+            retry_after_seconds: None,
+        } if code == "PINE_ANALYSIS_FAILED" && message == "unsupported Pine declaration"
+    ));
+
+    for error in [
+        PineExecutionError::Transport("connection reset".to_owned()),
+        PineExecutionError::InvalidResponse("invalid worker envelope".to_owned()),
+    ] {
+        let gateway_error = map_pine_analysis_error(error);
+        assert!(matches!(
+            gateway_error,
+            StrategyPineAnalyzeSnapshotError::Failed {
+                status: 502,
+                ref code,
+                retry_after_seconds: None,
+                ..
+            } if code == "STRATEGY_PINE_ANALYZE_FAILED"
+        ));
+    }
+}
+
+#[test]
 fn shadow_request_matches_go_sample_candles_and_uses_run_script_analysis_mode() {
     let request = pine_shadow_request("shadow-job".to_owned(), "plot(close)");
     assert_eq!(request.job_id, "shadow-job");

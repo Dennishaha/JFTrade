@@ -769,6 +769,10 @@ async fn adk_chat_stream_replays_nonterminal_snapshot_without_fabricating_termin
     assert!(body.starts_with("retry: 3000\n\n"));
     assert!(body.contains("streaming"));
     assert!(body.contains("partial"));
+    assert!(
+        !body.contains("\"replay\":true"),
+        "live stream frames must not carry the reconnect replay marker"
+    );
     assert!(!body.contains("\"type\":\"final\""));
     handle.shutdown().await.expect("shutdown product");
 }

@@ -88,6 +88,76 @@ impl ApiPort for RecordingPort {
     }
 }
 
+struct FailurePort {
+    failure: ApiFailure,
+}
+
+impl ApiPort for FailurePort {
+    fn dispatch(&self, _request: ApiRequest) -> PortFuture<'_> {
+        let failure = self.failure.clone();
+        Box::pin(async move { Err(failure) })
+    }
+}
+
+#[tokio::test]
+// Parity: go:452dea11:internal/api/trading/execution_validation_contracts_test.go:238 TestExecutionOrderDetailsRouteMapsMissingAndStoreFailures
+async fn execution_order_detail_route_preserves_missing_and_store_failure_envelopes() {
+    let routes = RouteCatalog::new([RouteSpec {
+        method: "GET".into(),
+        path: "/api/v1/execution/orders/{internalOrderId}".into(),
+    }])
+    .expect("routes");
+
+    for (status, code, message) in [
+        (404, "ORDER_NOT_FOUND", "execution order was not found"),
+        (500, "GET_ORDER_FAILED", "execution order lookup failed"),
+    ] {
+        let router = build_router(
+            ApiState::new(
+                routes.clone(),
+                AccessPolicy {
+                    desktop_token: Some("desktop-token".into()),
+                    ..AccessPolicy::default()
+                },
+                Arc::new(FailurePort {
+                    failure: ApiFailure::new(status, code, message),
+                }),
+            )
+            .with_clock(Arc::new(FixedClock("2026-10-04T00:00:00Z".into()))),
+        );
+        let response = router
+            .oneshot(
+                Request::builder()
+                    .uri("/api/v1/execution/orders/order-1")
+                    .header("authorization", "Bearer desktop-token")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+
+        assert_eq!(
+            response.status(),
+            StatusCode::from_u16(status).expect("status")
+        );
+        assert_eq!(
+            response.headers()["content-type"],
+            "application/json; charset=utf-8"
+        );
+        let body = response
+            .into_body()
+            .collect()
+            .await
+            .expect("body")
+            .to_bytes();
+        let envelope: Value = serde_json::from_slice(&body).expect("error envelope");
+        assert_eq!(envelope["ok"], false);
+        assert_eq!(envelope["error"]["code"], code);
+        assert_eq!(envelope["error"]["message"], message);
+        assert_eq!(envelope["timestamp"], "2026-10-04T00:00:00Z");
+    }
+}
+
 struct RetryAfterPort;
 
 impl ApiPort for RetryAfterPort {

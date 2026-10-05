@@ -1,5 +1,37 @@
 # Go → Rust 证据积压清单
 
+## 2026-10-04 严格复核补证与下一轮门槛
+
+- ### 历史失败 receipt 的替代关系
+
+  下表中的红 receipt 保留为先红证据，不能删除或改写；当前审计以对应的绿色复跑 receipt 为有效状态。绿色 receipt 的 mapping digest 已分别记录在 `manual-test-mappings.json`，因此历史失败不会被误计为当前门禁失败。
+
+  | 历史红 receipt | 替代绿色 receipt | 当前解释 |
+  | --- | --- | --- |
+  | `verification-receipts/p1-broker-cancel-rejection-red-2026-09-28T184300Z.json` | `verification-receipts/p1-broker-cancel-rejection-2026-09-28T184500Z.json`；当前工作树复跑为 `verification-receipts/broker-cancel-rejection-2026-10-03.json` | 先红阶段复现旧的 `UNKNOWN` 写入；绿色阶段已验证明确券商拒单保留 `CANCEL_SUBMITTED` 并记录拒单事件。 |
+  | `verification-receipts/backtest-aggregation-2026-09-30.json` | `verification-receipts/backtest-aggregation-passed-2026-09-30.json`；当前工作树复跑为 `verification-receipts/backtest-aggregation-2026-10-03.json` | 首轮聚合批次失败后已隔离复跑通过；后续分页、cursor 和聚合顺序 receipt 继续覆盖同一 owner，未把残余语义升级为 exact。 |
+
+- 本轮现场全量 workspace receipt `verification-receipts/workspace-nextest-2026-10-04-final.json` 为 **3664 passed、0 failed、2 skipped suites**（文件 SHA-256 `47f5a5cbba3d5cfd8214c8ca515f45ec04e77855475fa8be6436841db891b210`）；manual evidence verifier 已对 4451 条 mapping 全部通过。
+- 2026-10-05 `pnpm run check:rust` 现场复跑为 **3665 passed、0 failed、2 skipped**，7 组 compatibility replay 全部通过；未另生成 workspace receipt，归档证据仍以 2026-10-04 receipt digest 为准。
+- 2026-10-06 在当前工作树再次执行 `pnpm run check:rust`，明确退出码 **0**：workspace **3665 passed、0 failed、2 skipped**，7 组 compatibility replay 全部通过；本次仍未生成新的 workspace receipt，因此不改写既有 receipt digest。
+- 2026-10-05 新增 `verification-receipts/backtest-aggregation-stream-cursor-2026-10-05.json`，**13/13 passed**：`stream_candles` 对直接区间使用固定页大小和递进 cursor，分钟聚合按完整目标 bucket 分段读取；新增 600 根 1m 跨页回放与 10,000 根 1m→5m 跨交易时段顺序校验。日/周/月聚合仍保留完整读取路径，QueryKLinesCh 多区间 channel 与 EnsureCoverage 仍是 residual，相关 mapping 不升级。
+- 新增 `verification-receipts/backtest-aggregation-pages-stream-2026-10-04.json`，**12/12 passed**，覆盖 10,000 根 1m 数据的分页边界、顺序和 callback stream；旧的 2026-10-03 小批 receipt 保留作历史证据。
+- 本 receipt 已写回两条 Backtest mapping；当前聚合证据仍只证明结果一致性，不证明有界内存或 Go `QueryKLinesCh` 多区间 channel，因此仍保持 `partial`。
+- API/Transport 新增 `verification-receipts/api-sse-write-failure-2026-10-04.json`（2/2 passed）：SSE 通知与 heartbeat 的真实 writer 写失败均在单次回调后终止循环，不重试。WS 会话 send 失败仍只证明 close/断开，不具备 Go dispatcher 的错误返回对象，因此保留 partial。
+- API/Transport 新增 `verification-receipts/api-ws-close-lifecycle-2026-10-04.json`（1/1 passed）：LiveHub shutdown 幂等、拒绝新连接、最后连接释放后清空 connected/active instruments 统计，并在 stopped 状态继续拒绝连接；nil handler 的 HTTP 404 仍未有 Rust 同形 owner 断言。
+- API/Transport 新增 `verification-receipts/api-execution-order-detail-envelope-2026-10-04.json`（3/3 passed）：execution order detail 的缺失订单与 store failure 在 engine owner 和真实 API router 上分别保持 `404 ORDER_NOT_FOUND`、`500 GET_ORDER_FAILED`，并验证 JSON envelope 字段；缺失 ID 的 handler-level 400 与 typed route 404 差异继续保持 partial。
+- Assistant/Workflow 新增 `verification-receipts/assistant-stream-replay-marker-2026-10-04.json`（3/3 passed）：live POST stream frame 不带 `replay:true`，retained/recovered stream frame 继续带 replay marker；Go hub TTL 与内存事件上限属于 durable 模型差异，继续保持 partial。
+- Assistant/Workflow 的 chat reconnect 条目已复用 `api-sse-write-failure-2026-10-04.json` 作为真实 transport 证据；当前 residual 是 ADK route 物化 body 与 Go socket-like writer 的 owner 形状差异。
+- 下一轮门槛：API/Transport、Strategy/Pine、Assistant/Workflow 三个 P1 域各完成至少一个真实行为闭环，并分别具备 reviewed assertion、Parity anchor、绿色 receipt；随后复跑 `check:quick`、`check:rust` 与 strict parity audit。
+
+## 最新状态：2026-10-03 高风险 partial 行为测试批次
+
+- 本批修改后的现场 `pnpm run check:rust` 已退出码 0：workspace nextest **3659 passed、0 failed，原始输出含 2 个 ignored suite**，7 类 compatibility replay 全部通过；最终工作树 receipt 为 `verification-receipts/workspace-nextest-2026-10-03-final-round.json`（`sha256:bad1550dc8be2d9fbd8ade5b97b61cf9234053ba35aa70fba8c3927ff589a3c0`）。历史 mapping 继续绑定原 canonical receipt，避免批量改写既有证据。
+- broker cancel rejection 旧失败记录已由当前工作树 **3/3 passed** receipt `verification-receipts/broker-cancel-rejection-2026-10-03.json`（`sha256:e9fc3b9310f9cefbe81e13e61e7c3d37f0fa9aad09667e3e02406b10cb730001`）取代为当前证据；backtest aggregation 旧失败记录已由 **9/9 passed** receipt `verification-receipts/backtest-aggregation-2026-10-03.json`（`sha256:36db334705ee7d95b9ec5cce5b1b14d85046536bfaa4fe443e493d69589c0023`）取代为当前证据。旧失败 receipt 保留在历史目录供引用，当前 mapping 与新 receipt 均指向绿色复跑证据。
+- 新增两个真实 owner receipt：`verification-receipts/backtest-aggregation-pages-stream-2026-10-03.json`（1/1，`sha256:32c3bd7d119e0ec7dbbff0efbd3da47185dba099da9348797328c5fb27b3c123`）和 `verification-receipts/broker-capability-rejection-2026-10-03.json`（1/1，`sha256:70a342b816ad2b08ffe9d7c74dd9731482234d4d8ee01353cfb9a26e83fda429`）。Backtest callback stream、forward/backward limit 和 capability unsupported 的一次性失败/UNKNOWN 账本语义已可执行复现；多区间 channel、非零 UTC wire 投影、请求级 capability 4xx 与 REJECTED/rawBrokerStatus 仍是明确 residual。
+- strict parity audit 与 manual evidence verifier 均通过；本批不升级 partial 为 exact。
+- `pnpm run check:quick` 已通过：zero-go、policy/contracts、受影响 Rust nextest/clippy、7 类 compatibility replay、Pine worker 与 desktop checks 全部通过。
+
 ## 最新状态：2026-09-30 provider 写路由错误矩阵批次
 
 - 冻结 Go `internal/api/settings/routes_market_data_test.go:128:TestMarketDataSettingsRoutesMapValidationPersistenceAndRuntimeErrors` 已由真实 Product HTTP 测试 `live_provider_http_route_maps_validation_persistence_and_runtime_failures` 覆盖四类行为：malformed JSON→400 `BAD_REQUEST`、非法 provider→400 `MARKET_DATA_PROVIDER_INVALID`、runtime activation failure→409 `MARKET_DATA_PROVIDER_UPDATE_FAILED` 且旧值保持、settings persistence failure→500 `SETTINGS_SAVE_FAILED`。

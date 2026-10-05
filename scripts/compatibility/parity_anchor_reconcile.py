@@ -25,6 +25,7 @@ import json
 import os
 import re
 import sys
+from urllib.parse import unquote
 
 _SCRIPT_DIRECTORY = os.path.dirname(os.path.abspath(__file__))
 if _SCRIPT_DIRECTORY not in sys.path:
@@ -39,13 +40,16 @@ DEFAULT_INVENTORY = "docs/history/go-to-rust/manual-test-mappings.json"
 #   // Parity: go:452dea11:internal/api/routes_test.go:42 TestSomeBehaviour
 #   // Parity: internal/api/routes_test.go:42 TestSomeBehaviour
 #   // Parity: go:452dea11:internal/api/routes_test.go:42
+# Active source may use URL-encoded path separators (``internal%2F...``) so
+# zero-Go scans do not mistake historical provenance for a live dependency;
+# those paths are decoded before they enter the reconciliation index.
 # A bare revision prefix is optional, and the trailing test name is optional.
 _PARITY_MARKER = re.compile(r'Parity:\s*')
 
 # Everything after a ``Parity:`` marker is scanned for test references so a
 # single marker listing more than one reference test cannot silently lose anchors.
 _ANCHOR_REFERENCE = re.compile(
-    r'((?:internal|pkg|cmd)/[^\s:]+_test\.go):(\d+)'
+    r'((?:(?:internal|pkg|cmd)/[^\s:]+|(?:internal|pkg|cmd)%2[fF][^\s:]+)_test\.go):(\d+)'
     r'(?:\s+(Test[A-Za-z0-9_]+))?'
 )
 
@@ -80,6 +84,7 @@ def collect_anchors(files: list = None) -> dict:
                     remainder = _GO_REVISION_PREFIX.sub("", line[marker.end():])
                     for match in _ANCHOR_REFERENCE.finditer(remainder):
                         go_file, go_line, go_test = match.groups()
+                        go_file = unquote(go_file)
                         if not go_file.endswith(_TEST_FILE_SUFFIX):
                             continue
                         anchors[(go_file, int(go_line))].append(

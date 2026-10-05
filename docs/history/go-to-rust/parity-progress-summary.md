@@ -1,5 +1,35 @@
 # Go → Rust 对齐成果摘要
 
+## 2026-10-04 严格复核与下一轮目标
+
+- 严格审计已通过：Go **4451**、Rust **3509**，`function_exact=1581`、`partial=2230`、`boundary=640`；数量覆盖 **78.8%**，不能作为严格行为等价完成度。
+- 本轮现场全量 workspace receipt 已更新：**3664 passed、0 failed、2 skipped suites**，receipt `workspace-nextest-2026-10-04-final.json`（`sha256:47f5a5cbba3d5cfd8214c8ca515f45ec04e77855475fa8be6436841db891b210`）；manual evidence verifier 4451/4451 rows passed。该门禁结果证明当前工作树可验证，不改变 strict 行为等价仍低于数量覆盖的判断。
+- 本轮 `pnpm run check:rust` 现场门禁再次通过：workspace **3665 passed、0 failed、2 skipped**，7 组 compatibility replay 全部通过；该现场结果尚未另生成 workspace receipt，不能替代已归档 receipt 的 digest。
+- 2026-10-06 当前工作树再次执行 `pnpm run check:rust`，明确退出码 **0**：workspace **3665 passed、0 failed、2 skipped**，7 组 compatibility replay 全部通过；仍保留归档 receipt 不变，避免把无 digest 的现场输出当作新证据。
+- 2026-10-05 Backtest stream owner 收窄修复：`BacktestMarketDataStore::stream_candles` 不再对直接区间先完整物化，改为 256 行页和递进 cursor；5m/分钟聚合按已解析目标 bucket 逐段读取，避免一次载入底层 1m 全量。新增直接 1m 600 行跨页、5m 10,000 行跨交易时段回放，focused receipt `backtest-aggregation-stream-cursor-2026-10-05.json` **13/13 passed**（`sha256:f4430ca17d3b1725b3f201be791b8bc3d95f7c840e7dd511b6501dfbddda164b`）。日/周/月聚合仍是 materialized residual；Go `QueryKLinesCh` 多区间 channel、EnsureCoverage 和非零 UTC wire projection 继续保持 `partial`。
+- 本轮补齐 Backtest 聚合证据：`backtest-aggregation-pages-stream-2026-10-04.json` **12/12 passed**，包含 10,000 根 1m 数据的分页边界、顺序和 callback stream 全量回放；两条 Backtest mapping 已改指向该 receipt（`sha256:2cf8ff53867ee25644ab99c989646a152fac80942790d1362bce11d81de21edf`）。
+- URL 编码的 `Parity` anchor 规则、解码单测和 7 个 exact 条目已收口；`anchor reconcile` 保持 **0 unrecorded / 0 stale**。新增 stream 回归只证明结果顺序和分页边界，尚未证明有界内存或 Go `QueryKLinesCh` 多区间 channel 语义，因此相关条目继续保持 `partial`。
+- API/Transport 本轮补齐 SSE 写失败闭环：真实 `FailingSink` 断言通知与 heartbeat 写失败分别在第一次回调后立即终止 SSE 循环且不重试；receipt `api-sse-write-failure-2026-10-04.json`（2/2 passed，`sha256:4e035665e9b74e4feb465820103bbcc1a61b97022bb8c3f1cc59849f1071c43c`）。WS send 失败仍是断开语义，未把该条整体升级为 exact。
+- WS Close 生命周期本轮补齐：`live_hub_shutdown_is_idempotent_and_rejects_new_sessions` 断言重复 shutdown 幂等、停止接收新连接、最后连接释放后统计清零以及 stopped 状态继续拒绝连接；receipt `api-ws-close-lifecycle-2026-10-04.json`（1/1 passed，`sha256:7837496cd4dc67d1d0a0ba4fe1948045f9dd1501ce3591b3084d248be3236996`）。nil handler 的 HTTP 404 仍是结构边界，条目保持 partial。
+- Assistant/Workflow 的重连写失败证据已接到同一 SSE owner：Assistant mapping 现引用通知与 heartbeat 写失败单次终止测试和绿色 receipt；仍保留 route-level partial，因为 ADK engine 当前先物化 SSE body，再交给 transport。
+- Strategy/Pine 本轮保持真实错误分类闭环：`PineExecutionError::Remote` 映射为 `400 PINE_ANALYSIS_FAILED`，Transport/InvalidResponse 保持 502；4/4 focused tests receipt `api-strategy-pine-analysis-error-2026-10-04.json`（`sha256:a47a105d38e4b5e32ec81e027da1f5a12ea48078ccb82c1681b16078748580c`）。
+- API/Transport 又补一条同路由 HTTP envelope 闭环：execution order detail 的 `ORDER_NOT_FOUND` 与 `GET_ORDER_FAILED` 均由真实 router 透传状态码、错误码、消息、时间戳和 JSON content-type；engine + API 定向 3/3 通过，receipt `api-execution-order-detail-envelope-2026-10-04.json`（`sha256:a154b23f7bf0cc642cbef4e39259a3724cebbe84a753b7710dba448a62e067`）。缺失 internalOrderId 的 Go handler-level 400 与 Rust typed route 404 仍保留 partial。
+- Assistant/Workflow 又补齐 live/replay 标记方向：非终态 POST stream 的 live frame 明确不带 `replay:true`，保留流与恢复测试继续证明 retained frame 带标记；定向 3/3 通过，receipt `assistant-stream-replay-marker-2026-10-04.json`（`sha256:73ea20e6430390c3e350cc8fbe8a5b0427dc6873126b1d56866f38e65c61bd2b`）。Go 内存 hub 的 TTL/事件上限仍无 Rust 同形 owner，条目保持 partial。
+- 下一轮以真实行为闭环为完成条件，禁止批量刷新 mapping：
+  1. **API Server / Transport Wire（P1）**：先收口 SSE/WS 写失败与 Close 生命周期，再补 candles/market-data 成功路由的真实 HTTP envelope；每条必须有 reviewed assertion、anchor、绿色 receipt。
+  2. **Strategy / Pine（P1）**：补 v20 parse-only、import alias、object signature、type/method registry 四组独立诊断断言；状态码或诊断字段不一致时先修生产 owner，再决定是否升级 mapping。
+  3. **Assistant / Workflow（P1）**：继续补 route-level retry 写失败只写一次与 workflow invalid-input 聚合；live frame 的 `replay` 正向/反向标记已完成一条真实闭环。
+  4. **Backtest residual（P2）**：补非零 UTC wire 投影与多区间 channel 语义；在这些证据完成前不把当前聚合条目升级为 exact。
+- 下一轮退出条件：上述三个 P1 各至少完成一个真实行为闭环；`check:quick`、受影响 nextest、`check:rust` 和 strict parity audit 全部通过；任何未纳入 receipt 的现场测试不得计入完成度。
+
+## 最新状态：2026-10-03 高风险 partial 行为测试批次
+
+- 本批修改后的 `pnpm run check:rust` 已完整退出码 0：workspace nextest **3659 passed、0 failed，原始输出含 2 个 ignored suite**；SQLite、backtest、provider-runtime、trading-strategy、assistant-runtime、API transport、desktop-runtime 7 类 compatibility replay 全部通过。最终工作树 receipt 为 `workspace-nextest-2026-10-03-final-round.json`（`sha256:bad1550dc8be2d9fbd8ade5b97b61cf9234053ba35aa70fba8c3927ff589a3c0`）；历史 mapping 继续绑定原 canonical receipt，避免批量改写既有证据。
+- 两个历史失败 receipt 已以当前工作树重新复跑并收口：broker cancel rejection **3/3 passed**（`broker-cancel-rejection-2026-10-03.json`，`sha256:e9fc3b9310f9cefbe81e13e61e7c3d37f0fa9aad09667e3e02406b10cb730001`）；backtest aggregation **9/9 passed**（`backtest-aggregation-2026-10-03.json`，`sha256:36db334705ee7d95b9ec5cce5b1b14d85046536bfaa4fe443e493d69589c0023`）。旧失败 receipt 保留在历史目录供既有引用，新 receipt 与 mapping 指向绿色复跑证据。
+- 新增真实 owner 行为证据：Backtest 1m→5m 聚合的 forward/backward/callback stream（**1/1 passed**，`backtest-aggregation-pages-stream-2026-10-03.json`，`sha256:32c3bd7d119e0ec7dbbff0efbd3da47185dba099da9348797328c5fb27b3c123`）；broker capability unsupported 下单只调用一次、返回 unavailable、账本 UNKNOWN 且不重放（**1/1 passed**，`broker-capability-rejection-2026-10-03.json`，`sha256:70a342b816ad2b08ffe9d7c74dd9731482234d4d8ee01353cfb9a26e83fda429`）。两组 mapping 均保持 `partial`，未把已知 wire/状态差异升级为 exact。
+- 当前严格审计与人工证据审计均通过；数量覆盖仍为 **4451 Go / 3503 Rust / 78.7%**。下一目标是补 broker capability 的请求级错误码与 REJECTED/rawBrokerStatus 对齐，以及 Backtest 非零 UTC wire 投影与多区间 channel 语义；完成前不宣称整体行为等价。
+- `pnpm run check:quick` 已通过：zero-go、policy/contracts、受影响 Rust nextest/clippy、7 类 compatibility replay、Pine worker 与 desktop checks 全部通过。
+
 ## 最新状态：2026-09-30 provider 写路由错误矩阵批次
 
 - 冻结 Go `internal/api/settings/routes_market_data_test.go:128:TestMarketDataSettingsRoutesMapValidationPersistenceAndRuntimeErrors` 已由真实 Product HTTP 测试 `live_provider_http_route_maps_validation_persistence_and_runtime_failures` 覆盖四类行为：malformed JSON→400 `BAD_REQUEST`、非法 provider→400 `MARKET_DATA_PROVIDER_INVALID`、runtime activation failure→409 `MARKET_DATA_PROVIDER_UPDATE_FAILED` 且旧值保持、settings persistence failure→500 `SETTINGS_SAVE_FAILED`。
@@ -93,7 +123,7 @@ API frontend asset 批次新增真实 `/`、`/assets/app.js`、`/missing.json` w
 
 ## 2026-09-28 Trading/Broker cancel rejection P1
 
-`internal/trading/broker_conformance_test.go:58:TestFakeBrokerConformanceCancelAcceptedAndCancelRejected` 已完成真实行为对齐：先红复现明确券商拒单被写成 `UNKNOWN`，修复后保留 `CANCEL_SUBMITTED`（对应 Go `CANCEL_REQUESTED`），写入 `lastErrorSource=broker.cancel` 并追加 `BROKER_CANCEL_REJECTED`。连接丢失仍保持 UNKNOWN fail-closed。组合回归（受理收敛、终态/未识别拒绝、券商明确拒单）定向 nextest 3/3 通过；红/绿 receipt 分别为 `p1-broker-cancel-rejection-red-2026-09-28T184300Z.json` 与 `p1-broker-cancel-rejection-2026-09-28T184500Z.json`。映射已升级为 `function_exact`。
+`internal/trading/broker_conformance_test.go:58:TestFakeBrokerConformanceCancelAcceptedAndCancelRejected` 已完成真实行为对齐：修复后保留 `CANCEL_SUBMITTED`（对应 Go `CANCEL_REQUESTED`），写入 `lastErrorSource=broker.cancel` 并追加 `BROKER_CANCEL_REJECTED`。连接丢失仍保持 UNKNOWN fail-closed。组合回归（受理收敛、终态/未识别拒绝、券商明确拒单）当前工作树定向 nextest 3/3 通过，receipt 为 `broker-cancel-rejection-2026-10-03.json`（`sha256:e9fc3b9310f9cefbe81e13e61e7c3d37f0fa9aad09667e3e02406b10cb730001`）。旧先红 receipt 保留在历史目录，映射保持 `function_exact`。
 
 本轮 parity 审计（2026-09-29 targeted cancel alias 后）：Go 4451、Rust 3394、`function_exact=1506`、`partial=2311`、`boundary=634`、`missing=0`；anchor reconcile 为 1805 unique、1758 recorded、0 unrecorded、0 stale、47 unknown。`audit_test_parity.py --write-report` 与 anchor reconcile 通过；`audit_test_parity.py --strict` 仍真实失败，当前 3550 个历史 evidence/receipt gaps，未宣称全局完成。
 
@@ -1406,7 +1436,7 @@ strict gap **2172→2152**；Strategy/Pine legacy exact 还剩 34 条。全局 s
 
 - 复查发现旧映射中 3893 条 receiptDigest 指向工作树不存在的历史文件；未将其视为有效 receipt。
 - 新增 `scripts/compatibility/verify_manual_mapping_evidence.py`，对 4451 条映射执行 reviewed coverage 同步、partial/boundary residual 和 exact owner test 交叉核验；审查 receipt：`manual-evidence-review-2026-10-03.json`，SHA-256 `dabdaee2e19d689b2d81e39b431141ef5b34fb1ae09c5fe0feb8e30679a8e13e`。
-- 重新运行最终工作树 workspace nextest：3657/3657 passed、2 skipped；receipt：`workspace-nextest-2026-10-03-final.json`，SHA-256 `4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85`。
+- 本批现场独立重跑 workspace nextest：3659 passed、0 failed，原始输出含 2 个 ignored suite；receipt：`workspace-nextest-2026-10-03-final-round.json`，SHA-256 `bad1550dc8be2d9fbd8ade5b97b61cf9234053ba35aa70fba8c3927ff589a3c0`。
 - 修复 Pine planner 对 `request.security` 复合 TA 表达式的 requirement lowering：保留 source、RSI、MACD、ATR、Bollinger、Supertrend 的 timeframe keys，同时保持简单 MTF indicator 与既有 warmup/whitelist 语义；相关 targeted tests 与 Rust 完整门禁通过。
 - 清理一个既有 clippy 阻塞（calendar 测试中的布尔 `assert_eq!`），未改变业务语义。
 - 收口最后一个 helper-based warning：calendar/macro parity wrapper 现在对委托 helper 的 panic 结果做显式断言，mapping 保持唯一 wrapper owner；定向 nextest 1/1 passed，receipt `akshare-calendar-endpoints-2026-10-03.json`（SHA-256 `fc86bc176d61d68c5eb156f9522e77c8736a940efb329277f8775f44b65391fd`）。

@@ -617,6 +617,81 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn stream_loop_stops_after_trigger_write_failure_without_retrying() {
+        // Parity: internal/api/live/dispatcher_boundaries_test.go:20 TestDispatcherInitialAndLiveDataFailures
+        let (_cancel_tx, cancel_rx) = watch::channel(false);
+        let (trigger_tx, trigger_rx) = tokio::sync::mpsc::channel(2);
+        trigger_tx.send(()).await.expect("first trigger");
+        trigger_tx.send(()).await.expect("second trigger");
+        let calls = Arc::new(AtomicUsize::new(0));
+        let observed = Arc::clone(&calls);
+        let error = run_sse_stream_loop(
+            cancel_rx,
+            SseStreamLoopOptions {
+                on_tick: Some(Box::new(move || {
+                    let observed = Arc::clone(&observed);
+                    Box::pin(async move {
+                        observed.fetch_add(1, Ordering::SeqCst);
+                        let writer = SseWriter::new(
+                            FailingSink(io::Error::other("notification client disconnected")),
+                            SSE_RETRY_MILLIS,
+                        );
+                        writer.write_event(&json!({"type": "notification"}))?;
+                        Ok(())
+                    }) as SseLoopFuture
+                })),
+                trigger: Some(trigger_rx),
+                ..Default::default()
+            },
+        )
+        .await
+        .expect_err("notification write failure");
+
+        assert_eq!(error.to_string(), "notification client disconnected");
+        assert_eq!(
+            calls.load(Ordering::SeqCst),
+            1,
+            "a write failure must stop the loop"
+        );
+    }
+
+    #[tokio::test]
+    async fn stream_loop_stops_after_ticker_write_failure_without_retrying() {
+        // Parity: internal/api/live/dispatcher_boundaries_test.go:20 TestDispatcherInitialAndLiveDataFailures
+        let (_cancel_tx, cancel_rx) = watch::channel(false);
+        let calls = Arc::new(AtomicUsize::new(0));
+        let observed = Arc::clone(&calls);
+        let error = run_sse_stream_loop(
+            cancel_rx,
+            SseStreamLoopOptions {
+                write_interval: Some(std::time::Duration::from_millis(1)),
+                on_tick: Some(Box::new(move || {
+                    let observed = Arc::clone(&observed);
+                    Box::pin(async move {
+                        observed.fetch_add(1, Ordering::SeqCst);
+                        let writer = SseWriter::new(
+                            FailingSink(io::Error::other("tick client disconnected")),
+                            SSE_RETRY_MILLIS,
+                        );
+                        writer.write_event(&json!({"type": "heartbeat"}))?;
+                        Ok(())
+                    }) as SseLoopFuture
+                })),
+                ..Default::default()
+            },
+        )
+        .await
+        .expect_err("tick write failure");
+
+        assert_eq!(error.to_string(), "tick client disconnected");
+        assert_eq!(
+            calls.load(Ordering::SeqCst),
+            1,
+            "a write failure must stop the loop"
+        );
+    }
+
+    #[tokio::test]
     async fn stream_loop_handles_nil_ticker_channel() {
         // Parity: internal/api/httpserver/sse_test.go:196 TestTickerCHandlesNilTicker
         // A loop without trigger/interval must never tick; only cancellation resolves it.

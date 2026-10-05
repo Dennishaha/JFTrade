@@ -1,0 +1,75 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-store-sqlite",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(aggregates_complete_one_minute_coverage_into_canonical_five_and_fifteen_minute_bars) or test(aggregates_fifteen_thirty_and_sixty_minute_bars_directly_from_five_minute_source) or test(closest_period_priority_general_divisor_selection_and_no_error_masking) or test(closest_period_priority_selects_five_minute_over_one_minute_when_both_exist) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(interval_aliases_share_a_canonical_storage_table) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(production_store_lists_manifest_catalog) or test(production_store_rejects_a_second_writer_lease)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-10-03T07:53:30Z",
+  "sourceState": {
+    "verifiedCommit": "aedde694878d7fdf8c43c27cf903874c46c39633",
+    "trackedDiffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "untrackedFiles": [
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/broker-cancel-rejection-2026-10-03.json",
+        "sha256": "e9fc3b9310f9cefbe81e13e61e7c3d37f0fa9aad09667e3e02406b10cb730001"
+      }
+    ]
+  },
+  "rawOutputSha256": "5e0891a3b943c4fdc79e60bde8f291300964f880b15ffa528a65c53b0fcf8052",
+  "passedTests": [
+    "jftrade-store-sqlite::backtest_market_data_aggregation$aggregates_complete_one_minute_coverage_into_canonical_five_and_fifteen_minute_bars",
+    "jftrade-store-sqlite::backtest_market_data_aggregation$aggregates_fifteen_thirty_and_sixty_minute_bars_directly_from_five_minute_source",
+    "jftrade-store-sqlite::backtest_market_data_aggregation$closest_period_priority_general_divisor_selection_and_no_error_masking",
+    "jftrade-store-sqlite::backtest_market_data_aggregation$closest_period_priority_selects_five_minute_over_one_minute_when_both_exist",
+    "jftrade-store-sqlite::backtest_market_data_aggregation$direct_interval_rows_win_and_paging_is_deterministic",
+    "jftrade-store-sqlite::backtest_market_data_aggregation$interval_aliases_share_a_canonical_storage_table",
+    "jftrade-store-sqlite::backtest_market_data_aggregation$missing_empty_partial_and_corrupt_lower_coverage_fail_closed",
+    "jftrade-store-sqlite::backtest_market_data_aggregation$production_store_lists_manifest_catalog",
+    "jftrade-store-sqlite::backtest_market_data_aggregation$production_store_rejects_a_second_writer_lease"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 9,
+      "nextest": {
+        "crate": "jftrade-store-sqlite",
+        "test_binary": "backtest_market_data_aggregation",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1,
+      "exec_time": 0.411674249,
+      "nextest": {
+        "crate": "jftrade-store-sqlite",
+        "test_binary": "backtest_market_data_aggregation",
+        "kind": "test"
+      }
+    }
+  ]
+}

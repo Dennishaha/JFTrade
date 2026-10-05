@@ -536,14 +536,12 @@ impl StrategyDefinitionWritePort for ProductionStrategyDefinitionPort {
         }
     }
 }
-
 /// Strategy resources use RFC 4122 v4 UUIDs for server-generated ids, matching
 /// the Go owner (`internal/store/strategy/normalize.go` uses `uuid.NewRandom()`
 /// whenever the client id is blank).
 pub(crate) fn generate_strategy_id() -> String {
     crate::product_id::generate_uuid_v4()
 }
-
 fn generate_instance_id(definition_id: &str) -> String {
     let timestamp = time::OffsetDateTime::now_utc();
     let format = time::format_description::parse_borrowed::<1>(
@@ -557,7 +555,6 @@ fn generate_instance_id(definition_id: &str) -> String {
     let prefix = if trimmed.is_empty() { "pine-pinets" } else { trimmed };
     format!("{prefix}-{suffix}")
 }
-
 fn map_strategy_store_error(
     error: StrategyDefinitionStoreError,
 ) -> StrategyDefinitionWritePortError {
@@ -593,16 +590,13 @@ fn map_strategy_store_error(
         },
     }
 }
-
 // ---------------------------------------------------------------------------
 // Strategy Pine Analyze
 // ---------------------------------------------------------------------------
-
 #[derive(Debug)]
 pub(crate) struct ProductionStrategyPinePort {
     pub(crate) worker: Option<Arc<jftrade_integration_pine::GrpcPineExecutionPort>>,
 }
-
 impl StrategyPineAnalyzeSnapshotPort for ProductionStrategyPinePort {
     fn analyze(
         &self,
@@ -641,7 +635,6 @@ impl StrategyPineAnalyzeSnapshotPort for ProductionStrategyPinePort {
             })?;
         result.map_err(map_pine_analysis_error)
     }
-
     fn evaluate_shadow(
         &self,
         input: &StrategyPineAnalyzeInput,
@@ -675,7 +668,6 @@ impl StrategyPineAnalyzeSnapshotPort for ProductionStrategyPinePort {
             .map_err(map_pine_analysis_error)
     }
 }
-
 fn next_pine_job_id(prefix: &str) -> String {
     use std::sync::atomic::{AtomicU64, Ordering};
     static NEXT_PINE_JOB_ID: AtomicU64 = AtomicU64::new(1);
@@ -685,7 +677,6 @@ fn next_pine_job_id(prefix: &str) -> String {
         NEXT_PINE_JOB_ID.fetch_add(1, Ordering::Relaxed)
     )
 }
-
 fn pine_shadow_request(job_id: String, script: &str) -> jftrade_integration_pine::PineRunRequest {
     const START_MILLIS: i64 = 1_704_067_200_000;
     const STEP_MILLIS: i64 = 60_000;
@@ -717,7 +708,6 @@ fn pine_shadow_request(job_id: String, script: &str) -> jftrade_integration_pine
         ..Default::default()
     }
 }
-
 fn pine_shadow_result(result: jftrade_integration_pine::PineRunResult) -> Value {
     let mut plots = serde_json::Map::new();
     let mut signals = serde_json::Map::new();
@@ -754,6 +744,19 @@ fn pine_shadow_result(result: jftrade_integration_pine::PineRunResult) -> Value 
     })
 }
 
+fn pine_analysis_failure(
+    status: u16,
+    code: &str,
+    message: String,
+) -> StrategyPineAnalyzeSnapshotError {
+    StrategyPineAnalyzeSnapshotError::Failed {
+        status,
+        code: code.to_owned(),
+        message,
+        retry_after_seconds: None,
+    }
+}
+
 fn map_pine_analysis_error(
     error: jftrade_integration_pine::PineExecutionError,
 ) -> StrategyPineAnalyzeSnapshotError {
@@ -778,14 +781,10 @@ fn map_pine_analysis_error(
             message: "pine analyzer request cancelled".to_owned(),
             retry_after_seconds: None,
         },
-        PineError::Remote(message)
-        | PineError::Transport(message)
-        | PineError::InvalidResponse(message) => StrategyPineAnalyzeSnapshotError::Failed {
-            status: 502,
-            code: "STRATEGY_PINE_ANALYZE_FAILED".to_owned(),
-            message,
-            retry_after_seconds: None,
-        },
+        PineError::Remote(message) => pine_analysis_failure(400, "PINE_ANALYSIS_FAILED", message),
+        PineError::Transport(message) | PineError::InvalidResponse(message) => {
+            pine_analysis_failure(502, "STRATEGY_PINE_ANALYZE_FAILED", message)
+        }
         PineError::InvalidEndpoint(message) => {
             StrategyPineAnalyzeSnapshotError::Unavailable(message)
         }

@@ -6592,7 +6592,7 @@ Parity anchor 已同步；最窄验证为 engine nextest 两条新增测试 2/2 
 
 `internal/trading/broker_conformance_test.go:58:TestFakeBrokerConformanceCancelAcceptedAndCancelRejected` 已完成真实行为对齐。先红阶段让 `TradeWritePort::modify_order` 返回明确的 `ResponseError::ReturnCode`，旧实现把本地订单写成 `UNKNOWN`；红测输出固定为 `left: "UNKNOWN" / right: "CANCEL_SUBMITTED"`。修复后，只有明确的券商 `Response` 拒单分支保留 Rust 存储态 `CANCEL_SUBMITTED`（对应 Go `CANCEL_REQUESTED`），写入 `lastError`、`lastErrorSource=broker.cancel` 并记录 `BROKER_CANCEL_REJECTED`；连接关闭、协调器不可用等不可知失败仍保持 `UNKNOWN` fail-closed。
 
-新增 `broker_cancel_rejection_keeps_cancel_requested_and_records_rejection_event`，与撤单受理收敛、终态/未识别订单拒绝用例组合覆盖 Go 测试全部断言。定向 engine nextest 3/3 通过；绿色 receipt：`verification-receipts/p1-broker-cancel-rejection-2026-09-28T184500Z.json`，红测证据：`verification-receipts/p1-broker-cancel-rejection-red-2026-09-28T184300Z.json`。映射由 `partial` 升为 `function_exact`，保留不可知外部失败的独立 fail-closed 语义。
+新增 `broker_cancel_rejection_keeps_cancel_requested_and_records_rejection_event`，与撤单受理收敛、终态/未识别订单拒绝用例组合覆盖 Go 测试全部断言。当前工作树定向 engine nextest 3/3 通过，receipt：`verification-receipts/broker-cancel-rejection-2026-10-03.json`。旧失败 receipt 保留为历史先红证据；映射保持 `function_exact`，保留不可知外部失败的独立 fail-closed 语义。
 ## 2026-09-30 API SSE strict evidence batch
 
 复核并验证 5 条 API Server/Transport Wire SSE 行为：序列化/写入错误透传、无 callback 的 trigger 取消、并发 writer 串行化、flush panic 错误化。Go 与 Rust 测试体逐条核对，Rust `stream_loop_ignores_trigger_without_callback` 补充显式取消任务成功断言；联合 `jftrade-api` nextest 5/5 通过，receipt `sha256:23cb9085910da407cffce794533dee1ff1eea1154a3a50a766fa6afd67ed9ec9`（`verification-receipts/api-sse-reviewed-2026-09-30.json`）。5 条映射的 assertion coverage 已升为 `reviewed`，保留现有单引用 reuse 与 Parity anchor。strict gap 由 3395 降至 3391；全局 strict 仍未通过。

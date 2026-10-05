@@ -742,6 +742,14 @@ mod tests {
             "shutdown must refuse new demand owners"
         );
         drop(connection);
+        assert_eq!(
+            hub.snapshot(),
+            LiveHubSnapshot {
+                connected: 0,
+                active_instruments: Vec::new(),
+            },
+            "closing the last connection must clear live statistics"
+        );
 
         hub.mark_stopped();
         hub.mark_stopped();

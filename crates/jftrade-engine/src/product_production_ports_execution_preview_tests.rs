@@ -2935,6 +2935,84 @@ fn write_port_with_writer(writer: Arc<dyn TradeWritePort>) -> ProductionExecutio
     }
 }
 
+/// A broker that explicitly rejects an order because the requested capability
+/// is unavailable.  The production port must surface that distinction and
+/// must never fabricate a submitted broker identity.
+#[derive(Debug, Default)]
+struct CapabilityUnsupportedTradeWriter {
+    placed: Mutex<usize>,
+}
+
+impl TradeWritePort for CapabilityUnsupportedTradeWriter {
+    fn place_order(
+        &self,
+        _: TradePlaceOrderRequest,
+    ) -> Result<TradePlaceOrderResult, TradeSessionError> {
+        *self.placed.lock().expect("placed calls") += 1;
+        Err(TradeSessionError::Unsupported(
+            "broker capability unsupported: stop-limit".to_owned(),
+        ))
+    }
+
+    fn place_combo_order(
+        &self,
+        _: TradePlaceComboOrderRequest,
+    ) -> Result<TradePlaceComboOrderResult, TradeSessionError> {
+        unsupported()
+    }
+
+    fn modify_order(
+        &self,
+        _: TradeModifyOrderRequest,
+    ) -> Result<TradePlaceOrderResult, TradeSessionError> {
+        unsupported()
+    }
+
+    fn unlock_trade(&self, _: TradeUnlockRequest) -> Result<(), TradeSessionError> {
+        unsupported()
+    }
+
+    fn subscribe_trade_accounts(
+        &self,
+        _: TradeSubscribeAccountsRequest,
+    ) -> Result<(), TradeSessionError> {
+        unsupported()
+    }
+}
+
+/// Parity: go:452dea11:internal/trading/broker_conformance_test.go:107
+/// `TestFakeBrokerConformancePlaceRejectedPushBeforeQueryAndUnsupportedCapability`.
+///
+/// The Go harness distinguishes a broker capability rejection from a transport
+/// failure.  Rust currently keeps the durable order UNKNOWN and returns an
+/// unavailable error, so this test makes that reviewed residual executable:
+/// one broker attempt, no fabricated broker ids, and no replayed submission.
+#[test]
+fn unsupported_broker_capability_fails_closed_without_submission_replay() {
+    let writer = Arc::new(CapabilityUnsupportedTradeWriter::default());
+    let port = write_port_with_writer(Arc::clone(&writer) as Arc<dyn TradeWritePort>);
+    let mut payload = cancel_contract_payload("capability-unsupported");
+    payload["orderType"] = json!("STOP_LIMIT");
+    payload["stopPrice"] = json!(87.0);
+
+    let error = port
+        .place_order(&payload)
+        .expect_err("unsupported broker capability must fail closed");
+    assert!(matches!(error, ExecutionWritePortError::Unavailable(message) if message.contains("capability unsupported")));
+    assert_eq!(*writer.placed.lock().expect("placed calls"), 1);
+
+    let orders = port.store.list_orders().expect("list rejected order");
+    assert_eq!(orders.len(), 1);
+    assert_eq!(orders[0].status, "UNKNOWN");
+    assert_eq!(orders[0].broker_order_id, None);
+    assert_eq!(orders[0].broker_order_id_ex, None);
+    assert_eq!(orders[0].last_error_source.as_deref(), Some("opend"));
+    assert!(orders[0]
+        .last_error
+        .as_deref()
+        .is_some_and(|message| message.contains("capability unsupported")));
+}
+
 /// Write fixture whose placement succeeds but whose cancel loses its response,
 /// counting how many modify attempts the adapter made.
 #[derive(Debug, Default)]

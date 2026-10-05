@@ -1,0 +1,75 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-store-sqlite",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(aggregated_candles_support_forward_backward_and_stream_reads)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-10-03T08:24:55Z",
+  "sourceState": {
+    "verifiedCommit": "aedde694878d7fdf8c43c27cf903874c46c39633",
+    "trackedDiffSha256": "eafca0073b690dcda361b39e63d0e40b2559704d6304ea2a10c44f68bdb4f110",
+    "untrackedFiles": [
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/backtest-aggregation-2026-10-03.json",
+        "sha256": "36db334705ee7d95b9ec5cce5b1b14d85046536bfaa4fe443e493d69589c0023"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/broker-cancel-rejection-2026-10-03.json",
+        "sha256": "e9fc3b9310f9cefbe81e13e61e7c3d37f0fa9aad09667e3e02406b10cb730001"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/broker-capability-rejection-2026-10-03.json",
+        "sha256": "70a342b816ad2b08ffe9d7c74dd9731482234d4d8ee01353cfb9a26e83fda429"
+      }
+    ]
+  },
+  "rawOutputSha256": "f15ba46d7b4751b2a532e395f44fb4895f48c045ffc3b92ab1a187f625c17bd1",
+  "passedTests": [
+    "jftrade-store-sqlite::backtest_market_data_aggregation$aggregated_candles_support_forward_backward_and_stream_reads"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1,
+      "nextest": {
+        "crate": "jftrade-store-sqlite",
+        "test_binary": "backtest_market_data_aggregation",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 10,
+      "exec_time": 0.034160042,
+      "nextest": {
+        "crate": "jftrade-store-sqlite",
+        "test_binary": "backtest_market_data_aggregation",
+        "kind": "test"
+      }
+    }
+  ]
+}

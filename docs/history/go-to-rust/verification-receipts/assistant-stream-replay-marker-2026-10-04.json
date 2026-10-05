@@ -1,0 +1,113 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart) or test(recovered_terminal_stream_frame_carries_the_replay_marker) or test(adk_chat_stream_replays_nonterminal_snapshot_without_fabricating_terminal_event)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-10-04T04:21:43Z",
+  "sourceState": {
+    "verifiedCommit": "aedde694878d7fdf8c43c27cf903874c46c39633",
+    "trackedDiffSha256": "31df86cef7438bbd273608884032a19981adf4216c0868cf9d172460c7aa8ca1",
+    "untrackedFiles": [
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-execution-order-detail-envelope-2026-10-04.json",
+        "sha256": "a154b23f7bf0cc642cbefbe4e39259a3724cebbe84a753b7710dba448a62e067"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-sse-write-failure-2026-10-04.json",
+        "sha256": "4e035665e9b74e4feb465820103bbcc1a61b97022bb8c3f1cc59849f1071c43c"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-strategy-pine-analysis-error-2026-10-04.json",
+        "sha256": "a47a105d38e4b5e32ec81e027da1f5a12ea48078ccb82c1681b16078748580c1"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-ws-close-lifecycle-2026-10-04.json",
+        "sha256": "7837496cd4dc67d1d0a0ba4fe1948045f9dd1501ce3591b3084d248be3236996"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/backtest-aggregation-2026-10-03.json",
+        "sha256": "36db334705ee7d95b9ec5cce5b1b14d85046536bfaa4fe443e493d69589c0023"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/backtest-aggregation-pages-stream-2026-10-03.json",
+        "sha256": "32c3bd7d119e0ec7dbbff0efbd3da47185dba099da9348797328c5fb27b3c123"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/backtest-aggregation-pages-stream-2026-10-04.json",
+        "sha256": "2cf8ff53867ee25644ab99c989646a152fac80942790d1362bce11d81de21edf"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/broker-cancel-rejection-2026-10-03.json",
+        "sha256": "e9fc3b9310f9cefbe81e13e61e7c3d37f0fa9aad09667e3e02406b10cb730001"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/broker-capability-rejection-2026-10-03.json",
+        "sha256": "70a342b816ad2b08ffe9d7c74dd9731482234d4d8ee01353cfb9a26e83fda429"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/manual-evidence-review-2026-10-03-next-round.json",
+        "sha256": "ac7d591e569515b53eb30d8879aa31dcd0ccbdd714909b894ee3f3d91ee964d9"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/pine-runtime-path-precedence-2026-10-04.json",
+        "sha256": "5fa098e1589da36837668072709cf25184c9a02c4329685d2fe68ae5348f514d"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/workspace-nextest-2026-10-03-final-round.json",
+        "sha256": "bad1550dc8be2d9fbd8ade5b97b61cf9234053ba35aa70fba8c3927ff589a3c0"
+      }
+    ]
+  },
+  "rawOutputSha256": "f969a92b2e6394c2c654c9aa3a6662aa8bc27bc1da5749f4f4968a25b0588b2a",
+  "passedTests": [
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::runtime_recovery::health_tests::recovered_terminal_stream_frame_carries_the_replay_marker",
+    "jftrade-engine::jftrade_engine$product::tests::adk_chat_stream_product_tests::adk_chat_stream_replays_nonterminal_snapshot_without_fabricating_terminal_event",
+    "jftrade-engine::jftrade_engine$product::tests::adk_chat_stream_product_tests::adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 3,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1714,
+      "exec_time": 4.204217167,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    }
+  ]
+}

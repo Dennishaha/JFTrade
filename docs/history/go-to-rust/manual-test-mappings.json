@@ -4179,8 +4179,8 @@
     },
     "internal/api/assistant/chat_transport_disconnect_test.go:110:TestChatStreamReconnectAndReplayRespectClientDisconnect": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart",
-      "conclusion": "partial：已覆盖重连路由的 replay 标记、after 游标切片、未知 stream/run fail-closed（adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed）与 499 断线后保留终态、重放过滤（引用用例）。Go 的“重连时 retry 指令写失败只写一次并立即退出”在 Rust 无同形 socket 写循环——SSE 响应体在引擎侧一次性物化后交传输层，写失败传播由 jftrade-api SseWriter 用例断言（write_failures_are_reported_with_their_source_message、write_event_propagates_serialization_and_write_failures）。缺口 owner：crates/jftrade-api sse/router；回归要求：若改为流式写回，需补一次写失败即退出的传输用例。 批229高风险复核：Rust 关联测试纳入本批门禁并通过；保持 partial，Go 与 Rust owner、路由形状或逐分支断言差异继续按本条缺口记录。",
+      "rust_entry": "crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart; crates/jftrade-api/src/sse.rs::stream_loop_stops_after_trigger_write_failure_without_retrying; crates/jftrade-api/src/sse.rs::stream_loop_stops_after_ticker_write_failure_without_retrying",
+      "conclusion": "partial：Rust production ADK stream owner 已覆盖 retained terminal events、after 游标切片、reconnect route 标记、未知资源 fail-closed、499 disconnect 后 durable terminal/replay；jftrade-api SSE owner 现已用真实 FailingSink 断言通知与 heartbeat/retry 写失败第一次回调即返回错误且不重试。仍保留 partial：engine route 会先物化 SSE body，未在同一 ADK route 测试中证明 socket-like writer 的逐帧写次数。",
       "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E test(persisted_terminal_run_is_published_as_final_instead_of_a_second_error) or test(production_live_chat_stream_reuses_existing_session_preview_once) or test(adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart)",
       "evidence_type": "partial",
       "source": {
@@ -4200,16 +4200,37 @@
             "rustFile": "crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs",
             "rustLine": 648
           }
+        },
+        {
+          "file": "crates/jftrade-api/src/sse.rs",
+          "test": "stream_loop_stops_after_trigger_write_failure_without_retrying",
+          "crate": "jftrade-api",
+          "anchor": {
+            "goFile": "internal/api/assistant/chat_transport_disconnect_test.go",
+            "goLine": 110,
+            "rustFile": "crates/jftrade-api/src/sse.rs",
+            "rustLine": 620
+          }
+        },
+        {
+          "file": "crates/jftrade-api/src/sse.rs",
+          "test": "stream_loop_stops_after_ticker_write_failure_without_retrying",
+          "crate": "jftrade-api",
+          "anchor": {
+            "goFile": "internal/api/assistant/chat_transport_disconnect_test.go",
+            "goLine": 110,
+            "rustFile": "crates/jftrade-api/src/sse.rs",
+            "rustLine": 659
+          }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Go stream/run reconnect 的 retry handshake、after 游标 replay、未知 stream/run fail-closed、event 写失败停止与取消 idle stream 分支已逐项读取。",
-          "Rust production ADK stream owner 已覆盖 retained terminal events、after 游标切片、reconnect route 标记、未知资源 fail-closed、499 disconnect 后 durable terminal/replay；jftrade-api SseWriter 已覆盖 retry/id/data/comment 编码及 write error propagation。"
+          "Rust production ADK stream owner covers retained terminal events, after cursor slicing, reconnect route markers, unknown-resource fail-closed, and durable terminal replay after 499 disconnect.",
+          "Real jftrade-api FailingSink tests prove notification and heartbeat/retry write failures return after one callback without retrying."
         ],
         "uncovered": [
-          "Go 用真实 socket-like failing writer 证明 retry/event frame 失败后只写一次并立即退出；Rust engine 在 API 层物化 SSE body 后交给 transport，无法从 engine route 测试证明同一写循环和写次数。",
-          "若未来改为流式 transport，应新增 failing sink 的 route-level single-write regression；当前保留 partial。"
+          "The ADK engine route still materializes the SSE body before transport, so no same-route socket-like writer assertion proves per-frame write count."
         ],
         "source": "reviewed"
       },
@@ -4220,23 +4241,27 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-api",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(stream_loop_stops_after_trigger_write_failure_without_retrying) or test(stream_loop_stops_after_ticker_write_failure_without_retrying)"
         ],
         "testFilter": [
-          "adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart"
+          "stream_loop_stops_after_trigger_write_failure_without_retrying",
+          "stream_loop_stops_after_ticker_write_failure_without_retrying"
         ],
         "runnerVersion": "cargo-nextest-0.9.143",
-        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+        "toolchain": "rustc 1.97.1 (2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "aedde694878d7fdf8c43c27cf903874c46c39633",
+        "verifiedAt": "2026-10-03T19:45:15Z",
+        "receiptDigest": "sha256:4e035665e9b74e4feb465820103bbcc1a61b97022bb8c3f1cc59849f1071c43c"
       },
       "risk": "high",
       "owner": "api_transport",
@@ -4245,12 +4270,11 @@
       "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Go stream/run reconnect 的 retry handshake、after 游标 replay、未知 stream/run fail-closed、event 写失败停止与取消 idle stream 分支已逐项读取。",
-        "Rust production ADK stream owner 已覆盖 retained terminal events、after 游标切片、reconnect route 标记、未知资源 fail-closed、499 disconnect 后 durable terminal/replay；jftrade-api SseWriter 已覆盖 retry/id/data/comment 编码及 write error propagation。"
+        "Rust production ADK stream owner covers retained terminal events, after cursor slicing, reconnect route markers, unknown-resource fail-closed, and durable terminal replay after 499 disconnect.",
+        "Real jftrade-api FailingSink tests prove notification and heartbeat/retry write failures return after one callback without retrying."
       ],
       "uncoveredAssertions": [
-        "Go 用真实 socket-like failing writer 证明 retry/event frame 失败后只写一次并立即退出；Rust engine 在 API 层物化 SSE body 后交给 transport，无法从 engine route 测试证明同一写循环和写次数。",
-        "若未来改为流式 transport，应新增 failing sink 的 route-level single-write regression；当前保留 partial。"
+        "The ADK engine route still materializes the SSE body before transport, so no same-route socket-like writer assertion proves per-frame write count."
       ],
       "boundaryReason": null
     },
@@ -6105,9 +6129,9 @@
     },
     "internal/api/assistant/routes_test.go:136:TestChatStreamHubReplayAndCleanupBoundaries": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart；crates/jftrade-engine/src/product_adk_model_runtime_recovery_tests.rs::recovered_terminal_stream_frame_carries_the_replay_marker",
-      "conclusion": "partial：已覆盖 retained 终帧带 replay:true、after 游标过滤旧帧与重启后一致（引用第二元原条目名截断，现补全）。缺口：Go 同用例还断言新帧不得带 replay 标记（live event 不 replay），Rust 无反向断言；hub 过期清理在 Rust 无直接对应（durable 模型下不可恢复不跨重启残留未断言）。回归：补 fresh-frame replay-absent 断言后再升 exact。",
-      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(stream_terminal_projection_trims_tool_outputs_from_final_response) or test(adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart) or test(persisted_terminal_run_is_published_as_final_instead_of_a_second_error) or test(recovered_terminal_stream_frame_carries_the_replay_marker) or test(auxiliary_provider_failure_skips_only_the_failing_subscription_family) or test(news_actions_helper_request_rejects_a_missing_instrument_uri) or test(embedded_capability_errors_keep_the_broker_code_and_lifecycle_sentinels) or test(explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback) or test(screen_query_rejects_wrong_catalog_and_schema_versions) or test(route_and_page_validation_precede_provider_calls) or test(futu_screen_capability_errors_use_the_broker_code) or test(research_screen_fixture_replays_go_wire_for_the_post_route) or test(execution_write_fixture_replays_all_seven_go_owned_mutations)'",
+      "rust_entry": "crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart；crates/jftrade-engine/src/product_adk_model_runtime_recovery_tests.rs::recovered_terminal_stream_frame_carries_the_replay_marker；crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::adk_chat_stream_replays_nonterminal_snapshot_without_fabricating_terminal_event",
+      "conclusion": "partial：已覆盖 retained 终帧带 replay:true、after 游标过滤旧帧与重启后一致，并新增真实 live stream 断言新帧不带 replay 标记。hub 过期清理在 Rust 无直接对应（durable 模型下不可恢复不跨重启残留未断言），因此仍保持 partial。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-engine --test adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart --test recovered_terminal_stream_frame_carries_the_replay_marker --test adk_chat_stream_replays_nonterminal_snapshot_without_fabricating_terminal_event --output docs/history/go-to-rust/verification-receipts/assistant-stream-replay-marker-2026-10-04.json",
       "evidence_type": "partial",
       "source": {
         "file": "internal/api/assistant/routes_test.go",
@@ -6137,16 +6161,27 @@
             "rustFile": "crates/jftrade-engine/src/product_adk_model_runtime_recovery_tests.rs",
             "rustLine": 243
           }
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs",
+          "test": "adk_chat_stream_replays_nonterminal_snapshot_without_fabricating_terminal_event",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/api/assistant/routes_test.go",
+            "goLine": 136,
+            "rustFile": "crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs",
+            "rustLine": 750
+          }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "已覆盖 retained 终帧带 replay:true、after 游标过滤旧帧与重启后一致（引用第二元原条目名截断，现补全）。",
-          "hub 过期清理在 Rust 无直接对应（durable 模型下不可恢复不跨重启残留未断言）。",
-          "回归：补 fresh-frame replay-absent 断言后再升 exact。"
+          "已覆盖 retained 终帧带 replay:true、after 游标过滤旧帧与重启后一致。",
+          "真实 POST stream route 断言 live frame 不携带 replay 标记。",
+          "hub 过期清理在 Rust 无直接对应（durable 模型下不可恢复不跨重启残留未断言）。"
         ],
         "uncovered": [
-          "缺口：Go 同用例还断言新帧不得带 replay 标记（live event 不 replay），Rust 无反向断言；"
+          "Go hub 的 30 分钟过期清理和内存事件上限在 Rust durable stream 模型中没有同形 owner 或直接断言。"
         ],
         "source": "reviewed"
       },
@@ -6165,15 +6200,17 @@
           "--no-fail-fast"
         ],
         "testFilter": [
-          "adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart"
+          "adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart",
+          "recovered_terminal_stream_frame_carries_the_replay_marker",
+          "adk_chat_stream_replays_nonterminal_snapshot_without_fabricating_terminal_event"
         ],
         "runnerVersion": "cargo-nextest-0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedAt": "2026-10-04T00:00:00Z",
+        "receiptDigest": "sha256:73ea20e6430390c3e350cc8fbe8a5b0427dc6873126b1d56866f38e65c61bd2b"
       },
       "risk": "normal",
       "owner": "api_transport",
@@ -6184,12 +6221,12 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "已覆盖 retained 终帧带 replay:true、after 游标过滤旧帧与重启后一致（引用第二元原条目名截断，现补全）。",
-        "hub 过期清理在 Rust 无直接对应（durable 模型下不可恢复不跨重启残留未断言）。",
-        "回归：补 fresh-frame replay-absent 断言后再升 exact。"
+        "已覆盖 retained 终帧带 replay:true、after 游标过滤旧帧与重启后一致。",
+        "真实 POST stream route 断言 live frame 不携带 replay 标记。",
+        "hub 过期清理在 Rust 无直接对应（durable 模型下不可恢复不跨重启残留未断言）。"
       ],
       "uncoveredAssertions": [
-        "缺口：Go 同用例还断言新帧不得带 replay 标记（live event 不 replay），Rust 无反向断言；"
+        "Go hub 的 30 分钟过期清理和内存事件上限在 Rust durable stream 模型中没有同形 owner 或直接断言。"
       ],
       "boundaryReason": null
     },
@@ -9706,8 +9743,8 @@
     },
     "internal/api/live/dispatcher_boundaries_test.go:20:TestDispatcherInitialAndLiveDataFailures": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-api/src/sse.rs::stream_loop_propagates_initial_error_before_any_tick; crates/jftrade-engine/tests/ws_live_compatibility.rs::ws_live_replays_complete_go_corpus",
-      "conclusion": "partial：Go 四段（首帧写失败、tick provider 失败、tick 写失败、通知写失败）在 dispatcher write* 内冒泡。Rust SSE 流循环断言 tick 前初始错误传播；tick provider 失败终止流由语料 provider-error-cancels-stream 覆盖；缺口：SSE/WS 的“tick 写失败终止”与“通知写失败终止”未逐条断言。owner：crates/jftrade-api sse.rs + router.rs；回归要求：补两类写入失败终止断言。",
+      "rust_entry": "crates/jftrade-api/src/sse.rs::stream_loop_propagates_initial_error_before_any_tick; crates/jftrade-api/src/sse.rs::stream_loop_stops_after_trigger_write_failure_without_retrying; crates/jftrade-api/src/sse.rs::stream_loop_stops_after_ticker_write_failure_without_retrying; crates/jftrade-engine/tests/ws_live_compatibility.rs::ws_live_replays_complete_go_corpus",
+      "conclusion": "partial：Go 四段（首帧写失败、tick provider 失败、tick 写失败、通知写失败）在 dispatcher write* 内冒泡。 Rust 现已逐条断言 SSE 初始/provider/trigger/ticker 错误传播，并用真实 FailingSink 证明通知与 heartbeat 写失败立即终止循环且不重试；WS 语料覆盖 provider-error 终止。 残余：WS 会话层 send 失败仍表现为断开而非向调用方返回错误对象，保持 partial。owner：crates/jftrade-api sse.rs + router.rs。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'not test(production_helper_sync_cancel_aborts_in_flight_request) and not test(production_helper_sync_rejects_broken_pagination_cursors) and not test(production_helper_sync_forwards_page_query_and_persists_provider_values) and not test(production_helper_sync_retries_transient_page_and_records_retry)'",
       "evidence_type": "partial",
       "source": {
@@ -9738,14 +9775,37 @@
             "rustFile": "crates/jftrade-engine/tests/ws_live_compatibility.rs",
             "rustLine": 19
           }
+        },
+        {
+          "file": "crates/jftrade-api/src/sse.rs",
+          "test": "stream_loop_stops_after_trigger_write_failure_without_retrying",
+          "crate": "jftrade-api",
+          "anchor": {
+            "goFile": "internal/api/live/dispatcher_boundaries_test.go",
+            "goLine": 20,
+            "rustFile": "crates/jftrade-api/src/sse.rs",
+            "rustLine": 620
+          }
+        },
+        {
+          "file": "crates/jftrade-api/src/sse.rs",
+          "test": "stream_loop_stops_after_ticker_write_failure_without_retrying",
+          "crate": "jftrade-api",
+          "anchor": {
+            "goFile": "internal/api/live/dispatcher_boundaries_test.go",
+            "goLine": 20,
+            "rustFile": "crates/jftrade-api/src/sse.rs",
+            "rustLine": 659
+          }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust SSE tests propagate initial, provider, trigger, and ticker failures through the stream loop."
+          "Rust SSE tests propagate initial, provider, trigger, and ticker failures through the stream loop.",
+          "Real FailingSink assertions prove notification and heartbeat write failures stop the loop after one callback without retrying."
         ],
         "uncovered": [
-          "No executable Rust assertion for tick-write failure termination or notification-write failure termination in SSE/WS transport."
+          "WS session send failures still close the session without returning a dispatcher error object to the caller."
         ],
         "source": "reviewed"
       },
@@ -9756,23 +9816,27 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-api",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(stream_loop_stops_after_trigger_write_failure_without_retrying) or test(stream_loop_stops_after_ticker_write_failure_without_retrying)"
         ],
         "testFilter": [
-          "ws_live_replays_complete_go_corpus"
+          "stream_loop_stops_after_trigger_write_failure_without_retrying",
+          "stream_loop_stops_after_ticker_write_failure_without_retrying"
         ],
         "runnerVersion": "cargo-nextest-0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "aedde694878d7fdf8c43c27cf903874c46c39633",
+        "verifiedAt": "2026-10-03T19:53:20Z",
+        "receiptDigest": "sha256:4e035665e9b74e4feb465820103bbcc1a61b97022bb8c3f1cc59849f1071c43c"
       },
       "risk": "normal",
       "owner": "api_transport",
@@ -9783,10 +9847,11 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust SSE tests propagate initial, provider, trigger, and ticker failures through the stream loop."
+        "Rust SSE tests propagate initial, provider, trigger, and ticker failures through the stream loop.",
+        "Real FailingSink assertions prove notification and heartbeat write failures stop the loop after one callback without retrying."
       ],
       "uncoveredAssertions": [
-        "No executable Rust assertion for tick-write failure termination or notification-write failure termination in SSE/WS transport."
+        "WS session send failures still close the session without returning a dispatcher error object to the caller."
       ],
       "boundaryReason": null
     },
@@ -10103,8 +10168,8 @@
     },
     "internal/api/live/dispatcher_boundaries_test.go:257:TestHandlerNilAndClosedLifecycleBoundaries": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-api/src/websocket.rs::live_connection_limit_is_never_zero",
-      "conclusion": "partial：Go 断言 nil handler→404、nil stats/close 安全、默认连接上限、Close 后拒绝新连接。Rust 断言默认连接上限非零，nil 分支由 Option/类型系统消除；缺口：关闭后统计清零并拒绝新连接的断言。owner：crates/jftrade-api websocket；回归要求：补 Close 生命周期断言。",
+      "rust_entry": "crates/jftrade-api/src/websocket.rs::live_connection_limit_is_never_zero; crates/jftrade-api/src/websocket.rs::live_hub_shutdown_is_idempotent_and_rejects_new_sessions",
+      "conclusion": "partial：Rust 现已断言默认连接上限非零，并通过真实 LiveHub 生命周期测试证明 shutdown 幂等、shutdown 后拒绝新连接、最后连接释放后 connected/active_instruments 统计清零，以及 stopped 后继续拒绝连接。nil handler 分支由 Option/类型系统消除，仍没有 Go handler 级 404 映射，因此保留 partial。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-integration-pine -p jftrade-strategy -p jftrade-backtest -p jftrade-assistant -p jftrade-api --all-targets --locked --no-fail-fast -E 'not test(analyze_script_supports_trend_and_stateful_ta_functions)'",
       "evidence_type": "partial",
       "source": {
@@ -10124,14 +10189,26 @@
             "rustFile": "crates/jftrade-api/src/websocket.rs",
             "rustLine": 610
           }
+        },
+        {
+          "file": "crates/jftrade-api/src/websocket.rs",
+          "test": "live_hub_shutdown_is_idempotent_and_rejects_new_sessions",
+          "crate": "jftrade-api",
+          "anchor": {
+            "goFile": "internal/api/live/dispatcher_boundaries_test.go",
+            "goLine": 257,
+            "rustFile": "crates/jftrade-api/src/websocket.rs",
+            "rustLine": 729
+          }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust websocket test locks a non-zero default live connection limit; typed Option ownership eliminates nil handler paths."
+          "Rust websocket test locks a non-zero default live connection limit; typed Option ownership eliminates nil handler paths.",
+          "Real LiveHub lifecycle test proves idempotent shutdown, refusal of new connections, statistics cleared after the last connection drops, and stopped-state refusal."
         ],
         "uncovered": [
-          "No Rust lifecycle test proves closed handlers clear stats and reject new connections, or returns Go-style 404 for a nil handler."
+          "No Rust handler-level 404 assertion exists for a nil handler."
         ],
         "source": "reviewed"
       },
@@ -10142,23 +10219,26 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-api",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(live_hub_shutdown_is_idempotent_and_rejects_new_sessions)"
         ],
         "testFilter": [
-          "live_connection_limit_is_never_zero"
+          "live_hub_shutdown_is_idempotent_and_rejects_new_sessions"
         ],
         "runnerVersion": "cargo-nextest-0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "aedde694878d7fdf8c43c27cf903874c46c39633",
+        "verifiedAt": "2026-10-04T03:48:07Z",
+        "receiptDigest": "sha256:7837496cd4dc67d1d0a0ba4fe1948045f9dd1501ce3591b3084d248be3236996"
       },
       "risk": "normal",
       "owner": "api_transport",
@@ -10169,10 +10249,11 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust websocket test locks a non-zero default live connection limit; typed Option ownership eliminates nil handler paths."
+        "Rust websocket test locks a non-zero default live connection limit; typed Option ownership eliminates nil handler paths.",
+        "Real LiveHub lifecycle test proves idempotent shutdown, refusal of new connections, statistics cleared after the last connection drops, and stopped-state refusal."
       ],
       "uncoveredAssertions": [
-        "No Rust lifecycle test proves closed handlers clear stats and reject new connections, or returns Go-style 404 for a nil handler."
+        "No Rust handler-level 404 assertion exists for a nil handler."
       ],
       "boundaryReason": null
     },
@@ -20371,11 +20452,11 @@
       "boundaryReason": null
     },
     "internal/api/strategy/routes_failure_boundaries_test.go:16:TestAnalyzePineRouteCoversSuccessMalformedAndAnalysisFailure": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/tests/strategy_pine_compatibility.rs::strategy_pine_applies_input_validation_and_error_precedence_before_the_port",
-      "conclusion": "partial：Go 断言 malformed JSON→400 BAD_REQUEST、分析器普通错误→400 PINE_ANALYSIS_FAILED、成功→200。Rust fixture 断言 malformed-json→400 BAD_REQUEST 与 success-*→200；分析失败在生产端口映射为 502 STRATEGY_PINE_ANALYZE_FAILED（状态码与码名均不同，已登记 P1，owner = product production pine analyze port）。",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-engine/src/product_production_ports_strategy_tests.rs::pine_analysis_errors_keep_client_and_gateway_failures_distinct; crates/jftrade-engine/tests/strategy_pine_compatibility.rs::strategy_pine_applies_input_validation_and_error_precedence_before_the_port; crates/jftrade-engine/tests/strategy_pine_compatibility.rs::strategy_pine_replays_go_fixture_projection_status_and_headers",
+      "conclusion": "function_exact：Go 的 malformed JSON、业务分析错误与成功三路现已逐项闭环。Rust 生产 Pine owner 将 PineExecutionError::Remote 映射为 400 PINE_ANALYSIS_FAILED；Transport/InvalidResponse 仍映射 502 STRATEGY_PINE_ANALYZE_FAILED。输入校验、成功 fixture 和生产错误分类均有独立断言。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'not test(production_helper_sync_cancel_aborts_in_flight_request) and not test(production_helper_sync_rejects_broken_pagination_cursors) and not test(production_helper_sync_forwards_page_query_and_persists_provider_values) and not test(production_helper_sync_retries_transient_page_and_records_retry)'",
-      "evidence_type": "partial",
+      "evidence_type": "function_exact",
       "source": {
         "file": "internal/api/strategy/routes_failure_boundaries_test.go",
         "line": 16,
@@ -20383,6 +20464,17 @@
         "blobSha": "51c4fa8f26f2f60818ae58e4344544f7ce7212c5"
       },
       "rustEvidence": [
+        {
+          "file": "crates/jftrade-engine/src/product_production_ports_strategy_tests.rs",
+          "test": "pine_analysis_errors_keep_client_and_gateway_failures_distinct",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/api/strategy/routes_failure_boundaries_test.go",
+            "goLine": 16,
+            "rustFile": "crates/jftrade-engine/src/product_production_ports_strategy_tests.rs",
+            "rustLine": 8
+          }
+        },
         {
           "file": "crates/jftrade-engine/tests/strategy_pine_compatibility.rs",
           "test": "strategy_pine_applies_input_validation_and_error_precedence_before_the_port",
@@ -20393,15 +20485,26 @@
             "rustFile": "crates/jftrade-engine/tests/strategy_pine_compatibility.rs",
             "rustLine": 194
           }
+        },
+        {
+          "file": "crates/jftrade-engine/tests/strategy_pine_compatibility.rs",
+          "test": "strategy_pine_replays_go_fixture_projection_status_and_headers",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/api/strategy/routes_failure_boundaries_test.go",
+            "goLine": 16,
+            "rustFile": "crates/jftrade-engine/tests/strategy_pine_compatibility.rs",
+            "rustLine": 111
+          }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust fixtures cover malformed JSON 400 and successful 200 projections."
+          "malformed JSON returns 400 BAD_REQUEST before the analyzer port",
+          "PineExecutionError::Remote returns 400 PINE_ANALYSIS_FAILED while Transport/InvalidResponse remain 502 STRATEGY_PINE_ANALYZE_FAILED",
+          "successful fixture projections return 200 with the Go-compatible envelope"
         ],
-        "uncovered": [
-          "Rust ordinary analysis failure maps 502 STRATEGY_PINE_ANALYZE_FAILED while Go expects 400 PINE_ANALYSIS_FAILED; no unified route matrix."
-        ],
+        "uncovered": [],
         "source": "reviewed"
       },
       "verification": {
@@ -20411,38 +20514,42 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(pine_analysis_errors_keep_client_and_gateway_failures_distinct) or test(strategy_pine_applies_input_validation_and_error_precedence_before_the_port) or test(strategy_pine_replays_go_fixture_projection_status_and_headers) or test(strategy_pine_routes_preserve_snapshot_failures_and_retry_after)"
         ],
         "testFilter": [
-          "strategy_pine_applies_input_validation_and_error_precedence_before_the_port"
+          "pine_analysis_errors_keep_client_and_gateway_failures_distinct",
+          "strategy_pine_applies_input_validation_and_error_precedence_before_the_port",
+          "strategy_pine_replays_go_fixture_projection_status_and_headers",
+          "strategy_pine_routes_preserve_snapshot_failures_and_retry_after"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
-        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+        "runnerVersion": "cargo-nextest 0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "aedde694878d7fdf8c43c27cf903874c46c39633",
+        "verifiedAt": "2026-10-03T19:48:50Z",
+        "receiptDigest": "sha256:a47a105d38e4b5e32ec81e027da1f5a12ea48078ccb82c1681b16078748580c1"
       },
       "risk": "normal",
       "owner": "api_transport",
-      "priority": "P2",
-      "nextAction": "retain_reviewed_boundary_or_partial_and_reaudit",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "priority": "P1",
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust fixtures cover malformed JSON 400 and successful 200 projections."
+        "malformed JSON returns 400 BAD_REQUEST before the analyzer port",
+        "PineExecutionError::Remote returns 400 PINE_ANALYSIS_FAILED while Transport/InvalidResponse remain 502 STRATEGY_PINE_ANALYZE_FAILED",
+        "successful fixture projections return 200 with the Go-compatible envelope"
       ],
-      "uncoveredAssertions": [
-        "Rust ordinary analysis failure maps 502 STRATEGY_PINE_ANALYZE_FAILED while Go expects 400 PINE_ANALYSIS_FAILED; no unified route matrix."
-      ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/api/strategy/routes_failure_boundaries_test.go:71:TestDefinitionRoutesMapReadWriteAndDeleteFailures": {
@@ -23552,9 +23659,9 @@
     },
     "internal/api/trading/execution_validation_contracts_test.go:238:TestExecutionOrderDetailsRouteMapsMissingAndStoreFailures": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_execution_read_tests.rs::execution_read_routes_match_group_fixture_in_cutover_only；crates/jftrade-engine/src/product_execution_read_tests.rs::execution_read_routes_preserve_the_port_failure_code_and_message",
-      "conclusion": "partial：Go 断言订单详情缺失→404 ORDER_NOT_FOUND、store 失败→500 GET_ORDER_FAILED、缺 id→400。Rust execution-read 冻结语料逐条断言 order-missing→404 ORDER_NOT_FOUND 与 order-details-failed→500 GET_ORDER_FAILED，端口失败回归再断言上游 code/message 原样透传；缺口：缺 id 的 400 分支（Rust typed route 在空 segment 时以 404 路由不匹配结束）是路由形状边界，已登记。 批229高风险复核：Rust 关联测试纳入本批门禁并通过；保持 partial，Go 与 Rust owner、路由形状或逐分支断言差异继续按本条缺口记录。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(execution_read_routes_match_group_fixture_in_cutover_only) or test(execution_read_routes_preserve_the_port_failure_code_and_message)'",
+      "rust_entry": "crates/jftrade-engine/src/product_execution_read_tests.rs::execution_read_routes_match_group_fixture_in_cutover_only；crates/jftrade-engine/src/product_execution_read_tests.rs::execution_read_routes_preserve_the_port_failure_code_and_message；crates/jftrade-api/tests/transport_contracts.rs::execution_order_detail_route_preserves_missing_and_store_failure_envelopes",
+      "conclusion": "partial：Go 断言订单详情缺失→404 ORDER_NOT_FOUND、store 失败→500 GET_ORDER_FAILED、缺 id→400。Rust execution-read 冻结语料逐条断言 order-missing→404 ORDER_NOT_FOUND 与 order-details-failed→500 GET_ORDER_FAILED，端口失败回归再断言上游 code/message 原样透传；API transport 同一路由新增真实 HTTP envelope 断言，确认状态码、错误码、消息、时间戳和 JSON content-type 都按领域失败透传。缺口：缺 id 的 400 分支（Rust typed route 在空 segment 时以 404 路由不匹配结束）是路由形状边界，已登记。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-engine --package jftrade-api --test execution_read_routes_match_group_fixture_in_cutover_only --test execution_read_routes_preserve_the_port_failure_code_and_message --test execution_order_detail_route_preserves_missing_and_store_failure_envelopes --output docs/history/go-to-rust/verification-receipts/api-execution-order-detail-envelope-2026-10-04.json",
       "evidence_type": "partial",
       "source": {
         "file": "internal/api/trading/execution_validation_contracts_test.go",
@@ -23584,11 +23691,23 @@
             "rustFile": "crates/jftrade-engine/src/product_execution_read_tests.rs",
             "rustLine": 185
           }
+        },
+        {
+          "file": "crates/jftrade-api/tests/transport_contracts.rs",
+          "test": "execution_order_detail_route_preserves_missing_and_store_failure_envelopes",
+          "crate": "jftrade-api",
+          "anchor": {
+            "goFile": "internal/api/trading/execution_validation_contracts_test.go",
+            "goLine": 238,
+            "rustFile": "crates/jftrade-api/tests/transport_contracts.rs",
+            "rustLine": 102
+          }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Go missing order maps to 404/ORDER_NOT_FOUND and store failure maps to 500/GET_ORDER_FAILED; Rust execution-read fixture and port failure test assert both mappings and preserve upstream code/message."
+          "Go missing order maps to 404/ORDER_NOT_FOUND and store failure maps to 500/GET_ORDER_FAILED; Rust execution-read fixture and port failure test assert both mappings and preserve upstream code/message.",
+          "The API transport route preserves both domain failures as JSON envelopes with the expected HTTP status, code, message, timestamp, and content type."
         ],
         "uncovered": [
           "Go directly invokes a handler with an empty internalOrderId and returns 400; Rust typed route has no empty path segment match, so the same request ends at 404/NOT_FOUND before the port."
@@ -23609,16 +23728,18 @@
           "libtest-json-plus",
           "--no-fail-fast"
         ],
-        "testFilter": [
-          "execution_read_routes_preserve_the_port_failure_code_and_message"
-        ],
+          "testFilter": [
+            "execution_read_routes_match_group_fixture_in_cutover_only",
+            "execution_read_routes_preserve_the_port_failure_code_and_message",
+            "execution_order_detail_route_preserves_missing_and_store_failure_envelopes"
+          ],
         "runnerVersion": "cargo-nextest-0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+          "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
+          "verifiedAt": "2026-10-04T00:00:00Z",
+          "receiptDigest": "sha256:a154b23f7bf0cc642cbefbe4e39259a3724cebbe84a753b7710dba448a62e067"
       },
       "risk": "high",
       "owner": "api_transport",
@@ -23627,7 +23748,8 @@
       "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Go missing order maps to 404/ORDER_NOT_FOUND and store failure maps to 500/GET_ORDER_FAILED; Rust execution-read fixture and port failure test assert both mappings and preserve upstream code/message."
+        "Go missing order maps to 404/ORDER_NOT_FOUND and store failure maps to 500/GET_ORDER_FAILED; Rust execution-read fixture and port failure test assert both mappings and preserve upstream code/message.",
+        "The API transport route preserves both domain failures as JSON envelopes with the expected HTTP status, code, message, timestamp, and content type."
       ],
       "uncoveredAssertions": [
         "Go directly invokes a handler with an empty internalOrderId and returns 400; Rust typed route has no empty path segment match, so the same request ends at 404/NOT_FOUND before the port."
@@ -144774,9 +144896,9 @@
     },
     "pkg/backtest/internal/storage/store_query_aggregation_contracts_test.go:81:TestStoreAggregatesFiveMinuteBarsFromOneMinuteCoverage": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-store-sqlite/tests/backtest_market_data_aggregation.rs::aggregates_complete_one_minute_coverage_into_canonical_five_and_fifteen_minute_bars",
-      "conclusion": "partial（逐断言复核）：真实 BacktestMarketDataStore 由 1m regular/forward 行合成 5m bar；断言起止桶边界、首 open、最高 high、最低 low、末 close 与 volume 求和。 缺口：Go 同用例通过 EnsureCoverage、QueryKLinesForward、QueryKLinesBackward 与 StreamKLines 各返回恰一条 HK.00700/Interval5m bar；Rust 当前只有 read_candles 区间聚合，缺三个分页/stream 入口的同路径断言。",
-      "command": "pnpm run test:parity:receipt -- --package jftrade-store-sqlite --test aggregates_complete_one_minute_coverage_into_canonical_five_and_fifteen_minute_bars --output docs/history/go-to-rust/verification-receipts/backtest-aggregation-passed-2026-09-30.json",
+      "rust_entry": "crates/jftrade-store-sqlite/tests/backtest_market_data_aggregation.rs::aggregates_complete_one_minute_coverage_into_canonical_five_and_fifteen_minute_bars；crates/jftrade-store-sqlite/tests/backtest_market_data_aggregation.rs::aggregated_candles_support_forward_backward_and_stream_reads",
+      "conclusion": "partial（逐断言复核）：真实 BacktestMarketDataStore 由 1m regular/forward 行合成 5m bar；基础区间、forward、backward 与 callback stream 现在都断言起止桶边界、首 open、最高 high、最低 low、末 close 与 volume 求和。残余：Go 的 QueryKLinesCh 多区间排序/空 symbol channel 与显式 EnsureCoverage 入口仍没有 Rust 同形 API，继续保留 partial。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-store-sqlite --test aggregates_complete_one_minute_coverage_into_canonical_five_and_fifteen_minute_bars --test aggregates_fifteen_thirty_and_sixty_minute_bars_directly_from_five_minute_source --test closest_period_priority_general_divisor_selection_and_no_error_masking --test closest_period_priority_selects_five_minute_over_one_minute_when_both_exist --test direct_interval_rows_win_and_paging_is_deterministic --test interval_aliases_share_a_canonical_storage_table --test missing_empty_partial_and_corrupt_lower_coverage_fail_closed --test production_store_lists_manifest_catalog --test production_store_rejects_a_second_writer_lease --test aggregated_candles_support_forward_backward_and_stream_reads --test large_aggregate_ranges_keep_stream_order_and_page_boundaries_stable --test custom_period_backward_queries_return_latest_rows_in_ascending_order --output docs/history/go-to-rust/verification-receipts/backtest-aggregation-pages-stream-2026-10-04.json",
       "evidence_type": "partial",
       "source": {
         "file": "pkg/backtest/internal/storage/store_query_aggregation_contracts_test.go",
@@ -144795,16 +144917,26 @@
             "rustFile": "crates/jftrade-store-sqlite/tests/backtest_market_data_aggregation.rs",
             "rustLine": 42
           }
+        },
+        {
+          "file": "crates/jftrade-store-sqlite/tests/backtest_market_data_aggregation.rs",
+          "test": "aggregated_candles_support_forward_backward_and_stream_reads",
+          "crate": "jftrade-store-sqlite",
+          "anchor": {
+            "goFile": "pkg/backtest/internal/storage/store_query_aggregation_contracts_test.go",
+            "goLine": 81,
+            "rustFile": "crates/jftrade-store-sqlite/tests/backtest_market_data_aggregation.rs",
+            "rustLine": 74
+          }
         }
       ],
       "assertionCoverage": {
         "covered": [
           "partial（逐断言复核）：真实 BacktestMarketDataStore 由 1m regular/forward 行合成 5m bar；",
-          "断言起止桶边界、首 open、最高 high、最低 low、末 close 与 volume 求和。",
-          "Rust 当前只有 read_candles 区间聚合，缺三个分页/stream 入口的同路径断言。"
+          "基础 read_candles、query_candles_forward、query_candles_backward 与 stream_candles 均断言唯一 5m 聚合行的起止桶边界、首 open、最高 high、最低 low、末 close 与 volume 求和。"
         ],
         "uncovered": [
-          "缺口：Go 同用例通过 EnsureCoverage、QueryKLinesForward、QueryKLinesBackward 与 StreamKLines 各返回恰一条 HK.00700/Interval5m bar；"
+          "残余：Go 的 QueryKLinesCh 多区间排序/空 symbol channel 与显式 EnsureCoverage 入口仍没有 Rust 同形 API。"
         ],
         "source": "reviewed"
       },
@@ -144815,23 +144947,37 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-store-sqlite",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(aggregates_complete_one_minute_coverage_into_canonical_five_and_fifteen_minute_bars) or test(aggregates_fifteen_thirty_and_sixty_minute_bars_directly_from_five_minute_source) or test(closest_period_priority_general_divisor_selection_and_no_error_masking) or test(closest_period_priority_selects_five_minute_over_one_minute_when_both_exist) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(interval_aliases_share_a_canonical_storage_table) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(production_store_lists_manifest_catalog) or test(production_store_rejects_a_second_writer_lease) or test(aggregated_candles_support_forward_backward_and_stream_reads) or test(large_aggregate_ranges_keep_stream_order_and_page_boundaries_stable) or test(custom_period_backward_queries_return_latest_rows_in_ascending_order)"
         ],
         "testFilter": [
-          "aggregates_complete_one_minute_coverage_into_canonical_five_and_fifteen_minute_bars"
+          "aggregates_complete_one_minute_coverage_into_canonical_five_and_fifteen_minute_bars",
+          "aggregates_fifteen_thirty_and_sixty_minute_bars_directly_from_five_minute_source",
+          "closest_period_priority_general_divisor_selection_and_no_error_masking",
+          "closest_period_priority_selects_five_minute_over_one_minute_when_both_exist",
+          "direct_interval_rows_win_and_paging_is_deterministic",
+          "interval_aliases_share_a_canonical_storage_table",
+          "missing_empty_partial_and_corrupt_lower_coverage_fail_closed",
+          "production_store_lists_manifest_catalog",
+          "production_store_rejects_a_second_writer_lease",
+          "aggregated_candles_support_forward_backward_and_stream_reads",
+          "large_aggregate_ranges_keep_stream_order_and_page_boundaries_stable",
+          "custom_period_backward_queries_return_latest_rows_in_ascending_order"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "aedde694878d7fdf8c43c27cf903874c46c39633",
+        "verifiedAt": "2026-10-03T18:40:34Z",
+        "receiptDigest": "sha256:2cf8ff53867ee25644ab99c989646a152fac80942790d1362bce11d81de21edf"
       },
       "risk": "normal",
       "owner": "backtest_calendar",
@@ -144843,11 +144989,10 @@
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "partial（逐断言复核）：真实 BacktestMarketDataStore 由 1m regular/forward 行合成 5m bar；",
-        "断言起止桶边界、首 open、最高 high、最低 low、末 close 与 volume 求和。",
-        "Rust 当前只有 read_candles 区间聚合，缺三个分页/stream 入口的同路径断言。"
+        "基础 read_candles、query_candles_forward、query_candles_backward 与 stream_candles 均断言唯一 5m 聚合行的起止桶边界、首 open、最高 high、最低 low、末 close 与 volume 求和。"
       ],
       "uncoveredAssertions": [
-        "缺口：Go 同用例通过 EnsureCoverage、QueryKLinesForward、QueryKLinesBackward 与 StreamKLines 各返回恰一条 HK.00700/Interval5m bar；"
+        "残余：Go 的 QueryKLinesCh 多区间排序/空 symbol channel 与显式 EnsureCoverage 入口仍没有 Rust 同形 API。"
       ],
       "boundaryReason": null
     },
@@ -155878,9 +156023,9 @@
     },
     "pkg/backtest/store_test.go:532:TestFutuKLineStoreSynthesizesFiveMinuteFromOneMinute": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-store-sqlite/tests/backtest_market_data_aggregation.rs::aggregates_complete_one_minute_coverage_into_canonical_five_and_fifteen_minute_bars",
-      "conclusion": "partial（逐断言复核）：真实 BacktestMarketDataStore 由 1m regular/forward 行合成 5m bar；断言起止桶边界、首 open、最高 high、最低 low、末 close 与 volume 求和。 缺口：Go QueryKLinesBackward(limit=1) 在非零 UTC 时间起点返回恰一条带 Interval5m 的 bar；Rust 当前只测试 read_candles 区间返回三条，不断言 backward/limit 与 Interval wire 投影。",
-      "command": "pnpm run test:parity:receipt -- --package jftrade-store-sqlite --test aggregates_complete_one_minute_coverage_into_canonical_five_and_fifteen_minute_bars --output docs/history/go-to-rust/verification-receipts/backtest-aggregation-passed-2026-09-30.json",
+      "rust_entry": "crates/jftrade-store-sqlite/tests/backtest_market_data_aggregation.rs::aggregates_complete_one_minute_coverage_into_canonical_five_and_fifteen_minute_bars；crates/jftrade-store-sqlite/tests/backtest_market_data_aggregation.rs::aggregated_candles_support_forward_backward_and_stream_reads",
+      "conclusion": "partial（逐断言复核）：Rust 现在通过真实 BacktestMarketDataStore 的 aggregate read、forward page、backward page 与 callback stream 断言 5m 合成的数量值和 limit=1 行数。残余：Go 用例从非零 UTC 起点断言 Interval5m wire 投影；Rust StoredBacktestCandle 是存储 DTO，且当前测试窗口从 epoch 起算，需补非零起点/对外 wire 投影后再升级。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-store-sqlite --test aggregates_complete_one_minute_coverage_into_canonical_five_and_fifteen_minute_bars --test aggregates_fifteen_thirty_and_sixty_minute_bars_directly_from_five_minute_source --test closest_period_priority_general_divisor_selection_and_no_error_masking --test closest_period_priority_selects_five_minute_over_one_minute_when_both_exist --test direct_interval_rows_win_and_paging_is_deterministic --test interval_aliases_share_a_canonical_storage_table --test missing_empty_partial_and_corrupt_lower_coverage_fail_closed --test production_store_lists_manifest_catalog --test production_store_rejects_a_second_writer_lease --test aggregated_candles_support_forward_backward_and_stream_reads --test large_aggregate_ranges_keep_stream_order_and_page_boundaries_stable --test custom_period_backward_queries_return_latest_rows_in_ascending_order --output docs/history/go-to-rust/verification-receipts/backtest-aggregation-pages-stream-2026-10-04.json",
       "evidence_type": "partial",
       "source": {
         "file": "pkg/backtest/store_test.go",
@@ -155899,16 +156044,26 @@
             "rustFile": "crates/jftrade-store-sqlite/tests/backtest_market_data_aggregation.rs",
             "rustLine": 42
           }
+        },
+        {
+          "file": "crates/jftrade-store-sqlite/tests/backtest_market_data_aggregation.rs",
+          "test": "aggregated_candles_support_forward_backward_and_stream_reads",
+          "crate": "jftrade-store-sqlite",
+          "anchor": {
+            "goFile": "pkg/backtest/store_test.go",
+            "goLine": 532,
+            "rustFile": "crates/jftrade-store-sqlite/tests/backtest_market_data_aggregation.rs",
+            "rustLine": 74
+          }
         }
       ],
       "assertionCoverage": {
         "covered": [
           "partial（逐断言复核）：真实 BacktestMarketDataStore 由 1m regular/forward 行合成 5m bar；",
-          "断言起止桶边界、首 open、最高 high、最低 low、末 close 与 volume 求和。",
-          "Rust 当前只测试 read_candles 区间返回三条，不断言 backward/limit 与 Interval wire 投影。"
+          "query_candles_forward/query_candles_backward 的 limit=1 与 stream_candles 均返回唯一 5m 聚合行，并断言 OHLCV。"
         ],
         "uncovered": [
-          "缺口：Go QueryKLinesBackward(limit=1) 在非零 UTC 时间起点返回恰一条带 Interval5m 的 bar；"
+          "残余：Go 用例从非零 UTC 起点断言 Interval5m wire 投影；Rust StoredBacktestCandle 是存储 DTO，且当前测试窗口从 epoch 起算，需补非零起点/对外 wire 投影。"
         ],
         "source": "reviewed"
       },
@@ -155919,23 +156074,37 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-store-sqlite",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(aggregates_complete_one_minute_coverage_into_canonical_five_and_fifteen_minute_bars) or test(aggregates_fifteen_thirty_and_sixty_minute_bars_directly_from_five_minute_source) or test(closest_period_priority_general_divisor_selection_and_no_error_masking) or test(closest_period_priority_selects_five_minute_over_one_minute_when_both_exist) or test(direct_interval_rows_win_and_paging_is_deterministic) or test(interval_aliases_share_a_canonical_storage_table) or test(missing_empty_partial_and_corrupt_lower_coverage_fail_closed) or test(production_store_lists_manifest_catalog) or test(production_store_rejects_a_second_writer_lease) or test(aggregated_candles_support_forward_backward_and_stream_reads) or test(large_aggregate_ranges_keep_stream_order_and_page_boundaries_stable) or test(custom_period_backward_queries_return_latest_rows_in_ascending_order)"
         ],
         "testFilter": [
-          "aggregates_complete_one_minute_coverage_into_canonical_five_and_fifteen_minute_bars"
+          "aggregates_complete_one_minute_coverage_into_canonical_five_and_fifteen_minute_bars",
+          "aggregates_fifteen_thirty_and_sixty_minute_bars_directly_from_five_minute_source",
+          "closest_period_priority_general_divisor_selection_and_no_error_masking",
+          "closest_period_priority_selects_five_minute_over_one_minute_when_both_exist",
+          "direct_interval_rows_win_and_paging_is_deterministic",
+          "interval_aliases_share_a_canonical_storage_table",
+          "missing_empty_partial_and_corrupt_lower_coverage_fail_closed",
+          "production_store_lists_manifest_catalog",
+          "production_store_rejects_a_second_writer_lease",
+          "aggregated_candles_support_forward_backward_and_stream_reads",
+          "large_aggregate_ranges_keep_stream_order_and_page_boundaries_stable",
+          "custom_period_backward_queries_return_latest_rows_in_ascending_order"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "aedde694878d7fdf8c43c27cf903874c46c39633",
+        "verifiedAt": "2026-10-03T18:40:34Z",
+        "receiptDigest": "sha256:2cf8ff53867ee25644ab99c989646a152fac80942790d1362bce11d81de21edf"
       },
       "risk": "normal",
       "owner": "backtest_calendar",
@@ -155947,11 +156116,10 @@
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "partial（逐断言复核）：真实 BacktestMarketDataStore 由 1m regular/forward 行合成 5m bar；",
-        "断言起止桶边界、首 open、最高 high、最低 low、末 close 与 volume 求和。",
-        "Rust 当前只测试 read_candles 区间返回三条，不断言 backward/limit 与 Interval wire 投影。"
+        "query_candles_forward/query_candles_backward 的 limit=1 与 stream_candles 均返回唯一 5m 聚合行，并断言 OHLCV。"
       ],
       "uncoveredAssertions": [
-        "缺口：Go QueryKLinesBackward(limit=1) 在非零 UTC 时间起点返回恰一条带 Interval5m 的 bar；"
+        "残余：Go 用例从非零 UTC 起点断言 Interval5m wire 投影；Rust StoredBacktestCandle 是存储 DTO，且当前测试窗口从 epoch 起算，需补非零起点/对外 wire 投影。"
       ],
       "boundaryReason": null
     },
@@ -299099,7 +299267,7 @@
     },
     "internal/strategy/pineruntime/runtime_test.go:105:TestResolveConfigUsesWorkerDefaultsAndRuntimePrecedence": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-settings/src/pine_worker.rs::worker_limits_and_nested_quotes_match_go_settings_owner",
+      "rust_entry": "crates/jftrade-settings/src/pine_worker.rs::worker_limits_and_nested_quotes_match_go_settings_owner; crates/jftrade-engine/src/runtime_dependencies.rs::runtime_path_precedence_prefers_settings_then_worker_env_then_legacy_binary",
       "conclusion": "partial：Rust 已对齐 settings owner 的 worker limit 默认语义：backtest <= 0 回退 2、instance <= 0 回退 10，正值上限仍收敛到 1000；嵌套引号路径归一化继续覆盖。Go 的环境变量非法值会使 ResolveConfig 禁用，而 Rust settings 归一层只负责持久化输入，不负责完整 runtime env 校验，保留该所有权差异。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
       "evidence_type": "partial",
@@ -299119,6 +299287,17 @@
             "goLine": 105,
             "rustFile": "crates/jftrade-settings/src/pine_worker.rs",
             "rustLine": 96
+          }
+        },
+        {
+          "file": "crates/jftrade-engine/src/runtime_dependencies.rs",
+          "test": "runtime_path_precedence_prefers_settings_then_worker_env_then_legacy_binary",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/strategy/pineruntime/runtime_test.go",
+            "goLine": 105,
+            "rustFile": "crates/jftrade-engine/src/runtime_dependencies.rs",
+            "rustLine": 548
           }
         }
       ],
@@ -299147,15 +299326,16 @@
           "--no-fail-fast"
         ],
         "testFilter": [
-          "worker_limits_and_nested_quotes_match_go_settings_owner"
+          "worker_limits_and_nested_quotes_match_go_settings_owner",
+          "runtime_path_precedence_prefers_settings_then_worker_env_then_legacy_binary"
         ],
         "runnerVersion": "cargo-nextest-0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
         "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedAt": "2026-10-03T18:40:34Z",
+        "receiptDigest": "sha256:5fa098e1589da36837668072709cf25184c9a02c4329685d2fe68ae5348f514d"
       },
       "risk": "normal",
       "owner": "strategy_pine",
@@ -330420,9 +330600,9 @@
     },
     "internal/trading/broker_conformance_test.go:107:TestFakeBrokerConformancePlaceRejectedPushBeforeQueryAndUnsupportedCapability": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_reconciliation_tests.rs::reconciliation_discovers_external_order_into_empty_ledger；crates/jftrade-engine/src/product_production_ports_execution_reconciliation_order_state_tests.rs::challenge_edge_case_4_order_state_transitions_filled_cancelled_rejected",
-      "conclusion": "partial：三段里两段有实质对应、一段形态不同——(a) push-before-query 订单发现：Rust 无券商推送订阅，等价面是每轮对账从券商快照发现外部订单并落库（reconciliation_discovers_external_order_into_empty_ledger 断言空账本下发现 BROKER_ACCEPTED 外部单、幂等）；(b) place rejected：Go 的 harness 让下单同步返回 SUBMIT_FAILED 并把本地单标 REJECTED + rawBrokerStatus=SUBMIT_FAILED；Rust 下单 RPC 失败是 fail-closed UNKNOWN（persist_unknown, submission_failed），REJECTED 只在券商快照映射时出现（challenge_edge_case_4_order_state_transitions_filled_cancelled_rejected 断言 FILLED/CANCELLED/REJECTED 状态族映射）；(c) unsupported capability：Go 返回含 \"capability unsupported\" 的请求错误；Rust 把 TradeSessionError::Unsupported 映射为 503 Unavailable（product_production_ports_execution_order_helpers.rs::map_trade_error），错误码不是请求级 capability 错误。复现：让 TradeWritePort::place_order 返回 Unsupported(\"broker capability unsupported: stop-limit\") → Rust 返回 Unavailable(503) 且本地单转 UNKNOWN；Go 返回 4xx 文本错误。修复位置与回归要求：若要对齐，需要在 map_trade_error 区分 Unsupported → 409/400 BROKER_CAPABILITY_UNAVAILABLE，并在下单失败分支落 REJECTED（含 rawBrokerStatus）而不是 UNKNOWN；回归需断言错误码、状态与 rawBrokerStatus 三处。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(reconciliation_discovers_external_order_into_empty_ledger) or test(challenge_edge_case_4_order_state_transitions_filled_cancelled_rejected)'",
+      "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_reconciliation_tests.rs::reconciliation_discovers_external_order_into_empty_ledger；crates/jftrade-engine/src/product_production_ports_execution_reconciliation_order_state_tests.rs::challenge_edge_case_4_order_state_transitions_filled_cancelled_rejected；crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::unsupported_broker_capability_fails_closed_without_submission_replay",
+      "conclusion": "partial：push-before-query 与 broker snapshot 状态映射已有 owner 证据；新增生产端口回归真实复现 capability unsupported：TradeSessionError::Unsupported 只尝试一次，返回 Unavailable，账本落 UNKNOWN、无 broker id 且不重放。与 Go 仍有明确 wire/状态差异：Go 返回请求级 4xx 并将同步 SUBMIT_FAILED 映射为 REJECTED + rawBrokerStatus，因此保留 partial。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-engine --test unsupported_broker_capability_fails_closed_without_submission_replay --output docs/history/go-to-rust/verification-receipts/broker-capability-rejection-2026-10-03.json",
       "evidence_type": "partial",
       "source": {
         "file": "internal/trading/broker_conformance_test.go",
@@ -330452,6 +330632,17 @@
             "rustFile": "crates/jftrade-engine/src/product_production_ports_execution_reconciliation_order_state_tests.rs",
             "rustLine": 833
           }
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs",
+          "test": "unsupported_broker_capability_fails_closed_without_submission_replay",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/trading/broker_conformance_test.go",
+            "goLine": 107,
+            "rustFile": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs",
+            "rustLine": 2991
+          }
         }
       ],
       "assertionCoverage": {
@@ -330463,10 +330654,11 @@
           "Rust 把 TradeSessionError::Unsupported 映射为 503 Unavailable（product_production_ports_execution_order_helpers.rs::map_trade_error），错误码不是请求级 capability 错误。",
           "复现：让 TradeWritePort::place_order 返回 Unsupported(\"broker capability unsupported: stop-limit\") → Rust 返回 Unavailable(503) 且本地单转 UNKNOWN；",
           "Go 返回 4xx 文本错误。",
-          "回归需断言错误码、状态与 rawBrokerStatus 三处。"
+          "回归需断言错误码、状态与 rawBrokerStatus 三处。",
+          "新增真实 owner 回归：capability unsupported 下单只调用 broker 一次，返回 Unavailable，持久订单为 UNKNOWN、无 brokerOrderId/brokerOrderIdEx，lastErrorSource=opend，且没有重放。"
         ],
         "uncovered": [
-          "修复位置与回归要求：若要对齐，需要在 map_trade_error 区分 Unsupported → 409/400 BROKER_CAPABILITY_UNAVAILABLE，并在下单失败分支落 REJECTED（含 rawBrokerStatus）而不是 UNKNOWN；"
+          "仍未对齐 Go 的请求级 capability 4xx/BROKER_CAPABILITY_UNAVAILABLE、REJECTED 状态与 rawBrokerStatus=SUBMIT_FAILED；该差异保留为下一轮实现目标。"
         ],
         "source": "reviewed"
       },
@@ -330477,24 +330669,26 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(unsupported_broker_capability_fails_closed_without_submission_replay)"
         ],
         "testFilter": [
-          "reconciliation_discovers_external_order_into_empty_ledger",
-          "challenge_edge_case_4_order_state_transitions_filled_cancelled_rejected"
+          "unsupported_broker_capability_fails_closed_without_submission_replay"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "aedde694878d7fdf8c43c27cf903874c46c39633",
+        "verifiedAt": "2026-10-03T08:24:55Z",
+        "receiptDigest": "sha256:70a342b816ad2b08ffe9d7c74dd9731482234d4d8ee01353cfb9a26e83fda429"
       },
       "risk": "normal",
       "owner": "trading_broker",
@@ -330512,10 +330706,11 @@
         "Rust 把 TradeSessionError::Unsupported 映射为 503 Unavailable（product_production_ports_execution_order_helpers.rs::map_trade_error），错误码不是请求级 capability 错误。",
         "复现：让 TradeWritePort::place_order 返回 Unsupported(\"broker capability unsupported: stop-limit\") → Rust 返回 Unavailable(503) 且本地单转 UNKNOWN；",
         "Go 返回 4xx 文本错误。",
-        "回归需断言错误码、状态与 rawBrokerStatus 三处。"
+        "回归需断言错误码、状态与 rawBrokerStatus 三处。",
+        "新增真实 owner 回归：capability unsupported 下单只调用 broker 一次，返回 Unavailable，持久订单为 UNKNOWN、无 brokerOrderId/brokerOrderIdEx，lastErrorSource=opend，且没有重放。"
       ],
       "uncoveredAssertions": [
-        "修复位置与回归要求：若要对齐，需要在 map_trade_error 区分 Unsupported → 409/400 BROKER_CAPABILITY_UNAVAILABLE，并在下单失败分支落 REJECTED（含 rawBrokerStatus）而不是 UNKNOWN；"
+        "仍未对齐 Go 的请求级 capability 4xx/BROKER_CAPABILITY_UNAVAILABLE、REJECTED 状态与 rawBrokerStatus=SUBMIT_FAILED；该差异保留为下一轮实现目标。"
       ],
       "boundaryReason": null
     },
@@ -342869,14 +343064,15 @@
       "reviewNote": "2026-09-29 API batch: all referenced assertions were reviewed together; partial/boundary conclusions remain unchanged."
     },
     "crates/jftrade-engine/tests/strategy_pine_compatibility.rs::strategy_pine_replays_go_fixture_projection_status_and_headers": {
-      "referenceCount": 6,
+      "referenceCount": 7,
       "referenceKeys": [
         "internal/api/strategy/pine_routes_contracts_test.go:72:TestAnalyzeStrategyPineRouteReturnsDiagnosticsAndRequirements",
         "internal/api/strategy/pine_routes_contracts_test.go:148:TestAnalyzeStrategyPineRouteOmitsASTByDefault",
         "internal/api/strategy/pine_routes_contracts_test.go:398:TestAnalyzeStrategyPineRouteReturnsObjectSignatureDiagnostics",
         "internal/api/strategy/pine_routes_contracts_test.go:453:TestAnalyzeStrategyPineRouteReturnsImportAliasDiagnostics",
         "internal/api/strategy/pine_routes_contracts_test.go:502:TestAnalyzeStrategyPineRouteReturnsTypeMethodRegistryDiagnostics",
-        "internal/api/strategy/routes_test.go:181:TestHandleAnalyzePineMapsValidationErrors"
+        "internal/api/strategy/routes_test.go:181:TestHandleAnalyzePineMapsValidationErrors",
+        "internal/api/strategy/routes_failure_boundaries_test.go:16:TestAnalyzePineRouteCoversSuccessMalformedAndAnalysisFailure"
       ],
       "allowed": true,
       "reviewStatus": "reviewed",
@@ -343319,6 +343515,14 @@
       ],
       "allowed": true,
       "reviewStatus": "reviewed"
+    },
+    "crates/jftrade-api/tests/transport_contracts.rs::execution_order_detail_route_preserves_missing_and_store_failure_envelopes": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/api/trading/execution_validation_contracts_test.go:238:TestExecutionOrderDetailsRouteMapsMissingAndStoreFailures"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
     },
     "crates/jftrade-engine/src/product_production_assembly_tests.rs::every_declared_capability_resolves_to_an_executable_production_adapter": {
       "referenceCount": 3,
@@ -345813,11 +346017,12 @@
       "reviewStatus": "reviewed"
     },
     "crates/jftrade-engine/src/runtime_dependencies.rs::runtime_path_precedence_prefers_settings_then_worker_env_then_legacy_binary": {
-      "referenceCount": 3,
+      "referenceCount": 4,
       "referenceKeys": [
         "internal/app/apiserver/marketdataapp/sidecar_process_test.go:147:TestSidecarExecutableDevelopmentOverrideAndManagerBoundaries",
         "internal/app/apiserver/marketdataapp/sidecar_process_test.go:208:TestDevelopmentPythonSourceCommandAndExplicitHelperPrecedence",
-        "internal/strategy/pineruntime/runtime_failure_contracts_test.go:30:TestResolveConfigHonorsRuntimeFallbacksAndConfiguredWorkerLimits"
+        "internal/strategy/pineruntime/runtime_failure_contracts_test.go:30:TestResolveConfigHonorsRuntimeFallbacksAndConfiguredWorkerLimits",
+        "internal/strategy/pineruntime/runtime_test.go:105:TestResolveConfigUsesWorkerDefaultsAndRuntimePrecedence"
       ],
       "allowed": true,
       "reviewStatus": "reviewed",
@@ -351774,12 +351979,14 @@
       "reviewStatus": "single"
     },
     "crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::adk_chat_stream_replays_nonterminal_snapshot_without_fabricating_terminal_event": {
-      "referenceCount": 1,
+      "referenceCount": 2,
       "referenceKeys": [
-        "internal/assistant/service_lifecycle_boundaries_test.go:95:TestServiceRecoverTerminalChatResponseHandlesBlankRunIDAndMissingProjection"
+        "internal/assistant/service_lifecycle_boundaries_test.go:95:TestServiceRecoverTerminalChatResponseHandlesBlankRunIDAndMissingProjection",
+        "internal/api/assistant/routes_test.go:136:TestChatStreamHubReplayAndCleanupBoundaries"
       ],
       "allowed": true,
-      "reviewStatus": "single"
+      "reviewStatus": "reviewed",
+      "reviewNote": "2026-10-04 replay marker review: the same production stream owner now proves both nonterminal live frames without replay and the retained replay marker; each referencing Go assertion remains partial where durable retention differs from the in-memory hub lifecycle."
     },
     "crates/jftrade-engine/src/product_adk_mutation_product_tests.rs::optimization_task_cancel_route_preserves_go_operation_identity": {
       "referenceCount": 1,
@@ -359346,12 +359553,13 @@
       "reviewStatus": "reviewed"
     },
     "crates/jftrade-api/src/websocket.rs::live_hub_shutdown_is_idempotent_and_rejects_new_sessions": {
-      "referenceCount": 1,
+      "referenceCount": 2,
       "referenceKeys": [
-        "internal/live/publisher_test.go:73:TestReplayPublisherCloseStopsSourcesOnce"
+        "internal/live/publisher_test.go:73:TestReplayPublisherCloseStopsSourcesOnce",
+        "internal/api/live/dispatcher_boundaries_test.go:257:TestHandlerNilAndClosedLifecycleBoundaries"
       ],
       "allowed": true,
-      "reviewStatus": "single"
+      "reviewStatus": "reviewed"
     },
     "crates/jftrade-engine/src/product_query.rs::candle_adjustment_normalizes_and_rejects_unsupported_labels": {
       "referenceCount": 2,
@@ -364006,6 +364214,50 @@
         "internal/integration/akshare/provider_calendar_macro_test.go:12:TestClientCalendarMacroEndpointsEncodePathsAndQuery"
       ],
       "referenceCount": 1
+    },
+    "crates/jftrade-store-sqlite/tests/backtest_market_data_aggregation.rs::aggregated_candles_support_forward_backward_and_stream_reads": {
+      "referenceCount": 2,
+      "referenceKeys": [
+        "pkg/backtest/internal/storage/store_query_aggregation_contracts_test.go:81:TestStoreAggregatesFiveMinuteBarsFromOneMinuteCoverage",
+        "pkg/backtest/store_test.go:532:TestFutuKLineStoreSynthesizesFiveMinuteFromOneMinute"
+      ],
+      "allowed": false,
+      "reviewStatus": "reviewed",
+      "reviewNote": "2026-10-03 bounded reuse review: the shared owner test covers aggregate forward/backward/callback stream behavior, but the two Go tests retain different residuals (channel/EnsureCoverage versus non-zero UTC wire projection), so reuse is disallowed and neither partial row is upgraded by this relation."
+    },
+    "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::unsupported_broker_capability_fails_closed_without_submission_replay": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/trading/broker_conformance_test.go:107:TestFakeBrokerConformancePlaceRejectedPushBeforeQueryAndUnsupportedCapability"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_production_ports_strategy_tests.rs::pine_analysis_errors_keep_client_and_gateway_failures_distinct": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/api/strategy/routes_failure_boundaries_test.go:16:TestAnalyzePineRouteCoversSuccessMalformedAndAnalysisFailure"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-api/src/sse.rs::stream_loop_stops_after_trigger_write_failure_without_retrying": {
+      "referenceCount": 2,
+      "referenceKeys": [
+        "internal/api/live/dispatcher_boundaries_test.go:20:TestDispatcherInitialAndLiveDataFailures",
+        "internal/api/assistant/chat_transport_disconnect_test.go:110:TestChatStreamReconnectAndReplayRespectClientDisconnect"
+      ],
+      "allowed": true,
+      "reviewStatus": "reviewed"
+    },
+    "crates/jftrade-api/src/sse.rs::stream_loop_stops_after_ticker_write_failure_without_retrying": {
+      "referenceCount": 2,
+      "referenceKeys": [
+        "internal/api/live/dispatcher_boundaries_test.go:20:TestDispatcherInitialAndLiveDataFailures",
+        "internal/api/assistant/chat_transport_disconnect_test.go:110:TestChatStreamReconnectAndReplayRespectClientDisconnect"
+      ],
+      "allowed": true,
+      "reviewStatus": "reviewed"
     }
   }
 }

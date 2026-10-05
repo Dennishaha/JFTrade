@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "jftrade.go-rust-manual-evidence-review.v1",
+  "command": [
+    "python3",
+    "scripts/compatibility/verify_manual_mapping_evidence.py",
+    "--mapping",
+    "docs/history/go-to-rust/manual-test-mappings.json",
+    "--workspace-receipt",
+    "docs/history/go-to-rust/verification-receipts/workspace-nextest-2026-10-03-final-round.json",
+    "--output",
+    "docs/history/go-to-rust/verification-receipts/manual-evidence-review-2026-10-03-next-round.json"
+  ],
+  "status": "passed",
+  "exitCode": 0,
+  "verifiedCommit": "aedde694878d7fdf8c43c27cf903874c46c39633",
+  "verifiedAt": "2026-10-03T10:14:34Z",
+  "mappingCount": 4451,
+  "evidenceCounts": {
+    "boundary": 640,
+    "function_exact": 1580,
+    "partial": 2231
+  },
+  "workspaceReceipt": "docs/history/go-to-rust/verification-receipts/workspace-nextest-2026-10-03-final-round.json",
+  "workspacePassedTestCount": 3495,
+  "failures": []
+}

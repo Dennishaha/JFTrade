@@ -71,6 +71,162 @@ fn aggregates_complete_one_minute_coverage_into_canonical_five_and_fifteen_minut
 }
 
 #[test]
+fn aggregated_candles_support_forward_backward_and_stream_reads() {
+    let directory = tempfile::tempdir().expect("temporary directory");
+    let path = directory.path().join("aggregate-pages.db");
+    let store = store(&path);
+    seed_minutes(&store, 5);
+
+    let forward = store
+        .query_candles_forward("futu", "US.AAPL", "5m", "forward", "regular", 0, 1)
+        .expect("aggregate forward page");
+    assert_eq!(forward.len(), 1);
+    assert_eq!(forward[0].start_time, 0);
+    assert_eq!(forward[0].end_time, 299_999);
+    assert_eq!(forward[0].open, "100");
+    assert_eq!(forward[0].high, "106");
+    assert_eq!(forward[0].low, "99");
+    assert_eq!(forward[0].close, "105");
+    assert_eq!(forward[0].volume, "16.25");
+
+    let backward = store
+        .query_candles_backward("futu", "US.AAPL", "5m", "forward", "regular", 300_000, 1)
+        .expect("aggregate backward page");
+    assert_eq!(backward, forward);
+
+    let mut streamed = Vec::new();
+    store
+        .stream_candles(
+            "futu",
+            "US.AAPL",
+            "5m",
+            "forward",
+            "regular",
+            0,
+            300_000,
+            |candle| streamed.push(candle.clone()),
+        )
+        .expect("stream aggregate row");
+    assert_eq!(streamed, forward);
+}
+
+#[test]
+fn large_aggregate_ranges_keep_stream_order_and_page_boundaries_stable() {
+    let directory = tempfile::tempdir().expect("temporary directory");
+    let path = directory.path().join("aggregate-large-range.db");
+    let store = store(&path);
+    seed_minutes(&store, 10_000);
+
+    const PAGE_SIZE: usize = 127;
+    let expected = store
+        .read_candles(
+            "futu",
+            "US.AAPL",
+            "5m",
+            "forward",
+            "regular",
+            0,
+            10_000 * MINUTE_MS,
+        )
+        .expect("read complete aggregate range");
+    assert!(
+        expected.len() >= 390,
+        "fixture must span enough complete sessions"
+    );
+
+    let direct_expected = store
+        .read_candles(
+            "futu",
+            "US.AAPL",
+            "1m",
+            "forward",
+            "regular",
+            0,
+            10_000 * MINUTE_MS,
+        )
+        .expect("read direct range for paging");
+    assert_eq!(direct_expected.len(), 10_000);
+    for start_index in (0..direct_expected.len()).step_by(PAGE_SIZE) {
+        let end_index = (start_index + PAGE_SIZE).min(direct_expected.len());
+        let page = store
+            .query_candles_forward(
+                "futu",
+                "US.AAPL",
+                "1m",
+                "forward",
+                "regular",
+                direct_expected[start_index].start_time,
+                PAGE_SIZE,
+            )
+            .expect("read aggregate page");
+        assert_eq!(page.len(), end_index - start_index);
+        for (offset, (actual, expected)) in page
+            .iter()
+            .zip(&direct_expected[start_index..end_index])
+            .enumerate()
+        {
+            assert_eq!(actual, expected, "page start {start_index} offset {offset}");
+        }
+    }
+
+    let mut streamed = Vec::with_capacity(expected.len());
+    store
+        .stream_candles(
+            "futu",
+            "US.AAPL",
+            "5m",
+            "forward",
+            "regular",
+            0,
+            10_000 * MINUTE_MS,
+            |candle| streamed.push(candle.clone()),
+        )
+        .expect("stream a bounded aggregate range");
+    assert_eq!(streamed, expected);
+    assert!(
+        streamed
+            .windows(2)
+            .all(|rows| rows[0].start_time < rows[1].start_time)
+    );
+}
+
+#[test]
+fn direct_stream_reads_multiple_cursor_pages_without_duplicates() {
+    let directory = tempfile::tempdir().expect("temporary directory");
+    let path = directory.path().join("direct-stream-pages.db");
+    let store = store(&path);
+    seed_minutes(&store, 600);
+
+    let expected = store
+        .read_candles(
+            "futu",
+            "US.AAPL",
+            "1m",
+            "forward",
+            "regular",
+            0,
+            600 * MINUTE_MS,
+        )
+        .expect("read direct stream range");
+    let mut streamed = Vec::new();
+    store
+        .stream_candles(
+            "futu",
+            "US.AAPL",
+            "1m",
+            "forward",
+            "regular",
+            0,
+            600 * MINUTE_MS,
+            |candle| streamed.push(candle.clone()),
+        )
+        .expect("stream direct cursor pages");
+
+    assert_eq!(streamed, expected);
+    assert_eq!(streamed.len(), 600);
+}
+
+#[test]
 fn direct_interval_rows_win_and_paging_is_deterministic() {
     let directory = tempfile::tempdir().expect("temporary directory");
     let path = directory.path().join("direct-priority.db");
