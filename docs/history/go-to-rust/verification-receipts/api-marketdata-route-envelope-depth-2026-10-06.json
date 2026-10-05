@@ -14,26 +14,37 @@
     "libtest-json-plus",
     "--no-fail-fast",
     "-E",
-    "test(market_data_quote_read_http_success_preserves_candle_envelope_headers_and_metadata) or test(market_microstructure_quote_routes_preserve_provider_error_mapping)"
+    "test(market_data_quote_read_http_success_preserves_candle_envelope_headers_and_metadata) or test(market_microstructure_quote_routes_preserve_provider_error_mapping) or test(test_non_futu_helper_candles_failure_uses_generic_market_code)"
   ],
   "runnerVersion": "cargo-nextest 0.9.143",
   "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
   "exitCode": 0,
   "status": "passed",
-  "verifiedAt": "2026-10-05T17:34:21Z",
+  "verifiedAt": "2026-10-05T17:47:31Z",
   "sourceState": {
-    "verifiedCommit": "45a60d1803547dfdbeba8cc3abe913d343e17a13",
+    "verifiedCommit": "78f6cf1bd72e63e700fdaad5060770613571e1ea",
     "trackedDiffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "untrackedFiles": []
   },
-  "rawOutputSha256": "6a93475f249739b27f872bfb618262566c7b15c984b438c717bb847aeb607c56",
+  "rawOutputSha256": "dfac82fedaccc3b7487e0d6331c9092f5d870fb22725590e67fef248e4943482",
   "passedTests": [
     "jftrade-engine::jftrade_engine$product::tests::market_data_quote_read_tests::market_data_quote_read_http_success_preserves_candle_envelope_headers_and_metadata",
-    "jftrade-engine::jftrade_engine$product::tests::market_data_quote_read_tests::market_microstructure_quote_routes_preserve_provider_error_mapping"
+    "jftrade-engine::jftrade_engine$product::tests::market_data_quote_read_tests::market_microstructure_quote_routes_preserve_provider_error_mapping",
+    "jftrade-engine::market_data_production_compatibility$test_non_futu_helper_candles_failure_uses_generic_market_code"
   ],
   "failedTests": [],
   "ignoredTests": [],
   "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "market_data_production_compatibility",
+        "kind": "test"
+      }
+    },
     {
       "type": "suite",
       "event": "started",
@@ -52,11 +63,26 @@
       "ignored": 0,
       "measured": 0,
       "filtered_out": 1716,
-      "exec_time": 1.163305541,
+      "exec_time": 1.499779458,
       "nextest": {
         "crate": "jftrade-engine",
         "test_binary": "jftrade_engine",
         "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 8,
+      "exec_time": 2.921431375,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "market_data_production_compatibility",
+        "kind": "test"
       }
     }
   ]

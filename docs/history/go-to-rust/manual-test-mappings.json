@@ -11159,7 +11159,7 @@
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::market_microstructure_quote_routes_preserve_provider_error_mapping；crates/jftrade-engine/tests/market_data_production_compatibility.rs::test_non_futu_helper_candles_failure_uses_generic_market_code",
       "conclusion": "部分覆盖：已修复并回归非 Futu helper candles 失败码（Go 要求 MARKET_CANDLES_FAILED，修复前 Rust 误报 OPEND_CANDLES_FAILED）；depth 的 provider 错误映射已由 microstructure port 测试逐项覆盖，并在 Futu provider failure 的每个分支中断言 num=25 已转发到 reader。Go 的 depth 通用失败码 MARKET_DEPTH_FAILED 在 Rust 无对应非 Futu depth 实现（非 Futu depth 返回 capability unsupported），故保留 partial。",
-      "command": "pnpm run test:parity:receipt -- --package jftrade-engine --test market_data_quote_read_http_success_preserves_candle_envelope_headers_and_metadata --test market_microstructure_quote_routes_preserve_provider_error_mapping --output docs/history/go-to-rust/verification-receipts/api-marketdata-route-envelope-depth-2026-10-06.json",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-engine --test market_data_quote_read_http_success_preserves_candle_envelope_headers_and_metadata --test market_microstructure_quote_routes_preserve_provider_error_mapping --test test_non_futu_helper_candles_failure_uses_generic_market_code --output docs/history/go-to-rust/verification-receipts/api-marketdata-route-envelope-depth-2026-10-06.json",
       "evidence_type": "partial",
       "source": {
         "file": "internal/api/marketdata/routes_boundaries_test.go",
@@ -11215,19 +11215,20 @@
           "libtest-json-plus",
           "--no-fail-fast",
           "-E",
-          "test(market_data_quote_read_http_success_preserves_candle_envelope_headers_and_metadata) or test(market_microstructure_quote_routes_preserve_provider_error_mapping)"
+          "test(market_data_quote_read_http_success_preserves_candle_envelope_headers_and_metadata) or test(market_microstructure_quote_routes_preserve_provider_error_mapping) or test(test_non_futu_helper_candles_failure_uses_generic_market_code)"
         ],
         "testFilter": [
           "market_data_quote_read_http_success_preserves_candle_envelope_headers_and_metadata",
-          "market_microstructure_quote_routes_preserve_provider_error_mapping"
+          "market_microstructure_quote_routes_preserve_provider_error_mapping",
+          "test_non_futu_helper_candles_failure_uses_generic_market_code"
         ],
         "runnerVersion": "cargo-nextest-0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "45a60d1803547dfdbeba8cc3abe913d343e17a13",
-        "verifiedAt": "2026-10-05T17:34:21Z",
-        "receiptDigest": "sha256:c755067d50b3955115bdb4428b01af834048d8841e0cabf1fc5b0b0a3f5dfb3d"
+        "verifiedCommit": "78f6cf1bd72e63e700fdaad5060770613571e1ea",
+        "verifiedAt": "2026-10-05T17:47:31Z",
+        "receiptDigest": "sha256:c83225dde16252fcc9c7dbb215cff667367930173a4155014a7874a5ae5a6833"
       },
       "risk": "normal",
       "owner": "api_transport",
@@ -11374,8 +11375,7 @@
           "--no-fail-fast"
         ],
         "testFilter": [
-          "market_data_quote_read_http_success_preserves_candle_envelope_headers_and_metadata",
-          "market_microstructure_quote_routes_preserve_provider_error_mapping"
+          "test_non_futu_helper_candles_failure_uses_generic_market_code"
         ],
         "runnerVersion": "cargo-nextest-0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
