@@ -11158,8 +11158,8 @@
     "internal/api/marketdata/routes_boundaries_test.go:63:TestCandlesAndDepthRoutesMapProviderFailures": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::market_microstructure_quote_routes_preserve_provider_error_mapping；crates/jftrade-engine/tests/market_data_production_compatibility.rs::test_non_futu_helper_candles_failure_uses_generic_market_code",
-      "conclusion": "部分覆盖：已修复并回归非 Futu helper candles 失败码（Go 要求 MARKET_CANDLES_FAILED，修复前 Rust 误报 OPEND_CANDLES_FAILED）；depth 的 provider 错误映射已由 microstructure port 测试逐项覆盖，但 Go 的 depth 通用失败码 MARKET_DEPTH_FAILED 在 Rust 无对应非 Futu depth 实现（非 Futu depth 返回 Unavailable/不支持），且 Go 的 depth=25 参数转发断言未在单条 Rust 测试中同时覆盖，故保留 partial。",
-      "command": "pnpm run test:parity:receipt -- --package jftrade-engine --test market_microstructure_quote_routes_preserve_provider_error_mapping --test test_non_futu_helper_candles_failure_uses_generic_market_code --output docs/history/go-to-rust/verification-receipts/api-route-boundaries-2026-09-30.json",
+      "conclusion": "部分覆盖：已修复并回归非 Futu helper candles 失败码（Go 要求 MARKET_CANDLES_FAILED，修复前 Rust 误报 OPEND_CANDLES_FAILED）；depth 的 provider 错误映射已由 microstructure port 测试逐项覆盖，并在 Futu provider failure 的每个分支中断言 num=25 已转发到 reader。Go 的 depth 通用失败码 MARKET_DEPTH_FAILED 在 Rust 无对应非 Futu depth 实现（非 Futu depth 返回 capability unsupported），故保留 partial。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-engine --test market_data_quote_read_http_success_preserves_candle_envelope_headers_and_metadata --test market_microstructure_quote_routes_preserve_provider_error_mapping --output docs/history/go-to-rust/verification-receipts/api-marketdata-route-envelope-depth-2026-10-06.json",
       "evidence_type": "partial",
       "source": {
         "file": "internal/api/marketdata/routes_boundaries_test.go",
@@ -11193,10 +11193,10 @@
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust candles compatibility test preserves MARKET_CANDLES_FAILED for helper providers; microstructure tests cover depth provider mapping."
+          "Rust candles compatibility test preserves MARKET_CANDLES_FAILED for helper providers; microstructure tests cover depth provider mapping and num=25 forwarding on provider failures."
         ],
         "uncovered": [
-          "No non-Futu depth implementation with Go MARKET_DEPTH_FAILED mapping, and no single test combines depth=25 forwarding with both provider failures."
+          "No non-Futu depth implementation with Go MARKET_DEPTH_FAILED mapping."
         ],
         "source": "reviewed"
       },
@@ -11207,23 +11207,27 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(market_data_quote_read_http_success_preserves_candle_envelope_headers_and_metadata) or test(market_microstructure_quote_routes_preserve_provider_error_mapping)"
         ],
         "testFilter": [
-          "test_non_futu_helper_candles_failure_uses_generic_market_code"
+          "market_data_quote_read_http_success_preserves_candle_envelope_headers_and_metadata",
+          "market_microstructure_quote_routes_preserve_provider_error_mapping"
         ],
         "runnerVersion": "cargo-nextest-0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "45a60d1803547dfdbeba8cc3abe913d343e17a13",
+        "verifiedAt": "2026-10-05T17:34:21Z",
+        "receiptDigest": "sha256:c755067d50b3955115bdb4428b01af834048d8841e0cabf1fc5b0b0a3f5dfb3d"
       },
       "risk": "normal",
       "owner": "api_transport",
@@ -11234,10 +11238,10 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust candles compatibility test preserves MARKET_CANDLES_FAILED for helper providers; microstructure tests cover depth provider mapping."
+        "Rust candles compatibility test preserves MARKET_CANDLES_FAILED for helper providers; microstructure tests cover depth provider mapping and num=25 forwarding on provider failures."
       ],
       "uncoveredAssertions": [
-        "No non-Futu depth implementation with Go MARKET_DEPTH_FAILED mapping, and no single test combines depth=25 forwarding with both provider failures."
+        "No non-Futu depth implementation with Go MARKET_DEPTH_FAILED mapping."
       ],
       "boundaryReason": null
     },
@@ -11370,7 +11374,8 @@
           "--no-fail-fast"
         ],
         "testFilter": [
-          "test_non_futu_helper_candles_failure_uses_generic_market_code"
+          "market_data_quote_read_http_success_preserves_candle_envelope_headers_and_metadata",
+          "market_microstructure_quote_routes_preserve_provider_error_mapping"
         ],
         "runnerVersion": "cargo-nextest-0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",

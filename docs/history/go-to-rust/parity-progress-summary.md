@@ -1,5 +1,14 @@
 # Go → Rust 对齐成果摘要
 
+## 2026-10-05 API/Transport market-data route 收口
+
+- 收口一条真实 Product HTTP candles 成功路径：`market_data_quote_read_http_success_preserves_candle_envelope_headers_and_metadata` 通过真实 TCP 请求断言 200、JSON content-type、`ok/data` envelope、分页字段、source 和 candle wire 字段。
+- 扩展 `market_microstructure_quote_routes_preserve_provider_error_mapping`：每个 Futu depth provider failure 分支都用 `num=25` 请求，并断言 reader 已收到 `Depth`、规范化 instrument 和 `num=25`，同时保留 503/502/429、错误码与 Retry-After 映射。
+- focused receipt：`api-marketdata-route-envelope-depth-2026-10-06.json`，2/2 passed，`sha256:c755067d50b3955115bdb4428b01af834048d8841e0cabf1fc5b0b0a3f5dfb3d`；代码提交为 `45a60d1803547dfdbeba8cc3abe913d343e17a13`。
+- 本批现场完整 Rust 门禁完成：workspace **3666 passed、0 failed、2 skipped**，7 组 compatibility replay 全部通过；strict parity audit 通过，当前 Rust 测试 **3510**、数量覆盖约 **78.9%**，`function_exact=1581`、`partial=2230` 未因新增断言改变。
+- `TestCandlesAndDepthRoutesMapProviderFailures` 仍保持 `partial`：已覆盖 candles 通用失败码、Futu depth 失败映射和 `num=25` 转发；Rust 没有 Go 对应的非 Futu depth provider failure owner，未将该条升级为 exact。
+- 下一批继续优先 API/Transport 的真实 route owner，目标是找到仍有生产行为差异的 partial；单纯增加 HTTP 断言或刷新 mapping 不计入完成度。
+
 ## 2026-10-04 严格复核与下一轮目标
 
 - 严格审计已通过：Go **4451**、Rust **3509**，`function_exact=1581`、`partial=2230`、`boundary=640`；数量覆盖 **78.8%**，不能作为严格行为等价完成度。

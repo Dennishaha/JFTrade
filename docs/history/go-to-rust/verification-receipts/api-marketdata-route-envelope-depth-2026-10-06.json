@@ -1,0 +1,63 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(market_data_quote_read_http_success_preserves_candle_envelope_headers_and_metadata) or test(market_microstructure_quote_routes_preserve_provider_error_mapping)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-10-05T17:34:21Z",
+  "sourceState": {
+    "verifiedCommit": "45a60d1803547dfdbeba8cc3abe913d343e17a13",
+    "trackedDiffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "untrackedFiles": []
+  },
+  "rawOutputSha256": "6a93475f249739b27f872bfb618262566c7b15c984b438c717bb847aeb607c56",
+  "passedTests": [
+    "jftrade-engine::jftrade_engine$product::tests::market_data_quote_read_tests::market_data_quote_read_http_success_preserves_candle_envelope_headers_and_metadata",
+    "jftrade-engine::jftrade_engine$product::tests::market_data_quote_read_tests::market_microstructure_quote_routes_preserve_provider_error_mapping"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 2,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1716,
+      "exec_time": 1.163305541,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    }
+  ]
+}
