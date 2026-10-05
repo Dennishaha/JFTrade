@@ -178,6 +178,47 @@ async fn market_data_quote_read_routes_match_group_fixture_in_cutover_only() {
 }
 
 #[tokio::test]
+async fn market_data_quote_read_http_success_preserves_candle_envelope_headers_and_metadata() {
+    let fixture = market_data_quote_read_fixture();
+    let case = fixture
+        .cases
+        .iter()
+        .find(|case| case.name == "candles-ready-with-range-and-sessions")
+        .expect("candle success fixture");
+    let directory = tempdir().expect("temporary directory");
+    let settings_path = directory.path().join("settings.json");
+    let config =
+        ProductConfig::test_cutover("127.0.0.1:0".parse().expect("address"), &settings_path)
+            .expect("config")
+            .with_market_data_quote_read_snapshot_port(Arc::new(
+                FixtureMarketDataQuoteReadPort::from_fixture(&fixture),
+            ));
+    let handle = start_product(config).await.expect("start product");
+    let (status, headers, response) = request_market_data_quote_read_json_response(
+        handle.startup_record().address,
+        &case.method,
+        &case.request_path,
+    )
+    .await;
+
+    assert_eq!(status, 200);
+    assert_eq!(
+        headers.get("content-type").map(String::as_str),
+        Some("application/json; charset=utf-8")
+    );
+    assert_eq!(response["ok"], true);
+    let data = response["data"].as_object().expect("candle data object");
+    assert_eq!(data["source"], "fixture-candles");
+    assert_eq!(data["pagination"]["hasMore"], false);
+    assert_eq!(data["candles"].as_array().map(Vec::len), Some(1));
+    assert_eq!(data["candles"][0]["at"], "2026-08-01T13:30:00Z");
+    assert_eq!(data["candles"][0]["open"], "100.0");
+    assert_eq!(data["candles"][0]["close"], "101.0");
+
+    handle.shutdown().await.expect("shutdown product");
+}
+
+#[tokio::test]
 async fn market_data_quote_read_routes_fail_closed_when_snapshot_is_unavailable() {
     let directory = tempdir().expect("temporary directory");
     let settings_path = directory.path().join("settings.json");
@@ -1003,9 +1044,9 @@ async fn market_microstructure_quote_routes_preserve_provider_error_mapping() {
             None,
             None,
         )
-        .with_microstructure(Some(reader));
+        .with_microstructure(Some(reader.clone()));
         let error = depth_port
-            .read("/api/v1/market-data/depth/US/AAPL", "")
+            .read("/api/v1/market-data/depth/US/AAPL", "num=25")
             .await
             .expect_err("depth provider failure");
         match &error {
@@ -1021,6 +1062,16 @@ async fn market_microstructure_quote_routes_preserve_provider_error_mapping() {
             }
             other => panic!("expected Failed, got {other:?}"),
         }
+        let request = reader
+            .requests
+            .lock()
+            .expect("microstructure requests")
+            .last()
+            .cloned()
+            .expect("depth request recorded before provider failure");
+        assert_eq!(request.0, MarketMicrostructureOperation::Depth);
+        assert_eq!(request.1, "US.AAPL");
+        assert_eq!(request.2["num"], 25);
     }
 }
 
