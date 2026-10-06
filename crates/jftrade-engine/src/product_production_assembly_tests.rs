@@ -627,34 +627,25 @@ mod product_production_assembly_tests {
         .expect("parse activity start")
         .unix_timestamp()
             * 1_000;
-        for (index, (raw, level)) in [
-            ("info", "info"),
-            ("warning-first", "warning"),
-            ("warning-second", "warning"),
-        ]
-        .into_iter()
-        .enumerate()
-        {
+        for (raw, level, offset) in [
+            ("warning-before", "warning", 0),
+            ("warning-first", "warning", 60_000),
+            ("info-in-window", "info", 90_000),
+            ("warning-second", "warning", 120_000),
+            ("warning-after", "warning", 180_000),
+        ] {
             store
-                .append_log_event(
-                    "activity-filter",
-                    raw,
-                    level,
-                    start + (index as i64) * 60_000,
-                )
+                .append_log_event("activity-filter", raw, level, start + offset)
                 .expect("append strategy log");
         }
-        for (index, kind) in ["kind.info", "kind.pause", "kind.error"]
-            .into_iter()
-            .enumerate()
-        {
+        for (kind, detail, offset) in [
+            ("kind.pause", "pause-before", 0),
+            ("kind.pause", "kind.pause", 60_000),
+            ("kind.info", "info-in-window", 60_000),
+            ("kind.pause", "pause-after", 120_000),
+        ] {
             store
-                .append_audit_event(
-                    "activity-filter",
-                    kind,
-                    kind,
-                    start + (index as i64) * 60_000,
-                )
+                .append_audit_event("activity-filter", kind, detail, start + offset)
                 .expect("append strategy audit");
         }
         drop(store);
@@ -668,6 +659,28 @@ mod product_production_assembly_tests {
         .expect("start production product");
         let address = handle.startup_record().address;
         let auth = [("Authorization", "Bearer aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")];
+        let unfiltered_logs = request_json_with_status(
+            address,
+            "GET",
+            "/api/v1/strategies/activity-filter/logs?limit=1&offset=1",
+            None,
+            &auth,
+        )
+        .await;
+        assert_eq!(unfiltered_logs.0, 200);
+        assert_eq!(unfiltered_logs.1["data"]["logs"], json!(["warning-second"]));
+        assert_eq!(unfiltered_logs.1["data"]["page"]["total"], 5);
+        assert_eq!(unfiltered_logs.1["data"]["page"]["returned"], 1);
+        assert_eq!(unfiltered_logs.1["data"]["page"]["hasMore"], true);
+        let invalid_logs = request_json_with_status(
+            address,
+            "GET",
+            "/api/v1/strategies/activity-filter/logs?limit=bogus&fromTime=2026-05-22",
+            None,
+            &auth,
+        )
+        .await;
+        assert_eq!(invalid_logs.0, 400);
         let paged_logs = request_json_with_status(
             address,
             "GET",
@@ -691,6 +704,7 @@ mod product_production_assembly_tests {
         )
         .await;
         assert_eq!(filtered_audit.0, 200);
+        assert_eq!(filtered_audit.1["data"]["entries"][0]["kind"], "kind.pause");
         assert_eq!(
             filtered_audit.1["data"]["entries"]
                 .as_array()
