@@ -10,7 +10,9 @@ mod product_production_assembly_tests {
 
     use jftrade_api::AccessPolicy;
     use jftrade_calendar::{CalendarSnapshot, CalendarSnapshotStore, TradingDaySchedule};
-    use jftrade_datamanagement::{DATABASE_ADK, DATABASE_EXECUTION, DATABASE_WATCHLIST};
+    use jftrade_datamanagement::{
+        DATABASE_ADK, DATABASE_EXECUTION, DATABASE_WATCHLIST,
+    };
     use jftrade_integration_futu::{
         HistoricalKline, HistoricalKlineError, HistoricalKlineQuery, HistoricalKlineReadPort,
         HistoricalKlineResult, HistoricalSecurity, TradeAccountSnapshot, TradeCashFlowSnapshot,
@@ -51,7 +53,10 @@ mod product_production_assembly_tests {
         MarketDataProviderRuntimePort, SecuritySettingsService,
     };
     use jftrade_store_settings_file::SettingsFileStore;
-    use jftrade_store_sqlite::{ADK_PRODUCTION_PROFILE, AdkStore, CreateAdkRunParams};
+    use jftrade_store_sqlite::{
+        ADK_PRODUCTION_PROFILE, AdkStore, CreateAdkRunParams, STRATEGY_RUNTIME_PRODUCTION_PROFILE,
+        StrategyRuntimeStore,
+    };
 
     fn setup_test_env() -> (TempDir, PathBuf, ProductConfig, SecuritySettingsService) {
         let temp_dir = TempDir::new().expect("temp dir");
@@ -473,6 +478,125 @@ mod product_production_assembly_tests {
         let body: Value = serde_json::from_str(&body).expect("klines body");
         assert_eq!(body["data"]["klines"]["klines"][0]["close"], 10.5);
         handle.shutdown().await.expect("shutdown");
+    }
+
+    #[tokio::test]
+    // Parity: go:452dea11:internal/strategy/catalog/runtime_reconciliation_business_test.go:113 TestCatalogActivitySupportsPagingFilteringAndRuntimeObservationEnrichment
+    async fn production_http_strategy_activity_pages_filters_and_merges_runtime_observation() {
+        let directory = TempDir::new().expect("temp dir");
+        let settings_path = directory.path().join("settings.json");
+        fs::write(&settings_path, b"{}").expect("write settings");
+        product_data_management::initialize_production_databases(&settings_path)
+            .expect("initialize production databases");
+
+        let strategy_path = directory.path().join("strategy-runtime.db");
+        let store = StrategyRuntimeStore::open_existing(
+            &strategy_path,
+            STRATEGY_RUNTIME_PRODUCTION_PROFILE,
+        )
+        .expect("open strategy runtime store");
+        store
+            .seed_instance_with_binding(
+                "activity",
+                "STOPPED",
+                json!({"symbols": ["US.AAPL"], "runtime": "pine-pinets", "sourceFormat": "pine-v6"}),
+                "2026-07-01T10:00:00Z",
+            )
+            .expect("seed strategy instance");
+        let start = time::OffsetDateTime::parse(
+            "2026-07-01T10:00:00Z",
+            &time::format_description::well_known::Rfc3339,
+        )
+        .expect("parse activity start")
+        .unix_timestamp()
+            * 1_000;
+        for (index, level) in ["info", "warning", "error"].into_iter().enumerate() {
+            store
+                .append_log_event("activity", level, level, start + (index as i64) * 60_000)
+                .expect("append strategy log");
+            store
+                .append_audit_event(
+                    "activity",
+                    &format!("kind.{level}"),
+                    level,
+                    start + (index as i64) * 60_000,
+                )
+                .expect("append strategy audit");
+        }
+        let updated_at = start + 3_600_000;
+        let last_signal_at = start + 1_800_000;
+        store
+            .update_observation_with_events(
+                "activity",
+                "running",
+                &["US.AAPL".to_owned()],
+                None,
+                None,
+                Some(last_signal_at),
+                None,
+                updated_at,
+            )
+            .expect("persist runtime observation");
+        drop(store);
+
+        let runtime =
+            Arc::new(crate::product::product_production_ports::SharedTradeReadRuntime::default());
+        let config = http_product_config(&directory, runtime, None);
+        let handle = start_product(config)
+            .await
+            .expect("start production product");
+        let address = handle.startup_record().address;
+        let auth = [("Authorization", "Bearer aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")];
+
+        let paged_logs = request_json_with_status(
+            address,
+            "GET",
+            "/api/v1/strategies/activity/logs?limit=1&offset=1",
+            None,
+            &auth,
+        )
+        .await;
+        assert_eq!(paged_logs.0, 200);
+        assert_eq!(paged_logs.1["ok"], true);
+        assert_eq!(paged_logs.1["data"]["logs"], json!(["warning"]));
+        assert_eq!(paged_logs.1["data"]["page"]["total"], 3);
+        assert_eq!(paged_logs.1["data"]["page"]["returned"], 1);
+        assert_eq!(paged_logs.1["data"]["page"]["hasMore"], true);
+
+        let filtered_audit = request_json_with_status(
+            address,
+            "GET",
+            "/api/v1/strategies/activity/audit?kind=kind.error",
+            None,
+            &auth,
+        )
+        .await;
+        assert_eq!(filtered_audit.0, 200);
+        assert_eq!(filtered_audit.1["ok"], true);
+        assert_eq!(
+            filtered_audit.1["data"]["entries"]
+                .as_array()
+                .unwrap()
+                .len(),
+            1
+        );
+        assert_eq!(filtered_audit.1["data"]["entries"][0]["detail"], "error");
+
+        let instances =
+            request_json_with_status(address, "GET", "/api/v1/strategies", None, &auth).await;
+        assert_eq!(instances.0, 200);
+        let items = instances.1["data"].as_array().expect("strategy items");
+        assert_eq!(items.len(), 1);
+        let observation = &items[0]["runtimeObservation"];
+        assert_eq!(observation["actualStatus"], "running");
+        assert_eq!(observation["activeSymbols"], json!(["US.AAPL"]));
+        assert_eq!(observation["lastSignalAt"], "2026-07-01T10:30:00Z");
+        assert_eq!(items[0]["logs"], json!(["error", "warning", "info"]));
+
+        handle
+            .shutdown()
+            .await
+            .expect("shutdown production product");
     }
 
     #[tokio::test]
