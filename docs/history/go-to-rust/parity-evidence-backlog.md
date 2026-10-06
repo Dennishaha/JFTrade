@@ -1,5 +1,15 @@
 # Go → Rust 证据积压清单
 
+## 2026-10-06 API HTTP / WebSocket 行为批次
+
+- `TestSyncRouteClassifiesRequestErrorsAsBadRequest` 从 partial 升为 `function_exact`：真实 Product HTTP 注入生产 `ProductionBacktestPort`，逐项发送 Go 的非法 symbol、非法 since 和反向时间范围，均断言 HTTP 400、`ok=false`、`BAD_REQUEST`、JSON content-type、无 success data，并确认未创建活动 sync task。
+- 新增真实 WebSocket depth 订阅测试：由生产 OpenD listener 投影两次 book push，连线客户端收到更新后的价格、`meta.resolvedAt` 和 depth 字段，断线后统计与订阅释放。该条保持 partial：缺少订阅触发的初始 snapshot，push 的 `request.num` 使用实际档数而非请求档数，`entityId` 没有 Go 的 `|50` 后缀。Go 原始 `TestHandlerDepthUpdatePublishesFreshPayload` 没有“相同 resolvedAt 不重发”的断言，不再把该额外要求当作此函数的唯一残余。
+- 限定 receipt `verification-receipts/api-sync-http-ws-depth-2026-10-06.json`：**5/5 passed**，SHA-256 `b31ef3a7a788aed0d740e0641ada3e1450243c2d719530c42be6c3506f2c679b`；在 helper 日期修复后的源码上复跑，覆盖两条 mapping 的全部新旧 Rust owner。首轮测试编译缺少 import，修复后的复跑通过；编译失败记录保留在本地 `/tmp/jftrade-api-sync-http-ws-depth-2026-10-06-compile-failed.json`，不作为行为红测。
+- 本批只修改两条 mapping 及两条 single-owner reuse 关系；Rust 测试 **3510→3512**，`function_exact` **1581→1582**，partial **2230→2229**。数量覆盖仍为 **78.9%**，严格行为等价仍约 **35.5%**，均不代表整体目标完成。
+- `check:quick` 首轮失败：五个 helper sync 用例固定使用 9 月 29 日的 1m 数据，现场日期已超出生产 yfinance 七天历史窗口。请求、mock candle 与分页 cursor 改为同一次捕获的近期 UTC 窗口，保留原行为断言与生产拒绝阈值；另修正正向 capability 用例的相同日期依赖。红 receipt `verification-receipts/backtest-helper-sync-window-red-2026-10-06.json`（0 passed、5 failed）由绿色 `verification-receipts/backtest-helper-sync-window-passed-2026-10-06.json`（6/6 passed）替代为当前定向状态，不删除原失败证据。
+- strict parity audit、AI context、anchor reconcile（0 unrecorded / 0 stale）均通过；`check:quick` 重跑已通过，受影响 nextest **2132/2132 passed**。现场完整 `check:rust` 首轮在 target-health 停止（至少 50,000 个 `.rcgu.o`），确认无 Cargo/rustc 进程后按仓库提示运行 `clean:rust:artifacts`，清理可重建编译产物；首次日志保留在本地 `/tmp/jftrade-api-transport-check-rust-2026-10-06.log`。完整重跑明确退出码 **0**：workspace **3668 passed、0 failed、2 skipped**，七类 compatibility replay 全部通过；实际日志为本地 `/tmp/jftrade-api-transport-check-rust-2026-10-06-rerun.log`，未伪造新的 workspace JSON receipt。
+- 两个历史失败 receipt 的红绿/current rerun 替代关系已在下一节明确保留，不删除或改写原失败证据。
+
 ## 2026-10-04 严格复核补证与下一轮门槛
 
 - ### 历史失败 receipt 的替代关系

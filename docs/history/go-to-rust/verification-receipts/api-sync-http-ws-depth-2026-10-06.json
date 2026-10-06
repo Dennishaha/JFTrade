@@ -1,0 +1,91 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(backtest_sync_http_rejects_request_errors_before_queuing) or test(sync_request_rejects_invalid_ranges_and_intervals) or test(ws_live_depth_subscription_receives_updated_opend_book_payloads) or test(order_book_pushes_publish_depth_for_the_subscribed_instrument) or test(ws_live_replays_complete_go_corpus)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-10-06T02:58:48Z",
+  "sourceState": {
+    "verifiedCommit": "5ecbebc57dedb1b6b19c66b4c325b3f275d1efae",
+    "trackedDiffSha256": "36e7e75378953098ba7eee88471cc50ce5f0c26167efd31e5f82b4e28225b3f8",
+    "untrackedFiles": []
+  },
+  "rawOutputSha256": "0118ea1a3a6bc23418862849644daac02b0d3d98559cc8c17303c1567df30652",
+  "passedTests": [
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_execution::sync_start_tests::backtest_sync_http_rejects_request_errors_before_queuing",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_execution::sync_start_tests::sync_request_rejects_invalid_ranges_and_intervals",
+    "jftrade-engine::jftrade_engine$product::tests::ws_live_tests::ws_live_depth_subscription_receives_updated_opend_book_payloads",
+    "jftrade-engine::jftrade_engine$product_runtime::product_runtime_opend_listener_tests::order_book_pushes_publish_depth_for_the_subscribed_instrument",
+    "jftrade-engine::ws_live_compatibility$ws_live_replays_complete_go_corpus"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 4,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "ws_live_compatibility",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 4,
+      "exec_time": 0.013556,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "ws_live_compatibility",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1716,
+      "exec_time": 3.987370292,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    }
+  ]
+}

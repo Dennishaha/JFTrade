@@ -1,0 +1,71 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(production_helper_sync_forwards_page_query_and_persists_provider_values) or test(production_helper_sync_preserves_non_retryable_provider_fetch_error) or test(production_helper_sync_retries_transient_page_and_records_retry) or test(production_helper_sync_rejects_broken_pagination_cursors) or test(production_helper_sync_cancel_aborts_in_flight_request)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 100,
+  "status": "failed",
+  "verifiedAt": "2026-10-06T02:56:28Z",
+  "sourceState": {
+    "verifiedCommit": "5ecbebc57dedb1b6b19c66b4c325b3f275d1efae",
+    "trackedDiffSha256": "e82407d5f2d08e6a7f362c94ae893899712819cdfa44f7d13e0c20344992500f",
+    "untrackedFiles": [
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-sync-http-ws-depth-2026-10-06.json",
+        "sha256": "551cfc956949643609d5ca26987ed479d13572cd0ebfd82fdeba798b3b43a09e"
+      }
+    ]
+  },
+  "rawOutputSha256": "a6adcde3c55f7e915aa38dacf58b12b526c46f32ecc8dc8aed57b64929c448c2",
+  "passedTests": [],
+  "failedTests": [
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_execution::sync_start_tests::production_helper_sync_cancel_aborts_in_flight_request",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_execution::sync_start_tests::production_helper_sync_forwards_page_query_and_persists_provider_values",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_execution::sync_start_tests::production_helper_sync_preserves_non_retryable_provider_fetch_error",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_execution::sync_start_tests::production_helper_sync_rejects_broken_pagination_cursors",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_execution::sync_start_tests::production_helper_sync_retries_transient_page_and_records_retry"
+  ],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 5,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "failed",
+      "passed": 0,
+      "failed": 5,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1715,
+      "exec_time": 0.917618125,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    }
+  ]
+}

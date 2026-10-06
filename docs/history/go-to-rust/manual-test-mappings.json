@@ -7525,11 +7525,11 @@
       "boundaryReason": null
     },
     "internal/api/backtest/routes_test.go:21:TestSyncRouteClassifiesRequestErrorsAsBadRequest": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_backtest_sync_start_tests.rs::sync_request_rejects_invalid_ranges_and_intervals",
-      "conclusion": "partial：Rust 端口回归现已覆盖三条 Go 请求错误（symbol 无市场前缀且含空白、since=\"bad\"、since>until）并统一返回 BadRequest；本批修复了 symbol 非空时错误回退 HK.00700 的 owner 差异。仍保留 partial：Go 断言的是 HTTP route envelope（400/BAD_REQUEST），Rust 当前证据在请求解析 owner，未把同一断言提升为 route exact。",
-      "command": "pnpm run test:parity:receipt -- --package jftrade-engine --test sync_request_rejects_invalid_ranges_and_intervals --output docs/history/go-to-rust/verification-receipts/api-query-boundaries-2026-09-30.json",
-      "evidence_type": "partial",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-engine/src/product_backtest_sync_start_tests.rs::backtest_sync_http_rejects_request_errors_before_queuing; crates/jftrade-engine/src/product_backtest_sync_start_tests.rs::sync_request_rejects_invalid_ranges_and_intervals",
+      "conclusion": "function_exact：真实 Product HTTP server 注入 ProductionBacktestPort，按 Go 原始三条 body 验证非法 symbol、since=bad、since>until 均为 HTTP 400 / ok=false / BAD_REQUEST；响应 JSON 无 success data，且活动 sync task 仍为空。领域解析 owner 与 transport owner 同批 5/5 receipt 通过。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-engine --test backtest_sync_http_rejects_request_errors_before_queuing --test sync_request_rejects_invalid_ranges_and_intervals --test ws_live_depth_subscription_receives_updated_opend_book_payloads --test order_book_pushes_publish_depth_for_the_subscribed_instrument --test ws_live_replays_complete_go_corpus --output docs/history/go-to-rust/verification-receipts/api-sync-http-ws-depth-2026-10-06.json",
+      "evidence_type": "function_exact",
       "source": {
         "file": "internal/api/backtest/routes_test.go",
         "line": 21,
@@ -7539,23 +7539,35 @@
       "rustEvidence": [
         {
           "file": "crates/jftrade-engine/src/product_backtest_sync_start_tests.rs",
+          "test": "backtest_sync_http_rejects_request_errors_before_queuing",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/api/backtest/routes_test.go",
+            "goLine": 21,
+            "rustFile": "crates/jftrade-engine/src/product_backtest_sync_start_tests.rs",
+            "rustLine": 181
+          }
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_backtest_sync_start_tests.rs",
           "test": "sync_request_rejects_invalid_ranges_and_intervals",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/api/backtest/routes_test.go",
             "goLine": 21,
             "rustFile": "crates/jftrade-engine/src/product_backtest_sync_start_tests.rs",
-            "rustLine": 118
+            "rustLine": 121
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust sync request parser test returns BadRequest for malformed symbol, invalid since, and since-after-until; symbol fallback behavior is covered by the corrected owner."
+          "Malformed symbol body returns HTTP 400, ok=false and BAD_REQUEST through the real product server and ProductionBacktestPort.",
+          "Invalid since body returns HTTP 400, ok=false and BAD_REQUEST through the real product server and ProductionBacktestPort.",
+          "Since-after-until body returns HTTP 400, ok=false and BAD_REQUEST through the real product server and ProductionBacktestPort.",
+          "Each error response is JSON without success data and no active sync task is queued."
         ],
-        "uncovered": [
-          "No route-envelope assertion proving the same errors serialize as HTTP 400/BAD_REQUEST rather than only port-level BadRequest."
-        ],
+        "uncovered": [],
         "source": "reviewed"
       },
       "verification": {
@@ -7565,36 +7577,41 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(backtest_sync_http_rejects_request_errors_before_queuing) or test(sync_request_rejects_invalid_ranges_and_intervals) or test(ws_live_depth_subscription_receives_updated_opend_book_payloads) or test(order_book_pushes_publish_depth_for_the_subscribed_instrument) or test(ws_live_replays_complete_go_corpus)"
         ],
         "testFilter": [
+          "backtest_sync_http_rejects_request_errors_before_queuing",
           "sync_request_rejects_invalid_ranges_and_intervals"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "5ecbebc57dedb1b6b19c66b4c325b3f275d1efae",
+        "verifiedAt": "2026-10-06T02:58:48Z",
+        "receiptDigest": "sha256:b31ef3a7a788aed0d740e0641ada3e1450243c2d719530c42be6c3506f2c679b"
       },
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "retain_reviewed_boundary_or_partial_and_reaudit",
+      "nextAction": "retain_receipt_and_reaudit",
       "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust sync request parser test returns BadRequest for malformed symbol, invalid since, and since-after-until; symbol fallback behavior is covered by the corrected owner."
+        "Malformed symbol body returns HTTP 400, ok=false and BAD_REQUEST through the real product server and ProductionBacktestPort.",
+        "Invalid since body returns HTTP 400, ok=false and BAD_REQUEST through the real product server and ProductionBacktestPort.",
+        "Since-after-until body returns HTTP 400, ok=false and BAD_REQUEST through the real product server and ProductionBacktestPort.",
+        "Each error response is JSON without success data and no active sync task is queued."
       ],
-      "uncoveredAssertions": [
-        "No route-envelope assertion proving the same errors serialize as HTTP 400/BAD_REQUEST rather than only port-level BadRequest."
-      ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/api/backtest/routes_test.go:35:TestSyncRouteClassifiesAdapterFailureAsInternalServerError": {
@@ -10527,9 +10544,9 @@
     },
     "internal/api/live/handler_test.go:244:TestHandlerDepthUpdatePublishesFreshPayload": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/tests/ws_live_compatibility.rs::ws_live_replays_complete_go_corpus; crates/jftrade-engine/src/product_runtime_opend_listener_tests.rs::order_book_pushes_publish_depth_for_the_subscribed_instrument",
-      "conclusion": "partial：Go 断言 depth 刷新（resolvedAt 变化）后向已注册订阅者推送新 payload，entityId=US.TME|50。Rust 语料 depth-push-refresh-and-release 断言两帧 depth 与订阅/退订计数（冻结投影），OpenD listener 用例断言真实推送侧 market.depth 载荷；缺口：未覆盖“resolvedAt 变化才重发”的刷新去重。owner：crates/jftrade-engine 运行时投影；回归要求：真实连接上的刷新→新 payload 断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'not test(production_helper_sync_cancel_aborts_in_flight_request) and not test(production_helper_sync_rejects_broken_pagination_cursors) and not test(production_helper_sync_forwards_page_query_and_persists_provider_values) and not test(production_helper_sync_retries_transient_page_and_records_retry)'",
+      "rust_entry": "crates/jftrade-engine/src/product_ws_live_tests.rs::ws_live_depth_subscription_receives_updated_opend_book_payloads; crates/jftrade-engine/tests/ws_live_compatibility.rs::ws_live_replays_complete_go_corpus; crates/jftrade-engine/src/product_runtime_opend_listener_tests.rs::order_book_pushes_publish_depth_for_the_subscribed_instrument",
+      "conclusion": "partial：新增真实 WebSocket upgrade、depth subscribe 和 OpenD listener 连线测试；两次 book push 更新 bids price 与 meta.resolvedAt，保持 source=market-data、instrumentId=US.TME，并在 disconnect 后释放订阅。仍不等价于 Go 的订阅触发初始 snapshot：Rust 依赖后续 push，request.num=实际返回档数（本测试为 1）而非请求的 50，entityId=US.TME 而非 US.TME|50；不升级 exact。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-engine --test backtest_sync_http_rejects_request_errors_before_queuing --test sync_request_rejects_invalid_ranges_and_intervals --test ws_live_depth_subscription_receives_updated_opend_book_payloads --test order_book_pushes_publish_depth_for_the_subscribed_instrument --test ws_live_replays_complete_go_corpus --output docs/history/go-to-rust/verification-receipts/api-sync-http-ws-depth-2026-10-06.json",
       "evidence_type": "partial",
       "source": {
         "file": "internal/api/live/handler_test.go",
@@ -10538,6 +10555,17 @@
         "blobSha": "9cdcba2bdcdb7997d4205a9e54f513a21e2e9f2c"
       },
       "rustEvidence": [
+        {
+          "file": "crates/jftrade-engine/src/product_ws_live_tests.rs",
+          "test": "ws_live_depth_subscription_receives_updated_opend_book_payloads",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/api/live/handler_test.go",
+            "goLine": 244,
+            "rustFile": "crates/jftrade-engine/src/product_ws_live_tests.rs",
+            "rustLine": 283
+          }
+        },
         {
           "file": "crates/jftrade-engine/tests/ws_live_compatibility.rs",
           "test": "ws_live_replays_complete_go_corpus",
@@ -10563,10 +10591,12 @@
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust compatibility corpus emits two depth frames and subscription/unsubscribe counts; OpenD listener test covers real market.depth payloads."
+          "Rust compatibility corpus emits two depth frames and subscription/unsubscribe counts; OpenD listener test covers real market.depth payloads.",
+          "Real WebSocket depth subscription receives two OpenD listener book updates with changed price and meta.resolvedAt; disconnect releases connected and active-instrument statistics."
         ],
         "uncovered": [
-          "No Rust connected-session assertion that only a resolvedAt change causes a fresh depth payload."
+          "No connected-session owner fetches the initial depth snapshot on subscribe before any OpenD push.",
+          "OpenD push request.num is the observed book depth (1 in this test), not the requested subscription size 50; entityId lacks the Go |50 suffix."
         ],
         "source": "reviewed"
       },
@@ -10577,24 +10607,28 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(backtest_sync_http_rejects_request_errors_before_queuing) or test(sync_request_rejects_invalid_ranges_and_intervals) or test(ws_live_depth_subscription_receives_updated_opend_book_payloads) or test(order_book_pushes_publish_depth_for_the_subscribed_instrument) or test(ws_live_replays_complete_go_corpus)"
         ],
         "testFilter": [
-          "order_book_pushes_publish_depth_for_the_subscribed_instrument",
-          "ws_live_replays_complete_go_corpus"
+          "ws_live_depth_subscription_receives_updated_opend_book_payloads",
+          "ws_live_replays_complete_go_corpus",
+          "order_book_pushes_publish_depth_for_the_subscribed_instrument"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "5ecbebc57dedb1b6b19c66b4c325b3f275d1efae",
+        "verifiedAt": "2026-10-06T02:58:48Z",
+        "receiptDigest": "sha256:b31ef3a7a788aed0d740e0641ada3e1450243c2d719530c42be6c3506f2c679b"
       },
       "risk": "normal",
       "owner": "api_transport",
@@ -10605,10 +10639,12 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust compatibility corpus emits two depth frames and subscription/unsubscribe counts; OpenD listener test covers real market.depth payloads."
+        "Rust compatibility corpus emits two depth frames and subscription/unsubscribe counts; OpenD listener test covers real market.depth payloads.",
+        "Real WebSocket depth subscription receives two OpenD listener book updates with changed price and meta.resolvedAt; disconnect releases connected and active-instrument statistics."
       ],
       "uncoveredAssertions": [
-        "No Rust connected-session assertion that only a resolvedAt change causes a fresh depth payload."
+        "No connected-session owner fetches the initial depth snapshot on subscribe before any OpenD push.",
+        "OpenD push request.num is the observed book depth (1 in this test), not the requested subscription size 50; entityId lacks the Go |50 suffix."
       ],
       "boundaryReason": null
     },
@@ -340693,6 +340729,22 @@
     }
   },
   "reuse": {
+    "crates/jftrade-engine/src/product_backtest_sync_start_tests.rs::backtest_sync_http_rejects_request_errors_before_queuing": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/api/backtest/routes_test.go:21:TestSyncRouteClassifiesRequestErrorsAsBadRequest"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_ws_live_tests.rs::ws_live_depth_subscription_receives_updated_opend_book_payloads": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/api/live/handler_test.go:244:TestHandlerDepthUpdatePublishesFreshPayload"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
     "crates/jftrade-engine/tests/product_api_launcher_lifecycle.rs::api_launcher_serves_on_the_configured_address_and_stops_on_termination_signal": {
       "referenceCount": 1,
       "referenceKeys": [
