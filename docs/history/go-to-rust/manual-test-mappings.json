@@ -61733,11 +61733,11 @@
       "boundaryReason": null
     },
     "internal/app/apiserver/servercoretest/broker_new_test.go:264:TestBrokerUnlockDisconnectedOpenD": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::trade_write_methods_propagate_write_disconnects; crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::broker_unlock_route_forwards_password_md5_and_unlock_flag_to_opend",
-      "conclusion": "partial：Go 断言 OpenD 断连时解锁返回结构化失败信封。Rust 交易写方法（含解锁）在断连时上抛映射错误（引用测试），成功路径断言只发一次 Trd_UnlockTrade；断连错误码由产品层 map_trade_error 生成。缺口 owner：crates/jftrade-engine 执行写端口错误映射；回归要求：补“断连解锁 → 非 2xx + 稳定 code/status”的生产 HTTP 断言并逐条比对 Go 错误码。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'test(broker_klines_valid_request_fails_closed_without_historical_source) or test(broker_securities_returns_real_empty_result_when_cache_has_no_symbol) or test(production_http_broker_reads_reject_invalid_query_shapes_with_rust_messages) or test(trade_write_methods_propagate_write_disconnects) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(funds_projection_keeps_missing_margin_fields_absent) or test(broker_read_fails_closed_without_trade_client)'",
-      "evidence_type": "partial",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-engine/src/product_production_assembly_tests.rs::production_http_broker_unlock_maps_disconnected_opend_to_stable_error; crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::trade_write_methods_propagate_write_disconnects; crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::broker_unlock_route_forwards_password_md5_and_unlock_flag_to_opend",
+      "conclusion": "function_exact：真实 production HTTP 组合使用共享 trade runtime 注入断连 writer，POST /api/v1/brokers/futu/unlock 经过 broker route、ProductionExecutionPort 和 map_trade_error，稳定返回 502、ok=false、error.code=BROKER_NOT_CONNECTED，并保留 OpenD closed 诊断；叶级测试同时覆盖断连映射与成功 unlock 参数透传。Go 的结构化断连失败信封已在同一路由现场复现，无未覆盖断言。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-engine --test production_http_broker_unlock_maps_disconnected_opend_to_stable_error --test trade_write_methods_propagate_write_disconnects --test broker_unlock_route_forwards_password_md5_and_unlock_flag_to_opend --output docs/history/go-to-rust/verification-receipts/api-broker-unlock-disconnected-2026-10-07.json",
+      "evidence_type": "function_exact",
       "source": {
         "file": "internal/app/apiserver/servercoretest/broker_new_test.go",
         "line": 264,
@@ -61745,6 +61745,17 @@
         "blobSha": "537dac6100333b350d4847545050b35afe3ca681"
       },
       "rustEvidence": [
+        {
+          "file": "crates/jftrade-engine/src/product_production_assembly_tests.rs",
+          "test": "production_http_broker_unlock_maps_disconnected_opend_to_stable_error",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/app/apiserver/servercoretest/broker_new_test.go",
+            "goLine": 264,
+            "rustFile": "crates/jftrade-engine/src/product_production_assembly_tests.rs",
+            "rustLine": 6480
+          }
+        },
         {
           "file": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs",
           "test": "trade_write_methods_propagate_write_disconnects",
@@ -61770,64 +61781,55 @@
       ],
       "assertionCoverage": {
         "covered": [
-          "Go 断言 OpenD 断连时解锁返回结构化失败信封。",
-          "Rust 交易写方法（含解锁）在断连时上抛映射错误（引用测试），成功路径断言只发一次 Trd_UnlockTrade；",
-          "断连错误码由产品层 map_trade_error 生成。"
+          "真实 production HTTP unlock 路由在 OpenD writer 断连时返回非 2xx 结构化错误信封。",
+          "HTTP 状态为 502，error.code 为 BROKER_NOT_CONNECTED，且保留 closed 诊断消息。",
+          "叶级交易写错误映射与成功 unlock 的 passwordMd5/unlock 参数透传均有独立断言。"
         ],
-        "uncovered": [
-          "缺口 owner：crates/jftrade-engine 执行写端口错误映射；",
-          "回归要求：补“断连解锁 → 非 2xx + 稳定 code/status”的生产 HTTP 断言并逐条比对 Go 错误码。"
-        ],
+        "uncovered": [],
         "source": "reviewed"
       },
       "verification": {
         "argv": [
-          "env",
-          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
-          "node",
-          "scripts/quality/cargo-nextest.mjs",
+          "pnpm",
           "run",
-          "--workspace",
-          "--all-targets",
-          "--locked",
-          "--message-format",
-          "libtest-json-plus",
-          "--no-fail-fast"
+          "test:parity:receipt",
+          "--",
+          "--package",
+          "jftrade-engine",
+          "--test",
+          "production_http_broker_unlock_maps_disconnected_opend_to_stable_error",
+          "--test",
+          "trade_write_methods_propagate_write_disconnects",
+          "--test",
+          "broker_unlock_route_forwards_password_md5_and_unlock_flag_to_opend",
+          "--output",
+          "docs/history/go-to-rust/verification-receipts/api-broker-unlock-disconnected-2026-10-07.json"
         ],
         "testFilter": [
-          "broker_klines_valid_request_fails_closed_without_historical_source",
-          "broker_securities_returns_real_empty_result_when_cache_has_no_symbol",
-          "production_http_broker_reads_reject_invalid_query_shapes_with_rust_messages",
+          "production_http_broker_unlock_maps_disconnected_opend_to_stable_error",
           "trade_write_methods_propagate_write_disconnects",
-          "cancel_rejects_missing_terminal_and_unidentified_persisted_orders",
-          "funds_projection_keeps_missing_margin_fields_absent",
-          "broker_read_fails_closed_without_trade_client"
+          "broker_unlock_route_forwards_password_md5_and_unlock_flag_to_opend"
         ],
         "runnerVersion": "cargo-nextest-0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "0c88bb0a0f8f3843cb0fa0b2c25431d517dc32a0",
+        "verifiedAt": "2026-10-06T17:06:46Z",
+        "receiptDigest": "sha256:64f2be57a9c7ef63bf9783e0d5884e759a7769d867737301f61610e7c4cee726"
       },
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "reviewed",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Go 断言 OpenD 断连时解锁返回结构化失败信封。",
-        "Rust 交易写方法（含解锁）在断连时上抛映射错误（引用测试），成功路径断言只发一次 Trd_UnlockTrade；",
-        "断连错误码由产品层 map_trade_error 生成。"
+        "真实 production HTTP unlock 路由在 OpenD writer 断连时返回非 2xx 结构化错误信封。",
+        "HTTP 状态为 502，error.code 为 BROKER_NOT_CONNECTED，且保留 closed 诊断消息。",
+        "叶级交易写错误映射与成功 unlock 的 passwordMd5/unlock 参数透传均有独立断言。"
       ],
-      "uncoveredAssertions": [
-        "缺口 owner：crates/jftrade-engine 执行写端口错误映射；",
-        "回归要求：补“断连解锁 → 非 2xx + 稳定 code/status”的生产 HTTP 断言并逐条比对 Go 错误码。"
-      ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/app/apiserver/servercoretest/broker_new_test.go:286:TestBrokerUnlockInvalidPayload": {
@@ -340706,6 +340708,14 @@
     }
   },
   "reuse": {
+    "crates/jftrade-engine/src/product_production_assembly_tests.rs::production_http_broker_unlock_maps_disconnected_opend_to_stable_error": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/app/apiserver/servercoretest/broker_new_test.go:264:TestBrokerUnlockDisconnectedOpenD"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
     "crates/jftrade-engine/src/product_backtest_sync_start_tests.rs::backtest_sync_http_rejects_request_errors_before_queuing": {
       "referenceCount": 1,
       "referenceKeys": [

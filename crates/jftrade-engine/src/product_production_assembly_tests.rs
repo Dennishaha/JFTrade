@@ -15,8 +15,11 @@ mod product_production_assembly_tests {
         HistoricalKline, HistoricalKlineError, HistoricalKlineQuery, HistoricalKlineReadPort,
         HistoricalKlineResult, HistoricalSecurity, TradeAccountSnapshot, TradeCashFlowSnapshot,
         TradeFillSnapshot, TradeFilter, TradeFundsSnapshot, TradeHeader, TradeMarginRatioSnapshot,
-        TradeMaxTradeQuantityRequest, TradeMaxTradeQuantitySnapshot, TradeOrderFeeSnapshot,
-        TradeOrderSnapshot, TradePositionSnapshot, TradeReadPort, TradeSecurity, TradeSessionError,
+        TradeMaxTradeQuantityRequest, TradeMaxTradeQuantitySnapshot, TradeModifyOrderRequest,
+        TradeOrderFeeSnapshot, TradeOrderSnapshot, TradePlaceComboOrderRequest,
+        TradePlaceComboOrderResult, TradePlaceOrderRequest, TradePlaceOrderResult,
+        TradePositionSnapshot, TradeReadPort, TradeSecurity, TradeSessionError,
+        TradeSubscribeAccountsRequest, TradeUnlockRequest, TradeWritePort,
     };
     use jftrade_kernel::WireTimestamp;
     use jftrade_marketdata::{ProviderRouter, Tick};
@@ -174,6 +177,53 @@ mod product_production_assembly_tests {
 
     #[derive(Debug)]
     struct HttpTradeRead;
+
+    #[derive(Debug)]
+    struct DisconnectedTradeWriter;
+
+    impl TradeWritePort for DisconnectedTradeWriter {
+        fn place_order(
+            &self,
+            _request: TradePlaceOrderRequest,
+        ) -> Result<TradePlaceOrderResult, TradeSessionError> {
+            Err(jftrade_integration_futu::TradeSessionError::Coordinator(
+                jftrade_integration_futu::OpenDSessionCoordinatorError::Closed,
+            ))
+        }
+
+        fn place_combo_order(
+            &self,
+            _request: TradePlaceComboOrderRequest,
+        ) -> Result<TradePlaceComboOrderResult, TradeSessionError> {
+            Err(jftrade_integration_futu::TradeSessionError::Coordinator(
+                jftrade_integration_futu::OpenDSessionCoordinatorError::Closed,
+            ))
+        }
+
+        fn modify_order(
+            &self,
+            _request: TradeModifyOrderRequest,
+        ) -> Result<TradePlaceOrderResult, TradeSessionError> {
+            Err(jftrade_integration_futu::TradeSessionError::Coordinator(
+                jftrade_integration_futu::OpenDSessionCoordinatorError::Closed,
+            ))
+        }
+
+        fn unlock_trade(&self, _request: TradeUnlockRequest) -> Result<(), TradeSessionError> {
+            Err(jftrade_integration_futu::TradeSessionError::Coordinator(
+                jftrade_integration_futu::OpenDSessionCoordinatorError::Closed,
+            ))
+        }
+
+        fn subscribe_trade_accounts(
+            &self,
+            _request: TradeSubscribeAccountsRequest,
+        ) -> Result<(), TradeSessionError> {
+            Err(jftrade_integration_futu::TradeSessionError::Coordinator(
+                jftrade_integration_futu::OpenDSessionCoordinatorError::Closed,
+            ))
+        }
+    }
 
     impl TradeReadPort for HttpTradeRead {
         fn read_accounts(
@@ -6422,6 +6472,37 @@ mod product_production_assembly_tests {
                 "{method} {path} response={response}"
             );
         }
+        handle.shutdown().await.expect("shutdown");
+    }
+
+    // Parity: go:452dea11:internal/app/apiserver/servercoretest/broker_new_test.go:264 TestBrokerUnlockDisconnectedOpenD
+    #[tokio::test]
+    async fn production_http_broker_unlock_maps_disconnected_opend_to_stable_error() {
+        let directory = TempDir::new().expect("temp dir");
+        let runtime =
+            Arc::new(crate::product::product_production_ports::SharedTradeReadRuntime::default());
+        runtime.set(Some(Arc::new(HttpTradeRead)), Some(true));
+        runtime.set_writer(Some(Arc::new(DisconnectedTradeWriter)));
+        let config = http_product_config(&directory, runtime, None);
+
+        let handle = start_product(config).await.expect("start product");
+        let (status, response) = request_json_with_status(
+            handle.startup_record().address,
+            "POST",
+            "/api/v1/brokers/futu/unlock",
+            Some(r#"{"unlock":true,"passwordMd5":"fixture-md5"}"#),
+            &[("Authorization", "Bearer aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")],
+        )
+        .await;
+        assert_eq!(status, 502, "response={response}");
+        assert_eq!(response["ok"], false, "response={response}");
+        assert_eq!(response["error"]["code"], "BROKER_NOT_CONNECTED");
+        assert!(
+            response["error"]["message"]
+                .as_str()
+                .is_some_and(|message| message.to_ascii_lowercase().contains("closed")),
+            "response={response}"
+        );
         handle.shutdown().await.expect("shutdown");
     }
 

@@ -1,5 +1,11 @@
 # Go → Rust 证据积压清单
 
+## 2026-10-07 API/Transport broker unlock 断连 HTTP 闭环收口
+
+- `TestBrokerUnlockDisconnectedOpenD` 已由真实 production HTTP owner `production_http_broker_unlock_maps_disconnected_opend_to_stable_error` 收口为 `function_exact`：共享 trade runtime 注入断连 writer，真实 `/api/v1/brokers/futu/unlock` 返回 502、`BROKER_NOT_CONNECTED` 和 `closed` 诊断；叶级 owner 继续覆盖错误映射与成功参数透传。
+- receipt：`verification-receipts/api-broker-unlock-disconnected-2026-10-07.json`，**3/3 passed**，SHA-256 `64f2be57a9c7ef63bf9783e0d5884e759a7769d867737301f61610e7c4cee726`，同时覆盖 HTTP 组合 owner、断连错误映射 owner 和成功 unlock 参数透传 owner。
+- 本批只修改一条 mapping 和一个 focused production owner；当前扫描 **4451 Go / 3517 Rust / 1588 function_exact / 2223 partial / 640 boundary**。`check:quick` 与完整 `check:rust` 已通过（workspace **3673 passed、0 failed、2 skipped**，7 类 compatibility replay 全部通过），strict parity audit 与 anchor reconcile 也已通过（2032 unique、1984 recorded、0 unrecorded、0 stale、48 unknown）。
+
 ## 2026-10-07 API/Transport strategy lifecycle 因果链收口
 
 - `TestStrategiesEndpointReturnsList` 已由真实 production Product HTTP owner `production_http_strategy_lifecycle_projects_started_activity` 收口为 `function_exact`：HTTP 创建 definition、instantiate 实例并 start，随后从同一 durable SQLite projection 读取列表、logs、audit，分别断言实例可见、`started` 日志和 `STARTED` 审计。
