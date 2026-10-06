@@ -1,5 +1,12 @@
 # Go → Rust 证据积压清单
 
+## 2026-10-07 API/Transport strategy lifecycle 因果链收口
+
+- `TestStrategiesEndpointReturnsList` 已由真实 production Product HTTP owner `production_http_strategy_lifecycle_projects_started_activity` 收口为 `function_exact`：HTTP 创建 definition、instantiate 实例并 start，随后从同一 durable SQLite projection 读取列表、logs、audit，分别断言实例可见、`started` 日志和 `STARTED` 审计。
+- SQLite RUNNING 转换在事务内同时落 `STARTED` 审计和 `started` info 日志，避免测试只验证合成快照；旧 `strategy_instance_read_routes_match_group_fixture_in_cutover_only` 仅保留 malformed pagination 引用。
+- receipt：`verification-receipts/strategy-lifecycle-http-2026-10-07.json`，**1/1 passed**，SHA-256 `2afb5eb15f1837b14e7c4ef6697f20193c0855a7090310f70f9f6ef18e9c6200`；验证提交 `5098c4fe`。
+- 本批不刷新无行为变化的 report/mapping；下一批优先寻找 API/Transport、Strategy/Pine 或 Assistant/Workflow 中仍缺 production causal owner 的高风险 partial。
+
 ## 2026-10-06 API/Transport persisted strategy log tail 收口
 
 - `TestStrategiesEndpointIncludesPersistedRuntimeLogTail` 已由真实 Product HTTP owner `production_http_strategies_list_includes_persisted_runtime_log_tail` 收口为 `function_exact`：production SQLite 写入 runtime error 后，经 `/api/v1/strategies` 列表读取并验证日志尾部完整文本。

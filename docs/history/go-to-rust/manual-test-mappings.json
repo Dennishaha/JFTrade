@@ -67550,84 +67550,81 @@
       "boundaryReason": null
     },
     "internal/app/apiserver/servercoretest/strategy_logs_test.go:15:TestStrategiesEndpointReturnsList": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_strategies_tests.rs::strategy_instance_read_routes_match_group_fixture_in_cutover_only",
-      "conclusion": "partial：Go 播种 catalog 实例后断言列表 1 条，且该实例 /logs 含 started、/audit 含 kind=started。Rust 以冻结语料回放策略实例读组（list/logs/audit 的 200/404/400 与 data 形状，引用测试），但由快照端口驱动。缺口 owner：crates/jftrade-engine 策略运行时读投影（catalog → logs/audit）；回归要求：补“启动实例 → 列表/日志/审计可见 started 事件”的因果链断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'not test(production_helper_sync_cancel_aborts_in_flight_request) and not test(production_helper_sync_rejects_broken_pagination_cursors) and not test(production_helper_sync_forwards_page_query_and_persists_provider_values) and not test(production_helper_sync_retries_transient_page_and_records_retry)'",
-      "evidence_type": "partial",
-      "source": {
-        "file": "internal/app/apiserver/servercoretest/strategy_logs_test.go",
-        "line": 15,
-        "test": "TestStrategiesEndpointReturnsList",
-        "blobSha": "da87e7f7dfe8080012cc70a9eff1ec6361e086d4"
-      },
-      "rustEvidence": [
-        {
-          "file": "crates/jftrade-engine/src/product_strategies_tests.rs",
-          "test": "strategy_instance_read_routes_match_group_fixture_in_cutover_only",
-          "crate": "jftrade-engine",
-          "anchor": {
-            "goFile": "internal/app/apiserver/servercoretest/strategy_logs_test.go",
-            "goLine": 15,
-            "rustFile": "crates/jftrade-engine/src/product_strategies_tests.rs",
-            "rustLine": 93
-          }
-        }
-      ],
-      "assertionCoverage": {
-        "covered": [
-          "Go 播种 catalog 实例后断言列表 1 条，且该实例 /logs 含 started、/audit 含 kind=started。",
-          "Rust 以冻结语料回放策略实例读组（list/logs/audit 的 200/404/400 与 data 形状，引用测试），但由快照端口驱动。"
-        ],
-        "uncovered": [
-          "缺口 owner：crates/jftrade-engine 策略运行时读投影（catalog → logs/audit）；",
-          "回归要求：补“启动实例 → 列表/日志/审计可见 started 事件”的因果链断言。"
-        ],
-        "source": "reviewed"
-      },
-      "verification": {
-        "argv": [
-          "env",
-          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
-          "node",
-          "scripts/quality/cargo-nextest.mjs",
-          "run",
-          "--workspace",
-          "--all-targets",
-          "--locked",
-          "--message-format",
-          "libtest-json-plus",
-          "--no-fail-fast"
-        ],
-        "testFilter": [
-          "strategy_instance_read_routes_match_group_fixture_in_cutover_only"
-        ],
-        "runnerVersion": "cargo-nextest-0.9.143",
-        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
-        "status": "passed",
-        "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
-      },
-      "risk": "normal",
-      "owner": "api_transport",
-      "priority": "P2",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
-      "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "Go 播种 catalog 实例后断言列表 1 条，且该实例 /logs 含 started、/audit 含 kind=started。",
-        "Rust 以冻结语料回放策略实例读组（list/logs/audit 的 200/404/400 与 data 形状，引用测试），但由快照端口驱动。"
-      ],
-      "uncoveredAssertions": [
-        "缺口 owner：crates/jftrade-engine 策略运行时读投影（catalog → logs/audit）；",
-        "回归要求：补“启动实例 → 列表/日志/审计可见 started 事件”的因果链断言。"
-      ],
-      "boundaryReason": null
+    "status": "[x]",
+    "rust_entry": "crates/jftrade-engine/src/product_production_assembly_tests.rs::production_http_strategy_lifecycle_projects_started_activity",
+    "conclusion": "function_exact：真实 production Product HTTP 因果链创建 strategy definition、instantiate 实例并调用 start；随后通过同一 durable SQLite projection 的 /api/v1/strategies、/{instanceId}/logs 和 /{instanceId}/audit 分别断言实例可见、logs 含 started、audit 含 kind=STARTED。存储层把 RUNNING 状态转换与 STARTED 审计及 started info 日志放在同一事务中，避免只验证合成快照。",
+    "command": "node scripts/compatibility/run_parity_receipt.py --package jftrade-engine --test production_http_strategy_lifecycle_projects_started_activity --output docs/history/go-to-rust/verification-receipts/strategy-lifecycle-http-2026-10-07.json",
+    "evidence_type": "function_exact",
+    "source": {
+      "file": "internal/app/apiserver/servercoretest/strategy_logs_test.go",
+      "line": 15,
+      "test": "TestStrategiesEndpointReturnsList",
+      "blobSha": "da87e7f7dfe8080012cc70a9eff1ec6361e086d4"
     },
+    "rustEvidence": [
+      {
+        "file": "crates/jftrade-engine/src/product_production_assembly_tests.rs",
+        "test": "production_http_strategy_lifecycle_projects_started_activity",
+        "crate": "jftrade-engine",
+        "anchor": {
+          "goFile": "internal/app/apiserver/servercoretest/strategy_logs_test.go",
+          "goLine": 15,
+          "rustFile": "crates/jftrade-engine/src/product_production_assembly_tests.rs",
+          "rustLine": 660
+        }
+      }
+    ],
+    "assertionCoverage": {
+      "covered": [
+        "真实 HTTP 创建 definition、instantiate 实例并 start，响应状态为 RUNNING。",
+        "同一 production SQLite projection 的 /api/v1/strategies 列表包含新实例且 logs 含 started。",
+        "实例 /logs 返回 started，实例 /audit 返回 kind=STARTED。"
+      ],
+      "uncovered": [],
+      "source": "reviewed"
+    },
+    "verification": {
+      "argv": [
+        "env",
+        "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+        "node",
+        "scripts/quality/cargo-nextest.mjs",
+        "run",
+        "-p",
+        "jftrade-engine",
+        "--all-targets",
+        "--locked",
+        "--message-format",
+        "libtest-json-plus",
+        "--no-fail-fast",
+        "-E",
+        "test(production_http_strategy_lifecycle_projects_started_activity)"
+      ],
+      "testFilter": [
+        "production_http_strategy_lifecycle_projects_started_activity"
+      ],
+      "runnerVersion": "cargo-nextest-0.9.143",
+      "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+      "status": "passed",
+      "exitCode": 0,
+      "verifiedCommit": "5098c4fe6397a9ebfc4c3682fbd6b0490001c564",
+      "verifiedAt": "2026-10-06T16:07:07Z",
+      "receiptDigest": "sha256:2afb5eb15f1837b14e7c4ef6697f20193c0855a7090310f70f9f6ef18e9c6200"
+    },
+    "risk": "high",
+    "owner": "api_transport",
+    "priority": "P1",
+    "nextAction": "none",
+    "blockedBy": [],
+    "waiverExpiresAt": null,
+    "coveredAssertions": [
+      "真实 HTTP 创建 definition、instantiate 实例并 start，响应状态为 RUNNING。",
+      "同一 production SQLite projection 的 /api/v1/strategies 列表包含新实例且 logs 含 started。",
+      "实例 /logs 返回 started，实例 /audit 返回 kind=STARTED。"
+    ],
+    "uncoveredAssertions": [],
+    "boundaryReason": null
+  },
     "internal/app/apiserver/servercoretest/strategy_logs_test.go:120:TestStrategiesEndpointIncludesPersistedRuntimeLogTail": {
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/product_production_assembly_tests.rs::production_http_strategies_list_includes_persisted_runtime_log_tail",
@@ -343191,14 +343188,22 @@
       "reviewNote": "2026-10-06 Strategy/Pine batch: production composition-root HTTP owner compared directly with the cited Go paging, filtering, and runtime-observation assertions; no fan-out reuse."
     },
     "crates/jftrade-engine/src/product_strategies_tests.rs::strategy_instance_read_routes_match_group_fixture_in_cutover_only": {
-      "referenceCount": 2,
+      "referenceCount": 1,
       "referenceKeys": [
-        "internal/api/strategy/routes_boundary_contracts_test.go:142:TestStrategyActivityRoutesRejectMalformedPagination",
+        "internal/api/strategy/routes_boundary_contracts_test.go:142:TestStrategyActivityRoutesRejectMalformedPagination"
+      ],
+      "allowed": true,
+      "reviewStatus": "single",
+      "reviewNote": "2026-09-29 API transport batch: retained only for the malformed-pagination boundary; the production lifecycle owner now carries TestStrategiesEndpointReturnsList."
+    },
+    "crates/jftrade-engine/src/product_production_assembly_tests.rs::production_http_strategy_lifecycle_projects_started_activity": {
+      "referenceCount": 1,
+      "referenceKeys": [
         "internal/app/apiserver/servercoretest/strategy_logs_test.go:15:TestStrategiesEndpointReturnsList"
       ],
       "allowed": true,
-      "reviewStatus": "reviewed",
-      "reviewNote": "2026-09-29 API transport batch: bounded fan-out owner compared against every cited Go assertion; shared behavior is explicit and test-backed. Fan-out >5 remains backlog."
+      "reviewStatus": "single",
+      "reviewNote": "2026-10-07 Strategy/API batch: production HTTP creates and starts the instance, then reads list/log/audit from the same durable projection; no fixture fan-out."
     },
     "crates/jftrade-engine/src/product_strategy_research_write_product_tests.rs::strategy_definition_write_product_replays_browser_failure_recovery_and_restart": {
       "referenceCount": 1,

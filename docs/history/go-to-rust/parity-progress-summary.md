@@ -1,5 +1,12 @@
 # Go → Rust 对齐成果摘要
 
+## 2026-10-07 API/Transport strategy lifecycle 因果链收口
+
+- 收口 `TestStrategiesEndpointReturnsList`：新增真实 production Product HTTP 测试 `production_http_strategy_lifecycle_projects_started_activity`，从 HTTP 创建 definition、实例化并启动策略，再通过同一 durable SQLite projection 验证 `/api/v1/strategies` 列表可见实例、列表 `logs` 含 `started`、实例 `/logs` 含 `started`、实例 `/audit` 含 `kind=STARTED`。
+- 为闭合生产行为，SQLite RUNNING 状态转换在同一事务内写入 `STARTED` 审计和 `started` info 日志；测试使用 verified Pine adapter 与 helper provider，避免把测试 cutover 快照当作生产证据。
+- focused receipt：`verification-receipts/strategy-lifecycle-http-2026-10-07.json`，**1/1 passed**，SHA-256 `2afb5eb15f1837b14e7c4ef6697f20193c0855a7090310f70f9f6ef18e9c6200`；验证提交 `5098c4fe`。旧 fixture owner 仅保留 malformed pagination 引用。
+- mapping 从 partial 升为 `function_exact`；当前扫描 **4451 Go / 3515 Rust**，`function_exact=1587`、`partial=2224`、`boundary=640`，数量覆盖约 **79.0%**。focused receipt 只证明本条 owner；完整门禁、strict audit 和 anchor reconcile 仍需在当前 mapping 状态下现场复跑。
+
 ## 2026-10-06 API/Transport persisted strategy log tail 收口
 
 - 收口 `TestStrategiesEndpointIncludesPersistedRuntimeLogTail`：新增真实生产组合根 HTTP 测试 `production_http_strategies_list_includes_persisted_runtime_log_tail`，在 production strategy SQLite store 写入 runtime error 后，通过 `GET /api/v1/strategies` 验证列表实例和 `logs[0]` 保留完整错误文本。
