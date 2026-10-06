@@ -1,5 +1,11 @@
 # Go → Rust 证据积压清单
 
+## 2026-10-06 API/Transport persisted strategy log tail 收口
+
+- `TestStrategiesEndpointIncludesPersistedRuntimeLogTail` 已由真实 Product HTTP owner `production_http_strategies_list_includes_persisted_runtime_log_tail` 收口为 `function_exact`：production SQLite 写入 runtime error 后，经 `/api/v1/strategies` 列表读取并验证日志尾部完整文本。
+- receipt：`verification-receipts/strategy-log-tail-http-2026-10-06.json`，**1/1 passed**，SHA-256 `c38bee2f3ec1b56d04d1ddd49e897904a749967243cc778cfce81f85c2292f21`；mapping 已绑定提交 `2e648eb1`，旧 fixture owner 仅保留其他引用。
+- 当前扫描 **4451 Go / 3515 Rust / 1586 function_exact / 2225 partial / 640 boundary**；`check:quick` 与完整 `check:rust` 均已通过，workspace **3671 passed、0 failed、2 skipped**，7 类 compatibility replay 全部通过；focused receipt 只证明本条 owner，strict audit 与 anchor reconcile 另行通过。
+
 ## 2026-10-06 API/Transport strategy activity filter 收口
 
 - `TestStrategyLogsAndAuditEndpointsSupportPaginationAndFilters` 已由真实 Product HTTP owner `production_http_strategy_activity_filters_level_and_time_window` 收口为 `function_exact`：同一 production SQLite store 写入 info/warning 日志与 kind 审计后，经 HTTP 路由验证 level/time、kind/time 过滤，logs 的 limit/offset 结果与 `total/returned/hasMore`，以及 audit 分页元数据。

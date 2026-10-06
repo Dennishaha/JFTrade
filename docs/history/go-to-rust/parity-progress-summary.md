@@ -1,5 +1,11 @@
 # Go → Rust 对齐成果摘要
 
+## 2026-10-06 API/Transport persisted strategy log tail 收口
+
+- 收口 `TestStrategiesEndpointIncludesPersistedRuntimeLogTail`：新增真实生产组合根 HTTP 测试 `production_http_strategies_list_includes_persisted_runtime_log_tail`，在 production strategy SQLite store 写入 runtime error 后，通过 `GET /api/v1/strategies` 验证列表实例和 `logs[0]` 保留完整错误文本。
+- focused receipt：`verification-receipts/strategy-log-tail-http-2026-10-06.json`，**1/1 passed**，SHA-256 `c38bee2f3ec1b56d04d1ddd49e897904a749967243cc778cfce81f85c2292f21`；验证提交 `2e648eb1`。旧 fixture owner 继续服务 `TestStrategiesEndpointReturnsList` 和边界引用，本条单独绑定生产组合根证据。
+- mapping 从 partial 升为 `function_exact`；当前扫描 **4451 Go / 3515 Rust**，`function_exact=1586`、`partial=2225`、`boundary=640`，数量覆盖约 **79.0%**。`check:quick` 已通过；完整 `check:rust` 已通过，workspace **3671 passed、0 failed、2 skipped**，7 类 compatibility replay 全部通过；strict audit 与 anchor reconcile 也通过。
+
 ## 2026-10-06 API/Transport strategy activity filter 收口
 
 - 收口 `TestStrategyLogsAndAuditEndpointsSupportPaginationAndFilters`：新增真实生产组合根 HTTP 测试 `production_http_strategy_activity_filters_level_and_time_window`，通过 production strategy SQLite store 写入日志和审计事件，验证 logs 的 level/time 联合过滤、降序 limit/offset 分页及 `total/returned/hasMore`，并验证 audit 的 kind/time 过滤和分页元数据。

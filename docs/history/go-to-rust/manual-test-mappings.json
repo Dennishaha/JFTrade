@@ -67629,11 +67629,11 @@
       "boundaryReason": null
     },
     "internal/app/apiserver/servercoretest/strategy_logs_test.go:120:TestStrategiesEndpointIncludesPersistedRuntimeLogTail": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_strategies_tests.rs::strategy_instance_read_routes_match_group_fixture_in_cutover_only",
-      "conclusion": "partial：Go 断言列表项带持久化运行时日志尾（Logs[0] 含 runtime error 文本）。Rust 读组语料在 list 用例冻结了实例视图形状（含 logs 字段，引用测试），但没有“追加运行时事件后列表尾部出现该文本”的因果链。缺口 owner：crates/jftrade-engine 策略运行时读投影；回归要求：补“写入运行时错误事件 → list 项 logs 尾部可见”的断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'not test(production_helper_sync_cancel_aborts_in_flight_request) and not test(production_helper_sync_rejects_broken_pagination_cursors) and not test(production_helper_sync_forwards_page_query_and_persists_provider_values) and not test(production_helper_sync_retries_transient_page_and_records_retry)'",
-      "evidence_type": "partial",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-engine/src/product_production_assembly_tests.rs::production_http_strategies_list_includes_persisted_runtime_log_tail",
+      "conclusion": "function_exact：真实 production SQLite 写入 runtime error 日志后，经 Product HTTP GET /api/v1/strategies 读取同一持久化策略实例，断言列表包含一条实例且 logs[0] 保留完整运行时错误文本，闭合写入到列表尾部投影的因果链。",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(production_http_strategies_list_includes_persisted_runtime_log_tail)'",
+      "evidence_type": "function_exact",
       "source": {
         "file": "internal/app/apiserver/servercoretest/strategy_logs_test.go",
         "line": 120,
@@ -67642,26 +67642,22 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_strategies_tests.rs",
-          "test": "strategy_instance_read_routes_match_group_fixture_in_cutover_only",
+          "file": "crates/jftrade-engine/src/product_production_assembly_tests.rs",
+          "test": "production_http_strategies_list_includes_persisted_runtime_log_tail",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/app/apiserver/servercoretest/strategy_logs_test.go",
             "goLine": 120,
-            "rustFile": "crates/jftrade-engine/src/product_strategies_tests.rs",
-            "rustLine": 93
+            "rustFile": "crates/jftrade-engine/src/product_production_assembly_tests.rs",
+            "rustLine": 602
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Go 断言列表项带持久化运行时日志尾（Logs[0] 含 runtime error 文本）。"
+          "真实 production SQLite 写入 runtime error 日志后，Product HTTP GET /api/v1/strategies 返回一条实例，且 logs[0] 等于完整的 runtime error US.AAPL: boom 文本。"
         ],
-        "uncovered": [
-          "Rust 读组语料在 list 用例冻结了实例视图形状（含 logs 字段，引用测试），但没有“追加运行时事件后列表尾部出现该文本”的因果链。",
-          "缺口 owner：crates/jftrade-engine 策略运行时读投影；",
-          "回归要求：补“写入运行时错误事件 → list 项 logs 尾部可见”的断言。"
-        ],
+        "uncovered": [],
         "source": "reviewed"
       },
       "verification": {
@@ -67671,40 +67667,37 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(production_http_strategies_list_includes_persisted_runtime_log_tail)"
         ],
         "testFilter": [
-          "strategy_instance_read_routes_match_group_fixture_in_cutover_only"
+          "production_http_strategies_list_includes_persisted_runtime_log_tail"
         ],
         "runnerVersion": "cargo-nextest-0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "2e648eb157aa0ba8c7445bfa72f5344c13c4db3d",
+        "verifiedAt": "2026-10-06T15:24:23Z",
+        "receiptDigest": "sha256:c38bee2f3ec1b56d04d1ddd49e897904a749967243cc778cfce81f85c2292f21"
       },
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Go 断言列表项带持久化运行时日志尾（Logs[0] 含 runtime error 文本）。"
+        "真实 production SQLite 写入 runtime error 日志后，Product HTTP GET /api/v1/strategies 返回一条实例，且 logs[0] 等于完整的 runtime error US.AAPL: boom 文本。"
       ],
-      "uncoveredAssertions": [
-        "Rust 读组语料在 list 用例冻结了实例视图形状（含 logs 字段，引用测试），但没有“追加运行时事件后列表尾部出现该文本”的因果链。",
-        "缺口 owner：crates/jftrade-engine 策略运行时读投影；",
-        "回归要求：补“写入运行时错误事件 → list 项 logs 尾部可见”的断言。"
-      ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/app/apiserver/servercoretest/strategy_logs_test.go:169:TestStrategyLogsAndAuditEndpointsSupportPaginationAndFilters": {
@@ -343198,11 +343191,10 @@
       "reviewNote": "2026-10-06 Strategy/Pine batch: production composition-root HTTP owner compared directly with the cited Go paging, filtering, and runtime-observation assertions; no fan-out reuse."
     },
     "crates/jftrade-engine/src/product_strategies_tests.rs::strategy_instance_read_routes_match_group_fixture_in_cutover_only": {
-      "referenceCount": 3,
+      "referenceCount": 2,
       "referenceKeys": [
         "internal/api/strategy/routes_boundary_contracts_test.go:142:TestStrategyActivityRoutesRejectMalformedPagination",
-        "internal/app/apiserver/servercoretest/strategy_logs_test.go:15:TestStrategiesEndpointReturnsList",
-        "internal/app/apiserver/servercoretest/strategy_logs_test.go:120:TestStrategiesEndpointIncludesPersistedRuntimeLogTail"
+        "internal/app/apiserver/servercoretest/strategy_logs_test.go:15:TestStrategiesEndpointReturnsList"
       ],
       "allowed": true,
       "reviewStatus": "reviewed",
@@ -364322,6 +364314,14 @@
       "referenceCount": 1,
       "referenceKeys": [
         "internal/app/apiserver/servercoretest/strategy_logs_test.go:169:TestStrategyLogsAndAuditEndpointsSupportPaginationAndFilters"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_production_assembly_tests.rs::production_http_strategies_list_includes_persisted_runtime_log_tail": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/app/apiserver/servercoretest/strategy_logs_test.go:120:TestStrategiesEndpointIncludesPersistedRuntimeLogTail"
       ],
       "allowed": true,
       "reviewStatus": "single"
