@@ -598,6 +598,64 @@ mod product_production_assembly_tests {
     }
 
     #[tokio::test]
+    // Parity: go:452dea11:internal/app/apiserver/servercoretest/strategy_logs_test.go:120 TestStrategiesEndpointIncludesPersistedRuntimeLogTail
+    async fn production_http_strategies_list_includes_persisted_runtime_log_tail() {
+        let directory = TempDir::new().expect("temp dir");
+        let settings_path = directory.path().join("settings.json");
+        fs::write(&settings_path, b"{}").expect("write settings");
+        product_data_management::initialize_production_databases(&settings_path)
+            .expect("initialize production databases");
+
+        let strategy_path = directory.path().join("strategy-runtime.db");
+        let store = StrategyRuntimeStore::open_existing(
+            &strategy_path,
+            STRATEGY_RUNTIME_PRODUCTION_PROFILE,
+        )
+        .expect("open strategy runtime store");
+        store
+            .seed_instance_with_binding(
+                "log-tail",
+                "STOPPED",
+                json!({"symbols": ["US.AAPL"], "runtime": "pine-pinets", "sourceFormat": "pine-v6"}),
+                "2026-07-01T10:00:00Z",
+            )
+            .expect("seed strategy instance");
+        store
+            .append_log_event(
+                "log-tail",
+                "runtime error US.AAPL: boom",
+                "error",
+                1_783_000_000_000,
+            )
+            .expect("append runtime log");
+        drop(store);
+
+        let handle = start_product(http_product_config(
+            &directory,
+            Arc::new(crate::product::product_production_ports::SharedTradeReadRuntime::default()),
+            None,
+        ))
+        .await
+        .expect("start production product");
+        let response = request_json_with_status(
+            handle.startup_record().address,
+            "GET",
+            "/api/v1/strategies",
+            None,
+            &[("Authorization", "Bearer aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")],
+        )
+        .await;
+        assert_eq!(response.0, 200);
+        let items = response.1["data"].as_array().expect("strategy items");
+        assert_eq!(items.len(), 1);
+        assert_eq!(items[0]["logs"], json!(["runtime error US.AAPL: boom"]));
+        handle
+            .shutdown()
+            .await
+            .expect("shutdown production product");
+    }
+
+    #[tokio::test]
     // Parity: go:452dea11:internal/app/apiserver/servercoretest/strategy_logs_test.go:169 TestStrategyLogsAndAuditEndpointsSupportPaginationAndFilters
     async fn production_http_strategy_activity_filters_level_and_time_window() {
         let directory = TempDir::new().expect("temp dir");
