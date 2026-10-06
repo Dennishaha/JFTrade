@@ -1,0 +1,86 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(production_http_broker_cancel_resolves_order_before_disconnected_writer) or test(production_http_broker_writes_reject_malformed_payloads_before_provider_access) or test(production_http_broker_unlock_maps_disconnected_opend_to_stable_error) or test(production_http_broker_place_order_maps_disconnected_opend_to_stable_error)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-10-06T20:39:16Z",
+  "sourceState": {
+    "verifiedCommit": "96017ff5ec21bbdab2d33a07e7c35f3c77602203",
+    "trackedDiffSha256": "beda7ae9adaf34c0c6150d16e26f5f5bbae40323777f4ea0a217d8e84abd4196",
+    "untrackedFiles": [
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-broker-write-boundaries-2026-10-07.json",
+        "sha256": "9c31e38a88632a10756c2924da9a6353f810eafdff1350d31fd6eb6d049cfb0f"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-broker-write-boundaries-final-2026-10-07.json",
+        "sha256": "cef7ccebe8dd0ed60049cc0ef66e692f790d4a5e44bd2f87cbfe54e194539ae6"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-broker-write-boundaries-green-2026-10-07.json",
+        "sha256": "2de22250eb4a24c0bef33279f17002b6941f0993704c001d3b6f802b03781e50"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-broker-write-boundaries-passed-2026-10-07.json",
+        "sha256": "5a25662dda5ee5df14e163fbf13a64b220bae8c31c255dbe60a895daffac9c5b"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-broker-write-boundaries-verified-2026-10-07.json",
+        "sha256": "13ec8faa7bfb16a9f17a10826d2b3a79be69e4cd41f1fb86fb5d568742e30117"
+      }
+    ]
+  },
+  "rawOutputSha256": "58ed3f889cf77ad643fa5f593a37cb4a3ef6e9ad502b9d59b2eb929aba3ed618",
+  "passedTests": [
+    "jftrade-engine::jftrade_engine$product::tests::production_assembly_tests::product_production_assembly_tests::production_http_broker_cancel_resolves_order_before_disconnected_writer",
+    "jftrade-engine::jftrade_engine$product::tests::production_assembly_tests::product_production_assembly_tests::production_http_broker_place_order_maps_disconnected_opend_to_stable_error",
+    "jftrade-engine::jftrade_engine$product::tests::production_assembly_tests::product_production_assembly_tests::production_http_broker_unlock_maps_disconnected_opend_to_stable_error",
+    "jftrade-engine::jftrade_engine$product::tests::production_assembly_tests::product_production_assembly_tests::production_http_broker_writes_reject_malformed_payloads_before_provider_access"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 4,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1723,
+      "exec_time": 16.099441584,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    }
+  ]
+}

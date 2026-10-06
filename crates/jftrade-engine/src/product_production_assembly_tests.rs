@@ -176,16 +176,22 @@ mod product_production_assembly_tests {
     }
 
     #[derive(Debug)]
-    struct HttpTradeRead;
+    enum HttpTradeRead {
+        EmptyOrders,
+        DisconnectedOrders,
+    }
 
-    #[derive(Debug)]
-    struct DisconnectedTradeWriter;
+    #[derive(Debug, Default)]
+    struct DisconnectedTradeWriter {
+        writes: std::sync::Mutex<Vec<&'static str>>,
+    }
 
     impl TradeWritePort for DisconnectedTradeWriter {
         fn place_order(
             &self,
             _request: TradePlaceOrderRequest,
         ) -> Result<TradePlaceOrderResult, TradeSessionError> {
+            self.writes.lock().expect("writes").push("place");
             Err(jftrade_integration_futu::TradeSessionError::Coordinator(
                 jftrade_integration_futu::OpenDSessionCoordinatorError::Closed,
             ))
@@ -195,6 +201,7 @@ mod product_production_assembly_tests {
             &self,
             _request: TradePlaceComboOrderRequest,
         ) -> Result<TradePlaceComboOrderResult, TradeSessionError> {
+            self.writes.lock().expect("writes").push("combo");
             Err(jftrade_integration_futu::TradeSessionError::Coordinator(
                 jftrade_integration_futu::OpenDSessionCoordinatorError::Closed,
             ))
@@ -204,12 +211,14 @@ mod product_production_assembly_tests {
             &self,
             _request: TradeModifyOrderRequest,
         ) -> Result<TradePlaceOrderResult, TradeSessionError> {
+            self.writes.lock().expect("writes").push("modify");
             Err(jftrade_integration_futu::TradeSessionError::Coordinator(
                 jftrade_integration_futu::OpenDSessionCoordinatorError::Closed,
             ))
         }
 
         fn unlock_trade(&self, _request: TradeUnlockRequest) -> Result<(), TradeSessionError> {
+            self.writes.lock().expect("writes").push("unlock");
             Err(jftrade_integration_futu::TradeSessionError::Coordinator(
                 jftrade_integration_futu::OpenDSessionCoordinatorError::Closed,
             ))
@@ -320,7 +329,12 @@ mod product_production_assembly_tests {
             _: Vec<i32>,
             _: Option<bool>,
         ) -> Result<Vec<TradeOrderSnapshot>, TradeSessionError> {
-            Ok(Vec::new())
+            match self {
+                Self::EmptyOrders => Ok(Vec::new()),
+                Self::DisconnectedOrders => Err(TradeSessionError::Coordinator(
+                    jftrade_integration_futu::OpenDSessionCoordinatorError::Closed,
+                )),
+            }
         }
         fn read_fills(
             &self,
@@ -463,7 +477,7 @@ mod product_production_assembly_tests {
         let directory = TempDir::new().expect("temp dir");
         let runtime =
             Arc::new(crate::product::product_production_ports::SharedTradeReadRuntime::default());
-        runtime.set(Some(Arc::new(HttpTradeRead)), Some(true));
+        runtime.set(Some(Arc::new(HttpTradeRead::EmptyOrders)), Some(true));
         runtime.set_historical_klines(Some(Arc::new(HttpHistory {
             result: Ok(HistoricalKlineResult {
                 security: HistoricalSecurity {
@@ -996,7 +1010,7 @@ mod product_production_assembly_tests {
         let directory = TempDir::new().expect("temp dir");
         let runtime =
             Arc::new(crate::product::product_production_ports::SharedTradeReadRuntime::default());
-        runtime.set(Some(Arc::new(HttpTradeRead)), Some(true));
+        runtime.set(Some(Arc::new(HttpTradeRead::EmptyOrders)), Some(true));
         let handle = crate::product::start_product(http_product_config(&directory, runtime, None))
             .await
             .expect("start product");
@@ -1008,7 +1022,7 @@ mod product_production_assembly_tests {
 
         let runtime =
             Arc::new(crate::product::product_production_ports::SharedTradeReadRuntime::default());
-        runtime.set(Some(Arc::new(HttpTradeRead)), Some(true));
+        runtime.set(Some(Arc::new(HttpTradeRead::EmptyOrders)), Some(true));
         let router = Arc::new(std::sync::Mutex::new(ProviderRouter::new(1)));
         let handle =
             crate::product::start_product(http_product_config(&directory, runtime, Some(router)))
@@ -1026,7 +1040,7 @@ mod product_production_assembly_tests {
         let directory = TempDir::new().expect("temp dir");
         let runtime =
             Arc::new(crate::product::product_production_ports::SharedTradeReadRuntime::default());
-        runtime.set(Some(Arc::new(HttpTradeRead)), Some(true));
+        runtime.set(Some(Arc::new(HttpTradeRead::EmptyOrders)), Some(true));
         runtime.set_historical_klines(Some(Arc::new(HttpHistory {
             result: Err("history rate limited".to_owned()),
         })));
@@ -6176,7 +6190,7 @@ mod product_production_assembly_tests {
         let directory = TempDir::new().expect("temp dir");
         let runtime =
             Arc::new(crate::product::product_production_ports::SharedTradeReadRuntime::default());
-        runtime.set(Some(Arc::new(HttpTradeRead)), Some(true));
+        runtime.set(Some(Arc::new(HttpTradeRead::EmptyOrders)), Some(true));
         runtime.set_historical_klines(Some(Arc::new(HttpHistory {
             result: Ok(HistoricalKlineResult {
                 security: HistoricalSecurity {
@@ -6431,48 +6445,93 @@ mod product_production_assembly_tests {
     }
 
     // Parity: go:452dea11:internal/app/apiserver/servercoretest/broker_new_test.go:286 TestBrokerUnlockInvalidPayload
+    #[tokio::test]
+    async fn production_http_broker_unlock_rejects_malformed_payload_without_writes() {
+        let (status, response, writes) = malformed_broker_write_response(
+            "POST",
+            "/api/v1/brokers/futu/unlock",
+            r#"{"unlock":{"bad":true}}"#,
+        )
+        .await;
+        assert_eq!(status, 400, "response={response}");
+        assert_eq!(response["ok"], false);
+        assert_eq!(response["error"]["code"], "BAD_REQUEST");
+        assert!(
+            response["error"]["message"]
+                .as_str()
+                .expect("message")
+                .contains("invalid request body:")
+        );
+        assert_eq!(writes, 0);
+    }
+
     // Parity: go:452dea11:internal/app/apiserver/servercoretest/broker_new_test.go:319 TestBrokerPlaceOrderInvalidPayload
+    #[tokio::test]
+    async fn production_http_broker_place_rejects_malformed_payload_without_writes() {
+        let (status, response, writes) = malformed_broker_write_response(
+            "POST",
+            "/api/v1/brokers/futu/orders",
+            r#"{"symbol":123,"quantity":"bad"}"#,
+        )
+        .await;
+        assert_eq!(status, 400, "response={response}");
+        assert_eq!(response["ok"], false);
+        assert_eq!(response["error"]["code"], "BAD_REQUEST");
+        assert!(
+            response["error"]["message"]
+                .as_str()
+                .expect("message")
+                .contains("invalid request body:")
+        );
+        assert_eq!(writes, 0);
+    }
+
     // Parity: go:452dea11:internal/app/apiserver/servercoretest/broker_new_test.go:359 TestBrokerCancelOrdersInvalidPayload
     #[tokio::test]
-    async fn production_http_broker_writes_reject_malformed_payloads_before_provider_access() {
-        let (_directory, address, handle) = start_broker_read_http_product().await;
-        for (method, path, body) in [
-            (
-                "POST",
-                "/api/v1/brokers/futu/unlock",
-                r#"{"unlock":{"bad":true}}"#,
-            ),
-            (
-                "POST",
-                "/api/v1/brokers/futu/orders",
-                r#"{"symbol":123,"quantity":"bad"}"#,
-            ),
-            (
-                "DELETE",
-                "/api/v1/brokers/futu/orders",
-                r#"{"orders":"bad"}"#,
-            ),
-            ("DELETE", "/api/v1/brokers/futu/orders", r#"{"orders":"#),
-        ] {
-            let (status, response) = request_json_with_status(
-                address,
-                method,
-                path,
-                Some(body),
-                &[("Authorization", "Bearer aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")],
-            )
-            .await;
-            assert_eq!(status, 400, "{method} {path} response={response}");
-            assert_eq!(response["ok"], false, "{method} {path} response={response}");
+    async fn production_http_broker_cancel_rejects_malformed_payload_without_writes() {
+        for body in [r#"{"orders":"bad"}"#, r#"{"orders":"#] {
+            let (status, response, writes) =
+                malformed_broker_write_response("DELETE", "/api/v1/brokers/futu/orders", body)
+                    .await;
+            assert_eq!(status, 400, "body={body} response={response}");
+            assert_eq!(response["ok"], false);
             assert_eq!(response["error"]["code"], "BAD_REQUEST");
             assert!(
                 response["error"]["message"]
                     .as_str()
-                    .is_some_and(|message| message.contains("invalid request body:")),
-                "{method} {path} response={response}"
+                    .expect("message")
+                    .contains("invalid request body:")
             );
+            assert_eq!(writes, 0);
         }
+    }
+
+    async fn malformed_broker_write_response(
+        method: &str,
+        path: &str,
+        body: &str,
+    ) -> (u16, Value, usize) {
+        let directory = TempDir::new().expect("temp dir");
+        let runtime =
+            Arc::new(crate::product::product_production_ports::SharedTradeReadRuntime::default());
+        runtime.set(Some(Arc::new(HttpTradeRead::EmptyOrders)), Some(true));
+        let writer = Arc::new(DisconnectedTradeWriter::default());
+        runtime.set_writer(Some(writer.clone()));
+        let handle = start_product(http_product_config(&directory, runtime, None))
+            .await
+            .expect("start product");
+        let address = handle.startup_record().address;
+        let (status, response) = request_json_with_status(
+            address,
+            method,
+            path,
+            Some(body),
+            &[("Authorization", "Bearer aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")],
+        )
+        .await;
+        let writes = writer.writes.lock().expect("writes").len();
         handle.shutdown().await.expect("shutdown");
+        (status, response, writes)
     }
 
     // Parity: go:452dea11:internal/app/apiserver/servercoretest/broker_new_test.go:264 TestBrokerUnlockDisconnectedOpenD
@@ -6481,8 +6540,8 @@ mod product_production_assembly_tests {
         let directory = TempDir::new().expect("temp dir");
         let runtime =
             Arc::new(crate::product::product_production_ports::SharedTradeReadRuntime::default());
-        runtime.set(Some(Arc::new(HttpTradeRead)), Some(true));
-        runtime.set_writer(Some(Arc::new(DisconnectedTradeWriter)));
+        runtime.set(Some(Arc::new(HttpTradeRead::EmptyOrders)), Some(true));
+        runtime.set_writer(Some(Arc::new(DisconnectedTradeWriter::default())));
         let config = http_product_config(&directory, runtime, None);
 
         let handle = start_product(config).await.expect("start product");
@@ -6512,11 +6571,26 @@ mod product_production_assembly_tests {
         let directory = TempDir::new().expect("temp dir");
         let runtime =
             Arc::new(crate::product::product_production_ports::SharedTradeReadRuntime::default());
-        runtime.set(Some(Arc::new(HttpTradeRead)), Some(true));
-        runtime.set_writer(Some(Arc::new(DisconnectedTradeWriter)));
+        runtime.set(Some(Arc::new(HttpTradeRead::EmptyOrders)), Some(true));
+        let writer = Arc::new(DisconnectedTradeWriter::default());
+        runtime.set_writer(Some(writer.clone()));
         let config = http_product_config(&directory, runtime, None);
 
         let handle = start_product(config).await.expect("start product");
+        let (status, response) = request_json_with_status(
+            handle.startup_record().address,
+            "POST",
+            "/api/v1/brokers/futu/orders",
+            Some(
+                r#"{"symbol":"HK.00700","side":"BUY","orderType":"LIMIT","price":380.0,"quantity":100}"#,
+            ),
+            &[("Authorization", "Bearer aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")],
+        )
+        .await;
+        assert_eq!(status, 400, "original Go request response={response}");
+        assert_eq!(response["error"]["code"], "BAD_REQUEST");
+        assert_eq!(response["error"]["message"], "accountId is required");
+        assert!(writer.writes.lock().expect("writes").is_empty());
         let (status, response) = request_json_with_status(
             handle.startup_record().address,
             "POST",
@@ -6536,7 +6610,142 @@ mod product_production_assembly_tests {
                 .is_some_and(|message| message.to_ascii_lowercase().contains("closed")),
             "response={response}"
         );
+        assert_eq!(*writer.writes.lock().expect("writes"), ["place"]);
         handle.shutdown().await.expect("shutdown");
+    }
+
+    // Parity: go:452dea11:internal/app/apiserver/servercoretest/broker_new_test.go:336 TestBrokerCancelOrdersNoBroker
+    #[tokio::test]
+    async fn production_http_broker_cancel_resolves_order_before_disconnected_writer() {
+        let (directory, settings_path, _config, _security) = setup_test_env();
+        let runtime =
+            Arc::new(crate::product::product_production_ports::SharedTradeReadRuntime::default());
+        // A disconnected reader must not publish an authoritative empty order
+        // snapshot and let reconciliation mark the seed missing before cancel.
+        runtime.set(
+            Some(Arc::new(HttpTradeRead::DisconnectedOrders)),
+            Some(true),
+        );
+        let writer = Arc::new(DisconnectedTradeWriter::default());
+        runtime.set_writer(Some(writer.clone()));
+        let config = http_product_config(&directory, runtime, None);
+        let execution_path =
+            product_data_management::managed_database_runtime_descriptors(&settings_path)
+                .into_iter()
+                .find(|descriptor| descriptor.id == DATABASE_EXECUTION)
+                .expect("execution descriptor")
+                .path;
+        seed_broker_cancel_order(&execution_path);
+        let handle = start_product(config).await.expect("start product");
+        for (body, expected_status, expected_code, expected_writes) in [
+            (
+                r#"{"orders":[{"orderId":12345,"symbol":"HK.00700"}]}"#,
+                404,
+                "EXECUTION_ORDER_NOT_FOUND",
+                0,
+            ),
+            (
+                r#"{"orders":[{"orderId":7,"symbol":"US.AAPL"}]}"#,
+                502,
+                "BROKER_NOT_CONNECTED",
+                1,
+            ),
+            (
+                r#"{"orders":[{"orderId":7,"symbol":"US.AAPL"}]}"#,
+                400,
+                "EXECUTION_ORDER_TERMINAL",
+                1,
+            ),
+        ] {
+            let (status, response) = request_json_with_status(
+                handle.startup_record().address,
+                "DELETE",
+                "/api/v1/brokers/futu/orders",
+                Some(body),
+                &[("Authorization", "Bearer aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")],
+            )
+            .await;
+            assert_eq!(status, expected_status, "body={body} response={response}");
+            assert_eq!(response["ok"], false);
+            assert_eq!(response["error"]["code"], expected_code);
+            assert_eq!(writer.writes.lock().expect("writes").len(), expected_writes);
+        }
+        assert_eq!(*writer.writes.lock().expect("writes"), ["modify"]);
+        handle.shutdown().await.expect("shutdown");
+        let execution = jftrade_store_sqlite::ExecutionOrderStore::open_existing(
+            &execution_path,
+            jftrade_store_sqlite::EXECUTION_ORDERS_PRODUCTION_PROFILE,
+        )
+        .expect("reopen execution store");
+        let order = execution
+            .get_order("seed-broker-order")
+            .expect("read")
+            .expect("order");
+        assert_eq!(order.status, "UNKNOWN");
+        assert_eq!(
+            order.last_error_code.as_deref(),
+            Some("BROKER_NOT_CONNECTED")
+        );
+        assert_eq!(
+            execution
+                .list_order_events("seed-broker-order")
+                .expect("events")
+                .iter()
+                .filter(|event| event.event_type == "cancel_submitted")
+                .count(),
+            1
+        );
+        drop(execution);
+        drop(directory);
+    }
+
+    fn seed_broker_cancel_order(path: &str) {
+        let execution = jftrade_store_sqlite::ExecutionOrderStore::open_existing(
+            path,
+            jftrade_store_sqlite::EXECUTION_ORDERS_PRODUCTION_PROFILE,
+        )
+        .expect("open execution seed store");
+        execution
+            .save_order(
+                jftrade_store_sqlite::StoredExecutionOrder {
+                    internal_order_id: "seed-broker-order".to_owned(),
+                    broker_id: "futu".to_owned(),
+                    broker_order_id: Some("7".to_owned()),
+                    broker_order_id_ex: Some("broker-7-ex".to_owned()),
+                    source: "api".to_owned(),
+                    source_detail: "HTTP cancellation fixture".to_owned(),
+                    trading_environment: "REAL".to_owned(),
+                    account_id: "42".to_owned(),
+                    market: "US".to_owned(),
+                    symbol: Some("US.AAPL".to_owned()),
+                    side: Some("BUY".to_owned()),
+                    order_type: Some("LIMIT".to_owned()),
+                    status: "SUBMITTED".to_owned(),
+                    raw_broker_status: None,
+                    requested_quantity: Some(1.0),
+                    requested_price: Some(100.0),
+                    filled_quantity: None,
+                    filled_average_price: None,
+                    remark: None,
+                    last_error: None,
+                    last_error_code: None,
+                    last_error_source: None,
+                    submitted_at: Some("2026-08-30T00:00:00Z".to_owned()),
+                    updated_at: "2026-08-30T00:00:01Z".to_owned(),
+                    created_at: "2026-08-30T00:00:00Z".to_owned(),
+                    order_kind: "single".to_owned(),
+                    product_class: "equity".to_owned(),
+                    quantity_mode: "quantity".to_owned(),
+                    client_order_id: Some("seed-broker-order-client".to_owned()),
+                    preview_id: None,
+                    normalized_request: "{}".to_owned(),
+                    requested_amount: None,
+                    payout: None,
+                    fees: None,
+                },
+                "2026-08-30T00:00:01Z",
+            )
+            .expect("seed execution order");
     }
 
     // Parity: go:452dea11:internal/app/apiserver/servercoretest/broker_new_test.go:167 TestBrokerKLinesMissingSymbol

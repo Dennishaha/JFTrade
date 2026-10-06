@@ -61733,11 +61733,11 @@
       "boundaryReason": null
     },
     "internal/app/apiserver/servercoretest/broker_new_test.go:264:TestBrokerUnlockDisconnectedOpenD": {
-      "status": "[x]",
-      "rust_entry": "crates/jftrade-engine/src/product_production_assembly_tests.rs::production_http_broker_unlock_maps_disconnected_opend_to_stable_error; crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::trade_write_methods_propagate_write_disconnects; crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::broker_unlock_route_forwards_password_md5_and_unlock_flag_to_opend",
-      "conclusion": "function_exact：真实 production HTTP 组合使用共享 trade runtime 注入断连 writer，POST /api/v1/brokers/futu/unlock 经过 broker route、ProductionExecutionPort 和 map_trade_error，稳定返回 502、ok=false、error.code=BROKER_NOT_CONNECTED，并保留 OpenD closed 诊断；叶级测试同时覆盖断连映射与成功 unlock 参数透传。Go 的结构化断连失败信封已在同一路由现场复现，无未覆盖断言。",
-      "command": "pnpm run test:parity:receipt -- --package jftrade-engine --test production_http_broker_unlock_maps_disconnected_opend_to_stable_error --test trade_write_methods_propagate_write_disconnects --test broker_unlock_route_forwards_password_md5_and_unlock_flag_to_opend --output docs/history/go-to-rust/verification-receipts/api-broker-unlock-disconnected-2026-10-07.json",
-      "evidence_type": "function_exact",
+      "status": "[~]",
+      "rust_entry": "crates/jftrade-engine/src/product_production_assembly_tests.rs::production_http_broker_unlock_maps_disconnected_opend_to_stable_error",
+      "conclusion": "partial：同一路由、合法 unlock 请求在断连 writer 下返回 502 和结构化失败信封。 Rust 错误为 BROKER_NOT_CONNECTED，消息含 closed。 冻结 Go 要求 error.code=UNLOCK_FAILED 且消息包含 connect；Rust 当前错误码和文本不等价。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-engine --test production_http_broker_cancel_rejects_malformed_payload_without_writes --test production_http_broker_cancel_resolves_order_before_disconnected_writer --test production_http_broker_place_order_maps_disconnected_opend_to_stable_error --test production_http_broker_place_rejects_malformed_payload_without_writes --test production_http_broker_unlock_maps_disconnected_opend_to_stable_error --test production_http_broker_unlock_rejects_malformed_payload_without_writes --output docs/history/go-to-rust/verification-receipts/api-broker-write-boundaries-closed-2026-10-07.json",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/servercoretest/broker_new_test.go",
         "line": 264,
@@ -61753,119 +61753,17 @@
             "goFile": "internal/app/apiserver/servercoretest/broker_new_test.go",
             "goLine": 264,
             "rustFile": "crates/jftrade-engine/src/product_production_assembly_tests.rs",
-            "rustLine": 6480
-          }
-        },
-        {
-          "file": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs",
-          "test": "trade_write_methods_propagate_write_disconnects",
-          "crate": "jftrade-engine",
-          "anchor": {
-            "goFile": "internal/app/apiserver/servercoretest/broker_new_test.go",
-            "goLine": 264,
-            "rustFile": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs",
-            "rustLine": 2996
-          }
-        },
-        {
-          "file": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs",
-          "test": "broker_unlock_route_forwards_password_md5_and_unlock_flag_to_opend",
-          "crate": "jftrade-engine",
-          "anchor": {
-            "goFile": "internal/app/apiserver/servercoretest/broker_new_test.go",
-            "goLine": 264,
-            "rustFile": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs",
-            "rustLine": 1738
+            "rustLine": 6539
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "真实 production HTTP unlock 路由在 OpenD writer 断连时返回非 2xx 结构化错误信封。",
-          "HTTP 状态为 502，error.code 为 BROKER_NOT_CONNECTED，且保留 closed 诊断消息。",
-          "叶级交易写错误映射与成功 unlock 的 passwordMd5/unlock 参数透传均有独立断言。"
-        ],
-        "uncovered": [],
-        "source": "reviewed"
-      },
-      "verification": {
-        "argv": [
-          "pnpm",
-          "run",
-          "test:parity:receipt",
-          "--",
-          "--package",
-          "jftrade-engine",
-          "--test",
-          "production_http_broker_unlock_maps_disconnected_opend_to_stable_error",
-          "--test",
-          "trade_write_methods_propagate_write_disconnects",
-          "--test",
-          "broker_unlock_route_forwards_password_md5_and_unlock_flag_to_opend",
-          "--output",
-          "docs/history/go-to-rust/verification-receipts/api-broker-unlock-disconnected-2026-10-07.json"
-        ],
-        "testFilter": [
-          "production_http_broker_unlock_maps_disconnected_opend_to_stable_error",
-          "trade_write_methods_propagate_write_disconnects",
-          "broker_unlock_route_forwards_password_md5_and_unlock_flag_to_opend"
-        ],
-        "runnerVersion": "cargo-nextest-0.9.143",
-        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
-        "status": "passed",
-        "exitCode": 0,
-        "verifiedCommit": "0c88bb0a0f8f3843cb0fa0b2c25431d517dc32a0",
-        "verifiedAt": "2026-10-06T17:06:46Z",
-        "receiptDigest": "sha256:64f2be57a9c7ef63bf9783e0d5884e759a7769d867737301f61610e7c4cee726"
-      },
-      "risk": "high",
-      "owner": "api_transport",
-      "priority": "P1",
-      "nextAction": "reviewed",
-      "blockedBy": [],
-      "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "真实 production HTTP unlock 路由在 OpenD writer 断连时返回非 2xx 结构化错误信封。",
-        "HTTP 状态为 502，error.code 为 BROKER_NOT_CONNECTED，且保留 closed 诊断消息。",
-        "叶级交易写错误映射与成功 unlock 的 passwordMd5/unlock 参数透传均有独立断言。"
-      ],
-      "uncoveredAssertions": [],
-      "boundaryReason": null
-    },
-    "internal/app/apiserver/servercoretest/broker_new_test.go:286:TestBrokerUnlockInvalidPayload": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_production_assembly_tests.rs::production_http_broker_writes_reject_malformed_payloads_before_provider_access",
-      "conclusion": "partial：逐项对照冻结 Go 原始断言；生产 HTTP 在同一路径、同一畸形请求体返回 400，JSON error.code=BAD_REQUEST，error.message 包含 invalid request body:。解锁使用 unlock 对象、下单使用 symbol 数字/quantity 字符串、撤单使用截断 orders JSON。Rust body parser 在调用 mutation port 前校验，未将合法请求的断连行为作为本行证据。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-      "evidence_type": "partial",
-      "source": {
-        "file": "internal/app/apiserver/servercoretest/broker_new_test.go",
-        "line": 286,
-        "test": "TestBrokerUnlockInvalidPayload",
-        "blobSha": "537dac6100333b350d4847545050b35afe3ca681"
-      },
-      "rustEvidence": [
-        {
-          "file": "crates/jftrade-engine/src/product_production_assembly_tests.rs",
-          "test": "production_http_broker_writes_reject_malformed_payloads_before_provider_access",
-          "crate": "jftrade-engine",
-          "anchor": {
-            "goFile": "internal/app/apiserver/servercoretest/broker_new_test.go",
-            "goLine": 286,
-            "rustFile": "crates/jftrade-engine/src/product_production_assembly_tests.rs",
-            "rustLine": 5922
-          }
-        }
-      ],
-      "assertionCoverage": {
-        "covered": [
-          "逐项对照冻结 Go 原始断言；",
-          "生产 HTTP 在同一路径、同一畸形请求体返回 400，JSON error.code=BAD_REQUEST，error.message 包含 invalid request body:。",
-          "解锁使用 unlock 对象、下单使用 symbol 数字/quantity 字符串、撤单使用截断 orders JSON。",
-          "Rust body parser 在调用 mutation port 前校验，未将合法请求的断连行为作为本行证据。"
+          "同一路由、合法 unlock 请求在断连 writer 下返回 502 和结构化失败信封。",
+          "Rust 错误为 BROKER_NOT_CONNECTED，消息含 closed。"
         ],
         "uncovered": [
-          "未从该结论中拆出独立 Rust 缺口；需按原始 Go 断言与 Rust 测试逐项复核。"
+          "冻结 Go 要求 error.code=UNLOCK_FAILED 且消息包含 connect；Rust 当前错误码和文本不等价。"
         ],
         "source": "reviewed"
       },
@@ -61876,47 +61774,134 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(production_http_broker_cancel_resolves_order_before_disconnected_writer) or test(production_http_broker_unlock_rejects_malformed_payload_without_writes) or test(production_http_broker_place_rejects_malformed_payload_without_writes) or test(production_http_broker_cancel_rejects_malformed_payload_without_writes) or test(production_http_broker_unlock_maps_disconnected_opend_to_stable_error) or test(production_http_broker_place_order_maps_disconnected_opend_to_stable_error)"
         ],
         "testFilter": [
-          "production_http_broker_writes_reject_malformed_payloads_before_provider_access"
+          "production_http_broker_cancel_rejects_malformed_payload_without_writes",
+          "production_http_broker_cancel_resolves_order_before_disconnected_writer",
+          "production_http_broker_place_order_maps_disconnected_opend_to_stable_error",
+          "production_http_broker_place_rejects_malformed_payload_without_writes",
+          "production_http_broker_unlock_maps_disconnected_opend_to_stable_error",
+          "production_http_broker_unlock_rejects_malformed_payload_without_writes"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "96017ff5ec21bbdab2d33a07e7c35f3c77602203",
+        "verifiedAt": "2026-10-06T20:42:44Z",
+        "receiptDigest": "sha256:b7711ad6a5979dbe14bf0956ac0ce144f9384cc1333bcb547e248efc96b9d205"
+      },
+      "risk": "high",
+      "owner": "api_transport",
+      "priority": "P1",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
+      "blockedBy": [
+        "behavioral-parity-review"
+      ],
+      "waiverExpiresAt": null,
+      "coveredAssertions": [
+        "同一路由、合法 unlock 请求在断连 writer 下返回 502 和结构化失败信封。",
+        "Rust 错误为 BROKER_NOT_CONNECTED，消息含 closed。"
+      ],
+      "uncoveredAssertions": [
+        "冻结 Go 要求 error.code=UNLOCK_FAILED 且消息包含 connect；Rust 当前错误码和文本不等价。"
+      ],
+      "boundaryReason": null
+    },
+    "internal/app/apiserver/servercoretest/broker_new_test.go:286:TestBrokerUnlockInvalidPayload": {
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-engine/src/product_production_assembly_tests.rs::production_http_broker_unlock_rejects_malformed_payload_without_writes",
+      "conclusion": "function_exact：原始 POST /api/v1/brokers/futu/unlock 请求体 unlock 对象返回 400、ok=false、BAD_REQUEST 和 invalid request body: 消息。 共享 production runtime 注入可计数 writer，畸形请求处理后没有任何交易写调用。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-engine --test production_http_broker_cancel_rejects_malformed_payload_without_writes --test production_http_broker_cancel_resolves_order_before_disconnected_writer --test production_http_broker_place_order_maps_disconnected_opend_to_stable_error --test production_http_broker_place_rejects_malformed_payload_without_writes --test production_http_broker_unlock_maps_disconnected_opend_to_stable_error --test production_http_broker_unlock_rejects_malformed_payload_without_writes --output docs/history/go-to-rust/verification-receipts/api-broker-write-boundaries-closed-2026-10-07.json",
+      "evidence_type": "function_exact",
+      "source": {
+        "file": "internal/app/apiserver/servercoretest/broker_new_test.go",
+        "line": 286,
+        "test": "TestBrokerUnlockInvalidPayload",
+        "blobSha": "537dac6100333b350d4847545050b35afe3ca681"
+      },
+      "rustEvidence": [
+        {
+          "file": "crates/jftrade-engine/src/product_production_assembly_tests.rs",
+          "test": "production_http_broker_unlock_rejects_malformed_payload_without_writes",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/app/apiserver/servercoretest/broker_new_test.go",
+            "goLine": 286,
+            "rustFile": "crates/jftrade-engine/src/product_production_assembly_tests.rs",
+            "rustLine": 6449
+          }
+        }
+      ],
+      "assertionCoverage": {
+        "covered": [
+          "原始 POST /api/v1/brokers/futu/unlock 请求体 unlock 对象返回 400、ok=false、BAD_REQUEST 和 invalid request body: 消息。",
+          "共享 production runtime 注入可计数 writer，畸形请求处理后没有任何交易写调用。"
+        ],
+        "uncovered": [],
+        "source": "reviewed"
+      },
+      "verification": {
+        "argv": [
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+          "node",
+          "scripts/quality/cargo-nextest.mjs",
+          "run",
+          "-p",
+          "jftrade-engine",
+          "--all-targets",
+          "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
+          "-E",
+          "test(production_http_broker_cancel_resolves_order_before_disconnected_writer) or test(production_http_broker_unlock_rejects_malformed_payload_without_writes) or test(production_http_broker_place_rejects_malformed_payload_without_writes) or test(production_http_broker_cancel_rejects_malformed_payload_without_writes) or test(production_http_broker_unlock_maps_disconnected_opend_to_stable_error) or test(production_http_broker_place_order_maps_disconnected_opend_to_stable_error)"
+        ],
+        "testFilter": [
+          "production_http_broker_cancel_rejects_malformed_payload_without_writes",
+          "production_http_broker_cancel_resolves_order_before_disconnected_writer",
+          "production_http_broker_place_order_maps_disconnected_opend_to_stable_error",
+          "production_http_broker_place_rejects_malformed_payload_without_writes",
+          "production_http_broker_unlock_maps_disconnected_opend_to_stable_error",
+          "production_http_broker_unlock_rejects_malformed_payload_without_writes"
+        ],
+        "runnerVersion": "cargo-nextest 0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "96017ff5ec21bbdab2d33a07e7c35f3c77602203",
+        "verifiedAt": "2026-10-06T20:42:44Z",
+        "receiptDigest": "sha256:b7711ad6a5979dbe14bf0956ac0ce144f9384cc1333bcb547e248efc96b9d205"
       },
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "retain_receipt_and_reaudit",
+      "nextAction": "reviewed",
       "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "逐项对照冻结 Go 原始断言；",
-        "生产 HTTP 在同一路径、同一畸形请求体返回 400，JSON error.code=BAD_REQUEST，error.message 包含 invalid request body:。",
-        "解锁使用 unlock 对象、下单使用 symbol 数字/quantity 字符串、撤单使用截断 orders JSON。",
-        "Rust body parser 在调用 mutation port 前校验，未将合法请求的断连行为作为本行证据。"
+        "原始 POST /api/v1/brokers/futu/unlock 请求体 unlock 对象返回 400、ok=false、BAD_REQUEST 和 invalid request body: 消息。",
+        "共享 production runtime 注入可计数 writer，畸形请求处理后没有任何交易写调用。"
       ],
-      "uncoveredAssertions": [
-        "未从该结论中拆出独立 Rust 缺口；需按原始 Go 断言与 Rust 测试逐项复核。"
-      ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/app/apiserver/servercoretest/broker_new_test.go:302:TestBrokerPlaceOrderNoBroker": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_production_assembly_tests.rs::production_http_broker_place_order_maps_disconnected_opend_to_stable_error",
-      "conclusion": "function_exact：真实 production HTTP POST /api/v1/brokers/futu/orders 使用合法下单请求和断连 writer，经过 broker route 与 ProductionExecutionPort 后返回 HTTP 502、ok=false、error.code=BROKER_NOT_CONNECTED，并保留 closed 诊断消息；冻结 Go 的未连接 OpenD 下单失败已在真实组合根路由复现。",
-      "command": "pnpm run test:parity:receipt -- --package jftrade-engine --test production_http_broker_place_order_maps_disconnected_opend_to_stable_error --output docs/history/go-to-rust/verification-receipts/api-broker-place-order-no-broker-2026-10-07.json",
-      "evidence_type": "function_exact",
+      "conclusion": "partial：原始 Go 无 query 请求现场返回 400 BAD_REQUEST/accountId is required，writer 调用为零。 补齐 Rust 账户 query 的合法请求返回 502 BROKER_NOT_CONNECTED/closed，下单 writer 恰好调用一次。 冻结 Go 原始请求没有 tradingEnvironment/accountId/market query 并要求 502；不能以补齐 query 后的 502 宣称 function_exact。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-engine --test production_http_broker_cancel_rejects_malformed_payload_without_writes --test production_http_broker_cancel_resolves_order_before_disconnected_writer --test production_http_broker_place_order_maps_disconnected_opend_to_stable_error --test production_http_broker_place_rejects_malformed_payload_without_writes --test production_http_broker_unlock_maps_disconnected_opend_to_stable_error --test production_http_broker_unlock_rejects_malformed_payload_without_writes --output docs/history/go-to-rust/verification-receipts/api-broker-write-boundaries-closed-2026-10-07.json",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/servercoretest/broker_new_test.go",
         "line": 302,
@@ -61932,61 +61917,76 @@
             "goFile": "internal/app/apiserver/servercoretest/broker_new_test.go",
             "goLine": 302,
             "rustFile": "crates/jftrade-engine/src/product_production_assembly_tests.rs",
-            "rustLine": 6511
+            "rustLine": 6570
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "合法 production HTTP 下单请求在 OpenD writer 断连时返回 HTTP 502。",
-          "响应为 ok=false、error.code=BROKER_NOT_CONNECTED，并保留 closed 诊断消息。"
+          "原始 Go 无 query 请求现场返回 400 BAD_REQUEST/accountId is required，writer 调用为零。",
+          "补齐 Rust 账户 query 的合法请求返回 502 BROKER_NOT_CONNECTED/closed，下单 writer 恰好调用一次。"
         ],
-        "uncovered": [],
+        "uncovered": [
+          "冻结 Go 原始请求没有 tradingEnvironment/accountId/market query 并要求 502；不能以补齐 query 后的 502 宣称 function_exact。"
+        ],
         "source": "reviewed"
       },
       "verification": {
         "argv": [
-          "pnpm",
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+          "node",
+          "scripts/quality/cargo-nextest.mjs",
           "run",
-          "test:parity:receipt",
-          "--",
-          "--package",
+          "-p",
           "jftrade-engine",
-          "--test",
-          "production_http_broker_place_order_maps_disconnected_opend_to_stable_error",
-          "--output",
-          "docs/history/go-to-rust/verification-receipts/api-broker-place-order-no-broker-2026-10-07.json"
+          "--all-targets",
+          "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
+          "-E",
+          "test(production_http_broker_cancel_resolves_order_before_disconnected_writer) or test(production_http_broker_unlock_rejects_malformed_payload_without_writes) or test(production_http_broker_place_rejects_malformed_payload_without_writes) or test(production_http_broker_cancel_rejects_malformed_payload_without_writes) or test(production_http_broker_unlock_maps_disconnected_opend_to_stable_error) or test(production_http_broker_place_order_maps_disconnected_opend_to_stable_error)"
         ],
         "testFilter": [
-          "production_http_broker_place_order_maps_disconnected_opend_to_stable_error"
+          "production_http_broker_cancel_rejects_malformed_payload_without_writes",
+          "production_http_broker_cancel_resolves_order_before_disconnected_writer",
+          "production_http_broker_place_order_maps_disconnected_opend_to_stable_error",
+          "production_http_broker_place_rejects_malformed_payload_without_writes",
+          "production_http_broker_unlock_maps_disconnected_opend_to_stable_error",
+          "production_http_broker_unlock_rejects_malformed_payload_without_writes"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "c6d5fc619e2cf9495562ed99b88939efbe6db315",
-        "verifiedAt": "2026-10-06T17:18:38Z",
-        "receiptDigest": "sha256:d6e3495016751a246a078dd03e4abdccd99a0e17f36571c44a58cab8481b8380"
+        "verifiedCommit": "96017ff5ec21bbdab2d33a07e7c35f3c77602203",
+        "verifiedAt": "2026-10-06T20:42:44Z",
+        "receiptDigest": "sha256:b7711ad6a5979dbe14bf0956ac0ce144f9384cc1333bcb547e248efc96b9d205"
       },
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "reviewed",
-      "blockedBy": [],
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
+      "blockedBy": [
+        "behavioral-parity-review"
+      ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "合法 production HTTP 下单请求在 OpenD writer 断连时返回 HTTP 502。",
-        "响应为 ok=false、error.code=BROKER_NOT_CONNECTED，并保留 closed 诊断消息。"
+        "原始 Go 无 query 请求现场返回 400 BAD_REQUEST/accountId is required，writer 调用为零。",
+        "补齐 Rust 账户 query 的合法请求返回 502 BROKER_NOT_CONNECTED/closed，下单 writer 恰好调用一次。"
       ],
-      "uncoveredAssertions": [],
+      "uncoveredAssertions": [
+        "冻结 Go 原始请求没有 tradingEnvironment/accountId/market query 并要求 502；不能以补齐 query 后的 502 宣称 function_exact。"
+      ],
       "boundaryReason": null
     },
     "internal/app/apiserver/servercoretest/broker_new_test.go:319:TestBrokerPlaceOrderInvalidPayload": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_production_assembly_tests.rs::production_http_broker_writes_reject_malformed_payloads_before_provider_access",
-      "conclusion": "partial：逐项对照冻结 Go 原始断言；生产 HTTP 在同一路径、同一畸形请求体返回 400，JSON error.code=BAD_REQUEST，error.message 包含 invalid request body:。解锁使用 unlock 对象、下单使用 symbol 数字/quantity 字符串、撤单使用截断 orders JSON。Rust body parser 在调用 mutation port 前校验，未将合法请求的断连行为作为本行证据。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-      "evidence_type": "partial",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-engine/src/product_production_assembly_tests.rs::production_http_broker_place_rejects_malformed_payload_without_writes",
+      "conclusion": "function_exact：原始 POST /api/v1/brokers/futu/orders 请求体 symbol=123/quantity=bad 返回 400、ok=false、BAD_REQUEST 和 invalid request body: 消息。 共享 production runtime 注入可计数 writer，畸形请求处理后没有任何交易写调用。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-engine --test production_http_broker_cancel_rejects_malformed_payload_without_writes --test production_http_broker_cancel_resolves_order_before_disconnected_writer --test production_http_broker_place_order_maps_disconnected_opend_to_stable_error --test production_http_broker_place_rejects_malformed_payload_without_writes --test production_http_broker_unlock_maps_disconnected_opend_to_stable_error --test production_http_broker_unlock_rejects_malformed_payload_without_writes --output docs/history/go-to-rust/verification-receipts/api-broker-write-boundaries-closed-2026-10-07.json",
+      "evidence_type": "function_exact",
       "source": {
         "file": "internal/app/apiserver/servercoretest/broker_new_test.go",
         "line": 319,
@@ -61996,26 +61996,22 @@
       "rustEvidence": [
         {
           "file": "crates/jftrade-engine/src/product_production_assembly_tests.rs",
-          "test": "production_http_broker_writes_reject_malformed_payloads_before_provider_access",
+          "test": "production_http_broker_place_rejects_malformed_payload_without_writes",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/app/apiserver/servercoretest/broker_new_test.go",
             "goLine": 319,
             "rustFile": "crates/jftrade-engine/src/product_production_assembly_tests.rs",
-            "rustLine": 5922
+            "rustLine": 6470
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "逐项对照冻结 Go 原始断言；",
-          "生产 HTTP 在同一路径、同一畸形请求体返回 400，JSON error.code=BAD_REQUEST，error.message 包含 invalid request body:。",
-          "解锁使用 unlock 对象、下单使用 symbol 数字/quantity 字符串、撤单使用截断 orders JSON。",
-          "Rust body parser 在调用 mutation port 前校验，未将合法请求的断连行为作为本行证据。"
+          "原始 POST /api/v1/brokers/futu/orders 请求体 symbol=123/quantity=bad 返回 400、ok=false、BAD_REQUEST 和 invalid request body: 消息。",
+          "共享 production runtime 注入可计数 writer，畸形请求处理后没有任何交易写调用。"
         ],
-        "uncovered": [
-          "未从该结论中拆出独立 Rust 缺口；需按原始 Go 断言与 Rust 测试逐项复核。"
-        ],
+        "uncovered": [],
         "source": "reviewed"
       },
       "verification": {
@@ -62025,46 +62021,50 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(production_http_broker_cancel_resolves_order_before_disconnected_writer) or test(production_http_broker_unlock_rejects_malformed_payload_without_writes) or test(production_http_broker_place_rejects_malformed_payload_without_writes) or test(production_http_broker_cancel_rejects_malformed_payload_without_writes) or test(production_http_broker_unlock_maps_disconnected_opend_to_stable_error) or test(production_http_broker_place_order_maps_disconnected_opend_to_stable_error)"
         ],
         "testFilter": [
-          "production_http_broker_writes_reject_malformed_payloads_before_provider_access"
+          "production_http_broker_cancel_rejects_malformed_payload_without_writes",
+          "production_http_broker_cancel_resolves_order_before_disconnected_writer",
+          "production_http_broker_place_order_maps_disconnected_opend_to_stable_error",
+          "production_http_broker_place_rejects_malformed_payload_without_writes",
+          "production_http_broker_unlock_maps_disconnected_opend_to_stable_error",
+          "production_http_broker_unlock_rejects_malformed_payload_without_writes"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "96017ff5ec21bbdab2d33a07e7c35f3c77602203",
+        "verifiedAt": "2026-10-06T20:42:44Z",
+        "receiptDigest": "sha256:b7711ad6a5979dbe14bf0956ac0ce144f9384cc1333bcb547e248efc96b9d205"
       },
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "retain_receipt_and_reaudit",
+      "nextAction": "reviewed",
       "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "逐项对照冻结 Go 原始断言；",
-        "生产 HTTP 在同一路径、同一畸形请求体返回 400，JSON error.code=BAD_REQUEST，error.message 包含 invalid request body:。",
-        "解锁使用 unlock 对象、下单使用 symbol 数字/quantity 字符串、撤单使用截断 orders JSON。",
-        "Rust body parser 在调用 mutation port 前校验，未将合法请求的断连行为作为本行证据。"
+        "原始 POST /api/v1/brokers/futu/orders 请求体 symbol=123/quantity=bad 返回 400、ok=false、BAD_REQUEST 和 invalid request body: 消息。",
+        "共享 production runtime 注入可计数 writer，畸形请求处理后没有任何交易写调用。"
       ],
-      "uncoveredAssertions": [
-        "未从该结论中拆出独立 Rust 缺口；需按原始 Go 断言与 Rust 测试逐项复核。"
-      ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/app/apiserver/servercoretest/broker_new_test.go:336:TestBrokerCancelOrdersNoBroker": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::cancel_rejects_missing_terminal_and_unidentified_persisted_orders; crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::trade_write_methods_propagate_write_disconnects",
-      "conclusion": "partial：Go 断言未配置 broker 时撤单返回结构化失败。Rust 撤单先按内部订单标识校验持久化状态（缺失/终结 404、缺标识 400）再要求写入端口可用（断连传播），分支归并顺序与 Go 不同但同样 fail-closed。缺口 owner：crates/jftrade-engine 执行写端口撤单/对账；回归要求：补“无 broker 撤单 → 非 2xx 结构化失败”断言并记录分支顺序差异。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'test(broker_klines_valid_request_fails_closed_without_historical_source) or test(broker_securities_returns_real_empty_result_when_cache_has_no_symbol) or test(production_http_broker_reads_reject_invalid_query_shapes_with_rust_messages) or test(trade_write_methods_propagate_write_disconnects) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(funds_projection_keeps_missing_margin_fields_absent) or test(broker_read_fails_closed_without_trade_client)'",
+      "rust_entry": "crates/jftrade-engine/src/product_production_assembly_tests.rs::production_http_broker_cancel_resolves_order_before_disconnected_writer",
+      "conclusion": "partial：原始 Go 未知 orderId=12345 请求在 Rust 返回 404 EXECUTION_ORDER_NOT_FOUND，writer 调用为零。 已持久化订单断连撤单返回 502 BROKER_NOT_CONNECTED，modify 恰好一次；重复请求返回 400 EXECUTION_ORDER_TERMINAL 且不重发。 关闭产品后重新打开 production SQLite store，确认 UNKNOWN、BROKER_NOT_CONNECTED 错误和恰好一次 cancel_submitted fence。 冻结 Go 对未持久化 orderId=12345 的相同请求要求 502；Rust 先解析本地订单并返回 404，该分支顺序差异保留 partial。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-engine --test production_http_broker_cancel_rejects_malformed_payload_without_writes --test production_http_broker_cancel_resolves_order_before_disconnected_writer --test production_http_broker_place_order_maps_disconnected_opend_to_stable_error --test production_http_broker_place_rejects_malformed_payload_without_writes --test production_http_broker_unlock_maps_disconnected_opend_to_stable_error --test production_http_broker_unlock_rejects_malformed_payload_without_writes --output docs/history/go-to-rust/verification-receipts/api-broker-write-boundaries-closed-2026-10-07.json",
       "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/servercoretest/broker_new_test.go",
@@ -62074,36 +62074,25 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs",
-          "test": "cancel_rejects_missing_terminal_and_unidentified_persisted_orders",
+          "file": "crates/jftrade-engine/src/product_production_assembly_tests.rs",
+          "test": "production_http_broker_cancel_resolves_order_before_disconnected_writer",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/app/apiserver/servercoretest/broker_new_test.go",
             "goLine": 336,
-            "rustFile": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs",
-            "rustLine": 1259
-          }
-        },
-        {
-          "file": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs",
-          "test": "trade_write_methods_propagate_write_disconnects",
-          "crate": "jftrade-engine",
-          "anchor": {
-            "goFile": "internal/app/apiserver/servercoretest/broker_new_test.go",
-            "goLine": 336,
-            "rustFile": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs",
-            "rustLine": 2996
+            "rustFile": "crates/jftrade-engine/src/product_production_assembly_tests.rs",
+            "rustLine": 6619
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Go 断言未配置 broker 时撤单返回结构化失败。",
-          "Rust 撤单先按内部订单标识校验持久化状态（缺失/终结 404、缺标识 400）再要求写入端口可用（断连传播），分支归并顺序与 Go 不同但同样 fail-closed。"
+          "原始 Go 未知 orderId=12345 请求在 Rust 返回 404 EXECUTION_ORDER_NOT_FOUND，writer 调用为零。",
+          "已持久化订单断连撤单返回 502 BROKER_NOT_CONNECTED，modify 恰好一次；重复请求返回 400 EXECUTION_ORDER_TERMINAL 且不重发。",
+          "关闭产品后重新打开 production SQLite store，确认 UNKNOWN、BROKER_NOT_CONNECTED 错误和恰好一次 cancel_submitted fence。"
         ],
         "uncovered": [
-          "缺口 owner：crates/jftrade-engine 执行写端口撤单/对账；",
-          "回归要求：补“无 broker 撤单 → 非 2xx 结构化失败”断言并记录分支顺序差异。"
+          "冻结 Go 对未持久化 orderId=12345 的相同请求要求 502；Rust 先解析本地订单并返回 404，该分支顺序差异保留 partial。"
         ],
         "source": "reviewed"
       },
@@ -62114,29 +62103,31 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(production_http_broker_cancel_resolves_order_before_disconnected_writer) or test(production_http_broker_unlock_rejects_malformed_payload_without_writes) or test(production_http_broker_place_rejects_malformed_payload_without_writes) or test(production_http_broker_cancel_rejects_malformed_payload_without_writes) or test(production_http_broker_unlock_maps_disconnected_opend_to_stable_error) or test(production_http_broker_place_order_maps_disconnected_opend_to_stable_error)"
         ],
         "testFilter": [
-          "broker_klines_valid_request_fails_closed_without_historical_source",
-          "broker_securities_returns_real_empty_result_when_cache_has_no_symbol",
-          "production_http_broker_reads_reject_invalid_query_shapes_with_rust_messages",
-          "trade_write_methods_propagate_write_disconnects",
-          "cancel_rejects_missing_terminal_and_unidentified_persisted_orders",
-          "funds_projection_keeps_missing_margin_fields_absent",
-          "broker_read_fails_closed_without_trade_client"
+          "production_http_broker_cancel_rejects_malformed_payload_without_writes",
+          "production_http_broker_cancel_resolves_order_before_disconnected_writer",
+          "production_http_broker_place_order_maps_disconnected_opend_to_stable_error",
+          "production_http_broker_place_rejects_malformed_payload_without_writes",
+          "production_http_broker_unlock_maps_disconnected_opend_to_stable_error",
+          "production_http_broker_unlock_rejects_malformed_payload_without_writes"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "96017ff5ec21bbdab2d33a07e7c35f3c77602203",
+        "verifiedAt": "2026-10-06T20:42:44Z",
+        "receiptDigest": "sha256:b7711ad6a5979dbe14bf0956ac0ce144f9384cc1333bcb547e248efc96b9d205"
       },
       "risk": "high",
       "owner": "api_transport",
@@ -62147,21 +62138,21 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Go 断言未配置 broker 时撤单返回结构化失败。",
-        "Rust 撤单先按内部订单标识校验持久化状态（缺失/终结 404、缺标识 400）再要求写入端口可用（断连传播），分支归并顺序与 Go 不同但同样 fail-closed。"
+        "原始 Go 未知 orderId=12345 请求在 Rust 返回 404 EXECUTION_ORDER_NOT_FOUND，writer 调用为零。",
+        "已持久化订单断连撤单返回 502 BROKER_NOT_CONNECTED，modify 恰好一次；重复请求返回 400 EXECUTION_ORDER_TERMINAL 且不重发。",
+        "关闭产品后重新打开 production SQLite store，确认 UNKNOWN、BROKER_NOT_CONNECTED 错误和恰好一次 cancel_submitted fence。"
       ],
       "uncoveredAssertions": [
-        "缺口 owner：crates/jftrade-engine 执行写端口撤单/对账；",
-        "回归要求：补“无 broker 撤单 → 非 2xx 结构化失败”断言并记录分支顺序差异。"
+        "冻结 Go 对未持久化 orderId=12345 的相同请求要求 502；Rust 先解析本地订单并返回 404，该分支顺序差异保留 partial。"
       ],
       "boundaryReason": null
     },
     "internal/app/apiserver/servercoretest/broker_new_test.go:359:TestBrokerCancelOrdersInvalidPayload": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_production_assembly_tests.rs::production_http_broker_writes_reject_malformed_payloads_before_provider_access",
-      "conclusion": "partial：逐项对照冻结 Go 原始断言；生产 HTTP 在同一路径、同一畸形请求体返回 400，JSON error.code=BAD_REQUEST，error.message 包含 invalid request body:。解锁使用 unlock 对象、下单使用 symbol 数字/quantity 字符串、撤单使用截断 orders JSON。Rust body parser 在调用 mutation port 前校验，未将合法请求的断连行为作为本行证据。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-      "evidence_type": "partial",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-engine/src/product_production_assembly_tests.rs::production_http_broker_cancel_rejects_malformed_payload_without_writes",
+      "conclusion": "function_exact：原始 DELETE /api/v1/brokers/futu/orders 截断 orders JSON 返回 400；另覆盖 orders 字符串类型非法请求。 响应均为 ok=false、BAD_REQUEST 和 invalid request body: 消息；共享 production runtime 的 writer 没有任何交易写调用。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-engine --test production_http_broker_cancel_rejects_malformed_payload_without_writes --test production_http_broker_cancel_resolves_order_before_disconnected_writer --test production_http_broker_place_order_maps_disconnected_opend_to_stable_error --test production_http_broker_place_rejects_malformed_payload_without_writes --test production_http_broker_unlock_maps_disconnected_opend_to_stable_error --test production_http_broker_unlock_rejects_malformed_payload_without_writes --output docs/history/go-to-rust/verification-receipts/api-broker-write-boundaries-closed-2026-10-07.json",
+      "evidence_type": "function_exact",
       "source": {
         "file": "internal/app/apiserver/servercoretest/broker_new_test.go",
         "line": 359,
@@ -62171,26 +62162,22 @@
       "rustEvidence": [
         {
           "file": "crates/jftrade-engine/src/product_production_assembly_tests.rs",
-          "test": "production_http_broker_writes_reject_malformed_payloads_before_provider_access",
+          "test": "production_http_broker_cancel_rejects_malformed_payload_without_writes",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/app/apiserver/servercoretest/broker_new_test.go",
             "goLine": 359,
             "rustFile": "crates/jftrade-engine/src/product_production_assembly_tests.rs",
-            "rustLine": 5922
+            "rustLine": 6491
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "逐项对照冻结 Go 原始断言；",
-          "生产 HTTP 在同一路径、同一畸形请求体返回 400，JSON error.code=BAD_REQUEST，error.message 包含 invalid request body:。",
-          "解锁使用 unlock 对象、下单使用 symbol 数字/quantity 字符串、撤单使用截断 orders JSON。",
-          "Rust body parser 在调用 mutation port 前校验，未将合法请求的断连行为作为本行证据。"
+          "原始 DELETE /api/v1/brokers/futu/orders 截断 orders JSON 返回 400；另覆盖 orders 字符串类型非法请求。",
+          "响应均为 ok=false、BAD_REQUEST 和 invalid request body: 消息；共享 production runtime 的 writer 没有任何交易写调用。"
         ],
-        "uncovered": [
-          "未从该结论中拆出独立 Rust 缺口；需按原始 Go 断言与 Rust 测试逐项复核。"
-        ],
+        "uncovered": [],
         "source": "reviewed"
       },
       "verification": {
@@ -62200,39 +62187,43 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(production_http_broker_cancel_resolves_order_before_disconnected_writer) or test(production_http_broker_unlock_rejects_malformed_payload_without_writes) or test(production_http_broker_place_rejects_malformed_payload_without_writes) or test(production_http_broker_cancel_rejects_malformed_payload_without_writes) or test(production_http_broker_unlock_maps_disconnected_opend_to_stable_error) or test(production_http_broker_place_order_maps_disconnected_opend_to_stable_error)"
         ],
         "testFilter": [
-          "production_http_broker_writes_reject_malformed_payloads_before_provider_access"
+          "production_http_broker_cancel_rejects_malformed_payload_without_writes",
+          "production_http_broker_cancel_resolves_order_before_disconnected_writer",
+          "production_http_broker_place_order_maps_disconnected_opend_to_stable_error",
+          "production_http_broker_place_rejects_malformed_payload_without_writes",
+          "production_http_broker_unlock_maps_disconnected_opend_to_stable_error",
+          "production_http_broker_unlock_rejects_malformed_payload_without_writes"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "96017ff5ec21bbdab2d33a07e7c35f3c77602203",
+        "verifiedAt": "2026-10-06T20:42:44Z",
+        "receiptDigest": "sha256:b7711ad6a5979dbe14bf0956ac0ce144f9384cc1333bcb547e248efc96b9d205"
       },
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
-      "nextAction": "retain_receipt_and_reaudit",
+      "nextAction": "reviewed",
       "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "逐项对照冻结 Go 原始断言；",
-        "生产 HTTP 在同一路径、同一畸形请求体返回 400，JSON error.code=BAD_REQUEST，error.message 包含 invalid request body:。",
-        "解锁使用 unlock 对象、下单使用 symbol 数字/quantity 字符串、撤单使用截断 orders JSON。",
-        "Rust body parser 在调用 mutation port 前校验，未将合法请求的断连行为作为本行证据。"
+        "原始 DELETE /api/v1/brokers/futu/orders 截断 orders JSON 返回 400；另覆盖 orders 字符串类型非法请求。",
+        "响应均为 ok=false、BAD_REQUEST 和 invalid request body: 消息；共享 production runtime 的 writer 没有任何交易写调用。"
       ],
-      "uncoveredAssertions": [
-        "未从该结论中拆出独立 Rust 缺口；需按原始 Go 断言与 Rust 测试逐项复核。"
-      ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/app/apiserver/servercoretest/broker_new_test.go:388:TestBrokerFundsSummaryHasAllFields": {
@@ -340682,6 +340673,38 @@
     }
   },
   "reuse": {
+    "crates/jftrade-engine/src/product_production_assembly_tests.rs::production_http_broker_unlock_rejects_malformed_payload_without_writes": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/app/apiserver/servercoretest/broker_new_test.go:286:TestBrokerUnlockInvalidPayload"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_production_assembly_tests.rs::production_http_broker_place_rejects_malformed_payload_without_writes": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/app/apiserver/servercoretest/broker_new_test.go:319:TestBrokerPlaceOrderInvalidPayload"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_production_assembly_tests.rs::production_http_broker_cancel_rejects_malformed_payload_without_writes": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/app/apiserver/servercoretest/broker_new_test.go:359:TestBrokerCancelOrdersInvalidPayload"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_production_assembly_tests.rs::production_http_broker_cancel_resolves_order_before_disconnected_writer": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/app/apiserver/servercoretest/broker_new_test.go:336:TestBrokerCancelOrdersNoBroker"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
     "crates/jftrade-engine/src/product_production_assembly_tests.rs::production_http_broker_place_order_maps_disconnected_opend_to_stable_error": {
       "referenceCount": 1,
       "referenceKeys": [
@@ -347138,10 +347161,9 @@
       "reviewStatus": "reviewed"
     },
     "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::cancel_rejects_missing_terminal_and_unidentified_persisted_orders": {
-      "referenceCount": 4,
+      "referenceCount": 3,
       "referenceKeys": [
         "internal/app/apiserver/servercore/trading_order_cancellation_contracts_test.go:98:TestTradingOrderCancellationRejectsInvalidPersistedOrders",
-        "internal/app/apiserver/servercoretest/broker_new_test.go:336:TestBrokerCancelOrdersNoBroker",
         "internal/app/apiserver/tradingapp/execution_gateway_lifecycle_test.go:202:TestExecutionGatewayCancelOrderBoundaries",
         "internal/trading/broker_conformance_test.go:58:TestFakeBrokerConformanceCancelAcceptedAndCancelRejected"
       ],
@@ -347331,35 +347353,21 @@
       "reviewNote": "2026-10-02 bounded reuse review: compared all 3 referenceKeys against the shared Rust owner (status mix {'[~]': 3}); assertion scopes are not interchangeable, so reuse remains disallowed and no function_exact row is upgraded by this relation."
     },
     "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::trade_write_methods_propagate_write_disconnects": {
-      "referenceCount": 3,
+      "referenceCount": 1,
       "referenceKeys": [
-        "internal/app/apiserver/servercoretest/broker_new_test.go:264:TestBrokerUnlockDisconnectedOpenD",
-        "internal/app/apiserver/servercoretest/broker_new_test.go:336:TestBrokerCancelOrdersNoBroker",
         "pkg/futu/transport_error_propagation_test.go:125:TestTradeWriteMethodsPropagateAccountAndWriteDisconnects"
       ],
       "allowed": true,
-      "reviewStatus": "reviewed"
+      "reviewStatus": "single"
     },
     "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::broker_unlock_route_forwards_password_md5_and_unlock_flag_to_opend": {
-      "referenceCount": 3,
+      "referenceCount": 2,
       "referenceKeys": [
-        "internal/app/apiserver/servercoretest/broker_new_test.go:264:TestBrokerUnlockDisconnectedOpenD",
         "pkg/futu/adapter_bridge_test.go:709:TestBrokerAdapterUnlockTradeBridge",
         "internal/trading/broker_test.go:533:TestServiceBrokerWriteAndTimeoutBehaviors"
       ],
       "allowed": true,
       "reviewStatus": "reviewed"
-    },
-    "crates/jftrade-engine/src/product_production_assembly_tests.rs::production_http_broker_writes_reject_malformed_payloads_before_provider_access": {
-      "referenceCount": 3,
-      "referenceKeys": [
-        "internal/app/apiserver/servercoretest/broker_new_test.go:286:TestBrokerUnlockInvalidPayload",
-        "internal/app/apiserver/servercoretest/broker_new_test.go:319:TestBrokerPlaceOrderInvalidPayload",
-        "internal/app/apiserver/servercoretest/broker_new_test.go:359:TestBrokerCancelOrdersInvalidPayload"
-      ],
-      "allowed": true,
-      "reviewStatus": "reviewed",
-      "reviewNote": "2026-09-30: compared Go lines 286/319/359 individually. Each HTTP matrix row carries the identical method, path, malformed body, 400 status and BAD_REQUEST/message-prefix assertion; cancellation includes the original truncated JSON, not only an invalid array type."
     },
     "crates/jftrade-engine/src/product_production_route_registry_tests.rs::resolver_rejects_unknown_method_and_path": {
       "referenceCount": 3,

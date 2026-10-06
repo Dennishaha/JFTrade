@@ -1,5 +1,25 @@
 # Go → Rust 证据积压清单
 
+## 2026-10-07 Broker 写边界严格复核与行为闭环
+
+- `TestBrokerUnlockDisconnectedOpenD`、`TestBrokerPlaceOrderNoBroker` 撤回过强 exact：前者 Go `UNLOCK_FAILED/connect` 与 Rust `BROKER_NOT_CONNECTED/closed` 不同；后者原始无 query 请求在 Rust 返回 400，补账户 query 后的 502 不等同于原始 Go 行为。保留 Rust owner 与 receipt，恢复 partial。
+- `TestBrokerCancelOrdersNoBroker` 新增 production HTTP、writer 调用计数和数据库重开断言，但原始未知订单请求 404/502 的分支顺序差异仍保留 partial。测试读端返回断连错误而非成功空订单，并使用夹具实际发现的账户环境，避免后台对账抢先改写种子订单。
+- unlock/place/cancel 三条 `InvalidPayload` 由独立 HTTP owner 验证原始请求的 400、错误信封和 writer 零调用，从 partial 升为 exact。当前 **1590 exact / 2221 partial / 640 boundary**，净增 exact 1；strict audit 与 anchor reconcile 已通过。
+- 本批现场 quick/full Rust 已完成，两个命令退出码均为 **0**：受影响 nextest **2141 passed、0 failed、0 skipped**，Pine worker **98 passed**；workspace **3677 passed、0 failed、2 skipped**，七类 compatibility replay 全部通过。日志为 `/tmp/jftrade-broker-write-boundaries-quick-2026-10-07.log` 与 `/tmp/jftrade-broker-write-boundaries-rust-2026-10-07.log`；未生成新的 workspace JSON receipt，canonical focused receipt 仅证明本批六条 owner。
+- 当前 canonical receipt 为 `verification-receipts/api-broker-write-boundaries-closed-2026-10-07.json`（6/6 passed，SHA-256 `b7711ad6a5979dbe14bf0956ac0ce144f9384cc1333bcb547e248efc96b9d205`），本批六条 mapping 均绑定此 receipt。
+
+  | 本批 receipt（均在 verification-receipts） | 实际状态与解释 | 当前替代 |
+  | --- | --- | --- |
+  | `api-broker-write-boundaries-2026-10-07.json` | failed，退出码 101；种子 helper Path/String 编译错误，无行为测试执行 | closed receipt |
+  | `api-broker-write-boundaries-passed-2026-10-07.json` | failed，3 passed/1 failed；文件名不代表状态，OpenD readiness 装配不完整 | closed receipt |
+  | `api-broker-write-boundaries-final-2026-10-07.json` | failed，3 passed/1 failed；成功空订单快照与账户环境不匹配使对账提前写 UNKNOWN | closed receipt |
+  | `api-broker-write-boundaries-verified-2026-10-07.json` | failed，3 passed/1 failed；无 reader 的 runtime 清除登录位 | closed receipt |
+  | `api-broker-write-boundaries-green-2026-10-07.json` | failed，3 passed/1 failed；断连 reader 已修正，种子账户环境仍不匹配 | closed receipt |
+  | `api-broker-write-boundaries-current-2026-10-07.json` | passed，4/4；畸形 payload 尚为聚合 owner 的中间证据 | closed receipt（拆为三条独立 owner 后 6/6） |
+  | `api-broker-write-boundaries-closed-2026-10-07.json` | passed，6/6；当前有效证据 | canonical |
+
+  原失败文件保持原始字节，均不计入当前成功状态；本轮失败是测试装配诊断，不宣称为生产行为红测。
+
 ## 2026-10-07 API/Transport place-order 断连 HTTP 闭环收口
 
 - `TestBrokerPlaceOrderNoBroker` 已由真实 production HTTP owner `production_http_broker_place_order_maps_disconnected_opend_to_stable_error` 收口为 `function_exact`：合法下单请求在断连 writer 下返回 502、`BROKER_NOT_CONNECTED` 和 `closed` 诊断。首轮 400 仅是 Rust 缺少 `accountId` query 的绑定边界，补齐合法 query 后复跑绿色。

@@ -1,5 +1,15 @@
 # Go → Rust 对齐成果摘要
 
+## 2026-10-07 Broker 写边界严格复核与行为闭环（更正前两批结论）
+
+- 本批计划与退出条件：复核 broker unlock/place/cancel 的冻结 Go 原始断言；补真实 production HTTP、writer 调用计数与持久化断言；只升级逐条等价的条目；完成 focused receipt、quick、完整 Rust 门禁、strict/anchor 审计和独立提交。
+- **更正**：此前 `TestBrokerUnlockDisconnectedOpenD` 的 exact 结论撤回。Go 要求 `UNLOCK_FAILED` 和消息含 `connect`，Rust 是 `BROKER_NOT_CONNECTED/closed`。此前 `TestBrokerPlaceOrderNoBroker` 的 exact 结论也撤回：原始 Go 无 query 请求要求 502，Rust 同一请求为 400 `accountId is required`；补 query 后的 502 不能替代原始请求的等价证明。两条恢复 partial，既有 receipt 保留为 Rust 行为证据。
+- 新增真实撤单 HTTP owner：原始未知 `orderId=12345` 返回 404 且零 writer 调用；有效持久化订单断连返回 502，modify 恰好一次；重复撤单为 400 terminal 且不重发。关闭产品后重开 production SQLite，验证 `UNKNOWN`、断连错误和一次 `cancel_submitted` fence。因 Go 原始未知订单请求要求 502，该条继续 partial。
+- 原畸形 payload 聚合测试拆为 unlock/place/cancel 三个独立 HTTP 测试，各自使用原始 Go 请求、直接断言 400/错误信封并验证 writer 零调用；三条 `InvalidPayload` 从 partial 升为 function_exact。净增 exact **1**（新增 3、撤回 2）。当前扫描 **4451 Go / 3521 Rust / 1590 function_exact / 2221 partial / 640 boundary**，数量比 **79.1%**，不能当作行为完成率。
+- 当前有效 focused receipt：`verification-receipts/api-broker-write-boundaries-closed-2026-10-07.json`，**6 passed、0 failed**，SHA-256 `b7711ad6a5979dbe14bf0956ac0ce144f9384cc1333bcb547e248efc96b9d205`。strict audit 已通过，anchor 为 **2034 unique / 1986 recorded / 0 unrecorded / 0 stale / 48 unknown**。
+- 本批现场 `check:quick` 与完整 `check:rust` 均明确退出 **0**：受影响 nextest **2141 passed、0 failed、0 skipped**，Pine worker **98 passed**；workspace **3677 passed、0 failed、2 skipped**，七类 compatibility replay 全部通过。现场日志分别为 `/tmp/jftrade-broker-write-boundaries-quick-2026-10-07.log` 和 `/tmp/jftrade-broker-write-boundaries-rust-2026-10-07.log`；未另生成 workspace JSON receipt，不把 focused receipt 的 digest 当作全量门禁证据。
+- 测试装配过程中的编译、readiness、登录及账户/snapshot 不匹配失败全部保留；具体红绿替代关系见证据积压清单本批记录。它们不是生产缺陷的先红复现，也不是当前有效门禁。
+
 ## 2026-10-07 API/Transport place-order 断连 HTTP 闭环收口
 
 - 收口 `TestBrokerPlaceOrderNoBroker`：新增真实 production HTTP owner `production_http_broker_place_order_maps_disconnected_opend_to_stable_error`，使用合法下单请求和断连 writer，验证 `/api/v1/brokers/futu/orders` 经过 broker route 与 `ProductionExecutionPort` 后返回 HTTP 502、`ok=false`、`error.code=BROKER_NOT_CONNECTED`，并保留 `closed` 诊断消息。首次 targeted 运行暴露 Rust 合法请求需要 `tradingEnvironment/accountId/market` query；补齐后确认请求真正到达断连 writer，未把 400 绑定错误算作行为证据。

@@ -1,0 +1,71 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(production_http_broker_cancel_resolves_order_before_disconnected_writer) or test(production_http_broker_writes_reject_malformed_payloads_before_provider_access) or test(production_http_broker_unlock_maps_disconnected_opend_to_stable_error) or test(production_http_broker_place_order_maps_disconnected_opend_to_stable_error)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 100,
+  "status": "failed",
+  "verifiedAt": "2026-10-06T20:35:12Z",
+  "sourceState": {
+    "verifiedCommit": "96017ff5ec21bbdab2d33a07e7c35f3c77602203",
+    "trackedDiffSha256": "1cfebf614c08233d27bc4fb0baf1ea455385d9fb7e2fbcfe9c9400832373657c",
+    "untrackedFiles": [
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/api-broker-write-boundaries-2026-10-07.json",
+        "sha256": "9c31e38a88632a10756c2924da9a6353f810eafdff1350d31fd6eb6d049cfb0f"
+      }
+    ]
+  },
+  "rawOutputSha256": "eb681a629093cd6e86b74abc3e465556048fd132029cbb4aaddbb7900ac686b0",
+  "passedTests": [
+    "jftrade-engine::jftrade_engine$product::tests::production_assembly_tests::product_production_assembly_tests::production_http_broker_place_order_maps_disconnected_opend_to_stable_error",
+    "jftrade-engine::jftrade_engine$product::tests::production_assembly_tests::product_production_assembly_tests::production_http_broker_unlock_maps_disconnected_opend_to_stable_error",
+    "jftrade-engine::jftrade_engine$product::tests::production_assembly_tests::product_production_assembly_tests::production_http_broker_writes_reject_malformed_payloads_before_provider_access"
+  ],
+  "failedTests": [
+    "jftrade-engine::jftrade_engine$product::tests::production_assembly_tests::product_production_assembly_tests::production_http_broker_cancel_resolves_order_before_disconnected_writer"
+  ],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 4,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "failed",
+      "passed": 3,
+      "failed": 1,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1723,
+      "exec_time": 16.597129209,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    }
+  ]
+}
