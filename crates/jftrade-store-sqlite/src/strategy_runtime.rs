@@ -334,6 +334,16 @@ impl StrategyRuntimeStore {
             )
             .map_err(StrategyRuntimeStoreError::Query)?;
 
+        if event_kind == "STARTED" {
+            transaction
+                .execute(
+                    "INSERT INTO strategy_log_events (instance_id, at_ms, raw, level, source)
+                     VALUES (?1, ?2, 'started', 'info', 'rust-production-runtime')",
+                    params![instance_id, timestamp_ms],
+                )
+                .map_err(StrategyRuntimeStoreError::Query)?;
+        }
+
         transaction
             .commit()
             .map_err(StrategyRuntimeStoreError::Query)?;
@@ -429,6 +439,16 @@ impl StrategyRuntimeStore {
                 params![instance_id, event_kind, timestamp_ms],
             )
             .map_err(StrategyRuntimeStoreError::Query)?;
+
+        if event_kind == "STARTED" {
+            transaction
+                .execute(
+                    "INSERT INTO strategy_log_events (instance_id, at_ms, raw, level, source)
+                     VALUES (?1, ?2, 'started', 'info', 'rust-production-runtime')",
+                    params![instance_id, timestamp_ms],
+                )
+                .map_err(StrategyRuntimeStoreError::Query)?;
+        }
 
         transaction
             .commit()

@@ -656,6 +656,163 @@ mod product_production_assembly_tests {
     }
 
     #[tokio::test]
+    // Parity: go:452dea11:internal/app/apiserver/servercoretest/strategy_logs_test.go:15 TestStrategiesEndpointReturnsList
+    async fn production_http_strategy_lifecycle_projects_started_activity() {
+        let directory = TempDir::new().expect("temp dir");
+        let settings_path = directory.path().join("settings.json");
+        fs::write(&settings_path, b"{}").expect("write settings");
+        product_data_management::initialize_production_databases(&settings_path)
+            .expect("initialize production databases");
+
+        let pine_worker = Arc::new(
+            jftrade_integration_pine::GrpcPineExecutionPort::new(
+                jftrade_integration_pine::PineExecutionConfig {
+                    endpoint: "http://127.0.0.1:9".to_owned(),
+                    connect_timeout: Duration::from_millis(50),
+                    request_timeout: Duration::from_millis(100),
+                    ..jftrade_integration_pine::PineExecutionConfig::default()
+                },
+            )
+            .expect("pine worker fixture"),
+        );
+        let provider_state = Arc::new(crate::product::ActiveProviderState::new(Some(
+            MarketDataProvider::Yfinance,
+        )));
+        let helper = jftrade_integration_marketdata_helper::HelperClient::new(
+            jftrade_integration_marketdata_helper::HelperClientConfig {
+                base_url: "http://127.0.0.1:9".to_owned(),
+                bearer_token: None,
+                request_timeout: Duration::from_millis(100),
+                max_attempts: 1,
+                retry_delay: Duration::ZERO,
+            },
+        )
+        .expect("market-data helper fixture");
+        let config = http_product_config(
+            &directory,
+            Arc::new(crate::product::product_production_ports::SharedTradeReadRuntime::default()),
+            None,
+        )
+        .with_active_provider_state(provider_state)
+        .with_market_data_helper(helper)
+        .with_strategy_pine_worker_port(Arc::clone(&pine_worker))
+        .with_verified_backtest_execution_port(Arc::new(
+            jftrade_integration_pine::PineBacktestExecutionAdapter::new(pine_worker),
+        ));
+        let handle = start_product(config)
+            .await
+            .expect("start production product");
+        let address = handle.startup_record().address;
+        let auth = [("Authorization", "Bearer aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")];
+
+        let created = request_json_with_status(
+            address,
+            "POST",
+            "/api/v1/strategy-definitions",
+            Some(
+                r#"{"id":"http-lifecycle","name":"HTTP lifecycle","script":"//@version=6\nstrategy(\"http-lifecycle\")","symbol":"US.AAPL","interval":"1m"}"#,
+            ),
+            &auth,
+        )
+        .await;
+        assert_eq!(created.0, 200, "create response: {}", created.1);
+        let definition_id = created.1["data"]["id"]
+            .as_str()
+            .expect("definition id")
+            .to_owned();
+
+        let instantiated = request_json_with_status(
+            address,
+            "POST",
+            &format!("/api/v1/strategy-definitions/{definition_id}/instantiate"),
+            Some(
+                r#"{"symbols":["US.AAPL"],"interval":"1m","runtime":"pine-pinets","sourceFormat":"pine-v6","executeOrders":false}"#,
+            ),
+            &auth,
+        )
+        .await;
+        assert_eq!(
+            instantiated.0, 200,
+            "instantiate response: {}",
+            instantiated.1
+        );
+        let instance_id = instantiated.1["data"]["id"]
+            .as_str()
+            .expect("instance id")
+            .to_owned();
+
+        let started = request_json_with_status(
+            address,
+            "POST",
+            &format!("/api/v1/strategies/{instance_id}/start"),
+            None,
+            &auth,
+        )
+        .await;
+        assert_eq!(started.0, 200, "start response: {}", started.1);
+        assert_eq!(started.1["data"]["status"], "RUNNING");
+
+        let listed =
+            request_json_with_status(address, "GET", "/api/v1/strategies", None, &auth).await;
+        assert_eq!(listed.0, 200, "list response: {}", listed.1);
+        let item = listed.1["data"]
+            .as_array()
+            .expect("strategy list")
+            .iter()
+            .find(|item| item["id"] == instance_id)
+            .expect("started instance in strategy list");
+        assert!(
+            item["logs"]
+                .as_array()
+                .expect("strategy list logs")
+                .iter()
+                .any(|entry| entry == "started"),
+            "strategy list must expose the started log: {item}"
+        );
+
+        let logs = request_json_with_status(
+            address,
+            "GET",
+            &format!("/api/v1/strategies/{instance_id}/logs"),
+            None,
+            &auth,
+        )
+        .await;
+        assert_eq!(logs.0, 200, "logs response: {}", logs.1);
+        assert!(
+            logs.1["data"]["logs"]
+                .as_array()
+                .expect("logs")
+                .iter()
+                .any(|entry| entry == "started"),
+            "logs endpoint must expose the started log"
+        );
+
+        let audit = request_json_with_status(
+            address,
+            "GET",
+            &format!("/api/v1/strategies/{instance_id}/audit"),
+            None,
+            &auth,
+        )
+        .await;
+        assert_eq!(audit.0, 200, "audit response: {}", audit.1);
+        assert!(
+            audit.1["data"]["entries"]
+                .as_array()
+                .expect("audit entries")
+                .iter()
+                .any(|entry| entry["kind"] == "STARTED"),
+            "audit endpoint must expose the STARTED event"
+        );
+
+        handle
+            .shutdown()
+            .await
+            .expect("shutdown production product");
+    }
+
+    #[tokio::test]
     // Parity: go:452dea11:internal/app/apiserver/servercoretest/strategy_logs_test.go:169 TestStrategyLogsAndAuditEndpointsSupportPaginationAndFilters
     async fn production_http_strategy_activity_filters_level_and_time_window() {
         let directory = TempDir::new().expect("temp dir");
