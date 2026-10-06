@@ -5,7 +5,7 @@
 - 强化 durable SQLite Product HTTP owner `strategy_runtime_sqlite_test_cutover_replays_transport_and_restart`：逐步执行 `STOPPED → RUNNING → PAUSED → STOPPED`，每次 start/pause 从 SQLite 读取持久状态，重启后 stop 再次验证持久状态，并断言 `STARTED`、`PAUSED`、`STOPPED` 审计事件各恰好一次且顺序稳定。
 - 绿色 focused receipt：`verification-receipts/strategy-runtime-lifecycle-2026-10-06-passed.json`，**1/1 passed**，SHA-256 `af4fadeb2cd3f14ca813c52b620931682375fe71fa6cbabf00474e82309092c6`；首次断言顺序失败的红 receipt `strategy-runtime-lifecycle-2026-10-06.json` 保留为替代关系证据。
 - `TestCatalogRuntimeTransitionsPersistStateAndActivity` 已从 partial 升为 `function_exact`。当前扫描为 **4451 Go / 3513 Rust**，`function_exact=1584`、`partial=2227`、`boundary=640`，数量覆盖约 **78.9%**；strict parity audit 通过，anchor reconcile 为 **2028 unique / 1980 recorded / 0 unrecorded / 0 stale / 48 unknown**。
-- 本轮完整 `pnpm run check:rust` 在并发 workspace nextest 的 Node probe “ok” case 发生一次 2 秒超时（2069 passed、1 failed、2 skipped，后续 fail-fast 取消）；同一测试单独运行通过，需在最终收口前重跑完整门禁。下一目标继续推进高风险 partial，并保留该门禁红证据，不把局部通过写成全量通过。
+- 本轮完整 `pnpm run check:rust` 首次在并发 workspace nextest 的 Node probe “ok” case 发生一次 2 秒超时（2069 passed、1 failed、2 skipped，后续 fail-fast 取消）；同一测试单独运行通过。随后完整重跑已通过：workspace **3669 passed、0 failed、2 skipped**，7 类 compatibility replay 全部通过。首轮失败保留为现场诊断，不计入当前门禁状态。
 
 ## 2026-10-06 Strategy/Pine runtime activity 收口
 
