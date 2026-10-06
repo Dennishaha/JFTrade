@@ -67708,11 +67708,11 @@
       "boundaryReason": null
     },
     "internal/app/apiserver/servercoretest/strategy_logs_test.go:169:TestStrategyLogsAndAuditEndpointsSupportPaginationAndFilters": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_strategies_tests.rs::strategy_instance_read_routes_match_group_fixture_in_cutover_only",
-      "conclusion": "partial：Go 断言 logs?limit=1&offset=1 的分页元数据与筛选、audit 的分页与 kind 过滤。Rust 读组语料含 logs-filtered（limit/offset/level/fromTime/toTime）、audit-filtered（limit/offset/kind）与非法查询 400（逐条比对 data 与错误，引用测试），差异在于由快照端口回放而非真实查询引擎计算分页。缺口 owner：crates/jftrade-engine 策略实例读查询（分页/过滤）；回归要求：补真实 catalog 查询下的分页元数据（total/returned/hasMore）断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'not test(production_helper_sync_cancel_aborts_in_flight_request) and not test(production_helper_sync_rejects_broken_pagination_cursors) and not test(production_helper_sync_forwards_page_query_and_persists_provider_values) and not test(production_helper_sync_retries_transient_page_and_records_retry)'",
-      "evidence_type": "partial",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-engine/src/product_production_assembly_tests.rs::production_http_strategy_activity_filters_level_and_time_window",
+      "conclusion": "function_exact：真实生产组合根 HTTP 测试使用 production strategy SQLite store 写入日志和审计事件，再经同一 Product route 验证 logs 的 level/time 过滤、limit/offset 分页及 total/returned/hasMore 元数据，并验证 audit 的 kind/time 过滤和分页元数据。",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(production_http_strategy_activity_filters_level_and_time_window)'",
+      "evidence_type": "function_exact",
       "source": {
         "file": "internal/app/apiserver/servercoretest/strategy_logs_test.go",
         "line": 169,
@@ -67721,26 +67721,23 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_strategies_tests.rs",
-          "test": "strategy_instance_read_routes_match_group_fixture_in_cutover_only",
+          "file": "crates/jftrade-engine/src/product_production_assembly_tests.rs",
+          "test": "production_http_strategy_activity_filters_level_and_time_window",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/app/apiserver/servercoretest/strategy_logs_test.go",
             "goLine": 169,
-            "rustFile": "crates/jftrade-engine/src/product_strategies_tests.rs",
-            "rustLine": 93
+            "rustFile": "crates/jftrade-engine/src/product_production_assembly_tests.rs",
+            "rustLine": 602
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Go 断言 logs?limit=1&offset=1 的分页元数据与筛选、audit 的分页与 kind 过滤。"
+          "真实生产 HTTP logs 路由使用 durable SQLite 写入多条事件，验证默认分页的 total/returned/hasMore、level=warning 与 fromTime/toTime 联合过滤、limit=1&offset=1 的降序分页，以及非法 limit 查询返回 400。",
+          "真实生产 HTTP audit 路由验证 kind=kind.pause 与单点 fromTime/toTime 过滤，并断言 entries 与 total/returned/hasMore 分页元数据。"
         ],
-        "uncovered": [
-          "Rust 读组语料含 logs-filtered（limit/offset/level/fromTime/toTime）、audit-filtered（limit/offset/kind）与非法查询 400（逐条比对 data 与错误，引用测试），差异在于由快照端口回放而非真实查询引擎计算分页。",
-          "缺口 owner：crates/jftrade-engine 策略实例读查询（分页/过滤）；",
-          "回归要求：补真实 catalog 查询下的分页元数据（total/returned/hasMore）断言。"
-        ],
+        "uncovered": [],
         "source": "reviewed"
       },
       "verification": {
@@ -67750,40 +67747,38 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(production_http_strategy_activity_filters_level_and_time_window)"
         ],
         "testFilter": [
-          "strategy_instance_read_routes_match_group_fixture_in_cutover_only"
+          "production_http_strategy_activity_filters_level_and_time_window"
         ],
         "runnerVersion": "cargo-nextest-0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "036c2205e769b0f9df036b84513a0bbd874c89b3",
+        "verifiedAt": "2026-10-06T15:08:40Z",
+        "receiptDigest": "sha256:ff1619e330f6536315770138c1be41d81022800859aa6cbcc14e30fed7f018d6"
       },
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Go 断言 logs?limit=1&offset=1 的分页元数据与筛选、audit 的分页与 kind 过滤。"
+        "真实生产 HTTP logs 路由使用 durable SQLite 写入多条事件，验证默认分页的 total/returned/hasMore、level=warning 与 fromTime/toTime 联合过滤、limit=1&offset=1 的降序分页，以及非法 limit 查询返回 400。",
+        "真实生产 HTTP audit 路由验证 kind=kind.pause 与单点 fromTime/toTime 过滤，并断言 entries 与 total/returned/hasMore 分页元数据。"
       ],
-      "uncoveredAssertions": [
-        "Rust 读组语料含 logs-filtered（limit/offset/level/fromTime/toTime）、audit-filtered（limit/offset/kind）与非法查询 400（逐条比对 data 与错误，引用测试），差异在于由快照端口回放而非真实查询引擎计算分页。",
-        "缺口 owner：crates/jftrade-engine 策略实例读查询（分页/过滤）；",
-        "回归要求：补真实 catalog 查询下的分页元数据（total/returned/hasMore）断言。"
-      ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/app/apiserver/servercoretest/strategy_preview_test.go:28:TestInstantiateStoredDefinitionRejectsLegacySourceFormat": {
@@ -343203,12 +343198,11 @@
       "reviewNote": "2026-10-06 Strategy/Pine batch: production composition-root HTTP owner compared directly with the cited Go paging, filtering, and runtime-observation assertions; no fan-out reuse."
     },
     "crates/jftrade-engine/src/product_strategies_tests.rs::strategy_instance_read_routes_match_group_fixture_in_cutover_only": {
-      "referenceCount": 4,
+      "referenceCount": 3,
       "referenceKeys": [
         "internal/api/strategy/routes_boundary_contracts_test.go:142:TestStrategyActivityRoutesRejectMalformedPagination",
         "internal/app/apiserver/servercoretest/strategy_logs_test.go:15:TestStrategiesEndpointReturnsList",
-        "internal/app/apiserver/servercoretest/strategy_logs_test.go:120:TestStrategiesEndpointIncludesPersistedRuntimeLogTail",
-        "internal/app/apiserver/servercoretest/strategy_logs_test.go:169:TestStrategyLogsAndAuditEndpointsSupportPaginationAndFilters"
+        "internal/app/apiserver/servercoretest/strategy_logs_test.go:120:TestStrategiesEndpointIncludesPersistedRuntimeLogTail"
       ],
       "allowed": true,
       "reviewStatus": "reviewed",
@@ -364323,6 +364317,14 @@
       ],
       "allowed": true,
       "reviewStatus": "reviewed"
+    },
+    "crates/jftrade-engine/src/product_production_assembly_tests.rs::production_http_strategy_activity_filters_level_and_time_window": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/app/apiserver/servercoretest/strategy_logs_test.go:169:TestStrategyLogsAndAuditEndpointsSupportPaginationAndFilters"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
     }
   }
 }

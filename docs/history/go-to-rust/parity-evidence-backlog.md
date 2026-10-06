@@ -1,5 +1,12 @@
 # Go → Rust 证据积压清单
 
+## 2026-10-06 API/Transport strategy activity filter 收口
+
+- `TestStrategyLogsAndAuditEndpointsSupportPaginationAndFilters` 已由真实 Product HTTP owner `production_http_strategy_activity_filters_level_and_time_window` 收口为 `function_exact`：同一 production SQLite store 写入 info/warning 日志与 kind 审计后，经 HTTP 路由验证 level/time、kind/time 过滤，logs 的 limit/offset 结果与 `total/returned/hasMore`，以及 audit 分页元数据。
+- receipt：`verification-receipts/strategy-activity-filter-http-2026-10-06.json`，**1/1 passed**，SHA-256 `ff1619e330f6536315770138c1be41d81022800859aa6cbcc14e30fed7f018d6`；mapping 已绑定提交 `036c2205`，旧 fixture owner 仅保留其余引用。
+- focused receipt 只证明本条 owner；完整门禁与 strict 审计另行现场确认，不将 focused receipt 单独视为 workspace 通过。
+- 现场收口已完成：workspace **3670 passed、0 failed、2 skipped**，7 类 compatibility replay 通过；当前严格扫描为 **4451 Go / 3514 Rust / 1585 function_exact / 2226 partial / 640 boundary**，数量覆盖约 **78.9%**。
+
 ## 2026-10-06 Strategy/Pine runtime lifecycle 收口
 
 - `TestCatalogRuntimeTransitionsPersistStateAndActivity` 已由 durable SQLite Product HTTP owner `strategy_runtime_sqlite_test_cutover_replays_transport_and_restart` 收口为 `function_exact`：真实路由顺序执行 `STOPPED → RUNNING → PAUSED → STOPPED`，每次转换复读持久状态，重启后继续 stop，并断言 `STARTED`、`PAUSED`、`STOPPED` 审计各一次且顺序稳定。

@@ -1,5 +1,12 @@
 # Go → Rust 对齐成果摘要
 
+## 2026-10-06 API/Transport strategy activity filter 收口
+
+- 收口 `TestStrategyLogsAndAuditEndpointsSupportPaginationAndFilters`：新增真实生产组合根 HTTP 测试 `production_http_strategy_activity_filters_level_and_time_window`，通过 production strategy SQLite store 写入日志和审计事件，验证 logs 的 level/time 联合过滤、降序 limit/offset 分页及 `total/returned/hasMore`，并验证 audit 的 kind/time 过滤和分页元数据。
+- focused receipt：`verification-receipts/strategy-activity-filter-http-2026-10-06.json`，**1/1 passed**，SHA-256 `ff1619e330f6536315770138c1be41d81022800859aa6cbcc14e30fed7f018d6`；验证提交 `036c2205`。旧的 fixture/read owner 继续服务其他 strategy logs 条目，本条单独绑定生产组合根证据。
+- mapping 从 partial 升为 `function_exact`，并将 pagination/filter reference 从旧 owner 拆出；本轮不批量刷新其他 mapping。后续仍需完成 `check:quick`、完整 `check:rust`、strict parity audit 和 anchor reconcile 后再收口。
+- 本批完整 `pnpm run check:rust` 已通过：workspace **3670 passed、0 failed、2 skipped**，7 类 compatibility replay 全部通过；当前扫描 **4451 Go / 3514 Rust**，`function_exact=1585`、`partial=2226`、`boundary=640`，数量覆盖约 **78.9%**。
+
 ## 2026-10-06 Strategy/Pine runtime lifecycle 收口
 
 - 强化 durable SQLite Product HTTP owner `strategy_runtime_sqlite_test_cutover_replays_transport_and_restart`：逐步执行 `STOPPED → RUNNING → PAUSED → STOPPED`，每次 start/pause 从 SQLite 读取持久状态，重启后 stop 再次验证持久状态，并断言 `STARTED`、`PAUSED`、`STOPPED` 审计事件各恰好一次且顺序稳定。
