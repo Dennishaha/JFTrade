@@ -10,9 +10,7 @@ mod product_production_assembly_tests {
 
     use jftrade_api::AccessPolicy;
     use jftrade_calendar::{CalendarSnapshot, CalendarSnapshotStore, TradingDaySchedule};
-    use jftrade_datamanagement::{
-        DATABASE_ADK, DATABASE_EXECUTION, DATABASE_WATCHLIST,
-    };
+    use jftrade_datamanagement::{DATABASE_ADK, DATABASE_EXECUTION, DATABASE_WATCHLIST};
     use jftrade_integration_futu::{
         HistoricalKline, HistoricalKlineError, HistoricalKlineQuery, HistoricalKlineReadPort,
         HistoricalKlineResult, HistoricalSecurity, TradeAccountSnapshot, TradeCashFlowSnapshot,

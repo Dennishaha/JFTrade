@@ -366,11 +366,31 @@ async fn strategy_runtime_sqlite_test_cutover_replays_transport_and_restart() {
         let response = request_json_with_status(address, method, path, body, &[]).await;
         assert_eq!(response.0, 200, "{method} {path}");
         assert_eq!(response.1["data"]["status"], status, "{method} {path}");
+        if matches!(
+            path,
+            "/api/v1/strategies/durable-instance/start"
+                | "/api/v1/strategies/durable-instance/pause"
+        ) {
+            assert_eq!(
+                port.snapshot("durable-instance")
+                    .expect("read persisted lifecycle state")
+                    .expect("persisted lifecycle instance")["status"],
+                status,
+                "{method} {path} must persist its returned status"
+            );
+        }
     }
+    assert_eq!(
+        port.event_count("durable-instance", "start")
+            .expect("start audit count"),
+        1,
+        "start must persist exactly one audit event"
+    );
     assert_eq!(
         port.event_count("durable-instance", "pause")
             .expect("pause count"),
-        1
+        1,
+        "pause must persist exactly one audit event"
     );
     handle.shutdown().await.expect("shutdown product");
     drop(port);
@@ -397,6 +417,29 @@ async fn strategy_runtime_sqlite_test_cutover_replays_transport_and_restart() {
     .await;
     assert_eq!(stopped.0, 200);
     assert_eq!(stopped.1["data"]["status"], "STOPPED");
+    assert_eq!(
+        reopened
+            .snapshot("durable-instance")
+            .expect("read stopped lifecycle state")
+            .expect("persisted stopped instance")["status"],
+        "STOPPED"
+    );
+    assert_eq!(
+        reopened
+            .event_count("durable-instance", "stop")
+            .expect("stop audit count"),
+        1,
+        "stop must persist exactly one audit event"
+    );
+    let audit_kinds = reopened
+        .store()
+        .list_audit_events("durable-instance")
+        .expect("read lifecycle audit events")
+        .into_iter()
+        .map(|event| event.kind)
+        .rev()
+        .collect::<Vec<_>>();
+    assert_eq!(audit_kinds, ["STARTED", "PAUSED", "STOPPED"]);
     restarted.shutdown().await.expect("shutdown restart");
     assert_eq!(
         std::fs::read(&settings_path).expect("read settings after restart"),
