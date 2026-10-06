@@ -2689,7 +2689,7 @@ async fn request_json_with_status(
     (status, body)
 }
 
-async fn request_json_with_status_and_headers(
+pub(super) async fn request_json_with_status_and_headers(
     address: SocketAddr,
     method: &str,
     path: &str,

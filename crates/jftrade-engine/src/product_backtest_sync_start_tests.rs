@@ -3,7 +3,10 @@ use super::product_backtest_sync_request::validate_sync_lookback_window;
 use super::product_backtest_sync_request::validate_sync_provider_capabilities;
 use super::*;
 use crate::product::product_backtest_execution::BacktestExecutionTaskRegistry;
-use crate::product::{BacktestExecutionError, BacktestExecutionPort, BacktestExecutionRequest};
+use crate::product::{
+    BacktestExecutionError, BacktestExecutionPort, BacktestExecutionRequest, ProductConfig,
+    start_product,
+};
 use jftrade_integration_futu::{
     HistoricalKline, HistoricalKlineQuery, HistoricalKlineReadPort, HistoricalKlineResult,
     HistoricalSecurity,
@@ -171,6 +174,42 @@ fn sync_request_rejects_invalid_ranges_and_intervals() {
             Err(BacktestsWritePortError::BadRequest(_))
         ), "payload must be rejected: {payload}");
     }
+}
+
+// Parity: go:452dea11:internal/api/backtest/routes_test.go:21 TestSyncRouteClassifiesRequestErrorsAsBadRequest
+#[tokio::test]
+async fn backtest_sync_http_rejects_request_errors_before_queuing() {
+    let (port, directory) = production_port();
+    let port = std::sync::Arc::new(port);
+    let config = ProductConfig::test_cutover(
+        "127.0.0.1:0".parse().expect("address"),
+        directory.path().join("http-settings.json"),
+    )
+    .expect("config")
+    .with_backtests_write_port(port.clone());
+    let handle = start_product(config).await.expect("start product HTTP server");
+    for body in [
+        r#"{"symbol":"bad symbol"}"#,
+        r#"{"market":"HK","code":"00700","since":"bad"}"#,
+        r#"{"market":"HK","code":"00700","since":"2024-01-03T00:00:00Z","until":"2024-01-02T00:00:00Z"}"#,
+    ] {
+        let (status, headers, response) =
+            crate::product::tests::request_json_with_status_and_headers(
+                handle.startup_record().address,
+                "POST",
+                "/api/v1/backtests/sync",
+                Some(body),
+                &[],
+            )
+            .await;
+        assert_eq!(status, 400, "request {body}: {response}");
+        assert_eq!(headers["content-type"], "application/json; charset=utf-8");
+        assert_eq!(response["ok"], false, "request {body}");
+        assert_eq!(response["error"]["code"], "BAD_REQUEST", "request {body}");
+        assert!(response.get("data").is_none(), "errors must not contain success data");
+        assert!(port.sync_tasks.list_active().expect("active sync tasks").is_empty());
+    }
+    handle.shutdown().await.expect("shutdown product");
 }
 
 // Parity: go:452dea11:internal/app/apiserver/servercoretest/backtest_provider_runtime_test.go:55 TestBacktestSyncRejectsActualAKShareOneYearUSFiveMinuteRange
@@ -362,12 +401,13 @@ fn sync_request_validates_provider_adjustment_and_lookback_capabilities() {
         matches!(error, BacktestsWritePortError::BadRequest(message) if message.contains("limits 1m history to 7 days"))
     );
 
+    let window = recent_helper_sync_window();
     let supported = parse_sync_request(&json!({
         "market": "US",
         "code": "AAPL",
         "intervals": ["5m"],
-        "since": "2026-09-29T00:00:00Z",
-        "until": "2026-09-30T00:00:00Z",
+        "since": window.since,
+        "until": window.until,
         "rehabType": "forward",
         "sessionScope": "regular",
     }))
@@ -432,6 +472,32 @@ fn production_sync_rejects_provider_capability_before_queuing() {
             .expect("active sync tasks")
             .is_empty()
     );
+}
+
+// Keep provider-I/O scenarios inside the production rolling lookback window.
+// Capture UTC midnight once so request, candle and pagination cursors share
+// one window even if the test crosses midnight. Capability rejection cases
+// above continue to assert that out-of-window requests are rejected.
+struct RecentHelperSyncWindow {
+    since: String,
+    until: String,
+    candle_at: String,
+    forward_cursor: String,
+}
+
+fn recent_helper_sync_window() -> RecentHelperSyncWindow {
+    let until = time::OffsetDateTime::now_utc().date().midnight().assume_utc();
+    let since = until - time::Duration::days(1);
+    let format = |at: time::OffsetDateTime| {
+        at.format(&time::format_description::well_known::Rfc3339)
+            .expect("helper fixture timestamp")
+    };
+    RecentHelperSyncWindow {
+        since: format(since),
+        until: format(until),
+        candle_at: format(since + time::Duration::hours(12)),
+        forward_cursor: format(until + time::Duration::days(1)),
+    }
 }
 
 fn production_port() -> (ProductionBacktestPort, tempfile::TempDir) {
@@ -552,12 +618,14 @@ async fn production_futu_sync_uses_opend_reader_and_persists_candles() {
 #[tokio::test]
 // Parity: go:452dea11:internal/app/apiserver/backtestapp/historical_source_test.go:226 TestProviderHistoricalSourceFetchesAndParsesProviderPage
 async fn production_helper_sync_forwards_page_query_and_persists_provider_values() {
+    let window = recent_helper_sync_window();
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
         .await
         .expect("bind helper page fixture");
     let helper_address = listener.local_addr().expect("helper page address");
     let request_capture = std::sync::Arc::new(std::sync::Mutex::new(None));
     let capture_for_server = std::sync::Arc::clone(&request_capture);
+    let candle_at = window.candle_at.clone();
     let helper_task = tokio::spawn(async move {
         let (mut stream, _) = listener.accept().await.expect("helper page connection");
         let mut request = Vec::new();
@@ -583,7 +651,7 @@ async fn production_helper_sync_forwards_page_query_and_persists_provider_values
             "period": "1m",
             "extendedHours": false,
             "candles": [{
-                "at": "2026-09-29T12:00:00Z",
+                "at": candle_at,
                 "open": "100.25",
                 "high": 102.5,
                 "low": 99.5,
@@ -625,8 +693,8 @@ async fn production_helper_sync_forwards_page_query_and_persists_provider_values
                 "market": "US",
                 "code": "AAPL",
                 "intervals": ["1m"],
-                "since": "2026-09-29T00:00:00Z",
-                "until": "2026-09-30T00:00:00Z",
+                "since": window.since,
+                "until": window.until,
                 "rehabType": "forward",
                 "sessionScope": "regular",
                 "marketDataProvider": "yfinance"
@@ -680,6 +748,7 @@ async fn production_helper_sync_forwards_page_query_and_persists_provider_values
 #[tokio::test]
 // Parity: go:452dea11:internal/app/apiserver/backtestapp/historical_source_test.go:226 TestProviderHistoricalSourceFetchesAndParsesProviderPage
 async fn production_helper_sync_preserves_non_retryable_provider_fetch_error() {
+    let window = recent_helper_sync_window();
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
         .await
         .expect("bind failing helper fixture");
@@ -719,8 +788,8 @@ async fn production_helper_sync_preserves_non_retryable_provider_fetch_error() {
                 "market": "US",
                 "code": "AAPL",
                 "intervals": ["1m"],
-                "since": "2026-09-29T00:00:00Z",
-                "until": "2026-09-30T00:00:00Z",
+                "since": window.since,
+                "until": window.until,
                 "rehabType": "forward",
                 "sessionScope": "regular",
                 "marketDataProvider": "yfinance"
@@ -753,12 +822,14 @@ async fn production_helper_sync_preserves_non_retryable_provider_fetch_error() {
 #[tokio::test]
 // Parity: go:452dea11:internal/backtest/historical_source_test.go:147 TestHistoricalKLineSyncerRetriesTransientPageAndRejectsCapabilitiesDuringPreflight
 async fn production_helper_sync_retries_transient_page_and_records_retry() {
+    let window = recent_helper_sync_window();
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
         .await
         .expect("bind retry helper fixture");
     let helper_address = listener.local_addr().expect("retry helper address");
     let attempts = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
     let attempts_for_server = std::sync::Arc::clone(&attempts);
+    let candle_at = window.candle_at.clone();
     let helper_task = tokio::spawn(async move {
         for _ in 0..2 {
             let (mut stream, _) = listener.accept().await.expect("retry helper connection");
@@ -790,7 +861,7 @@ async fn production_helper_sync_retries_transient_page_and_records_retry() {
                         "period": "1m",
                         "extendedHours": false,
                         "candles": [{
-                            "at": "2026-09-29T12:00:00Z",
+                            "at": candle_at,
                             "open": "100.25",
                             "high": 102.5,
                             "low": 99.5,
@@ -835,8 +906,8 @@ async fn production_helper_sync_retries_transient_page_and_records_retry() {
                 "market": "US",
                 "code": "AAPL",
                 "intervals": ["1m"],
-                "since": "2026-09-29T00:00:00Z",
-                "until": "2026-09-30T00:00:00Z",
+                "since": window.since,
+                "until": window.until,
                 "rehabType": "forward",
                 "sessionScope": "regular",
                 "marketDataProvider": "yfinance"
@@ -865,10 +936,11 @@ async fn production_helper_sync_retries_transient_page_and_records_retry() {
 #[tokio::test]
 // Parity: go:452dea11:internal/backtest/historical_source_test.go:268 TestHistoricalKLineSyncerRejectsBrokenPagination
 async fn production_helper_sync_rejects_broken_pagination_cursors() {
+    let window = recent_helper_sync_window();
     let cases = [
         ("missing cursor", None, false),
-        ("forward cursor", Some("2026-10-01T00:00:00Z"), false),
-        ("cursor reaches boundary", Some("2026-09-29T00:00:00Z"), true),
+        ("forward cursor", Some(window.forward_cursor.as_str()), false),
+        ("cursor reaches boundary", Some(window.since.as_str()), true),
     ];
 
     for (name, next_before, expected_success) in cases {
@@ -877,6 +949,7 @@ async fn production_helper_sync_rejects_broken_pagination_cursors() {
             .expect("bind pagination helper fixture");
         let helper_address = listener.local_addr().expect("pagination helper address");
         let response_next_before = next_before.map(str::to_owned);
+        let candle_at = window.candle_at.clone();
         let helper_task = tokio::spawn(async move {
             let (mut stream, _) = listener
                 .accept()
@@ -903,7 +976,7 @@ async fn production_helper_sync_rejects_broken_pagination_cursors() {
                 "period": "1m",
                 "extendedHours": false,
                 "candles": [{
-                    "at": "2026-09-29T12:00:00Z",
+                    "at": candle_at,
                     "open": "100.25",
                     "high": 102.5,
                     "low": 99.5,
@@ -946,8 +1019,8 @@ async fn production_helper_sync_rejects_broken_pagination_cursors() {
                     "market": "US",
                     "code": "AAPL",
                     "intervals": ["1m"],
-                    "since": "2026-09-29T00:00:00Z",
-                    "until": "2026-09-30T00:00:00Z",
+                    "since": window.since,
+                    "until": window.until,
                     "rehabType": "forward",
                     "sessionScope": "regular",
                     "marketDataProvider": "yfinance"
@@ -1001,6 +1074,7 @@ async fn production_helper_sync_rejects_broken_pagination_cursors() {
 #[tokio::test]
 // Parity: go:452dea11:internal/backtest/historical_source_test.go:111 TestHistoricalKLineSyncerCancelsInFlightProviderPage
 async fn production_helper_sync_cancel_aborts_in_flight_request() {
+    let window = recent_helper_sync_window();
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
         .await
         .expect("bind blocking helper fixture");
@@ -1049,8 +1123,8 @@ async fn production_helper_sync_cancel_aborts_in_flight_request() {
                 "market": "US",
                 "code": "AAPL",
                 "intervals": ["1m"],
-                "since": "2026-09-29T00:00:00Z",
-                "until": "2026-09-30T00:00:00Z",
+                "since": window.since,
+                "until": window.until,
                 "rehabType": "forward",
                 "sessionScope": "regular",
                 "marketDataProvider": "yfinance"

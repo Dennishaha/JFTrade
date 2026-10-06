@@ -47,7 +47,7 @@ use product_runtime_calendar::RuntimeCalendarSessionResolver;
 
 #[path = "product_runtime_opend_listener.rs"]
 mod product_runtime_opend_listener;
-use product_runtime_opend_listener::LiveHubOpenDEventListener;
+pub(crate) use product_runtime_opend_listener::LiveHubOpenDEventListener;
 #[cfg(test)]
 #[path = "product_runtime_opend_listener_tests.rs"]
 mod product_runtime_opend_listener_tests;

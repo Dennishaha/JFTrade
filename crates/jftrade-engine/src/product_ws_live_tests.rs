@@ -276,6 +276,93 @@ async fn ws_live_route_unavailable_is_plain_text_and_does_not_register_without_p
     handle.shutdown().await.expect("shutdown product");
 }
 
+// Parity: go:452dea11:internal/api/live/handler_test.go:244 TestHandlerDepthUpdatePublishesFreshPayload
+// This connected transport evidence covers live book updates. Go's initial
+// snapshot, requested depth size and entityId suffix remain separate gaps.
+#[tokio::test]
+async fn ws_live_depth_subscription_receives_updated_opend_book_payloads() {
+    use jftrade_integration_futu::{
+        OpenDSessionCoordinatorOutcome, OpenDSessionEventListener, OrderBookLevel, OrderBookPush,
+        QuotePush, Security,
+    };
+
+    let directory = tempdir().expect("temporary directory");
+    let config = ProductConfig::test_cutover(
+        "127.0.0.1:0".parse().expect("address"),
+        directory.path().join("settings.json"),
+    )
+    .expect("config")
+    .with_ws_live_snapshot_port(Arc::new(EnabledWsLiveSnapshotPort));
+    let handle = start_product(config).await.expect("start product");
+    let address = handle.startup_record().address;
+    let listener = crate::product_runtime::LiveHubOpenDEventListener::with_reconciliation_wake(
+        handle.live_hub(),
+        Arc::new(tokio::sync::Notify::new()),
+    );
+    let mut websocket = websocket_upgrade(address).await;
+    let heartbeat: serde_json::Value =
+        serde_json::from_str(&read_server_text_frame(&mut websocket).await).expect("heartbeat");
+    assert_eq!(heartbeat["type"], "heartbeat");
+    websocket.write_all(&masked_text_frame(
+        br#"{"type":"subscribe","subscriptions":{"providerBrokerId":"futu","depth":[{"market":"us","symbol":"tme","instrumentId":"US.TME","num":50}]}}"#,
+    )).await.expect("subscribe to depth");
+    wait_for_live_projection(address, 1, &["US.TME"]).await;
+
+    for (at, price) in [
+        ("2026-06-14T00:00:01Z", 100.0),
+        ("2026-06-14T00:00:02Z", 101.0),
+    ] {
+        listener.on_event(&OpenDSessionCoordinatorOutcome::Push(QuotePush::OrderBook(
+            OrderBookPush {
+                security: Some(Security {
+                    market: Some(11),
+                    code: Some("TME".to_owned()),
+                }),
+                name: None,
+                bids: vec![OrderBookLevel {
+                    price: Some(price),
+                    volume: Some(150),
+                    order_count: Some(2),
+                    details: Vec::new(),
+                    high_precision_volume: None,
+                }],
+                asks: Vec::new(),
+                server_receive_time_bid: Some(at.to_owned()),
+                server_receive_time_bid_timestamp: None,
+                server_receive_time_ask: None,
+                server_receive_time_ask_timestamp: None,
+                order_book_type: None,
+            },
+        )));
+        let event = tokio::time::timeout(std::time::Duration::from_secs(2), async {
+            loop {
+                let event: serde_json::Value =
+                    serde_json::from_str(&read_server_text_frame(&mut websocket).await)
+                        .expect("live event JSON");
+                if event["type"] == "market.depth" {
+                    break event;
+                }
+                assert_eq!(event["type"], "heartbeat", "unexpected event {event}");
+            }
+        })
+        .await
+        .expect("depth update reaches the connected client");
+        assert_eq!(event["source"], "market-data");
+        assert_eq!(event["entityId"], "US.TME");
+        assert_eq!(event["payload"]["instrumentId"], "US.TME");
+        assert_eq!(event["payload"]["request"]["instrumentId"], "US.TME");
+        assert_eq!(event["payload"]["request"]["num"], 1);
+        assert_eq!(event["payload"]["meta"]["resolvedAt"], at);
+        assert_eq!(event["payload"]["depth"]["bids"][0]["price"], price);
+        assert_eq!(event["payload"]["depth"]["bids"][0]["volume"], 150.0);
+        assert_eq!(event["payload"]["depth"]["bids"][0]["orderCount"], 2);
+        assert_eq!(event["serverTime"], at);
+    }
+    drop(websocket);
+    wait_for_live_projection(address, 0, &[]).await;
+    handle.shutdown().await.expect("shutdown product");
+}
+
 async fn websocket_upgrade(address: std::net::SocketAddr) -> TcpStream {
     let response = websocket_handshake(address, &[]).await;
     assert_eq!(response.status, 101, "websocket handshake: {response:?}");
