@@ -6506,6 +6506,39 @@ mod product_production_assembly_tests {
         handle.shutdown().await.expect("shutdown");
     }
 
+    // Parity: go:452dea11:internal/app/apiserver/servercoretest/broker_new_test.go:302 TestBrokerPlaceOrderNoBroker
+    #[tokio::test]
+    async fn production_http_broker_place_order_maps_disconnected_opend_to_stable_error() {
+        let directory = TempDir::new().expect("temp dir");
+        let runtime =
+            Arc::new(crate::product::product_production_ports::SharedTradeReadRuntime::default());
+        runtime.set(Some(Arc::new(HttpTradeRead)), Some(true));
+        runtime.set_writer(Some(Arc::new(DisconnectedTradeWriter)));
+        let config = http_product_config(&directory, runtime, None);
+
+        let handle = start_product(config).await.expect("start product");
+        let (status, response) = request_json_with_status(
+            handle.startup_record().address,
+            "POST",
+            "/api/v1/brokers/futu/orders?tradingEnvironment=SIMULATE&accountId=42&market=HK",
+            Some(
+                r#"{"symbol":"HK.00700","side":"BUY","orderType":"LIMIT","price":380.0,"quantity":100}"#,
+            ),
+            &[("Authorization", "Bearer aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")],
+        )
+        .await;
+        assert_eq!(status, 502, "response={response}");
+        assert_eq!(response["ok"], false, "response={response}");
+        assert_eq!(response["error"]["code"], "BROKER_NOT_CONNECTED");
+        assert!(
+            response["error"]["message"]
+                .as_str()
+                .is_some_and(|message| message.to_ascii_lowercase().contains("closed")),
+            "response={response}"
+        );
+        handle.shutdown().await.expect("shutdown");
+    }
+
     // Parity: go:452dea11:internal/app/apiserver/servercoretest/broker_new_test.go:167 TestBrokerKLinesMissingSymbol
     #[tokio::test]
     async fn production_http_broker_klines_requires_symbol_with_go_message() {

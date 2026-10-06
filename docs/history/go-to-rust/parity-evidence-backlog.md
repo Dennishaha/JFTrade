@@ -1,5 +1,11 @@
 # Go → Rust 证据积压清单
 
+## 2026-10-07 API/Transport place-order 断连 HTTP 闭环收口
+
+- `TestBrokerPlaceOrderNoBroker` 已由真实 production HTTP owner `production_http_broker_place_order_maps_disconnected_opend_to_stable_error` 收口为 `function_exact`：合法下单请求在断连 writer 下返回 502、`BROKER_NOT_CONNECTED` 和 `closed` 诊断。首轮 400 仅是 Rust 缺少 `accountId` query 的绑定边界，补齐合法 query 后复跑绿色。
+- receipt：`verification-receipts/api-broker-place-order-no-broker-2026-10-07.json`，**1/1 passed**，SHA-256 `d6e3495016751a246a078dd03e4abdccd99a0e17f36571c44a58cab8481b8380`。
+- 当前扫描 **4451 Go / 3518 Rust / 1589 function_exact / 2222 partial / 640 boundary**；现场 `check:quick` 与完整 `check:rust` 已通过（受影响 nextest **2138 passed、0 failed、0 skipped**；workspace **3674 passed、0 failed、2 skipped**；7 类 compatibility replay 全部通过），strict audit 与 anchor reconcile 也已通过（2033 unique、1985 recorded、0 unrecorded、0 stale、48 unknown）。
+
 ## 2026-10-07 API/Transport broker unlock 断连 HTTP 闭环收口
 
 - `TestBrokerUnlockDisconnectedOpenD` 已由真实 production HTTP owner `production_http_broker_unlock_maps_disconnected_opend_to_stable_error` 收口为 `function_exact`：共享 trade runtime 注入断连 writer，真实 `/api/v1/brokers/futu/unlock` 返回 502、`BROKER_NOT_CONNECTED` 和 `closed` 诊断；叶级 owner 继续覆盖错误映射与成功参数透传。

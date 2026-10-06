@@ -61912,11 +61912,11 @@
       "boundaryReason": null
     },
     "internal/app/apiserver/servercoretest/broker_new_test.go:302:TestBrokerPlaceOrderNoBroker": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::disconnecting_error; crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::trade_write_methods_propagate_write_disconnects",
-      "conclusion": "partial：Go 断言未配置 broker 时下单返回结构化失败。Rust 下单在缺少交易会话/写入端口或 provider 依赖未就绪时 fail-closed（引用测试断言断连传播）。缺口 owner：crates/jftrade-engine 执行写端口（provider 依赖检查）；回归要求：补“未配置 broker → 非 2xx 结构化失败且无下单调用”的生产 HTTP 断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'test(broker_klines_valid_request_fails_closed_without_historical_source) or test(broker_securities_returns_real_empty_result_when_cache_has_no_symbol) or test(production_http_broker_reads_reject_invalid_query_shapes_with_rust_messages) or test(trade_write_methods_propagate_write_disconnects) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(funds_projection_keeps_missing_margin_fields_absent) or test(broker_read_fails_closed_without_trade_client)'",
-      "evidence_type": "partial",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-engine/src/product_production_assembly_tests.rs::production_http_broker_place_order_maps_disconnected_opend_to_stable_error",
+      "conclusion": "function_exact：真实 production HTTP POST /api/v1/brokers/futu/orders 使用合法下单请求和断连 writer，经过 broker route 与 ProductionExecutionPort 后返回 HTTP 502、ok=false、error.code=BROKER_NOT_CONNECTED，并保留 closed 诊断消息；冻结 Go 的未连接 OpenD 下单失败已在真实组合根路由复现。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-engine --test production_http_broker_place_order_maps_disconnected_opend_to_stable_error --output docs/history/go-to-rust/verification-receipts/api-broker-place-order-no-broker-2026-10-07.json",
+      "evidence_type": "function_exact",
       "source": {
         "file": "internal/app/apiserver/servercoretest/broker_new_test.go",
         "line": 302,
@@ -61925,86 +61925,60 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs",
-          "test": "disconnecting_error",
+          "file": "crates/jftrade-engine/src/product_production_assembly_tests.rs",
+          "test": "production_http_broker_place_order_maps_disconnected_opend_to_stable_error",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/app/apiserver/servercoretest/broker_new_test.go",
             "goLine": 302,
-            "rustFile": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs",
-            "rustLine": 2841
-          }
-        },
-        {
-          "file": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs",
-          "test": "trade_write_methods_propagate_write_disconnects",
-          "crate": "jftrade-engine",
-          "anchor": {
-            "goFile": "internal/app/apiserver/servercoretest/broker_new_test.go",
-            "goLine": 302,
-            "rustFile": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs",
-            "rustLine": 2996
+            "rustFile": "crates/jftrade-engine/src/product_production_assembly_tests.rs",
+            "rustLine": 6511
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Go 断言未配置 broker 时下单返回结构化失败。"
+          "合法 production HTTP 下单请求在 OpenD writer 断连时返回 HTTP 502。",
+          "响应为 ok=false、error.code=BROKER_NOT_CONNECTED，并保留 closed 诊断消息。"
         ],
-        "uncovered": [
-          "Rust 下单在缺少交易会话/写入端口或 provider 依赖未就绪时 fail-closed（引用测试断言断连传播）。",
-          "缺口 owner：crates/jftrade-engine 执行写端口（provider 依赖检查）；",
-          "回归要求：补“未配置 broker → 非 2xx 结构化失败且无下单调用”的生产 HTTP 断言。"
-        ],
+        "uncovered": [],
         "source": "reviewed"
       },
       "verification": {
         "argv": [
-          "env",
-          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
-          "node",
-          "scripts/quality/cargo-nextest.mjs",
+          "pnpm",
           "run",
-          "--workspace",
-          "--all-targets",
-          "--locked",
-          "--message-format",
-          "libtest-json-plus",
-          "--no-fail-fast"
+          "test:parity:receipt",
+          "--",
+          "--package",
+          "jftrade-engine",
+          "--test",
+          "production_http_broker_place_order_maps_disconnected_opend_to_stable_error",
+          "--output",
+          "docs/history/go-to-rust/verification-receipts/api-broker-place-order-no-broker-2026-10-07.json"
         ],
         "testFilter": [
-          "broker_klines_valid_request_fails_closed_without_historical_source",
-          "broker_securities_returns_real_empty_result_when_cache_has_no_symbol",
-          "production_http_broker_reads_reject_invalid_query_shapes_with_rust_messages",
-          "trade_write_methods_propagate_write_disconnects",
-          "cancel_rejects_missing_terminal_and_unidentified_persisted_orders",
-          "funds_projection_keeps_missing_margin_fields_absent",
-          "broker_read_fails_closed_without_trade_client"
+          "production_http_broker_place_order_maps_disconnected_opend_to_stable_error"
         ],
         "runnerVersion": "cargo-nextest-0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "c6d5fc619e2cf9495562ed99b88939efbe6db315",
+        "verifiedAt": "2026-10-06T17:18:38Z",
+        "receiptDigest": "sha256:d6e3495016751a246a078dd03e4abdccd99a0e17f36571c44a58cab8481b8380"
       },
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "reviewed",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Go 断言未配置 broker 时下单返回结构化失败。"
+        "合法 production HTTP 下单请求在 OpenD writer 断连时返回 HTTP 502。",
+        "响应为 ok=false、error.code=BROKER_NOT_CONNECTED，并保留 closed 诊断消息。"
       ],
-      "uncoveredAssertions": [
-        "Rust 下单在缺少交易会话/写入端口或 provider 依赖未就绪时 fail-closed（引用测试断言断连传播）。",
-        "缺口 owner：crates/jftrade-engine 执行写端口（provider 依赖检查）；",
-        "回归要求：补“未配置 broker → 非 2xx 结构化失败且无下单调用”的生产 HTTP 断言。"
-      ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/app/apiserver/servercoretest/broker_new_test.go:319:TestBrokerPlaceOrderInvalidPayload": {
@@ -340708,6 +340682,14 @@
     }
   },
   "reuse": {
+    "crates/jftrade-engine/src/product_production_assembly_tests.rs::production_http_broker_place_order_maps_disconnected_opend_to_stable_error": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/app/apiserver/servercoretest/broker_new_test.go:302:TestBrokerPlaceOrderNoBroker"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
     "crates/jftrade-engine/src/product_production_assembly_tests.rs::production_http_broker_unlock_maps_disconnected_opend_to_stable_error": {
       "referenceCount": 1,
       "referenceKeys": [
@@ -347349,10 +347331,9 @@
       "reviewNote": "2026-10-02 bounded reuse review: compared all 3 referenceKeys against the shared Rust owner (status mix {'[~]': 3}); assertion scopes are not interchangeable, so reuse remains disallowed and no function_exact row is upgraded by this relation."
     },
     "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::trade_write_methods_propagate_write_disconnects": {
-      "referenceCount": 4,
+      "referenceCount": 3,
       "referenceKeys": [
         "internal/app/apiserver/servercoretest/broker_new_test.go:264:TestBrokerUnlockDisconnectedOpenD",
-        "internal/app/apiserver/servercoretest/broker_new_test.go:302:TestBrokerPlaceOrderNoBroker",
         "internal/app/apiserver/servercoretest/broker_new_test.go:336:TestBrokerCancelOrdersNoBroker",
         "pkg/futu/transport_error_propagation_test.go:125:TestTradeWriteMethodsPropagateAccountAndWriteDisconnects"
       ],
@@ -347379,14 +347360,6 @@
       "allowed": true,
       "reviewStatus": "reviewed",
       "reviewNote": "2026-09-30: compared Go lines 286/319/359 individually. Each HTTP matrix row carries the identical method, path, malformed body, 400 status and BAD_REQUEST/message-prefix assertion; cancellation includes the original truncated JSON, not only an invalid array type."
-    },
-    "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::disconnecting_error": {
-      "referenceCount": 1,
-      "referenceKeys": [
-        "internal/app/apiserver/servercoretest/broker_new_test.go:302:TestBrokerPlaceOrderNoBroker"
-      ],
-      "allowed": true,
-      "reviewStatus": "single"
     },
     "crates/jftrade-engine/src/product_production_route_registry_tests.rs::resolver_rejects_unknown_method_and_path": {
       "referenceCount": 3,

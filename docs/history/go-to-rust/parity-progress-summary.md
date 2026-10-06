@@ -1,5 +1,11 @@
 # Go → Rust 对齐成果摘要
 
+## 2026-10-07 API/Transport place-order 断连 HTTP 闭环收口
+
+- 收口 `TestBrokerPlaceOrderNoBroker`：新增真实 production HTTP owner `production_http_broker_place_order_maps_disconnected_opend_to_stable_error`，使用合法下单请求和断连 writer，验证 `/api/v1/brokers/futu/orders` 经过 broker route 与 `ProductionExecutionPort` 后返回 HTTP 502、`ok=false`、`error.code=BROKER_NOT_CONNECTED`，并保留 `closed` 诊断消息。首次 targeted 运行暴露 Rust 合法请求需要 `tradingEnvironment/accountId/market` query；补齐后确认请求真正到达断连 writer，未把 400 绑定错误算作行为证据。
+- focused receipt：`verification-receipts/api-broker-place-order-no-broker-2026-10-07.json`，**1/1 passed**，SHA-256 `d6e3495016751a246a078dd03e4abdccd99a0e17f36571c44a58cab8481b8380`。
+- mapping 从 partial 升为 `function_exact`；当前扫描 **4451 Go / 3518 Rust**，`function_exact=1589`、`partial=2222`、`boundary=640`，数量覆盖约 **79.0%**。现场 `check:quick` 与完整 `check:rust` 均通过：受影响 nextest **2138 passed、0 failed、0 skipped**，workspace **3674 passed、0 failed、2 skipped**，7 类 compatibility replay 全部通过；strict parity audit 通过，anchor reconcile 为 **2033 unique / 1985 recorded / 0 unrecorded / 0 stale / 48 unknown**。
+
 ## 2026-10-07 API/Transport broker unlock 断连 HTTP 闭环收口
 
 - 收口 `TestBrokerUnlockDisconnectedOpenD`：新增真实 production HTTP owner `production_http_broker_unlock_maps_disconnected_opend_to_stable_error`，通过共享 trade runtime 注入断连 writer，验证 `/api/v1/brokers/futu/unlock` 经过 broker route、`ProductionExecutionPort` 和 `map_trade_error` 后返回 HTTP 502、`ok=false`、`error.code=BROKER_NOT_CONNECTED`，并保留 `closed` 诊断消息。
