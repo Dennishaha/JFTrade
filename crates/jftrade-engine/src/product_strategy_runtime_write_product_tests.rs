@@ -310,6 +310,7 @@ async fn strategy_runtime_write_product_replays_browser_failure_recovery_and_res
     );
 }
 
+// Parity: go:452dea11:internal/strategy/catalog/runtime_reconciliation_business_test.go:12 TestCatalogRuntimeTransitionsPersistStateAndActivity
 #[tokio::test]
 async fn strategy_runtime_sqlite_test_cutover_replays_transport_and_restart() {
     let directory = tempdir().expect("temporary directory");

@@ -289669,11 +289669,11 @@
       "boundaryReason": null
     },
     "internal/strategy/catalog/runtime_reconciliation_business_test.go:12:TestCatalogRuntimeTransitionsPersistStateAndActivity": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/tests/strategies_write_compatibility.rs::sqlite_test_cutover_preserves_repeated_transitions_rollback_and_restart",
-      "conclusion": "partial：参考实现断言三次状态转换（STARTED/PAUSED/STOPPED）各自写审计与日志、日志按级别过滤并返回分页、仓库保存次数等于转换次数。Rust 的状态转换与审计由写端口与 store 承担（引用用例锁定重复转换、回滚与重启一致性），日志级别过滤在活动查询；缺“每次转换恰好一次保存/审计”的计数断言。缺口（P2）。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-      "evidence_type": "partial",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-engine/src/product_strategy_runtime_write_product_tests.rs::strategy_runtime_sqlite_test_cutover_replays_transport_and_restart",
+      "conclusion": "已覆盖：真实 Product HTTP durable SQLite cutover 逐步执行 STOPPED→RUNNING→PAUSED→STOPPED，响应状态与重开后的持久状态一致；STARTED、PAUSED、STOPPED 审计事件分别恰好一次且顺序稳定。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(strategy_runtime_sqlite_test_cutover_replays_transport_and_restart)'",
+      "evidence_type": "function_exact",
       "source": {
         "file": "internal/strategy/catalog/runtime_reconciliation_business_test.go",
         "line": 12,
@@ -289682,26 +289682,24 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/tests/strategies_write_compatibility.rs",
-          "test": "sqlite_test_cutover_preserves_repeated_transitions_rollback_and_restart",
+          "file": "crates/jftrade-engine/src/product_strategy_runtime_write_product_tests.rs",
+          "test": "strategy_runtime_sqlite_test_cutover_replays_transport_and_restart",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/strategy/catalog/runtime_reconciliation_business_test.go",
             "goLine": 12,
-            "rustFile": "crates/jftrade-engine/tests/strategies_write_compatibility.rs",
-            "rustLine": 350
+            "rustFile": "crates/jftrade-engine/src/product_strategy_runtime_write_product_tests.rs",
+            "rustLine": 314
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "参考实现断言三次状态转换（STARTED/PAUSED/STOPPED）各自写审计与日志、日志按级别过滤并返回分页、仓库保存次数等于转换次数。",
-          "Rust 的状态转换与审计由写端口与 store 承担（引用用例锁定重复转换、回滚与重启一致性），日志级别过滤在活动查询；",
-          "缺“每次转换恰好一次保存/审计”的计数断言。"
+          "真实 Product HTTP 路由按顺序执行 start、pause、stop，并断言每次响应状态。",
+          "每次 start/pause 后从 durable SQLite 读取状态，重启后 stop 再次读取持久状态。",
+          "durable SQLite 审计流断言 STARTED、PAUSED、STOPPED 各恰好一次且按转换顺序排列。"
         ],
-        "uncovered": [
-          "缺口（P2）。"
-        ],
+        "uncovered": [],
         "source": "reviewed"
       },
       "verification": {
@@ -289719,30 +289717,28 @@
           "--no-fail-fast"
         ],
         "testFilter": [
-          "sqlite_test_cutover_preserves_repeated_transitions_rollback_and_restart"
+          "strategy_runtime_sqlite_test_cutover_replays_transport_and_restart"
         ],
         "runnerVersion": "cargo-nextest-0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "02e18732ebd14297ca3f27ad36bde3b20def746a",
+        "verifiedAt": "2026-10-06T11:09:11Z",
+        "receiptDigest": "sha256:af4fadeb2cd3f14ca813c52b620931682375fe71fa6cbabf00474e82309092c6"
       },
       "risk": "high",
       "owner": "strategy_pine",
       "priority": "P1",
-      "nextAction": "implement_or_document_boundary",
+      "nextAction": "none",
       "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "参考实现断言三次状态转换（STARTED/PAUSED/STOPPED）各自写审计与日志、日志按级别过滤并返回分页、仓库保存次数等于转换次数。",
-        "Rust 的状态转换与审计由写端口与 store 承担（引用用例锁定重复转换、回滚与重启一致性），日志级别过滤在活动查询；",
-        "缺“每次转换恰好一次保存/审计”的计数断言。"
+        "真实 Product HTTP 路由按顺序执行 start、pause、stop，并断言每次响应状态。",
+        "每次 start/pause 后从 durable SQLite 读取状态，重启后 stop 再次读取持久状态。",
+        "durable SQLite 审计流断言 STARTED、PAUSED、STOPPED 各恰好一次且按转换顺序排列。"
       ],
-      "uncoveredAssertions": [
-        "缺口（P2）。"
-      ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/strategy/catalog/runtime_reconciliation_business_test.go:52:TestCatalogRuntimeFailureReconcilesOnlyRunningInstance": {
@@ -289904,11 +289900,11 @@
       "boundaryReason": null
     },
     "internal/strategy/catalog/runtime_reconciliation_business_test.go:113:TestCatalogActivitySupportsPagingFilteringAndRuntimeObservationEnrichment": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/strategy_runtime_activity.rs::catalog_activity_paging_and_filters_match_go_boundaries",
-      "conclusion": "partial：参考实现断言活动分页/过滤（limit/offset/level/kind/时间窗口）与观测富化（把运行时观测并入活动响应）。Rust 的分页与过滤边界由引用用例锁定（limit/offset/level/kind/时间归一），观测富化在策略读取端口的活动投影（lastClosedKlineAt/lastError 等字段）；缺“活动响应与观测富化合并”的同形断言。缺口（P2）。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'not test(production_helper_sync_cancel_aborts_in_flight_request) and not test(production_helper_sync_rejects_broken_pagination_cursors) and not test(production_helper_sync_forwards_page_query_and_persists_provider_values) and not test(production_helper_sync_retries_transient_page_and_records_retry)'",
-      "evidence_type": "partial",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-engine/src/product_production_assembly_tests.rs::production_http_strategy_activity_pages_filters_and_merges_runtime_observation",
+      "conclusion": "已覆盖：真实生产组合根 HTTP 测试使用 durable strategy SQLite store，逐项验证日志 limit/offset 分页元数据、audit kind 过滤，以及 /api/v1/strategies 响应中的 runtimeObservation 富化和最近日志投影。底层活动端口的查询边界由既有 owner 回归继续锁定。",
+      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(production_http_strategy_activity_pages_filters_and_merges_runtime_observation)'",
+      "evidence_type": "function_exact",
       "source": {
         "file": "internal/strategy/catalog/runtime_reconciliation_business_test.go",
         "line": 113,
@@ -289917,26 +289913,24 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/strategy_runtime_activity.rs",
-          "test": "catalog_activity_paging_and_filters_match_go_boundaries",
+          "file": "crates/jftrade-engine/src/product_production_assembly_tests.rs",
+          "test": "production_http_strategy_activity_pages_filters_and_merges_runtime_observation",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/strategy/catalog/runtime_reconciliation_business_test.go",
             "goLine": 113,
-            "rustFile": "crates/jftrade-engine/src/strategy_runtime_activity.rs",
-            "rustLine": 744
+            "rustFile": "crates/jftrade-engine/src/product_production_assembly_tests.rs",
+            "rustLine": 485
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "参考实现断言活动分页/过滤（limit/offset/level/kind/时间窗口）与观测富化（把运行时观测并入活动响应）。",
-          "Rust 的分页与过滤边界由引用用例锁定（limit/offset/level/kind/时间归一），观测富化在策略读取端口的活动投影（lastClosedKlineAt/lastError 等字段）；",
-          "缺“活动响应与观测富化合并”的同形断言。"
+          "真实生产 HTTP 日志路由验证 limit=1、offset=1 返回 warning，并断言 total=3、returned=1、hasMore=true。",
+          "真实生产 HTTP audit 路由验证 kind=kind.error 过滤只返回 error 详情。",
+          "真实生产 HTTP strategies 路由验证 runtimeObservation 的 actualStatus、activeSymbols、lastSignalAt 以及最近日志按时间倒序合并到实例响应。"
         ],
-        "uncovered": [
-          "缺口（P2）。"
-        ],
+        "uncovered": [],
         "source": "reviewed"
       },
       "verification": {
@@ -289954,30 +289948,28 @@
           "--no-fail-fast"
         ],
         "testFilter": [
-          "catalog_activity_paging_and_filters_match_go_boundaries"
+          "production_http_strategy_activity_pages_filters_and_merges_runtime_observation"
         ],
         "runnerVersion": "cargo-nextest-0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "e3033f05a64a6ebde9f7c77fd5ee180280ee1ab6",
+        "verifiedAt": "2026-10-06T10:49:06Z",
+        "receiptDigest": "sha256:de1921e652d5be0080532c62712e5feddd37f2da5d85f211d768b5c3f7b52d7c"
       },
       "risk": "high",
       "owner": "strategy_pine",
       "priority": "P1",
-      "nextAction": "implement_or_document_boundary",
+      "nextAction": "none",
       "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "参考实现断言活动分页/过滤（limit/offset/level/kind/时间窗口）与观测富化（把运行时观测并入活动响应）。",
-        "Rust 的分页与过滤边界由引用用例锁定（limit/offset/level/kind/时间归一），观测富化在策略读取端口的活动投影（lastClosedKlineAt/lastError 等字段）；",
-        "缺“活动响应与观测富化合并”的同形断言。"
+        "真实生产 HTTP 日志路由验证 limit=1、offset=1 返回 warning，并断言 total=3、returned=1、hasMore=true。",
+        "真实生产 HTTP audit 路由验证 kind=kind.error 过滤只返回 error 详情。",
+        "真实生产 HTTP strategies 路由验证 runtimeObservation 的 actualStatus、activeSymbols、lastSignalAt 以及最近日志按时间倒序合并到实例响应。"
       ],
-      "uncoveredAssertions": [
-        "缺口（P2）。"
-      ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/strategy/errors_test.go:8:TestClassifiedStrategyErrorsMatchSentinelKinds": {
@@ -343172,27 +343164,43 @@
       "reviewStatus": "single"
     },
     "crates/jftrade-engine/tests/strategies_write_compatibility.rs::sqlite_test_cutover_preserves_repeated_transitions_rollback_and_restart": {
-      "referenceCount": 3,
+      "referenceCount": 2,
       "referenceKeys": [
         "internal/api/strategy/routes_boundary_contracts_test.go:75:TestStrategyStartRouteMapsPreflightRuntimeAndTransitionBoundaries",
-        "internal/strategy/catalog/catalog_boundary_behavior_test.go:58:TestCatalogActivityWriteFailureDoesNotBlockControlState",
-        "internal/strategy/catalog/runtime_reconciliation_business_test.go:12:TestCatalogRuntimeTransitionsPersistStateAndActivity"
+        "internal/strategy/catalog/catalog_boundary_behavior_test.go:58:TestCatalogActivityWriteFailureDoesNotBlockControlState"
       ],
       "allowed": false,
       "reviewStatus": "reviewed",
-      "reviewNote": "2026-10-02 bounded reuse review: compared all 3 referenceKeys against the shared Rust owner (status mix {'[~]': 3}); assertion scopes are not interchangeable, so reuse remains disallowed and no function_exact row is upgraded by this relation."
+      "reviewNote": "2026-10-06 bounded reuse review: the two remaining boundary references stay on the shared Rust owner; their assertion scopes are not interchangeable, so reuse remains disallowed. The lifecycle persistence reference now has a dedicated Product HTTP owner."
+    },
+    "crates/jftrade-engine/src/product_strategy_runtime_write_product_tests.rs::strategy_runtime_sqlite_test_cutover_replays_transport_and_restart": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/strategy/catalog/runtime_reconciliation_business_test.go:12:TestCatalogRuntimeTransitionsPersistStateAndActivity"
+      ],
+      "allowed": true,
+      "reviewStatus": "single",
+      "reviewNote": "2026-10-06 Strategy/Pine lifecycle batch: durable Product HTTP cutover directly checks each transition's persisted state and exactly-one audit event; no fan-out reuse."
     },
     "crates/jftrade-engine/src/strategy_runtime_activity.rs::catalog_activity_paging_and_filters_match_go_boundaries": {
-      "referenceCount": 4,
+      "referenceCount": 3,
       "referenceKeys": [
         "internal/api/strategy/routes_boundary_contracts_test.go:142:TestStrategyActivityRoutesRejectMalformedPagination",
         "internal/api/strategy/routes_lifecycle_test.go:611:TestActivityRoutesNormalizePaginationAndTimeFilters",
-        "internal/store/strategy/runtime_activity_test.go:254:TestStorePathPaginationAndClosedDatabaseBoundaries",
-        "internal/strategy/catalog/runtime_reconciliation_business_test.go:113:TestCatalogActivitySupportsPagingFilteringAndRuntimeObservationEnrichment"
+        "internal/store/strategy/runtime_activity_test.go:254:TestStorePathPaginationAndClosedDatabaseBoundaries"
       ],
       "allowed": true,
       "reviewStatus": "reviewed",
       "reviewNote": "2026-09-29 API transport batch: bounded fan-out owner compared against every cited Go assertion; shared behavior is explicit and test-backed. Fan-out >5 remains backlog."
+    },
+    "crates/jftrade-engine/src/product_production_assembly_tests.rs::production_http_strategy_activity_pages_filters_and_merges_runtime_observation": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/strategy/catalog/runtime_reconciliation_business_test.go:113:TestCatalogActivitySupportsPagingFilteringAndRuntimeObservationEnrichment"
+      ],
+      "allowed": true,
+      "reviewStatus": "single",
+      "reviewNote": "2026-10-06 Strategy/Pine batch: production composition-root HTTP owner compared directly with the cited Go paging, filtering, and runtime-observation assertions; no fan-out reuse."
     },
     "crates/jftrade-engine/src/product_strategies_tests.rs::strategy_instance_read_routes_match_group_fixture_in_cutover_only": {
       "referenceCount": 4,

@@ -1,5 +1,18 @@
 # Go → Rust 证据积压清单
 
+## 2026-10-06 Strategy/Pine runtime lifecycle 收口
+
+- `TestCatalogRuntimeTransitionsPersistStateAndActivity` 已由 durable SQLite Product HTTP owner `strategy_runtime_sqlite_test_cutover_replays_transport_and_restart` 收口为 `function_exact`：真实路由顺序执行 `STOPPED → RUNNING → PAUSED → STOPPED`，每次转换复读持久状态，重启后继续 stop，并断言 `STARTED`、`PAUSED`、`STOPPED` 审计各一次且顺序稳定。
+- 绿色 receipt：`verification-receipts/strategy-runtime-lifecycle-2026-10-06-passed.json`，**1/1 passed**，SHA-256 `af4fadeb2cd3f14ca813c52b620931682375fe71fa6cbabf00474e82309092c6`；首次断言顺序失败的红 receipt `strategy-runtime-lifecycle-2026-10-06.json` 保留，不作为当前成功证据。
+- strict parity audit 与 anchor reconcile 已通过（2028 unique、1980 recorded、0 unrecorded、0 stale、48 unknown）。`TestCatalogStartupReconcileResetsStaleRunningAndPausedState` 仍保持 partial，因为 Rust 对 RUNNING 采用 resume 语义而 Go 是 blanket reset。
+- 现场完整 `pnpm run check:rust` 本次在 workspace nextest 因 Node probe “ok” case 并发超时失败（2069 passed、1 failed、2 skipped，fail-fast）；隔离重跑该测试通过，完整门禁需重跑后才能收口。
+
+## 2026-10-06 Strategy/Pine 活动组合根批次
+
+- `TestCatalogActivitySupportsPagingFilteringAndRuntimeObservationEnrichment` 已由真实生产 HTTP owner 收口为 `function_exact`：`production_http_strategy_activity_pages_filters_and_merges_runtime_observation` 使用 durable strategy SQLite store，验证日志分页（`limit=1&offset=1`）、页面 `total/returned/hasMore`、audit `kind` 过滤、runtime observation 富化和最近日志顺序。
+- receipt：`verification-receipts/strategy-activity-http-2026-10-06.json`，**1/1 passed**，SHA-256 `de1921e652d5be0080532c62712e5feddd37f2da5d85f211d768b5c3f7b52d7c`；strict audit、anchor reconcile 均通过。
+- 当前 Strategy/Pine 高风险残余：`TestCatalogRuntimeTransitionsPersistStateAndActivity` 仍缺真实 start→pause→stop 每次恰好一次保存/审计的 production route 闭环；`TestCatalogStartupReconcileResetsStaleRunningAndPausedState` 保留 Rust resume 与 Go blanket-reset 的架构差异。下一目标继续优先真实 runtime lifecycle，不刷新无行为变化的报告或 mapping。
+
 ## 2026-10-06 API HTTP / WebSocket 行为批次
 
 - `TestSyncRouteClassifiesRequestErrorsAsBadRequest` 从 partial 升为 `function_exact`：真实 Product HTTP 注入生产 `ProductionBacktestPort`，逐项发送 Go 的非法 symbol、非法 since 和反向时间范围，均断言 HTTP 400、`ok=false`、`BAD_REQUEST`、JSON content-type、无 success data，并确认未创建活动 sync task。

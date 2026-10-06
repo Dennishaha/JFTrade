@@ -1,5 +1,19 @@
 # Go → Rust 对齐成果摘要
 
+## 2026-10-06 Strategy/Pine runtime lifecycle 收口
+
+- 强化 durable SQLite Product HTTP owner `strategy_runtime_sqlite_test_cutover_replays_transport_and_restart`：逐步执行 `STOPPED → RUNNING → PAUSED → STOPPED`，每次 start/pause 从 SQLite 读取持久状态，重启后 stop 再次验证持久状态，并断言 `STARTED`、`PAUSED`、`STOPPED` 审计事件各恰好一次且顺序稳定。
+- 绿色 focused receipt：`verification-receipts/strategy-runtime-lifecycle-2026-10-06-passed.json`，**1/1 passed**，SHA-256 `af4fadeb2cd3f14ca813c52b620931682375fe71fa6cbabf00474e82309092c6`；首次断言顺序失败的红 receipt `strategy-runtime-lifecycle-2026-10-06.json` 保留为替代关系证据。
+- `TestCatalogRuntimeTransitionsPersistStateAndActivity` 已从 partial 升为 `function_exact`。当前扫描为 **4451 Go / 3513 Rust**，`function_exact=1584`、`partial=2227`、`boundary=640`，数量覆盖约 **78.9%**；strict parity audit 通过，anchor reconcile 为 **2028 unique / 1980 recorded / 0 unrecorded / 0 stale / 48 unknown**。
+- 本轮完整 `pnpm run check:rust` 在并发 workspace nextest 的 Node probe “ok” case 发生一次 2 秒超时（2069 passed、1 failed、2 skipped，后续 fail-fast 取消）；同一测试单独运行通过，需在最终收口前重跑完整门禁。下一目标继续推进高风险 partial，并保留该门禁红证据，不把局部通过写成全量通过。
+
+## 2026-10-06 Strategy/Pine runtime activity 收口
+
+- 收口 `TestCatalogActivitySupportsPagingFilteringAndRuntimeObservationEnrichment`：新增真实生产组合根 HTTP 测试 `production_http_strategy_activity_pages_filters_and_merges_runtime_observation`，使用 production profile 的 durable strategy SQLite store，逐项断言日志 `limit/offset` 分页元数据、audit `kind` 过滤，以及 `/api/v1/strategies` 的 `runtimeObservation`（状态、symbols、lastSignalAt）和最近日志倒序投影。
+- focused receipt：`verification-receipts/strategy-activity-http-2026-10-06.json`，**1/1 passed**，SHA-256 `de1921e652d5be0080532c62712e5feddd37f2da5d85f211d768b5c3f7b52d7c`；验证提交 `e3033f05`。旧的端口级分页/过滤 owner 继续服务其他 Go 条目，本条的组合根 HTTP 证据单独绑定，避免把测试 fan-out 当成等价证明。
+- mapping 从 partial 升为 `function_exact`；当前扫描为 **4451 Go / 3513 Rust**，`function_exact=1583`、`partial=2228`、`boundary=640`，数量覆盖约 **78.9%**。strict parity audit 与 anchor reconcile（1979 recorded、0 unrecorded、0 stale、48 unknown Go lines）均通过。
+- 本批只增加真实行为闭环和一份限定 receipt；Strategy runtime transitions 的 `RUNNING` resume 与 Go blanket-reset 差异仍保留 partial，未因活动测试一并升级。
+
 ## 2026-10-05 API/Transport market-data route 收口
 
 - 收口一条真实 Product HTTP candles 成功路径：`market_data_quote_read_http_success_preserves_candle_envelope_headers_and_metadata` 通过真实 TCP 请求断言 200、JSON content-type、`ok/data` envelope、分页字段、source 和 candle wire 字段。
