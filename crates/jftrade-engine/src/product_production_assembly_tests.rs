@@ -598,6 +598,120 @@ mod product_production_assembly_tests {
     }
 
     #[tokio::test]
+    // Parity: go:452dea11:internal/app/apiserver/servercoretest/strategy_logs_test.go:169 TestStrategyLogsAndAuditEndpointsSupportPaginationAndFilters
+    async fn production_http_strategy_activity_filters_level_and_time_window() {
+        let directory = TempDir::new().expect("temp dir");
+        let settings_path = directory.path().join("settings.json");
+        fs::write(&settings_path, b"{}").expect("write settings");
+        product_data_management::initialize_production_databases(&settings_path)
+            .expect("initialize production databases");
+
+        let strategy_path = directory.path().join("strategy-runtime.db");
+        let store = StrategyRuntimeStore::open_existing(
+            &strategy_path,
+            STRATEGY_RUNTIME_PRODUCTION_PROFILE,
+        )
+        .expect("open strategy runtime store");
+        store
+            .seed_instance_with_binding(
+                "activity-filter",
+                "STOPPED",
+                json!({"symbols": ["US.AAPL"], "runtime": "pine-pinets", "sourceFormat": "pine-v6"}),
+                "2026-07-01T10:00:00Z",
+            )
+            .expect("seed strategy instance");
+        let start = time::OffsetDateTime::parse(
+            "2026-07-01T10:00:00Z",
+            &time::format_description::well_known::Rfc3339,
+        )
+        .expect("parse activity start")
+        .unix_timestamp()
+            * 1_000;
+        for (index, (raw, level)) in [
+            ("info", "info"),
+            ("warning-first", "warning"),
+            ("warning-second", "warning"),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            store
+                .append_log_event(
+                    "activity-filter",
+                    raw,
+                    level,
+                    start + (index as i64) * 60_000,
+                )
+                .expect("append strategy log");
+        }
+        for (index, kind) in ["kind.info", "kind.pause", "kind.error"]
+            .into_iter()
+            .enumerate()
+        {
+            store
+                .append_audit_event(
+                    "activity-filter",
+                    kind,
+                    kind,
+                    start + (index as i64) * 60_000,
+                )
+                .expect("append strategy audit");
+        }
+        drop(store);
+
+        let handle = start_product(http_product_config(
+            &directory,
+            Arc::new(crate::product::product_production_ports::SharedTradeReadRuntime::default()),
+            None,
+        ))
+        .await
+        .expect("start production product");
+        let address = handle.startup_record().address;
+        let auth = [("Authorization", "Bearer aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")];
+        let paged_logs = request_json_with_status(
+            address,
+            "GET",
+            "/api/v1/strategies/activity-filter/logs?level=warning&fromTime=2026-07-01T10%3A01%3A00Z&toTime=2026-07-01T10%3A02%3A00Z&limit=1&offset=1",
+            None,
+            &auth,
+        )
+        .await;
+        assert_eq!(paged_logs.0, 200);
+        assert_eq!(paged_logs.1["data"]["logs"], json!(["warning-first"]));
+        assert_eq!(paged_logs.1["data"]["page"]["total"], 2);
+        assert_eq!(paged_logs.1["data"]["page"]["returned"], 1);
+        assert_eq!(paged_logs.1["data"]["page"]["hasMore"], false);
+
+        let filtered_audit = request_json_with_status(
+            address,
+            "GET",
+            "/api/v1/strategies/activity-filter/audit?kind=kind.pause&fromTime=2026-07-01T10%3A01%3A00Z&toTime=2026-07-01T10%3A01%3A00Z",
+            None,
+            &auth,
+        )
+        .await;
+        assert_eq!(filtered_audit.0, 200);
+        assert_eq!(
+            filtered_audit.1["data"]["entries"]
+                .as_array()
+                .unwrap()
+                .len(),
+            1
+        );
+        assert_eq!(
+            filtered_audit.1["data"]["entries"][0]["detail"],
+            "kind.pause"
+        );
+        assert_eq!(filtered_audit.1["data"]["page"]["total"], 1);
+        assert_eq!(filtered_audit.1["data"]["page"]["returned"], 1);
+        assert_eq!(filtered_audit.1["data"]["page"]["hasMore"], false);
+        handle
+            .shutdown()
+            .await
+            .expect("shutdown production product");
+    }
+
+    #[tokio::test]
     // Parity: go:452dea11:internal/app/apiserver/servercoretest/broker_new_test.go:141 TestBrokerQuoteMissingSymbol
     async fn production_http_broker_projection_fails_closed_and_validates_before_runtime() {
         let directory = TempDir::new().expect("temp dir");
