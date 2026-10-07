@@ -1,5 +1,13 @@
 # Go → Rust 证据积压清单
 
+## 2026-10-07 设置失败矩阵与 durable 状态
+
+- 仅本批五条mapping及必要reuse，净 **+2 exact / -2 partial / boundary 0**，当前 **1616 / 2195 / 640**。两个exact分别为account路径ID/500失败及onboarding重置；都有生产HTTP、具体file owner、重启及唯一主入口证据。
+- `verification-receipts/settings-durable-http-initial-2026-10-07.json`：failed，4 passed/1 failed/2171 filtered/skipped。Pine原始{}实际400 BAD_REQUEST，Go要求500。后续verified保留原始400反例，再补符合现有OpenAPI required字段的请求实际500；没有调整生产fence、契约源、fixture或隐藏失败。
+- `verification-receipts/settings-durable-http-verified-2026-10-07.json`：passed，5 passed/0 failed/0 ignored/2171 filtered/skipped，SHA-256 `a7124a23f7bb72a92afc6e34dbd06439badefcf046e43a2e93bee479d4a885bf`。十一条原始请求和额外合法Pine请求，每次都检查九类runtime设置与备份字节不变；恢复原文件后字节不变。
+- 三条具体残余保留：Pine {}原始500/当前400；通知important/off原始raw类别及mode与领域归一不同；缺notification tester原始500/当前typed host503。不用改输入、synthetic generic错误或删除fence消除差异。
+- 普通/strict及anchor通过：2080 unique/2032 recorded/0 unrecorded/0 stale/48 unknown。quick明确退出0：2206 passed/0 failed/0 skipped、Clippy/七类回放/Pine98通过，无LEAK。现场完整Rust首轮target-health失败保留`/tmp/jftrade-settings-durable-http-rust.log`；清理116817 files/32.6GiB后`/tmp/jftrade-settings-durable-http-rust-clean.log`明确退出0：3754 passed/0 failed/2 skipped、静态及七类回放通过，无LEAK。skipped不计通过，canonical源码指纹已核对。
+
 ## 2026-10-07 交易读参数与 portfolio 的红绿关系
 
 - 仅更新五条mapping及必要reuse；净 **+2 exact / -2 partial / boundary 0**，当前 **1614 / 2197 / 640**。原Go110的不存在sync计数要求已删除，原始filter和default REAL由production六行ledger/HTTP设置变化直接证明；Go249完整partial-fill tuple、missing404及重启直接证明。

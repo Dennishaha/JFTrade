@@ -39,14 +39,14 @@
 
 ## 后续行为批次：设置失败与 durable 状态（2026-10-07）
 
-候选五条partial：settings `routes_accounts_validation_test.go:18`、`routes_failure_boundaries_test.go:48/84/125`、`routes_test.go:935`。冻结Go原始请求及断言已逐项读取；先提交交易读批次，再落入本批源码。
+候选五条partial：settings `routes_accounts_validation_test.go:18`、`routes_failure_boundaries_test.go:48/84/125`、`routes_test.go:935`。冻结Go原始请求及断言已逐项读取；交易读批次已提交9812de90，本批五项production HTTP测试已落入源码并focused通过。
 
-- [ ] 真实production HTTP重放十一条设置写失败，直接验证500 SETTINGS_SAVE_FAILED、每次失败后的所有设置回读和原文件字节不变。
-- [ ] managed account原始record-1/client-id冲突请求验证路径ID优先；实际文件写失败后保持原账户，shutdown/restart验证成功状态仍在。
-- [ ] onboarding原始completed/dismissed=false和空白lastBrokerId重置请求清除两个时间戳、保留futu，落盘与重启后回读一致。
-- [ ] 通知设置原始important/trading与off/system请求直接核对归一结果和落盘；不能把Rust important模式扩展默认类别的差异误标exact。
-- [ ] 通知测试第三次事件system-notification-3、delivered及host入参直接核对；缺host当前503 SYSTEM_NOTIFICATION_UNAVAILABLE与Go500残余明确保留。
-- [ ] 本批canonical receipt、普通/strict与anchor、quick及完整Rust门禁通过并复查diff后独立提交，继续下一批。
+- [x] 真实production HTTP执行十一条原始请求；十条500 SETTINGS_SAVE_FAILED，pine-worker {}因现有required绑定400，另补合法完整字段请求500。每次请求后的所有设置回读和原文件字节不变；该条Pine反例仍partial。
+- [x] managed account原始record-1/client-id冲突请求验证路径ID优先；实际文件写失败后保持原账户，shutdown/restart验证成功状态仍在，该条升exact。
+- [x] onboarding原始completed/dismissed=false和空白lastBrokerId重置请求清除两个时间戳、保留futu，落盘与重启后回读一致，该条升exact。
+- [x] 通知设置原始important/trading与off/system请求直接核对归一结果和落盘；Rust important模式扩展默认类别及off归一的差异保持partial。
+- [x] 通知测试第三次事件system-notification-3、delivered及host入参直接核对；缺host当前503 SYSTEM_NOTIFICATION_UNAVAILABLE与Go500残余明确保留partial。
+- [x] 本批canonical receipt、普通/strict与anchor通过；quick 2206 passed及现场完整Rust 3754 passed/2 skipped明确退出0，首轮target-health失败与清理证据保留，源码指纹与diff已复核，独立提交后继续下一批。
 
 ## 质量门禁
 

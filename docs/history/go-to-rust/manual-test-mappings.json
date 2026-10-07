@@ -17663,11 +17663,11 @@
       "boundaryReason": null
     },
     "internal/api/settings/routes_accounts_validation_test.go:18:TestManagedAccountUpdateUsesPathIDAndSurfacesServerErrors": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-settings/tests/managed_account_validation.rs::update_account_preserves_immutable_identity_and_clears_timestamps",
-      "conclusion": "partial：Go 断言 PUT 以路径 id 为准、忽略请求体 id、意外错误映射 500 SETTINGS_SAVE_FAILED。Rust 服务层用例断言路径 id 保留与客户端时间戳清空；HTTP 500/SETTINGS_SAVE_FAILED 由 product_wire 常量承载，无逐项断言。缺口 owner：crates/jftrade-engine product_wire 设置写映射；回归要求：补“存储失败 → 500 SETTINGS_SAVE_FAILED”与“请求体 id 被忽略”的 HTTP 级断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-      "evidence_type": "partial",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-engine/src/product_settings_http_parity_tests.rs::production_http_managed_account_path_id_wins_and_failed_update_rolls_back",
+      "conclusion": "function_exact：原始record-1路径与client-id/acct-9/Primary请求经认证production HTTP及具体settings file owner；预seed record-1供生产update找到记录，200响应和落盘ID为record-1且不含client-id。 原始第二个acct-9更新请求在真实atomic replacement被目录阻塞时返回500 SETTINGS_SAVE_FAILED，运行中Primary保持、备份字节不变；恢复文件并shutdown/restart后record-1/Primary仍在。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-engine --test production_http_managed_account_path_id_wins_and_failed_update_rolls_back --output docs/history/go-to-rust/verification-receipts/settings-durable-http-verified-2026-10-07.json",
+      "evidence_type": "function_exact",
       "source": {
         "file": "internal/api/settings/routes_accounts_validation_test.go",
         "line": 18,
@@ -17676,24 +17676,23 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-settings/tests/managed_account_validation.rs",
-          "test": "update_account_preserves_immutable_identity_and_clears_timestamps",
-          "crate": "jftrade-settings",
+          "file": "crates/jftrade-engine/src/product_settings_http_parity_tests.rs",
+          "test": "production_http_managed_account_path_id_wins_and_failed_update_rolls_back",
+          "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/api/settings/routes_accounts_validation_test.go",
             "goLine": 18,
-            "rustFile": "crates/jftrade-settings/tests/managed_account_validation.rs",
-            "rustLine": 119
+            "rustFile": "crates/jftrade-engine/src/product_settings_http_parity_tests.rs",
+            "rustLine": 144
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust managed-account test preserves path identity and clears client timestamps; product-wire constants define 500 SETTINGS_SAVE_FAILED."
+          "原始record-1路径与client-id/acct-9/Primary请求经认证production HTTP及具体settings file owner；预seed record-1供生产update找到记录，200响应和落盘ID为record-1且不含client-id。",
+          "原始第二个acct-9更新请求在真实atomic replacement被目录阻塞时返回500 SETTINGS_SAVE_FAILED，运行中Primary保持、备份字节不变；恢复文件并shutdown/restart后record-1/Primary仍在。"
         ],
-        "uncovered": [
-          "No HTTP-level assertion that body id is ignored and a storage failure returns 500 SETTINGS_SAVE_FAILED without partial state."
-        ],
+        "uncovered": [],
         "source": "reviewed"
       },
       "verification": {
@@ -17703,38 +17702,38 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(production_http_settings_failed_saves_preserve_state_and_pine_validation_precedes_persistence) or test(production_http_managed_account_path_id_wins_and_failed_update_rolls_back) or test(production_http_onboarding_reset_clears_timestamps_and_keeps_last_broker_after_restart) or test(production_http_notification_settings_expose_normalization_and_persist_disabled_state) or test(production_http_notification_test_forwards_host_request_and_missing_host_fails_closed)"
         ],
         "testFilter": [
-          "update_account_preserves_immutable_identity_and_clears_timestamps"
+          "production_http_managed_account_path_id_wins_and_failed_update_rolls_back"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "9812de905e86796052f4b720f8cd58fe3cd76543",
+        "verifiedAt": "2026-10-07T10:42:21Z",
+        "receiptDigest": "sha256:a7124a23f7bb72a92afc6e34dbd06439badefcf046e43a2e93bee479d4a885bf"
       },
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "retain_reviewed_boundary_or_partial_and_reaudit",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "maintain_verified_function_exact",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust managed-account test preserves path identity and clears client timestamps; product-wire constants define 500 SETTINGS_SAVE_FAILED."
+        "原始record-1路径与client-id/acct-9/Primary请求经认证production HTTP及具体settings file owner；预seed record-1供生产update找到记录，200响应和落盘ID为record-1且不含client-id。",
+        "原始第二个acct-9更新请求在真实atomic replacement被目录阻塞时返回500 SETTINGS_SAVE_FAILED，运行中Primary保持、备份字节不变；恢复文件并shutdown/restart后record-1/Primary仍在。"
       ],
-      "uncoveredAssertions": [
-        "No HTTP-level assertion that body id is ignored and a storage failure returns 500 SETTINGS_SAVE_FAILED without partial state."
-      ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/api/settings/routes_accounts_validation_test.go:73:TestDataManagementRebuildRejectsMalformedAndRejectedRequests": {
@@ -17883,9 +17882,9 @@
     },
     "internal/api/settings/routes_failure_boundaries_test.go:48:TestSettingWriteRoutesMapPersistenceFailures": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-store-settings-file/tests/settings_file_contracts.rs::test_failed_setting_saves_rollback_all_runtime_state",
-      "conclusion": "partial：Go 断言 11 条设置写路由在持久化失败时返回 500 SETTINGS_SAVE_FAILED 且不回写半状态。Rust 引用用例在 settings-file 契约层断言保存失败后运行时状态全部回滚；HTTP 500 与错误码由 product_wire 承载，缺按路由的流程级断言。缺口 owner：crates/jftrade-store-settings-file + product_wire；回归要求：用只读/故障 settings 目录补“写入失败 → 500 SETTINGS_SAVE_FAILED 且文件未变”的 HTTP 矩阵断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+      "rust_entry": "crates/jftrade-engine/src/product_settings_http_parity_tests.rs::production_http_settings_failed_saves_preserve_state_and_pine_validation_precedes_persistence",
+      "conclusion": "partial：原始十一条PUT/POST/DELETE请求全部经production HTTP；真实settings路径被目录阻塞，十条原始请求返回500 SETTINGS_SAVE_FAILED；每个请求后九类设置回读、包括account数组均与此前一致，备份及恢复后原文件字节不变。 原始pine-worker {}实测400 BAD_REQUEST；另用OpenAPI声明的三个完整字段请求实际500 SETTINGS_SAVE_FAILED并保持状态。首轮4 passed/1 failed红测保留，未放宽生产绑定或更改契约源。 Go原始pine-worker {}要求500，而当前公开OpenAPI将三个字段列为required，Rust先做400绑定拒绝；完整合法请求的500不能消除此反例，保持partial。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-engine --test production_http_settings_failed_saves_preserve_state_and_pine_validation_precedes_persistence --output docs/history/go-to-rust/verification-receipts/settings-durable-http-verified-2026-10-07.json",
       "evidence_type": "partial",
       "source": {
         "file": "internal/api/settings/routes_failure_boundaries_test.go",
@@ -17895,23 +17894,24 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-store-settings-file/tests/settings_file_contracts.rs",
-          "test": "test_failed_setting_saves_rollback_all_runtime_state",
-          "crate": "jftrade-store-settings-file",
+          "file": "crates/jftrade-engine/src/product_settings_http_parity_tests.rs",
+          "test": "production_http_settings_failed_saves_preserve_state_and_pine_validation_precedes_persistence",
+          "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/api/settings/routes_failure_boundaries_test.go",
             "goLine": 48,
-            "rustFile": "crates/jftrade-store-settings-file/tests/settings_file_contracts.rs",
-            "rustLine": 887
+            "rustFile": "crates/jftrade-engine/src/product_settings_http_parity_tests.rs",
+            "rustLine": 45
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust settings-file contract rolls all runtime state back after a save failure; product-wire exposes the intended 500 code."
+          "原始十一条PUT/POST/DELETE请求全部经production HTTP；真实settings路径被目录阻塞，十条原始请求返回500 SETTINGS_SAVE_FAILED；每个请求后九类设置回读、包括account数组均与此前一致，备份及恢复后原文件字节不变。",
+          "原始pine-worker {}实测400 BAD_REQUEST；另用OpenAPI声明的三个完整字段请求实际500 SETTINGS_SAVE_FAILED并保持状态。首轮4 passed/1 failed红测保留，未放宽生产绑定或更改契约源。"
         ],
         "uncovered": [
-          "No HTTP matrix across all 11 setting-write routes proving 500 SETTINGS_SAVE_FAILED and unchanged files/state."
+          "Go原始pine-worker {}要求500，而当前公开OpenAPI将三个字段列为required，Rust先做400绑定拒绝；完整合法请求的500不能消除此反例，保持partial。"
         ],
         "source": "reviewed"
       },
@@ -17922,45 +17922,47 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(production_http_settings_failed_saves_preserve_state_and_pine_validation_precedes_persistence) or test(production_http_managed_account_path_id_wins_and_failed_update_rolls_back) or test(production_http_onboarding_reset_clears_timestamps_and_keeps_last_broker_after_restart) or test(production_http_notification_settings_expose_normalization_and_persist_disabled_state) or test(production_http_notification_test_forwards_host_request_and_missing_host_fails_closed)"
         ],
         "testFilter": [
-          "test_failed_setting_saves_rollback_all_runtime_state"
+          "production_http_settings_failed_saves_preserve_state_and_pine_validation_precedes_persistence"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "9812de905e86796052f4b720f8cd58fe3cd76543",
+        "verifiedAt": "2026-10-07T10:42:21Z",
+        "receiptDigest": "sha256:a7124a23f7bb72a92afc6e34dbd06439badefcf046e43a2e93bee479d4a885bf"
       },
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "retain_reviewed_boundary_or_partial_and_reaudit",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "preserve_partial_and_track_residual",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust settings-file contract rolls all runtime state back after a save failure; product-wire exposes the intended 500 code."
+        "原始十一条PUT/POST/DELETE请求全部经production HTTP；真实settings路径被目录阻塞，十条原始请求返回500 SETTINGS_SAVE_FAILED；每个请求后九类设置回读、包括account数组均与此前一致，备份及恢复后原文件字节不变。",
+        "原始pine-worker {}实测400 BAD_REQUEST；另用OpenAPI声明的三个完整字段请求实际500 SETTINGS_SAVE_FAILED并保持状态。首轮4 passed/1 failed红测保留，未放宽生产绑定或更改契约源。"
       ],
       "uncoveredAssertions": [
-        "No HTTP matrix across all 11 setting-write routes proving 500 SETTINGS_SAVE_FAILED and unchanged files/state."
+        "Go原始pine-worker {}要求500，而当前公开OpenAPI将三个字段列为required，Rust先做400绑定拒绝；完整合法请求的500不能消除此反例，保持partial。"
       ],
       "boundaryReason": null
     },
     "internal/api/settings/routes_failure_boundaries_test.go:84:TestSystemNotificationRoutesReadAndSaveSettings": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_tests.rs::product_server_persists_ui_settings_and_reports_actual_port",
-      "conclusion": "partial：Go 断言 GET 读取系统通知设置、PUT 保存并断言落盘值。Rust 引用用例 HTTP 级断言 PUT 归一化（levels→[warn,error]、categories→[a,B]）与通知测试路由；GET 回读与落盘值由 settings-file 契约用例承担，未组合成单条断言。缺口 owner：crates/jftrade-engine settings 读投影；回归要求：补“PUT → GET 回读 + 落盘文件比对”的序列断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'not test(production_helper_sync_cancel_aborts_in_flight_request) and not test(production_helper_sync_rejects_broken_pagination_cursors) and not test(production_helper_sync_forwards_page_query_and_persists_provider_values) and not test(production_helper_sync_retries_transient_page_and_records_retry)'",
+      "rust_entry": "crates/jftrade-engine/src/product_settings_http_parity_tests.rs::production_http_notification_settings_expose_normalization_and_persist_disabled_state",
+      "conclusion": "partial：原始important/error/trading/true seed和off/warn/system/false PUT经production HTTP，200、enabled=false、soundEnabled=false、落盘文档、GET回读及重启一致均直接断言。 Go route stub GET保留categories=[trading]且PUT直接保存mode=off/levels=[warn]/categories=[system]；Rust领域将important或不支持的off归一到important并展开默认levels/categories，本批实际反例明确，不能用改成custom的请求替代。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-engine --test production_http_notification_settings_expose_normalization_and_persist_disabled_state --output docs/history/go-to-rust/verification-receipts/settings-durable-http-verified-2026-10-07.json",
       "evidence_type": "partial",
       "source": {
         "file": "internal/api/settings/routes_failure_boundaries_test.go",
@@ -17970,23 +17972,23 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_tests.rs",
-          "test": "product_server_persists_ui_settings_and_reports_actual_port",
+          "file": "crates/jftrade-engine/src/product_settings_http_parity_tests.rs",
+          "test": "production_http_notification_settings_expose_normalization_and_persist_disabled_state",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/api/settings/routes_failure_boundaries_test.go",
             "goLine": 84,
-            "rustFile": "crates/jftrade-engine/src/product_tests.rs",
-            "rustLine": 670
+            "rustFile": "crates/jftrade-engine/src/product_settings_http_parity_tests.rs",
+            "rustLine": 226
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust HTTP tests normalize notification levels/categories and settings-file contracts cover GET persistence."
+          "原始important/error/trading/true seed和off/warn/system/false PUT经production HTTP，200、enabled=false、soundEnabled=false、落盘文档、GET回读及重启一致均直接断言。"
         ],
         "uncovered": [
-          "No combined PUT→GET→file assertion proving saved system-notification values round-trip through the API."
+          "Go route stub GET保留categories=[trading]且PUT直接保存mode=off/levels=[warn]/categories=[system]；Rust领域将important或不支持的off归一到important并展开默认levels/categories，本批实际反例明确，不能用改成custom的请求替代。"
         ],
         "source": "reviewed"
       },
@@ -17997,46 +17999,47 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(production_http_settings_failed_saves_preserve_state_and_pine_validation_precedes_persistence) or test(production_http_managed_account_path_id_wins_and_failed_update_rolls_back) or test(production_http_onboarding_reset_clears_timestamps_and_keeps_last_broker_after_restart) or test(production_http_notification_settings_expose_normalization_and_persist_disabled_state) or test(production_http_notification_test_forwards_host_request_and_missing_host_fails_closed)"
         ],
         "testFilter": [
-          "product_server_persists_ui_settings_and_reports_actual_port"
+          "production_http_notification_settings_expose_normalization_and_persist_disabled_state"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "9812de905e86796052f4b720f8cd58fe3cd76543",
+        "verifiedAt": "2026-10-07T10:42:21Z",
+        "receiptDigest": "sha256:a7124a23f7bb72a92afc6e34dbd06439badefcf046e43a2e93bee479d4a885bf"
       },
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "retain_reviewed_boundary_or_partial_and_reaudit",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "preserve_partial_and_track_residual",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust HTTP tests normalize notification levels/categories and settings-file contracts cover GET persistence."
+        "原始important/error/trading/true seed和off/warn/system/false PUT经production HTTP，200、enabled=false、soundEnabled=false、落盘文档、GET回读及重启一致均直接断言。"
       ],
       "uncoveredAssertions": [
-        "No combined PUT→GET→file assertion proving saved system-notification values round-trip through the API."
+        "Go route stub GET保留categories=[trading]且PUT直接保存mode=off/levels=[warn]/categories=[system]；Rust领域将important或不支持的off归一到important并展开默认levels/categories，本批实际反例明确，不能用改成custom的请求替代。"
       ],
       "boundaryReason": null
     },
     "internal/api/settings/routes_failure_boundaries_test.go:125:TestOnboardingCanBeResetWithoutLosingLastBroker": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_tests.rs::product_server_persists_ui_settings_and_reports_actual_port",
-      "conclusion": "partial：Go 断言 onboarding 重置后仍保留 lastBroker=futu。Rust 引用用例断言 GET 默认（completed=false、recommendedBrokerId=futu）与 PUT 后 state.lastBrokerId=futu、completedAt 非空；重置分支未单独断言保留 lastBroker。缺口 owner：crates/jftrade-engine onboarding 写端口；回归要求：补“完成 onboarding → 重置 → lastBrokerId 仍为 futu”的序列断言后升级。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'not test(production_helper_sync_cancel_aborts_in_flight_request) and not test(production_helper_sync_rejects_broken_pagination_cursors) and not test(production_helper_sync_forwards_page_query_and_persists_provider_values) and not test(production_helper_sync_retries_transient_page_and_records_retry)'",
-      "evidence_type": "partial",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-engine/src/product_settings_http_parity_tests.rs::production_http_onboarding_reset_clears_timestamps_and_keeps_last_broker_after_restart",
+      "conclusion": "function_exact：冻结Go原始completed/dismissed=false、lastBrokerId为空白，seed的completedAt/dismissedAt均2026-01-02T03:04:05Z且lastBrokerId=futu；production HTTP200、文件与响应completed=false且两个时间戳被清除、futu保留。 空时间戳按既有serde契约省略，解码回OnboardingSettings直接断言两字符串为空；shutdown/restart后同一状态及lastBrokerId保持。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-engine --test production_http_onboarding_reset_clears_timestamps_and_keeps_last_broker_after_restart --output docs/history/go-to-rust/verification-receipts/settings-durable-http-verified-2026-10-07.json",
+      "evidence_type": "function_exact",
       "source": {
         "file": "internal/api/settings/routes_failure_boundaries_test.go",
         "line": 125,
@@ -18045,24 +18048,23 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_tests.rs",
-          "test": "product_server_persists_ui_settings_and_reports_actual_port",
+          "file": "crates/jftrade-engine/src/product_settings_http_parity_tests.rs",
+          "test": "production_http_onboarding_reset_clears_timestamps_and_keeps_last_broker_after_restart",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/api/settings/routes_failure_boundaries_test.go",
             "goLine": 125,
-            "rustFile": "crates/jftrade-engine/src/product_tests.rs",
-            "rustLine": 670
+            "rustFile": "crates/jftrade-engine/src/product_settings_http_parity_tests.rs",
+            "rustLine": 190
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust onboarding tests cover default futu recommendation, completion state, lastBrokerId, and completedAt."
+          "冻结Go原始completed/dismissed=false、lastBrokerId为空白，seed的completedAt/dismissedAt均2026-01-02T03:04:05Z且lastBrokerId=futu；production HTTP200、文件与响应completed=false且两个时间戳被清除、futu保留。",
+          "空时间戳按既有serde契约省略，解码回OnboardingSettings直接断言两字符串为空；shutdown/restart后同一状态及lastBrokerId保持。"
         ],
-        "uncovered": [
-          "No reset sequence assertion proves lastBrokerId remains futu after onboarding reset."
-        ],
+        "uncovered": [],
         "source": "reviewed"
       },
       "verification": {
@@ -18072,38 +18074,38 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(production_http_settings_failed_saves_preserve_state_and_pine_validation_precedes_persistence) or test(production_http_managed_account_path_id_wins_and_failed_update_rolls_back) or test(production_http_onboarding_reset_clears_timestamps_and_keeps_last_broker_after_restart) or test(production_http_notification_settings_expose_normalization_and_persist_disabled_state) or test(production_http_notification_test_forwards_host_request_and_missing_host_fails_closed)"
         ],
         "testFilter": [
-          "product_server_persists_ui_settings_and_reports_actual_port"
+          "production_http_onboarding_reset_clears_timestamps_and_keeps_last_broker_after_restart"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "9812de905e86796052f4b720f8cd58fe3cd76543",
+        "verifiedAt": "2026-10-07T10:42:21Z",
+        "receiptDigest": "sha256:a7124a23f7bb72a92afc6e34dbd06439badefcf046e43a2e93bee479d4a885bf"
       },
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "retain_reviewed_boundary_or_partial_and_reaudit",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "maintain_verified_function_exact",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust onboarding tests cover default futu recommendation, completion state, lastBrokerId, and completedAt."
+        "冻结Go原始completed/dismissed=false、lastBrokerId为空白，seed的completedAt/dismissedAt均2026-01-02T03:04:05Z且lastBrokerId=futu；production HTTP200、文件与响应completed=false且两个时间戳被清除、futu保留。",
+        "空时间戳按既有serde契约省略，解码回OnboardingSettings直接断言两字符串为空；shutdown/restart后同一状态及lastBrokerId保持。"
       ],
-      "uncoveredAssertions": [
-        "No reset sequence assertion proves lastBrokerId remains futu after onboarding reset."
-      ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/api/settings/routes_failure_boundaries_test.go:147:TestDataManagementStatusMapsCallbackFailure": {
@@ -19405,9 +19407,9 @@
     },
     "internal/api/settings/routes_test.go:935:TestSystemNotificationTestRouteUsesSettingsServicePort": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_tests.rs::product_server_persists_ui_settings_and_reports_actual_port",
-      "conclusion": "partial：Go 断言 POST /api/v1/settings/system-notifications/test 成功返回 event id + delivered，服务不可用→500 SYSTEM_NOTIFICATION_TEST_FAILED。Rust 断言 event.id、delivery.status=delivered 与 DeliveredNotification 端口请求字段；不可用 500 分支无断言。缺口 owner：crates/jftrade-engine 通知测试端口；回归要求：补“端口不可用 → 500 SYSTEM_NOTIFICATION_TEST_FAILED”断言后升级。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'not test(production_helper_sync_cancel_aborts_in_flight_request) and not test(production_helper_sync_rejects_broken_pagination_cursors) and not test(production_helper_sync_forwards_page_query_and_persists_provider_values) and not test(production_helper_sync_retries_transient_page_and_records_retry)'",
+      "rust_entry": "crates/jftrade-engine/src/product_settings_http_parity_tests.rs::production_http_notification_test_forwards_host_request_and_missing_host_fails_closed",
+      "conclusion": "partial：production HTTP通过recording host port，三次请求200并逐次核对system-notification-1/2/3与delivered；第三次覆盖冻结Go的system-notification-3断言，host调用恰好三次，中文title/body与sound=true直接核对。 重新启动无host的相同production配置，实测503 SYSTEM_NOTIFICATION_UNAVAILABLE且旧host调用数保持三，明确失败关闭。 Go缺notification tester要求500 SYSTEM_NOTIFICATION_TEST_FAILED，Rust typed host缺失为503 SYSTEM_NOTIFICATION_UNAVAILABLE；保留同形缺owner的错误分类差异。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-engine --test production_http_notification_test_forwards_host_request_and_missing_host_fails_closed --output docs/history/go-to-rust/verification-receipts/settings-durable-http-verified-2026-10-07.json",
       "evidence_type": "partial",
       "source": {
         "file": "internal/api/settings/routes_test.go",
@@ -19417,23 +19419,24 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_tests.rs",
-          "test": "product_server_persists_ui_settings_and_reports_actual_port",
+          "file": "crates/jftrade-engine/src/product_settings_http_parity_tests.rs",
+          "test": "production_http_notification_test_forwards_host_request_and_missing_host_fails_closed",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/api/settings/routes_test.go",
             "goLine": 935,
-            "rustFile": "crates/jftrade-engine/src/product_tests.rs",
-            "rustLine": 670
+            "rustFile": "crates/jftrade-engine/src/product_settings_http_parity_tests.rs",
+            "rustLine": 301
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust notification test route asserts event id, delivered status, and DeliveredNotification port fields."
+          "production HTTP通过recording host port，三次请求200并逐次核对system-notification-1/2/3与delivered；第三次覆盖冻结Go的system-notification-3断言，host调用恰好三次，中文title/body与sound=true直接核对。",
+          "重新启动无host的相同production配置，实测503 SYSTEM_NOTIFICATION_UNAVAILABLE且旧host调用数保持三，明确失败关闭。"
         ],
         "uncovered": [
-          "No unavailable-port assertion returning 500 SYSTEM_NOTIFICATION_TEST_FAILED."
+          "Go缺notification tester要求500 SYSTEM_NOTIFICATION_TEST_FAILED，Rust typed host缺失为503 SYSTEM_NOTIFICATION_UNAVAILABLE；保留同形缺owner的错误分类差异。"
         ],
         "source": "reviewed"
       },
@@ -19444,37 +19447,39 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(production_http_settings_failed_saves_preserve_state_and_pine_validation_precedes_persistence) or test(production_http_managed_account_path_id_wins_and_failed_update_rolls_back) or test(production_http_onboarding_reset_clears_timestamps_and_keeps_last_broker_after_restart) or test(production_http_notification_settings_expose_normalization_and_persist_disabled_state) or test(production_http_notification_test_forwards_host_request_and_missing_host_fails_closed)"
         ],
         "testFilter": [
-          "product_server_persists_ui_settings_and_reports_actual_port"
+          "production_http_notification_test_forwards_host_request_and_missing_host_fails_closed"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "9812de905e86796052f4b720f8cd58fe3cd76543",
+        "verifiedAt": "2026-10-07T10:42:21Z",
+        "receiptDigest": "sha256:a7124a23f7bb72a92afc6e34dbd06439badefcf046e43a2e93bee479d4a885bf"
       },
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "retain_reviewed_boundary_or_partial_and_reaudit",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "preserve_partial_and_track_residual",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust notification test route asserts event id, delivered status, and DeliveredNotification port fields."
+        "production HTTP通过recording host port，三次请求200并逐次核对system-notification-1/2/3与delivered；第三次覆盖冻结Go的system-notification-3断言，host调用恰好三次，中文title/body与sound=true直接核对。",
+        "重新启动无host的相同production配置，实测503 SYSTEM_NOTIFICATION_UNAVAILABLE且旧host调用数保持三，明确失败关闭。"
       ],
       "uncoveredAssertions": [
-        "No unavailable-port assertion returning 500 SYSTEM_NOTIFICATION_TEST_FAILED."
+        "Go缺notification tester要求500 SYSTEM_NOTIFICATION_TEST_FAILED，Rust typed host缺失为503 SYSTEM_NOTIFICATION_UNAVAILABLE；保留同形缺owner的错误分类差异。"
       ],
       "boundaryReason": null
     },
@@ -342949,15 +342954,14 @@
       "reviewStatus": "single"
     },
     "crates/jftrade-settings/tests/managed_account_validation.rs::update_account_preserves_immutable_identity_and_clears_timestamps": {
-      "referenceCount": 3,
+      "referenceCount": 2,
       "referenceKeys": [
-        "internal/api/settings/routes_accounts_validation_test.go:18:TestManagedAccountUpdateUsesPathIDAndSurfacesServerErrors",
         "internal/settings/service_test.go:565:TestServiceDelegatesProvidersAndLifecycle",
         "internal/store/settingsfile/store_persistence_contracts_test.go:397:TestManagedAccountLifecyclePreservesScopeAndHandlesMissingIDs"
       ],
       "allowed": false,
       "reviewStatus": "reviewed",
-      "reviewNote": "2026-10-02 bounded reuse review: compared all 3 referenceKeys against the shared Rust owner (status mix {'[~]': 3}); assertion scopes are not interchangeable, so reuse remains disallowed and no function_exact row is upgraded by this relation."
+      "reviewNote": "2026-10-07：本批五条转到各自production HTTP/file owner，仅移除本批旧引用并保留其它条目的allowed和审核范围；Pine required绑定、通知归一和缺host分类残余继续partial。"
     },
     "crates/jftrade-engine/src/product_tests.rs::cleanup_preview_route_returns_candidates_and_rejects_bad_payloads": {
       "referenceCount": 5,
@@ -342981,21 +342985,18 @@
       "reviewStatus": "single"
     },
     "crates/jftrade-store-settings-file/tests/settings_file_contracts.rs::test_failed_setting_saves_rollback_all_runtime_state": {
-      "referenceCount": 3,
+      "referenceCount": 2,
       "referenceKeys": [
-        "internal/api/settings/routes_failure_boundaries_test.go:48:TestSettingWriteRoutesMapPersistenceFailures",
         "internal/store/settingsfile/persist_failures_test.go:26:TestPersistLockedPropagatesTemporaryFileDurabilityFailures",
         "internal/store/settingsfile/rollback_test.go:13:TestFailedSettingSavesRollbackAllRuntimeState"
       ],
       "allowed": false,
       "reviewStatus": "reviewed",
-      "reviewNote": "2026-10-02 bounded reuse review: compared all 3 referenceKeys against the shared Rust owner (status mix {'[~]': 3}); assertion scopes are not interchangeable, so reuse remains disallowed and no function_exact row is upgraded by this relation."
+      "reviewNote": "2026-10-07：本批五条转到各自production HTTP/file owner，仅移除本批旧引用并保留其它条目的allowed和审核范围；Pine required绑定、通知归一和缺host分类残余继续partial。"
     },
     "crates/jftrade-engine/src/product_tests.rs::product_server_persists_ui_settings_and_reports_actual_port": {
-      "referenceCount": 17,
+      "referenceCount": 14,
       "referenceKeys": [
-        "internal/api/settings/routes_failure_boundaries_test.go:84:TestSystemNotificationRoutesReadAndSaveSettings",
-        "internal/api/settings/routes_failure_boundaries_test.go:125:TestOnboardingCanBeResetWithoutLosingLastBroker",
         "internal/api/settings/routes_failure_boundaries_test.go:164:TestSettingsAndDataManagementRoutesExposeOperationalFailureContracts",
         "internal/api/settings/routes_test.go:247:TestSettingsRoutesPreserveLegacyResponseShapes",
         "internal/api/settings/routes_test.go:304:TestMCPServerSettingsRoutesReturnTokenOnlyOnce",
@@ -343004,7 +343005,6 @@
         "internal/api/settings/routes_test.go:419:TestExecutionSettingsRouteUsesInjectedService",
         "internal/api/settings/routes_test.go:468:TestAppearanceOnboardingSecurityAndADKRoutesCoverSaveFlows",
         "internal/api/settings/routes_test.go:589:TestExecutionExchangeCalendarAndBrokerRoutesCoverReadAndValidation",
-        "internal/api/settings/routes_test.go:935:TestSystemNotificationTestRouteUsesSettingsServicePort",
         "internal/api/system/routes_test.go:19:TestSystemRoutesReturnEnvelopes",
         "internal/app/apiserver/servercore/settings_security_test.go:37:TestDesktopCanEnablePasswordProtectedWebWithoutExposingPassword",
         "internal/app/apiserver/servercore/settings_security_test.go:86:TestWebAccessCannotBeEnabledWithoutPassword",
@@ -343014,7 +343014,7 @@
       ],
       "allowed": true,
       "reviewStatus": "reviewed",
-      "reviewNote": "2026-09-29 API/settings high-fan-out review: all 20 referenceKeys were compared individually. The shared product HTTP owner supplies settings route wiring and concrete response assertions; the four function_exact rows retain their additional service/port owners and reviewed assertion coverage. The other 16 references remain partial because their conclusions explicitly record missing combined GET/PUT, failure-envelope, login, callback, or apiBind behavior; allowing this relation does not upgrade those rows."
+      "reviewNote": "2026-10-07：本批五条转到各自production HTTP/file owner，仅移除本批旧引用并保留其它条目的allowed和审核范围；Pine required绑定、通知归一和缺host分类残余继续partial。"
     },
     "crates/jftrade-engine/src/product_data_management_read_tests.rs::data_management_overview_is_authenticated_and_does_not_create_missing_databases": {
       "referenceCount": 1,
@@ -364643,6 +364643,46 @@
       "referenceCount": 1,
       "referenceKeys": [
         "internal/api/trading/routes_broker_contracts_test.go:143:TestPortfolioRoutesUseBrokerSnapshotsAndMissingBrokerSemantics"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_settings_http_parity_tests.rs::production_http_managed_account_path_id_wins_and_failed_update_rolls_back": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/api/settings/routes_accounts_validation_test.go:18:TestManagedAccountUpdateUsesPathIDAndSurfacesServerErrors"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_settings_http_parity_tests.rs::production_http_notification_settings_expose_normalization_and_persist_disabled_state": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/api/settings/routes_failure_boundaries_test.go:84:TestSystemNotificationRoutesReadAndSaveSettings"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_settings_http_parity_tests.rs::production_http_notification_test_forwards_host_request_and_missing_host_fails_closed": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/api/settings/routes_test.go:935:TestSystemNotificationTestRouteUsesSettingsServicePort"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_settings_http_parity_tests.rs::production_http_onboarding_reset_clears_timestamps_and_keeps_last_broker_after_restart": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/api/settings/routes_failure_boundaries_test.go:125:TestOnboardingCanBeResetWithoutLosingLastBroker"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_settings_http_parity_tests.rs::production_http_settings_failed_saves_preserve_state_and_pine_validation_precedes_persistence": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/api/settings/routes_failure_boundaries_test.go:48:TestSettingWriteRoutesMapPersistenceFailures"
       ],
       "allowed": true,
       "reviewStatus": "single"

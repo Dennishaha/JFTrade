@@ -1,5 +1,15 @@
 # Go → Rust 对齐成果摘要
 
+## 2026-10-07 设置失败与 durable 状态
+
+- 五条partial逐项读取冻结Go，新增五项认证production HTTP/file owner测试。managed account路径ID优先和onboarding重置两条闭合，净 **exact +2 / partial -2 / boundary 0**，当前 **1616 / 2195 / 640**。
+- 原始record-1/client-id/acct-9/Primary更新200，响应与落盘保留路径ID；在真实文件atomic replacement被目录阻塞时，原始第二个acct-9请求500 SETTINGS_SAVE_FAILED，Primary和文件字节保持，恢复后重启仍为record-1/Primary。生产fixture预seed真实记录，未引入upsert或第二写owner。
+- 原始completed/dismissed=false、空白lastBrokerId请求200，清除两个原始2026-01-02T03:04:05Z时间戳并保留futu；响应及文件按既有serde省略空值，解码后直接断言空字符串，shutdown/restart状态保持。
+- 十一条原始设置写请求全部执行，十条为500 SETTINGS_SAVE_FAILED；pine-worker {}为400 BAD_REQUEST，与Go500构成反例。公开OpenAPI三个字段均required，未放宽绑定；补完整合法字段请求500。每次请求后九类设置回读（包括账户数组）和原文件字节保持。首轮失败保留，不把合法请求当原始{}。
+- 通知important/trading与off/system原始输入直接执行，Rust归一important及默认类别，与Go route stub raw字段不同，保持partial；PUT/GET/落盘与重启一致。recording notification host恰好三次，第三次system-notification-3/delivered及中文title/body/sound直接核对；无host实测503 SYSTEM_NOTIFICATION_UNAVAILABLE，与Go500不同，保持partial。
+- canonical `verification-receipts/settings-durable-http-verified-2026-10-07.json`：**5 passed / 0 failed / 0 ignored / 2171 filtered/skipped**，SHA-256 `a7124a23f7bb72a92afc6e34dbd06439badefcf046e43a2e93bee479d4a885bf`。首轮initial **4 passed / 1 failed** 暴露Pine {}绑定差异，原receipt保留。普通/strict及anchor通过，anchor2080 unique/2032 recorded/0 unrecorded/0 stale/48 unknown。
+- 本批quick明确退出0：2206 Rust passed/0 failed/0 skipped，Clippy、七类回放及Pine98通过，无LEAK。完整Rust首轮target-health退出1，日志保留；确认无构建进程后清理116817 files/32.6GiB，重跑明确退出0：3754 passed/0 failed/2 skipped，静态及七类回放通过，无LEAK。两个skipped未计为通过；最终Rust源码与canonical指纹核对一致，diff review后独立提交。
+
 ## 2026-10-07 交易读参数、回执与 portfolio wire
 
 - 五条partial逐项核对冻结Go；订单筛选和部分成交详情两条升exact，净 **exact +2 / partial -2 / boundary 0**，当前 **1614 / 2197 / 640**。纠正Go110旧结论：原测试只核对归一后的filter，未断言current/history调用次数，测试内gotActiveOnly直接赋true。
