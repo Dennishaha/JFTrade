@@ -3,6 +3,9 @@
 #[path = "support/workflow_scheduler_lifecycle.rs"]
 mod lifecycle;
 
+#[path = "support/workflow_threshold_config_parity.rs"]
+mod threshold_config_parity;
+
 use std::collections::BTreeMap;
 use std::fs::File;
 use std::path::Path;

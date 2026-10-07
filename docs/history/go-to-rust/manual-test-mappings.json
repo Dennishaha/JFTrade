@@ -131382,9 +131382,9 @@
     },
     "internal/assistant/workflow/rules_test.go:135:TestRuleHelpersAndValidationEdges": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_workflow_cron.rs::parse_valid_cron_expressions",
-      "conclusion": "partial：Go 断言规则助手与校验边界（合法/非法 cron、时区解析、配置形态）。Rust 的 cron 用例断言合法表达式解析（同一解析口径）；Go 的时区解析与配置形态边界在 Rust 由设置解析用例覆盖，无逐条断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'not test(production_helper_sync_cancel_aborts_in_flight_request) and not test(production_helper_sync_rejects_broken_pagination_cursors) and not test(production_helper_sync_forwards_page_query_and_persists_provider_values) and not test(production_helper_sync_retries_transient_page_and_records_retry)'",
+      "rust_entry": "crates/jftrade-engine/src/product_workflow_threshold_parity_tests.rs::threshold_rule_numeric_paths_state_and_cooldown_cover_original_boundaries; crates/jftrade-engine/src/product_adk_workflow_trigger_parity_tests.rs::workflow_trigger_original_validation_errors_preserve_their_field_classification",
+      "conclusion": "partial：四条原始校验分别保留workflowId/cron/instrumentIds/numeric value错误分类；拒绝配置前后完整trigger rows相等。Mars/Base和bad cron失败；原始比较、scalar/空段numeric path、nested entityId、混合ID/去重/缺配置、所有数值、空state及malformed/recent cooldown分支均直接执行。 额外有效ID为空与bad数值字符串拒绝无写入，配置求值和mutation校验使用同一ID归一。 原NextRunAtString(bad)返回空字符串而Rust公开cron函数返回Result::Err；原ConfigStringSlice缺key显式返回nil，Rust配置helper返回空Vec，不把不同返回形状当function_exact。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(threshold_original_nested_cross_down_and_config_scalars_preserve_values) or test(threshold_rule_numeric_paths_state_and_cooldown_cover_original_boundaries) or test(threshold_original_mismatched_events_do_not_prime_unrelated_instruments) or test(threshold_original_cooling_and_missing_paths_preserve_state_decisions) or test(workflow_original_crud_pages_failed_logs_and_soft_deletes_resources) or test(workflow_trigger_original_validation_errors_preserve_their_field_classification) or test(workflow_trigger_original_string_instrument_config_reaches_the_durable_owner) or test(workflow_trigger_original_invalid_schedule_and_market_configs_do_not_write_rows) or test(threshold_scheduler_polls_normalized_scalar_ids_once_and_persists_each_match)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/assistant/workflow/rules_test.go",
@@ -131394,23 +131394,35 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_workflow_cron.rs",
-          "test": "parse_valid_cron_expressions",
+          "file": "crates/jftrade-engine/src/product_workflow_threshold_parity_tests.rs",
+          "test": "threshold_rule_numeric_paths_state_and_cooldown_cover_original_boundaries",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/assistant/workflow/rules_test.go",
             "goLine": 135,
-            "rustFile": "crates/jftrade-engine/src/product_workflow_cron.rs",
-            "rustLine": 302
+            "rustFile": "crates/jftrade-engine/src/product_workflow_threshold_parity_tests.rs",
+            "rustLine": 49
+          }
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_adk_workflow_trigger_parity_tests.rs",
+          "test": "workflow_trigger_original_validation_errors_preserve_their_field_classification",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/assistant/workflow/rules_test.go",
+            "goLine": 135,
+            "rustFile": "crates/jftrade-engine/src/product_adk_workflow_trigger_parity_tests.rs",
+            "rustLine": 157
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust cron parser test covers valid cron expression parsing; settings parsing covers supported timezone/config forms."
+          "四条原始校验分别保留workflowId/cron/instrumentIds/numeric value错误分类；拒绝配置前后完整trigger rows相等。Mars/Base和bad cron失败；原始比较、scalar/空段numeric path、nested entityId、混合ID/去重/缺配置、所有数值、空state及malformed/recent cooldown分支均直接执行。",
+          "额外有效ID为空与bad数值字符串拒绝无写入，配置求值和mutation校验使用同一ID归一。"
         ],
         "uncovered": [
-          "No Rust complete boundary table for invalid cron, timezone parsing errors, and every rule configuration shape."
+          "原NextRunAtString(bad)返回空字符串而Rust公开cron函数返回Result::Err；原ConfigStringSlice缺key显式返回nil，Rust配置helper返回空Vec，不把不同返回形状当function_exact。"
         ],
         "source": "reviewed"
       },
@@ -131421,45 +131433,50 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(threshold_original_nested_cross_down_and_config_scalars_preserve_values) or test(threshold_rule_numeric_paths_state_and_cooldown_cover_original_boundaries) or test(threshold_original_mismatched_events_do_not_prime_unrelated_instruments) or test(threshold_original_cooling_and_missing_paths_preserve_state_decisions) or test(workflow_original_crud_pages_failed_logs_and_soft_deletes_resources) or test(workflow_trigger_original_validation_errors_preserve_their_field_classification) or test(workflow_trigger_original_string_instrument_config_reaches_the_durable_owner) or test(workflow_trigger_original_invalid_schedule_and_market_configs_do_not_write_rows) or test(threshold_scheduler_polls_normalized_scalar_ids_once_and_persists_each_match)"
         ],
         "testFilter": [
-          "parse_valid_cron_expressions"
+          "threshold_rule_numeric_paths_state_and_cooldown_cover_original_boundaries",
+          "workflow_trigger_original_validation_errors_preserve_their_field_classification"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "e4a6328c866a17af56ea30109d44119ae62a92a0",
+        "verifiedAt": "2026-10-07T20:11:59Z",
+        "receiptDigest": "sha256:099d25eae4815b5f3767433d23ad2c9919c0fbe5fcd1c33aab717dace66d33c5"
       },
       "risk": "normal",
       "owner": "assistant_workflow",
       "priority": "P2",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
+      "nextAction": "review_original_trigger_helper_and_runtime_residuals",
       "blockedBy": [
         "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust cron parser test covers valid cron expression parsing; settings parsing covers supported timezone/config forms."
+        "四条原始校验分别保留workflowId/cron/instrumentIds/numeric value错误分类；拒绝配置前后完整trigger rows相等。Mars/Base和bad cron失败；原始比较、scalar/空段numeric path、nested entityId、混合ID/去重/缺配置、所有数值、空state及malformed/recent cooldown分支均直接执行。",
+        "额外有效ID为空与bad数值字符串拒绝无写入，配置求值和mutation校验使用同一ID归一。"
       ],
       "uncoveredAssertions": [
-        "No Rust complete boundary table for invalid cron, timezone parsing errors, and every rule configuration shape."
+        "原NextRunAtString(bad)返回空字符串而Rust公开cron函数返回Result::Err；原ConfigStringSlice缺key显式返回nil，Rust配置helper返回空Vec，不把不同返回形状当function_exact。"
       ],
       "boundaryReason": null
     },
     "internal/assistant/workflow/rules_test.go:207:TestRuleFallbacksMismatchesAndValidVariants": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/tests/workflow_cron_go_semantics.rs::numeric_step_and_wildcard_day_rules_match_go",
-      "conclusion": "partial：Go 断言规则回退、不匹配变体与合法变体组合。Rust 的 cron 语义用例断言数字步进与通配日规则与 Go 一致（同一规则语义）；Go 的逐变体组合断言在 Rust 由多条阈值/调度用例分摊覆盖。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'not test(production_helper_sync_cancel_aborts_in_flight_request) and not test(production_helper_sync_rejects_broken_pagination_cursors) and not test(production_helper_sync_forwards_page_query_and_persists_provider_values) and not test(production_helper_sync_retries_transient_page_and_records_retry)'",
+      "rust_entry": "crates/jftrade-engine/src/product_workflow_threshold_parity_tests.rs::threshold_original_mismatched_events_do_not_prime_unrelated_instruments; crates/jftrade-engine/src/product_adk_workflow_trigger_parity_tests.rs::workflow_trigger_original_string_instrument_config_reaches_the_durable_owner",
+      "conclusion": "partial：原缺cronrequired/无效五字段/默认timezone、三类empty threshold，以及空event/其它instrument/bad数值/嵌套payload101预热再nested us.aapl99跨下匹配/changed全部执行；无关MSFT不写lastValues。above默认比较、逗号去重、scalar配置缺列表、直接hk.00700及空entityId已断言，1.6冷却通过0/1/2秒求值证明round2。 原schedule/manual/webhook/event及字符串instrumentIds=US.AAPL,value100五类配置真实写入durable owner；额外逗号/数字ID/value字符串100也可保存。原unsupported类型在production normalization实际归一manual，与Go直接ValidateTrigger拒绝的反例明确保留。 仍缺五个EventMatches mismatch与nil event cooldown、整组Normalize/default title、Stringer/ConfigInt fallback7、EnsureConfigState复用、MapString/clone/default helper完整组合；unsupported直接验证拒绝与production manual归一不同，保留partial。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(threshold_original_nested_cross_down_and_config_scalars_preserve_values) or test(threshold_rule_numeric_paths_state_and_cooldown_cover_original_boundaries) or test(threshold_original_mismatched_events_do_not_prime_unrelated_instruments) or test(threshold_original_cooling_and_missing_paths_preserve_state_decisions) or test(workflow_original_crud_pages_failed_logs_and_soft_deletes_resources) or test(workflow_trigger_original_validation_errors_preserve_their_field_classification) or test(workflow_trigger_original_string_instrument_config_reaches_the_durable_owner) or test(workflow_trigger_original_invalid_schedule_and_market_configs_do_not_write_rows) or test(threshold_scheduler_polls_normalized_scalar_ids_once_and_persists_each_match)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/assistant/workflow/rules_test.go",
@@ -131469,23 +131486,35 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/tests/workflow_cron_go_semantics.rs",
-          "test": "numeric_step_and_wildcard_day_rules_match_go",
+          "file": "crates/jftrade-engine/src/product_workflow_threshold_parity_tests.rs",
+          "test": "threshold_original_mismatched_events_do_not_prime_unrelated_instruments",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/assistant/workflow/rules_test.go",
             "goLine": 207,
-            "rustFile": "crates/jftrade-engine/tests/workflow_cron_go_semantics.rs",
-            "rustLine": 8
+            "rustFile": "crates/jftrade-engine/src/product_workflow_threshold_parity_tests.rs",
+            "rustLine": 97
+          }
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_adk_workflow_trigger_parity_tests.rs",
+          "test": "workflow_trigger_original_string_instrument_config_reaches_the_durable_owner",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/assistant/workflow/rules_test.go",
+            "goLine": 207,
+            "rustFile": "crates/jftrade-engine/src/product_adk_workflow_trigger_parity_tests.rs",
+            "rustLine": 210
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust cron semantics test covers numeric-step and wildcard-day rules matching Go behavior; scheduler/threshold tests cover additional variants."
+          "原缺cronrequired/无效五字段/默认timezone、三类empty threshold，以及空event/其它instrument/bad数值/嵌套payload101预热再nested us.aapl99跨下匹配/changed全部执行；无关MSFT不写lastValues。above默认比较、逗号去重、scalar配置缺列表、直接hk.00700及空entityId已断言，1.6冷却通过0/1/2秒求值证明round2。",
+          "原schedule/manual/webhook/event及字符串instrumentIds=US.AAPL,value100五类配置真实写入durable owner；额外逗号/数字ID/value字符串100也可保存。原unsupported类型在production normalization实际归一manual，与Go直接ValidateTrigger拒绝的反例明确保留。"
         ],
         "uncovered": [
-          "No single Rust table covers all fallback, mismatch, and valid rule variants exercised by the Go helper."
+          "仍缺五个EventMatches mismatch与nil event cooldown、整组Normalize/default title、Stringer/ConfigInt fallback7、EnsureConfigState复用、MapString/clone/default helper完整组合；unsupported直接验证拒绝与production manual归一不同，保留partial。"
         ],
         "source": "reviewed"
       },
@@ -131496,37 +131525,42 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(threshold_original_nested_cross_down_and_config_scalars_preserve_values) or test(threshold_rule_numeric_paths_state_and_cooldown_cover_original_boundaries) or test(threshold_original_mismatched_events_do_not_prime_unrelated_instruments) or test(threshold_original_cooling_and_missing_paths_preserve_state_decisions) or test(workflow_original_crud_pages_failed_logs_and_soft_deletes_resources) or test(workflow_trigger_original_validation_errors_preserve_their_field_classification) or test(workflow_trigger_original_string_instrument_config_reaches_the_durable_owner) or test(workflow_trigger_original_invalid_schedule_and_market_configs_do_not_write_rows) or test(threshold_scheduler_polls_normalized_scalar_ids_once_and_persists_each_match)"
         ],
         "testFilter": [
-          "numeric_step_and_wildcard_day_rules_match_go"
+          "threshold_original_mismatched_events_do_not_prime_unrelated_instruments",
+          "workflow_trigger_original_string_instrument_config_reaches_the_durable_owner"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "e4a6328c866a17af56ea30109d44119ae62a92a0",
+        "verifiedAt": "2026-10-07T20:11:59Z",
+        "receiptDigest": "sha256:099d25eae4815b5f3767433d23ad2c9919c0fbe5fcd1c33aab717dace66d33c5"
       },
       "risk": "high",
       "owner": "assistant_workflow",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
+      "nextAction": "review_original_trigger_helper_and_runtime_residuals",
       "blockedBy": [
         "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust cron semantics test covers numeric-step and wildcard-day rules matching Go behavior; scheduler/threshold tests cover additional variants."
+        "原缺cronrequired/无效五字段/默认timezone、三类empty threshold，以及空event/其它instrument/bad数值/嵌套payload101预热再nested us.aapl99跨下匹配/changed全部执行；无关MSFT不写lastValues。above默认比较、逗号去重、scalar配置缺列表、直接hk.00700及空entityId已断言，1.6冷却通过0/1/2秒求值证明round2。",
+        "原schedule/manual/webhook/event及字符串instrumentIds=US.AAPL,value100五类配置真实写入durable owner；额外逗号/数字ID/value字符串100也可保存。原unsupported类型在production normalization实际归一manual，与Go直接ValidateTrigger拒绝的反例明确保留。"
       ],
       "uncoveredAssertions": [
-        "No single Rust table covers all fallback, mismatch, and valid rule variants exercised by the Go helper."
+        "仍缺五个EventMatches mismatch与nil event cooldown、整组Normalize/default title、Stringer/ConfigInt fallback7、EnsureConfigState复用、MapString/clone/default helper完整组合；unsupported直接验证拒绝与production manual归一不同，保留partial。"
       ],
       "boundaryReason": null
     },
@@ -131760,11 +131794,11 @@
       "boundaryReason": null
     },
     "internal/assistant/workflow_crud_test.go:14:TestWorkflowResourceCrudPaginationAndLogs": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_adk_store_parity_tests.rs::workflow_and_trigger_lists_hide_deleted_rows_after_create_and_delete",
-      "conclusion": "partial：Rust 已补真实 workflow owner 回归：tags 会 trim、去空、去重并排序；更新后的 status/name/workMode/tags、列表 status 过滤与 limit/offset 归一、workflow trigger logs 默认 limit=20 且按 workflowId/triggerId/status 过滤；空 type/title/status 的手动 trigger 回退为 manual/手动触发/ERROR，列表投影不暴露 secretHash；删除响应逐字段确认 disabled/deletedAt、重复删除与删除后单条读取失败。更多手动触发错误分支与完整 wire 状态仍未完全锁定，故保持 partial。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-      "evidence_type": "partial",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-engine/src/product_adk_workflow_trigger_parity_tests.rs::workflow_original_crud_pages_failed_logs_and_soft_deletes_resources",
+      "conclusion": "function_exact：原始Updated Workflow/disabled/loop及daily,risk去重归一；status=DISABLED/limit200/offset-10列表实际100/0且非空。原始空type/title、error状态与custom config创建manual/手动触发/ERROR，列表恰一个且隐藏secretHash。 真实ADK SQLite保存原FAILED/unit failure日志，按workflow/trigger/status及limit0/offset-1读取20/0、恰一个且ID等于保存结果；trigger和workflow软删除均有deletedAt及DISABLED，重复删除trigger和读取已删除workflow返回错误，底层两行仍保留。所有原断言通过同一production read/mutation owner闭合。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(threshold_original_nested_cross_down_and_config_scalars_preserve_values) or test(threshold_rule_numeric_paths_state_and_cooldown_cover_original_boundaries) or test(threshold_original_mismatched_events_do_not_prime_unrelated_instruments) or test(threshold_original_cooling_and_missing_paths_preserve_state_decisions) or test(workflow_original_crud_pages_failed_logs_and_soft_deletes_resources) or test(workflow_trigger_original_validation_errors_preserve_their_field_classification) or test(workflow_trigger_original_string_instrument_config_reaches_the_durable_owner) or test(workflow_trigger_original_invalid_schedule_and_market_configs_do_not_write_rows) or test(threshold_scheduler_polls_normalized_scalar_ids_once_and_persists_each_match)'",
+      "evidence_type": "function_exact",
       "source": {
         "file": "internal/assistant/workflow_crud_test.go",
         "line": 14,
@@ -131773,35 +131807,23 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_adk_store_parity_tests.rs",
-          "test": "workflow_and_trigger_lists_hide_deleted_rows_after_create_and_delete",
+          "file": "crates/jftrade-engine/src/product_adk_workflow_trigger_parity_tests.rs",
+          "test": "workflow_original_crud_pages_failed_logs_and_soft_deletes_resources",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/assistant/workflow_crud_test.go",
             "goLine": 14,
-            "rustFile": "crates/jftrade-engine/src/product_adk_store_parity_tests.rs",
-            "rustLine": 1201
-          }
-        },
-        {
-          "file": "crates/jftrade-engine/src/product_adk_store_parity_tests.rs",
-          "test": "workflow_resource_crud_normalizes_tags_and_pagination_defaults",
-          "crate": "jftrade-engine",
-          "anchor": {
-            "goFile": "internal/assistant/workflow_crud_test.go",
-            "goLine": 14,
-            "rustFile": "crates/jftrade-engine/src/product_adk_store_parity_tests.rs",
-            "rustLine": 1560
+            "rustFile": "crates/jftrade-engine/src/product_adk_workflow_trigger_parity_tests.rs",
+            "rustLine": 41
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust workflow owner test covers tag trim/empty removal/dedup/sort, status/name/workMode updates, filtered pagination, trigger-log filters/default limit, manual-trigger fallbacks, secretHash omission, and delete projection/idempotency."
+          "原始Updated Workflow/disabled/loop及daily,risk去重归一；status=DISABLED/limit200/offset-10列表实际100/0且非空。原始空type/title、error状态与custom config创建manual/手动触发/ERROR，列表恰一个且隐藏secretHash。",
+          "真实ADK SQLite保存原FAILED/unit failure日志，按workflow/trigger/status及limit0/offset-1读取20/0、恰一个且ID等于保存结果；trigger和workflow软删除均有deletedAt及DISABLED，重复删除trigger和读取已删除workflow返回错误，底层两行仍保留。所有原断言通过同一production read/mutation owner闭合。"
         ],
-        "uncovered": [
-          "No complete Rust wire matrix for every manual-trigger error branch and all workflow/trigger log status fields."
-        ],
+        "uncovered": [],
         "source": "reviewed"
       },
       "verification": {
@@ -131811,38 +131833,38 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(threshold_original_nested_cross_down_and_config_scalars_preserve_values) or test(threshold_rule_numeric_paths_state_and_cooldown_cover_original_boundaries) or test(threshold_original_mismatched_events_do_not_prime_unrelated_instruments) or test(threshold_original_cooling_and_missing_paths_preserve_state_decisions) or test(workflow_original_crud_pages_failed_logs_and_soft_deletes_resources) or test(workflow_trigger_original_validation_errors_preserve_their_field_classification) or test(workflow_trigger_original_string_instrument_config_reaches_the_durable_owner) or test(workflow_trigger_original_invalid_schedule_and_market_configs_do_not_write_rows) or test(threshold_scheduler_polls_normalized_scalar_ids_once_and_persists_each_match)"
         ],
         "testFilter": [
-          "workflow_resource_crud_normalizes_tags_and_pagination_defaults",
-          "workflow_bridge_pages_lists_and_rejects_unknown_run_targets",
-          "workflow_and_trigger_lists_hide_deleted_rows_after_create_and_delete"
+          "workflow_original_crud_pages_failed_logs_and_soft_deletes_resources"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "e4a6328c866a17af56ea30109d44119ae62a92a0",
+        "verifiedAt": "2026-10-07T20:11:59Z",
+        "receiptDigest": "sha256:099d25eae4815b5f3767433d23ad2c9919c0fbe5fcd1c33aab717dace66d33c5"
       },
       "risk": "high",
       "owner": "assistant_workflow",
       "priority": "P1",
-      "nextAction": "cover_deleted_wire_states_and_manual_trigger_error_branches",
+      "nextAction": "retain_exact_and_reaudit_on_owner_change",
       "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust workflow owner test covers tag trim/empty removal/dedup/sort, status/name/workMode updates, filtered pagination, trigger-log filters/default limit, manual-trigger fallbacks, secretHash omission, and delete projection/idempotency."
+        "原始Updated Workflow/disabled/loop及daily,risk去重归一；status=DISABLED/limit200/offset-10列表实际100/0且非空。原始空type/title、error状态与custom config创建manual/手动触发/ERROR，列表恰一个且隐藏secretHash。",
+        "真实ADK SQLite保存原FAILED/unit failure日志，按workflow/trigger/status及limit0/offset-1读取20/0、恰一个且ID等于保存结果；trigger和workflow软删除均有deletedAt及DISABLED，重复删除trigger和读取已删除workflow返回错误，底层两行仍保留。所有原断言通过同一production read/mutation owner闭合。"
       ],
-      "uncoveredAssertions": [
-        "No complete Rust wire matrix for every manual-trigger error branch and all workflow/trigger log status fields."
-      ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/assistant/workflow_crud_test.go:116:TestWorkflowTriggerRunWebhookAndValidationFailures": {
@@ -132373,11 +132395,11 @@
       "boundaryReason": null
     },
     "internal/assistant/workflow_crud_test.go:616:TestWorkflowMarketThresholdAndConfigHelpersCoverEdges": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/tests/adk_workflow_scheduler_contracts.rs::test_market_threshold_cross_down_and_operators",
-      "conclusion": "partial：Go 断言市场阈值与配置助手边界（缺阈值/缺仪器/数值路径解析/配置切片归一）。Rust 的调度用例断言下穿与比较运算符（同一阈值评估语义）；Go 的配置助手（configStringSlice/numericAtPath）在 Rust 由设置解析用例覆盖，无逐条断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'not test(production_helper_sync_cancel_aborts_in_flight_request) and not test(production_helper_sync_rejects_broken_pagination_cursors) and not test(production_helper_sync_forwards_page_query_and_persists_provider_values) and not test(production_helper_sync_retries_transient_page_and_records_retry)'",
-      "evidence_type": "partial",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-engine/src/product_workflow_threshold_parity_tests.rs::threshold_original_nested_cross_down_and_config_scalars_preserve_values",
+      "conclusion": "function_exact：原始US.AAPL,hk.00700逗号列表、price路径、value100/cross_down/cooldown字符串0及三事件嵌套payload输入产生恰一个匹配/changed=true、edge=cross_down/current99。 原始below<=与above>=边界、两个比较操作、穿越scalar路径失败、嵌套hk.00700归一、混合数组US.AAPL/700、a去重、Number42字符串投影、1.5/2/3/字符串4.5数字接受及bad拒绝均直接调用实际阈值配置owner并逐项断言。Rust JSON数值表示替代Go float32/int64/int32/json.Number表示，原值和结果保持。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(threshold_original_nested_cross_down_and_config_scalars_preserve_values) or test(threshold_rule_numeric_paths_state_and_cooldown_cover_original_boundaries) or test(threshold_original_mismatched_events_do_not_prime_unrelated_instruments) or test(threshold_original_cooling_and_missing_paths_preserve_state_decisions) or test(workflow_original_crud_pages_failed_logs_and_soft_deletes_resources) or test(workflow_trigger_original_validation_errors_preserve_their_field_classification) or test(workflow_trigger_original_string_instrument_config_reaches_the_durable_owner) or test(workflow_trigger_original_invalid_schedule_and_market_configs_do_not_write_rows) or test(threshold_scheduler_polls_normalized_scalar_ids_once_and_persists_each_match)'",
+      "evidence_type": "function_exact",
       "source": {
         "file": "internal/assistant/workflow_crud_test.go",
         "line": 616,
@@ -132386,24 +132408,23 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/tests/adk_workflow_scheduler_contracts.rs",
-          "test": "test_market_threshold_cross_down_and_operators",
+          "file": "crates/jftrade-engine/src/product_workflow_threshold_parity_tests.rs",
+          "test": "threshold_original_nested_cross_down_and_config_scalars_preserve_values",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/assistant/workflow_crud_test.go",
             "goLine": 616,
-            "rustFile": "crates/jftrade-engine/tests/adk_workflow_scheduler_contracts.rs",
-            "rustLine": 492
+            "rustFile": "crates/jftrade-engine/src/product_workflow_threshold_parity_tests.rs",
+            "rustLine": 7
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust scheduler test covers cross-down evaluation and comparison operators; settings parsing covers configuration normalization."
+          "原始US.AAPL,hk.00700逗号列表、price路径、value100/cross_down/cooldown字符串0及三事件嵌套payload输入产生恰一个匹配/changed=true、edge=cross_down/current99。",
+          "原始below<=与above>=边界、两个比较操作、穿越scalar路径失败、嵌套hk.00700归一、混合数组US.AAPL/700、a去重、Number42字符串投影、1.5/2/3/字符串4.5数字接受及bad拒绝均直接调用实际阈值配置owner并逐项断言。Rust JSON数值表示替代Go float32/int64/int32/json.Number表示，原值和结果保持。"
         ],
-        "uncovered": [
-          "No Rust boundary table for missing threshold/instrument, nested numeric path parsing, or config slice normalization."
-        ],
+        "uncovered": [],
         "source": "reviewed"
       },
       "verification": {
@@ -132413,38 +132434,38 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(threshold_original_nested_cross_down_and_config_scalars_preserve_values) or test(threshold_rule_numeric_paths_state_and_cooldown_cover_original_boundaries) or test(threshold_original_mismatched_events_do_not_prime_unrelated_instruments) or test(threshold_original_cooling_and_missing_paths_preserve_state_decisions) or test(workflow_original_crud_pages_failed_logs_and_soft_deletes_resources) or test(workflow_trigger_original_validation_errors_preserve_their_field_classification) or test(workflow_trigger_original_string_instrument_config_reaches_the_durable_owner) or test(workflow_trigger_original_invalid_schedule_and_market_configs_do_not_write_rows) or test(threshold_scheduler_polls_normalized_scalar_ids_once_and_persists_each_match)"
         ],
         "testFilter": [
-          "test_market_threshold_cross_down_and_operators"
+          "threshold_original_nested_cross_down_and_config_scalars_preserve_values"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "e4a6328c866a17af56ea30109d44119ae62a92a0",
+        "verifiedAt": "2026-10-07T20:11:59Z",
+        "receiptDigest": "sha256:099d25eae4815b5f3767433d23ad2c9919c0fbe5fcd1c33aab717dace66d33c5"
       },
       "risk": "normal",
       "owner": "assistant_workflow",
       "priority": "P2",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "retain_exact_and_reaudit_on_owner_change",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust scheduler test covers cross-down evaluation and comparison operators; settings parsing covers configuration normalization."
+        "原始US.AAPL,hk.00700逗号列表、price路径、value100/cross_down/cooldown字符串0及三事件嵌套payload输入产生恰一个匹配/changed=true、edge=cross_down/current99。",
+        "原始below<=与above>=边界、两个比较操作、穿越scalar路径失败、嵌套hk.00700归一、混合数组US.AAPL/700、a去重、Number42字符串投影、1.5/2/3/字符串4.5数字接受及bad拒绝均直接调用实际阈值配置owner并逐项断言。Rust JSON数值表示替代Go float32/int64/int32/json.Number表示，原值和结果保持。"
       ],
-      "uncoveredAssertions": [
-        "No Rust boundary table for missing threshold/instrument, nested numeric path parsing, or config slice normalization."
-      ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/assistant/workflow_crud_test.go:671:TestWorkflowCoreHelpersAndUnavailableService": {
@@ -132827,9 +132848,9 @@
     },
     "internal/assistant/workflows_extended_test.go:14:TestWorkflowTriggerValidationAndBoundaryHelpers": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/tests/adk_workflow_scheduler_contracts.rs::test_market_threshold_quote_error_resilience",
-      "conclusion": "partial：Go 断言触发器校验（非法时区/非法模板/缺仪器/缺阈值）、冷却助手对畸形时间戳的宽容、配置与数值路径助手边界。Rust 的调度用例断言行情错误时阈值评估的韧性（同一评估容错面）；Go 的校验助手逐条错误在 Rust 由触发器写入校验覆盖，无逐条断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'not test(production_helper_sync_cancel_aborts_in_flight_request) and not test(production_helper_sync_rejects_broken_pagination_cursors) and not test(production_helper_sync_forwards_page_query_and_persists_provider_values) and not test(production_helper_sync_retries_transient_page_and_records_retry)'",
+      "rust_entry": "crates/jftrade-engine/src/product_workflow_threshold_parity_tests.rs::threshold_original_cooling_and_missing_paths_preserve_state_decisions; crates/jftrade-engine/src/product_adk_workflow_trigger_parity_tests.rs::workflow_trigger_original_invalid_schedule_and_market_configs_do_not_write_rows",
+      "conclusion": "partial：原missing workflowId/empty cron/六字段/invalid timezone/missing instruments分别保持原错误片段且零rows改变；原Mars/Base next run失败，缺instrument/value、10秒冷却changed不匹配、缺路径无changed、legacy state替换、malformed/RFC3339/30秒冷却、缺/scalar config列表、bad numeric string与nested null instrument均直接执行。 原unsupported trigger要求拒绝，而production type normalization归一manual；原renderWorkflowTemplate {{ call .notAFunction }}执行错误未由Rust canvas template owner证明。两项仍partial，不以其它合法trigger或字符串插值成功代替。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(threshold_original_nested_cross_down_and_config_scalars_preserve_values) or test(threshold_rule_numeric_paths_state_and_cooldown_cover_original_boundaries) or test(threshold_original_mismatched_events_do_not_prime_unrelated_instruments) or test(threshold_original_cooling_and_missing_paths_preserve_state_decisions) or test(workflow_original_crud_pages_failed_logs_and_soft_deletes_resources) or test(workflow_trigger_original_validation_errors_preserve_their_field_classification) or test(workflow_trigger_original_string_instrument_config_reaches_the_durable_owner) or test(workflow_trigger_original_invalid_schedule_and_market_configs_do_not_write_rows) or test(threshold_scheduler_polls_normalized_scalar_ids_once_and_persists_each_match)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/assistant/workflows_extended_test.go",
@@ -132839,23 +132860,34 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/tests/adk_workflow_scheduler_contracts.rs",
-          "test": "test_market_threshold_quote_error_resilience",
+          "file": "crates/jftrade-engine/src/product_workflow_threshold_parity_tests.rs",
+          "test": "threshold_original_cooling_and_missing_paths_preserve_state_decisions",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/assistant/workflows_extended_test.go",
             "goLine": 14,
-            "rustFile": "crates/jftrade-engine/tests/adk_workflow_scheduler_contracts.rs",
-            "rustLine": 546
+            "rustFile": "crates/jftrade-engine/src/product_workflow_threshold_parity_tests.rs",
+            "rustLine": 169
+          }
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_adk_workflow_trigger_parity_tests.rs",
+          "test": "workflow_trigger_original_invalid_schedule_and_market_configs_do_not_write_rows",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/assistant/workflows_extended_test.go",
+            "goLine": 14,
+            "rustFile": "crates/jftrade-engine/src/product_adk_workflow_trigger_parity_tests.rs",
+            "rustLine": 250
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust scheduler test covers resilience when market quotes fail during threshold evaluation; trigger-write validation covers supported fields."
+          "原missing workflowId/empty cron/六字段/invalid timezone/missing instruments分别保持原错误片段且零rows改变；原Mars/Base next run失败，缺instrument/value、10秒冷却changed不匹配、缺路径无changed、legacy state替换、malformed/RFC3339/30秒冷却、缺/scalar config列表、bad numeric string与nested null instrument均直接执行。"
         ],
         "uncovered": [
-          "No Rust table for invalid timezone/template/instrument/threshold inputs, malformed timestamp cooldown fallback, or config/numeric-path helper edges."
+          "原unsupported trigger要求拒绝，而production type normalization归一manual；原renderWorkflowTemplate {{ call .notAFunction }}执行错误未由Rust canvas template owner证明。两项仍partial，不以其它合法trigger或字符串插值成功代替。"
         ],
         "source": "reviewed"
       },
@@ -132866,37 +132898,41 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(threshold_original_nested_cross_down_and_config_scalars_preserve_values) or test(threshold_rule_numeric_paths_state_and_cooldown_cover_original_boundaries) or test(threshold_original_mismatched_events_do_not_prime_unrelated_instruments) or test(threshold_original_cooling_and_missing_paths_preserve_state_decisions) or test(workflow_original_crud_pages_failed_logs_and_soft_deletes_resources) or test(workflow_trigger_original_validation_errors_preserve_their_field_classification) or test(workflow_trigger_original_string_instrument_config_reaches_the_durable_owner) or test(workflow_trigger_original_invalid_schedule_and_market_configs_do_not_write_rows) or test(threshold_scheduler_polls_normalized_scalar_ids_once_and_persists_each_match)"
         ],
         "testFilter": [
-          "test_market_threshold_quote_error_resilience"
+          "threshold_original_cooling_and_missing_paths_preserve_state_decisions",
+          "workflow_trigger_original_invalid_schedule_and_market_configs_do_not_write_rows"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "e4a6328c866a17af56ea30109d44119ae62a92a0",
+        "verifiedAt": "2026-10-07T20:11:59Z",
+        "receiptDigest": "sha256:099d25eae4815b5f3767433d23ad2c9919c0fbe5fcd1c33aab717dace66d33c5"
       },
       "risk": "normal",
       "owner": "assistant_workflow",
       "priority": "P2",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
+      "nextAction": "review_original_trigger_helper_and_runtime_residuals",
       "blockedBy": [
         "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust scheduler test covers resilience when market quotes fail during threshold evaluation; trigger-write validation covers supported fields."
+        "原missing workflowId/empty cron/六字段/invalid timezone/missing instruments分别保持原错误片段且零rows改变；原Mars/Base next run失败，缺instrument/value、10秒冷却changed不匹配、缺路径无changed、legacy state替换、malformed/RFC3339/30秒冷却、缺/scalar config列表、bad numeric string与nested null instrument均直接执行。"
       ],
       "uncoveredAssertions": [
-        "No Rust table for invalid timezone/template/instrument/threshold inputs, malformed timestamp cooldown fallback, or config/numeric-path helper edges."
+        "原unsupported trigger要求拒绝，而production type normalization归一manual；原renderWorkflowTemplate {{ call .notAFunction }}执行错误未由Rust canvas template owner证明。两项仍partial，不以其它合法trigger或字符串插值成功代替。"
       ],
       "boundaryReason": null
     },
@@ -349115,11 +349151,10 @@
       "reviewStatus": "reviewed"
     },
     "crates/jftrade-engine/src/product_adk_store_parity_tests.rs::workflow_and_trigger_lists_hide_deleted_rows_after_create_and_delete": {
-      "referenceCount": 3,
+      "referenceCount": 2,
       "referenceKeys": [
         "internal/assistant/assembly/workflow_tools_test.go:183:TestWorkflowManagementToolListsCreatesAndDeletes",
-        "internal/assistant/engine/workflow_store_test.go:9:TestWorkflowStoreCRUDSoftDeleteAndLogs",
-        "internal/assistant/workflow_crud_test.go:14:TestWorkflowResourceCrudPaginationAndLogs"
+        "internal/assistant/engine/workflow_store_test.go:9:TestWorkflowStoreCRUDSoftDeleteAndLogs"
       ],
       "allowed": false,
       "reviewStatus": "reviewed",
@@ -351910,22 +351945,6 @@
       "reviewStatus": "reviewed",
       "reviewNote": "2026-10-02 bounded reuse review: compared all 2 referenceKeys against the shared Rust owner (status mix {'[~]': 2}); assertion scopes are not interchangeable, so reuse remains disallowed and no function_exact row is upgraded by this relation."
     },
-    "crates/jftrade-engine/src/product_workflow_cron.rs::parse_valid_cron_expressions": {
-      "referenceCount": 1,
-      "referenceKeys": [
-        "internal/assistant/workflow/rules_test.go:135:TestRuleHelpersAndValidationEdges"
-      ],
-      "allowed": true,
-      "reviewStatus": "single"
-    },
-    "crates/jftrade-engine/tests/workflow_cron_go_semantics.rs::numeric_step_and_wildcard_day_rules_match_go": {
-      "referenceCount": 1,
-      "referenceKeys": [
-        "internal/assistant/workflow/rules_test.go:207:TestRuleFallbacksMismatchesAndValidVariants"
-      ],
-      "allowed": true,
-      "reviewStatus": "single"
-    },
     "crates/jftrade-store-sqlite/tests/workflow_queue_atomicity.rs::trigger_schedule_and_queue_commit_together_and_reject_stale_claims": {
       "referenceCount": 1,
       "referenceKeys": [
@@ -351944,26 +351963,10 @@
       "reviewStatus": "single",
       "reviewNote": "2026-10-02 bounded reuse review: compared all 2 referenceKeys against the shared Rust owner (status mix {'[~]': 2}); assertion scopes are not interchangeable, so reuse remains disallowed and no function_exact row is upgraded by this relation."
     },
-    "crates/jftrade-engine/src/product_adk_store_parity_tests.rs::workflow_resource_crud_normalizes_tags_and_pagination_defaults": {
-      "referenceCount": 1,
-      "referenceKeys": [
-        "internal/assistant/workflow_crud_test.go:14:TestWorkflowResourceCrudPaginationAndLogs"
-      ],
-      "allowed": false,
-      "reviewStatus": "single"
-    },
     "crates/jftrade-engine/tests/adk_workflow_canvas_adversarial.rs::test_context_interpolation_preserves_special_characters_and_json_payloads": {
       "referenceCount": 1,
       "referenceKeys": [
         "internal/assistant/workflow_crud_test.go:314:TestWorkflowInvocationFailureAndBackgroundPaths"
-      ],
-      "allowed": true,
-      "reviewStatus": "single"
-    },
-    "crates/jftrade-engine/tests/adk_workflow_scheduler_contracts.rs::test_market_threshold_cross_down_and_operators": {
-      "referenceCount": 1,
-      "referenceKeys": [
-        "internal/assistant/workflow_crud_test.go:616:TestWorkflowMarketThresholdAndConfigHelpersCoverEdges"
       ],
       "allowed": true,
       "reviewStatus": "single"
@@ -351976,14 +351979,6 @@
       "allowed": false,
       "reviewStatus": "single",
       "reviewNote": "2026-10-02 bounded reuse review: compared all 2 referenceKeys against the shared Rust owner (status mix {'[~]': 2}); assertion scopes are not interchangeable, so reuse remains disallowed and no function_exact row is upgraded by this relation."
-    },
-    "crates/jftrade-engine/tests/adk_workflow_scheduler_contracts.rs::test_market_threshold_quote_error_resilience": {
-      "referenceCount": 1,
-      "referenceKeys": [
-        "internal/assistant/workflows_extended_test.go:14:TestWorkflowTriggerValidationAndBoundaryHelpers"
-      ],
-      "allowed": true,
-      "reviewStatus": "single"
     },
     "crates/jftrade-engine/tests/adk_workflow_scheduler_contracts.rs::test_schedule_trigger_creation_and_next_run_calculation": {
       "referenceCount": 1,
@@ -364874,6 +364869,70 @@
       "referenceCount": 1,
       "referenceKeys": [
         "internal/api/settings/routes_test.go:304:TestMCPServerSettingsRoutesReturnTokenOnlyOnce"
+      ],
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_workflow_threshold_parity_tests.rs::threshold_original_cooling_and_missing_paths_preserve_state_decisions": {
+      "allowed": true,
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/assistant/workflows_extended_test.go:14:TestWorkflowTriggerValidationAndBoundaryHelpers"
+      ],
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_workflow_threshold_parity_tests.rs::threshold_rule_numeric_paths_state_and_cooldown_cover_original_boundaries": {
+      "allowed": true,
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/assistant/workflow/rules_test.go:135:TestRuleHelpersAndValidationEdges"
+      ],
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_workflow_threshold_parity_tests.rs::threshold_original_mismatched_events_do_not_prime_unrelated_instruments": {
+      "allowed": true,
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/assistant/workflow/rules_test.go:207:TestRuleFallbacksMismatchesAndValidVariants"
+      ],
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_adk_workflow_trigger_parity_tests.rs::workflow_trigger_original_invalid_schedule_and_market_configs_do_not_write_rows": {
+      "allowed": true,
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/assistant/workflows_extended_test.go:14:TestWorkflowTriggerValidationAndBoundaryHelpers"
+      ],
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_adk_workflow_trigger_parity_tests.rs::workflow_trigger_original_string_instrument_config_reaches_the_durable_owner": {
+      "allowed": true,
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/assistant/workflow/rules_test.go:207:TestRuleFallbacksMismatchesAndValidVariants"
+      ],
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_adk_workflow_trigger_parity_tests.rs::workflow_original_crud_pages_failed_logs_and_soft_deletes_resources": {
+      "allowed": true,
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/assistant/workflow_crud_test.go:14:TestWorkflowResourceCrudPaginationAndLogs"
+      ],
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_workflow_threshold_parity_tests.rs::threshold_original_nested_cross_down_and_config_scalars_preserve_values": {
+      "allowed": true,
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/assistant/workflow_crud_test.go:616:TestWorkflowMarketThresholdAndConfigHelpersCoverEdges"
+      ],
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_adk_workflow_trigger_parity_tests.rs::workflow_trigger_original_validation_errors_preserve_their_field_classification": {
+      "allowed": true,
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/assistant/workflow/rules_test.go:135:TestRuleHelpersAndValidationEdges"
       ],
       "reviewStatus": "single"
     }

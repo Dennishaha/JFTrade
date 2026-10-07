@@ -15,6 +15,9 @@ use crate::product::AdkReadSnapshotPort;
 
 use super::*;
 
+#[path = "product_adk_workflow_trigger_parity_tests.rs"]
+mod trigger_parity;
+
 fn read_json(port: &ProductionAdkPort, path: &str, query: &str) -> Value {
     match port.read(path, query).expect("read snapshot") {
         AdkReadSnapshot::Json(value) => value,

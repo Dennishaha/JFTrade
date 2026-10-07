@@ -1,0 +1,79 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(threshold_scheduler_polls_normalized_scalar_ids_once_and_persists_each_match)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 100,
+  "status": "failed",
+  "verifiedAt": "2026-10-07T20:07:14Z",
+  "sourceState": {
+    "verifiedCommit": "e4a6328c866a17af56ea30109d44119ae62a92a0",
+    "trackedDiffSha256": "d56f3878d7b6a16d82225dc1d355fdcacbbcafc0668fa3469dcd0fbe76cde335",
+    "untrackedFiles": [
+      {
+        "path": "crates/jftrade-engine/src/product_adk_workflow_trigger_parity_tests.rs",
+        "sha256": "aa4e11e38d51abcb65d463fbcfe758dda11d6c4b86f8e123d34b2c8e003ebb66"
+      },
+      {
+        "path": "crates/jftrade-engine/src/product_workflow_threshold_parity_tests.rs",
+        "sha256": "ad609cd9cce46d9a02b27a85a5b4eb9f28719ee8e05b5b5478c6202ef47bf8b7"
+      },
+      {
+        "path": "crates/jftrade-engine/tests/support/workflow_threshold_config_parity.rs",
+        "sha256": "4b81ec2771a752134c33d332399b12d7e6e5b542d08bbc482ee67b047da22c77"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/workflow-trigger-original-red-2026-10-08.json",
+        "sha256": "f86199f262944f83b020b4a585b04c325e675d80c4d4344936a6121cc3214ea9"
+      }
+    ]
+  },
+  "rawOutputSha256": "d24f15f49ee0467f7a93f5357ceeb0d8d501e6a68befdc250776314edc78564f",
+  "passedTests": [],
+  "failedTests": [
+    "jftrade-engine::adk_workflow_scheduler_contracts$threshold_config_parity::threshold_scheduler_polls_normalized_scalar_ids_once_and_persists_each_match"
+  ],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "adk_workflow_scheduler_contracts",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "failed",
+      "passed": 0,
+      "failed": 1,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 11,
+      "exec_time": 0.100442375,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "adk_workflow_scheduler_contracts",
+        "kind": "test"
+      }
+    }
+  ]
+}

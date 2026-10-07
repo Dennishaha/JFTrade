@@ -1,5 +1,16 @@
 # Go → Rust 证据积压清单
 
+## 2026-10-08 Workflow trigger 配置、阈值与软删除
+
+- 本批逐项复核五条mapping及必要reuse，净 **+2 exact / -2 partial / boundary 0**，当前 **1639 / 2172 / 640**。原crud14通过同一production read/mutation owner闭合归一、分页、FAILED日志、trigger/workflow软删除及重复删除/读取拒绝；原crud616通过真实threshold配置owner闭合原嵌套cross-down、边界比较、numeric path、ID列表与数值转换断言。
+- 真实修复：mutation校验原来只接受非空array/number，拒绝原合法instrument字符串；evaluator丢弃混合array中的700；scheduler还重复读取US.AAPL/us.aapl并遗漏700。三个调用方现在共享配置ID归一，保留数字/布尔scalar字符串、去空白/重复并按规范ID读取；校验同样接受可解析的数值字符串并拒绝有效ID为空。没有改OpenAPI、schema、锁文件或生成物，没有新增writer owner。
+- canonical `verification-receipts/workflow-trigger-owner-canonical-2026-10-08.json`：**9 passed / 0 failed / 0 ignored / 2222 nextest filtered/skipped**；SHA-256 `099d25eae4815b5f3767433d23ad2c9919c0fbe5fcd1c33aab717dace66d33c5`。其中engine lib 8条、scheduler integration 1条；receipt suite的filtered_out分别1825/11，仅代表这两条suite，不混同workspace总数。tracked diff及八份Rust字节指纹已核对，备份`/tmp/jftrade-workflow-trigger-canonical-source`。额外实际scheduler只读取归一后的700/AAPL各一次，持久化两个matched state与两个日志，显式join后检查。
+- 原始红证据保留：`workflow-trigger-original-red-2026-10-08.json` **4 passed / 3 failed**，SHA-256 `f86199f262944f83b020b4a585b04c325e675d80c4d4344936a6121cc3214ea9`，直接复现丢700及合法字符串配置400；`workflow-trigger-scheduler-red-2026-10-08.json` **0 passed / 1 failed**，SHA-256 `eeb3d96fe8af40b0bdfae3263bf6e80e2c7ed23191c371fc4988ccf1141854cf`，实际requests为US/AAPL、us/aapl，未读取US/700。源码备份分别于`/tmp/jftrade-workflow-trigger-red-source`与`/tmp/jftrade-workflow-trigger-scheduler-red-source`；由canonical相同断言替代，失败原字节不改写。
+- 首次绿色`workflow-trigger-owner-initial-green-2026-10-08.json` **8 passed / 0 failed**，SHA-256 `f7878c28409e8ab308dec9f3a43b236378fb1bab97b82ecc93b0f87591103402`，属于数值字符串、有效ID为空、round1.6冷却及extended校验矩阵补充之前状态，由canonical替代。
+- 三条仍partial：rules135的invalid next-run String/Result及缺列表nil/Vec形状不同；rules207仍缺完整EventMatches、Normalize/title、Stringer/ConfigInt fallback、map/state复用组合；extended14仍缺invalid call模板执行错误。unsupported原直接ValidateTrigger拒绝与production归一manual反例保留，不改owner规范化来伪造通过。现场quick、完整Rust及最终审计待执行，定向receipt不作为全量门禁。
+- 现场quick明确退出0，日志`/tmp/jftrade-workflow-trigger-quick.log`：**2261 passed / 0 failed / 0 skipped**，fmt、Clippy、七类兼容回放、Pine worker **98 passed**和desktop脚本 **48 passed**。ordinary/strict、AI context及diff检查通过，anchor **2123 unique / 2075 recorded / 0 unrecorded / 0 stale / 48 unknown**，Rust inventory **3670**。完整Rust已启动，结束前不记通过；八份Rust字节仍匹配canonical。
+- 本批现场完整`pnpm run check:rust`明确退出0，日志`/tmp/jftrade-workflow-trigger-rust.log`：workspace **3826 passed / 0 failed / 2 skipped**，无LEAK；static与七类兼容回放通过。两个跳过项没有计入已执行通过；提交前复核canonical八份Rust指纹、五条mapping净变化与最终diff。
+
 ## 2026-10-08 Settings owner 与 MCP token HTTP
 
 - 逐项复核五条mapping及必要reuse，净 **+4 exact / -4 partial / boundary 0**，当前 **1637 / 2174 / 640**。原rebuild拒绝73、overview失败147、legacy形状247、一次性MCP token304由五个独立真实认证production HTTP测试支持；具体临时数据库、settings file与运行时owner实际装配，没有新增公开契约或持久化owner。

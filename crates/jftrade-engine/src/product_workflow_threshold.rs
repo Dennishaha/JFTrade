@@ -254,33 +254,34 @@ fn config_float(config: &Value, key: &str) -> Option<f64> {
     config.get(key).and_then(any_f64)
 }
 
-fn config_instrument_ids(config: &Value) -> BTreeSet<String> {
-    let mut set = BTreeSet::new();
-    let Some(raw) = config.get("instrumentIds") else {
-        return set;
-    };
-    match raw {
-        Value::Array(items) => {
-            for item in items {
-                if let Some(s) = item.as_str() {
-                    let trimmed = s.trim();
-                    if !trimmed.is_empty() {
-                        set.insert(trimmed.to_ascii_uppercase());
-                    }
-                }
-            }
-        }
-        Value::String(s) => {
-            for part in s.split(',') {
-                let trimmed = part.trim();
-                if !trimmed.is_empty() {
-                    set.insert(trimmed.to_ascii_uppercase());
-                }
-            }
-        }
-        _ => {}
+pub(crate) fn config_instrument_ids(config: &Value) -> BTreeSet<String> {
+    config_string_slice(config, "instrumentIds")
+        .into_iter()
+        .map(|id| id.to_ascii_uppercase())
+        .collect()
+}
+
+fn config_scalar_string(value: &Value) -> Option<String> {
+    match value {
+        Value::String(text) => Some(text.clone()),
+        Value::Number(number) => Some(number.to_string()),
+        Value::Bool(value) => Some(value.to_string()),
+        _ => None,
     }
-    set
+}
+
+pub(crate) fn config_string_slice(config: &Value, key: &str) -> Vec<String> {
+    let values: Vec<_> = match config.get(key) {
+        Some(Value::Array(items)) => items.iter().filter_map(config_scalar_string).collect(),
+        Some(Value::String(text)) => text.split(',').map(str::to_owned).collect(),
+        _ => Vec::new(),
+    };
+    let mut seen = BTreeSet::new();
+    values
+        .into_iter()
+        .map(|text| text.trim().to_owned())
+        .filter(|text| !text.is_empty() && seen.insert(text.clone()))
+        .collect()
 }
 
 fn ensure_config_state(config: &mut Value) -> &mut Map<String, Value> {
@@ -308,6 +309,10 @@ fn ensure_state_map<'a>(
         .and_then(Value::as_object_mut)
         .expect("state sub-map")
 }
+
+#[cfg(test)]
+#[path = "product_workflow_threshold_parity_tests.rs"]
+mod parity_tests;
 
 #[cfg(test)]
 mod tests {

@@ -682,11 +682,15 @@ fn validate_trigger_config(trigger_type: &str, config: &Value) -> Result<(), Adk
             Ok(())
         }
         "market_threshold" => {
-            let instruments = config
-                .get("instrumentIds")
-                .and_then(Value::as_array)
-                .filter(|values| !values.is_empty());
-            if instruments.is_none() || !config.get("value").is_some_and(Value::is_number) {
+            let threshold_config = Value::Object(config.clone());
+            let instruments =
+                crate::product_workflow_threshold::config_instrument_ids(&threshold_config);
+            if instruments.is_empty()
+                || config
+                    .get("value")
+                    .and_then(crate::product_workflow_threshold::any_f64)
+                    .is_none()
+            {
                 Err(invalid_mutation_input(
                     "market threshold trigger requires instrumentIds and numeric value",
                 ))

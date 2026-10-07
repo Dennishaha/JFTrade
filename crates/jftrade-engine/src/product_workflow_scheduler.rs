@@ -18,7 +18,7 @@ use tokio::task::JoinHandle;
 use crate::product::MarketDataQuoteReadSnapshotPort;
 use crate::product::product_production_ports::ProductionAdkPort;
 use crate::product_workflow_cron::next_run_at_string;
-use crate::product_workflow_threshold::evaluate_market_threshold_trigger;
+use crate::product_workflow_threshold::{config_instrument_ids, evaluate_market_threshold_trigger};
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -410,7 +410,7 @@ impl WorkflowScheduler {
             return Vec::new();
         };
 
-        let instrument_ids = extract_instrument_ids(config);
+        let instrument_ids = config_instrument_ids(config);
         let now_iso = now.format(&Rfc3339).unwrap_or_default();
         let mut events = Vec::with_capacity(instrument_ids.len());
 
@@ -488,35 +488,6 @@ impl Drop for WorkflowScheduler {
     fn drop(&mut self) {
         self.stop();
     }
-}
-
-fn extract_instrument_ids(config: &Value) -> Vec<String> {
-    let mut list = Vec::new();
-    let Some(raw) = config.get("instrumentIds") else {
-        return list;
-    };
-    match raw {
-        Value::Array(items) => {
-            for item in items {
-                if let Some(s) = item.as_str() {
-                    let trimmed = s.trim();
-                    if !trimmed.is_empty() {
-                        list.push(trimmed.to_owned());
-                    }
-                }
-            }
-        }
-        Value::String(s) => {
-            for part in s.split(',') {
-                let trimmed = part.trim();
-                if !trimmed.is_empty() {
-                    list.push(trimmed.to_owned());
-                }
-            }
-        }
-        _ => {}
-    }
-    list
 }
 
 fn instrument_to_snapshot_path(instrument_id: &str) -> String {
