@@ -540,13 +540,28 @@ impl ProductionPortBundle {
     /// the ADK SQLite leases are dropped.  The port owns the concrete runtime
     /// behind the trait object, so the supervisor does not need to know its
     /// implementation details.
-    pub(crate) fn shutdown_adk_runtime(&self) -> Result<(), String> {
+    pub(crate) async fn shutdown_adk_runtime(&self) -> Result<(), String> {
+        if let Some(scheduler) = &self.workflow_scheduler {
+            scheduler.stop();
+        }
+        self.adk_chat_stream.shutdown();
+        if let Some(scheduler) = &self.workflow_scheduler
+            && !scheduler.join_shutdown(std::time::Duration::from_secs(5)).await
+        {
+            return Err("workflow scheduler did not finish before shutdown deadline".to_owned());
+        }
+        Ok(())
+    }
+
+    /// Drop cannot await a tick on its own runtime thread. Report an active
+    /// owner rather than claiming that cancellation already joined it.
+    pub(crate) fn terminate_adk_runtime(&self) -> Result<(), String> {
         if let Some(scheduler) = &self.workflow_scheduler {
             scheduler.stop();
         }
         self.adk_chat_stream.shutdown();
         if self.workflow_scheduler.as_ref().is_some_and(|s| !s.join_invocations(std::time::Duration::from_secs(5))) {
-            return Err("workflow invocations did not finish before shutdown deadline".to_owned());
+            return Err("workflow scheduler still has active shutdown owners".to_owned());
         }
         Ok(())
     }

@@ -138,7 +138,7 @@ fn reference_request() -> PineRunRequest {
 // Parity: go:452dea11:pkg/strategy/pineworker/proto_mapping_test.go:154 TestCandleBatchEncodingGoldenVector
 #[test]
 fn candle_batch_encoding_matches_original_signed_time_and_float_vector() {
-    // The original Go test calls the encoder directly, independently of request validation.
+    // The reference calls the encoder directly, independently of request validation.
     let batch = candles_to_proto(&[PineCandle {
         open_time: -2,
         close_time: 3,

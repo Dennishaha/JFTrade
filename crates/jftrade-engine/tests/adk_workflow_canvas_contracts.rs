@@ -1,5 +1,8 @@
 #![forbid(unsafe_code)]
 
+#[path = "support/workflow_canvas_cancellation.rs"]
+mod cancellation;
+
 use std::collections::BTreeMap;
 use std::fs::File;
 use std::path::{Path, PathBuf};

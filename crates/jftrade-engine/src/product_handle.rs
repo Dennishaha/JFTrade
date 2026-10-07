@@ -28,7 +28,7 @@ impl ProductHandle {
             return Ok(());
         };
         let strategy = ports.shutdown_strategy_runtime();
-        let adk = ports.shutdown_adk_runtime();
+        let adk = ports.shutdown_adk_runtime().await;
         if let Some(worker) = ports.execution_reconciliation_worker() {
             worker.shutdown().await;
         }
@@ -40,7 +40,7 @@ impl ProductHandle {
             return;
         };
         if let Err(error) = ports.shutdown_strategy_runtime() { tracing::error!(%error); }
-        if let Err(error) = ports.shutdown_adk_runtime() { tracing::error!(%error); }
+        if let Err(error) = ports.terminate_adk_runtime() { tracing::error!(%error); }
         if let Some(worker) = ports.execution_reconciliation_worker() {
             worker.terminate();
         }

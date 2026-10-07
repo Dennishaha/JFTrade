@@ -1,5 +1,15 @@
 # Go → Rust 证据积压清单
 
+## 2026-10-07 Assistant 取消清理与关闭 owner
+
+- 本批五条原Go逐项复核，净 **+1 exact / -1 partial / boundary 0**，当前 **1622 / 2189 / 640**。实际ProductionAdkChatRuntime的8个并发shutdown均等待已受理后台callback取消后的release，全部完成且关闭后受理拒绝；原Go13的全部断言闭合，独立主测试有直接anchor和canonical receipt。
+- 生产修复：scheduler.stop保留被abort的tick JoinHandle，结束检查包含future取消清理；async production shutdown等待tick和invocation，current-thread runtime可调度取消，deadline或waiter取消保留未完成owner。同步Drop检查到活动tick如实记录未完成。补充测试锁定8并发waiter、超时后重试、waiter取消后重试和真实Product关闭后的WriterLease重开，无公开契约或schema变化。
+- canonical `verification-receipts/assistant-lifecycle-owner-verified-2026-10-07.json`：**12 passed / 0 failed / 0 ignored / 2177 filtered/skipped**，SHA-256 `3798ee14b0e037dec90c445ed3cb74088c65725b2d760ff59c7ce5d7764c5577`。tracked diff备份`/tmp/jftrade-assistant-lifecycle-verified-diff.bin`的SHA-256 `00188fec8615fc5e50f84bfc7156ee2f96c8f805d468977451d32bd562f32bf7`与receipt一致，全部新Rust文件已纳入tracked diff，源码备份保留。
+- 失败证据保留：scheduler初次build-error（缺fixture Debug）0执行；scheduler red **0 passed / 1 failed / 2180 filtered/skipped**证明旧join提前报告成功。red时新增support目录未被旧recorder的目录级untracked发现逻辑展开，不能声称完整源码指纹；canonical已用intent-to-add纳入实际源码，升级仅引用canonical。另有owner build-error（重复Arc包装）0执行；diagnostic red **11 passed / 1 failed / 2177 filtered/skipped**是节点错误原文多RUN_CANCELLED前缀，改为逐字断言真实带code输出并保留partial，未修改fixture或抹去差异。
+- 四条残余：显式Arc store在shutdown后仍可写、startWorkflowAsync关闭sentinel；同一scheduler对象restart；workflow_runs.wait的logId/30ms deadline/5000ms poll与queued→succeeded；原生runner context/errors.Is及maxAttempts3/1h retry配置。Canvas两种port取消/100ms deadline已实际断言attempts1/successor0与durable FAILED/SKIPPED，不能替代真实runner context取消。
+- 普通/strict、anchor、AI context及diff检查通过；anchor **2092 unique / 2044 recorded / 0 unrecorded / 0 stale / 48 unknown**。quick首轮因上一批Pine注释中的“Go test”被零Go扫描当作命令而失败，日志`/tmp/jftrade-assistant-lifecycle-quick.log`保留；仅改该注释措辞后，`/tmp/jftrade-assistant-lifecycle-quick-policy-fix.log`明确退出0：**2274 passed / 0 failed / 1 skipped**，Clippy、七类回放、Pine98及desktop48通过，无LEAK。完整Rust首轮target-health失败留在`/tmp/jftrade-assistant-lifecycle-rust.log`；确认无Cargo进程后清理120329 files/32.9GiB，`/tmp/jftrade-assistant-lifecycle-rust-clean.log`明确退出0：**3774 passed / 0 failed / 2 skipped**，静态和七类回放通过，无LEAK。canonical engine源码与备份一致；后续Pine注释改动已纳入实际完整门禁。filtered/skipped未计通过。
+- 后续具体目标：Assistant continuation barrier目前忽略超时返回值，需补超时未完成、owner保留和release后重试回归，再修复生产关闭错误传播。SSE GET历史快照后的同连接live事件、watermark及断连释放仍待闭合；这些剩余行为不因本批门禁通过而视为完成。
+
 ## 2026-10-07 Pine wire 与 gRPC 直接证据
 
 - 仅本批五条mapping及必要reuse，净 **+2 exact / -2 partial / boundary 0**，当前 **1621 / 2190 / 640**。原始56字节编码向量和capabilities源变更两条有直接owner断言；主入口唯一，旧共享allowed批准保留。

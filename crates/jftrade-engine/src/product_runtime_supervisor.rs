@@ -139,7 +139,7 @@ impl ProductShutdownSupervisor {
             if let Err(error) = ports.shutdown_strategy_runtime() {
                 failures.push(error);
             }
-            if let Err(error) = ports.shutdown_adk_runtime() {
+            if let Err(error) = ports.shutdown_adk_runtime().await {
                 failures.push(error);
             }
         }
@@ -261,7 +261,7 @@ impl ProductShutdownSupervisor {
             if let Err(error) = ports.shutdown_strategy_runtime() {
                 tracing::error!(%error);
             }
-            if let Err(error) = ports.shutdown_adk_runtime() {
+            if let Err(error) = ports.terminate_adk_runtime() {
                 tracing::error!(%error);
             }
         }

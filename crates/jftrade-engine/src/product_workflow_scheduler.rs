@@ -143,8 +143,8 @@ impl WorkflowScheduler {
         {
             let _ = tx.send(());
         }
-        if let Ok(mut handle_guard) = self.handle.lock()
-            && let Some(handle) = handle_guard.take()
+        if let Ok(handle_guard) = self.handle.lock()
+            && let Some(handle) = handle_guard.as_ref()
         {
             handle.abort();
         }
@@ -154,11 +154,43 @@ impl WorkflowScheduler {
     }
 
     pub fn join_invocations(&self, timeout: Duration) -> bool {
-        let stopped = self.jobs.join(timeout);
+        let jobs_stopped = self.jobs.join(timeout);
+        let tick_stopped = self.reap_finished_tick();
+        let stopped = jobs_stopped && tick_stopped;
         if let Ok(mut s) = self.status.lock() {
             s.state = if stopped { "stopped" } else { "stopping" }.to_owned();
         }
         stopped
+    }
+
+    fn reap_finished_tick(&self) -> bool {
+        let mut handle = self.handle.lock().unwrap_or_else(|e| e.into_inner());
+        if handle.as_ref().is_some_and(|task| !task.is_finished()) {
+            return false;
+        }
+        // is_finished includes dropping the future and its cancellation cleanup.
+        // Removing only a finished owner also makes cancelled joins retryable.
+        drop(handle.take());
+        true
+    }
+
+    /// Yield while cancellation cleanup runs, including on a current-thread runtime.
+    /// A deadline or a cancelled waiter leaves unfinished task owners in place.
+    pub async fn join_shutdown(&self, timeout: Duration) -> bool {
+        self.stop();
+        let deadline = tokio::time::Instant::now() + timeout;
+        loop {
+            if self.join_invocations(Duration::ZERO) {
+                return true;
+            }
+            if tokio::time::Instant::now() >= deadline {
+                return false;
+            }
+            tokio::time::sleep_until(
+                deadline.min(tokio::time::Instant::now() + Duration::from_millis(10)),
+            )
+            .await;
+        }
     }
 
     pub fn status(&self) -> WorkflowSchedulerStatus {

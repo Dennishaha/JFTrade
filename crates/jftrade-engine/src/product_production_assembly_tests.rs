@@ -332,6 +332,26 @@ mod product_production_assembly_tests {
             .expect("shutdown restarted product");
     }
 
+    #[tokio::test]
+    async fn direct_product_shutdown_joins_scheduler_on_current_thread_before_releasing_leases() {
+        let (_directory, _settings, config, _security) = setup_test_env();
+        let handle = start_product(config.clone()).await.expect("start product");
+        let scheduler = handle
+            .production_ports
+            .as_ref()
+            .unwrap()
+            .workflow_scheduler()
+            .unwrap();
+        handle.shutdown().await.expect("shutdown joins scheduler");
+        assert_eq!(scheduler.status().state, "stopped");
+        assert!(scheduler.join_invocations(Duration::ZERO));
+        drop(scheduler);
+        let restarted = start_product(config)
+            .await
+            .expect("reacquire WriterLease after join");
+        restarted.shutdown().await.unwrap();
+    }
+
     #[derive(Debug)]
     enum HttpTradeRead {
         EmptyOrders,

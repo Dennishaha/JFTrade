@@ -16,7 +16,7 @@
 - 调用图、输入、调用 UUID 和节点请求身份保存在现有 trigger log 的私有 checkpoint 中；每个节点跨外部调用前后使用日志 revision CAS 保存进度。私有 checkpoint 不返回到 HTTP 日志响应。
 - 重启、审批或输入继续后，scheduler 重新读取非终态日志；已成功节点跳过，未完成节点复用原 clientRequestId，与模型运行的持久化执行租约及工具幂等共同防止重复副作用。
 - 调度器按 Go 分支所用五字段 cron 的步进/日星期语义计算时间，以真实时间线处理 DST 重复及不存在时刻。下一次触发时间与调用入队在 SQLite 同一事务完成；并发 trigger 更新通过 revision CAS 决定唯一胜者。
-- Scheduler 在全部业务 ports 连接完成后启动；后台 invocation 数量有界、受 owner 管理。停止先关闭派发，再取消模型运行并 join invocation；未完成时明确报错，不把轮询任务被取消等同于所有任务结束。
+- Scheduler 在全部业务 ports 连接完成后启动；后台 invocation 数量有界、受 owner 管理。停止先关闭派发，再取消模型运行并等待 invocation 与在途 tick 的取消清理。异步关闭在等待时让出执行线程，支持单线程 Tokio；等待超时或等待者被取消时保留未完成的 task owner。同步 Drop 不能等待自身运行时上的 tick，检查到活动 owner 时明确记录未完成，不把发送取消等同于所有任务结束。
 
 ## 验证
 

@@ -81382,9 +81382,9 @@
     },
     "internal/assistant/assembly/workflow_tools_test.go:86:TestWorkflowRunWaitHonorsDeadlineAndCancellation": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_mcp_server_tests.rs::workflow_wait_tool_rejects_too_long_duration；crates/jftrade-engine/src/product_mcp_server_tests.rs::workflow_wait_tool_returns_context_cancellation",
-      "conclusion": "partial：Rust 覆盖“有界等待 + 取消”一侧——`workflow.wait` 超过 25s 由 catalog cap 拒绝（workflow_wait_tool_rejects_too_long_duration，对照 Go 用例的“poll interval 不能延长 deadline”），取消时返回 `MCP_TOOL_CANCELLED`/499 而不是继续睡满（workflow_wait_tool_returns_context_cancellation），模型侧 tool loop 还会用 execute_tool_with_timeout 兑现 deadline/取消（product_adk_model_runtime_tool_deadline_tests::a_cancelled_tool_keeps_the_reference_context_canceled_text 等）。Go 用例的三段中，“终态转换在轮询后立即返回”依赖轮询管理器 spy 与 runSequence，Rust 无 `pollIntervalMs`/轮询输入面（probe：rg \"pollIntervalMs\" crates/jftrade-engine 无命中，只有前端轮询），保留 partial。 批229高风险复核：Rust 关联测试纳入本批门禁并通过；保持 partial，Go 与 Rust owner、路由形状或逐分支断言差异继续按本条缺口记录。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'not test(production_helper_sync_cancel_aborts_in_flight_request) and not test(production_helper_sync_rejects_broken_pagination_cursors) and not test(production_helper_sync_forwards_page_query_and_persists_provider_values) and not test(production_helper_sync_retries_transient_page_and_records_retry)'",
+      "rust_entry": "crates/jftrade-engine/src/product_adk_workflow_shutdown_tests.rs::workflow_wait_cancellation_is_immediate_before_a_long_requested_wait",
+      "conclusion": "partial：生产workflow_wait_cancellable以25s输入和pre-cancel标志返回499/MCP_TOOL_CANCELLED/workflow.wait was cancelled，500ms内完成，直接证明不会睡满。Rust workflow.wait是短等待工具，未实现原Go workflow_runs.wait的logId/timeoutMs30/pollIntervalMs5000、queued→succeeded轮询及timedOut/terminal形状；保持partial，不把25s catalog cap替代30ms轮询deadline。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-engine --test workflow_wait_cancellation_is_immediate_before_a_long_requested_wait --output docs/history/go-to-rust/verification-receipts/assistant-lifecycle-owner-verified-2026-10-07.json",
       "evidence_type": "partial",
       "source": {
         "file": "internal/assistant/assembly/workflow_tools_test.go",
@@ -81394,34 +81394,24 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_mcp_server_tests.rs",
-          "test": "workflow_wait_tool_rejects_too_long_duration",
+          "file": "crates/jftrade-engine/src/product_adk_workflow_shutdown_tests.rs",
+          "test": "workflow_wait_cancellation_is_immediate_before_a_long_requested_wait",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/assistant/assembly/workflow_tools_test.go",
             "goLine": 86,
-            "rustFile": "crates/jftrade-engine/src/product_mcp_server_tests.rs",
-            "rustLine": 3575
-          }
-        },
-        {
-          "file": "crates/jftrade-engine/src/product_mcp_server_tests.rs",
-          "test": "workflow_wait_tool_returns_context_cancellation",
-          "crate": "jftrade-engine",
-          "anchor": {
-            "goFile": "internal/assistant/assembly/workflow_tools_test.go",
-            "goLine": 86,
-            "rustFile": "crates/jftrade-engine/src/product_mcp_server_tests.rs",
-            "rustLine": 3646
+            "rustFile": "crates/jftrade-engine/src/product_adk_workflow_shutdown_tests.rs",
+            "rustLine": 89
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust workflow.wait rejects durations above the catalog cap and propagates context cancellation."
+          "An already cancelled production workflow.wait returns its exact cancellation envelope within 500ms instead of waiting the requested 25s."
         ],
         "uncovered": [
-          "Rust does not implement Go workflow_runs.wait deadline polling or its timeoutMs/nextPollMs response semantics."
+          "Rust workflow.wait does not implement workflow_runs.wait logId-based polling, a 30ms deadline against a 5000ms poll interval, queued-to-succeeded transitions, or timedOut/terminal/status result fields.",
+          "Rust typed MCP cancellation envelope is not the original Go context.Canceled error identity."
         ],
         "source": "reviewed"
       },
@@ -81432,36 +81422,39 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(scheduler_join_reports_pending_cancelled_snapshot_cleanup) or test(scheduler_async_shutdown_waits_for_cleanup_and_retains_timed_out_owner) or test(scheduler_shutdown_yields_on_current_thread_and_is_idempotent) or test(cancelling_a_scheduler_join_keeps_cleanup_owned_for_the_next_waiter) or test(test_workflow_scheduler_worker_start_stop_and_status) or test(concurrent_runtime_shutdowns_cancel_and_join_admitted_background_before_returning) or test(runtime_shutdown_allows_cancelled_background_to_persist_cleanup_before_joining) or test(workflow_wait_cancellation_is_immediate_before_a_long_requested_wait) or test(canvas_cancelled_and_timed_out_nodes_do_not_dispatch_successors_or_repeat_attempts) or test(direct_product_shutdown_joins_scheduler_on_current_thread_before_releasing_leases) or test(workflow_wait_tool_rejects_too_long_duration) or test(workflow_wait_tool_returns_context_cancellation)"
         ],
         "testFilter": [
-          "workflow_wait_tool_rejects_too_long_duration",
-          "workflow_wait_tool_returns_context_cancellation"
+          "workflow_wait_cancellation_is_immediate_before_a_long_requested_wait"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "428ca2f1f010dce5640579d0ecfadd45fc7c262b",
+        "verifiedAt": "2026-10-07T12:11:22Z",
+        "receiptDigest": "sha256:3798ee14b0e037dec90c445ed3cb74088c65725b2d760ff59c7ce5d7764c5577"
       },
       "risk": "high",
       "owner": "assistant_workflow",
       "priority": "P1",
-      "nextAction": "preserve_partial_and_track_residual",
+      "nextAction": "preserve_partial_and_reaudit",
       "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust workflow.wait rejects durations above the catalog cap and propagates context cancellation."
+        "An already cancelled production workflow.wait returns its exact cancellation envelope within 500ms instead of waiting the requested 25s."
       ],
       "uncoveredAssertions": [
-        "Rust does not implement Go workflow_runs.wait deadline polling or its timeoutMs/nextPollMs response semantics."
+        "Rust workflow.wait does not implement workflow_runs.wait logId-based polling, a 30ms deadline against a 5000ms poll interval, queued-to-succeeded transitions, or timedOut/terminal/status result fields.",
+        "Rust typed MCP cancellation envelope is not the original Go context.Canceled error identity."
       ],
       "boundaryReason": null
     },
@@ -81906,9 +81899,9 @@
     },
     "internal/assistant/engine/adk22regression/native_runtime_test.go:155:TestWorkflowPropagatesExternalCancellationWithoutSuccessorOrRetry": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_lifecycle_tests.rs::cancellation_registry_fans_out_and_unregisters_exact_token",
-      "conclusion": "partial：Go 断言外部取消传播进工作流、不产生后继节点也不重试（attempts=1/successor=0）。Rust 的取消注册表用例断言取消信号扇出到精确 token 并在完成后注销（无重复执行），但没有“工作流后继节点不执行”的图级断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'not test(production_helper_sync_cancel_aborts_in_flight_request) and not test(production_helper_sync_rejects_broken_pagination_cursors) and not test(production_helper_sync_forwards_page_query_and_persists_provider_values) and not test(production_helper_sync_retries_transient_page_and_records_retry)'",
+      "rust_entry": "crates/jftrade-engine/tests/support/workflow_canvas_cancellation.rs::canvas_cancelled_and_timed_out_nodes_do_not_dispatch_successors_or_repeat_attempts",
+      "conclusion": "partial：两种取消/100ms deadline从阻塞model port返回原context文本，经实际Canvas graph blocking→successor及SQLite checkpoint执行，2s内完成、attempts1/successor0、blocking FAILED与successor SKIPPED及durable FAILED直接断言。Rust节点诊断保留RUN_CANCELLED/RUN_TIMEOUT前缀；这是图级port错误传播测试，不宣称真实模型context取消或Go maxAttempts3/initialDelay1h/alwaysRetry配置已实现，保持partial。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-engine --test canvas_cancelled_and_timed_out_nodes_do_not_dispatch_successors_or_repeat_attempts --output docs/history/go-to-rust/verification-receipts/assistant-lifecycle-owner-verified-2026-10-07.json",
       "evidence_type": "partial",
       "source": {
         "file": "internal/assistant/engine/adk22regression/native_runtime_test.go",
@@ -81918,23 +81911,25 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_adk_model_runtime_lifecycle_tests.rs",
-          "test": "cancellation_registry_fans_out_and_unregisters_exact_token",
+          "file": "crates/jftrade-engine/tests/support/workflow_canvas_cancellation.rs",
+          "test": "canvas_cancelled_and_timed_out_nodes_do_not_dispatch_successors_or_repeat_attempts",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/assistant/engine/adk22regression/native_runtime_test.go",
             "goLine": 155,
-            "rustFile": "crates/jftrade-engine/src/product_adk_model_runtime_lifecycle_tests.rs",
-            "rustLine": 460
+            "rustFile": "crates/jftrade-engine/tests/support/workflow_canvas_cancellation.rs",
+            "rustLine": 60
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Go 断言外部取消传播进工作流、不产生后继节点也不重试（attempts=1/successor=0）。"
+          "The actual Canvas graph and SQLite checkpoint propagate cancelled and 100ms-deadline model-port failures within 2s; the blocking node runs once, the successor is never dispatched and is persisted as SKIPPED, and the invocation is durable FAILED."
         ],
         "uncovered": [
-          "Rust 的取消注册表用例断言取消信号扇出到精确 token 并在完成后注销（无重复执行），但没有“工作流后继节点不执行”的图级断言。"
+          "The blocking model-port fixture supplies cancellation/deadline errors; this does not prove the original runner context propagation or errors.Is cancellation identity.",
+          "Go maxAttempts=3, initialDelay=1h and alwaysRetry have no equivalent configured retry owner in this test.",
+          "Rust retains RUN_CANCELLED/RUN_TIMEOUT prefixes in persisted node diagnostics."
         ],
         "source": "reviewed"
       },
@@ -81945,37 +81940,40 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(scheduler_join_reports_pending_cancelled_snapshot_cleanup) or test(scheduler_async_shutdown_waits_for_cleanup_and_retains_timed_out_owner) or test(scheduler_shutdown_yields_on_current_thread_and_is_idempotent) or test(cancelling_a_scheduler_join_keeps_cleanup_owned_for_the_next_waiter) or test(test_workflow_scheduler_worker_start_stop_and_status) or test(concurrent_runtime_shutdowns_cancel_and_join_admitted_background_before_returning) or test(runtime_shutdown_allows_cancelled_background_to_persist_cleanup_before_joining) or test(workflow_wait_cancellation_is_immediate_before_a_long_requested_wait) or test(canvas_cancelled_and_timed_out_nodes_do_not_dispatch_successors_or_repeat_attempts) or test(direct_product_shutdown_joins_scheduler_on_current_thread_before_releasing_leases) or test(workflow_wait_tool_rejects_too_long_duration) or test(workflow_wait_tool_returns_context_cancellation)"
         ],
         "testFilter": [
-          "cancellation_registry_fans_out_and_unregisters_exact_token"
+          "canvas_cancelled_and_timed_out_nodes_do_not_dispatch_successors_or_repeat_attempts"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "428ca2f1f010dce5640579d0ecfadd45fc7c262b",
+        "verifiedAt": "2026-10-07T12:11:22Z",
+        "receiptDigest": "sha256:3798ee14b0e037dec90c445ed3cb74088c65725b2d760ff59c7ce5d7764c5577"
       },
       "risk": "high",
       "owner": "assistant_workflow",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "preserve_partial_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Go 断言外部取消传播进工作流、不产生后继节点也不重试（attempts=1/successor=0）。"
+        "The actual Canvas graph and SQLite checkpoint propagate cancelled and 100ms-deadline model-port failures within 2s; the blocking node runs once, the successor is never dispatched and is persisted as SKIPPED, and the invocation is durable FAILED."
       ],
       "uncoveredAssertions": [
-        "Rust 的取消注册表用例断言取消信号扇出到精确 token 并在完成后注销（无重复执行），但没有“工作流后继节点不执行”的图级断言。"
+        "The blocking model-port fixture supplies cancellation/deadline errors; this does not prove the original runner context propagation or errors.Is cancellation identity.",
+        "Go maxAttempts=3, initialDelay=1h and alwaysRetry have no equivalent configured retry owner in this test.",
+        "Rust retains RUN_CANCELLED/RUN_TIMEOUT prefixes in persisted node diagnostics."
       ],
       "boundaryReason": null
     },
@@ -132505,11 +132503,11 @@
       "boundaryReason": null
     },
     "internal/assistant/workflow_lifecycle_test.go:13:TestServiceCloseCancelsAndJoinsAdmittedWorkflowBackground": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_workflow_jobs.rs::stop_blocks_new_dispatch_and_join_reports_active_owners",
-      "conclusion": "partial：Go 断言 Close 取消并等待已受理的后台工作流、拒绝关闭后再受理。Rust 的工作流作业用例断言停止后不再派发新作业并等待活动拥有者（同一关闭语义）；Go 的并发 Close 幂等由 Rust 的所有权/Drop 语义取代。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'not test(production_helper_sync_cancel_aborts_in_flight_request) and not test(production_helper_sync_rejects_broken_pagination_cursors) and not test(production_helper_sync_forwards_page_query_and_persists_provider_values) and not test(production_helper_sync_retries_transient_page_and_records_retry)'",
-      "evidence_type": "partial",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-engine/src/product_adk_workflow_shutdown_tests.rs::concurrent_runtime_shutdowns_cancel_and_join_admitted_background_before_returning",
+      "conclusion": "function_exact：实际ProductionAdkChatRuntime的后台continuation owner受理阻塞回调；8个并发runtime.shutdown调用取消该任务，回调收到取消后仍等待release，所有关闭调用均不得提前返回；release后8个调用全部成功完成，关闭后后台受理被拒。原Go NewService(nil)同样只用通用后台回调验证取消/join/关闭后受理，不要求workflow图输入；Rust直接owner及生产shutdown入口闭合全部原断言。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-engine --test concurrent_runtime_shutdowns_cancel_and_join_admitted_background_before_returning --output docs/history/go-to-rust/verification-receipts/assistant-lifecycle-owner-verified-2026-10-07.json",
+      "evidence_type": "function_exact",
       "source": {
         "file": "internal/assistant/workflow_lifecycle_test.go",
         "line": 13,
@@ -132518,24 +132516,22 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_workflow_jobs.rs",
-          "test": "stop_blocks_new_dispatch_and_join_reports_active_owners",
+          "file": "crates/jftrade-engine/src/product_adk_workflow_shutdown_tests.rs",
+          "test": "concurrent_runtime_shutdowns_cancel_and_join_admitted_background_before_returning",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/assistant/workflow_lifecycle_test.go",
             "goLine": 13,
-            "rustFile": "crates/jftrade-engine/src/product_workflow_jobs.rs",
-            "rustLine": 81
+            "rustFile": "crates/jftrade-engine/src/product_adk_workflow_shutdown_tests.rs",
+            "rustLine": 23
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust workflow-job test stops new dispatch and waits for active owners."
+          "An admitted background callback observes cancellation but remains active until released; all eight concurrent production runtime shutdown calls wait for its exit, finish successfully, and reject subsequent background admission."
         ],
-        "uncovered": [
-          "No Rust concurrent Close test explicitly cancels and joins an admitted workflow or asserts post-close admission rejection; ownership Drop replaces idempotent Close."
-        ],
+        "uncovered": [],
         "source": "reviewed"
       },
       "verification": {
@@ -132545,45 +132541,44 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(scheduler_join_reports_pending_cancelled_snapshot_cleanup) or test(scheduler_async_shutdown_waits_for_cleanup_and_retains_timed_out_owner) or test(scheduler_shutdown_yields_on_current_thread_and_is_idempotent) or test(cancelling_a_scheduler_join_keeps_cleanup_owned_for_the_next_waiter) or test(test_workflow_scheduler_worker_start_stop_and_status) or test(concurrent_runtime_shutdowns_cancel_and_join_admitted_background_before_returning) or test(runtime_shutdown_allows_cancelled_background_to_persist_cleanup_before_joining) or test(workflow_wait_cancellation_is_immediate_before_a_long_requested_wait) or test(canvas_cancelled_and_timed_out_nodes_do_not_dispatch_successors_or_repeat_attempts) or test(direct_product_shutdown_joins_scheduler_on_current_thread_before_releasing_leases) or test(workflow_wait_tool_rejects_too_long_duration) or test(workflow_wait_tool_returns_context_cancellation)"
         ],
         "testFilter": [
-          "stop_blocks_new_dispatch_and_join_reports_active_owners"
+          "concurrent_runtime_shutdowns_cancel_and_join_admitted_background_before_returning"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "428ca2f1f010dce5640579d0ecfadd45fc7c262b",
+        "verifiedAt": "2026-10-07T12:11:22Z",
+        "receiptDigest": "sha256:3798ee14b0e037dec90c445ed3cb74088c65725b2d760ff59c7ce5d7764c5577"
       },
       "risk": "high",
       "owner": "assistant_workflow",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "maintain_verified_function_exact",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust workflow-job test stops new dispatch and waits for active owners."
+        "An admitted background callback observes cancellation but remains active until released; all eight concurrent production runtime shutdown calls wait for its exit, finish successfully, and reject subsequent background admission."
       ],
-      "uncoveredAssertions": [
-        "No Rust concurrent Close test explicitly cancels and joins an admitted workflow or asserts post-close admission rejection; ownership Drop replaces idempotent Close."
-      ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/assistant/workflow_lifecycle_test.go:58:TestServiceCloseKeepsStoreOpenUntilWorkflowCleanupFinishes": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_production_assembly_tests.rs::direct_product_shutdown_stops_reconciliation_before_releasing_leases",
-      "conclusion": "partial：Go 断言 Close 在工作流清理完成前不关闭 store，关闭后 store 不可写。Rust 的组装用例断言关闭顺序：先停调和再释放租约（同一“先清理后释放资源”顺序契约）；Go 的 store 关闭时机在 Rust 由 WriterLease 释放顺序保证，无逐条断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'not test(production_helper_sync_cancel_aborts_in_flight_request) and not test(production_helper_sync_rejects_broken_pagination_cursors) and not test(production_helper_sync_forwards_page_query_and_persists_provider_values) and not test(production_helper_sync_retries_transient_page_and_records_retry)'",
+      "rust_entry": "crates/jftrade-engine/src/product_adk_workflow_shutdown_tests.rs::runtime_shutdown_allows_cancelled_background_to_persist_cleanup_before_joining",
+      "conclusion": "partial：实际ProductionAdkChatRuntime关闭取消后台callback；任务在取消后成功向真实SQLite写workflow.shutdown.cleanup/workflow-lifecycle-test audit，release前关闭未完成，release后join且持久化记录可读，后台受理拒绝。Rust显式持有的Arc<AdkStore>在shutdown后仍可写，直接断言此差异；原Go store关闭后写失败及startWorkflowAsync的errAssistantServiceClosing对象没有闭合，保持partial。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-engine --test runtime_shutdown_allows_cancelled_background_to_persist_cleanup_before_joining --output docs/history/go-to-rust/verification-receipts/assistant-lifecycle-owner-verified-2026-10-07.json",
       "evidence_type": "partial",
       "source": {
         "file": "internal/assistant/workflow_lifecycle_test.go",
@@ -132593,23 +132588,24 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_production_assembly_tests.rs",
-          "test": "direct_product_shutdown_stops_reconciliation_before_releasing_leases",
+          "file": "crates/jftrade-engine/src/product_adk_workflow_shutdown_tests.rs",
+          "test": "runtime_shutdown_allows_cancelled_background_to_persist_cleanup_before_joining",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/assistant/workflow_lifecycle_test.go",
             "goLine": 58,
-            "rustFile": "crates/jftrade-engine/src/product_production_assembly_tests.rs",
-            "rustLine": 112
+            "rustFile": "crates/jftrade-engine/src/product_adk_workflow_shutdown_tests.rs",
+            "rustLine": 60
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust assembly shutdown test stops reconciliation before releasing WriterLease resources."
+          "Cancelled background cleanup successfully persists the original audit kind and subject before production runtime shutdown can finish; admission is closed after join."
         ],
         "uncovered": [
-          "No Rust timing assertion proves the store remains writable until workflow cleanup completes and becomes unwritable afterward."
+          "A separately retained Rust Arc<AdkStore> remains writable after runtime shutdown; Go closes its store and rejects the post-close write.",
+          "Go startWorkflowAsync returns the exact errAssistantServiceClosing sentinel; Rust background admission refusal does not prove that operation-specific error identity."
         ],
         "source": "reviewed"
       },
@@ -132620,45 +132616,47 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(scheduler_join_reports_pending_cancelled_snapshot_cleanup) or test(scheduler_async_shutdown_waits_for_cleanup_and_retains_timed_out_owner) or test(scheduler_shutdown_yields_on_current_thread_and_is_idempotent) or test(cancelling_a_scheduler_join_keeps_cleanup_owned_for_the_next_waiter) or test(test_workflow_scheduler_worker_start_stop_and_status) or test(concurrent_runtime_shutdowns_cancel_and_join_admitted_background_before_returning) or test(runtime_shutdown_allows_cancelled_background_to_persist_cleanup_before_joining) or test(workflow_wait_cancellation_is_immediate_before_a_long_requested_wait) or test(canvas_cancelled_and_timed_out_nodes_do_not_dispatch_successors_or_repeat_attempts) or test(direct_product_shutdown_joins_scheduler_on_current_thread_before_releasing_leases) or test(workflow_wait_tool_rejects_too_long_duration) or test(workflow_wait_tool_returns_context_cancellation)"
         ],
         "testFilter": [
-          "direct_product_shutdown_stops_reconciliation_before_releasing_leases"
+          "runtime_shutdown_allows_cancelled_background_to_persist_cleanup_before_joining"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "428ca2f1f010dce5640579d0ecfadd45fc7c262b",
+        "verifiedAt": "2026-10-07T12:11:22Z",
+        "receiptDigest": "sha256:3798ee14b0e037dec90c445ed3cb74088c65725b2d760ff59c7ce5d7764c5577"
       },
       "risk": "normal",
       "owner": "assistant_workflow",
       "priority": "P2",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "preserve_partial_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust assembly shutdown test stops reconciliation before releasing WriterLease resources."
+        "Cancelled background cleanup successfully persists the original audit kind and subject before production runtime shutdown can finish; admission is closed after join."
       ],
       "uncoveredAssertions": [
-        "No Rust timing assertion proves the store remains writable until workflow cleanup completes and becomes unwritable afterward."
+        "A separately retained Rust Arc<AdkStore> remains writable after runtime shutdown; Go closes its store and rejects the post-close write.",
+        "Go startWorkflowAsync returns the exact errAssistantServiceClosing sentinel; Rust background admission refusal does not prove that operation-specific error identity."
       ],
       "boundaryReason": null
     },
     "internal/assistant/workflow_lifecycle_test.go:98:TestWorkflowSchedulerStopCancelsAndJoinsInFlightTick": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/tests/adk_workflow_scheduler_contracts.rs::test_workflow_scheduler_worker_start_stop_and_status",
-      "conclusion": "partial：Go 断言调度器 Stop 取消并等待在途 tick。Rust 的调度用例断言调度器 worker 启停与状态（同一停止语义）；Go 的“在途 tick 必须被 join”在 Rust 由停止路径的 join 结构保证，无独立断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'not test(production_helper_sync_cancel_aborts_in_flight_request) and not test(production_helper_sync_rejects_broken_pagination_cursors) and not test(production_helper_sync_forwards_page_query_and_persists_provider_values) and not test(production_helper_sync_retries_transient_page_and_records_retry)'",
+      "rust_entry": "crates/jftrade-engine/tests/support/workflow_scheduler_lifecycle.rs::scheduler_join_reports_pending_cancelled_snapshot_cleanup",
+      "conclusion": "partial：原US.AAPL/value100阈值输入经生产scheduler tick进入阻塞quote read；stop送达取消后cleanup仍等待release，join_invocations必须报告未完成。修复保留tick JoinHandle并在production async shutdown有界等待，release后join及stopped状态直接断言。补充timeout保留owner、8并发waiter、取消waiter重试、current-thread与真实Product WriterLease重开测试均在canonical receipt中，不扩大原Go映射。Go同一对象再次Start/Stop没有Rust同形restart owner，保持partial；旧mapping声称join结构保证在途tick已撤回，红receipt实际复现原缺口。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-engine --test scheduler_join_reports_pending_cancelled_snapshot_cleanup --output docs/history/go-to-rust/verification-receipts/assistant-lifecycle-owner-verified-2026-10-07.json",
       "evidence_type": "partial",
       "source": {
         "file": "internal/assistant/workflow_lifecycle_test.go",
@@ -132668,23 +132666,23 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/tests/adk_workflow_scheduler_contracts.rs",
-          "test": "test_workflow_scheduler_worker_start_stop_and_status",
+          "file": "crates/jftrade-engine/tests/support/workflow_scheduler_lifecycle.rs",
+          "test": "scheduler_join_reports_pending_cancelled_snapshot_cleanup",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/assistant/workflow_lifecycle_test.go",
             "goLine": 98,
-            "rustFile": "crates/jftrade-engine/tests/adk_workflow_scheduler_contracts.rs",
-            "rustLine": 585
+            "rustFile": "crates/jftrade-engine/tests/support/workflow_scheduler_lifecycle.rs",
+            "rustLine": 72
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust scheduler worker test covers start/stop lifecycle and status transitions."
+          "Stopping the production scheduler cancels the blocked snapshot; join reports unfinished while cancellation cleanup is still active, and release permits the tick owner to finish and status to become stopped."
         ],
         "uncovered": [
-          "No Rust in-flight tick cancellation/join assertion that waits for the active tick before Stop returns."
+          "The original Go restarts the same scheduler object; Rust scheduler instances are terminal after stop and have no same-instance Start operation."
         ],
         "source": "reviewed"
       },
@@ -132695,37 +132693,38 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(scheduler_join_reports_pending_cancelled_snapshot_cleanup) or test(scheduler_async_shutdown_waits_for_cleanup_and_retains_timed_out_owner) or test(scheduler_shutdown_yields_on_current_thread_and_is_idempotent) or test(cancelling_a_scheduler_join_keeps_cleanup_owned_for_the_next_waiter) or test(test_workflow_scheduler_worker_start_stop_and_status) or test(concurrent_runtime_shutdowns_cancel_and_join_admitted_background_before_returning) or test(runtime_shutdown_allows_cancelled_background_to_persist_cleanup_before_joining) or test(workflow_wait_cancellation_is_immediate_before_a_long_requested_wait) or test(canvas_cancelled_and_timed_out_nodes_do_not_dispatch_successors_or_repeat_attempts) or test(direct_product_shutdown_joins_scheduler_on_current_thread_before_releasing_leases) or test(workflow_wait_tool_rejects_too_long_duration) or test(workflow_wait_tool_returns_context_cancellation)"
         ],
         "testFilter": [
-          "test_workflow_scheduler_worker_start_stop_and_status"
+          "scheduler_join_reports_pending_cancelled_snapshot_cleanup"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "428ca2f1f010dce5640579d0ecfadd45fc7c262b",
+        "verifiedAt": "2026-10-07T12:11:22Z",
+        "receiptDigest": "sha256:3798ee14b0e037dec90c445ed3cb74088c65725b2d760ff59c7ce5d7764c5577"
       },
       "risk": "high",
       "owner": "assistant_workflow",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "preserve_partial_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust scheduler worker test covers start/stop lifecycle and status transitions."
+        "Stopping the production scheduler cancels the blocked snapshot; join reports unfinished while cancellation cleanup is still active, and release permits the tick owner to finish and status to become stopped."
       ],
       "uncoveredAssertions": [
-        "No Rust in-flight tick cancellation/join assertion that waits for the active tick before Stop returns."
+        "The original Go restarts the same scheduler object; Rust scheduler instances are terminal after stop and have no same-instance Start operation."
       ],
       "boundaryReason": null
     },
@@ -346768,13 +346767,12 @@
       "reviewNote": "2026-10-02 bounded reuse review: compared all 2 referenceKeys against the shared Rust owner (status mix {'[~]': 2}); assertion scopes are not interchangeable, so reuse remains disallowed and no function_exact row is upgraded by this relation."
     },
     "crates/jftrade-engine/src/product_production_assembly_tests.rs::direct_product_shutdown_stops_reconciliation_before_releasing_leases": {
-      "referenceCount": 6,
+      "referenceCount": 5,
       "referenceKeys": [
         "internal/app/apiserver/servercore/server_application_lifecycle_test.go:75:TestServerCloseStopsBacktestBeforeMarketDataRuntime",
         "internal/app/apiserver/servercoretest/frontend_test.go:198:TestRunAPIOnlyStopsAfterCallerCancellation",
         "internal/assistant/engine/runtime_store_test.go:434:TestNewRuntimeInitializesRegistriesAndClosesCleanly",
         "internal/assistant/service_contract_boundaries_test.go:312:TestServiceCloseClosesRuntimeOwnedResources",
-        "internal/assistant/workflow_lifecycle_test.go:58:TestServiceCloseKeepsStoreOpenUntilWorkflowCleanupFinishes",
         "internal/marketdata/lifecycle_boundaries_test.go:233:TestServiceFinalSubscriptionCleanupAlwaysHasDeadline"
       ],
       "allowed": false,
@@ -349090,22 +349088,20 @@
       "reviewNote": "2026-10-02 bounded reuse review: compared all 3 referenceKeys against the shared Rust owner (status mix {'[~]': 3}); assertion scopes are not interchangeable, so reuse remains disallowed and no function_exact row is upgraded by this relation."
     },
     "crates/jftrade-engine/src/product_mcp_server_tests.rs::workflow_wait_tool_rejects_too_long_duration": {
-      "referenceCount": 2,
+      "referenceCount": 1,
       "referenceKeys": [
-        "internal/assistant/assembly/workflow_tools_test.go:86:TestWorkflowRunWaitHonorsDeadlineAndCancellation",
         "internal/assistant/engine/tools_test.go:195:TestWorkflowWaitToolRejectsTooLongDuration"
       ],
       "allowed": true,
-      "reviewStatus": "reviewed"
+      "reviewStatus": "single"
     },
     "crates/jftrade-engine/src/product_mcp_server_tests.rs::workflow_wait_tool_returns_context_cancellation": {
-      "referenceCount": 2,
+      "referenceCount": 1,
       "referenceKeys": [
-        "internal/assistant/assembly/workflow_tools_test.go:86:TestWorkflowRunWaitHonorsDeadlineAndCancellation",
         "internal/assistant/engine/tools_test.go:206:TestWorkflowWaitToolReturnsContextCancellation"
       ],
       "allowed": true,
-      "reviewStatus": "reviewed"
+      "reviewStatus": "single"
     },
     "crates/jftrade-engine/src/product_adk_store_parity_tests.rs::workflow_updates_keep_omitted_fields_and_apply_explicit_clears": {
       "referenceCount": 3,
@@ -349162,9 +349158,8 @@
       "reviewStatus": "reviewed"
     },
     "crates/jftrade-engine/src/product_adk_model_runtime_lifecycle_tests.rs::cancellation_registry_fans_out_and_unregisters_exact_token": {
-      "referenceCount": 5,
+      "referenceCount": 4,
       "referenceKeys": [
-        "internal/assistant/engine/adk22regression/native_runtime_test.go:155:TestWorkflowPropagatesExternalCancellationWithoutSuccessorOrRetry",
         "internal/assistant/engine/approval_retry_sibling_cancellation_test.go:68:TestApprovalBusyRetryStopsWhenRequestIsCancelled",
         "internal/assistant/engine/runner_goal_test.go:174:TestCancelRunTreeAndRunLifecycleHelpers",
         "internal/assistant/engine/task_runner_test.go:79:TestGoogleADKTaskRunnerRunsCancelledTasksWithOriginalContext",
@@ -351952,13 +351947,12 @@
       "reviewNote": "2026-10-02 bounded reuse review: compared all 2 referenceKeys against the shared Rust owner (status mix {'[~]': 2}); assertion scopes are not interchangeable, so reuse remains disallowed and no function_exact row is upgraded by this relation."
     },
     "crates/jftrade-engine/src/product_workflow_jobs.rs::stop_blocks_new_dispatch_and_join_reports_active_owners": {
-      "referenceCount": 2,
+      "referenceCount": 1,
       "referenceKeys": [
-        "internal/assistant/workflow_async_tools_test.go:86:TestStartWorkflowBackgroundFailureTerminatesLog",
-        "internal/assistant/workflow_lifecycle_test.go:13:TestServiceCloseCancelsAndJoinsAdmittedWorkflowBackground"
+        "internal/assistant/workflow_async_tools_test.go:86:TestStartWorkflowBackgroundFailureTerminatesLog"
       ],
       "allowed": false,
-      "reviewStatus": "reviewed",
+      "reviewStatus": "single",
       "reviewNote": "2026-10-02 bounded reuse review: compared all 2 referenceKeys against the shared Rust owner (status mix {'[~]': 2}); assertion scopes are not interchangeable, so reuse remains disallowed and no function_exact row is upgraded by this relation."
     },
     "crates/jftrade-engine/src/product_adk_store_parity_tests.rs::workflow_resource_crud_normalizes_tags_and_pagination_defaults": {
@@ -351986,13 +351980,12 @@
       "reviewStatus": "single"
     },
     "crates/jftrade-engine/tests/adk_workflow_scheduler_contracts.rs::test_workflow_scheduler_worker_start_stop_and_status": {
-      "referenceCount": 2,
+      "referenceCount": 1,
       "referenceKeys": [
-        "internal/assistant/workflow_lifecycle_test.go:98:TestWorkflowSchedulerStopCancelsAndJoinsInFlightTick",
         "internal/assistant/workflows_extended_test.go:278:TestWorkflowEventAndSchedulerTriggerBackgroundRuns"
       ],
       "allowed": false,
-      "reviewStatus": "reviewed",
+      "reviewStatus": "single",
       "reviewNote": "2026-10-02 bounded reuse review: compared all 2 referenceKeys against the shared Rust owner (status mix {'[~]': 2}); assertion scopes are not interchangeable, so reuse remains disallowed and no function_exact row is upgraded by this relation."
     },
     "crates/jftrade-engine/tests/adk_workflow_scheduler_contracts.rs::test_market_threshold_quote_error_resilience": {
@@ -364686,6 +364679,46 @@
       "referenceCount": 1,
       "referenceKeys": [
         "pkg/strategy/pineworker/runtime_boundaries_test.go:79:TestClientDefaultsAndResponseIdentityBoundaries"
+      ],
+      "reviewStatus": "single",
+      "allowed": true
+    },
+    "crates/jftrade-engine/src/product_adk_workflow_shutdown_tests.rs::workflow_wait_cancellation_is_immediate_before_a_long_requested_wait": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/assistant/assembly/workflow_tools_test.go:86:TestWorkflowRunWaitHonorsDeadlineAndCancellation"
+      ],
+      "reviewStatus": "single",
+      "allowed": true
+    },
+    "crates/jftrade-engine/src/product_adk_workflow_shutdown_tests.rs::runtime_shutdown_allows_cancelled_background_to_persist_cleanup_before_joining": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/assistant/workflow_lifecycle_test.go:58:TestServiceCloseKeepsStoreOpenUntilWorkflowCleanupFinishes"
+      ],
+      "reviewStatus": "single",
+      "allowed": true
+    },
+    "crates/jftrade-engine/tests/support/workflow_scheduler_lifecycle.rs::scheduler_join_reports_pending_cancelled_snapshot_cleanup": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/assistant/workflow_lifecycle_test.go:98:TestWorkflowSchedulerStopCancelsAndJoinsInFlightTick"
+      ],
+      "reviewStatus": "single",
+      "allowed": true
+    },
+    "crates/jftrade-engine/src/product_adk_workflow_shutdown_tests.rs::concurrent_runtime_shutdowns_cancel_and_join_admitted_background_before_returning": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/assistant/workflow_lifecycle_test.go:13:TestServiceCloseCancelsAndJoinsAdmittedWorkflowBackground"
+      ],
+      "reviewStatus": "single",
+      "allowed": true
+    },
+    "crates/jftrade-engine/tests/support/workflow_canvas_cancellation.rs::canvas_cancelled_and_timed_out_nodes_do_not_dispatch_successors_or_repeat_attempts": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/assistant/engine/adk22regression/native_runtime_test.go:155:TestWorkflowPropagatesExternalCancellationWithoutSuccessorOrRetry"
       ],
       "reviewStatus": "single",
       "allowed": true

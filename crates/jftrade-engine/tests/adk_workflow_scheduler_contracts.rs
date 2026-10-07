@@ -1,5 +1,8 @@
 #![forbid(unsafe_code)]
 
+#[path = "support/workflow_scheduler_lifecycle.rs"]
+mod lifecycle;
+
 use std::collections::BTreeMap;
 use std::fs::File;
 use std::path::Path;
@@ -606,7 +609,7 @@ async fn test_workflow_scheduler_worker_start_stop_and_status() {
     );
 
     scheduler.stop();
-    assert!(scheduler.join_invocations(Duration::from_secs(1)));
+    assert!(scheduler.join_shutdown(Duration::from_secs(1)).await);
 
     let stopped_status = scheduler.status();
     assert_eq!(stopped_status.state, "stopped");

@@ -1,0 +1,137 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(scheduler_join_reports_pending_cancelled_snapshot_cleanup) or test(scheduler_async_shutdown_waits_for_cleanup_and_retains_timed_out_owner) or test(scheduler_shutdown_yields_on_current_thread_and_is_idempotent) or test(cancelling_a_scheduler_join_keeps_cleanup_owned_for_the_next_waiter) or test(test_workflow_scheduler_worker_start_stop_and_status) or test(concurrent_runtime_shutdowns_cancel_and_join_admitted_background_before_returning) or test(runtime_shutdown_allows_cancelled_background_to_persist_cleanup_before_joining) or test(workflow_wait_cancellation_is_immediate_before_a_long_requested_wait) or test(canvas_cancelled_and_timed_out_nodes_do_not_dispatch_successors_or_repeat_attempts) or test(direct_product_shutdown_joins_scheduler_on_current_thread_before_releasing_leases) or test(workflow_wait_tool_rejects_too_long_duration) or test(workflow_wait_tool_returns_context_cancellation)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 100,
+  "status": "failed",
+  "verifiedAt": "2026-10-07T12:10:22Z",
+  "sourceState": {
+    "verifiedCommit": "428ca2f1f010dce5640579d0ecfadd45fc7c262b",
+    "trackedDiffSha256": "18b8844d2f9fb85d2ced399e38f6a83c5d466f2e7bbb4872940f8cebfe9df9f9",
+    "untrackedFiles": [
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/assistant-lifecycle-owner-build-error-2026-10-07.json",
+        "sha256": "7e258cfd06579ff1b3fec8b494ea0922740207fb64869626a5ce0bac1e3b2a98"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/assistant-scheduler-lifecycle-initial-2026-10-07.json",
+        "sha256": "ce7b822b32a5cab5fd9452c8d2051c0dee9b9909b825f42c87c66e25724a9fce"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/assistant-scheduler-lifecycle-red-2026-10-07.json",
+        "sha256": "d371cbea07bcdafe661216b0506b5b3865ec5fe5142bc234cf473b47e9246ce4"
+      }
+    ]
+  },
+  "rawOutputSha256": "9b3167461a44deaff589d865d82858ca6b12cf003d395f7a1fc724c78829741b",
+  "passedTests": [
+    "jftrade-engine::adk_workflow_scheduler_contracts$lifecycle::cancelling_a_scheduler_join_keeps_cleanup_owned_for_the_next_waiter",
+    "jftrade-engine::adk_workflow_scheduler_contracts$lifecycle::scheduler_async_shutdown_waits_for_cleanup_and_retains_timed_out_owner",
+    "jftrade-engine::adk_workflow_scheduler_contracts$lifecycle::scheduler_join_reports_pending_cancelled_snapshot_cleanup",
+    "jftrade-engine::adk_workflow_scheduler_contracts$lifecycle::scheduler_shutdown_yields_on_current_thread_and_is_idempotent",
+    "jftrade-engine::adk_workflow_scheduler_contracts$test_workflow_scheduler_worker_start_stop_and_status",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::workflow_shutdown::concurrent_runtime_shutdowns_cancel_and_join_admitted_background_before_returning",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::workflow_shutdown::runtime_shutdown_allows_cancelled_background_to_persist_cleanup_before_joining",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::workflow_shutdown::workflow_wait_cancellation_is_immediate_before_a_long_requested_wait",
+    "jftrade-engine::jftrade_engine$product::product_mcp_server::tests::workflow_wait_tool_rejects_too_long_duration",
+    "jftrade-engine::jftrade_engine$product::product_mcp_server::tests::workflow_wait_tool_returns_context_cancellation",
+    "jftrade-engine::jftrade_engine$product::tests::production_assembly_tests::product_production_assembly_tests::direct_product_shutdown_joins_scheduler_on_current_thread_before_releasing_leases"
+  ],
+  "failedTests": [
+    "jftrade-engine::adk_workflow_canvas_contracts$cancellation::canvas_cancelled_and_timed_out_nodes_do_not_dispatch_successors_or_repeat_attempts"
+  ],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 6,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "adk_workflow_canvas_contracts",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 5,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "adk_workflow_scheduler_contracts",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "failed",
+      "passed": 0,
+      "failed": 1,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 14,
+      "exec_time": 0.175025959,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "adk_workflow_canvas_contracts",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 6,
+      "exec_time": 1.1698269159999999,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "adk_workflow_scheduler_contracts",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1789,
+      "exec_time": 6.569069125,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    }
+  ]
+}

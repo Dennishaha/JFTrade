@@ -1,0 +1,43 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(scheduler_join_reports_pending_cancelled_snapshot_cleanup) or test(scheduler_async_shutdown_waits_for_cleanup_and_retains_timed_out_owner) or test(scheduler_shutdown_yields_on_current_thread_and_is_idempotent) or test(cancelling_a_scheduler_join_keeps_cleanup_owned_for_the_next_waiter) or test(test_workflow_scheduler_worker_start_stop_and_status) or test(concurrent_runtime_shutdowns_cancel_and_join_admitted_background_before_returning) or test(runtime_shutdown_allows_cancelled_background_to_persist_cleanup_before_joining) or test(workflow_wait_cancellation_is_immediate_before_a_long_requested_wait) or test(canvas_cancelled_and_timed_out_nodes_do_not_dispatch_successors_or_repeat_attempts) or test(direct_product_shutdown_joins_scheduler_on_current_thread_before_releasing_leases) or test(workflow_wait_tool_rejects_too_long_duration) or test(workflow_wait_tool_returns_context_cancellation)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 101,
+  "status": "failed",
+  "verifiedAt": "2026-10-07T12:09:13Z",
+  "sourceState": {
+    "verifiedCommit": "428ca2f1f010dce5640579d0ecfadd45fc7c262b",
+    "trackedDiffSha256": "00dd148a9a64e76a94bb701884113fc466f435a319e74273d6b7199b9d60f700",
+    "untrackedFiles": [
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/assistant-scheduler-lifecycle-initial-2026-10-07.json",
+        "sha256": "ce7b822b32a5cab5fd9452c8d2051c0dee9b9909b825f42c87c66e25724a9fce"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/assistant-scheduler-lifecycle-red-2026-10-07.json",
+        "sha256": "d371cbea07bcdafe661216b0506b5b3865ec5fe5142bc234cf473b47e9246ce4"
+      }
+    ]
+  },
+  "rawOutputSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "passedTests": [],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": []
+}
