@@ -14,6 +14,9 @@ use jftrade_integration_futu::{
 use serde_json::json;
 use std::sync::{Arc, Mutex};
 
+#[path = "product_production_ports_execution_http_lifecycle_tests.rs"]
+mod execution_http_lifecycle_tests;
+
 #[test]
 fn execution_trade_errors_preserve_go_request_connectivity_and_command_codes() {
     let account_missing = execution_order_helpers::map_trade_error(

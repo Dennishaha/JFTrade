@@ -669,6 +669,9 @@ impl BrokersWritePort for ProductionExecutionPort {
 #[path = "product_production_ports_execution_preview_tests.rs"]
 mod execution_preview_tests;
 #[cfg(test)]
+#[path = "product_production_ports_execution_http_scope_tests.rs"]
+mod execution_http_scope_tests;
+#[cfg(test)]
 #[path = "product_production_ports_execution_order_validation_tests.rs"]
 mod execution_order_validation_tests;
 

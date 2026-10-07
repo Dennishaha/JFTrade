@@ -1,0 +1,95 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(execution_http_orders_filter_original_opaque_accounts_and_environment) or test(execution_http_orders_default_to_real_from_production_settings) or test(execution_http_place_list_events_cancel_preserve_rust_admission_and_durable_fence) or test(execution_cancel_invalid_numeric_identity_and_absent_symbol_keep_rust_boundaries) or test(execution_combo_cancel_keeps_missing_identity_gateway_and_extended_id_boundaries) or test(malformed_persisted_execution_orders_reject_before_cancel_fence_or_broker_call) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel) or test(option_combo_preview_place_and_cancel_keep_server_identity)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-10-07T17:22:00Z",
+  "sourceState": {
+    "verifiedCommit": "b84e00ae6de882d002acbdc1da76fc3e7bc12bde",
+    "trackedDiffSha256": "3aaab078980a5c0882c2435ccd69e71e8b9eb5ea9a643448d0265c679923f6e3",
+    "untrackedFiles": [
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/execution-cancel-validation-red-2026-10-08.json",
+        "sha256": "bd291e29f1d72e8dda25f3332f7d531aad82d4f21428f5eceda67a55f6130105"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/execution-http-original-scope-2026-10-08.json",
+        "sha256": "67c1ac5cfc79f1a240637e650f2b6fffeeeace6db44f43285d5632019e4dd867"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/execution-http-owner-finalized-2026-10-08.json",
+        "sha256": "621579eb27548409b0df496aa1e8e307ddf0905750f4ba53b787b54e07732055"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/execution-http-scope-lifecycle-compiled-2026-10-08.json",
+        "sha256": "773ad4f64f11a91ce31357073fe89b7fb7f05046b2c2ba1c8151b8c722cf9cef"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/execution-http-scope-lifecycle-first-2026-10-08.json",
+        "sha256": "b6de9a37fb871bdfffaff678a82e027e26aba0fa334c1f61aa34d63ef4accc29"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/execution-http-scope-lifecycle-verified-2026-10-08.json",
+        "sha256": "fe116259e26c1cbee23085b9584f570f93591a04b0c532197edec0eebc5da2a9"
+      }
+    ]
+  },
+  "rawOutputSha256": "2c918a2f1454e0c0821a0c600a205ca7941ba81d6762d412219377d5b81ac3d0",
+  "passedTests": [
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_execution::product_production_ports_execution_orders::execution_http_scope_tests::execution_http_orders_default_to_real_from_production_settings",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_execution::product_production_ports_execution_orders::execution_http_scope_tests::execution_http_orders_filter_original_opaque_accounts_and_environment",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_execution::product_production_ports_execution_orders::execution_preview_tests::accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_execution::product_production_ports_execution_orders::execution_preview_tests::cancel_rejects_missing_terminal_and_unidentified_persisted_orders",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_execution::product_production_ports_execution_orders::execution_preview_tests::execution_http_lifecycle_tests::execution_cancel_invalid_numeric_identity_and_absent_symbol_keep_rust_boundaries",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_execution::product_production_ports_execution_orders::execution_preview_tests::execution_http_lifecycle_tests::execution_combo_cancel_keeps_missing_identity_gateway_and_extended_id_boundaries",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_execution::product_production_ports_execution_orders::execution_preview_tests::execution_http_lifecycle_tests::execution_http_place_list_events_cancel_preserve_rust_admission_and_durable_fence",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_execution::product_production_ports_execution_orders::execution_preview_tests::execution_http_lifecycle_tests::malformed_persisted_execution_orders_reject_before_cancel_fence_or_broker_call",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_execution::product_production_ports_execution_orders::execution_preview_tests::option_combo_preview_place_and_cancel_keep_server_identity"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 9,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1803,
+      "exec_time": 7.560128582,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    }
+  ]
+}

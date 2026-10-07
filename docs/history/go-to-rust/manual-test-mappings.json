@@ -63136,9 +63136,9 @@
     },
     "internal/app/apiserver/servercoretest/exec_routes_test.go:18:TestExecutionOrderRoutesPlaceListEventsAndCancel": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/tests/execution_write_compatibility.rs::execution_write_fixture_replays_all_seven_go_owned_mutations; crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel",
-      "conclusion": "partial：Go 断言下单→列表（1 条 BROKER_ACCEPTED、rawBrokerStatus=SUBMITTED）→事件（COMMAND_SUBMISSION_PREPARED、COMMAND_PLACE_ACCEPTED）→撤单（CANCEL_REQUESTED，modify 调用 1 次）→事件变 3 条（含 COMMAND_CANCEL_ACCEPTED）的整链与券商调用计数。Rust 以冻结语料覆盖 place/cancel 突变与错误码、并单独断言撤单持久化与失败 fail-closed（引用测试），但没有单条测试把“下单后列表/事件序列/撤单后第三条事件/券商调用计数”串起来。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'not test(production_helper_sync_cancel_aborts_in_flight_request) and not test(production_helper_sync_rejects_broken_pagination_cursors) and not test(production_helper_sync_forwards_page_query_and_persists_provider_values) and not test(production_helper_sync_retries_transient_page_and_records_retry)'",
+      "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_http_lifecycle_tests.rs::execution_http_place_list_events_cancel_preserve_rust_admission_and_durable_fence; crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel",
+      "conclusion": "partial：真实HTTP串联带Rust所需账户的place→list→events→cancel→events，同一internalOrderId，broker9001，列表一条HK.00700，place/modify各一次且operation2，取消fence持久化。 原始无accountId的POST直接得到400/BAD_REQUEST/accountId is required，零券商调用、零订单写入；不是给原输入补账户后宣称等价。 原始Go无accountId下单200，而Rust原输入400；账户1001自动选择尚无同输入证明。 Go列表BROKER_ACCEPTED/rawSUBMITTED、COMMAND_SUBMISSION_PREPARED→COMMAND_PLACE_ACCEPTED→COMMAND_CANCEL_ACCEPTED三事件、cancel accepted/CANCEL_REQUESTED；Rust为SUBMITTED/raw null、submitted→cancel_submitted两事件、status CANCEL_SUBMITTED，输入、状态及事件信封均有直接差异。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-desktop --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(execution_http_orders_filter_original_opaque_accounts_and_environment) or test(execution_http_orders_default_to_real_from_production_settings) or test(execution_http_place_list_events_cancel_preserve_rust_admission_and_durable_fence) or test(execution_cancel_invalid_numeric_identity_and_absent_symbol_keep_rust_boundaries) or test(execution_combo_cancel_keeps_missing_identity_gateway_and_extended_id_boundaries) or test(malformed_persisted_execution_orders_reject_before_cancel_fence_or_broker_call) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel) or test(option_combo_preview_place_and_cancel_keep_server_identity)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/servercoretest/exec_routes_test.go",
@@ -63148,34 +63148,30 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/tests/execution_write_compatibility.rs",
-          "test": "execution_write_fixture_replays_all_seven_go_owned_mutations",
+          "file": "crates/jftrade-engine/src/product_production_ports_execution_http_lifecycle_tests.rs",
+          "test": "execution_http_place_list_events_cancel_preserve_rust_admission_and_durable_fence",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/app/apiserver/servercoretest/exec_routes_test.go",
             "goLine": 18,
-            "rustFile": "crates/jftrade-engine/tests/execution_write_compatibility.rs",
-            "rustLine": 133
+            "rustFile": "crates/jftrade-engine/src/product_production_ports_execution_http_lifecycle_tests.rs",
+            "rustLine": 26
           }
         },
         {
           "file": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs",
           "test": "accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel",
-          "crate": "jftrade-engine",
-          "anchor": {
-            "goFile": "internal/app/apiserver/servercoretest/exec_routes_test.go",
-            "goLine": 18,
-            "rustFile": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs",
-            "rustLine": 1619
-          }
+          "crate": "jftrade-engine"
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Go 断言下单→列表（1 条 BROKER_ACCEPTED、rawBrokerStatus=SUBMITTED）→事件（COMMAND_SUBMISSION_PREPARED、COMMAND_PLACE_ACCEPTED）→撤单（CANCEL_REQUESTED，modify 调用 1 次）→事件变 3 条（含 COMMAND_CANCEL_ACCEPTED）的整链与券商调用计数。"
+          "真实HTTP串联带Rust所需账户的place→list→events→cancel→events，同一internalOrderId，broker9001，列表一条HK.00700，place/modify各一次且operation2，取消fence持久化。",
+          "原始无accountId的POST直接得到400/BAD_REQUEST/accountId is required，零券商调用、零订单写入；不是给原输入补账户后宣称等价。"
         ],
         "uncovered": [
-          "Rust 以冻结语料覆盖 place/cancel 突变与错误码、并单独断言撤单持久化与失败 fail-closed（引用测试），但没有单条测试把“下单后列表/事件序列/撤单后第三条事件/券商调用计数”串起来。"
+          "原始Go无accountId下单200，而Rust原输入400；账户1001自动选择尚无同输入证明。",
+          "Go列表BROKER_ACCEPTED/rawSUBMITTED、COMMAND_SUBMISSION_PREPARED→COMMAND_PLACE_ACCEPTED→COMMAND_CANCEL_ACCEPTED三事件、cancel accepted/CANCEL_REQUESTED；Rust为SUBMITTED/raw null、submitted→cancel_submitted两事件、status CANCEL_SUBMITTED，输入、状态及事件信封均有直接差异。"
         ],
         "source": "reviewed"
       },
@@ -63186,24 +63182,29 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
+          "-p",
+          "jftrade-desktop",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(execution_http_orders_filter_original_opaque_accounts_and_environment) or test(execution_http_orders_default_to_real_from_production_settings) or test(execution_http_place_list_events_cancel_preserve_rust_admission_and_durable_fence) or test(execution_cancel_invalid_numeric_identity_and_absent_symbol_keep_rust_boundaries) or test(execution_combo_cancel_keeps_missing_identity_gateway_and_extended_id_boundaries) or test(malformed_persisted_execution_orders_reject_before_cancel_fence_or_broker_call) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel) or test(option_combo_preview_place_and_cancel_keep_server_identity)"
         ],
         "testFilter": [
-          "accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel",
-          "execution_write_fixture_replays_all_seven_go_owned_mutations"
+          "execution_http_place_list_events_cancel_preserve_rust_admission_and_durable_fence",
+          "accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "b84e00ae6de882d002acbdc1da76fc3e7bc12bde",
+        "verifiedAt": "2026-10-07T17:35:36Z",
+        "receiptDigest": "sha256:650cb59086ee63058a5442805918634f80d808133495fe28eef80e60edc60ccd"
       },
       "risk": "high",
       "owner": "api_transport",
@@ -63214,10 +63215,12 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Go 断言下单→列表（1 条 BROKER_ACCEPTED、rawBrokerStatus=SUBMITTED）→事件（COMMAND_SUBMISSION_PREPARED、COMMAND_PLACE_ACCEPTED）→撤单（CANCEL_REQUESTED，modify 调用 1 次）→事件变 3 条（含 COMMAND_CANCEL_ACCEPTED）的整链与券商调用计数。"
+        "真实HTTP串联带Rust所需账户的place→list→events→cancel→events，同一internalOrderId，broker9001，列表一条HK.00700，place/modify各一次且operation2，取消fence持久化。",
+        "原始无accountId的POST直接得到400/BAD_REQUEST/accountId is required，零券商调用、零订单写入；不是给原输入补账户后宣称等价。"
       ],
       "uncoveredAssertions": [
-        "Rust 以冻结语料覆盖 place/cancel 突变与错误码、并单独断言撤单持久化与失败 fail-closed（引用测试），但没有单条测试把“下单后列表/事件序列/撤单后第三条事件/券商调用计数”串起来。"
+        "原始Go无accountId下单200，而Rust原输入400；账户1001自动选择尚无同输入证明。",
+        "Go列表BROKER_ACCEPTED/rawSUBMITTED、COMMAND_SUBMISSION_PREPARED→COMMAND_PLACE_ACCEPTED→COMMAND_CANCEL_ACCEPTED三事件、cancel accepted/CANCEL_REQUESTED；Rust为SUBMITTED/raw null、submitted→cancel_submitted两事件、status CANCEL_SUBMITTED，输入、状态及事件信封均有直接差异。"
       ],
       "boundaryReason": null
     },
@@ -63614,11 +63617,11 @@
       "boundaryReason": null
     },
     "internal/app/apiserver/servercoretest/execution_routes_test.go:53:TestExecutionOrdersEndpointFiltersByTradingEnvironmentAndScope": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::order_scope_defaults_to_current_and_status_lists_merge_case_insensitively; crates/jftrade-engine/src/product_execution_read_tests.rs::execution_read_routes_match_group_fixture_in_cutover_only",
-      "conclusion": "partial：Go 断言执行订单列表按 tradingEnvironment+scope 过滤。Rust 断言 scope 默认 current、状态列表大小写不敏感合并（引用测试），执行读路由按冻结语料回放。缺口 owner：crates/jftrade-engine 执行读投影（execution read filter）；回归要求：补“同一批订单按 REAL/SIMULATE 过滤只返回对应环境”的投影断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'not test(production_helper_sync_cancel_aborts_in_flight_request) and not test(production_helper_sync_rejects_broken_pagination_cursors) and not test(production_helper_sync_forwards_page_query_and_persists_provider_values) and not test(production_helper_sync_retries_transient_page_and_records_retry)'",
-      "evidence_type": "partial",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_http_scope_tests.rs::execution_http_orders_filter_original_opaque_accounts_and_environment",
+      "conclusion": "function_exact：真实生产装配注入的HTTP读port使用原始SIM-001/HK.00700与REAL-001/US.AAPL订单，默认仅返回SIMULATE，显式REAL仅返回REAL；均HTTP200、ok=true、恰一条。 原始brokerId=futu+REAL+REAL-001+US组合只返回该账户/市场订单，REAL+SIM-001+HK组合返回空数组。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-desktop --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(execution_http_orders_filter_original_opaque_accounts_and_environment) or test(execution_http_orders_default_to_real_from_production_settings) or test(execution_http_place_list_events_cancel_preserve_rust_admission_and_durable_fence) or test(execution_cancel_invalid_numeric_identity_and_absent_symbol_keep_rust_boundaries) or test(execution_combo_cancel_keeps_missing_identity_gateway_and_extended_id_boundaries) or test(malformed_persisted_execution_orders_reject_before_cancel_fence_or_broker_call) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel) or test(option_combo_preview_place_and_cancel_keep_server_identity)'",
+      "evidence_type": "function_exact",
       "source": {
         "file": "internal/app/apiserver/servercoretest/execution_routes_test.go",
         "line": 53,
@@ -63627,37 +63630,23 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs",
-          "test": "order_scope_defaults_to_current_and_status_lists_merge_case_insensitively",
+          "file": "crates/jftrade-engine/src/product_production_ports_execution_http_scope_tests.rs",
+          "test": "execution_http_orders_filter_original_opaque_accounts_and_environment",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/app/apiserver/servercoretest/execution_routes_test.go",
             "goLine": 53,
-            "rustFile": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs",
-            "rustLine": 4020
-          }
-        },
-        {
-          "file": "crates/jftrade-engine/src/product_execution_read_tests.rs",
-          "test": "execution_read_routes_match_group_fixture_in_cutover_only",
-          "crate": "jftrade-engine",
-          "anchor": {
-            "goFile": "internal/app/apiserver/servercoretest/execution_routes_test.go",
-            "goLine": 53,
-            "rustFile": "crates/jftrade-engine/src/product_execution_read_tests.rs",
-            "rustLine": 106
+            "rustFile": "crates/jftrade-engine/src/product_production_ports_execution_http_scope_tests.rs",
+            "rustLine": 130
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Go 断言执行订单列表按 tradingEnvironment+scope 过滤。",
-          "Rust 断言 scope 默认 current、状态列表大小写不敏感合并（引用测试），执行读路由按冻结语料回放。"
+          "真实生产装配注入的HTTP读port使用原始SIM-001/HK.00700与REAL-001/US.AAPL订单，默认仅返回SIMULATE，显式REAL仅返回REAL；均HTTP200、ok=true、恰一条。",
+          "原始brokerId=futu+REAL+REAL-001+US组合只返回该账户/市场订单，REAL+SIM-001+HK组合返回空数组。"
         ],
-        "uncovered": [
-          "缺口 owner：crates/jftrade-engine 执行读投影（execution read filter）；",
-          "回归要求：补“同一批订单按 REAL/SIMULATE 过滤只返回对应环境”的投影断言。"
-        ],
+        "uncovered": [],
         "source": "reviewed"
       },
       "verification": {
@@ -63667,49 +63656,48 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
+          "-p",
+          "jftrade-desktop",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(execution_http_orders_filter_original_opaque_accounts_and_environment) or test(execution_http_orders_default_to_real_from_production_settings) or test(execution_http_place_list_events_cancel_preserve_rust_admission_and_durable_fence) or test(execution_cancel_invalid_numeric_identity_and_absent_symbol_keep_rust_boundaries) or test(execution_combo_cancel_keeps_missing_identity_gateway_and_extended_id_boundaries) or test(malformed_persisted_execution_orders_reject_before_cancel_fence_or_broker_call) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel) or test(option_combo_preview_place_and_cancel_keep_server_identity)"
         ],
         "testFilter": [
-          "execution_read_routes_match_group_fixture_in_cutover_only",
-          "order_scope_defaults_to_current_and_status_lists_merge_case_insensitively"
+          "execution_http_orders_filter_original_opaque_accounts_and_environment"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "b84e00ae6de882d002acbdc1da76fc3e7bc12bde",
+        "verifiedAt": "2026-10-07T17:35:36Z",
+        "receiptDigest": "sha256:650cb59086ee63058a5442805918634f80d808133495fe28eef80e60edc60ccd"
       },
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "retain_exact_and_reaudit_on_owner_change",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Go 断言执行订单列表按 tradingEnvironment+scope 过滤。",
-        "Rust 断言 scope 默认 current、状态列表大小写不敏感合并（引用测试），执行读路由按冻结语料回放。"
+        "真实生产装配注入的HTTP读port使用原始SIM-001/HK.00700与REAL-001/US.AAPL订单，默认仅返回SIMULATE，显式REAL仅返回REAL；均HTTP200、ok=true、恰一条。",
+        "原始brokerId=futu+REAL+REAL-001+US组合只返回该账户/市场订单，REAL+SIM-001+HK组合返回空数组。"
       ],
-      "uncoveredAssertions": [
-        "缺口 owner：crates/jftrade-engine 执行读投影（execution read filter）；",
-        "回归要求：补“同一批订单按 REAL/SIMULATE 过滤只返回对应环境”的投影断言。"
-      ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/app/apiserver/servercoretest/execution_routes_test.go:110:TestExecutionOrdersEndpointDefaultTradingEnvironmentFromSettings": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::buying_power_defaults_follow_settings_and_preserve_explicit_environment",
-      "conclusion": "partial：Go 断言执行订单列表缺省交易环境来自设置。Rust 断言购买力读取按设置取默认环境且显式值优先（引用测试）。缺口 owner：crates/jftrade-engine 执行读投影；回归要求：补执行订单列表的缺省环境断言（显式值优先、缺省回落到 settings 的默认交易环境）。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-      "evidence_type": "partial",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_http_scope_tests.rs::execution_http_orders_default_to_real_from_production_settings",
+      "conclusion": "function_exact：真实SettingsFileStore保存默认REAL，经production_ports实际getter接入HTTP；原始两条HK.00700/quantity100订单使用SIM-001与REAL-001，缺省GET为HTTP200/ok=true且只返回一条REAL。 显式SIMULATE覆盖真实settings默认REAL，仅返回SIM-001。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-desktop --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(execution_http_orders_filter_original_opaque_accounts_and_environment) or test(execution_http_orders_default_to_real_from_production_settings) or test(execution_http_place_list_events_cancel_preserve_rust_admission_and_durable_fence) or test(execution_cancel_invalid_numeric_identity_and_absent_symbol_keep_rust_boundaries) or test(execution_combo_cancel_keeps_missing_identity_gateway_and_extended_id_boundaries) or test(malformed_persisted_execution_orders_reject_before_cancel_fence_or_broker_call) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel) or test(option_combo_preview_place_and_cancel_keep_server_identity)'",
+      "evidence_type": "function_exact",
       "source": {
         "file": "internal/app/apiserver/servercoretest/execution_routes_test.go",
         "line": 110,
@@ -63718,26 +63706,23 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs",
-          "test": "buying_power_defaults_follow_settings_and_preserve_explicit_environment",
+          "file": "crates/jftrade-engine/src/product_production_ports_execution_http_scope_tests.rs",
+          "test": "execution_http_orders_default_to_real_from_production_settings",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/app/apiserver/servercoretest/execution_routes_test.go",
             "goLine": 110,
-            "rustFile": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs",
-            "rustLine": 122
+            "rustFile": "crates/jftrade-engine/src/product_production_ports_execution_http_scope_tests.rs",
+            "rustLine": 161
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Go 断言执行订单列表缺省交易环境来自设置。",
-          "Rust 断言购买力读取按设置取默认环境且显式值优先（引用测试）。"
+          "真实SettingsFileStore保存默认REAL，经production_ports实际getter接入HTTP；原始两条HK.00700/quantity100订单使用SIM-001与REAL-001，缺省GET为HTTP200/ok=true且只返回一条REAL。",
+          "显式SIMULATE覆盖真实settings默认REAL，仅返回SIM-001。"
         ],
-        "uncovered": [
-          "缺口 owner：crates/jftrade-engine 执行读投影；",
-          "回归要求：补执行订单列表的缺省环境断言（显式值优先、缺省回落到 settings 的默认交易环境）。"
-        ],
+        "uncovered": [],
         "source": "reviewed"
       },
       "verification": {
@@ -63747,40 +63732,40 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
+          "-p",
+          "jftrade-desktop",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(execution_http_orders_filter_original_opaque_accounts_and_environment) or test(execution_http_orders_default_to_real_from_production_settings) or test(execution_http_place_list_events_cancel_preserve_rust_admission_and_durable_fence) or test(execution_cancel_invalid_numeric_identity_and_absent_symbol_keep_rust_boundaries) or test(execution_combo_cancel_keeps_missing_identity_gateway_and_extended_id_boundaries) or test(malformed_persisted_execution_orders_reject_before_cancel_fence_or_broker_call) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel) or test(option_combo_preview_place_and_cancel_keep_server_identity)"
         ],
         "testFilter": [
-          "buying_power_defaults_follow_settings_and_preserve_explicit_environment"
+          "execution_http_orders_default_to_real_from_production_settings"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "b84e00ae6de882d002acbdc1da76fc3e7bc12bde",
+        "verifiedAt": "2026-10-07T17:35:36Z",
+        "receiptDigest": "sha256:650cb59086ee63058a5442805918634f80d808133495fe28eef80e60edc60ccd"
       },
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "retain_exact_and_reaudit_on_owner_change",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Go 断言执行订单列表缺省交易环境来自设置。",
-        "Rust 断言购买力读取按设置取默认环境且显式值优先（引用测试）。"
+        "真实SettingsFileStore保存默认REAL，经production_ports实际getter接入HTTP；原始两条HK.00700/quantity100订单使用SIM-001与REAL-001，缺省GET为HTTP200/ok=true且只返回一条REAL。",
+        "显式SIMULATE覆盖真实settings默认REAL，仅返回SIM-001。"
       ],
-      "uncoveredAssertions": [
-        "缺口 owner：crates/jftrade-engine 执行读投影；",
-        "回归要求：补执行订单列表的缺省环境断言（显式值优先、缺省回落到 settings 的默认交易环境）。"
-      ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/app/apiserver/servercoretest/execution_routes_test.go:155:TestExecutionOrdersSyncBrokerOrdersAndTracksWorkerState": {
@@ -69489,9 +69474,9 @@
     },
     "internal/app/apiserver/tradingapp/execution_gateway_lifecycle_test.go:202:TestExecutionGatewayCancelOrderBoundaries": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::cancel_rejects_missing_terminal_and_unidentified_persisted_orders",
-      "conclusion": "partial：Rust 用例覆盖缺标识、终态与未持久化订单的撤单拒绝（该 entry），成功路径契约由 accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel 覆盖。缺口：Go 的 app 层分支表还含缺 store（Rust 由类型系统消除）与非法 brokerOrderId 逐分支断言；owner：crates/jftrade-engine 撤单写路径；回归要求：如需逐分支对齐，补非法标识与终态组合的断言矩阵。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'test(broker_klines_valid_request_fails_closed_without_historical_source) or test(broker_securities_returns_real_empty_result_when_cache_has_no_symbol) or test(production_http_broker_reads_reject_invalid_query_shapes_with_rust_messages) or test(trade_write_methods_propagate_write_disconnects) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(funds_projection_keeps_missing_margin_fields_absent) or test(broker_read_fails_closed_without_trade_client)'",
+      "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_http_lifecycle_tests.rs::execution_cancel_invalid_numeric_identity_and_absent_symbol_keep_rust_boundaries; crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::cancel_rejects_missing_terminal_and_unidentified_persisted_orders; crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel",
+      "conclusion": "partial：缺订单404、FILLED终态拒绝、缺两个券商标识拒绝；非法not-a-number且无orderIDEx拒绝400、零modify且durable order/events不变。 有效9001但缺symbol仍允许Rust取消，identity保留且modify恰一次；broker failure传播并fail-closed UNKNOWN，成功保持CANCEL_SUBMITTED。 Go nil store/ErrOrderStoreUnavailable由Rust类型边界消除；原Go非法ID错误invalid broker order id而RustBROKER_ORDER_ID_MISSING。 原Go缺symbol拒绝，Rust按header/ID取消成功；原GoUS.AAPL errors.Is对象身份与空InternalOrderID结果未同输入闭合。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-desktop --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(execution_http_orders_filter_original_opaque_accounts_and_environment) or test(execution_http_orders_default_to_real_from_production_settings) or test(execution_http_place_list_events_cancel_preserve_rust_admission_and_durable_fence) or test(execution_cancel_invalid_numeric_identity_and_absent_symbol_keep_rust_boundaries) or test(execution_combo_cancel_keeps_missing_identity_gateway_and_extended_id_boundaries) or test(malformed_persisted_execution_orders_reject_before_cancel_fence_or_broker_call) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel) or test(option_combo_preview_place_and_cancel_keep_server_identity)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/tradingapp/execution_gateway_lifecycle_test.go",
@@ -69501,25 +69486,35 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs",
-          "test": "cancel_rejects_missing_terminal_and_unidentified_persisted_orders",
+          "file": "crates/jftrade-engine/src/product_production_ports_execution_http_lifecycle_tests.rs",
+          "test": "execution_cancel_invalid_numeric_identity_and_absent_symbol_keep_rust_boundaries",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/app/apiserver/tradingapp/execution_gateway_lifecycle_test.go",
             "goLine": 202,
-            "rustFile": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs",
-            "rustLine": 1259
+            "rustFile": "crates/jftrade-engine/src/product_production_ports_execution_http_lifecycle_tests.rs",
+            "rustLine": 130
           }
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs",
+          "test": "cancel_rejects_missing_terminal_and_unidentified_persisted_orders",
+          "crate": "jftrade-engine"
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs",
+          "test": "accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel",
+          "crate": "jftrade-engine"
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust 用例覆盖缺标识、终态与未持久化订单的撤单拒绝（该 entry），成功路径契约由 accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel 覆盖。",
-          "owner：crates/jftrade-engine 撤单写路径；"
+          "缺订单404、FILLED终态拒绝、缺两个券商标识拒绝；非法not-a-number且无orderIDEx拒绝400、零modify且durable order/events不变。",
+          "有效9001但缺symbol仍允许Rust取消，identity保留且modify恰一次；broker failure传播并fail-closed UNKNOWN，成功保持CANCEL_SUBMITTED。"
         ],
         "uncovered": [
-          "缺口：Go 的 app 层分支表还含缺 store（Rust 由类型系统消除）与非法 brokerOrderId 逐分支断言；",
-          "回归要求：如需逐分支对齐，补非法标识与终态组合的断言矩阵。"
+          "Go nil store/ErrOrderStoreUnavailable由Rust类型边界消除；原Go非法ID错误invalid broker order id而RustBROKER_ORDER_ID_MISSING。",
+          "原Go缺symbol拒绝，Rust按header/ID取消成功；原GoUS.AAPL errors.Is对象身份与空InternalOrderID结果未同输入闭合。"
         ],
         "source": "reviewed"
       },
@@ -69530,29 +69525,30 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
+          "-p",
+          "jftrade-desktop",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(execution_http_orders_filter_original_opaque_accounts_and_environment) or test(execution_http_orders_default_to_real_from_production_settings) or test(execution_http_place_list_events_cancel_preserve_rust_admission_and_durable_fence) or test(execution_cancel_invalid_numeric_identity_and_absent_symbol_keep_rust_boundaries) or test(execution_combo_cancel_keeps_missing_identity_gateway_and_extended_id_boundaries) or test(malformed_persisted_execution_orders_reject_before_cancel_fence_or_broker_call) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel) or test(option_combo_preview_place_and_cancel_keep_server_identity)"
         ],
         "testFilter": [
-          "broker_klines_valid_request_fails_closed_without_historical_source",
-          "broker_securities_returns_real_empty_result_when_cache_has_no_symbol",
-          "production_http_broker_reads_reject_invalid_query_shapes_with_rust_messages",
-          "trade_write_methods_propagate_write_disconnects",
+          "execution_cancel_invalid_numeric_identity_and_absent_symbol_keep_rust_boundaries",
           "cancel_rejects_missing_terminal_and_unidentified_persisted_orders",
-          "funds_projection_keeps_missing_margin_fields_absent",
-          "broker_read_fails_closed_without_trade_client"
+          "accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "b84e00ae6de882d002acbdc1da76fc3e7bc12bde",
+        "verifiedAt": "2026-10-07T17:35:36Z",
+        "receiptDigest": "sha256:650cb59086ee63058a5442805918634f80d808133495fe28eef80e60edc60ccd"
       },
       "risk": "high",
       "owner": "api_transport",
@@ -69563,12 +69559,12 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust 用例覆盖缺标识、终态与未持久化订单的撤单拒绝（该 entry），成功路径契约由 accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel 覆盖。",
-        "owner：crates/jftrade-engine 撤单写路径；"
+        "缺订单404、FILLED终态拒绝、缺两个券商标识拒绝；非法not-a-number且无orderIDEx拒绝400、零modify且durable order/events不变。",
+        "有效9001但缺symbol仍允许Rust取消，identity保留且modify恰一次；broker failure传播并fail-closed UNKNOWN，成功保持CANCEL_SUBMITTED。"
       ],
       "uncoveredAssertions": [
-        "缺口：Go 的 app 层分支表还含缺 store（Rust 由类型系统消除）与非法 brokerOrderId 逐分支断言；",
-        "回归要求：如需逐分支对齐，补非法标识与终态组合的断言矩阵。"
+        "Go nil store/ErrOrderStoreUnavailable由Rust类型边界消除；原Go非法ID错误invalid broker order id而RustBROKER_ORDER_ID_MISSING。",
+        "原Go缺symbol拒绝，Rust按header/ID取消成功；原GoUS.AAPL errors.Is对象身份与空InternalOrderID结果未同输入闭合。"
       ],
       "boundaryReason": null
     },
@@ -69665,9 +69661,9 @@
     },
     "internal/app/apiserver/tradingapp/execution_gateway_lifecycle_test.go:298:TestExecutionGatewayCancelComboBoundaries": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::option_combo_preview_place_and_cancel_keep_server_identity",
-      "conclusion": "partial：Rust 断言期权组合下单/撤单保持服务端身份（该 entry）。缺口：Go 的分支表（缺 store、订单未找到、broker 非组合服务、缺 brokerOrderId、broker 撤单失败、成功）在 Rust 由组合端点能力校验与撤单前置校验分担，无 1:1 断言；owner：crates/jftrade-engine 组合写路径 + crates/jftrade-integration-futu 组合能力探测；回归要求：补缺 brokerOrderId 与非组合 broker 两条断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'not test(production_helper_sync_cancel_aborts_in_flight_request) and not test(production_helper_sync_rejects_broken_pagination_cursors) and not test(production_helper_sync_forwards_page_query_and_persists_provider_values) and not test(production_helper_sync_retries_transient_page_and_records_retry)'",
+      "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_http_lifecycle_tests.rs::execution_combo_cancel_keeps_missing_identity_gateway_and_extended_id_boundaries; crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::option_combo_preview_place_and_cancel_keep_server_identity",
+      "conclusion": "partial：缺组合订单404、缺numeric/extended ID拒绝；无write gateway失败且durable order/events不变。 合法存储combo以extended C-1取消，经同一ModifyOrder owner，order_id0/order_id_ex C-1/operation2且恰一次；真实option combo preview/place/cancel保持服务端身份。 Go nil store、plainBroker非combo能力、原C-1位于BrokerOrderID而Rust位于orderIDEx，尚无同输入和同能力模型证明。 Go comboCancelErr的errors.Is原错误身份、cancelComboID独立service调用及store.cancelled结果尚未闭合；Rust共用单订单ModifyOrder与CANCEL_SUBMITTED fence。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-desktop --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(execution_http_orders_filter_original_opaque_accounts_and_environment) or test(execution_http_orders_default_to_real_from_production_settings) or test(execution_http_place_list_events_cancel_preserve_rust_admission_and_durable_fence) or test(execution_cancel_invalid_numeric_identity_and_absent_symbol_keep_rust_boundaries) or test(execution_combo_cancel_keeps_missing_identity_gateway_and_extended_id_boundaries) or test(malformed_persisted_execution_orders_reject_before_cancel_fence_or_broker_call) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel) or test(option_combo_preview_place_and_cancel_keep_server_identity)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/tradingapp/execution_gateway_lifecycle_test.go",
@@ -69677,25 +69673,30 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs",
-          "test": "option_combo_preview_place_and_cancel_keep_server_identity",
+          "file": "crates/jftrade-engine/src/product_production_ports_execution_http_lifecycle_tests.rs",
+          "test": "execution_combo_cancel_keeps_missing_identity_gateway_and_extended_id_boundaries",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/app/apiserver/tradingapp/execution_gateway_lifecycle_test.go",
             "goLine": 298,
-            "rustFile": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs",
-            "rustLine": 2044
+            "rustFile": "crates/jftrade-engine/src/product_production_ports_execution_http_lifecycle_tests.rs",
+            "rustLine": 165
           }
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs",
+          "test": "option_combo_preview_place_and_cancel_keep_server_identity",
+          "crate": "jftrade-engine"
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust 断言期权组合下单/撤单保持服务端身份（该 entry）。",
-          "owner：crates/jftrade-engine 组合写路径 + crates/jftrade-integration-futu 组合能力探测；"
+          "缺组合订单404、缺numeric/extended ID拒绝；无write gateway失败且durable order/events不变。",
+          "合法存储combo以extended C-1取消，经同一ModifyOrder owner，order_id0/order_id_ex C-1/operation2且恰一次；真实option combo preview/place/cancel保持服务端身份。"
         ],
         "uncovered": [
-          "缺口：Go 的分支表（缺 store、订单未找到、broker 非组合服务、缺 brokerOrderId、broker 撤单失败、成功）在 Rust 由组合端点能力校验与撤单前置校验分担，无 1:1 断言；",
-          "回归要求：补缺 brokerOrderId 与非组合 broker 两条断言。"
+          "Go nil store、plainBroker非combo能力、原C-1位于BrokerOrderID而Rust位于orderIDEx，尚无同输入和同能力模型证明。",
+          "Go comboCancelErr的errors.Is原错误身份、cancelComboID独立service调用及store.cancelled结果尚未闭合；Rust共用单订单ModifyOrder与CANCEL_SUBMITTED fence。"
         ],
         "source": "reviewed"
       },
@@ -69706,23 +69707,29 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
+          "-p",
+          "jftrade-desktop",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(execution_http_orders_filter_original_opaque_accounts_and_environment) or test(execution_http_orders_default_to_real_from_production_settings) or test(execution_http_place_list_events_cancel_preserve_rust_admission_and_durable_fence) or test(execution_cancel_invalid_numeric_identity_and_absent_symbol_keep_rust_boundaries) or test(execution_combo_cancel_keeps_missing_identity_gateway_and_extended_id_boundaries) or test(malformed_persisted_execution_orders_reject_before_cancel_fence_or_broker_call) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel) or test(option_combo_preview_place_and_cancel_keep_server_identity)"
         ],
         "testFilter": [
+          "execution_combo_cancel_keeps_missing_identity_gateway_and_extended_id_boundaries",
           "option_combo_preview_place_and_cancel_keep_server_identity"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "b84e00ae6de882d002acbdc1da76fc3e7bc12bde",
+        "verifiedAt": "2026-10-07T17:35:36Z",
+        "receiptDigest": "sha256:650cb59086ee63058a5442805918634f80d808133495fe28eef80e60edc60ccd"
       },
       "risk": "high",
       "owner": "api_transport",
@@ -69733,12 +69740,12 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust 断言期权组合下单/撤单保持服务端身份（该 entry）。",
-        "owner：crates/jftrade-engine 组合写路径 + crates/jftrade-integration-futu 组合能力探测；"
+        "缺组合订单404、缺numeric/extended ID拒绝；无write gateway失败且durable order/events不变。",
+        "合法存储combo以extended C-1取消，经同一ModifyOrder owner，order_id0/order_id_ex C-1/operation2且恰一次；真实option combo preview/place/cancel保持服务端身份。"
       ],
       "uncoveredAssertions": [
-        "缺口：Go 的分支表（缺 store、订单未找到、broker 非组合服务、缺 brokerOrderId、broker 撤单失败、成功）在 Rust 由组合端点能力校验与撤单前置校验分担，无 1:1 断言；",
-        "回归要求：补缺 brokerOrderId 与非组合 broker 两条断言。"
+        "Go nil store、plainBroker非combo能力、原C-1位于BrokerOrderID而Rust位于orderIDEx，尚无同输入和同能力模型证明。",
+        "Go comboCancelErr的errors.Is原错误身份、cancelComboID独立service调用及store.cancelled结果尚未闭合；Rust共用单订单ModifyOrder与CANCEL_SUBMITTED fence。"
       ],
       "boundaryReason": null
     },
@@ -343363,7 +343370,7 @@
       "reviewStatus": "single"
     },
     "crates/jftrade-engine/tests/execution_write_compatibility.rs::execution_write_fixture_replays_all_seven_go_owned_mutations": {
-      "referenceCount": 9,
+      "referenceCount": 8,
       "referenceKeys": [
         "internal/api/trading/execution_products_test.go:18:TestExecutionProductRoutesBuyingPowerComboLifecycle",
         "internal/api/trading/execution_products_test.go:73:TestExecutionProductRoutesValidationAndServiceErrors",
@@ -343372,8 +343379,7 @@
         "internal/api/trading/execution_test.go:79:TestHandleExecutionPlaceRejectsEquityAmountModeSpoof",
         "internal/api/trading/execution_test.go:148:TestHandleExecutionCancelReturnsMappedEnvelope",
         "internal/api/trading/execution_test.go:205:TestExecutionPlacePreviewAndEventsRoutes",
-        "internal/api/trading/execution_validation_contracts_test.go:52:TestExecutionRoutesValidatePayloadsAndMapHandlerErrors",
-        "internal/app/apiserver/servercoretest/exec_routes_test.go:18:TestExecutionOrderRoutesPlaceListEventsAndCancel"
+        "internal/api/trading/execution_validation_contracts_test.go:52:TestExecutionRoutesValidatePayloadsAndMapHandlerErrors"
       ],
       "allowed": true,
       "reviewStatus": "reviewed",
@@ -343429,12 +343435,11 @@
       "reviewNote": "2026-09-29 execution API batch: shared Rust owner reviewed against each referenced Go assertion; partial references remain partial and do not inherit function_exact."
     },
     "crates/jftrade-engine/src/product_execution_read_tests.rs::execution_read_routes_match_group_fixture_in_cutover_only": {
-      "referenceCount": 4,
+      "referenceCount": 3,
       "referenceKeys": [
         "internal/api/trading/execution_test.go:205:TestExecutionPlacePreviewAndEventsRoutes",
         "internal/api/trading/execution_validation_contracts_test.go:52:TestExecutionRoutesValidatePayloadsAndMapHandlerErrors",
-        "internal/api/trading/execution_validation_contracts_test.go:238:TestExecutionOrderDetailsRouteMapsMissingAndStoreFailures",
-        "internal/app/apiserver/servercoretest/execution_routes_test.go:53:TestExecutionOrdersEndpointFiltersByTradingEnvironmentAndScope"
+        "internal/api/trading/execution_validation_contracts_test.go:238:TestExecutionOrderDetailsRouteMapsMissingAndStoreFailures"
       ],
       "allowed": true,
       "reviewStatus": "reviewed",
@@ -347044,15 +347049,17 @@
       "reviewStatus": "reviewed"
     },
     "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::accepted_cancel_persists_and_broker_failure_never_advertises_a_cancel": {
-      "referenceCount": 3,
+      "referenceCount": 4,
       "referenceKeys": [
         "internal/app/apiserver/servercore/trading_order_cancellation_contracts_test.go:134:TestTradingOrderCancellationPropagatesBrokerFailuresAndPersistsAcceptedCancel",
         "internal/app/apiserver/servercoretest/exec_routes_test.go:18:TestExecutionOrderRoutesPlaceListEventsAndCancel",
-        "internal/app/apiserver/tradingapp/execution_gateway_lifecycle_test.go:144:TestExecutionGatewayPlaceOrderBoundaries"
+        "internal/app/apiserver/tradingapp/execution_gateway_lifecycle_test.go:144:TestExecutionGatewayPlaceOrderBoundaries",
+        "internal/app/apiserver/tradingapp/execution_gateway_lifecycle_test.go:202:TestExecutionGatewayCancelOrderBoundaries"
       ],
-      "allowed": false,
+      "allowed": true,
       "reviewStatus": "reviewed",
-      "reviewNote": "2026-10-02 bounded reuse review: compared all 3 referenceKeys against the shared Rust owner (status mix {'[~]': 3}); assertion scopes are not interchangeable, so reuse remains disallowed and no function_exact row is upgraded by this relation."
+      "reviewNote": "2026-10-02 bounded reuse review: compared all 3 referenceKeys against the shared Rust owner (status mix {'[~]': 3}); assertion scopes are not interchangeable, so reuse remains disallowed and no function_exact row is upgraded by this relation.",
+      "reviewReason": "本批逐项审查新增execution引用：共享cancel fixture仅证明terminal/identity guard、broker failure和持久化成功子集；不替代原HTTP admission/event信封、nil store、symbol或combo能力差异。"
     },
     "crates/jftrade-engine/src/product_watchlist_tests.rs::watchlist_read_routes_are_not_registered_without_snapshot_port": {
       "referenceCount": 1,
@@ -347400,9 +347407,8 @@
       "reviewNote": "2026-09-29 execution validation batch: price/session/market parsing owners reviewed against referenced Go assertions; non-API references retain their explicit conclusions."
     },
     "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::order_scope_defaults_to_current_and_status_lists_merge_case_insensitively": {
-      "referenceCount": 3,
+      "referenceCount": 2,
       "referenceKeys": [
-        "internal/app/apiserver/servercoretest/execution_routes_test.go:53:TestExecutionOrdersEndpointFiltersByTradingEnvironmentAndScope",
         "internal/assistant/assembly/adk_strategy_test.go:32:TestADKWorkflowAuditAndAdapterHelpers",
         "internal/assistant/assembly/application_adapter_test.go:81:TestApplicationAdapterNormalizesCrossDomainInputs"
       ],
@@ -347410,13 +347416,12 @@
       "reviewStatus": "reviewed"
     },
     "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::buying_power_defaults_follow_settings_and_preserve_explicit_environment": {
-      "referenceCount": 2,
+      "referenceCount": 1,
       "referenceKeys": [
-        "internal/app/apiserver/servercoretest/execution_routes_test.go:110:TestExecutionOrdersEndpointDefaultTradingEnvironmentFromSettings",
         "internal/trading/broker_test.go:735:TestNormalizeSymbolsAndRuntimeDefaults"
       ],
-      "allowed": false,
-      "reviewStatus": "reviewed",
+      "allowed": true,
+      "reviewStatus": "single",
       "reviewNote": "2026-10-02 bounded reuse review: compared all 2 referenceKeys against the shared Rust owner (status mix {'[~]': 2}); assertion scopes are not interchangeable, so reuse remains disallowed and no function_exact row is upgraded by this relation."
     },
     "crates/jftrade-engine/src/product_production_ports_execution_reconciliation_push_worker_tests.rs::test_reconciliation_shutdown_is_bounded_for_blocking_broker_scan": {
@@ -364785,6 +364790,46 @@
         "internal/assistant/engine/providers/responses_model_test.go:48:TestResponsesModelRetainsStreamingUsageMetadata"
       ],
       "referenceCount": 1,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_production_ports_execution_http_lifecycle_tests.rs::execution_http_place_list_events_cancel_preserve_rust_admission_and_durable_fence": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/app/apiserver/servercoretest/exec_routes_test.go:18:TestExecutionOrderRoutesPlaceListEventsAndCancel"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_production_ports_execution_http_lifecycle_tests.rs::execution_combo_cancel_keeps_missing_identity_gateway_and_extended_id_boundaries": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/app/apiserver/tradingapp/execution_gateway_lifecycle_test.go:298:TestExecutionGatewayCancelComboBoundaries"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_production_ports_execution_http_scope_tests.rs::execution_http_orders_filter_original_opaque_accounts_and_environment": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/app/apiserver/servercoretest/execution_routes_test.go:53:TestExecutionOrdersEndpointFiltersByTradingEnvironmentAndScope"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_production_ports_execution_http_lifecycle_tests.rs::execution_cancel_invalid_numeric_identity_and_absent_symbol_keep_rust_boundaries": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/app/apiserver/tradingapp/execution_gateway_lifecycle_test.go:202:TestExecutionGatewayCancelOrderBoundaries"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_production_ports_execution_http_scope_tests.rs::execution_http_orders_default_to_real_from_production_settings": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/app/apiserver/servercoretest/execution_routes_test.go:110:TestExecutionOrdersEndpointDefaultTradingEnvironmentFromSettings"
+      ],
+      "allowed": true,
       "reviewStatus": "single"
     }
   }

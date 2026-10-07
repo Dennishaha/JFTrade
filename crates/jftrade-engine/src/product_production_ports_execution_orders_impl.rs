@@ -458,6 +458,8 @@ impl ProductionExecutionPort {
                 "execution order has no broker order id or orderIDEx",
             ));
         }
+        let header = header_from_order(&order)?;
+        order_value(&order)?; // Reject invalid combo data before the fence or broker command.
         let writer = self.writer()?;
         let previous_status = order.status.clone();
         let expected_updated_at = order.updated_at.clone();
@@ -477,7 +479,7 @@ impl ProductionExecutionPort {
             expected_revision,
         )?;
         let modify_result = writer.modify_order(TradeModifyOrderRequest {
-            header: header_from_order(&order)?,
+            header,
             order_id: broker_order_id,
             operation: 2,
             for_all: None,
