@@ -1,5 +1,13 @@
 # Go → Rust 证据积压清单
 
+## 2026-10-07 策略失败矩阵与 durable 删除
+
+- 仅更新本批五条及必要 reuse；净 **+1 exact / -1 partial / boundary 0**，当前 **1612 / 2199 / 640**。Go lifecycle401 的 success200/inst-1 转发、missing404、busy400 由 production HTTP 与 shutdown/reopen 后 durable 副作用直接证明。
+- `strategy-failure-http-initial-2026-10-07.json` 实际六项 passed；`strategy-failure-http-reviewed-2026-10-07.json` 七项 passed，增加旧版本重启测试；修正三处 Clippy needless borrow 后，`strategy-failure-http-verified-2026-10-07.json` 为 canonical，**7 passed / 0 failed / 0 ignored / 2159 filtered/skipped**。SHA-256 `0c1f5876533282b22c19f72248b5578a747207da20f54a81d65eabb67667f49b`，sourceState 指纹已核对并备份，原始 receipt 不覆盖。
+- 首轮 quick `/tmp/jftrade-strategy-failure-quick.log` 在2196项Rust通过后被Clippy拒绝三处needless borrow，整体退出1；失败日志保留，最终门禁须重跑，不能把测试集合通过当整个quick通过。
+- failure71 的 rehearsal 错误传播与 production SMA20 已补；production read/write 故障分类仍需直接证明。failure138 补 production missing instantiate/apply404 且实例仍空，apply catalog500/instantiate read400 未闭合。failure184 四路 rehearsal500 与原入参已补，production CAS/store409/502 和回滚差异仍在。lifecycle252 补 history/snapshot500 和原错误文本，既有 version/restart 重跑；fixed savedAt/fixture、缺 URI400、production store 故障分类保留。
+- 普通/strict、anchor和AI context通过；anchor **2072/2024/0/0/48**。quick第二轮在target-health退出1，确认无构建进程后指定clean移除118776文件/33.8 GiB；最终quick-clean明确退出0，2196 Rust passed（其中desktop 30）、Pine98、静态/七类replay通过，无LEAK。现场完整 `/tmp/jftrade-strategy-failure-rust.log` 明确退出0：**3744 passed / 0 failed / 2 skipped**，静态及七类replay通过，无LEAK；源码指纹保持，focused digest不代表全量摘要。
+
 ## 2026-10-07 插件 HTTP / concrete file owner
 
 - 六条映射净 **+4 exact / -4 partial / boundary 0**，当前 **1611 / 2200 / 640**。仅改本批六条及必要reuse，旧allowed权限保留。HTTP lifecycle复用于API642完整五路与catalog13持久化窄子集，后者仍partial；catalog89使用直接owner独立主入口。

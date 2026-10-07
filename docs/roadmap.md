@@ -20,12 +20,22 @@
 
 插件 HTTP/file owner批次已收口，修复畸形字段和根marker失败后工件被创建/删除的问题，净exact +4/partial -4；现场quick与完整Rust门禁通过。结果、残余和失败关系见 [迁移成果摘要](history/go-to-rust/parity-progress-summary.md) 与 [证据积压清单](history/go-to-rust/parity-evidence-backlog.md)。下一批选择五条partial：strategy API routes_failure_boundaries_test 的71/138/184，以及routes_lifecycle_test的252/401。
 
-- [ ] Go原始definition list/read/create/update/delete错误路径重放HTTP500/STRATEGY_FAILED，畸形JSON400、零owner调用，失败create/update仍在owner前归一ID/name。
-- [ ] 原始SMA20、US.AAPL/5m预热在真实production HTTP与SQLite owner上直接断言derivedWarmupBars20。
-- [ ] 原始history/snapshot故障在HTTP500中保留分类及消息；固定savedAt、直接handler缺URI400仍需逐项说明。
-- [ ] 四条instance mutation失败HTTP矩阵逐项核对入参；显式rehearsal seam不能证明生产CAS/store分类或回滚，残余保留。
-- [ ] 实例missing404、busy400、成功删除200后同一inst-1被durable软删除，busy实例保持状态；在唯一writer启动前建临时fixture，shutdown后重开检查。
-- [ ] 至少闭合一条 partial；canonical receipt、普通/strict 与 anchor 审计、quick、完整 Rust 门禁、diff review、独立提交后继续。
+- [x] Go原始definition list/read/create/update/delete错误路径重放HTTP500/STRATEGY_FAILED，畸形JSON400、零owner调用，失败create/update仍在owner前归一ID/name；rehearsal seam及production分类残余已说明。
+- [x] 原始SMA20、US.AAPL/5m预热在真实production HTTP与SQLite owner上直接断言derivedWarmupBars20。
+- [x] 原始history/snapshot故障在HTTP500中保留分类及消息；固定savedAt、直接handler缺URI400与production分类残余保留。
+- [x] 四条instance mutation失败HTTP矩阵逐项核对入参；显式rehearsal seam不能证明生产CAS/store分类或回滚，残余保留。
+- [x] 实例missing404、busy400、成功删除200后同一inst-1被durable软删除，busy实例保持状态；在唯一writer启动前建临时fixture，shutdown后重开检查。
+- [x] 闭合实例删除一条 partial；canonical receipt、普通/strict 与 anchor 审计、quick、完整 Rust 门禁已通过，diff review后独立提交并继续；其余production故障分类、fixed fixture和handler缺参残余保留。
+
+## 下一行为批次：交易读参数与订单回执（2026-10-07）
+
+选择五条partial：trading execution_test.go的110/249、routes_read_handlers_test.go的71、routes_broker_contracts_test.go的143、routes_helper_boundaries_test.go的17。逐项核对冻结Go原测试，现有mapping不能替代原始断言。
+
+- [ ] 在真实production HTTP和SQLite ledger上重放PARTIALLY_FILLED/FILLED_PART与missing404 ORDER_NOT_FOUND，shutdown/restart后保持。
+- [ ] 重放原始空白scope/brokerId/accountId及小写market；同一ledger包含REAL/SIMULATE、其它账户/券商/市场及terminal对照，核对当前默认环境和显式override。原Go110没有current/history调用计数断言，不沿用旧误记。
+- [ ] 费用ID合并去重、margin symbol归一、cash-flow方向/日期与quote/securities两工具合并走concrete adapter，记录原生reader实际入参；Go acc-1与Futu数字账户残余单独保留。
+- [ ] portfolio cash/position原字段与missing broker404直接断言；typed账户形状和generic helper Page/error/Retry-After差异不能由合法数字请求消除。
+- [ ] 如发现生产缺口，保留红测后修所属owner；canonical receipt、普通/strict及anchor审计、quick、完整Rust门禁和diff review通过后独立提交，再继续。
 
 ## 质量门禁
 

@@ -1,5 +1,14 @@
 # Go → Rust 对齐成果摘要
 
+## 2026-10-07 策略 HTTP 失败与实例删除副作用
+
+- 五条 partial 逐项核对冻结 Go。实例删除原始三个结果经真实认证 production HTTP 和具体 SQLite owner 证明，升 exact；净 **exact +1 / partial -1 / boundary 0**，当前 **1612 / 2199 / 640**。其余四条保留具体生产故障分类、固定 fixture 和 handler 参数残余。
+- 新增六项测试：definition list/read/create/update/delete 的 500 与畸形 JSON 400/零 write 调用、ID/name 归一；production SMA20/US.AAPL/5m 的 warmup20；history/snapshot 原错误文本；instance update/risk/pause/stop 的四路 500 与 owner 入参；missing orchestration 404 后无实例；实例 missing404、busy400、success200 后重开 SQLite，inst-1 已软删除、busy 仍 STARTING 且未删除。
+- 故障注入明确使用 rehearsal seam；不把 injected Failed/Unavailable 传播当作具体生产 store 分类证明，没有修改 production fence 或公开契约。旧 production version/restart 测试在本批再次执行，证据保持。
+- canonical `verification-receipts/strategy-failure-http-verified-2026-10-07.json`：**7 passed / 0 failed / 0 ignored / 2159 filtered/skipped**，无 LEAK，SHA-256 `0c1f5876533282b22c19f72248b5578a747207da20f54a81d65eabb67667f49b`；完整 tracked diff/untracked 指纹已核对。initial 为六项通过，reviewed 增加既有版本证据，verified 在修正 Clippy 的三处多余借用后重跑；原字节保留。
+- 首轮 quick `/tmp/jftrade-strategy-failure-quick.log` 的 **2196 Rust tests passed / 0 failed / 0 skipped**，随后 Clippy 拒绝新测试三处 needless borrow，整体退出 **1**；已修正，未放宽规则。第二轮 `/tmp/jftrade-strategy-failure-quick-verified.log` 在 target-health 退出1；确认无构建进程后指定 clean，移除118776文件/33.8 GiB。最终 `/tmp/jftrade-strategy-failure-quick-clean.log` 明确退出0：**2196 passed / 0 failed / 0 skipped**（其中desktop 30），Pine98、Clippy与七类replay通过，无LEAK。
+- 普通/strict、anchor及AI context已通过；anchor **2072 unique / 2024 recorded / 0 unrecorded / 0 stale / 48 unknown**。Rust扫描 **3588**、数量比 **80.6%** 单列。现场完整 `/tmp/jftrade-strategy-failure-rust.log` 明确退出0：**3744 passed / 0 failed / 2 skipped**，静态及七类replay通过，无LEAK；tracked Rust diff与untracked源码仍匹配verified receipt。focused digest不代表全量门禁摘要。
+
 ## 2026-10-07 插件 production HTTP 与文件变更前校验
 
 - 六条 partial 逐项核对冻结 Go。三条 API（空白ID、生命周期五路、缺失/内部失败）及 catalog missing两mutation升exact，净 **exact +4 / partial -4 / boundary 0**，当前 **1611 / 2200 / 640**。catalog注册归一/saveCount与legacy build tuple两条保留具体partial。
