@@ -1,5 +1,8 @@
 use super::*;
 
+#[path = "protocol_parity_tests.rs"]
+mod protocol_parity_tests;
+
 #[test]
 fn worker_chart_type_normalization_matches_the_pkg_chart_table() {
     // Parity: go:452dea11:pkg/chart/chart_type_test.go:5 TestNormalizeChartType

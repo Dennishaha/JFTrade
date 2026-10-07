@@ -328427,11 +328427,11 @@
       "boundaryReason": null
     },
     "pkg/strategy/pineworker/proto_mapping_test.go:154:TestCandleBatchEncodingGoldenVector": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-integration-pine/src/execution/tests.rs::grpc_request_message_limit_has_exact_encoded_boundaries",
-      "conclusion": "partial：Go 断言 K 线批次编码的黄金向量（时间与收盘价编码）。Rust 的执行用例断言请求消息上限的精确编码边界（同一编码边界检查）；Go 的逐字段黄金向量在 Rust 没有等价 fixture 断言（登记为可补的 P2 项）。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine --all-targets --locked",
-      "evidence_type": "partial",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-integration-pine/src/execution/protocol_parity_tests.rs::candle_batch_encoding_matches_original_signed_time_and_float_vector",
+      "conclusion": "function_exact：原始OpenTime=-2/CloseTime=3、OHLC=1.5/2.5/-0.5/2、volume0直接经现有candles_to_proto编码owner，逐字断言完整原Go十六进制向量及56字节/encoding_version1。原Go同样直接调用encoder，未将负时间当有效执行请求；生产请求的时间校验未修改。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-integration-pine --test candle_batch_encoding_matches_original_signed_time_and_float_vector --output docs/history/go-to-rust/verification-receipts/pine-protocol-owner-verified-2026-10-07.json",
+      "evidence_type": "function_exact",
       "source": {
         "file": "pkg/strategy/pineworker/proto_mapping_test.go",
         "line": 154,
@@ -328440,25 +328440,22 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-integration-pine/src/execution/tests.rs",
-          "test": "grpc_request_message_limit_has_exact_encoded_boundaries",
+          "file": "crates/jftrade-integration-pine/src/execution/protocol_parity_tests.rs",
+          "test": "candle_batch_encoding_matches_original_signed_time_and_float_vector",
           "crate": "jftrade-integration-pine",
           "anchor": {
             "goFile": "pkg/strategy/pineworker/proto_mapping_test.go",
             "goLine": 154,
-            "rustFile": "crates/jftrade-integration-pine/src/execution/tests.rs",
-            "rustLine": 137
+            "rustFile": "crates/jftrade-integration-pine/src/execution/protocol_parity_tests.rs",
+            "rustLine": 138
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Go 断言 K 线批次编码的黄金向量（时间与收盘价编码）。",
-          "Rust 的执行用例断言请求消息上限的精确编码边界（同一编码边界检查）；"
+          "Original signed times -2/3, OHLC 1.5/2.5/-0.5/2 and zero volume encode to the exact original 56-byte hexadecimal vector; version remains 1."
         ],
-        "uncovered": [
-          "Go 的逐字段黄金向量在 Rust 没有等价 fixture 断言（登记为可补的 P2 项）。"
-        ],
+        "uncovered": [],
         "source": "reviewed"
       },
       "verification": {
@@ -328468,39 +328465,37 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-integration-pine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(candle_batch_encoding_matches_original_signed_time_and_float_vector) or test(original_candle_time_errors_reject_before_rpc_and_keep_indexed_diagnostics) or test(rpc_client_defaults_timeout_and_fills_empty_job_identity_but_rejects_mismatch) or test(rpc_run_and_health_propagate_worker_unavailability) or test(rpc_health_copies_original_capabilities_and_server_mutation_does_not_change_result)"
         ],
         "testFilter": [
-          "grpc_request_message_limit_has_exact_encoded_boundaries"
+          "candle_batch_encoding_matches_original_signed_time_and_float_vector"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "8846e40d6a7df65581bbcff654393cb0a3e4c14b",
+        "verifiedAt": "2026-10-07T11:39:32Z",
+        "receiptDigest": "sha256:a1ee86b841b4d5f314a0db9d9ab6ce0d65a1bb108c5b043dd250a5e63980ac2c"
       },
       "risk": "normal",
       "owner": "strategy_pine",
       "priority": "P2",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "maintain_verified_function_exact",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Go 断言 K 线批次编码的黄金向量（时间与收盘价编码）。",
-        "Rust 的执行用例断言请求消息上限的精确编码边界（同一编码边界检查）；"
+        "Original signed times -2/3, OHLC 1.5/2.5/-0.5/2 and zero volume encode to the exact original 56-byte hexadecimal vector; version remains 1."
       ],
-      "uncoveredAssertions": [
-        "Go 的逐字段黄金向量在 Rust 没有等价 fixture 断言（登记为可补的 P2 项）。"
-      ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "pkg/strategy/pineworker/proto_mapping_test.go:182:TestProtoMappingHandlesNilResponses": {
@@ -328579,11 +328574,11 @@
       "boundaryReason": null
     },
     "pkg/strategy/pineworker/proto_mapping_test.go:197:TestHealthFromProtoCopiesCapabilities": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-integration-pine/src/mock_worker.rs::health_probe_authenticates_and_reports_controllable_ok_flag",
-      "conclusion": "partial：Go 断言健康响应复制 capabilities 到内部结构。Rust 的 mock worker 用例断言健康探测鉴权并报告可控 ok（同一健康响应面）；Go 的 capabilities 复制在 Rust 由就绪结构体字段映射覆盖，无逐字段断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-integration-pine -p jftrade-strategy -p jftrade-backtest -p jftrade-assistant -p jftrade-api --all-targets --locked --no-fail-fast -E 'not test(analyze_script_supports_trend_and_stateful_ta_functions)'",
-      "evidence_type": "partial",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-integration-pine/src/execution/protocol_parity_tests.rs::rpc_health_copies_original_capabilities_and_server_mutation_does_not_change_result",
+      "conclusion": "function_exact：原始ok=true/worker-1/version0.1.0/pinets/capabilities[run]经真实loopback gRPC和生产readiness probe取得。将源health capabilities[0]变为mutated，已返回结果仍ok/[run]；再次RPC读取mutated，旧结果仍[run]，直接证明owned复制和源变化不会回写旧结果。server显式取消并有界join。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-integration-pine --test rpc_health_copies_original_capabilities_and_server_mutation_does_not_change_result --output docs/history/go-to-rust/verification-receipts/pine-protocol-owner-verified-2026-10-07.json",
+      "evidence_type": "function_exact",
       "source": {
         "file": "pkg/strategy/pineworker/proto_mapping_test.go",
         "line": 197,
@@ -328592,26 +328587,22 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-integration-pine/src/mock_worker.rs",
-          "test": "health_probe_authenticates_and_reports_controllable_ok_flag",
+          "file": "crates/jftrade-integration-pine/src/execution/protocol_parity_tests.rs",
+          "test": "rpc_health_copies_original_capabilities_and_server_mutation_does_not_change_result",
           "crate": "jftrade-integration-pine",
           "anchor": {
             "goFile": "pkg/strategy/pineworker/proto_mapping_test.go",
             "goLine": 197,
-            "rustFile": "crates/jftrade-integration-pine/src/mock_worker.rs",
-            "rustLine": 187
+            "rustFile": "crates/jftrade-integration-pine/src/execution/protocol_parity_tests.rs",
+            "rustLine": 242
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Go 断言健康响应复制 capabilities 到内部结构。",
-          "Rust 的 mock worker 用例断言健康探测鉴权并报告可控 ok（同一健康响应面）；",
-          "Go 的 capabilities 复制在 Rust 由就绪结构体字段映射覆盖，无逐字段断言。"
+          "Original successful health capability [run] remains unchanged after source mutation to [mutated]; a new production gRPC probe sees [mutated] while the first result retains [run]."
         ],
-        "uncovered": [
-          "未从该结论中拆出独立 Rust 缺口；需按原始 Go 断言与 Rust 测试逐项复核。"
-        ],
+        "uncovered": [],
         "source": "reviewed"
       },
       "verification": {
@@ -328621,40 +328612,37 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-integration-pine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(candle_batch_encoding_matches_original_signed_time_and_float_vector) or test(original_candle_time_errors_reject_before_rpc_and_keep_indexed_diagnostics) or test(rpc_client_defaults_timeout_and_fills_empty_job_identity_but_rejects_mismatch) or test(rpc_run_and_health_propagate_worker_unavailability) or test(rpc_health_copies_original_capabilities_and_server_mutation_does_not_change_result)"
         ],
         "testFilter": [
-          "health_probe_authenticates_and_reports_controllable_ok_flag"
+          "rpc_health_copies_original_capabilities_and_server_mutation_does_not_change_result"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "8846e40d6a7df65581bbcff654393cb0a3e4c14b",
+        "verifiedAt": "2026-10-07T11:39:32Z",
+        "receiptDigest": "sha256:a1ee86b841b4d5f314a0db9d9ab6ce0d65a1bb108c5b043dd250a5e63980ac2c"
       },
       "risk": "normal",
       "owner": "strategy_pine",
       "priority": "P2",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "maintain_verified_function_exact",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Go 断言健康响应复制 capabilities 到内部结构。",
-        "Rust 的 mock worker 用例断言健康探测鉴权并报告可控 ok（同一健康响应面）；",
-        "Go 的 capabilities 复制在 Rust 由就绪结构体字段映射覆盖，无逐字段断言。"
+        "Original successful health capability [run] remains unchanged after source mutation to [mutated]; a new production gRPC probe sees [mutated] while the first result retains [run]."
       ],
-      "uncoveredAssertions": [
-        "未从该结论中拆出独立 Rust 缺口；需按原始 Go 断言与 Rust 测试逐项复核。"
-      ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "pkg/strategy/pineworker/proto_mapping_test.go:212:TestRequestToProtoDoesNotAliasNilOrMutableParams": {
@@ -328888,9 +328876,9 @@
     },
     "pkg/strategy/pineworker/runtime_boundaries_test.go:66:TestWorkerConfigAndCandleTimeBoundaries": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-settings/src/pine_worker.rs::worker_limits_and_nested_quotes_match_go_settings_owner",
-      "conclusion": "partial：Go 断言 worker 配置缺省（按 CPU）与 K 线时间校验（缺开盘时间/时间倒序）。Rust 的设置用例断言 worker 限制与 Go 设置 owner 一致（同一配置面）；K 线时间校验在 Rust 由执行请求校验覆盖（request_validation_rejects_oversized_source_and_invalid_candle）。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-settings --all-targets --locked",
+      "rust_entry": "crates/jftrade-integration-pine/src/execution/protocol_parity_tests.rs::original_candle_time_errors_reject_before_rpc_and_keep_indexed_diagnostics",
+      "conclusion": "partial：原始high1/low0、缺openTime以及openTime2/closeTime1经现有执行owner拒绝，RPC调用计数均0。Rust实际错误candle 0: open time is required及candle 0: close time is before open time，比Go多indexed前缀；Go DefaultWorkerConfig(0)要求live2/backtest1/optimization1，在Rust执行/设置配置没有同形CPU worker默认对象，保持partial。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-integration-pine --test original_candle_time_errors_reject_before_rpc_and_keep_indexed_diagnostics --output docs/history/go-to-rust/verification-receipts/pine-protocol-owner-verified-2026-10-07.json",
       "evidence_type": "partial",
       "source": {
         "file": "pkg/strategy/pineworker/runtime_boundaries_test.go",
@@ -328900,25 +328888,24 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-settings/src/pine_worker.rs",
-          "test": "worker_limits_and_nested_quotes_match_go_settings_owner",
-          "crate": "jftrade-settings",
+          "file": "crates/jftrade-integration-pine/src/execution/protocol_parity_tests.rs",
+          "test": "original_candle_time_errors_reject_before_rpc_and_keep_indexed_diagnostics",
+          "crate": "jftrade-integration-pine",
           "anchor": {
             "goFile": "pkg/strategy/pineworker/runtime_boundaries_test.go",
             "goLine": 66,
-            "rustFile": "crates/jftrade-settings/src/pine_worker.rs",
-            "rustLine": 96
+            "rustFile": "crates/jftrade-integration-pine/src/execution/protocol_parity_tests.rs",
+            "rustLine": 164
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Go 断言 worker 配置缺省（按 CPU）与 K 线时间校验（缺开盘时间/时间倒序）。",
-          "Rust 的设置用例断言 worker 限制与 Go 设置 owner 一致（同一配置面）；",
-          "K 线时间校验在 Rust 由执行请求校验覆盖（request_validation_rejects_oversized_source_and_invalid_candle）。"
+          "Original missing and reversed candle times are rejected before any RPC; the precise indexed Rust diagnostics are asserted."
         ],
         "uncovered": [
-          "未从该结论中拆出独立 Rust 缺口；需按原始 Go 断言与 Rust 测试逐项复核。"
+          "Go CPU-zero worker configuration tuple live=2/backtest=1/optimization=1 lacks an equivalent Rust owner.",
+          "Rust prefixes the original Go error text with candle 0:; exact text differs."
         ],
         "source": "reviewed"
       },
@@ -328929,47 +328916,47 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-integration-pine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(candle_batch_encoding_matches_original_signed_time_and_float_vector) or test(original_candle_time_errors_reject_before_rpc_and_keep_indexed_diagnostics) or test(rpc_client_defaults_timeout_and_fills_empty_job_identity_but_rejects_mismatch) or test(rpc_run_and_health_propagate_worker_unavailability) or test(rpc_health_copies_original_capabilities_and_server_mutation_does_not_change_result)"
         ],
         "testFilter": [
-          "worker_limits_and_nested_quotes_match_go_settings_owner"
+          "original_candle_time_errors_reject_before_rpc_and_keep_indexed_diagnostics"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "8846e40d6a7df65581bbcff654393cb0a3e4c14b",
+        "verifiedAt": "2026-10-07T11:39:32Z",
+        "receiptDigest": "sha256:a1ee86b841b4d5f314a0db9d9ab6ce0d65a1bb108c5b043dd250a5e63980ac2c"
       },
       "risk": "normal",
       "owner": "strategy_pine",
       "priority": "P2",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "preserve_partial_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Go 断言 worker 配置缺省（按 CPU）与 K 线时间校验（缺开盘时间/时间倒序）。",
-        "Rust 的设置用例断言 worker 限制与 Go 设置 owner 一致（同一配置面）；",
-        "K 线时间校验在 Rust 由执行请求校验覆盖（request_validation_rejects_oversized_source_and_invalid_candle）。"
+        "Original missing and reversed candle times are rejected before any RPC; the precise indexed Rust diagnostics are asserted."
       ],
       "uncoveredAssertions": [
-        "未从该结论中拆出独立 Rust 缺口；需按原始 Go 断言与 Rust 测试逐项复核。"
+        "Go CPU-zero worker configuration tuple live=2/backtest=1/optimization=1 lacks an equivalent Rust owner.",
+        "Rust prefixes the original Go error text with candle 0:; exact text differs."
       ],
       "boundaryReason": null
     },
     "pkg/strategy/pineworker/runtime_boundaries_test.go:79:TestClientDefaultsAndResponseIdentityBoundaries": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-integration-pine/src/execution/tests.rs::endpoint_and_token_boundaries_fail_closed",
-      "conclusion": "partial：Go 断言客户端缺省值（超时）与响应身份校验（job id 不匹配拒绝、nil 客户端报错、nil 传输错误归一）。Rust 的执行用例断言端点/令牌缺失失败关闭（同一缺省与拒绝面）；Go 的 nil 客户端在 Rust 由类型系统排除。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine --all-targets --locked",
+      "rust_entry": "crates/jftrade-integration-pine/src/execution/protocol_parity_tests.rs::rpc_client_defaults_timeout_and_fills_empty_job_identity_but_rejects_mismatch",
+      "conclusion": "partial：30s默认request timeout直接断言；原始validClientRequest的indicator/plot源码、timeframe1、threshold10和OHLC输入经真实gRPC，空响应jobId回填job-1且原metadata duration1ms保持。额外other-job返回InvalidResponse。纠正旧mapping：该Go只断言空jobId回填，并没有mismatch拒绝断言；WithNow(nil)、nil Client和mapTransportError(nil)为Go对象边界，Rust强类型构造无同形owner，保持partial。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-integration-pine --test rpc_client_defaults_timeout_and_fills_empty_job_identity_but_rejects_mismatch --output docs/history/go-to-rust/verification-receipts/pine-protocol-owner-verified-2026-10-07.json",
       "evidence_type": "partial",
       "source": {
         "file": "pkg/strategy/pineworker/runtime_boundaries_test.go",
@@ -328979,25 +328966,24 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-integration-pine/src/execution/tests.rs",
-          "test": "endpoint_and_token_boundaries_fail_closed",
+          "file": "crates/jftrade-integration-pine/src/execution/protocol_parity_tests.rs",
+          "test": "rpc_client_defaults_timeout_and_fills_empty_job_identity_but_rejects_mismatch",
           "crate": "jftrade-integration-pine",
           "anchor": {
             "goFile": "pkg/strategy/pineworker/runtime_boundaries_test.go",
             "goLine": 79,
-            "rustFile": "crates/jftrade-integration-pine/src/execution/tests.rs",
-            "rustLine": 477
+            "rustFile": "crates/jftrade-integration-pine/src/execution/protocol_parity_tests.rs",
+            "rustLine": 191
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Go 断言客户端缺省值（超时）与响应身份校验（job id 不匹配拒绝、nil 客户端报错、nil 传输错误归一）。",
-          "Rust 的执行用例断言端点/令牌缺失失败关闭（同一缺省与拒绝面）；",
-          "Go 的 nil 客户端在 Rust 由类型系统排除。"
+          "Default request timeout is 30s; original validClientRequest with an empty response identity returns job-1 and preserves 1ms metadata through actual RPC.",
+          "Supplemental mismatched response identity is rejected by the existing Rust owner."
         ],
         "uncovered": [
-          "未从该结论中拆出独立 Rust 缺口；需按原始 Go 断言与 Rust 测试逐项复核。"
+          "Go WithNow(nil), nil Client.RunScript and mapTransportError(nil) have no equivalent Rust object boundary."
         ],
         "source": "reviewed"
       },
@@ -329008,47 +328994,47 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-integration-pine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(candle_batch_encoding_matches_original_signed_time_and_float_vector) or test(original_candle_time_errors_reject_before_rpc_and_keep_indexed_diagnostics) or test(rpc_client_defaults_timeout_and_fills_empty_job_identity_but_rejects_mismatch) or test(rpc_run_and_health_propagate_worker_unavailability) or test(rpc_health_copies_original_capabilities_and_server_mutation_does_not_change_result)"
         ],
         "testFilter": [
-          "endpoint_and_token_boundaries_fail_closed"
+          "rpc_client_defaults_timeout_and_fills_empty_job_identity_but_rejects_mismatch"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "8846e40d6a7df65581bbcff654393cb0a3e4c14b",
+        "verifiedAt": "2026-10-07T11:39:32Z",
+        "receiptDigest": "sha256:a1ee86b841b4d5f314a0db9d9ab6ce0d65a1bb108c5b043dd250a5e63980ac2c"
       },
       "risk": "normal",
       "owner": "strategy_pine",
       "priority": "P2",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "preserve_partial_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Go 断言客户端缺省值（超时）与响应身份校验（job id 不匹配拒绝、nil 客户端报错、nil 传输错误归一）。",
-        "Rust 的执行用例断言端点/令牌缺失失败关闭（同一缺省与拒绝面）；",
-        "Go 的 nil 客户端在 Rust 由类型系统排除。"
+        "Default request timeout is 30s; original validClientRequest with an empty response identity returns job-1 and preserves 1ms metadata through actual RPC.",
+        "Supplemental mismatched response identity is rejected by the existing Rust owner."
       ],
       "uncoveredAssertions": [
-        "未从该结论中拆出独立 Rust 缺口；需按原始 Go 断言与 Rust 测试逐项复核。"
+        "Go WithNow(nil), nil Client.RunScript and mapTransportError(nil) have no equivalent Rust object boundary."
       ],
       "boundaryReason": null
     },
     "pkg/strategy/pineworker/runtime_boundaries_test.go:107:TestGRPCTransportPropagatesRPCFailures": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-integration-pine/src/execution/tests.rs::run_script_maps_remote_unavailable_timeout_and_cancellation",
-      "conclusion": "partial：Go 断言 gRPC 传输把 RPC 失败归类传播。Rust 的执行用例断言远端不可用/超时/取消分类（同一 RPC 失败分类）；Go 的逐状态码断言在 Rust 由错误枚举映射覆盖。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine --all-targets --locked",
+      "rust_entry": "crates/jftrade-integration-pine/src/execution/protocol_parity_tests.rs::rpc_run_and_health_propagate_worker_unavailability",
+      "conclusion": "partial：原始worker rpc unavailable从同一真实gRPC fixture的RunScript和HealthCheck传播；执行为typed Unavailable且文本相等，health错误包含该原始文本，服务端恰好两调用并显式有界关闭。Go errors.Is原error对象身份、nil transport/managed.Close及默认unlimited maxMessage不能由当前Rust typed错误/Option和4MiB cap证明，保持partial，不删除cap。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-integration-pine --test rpc_run_and_health_propagate_worker_unavailability --output docs/history/go-to-rust/verification-receipts/pine-protocol-owner-verified-2026-10-07.json",
       "evidence_type": "partial",
       "source": {
         "file": "pkg/strategy/pineworker/runtime_boundaries_test.go",
@@ -329058,25 +329044,24 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-integration-pine/src/execution/tests.rs",
-          "test": "run_script_maps_remote_unavailable_timeout_and_cancellation",
+          "file": "crates/jftrade-integration-pine/src/execution/protocol_parity_tests.rs",
+          "test": "rpc_run_and_health_propagate_worker_unavailability",
           "crate": "jftrade-integration-pine",
           "anchor": {
             "goFile": "pkg/strategy/pineworker/runtime_boundaries_test.go",
             "goLine": 107,
-            "rustFile": "crates/jftrade-integration-pine/src/execution/tests.rs",
-            "rustLine": 345
+            "rustFile": "crates/jftrade-integration-pine/src/execution/protocol_parity_tests.rs",
+            "rustLine": 221
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Go 断言 gRPC 传输把 RPC 失败归类传播。",
-          "Rust 的执行用例断言远端不可用/超时/取消分类（同一 RPC 失败分类）；",
-          "Go 的逐状态码断言在 Rust 由错误枚举映射覆盖。"
+          "The same worker rpc unavailable failure propagates from RunScript and HealthCheck over real gRPC; messages and exactly two calls are verified."
         ],
         "uncovered": [
-          "未从该结论中拆出独立 Rust 缺口；需按原始 Go 断言与 Rust 测试逐项复核。"
+          "Go errors.Is original error identity and nil transport/managed Close have no equivalent Rust object semantics.",
+          "Go default unlimited message bytes differ from the retained Rust 4MiB cap."
         ],
         "source": "reviewed"
       },
@@ -329087,39 +329072,39 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-integration-pine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(candle_batch_encoding_matches_original_signed_time_and_float_vector) or test(original_candle_time_errors_reject_before_rpc_and_keep_indexed_diagnostics) or test(rpc_client_defaults_timeout_and_fills_empty_job_identity_but_rejects_mismatch) or test(rpc_run_and_health_propagate_worker_unavailability) or test(rpc_health_copies_original_capabilities_and_server_mutation_does_not_change_result)"
         ],
         "testFilter": [
-          "run_script_maps_remote_unavailable_timeout_and_cancellation"
+          "rpc_run_and_health_propagate_worker_unavailability"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "8846e40d6a7df65581bbcff654393cb0a3e4c14b",
+        "verifiedAt": "2026-10-07T11:39:32Z",
+        "receiptDigest": "sha256:a1ee86b841b4d5f314a0db9d9ab6ce0d65a1bb108c5b043dd250a5e63980ac2c"
       },
       "risk": "normal",
       "owner": "strategy_pine",
       "priority": "P2",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "preserve_partial_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Go 断言 gRPC 传输把 RPC 失败归类传播。",
-        "Rust 的执行用例断言远端不可用/超时/取消分类（同一 RPC 失败分类）；",
-        "Go 的逐状态码断言在 Rust 由错误枚举映射覆盖。"
+        "The same worker rpc unavailable failure propagates from RunScript and HealthCheck over real gRPC; messages and exactly two calls are verified."
       ],
       "uncoveredAssertions": [
-        "未从该结论中拆出独立 Rust 缺口；需按原始 Go 断言与 Rust 测试逐项复核。"
+        "Go errors.Is original error identity and nil transport/managed Close have no equivalent Rust object semantics.",
+        "Go default unlimited message bytes differ from the retained Rust 4MiB cap."
       ],
       "boundaryReason": null
     },
@@ -353045,15 +353030,14 @@
       "reviewNote": "2026-10-02 bounded reuse review: compared all 6 referenceKeys against the shared Rust owner (status mix {'[~]': 6}); assertion scopes are not interchangeable, so reuse remains disallowed and no function_exact row is upgraded by this relation."
     },
     "crates/jftrade-integration-pine/src/execution/tests.rs::run_script_maps_remote_unavailable_timeout_and_cancellation": {
-      "referenceCount": 7,
+      "referenceCount": 6,
       "referenceKeys": [
         "pkg/backtest/pineworker_replay_pump_test.go:118:TestPineWorkerReplayPumpPropagatesCommandErrors",
         "pkg/backtest/pineworker_replay_test.go:144:TestPineWorkerReplayPlannerPropagatesWorkerError",
         "internal/strategy/liveruntime/pineworker_live_business_test.go:270:TestPineWorkerLiveRemainingConstructorAndWarmupErrors",
         "pkg/strategy/pineengine/pine_ts_client_test.go:56:TestPinetsWorkerClientMapsRuntimeErrors",
         "pkg/strategy/pineworker/client_test.go:81:TestClientRunScriptMapsTransportError",
-        "pkg/strategy/pineworker/proto_mapping_test.go:182:TestProtoMappingHandlesNilResponses",
-        "pkg/strategy/pineworker/runtime_boundaries_test.go:107:TestGRPCTransportPropagatesRPCFailures"
+        "pkg/strategy/pineworker/proto_mapping_test.go:182:TestProtoMappingHandlesNilResponses"
       ],
       "allowed": false,
       "reviewStatus": "reviewed",
@@ -360528,14 +360512,13 @@
       "reviewStatus": "single"
     },
     "crates/jftrade-settings/src/pine_worker.rs::worker_limits_and_nested_quotes_match_go_settings_owner": {
-      "referenceCount": 8,
+      "referenceCount": 7,
       "referenceKeys": [
         "internal/settings/service_test.go:153:TestSaveSettingsTriggersSideEffects",
         "internal/store/settingsfile/store_persistence_contracts_test.go:217:TestSavePineWorkerSettingsPersistsNormalizedWorkerLimits",
         "internal/strategy/pineruntime/runtime_test.go:18:TestResolveConfigUsesEnvironmentAndSettings",
         "internal/strategy/pineruntime/runtime_test.go:79:TestResolveConfigDisabledAndInvalidLimits",
         "internal/strategy/pineruntime/runtime_test.go:105:TestResolveConfigUsesWorkerDefaultsAndRuntimePrecedence",
-        "pkg/strategy/pineworker/runtime_boundaries_test.go:66:TestWorkerConfigAndCandleTimeBoundaries",
         "pkg/strategy/pineworker/types_test.go:10:TestNormalizeRuntimeMigratesLegacyRuntime",
         "pkg/strategy/pineworker/types_test.go:21:TestDefaultWorkerConfigScalesByCPU"
       ],
@@ -363053,14 +363036,13 @@
       "reviewStatus": "single"
     },
     "crates/jftrade-integration-pine/src/execution/tests.rs::endpoint_and_token_boundaries_fail_closed": {
-      "referenceCount": 6,
+      "referenceCount": 5,
       "referenceKeys": [
         "pkg/strategy/pineengine/pine_ts_payload_test.go:131:TestPinetsWorkerClientCallHandlesProtocolFailures",
         "pkg/strategy/pineengine/pine_ts_runtime_test.go:58:TestPinetsWorkerClientProtocolBoundaryFailures",
         "pkg/strategy/pineworker/client_test.go:92:TestClientRunScriptMapsTimeout",
         "pkg/strategy/pineworker/client_test.go:161:TestNewClientRequiresTransport",
-        "pkg/strategy/pineworker/grpc_transport_test.go:71:TestGRPCTransportRequiresClient",
-        "pkg/strategy/pineworker/runtime_boundaries_test.go:79:TestClientDefaultsAndResponseIdentityBoundaries"
+        "pkg/strategy/pineworker/grpc_transport_test.go:71:TestGRPCTransportRequiresClient"
       ],
       "allowed": false,
       "reviewStatus": "reviewed",
@@ -363078,13 +363060,12 @@
       "reviewNote": "2026-10-02 bounded reuse review: compared all 3 referenceKeys against the shared Rust owner (status mix {'[~]': 3}); assertion scopes are not interchangeable, so reuse remains disallowed and no function_exact row is upgraded by this relation."
     },
     "crates/jftrade-integration-pine/src/execution/tests.rs::grpc_request_message_limit_has_exact_encoded_boundaries": {
-      "referenceCount": 5,
+      "referenceCount": 4,
       "referenceKeys": [
         "pkg/strategy/pineworker/client_test.go:56:TestJSONSizeMatchesMarshalForRunScriptRequest",
         "pkg/strategy/pineworker/payload_size_test.go:9:TestJSONSizeMatchesMarshalAcrossPayloadShapes",
         "pkg/strategy/pineworker/payload_size_test.go:26:TestEstimateRunScriptRequestJSONSizeHandlesNilAndEmptyCollections",
-        "pkg/strategy/pineworker/proto_contract_test.go:14:TestPineWorkerProtoCompilesAndExposesContract",
-        "pkg/strategy/pineworker/proto_mapping_test.go:154:TestCandleBatchEncodingGoldenVector"
+        "pkg/strategy/pineworker/proto_contract_test.go:14:TestPineWorkerProtoCompilesAndExposesContract"
       ],
       "allowed": false,
       "reviewStatus": "reviewed",
@@ -363102,13 +363083,12 @@
       "reviewNote": "2026-10-02 bounded reuse review: compared all 3 referenceKeys against the shared Rust owner (status mix {'[~]': 3}); assertion scopes are not interchangeable, so reuse remains disallowed and no function_exact row is upgraded by this relation."
     },
     "crates/jftrade-integration-pine/src/mock_worker.rs::health_probe_authenticates_and_reports_controllable_ok_flag": {
-      "referenceCount": 2,
+      "referenceCount": 1,
       "referenceKeys": [
-        "pkg/strategy/pineworker/grpc_transport_test.go:16:TestGRPCTransportRunScriptAndHealthCheck",
-        "pkg/strategy/pineworker/proto_mapping_test.go:197:TestHealthFromProtoCopiesCapabilities"
+        "pkg/strategy/pineworker/grpc_transport_test.go:16:TestGRPCTransportRunScriptAndHealthCheck"
       ],
       "allowed": false,
-      "reviewStatus": "reviewed",
+      "reviewStatus": "single",
       "reviewNote": "2026-10-02 bounded reuse review: compared all 2 referenceKeys against the shared Rust owner (status mix {'[~]': 2}); assertion scopes are not interchangeable, so reuse remains disallowed and no function_exact row is upgraded by this relation."
     },
     "crates/jftrade-integration-pine/src/pool.rs::health_results_and_restarts_project_into_the_snapshot": {
@@ -364666,6 +364646,46 @@
       "referenceCount": 1,
       "referenceKeys": [
         "internal/api/live/handler_test.go:421:TestHandlerAcceptsSameOriginWebSocket"
+      ],
+      "reviewStatus": "single",
+      "allowed": true
+    },
+    "crates/jftrade-integration-pine/src/execution/protocol_parity_tests.rs::candle_batch_encoding_matches_original_signed_time_and_float_vector": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "pkg/strategy/pineworker/proto_mapping_test.go:154:TestCandleBatchEncodingGoldenVector"
+      ],
+      "reviewStatus": "single",
+      "allowed": true
+    },
+    "crates/jftrade-integration-pine/src/execution/protocol_parity_tests.rs::rpc_run_and_health_propagate_worker_unavailability": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "pkg/strategy/pineworker/runtime_boundaries_test.go:107:TestGRPCTransportPropagatesRPCFailures"
+      ],
+      "reviewStatus": "single",
+      "allowed": true
+    },
+    "crates/jftrade-integration-pine/src/execution/protocol_parity_tests.rs::rpc_health_copies_original_capabilities_and_server_mutation_does_not_change_result": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "pkg/strategy/pineworker/proto_mapping_test.go:197:TestHealthFromProtoCopiesCapabilities"
+      ],
+      "reviewStatus": "single",
+      "allowed": true
+    },
+    "crates/jftrade-integration-pine/src/execution/protocol_parity_tests.rs::original_candle_time_errors_reject_before_rpc_and_keep_indexed_diagnostics": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "pkg/strategy/pineworker/runtime_boundaries_test.go:66:TestWorkerConfigAndCandleTimeBoundaries"
+      ],
+      "reviewStatus": "single",
+      "allowed": true
+    },
+    "crates/jftrade-integration-pine/src/execution/protocol_parity_tests.rs::rpc_client_defaults_timeout_and_fills_empty_job_identity_but_rejects_mismatch": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "pkg/strategy/pineworker/runtime_boundaries_test.go:79:TestClientDefaultsAndResponseIdentityBoundaries"
       ],
       "reviewStatus": "single",
       "allowed": true

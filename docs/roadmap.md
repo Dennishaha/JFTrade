@@ -56,6 +56,14 @@
 - [x] 沿用现有LiveHub有界保留通知wire帧，连接快照与发送线性化；重试去重保持无订阅者false，具体SQLite projector无client cursor=0/重试推进/只收到一次验证通过。canonical八项测试通过，原失败receipt保留。
 - [x] focused receipt 8/8、逐项mapping、ordinary/strict/anchor通过；quick 2312 passed及现场完整Rust 3760 passed/2 skipped均明确退出0，target-health首次失败及清理证据保留，源码指纹与diff复核后独立提交，继续Pine wire五条候选。
 
+## 后续行为批次：Pine wire 原始输入与 RPC owner（2026-10-07）
+
+WebSocket批次已提交`8846e40d`。候选五条partial：pineworker `proto_mapping_test.go:154/197`及`runtime_boundaries_test.go:66/79/107`，冻结Go及validClientRequest已逐项读取。测试沿用已有编码、执行与readiness owner，新增显式取消、join及有界关闭的loopback gRPC fixture，保留生产endpoint/请求校验。
+
+- [x] 对照原始负时间/float编码向量、health caps源数组变更、K线零/倒序时间、30s默认timeout/空jobId回填、Run与Health RPC同一错误传播，五项focused直接owner测试通过。
+- [x] 原始编码向量与health caps复制两条升exact，净+2/-2；CPU worker defaults、indexed错误文案、Go nil/错误对象身份及unlimited默认值差异保持明确残余，旧Go79的mismatch误记纠正。
+- [x] focused 5/5及ordinary/strict/anchor通过，quick 2265 passed/1 skipped与现场完整Rust 3765 passed/2 skipped明确退出0；源码指纹及diff复核后独立提交，继续Assistant生命周期五条候选。
+
 ## 质量门禁
 - [ ] 通过普通 PR 验证 affected fail-closed 计划和唯一 required context `Build & Test`。
 - [ ] 合入后由 `main` CI 验证 Policy、Contracts、Rust Static、Rust Tests + Compatibility、Web、Pine、Python 和 Desktop 完整计划。

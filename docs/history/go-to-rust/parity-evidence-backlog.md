@@ -1,5 +1,12 @@
 # Go → Rust 证据积压清单
 
+## 2026-10-07 Pine wire 与 gRPC 直接证据
+
+- 仅本批五条mapping及必要reuse，净 **+2 exact / -2 partial / boundary 0**，当前 **1621 / 2190 / 640**。原始56字节编码向量和capabilities源变更两条有直接owner断言；主入口唯一，旧共享allowed批准保留。
+- canonical `verification-receipts/pine-protocol-owner-verified-2026-10-07.json`：passed，5 passed/0 failed/0 ignored/51 filtered/skipped，无LEAK，SHA-256 `a1ee86b841b4d5f314a0db9d9ab6ce0d65a1bb108c5b043dd250a5e63980ac2c`。tracked diff备份`/tmp/jftrade-pine-protocol-owner-verified-diff.bin`的SHA-256 `b9f8b09bdcf29cf6e10bf295ef637ab965b699d5027cdb4fc0b18478dfb81500`与receipt一致，untracked Rust源码备份保留。
+- 三条明确残余：CPU-zero worker 2/1/1及indexed时间错误；Go nil Client/WithNow/mapTransportError对象边界；Go errors.Is身份、nil transport/Close和unlimited消息默认值。原Go79只要求空jobId回填，旧mapping的mismatch拒绝要求纠正，Rust额外guard独立注明。
+- 普通/strict及anchor通过：2087 unique/2039 recorded/0 unrecorded/0 stale/48 unknown。quick `/tmp/jftrade-pine-protocol-owner-quick.log`明确退出0：2265 passed/0 failed/1 skipped，Clippy通过，无LEAK。完整Rust `/tmp/jftrade-pine-protocol-owner-rust.log`明确退出0：3765 passed/0 failed/2 skipped，静态及七类回放通过，无LEAK。filtered/skipped不计通过，最终Rust源码与canonical指纹一致。
+
 ## 2026-10-07 WebSocket 重放的红绿关系
 
 - 仅本批五条mapping及必要reuse，净 **+3 exact / -3 partial / boundary 0**，当前 **1619 / 2192 / 640**。新exact均有实际认证production握手、直接wire断言和独立主测试；旧共享reuse allowed保留，没有扩大共享批准。

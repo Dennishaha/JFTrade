@@ -1,5 +1,15 @@
 # Go → Rust 对齐成果摘要
 
+## 2026-10-07 Pine wire 原始输入与 RPC owner
+
+- 五条partial逐项读取冻结Go及validClientRequest。原始编码向量与health capabilities复制两条闭合，净 **exact +2 / partial -2 / boundary 0**，当前 **1621 / 2190 / 640**。生产实现、proto及冻结fixture未改，新增五项直接owner测试，loopback gRPC fixture显式取消、join并有界关闭。
+- 原始OpenTime=-2/CloseTime=3、OHLC=1.5/2.5/-0.5/2、volume0直接经candles_to_proto，完整原Go十六进制向量、56字节和encoding_version1均直接断言。原Go同样只调用encoder，负时间不被当作有效执行请求，生产时间校验保留。
+- 原始ok=true/worker-1/version0.1.0/pinets/capabilities[run]经实际gRPC及生产readiness probe；源capabilities变为mutated后，已返回结果保持ok/[run]，新RPC读到mutated，旧结果仍[run]，证明复制与源变更隔离。
+- 原始缺开盘时间、2/1倒序时间在RPC前拒绝、调用0；实际Rust错误含candle 0:前缀，与Go文本不同，CPU-zero live2/backtest1/optimization1无同形owner，该条保持partial。原始indicator/plot、timeframe1、threshold10、OHLC输入的空jobId回填job-1及metadata1ms经RPC断言；30s默认直接检查，额外mismatch拒绝也通过，但原Go没有mismatch断言。WithNow(nil)、nil Client/mapTransportError(nil)残余保留。
+- 同一worker rpc unavailable从RunScript和HealthCheck真实传播，服务端恰好两调用；Go errors.Is原对象身份、nil transport/Close以及默认unlimited与Rust4MiB cap差异保持partial。没有放宽endpoint或message fence。
+- canonical `verification-receipts/pine-protocol-owner-verified-2026-10-07.json`：**5 passed / 0 failed / 0 ignored / 51 filtered/skipped**，SHA-256 `a1ee86b841b4d5f314a0db9d9ab6ce0d65a1bb108c5b043dd250a5e63980ac2c`，无LEAK。普通/strict与anchor通过：2087 unique/2039 recorded/0 unrecorded/0 stale/48 unknown。
+- 本批quick明确退出0：2265 passed/0 failed/1 skipped，Clippy通过，无LEAK；现场完整Rust明确退出0：3765 passed/0 failed/2 skipped，静态及七类回放通过，无LEAK。skipped未计为通过，当前Rust源码与canonical指纹一致，diff复核后独立提交并继续Assistant生命周期候选。
+
 ## 2026-10-07 production WebSocket 与通知重放
 
 - 五条partial逐项核对冻结Go，缺provider关闭、实际Web listener同源握手、连接前通知重放三条升exact，净 **exact +3 / partial -3 / boundary 0**，当前 **1619 / 2192 / 640**。旧mapping把fixture1006当成Go关闭码断言、把生产动态同源策略当成Tauri-only，两处判断由原Go源码与真实握手纠正。
