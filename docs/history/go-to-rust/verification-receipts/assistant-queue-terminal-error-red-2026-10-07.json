@@ -1,0 +1,71 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(queued_model_failure_persists_finished_log_and_legacy_prompt_still_runs)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 100,
+  "status": "failed",
+  "verifiedAt": "2026-10-07T12:55:25Z",
+  "sourceState": {
+    "verifiedCommit": "cfb0e5c9ac7cd282ba86a233796c1da9f14763c7",
+    "trackedDiffSha256": "13ca8f3d5d6a6018b2e16acc7dc9fee13ccdf69fc210edb72711d1b923d11700",
+    "untrackedFiles": [
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/assistant-queue-recovery-initial-2026-10-07.json",
+        "sha256": "830cf3c7195bf9fc0956e41e9abd338e8638c34e48d239ad05a813a489a42257"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/assistant-shutdown-deadline-initial-2026-10-07.json",
+        "sha256": "d5ce8230809c806b8f5dcc6bd936d50daa75e787ab65a52fde1cc827dde9efda"
+      }
+    ]
+  },
+  "rawOutputSha256": "f77bbabae749540f57e821708f7255b7e27d135b61e46df9bc481da5c9fcade0",
+  "passedTests": [],
+  "failedTests": [
+    "jftrade-engine::adk_workflow_canvas_contracts$queue_recovery::queued_model_failure_persists_finished_log_and_legacy_prompt_still_runs"
+  ],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "adk_workflow_canvas_contracts",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "failed",
+      "passed": 0,
+      "failed": 1,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 17,
+      "exec_time": 0.068924709,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "adk_workflow_canvas_contracts",
+        "kind": "test"
+      }
+    }
+  ]
+}

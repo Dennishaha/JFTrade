@@ -129723,11 +129723,11 @@
       "boundaryReason": null
     },
     "internal/assistant/service_contract_boundaries_test.go:312:TestServiceCloseClosesRuntimeOwnedResources": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_production_assembly_tests.rs::direct_product_shutdown_stops_reconciliation_before_releasing_leases",
-      "conclusion": "partial：Go 断言 Close 关闭运行时自有资源且可重复调用。Rust 的组装用例断言直接构造的产品关闭时先停调和再释放租约；Go 的 Close 幂等二次调用在 Rust 由 Rust 所有权模型排除重复关闭（Drop 一次），无等价断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'not test(production_helper_sync_cancel_aborts_in_flight_request) and not test(production_helper_sync_rejects_broken_pagination_cursors) and not test(production_helper_sync_forwards_page_query_and_persists_provider_values) and not test(production_helper_sync_retries_transient_page_and_records_retry)'",
-      "evidence_type": "partial",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-engine/src/product_adk_shutdown_deadline_tests.rs::production_assistant_shutdown_closes_owned_runtime_and_accepts_repeated_close",
+      "conclusion": "function_exact：原Go312只有两次service.Close无错误，没有关闭后store写失败断言；真实ProductionPortBundle经ProductionAdkPort与ProductionAdkChatRuntime两次shutdown均成功，关闭后后台受理拒绝。重复关闭全部原断言直接闭合，不再把Drop一次当作重复Close证据。补充deadline红绿及sync端口保留回归独立收录receipt，不扩大该原Go映射。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-engine --test production_assistant_shutdown_closes_owned_runtime_and_accepts_repeated_close --output docs/history/go-to-rust/verification-receipts/assistant-shutdown-queue-owner-verified-2026-10-07.json",
+      "evidence_type": "function_exact",
       "source": {
         "file": "internal/assistant/service_contract_boundaries_test.go",
         "line": 312,
@@ -129736,24 +129736,22 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_production_assembly_tests.rs",
-          "test": "direct_product_shutdown_stops_reconciliation_before_releasing_leases",
+          "file": "crates/jftrade-engine/src/product_adk_shutdown_deadline_tests.rs",
+          "test": "production_assistant_shutdown_closes_owned_runtime_and_accepts_repeated_close",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/assistant/service_contract_boundaries_test.go",
             "goLine": 312,
-            "rustFile": "crates/jftrade-engine/src/product_production_assembly_tests.rs",
-            "rustLine": 112
+            "rustFile": "crates/jftrade-engine/src/product_adk_shutdown_deadline_tests.rs",
+            "rustLine": 100
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust shutdown test stops reconciliation before releasing leases; ownership/Drop semantics prevent a second close path."
+          "Two successive shutdown calls through a real production bundle, ADK proxy and runtime both return success; subsequent continuation admission is refused."
         ],
-        "uncovered": [
-          "No Rust executable idempotent-close assertion for runtime-owned resources or repeated service Close calls."
-        ],
+        "uncovered": [],
         "source": "reviewed"
       },
       "verification": {
@@ -129763,38 +129761,37 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(production_assistant_shutdown_reports_an_unfinished_continuation_deadline) or test(production_assistant_shutdown_closes_owned_runtime_and_accepts_repeated_close) or test(synchronous_assistant_termination_preserves_ports_until_background_cleanup_finishes) or test(queued_canvas_invocation_completes_with_durable_run_session_and_result) or test(queued_model_failure_persists_finished_log_and_legacy_prompt_still_runs) or test(queued_running_write_failure_is_recovered_as_durable_failed_with_original_identity) or test(concurrent_runtime_shutdowns_cancel_and_join_admitted_background_before_returning) or test(runtime_shutdown_allows_cancelled_background_to_persist_cleanup_before_joining)"
         ],
         "testFilter": [
-          "direct_product_shutdown_stops_reconciliation_before_releasing_leases"
+          "production_assistant_shutdown_closes_owned_runtime_and_accepts_repeated_close"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "cfb0e5c9ac7cd282ba86a233796c1da9f14763c7",
+        "verifiedAt": "2026-10-07T12:58:31Z",
+        "receiptDigest": "sha256:407cdf25b2289123c1bfcb73298e2fe21adc62ca7aa4dd80511e894b582e6b3b"
       },
       "risk": "normal",
       "owner": "assistant_workflow",
       "priority": "P2",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "maintain_verified_function_exact",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust shutdown test stops reconciliation before releasing leases; ownership/Drop semantics prevent a second close path."
+        "Two successive shutdown calls through a real production bundle, ADK proxy and runtime both return success; subsequent continuation admission is refused."
       ],
-      "uncoveredAssertions": [
-        "No Rust executable idempotent-close assertion for runtime-owned resources or repeated service Close calls."
-      ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/assistant/service_lifecycle_boundaries_test.go:10:TestServiceLifecycleAndTimeoutBoundaryHelpers": {
@@ -131516,9 +131513,9 @@
     },
     "internal/assistant/workflow_async_tools_test.go:12:TestStartWorkflowQueuesAndCompletesInBackground": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-store-sqlite/tests/workflow_queue_atomicity.rs::trigger_schedule_and_queue_commit_together_and_reject_stale_claims",
-      "conclusion": "partial：Go 断言后台启动工作流：入队即返回 accepted 日志、后台完成后日志带 run/session/result。Rust 的队列用例断言调度与队列原子提交并拒绝陈旧声明（同一入队与声明语义）；Go 的后台完成写回在 Rust 由运行终结与日志用例覆盖，无合并断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-integration-pine -p jftrade-strategy -p jftrade-backtest -p jftrade-assistant -p jftrade-api --all-targets --locked --no-fail-fast -E 'not test(analyze_script_supports_trend_and_stateful_ta_functions)'",
+      "rust_entry": "crates/jftrade-engine/tests/support/workflow_queue_recovery.rs::queued_canvas_invocation_completes_with_durable_run_session_and_result",
+      "conclusion": "partial：真实SQLite原子队列先持久化非空同ID的QUEUED，Production WorkflowScheduler从后台执行实际start→agent Canvas；US.AAPL输入渲染为run US.AAPL，join后同ID SUCCEEDED带非空run/session/result/finishedAt，再次读取保持一致。没有经Go StartWorkflow同形API返回accepted，保持partial。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-engine --test queued_canvas_invocation_completes_with_durable_run_session_and_result --output docs/history/go-to-rust/verification-receipts/assistant-shutdown-queue-owner-verified-2026-10-07.json",
       "evidence_type": "partial",
       "source": {
         "file": "internal/assistant/workflow_async_tools_test.go",
@@ -131528,23 +131525,23 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-store-sqlite/tests/workflow_queue_atomicity.rs",
-          "test": "trigger_schedule_and_queue_commit_together_and_reject_stale_claims",
-          "crate": "jftrade-store-sqlite",
+          "file": "crates/jftrade-engine/tests/support/workflow_queue_recovery.rs",
+          "test": "queued_canvas_invocation_completes_with_durable_run_session_and_result",
+          "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/assistant/workflow_async_tools_test.go",
             "goLine": 12,
-            "rustFile": "crates/jftrade-store-sqlite/tests/workflow_queue_atomicity.rs",
-            "rustLine": 6
+            "rustFile": "crates/jftrade-engine/tests/support/workflow_queue_recovery.rs",
+            "rustLine": 94
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust queue atomicity test commits schedule and queue together and rejects stale claims; workflow run/log tests cover terminal completion."
+          "A durable QUEUED invocation is executed by the production scheduler in the background; the same log becomes SUCCEEDED with run/session/result, the original symbol is rendered, and a second read preserves the terminal payload."
         ],
         "uncovered": [
-          "No combined Rust assertion returns accepted immediately and later records run/session/result in the same background log lifecycle."
+          "The queue fixture uses the actual store enqueue operation; it does not prove an immediate StartWorkflow accepted response from an equivalent service/API entry point."
         ],
         "source": "reviewed"
       },
@@ -131555,37 +131552,38 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(production_assistant_shutdown_reports_an_unfinished_continuation_deadline) or test(production_assistant_shutdown_closes_owned_runtime_and_accepts_repeated_close) or test(synchronous_assistant_termination_preserves_ports_until_background_cleanup_finishes) or test(queued_canvas_invocation_completes_with_durable_run_session_and_result) or test(queued_model_failure_persists_finished_log_and_legacy_prompt_still_runs) or test(queued_running_write_failure_is_recovered_as_durable_failed_with_original_identity) or test(concurrent_runtime_shutdowns_cancel_and_join_admitted_background_before_returning) or test(runtime_shutdown_allows_cancelled_background_to_persist_cleanup_before_joining)"
         ],
         "testFilter": [
-          "trigger_schedule_and_queue_commit_together_and_reject_stale_claims"
+          "queued_canvas_invocation_completes_with_durable_run_session_and_result"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "cfb0e5c9ac7cd282ba86a233796c1da9f14763c7",
+        "verifiedAt": "2026-10-07T12:58:31Z",
+        "receiptDigest": "sha256:407cdf25b2289123c1bfcb73298e2fe21adc62ca7aa4dd80511e894b582e6b3b"
       },
       "risk": "normal",
       "owner": "assistant_workflow",
       "priority": "P2",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "preserve_partial_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust queue atomicity test commits schedule and queue together and rejects stale claims; workflow run/log tests cover terminal completion."
+        "A durable QUEUED invocation is executed by the production scheduler in the background; the same log becomes SUCCEEDED with run/session/result, the original symbol is rendered, and a second read preserves the terminal payload."
       ],
       "uncoveredAssertions": [
-        "No combined Rust assertion returns accepted immediately and later records run/session/result in the same background log lifecycle."
+        "The queue fixture uses the actual store enqueue operation; it does not prove an immediate StartWorkflow accepted response from an equivalent service/API entry point."
       ],
       "boundaryReason": null
     },
@@ -131666,9 +131664,9 @@
     },
     "internal/assistant/workflow_async_tools_test.go:86:TestStartWorkflowBackgroundFailureTerminatesLog": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_workflow_jobs.rs::stop_blocks_new_dispatch_and_join_reports_active_owners",
-      "conclusion": "partial：Go 断言后台失败时把触发器日志终结为失败态。Rust 的工作流作业用例断言停止后不再派发并报告活动拥有者（同一后台作业生命周期管理）；Go 的失败终结写日志在 Rust 由运行失败终结用例覆盖。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'not test(production_helper_sync_cancel_aborts_in_flight_request) and not test(production_helper_sync_rejects_broken_pagination_cursors) and not test(production_helper_sync_forwards_page_query_and_persists_provider_values) and not test(production_helper_sync_retries_transient_page_and_records_retry)'",
+      "rust_entry": "crates/jftrade-engine/tests/support/workflow_queue_recovery.rs::queued_model_failure_persists_finished_log_and_legacy_prompt_still_runs",
+      "conclusion": "partial：真实后台Canvas model-port失败后，同ID SQLite日志FAILED并带原节点错误与finishedAt；红测证明最终日志丢失顶层error，修复checkpoint及最终projection后通过。另直接断言无canvasGraph的合法legacy单prompt路径SUCCEEDED，因此原Go缺canvas时canvas graph is required与Rust不同；没有冒充已等价，保持partial。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-engine --test queued_model_failure_persists_finished_log_and_legacy_prompt_still_runs --output docs/history/go-to-rust/verification-receipts/assistant-shutdown-queue-owner-verified-2026-10-07.json",
       "evidence_type": "partial",
       "source": {
         "file": "internal/assistant/workflow_async_tools_test.go",
@@ -131678,23 +131676,24 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_workflow_jobs.rs",
-          "test": "stop_blocks_new_dispatch_and_join_reports_active_owners",
+          "file": "crates/jftrade-engine/tests/support/workflow_queue_recovery.rs",
+          "test": "queued_model_failure_persists_finished_log_and_legacy_prompt_still_runs",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/assistant/workflow_async_tools_test.go",
             "goLine": 86,
-            "rustFile": "crates/jftrade-engine/src/product_workflow_jobs.rs",
-            "rustLine": 81
+            "rustFile": "crates/jftrade-engine/tests/support/workflow_queue_recovery.rs",
+            "rustLine": 136
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust workflow-job test blocks new dispatch after stop and reports active owners; run failure tests cover terminal failure."
+          "An injected model failure passes through a reachable Canvas graph and the production background scheduler into the same durable FAILED log with the original error and finishedAt."
         ],
         "uncovered": [
-          "No Rust combined background-job assertion transitions the trigger log itself to failed with the original error."
+          "The original missing-canvas input fails with canvas graph is required; Rust intentionally supports a legacy single-prompt workflow and the test directly proves its success.",
+          "The original StartWorkflow operation and immediate accepted response are not exercised."
         ],
         "source": "reviewed"
       },
@@ -131705,37 +131704,39 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(production_assistant_shutdown_reports_an_unfinished_continuation_deadline) or test(production_assistant_shutdown_closes_owned_runtime_and_accepts_repeated_close) or test(synchronous_assistant_termination_preserves_ports_until_background_cleanup_finishes) or test(queued_canvas_invocation_completes_with_durable_run_session_and_result) or test(queued_model_failure_persists_finished_log_and_legacy_prompt_still_runs) or test(queued_running_write_failure_is_recovered_as_durable_failed_with_original_identity) or test(concurrent_runtime_shutdowns_cancel_and_join_admitted_background_before_returning) or test(runtime_shutdown_allows_cancelled_background_to_persist_cleanup_before_joining)"
         ],
         "testFilter": [
-          "stop_blocks_new_dispatch_and_join_reports_active_owners"
+          "queued_model_failure_persists_finished_log_and_legacy_prompt_still_runs"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "cfb0e5c9ac7cd282ba86a233796c1da9f14763c7",
+        "verifiedAt": "2026-10-07T12:58:31Z",
+        "receiptDigest": "sha256:407cdf25b2289123c1bfcb73298e2fe21adc62ca7aa4dd80511e894b582e6b3b"
       },
       "risk": "normal",
       "owner": "assistant_workflow",
       "priority": "P2",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "preserve_partial_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust workflow-job test blocks new dispatch after stop and reports active owners; run failure tests cover terminal failure."
+        "An injected model failure passes through a reachable Canvas graph and the production background scheduler into the same durable FAILED log with the original error and finishedAt."
       ],
       "uncoveredAssertions": [
-        "No Rust combined background-job assertion transitions the trigger log itself to failed with the original error."
+        "The original missing-canvas input fails with canvas graph is required; Rust intentionally supports a legacy single-prompt workflow and the test directly proves its success.",
+        "The original StartWorkflow operation and immediate accepted response are not exercised."
       ],
       "boundaryReason": null
     },
@@ -133343,9 +133344,9 @@
     },
     "internal/assistant/workflows_resource_recovery_test.go:52:TestWorkflowAsyncTriggerAndBackgroundRecovery": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_mutation_workflow_runtime.rs::failure_cas_loser_distinguishes_missing_durable_winner",
-      "conclusion": "partial：Go 断言异步触发器运行（分离的触发器副本）、模板失败早于运行时访问、后台 panic 转为耐久失败日志。Rust 的工作流运行用例断言失败 CAS 落败区分“缺失耐久赢家”（同一后台失败持久化语义）；Go 的模板失败前置与 panic 转换在 Rust 由画布模板校验与运行终结用例覆盖。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'not test(production_helper_sync_cancel_aborts_in_flight_request) and not test(production_helper_sync_rejects_broken_pagination_cursors) and not test(production_helper_sync_forwards_page_query_and_persists_provider_values) and not test(production_helper_sync_retries_transient_page_and_records_retry)'",
+      "rust_entry": "crates/jftrade-engine/tests/support/workflow_queue_recovery.rs::queued_canvas_invocation_completes_with_durable_run_session_and_result",
+      "conclusion": "partial：真实Production WorkflowScheduler后台读取已持久化trigger身份并完成Canvas，terminal日志triggerId不变且sessionId非空；不把其他CAS测试当作模板前置或nil Service panic转换证据。原始US.MSFT detached trigger/secretHash响应、非法Go模板在runtime访问前失败、nil Service panic转durable FAILED仍未闭合，保持partial。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-engine --test queued_canvas_invocation_completes_with_durable_run_session_and_result --output docs/history/go-to-rust/verification-receipts/assistant-shutdown-queue-owner-verified-2026-10-07.json",
       "evidence_type": "partial",
       "source": {
         "file": "internal/assistant/workflows_resource_recovery_test.go",
@@ -133355,23 +133356,25 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_production_ports_adk_mutation_workflow_runtime.rs",
-          "test": "failure_cas_loser_distinguishes_missing_durable_winner",
+          "file": "crates/jftrade-engine/tests/support/workflow_queue_recovery.rs",
+          "test": "queued_canvas_invocation_completes_with_durable_run_session_and_result",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/assistant/workflows_resource_recovery_test.go",
             "goLine": 52,
-            "rustFile": "crates/jftrade-engine/src/product_production_ports_adk_mutation_workflow_runtime.rs",
-            "rustLine": 468
+            "rustFile": "crates/jftrade-engine/tests/support/workflow_queue_recovery.rs",
+            "rustLine": 95
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust failure-CAS test distinguishes a missing durable winner; canvas template validation and run-finalization tests cover early template failure and durable background failure."
+          "A durable trigger invocation is executed asynchronously by the production scheduler; the finished log retains the trigger ID and a nonempty session ID."
         ],
         "uncovered": [
-          "No Rust assertion clones an async trigger, proves template failure precedes runtime access, and converts a background panic into a durable failure log."
+          "The immediate accepted response with a detached trigger copy, empty secretHash and original US.MSFT input is not exercised.",
+          "The original invalid Go template fails before runtime access; Rust template syntax and validation shape differ.",
+          "A nil Go Service panic converted to a durable FAILED workflow log is not proved by this Rust background success test."
         ],
         "source": "reviewed"
       },
@@ -133382,45 +133385,48 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(production_assistant_shutdown_reports_an_unfinished_continuation_deadline) or test(production_assistant_shutdown_closes_owned_runtime_and_accepts_repeated_close) or test(synchronous_assistant_termination_preserves_ports_until_background_cleanup_finishes) or test(queued_canvas_invocation_completes_with_durable_run_session_and_result) or test(queued_model_failure_persists_finished_log_and_legacy_prompt_still_runs) or test(queued_running_write_failure_is_recovered_as_durable_failed_with_original_identity) or test(concurrent_runtime_shutdowns_cancel_and_join_admitted_background_before_returning) or test(runtime_shutdown_allows_cancelled_background_to_persist_cleanup_before_joining)"
         ],
         "testFilter": [
-          "failure_cas_loser_distinguishes_missing_durable_winner"
+          "queued_canvas_invocation_completes_with_durable_run_session_and_result"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "cfb0e5c9ac7cd282ba86a233796c1da9f14763c7",
+        "verifiedAt": "2026-10-07T12:58:31Z",
+        "receiptDigest": "sha256:407cdf25b2289123c1bfcb73298e2fe21adc62ca7aa4dd80511e894b582e6b3b"
       },
       "risk": "high",
       "owner": "assistant_workflow",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "preserve_partial_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust failure-CAS test distinguishes a missing durable winner; canvas template validation and run-finalization tests cover early template failure and durable background failure."
+        "A durable trigger invocation is executed asynchronously by the production scheduler; the finished log retains the trigger ID and a nonempty session ID."
       ],
       "uncoveredAssertions": [
-        "No Rust assertion clones an async trigger, proves template failure precedes runtime access, and converts a background panic into a durable failure log."
+        "The immediate accepted response with a detached trigger copy, empty secretHash and original US.MSFT input is not exercised.",
+        "The original invalid Go template fails before runtime access; Rust template syntax and validation shape differ.",
+        "A nil Go Service panic converted to a durable FAILED workflow log is not proved by this Rust background success test."
       ],
       "boundaryReason": null
     },
     "internal/assistant/workflows_resource_recovery_test.go:105:TestWorkflowBackgroundPersistsFailureAfterRunningTransitionWriteFails": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_mutation_workflow_runtime.rs::failure_cas_loser_returns_durable_failed_winner_without_overwriting_it",
-      "conclusion": "partial：Go 断言“运行中”状态转换写入失败后后台仍必须把失败态持久化。Rust 的工作流运行用例断言失败 CAS 落败时返回耐久失败赢家且不覆盖（同一失败态耐久化语义）；Go 的转变写入失败注入在 Rust 没有等价故障断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'not test(production_helper_sync_cancel_aborts_in_flight_request) and not test(production_helper_sync_rejects_broken_pagination_cursors) and not test(production_helper_sync_forwards_page_query_and_persists_provider_values) and not test(production_helper_sync_retries_transient_page_and_records_retry)'",
+      "rust_entry": "crates/jftrade-engine/tests/support/workflow_queue_recovery.rs::queued_running_write_failure_is_recovered_as_durable_failed_with_original_identity",
+      "conclusion": "partial：真实SQLite QUEUED后以BEFORE UPDATE RUNNING的RAISE(ABORT)注入原始错误；Production scheduler queue dispatcher仍持久化同ID FAILED及finishedAt/error，model port零调用且仅一条最终日志。原Go driver spy的saveCalls3/savedLogs2不是最终SQLite行数，本测试未直接计写入调用，保持partial。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-engine --test queued_running_write_failure_is_recovered_as_durable_failed_with_original_identity --output docs/history/go-to-rust/verification-receipts/assistant-shutdown-queue-owner-verified-2026-10-07.json",
       "evidence_type": "partial",
       "source": {
         "file": "internal/assistant/workflows_resource_recovery_test.go",
@@ -133430,23 +133436,23 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_production_ports_adk_mutation_workflow_runtime.rs",
-          "test": "failure_cas_loser_returns_durable_failed_winner_without_overwriting_it",
+          "file": "crates/jftrade-engine/tests/support/workflow_queue_recovery.rs",
+          "test": "queued_running_write_failure_is_recovered_as_durable_failed_with_original_identity",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/assistant/workflows_resource_recovery_test.go",
             "goLine": 105,
-            "rustFile": "crates/jftrade-engine/src/product_production_ports_adk_mutation_workflow_runtime.rs",
-            "rustLine": 405
+            "rustFile": "crates/jftrade-engine/tests/support/workflow_queue_recovery.rs",
+            "rustLine": 167
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust failure-CAS test returns a durable failed winner without overwriting it."
+          "After durable QUEUED admission, an injected SQLite RUNNING transition write error is recovered by the production background dispatcher into the same FAILED log with finishedAt and the original error; no model dispatch occurs."
         ],
         "uncovered": [
-          "No Rust injected-failure test covers a running-transition write failure followed by durable background failure persistence."
+          "The original store spy counts exactly three SaveWorkflowTriggerLog attempts and two saved records; final SQLite row count does not prove these operation counts."
         ],
         "source": "reviewed"
       },
@@ -133457,37 +133463,38 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(production_assistant_shutdown_reports_an_unfinished_continuation_deadline) or test(production_assistant_shutdown_closes_owned_runtime_and_accepts_repeated_close) or test(synchronous_assistant_termination_preserves_ports_until_background_cleanup_finishes) or test(queued_canvas_invocation_completes_with_durable_run_session_and_result) or test(queued_model_failure_persists_finished_log_and_legacy_prompt_still_runs) or test(queued_running_write_failure_is_recovered_as_durable_failed_with_original_identity) or test(concurrent_runtime_shutdowns_cancel_and_join_admitted_background_before_returning) or test(runtime_shutdown_allows_cancelled_background_to_persist_cleanup_before_joining)"
         ],
         "testFilter": [
-          "failure_cas_loser_returns_durable_failed_winner_without_overwriting_it"
+          "queued_running_write_failure_is_recovered_as_durable_failed_with_original_identity"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "cfb0e5c9ac7cd282ba86a233796c1da9f14763c7",
+        "verifiedAt": "2026-10-07T12:58:31Z",
+        "receiptDigest": "sha256:407cdf25b2289123c1bfcb73298e2fe21adc62ca7aa4dd80511e894b582e6b3b"
       },
       "risk": "high",
       "owner": "assistant_workflow",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "preserve_partial_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust failure-CAS test returns a durable failed winner without overwriting it."
+        "After durable QUEUED admission, an injected SQLite RUNNING transition write error is recovered by the production background dispatcher into the same FAILED log with finishedAt and the original error; no model dispatch occurs."
       ],
       "uncoveredAssertions": [
-        "No Rust injected-failure test covers a running-transition write failure followed by durable background failure persistence."
+        "The original store spy counts exactly three SaveWorkflowTriggerLog attempts and two saved records; final SQLite row count does not prove these operation counts."
       ],
       "boundaryReason": null
     },
@@ -346767,12 +346774,11 @@
       "reviewNote": "2026-10-02 bounded reuse review: compared all 2 referenceKeys against the shared Rust owner (status mix {'[~]': 2}); assertion scopes are not interchangeable, so reuse remains disallowed and no function_exact row is upgraded by this relation."
     },
     "crates/jftrade-engine/src/product_production_assembly_tests.rs::direct_product_shutdown_stops_reconciliation_before_releasing_leases": {
-      "referenceCount": 5,
+      "referenceCount": 4,
       "referenceKeys": [
         "internal/app/apiserver/servercore/server_application_lifecycle_test.go:75:TestServerCloseStopsBacktestBeforeMarketDataRuntime",
         "internal/app/apiserver/servercoretest/frontend_test.go:198:TestRunAPIOnlyStopsAfterCallerCancellation",
         "internal/assistant/engine/runtime_store_test.go:434:TestNewRuntimeInitializesRegistriesAndClosesCleanly",
-        "internal/assistant/service_contract_boundaries_test.go:312:TestServiceCloseClosesRuntimeOwnedResources",
         "internal/marketdata/lifecycle_boundaries_test.go:233:TestServiceFinalSubscriptionCleanupAlwaysHasDeadline"
       ],
       "allowed": false,
@@ -351927,29 +351933,18 @@
       "reviewStatus": "single"
     },
     "crates/jftrade-store-sqlite/tests/workflow_queue_atomicity.rs::trigger_schedule_and_queue_commit_together_and_reject_stale_claims": {
-      "referenceCount": 2,
+      "referenceCount": 1,
       "referenceKeys": [
-        "internal/assistant/workflow_async_tools_test.go:12:TestStartWorkflowQueuesAndCompletesInBackground",
         "internal/assistant/workflow_crud_test.go:497:TestWorkflowActiveRunGuardHandlesStoredRunStates"
       ],
       "allowed": false,
-      "reviewStatus": "reviewed",
+      "reviewStatus": "single",
       "reviewNote": "2026-10-02 bounded reuse review: compared all 2 referenceKeys against the shared Rust owner (status mix {'[~]': 2}); assertion scopes are not interchangeable, so reuse remains disallowed and no function_exact row is upgraded by this relation."
     },
     "crates/jftrade-engine/src/product_production_ports_adk_mutation_workflow_runtime.rs::failure_cas_loser_returns_durable_failed_winner_without_overwriting_it": {
-      "referenceCount": 2,
-      "referenceKeys": [
-        "internal/assistant/workflow_async_tools_test.go:49:TestStartWorkflowTriggerSkipsWhenPreviousRunIsActive",
-        "internal/assistant/workflows_resource_recovery_test.go:105:TestWorkflowBackgroundPersistsFailureAfterRunningTransitionWriteFails"
-      ],
-      "allowed": false,
-      "reviewStatus": "reviewed",
-      "reviewNote": "2026-10-02 bounded reuse review: compared all 2 referenceKeys against the shared Rust owner (status mix {'[~]': 2}); assertion scopes are not interchangeable, so reuse remains disallowed and no function_exact row is upgraded by this relation."
-    },
-    "crates/jftrade-engine/src/product_workflow_jobs.rs::stop_blocks_new_dispatch_and_join_reports_active_owners": {
       "referenceCount": 1,
       "referenceKeys": [
-        "internal/assistant/workflow_async_tools_test.go:86:TestStartWorkflowBackgroundFailureTerminatesLog"
+        "internal/assistant/workflow_async_tools_test.go:49:TestStartWorkflowTriggerSkipsWhenPreviousRunIsActive"
       ],
       "allowed": false,
       "reviewStatus": "single",
@@ -352013,13 +352008,12 @@
       "reviewStatus": "single"
     },
     "crates/jftrade-engine/src/product_production_ports_adk_mutation_workflow_runtime.rs::failure_cas_loser_distinguishes_missing_durable_winner": {
-      "referenceCount": 2,
+      "referenceCount": 1,
       "referenceKeys": [
-        "internal/assistant/workflows_extended_test.go:528:TestWorkflowActiveRunSkipAndReconciliation",
-        "internal/assistant/workflows_resource_recovery_test.go:52:TestWorkflowAsyncTriggerAndBackgroundRecovery"
+        "internal/assistant/workflows_extended_test.go:528:TestWorkflowActiveRunSkipAndReconciliation"
       ],
       "allowed": false,
-      "reviewStatus": "reviewed",
+      "reviewStatus": "single",
       "reviewNote": "2026-10-02 bounded reuse review: compared all 2 referenceKeys against the shared Rust owner (status mix {'[~]': 2}); assertion scopes are not interchangeable, so reuse remains disallowed and no function_exact row is upgraded by this relation."
     },
     "crates/jftrade-engine/src/product_adk_workflow_tool_error_tests.rs::workflow_trigger_update_switches_a_manual_trigger_to_a_schedule": {
@@ -364719,6 +364713,40 @@
       "referenceCount": 1,
       "referenceKeys": [
         "internal/assistant/engine/adk22regression/native_runtime_test.go:155:TestWorkflowPropagatesExternalCancellationWithoutSuccessorOrRetry"
+      ],
+      "reviewStatus": "single",
+      "allowed": true
+    },
+    "crates/jftrade-engine/tests/support/workflow_queue_recovery.rs::queued_running_write_failure_is_recovered_as_durable_failed_with_original_identity": {
+      "allowed": true,
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/assistant/workflows_resource_recovery_test.go:105:TestWorkflowBackgroundPersistsFailureAfterRunningTransitionWriteFails"
+      ],
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/tests/support/workflow_queue_recovery.rs::queued_canvas_invocation_completes_with_durable_run_session_and_result": {
+      "allowed": true,
+      "referenceCount": 2,
+      "referenceKeys": [
+        "internal/assistant/workflow_async_tools_test.go:12:TestStartWorkflowQueuesAndCompletesInBackground",
+        "internal/assistant/workflows_resource_recovery_test.go:52:TestWorkflowAsyncTriggerAndBackgroundRecovery"
+      ],
+      "reviewStatus": "reviewed",
+      "reason": "Reviewed shared background success assertions; accepted, detached-copy, template and panic gaps remain explicit in the respective partial rows."
+    },
+    "crates/jftrade-engine/src/product_adk_shutdown_deadline_tests.rs::production_assistant_shutdown_closes_owned_runtime_and_accepts_repeated_close": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/assistant/service_contract_boundaries_test.go:312:TestServiceCloseClosesRuntimeOwnedResources"
+      ],
+      "reviewStatus": "single",
+      "allowed": true
+    },
+    "crates/jftrade-engine/tests/support/workflow_queue_recovery.rs::queued_model_failure_persists_finished_log_and_legacy_prompt_still_runs": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/assistant/workflow_async_tools_test.go:86:TestStartWorkflowBackgroundFailureTerminatesLog"
       ],
       "reviewStatus": "single",
       "allowed": true

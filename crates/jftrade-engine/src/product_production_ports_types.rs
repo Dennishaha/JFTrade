@@ -544,13 +544,14 @@ impl ProductionPortBundle {
         if let Some(scheduler) = &self.workflow_scheduler {
             scheduler.stop();
         }
-        self.adk_chat_stream.shutdown();
+        let runtime = self.adk_chat_stream.shutdown_with_error().map_err(|error| format!("{error:?}"));
         if let Some(scheduler) = &self.workflow_scheduler
             && !scheduler.join_shutdown(std::time::Duration::from_secs(5)).await
         {
-            return Err("workflow scheduler did not finish before shutdown deadline".to_owned());
+            return Err(format!("{}workflow scheduler did not finish before shutdown deadline",
+                runtime.err().map(|error| format!("{error}; ")).unwrap_or_default()));
         }
-        Ok(())
+        runtime
     }
 
     /// Drop cannot await a tick on its own runtime thread. Report an active
@@ -559,11 +560,12 @@ impl ProductionPortBundle {
         if let Some(scheduler) = &self.workflow_scheduler {
             scheduler.stop();
         }
-        self.adk_chat_stream.shutdown();
+        let runtime = self.adk_chat_stream.shutdown_with_error().map_err(|error| format!("{error:?}"));
         if self.workflow_scheduler.as_ref().is_some_and(|s| !s.join_invocations(std::time::Duration::from_secs(5))) {
-            return Err("workflow scheduler still has active shutdown owners".to_owned());
+            return Err(format!("{}workflow scheduler still has active shutdown owners",
+                runtime.err().map(|error| format!("{error}; ")).unwrap_or_default()));
         }
-        Ok(())
+        runtime
     }
 
     pub(crate) fn backtest_sync_workers(&self) -> Arc<BacktestSyncWorkerRegistry> {

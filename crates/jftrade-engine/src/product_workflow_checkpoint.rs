@@ -50,6 +50,11 @@ impl<'a> WorkflowCheckpoint<'a> {
         payload["runId"] = json!(run_id);
         payload["sessionId"] = json!(session_id);
         payload["result"] = response.clone();
+        if status == "FAILED"
+            && let Some(error) = node_failure_message(nodes)
+        {
+            payload["error"] = json!(error);
+        }
         let row = self.row.borrow();
         let updated = self
             .store
@@ -66,6 +71,13 @@ impl<'a> WorkflowCheckpoint<'a> {
         *self.row.borrow_mut() = updated;
         Ok(())
     }
+}
+
+pub(crate) fn node_failure_message(nodes: &[WorkflowNodeRun]) -> Option<&str> {
+    nodes
+        .iter()
+        .filter(|node| node.status == "FAILED")
+        .find_map(|node| node.error.as_deref())
 }
 
 fn failure(error: impl std::fmt::Display) -> (String, String) {

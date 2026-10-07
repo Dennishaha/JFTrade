@@ -1,5 +1,8 @@
 use super::*;
 
+#[path = "product_adk_shutdown_deadline_tests.rs"]
+mod deadline;
+
 fn runtime_fixture() -> (tempfile::TempDir, Arc<AdkStore>, Arc<ProductionAdkChatRuntime>) {
     let (directory, store, sessions) = initialized_stores();
     let settings = directory.path().join("settings.json");

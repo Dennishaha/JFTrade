@@ -121,6 +121,13 @@ pub trait AdkChatStreamPort: Send + Sync + std::fmt::Debug {
     /// ports; production adapters override it so their SQLite stores are not
     /// released while a background continuation still holds an `Arc`.
     fn shutdown(&self) {}
+
+    /// Preserve unfinished shutdown errors for lifecycle owners that can
+    /// return them to the caller. Stateless fixture ports finish immediately.
+    fn shutdown_with_error(&self) -> Result<(), AdkChatPortError> {
+        self.shutdown();
+        Ok(())
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

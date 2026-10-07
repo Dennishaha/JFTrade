@@ -1,5 +1,16 @@
 # Go → Rust 证据积压清单
 
+## 2026-10-07 Assistant shutdown deadline 与后台终态错误
+
+- 本批逐项复核五条原Go，仅重复Service.Close条目升exact，净 **+1 exact / -1 partial / boundary 0**，当前 **1623 / 2188 / 640**，Rust inventory **3624**。原Go312只要求两次Close无错误；ProductionPortBundle经真实ADK proxy/runtime的重复shutdown直接闭合，不推断关闭后store不可写。
+- 生产修复一：continuation barrier超时不再被忽略。runtime→ADK adapter→ProductionAdkPort→bundle返回未完成错误，超时保留live task owner及tool ports供重试；同步termination也传播错误。runtime和scheduler同时失败时保留两者诊断。每个owner各自有5秒等待，本批不宣称全链路共用5秒deadline。
+- 生产修复二：真实后台Canvas节点失败的最终日志遗漏顶层error。checkpoint和最终projection现在保留原FAILED节点错误，既有error契约字段、WriterLease、CAS和schema不变。后台成功测试直接验证QUEUED→SUCCEEDED、同ID、run/session/result/finishedAt与US.AAPL渲染；SQLite BEFORE UPDATE RUNNING的RAISE(ABORT)验证同ID FAILED恢复、原错误、finishedAt及零model dispatch。
+- canonical `verification-receipts/assistant-shutdown-queue-owner-verified-2026-10-07.json`：**8 passed / 0 failed / 0 ignored / 2187 filtered/skipped**，SHA-256 `407cdf25b2289123c1bfcb73298e2fe21adc62ca7aa4dd80511e894b582e6b3b`。12个Rust源码纳入tracked diff并备份；`/tmp/jftrade-assistant-shutdown-queue-verified-diff.bin` SHA-256 `ca601b5113f8506dd37a4a6d1f6e563b84f3534e228cf03668c48bf07a4ffc6c`与receipt一致，最终源码逐文件匹配。
+- 失败证据保持原字节：shutdown-deadline-initial **1 passed / 1 failed**复现旧barrier超时误报成功；queue-recovery-initial **0 passed / 3 failed**是fixture缺start节点，修fixture后真正到达目标路径；queue-terminal-error-red **0 passed / 1 failed**发现顶层error缺失，queue-final-log-error-red **0 passed / 1 failed**在join后重新读取最终日志仍复现，排除中间checkpoint读时序。上述四个receipt均由canonical替代为当前状态，原始失败仍可审计；另曾发生Display编译诊断，0执行，未收录独立receipt，不记通过。
+- 四条partial明确残余：StartWorkflow立即accepted响应；无canvasGraph的原Go失败与Rust合法legacy成功差异（有直接反例）；detached trigger/secretHash/US.MSFT响应、模板前置与nil Service panic；driver spy的saveCalls3/savedLogs2。最终SQLite一行不能替代写调用次数。共享后台成功测试分别证明两条partial中的不同子集，独立审核reuse，未扩大既有共享批准。
+- ordinary/strict/anchor/context/diff通过；anchor **2097 unique / 2049 recorded / 0 unrecorded / 0 stale / 48 unknown**。reuse初次审计因新共享项缺allowed字段失败，修正元数据后通过，未放宽审计。quick首轮target-health失败；确认无Cargo/rustc后清理 **113445 files / 28.2GiB**。`/tmp/jftrade-assistant-shutdown-queue-quick-clean.log`明确exit0：受影响nextest **2225 passed / 0 failed / 0 skipped**、Clippy、七类回放、Pine98及desktop脚本48通过。`/tmp/jftrade-assistant-shutdown-queue-rust.log`明确exit0：workspace **3780 passed / 0 failed / 2 skipped**、静态及七类回放通过，无LEAK。filtered/skipped均不计通过。
+- 下一批：API SSE重连的同连接replay watermark后live帧、断连释放与失败写入停止；同步复核Provider streaming usage metadata的原始9/3/12断言。持续goal保持active，以上局部通过不等于整体行为对齐完成。
+
 ## 2026-10-07 Assistant 取消清理与关闭 owner
 
 - 本批五条原Go逐项复核，净 **+1 exact / -1 partial / boundary 0**，当前 **1622 / 2189 / 640**。实际ProductionAdkChatRuntime的8个并发shutdown均等待已受理后台callback取消后的release，全部完成且关闭后受理拒绝；原Go13的全部断言闭合，独立主测试有直接anchor和canonical receipt。

@@ -3,6 +3,9 @@
 #[path = "support/workflow_canvas_cancellation.rs"]
 mod cancellation;
 
+#[path = "support/workflow_queue_recovery.rs"]
+mod queue_recovery;
+
 use std::collections::BTreeMap;
 use std::fs::File;
 use std::path::{Path, PathBuf};

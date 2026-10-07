@@ -161,6 +161,12 @@ impl ProductionAdkChatRuntime {
 
     #[allow(dead_code)]
     pub(crate) fn shutdown(&self) {
+        if let Err(error) = self.shutdown_with_error() {
+            tracing::error!(?error, "assistant runtime shutdown unfinished");
+        }
+    }
+
+    pub(crate) fn shutdown_with_error(&self) -> Result<(), AdkChatPortError> {
         // Stop the scanner before cancelling continuations.  Otherwise a
         // final poll can enqueue a fresh worker while the runtime is already
         // tearing down its leases.
@@ -168,8 +174,11 @@ impl ProductionAdkChatRuntime {
             supervisor.shutdown();
         }
         self.cancellation_registry.cancel_all();
-        self.continuation_supervisor.shutdown();
+        if !self.continuation_supervisor.shutdown_with_timeout(Duration::from_secs(5)) {
+            return Err(unavailable("assistant continuations did not finish before shutdown deadline"));
+        }
         self.tool_executor.detach_ports();
+        Ok(())
     }
 
     fn persist_cancelled(

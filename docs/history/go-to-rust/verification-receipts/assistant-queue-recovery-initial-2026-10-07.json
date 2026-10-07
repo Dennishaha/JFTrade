@@ -1,0 +1,69 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(queued_canvas_invocation_completes_with_durable_run_session_and_result) or test(queued_model_failure_persists_finished_log_and_legacy_prompt_still_runs) or test(queued_running_write_failure_is_recovered_as_durable_failed_with_original_identity)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 100,
+  "status": "failed",
+  "verifiedAt": "2026-10-07T12:53:34Z",
+  "sourceState": {
+    "verifiedCommit": "cfb0e5c9ac7cd282ba86a233796c1da9f14763c7",
+    "trackedDiffSha256": "48266acf84ea9879dbeafb9ea92427f59eb4b8ef362138a0c336f189c6e525e8",
+    "untrackedFiles": [
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/assistant-shutdown-deadline-initial-2026-10-07.json",
+        "sha256": "d5ce8230809c806b8f5dcc6bd936d50daa75e787ab65a52fde1cc827dde9efda"
+      }
+    ]
+  },
+  "rawOutputSha256": "451bf587d197abe3655da0a874b9d23447180b0075ffc2469f633f7c13d68d6e",
+  "passedTests": [],
+  "failedTests": [
+    "jftrade-engine::adk_workflow_canvas_contracts$queue_recovery::queued_canvas_invocation_completes_with_durable_run_session_and_result",
+    "jftrade-engine::adk_workflow_canvas_contracts$queue_recovery::queued_model_failure_persists_finished_log_and_legacy_prompt_still_runs",
+    "jftrade-engine::adk_workflow_canvas_contracts$queue_recovery::queued_running_write_failure_is_recovered_as_durable_failed_with_original_identity"
+  ],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 3,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "adk_workflow_canvas_contracts",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "failed",
+      "passed": 0,
+      "failed": 3,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 15,
+      "exec_time": 2.292282209,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "adk_workflow_canvas_contracts",
+        "kind": "test"
+      }
+    }
+  ]
+}

@@ -51,4 +51,11 @@ impl AdkChatStreamPort for ProductionAdkPort {
             runtime.shutdown();
         }
     }
+
+    fn shutdown_with_error(&self) -> Result<(), AdkChatPortError> {
+        match self.chat_runtime.as_deref() {
+            Some(runtime) => runtime.shutdown_with_error(),
+            None => Ok(()),
+        }
+    }
 }

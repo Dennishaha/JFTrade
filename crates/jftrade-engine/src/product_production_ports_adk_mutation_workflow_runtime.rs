@@ -207,6 +207,9 @@ fn run_workflow_with_checkpoint(port: &ProductionAdkPort, input: &AdkMutationInp
     };
 
     let invocation_revision = checkpoint.revision();
+    let invocation_error = (outcome.status == "FAILED")
+        .then(|| crate::product_workflow_checkpoint::node_failure_message(&outcome.node_runs))
+        .flatten().map(str::to_owned);
     let mut log = json!({
         "id": log_id,
         "workflowId": workflow_id,
@@ -220,6 +223,9 @@ fn run_workflow_with_checkpoint(port: &ProductionAdkPort, input: &AdkMutationInp
         "result": outcome.response.clone(),
         "startedAt": started_at,
     });
+    if let Some(error) = invocation_error {
+        log["error"] = json!(error);
+    }
     if let Some(execution) = invocation.get("canvasExecution") {
         log["canvasExecution"] = execution.clone();
     }

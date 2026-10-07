@@ -108,6 +108,10 @@ impl AdkChatStreamPort for ProductionAdkChatRuntime {
     fn shutdown(&self) {
         ProductionAdkChatRuntime::shutdown(self);
     }
+
+    fn shutdown_with_error(&self) -> Result<(), AdkChatPortError> {
+        ProductionAdkChatRuntime::shutdown_with_error(self)
+    }
 }
 
 #[derive(Debug)]

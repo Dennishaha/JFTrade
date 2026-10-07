@@ -369,20 +369,22 @@ impl ContinuationSupervisor {
 
     #[allow(dead_code)]
     fn shutdown(&self) {
+        if !self.shutdown_with_timeout(Duration::from_secs(5)) {
+            tracing::error!("assistant continuations did not finish before shutdown deadline");
+        }
+    }
+
+    fn shutdown_with_timeout(&self, timeout: Duration) -> bool {
         self.stopping.store(true, Ordering::Release);
         let tasks = self
             .tasks
             .lock()
-            .map(|mut tasks| {
-                std::mem::take(&mut *tasks)
-                    .into_values()
-                    .collect::<Vec<_>>()
-            })
+            .map(|tasks| tasks.values().cloned().collect::<Vec<_>>())
             .unwrap_or_default();
         for task in &tasks {
             task.cancellation.store(true, Ordering::Release);
         }
-        let _ = self.barrier.wait_timeout(Duration::from_secs(5));
+        self.barrier.wait_timeout(timeout)
     }
 }
 
