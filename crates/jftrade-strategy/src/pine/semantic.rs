@@ -139,6 +139,9 @@ pub fn analyze(program: &Program) -> SemanticSummary {
         .map(|(name, ty)| (name, ty.as_str().to_owned()))
         .collect();
     summary
+        .diagnostics
+        .extend(super::semantic_call_scope::diagnostics(program));
+    summary
 }
 
 struct SemanticContext<'a> {

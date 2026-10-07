@@ -1,5 +1,15 @@
 # Go → Rust 证据积压清单
 
+## 2026-10-08 Pine UDF 调用与循环作用域
+
+- 本批只复核五条 mapping 与必要 reuse，净 **+3 exact / -3 partial / boundary 0**，当前 **1629 / 2182 / 640**。原838的六个脚本均以原错误片段拒绝；原unknown206的entry/exit unknown=1在60/61行经公开analysis拒绝；原window141完整脚本经公开analysis成功并逐项包含九个原需求key。撤销此前对window141“完整语义对象投影”和unknown206“私有parseState对象”的额外要求，它们未出现在冻结原文断言中。
+- 实际修复：expression_from_text根据表达式suffix定位并按字符数转换column，避免f(x) => x及f(x) => f(x)错误选择header。独立semantic_call_scope在lower/plan前验证UDF参数数量、调用链递归及活动循环变量只读；嵌套循环退出后保留外层只读绑定，全部退出后允许同名赋值。调用链按调用行缓存已检查body，避免分支图重复展开；合法UDF、nested loop、tuple写入及原source column有回归。
+- canonical `verification-receipts/pine-call-scope-canonical-2026-10-08.json`：**8 passed / 0 failed / 0 ignored / 117 filtered/skipped**，SHA-256 `d08308bcb325b33ea1a0673e4360d630dd41088d6b11be4421e4bbd8cdf76973`。tracked Rust diff SHA-256 `7f7e93e0efde1131108d4c36acb59b8feb66a7c9dc7968302dd9a235f081bee4` 已匹配；源码与历史untracked字节保存在`/tmp/jftrade-pine-call-scope-source`，diff保存在`/tmp/jftrade-pine-call-scope-source-diff.bin`，不把focused receipt作为全量门禁。
+- 历史receipt保留：original-red **1 passed / 1 failed**直接发现header解析错误和loop改写被接受；initial-fix **5 passed / 0 failed**为scope cache及额外IR断言之前源码；reviewed **6 passed / 2 failed**是新增Rust IR显示断言误用了逗号空格和符号operator（实际Display使用Equal/Add等枚举名），仅更正新增断言的显示预期，原脚本与冻结fixture不变。上述当前关系由canonical解释，失败字节不删除、不改写。
+- 两条仍partial：pending390虽逐项保留六个Action及全部原始参数，没有Go OrderStmt/CancelStmt的intent、SELL、symbol_position_percent、LIMIT及All投影；UDF790明确保留两函数与五条statement、typed For，未形成原七条展开Let、第八条归一化If及唯一ma:EMA:3规划。不把raw call保留当静态展开等价。
+- 最窄strategy crate **124 passed / 0 failed / 0 skipped**；新增pending回归后当前125条全部进入quick和workspace门禁，canonical显式执行其中8条。Rust inventory **3644**。定向Clippy退出0。普通/strict审计退出0，anchor **2105 unique / 2057 recorded / 0 unrecorded / 0 stale / 48 unknown**。
+- 现场quick `/tmp/jftrade-pine-call-scope-quick.log` 明确退出0：**2364 passed / 0 failed / 0 skipped**，fmt、Clippy、trading/strategy replay、Pine98与desktop48通过；计划保存于`/tmp/jftrade-pine-call-scope-quick-plan-final.log`。完整现场Rust `/tmp/jftrade-pine-call-scope-rust.log` 明确退出0：**3800 passed / 0 failed / 2 skipped**，static与七类replay通过，无LEAK，skipped不计通过。canonical源码指纹与最终Rust字节保持一致，公开契约、锁文件与冻结fixture无变化。
+
 ## 2026-10-08 Execution HTTP scope 与撤单前置校验
 
 - 本批只审查五条 mapping，净 **+2 exact / -2 partial / boundary 0**，当前 **1626 / 2185 / 640**，Rust inventory **3638**。原execution_routes53与110分别由独立真实HTTP测试闭合：SIM-001/REAL-001、默认SIMULATE、显式REAL、broker/account/market组合与空结果；真实SettingsFileStore保存REAL并经production_ports实际getter进入HTTP。两条HK默认设置fixture的数量均100，seed保存原COMMAND_PLACE_ACCEPTED事件。

@@ -932,7 +932,12 @@ fn is_tuple_alias(name: &str) -> bool {
 }
 
 fn expression_from_text(line: &LexedLine, text: &str) -> Result<Expr, ParseError> {
-    let token_start = line.text.find(text).unwrap_or(0);
+    // Expressions are suffixes of the source line. The same text may also
+    // occur in a function header or assignment target; columns count chars.
+    let token_start = line
+        .text
+        .strip_suffix(text)
+        .map_or(0, |prefix| prefix.chars().count());
     let tokens = line
         .tokens
         .iter()

@@ -1,4 +1,4 @@
-use jftrade_strategy::pine::compile;
+use jftrade_strategy::pine::{AnalysisOptions, analyze_script, compile};
 
 fn planned_keys(script: &str) -> Vec<String> {
     let compilation = compile(script);
@@ -198,10 +198,10 @@ trTrue = ta.tr(true)
 trFalse = ta.tr(false)
 if up and not down and nz(bars, 999) < 5 and nz(value, close) > 0 and trTrue >= trFalse
     strategy.entry("Long", strategy.long, qty=1)"#;
-    let compilation = compile(script);
+    let compilation = analyze_script(script, AnalysisOptions::default());
     assert!(
         compilation.ok,
-        "Go V14 fixture must compile in Rust: {:?}",
+        "V14 fixture must analyze successfully: {:?}",
         compilation.diagnostics
     );
     let keys = compilation

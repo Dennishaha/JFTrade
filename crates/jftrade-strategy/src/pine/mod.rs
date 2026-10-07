@@ -10,6 +10,7 @@ mod lower;
 mod parser;
 mod planner;
 mod semantic;
+mod semantic_call_scope;
 
 pub use lexer::{LexError, LexedLine, Token, TokenKind, decode_string, lex};
 pub use lower::{LowerError, LoweredProgram, lower};
@@ -518,21 +519,71 @@ if isBull(close) and fast > fast[1] and sum > 0
             .map(|function| function.name.clone())
             .collect::<Vec<_>>();
         assert_eq!(names, vec!["isBull", "smooth"]);
-        let lowered = format!("{:?}", program.hooks[0].statements);
-        assert!(lowered.contains("For"), "loop must stay typed: {lowered}");
-        assert!(
-            lowered.contains("close") && lowered.contains("\"i\""),
-            "loop body must keep the bar history receiver and index: {lowered}"
+        use super::lower::LoweredStatement;
+        let statements = &program.hooks[0].statements;
+        assert_eq!(
+            statements.len(),
+            5,
+            "Rust retains the loop instead of eight expanded statements"
         );
+        let LoweredStatement::Let {
+            name, expression, ..
+        } = &statements[1]
+        else {
+            panic!("{:?}", statements[1]);
+        };
+        assert_eq!(name, "fast");
+        assert_eq!(expression.to_string(), "smooth(close,len)");
+        let LoweredStatement::For {
+            variable,
+            start,
+            end,
+            step,
+            body,
+            ..
+        } = &statements[3]
+        else {
+            panic!("{:?}", statements[3]);
+        };
+        assert_eq!(variable, "i");
+        assert_eq!(start.to_string(), "0");
+        assert_eq!(end.to_string(), "3");
+        assert!(step.is_none());
+        assert_eq!(body.len(), 1);
+        let LoweredStatement::Let {
+            name,
+            expression,
+            mode,
+            ..
+        } = &body[0]
+        else {
+            panic!("{:?}", body[0]);
+        };
+        assert_eq!(name, "sum");
+        assert_eq!(mode, "reassign");
+        assert_eq!(expression.to_string(), "(sum Add close[i])");
+        let LoweredStatement::If {
+            condition,
+            then_body,
+            else_body,
+            ..
+        } = &statements[4]
+        else {
+            panic!("{:?}", statements[4]);
+        };
+        assert_eq!(
+            condition.to_string(),
+            "((isBull(close) And (fast Greater fast[1])) And (sum Greater 0))"
+        );
+        assert_eq!(then_body.len(), 1);
+        assert!(else_body.is_empty());
     }
 
     /// Parity: pkg/strategy/pine/parse_test.go:838
     /// TestValidateScriptReportsUnsupportedUDFAndStaticForCases
     ///
-    /// Go reports six UDF/loop validation messages. Rust currently rejects a
-    /// subset (recursion, zero step, iteration cap) and accepts the rest, so
-    /// the covered cases are asserted here and the remaining ones stay on the
-    /// checklist as a Rust feature gap.
+    /// This narrow regression retains the two static bounds cases. The six
+    /// original rejection cases are exercised in pine_call_scope_contracts.
     #[test]
     fn validate_script_reports_supported_udf_and_static_for_boundaries() {
         for (script, wanted) in [
@@ -900,6 +951,67 @@ strategy.close("Long", 2)"#,
                 calls.iter().all(|(call, _)| call.starts_with("strategy.")),
                 "unexpected calls: {calls:?}"
             );
+        }
+    }
+
+    // Parity: go:452dea11:pkg/strategy/pine/parse_test.go:390 TestCompileSupportsPendingStopAndCancelOrders
+    #[test]
+    fn pending_order_calls_preserve_original_stop_limit_and_cancel_arguments() {
+        let calls = action_calls(
+            r#"//@version=6
+strategy("Pending", overlay=true)
+strategy.entry("Breakout", strategy.long, stop=ta.highest(high, 20), qty=1)
+strategy.order("Net short", strategy.short, stop=low - 1, qty=5)
+strategy.close("Long", stop=99, limit=101, qty_percent=50)
+strategy.entry("StopLimit", strategy.long, stop=101, limit=99, qty=2)
+strategy.cancel("Breakout")
+strategy.cancel_all()"#,
+        );
+        let expected: [(&str, &[&str]); 6] = [
+            (
+                "strategy.entry",
+                &[
+                    "\"Breakout\"",
+                    "strategy.long",
+                    "(stop Equal ta.highest(high,20))",
+                    "(qty Equal 1)",
+                ],
+            ),
+            (
+                "strategy.order",
+                &[
+                    "\"Net short\"",
+                    "strategy.short",
+                    "(stop Equal (low Subtract 1))",
+                    "(qty Equal 5)",
+                ],
+            ),
+            (
+                "strategy.close",
+                &[
+                    "\"Long\"",
+                    "(stop Equal 99)",
+                    "(limit Equal 101)",
+                    "(qty_percent Equal 50)",
+                ],
+            ),
+            (
+                "strategy.entry",
+                &[
+                    "\"StopLimit\"",
+                    "strategy.long",
+                    "(stop Equal 101)",
+                    "(limit Equal 99)",
+                    "(qty Equal 2)",
+                ],
+            ),
+            ("strategy.cancel", &["\"Breakout\""]),
+            ("strategy.cancel_all", &[]),
+        ];
+        assert_eq!(calls.len(), expected.len());
+        for ((call, arguments), (wanted_call, wanted_arguments)) in calls.iter().zip(expected) {
+            assert_eq!(call, wanted_call);
+            assert_eq!(arguments, wanted_arguments);
         }
     }
 

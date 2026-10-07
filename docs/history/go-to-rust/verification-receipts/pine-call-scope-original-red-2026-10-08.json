@@ -1,0 +1,69 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-strategy",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(compiler_rejects_original_udf_and_static_loop_failures_before_planning) or test(analysis_rejects_unknown_entry_and_exit_arguments_at_original_source_lines)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 100,
+  "status": "failed",
+  "verifiedAt": "2026-10-07T17:55:46Z",
+  "sourceState": {
+    "verifiedCommit": "5b686e8153a286e6587224185fd49633cebcdd1e",
+    "trackedDiffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "untrackedFiles": [
+      {
+        "path": "crates/jftrade-strategy/tests/pine_call_scope_contracts.rs",
+        "sha256": "033150967cb42ad0037a87f140bcd7fe373d7a06eda26265ddc8abc11b96948c"
+      }
+    ]
+  },
+  "rawOutputSha256": "ed233059886429118666a0d08e45374bf0d7fa1765988b82c72bbec0674b7c3d",
+  "passedTests": [
+    "jftrade-strategy::pine_call_scope_contracts$analysis_rejects_unknown_entry_and_exit_arguments_at_original_source_lines"
+  ],
+  "failedTests": [
+    "jftrade-strategy::pine_call_scope_contracts$compiler_rejects_original_udf_and_static_loop_failures_before_planning"
+  ],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 2,
+      "nextest": {
+        "crate": "jftrade-strategy",
+        "test_binary": "pine_call_scope_contracts",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "failed",
+      "passed": 1,
+      "failed": 1,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 0,
+      "exec_time": 0.033446625,
+      "nextest": {
+        "crate": "jftrade-strategy",
+        "test_binary": "pine_call_scope_contracts",
+        "kind": "test"
+      }
+    }
+  ]
+}

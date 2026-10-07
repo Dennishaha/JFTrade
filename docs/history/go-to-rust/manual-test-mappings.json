@@ -314065,11 +314065,11 @@
       "boundaryReason": null
     },
     "pkg/strategy/pine/parse_request_test.go:141:TestCompileSupportsV14WindowMomentumAndStatefulIndicators": {
-      "status": "[~]",
+      "status": "[x]",
       "rust_entry": "crates/jftrade-strategy/tests/pine_request_and_visual_contracts.rs::compile_v14_window_momentum_fixture_keeps_go_requirement_keys",
-      "conclusion": "partial（本批修复）：Rust parser 支持 Pine `not` 一元关键字，planner 对 V14 fixture 生成 Go 对齐的 stdev/variance/highestbars/lowestbars/change/mom/roc/rising/falling keys；新增回归用例逐键断言并确认完整脚本编译成功。仍为 partial：Go 还验证 AnalyzeScript 语义对象的完整投影，Rust 测试只覆盖 compile/requirements。",
-      "command": "pnpm run test:parity:receipt -- --package jftrade-strategy --test compile_v14_window_momentum_fixture_keeps_go_requirement_keys --output docs/history/go-to-rust/verification-receipts/strategy-pine-boundaries-2026-09-30.json",
-      "evidence_type": "partial",
+      "conclusion": "function_exact：原始完整V14脚本经公开analyze_script默认options成功，逐项检查stdev:5、variance:close:5、highestbars:high:5、lowestbars:low:5、change:close:1、mom:close:3、roc:close:3、rising:close:3、falling:close:3。 原文只断言analysis.OK与九个key存在，不要求完整语义对象投影，撤销此前多报的缺口。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(compiler_rejects_original_udf_and_static_loop_failures_before_planning) or test(analysis_rejects_unknown_entry_and_exit_arguments_at_original_source_lines) or test(repeated_function_body_text_preserves_expression_source_columns) or test(udf_call_errors_keep_invocation_lines_and_prevent_indicator_planning) or test(loop_bindings_are_readonly_until_their_own_scope_exits) or test(compile_v14_window_momentum_fixture_keeps_go_requirement_keys) or test(pending_order_calls_preserve_original_stop_limit_and_cancel_arguments) or test(compile_accepts_expression_udf_and_static_for_unroll)'",
+      "evidence_type": "function_exact",
       "source": {
         "file": "pkg/strategy/pine/parse_request_test.go",
         "line": 141,
@@ -314085,19 +314085,16 @@
             "goFile": "pkg/strategy/pine/parse_request_test.go",
             "goLine": 141,
             "rustFile": "crates/jftrade-strategy/tests/pine_request_and_visual_contracts.rs",
-            "rustLine": 167
+            "rustLine": 180
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "partial（本批修复）：Rust parser 支持 Pine `not` 一元关键字，planner 对 V14 fixture 生成 Go 对齐的 stdev/variance/highestbars/lowestbars/change/mom/roc/rising/falling keys；",
-          "新增回归用例逐键断言并确认完整脚本编译成功。",
-          "仍为 partial：Go 还验证 AnalyzeScript 语义对象的完整投影，Rust 测试只覆盖 compile/requirements。"
+          "原始完整V14脚本经公开analyze_script默认options成功，逐项检查stdev:5、variance:close:5、highestbars:high:5、lowestbars:low:5、change:close:1、mom:close:3、roc:close:3、rising:close:3、falling:close:3。",
+          "原文只断言analysis.OK与九个key存在，不要求完整语义对象投影，撤销此前多报的缺口。"
         ],
-        "uncovered": [
-          "未从该结论中拆出独立 Rust 缺口；需按原始 Go 断言与 Rust 测试逐项复核。"
-        ],
+        "uncovered": [],
         "source": "reviewed"
       },
       "verification": {
@@ -314107,40 +314104,38 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-strategy",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(compiler_rejects_original_udf_and_static_loop_failures_before_planning) or test(analysis_rejects_unknown_entry_and_exit_arguments_at_original_source_lines) or test(repeated_function_body_text_preserves_expression_source_columns) or test(udf_call_errors_keep_invocation_lines_and_prevent_indicator_planning) or test(loop_bindings_are_readonly_until_their_own_scope_exits) or test(compile_v14_window_momentum_fixture_keeps_go_requirement_keys) or test(pending_order_calls_preserve_original_stop_limit_and_cancel_arguments) or test(compile_accepts_expression_udf_and_static_for_unroll)"
         ],
         "testFilter": [
           "compile_v14_window_momentum_fixture_keeps_go_requirement_keys"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "5b686e8153a286e6587224185fd49633cebcdd1e",
+        "verifiedAt": "2026-10-07T18:05:12Z",
+        "receiptDigest": "sha256:d08308bcb325b33ea1a0673e4360d630dd41088d6b11be4421e4bbd8cdf76973"
       },
       "risk": "high",
       "owner": "strategy_pine",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "retain_exact_and_reaudit_on_owner_change",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "partial（本批修复）：Rust parser 支持 Pine `not` 一元关键字，planner 对 V14 fixture 生成 Go 对齐的 stdev/variance/highestbars/lowestbars/change/mom/roc/rising/falling keys；",
-        "新增回归用例逐键断言并确认完整脚本编译成功。",
-        "仍为 partial：Go 还验证 AnalyzeScript 语义对象的完整投影，Rust 测试只覆盖 compile/requirements。"
+        "原始完整V14脚本经公开analyze_script默认options成功，逐项检查stdev:5、variance:close:5、highestbars:high:5、lowestbars:low:5、change:close:1、mom:close:3、roc:close:3、rising:close:3、falling:close:3。",
+        "原文只断言analysis.OK与九个key存在，不要求完整语义对象投影，撤销此前多报的缺口。"
       ],
-      "uncoveredAssertions": [
-        "未从该结论中拆出独立 Rust 缺口；需按原始 Go 断言与 Rust 测试逐项复核。"
-      ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "pkg/strategy/pine/parse_request_test.go:183:TestCompileSupportsV14RequestSecurityPureExpression": {
@@ -316459,9 +316454,9 @@
     },
     "pkg/strategy/pine/parse_test.go:390:TestCompileSupportsPendingStopAndCancelOrders": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs::order_subset_compile_tests::compile_accepts_strategy_order_subset_scripts",
-      "conclusion": "partial（本批复核）：Go 断言挂单形态（entry/order 带 stop、close 带 stop+limit、entry stop+limit、strategy.cancel/strategy.cancel_all）投影为 STOP/LIMIT 与 CancelStmt。Rust 保留 stop/limit 具名参数、接受 strategy.cancel(id) 单参数与 strategy.cancel_all()（无参），并以 PINE_COMPILE_ERROR 拒绝 strategy.cancel_all 传参与 strategy.cancel 参数个数不为 1（本批新增），但不投影 typed CancelStmt。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
+      "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs::pending_order_calls_preserve_original_stop_limit_and_cancel_arguments",
+      "conclusion": "partial：原始完整脚本成功，恰六条Rust Action；逐项检查entry/order/close/entry/cancel/cancel_all顺序、ID、方向和stop、limit、qty、qty_percent原始表达式。 Rust保留Action及命名参数；未形成Go OrderStmt/CancelStmt的intent、SELL、symbol_position_percent、LIMIT及All字段，typed order投影不等价。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(compiler_rejects_original_udf_and_static_loop_failures_before_planning) or test(analysis_rejects_unknown_entry_and_exit_arguments_at_original_source_lines) or test(repeated_function_body_text_preserves_expression_source_columns) or test(udf_call_errors_keep_invocation_lines_and_prevent_indicator_planning) or test(loop_bindings_are_readonly_until_their_own_scope_exits) or test(compile_v14_window_momentum_fixture_keeps_go_requirement_keys) or test(pending_order_calls_preserve_original_stop_limit_and_cancel_arguments) or test(compile_accepts_expression_udf_and_static_for_unroll)'",
       "evidence_type": "partial",
       "source": {
         "file": "pkg/strategy/pine/parse_test.go",
@@ -316472,23 +316467,22 @@
       "rustEvidence": [
         {
           "file": "crates/jftrade-strategy/src/pine/mod.rs",
-          "test": "compile_accepts_strategy_order_subset_scripts",
+          "test": "pending_order_calls_preserve_original_stop_limit_and_cancel_arguments",
           "crate": "jftrade-strategy",
           "anchor": {
             "goFile": "pkg/strategy/pine/parse_test.go",
             "goLine": 390,
             "rustFile": "crates/jftrade-strategy/src/pine/mod.rs",
-            "rustLine": 865
+            "rustLine": 957
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "partial（本批复核）：Go 断言挂单形态（entry/order 带 stop、close 带 stop+limit、entry stop+limit、strategy.cancel/strategy.cancel_all）投影为 STOP/LIMIT 与 CancelStmt。",
-          "Rust 保留 stop/limit 具名参数、接受 strategy.cancel(id) 单参数与 strategy.cancel_all()（无参），并以 PINE_COMPILE_ERROR 拒绝 strategy.cancel_all 传参与 strategy.cancel 参数个数不为 1（本批新增），但不投影 typed CancelStmt。"
+          "原始完整脚本成功，恰六条Rust Action；逐项检查entry/order/close/entry/cancel/cancel_all顺序、ID、方向和stop、limit、qty、qty_percent原始表达式。"
         ],
         "uncovered": [
-          "未从该结论中拆出独立 Rust 缺口；需按原始 Go 断言与 Rust 测试逐项复核。"
+          "Rust保留Action及命名参数；未形成Go OrderStmt/CancelStmt的intent、SELL、symbol_position_percent、LIMIT及All字段，typed order投影不等价。"
         ],
         "source": "reviewed"
       },
@@ -316499,38 +316493,40 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-strategy",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(compiler_rejects_original_udf_and_static_loop_failures_before_planning) or test(analysis_rejects_unknown_entry_and_exit_arguments_at_original_source_lines) or test(repeated_function_body_text_preserves_expression_source_columns) or test(udf_call_errors_keep_invocation_lines_and_prevent_indicator_planning) or test(loop_bindings_are_readonly_until_their_own_scope_exits) or test(compile_v14_window_momentum_fixture_keeps_go_requirement_keys) or test(pending_order_calls_preserve_original_stop_limit_and_cancel_arguments) or test(compile_accepts_expression_udf_and_static_for_unroll)"
         ],
         "testFilter": [
-          "compile_accepts_strategy_order_subset_scripts"
+          "pending_order_calls_preserve_original_stop_limit_and_cancel_arguments"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "5b686e8153a286e6587224185fd49633cebcdd1e",
+        "verifiedAt": "2026-10-07T18:05:12Z",
+        "receiptDigest": "sha256:d08308bcb325b33ea1a0673e4360d630dd41088d6b11be4421e4bbd8cdf76973"
       },
       "risk": "high",
       "owner": "strategy_pine",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
+      "nextAction": "review_original_ir_projection_boundary",
       "blockedBy": [
         "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "partial（本批复核）：Go 断言挂单形态（entry/order 带 stop、close 带 stop+limit、entry stop+limit、strategy.cancel/strategy.cancel_all）投影为 STOP/LIMIT 与 CancelStmt。",
-        "Rust 保留 stop/limit 具名参数、接受 strategy.cancel(id) 单参数与 strategy.cancel_all()（无参），并以 PINE_COMPILE_ERROR 拒绝 strategy.cancel_all 传参与 strategy.cancel 参数个数不为 1（本批新增），但不投影 typed CancelStmt。"
+        "原始完整脚本成功，恰六条Rust Action；逐项检查entry/order/close/entry/cancel/cancel_all顺序、ID、方向和stop、limit、qty、qty_percent原始表达式。"
       ],
       "uncoveredAssertions": [
-        "未从该结论中拆出独立 Rust 缺口；需按原始 Go 断言与 Rust 测试逐项复核。"
+        "Rust保留Action及命名参数；未形成Go OrderStmt/CancelStmt的intent、SELL、symbol_position_percent、LIMIT及All字段，typed order投影不等价。"
       ],
       "boundaryReason": null
     },
@@ -317404,9 +317400,9 @@
     },
     "pkg/strategy/pine/parse_test.go:790:TestCompileSupportsExpressionUDFAndStaticForUnroll": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs::udf_and_loop_boundary_tests::compile_accepts_expression_udf_and_static_for_unroll",
-      "conclusion": "partial（本批复核，探针复现）：Go 断言表达式 UDF+静态 for 展开为 4 条 sum 赋值与 history(close,i)，条件保留内联后的 UDF 调用，并规划 ma:EMA:3。Rust 的 UDF/循环边界用例断言脚本被接受、UDF 保留在 program.functions、for 以 typed For 保留循环体；本批探针确认 isBull/smooth 形态在 Rust 仍以 PINE_EXPRESSION_INVALID 拒绝（f(x) => … 未进可执行子集）。展开/内联由 PineTS worker 承担（P1 已登记 UDF 参数/多行体缺失）。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-integration-pine -p jftrade-strategy -p jftrade-backtest -p jftrade-assistant -p jftrade-api --all-targets --locked --no-fail-fast -E 'not test(analyze_script_supports_trend_and_stateful_ta_functions)'",
+      "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs::compile_accepts_expression_udf_and_static_for_unroll",
+      "conclusion": "partial：原始脚本成功，保留isBull/smooth两函数与恰五条Rust statement；fast仍为smooth(close,len)，For边界0..3、body仅一条sum reassign，If保留isBull调用与fast历史比较。 Go要求七条展开Let、归一化第八条If及唯一ma:EMA:3 requirement；Rust保留函数与typed For、延迟worker执行，不满足静态展开/inline投影。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(compiler_rejects_original_udf_and_static_loop_failures_before_planning) or test(analysis_rejects_unknown_entry_and_exit_arguments_at_original_source_lines) or test(repeated_function_body_text_preserves_expression_source_columns) or test(udf_call_errors_keep_invocation_lines_and_prevent_indicator_planning) or test(loop_bindings_are_readonly_until_their_own_scope_exits) or test(compile_v14_window_momentum_fixture_keeps_go_requirement_keys) or test(pending_order_calls_preserve_original_stop_limit_and_cancel_arguments) or test(compile_accepts_expression_udf_and_static_for_unroll)'",
       "evidence_type": "partial",
       "source": {
         "file": "pkg/strategy/pine/parse_test.go",
@@ -317423,19 +317419,16 @@
             "goFile": "pkg/strategy/pine/parse_test.go",
             "goLine": 790,
             "rustFile": "crates/jftrade-strategy/src/pine/mod.rs",
-            "rustLine": 495
+            "rustLine": 486
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "partial（本批复核，探针复现）：Go 断言表达式 UDF+静态 for 展开为 4 条 sum 赋值与 history(close,i)，条件保留内联后的 UDF 调用，并规划 ma:EMA:3。",
-          "Rust 的 UDF/循环边界用例断言脚本被接受、UDF 保留在 program.functions、for 以 typed For 保留循环体；",
-          "本批探针确认 isBull/smooth 形态在 Rust 仍以 PINE_EXPRESSION_INVALID 拒绝（f(x) => … 未进可执行子集）。",
-          "展开/内联由 PineTS worker 承担（P1 已登记 UDF 参数/多行体缺失）。"
+          "原始脚本成功，保留isBull/smooth两函数与恰五条Rust statement；fast仍为smooth(close,len)，For边界0..3、body仅一条sum reassign，If保留isBull调用与fast历史比较。"
         ],
         "uncovered": [
-          "未从该结论中拆出独立 Rust 缺口；需按原始 Go 断言与 Rust 测试逐项复核。"
+          "Go要求七条展开Let、归一化第八条If及唯一ma:EMA:3 requirement；Rust保留函数与typed For、延迟worker执行，不满足静态展开/inline投影。"
         ],
         "source": "reviewed"
       },
@@ -317446,49 +317439,49 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-strategy",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(compiler_rejects_original_udf_and_static_loop_failures_before_planning) or test(analysis_rejects_unknown_entry_and_exit_arguments_at_original_source_lines) or test(repeated_function_body_text_preserves_expression_source_columns) or test(udf_call_errors_keep_invocation_lines_and_prevent_indicator_planning) or test(loop_bindings_are_readonly_until_their_own_scope_exits) or test(compile_v14_window_momentum_fixture_keeps_go_requirement_keys) or test(pending_order_calls_preserve_original_stop_limit_and_cancel_arguments) or test(compile_accepts_expression_udf_and_static_for_unroll)"
         ],
         "testFilter": [
           "compile_accepts_expression_udf_and_static_for_unroll"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "5b686e8153a286e6587224185fd49633cebcdd1e",
+        "verifiedAt": "2026-10-07T18:05:12Z",
+        "receiptDigest": "sha256:d08308bcb325b33ea1a0673e4360d630dd41088d6b11be4421e4bbd8cdf76973"
       },
       "risk": "high",
       "owner": "strategy_pine",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
+      "nextAction": "review_original_ir_projection_boundary",
       "blockedBy": [
         "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "partial（本批复核，探针复现）：Go 断言表达式 UDF+静态 for 展开为 4 条 sum 赋值与 history(close,i)，条件保留内联后的 UDF 调用，并规划 ma:EMA:3。",
-        "Rust 的 UDF/循环边界用例断言脚本被接受、UDF 保留在 program.functions、for 以 typed For 保留循环体；",
-        "本批探针确认 isBull/smooth 形态在 Rust 仍以 PINE_EXPRESSION_INVALID 拒绝（f(x) => … 未进可执行子集）。",
-        "展开/内联由 PineTS worker 承担（P1 已登记 UDF 参数/多行体缺失）。"
+        "原始脚本成功，保留isBull/smooth两函数与恰五条Rust statement；fast仍为smooth(close,len)，For边界0..3、body仅一条sum reassign，If保留isBull调用与fast历史比较。"
       ],
       "uncoveredAssertions": [
-        "未从该结论中拆出独立 Rust 缺口；需按原始 Go 断言与 Rust 测试逐项复核。"
+        "Go要求七条展开Let、归一化第八条If及唯一ma:EMA:3 requirement；Rust保留函数与typed For、延迟worker执行，不满足静态展开/inline投影。"
       ],
       "boundaryReason": null
     },
     "pkg/strategy/pine/parse_test.go:838:TestValidateScriptReportsUnsupportedUDFAndStaticForCases": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs::udf_and_loop_boundary_tests::validate_script_reports_supported_udf_and_static_for_boundaries",
-      "conclusion": "partial（本批复核，探针逐例）：Go 的 6 例中 Rust 已对齐 2 例——for i = 0 to 3 by 0 → PINE_LOOP_LIMIT_UNSUPPORTED「for loop step cannot be 0」、for i = 0 to 100 → PINE_LOOP_LIMIT_UNSUPPORTED「for loop expands to more than 100 iterations」。其余 4 例拒绝但码不同：UDF 参数不匹配/递归 UDF 在 Rust 落到 PINE_EXPRESSION_INVALID（Go：PINE_UDF_SIGNATURE_UNSUPPORTED/PINE_UDF_RECURSIVE_UNSUPPORTED），循环变量只读 → PINE_STATEMENT_UNSUPPORTED（Go：PINE_LOOP_VARIABLE_READONLY），unrolled 循环内 ta.sma(...)[i] → PINE_HISTORY_REF_UNSUPPORTED（Go：「assign the function result first」，二者文案一致）。P2 登记 UDF/循环只读诊断码对齐；UDF 运行时归 worker。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-integration-pine -p jftrade-strategy -p jftrade-backtest -p jftrade-assistant -p jftrade-api --all-targets --locked --no-fail-fast -E 'not test(analyze_script_supports_trend_and_stateful_ta_functions)'",
-      "evidence_type": "partial",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-strategy/tests/pine_call_scope_contracts.rs::compiler_rejects_original_udf_and_static_loop_failures_before_planning",
+      "conclusion": "function_exact：六个原始脚本全部拒绝，错误分别包含expects 1 arguments, got 2、recursive user-defined function、for loop step cannot be 0、for loop expands to more than 100 iterations、loop variable \"i\" is read-only、assign the function result first。 Rust公开compile为validation owner，每例额外要求无program且无indicator planning；原838没有断言diagnostic code或行号。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(compiler_rejects_original_udf_and_static_loop_failures_before_planning) or test(analysis_rejects_unknown_entry_and_exit_arguments_at_original_source_lines) or test(repeated_function_body_text_preserves_expression_source_columns) or test(udf_call_errors_keep_invocation_lines_and_prevent_indicator_planning) or test(loop_bindings_are_readonly_until_their_own_scope_exits) or test(compile_v14_window_momentum_fixture_keeps_go_requirement_keys) or test(pending_order_calls_preserve_original_stop_limit_and_cancel_arguments) or test(compile_accepts_expression_udf_and_static_for_unroll)'",
+      "evidence_type": "function_exact",
       "source": {
         "file": "pkg/strategy/pine/parse_test.go",
         "line": 838,
@@ -317497,27 +317490,23 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-strategy/src/pine/mod.rs",
-          "test": "validate_script_reports_supported_udf_and_static_for_boundaries",
+          "file": "crates/jftrade-strategy/tests/pine_call_scope_contracts.rs",
+          "test": "compiler_rejects_original_udf_and_static_loop_failures_before_planning",
           "crate": "jftrade-strategy",
           "anchor": {
             "goFile": "pkg/strategy/pine/parse_test.go",
             "goLine": 838,
-            "rustFile": "crates/jftrade-strategy/src/pine/mod.rs",
-            "rustLine": 537
+            "rustFile": "crates/jftrade-strategy/tests/pine_call_scope_contracts.rs",
+            "rustLine": 3
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "partial（本批复核，探针逐例）：Go 的 6 例中 Rust 已对齐 2 例——for i = 0 to 3 by 0 → PINE_LOOP_LIMIT_UNSUPPORTED「for loop step cannot be 0」、for i = 0 to 100 → PINE_LOOP_LIMIT_UNSUPPORTED「for loop expands to more than 100 iterations」。",
-          "其余 4 例拒绝但码不同：UDF 参数不匹配/递归 UDF 在 Rust 落到 PINE_EXPRESSION_INVALID（Go：PINE_UDF_SIGNATURE_UNSUPPORTED/PINE_UDF_RECURSIVE_UNSUPPORTED），循环变量只读 → PINE_STATEMENT_UNSUPPORTED（Go：PINE_LOOP_VARIABLE_READONLY），unrolled 循环内 ta.sma(...)[i] → PINE_HISTORY_REF_UNSUPPORTED（Go：「assign the function result first」，二者文案一致）。",
-          "P2 登记 UDF/循环只读诊断码对齐；",
-          "UDF 运行时归 worker。"
+          "六个原始脚本全部拒绝，错误分别包含expects 1 arguments, got 2、recursive user-defined function、for loop step cannot be 0、for loop expands to more than 100 iterations、loop variable \"i\" is read-only、assign the function result first。",
+          "Rust公开compile为validation owner，每例额外要求无program且无indicator planning；原838没有断言diagnostic code或行号。"
         ],
-        "uncovered": [
-          "未从该结论中拆出独立 Rust 缺口；需按原始 Go 断言与 Rust 测试逐项复核。"
-        ],
+        "uncovered": [],
         "source": "reviewed"
       },
       "verification": {
@@ -317527,41 +317516,38 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-strategy",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(compiler_rejects_original_udf_and_static_loop_failures_before_planning) or test(analysis_rejects_unknown_entry_and_exit_arguments_at_original_source_lines) or test(repeated_function_body_text_preserves_expression_source_columns) or test(udf_call_errors_keep_invocation_lines_and_prevent_indicator_planning) or test(loop_bindings_are_readonly_until_their_own_scope_exits) or test(compile_v14_window_momentum_fixture_keeps_go_requirement_keys) or test(pending_order_calls_preserve_original_stop_limit_and_cancel_arguments) or test(compile_accepts_expression_udf_and_static_for_unroll)"
         ],
         "testFilter": [
-          "validate_script_reports_supported_udf_and_static_for_boundaries"
+          "compiler_rejects_original_udf_and_static_loop_failures_before_planning"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "5b686e8153a286e6587224185fd49633cebcdd1e",
+        "verifiedAt": "2026-10-07T18:05:12Z",
+        "receiptDigest": "sha256:d08308bcb325b33ea1a0673e4360d630dd41088d6b11be4421e4bbd8cdf76973"
       },
       "risk": "high",
       "owner": "strategy_pine",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "retain_exact_and_reaudit_on_owner_change",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "partial（本批复核，探针逐例）：Go 的 6 例中 Rust 已对齐 2 例——for i = 0 to 3 by 0 → PINE_LOOP_LIMIT_UNSUPPORTED「for loop step cannot be 0」、for i = 0 to 100 → PINE_LOOP_LIMIT_UNSUPPORTED「for loop expands to more than 100 iterations」。",
-        "其余 4 例拒绝但码不同：UDF 参数不匹配/递归 UDF 在 Rust 落到 PINE_EXPRESSION_INVALID（Go：PINE_UDF_SIGNATURE_UNSUPPORTED/PINE_UDF_RECURSIVE_UNSUPPORTED），循环变量只读 → PINE_STATEMENT_UNSUPPORTED（Go：PINE_LOOP_VARIABLE_READONLY），unrolled 循环内 ta.sma(...)[i] → PINE_HISTORY_REF_UNSUPPORTED（Go：「assign the function result first」，二者文案一致）。",
-        "P2 登记 UDF/循环只读诊断码对齐；",
-        "UDF 运行时归 worker。"
+        "六个原始脚本全部拒绝，错误分别包含expects 1 arguments, got 2、recursive user-defined function、for loop step cannot be 0、for loop expands to more than 100 iterations、loop variable \"i\" is read-only、assign the function result first。",
+        "Rust公开compile为validation owner，每例额外要求无program且无indicator planning；原838没有断言diagnostic code或行号。"
       ],
-      "uncoveredAssertions": [
-        "未从该结论中拆出独立 Rust 缺口；需按原始 Go 断言与 Rust 测试逐项复核。"
-      ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "pkg/strategy/pine/parse_test.go:903:TestAnalyzeScriptReportsV33AdvancedLanguageBoundaryDiagnostics": {
@@ -318341,11 +318327,11 @@
       "boundaryReason": null
     },
     "pkg/strategy/pine/parser_and_lowering_recovery_test.go:206:TestOrderCallsRejectUnknownNamedArgumentsBeforePlanning": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-strategy/tests/pine_order_metadata_and_security_rejections.rs::compile_rejects_ambiguous_order_metadata_and_missing_ids",
-      "conclusion": "partial（本批修复）：Rust 现通过 strategy_order_diagnostic 的白名单拒绝未知命名参数，并新增 strategy.entry(..., risk=1) 回归；现有 public compile regression 同时覆盖 entry/exit 的 mystery 参数。保留 partial：Go 测试直接调用 parseStrategyEntry/Exit helper，Rust 证据走 public compile pipeline，调用层对象不同，禁止把聚合回归升为 exact。",
-      "command": "pnpm run test:parity:receipt -- --package jftrade-strategy --test analyze_script_reports_v40_broker_boundary_diagnostics --test compile_rejects_ambiguous_order_metadata_and_missing_ids --output docs/history/go-to-rust/verification-receipts/strategy-pine-boundaries-2026-09-30.json",
-      "evidence_type": "partial",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-strategy/tests/pine_call_scope_contracts.rs::analysis_rejects_unknown_entry_and_exit_arguments_at_original_source_lines",
+      "conclusion": "function_exact：原始entry/exit unknown=1分别置于原60/61行，经公开analyze_script到order参数校验，均拒绝且错误包含argument unknown is not supported。 额外检查错误source line、无IR及无indicator planning；原文只要求两例非空错误和该文案，不要求私有parseState结构。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(compiler_rejects_original_udf_and_static_loop_failures_before_planning) or test(analysis_rejects_unknown_entry_and_exit_arguments_at_original_source_lines) or test(repeated_function_body_text_preserves_expression_source_columns) or test(udf_call_errors_keep_invocation_lines_and_prevent_indicator_planning) or test(loop_bindings_are_readonly_until_their_own_scope_exits) or test(compile_v14_window_momentum_fixture_keeps_go_requirement_keys) or test(pending_order_calls_preserve_original_stop_limit_and_cancel_arguments) or test(compile_accepts_expression_udf_and_static_for_unroll)'",
+      "evidence_type": "function_exact",
       "source": {
         "file": "pkg/strategy/pine/parser_and_lowering_recovery_test.go",
         "line": 206,
@@ -318354,37 +318340,23 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-strategy/src/pine/mod.rs",
-          "test": "analyze_script_reports_v40_broker_boundary_diagnostics",
+          "file": "crates/jftrade-strategy/tests/pine_call_scope_contracts.rs",
+          "test": "analysis_rejects_unknown_entry_and_exit_arguments_at_original_source_lines",
           "crate": "jftrade-strategy",
           "anchor": {
             "goFile": "pkg/strategy/pine/parser_and_lowering_recovery_test.go",
             "goLine": 206,
-            "rustFile": "crates/jftrade-strategy/src/pine/mod.rs",
-            "rustLine": 985
-          }
-        },
-        {
-          "file": "crates/jftrade-strategy/tests/pine_order_metadata_and_security_rejections.rs",
-          "test": "compile_rejects_ambiguous_order_metadata_and_missing_ids",
-          "crate": "jftrade-strategy",
-          "anchor": {
-            "goFile": "pkg/strategy/pine/parser_and_lowering_recovery_test.go",
-            "goLine": 206,
-            "rustFile": "crates/jftrade-strategy/tests/pine_order_metadata_and_security_rejections.rs",
-            "rustLine": 85
+            "rustFile": "crates/jftrade-strategy/tests/pine_call_scope_contracts.rs",
+            "rustLine": 69
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "partial（本批修复）：Rust 现通过 strategy_order_diagnostic 的白名单拒绝未知命名参数，并新增 strategy.entry(..., risk=1) 回归；",
-          "现有 public compile regression 同时覆盖 entry/exit 的 mystery 参数。",
-          "保留 partial：Go 测试直接调用 parseStrategyEntry/Exit helper，Rust 证据走 public compile pipeline，调用层对象不同，禁止把聚合回归升为 exact。"
+          "原始entry/exit unknown=1分别置于原60/61行，经公开analyze_script到order参数校验，均拒绝且错误包含argument unknown is not supported。",
+          "额外检查错误source line、无IR及无indicator planning；原文只要求两例非空错误和该文案，不要求私有parseState结构。"
         ],
-        "uncovered": [
-          "未从该结论中拆出独立 Rust 缺口；需按原始 Go 断言与 Rust 测试逐项复核。"
-        ],
+        "uncovered": [],
         "source": "reviewed"
       },
       "verification": {
@@ -318394,39 +318366,38 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-strategy",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(compiler_rejects_original_udf_and_static_loop_failures_before_planning) or test(analysis_rejects_unknown_entry_and_exit_arguments_at_original_source_lines) or test(repeated_function_body_text_preserves_expression_source_columns) or test(udf_call_errors_keep_invocation_lines_and_prevent_indicator_planning) or test(loop_bindings_are_readonly_until_their_own_scope_exits) or test(compile_v14_window_momentum_fixture_keeps_go_requirement_keys) or test(pending_order_calls_preserve_original_stop_limit_and_cancel_arguments) or test(compile_accepts_expression_udf_and_static_for_unroll)"
         ],
         "testFilter": [
-          "analyze_script_reports_v40_broker_boundary_diagnostics",
-          "compile_rejects_ambiguous_order_metadata_and_missing_ids"
+          "analysis_rejects_unknown_entry_and_exit_arguments_at_original_source_lines"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "5b686e8153a286e6587224185fd49633cebcdd1e",
+        "verifiedAt": "2026-10-07T18:05:12Z",
+        "receiptDigest": "sha256:d08308bcb325b33ea1a0673e4360d630dd41088d6b11be4421e4bbd8cdf76973"
       },
       "risk": "high",
       "owner": "strategy_pine",
       "priority": "P1",
-      "nextAction": "helper_owner_boundary_review",
+      "nextAction": "retain_exact_and_reaudit_on_owner_change",
       "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "partial（本批修复）：Rust 现通过 strategy_order_diagnostic 的白名单拒绝未知命名参数，并新增 strategy.entry(..., risk=1) 回归；",
-        "现有 public compile regression 同时覆盖 entry/exit 的 mystery 参数。",
-        "保留 partial：Go 测试直接调用 parseStrategyEntry/Exit helper，Rust 证据走 public compile pipeline，调用层对象不同，禁止把聚合回归升为 exact。"
+        "原始entry/exit unknown=1分别置于原60/61行，经公开analyze_script到order参数校验，均拒绝且错误包含argument unknown is not supported。",
+        "额外检查错误source line、无IR及无indicator planning；原文只要求两例非空错误和该文案，不要求私有parseState结构。"
       ],
-      "uncoveredAssertions": [
-        "未从该结论中拆出独立 Rust 缺口；需按原始 Go 断言与 Rust 测试逐项复核。"
-      ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "pkg/strategy/pine/parser_and_lowering_recovery_test.go:235:TestSourceAnnotationsAndCommentsKeepTheirSeparateRoles": {
@@ -340652,6 +340623,30 @@
     }
   },
   "reuse": {
+    "crates/jftrade-strategy/src/pine/mod.rs::pending_order_calls_preserve_original_stop_limit_and_cancel_arguments": {
+      "allowed": true,
+      "reviewStatus": "single",
+      "referenceCount": 1,
+      "referenceKeys": [
+        "pkg/strategy/pine/parse_test.go:390:TestCompileSupportsPendingStopAndCancelOrders"
+      ]
+    },
+    "crates/jftrade-strategy/tests/pine_call_scope_contracts.rs::analysis_rejects_unknown_entry_and_exit_arguments_at_original_source_lines": {
+      "allowed": true,
+      "reviewStatus": "single",
+      "referenceCount": 1,
+      "referenceKeys": [
+        "pkg/strategy/pine/parser_and_lowering_recovery_test.go:206:TestOrderCallsRejectUnknownNamedArgumentsBeforePlanning"
+      ]
+    },
+    "crates/jftrade-strategy/tests/pine_call_scope_contracts.rs::compiler_rejects_original_udf_and_static_loop_failures_before_planning": {
+      "allowed": true,
+      "reviewStatus": "single",
+      "referenceCount": 1,
+      "referenceKeys": [
+        "pkg/strategy/pine/parse_test.go:838:TestValidateScriptReportsUnsupportedUDFAndStaticForCases"
+      ]
+    },
     "crates/jftrade-engine/src/product_auth_session_manager_tests.rs::expired_browser_sessions_fail_validation_and_are_pruned_on_restart": {
       "referenceCount": 1,
       "referenceKeys": [
@@ -362025,13 +362020,12 @@
       "reviewNote": "2026-10-02 bounded reuse review: compared all 8 referenceKeys against the shared Rust owner (status mix {'[~]': 8}); assertion scopes are not interchangeable, so reuse remains disallowed and no function_exact row is upgraded by this relation."
     },
     "crates/jftrade-strategy/src/pine/mod.rs::compile_accepts_strategy_order_subset_scripts": {
-      "referenceCount": 8,
+      "referenceCount": 7,
       "referenceKeys": [
         "pkg/strategy/definition/source_format_validation_test.go:8:TestValidateScriptAcceptsPineV6Source",
         "pkg/strategy/pine/parse_test.go:286:TestCompileSupportsStrategyExitSubset",
         "pkg/strategy/pine/parse_test.go:317:TestCompileCapturesWhenExpressionsForWorkflowOrders",
         "pkg/strategy/pine/parse_test.go:348:TestCompileSupportsStrategyExitProfitLossTicks",
-        "pkg/strategy/pine/parse_test.go:390:TestCompileSupportsPendingStopAndCancelOrders",
         "pkg/strategy/pine/parse_test.go:432:TestCompileSupportsCloseAllPositionalMetadata",
         "pkg/strategy/pine/parse_test.go:448:TestCompileSupportsClosePositionalQty",
         "pkg/strategy/pine/parser_and_lowering_recovery_test.go:162:TestOrderAndTupleErrorsPreserveExecutableBoundaries"
@@ -362292,11 +362286,10 @@
       "reviewStatus": "single"
     },
     "crates/jftrade-strategy/tests/pine_order_metadata_and_security_rejections.rs::compile_rejects_ambiguous_order_metadata_and_missing_ids": {
-      "referenceCount": 4,
+      "referenceCount": 3,
       "referenceKeys": [
         "pkg/strategy/ir/planner_test.go:73:TestPlanRequirementsRejectsUnsupportedOrderQuantityMode",
         "pkg/strategy/pine/language_failure_contracts_test.go:239:TestOrderAndTupleHelperContractsKeepTradeInstructionsUnambiguous",
-        "pkg/strategy/pine/parser_and_lowering_recovery_test.go:206:TestOrderCallsRejectUnknownNamedArgumentsBeforePlanning",
         "pkg/strategy/pine/strategy_call_bounds_test.go:98:TestParseStrategyCallRejectsUnsupportedOrderBoundaries"
       ],
       "allowed": true,
@@ -362712,10 +362705,9 @@
       "reviewStatus": "single"
     },
     "crates/jftrade-strategy/src/pine/mod.rs::analyze_script_reports_v40_broker_boundary_diagnostics": {
-      "referenceCount": 3,
+      "referenceCount": 2,
       "referenceKeys": [
         "pkg/strategy/pine/parse_test.go:488:TestAnalyzeScriptReportsV40BrokerBoundaryDiagnostics",
-        "pkg/strategy/pine/parser_and_lowering_recovery_test.go:206:TestOrderCallsRejectUnknownNamedArgumentsBeforePlanning",
         "pkg/strategy/pinespec/spec_test.go:248:TestBuildToolPayloadIncludesBrokerBoundary"
       ],
       "allowed": true,
@@ -362772,9 +362764,8 @@
       "reviewStatus": "single"
     },
     "crates/jftrade-strategy/src/pine/mod.rs::validate_script_reports_supported_udf_and_static_for_boundaries": {
-      "referenceCount": 4,
+      "referenceCount": 3,
       "referenceKeys": [
-        "pkg/strategy/pine/parse_test.go:838:TestValidateScriptReportsUnsupportedUDFAndStaticForCases",
         "pkg/strategy/pine/parse_test.go:903:TestAnalyzeScriptReportsV33AdvancedLanguageBoundaryDiagnostics",
         "pkg/strategy/pine/parser_and_lowering_recovery_test.go:19:TestUDFExpansionRetainsWhitespaceAndUnwindsRejectedArguments",
         "pkg/strategy/pine/parser_recovery_boundaries_test.go:12:TestParserRejectsMalformedUDFAndStatementBoundaries"

@@ -1,0 +1,79 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-strategy",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(compiler_rejects_original_udf_and_static_loop_failures_before_planning) or test(analysis_rejects_unknown_entry_and_exit_arguments_at_original_source_lines) or test(repeated_function_body_text_preserves_expression_source_columns) or test(udf_call_errors_keep_invocation_lines_and_prevent_indicator_planning) or test(loop_bindings_are_readonly_until_their_own_scope_exits)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-10-07T18:01:54Z",
+  "sourceState": {
+    "verifiedCommit": "5b686e8153a286e6587224185fd49633cebcdd1e",
+    "trackedDiffSha256": "524f1fd86cd3ed2f1546b1906be9d1b345a50e55d6d360c45ec6624214585acd",
+    "untrackedFiles": [
+      {
+        "path": "crates/jftrade-strategy/src/pine/semantic_call_scope.rs",
+        "sha256": "42da3fe1670cd2923befd6a0eddd3ae2ac3ecb1945c0468351bfe592623f8d5b"
+      },
+      {
+        "path": "crates/jftrade-strategy/tests/pine_call_scope_contracts.rs",
+        "sha256": "6d77338e7b77fc4ca59dfc0ac39abfe887afbaabc97c67d454dcaf4fec6b3c64"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/pine-call-scope-original-red-2026-10-08.json",
+        "sha256": "ae998ad6170b7a8d6a1e36c18a834fd93b9d62baf90ba933d5b9c7aaf7cc2e3f"
+      }
+    ]
+  },
+  "rawOutputSha256": "3f51c2374d817e2373fce73d9c2e9bf0060804de345d03ea8077620772e475a0",
+  "passedTests": [
+    "jftrade-strategy::pine_call_scope_contracts$analysis_rejects_unknown_entry_and_exit_arguments_at_original_source_lines",
+    "jftrade-strategy::pine_call_scope_contracts$compiler_rejects_original_udf_and_static_loop_failures_before_planning",
+    "jftrade-strategy::pine_call_scope_contracts$loop_bindings_are_readonly_until_their_own_scope_exits",
+    "jftrade-strategy::pine_call_scope_contracts$repeated_function_body_text_preserves_expression_source_columns",
+    "jftrade-strategy::pine_call_scope_contracts$udf_call_errors_keep_invocation_lines_and_prevent_indicator_planning"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 5,
+      "nextest": {
+        "crate": "jftrade-strategy",
+        "test_binary": "pine_call_scope_contracts",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 0,
+      "exec_time": 0.074437918,
+      "nextest": {
+        "crate": "jftrade-strategy",
+        "test_binary": "pine_call_scope_contracts",
+        "kind": "test"
+      }
+    }
+  ]
+}
