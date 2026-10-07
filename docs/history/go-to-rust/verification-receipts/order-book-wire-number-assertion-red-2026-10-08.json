@@ -1,0 +1,134 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "-p",
+    "jftrade-integration-futu",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(order_book_pushes_with_zero_best_prices_do_not_publish_deeper_levels) or test(order_book_pushes_emit_one_original_best_bid_ask_snapshot) or test(order_book_pushes_publish_when_either_best_side_has_a_price) or test(order_book_original_nvda_wire_projects_name_times_and_both_sides) or test(order_book_rejection_preserves_original_codes_with_rust_error_format) or test(order_book_v108_get_and_push_lock_each_original_field_number) or test(order_book_unsolicited_push_dispatches_while_global_state_rpc_completes)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 100,
+  "status": "failed",
+  "verifiedAt": "2026-10-07T19:14:40Z",
+  "sourceState": {
+    "verifiedCommit": "f489a6bba52605364e0a02bc39db674da6bbd6b4",
+    "trackedDiffSha256": "0757fe9e83af918e1e5efc2a92540409dfca31c483ddcbf58746b7b08bdaf96c",
+    "untrackedFiles": [
+      {
+        "path": "crates/jftrade-integration-futu/src/order_book_parity_tests.rs",
+        "sha256": "e25b4a6908465a1b2735ad095074c24a462d2a304a5798782f0b167376cd26f9"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/order-book-best-price-original-red-2026-10-08.json",
+        "sha256": "83c24339b0036cf49951e0e1f5189ce476d10d607e5c2e69dfaf773fc7c36e2c"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/order-book-wire-build-red-2026-10-08.json",
+        "sha256": "9b9e5456bdefc46f2d4dcbc5f84aafc02c0d15da9d2fbb9ca11474e3bcee96a0"
+      }
+    ]
+  },
+  "rawOutputSha256": "a030b8956853b349655f90a2714f596f4647d1484a414f74881628924023911d",
+  "passedTests": [
+    "jftrade-engine::jftrade_engine$product_runtime::product_runtime_opend_listener_tests::order_book_pushes_emit_one_original_best_bid_ask_snapshot",
+    "jftrade-engine::jftrade_engine$product_runtime::product_runtime_opend_listener_tests::order_book_pushes_publish_when_either_best_side_has_a_price",
+    "jftrade-engine::jftrade_engine$product_runtime::product_runtime_opend_listener_tests::order_book_pushes_with_zero_best_prices_do_not_publish_deeper_levels",
+    "jftrade-integration-futu::jftrade_integration_futu$quote_push::order_book_parity_tests::order_book_rejection_preserves_original_codes_with_rust_error_format",
+    "jftrade-integration-futu::jftrade_integration_futu$quote_push::order_book_parity_tests::order_book_unsolicited_push_dispatches_while_global_state_rpc_completes",
+    "jftrade-integration-futu::jftrade_integration_futu$quote_push::order_book_parity_tests::order_book_v108_get_and_push_lock_each_original_field_number"
+  ],
+  "failedTests": [
+    "jftrade-integration-futu::jftrade_integration_futu$quote_push::order_book_parity_tests::order_book_original_nvda_wire_projects_name_times_and_both_sides"
+  ],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 4,
+      "nextest": {
+        "crate": "jftrade-integration-futu",
+        "test_binary": "jftrade_integration_futu",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 3,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1,
+      "nextest": {
+        "crate": "jftrade-integration-futu",
+        "test_binary": "live_opend_provider_runtime",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1817,
+      "exec_time": 0.067614291,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "failed",
+      "passed": 3,
+      "failed": 1,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 482,
+      "exec_time": 0.075577708,
+      "nextest": {
+        "crate": "jftrade-integration-futu",
+        "test_binary": "jftrade_integration_futu",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 1,
+      "measured": 0,
+      "filtered_out": 18446744073709551615,
+      "exec_time": 0,
+      "nextest": {
+        "crate": "jftrade-integration-futu",
+        "test_binary": "live_opend_provider_runtime",
+        "kind": "test"
+      }
+    }
+  ]
+}

@@ -677,3 +677,7 @@ impl WireOrderBookDetail {
 #[cfg(test)]
 #[path = "quote_push_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "order_book_parity_tests.rs"]
+mod order_book_parity_tests;

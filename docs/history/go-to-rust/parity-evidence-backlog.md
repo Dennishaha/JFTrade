@@ -1,5 +1,18 @@
 # Go → Rust 证据积压清单
 
+## 2026-10-08 Order-book wire 与最佳价发布
+
+- 复核五条partial及既有exact363，共六条mapping。净 **+3 exact / -3 partial / boundary 0**，当前 **1633 / 2178 / 640**。升级原orderbook13的NVDA当前wire布局、proto_v10813的Get/Update字段编号、trading_reads343的同session unsolicited派发；既有exact363改由完整原始HK.00700数值与无重复事件断言直接支持。没有改冻结fixture、generated protobuf、公开schema或依赖。
+- 真实生产修复在composition-held OpenD listener：原实现只检查过滤后的bids/asks数组是否为空，会发布两侧最佳价均零的事件，甚至把原始缺失首档后的深层价作为有效输入。现在检查原始两侧首档，均零/缺失则丢弃；任一侧有效则保留原投影。顺序control marker验证零事件与恰一次完整双侧发布，不用sleep推断队列状态。
+- 最终focused canonical `verification-receipts/order-book-wire-best-price-canonical-2026-10-08.json`：**7 passed / 0 failed / 0 ignored / 2759 filtered/skipped**，SHA-256 `17b053189811a405a98b47d64611d90424f984fc0e37da0360623b4520efe584`。Rust源码、tracked diff及逐文件指纹保存于`/tmp/jftrade-order-book-canonical-source`；之后仅更新mapping/reuse、批次说明与门禁结果。loopback fixture单reader、有界socket读写、显式close/join，握手失败也join；实际GetGlobalState解码与3013推送共用同一已初始化session。
+- 原始生产红receipt `verification-receipts/order-book-best-price-original-red-2026-10-08.json`保留：**2 passed / 1 failed**，SHA-256 `83c24339b0036cf49951e0e1f5189ce476d10d607e5c2e69dfaf773fc7c36e2c`；由canonical的相同零首档回归替代。原生产源码/测试/diff备份于`/tmp/jftrade-order-book-red-source`。
+- 两份测试实现失败也保留原字节：`order-book-wire-build-red-2026-10-08.json`退出101、零测试执行，SHA-256 `9b9e5456bdefc46f2d4dcbc5f84aafc02c0d15da9d2fbb9ca11474e3bcee96a0`，原因是误用不存在的WireTimestamp构造函数；`order-book-wire-number-assertion-red-2026-10-08.json` **6 passed / 1 failed**，SHA-256 `016b05583589854b277c6171681d84aa0052ff1255c55815b4af302ba7873eec`，原因是JSON Number(204.0)与整数比较方式不同。修复测试为实际时间戳parse，并同时断言原proto整数volume与现有wire的精确数值；未改fixture或生产数值投影。两份由最终canonical替代，不记为通过。
+- 两条仍partial：原error94要求的完整Display与Rust typed Rejected格式不同，实际retType1/errCode321/message保持但不升级；原bridge111的既有测试仅证明US内存tick-cache与fixture depth num50转发，仍缺原HK.00700 securityInfo/3203 snapshot/managed subscription/orderBook detail90001、默认num10、RPC次数及零3004/3001副作用的同session闭环。新NVDA样本不能替代该原输入；桥接行保留既有receipt，不声称本批重新执行旧owner测试。
+- 已先查看quick计划；最终focused与独立fmt通过。现场quick、完整Rust与最终审计结果在本批收口时追加。
+- 本批现场quick退出0，日志`/tmp/jftrade-order-book-quick.log`：**2795 passed / 0 failed / 1 skipped**，fmt、Clippy、七类兼容回放、Pine worker **98 passed**与desktop脚本 **48 passed**。strict与AI context退出0，anchor **2113 unique / 2065 recorded / 0 unrecorded / 0 stale / 48 unknown**。六条mapping净变化与4451总数已核对，canonical四份Rust源码指纹仍匹配；完整Rust已启动，未结束前不记通过。
+- 完整Rust首轮`/tmp/jftrade-order-book-rust.log`在target-health退出1，未进入测试。确认无Cargo/rustc进程后，只清理`target/debug/deps/*.rcgu.o`，移除 **54998 files / 7223807344 bytes**，保留库和测试binary；日志`/tmp/jftrade-order-book-cache-clean.log`。一次过早重试`/tmp/jftrade-order-book-rust-clean.log`在清理完成前仍被同一门禁拒绝，亦未执行测试。等待清理明确退出0且target-health通过后，在`/tmp/jftrade-order-book-rust-after-cache-clean.log`重跑，没有放宽阈值。
+- 最终现场完整`pnpm run check:rust`明确退出0：workspace **3812 passed / 0 failed / 2 skipped**，无LEAK；static与七类兼容回放通过。ordinary/strict、AI context、anchor与diff检查通过，提交前四份Rust指纹仍匹配canonical。两个skipped未计入已执行通过。
+
 ## 2026-10-08 Embedded provider research 原始 HTTP 输入
 
 - 五条mapping逐项复核，净 **+1 exact / -1 partial / boundary 0**，当前 **1630 / 2181 / 640**。仅原179升级：同一production product接收原始新闻与US公司行动GET，逐项核对title/brokerId/selectionReason/statement/exDate，并核对helper两次目标及limit5。生产装配实际注入helper，不使用会被composition清除的caller route port。

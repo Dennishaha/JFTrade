@@ -176074,9 +176074,9 @@
     },
     "pkg/futu/exchange_orderbook_test.go:363:TestHandleOrderBookPushEmitsSingleCompleteBookTicker": {
       "status": "[x]",
-      "rust_entry": "crates/jftrade-engine/src/product_runtime_opend_listener_tests.rs::order_book_pushes_no_longer_require_server_receive_times",
-      "conclusion": "function_exact：Go handleOrderBookPush 只要求可解析 security 与非零 best 价，且买卖两侧全零时不推送。修复点：listener 此前要求 serverReceiveTimeBid/Ask 存在，缺失即丢弃整条推送；现缺失时回落本地时钟并投影出含 bids/asks 的完整 depth 事件；bids/asks 均空时按 Go 语义丢弃（order_book_pushes_without_any_price_are_dropped）。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(order_book_pushes)'",
+      "rust_entry": "crates/jftrade-engine/src/product_runtime_opend_listener_tests.rs::order_book_pushes_emit_one_original_best_bid_ask_snapshot",
+      "conclusion": "function_exact：原始HK.00700推送没有server receive time，生成同一完整双侧depth事件：bid700.1/1200、ask700.2/800，symbol保持HK.00700。 顺序control marker证明一次推送恰一个事件，没有拆成半侧事件或重复帧；额外零最佳价/缺失首档及单侧非零回归证明生产listener检查原始首档，不提升深层价格。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-integration-futu --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(order_book_pushes_with_zero_best_prices_do_not_publish_deeper_levels) or test(order_book_pushes_emit_one_original_best_bid_ask_snapshot) or test(order_book_pushes_publish_when_either_best_side_has_a_price) or test(order_book_original_nvda_wire_projects_name_times_and_both_sides) or test(order_book_rejection_preserves_original_codes_with_rust_error_format) or test(order_book_v108_get_and_push_lock_each_original_field_number) or test(order_book_unsolicited_push_dispatches_while_global_state_rpc_completes)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "pkg/futu/exchange_orderbook_test.go",
@@ -176087,19 +176087,20 @@
       "rustEvidence": [
         {
           "file": "crates/jftrade-engine/src/product_runtime_opend_listener_tests.rs",
-          "test": "order_book_pushes_no_longer_require_server_receive_times",
+          "test": "order_book_pushes_emit_one_original_best_bid_ask_snapshot",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "pkg/futu/exchange_orderbook_test.go",
             "goLine": 363,
             "rustFile": "crates/jftrade-engine/src/product_runtime_opend_listener_tests.rs",
-            "rustLine": 164
+            "rustLine": 163
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "function_exact：Go handleOrderBookPush 只要求可解析 security 与非零 best 价，且买卖两侧全零时不推送。修复点：listener 此前要求 serverReceiveTimeBid/Ask 存在，缺失即丢弃整条推送；现缺失时回落本地时钟并投影出含 bids/asks 的完整 depth 事件；bids/asks 均空时按 Go 语义丢弃（order_book_pushes_without_any_price_are_dropped）。"
+          "原始HK.00700推送没有server receive time，生成同一完整双侧depth事件：bid700.1/1200、ask700.2/800，symbol保持HK.00700。",
+          "顺序control marker证明一次推送恰一个事件，没有拆成半侧事件或重复帧；额外零最佳价/缺失首档及单侧非零回归证明生产listener检查原始首档，不提升深层价格。"
         ],
         "uncovered": [],
         "source": "reviewed"
@@ -176111,32 +176112,38 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
+          "-p",
+          "jftrade-integration-futu",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(order_book_pushes_with_zero_best_prices_do_not_publish_deeper_levels) or test(order_book_pushes_emit_one_original_best_bid_ask_snapshot) or test(order_book_pushes_publish_when_either_best_side_has_a_price) or test(order_book_original_nvda_wire_projects_name_times_and_both_sides) or test(order_book_rejection_preserves_original_codes_with_rust_error_format) or test(order_book_v108_get_and_push_lock_each_original_field_number) or test(order_book_unsolicited_push_dispatches_while_global_state_rpc_completes)"
         ],
         "testFilter": [
-          "order_book_pushes_no_longer_require_server_receive_times"
+          "order_book_pushes_emit_one_original_best_bid_ask_snapshot"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "f489a6bba52605364e0a02bc39db674da6bbd6b4",
+        "verifiedAt": "2026-10-07T19:16:36Z",
+        "receiptDigest": "sha256:17b053189811a405a98b47d64611d90424f984fc0e37da0360623b4520efe584"
       },
       "risk": "normal",
       "owner": "futu_opend",
       "priority": "P2",
-      "nextAction": "retain_receipt_and_reaudit",
+      "nextAction": "retain_exact_and_reaudit_on_owner_change",
       "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "function_exact：Go handleOrderBookPush 只要求可解析 security 与非零 best 价，且买卖两侧全零时不推送。修复点：listener 此前要求 serverReceiveTimeBid/Ask 存在，缺失即丢弃整条推送；现缺失时回落本地时钟并投影出含 bids/asks 的完整 depth 事件；bids/asks 均空时按 Go 语义丢弃（order_book_pushes_without_any_price_are_dropped）。"
+        "原始HK.00700推送没有server receive time，生成同一完整双侧depth事件：bid700.1/1200、ask700.2/800，symbol保持HK.00700。",
+        "顺序control marker证明一次推送恰一个事件，没有拆成半侧事件或重复帧；额外零最佳价/缺失首档及单侧非零回归证明生产listener检查原始首档，不提升深层价格。"
       ],
       "uncoveredAssertions": [],
       "boundaryReason": null
@@ -180800,7 +180807,7 @@
     "pkg/futu/marketdata_bridge_success_test.go:111:TestBrokerAdapterSecurityInfoSnapshotAndOrderBookBridge": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::broker_quote_projects_real_futu_tick_cache_for_all_symbols；crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::market_microstructure_depth_forwards_maximum_supported_level",
-      "conclusion": "partial：Rust 覆盖 broker 报价投影与深度读转发；差异：Go 断言 BrokerAdapter 下 security info/snapshot/order book 三个桥接入口的整体成功路径，Rust 拆到报价投影与深度路由两条测试，无单条聚合断言。",
+      "conclusion": "partial：已引用Rust测试仅检查US.AAPL/US.MSFT内存tick-cache报价投影，以及US.AAPL深度路由向fixture port转发num50；不构成原始HK.00700 OpenD snapshot桥接成功证据。 原始HK.00700三入口仍缺securityInfo name/type/lot/delisted、3203 snapshot估值与preMarket/ObservedAt、零3004/3001调用、订单簿订阅后379.9/100与380.1/80及detail90001、四类RPC调用次数和默认num10的同session闭环。新NVDA parser样本不能替代该原输入。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-engine --all-targets --locked",
       "evidence_type": "partial",
       "source": {
@@ -180835,10 +180842,10 @@
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust 覆盖 broker 报价投影与深度读转发；"
+          "已引用Rust测试仅检查US.AAPL/US.MSFT内存tick-cache报价投影，以及US.AAPL深度路由向fixture port转发num50；不构成原始HK.00700 OpenD snapshot桥接成功证据。"
         ],
         "uncovered": [
-          "差异：Go 断言 BrokerAdapter 下 security info/snapshot/order book 三个桥接入口的整体成功路径，Rust 拆到报价投影与深度路由两条测试，无单条聚合断言。"
+          "原始HK.00700三入口仍缺securityInfo name/type/lot/delisted、3203 snapshot估值与preMarket/ObservedAt、零3004/3001调用、订单簿订阅后379.9/100与380.1/80及detail90001、四类RPC调用次数和默认num10的同session闭环。新NVDA parser样本不能替代该原输入。"
         ],
         "source": "reviewed"
       },
@@ -180870,16 +180877,16 @@
       "risk": "normal",
       "owner": "futu_opend",
       "priority": "P2",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
+      "nextAction": "test_security_info_snapshot_and_orderbook_bridge_on_one_session",
       "blockedBy": [
         "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust 覆盖 broker 报价投影与深度读转发；"
+        "已引用Rust测试仅检查US.AAPL/US.MSFT内存tick-cache报价投影，以及US.AAPL深度路由向fixture port转发num50；不构成原始HK.00700 OpenD snapshot桥接成功证据。"
       ],
       "uncoveredAssertions": [
-        "差异：Go 断言 BrokerAdapter 下 security info/snapshot/order book 三个桥接入口的整体成功路径，Rust 拆到报价投影与深度路由两条测试，无单条聚合断言。"
+        "原始HK.00700三入口仍缺securityInfo name/type/lot/delisted、3203 snapshot估值与preMarket/ObservedAt、零3004/3001调用、订单簿订阅后379.9/100与380.1/80及detail90001、四类RPC调用次数和默认num10的同session闭环。新NVDA parser样本不能替代该原输入。"
       ],
       "boundaryReason": null
     },
@@ -185771,11 +185778,11 @@
       "boundaryReason": null
     },
     "pkg/futu/opend/orderbook_test.go:13:TestParseOrderBookResponseCurrentOpenDWireLayout": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-integration-futu/src/market_microstructure_query.rs::order_book_levels_project_price_volume_count_and_details；crates/jftrade-integration-futu/src/order_book_wire.rs::depth_s2c_requires_security_and_level_fields",
-      "conclusion": "partial：Rust 覆盖订单簿挡位投影（价格/量/计数/明细）与 S2C 必填字段校验；差异：Go 断言当前 OpenD wire 布局解析的字段编号样本，Rust 字段编号断言在 proto 契约测试中，本行无同形样本断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-marketdata -p jftrade-trading -p jftrade-calendar -p jftrade-integration-marketdata-helper -p jftrade-settings -p jftrade-kernel -p jftrade-desktop -p jftrade-research -p jftrade-datamanagement -p jftrade-watchlist -p jftrade-store-settings-file -p jftrade-broker --all-targets --locked --no-fail-fast",
-      "evidence_type": "partial",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-integration-futu/src/order_book_parity_tests.rs::order_book_original_nvda_wire_projects_name_times_and_both_sides",
+      "conclusion": "function_exact：冻结NVDA原始wire字段1至8直接进入production framed session与深度reader；security.code=NVDA、name=英伟达、bid/ask时间均2026-06-01 08:24:35.732。 买卖各一档，bid 215.86/204、ask 215.82/34，原始proto整数volume及对外数值投影均逐项检查；一次真实Qot_GetOrderBook请求US.NVDA/num10。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-integration-futu --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(order_book_pushes_with_zero_best_prices_do_not_publish_deeper_levels) or test(order_book_pushes_emit_one_original_best_bid_ask_snapshot) or test(order_book_pushes_publish_when_either_best_side_has_a_price) or test(order_book_original_nvda_wire_projects_name_times_and_both_sides) or test(order_book_rejection_preserves_original_codes_with_rust_error_format) or test(order_book_v108_get_and_push_lock_each_original_field_number) or test(order_book_unsolicited_push_dispatches_while_global_state_rpc_completes)'",
+      "evidence_type": "function_exact",
       "source": {
         "file": "pkg/futu/opend/orderbook_test.go",
         "line": 13,
@@ -185784,35 +185791,23 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-integration-futu/src/market_microstructure_query.rs",
-          "test": "order_book_levels_project_price_volume_count_and_details",
+          "file": "crates/jftrade-integration-futu/src/order_book_parity_tests.rs",
+          "test": "order_book_original_nvda_wire_projects_name_times_and_both_sides",
           "crate": "jftrade-integration-futu",
           "anchor": {
             "goFile": "pkg/futu/opend/orderbook_test.go",
             "goLine": 13,
-            "rustFile": "crates/jftrade-integration-futu/src/market_microstructure_query.rs",
-            "rustLine": 1091
-          }
-        },
-        {
-          "file": "crates/jftrade-integration-futu/src/order_book_wire.rs",
-          "test": "depth_s2c_requires_security_and_level_fields",
-          "crate": "jftrade-integration-futu",
-          "anchor": {
-            "goFile": "pkg/futu/opend/orderbook_test.go",
-            "goLine": 13,
-            "rustFile": "crates/jftrade-integration-futu/src/order_book_wire.rs",
-            "rustLine": 180
+            "rustFile": "crates/jftrade-integration-futu/src/order_book_parity_tests.rs",
+            "rustLine": 183
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust 覆盖订单簿挡位投影（价格/量/计数/明细）与 S2C 必填字段校验；"
+          "冻结NVDA原始wire字段1至8直接进入production framed session与深度reader；security.code=NVDA、name=英伟达、bid/ask时间均2026-06-01 08:24:35.732。",
+          "买卖各一档，bid 215.86/204、ask 215.82/34，原始proto整数volume及对外数值投影均逐项检查；一次真实Qot_GetOrderBook请求US.NVDA/num10。"
         ],
-        "uncovered": [
-          "差异：Go 断言当前 OpenD wire 布局解析的字段编号样本，Rust 字段编号断言在 proto 契约测试中，本行无同形样本断言。"
-        ],
+        "uncovered": [],
         "source": "reviewed"
       },
       "verification": {
@@ -185822,46 +185817,47 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
+          "-p",
+          "jftrade-integration-futu",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(order_book_pushes_with_zero_best_prices_do_not_publish_deeper_levels) or test(order_book_pushes_emit_one_original_best_bid_ask_snapshot) or test(order_book_pushes_publish_when_either_best_side_has_a_price) or test(order_book_original_nvda_wire_projects_name_times_and_both_sides) or test(order_book_rejection_preserves_original_codes_with_rust_error_format) or test(order_book_v108_get_and_push_lock_each_original_field_number) or test(order_book_unsolicited_push_dispatches_while_global_state_rpc_completes)"
         ],
         "testFilter": [
-          "depth_s2c_requires_security_and_level_fields",
-          "order_book_levels_project_price_volume_count_and_details"
+          "order_book_original_nvda_wire_projects_name_times_and_both_sides"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "f489a6bba52605364e0a02bc39db674da6bbd6b4",
+        "verifiedAt": "2026-10-07T19:16:36Z",
+        "receiptDigest": "sha256:17b053189811a405a98b47d64611d90424f984fc0e37da0360623b4520efe584"
       },
       "risk": "normal",
       "owner": "futu_opend",
       "priority": "P2",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "retain_exact_and_reaudit_on_owner_change",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust 覆盖订单簿挡位投影（价格/量/计数/明细）与 S2C 必填字段校验；"
+        "冻结NVDA原始wire字段1至8直接进入production framed session与深度reader；security.code=NVDA、name=英伟达、bid/ask时间均2026-06-01 08:24:35.732。",
+        "买卖各一档，bid 215.86/204、ask 215.82/34，原始proto整数volume及对外数值投影均逐项检查；一次真实Qot_GetOrderBook请求US.NVDA/num10。"
       ],
-      "uncoveredAssertions": [
-        "差异：Go 断言当前 OpenD wire 布局解析的字段编号样本，Rust 字段编号断言在 proto 契约测试中，本行无同形样本断言。"
-      ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "pkg/futu/opend/orderbook_test.go:94:TestParseOrderBookResponseError": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-integration-futu/src/market_microstructure_query.rs::order_book_levels_fail_closed_on_negative_volume_and_non_finite_price；crates/jftrade-integration-futu/src/order_book_wire.rs::required_scan_reports_absent_and_malformed_fields",
-      "conclusion": "partial：Rust 覆盖负量/非有限价格 fail-closed 与字段缺失/畸形上报；差异：Go 断言订单簿解析错误路径（无效响应体/错误返回码）的统一错误结果，Rust 断言形态不同。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-marketdata -p jftrade-trading -p jftrade-calendar -p jftrade-integration-marketdata-helper -p jftrade-settings -p jftrade-kernel -p jftrade-desktop -p jftrade-research -p jftrade-datamanagement -p jftrade-watchlist -p jftrade-store-settings-file -p jftrade-broker --all-targets --locked --no-fail-fast",
+      "rust_entry": "crates/jftrade-integration-futu/src/order_book_parity_tests.rs::order_book_rejection_preserves_original_codes_with_rust_error_format",
+      "conclusion": "partial：原始retType1/errCode321/retMsg bad order book通过真实Qot_GetOrderBook framed响应触发typed Rejected，operation及三个原字段均保持。 实际Display为OpenD Qot_GetOrderBook request rejected retType=1 errCode=321: bad order book。 原文要求完整字符串opend Qot_GetOrderBook retType=1 errCode=321 retMsg=bad order book；Rust typed错误的Display不同，保留partial，不改错误契约来掩盖差异。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-integration-futu --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(order_book_pushes_with_zero_best_prices_do_not_publish_deeper_levels) or test(order_book_pushes_emit_one_original_best_bid_ask_snapshot) or test(order_book_pushes_publish_when_either_best_side_has_a_price) or test(order_book_original_nvda_wire_projects_name_times_and_both_sides) or test(order_book_rejection_preserves_original_codes_with_rust_error_format) or test(order_book_v108_get_and_push_lock_each_original_field_number) or test(order_book_unsolicited_push_dispatches_while_global_state_rpc_completes)'",
       "evidence_type": "partial",
       "source": {
         "file": "pkg/futu/opend/orderbook_test.go",
@@ -185871,34 +185867,24 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-integration-futu/src/market_microstructure_query.rs",
-          "test": "order_book_levels_fail_closed_on_negative_volume_and_non_finite_price",
+          "file": "crates/jftrade-integration-futu/src/order_book_parity_tests.rs",
+          "test": "order_book_rejection_preserves_original_codes_with_rust_error_format",
           "crate": "jftrade-integration-futu",
           "anchor": {
             "goFile": "pkg/futu/opend/orderbook_test.go",
             "goLine": 94,
-            "rustFile": "crates/jftrade-integration-futu/src/market_microstructure_query.rs",
-            "rustLine": 1199
-          }
-        },
-        {
-          "file": "crates/jftrade-integration-futu/src/order_book_wire.rs",
-          "test": "required_scan_reports_absent_and_malformed_fields",
-          "crate": "jftrade-integration-futu",
-          "anchor": {
-            "goFile": "pkg/futu/opend/orderbook_test.go",
-            "goLine": 94,
-            "rustFile": "crates/jftrade-integration-futu/src/order_book_wire.rs",
-            "rustLine": 169
+            "rustFile": "crates/jftrade-integration-futu/src/order_book_parity_tests.rs",
+            "rustLine": 218
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust 覆盖负量/非有限价格 fail-closed 与字段缺失/畸形上报；"
+          "原始retType1/errCode321/retMsg bad order book通过真实Qot_GetOrderBook framed响应触发typed Rejected，operation及三个原字段均保持。",
+          "实际Display为OpenD Qot_GetOrderBook request rejected retType=1 errCode=321: bad order book。"
         ],
         "uncovered": [
-          "差异：Go 断言订单簿解析错误路径（无效响应体/错误返回码）的统一错误结果，Rust 断言形态不同。"
+          "原文要求完整字符串opend Qot_GetOrderBook retType=1 errCode=321 retMsg=bad order book；Rust typed错误的Display不同，保留partial，不改错误契约来掩盖差异。"
         ],
         "source": "reviewed"
       },
@@ -185909,38 +185895,43 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
+          "-p",
+          "jftrade-integration-futu",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(order_book_pushes_with_zero_best_prices_do_not_publish_deeper_levels) or test(order_book_pushes_emit_one_original_best_bid_ask_snapshot) or test(order_book_pushes_publish_when_either_best_side_has_a_price) or test(order_book_original_nvda_wire_projects_name_times_and_both_sides) or test(order_book_rejection_preserves_original_codes_with_rust_error_format) or test(order_book_v108_get_and_push_lock_each_original_field_number) or test(order_book_unsolicited_push_dispatches_while_global_state_rpc_completes)"
         ],
         "testFilter": [
-          "order_book_levels_fail_closed_on_negative_volume_and_non_finite_price",
-          "required_scan_reports_absent_and_malformed_fields"
+          "order_book_rejection_preserves_original_codes_with_rust_error_format"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "f489a6bba52605364e0a02bc39db674da6bbd6b4",
+        "verifiedAt": "2026-10-07T19:16:36Z",
+        "receiptDigest": "sha256:17b053189811a405a98b47d64611d90424f984fc0e37da0360623b4520efe584"
       },
       "risk": "normal",
       "owner": "futu_opend",
       "priority": "P2",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
+      "nextAction": "review_typed_error_display_difference",
       "blockedBy": [
         "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust 覆盖负量/非有限价格 fail-closed 与字段缺失/畸形上报；"
+        "原始retType1/errCode321/retMsg bad order book通过真实Qot_GetOrderBook framed响应触发typed Rejected，operation及三个原字段均保持。",
+        "实际Display为OpenD Qot_GetOrderBook request rejected retType=1 errCode=321: bad order book。"
       ],
       "uncoveredAssertions": [
-        "差异：Go 断言订单簿解析错误路径（无效响应体/错误返回码）的统一错误结果，Rust 断言形态不同。"
+        "原文要求完整字符串opend Qot_GetOrderBook retType=1 errCode=321 retMsg=bad order book；Rust typed错误的Display不同，保留partial，不改错误契约来掩盖差异。"
       ],
       "boundaryReason": null
     },
@@ -186083,11 +186074,11 @@
       "boundaryReason": null
     },
     "pkg/futu/opend/proto_v108_contract_test.go:13:TestProto108OrderBookFieldNumbers": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-integration-futu/src/order_book_wire.rs::depth_s2c_requires_security_and_level_fields；crates/jftrade-integration-futu/src/frame.rs::encode_decode_round_trip_matches_opend_wire",
-      "conclusion": "partial：Rust 覆盖订单簿 S2C 字段要求与帧编解码往返；差异：Go 断言 proto v108 订单簿字段编号契约（与 wire 布局一一对应），Rust 侧字段编号断言依赖生成的 proto 类型，未显式锁定编号。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-marketdata -p jftrade-trading -p jftrade-calendar -p jftrade-integration-marketdata-helper -p jftrade-settings -p jftrade-kernel -p jftrade-desktop -p jftrade-research -p jftrade-datamanagement -p jftrade-watchlist -p jftrade-store-settings-file -p jftrade-broker --all-targets --locked --no-fail-fast",
-      "evidence_type": "partial",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-integration-futu/src/order_book_parity_tests.rs::order_book_v108_get_and_push_lock_each_original_field_number",
+      "conclusion": "function_exact：用独立手写tag的原始wire锁定C2S orderBookType=4，以及Get/Update S2C ask=2、bid=3、bidTime=4、askTime=6、name=8、orderBookType=9。 生产generated Get编码和production push编码分别与同一独立wire逐字节比较，并逐项检查解码值；买卖、时间及数量采用不同值，避免同源round-trip掩盖编号互换。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-integration-futu --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(order_book_pushes_with_zero_best_prices_do_not_publish_deeper_levels) or test(order_book_pushes_emit_one_original_best_bid_ask_snapshot) or test(order_book_pushes_publish_when_either_best_side_has_a_price) or test(order_book_original_nvda_wire_projects_name_times_and_both_sides) or test(order_book_rejection_preserves_original_codes_with_rust_error_format) or test(order_book_v108_get_and_push_lock_each_original_field_number) or test(order_book_unsolicited_push_dispatches_while_global_state_rpc_completes)'",
+      "evidence_type": "function_exact",
       "source": {
         "file": "pkg/futu/opend/proto_v108_contract_test.go",
         "line": 13,
@@ -186096,35 +186087,23 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-integration-futu/src/order_book_wire.rs",
-          "test": "depth_s2c_requires_security_and_level_fields",
+          "file": "crates/jftrade-integration-futu/src/order_book_parity_tests.rs",
+          "test": "order_book_v108_get_and_push_lock_each_original_field_number",
           "crate": "jftrade-integration-futu",
           "anchor": {
             "goFile": "pkg/futu/opend/proto_v108_contract_test.go",
             "goLine": 13,
-            "rustFile": "crates/jftrade-integration-futu/src/order_book_wire.rs",
-            "rustLine": 180
-          }
-        },
-        {
-          "file": "crates/jftrade-integration-futu/src/frame.rs",
-          "test": "encode_decode_round_trip_matches_opend_wire",
-          "crate": "jftrade-integration-futu",
-          "anchor": {
-            "goFile": "pkg/futu/opend/proto_v108_contract_test.go",
-            "goLine": 13,
-            "rustFile": "crates/jftrade-integration-futu/src/frame.rs",
-            "rustLine": 101
+            "rustFile": "crates/jftrade-integration-futu/src/order_book_parity_tests.rs",
+            "rustLine": 243
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust 覆盖订单簿 S2C 字段要求与帧编解码往返；"
+          "用独立手写tag的原始wire锁定C2S orderBookType=4，以及Get/Update S2C ask=2、bid=3、bidTime=4、askTime=6、name=8、orderBookType=9。",
+          "生产generated Get编码和production push编码分别与同一独立wire逐字节比较，并逐项检查解码值；买卖、时间及数量采用不同值，避免同源round-trip掩盖编号互换。"
         ],
-        "uncovered": [
-          "差异：Go 断言 proto v108 订单簿字段编号契约（与 wire 布局一一对应），Rust 侧字段编号断言依赖生成的 proto 类型，未显式锁定编号。"
-        ],
+        "uncovered": [],
         "source": "reviewed"
       },
       "verification": {
@@ -186134,39 +186113,40 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
+          "-p",
+          "jftrade-integration-futu",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(order_book_pushes_with_zero_best_prices_do_not_publish_deeper_levels) or test(order_book_pushes_emit_one_original_best_bid_ask_snapshot) or test(order_book_pushes_publish_when_either_best_side_has_a_price) or test(order_book_original_nvda_wire_projects_name_times_and_both_sides) or test(order_book_rejection_preserves_original_codes_with_rust_error_format) or test(order_book_v108_get_and_push_lock_each_original_field_number) or test(order_book_unsolicited_push_dispatches_while_global_state_rpc_completes)"
         ],
         "testFilter": [
-          "depth_s2c_requires_security_and_level_fields",
-          "encode_decode_round_trip_matches_opend_wire"
+          "order_book_v108_get_and_push_lock_each_original_field_number"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "f489a6bba52605364e0a02bc39db674da6bbd6b4",
+        "verifiedAt": "2026-10-07T19:16:36Z",
+        "receiptDigest": "sha256:17b053189811a405a98b47d64611d90424f984fc0e37da0360623b4520efe584"
       },
       "risk": "normal",
       "owner": "futu_opend",
       "priority": "P2",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "retain_exact_and_reaudit_on_owner_change",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust 覆盖订单簿 S2C 字段要求与帧编解码往返；"
+        "用独立手写tag的原始wire锁定C2S orderBookType=4，以及Get/Update S2C ask=2、bid=3、bidTime=4、askTime=6、name=8、orderBookType=9。",
+        "生产generated Get编码和production push编码分别与同一独立wire逐字节比较，并逐项检查解码值；买卖、时间及数量采用不同值，避免同源round-trip掩盖编号互换。"
       ],
-      "uncoveredAssertions": [
-        "差异：Go 断言 proto v108 订单簿字段编号契约（与 wire 布局一一对应），Rust 侧字段编号断言依赖生成的 proto 类型，未显式锁定编号。"
-      ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "pkg/futu/opend/proto_v108_contract_test.go:29:TestProto108NotifyFieldNumbers": {
@@ -188032,11 +188012,11 @@
       "boundaryReason": null
     },
     "pkg/futu/opend/trading_reads_contracts_test.go:343:TestSubscribeOrderBookDispatchesSuccessfulPushes": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-integration-futu/src/subscription_executor.rs::hk_order_book_subscribe_requests_detail_and_registers_push；crates/jftrade-integration-futu/src/quote_push_tests.rs::decodes_basic_kline_and_order_book_pushes_with_go_field_semantics",
-      "conclusion": "partial：Rust 覆盖港股订单簿订阅请求与推送解码（字段语义）；差异：Go 断言订阅订单簿后成功推送被分发到处理器（端到端派发），Rust 断言注册与解码两段，未串联派发断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-marketdata -p jftrade-trading -p jftrade-calendar -p jftrade-integration-marketdata-helper -p jftrade-settings -p jftrade-kernel -p jftrade-desktop -p jftrade-research -p jftrade-datamanagement -p jftrade-watchlist -p jftrade-store-settings-file -p jftrade-broker --all-targets --locked --no-fail-fast",
-      "evidence_type": "partial",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-integration-futu/src/order_book_parity_tests.rs::order_book_unsolicited_push_dispatches_while_global_state_rpc_completes",
+      "conclusion": "function_exact：真实初始化session的单reader在GetGlobalState响应之前接收原始3013 unsolicited帧；实际OpenDTcpProbe::probe_initialized请求并成功解码原serverVer900/build5008返回。 coordinator从同一session派发OrderBook typed outcome，security HK/00700、bid数量1、price321.5/volume500/orderCount1逐项保持；RPC恰一次，下一次poll为Idle，无重复推送。Rust通过公开typed outcome交付替代Go注册callback后的channel交付，原始输入与输出断言全部满足。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-integration-futu --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(order_book_pushes_with_zero_best_prices_do_not_publish_deeper_levels) or test(order_book_pushes_emit_one_original_best_bid_ask_snapshot) or test(order_book_pushes_publish_when_either_best_side_has_a_price) or test(order_book_original_nvda_wire_projects_name_times_and_both_sides) or test(order_book_rejection_preserves_original_codes_with_rust_error_format) or test(order_book_v108_get_and_push_lock_each_original_field_number) or test(order_book_unsolicited_push_dispatches_while_global_state_rpc_completes)'",
+      "evidence_type": "function_exact",
       "source": {
         "file": "pkg/futu/opend/trading_reads_contracts_test.go",
         "line": 343,
@@ -188045,35 +188025,23 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-integration-futu/src/subscription_executor.rs",
-          "test": "hk_order_book_subscribe_requests_detail_and_registers_push",
+          "file": "crates/jftrade-integration-futu/src/order_book_parity_tests.rs",
+          "test": "order_book_unsolicited_push_dispatches_while_global_state_rpc_completes",
           "crate": "jftrade-integration-futu",
           "anchor": {
             "goFile": "pkg/futu/opend/trading_reads_contracts_test.go",
             "goLine": 343,
-            "rustFile": "crates/jftrade-integration-futu/src/subscription_executor.rs",
-            "rustLine": 444
-          }
-        },
-        {
-          "file": "crates/jftrade-integration-futu/src/quote_push_tests.rs",
-          "test": "decodes_basic_kline_and_order_book_pushes_with_go_field_semantics",
-          "crate": "jftrade-integration-futu",
-          "anchor": {
-            "goFile": "pkg/futu/opend/trading_reads_contracts_test.go",
-            "goLine": 343,
-            "rustFile": "crates/jftrade-integration-futu/src/quote_push_tests.rs",
-            "rustLine": 13
+            "rustFile": "crates/jftrade-integration-futu/src/order_book_parity_tests.rs",
+            "rustLine": 303
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust 覆盖港股订单簿订阅请求与推送解码（字段语义）；"
+          "真实初始化session的单reader在GetGlobalState响应之前接收原始3013 unsolicited帧；实际OpenDTcpProbe::probe_initialized请求并成功解码原serverVer900/build5008返回。",
+          "coordinator从同一session派发OrderBook typed outcome，security HK/00700、bid数量1、price321.5/volume500/orderCount1逐项保持；RPC恰一次，下一次poll为Idle，无重复推送。Rust通过公开typed outcome交付替代Go注册callback后的channel交付，原始输入与输出断言全部满足。"
         ],
-        "uncovered": [
-          "差异：Go 断言订阅订单簿后成功推送被分发到处理器（端到端派发），Rust 断言注册与解码两段，未串联派发断言。"
-        ],
+        "uncovered": [],
         "source": "reviewed"
       },
       "verification": {
@@ -188083,39 +188051,40 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
+          "-p",
+          "jftrade-integration-futu",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(order_book_pushes_with_zero_best_prices_do_not_publish_deeper_levels) or test(order_book_pushes_emit_one_original_best_bid_ask_snapshot) or test(order_book_pushes_publish_when_either_best_side_has_a_price) or test(order_book_original_nvda_wire_projects_name_times_and_both_sides) or test(order_book_rejection_preserves_original_codes_with_rust_error_format) or test(order_book_v108_get_and_push_lock_each_original_field_number) or test(order_book_unsolicited_push_dispatches_while_global_state_rpc_completes)"
         ],
         "testFilter": [
-          "decodes_basic_kline_and_order_book_pushes_with_go_field_semantics",
-          "hk_order_book_subscribe_requests_detail_and_registers_push"
+          "order_book_unsolicited_push_dispatches_while_global_state_rpc_completes"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "f489a6bba52605364e0a02bc39db674da6bbd6b4",
+        "verifiedAt": "2026-10-07T19:16:36Z",
+        "receiptDigest": "sha256:17b053189811a405a98b47d64611d90424f984fc0e37da0360623b4520efe584"
       },
       "risk": "normal",
       "owner": "futu_opend",
       "priority": "P2",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "retain_exact_and_reaudit_on_owner_change",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust 覆盖港股订单簿订阅请求与推送解码（字段语义）；"
+        "真实初始化session的单reader在GetGlobalState响应之前接收原始3013 unsolicited帧；实际OpenDTcpProbe::probe_initialized请求并成功解码原serverVer900/build5008返回。",
+        "coordinator从同一session派发OrderBook typed outcome，security HK/00700、bid数量1、price321.5/volume500/orderCount1逐项保持；RPC恰一次，下一次poll为Idle，无重复推送。Rust通过公开typed outcome交付替代Go注册callback后的channel交付，原始输入与输出断言全部满足。"
       ],
-      "uncoveredAssertions": [
-        "差异：Go 断言订阅订单簿后成功推送被分发到处理器（端到端派发），Rust 断言注册与解码两段，未串联派发断言。"
-      ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "pkg/futu/opend/trading_write_boundaries_test.go:17:TestTradeWriteMethodsEnforcePrerequisitesAndDisconnectedState": {
@@ -347260,8 +347229,8 @@
       "referenceCount": 3,
       "referenceKeys": [
         "internal/app/apiserver/servercoretest/broker_new_test.go:237:TestBrokerReadRoutesKeepValidDisconnectedShape",
-        "pkg/futu/marketdata_bridge_success_test.go:111:TestBrokerAdapterSecurityInfoSnapshotAndOrderBookBridge",
-        "internal/trading/broker_test.go:186:TestServiceBrokerReadOperationsMapSnapshotsAndQueries"
+        "internal/trading/broker_test.go:186:TestServiceBrokerReadOperationsMapSnapshotsAndQueries",
+        "pkg/futu/marketdata_bridge_success_test.go:111:TestBrokerAdapterSecurityInfoSnapshotAndOrderBookBridge"
       ],
       "allowed": false,
       "reviewStatus": "reviewed",
@@ -354187,10 +354156,9 @@
       "reviewStatus": "reviewed"
     },
     "crates/jftrade-integration-futu/src/market_microstructure_query.rs::order_book_levels_project_price_volume_count_and_details": {
-      "referenceCount": 4,
+      "referenceCount": 3,
       "referenceKeys": [
         "pkg/futu/adapter_new_methods_test.go:431:TestOrderBookLevelFromPb",
-        "pkg/futu/opend/orderbook_test.go:13:TestParseOrderBookResponseCurrentOpenDWireLayout",
         "pkg/bbgo/types/price_volume_slice_test.go:11:TestPriceVolumeSlice_UnmarshalJSON",
         "pkg/bbgo/types/rbtorderbook_test.go:10:TestRBOrderBook_EmptyBook"
       ],
@@ -354735,11 +354703,10 @@
       "reviewStatus": "reviewed"
     },
     "crates/jftrade-integration-futu/src/frame.rs::encode_decode_round_trip_matches_opend_wire": {
-      "referenceCount": 3,
+      "referenceCount": 2,
       "referenceKeys": [
         "pkg/futu/codec/frame_test.go:8:TestEncodeDecodeRoundTrip",
-        "pkg/futu/live_opend_test.go:18:TestLiveOpenDProto108Contract",
-        "pkg/futu/opend/proto_v108_contract_test.go:13:TestProto108OrderBookFieldNumbers"
+        "pkg/futu/live_opend_test.go:18:TestLiveOpenDProto108Contract"
       ],
       "allowed": true,
       "reviewStatus": "reviewed"
@@ -355117,10 +355084,9 @@
       "reviewStatus": "single"
     },
     "crates/jftrade-integration-futu/src/subscription_executor.rs::hk_order_book_subscribe_requests_detail_and_registers_push": {
-      "referenceCount": 3,
+      "referenceCount": 2,
       "referenceKeys": [
         "pkg/futu/exchange_orderbook_test.go:214:TestGroupOrderBookRequestsForPushSingleHKBatchNeedsDetail",
-        "pkg/futu/opend/trading_reads_contracts_test.go:343:TestSubscribeOrderBookDispatchesSuccessfulPushes",
         "pkg/futu/stream_connection_quote_boundaries_test.go:292:TestOrderBookStreamConnectionBoundaries"
       ],
       "allowed": true,
@@ -355143,14 +355109,6 @@
       ],
       "allowed": true,
       "reviewStatus": "reviewed"
-    },
-    "crates/jftrade-engine/src/product_runtime_opend_listener_tests.rs::order_book_pushes_no_longer_require_server_receive_times": {
-      "referenceCount": 1,
-      "referenceKeys": [
-        "pkg/futu/exchange_orderbook_test.go:363:TestHandleOrderBookPushEmitsSingleCompleteBookTicker"
-      ],
-      "allowed": true,
-      "reviewStatus": "single"
     },
     "crates/jftrade-integration-futu/src/trade_session_tests.rs::subscribe_trade_accounts_propagates_opend_rejection": {
       "referenceCount": 2,
@@ -355977,13 +355935,12 @@
       "reviewStatus": "reviewed"
     },
     "crates/jftrade-integration-futu/src/quote_push_tests.rs::decodes_basic_kline_and_order_book_pushes_with_go_field_semantics": {
-      "referenceCount": 2,
+      "referenceCount": 1,
       "referenceKeys": [
-        "pkg/futu/opend/new_methods_test.go:419:TestSubscribeBasicQot",
-        "pkg/futu/opend/trading_reads_contracts_test.go:343:TestSubscribeOrderBookDispatchesSuccessfulPushes"
+        "pkg/futu/opend/new_methods_test.go:419:TestSubscribeBasicQot"
       ],
       "allowed": false,
-      "reviewStatus": "reviewed",
+      "reviewStatus": "single",
       "reviewNote": "2026-10-02 bounded reuse review: compared all 2 referenceKeys against the shared Rust owner (status mix {'[~]': 2}); assertion scopes are not interchangeable, so reuse remains disallowed and no function_exact row is upgraded by this relation."
     },
     "crates/jftrade-integration-futu/src/kline_query.rs::get_kl_maps_name_and_klines_for_a_valid_response": {
@@ -356164,34 +356121,22 @@
       "allowed": true,
       "reviewStatus": "single"
     },
-    "crates/jftrade-integration-futu/src/order_book_wire.rs::depth_s2c_requires_security_and_level_fields": {
-      "referenceCount": 2,
-      "referenceKeys": [
-        "pkg/futu/opend/orderbook_test.go:13:TestParseOrderBookResponseCurrentOpenDWireLayout",
-        "pkg/futu/opend/proto_v108_contract_test.go:13:TestProto108OrderBookFieldNumbers"
-      ],
-      "allowed": false,
-      "reviewStatus": "reviewed",
-      "reviewNote": "2026-10-02 bounded reuse review: compared all 2 referenceKeys against the shared Rust owner (status mix {'[~]': 2}); assertion scopes are not interchangeable, so reuse remains disallowed and no function_exact row is upgraded by this relation."
-    },
     "crates/jftrade-integration-futu/src/market_microstructure_query.rs::order_book_levels_fail_closed_on_negative_volume_and_non_finite_price": {
-      "referenceCount": 2,
+      "referenceCount": 1,
       "referenceKeys": [
-        "pkg/futu/opend/orderbook_test.go:94:TestParseOrderBookResponseError",
         "pkg/bbgo/types/rbtorderbook_test.go:43:TestRBOrderBook_LoadAndDelete"
       ],
       "allowed": false,
-      "reviewStatus": "reviewed",
+      "reviewStatus": "single",
       "reviewNote": "2026-10-02 bounded reuse review: compared all 2 referenceKeys against the shared Rust owner (status mix {'[~]': 2}); assertion scopes are not interchangeable, so reuse remains disallowed and no function_exact row is upgraded by this relation."
     },
     "crates/jftrade-integration-futu/src/order_book_wire.rs::required_scan_reports_absent_and_malformed_fields": {
-      "referenceCount": 2,
+      "referenceCount": 1,
       "referenceKeys": [
-        "pkg/futu/opend/orderbook_test.go:94:TestParseOrderBookResponseError",
         "pkg/bbgo/types/orderbook_test.go:99:TestOrderBook_IsValid"
       ],
       "allowed": false,
-      "reviewStatus": "reviewed",
+      "reviewStatus": "single",
       "reviewNote": "2026-10-02 bounded reuse review: compared all 2 referenceKeys against the shared Rust owner (status mix {'[~]': 2}); assertion scopes are not interchangeable, so reuse remains disallowed and no function_exact row is upgraded by this relation."
     },
     "crates/jftrade-integration-futu/tests/prediction_push_stream.rs::prediction_registry_registration_after_noop_slots_still_delivers": {
@@ -364861,6 +364806,46 @@
         "internal/app/apiserver/servercoretest/execution_routes_test.go:110:TestExecutionOrdersEndpointDefaultTradingEnvironmentFromSettings"
       ],
       "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-integration-futu/src/order_book_parity_tests.rs::order_book_v108_get_and_push_lock_each_original_field_number": {
+      "allowed": true,
+      "referenceCount": 1,
+      "referenceKeys": [
+        "pkg/futu/opend/proto_v108_contract_test.go:13:TestProto108OrderBookFieldNumbers"
+      ],
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_runtime_opend_listener_tests.rs::order_book_pushes_emit_one_original_best_bid_ask_snapshot": {
+      "allowed": true,
+      "referenceCount": 1,
+      "referenceKeys": [
+        "pkg/futu/exchange_orderbook_test.go:363:TestHandleOrderBookPushEmitsSingleCompleteBookTicker"
+      ],
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-integration-futu/src/order_book_parity_tests.rs::order_book_rejection_preserves_original_codes_with_rust_error_format": {
+      "allowed": true,
+      "referenceCount": 1,
+      "referenceKeys": [
+        "pkg/futu/opend/orderbook_test.go:94:TestParseOrderBookResponseError"
+      ],
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-integration-futu/src/order_book_parity_tests.rs::order_book_original_nvda_wire_projects_name_times_and_both_sides": {
+      "allowed": true,
+      "referenceCount": 1,
+      "referenceKeys": [
+        "pkg/futu/opend/orderbook_test.go:13:TestParseOrderBookResponseCurrentOpenDWireLayout"
+      ],
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-integration-futu/src/order_book_parity_tests.rs::order_book_unsolicited_push_dispatches_while_global_state_rpc_completes": {
+      "allowed": true,
+      "referenceCount": 1,
+      "referenceKeys": [
+        "pkg/futu/opend/trading_reads_contracts_test.go:343:TestSubscribeOrderBookDispatchesSuccessfulPushes"
+      ],
       "reviewStatus": "single"
     }
   }

@@ -1,0 +1,45 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "-p",
+    "jftrade-integration-futu",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(order_book_pushes_with_zero_best_prices_do_not_publish_deeper_levels) or test(order_book_pushes_emit_one_original_best_bid_ask_snapshot) or test(order_book_pushes_publish_when_either_best_side_has_a_price) or test(order_book_original_nvda_wire_projects_name_times_and_both_sides) or test(order_book_rejection_preserves_original_codes_with_rust_error_format) or test(order_book_v108_get_and_push_lock_each_original_field_number) or test(order_book_unsolicited_push_dispatches_while_global_state_rpc_completes)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 101,
+  "status": "failed",
+  "verifiedAt": "2026-10-07T19:12:25Z",
+  "sourceState": {
+    "verifiedCommit": "f489a6bba52605364e0a02bc39db674da6bbd6b4",
+    "trackedDiffSha256": "0757fe9e83af918e1e5efc2a92540409dfca31c483ddcbf58746b7b08bdaf96c",
+    "untrackedFiles": [
+      {
+        "path": "crates/jftrade-integration-futu/src/order_book_parity_tests.rs",
+        "sha256": "6fa17ceb179e19b4fcb8988e11b2fb056892cbb4b6639954b644e770849018cb"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/order-book-best-price-original-red-2026-10-08.json",
+        "sha256": "83c24339b0036cf49951e0e1f5189ce476d10d607e5c2e69dfaf773fc7c36e2c"
+      }
+    ]
+  },
+  "rawOutputSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "passedTests": [],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": []
+}

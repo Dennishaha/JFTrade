@@ -110,6 +110,13 @@ impl jftrade_integration_futu::OpenDSessionEventListener for LiveHubOpenDEventLi
                     if code.is_empty() {
                         return;
                     };
+                    let best_bid = ob.bids.first().and_then(|level| level.price).unwrap_or(0.0);
+                    let best_ask = ob.asks.first().and_then(|level| level.price).unwrap_or(0.0);
+                    // Inspect the original first level; a deeper price must
+                    // not replace an absent or zero best bid/ask.
+                    if best_bid == 0.0 && best_ask == 0.0 {
+                        return;
+                    }
                     // Parity: `go:452dea11:pkg/futu/stream_orderbook.go:48`
                     // `handleOrderBookPush`. Go never reads the server receive
                     // timestamps; it only requires a resolvable security and at
@@ -152,12 +159,6 @@ impl jftrade_integration_futu::OpenDSessionEventListener for LiveHubOpenDEventLi
                             })
                         })
                         .collect::<Vec<_>>();
-                    // Go builds the best bid/ask BookTicker and returns before
-                    // emitting when both sides are zero, so an empty or
-                    // zero-priced push never reaches consumers.
-                    if bids.is_empty() && asks.is_empty() {
-                        return;
-                    }
                     let envelope = order_book_depth_envelope(market, &code, &at, bids, asks);
                     self.live_hub.publish(envelope);
                 }

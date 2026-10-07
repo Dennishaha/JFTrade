@@ -231,6 +231,92 @@ async fn order_book_pushes_without_any_price_are_dropped() {
     );
 }
 
+// Parity: go:452dea11:pkg/futu/stream_orderbook.go:48 handleOrderBookPush
+#[tokio::test]
+async fn order_book_pushes_with_zero_best_prices_do_not_publish_deeper_levels() {
+    let (hub, listener, mut connection) = subscribed(&["HK.00700"]);
+    for (bid, ask) in [(Some(0.0), Some(-0.0)), (None, None)] {
+        let QuotePush::OrderBook(mut book) = depth() else {
+            unreachable!()
+        };
+        book.bids.push(book.bids[0].clone());
+        book.asks.push(book.asks[0].clone());
+        book.bids[0].price = bid;
+        book.asks[0].price = ask;
+        listener.on_event(&OpenDSessionCoordinatorOutcome::Push(QuotePush::OrderBook(
+            book,
+        )));
+        // An ordered control marker proves that no depth frame preceded it.
+        // Non-zero deeper levels must not replace either zero best price.
+        let marker = serde_json::json!({"type":"stale","payload":{"reason":"depth-marker"}});
+        assert!(hub.publish(marker.clone()));
+        assert_eq!(next_event(&mut connection).await, Some(marker));
+    }
+}
+
+// Parity: go:452dea11:pkg/futu/exchange_orderbook_test.go:363 TestHandleOrderBookPushEmitsSingleCompleteBookTicker
+#[tokio::test]
+async fn order_book_pushes_emit_one_original_best_bid_ask_snapshot() {
+    let (hub, listener, mut connection) = subscribed(&["HK.00700"]);
+    let QuotePush::OrderBook(mut book) = depth() else {
+        unreachable!()
+    };
+    book.bids[0].price = Some(700.1);
+    book.bids[0].volume = Some(1200);
+    book.asks[0].price = Some(700.2);
+    book.asks[0].volume = Some(800);
+    book.server_receive_time_bid = None;
+    book.server_receive_time_ask = None;
+    listener.on_event(&OpenDSessionCoordinatorOutcome::Push(QuotePush::OrderBook(
+        book,
+    )));
+    let marker = serde_json::json!({"type":"stale","payload":{"reason":"snapshot-marker"}});
+    assert!(hub.publish(marker.clone()));
+    let event = next_event(&mut connection).await.expect("complete depth");
+    assert_eq!(event["type"], "market.depth");
+    assert_eq!(event["payload"]["depth"]["symbol"], "HK.00700");
+    assert_eq!(event["payload"]["depth"]["bids"][0]["price"], 700.1);
+    assert_eq!(event["payload"]["depth"]["bids"][0]["volume"], 1200);
+    assert_eq!(event["payload"]["depth"]["asks"][0]["price"], 700.2);
+    assert_eq!(event["payload"]["depth"]["asks"][0]["volume"], 800);
+    assert_eq!(
+        next_event(&mut connection).await,
+        Some(marker),
+        "one push produces one complete frame"
+    );
+}
+
+#[tokio::test]
+async fn order_book_pushes_publish_when_either_best_side_has_a_price() {
+    let (_hub, listener, mut connection) = subscribed(&["HK.00700"]);
+    for (bid, ask) in [(Some(319.0), None), (None, Some(320.0))] {
+        let QuotePush::OrderBook(mut book) = depth() else {
+            unreachable!()
+        };
+        book.bids[0].price = bid;
+        book.asks[0].price = ask;
+        listener.on_event(&OpenDSessionCoordinatorOutcome::Push(QuotePush::OrderBook(
+            book,
+        )));
+        let event = next_event(&mut connection).await.expect("one priced side");
+        assert_eq!(event["type"], "market.depth");
+        assert_eq!(
+            event["payload"]["depth"]["bids"]
+                .as_array()
+                .expect("bids")
+                .len(),
+            usize::from(bid.is_some())
+        );
+        assert_eq!(
+            event["payload"]["depth"]["asks"]
+                .as_array()
+                .expect("asks")
+                .len(),
+            usize::from(ask.is_some())
+        );
+    }
+}
+
 // Parity: go:452dea11:pkg/futu/exchange_kline_test.go:428
 // TestStreamConnectEmitsBasicQotPushAsBBGOEvents.
 //
