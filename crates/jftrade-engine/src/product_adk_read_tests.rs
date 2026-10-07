@@ -5,8 +5,9 @@ use std::sync::Arc;
 use serde::Deserialize;
 use serde_json::{Value, json};
 use tempfile::tempdir;
-use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
+use tokio_stream::StreamExt;
 
 use super::*;
 
@@ -320,8 +321,25 @@ fn adk_read_dynamic_routes_validate_suffixes_and_identifiers() {
 }
 
 // Parity: go:452dea11:internal/api/assistant/adk_transport_contracts_test.go:10 TestADKChatStreamTransportPreservesEventIdentityAndPayload
+// Parity: go:452dea11:internal/api/assistant/chat_transport_disconnect_test.go:110 TestChatStreamReconnectAndReplayRespectClientDisconnect
 #[test]
-fn adk_read_streams_preserve_event_ids_and_payloads() {
+fn adk_reconnect_routes_return_an_incremental_body_instead_of_materializing_history() {
+    for path in [
+        "/api/v1/adk/streams/stream-fixture",
+        "/api/v1/adk/runs/run-fixture/stream",
+    ] {
+        let snapshot = dispatch_adk_read(Some(&StreamAdkReadPort), "GET", path, "after=0")
+            .expect("reconnect snapshot");
+        assert!(
+            matches!(adk_read_output(snapshot), ApiOutput::RawStream { .. }),
+            "GET {path} must leave body production to the downstream consumer"
+        );
+    }
+}
+
+// Parity: go:452dea11:internal/api/assistant/adk_transport_contracts_test.go:10 TestADKChatStreamTransportPreservesEventIdentityAndPayload
+#[tokio::test]
+async fn adk_read_streams_preserve_event_ids_and_payloads() {
     let output = dispatch_adk_read(
         Some(&StreamAdkReadPort),
         "GET",
@@ -329,10 +347,10 @@ fn adk_read_streams_preserve_event_ids_and_payloads() {
         "after=0",
     )
     .expect("stream snapshot");
-    let ApiOutput::Raw {
+    let ApiOutput::RawStream {
         status,
         content_type,
-        body,
+        stream,
         headers,
     } = adk_read_output(output)
     else {
@@ -343,6 +361,17 @@ fn adk_read_streams_preserve_event_ids_and_payloads() {
     assert_eq!(headers["cache-control"], "no-cache");
     assert_eq!(headers["connection"], "keep-alive");
     assert_eq!(headers["X-ADK-Stream-ID"], "stream-fixture");
+    let chunks = stream
+        .take_body()
+        .expect("single body consumer")
+        .collect::<Vec<_>>()
+        .await
+        .into_iter()
+        .collect::<Result<Vec<_>, _>>()
+        .expect("SSE chunks");
+    assert_eq!(chunks.len(), 3, "retry and two events are separate frames");
+    assert_eq!(chunks[0], b"retry: 3000\n\n");
+    let body = chunks.concat();
     assert_eq!(
         String::from_utf8(body).expect("SSE body"),
         "retry: 3000\n\nid: 7\ndata: {\"type\":\"progress\"}\n\ndata: {\"type\":\"done\"}\n\n"
@@ -496,56 +525,32 @@ struct AdkRawResponse {
 }
 
 async fn request_adk_raw_response(address: SocketAddr, method: &str, path: &str) -> AdkRawResponse {
-    let stream = TcpStream::connect(address)
+    let _ = rustls::crypto::ring::default_provider().install_default();
+    let client = reqwest::Client::builder()
+        .no_proxy()
+        .build()
+        .expect("fixture HTTP client");
+    let response = client
+        .request(
+            method.parse().expect("method"),
+            format!("http://{address}{path}"),
+        )
+        .header("X-Request-ID", "fixture-adk-read-sse")
+        .send()
         .await
-        .expect("connect product API");
-    let (mut reader, mut writer) = tokio::io::split(stream);
-    let request = format!(
-        "{method} {path} HTTP/1.1\r\nHost: {address}\r\nX-Request-ID: fixture-adk-read-sse\r\nContent-Length: 0\r\nConnection: keep-alive\r\n\r\n"
-    );
-    writer
-        .write_all(request.as_bytes())
-        .await
-        .expect("write request");
-    let mut buffered = BufReader::new(&mut reader);
-    let mut head = Vec::new();
-    buffered
-        .read_until(b'\n', &mut head)
-        .await
-        .expect("read response status");
-    let status_line = String::from_utf8(head).expect("UTF-8 status");
-    let status = status_line
-        .split_whitespace()
-        .next()
-        .and_then(|_| status_line.split_whitespace().nth(1))
-        .and_then(|value| value.parse().ok())
-        .expect("HTTP status");
-    let mut headers = BTreeMap::new();
-    let mut content_length = None;
-    loop {
-        let mut line = Vec::new();
-        buffered
-            .read_until(b'\n', &mut line)
-            .await
-            .expect("read response header");
-        if line == b"\r\n" || line == b"\n" {
-            break;
-        }
-        let line = String::from_utf8(line).expect("UTF-8 header");
-        if let Some((name, value)) = line.trim_end().split_once(": ") {
-            let name = name.to_ascii_lowercase();
-            let value = value.to_owned();
-            if name == "content-length" {
-                content_length = value.parse::<usize>().ok();
-            }
-            headers.insert(name, value);
-        }
-    }
-    let mut body = vec![0; content_length.expect("content length")];
-    buffered
-        .read_exact(&mut body)
-        .await
-        .expect("read response body");
+        .expect("ADK HTTP response");
+    let status = response.status().as_u16();
+    let headers = response
+        .headers()
+        .iter()
+        .map(|(name, value)| {
+            (
+                name.as_str().to_owned(),
+                value.to_str().expect("header").to_owned(),
+            )
+        })
+        .collect();
+    let body = response.bytes().await.expect("decoded HTTP body").to_vec();
     AdkRawResponse {
         status,
         headers,

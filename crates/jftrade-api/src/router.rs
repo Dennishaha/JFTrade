@@ -18,11 +18,11 @@ use axum::routing::get;
 use serde::Deserialize;
 use serde_json::{Value, json};
 use std::net::{IpAddr, SocketAddr};
-use tokio_stream::wrappers::ReceiverStream;
 use tower_http::trace::TraceLayer;
 
 use crate::auth::{origin_provided, request_origin};
 use crate::envelope::{body_response, empty_response, error_response, success_response};
+use crate::listener_lifecycle::{ListenerShutdown, wait_for_listener_shutdown};
 use crate::session_lifecycle::{SessionRevocation, wait_for_revocation};
 use crate::websocket::{
     LiveDepthSubscription, LiveHub, LiveHubConnection, LiveHubLifecycle, LiveSecuritySubscription,
@@ -568,8 +568,7 @@ async fn dispatch(State(state): State<ApiState>, request: Request) -> Response<B
             headers,
         }) => {
             let body = stream
-                .take_receiver()
-                .map(ReceiverStream::new)
+                .take_body()
                 .map(Body::from_stream)
                 .unwrap_or_else(Body::empty);
             body_response(
@@ -684,6 +683,7 @@ fn sse_response(events: Vec<SseEvent>) -> Response<Body> {
 async fn websocket_handler(
     State(state): State<ApiState>,
     revocation: Option<Extension<SessionRevocation>>,
+    listener_shutdown: Option<Extension<ListenerShutdown>>,
     headers: HeaderMap,
     upgrade: WebSocketUpgrade,
 ) -> Response<Body> {
@@ -765,6 +765,7 @@ async fn websocket_handler(
                 WebsocketCancellation {
                     shutdown,
                     revocation: revocation.map(|Extension(revocation)| revocation),
+                    listener: listener_shutdown.map(|Extension(shutdown)| shutdown),
                 },
             )
         })
@@ -811,6 +812,7 @@ struct LiveClientMessage {
 struct WebsocketCancellation {
     shutdown: tokio::sync::watch::Receiver<bool>,
     revocation: Option<SessionRevocation>,
+    listener: Option<ListenerShutdown>,
 }
 
 async fn websocket_session(
@@ -825,7 +827,11 @@ async fn websocket_session(
     let WebsocketCancellation {
         mut shutdown,
         revocation,
+        listener,
     } = cancellation;
+    if listener.as_ref().is_some_and(ListenerShutdown::is_stopped) {
+        return;
+    }
     if revocation
         .as_ref()
         .is_some_and(SessionRevocation::is_revoked)
@@ -859,6 +865,13 @@ async fn websocket_session(
 
     loop {
         tokio::select! {
+            _ = wait_for_listener_shutdown(listener.clone()) => {
+                let _ = socket.send(Message::Close(Some(CloseFrame {
+                    code: 1001,
+                    reason: "server shutting down".into(),
+                }))).await;
+                break;
+            }
             _ = wait_for_revocation(revocation.clone()) => {
                 let _ = socket.send(Message::Close(Some(CloseFrame {
                     code: 1008,

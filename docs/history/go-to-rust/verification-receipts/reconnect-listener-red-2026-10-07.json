@@ -1,0 +1,63 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(adk_reconnect_routes_return_an_incremental_body_instead_of_materializing_history) or test(active_web_chat_does_not_block_listener_disable_or_rebind)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 100,
+  "status": "failed",
+  "verifiedAt": "2026-10-07T05:03:09Z",
+  "sourceState": {
+    "verifiedCommit": "15844e4cbbbe7b5ec08e3f6e111d03a55d5d62fc",
+    "trackedDiffSha256": "ddb2e249be2877becd6e9abaa2c31fd9cd1f4c233a288e85ca908a2e138b4b85",
+    "untrackedFiles": []
+  },
+  "rawOutputSha256": "7b5b95b22911c27c78728bb32cb80875c57b3e02d4dcd03afb6c96172a630f2e",
+  "passedTests": [],
+  "failedTests": [
+    "jftrade-engine::jftrade_engine$product::tests::adk_read_tests::adk_reconnect_routes_return_an_incremental_body_instead_of_materializing_history",
+    "jftrade-engine::jftrade_engine$product::tests::security_stream_tests::active_web_chat_does_not_block_listener_disable_or_rebind"
+  ],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 2,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "failed",
+      "passed": 0,
+      "failed": 2,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1737,
+      "exec_time": 5.859041916,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    }
+  ]
+}

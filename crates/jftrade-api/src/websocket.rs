@@ -8,7 +8,7 @@ use serde_json::Value;
 use tokio::sync::{broadcast, watch};
 
 use crate::AccessPolicy;
-use crate::auth::{origin_provided, request_origin};
+use crate::auth::origin_provided;
 
 pub const DEFAULT_WEBSOCKET_LIMIT: usize = 20;
 
@@ -122,7 +122,7 @@ pub fn websocket_origin_allowed(headers: &HeaderMap, policy: &AccessPolicy) -> b
     if !origin_provided(headers) {
         return true;
     }
-    request_origin(headers).is_some_and(|origin| policy.allowed_origins.contains(&origin))
+    policy.origin_allowed(headers)
 }
 
 pub trait LiveDemandListener: Send + Sync + std::fmt::Debug {

@@ -9,6 +9,113 @@ use super::*;
 #[derive(Debug)]
 struct EnabledWsLiveSnapshotPort;
 
+// Parity: go:452dea11:internal/app/apiserver/lifecycle/lifecycle_test.go:275 TestSeparateWebListenerRebindsImmediatelyAndKeepsOldPortOnConflict
+#[tokio::test]
+async fn web_listener_rebind_closes_browser_websocket_and_preserves_desktop_hub() {
+    use super::security_stream_tests::{protected_product_config, web_client, web_login};
+    let directory = tempdir().expect("directory");
+    let settings_path = directory.path().join("settings.json");
+    let (config, web_address) = protected_product_config(&settings_path);
+    let handle = start_product(config).await.expect("product");
+    let client = web_client();
+    let (cookie, _) = web_login(&client, web_address, "original browser password").await;
+    let origin = format!("http://{web_address}");
+    let browser =
+        websocket_handshake(web_address, &[("Cookie", &cookie), ("Origin", &origin)]).await;
+    assert_eq!(browser.status, 101);
+    let mut browser = browser.upgraded_stream.expect("browser websocket");
+    assert!(
+        read_server_text_frame(&mut browser)
+            .await
+            .contains("heartbeat")
+    );
+    let desktop = websocket_handshake(
+        handle.startup_record().address,
+        &[(
+            "Sec-WebSocket-Protocol",
+            "jftrade.desktop.v1, aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        )],
+    )
+    .await;
+    assert_eq!(desktop.status, 101);
+    let mut desktop = desktop.upgraded_stream.expect("desktop websocket");
+    assert!(
+        read_server_text_frame(&mut desktop)
+            .await
+            .contains("heartbeat")
+    );
+    let reservation = std::net::TcpListener::bind("127.0.0.1:0").expect("new Web port");
+    let new_address = reservation.local_addr().expect("new address");
+    drop(reservation);
+    let (status, response) = request_json_with_status(
+        handle.startup_record().address,
+        "PUT",
+        "/api/v1/settings/security",
+        Some(
+            &serde_json::json!({
+                "webAccessEnabled": true, "webPort": new_address.port(),
+            })
+            .to_string(),
+        ),
+        &[("Authorization", "Bearer aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")],
+    )
+    .await;
+    assert_eq!(status, 200, "rebind: {response}");
+    let close = tokio::time::timeout(
+        std::time::Duration::from_secs(2),
+        read_server_close_frame(&mut browser),
+    )
+    .await
+    .expect("browser close deadline");
+    assert_eq!(close, (1001, "server shutting down".to_owned()));
+    desktop.write_all(&masked_text_frame(br#"{"type":"subscribe","subscriptions":{"providerBrokerId":"futu","activeInstruments":["US.TME"]}}"#))
+        .await.expect("desktop subscription after rebind");
+    wait_for_live_projection_with_headers(
+        handle.startup_record().address,
+        1,
+        &["US.TME"],
+        &[("Authorization", "Bearer aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")],
+    )
+    .await;
+    let (fresh_cookie, _) = web_login(&client, new_address, "original browser password").await;
+    let new_origin = format!("http://{new_address}");
+    let forbidden = websocket_handshake(
+        new_address,
+        &[("Cookie", &fresh_cookie), ("Origin", "http://evil.example")],
+    )
+    .await;
+    assert_eq!(
+        forbidden.status, 403,
+        "rebind still rejects foreign origins"
+    );
+    let fresh = websocket_handshake(
+        new_address,
+        &[("Cookie", &fresh_cookie), ("Origin", &new_origin)],
+    )
+    .await;
+    assert_eq!(
+        fresh.status, 101,
+        "new listener gets a fresh cancellation signal"
+    );
+    let mut fresh = fresh.upgraded_stream.expect("new Web socket");
+    assert!(
+        read_server_text_frame(&mut fresh)
+            .await
+            .contains("heartbeat")
+    );
+    drop(fresh);
+    drop(browser);
+    drop(desktop);
+    wait_for_live_projection_with_headers(
+        handle.startup_record().address,
+        0,
+        &[],
+        &[("Authorization", "Bearer aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")],
+    )
+    .await;
+    handle.shutdown().await.expect("shutdown product");
+}
+
 // Parity: go:452dea11:internal/app/apiserver/servercore/security_test.go:43 TestSecurityChangeCancelsExistingWebStream
 #[tokio::test]
 async fn password_change_revokes_browser_websocket_and_keeps_desktop_capability() {

@@ -8,6 +8,7 @@ use std::time::Duration;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio::sync::mpsc;
+use tokio_stream::{Stream, wrappers::ReceiverStream};
 
 use crate::{ApiFailure, SseEvent};
 
@@ -59,7 +60,8 @@ pub enum ApiOutput {
 ///
 /// Keeping the channel behind a small transport-owned type lets domain ports
 /// return a cancellable body without depending on Axum's `Body` type.
-type ApiStreamReceiver = Arc<Mutex<Option<mpsc::Receiver<Result<Vec<u8>, io::Error>>>>>;
+pub type ApiStreamBody = Pin<Box<dyn Stream<Item = Result<Vec<u8>, io::Error>> + Send>>;
+type ApiStreamReceiver = Arc<Mutex<Option<ApiStreamBody>>>;
 
 #[derive(Clone)]
 pub struct ApiStream {
@@ -95,14 +97,75 @@ impl ApiStream {
         let (sender, receiver) = mpsc::channel(capacity.max(1));
         (
             Self {
-                receiver: Arc::new(Mutex::new(Some(receiver))),
+                receiver: Arc::new(Mutex::new(Some(Box::pin(ReceiverStream::new(receiver))))),
             },
             ApiStreamSender { sender },
         )
     }
 
-    pub(crate) fn take_receiver(&self) -> Option<mpsc::Receiver<Result<Vec<u8>, io::Error>>> {
+    /// Produce chunks only when the HTTP consumer polls, without a worker or
+    /// an eagerly encoded body. Dropping the body drops the remaining iterator.
+    pub fn from_chunks(
+        chunks: impl Iterator<Item = Result<Vec<u8>, io::Error>> + Send + 'static,
+    ) -> Self {
+        Self {
+            receiver: Arc::new(Mutex::new(Some(Box::pin(tokio_stream::iter(chunks))))),
+        }
+    }
+
+    /// Acquire the single body consumer. A clone cannot acquire it a second
+    /// time; channel and pull-based bodies share the same ownership rule.
+    pub fn take_body(&self) -> Option<ApiStreamBody> {
         self.receiver.lock().ok()?.take()
+    }
+}
+
+#[cfg(test)]
+mod pull_body_tests {
+    use super::*;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use tokio_stream::StreamExt;
+
+    #[tokio::test]
+    async fn pull_body_advances_only_on_demand_and_releases_remaining_iterator() {
+        struct ReleaseProbe(Arc<AtomicUsize>);
+        impl Drop for ReleaseProbe {
+            fn drop(&mut self) {
+                self.0.fetch_add(1, Ordering::SeqCst);
+            }
+        }
+        let produced = Arc::new(AtomicUsize::new(0));
+        let released = Arc::new(AtomicUsize::new(0));
+        let probe = ReleaseProbe(released.clone());
+        let count = produced.clone();
+        let chunks = (0_u64..1_000_000).map(move |index| {
+            let _ = &probe;
+            count.fetch_add(1, Ordering::SeqCst);
+            Ok(index.to_le_bytes().to_vec())
+        });
+        let source = ApiStream::from_chunks(chunks);
+        assert_eq!(produced.load(Ordering::SeqCst), 0);
+        let mut body = source.take_body().expect("body consumer");
+        assert!(
+            source.clone().take_body().is_none(),
+            "one consumer across clones"
+        );
+        assert_eq!(
+            body.next().await.expect("first chunk").expect("chunk"),
+            0_u64.to_le_bytes()
+        );
+        assert_eq!(produced.load(Ordering::SeqCst), 1);
+        drop(body);
+        assert_eq!(
+            produced.load(Ordering::SeqCst),
+            1,
+            "no background encoding or retry"
+        );
+        assert_eq!(
+            released.load(Ordering::SeqCst),
+            1,
+            "iterator ownership released"
+        );
     }
 }
 

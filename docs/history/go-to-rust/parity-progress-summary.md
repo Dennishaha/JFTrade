@@ -1,5 +1,14 @@
 # Go → Rust 对齐成果摘要
 
+## 2026-10-07 GET replay 与 Web listener 重配置
+
+- 本批五条 partial：GET disconnect/reconnect、hub replay/cleanup、Web bind 矩阵、热重绑/冲突恢复、关闭 Web 后 browser/desktop 隔离。只升级热重绑/冲突恢复一条；**1595 exact / 2216 partial / 640 boundary**，净变化 **+1/-1/0**。
+- 真实修复：GET SSE 从完整编码 body 改为单消费者拉取式逐帧编码；listener owner 在 graceful join 前取消该 listener 的 handler/SSE/WS，避免活动 provider 阻塞 Web disable/rebind；WebSocket 使用与 HTTP 相同的动态 Origin 校验，新 Web 端口可升级，foreign Origin 仍 403。desktop live hub 不受 Web listener 重配置影响。
+- 定向 canonical receipt `verification-receipts/reconnect-listener-reviewed-2026-10-07.json`：**15 passed / 0 failed / 0 ignored / 2209 filtered/skipped**，SHA-256 `9665a84257262cb6a7534358d4e75aa8dc2a0a96ccc30969da62721a13821b03`。两次实际红测及中间绿测保持原始字节，替代关系见积压清单。Clippy 要求构造函数 from_iter 改为 from_chunks 后复跑，确认 receipt 源码摘要和 metadata 更新后 Rust diff 一致。
+- 普通/strict audit 与 anchor reconcile 已通过；anchor **2037 unique / 1989 recorded / 0 unrecorded / 0 stale / 48 unknown**。扫描 Rust **3537**、数量比 **79.5%**，单列数量关系，不作为整体行为完成率。
+- quick 首轮在 target-health 阈值失败；清理后重跑 **2254 tests passed**，但随后 Clippy 拒绝 from_iter 命名，整体退出 1。重命名为 from_chunks 后现场 quick 明确退出 **0**：**2254 passed / 0 failed / 0 skipped**，Pine worker **98 passed**，Clippy、七类 replay 与桌面检查通过；完整 `check:rust` 明确退出 **0**：workspace **3693 passed / 0 failed / 2 skipped**，静态与七类 replay 通过。日志 `/tmp/jftrade-reconnect-listener-quick-reviewed.log`、`/tmp/jftrade-reconnect-listener-rust.log`；未生成 workspace JSON receipt，focused digest 不充当全量门禁摘要。AI context 与 diff 检查通过。
+- 四条 residual 继续 partial：Go desktop bind coercion 与 Rust rejection；Go browser 403 与 Rust 401；同 ADK GET socket-like 首次写失败/预取消 idle；同连接 watermark 后 live 和 timeout+retention 清理。GET 仍一次读取历史 Vec，拉取式编码不表示有界查询。整体目标保持 active。
+
 ## 2026-10-07 活动浏览器流的安全撤销
 
 - 本批复核五条相关 partial：安全变更取消活动 SSE、GET 重连写失败、replay watermark/清理、delta/final 发布、空请求终态错误。实际闭合并升级 `TestSecurityChangeCancelsExistingWebStream`；净变化 **exact +1 / partial -1 / boundary 0**，当前 **1594 / 2217 / 640**。Rust 测试扫描数 **3531**、数量比 **79.3%** 单列，不作为整体行为完成率。

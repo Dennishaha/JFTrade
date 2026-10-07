@@ -13,6 +13,13 @@
 - 启动 OpenD、Pine 或 Python 进程；
 - 持有业务状态的第二写 owner。
 
+`ApiStream` 的 body 由单消费者取得：channel body 的消费者关闭会通知 producer，
+iterator body 只随 HTTP 消费推进逐帧编码，释放 body 即释放剩余 iterator；iterator
+不代表上游历史查询已经分页。HTTP listener owner 在 graceful join 前发出该 listener
+的连接取消信号，结束未完成 handler、SSE 和升级后的 WebSocket；Web listener
+重配置不关闭共享 desktop live hub。浏览器 HTTP 与 WebSocket 使用同一 Origin
+策略，包括当前 Web listener 的动态端口校验。
+
 ### 领域 crates
 
 `jftrade-{settings,marketdata,trading,strategy,backtest,assistant,research,watchlist}` 承载业务规则与协议中立 port。不得依赖 `jftrade-api`、Axum handler、具体 SQLite driver、Futu protobuf 或桌面类型。

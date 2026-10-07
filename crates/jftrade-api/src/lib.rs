@@ -3,6 +3,7 @@
 mod auth;
 mod browser_access;
 mod envelope;
+mod listener_lifecycle;
 mod observability;
 mod ports;
 mod route;
@@ -19,11 +20,13 @@ pub use auth::{
 };
 pub use browser_access::{WebAccessState, WebAccessStatePort};
 pub use envelope::{ApiFailure, Clock, FixedClock, SystemClock};
+pub use listener_lifecycle::with_listener_shutdown;
 pub use observability::{
     OpenDHealth, RequestObservabilitySnapshot, TransportEvent, TransportMetrics, TransportSnapshot,
 };
 pub use ports::{
-    ApiOutput, ApiPort, ApiRequest, ApiStream, ApiStreamSender, Asset, AssetBundle, PortFuture,
+    ApiOutput, ApiPort, ApiRequest, ApiStream, ApiStreamBody, ApiStreamSender, Asset, AssetBundle,
+    PortFuture,
 };
 pub use route::{RouteCatalog, RouteCatalogError, RouteSpec};
 pub use router::{

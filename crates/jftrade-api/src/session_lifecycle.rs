@@ -33,21 +33,28 @@ impl SessionRevocation {
     }
 
     pub(crate) fn wrap_sse(self, response: Response<Body>) -> Response<Body> {
-        let is_sse = response
-            .headers()
-            .get("content-type")
-            .and_then(|value| value.to_str().ok())
-            .is_some_and(|value| value.split(';').next() == Some("text/event-stream"));
-        if !is_sse {
-            return response;
-        }
-        let (parts, body) = response.into_parts();
-        let stream = RevocableStream {
-            body: Some(Box::pin(body.into_data_stream())),
-            revoked: Box::pin(self.wait()),
-        };
-        Response::from_parts(parts, Body::from_stream(stream))
+        wrap_sse(response, self.wait())
     }
+}
+
+pub(crate) fn wrap_sse(
+    response: Response<Body>,
+    revoked: impl Future<Output = ()> + Send + 'static,
+) -> Response<Body> {
+    let is_sse = response
+        .headers()
+        .get("content-type")
+        .and_then(|value| value.to_str().ok())
+        .is_some_and(|value| value.split(';').next() == Some("text/event-stream"));
+    if !is_sse {
+        return response;
+    }
+    let (parts, body) = response.into_parts();
+    let stream = RevocableStream {
+        body: Some(Box::pin(body.into_data_stream())),
+        revoked: Box::pin(revoked),
+    };
+    Response::from_parts(parts, Body::from_stream(stream))
 }
 
 pub(crate) async fn wait_for_revocation(revocation: Option<SessionRevocation>) {
@@ -86,7 +93,7 @@ impl Stream for RevocableStream {
 mod tests {
     use super::*;
     use crate::ApiStream;
-    use tokio_stream::{StreamExt, wrappers::ReceiverStream};
+    use tokio_stream::StreamExt;
 
     #[tokio::test]
     async fn revoked_idle_sse_drops_its_producer_without_waiting_for_a_frame() {
@@ -94,9 +101,7 @@ mod tests {
         let (stream, producer) = ApiStream::channel(1);
         let response = Response::builder()
             .header("content-type", "text/event-stream")
-            .body(Body::from_stream(ReceiverStream::new(
-                stream.take_receiver().expect("receiver"),
-            )))
+            .body(Body::from_stream(stream.take_body().expect("body")))
             .expect("response");
         let mut body = SessionRevocation(receiver)
             .wrap_sse(response)
@@ -124,9 +129,7 @@ mod tests {
         let (stream, producer) = ApiStream::channel(1);
         let response = Response::builder()
             .header("content-type", "text/event-stream")
-            .body(Body::from_stream(ReceiverStream::new(
-                stream.take_receiver().expect("receiver"),
-            )))
+            .body(Body::from_stream(stream.take_body().expect("body")))
             .expect("response");
         let mut body = SessionRevocation(receiver)
             .wrap_sse(response)

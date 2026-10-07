@@ -16,6 +16,80 @@ fn router() -> axum::Router {
     axum::Router::new().fallback(|| async { "ok" })
 }
 
+fn web_response(port: u16) -> String {
+    let mut stream = TcpStream::connect(("127.0.0.1", port)).expect("Web connection");
+    stream
+        .set_read_timeout(Some(Duration::from_secs(1)))
+        .expect("read deadline");
+    std::io::Write::write_all(
+        &mut stream,
+        b"GET / HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n",
+    )
+    .expect("request");
+    let mut response = String::new();
+    stream.read_to_string(&mut response).expect("response");
+    response
+}
+
+// Parity: go:452dea11:internal/app/apiserver/lifecycle/lifecycle_test.go:222 TestWebAccessListenerBindUsesIndependentConfiguredPort
+#[test]
+fn web_bind_matrix_preserves_independent_local_and_public_ports() {
+    assert_eq!(
+        ProductWebServerRuntime::desired_bind(&SecuritySettingsRecord::default()),
+        None
+    );
+    assert_eq!(
+        ProductWebServerRuntime::desired_bind(&enabled_record(7443)),
+        Some("127.0.0.1:7443".to_owned())
+    );
+    let public = SecuritySettingsRecord::new(true, true, 7443, "fixture-verifier");
+    assert_eq!(
+        ProductWebServerRuntime::desired_bind(&public),
+        Some("0.0.0.0:7443".to_owned())
+    );
+    // Rust rejects a public desktop API bind rather than coercing it as the
+    // frozen Go helper does. This row must remain partial for that input.
+    assert!(matches!(
+        ProductConfig::new(
+            "0.0.0.0:6699".parse().expect("bind"),
+            "settings.json",
+            AccessPolicy::default()
+        ),
+        Err(ProductError::NonLoopbackBind)
+    ));
+}
+
+// Parity: go:452dea11:internal/app/apiserver/lifecycle/lifecycle_test.go:275 TestSeparateWebListenerRebindsImmediatelyAndKeepsOldPortOnConflict
+#[test]
+fn web_listener_hot_rebind_preserves_service_and_rolls_back_port_conflict() {
+    let runtime = ProductWebServerRuntime::new();
+    runtime.install_router(router());
+    let first_port = available_port();
+    runtime
+        .apply(&enabled_record(first_port))
+        .expect("first bind");
+    assert!(web_response(first_port).starts_with("HTTP/1.1 200"));
+    let second_port = available_port();
+    assert_ne!(first_port, second_port);
+    let second = enabled_record(second_port);
+    runtime.apply(&second).expect("hot rebind");
+    assert!(web_response(second_port).starts_with("HTTP/1.1 200"));
+    assert!(runtime.status(&second).expect("new status"));
+    assert!(
+        StdTcpListener::bind(("127.0.0.1", first_port)).is_ok(),
+        "old port released"
+    );
+    let occupied = StdTcpListener::bind("127.0.0.1:0").expect("occupy conflict port");
+    let conflict_port = occupied.local_addr().expect("conflict address").port();
+    let error = runtime
+        .apply(&enabled_record(conflict_port))
+        .expect_err("conflict");
+    assert!(error.contains("Web access port conflict"), "{error}");
+    assert!(web_response(second_port).starts_with("HTTP/1.1 200"));
+    assert!(runtime.status(&second).expect("surviving status"));
+    runtime.shutdown_blocking().expect("shutdown");
+}
+
 #[test]
 fn disabled_web_access_does_not_start_a_listener() {
     let runtime = ProductWebServerRuntime::new();
@@ -166,6 +240,7 @@ fn web_shutdown_does_not_hold_runtime_lock_while_joining_server() {
         state.bind = Some("127.0.0.1:1".to_owned());
         state.server = Some(ProductServerOwner {
             shutdown_tx: Some(shutdown_tx),
+            connection_shutdown: tokio::sync::watch::channel(false).0,
             thread: Some(thread),
         });
     }

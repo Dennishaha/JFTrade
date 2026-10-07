@@ -962,74 +962,38 @@ async fn request_raw_with_headers(
     body: &[u8],
     extra_headers: &[(&str, &str)],
 ) -> RawResponse {
-    let extra_headers = extra_headers
+    let _ = rustls::crypto::ring::default_provider().install_default();
+    let client = reqwest::Client::builder()
+        .no_proxy()
+        .build()
+        .expect("fixture HTTP client");
+    let mut request = client
+        .request(
+            method.parse().expect("method"),
+            format!("http://{address}{path}"),
+        )
+        .header("Content-Type", "application/json")
+        .body(body.to_vec());
+    for (name, value) in extra_headers {
+        request = request.header(*name, *value);
+    }
+    let response = request.send().await.expect("ADK HTTP response");
+    let status = response.status().as_u16();
+    let headers = response
+        .headers()
         .iter()
-        .map(|(name, value)| format!("{name}: {value}\r\n"))
-        .collect::<String>();
-    let mut stream = TcpStream::connect(address)
-        .await
-        .expect("connect ADK product API");
-    let request = format!(
-        "{method} {path} HTTP/1.1\r\nHost: {address}\r\nContent-Type: application/json\r\n{extra_headers}Content-Length: {}\r\nConnection: keep-alive\r\n\r\n",
-        body.len(),
-    );
-    stream
-        .write_all(request.as_bytes())
-        .await
-        .expect("write ADK request headers");
-    stream
-        .write_all(body)
-        .await
-        .expect("write ADK request body");
-    let mut response = Vec::new();
-    let separator = loop {
-        if let Some(separator) = response.windows(4).position(|window| window == b"\r\n\r\n") {
-            break separator;
-        }
-        let mut chunk = [0_u8; 4096];
-        let count = stream
-            .read(&mut chunk)
-            .await
-            .expect("read ADK response headers");
-        assert!(count > 0, "ADK response ended before headers");
-        response.extend_from_slice(&chunk[..count]);
-    };
-    let header_bytes = &response[..separator];
-    let mut lines = header_bytes.split(|byte| *byte == b'\n');
-    let status_line = lines.next().expect("status line");
-    let status = String::from_utf8_lossy(status_line)
-        .split_whitespace()
-        .nth(1)
-        .expect("status code")
-        .parse()
-        .expect("numeric status");
-    let headers: BTreeMap<String, String> = lines
-        .filter_map(|line| {
-            let line = String::from_utf8_lossy(line);
-            let (name, value) = line.trim().split_once(':')?;
-            Some((name.trim().to_ascii_lowercase(), value.trim().to_owned()))
+        .map(|(name, value)| {
+            (
+                name.as_str().to_owned(),
+                value.to_str().expect("header").to_owned(),
+            )
         })
         .collect();
-    let content_length = headers
-        .get("content-length")
-        .expect("ADK response content length")
-        .parse::<usize>()
-        .expect("numeric ADK response content length");
-    let body_start = separator + 4;
-    let body_end = body_start + content_length;
-    while response.len() < body_end {
-        let mut chunk = [0_u8; 4096];
-        let count = stream
-            .read(&mut chunk)
-            .await
-            .expect("read ADK response body");
-        assert!(count > 0, "ADK response ended before body");
-        response.extend_from_slice(&chunk[..count]);
-    }
+    let body = response.bytes().await.expect("decoded HTTP body").to_vec();
     RawResponse {
         status,
         headers,
-        body: response[body_start..body_end].to_vec(),
+        body,
     }
 }
 

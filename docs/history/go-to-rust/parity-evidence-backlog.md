@@ -1,5 +1,23 @@
 # Go → Rust 证据积压清单
 
+## 2026-10-07 GET replay 与 Web listener 重配置批次
+
+- 五条相关 partial 逐项核对冻结 Go；热重绑/冲突恢复升级 exact，其余四条保留明确残余。当前 **1595 exact / 2216 partial / 640 boundary**，净变化 **+1/-1/0**。
+- 本批文件均位于 `verification-receipts/`；失败文件保持原字节，新通过证据只适用于其记录的源码状态。
+
+  | 本批文件 | 实际结果与原因 | 后续证据 |
+  | --- | --- | --- |
+  | `reconnect-listener-red-2026-10-07.json` | failed，0 passed/2 failed；GET materialized body，活动 SSE 导致 disable/rebind graceful join 等待 | reviewed |
+  | `reconnect-listener-green-2026-10-07.json` | passed，7/7；尚无 iterator probe、重绑 WS 和 SSE EOF/旧 cookie 断言 | reviewed |
+  | `reconnect-listener-verified-2026-10-07.json` | failed，12 passed/1 failed；新 Web 端口 WS 被启动时固定 Origin 列表拒绝（403） | reviewed |
+  | `reconnect-listener-final-2026-10-07.json` | passed，15/15；动态 Origin 与 foreign-origin 拒绝已验证，构造函数重命名前 | reviewed |
+  | `reconnect-listener-reviewed-2026-10-07.json` | passed，15/15；Clippy 要求 from_iter 改为 from_chunks 后的最终 Rust 源码 | 当前 canonical |
+
+- canonical SHA-256：`9665a84257262cb6a7534358d4e75aa8dc2a0a96ccc30969da62721a13821b03`；15 passed、0 failed、0 ignored，另有 **2209 filtered/skipped**。已逐项复核 trackedDiff/untracked 摘要，并确认更新 metadata 后 Rust diff 不变。
+- quick 首轮 `/tmp/jftrade-reconnect-listener-quick.log` 在 target-health 阈值失败，未执行测试。确认无 Cargo 进程后按仓库入口清理；日志 `/tmp/jftrade-reconnect-listener-clean.log`。重跑 `/tmp/jftrade-reconnect-listener-quick-retry.log` **2254 tests passed**，但随后 Clippy 拒绝 from_iter 命名，整体退出 1；未记为通过。
+- 重命名后的 quick `/tmp/jftrade-reconnect-listener-quick-reviewed.log` 明确退出 **0**：受影响 nextest **2254 passed / 0 failed / 0 skipped**、Pine worker **98 passed**，Clippy、七类 replay 与桌面检查通过。完整 Rust `/tmp/jftrade-reconnect-listener-rust.log` 明确退出 **0**：workspace **3693 passed / 0 failed / 2 skipped**，静态与七类 replay 通过。未另生成 workspace JSON receipt，focused digest 不代替全量门禁摘要。普通/strict audit、anchor、AI context 与 diff 检查通过。
+- 保留残余：GET snapshot 仍全量读取 events，同路由 socket-like 首次写失败、预取消 idle 零 body、持续 live reconnect 未闭合；hub watermark 后 live 与 timeout+retention 清理未实现；desktop bind coercion/rejection、browser disable 403/401 仍不同。下一批转向相关生命周期与 Assistant 发布序列，目标保持 active。
+
 ## 2026-10-07 活动流撤销批次与失败替代关系
 
 - 五条相关 partial 逐项核对；安全变更取消活动 SSE 有新的 production owner 直接行为证明，升级 exact；其余四条不升级。当前 **1594 exact / 2217 partial / 640 boundary**，净变化 **+1/-1/0**。

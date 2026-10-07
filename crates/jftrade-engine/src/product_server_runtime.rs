@@ -1,6 +1,7 @@
 #[derive(Debug)]
 struct ProductServerOwner {
     shutdown_tx: Option<oneshot::Sender<()>>,
+    connection_shutdown: tokio::sync::watch::Sender<bool>,
     thread: Option<std::thread::JoinHandle<Result<(), std::io::Error>>>,
 }
 
@@ -20,6 +21,8 @@ impl ProductServerOwner {
             .build()
             .map_err(ProductError::Bind)?;
         let (shutdown_tx, shutdown_rx) = oneshot::channel();
+        let (connection_shutdown, connection_shutdown_rx) = tokio::sync::watch::channel(false);
+        let router = jftrade_api::with_listener_shutdown(router, connection_shutdown_rx);
         let thread = std::thread::Builder::new()
             .name(thread_name.to_owned())
             .spawn(move || {
@@ -38,11 +41,13 @@ impl ProductServerOwner {
             .map_err(ProductError::Bind)?;
         Ok(Self {
             shutdown_tx: Some(shutdown_tx),
+            connection_shutdown,
             thread: Some(thread),
         })
     }
 
     fn shutdown_blocking(&mut self) -> Result<(), ProductError> {
+        self.connection_shutdown.send_replace(true);
         if let Some(shutdown_tx) = self.shutdown_tx.take() {
             let _ = shutdown_tx.send(());
         }

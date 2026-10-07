@@ -81,21 +81,13 @@ fn adk_read_output(output: AdkReadOutput) -> ApiOutput {
     match output {
         AdkReadOutput::Json(value) => ApiOutput::Json(value),
         AdkReadOutput::Stream(stream) => {
-            let mut body = encode_retry(3000);
-            for event in stream.events {
-                let Ok(frame) = encode_event(&SseEvent {
+            let frames = std::iter::once(Ok(encode_retry(3000).into_bytes()))
+                .chain(stream.events.into_iter().map(|event| {
+                    encode_event(&SseEvent {
                     id: event.id,
                     data: event.data,
-                }) else {
-                    return ApiOutput::Raw {
-                        status: 500,
-                        content_type: "application/json".to_owned(),
-                        body: br#"{"ok":false,"error":{"code":"ADK_READ_INVALID_SNAPSHOT","message":"ADK read stream event cannot be serialized"}}"#.to_vec(),
-                        headers: BTreeMap::new(),
-                    };
-                };
-                body.push_str(&frame);
-            }
+                    }).map(String::into_bytes).map_err(std::io::Error::other)
+                }));
             let mut headers: BTreeMap<String, String> = stream.headers.into_iter().collect();
             headers
                 .entry("cache-control".to_owned())
@@ -103,10 +95,10 @@ fn adk_read_output(output: AdkReadOutput) -> ApiOutput {
             headers
                 .entry("connection".to_owned())
                 .or_insert_with(|| "keep-alive".to_owned());
-            ApiOutput::Raw {
+            ApiOutput::RawStream {
                 status: 200,
                 content_type: "text/event-stream".to_owned(),
-                body: body.into_bytes(),
+                stream: jftrade_api::ApiStream::from_chunks(frames),
                 headers,
             }
         }
