@@ -12,6 +12,7 @@ mod session_lifecycle;
 mod sse;
 mod swagger_docs;
 mod websocket;
+mod websocket_depth;
 
 pub use auth::{
     ACCESS_SURFACE_HEADER, AccessOriginProvider, AccessPolicy, DESKTOP_WEBSOCKET_PROTOCOL,

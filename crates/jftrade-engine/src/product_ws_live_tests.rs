@@ -540,8 +540,8 @@ async fn ws_live_route_unavailable_is_plain_text_and_does_not_register_without_p
 }
 
 // Parity: go:452dea11:internal/api/live/handler_test.go:244 TestHandlerDepthUpdatePublishesFreshPayload
-// This connected transport evidence covers live book updates. Go's initial
-// snapshot, requested depth size and entityId suffix remain separate gaps.
+// Complementary concrete OpenD pushes; initial reads are exercised by the
+// production depth HTTP tests with the existing market microstructure port.
 #[tokio::test]
 async fn ws_live_depth_subscription_receives_updated_opend_book_payloads() {
     use jftrade_integration_futu::{
@@ -626,10 +626,10 @@ async fn ws_live_depth_subscription_receives_updated_opend_book_payloads() {
         .await
         .expect("depth update reaches the connected client");
         assert_eq!(event["source"], "market-data");
-        assert_eq!(event["entityId"], "US.TME");
+        assert_eq!(event["entityId"], "US.TME|50");
         assert_eq!(event["payload"]["instrumentId"], "US.TME");
         assert_eq!(event["payload"]["request"]["instrumentId"], "US.TME");
-        assert_eq!(event["payload"]["request"]["num"], 1);
+        assert_eq!(event["payload"]["request"]["num"], 50);
         assert_eq!(event["payload"]["meta"]["resolvedAt"], at);
         assert_eq!(event["payload"]["depth"]["bids"][0]["price"], price);
         assert_eq!(event["payload"]["depth"]["bids"][0]["volume"], 150.0);

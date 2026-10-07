@@ -3,6 +3,9 @@
 use super::super::security_stream_tests::{protected_product_config, web_client, web_login};
 use super::*;
 
+#[path = "product_ws_depth_http_parity_tests.rs"]
+mod depth_parity;
+
 const PROTOCOL: &[(&str, &str)] = &[(
     "Sec-WebSocket-Protocol",
     "jftrade.desktop.v1, aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",

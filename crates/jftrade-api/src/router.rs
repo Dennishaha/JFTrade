@@ -752,6 +752,7 @@ async fn websocket_handler(
         );
     };
     let shutdown = state.live_hub.subscribe_shutdown();
+    let depth = crate::websocket_depth::WebsocketDepth::new(&state, &headers);
     upgrade
         .protocols([crate::auth::DESKTOP_WEBSOCKET_PROTOCOL])
         .on_upgrade(move |socket| {
@@ -759,9 +760,12 @@ async fn websocket_handler(
                 socket,
                 connection_permit,
                 live_hub_connection,
-                timestamp,
-                live_market_data_status,
-                live_connections,
+                WebsocketSessionContext {
+                    timestamp,
+                    live_market_data_status,
+                    live_connections,
+                    depth,
+                },
                 WebsocketCancellation {
                     shutdown,
                     revocation: revocation.map(|Extension(revocation)| revocation),
@@ -815,15 +819,26 @@ struct WebsocketCancellation {
     listener: Option<ListenerShutdown>,
 }
 
+struct WebsocketSessionContext {
+    timestamp: String,
+    live_market_data_status: Option<Arc<dyn LiveMarketDataStatusPort>>,
+    live_connections: Arc<LiveConnectionMetrics>,
+    depth: crate::websocket_depth::WebsocketDepth,
+}
+
 async fn websocket_session(
     mut socket: axum::extract::ws::WebSocket,
     connection_permit: crate::LiveConnectionPermit,
     mut live_hub_connection: LiveHubConnection,
-    timestamp: String,
-    live_market_data_status: Option<Arc<dyn LiveMarketDataStatusPort>>,
-    live_connections: Arc<LiveConnectionMetrics>,
+    context: WebsocketSessionContext,
     cancellation: WebsocketCancellation,
 ) {
+    let WebsocketSessionContext {
+        timestamp,
+        live_market_data_status,
+        live_connections,
+        mut depth,
+    } = context;
     let WebsocketCancellation {
         mut shutdown,
         revocation,
@@ -914,6 +929,7 @@ async fn websocket_session(
                         active_instruments.dedup();
                         connection_permit.set_active_instruments(&active_instruments);
                         live_hub_connection.set_subscription_snapshot(&snapshot);
+                        depth.replace(&snapshot);
                     }
                     Ok(None) => {}
                     Err(code) => {
@@ -935,9 +951,13 @@ async fn websocket_session(
                 let Some(event) = event else {
                     break;
                 };
-                if socket.send(Message::Text(event.to_string().into())).await.is_err() {
+                if send_live_events(&mut socket, depth.project(event)).await.is_err() {
                     break;
                 }
+            }
+            snapshots = depth.snapshots() => {
+                let events = depth.filter_snapshots(snapshots);
+                if send_live_events(&mut socket, events).await.is_err() { break; }
             }
             changed = shutdown.changed() => {
                 if changed.is_ok() || *shutdown.borrow() {
@@ -952,6 +972,16 @@ async fn websocket_session(
             }
         }
     }
+}
+
+async fn send_live_events(
+    socket: &mut axum::extract::ws::WebSocket,
+    events: Vec<Value>,
+) -> Result<(), axum::Error> {
+    for event in events {
+        socket.send(Message::Text(event.to_string().into())).await?;
+    }
+    Ok(())
 }
 
 #[cfg(test)]

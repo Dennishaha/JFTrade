@@ -1,5 +1,18 @@
 # Go → Rust 证据积压清单
 
+## 2026-10-08 WebSocket depth 初始读取与客户端档数
+
+- 逐项复核五条mapping及必要reuse，净 **+1 exact / -1 partial / boundary 0**，当前 **1640 / 2171 / 640**。原handler244的认证futu/us/tme/US.TME/num50订阅无需预先push即可读取原初始resolvedAt01，随后同一socket经具体OpenD listener收到原更新02、source/完整envelope/entityId US.TME|50/request.num50；原断言全部闭合才升级。其余四条保留具体dispatcher/回调缺口。
+- 真实修复位于API session transport：初始depth通过现有API port、生产quote owner及runtime microstructure资源读取，唯一RouterDemandListener继续持有ORDER_BOOK demand；每客户端保留请求num、裁剪双侧book并生成带档数entityId/eventId，global event不被改写。初始响应只投影对应请求档数，已到达live push不会被延迟初始响应覆盖；同resolvedAt去重、重新订阅强制读取。没有改公开schema、生成物、冻结fixture、锁文件或增加持久化/订阅writer。
+- canonical `verification-receipts/websocket-depth-canonical-2026-10-08.json`：**8 passed / 0 failed / 0 ignored**，SHA-256 `74ad82e03d641044fbbaa92ba71b1c1fd3106a3575861c3fab36638e8070679a`。七份Rust指纹和tracked diff保存于`/tmp/jftrade-websocket-depth-canonical-source`。包含三个真实production owner/socket测试、一个实际listener挂起读取关闭测试、三个API pending/timeout/projection回归及既有具体OpenD推送测试；filtered/skipped不记通过。
+- 保留红绿原字节：原始`websocket-depth-original-red-2026-10-08.json` **0 passed / 3 failed**，SHA `d8f278b07cf6c80e9302efcde18c7794264fff21965b9aedfc120fd28ad223a9`，三项都因缺初始owner读取超时；首次`websocket-depth-initial-green-2026-10-08.json` **3 passed**，SHA `99104af498e07bf79564cc10bbdef8ac8fbdde432f5c455cb9a5917d660c756d`。补充不同档数的初始book长度后，`websocket-depth-snapshot-size-red-2026-10-08.json` **0 passed / 1 failed**，SHA `d7987166c1cbccad2e6846e01bc108b85dd3a879b0228c5ebe2576a4922d7e97`，复现1档初始结果覆盖50档；由canonical相同加强断言替代。各自源码备份为`/tmp/jftrade-websocket-depth-{red,initial,size-red}-source`。
+- pending读取由session future持有，无detached producer；重新订阅和owner drop都直接断言释放，实际listener关闭在read仍挂起时发1001并清空hub，timeout直接释放API port future。该2秒timeout约束可yield的异步port；现有production microstructure.query是同步调用，本批没有证明同步RPC可抢占取消。
+- 残余：dispatcher295原文只证明AAPL callback过滤/空格归一、capacity1通知合并及nil unsubscribe可调用，没有latest payload或resolvedAt去重断言，旧mapping夸大的残余已纠正，通知合并仍未实现。dispatcher59的security/console与send失败传播，219的alpha四调用及HTTPS/checked assertion，20的WS四错误对象传播仍partial。不得用SSE测试或TME档数隔离替代整组原断言。
+- 普通/strict审计、anchor及最终现场门禁在本批收口时记录；当前strict通过，anchor **2125 unique / 2077 recorded / 0 unrecorded / 0 stale / 48 unknown**，Rust inventory **3677**。定向绿色receipt不代表完整Rust门禁通过。
+- 本批现场quick明确退出0，日志`/tmp/jftrade-websocket-depth-quick.log`：**2370 passed / 0 failed / 0 skipped**，fmt、Clippy、七类兼容回放、Pine worker **98 passed**与desktop脚本 **48 passed**。普通/strict、AI context及diff通过；七份Rust指纹仍匹配canonical。完整Rust已经启动，结束前不记通过。
+- 本批现场完整`pnpm run check:rust`明确退出0，日志`/tmp/jftrade-websocket-depth-rust.log`：workspace **3833 passed / 0 failed / 2 skipped**，无LEAK；static与七类兼容回放通过，跳过项不计通过。最终strict曾因旧shared owner引用数降到1却保留reviewed被拒绝，诊断`/tmp/jftrade-websocket-depth-final-strict.log`保留；按现有schema改为single，保留allowed与原reviewNote，没有扩共享批准或放宽审计。
+- 下一批优先五条Pine live partial（原business226/270/305/368/404）：用原两根warmup、单根append、恰一次close核对生产task，验证完整instrument进入session ID以及跨市场同名symbol隔离。当前open/append/close都使用裸symbol，冻结226要求完整US.AAPL；在本批门禁过程中只读调查，尚未将下一批变更混入本次证据。
+
 ## 2026-10-08 Workflow trigger 配置、阈值与软删除
 
 - 本批逐项复核五条mapping及必要reuse，净 **+2 exact / -2 partial / boundary 0**，当前 **1639 / 2172 / 640**。原crud14通过同一production read/mutation owner闭合归一、分页、FAILED日志、trigger/workflow软删除及重复删除/读取拒绝；原crud616通过真实threshold配置owner闭合原嵌套cross-down、边界比较、numeric path、ID列表与数值转换断言。
