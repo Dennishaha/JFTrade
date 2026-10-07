@@ -15711,11 +15711,11 @@
       "boundaryReason": null
     },
     "internal/api/productfeatures/provider_research_routes_test.go:179:TestEmbeddedProviderNewsAndCorporateActionRoutes": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_production_ports_research_company_tests.rs::corporate_action_projection_formats_statements",
-      "conclusion": "partial：Go 断言 news 与 corporate actions 的内嵌 provider 投影与字段透传。Rust 的 corporate action 投影用例断言 statement 数字渲染；news 侧由生产新闻端口转发用例覆盖，两条路由未同一用例断言。缺口 owner：crates/jftrade-engine research/news 端口；回归要求：补 news+actions 两条路由的投影矩阵断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'not test(production_helper_sync_cancel_aborts_in_flight_request) and not test(production_helper_sync_rejects_broken_pagination_cursors) and not test(production_helper_sync_forwards_page_query_and_persists_provider_values) and not test(production_helper_sync_retries_transient_page_and_records_retry)'",
-      "evidence_type": "partial",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-engine/src/product_embedded_research_http_parity_tests.rs::embedded_news_and_corporate_actions_http_preserve_original_projection",
+      "conclusion": "function_exact：原始两条GET经真实production装配到helper：新闻US.AAPL/pageSize5与无broker参数的US公司行动均200、ok=true。 完整检查title Apple beats expectations、brokerId yfinance、selectionReason embedded-market-data-provider、statement 每股派息 0.5及exDate 2026-08-10；helper恰一次新闻limit5及一次corporate-actions/US/AAPL调用。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(embedded_news_and_corporate_actions_http_preserve_original_projection) or test(embedded_news_actions_http_expose_original_lifecycle_error_boundaries) or test(embedded_rankings_and_industries_http_expose_original_provider_scope) or test(embedded_company_http_exposes_original_instrument_and_statement_scope) or test(embedded_calendar_macro_http_exposes_original_active_provider_scope)'",
+      "evidence_type": "function_exact",
       "source": {
         "file": "internal/api/productfeatures/provider_research_routes_test.go",
         "line": 179,
@@ -15724,24 +15724,23 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_production_ports_research_company_tests.rs",
-          "test": "corporate_action_projection_formats_statements",
+          "file": "crates/jftrade-engine/src/product_embedded_research_http_parity_tests.rs",
+          "test": "embedded_news_and_corporate_actions_http_preserve_original_projection",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/api/productfeatures/provider_research_routes_test.go",
             "goLine": 179,
-            "rustFile": "crates/jftrade-engine/src/product_production_ports_research_company_tests.rs",
-            "rustLine": 20
+            "rustFile": "crates/jftrade-engine/src/product_embedded_research_http_parity_tests.rs",
+            "rustLine": 150
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust corporate-action tests format statement numbers and news-port tests cover provider forwarding."
+          "原始两条GET经真实production装配到helper：新闻US.AAPL/pageSize5与无broker参数的US公司行动均200、ok=true。",
+          "完整检查title Apple beats expectations、brokerId yfinance、selectionReason embedded-market-data-provider、statement 每股派息 0.5及exDate 2026-08-10；helper恰一次新闻limit5及一次corporate-actions/US/AAPL调用。"
         ],
-        "uncovered": [
-          "No combined embedded-provider news+corporate-actions projection matrix with field-by-field parameter forwarding."
-        ],
+        "uncovered": [],
         "source": "reviewed"
       },
       "verification": {
@@ -15751,45 +15750,45 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(embedded_news_and_corporate_actions_http_preserve_original_projection) or test(embedded_news_actions_http_expose_original_lifecycle_error_boundaries) or test(embedded_rankings_and_industries_http_expose_original_provider_scope) or test(embedded_company_http_exposes_original_instrument_and_statement_scope) or test(embedded_calendar_macro_http_exposes_original_active_provider_scope)"
         ],
         "testFilter": [
-          "corporate_action_projection_formats_statements"
+          "embedded_news_and_corporate_actions_http_preserve_original_projection"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "820fee0256e990320d9a1e9012537abca4886105",
+        "verifiedAt": "2026-10-07T18:46:12Z",
+        "receiptDigest": "sha256:03e5e476ec653a25b4a214daa386dae5f61b2970f7adf7b8c6df29153148222a"
       },
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "retain_reviewed_boundary_or_partial_and_reaudit",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "retain_exact_and_reaudit_on_owner_change",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust corporate-action tests format statement numbers and news-port tests cover provider forwarding."
+        "原始两条GET经真实production装配到helper：新闻US.AAPL/pageSize5与无broker参数的US公司行动均200、ok=true。",
+        "完整检查title Apple beats expectations、brokerId yfinance、selectionReason embedded-market-data-provider、statement 每股派息 0.5及exDate 2026-08-10；helper恰一次新闻limit5及一次corporate-actions/US/AAPL调用。"
       ],
-      "uncoveredAssertions": [
-        "No combined embedded-provider news+corporate-actions projection matrix with field-by-field parameter forwarding."
-      ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/api/productfeatures/provider_research_routes_test.go:229:TestEmbeddedProviderRouteErrorsKeepHTTPContract": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_production_ports_research_tests.rs::embedded_capability_errors_keep_the_broker_code_and_lifecycle_sentinels; crates/jftrade-engine/src/product_production_ports_market_data_news_tests.rs::explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback",
-      "conclusion": "partial：Go 断言 news 路由能力不支持→409、预热→503 + Retry-After 1，actions 路由忙碌→503 + Retry-After 2。引用其一是 research 侧 map_research_helper_error 的单测，数值映射虽同，但 news/actions 路由实际走 map_news_actions_helper_error（直通归一），并非同一函数，路由级从未驱动；引用其二主题是显式非活动 broker 回绝（409 MARKET_DATA_CAPABILITY_UNSUPPORTED 的另一触发），与错误契约无关。缺口 owner：crates/jftrade-engine product_production_ports_market_data_news_actions_route；回归要求：补经 news/actions 嵌入路由驱动能力/预热/忙碌错误的路由级契约测试。",
-      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(stream_terminal_projection_trims_tool_outputs_from_final_response) or test(adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart) or test(persisted_terminal_run_is_published_as_final_instead_of_a_second_error) or test(recovered_terminal_stream_frame_carries_the_replay_marker) or test(auxiliary_provider_failure_skips_only_the_failing_subscription_family) or test(news_actions_helper_request_rejects_a_missing_instrument_uri) or test(embedded_capability_errors_keep_the_broker_code_and_lifecycle_sentinels) or test(explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback) or test(screen_query_rejects_wrong_catalog_and_schema_versions) or test(route_and_page_validation_precede_provider_calls) or test(futu_screen_capability_errors_use_the_broker_code) or test(research_screen_fixture_replays_go_wire_for_the_post_route) or test(execution_write_fixture_replays_all_seven_go_owned_mutations)'",
+      "rust_entry": "crates/jftrade-engine/src/product_embedded_research_http_parity_tests.rs::embedded_news_actions_http_expose_original_lifecycle_error_boundaries",
+      "conclusion": "partial：原始新闻请求经实际helper错误映射得到409 capability及503 MARKET_DATA_PROVIDER_WARMING/Retry-After 1。 原始SH.600519公司行动得到409 BROKER_CAPABILITY_UNAVAILABLE、无Retry-After、零新增helper调用；额外合法US.AAPL请求驱动真正503 MARKET_DATA_PROVIDER_BUSY/Retry-After 2。 冻结Go的原始SH.600519要求503/Retry-After 2；Rust在helper busy之前拒绝市场，额外US请求不替代原输入差异。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(embedded_news_and_corporate_actions_http_preserve_original_projection) or test(embedded_news_actions_http_expose_original_lifecycle_error_boundaries) or test(embedded_rankings_and_industries_http_expose_original_provider_scope) or test(embedded_company_http_exposes_original_instrument_and_statement_scope) or test(embedded_calendar_macro_http_exposes_original_active_provider_scope)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/api/productfeatures/provider_research_routes_test.go",
@@ -15799,34 +15798,24 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_production_ports_research_tests.rs",
-          "test": "embedded_capability_errors_keep_the_broker_code_and_lifecycle_sentinels",
+          "file": "crates/jftrade-engine/src/product_embedded_research_http_parity_tests.rs",
+          "test": "embedded_news_actions_http_expose_original_lifecycle_error_boundaries",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/api/productfeatures/provider_research_routes_test.go",
             "goLine": 229,
-            "rustFile": "crates/jftrade-engine/src/product_production_ports_research_tests.rs",
-            "rustLine": 947
-          }
-        },
-        {
-          "file": "crates/jftrade-engine/src/product_production_ports_market_data_news_tests.rs",
-          "test": "explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback",
-          "crate": "jftrade-engine",
-          "anchor": {
-            "goFile": "internal/api/productfeatures/provider_research_routes_test.go",
-            "goLine": 229,
-            "rustFile": "crates/jftrade-engine/src/product_production_ports_market_data_news_tests.rs",
-            "rustLine": 644
+            "rustFile": "crates/jftrade-engine/src/product_embedded_research_http_parity_tests.rs",
+            "rustLine": 190
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust research error mapping tests preserve capability/lifecycle sentinels; explicit non-active broker rejection preserves 409 capability."
+          "原始新闻请求经实际helper错误映射得到409 capability及503 MARKET_DATA_PROVIDER_WARMING/Retry-After 1。",
+          "原始SH.600519公司行动得到409 BROKER_CAPABILITY_UNAVAILABLE、无Retry-After、零新增helper调用；额外合法US.AAPL请求驱动真正503 MARKET_DATA_PROVIDER_BUSY/Retry-After 2。"
         ],
         "uncovered": [
-          "No route-level news/actions test drives capability, warmup 503+Retry-After=1, and busy 503+Retry-After=2 through the embedded routes."
+          "冻结Go的原始SH.600519要求503/Retry-After 2；Rust在helper busy之前拒绝市场，额外US请求不替代原输入差异。"
         ],
         "source": "reviewed"
       },
@@ -15837,45 +15826,49 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(embedded_news_and_corporate_actions_http_preserve_original_projection) or test(embedded_news_actions_http_expose_original_lifecycle_error_boundaries) or test(embedded_rankings_and_industries_http_expose_original_provider_scope) or test(embedded_company_http_exposes_original_instrument_and_statement_scope) or test(embedded_calendar_macro_http_exposes_original_active_provider_scope)"
         ],
         "testFilter": [
-          "explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback"
+          "embedded_news_actions_http_expose_original_lifecycle_error_boundaries"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "820fee0256e990320d9a1e9012537abca4886105",
+        "verifiedAt": "2026-10-07T18:46:12Z",
+        "receiptDigest": "sha256:03e5e476ec653a25b4a214daa386dae5f61b2970f7adf7b8c6df29153148222a"
       },
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "retain_reviewed_boundary_or_partial_and_reaudit",
+      "nextAction": "review_active_provider_capability_boundary",
       "blockedBy": [
         "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust research error mapping tests preserve capability/lifecycle sentinels; explicit non-active broker rejection preserves 409 capability."
+        "原始新闻请求经实际helper错误映射得到409 capability及503 MARKET_DATA_PROVIDER_WARMING/Retry-After 1。",
+        "原始SH.600519公司行动得到409 BROKER_CAPABILITY_UNAVAILABLE、无Retry-After、零新增helper调用；额外合法US.AAPL请求驱动真正503 MARKET_DATA_PROVIDER_BUSY/Retry-After 2。"
       ],
       "uncoveredAssertions": [
-        "No route-level news/actions test drives capability, warmup 503+Retry-After=1, and busy 503+Retry-After=2 through the embedded routes."
+        "冻结Go的原始SH.600519要求503/Retry-After 2；Rust在helper busy之前拒绝市场，额外US请求不替代原输入差异。"
       ],
       "boundaryReason": null
     },
     "internal/api/productfeatures/provider_research_routes_test.go:264:TestEmbeddedProviderRankingsAndIndustryRoutes": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_production_ports_research_market_tests.rs::rankings_operations_map_to_provider_kinds_on_the_wire",
-      "conclusion": "partial：Go 断言 rankings 与 industries 的投影与参数转发。Rust 分别断言 rankings 操作映射（引用用例）与 industry_board 操作映射；参数转发（market/operation/paging）未逐条断言。缺口 owner：crates/jftrade-engine research market 端口；回归要求：补两条路由的参数转发断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'not test(production_helper_sync_cancel_aborts_in_flight_request) and not test(production_helper_sync_rejects_broken_pagination_cursors) and not test(production_helper_sync_forwards_page_query_and_persists_provider_values) and not test(production_helper_sync_retries_transient_page_and_records_retry)'",
+      "rust_entry": "crates/jftrade-engine/src/product_embedded_research_http_parity_tests.rs::embedded_rankings_and_industries_http_expose_original_provider_scope",
+      "conclusion": "partial：原始US top_movers/up/pageSize10经HTTP得到200、US.AAPL与embedded-market-data-provider；helper明确收到market=US/kind=gainers/limit=10。 原始yfinance+CN plate_list/concept及plate_members/CN.半导体/pageSize20均409 BROKER_CAPABILITY_UNAVAILABLE且不触达helper。 Go要求两条CN industries成功及concept/半导体转发、CN.人工智能和SH.688981投影；Rust active yfinance无该能力，未闭合这两条200。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(embedded_news_and_corporate_actions_http_preserve_original_projection) or test(embedded_news_actions_http_expose_original_lifecycle_error_boundaries) or test(embedded_rankings_and_industries_http_expose_original_provider_scope) or test(embedded_company_http_exposes_original_instrument_and_statement_scope) or test(embedded_calendar_macro_http_exposes_original_active_provider_scope)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/api/productfeatures/provider_research_routes_test.go",
@@ -15885,23 +15878,24 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_production_ports_research_market_tests.rs",
-          "test": "rankings_operations_map_to_provider_kinds_on_the_wire",
+          "file": "crates/jftrade-engine/src/product_embedded_research_http_parity_tests.rs",
+          "test": "embedded_rankings_and_industries_http_expose_original_provider_scope",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/api/productfeatures/provider_research_routes_test.go",
             "goLine": 264,
-            "rustFile": "crates/jftrade-engine/src/product_production_ports_research_market_tests.rs",
-            "rustLine": 535
+            "rustFile": "crates/jftrade-engine/src/product_embedded_research_http_parity_tests.rs",
+            "rustLine": 249
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust tests map ranking and industry-board operations to provider kinds."
+          "原始US top_movers/up/pageSize10经HTTP得到200、US.AAPL与embedded-market-data-provider；helper明确收到market=US/kind=gainers/limit=10。",
+          "原始yfinance+CN plate_list/concept及plate_members/CN.半导体/pageSize20均409 BROKER_CAPABILITY_UNAVAILABLE且不触达helper。"
         ],
         "uncovered": [
-          "No per-route assertion forwards market, operation, and pagination parameters for both rankings and industries."
+          "Go要求两条CN industries成功及concept/半导体转发、CN.人工智能和SH.688981投影；Rust active yfinance无该能力，未闭合这两条200。"
         ],
         "source": "reviewed"
       },
@@ -15912,37 +15906,41 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(embedded_news_and_corporate_actions_http_preserve_original_projection) or test(embedded_news_actions_http_expose_original_lifecycle_error_boundaries) or test(embedded_rankings_and_industries_http_expose_original_provider_scope) or test(embedded_company_http_exposes_original_instrument_and_statement_scope) or test(embedded_calendar_macro_http_exposes_original_active_provider_scope)"
         ],
         "testFilter": [
-          "rankings_operations_map_to_provider_kinds_on_the_wire"
+          "embedded_rankings_and_industries_http_expose_original_provider_scope"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "820fee0256e990320d9a1e9012537abca4886105",
+        "verifiedAt": "2026-10-07T18:46:12Z",
+        "receiptDigest": "sha256:03e5e476ec653a25b4a214daa386dae5f61b2970f7adf7b8c6df29153148222a"
       },
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "retain_reviewed_boundary_or_partial_and_reaudit",
+      "nextAction": "review_active_provider_capability_boundary",
       "blockedBy": [
         "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust tests map ranking and industry-board operations to provider kinds."
+        "原始US top_movers/up/pageSize10经HTTP得到200、US.AAPL与embedded-market-data-provider；helper明确收到market=US/kind=gainers/limit=10。",
+        "原始yfinance+CN plate_list/concept及plate_members/CN.半导体/pageSize20均409 BROKER_CAPABILITY_UNAVAILABLE且不触达helper。"
       ],
       "uncoveredAssertions": [
-        "No per-route assertion forwards market, operation, and pagination parameters for both rankings and industries."
+        "Go要求两条CN industries成功及concept/半导体转发、CN.人工智能和SH.688981投影；Rust active yfinance无该能力，未闭合这两条200。"
       ],
       "boundaryReason": null
     },
@@ -16033,9 +16031,9 @@
     },
     "internal/api/productfeatures/provider_research_routes_test.go:370:TestEmbeddedProviderCompanyResearchRoutes": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_production_ports_research_company_tests.rs::company_research_default_operations_project_on_the_wire",
-      "conclusion": "partial：Go 断言 profile/financials/analyst/ownership 等公司研究操作投影与参数转发。Rust 断言默认操作按 wire 投影（含 analyst/financials）；market/symbol/statement 参数转发由 financials 转发用例覆盖，未覆盖全部默认操作。缺口 owner：crates/jftrade-engine research company 端口；回归要求：补默认操作×参数矩阵断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+      "rust_entry": "crates/jftrade-engine/src/product_embedded_research_http_parity_tests.rs::embedded_company_http_exposes_original_instrument_and_statement_scope",
+      "conclusion": "partial：原始US profile/consensus经HTTP成功，profile保留title/text fieldType，analyst保留rating4；helper恰收到profile/US/AAPL与analyst/US/AAPL。 原始SH.600519 financials/cashflow与ownership/overview均409 BROKER_CAPABILITY_UNAVAILABLE且无helper调用。 Go要求SH financials200、structureList/total_revenue与cashflow转发，以及ownership200/mainHolderInfoList/holderTypeInfoList；Rust市场能力拒绝使原断言未闭合。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(embedded_news_and_corporate_actions_http_preserve_original_projection) or test(embedded_news_actions_http_expose_original_lifecycle_error_boundaries) or test(embedded_rankings_and_industries_http_expose_original_provider_scope) or test(embedded_company_http_exposes_original_instrument_and_statement_scope) or test(embedded_calendar_macro_http_exposes_original_active_provider_scope)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/api/productfeatures/provider_research_routes_test.go",
@@ -16045,23 +16043,24 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_production_ports_research_company_tests.rs",
-          "test": "company_research_default_operations_project_on_the_wire",
+          "file": "crates/jftrade-engine/src/product_embedded_research_http_parity_tests.rs",
+          "test": "embedded_company_http_exposes_original_instrument_and_statement_scope",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/api/productfeatures/provider_research_routes_test.go",
             "goLine": 370,
-            "rustFile": "crates/jftrade-engine/src/product_production_ports_research_company_tests.rs",
-            "rustLine": 548
+            "rustFile": "crates/jftrade-engine/src/product_embedded_research_http_parity_tests.rs",
+            "rustLine": 277
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust company tests project default analyst/financial operations and financials forwards market/symbol/statement."
+          "原始US profile/consensus经HTTP成功，profile保留title/text fieldType，analyst保留rating4；helper恰收到profile/US/AAPL与analyst/US/AAPL。",
+          "原始SH.600519 financials/cashflow与ownership/overview均409 BROKER_CAPABILITY_UNAVAILABLE且无helper调用。"
         ],
         "uncovered": [
-          "No complete default-operation × parameter forwarding matrix for profile, financials, analyst, and ownership."
+          "Go要求SH financials200、structureList/total_revenue与cashflow转发，以及ownership200/mainHolderInfoList/holderTypeInfoList；Rust市场能力拒绝使原断言未闭合。"
         ],
         "source": "reviewed"
       },
@@ -16072,37 +16071,41 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(embedded_news_and_corporate_actions_http_preserve_original_projection) or test(embedded_news_actions_http_expose_original_lifecycle_error_boundaries) or test(embedded_rankings_and_industries_http_expose_original_provider_scope) or test(embedded_company_http_exposes_original_instrument_and_statement_scope) or test(embedded_calendar_macro_http_exposes_original_active_provider_scope)"
         ],
         "testFilter": [
-          "company_research_default_operations_project_on_the_wire"
+          "embedded_company_http_exposes_original_instrument_and_statement_scope"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "820fee0256e990320d9a1e9012537abca4886105",
+        "verifiedAt": "2026-10-07T18:46:12Z",
+        "receiptDigest": "sha256:03e5e476ec653a25b4a214daa386dae5f61b2970f7adf7b8c6df29153148222a"
       },
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "retain_reviewed_boundary_or_partial_and_reaudit",
+      "nextAction": "review_active_provider_capability_boundary",
       "blockedBy": [
         "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust company tests project default analyst/financial operations and financials forwards market/symbol/statement."
+        "原始US profile/consensus经HTTP成功，profile保留title/text fieldType，analyst保留rating4；helper恰收到profile/US/AAPL与analyst/US/AAPL。",
+        "原始SH.600519 financials/cashflow与ownership/overview均409 BROKER_CAPABILITY_UNAVAILABLE且无helper调用。"
       ],
       "uncoveredAssertions": [
-        "No complete default-operation × parameter forwarding matrix for profile, financials, analyst, and ownership."
+        "Go要求SH financials200、structureList/total_revenue与cashflow转发，以及ownership200/mainHolderInfoList/holderTypeInfoList；Rust市场能力拒绝使原断言未闭合。"
       ],
       "boundaryReason": null
     },
@@ -16193,9 +16196,9 @@
     },
     "internal/api/productfeatures/provider_research_routes_test.go:498:TestEmbeddedProviderCalendarAndMacroRoutes": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_production_ports_research_calendar_tests.rs::calendar_operations_map_to_provider_reads_on_the_wire",
-      "conclusion": "partial：Go 断言 earnings/dividends/economic/ipos 与 macro 投影及参数转发。Rust 分别断言 calendar 与 macro 操作映射；参数转发与逐操作 payload 未在同一用例断言。缺口 owner：crates/jftrade-engine research calendar/macro 端口；回归要求：补逐操作投影与参数转发矩阵。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'not test(production_helper_sync_cancel_aborts_in_flight_request) and not test(production_helper_sync_rejects_broken_pagination_cursors) and not test(production_helper_sync_forwards_page_query_and_persists_provider_values) and not test(production_helper_sync_retries_transient_page_and_records_retry)'",
+      "rust_entry": "crates/jftrade-engine/src/product_embedded_research_http_parity_tests.rs::embedded_calendar_macro_http_exposes_original_active_provider_scope",
+      "conclusion": "partial：原始六条yfinance请求经HTTP逐项核对：earnings/CN日期区间、dividends/SH日期、economic/SH日期区间、ipos/CN、indicators/US、indicator_history/US/cpi_yoy/pageSize60均409 BROKER_CAPABILITY_UNAVAILABLE，消息包含provider，helper调用为零。 Go要求上述六条200和calendar/macro字段、日期/indicatorId/limit转发；Rust该组仅接受active AKShare，未用更换broker或provider后的输入宣称原请求等价。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(embedded_news_and_corporate_actions_http_preserve_original_projection) or test(embedded_news_actions_http_expose_original_lifecycle_error_boundaries) or test(embedded_rankings_and_industries_http_expose_original_provider_scope) or test(embedded_company_http_exposes_original_instrument_and_statement_scope) or test(embedded_calendar_macro_http_exposes_original_active_provider_scope)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/api/productfeatures/provider_research_routes_test.go",
@@ -16205,23 +16208,23 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_production_ports_research_calendar_tests.rs",
-          "test": "calendar_operations_map_to_provider_reads_on_the_wire",
+          "file": "crates/jftrade-engine/src/product_embedded_research_http_parity_tests.rs",
+          "test": "embedded_calendar_macro_http_exposes_original_active_provider_scope",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/api/productfeatures/provider_research_routes_test.go",
             "goLine": 498,
-            "rustFile": "crates/jftrade-engine/src/product_production_ports_research_calendar_tests.rs",
-            "rustLine": 642
+            "rustFile": "crates/jftrade-engine/src/product_embedded_research_http_parity_tests.rs",
+            "rustLine": 321
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust calendar tests map calendar and macro operations to provider reads."
+          "原始六条yfinance请求经HTTP逐项核对：earnings/CN日期区间、dividends/SH日期、economic/SH日期区间、ipos/CN、indicators/US、indicator_history/US/cpi_yoy/pageSize60均409 BROKER_CAPABILITY_UNAVAILABLE，消息包含provider，helper调用为零。"
         ],
         "uncovered": [
-          "No per-operation projection/parameter matrix for earnings, dividends, economic, IPOs, and macro routes."
+          "Go要求上述六条200和calendar/macro字段、日期/indicatorId/limit转发；Rust该组仅接受active AKShare，未用更换broker或provider后的输入宣称原请求等价。"
         ],
         "source": "reviewed"
       },
@@ -16232,37 +16235,40 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(embedded_news_and_corporate_actions_http_preserve_original_projection) or test(embedded_news_actions_http_expose_original_lifecycle_error_boundaries) or test(embedded_rankings_and_industries_http_expose_original_provider_scope) or test(embedded_company_http_exposes_original_instrument_and_statement_scope) or test(embedded_calendar_macro_http_exposes_original_active_provider_scope)"
         ],
         "testFilter": [
-          "calendar_operations_map_to_provider_reads_on_the_wire"
+          "embedded_calendar_macro_http_exposes_original_active_provider_scope"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "820fee0256e990320d9a1e9012537abca4886105",
+        "verifiedAt": "2026-10-07T18:46:12Z",
+        "receiptDigest": "sha256:03e5e476ec653a25b4a214daa386dae5f61b2970f7adf7b8c6df29153148222a"
       },
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "retain_reviewed_boundary_or_partial_and_reaudit",
+      "nextAction": "review_active_provider_capability_boundary",
       "blockedBy": [
         "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust calendar tests map calendar and macro operations to provider reads."
+        "原始六条yfinance请求经HTTP逐项核对：earnings/CN日期区间、dividends/SH日期、economic/SH日期区间、ipos/CN、indicators/US、indicator_history/US/cpi_yoy/pageSize60均409 BROKER_CAPABILITY_UNAVAILABLE，消息包含provider，helper调用为零。"
       ],
       "uncoveredAssertions": [
-        "No per-operation projection/parameter matrix for earnings, dividends, economic, IPOs, and macro routes."
+        "Go要求上述六条200和calendar/macro字段、日期/indicatorId/limit转发；Rust该组仅接受active AKShare，未用更换broker或provider后的输入宣称原请求等价。"
       ],
       "boundaryReason": null
     },
@@ -340623,6 +340629,46 @@
     }
   },
   "reuse": {
+    "crates/jftrade-engine/src/product_embedded_research_http_parity_tests.rs::embedded_calendar_macro_http_exposes_original_active_provider_scope": {
+      "allowed": true,
+      "reviewStatus": "single",
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/api/productfeatures/provider_research_routes_test.go:498:TestEmbeddedProviderCalendarAndMacroRoutes"
+      ]
+    },
+    "crates/jftrade-engine/src/product_embedded_research_http_parity_tests.rs::embedded_company_http_exposes_original_instrument_and_statement_scope": {
+      "allowed": true,
+      "reviewStatus": "single",
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/api/productfeatures/provider_research_routes_test.go:370:TestEmbeddedProviderCompanyResearchRoutes"
+      ]
+    },
+    "crates/jftrade-engine/src/product_embedded_research_http_parity_tests.rs::embedded_news_actions_http_expose_original_lifecycle_error_boundaries": {
+      "allowed": true,
+      "reviewStatus": "single",
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/api/productfeatures/provider_research_routes_test.go:229:TestEmbeddedProviderRouteErrorsKeepHTTPContract"
+      ]
+    },
+    "crates/jftrade-engine/src/product_embedded_research_http_parity_tests.rs::embedded_news_and_corporate_actions_http_preserve_original_projection": {
+      "allowed": true,
+      "reviewStatus": "single",
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/api/productfeatures/provider_research_routes_test.go:179:TestEmbeddedProviderNewsAndCorporateActionRoutes"
+      ]
+    },
+    "crates/jftrade-engine/src/product_embedded_research_http_parity_tests.rs::embedded_rankings_and_industries_http_expose_original_provider_scope": {
+      "allowed": true,
+      "reviewStatus": "single",
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/api/productfeatures/provider_research_routes_test.go:264:TestEmbeddedProviderRankingsAndIndustryRoutes"
+      ]
+    },
     "crates/jftrade-strategy/src/pine/mod.rs::pending_order_calls_preserve_original_stop_limit_and_cancel_arguments": {
       "allowed": true,
       "reviewStatus": "single",
@@ -342311,13 +342357,12 @@
       "reviewStatus": "reviewed"
     },
     "crates/jftrade-engine/src/product_production_ports_market_data_news_tests.rs::explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback": {
-      "referenceCount": 8,
+      "referenceCount": 7,
       "referenceKeys": [
         "internal/api/marketdata/routes_test.go:147:TestExplicitBrokerRoutesUseBrokerReaderAndNeverLegacyFallback",
-        "internal/api/productfeatures/provider_research_routes_test.go:229:TestEmbeddedProviderRouteErrorsKeepHTTPContract",
         "internal/app/apiserver/marketdataapp/runtime_news_forwarding_test.go:89:TestRuntimeNewsAndCorporateActionsRejectProvidersWithoutCapability",
-        "internal/marketdata/news_facade_test.go:42:TestServiceNewsAndCorporateActionsRejectProvidersWithoutCapability",
         "internal/integration/akshare/client_news_actions_test.go:121:TestClientNewsMapsUnsupportedMarketToCapabilityError",
+        "internal/marketdata/news_facade_test.go:42:TestServiceNewsAndCorporateActionsRejectProvidersWithoutCapability",
         "internal/productfeatures/service_test.go:30:TestQueryDoesNotFallbackWhenBrokerIsExplicit",
         "internal/strategy/liveruntime/manager_boundaries_test.go:155:TestStrategyRuntimeResolvesExactBoundBrokerWithoutLegacyFallback",
         "internal/strategy/liveruntime/manager_boundaries_test.go:182:TestLiveStrategyRequiresExplicitBrokerAccountBinding"
@@ -342674,18 +342719,16 @@
       "reviewStatus": "single"
     },
     "crates/jftrade-engine/src/product_production_ports_research_company_tests.rs::corporate_action_projection_formats_statements": {
-      "referenceCount": 2,
+      "referenceCount": 1,
       "referenceKeys": [
-        "internal/api/productfeatures/provider_research_routes_test.go:179:TestEmbeddedProviderNewsAndCorporateActionRoutes",
         "internal/productfeatures/provider_projection_test.go:97:TestProviderCorporateActionProjectionFormatsStatements"
       ],
       "allowed": true,
-      "reviewStatus": "reviewed"
+      "reviewStatus": "single"
     },
     "crates/jftrade-engine/src/product_production_ports_research_tests.rs::embedded_capability_errors_keep_the_broker_code_and_lifecycle_sentinels": {
-      "referenceCount": 6,
+      "referenceCount": 5,
       "referenceKeys": [
-        "internal/api/productfeatures/provider_research_routes_test.go:229:TestEmbeddedProviderRouteErrorsKeepHTTPContract",
         "internal/api/productfeatures/provider_research_routes_test.go:335:TestEmbeddedProviderRankingsRouteMapsUnsupportedOperations",
         "internal/api/productfeatures/provider_research_routes_test.go:458:TestEmbeddedProviderCompanyResearchRejectsUnsupportedOperations",
         "internal/api/productfeatures/provider_research_routes_test.go:606:TestEmbeddedProviderCalendarMacroRoutesRejectUnsupportedOperations",
@@ -342697,9 +342740,8 @@
       "reviewNote": "2026-09-29 Provider Research API batch: capability and lifecycle sentinels reviewed against route assertions; non-exact references retain their status."
     },
     "crates/jftrade-engine/src/product_production_ports_research_market_tests.rs::rankings_operations_map_to_provider_kinds_on_the_wire": {
-      "referenceCount": 4,
+      "referenceCount": 3,
       "referenceKeys": [
-        "internal/api/productfeatures/provider_research_routes_test.go:264:TestEmbeddedProviderRankingsAndIndustryRoutes",
         "internal/app/apiserver/marketdataapp/runtime_rankings_industry_forwarding_test.go:66:TestRuntimeForwardsRankingsToCapableActiveProvider",
         "internal/marketdata/rankings_facade_test.go:91:TestServiceRankingsForwardsNormalizedKindAndDefaultLimit",
         "internal/productfeatures/provider_facade_rankings_test.go:53:TestEmbeddedProviderMapsRankingsOperationsToKinds"
@@ -342720,9 +342762,8 @@
       "reviewNote": "2026-09-30 API marketdata forwarding owner review: Go route/runtime assertions were compared with the shared Rust owner; this relation is limited to the small fan-out owner and does not approve high-fanout reuse."
     },
     "crates/jftrade-engine/src/product_production_ports_research_company_tests.rs::company_research_default_operations_project_on_the_wire": {
-      "referenceCount": 4,
+      "referenceCount": 3,
       "referenceKeys": [
-        "internal/api/productfeatures/provider_research_routes_test.go:370:TestEmbeddedProviderCompanyResearchRoutes",
         "internal/app/apiserver/marketdataapp/runtime_company_forwarding_test.go:57:TestRuntimeCompanyResearchForwarding",
         "internal/integration/akshare/provider_company_research_test.go:193:TestProviderCompanyProfileSupportsHK",
         "internal/productfeatures/provider_facade_company_test.go:51:TestEmbeddedProviderServesCompanyResearchDefaultOperations"
@@ -342743,9 +342784,8 @@
       "reviewNote": "2026-09-30 API marketdata forwarding owner review: Go route/runtime assertions were compared with the shared Rust owner; this relation is limited to the small fan-out owner and does not approve high-fanout reuse."
     },
     "crates/jftrade-engine/src/product_production_ports_research_calendar_tests.rs::calendar_operations_map_to_provider_reads_on_the_wire": {
-      "referenceCount": 4,
+      "referenceCount": 3,
       "referenceKeys": [
-        "internal/api/productfeatures/provider_research_routes_test.go:498:TestEmbeddedProviderCalendarAndMacroRoutes",
         "internal/app/apiserver/marketdataapp/runtime_calendar_forwarding_test.go:74:TestRuntimeCalendarMacroForwarding",
         "internal/marketdata/calendar_macro_facade_test.go:109:TestServiceCalendarValidatesDateFormats",
         "internal/productfeatures/provider_facade_calendar_test.go:33:TestEmbeddedProviderServesCalendarOperations"

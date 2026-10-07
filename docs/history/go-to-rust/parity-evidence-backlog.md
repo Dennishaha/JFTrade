@@ -1,5 +1,16 @@
 # Go → Rust 证据积压清单
 
+## 2026-10-08 Embedded provider research 原始 HTTP 输入
+
+- 五条mapping逐项复核，净 **+1 exact / -1 partial / boundary 0**，当前 **1630 / 2181 / 640**。仅原179升级：同一production product接收原始新闻与US公司行动GET，逐项核对title/brokerId/selectionReason/statement/exDate，并核对helper两次目标及limit5。生产装配实际注入helper，不使用会被composition清除的caller route port。
+- 最终canonical `verification-receipts/embedded-research-http-formatted-2026-10-08.json`：**5 passed / 0 failed / 0 ignored / 2209 filtered/skipped**，SHA-256 `03e5e476ec653a25b4a214daa386dae5f61b2970f7adf7b8c6df29153148222a`。包含当时mapping/doc的完整tracked diff SHA-256 `adf0c2f44de7ea99545a7653f4eafa5475b0705b66e37ab15246b7e868a1451e` 已匹配；原始字节备份于`/tmp/jftrade-embedded-research-formatted-source`，diff于`/tmp/jftrade-embedded-research-formatted-source-diff.bin`，Rust单文件指纹于`/tmp/jftrade-embedded-research-formatted-fingerprints.json`。之后只更新receipt引用与门禁说明。
+- 原始红receipt `verification-receipts/embedded-research-http-original-red-2026-10-08.json`保留，实际 **1 passed / 4 failed**，SHA-256 `785f35ce98ebfbf27fe691eef9f984407905d9f39548248d513b63d976b4c76d`。失败均为原输入的能力边界，与canonical中明确的counterexample断言配对：输入不变、实现不变、不改冻结fixture、不扩大provider授权；没有把后续绿色解释为四条原Go行为已对齐。
+- 四条仍partial：errors229的SH公司行动409/无Retry-After/零helper不同于原503/2；额外合法US请求真实到helper并验证503 MARKET_DATA_PROVIDER_BUSY/2。rankings264的原US gainers/limit10与wire已闭合，但yfinance+CN boards/members为409且零新增helper，Go要求两条200。company370的US profile/analyst200和原fieldType/rating4已闭合，SH financials/cashflow与ownership为409、无helper。calendar498的六条原始yfinance请求均409/零helper，Rust该组只接受active AKShare，原Go要求六条200及日期/indicatorId/limit/字段转发。
+- 当前只新增测试及其注册；无生产逻辑、HTTP契约、provider fence、锁文件或schema改动。fixture通过有界GET headers读取、独立临时数据库、固定loopback helper响应和显式cancel/join保持资源收口。定向Clippy退出0；focused只证明五条owner测试，现场quick/完整Rust及最终审计在收口时追加。
+- quick首轮`/tmp/jftrade-embedded-research-quick.log`在target-health退出1（中间rcgu.o达到50000），没有执行本批quick测试；确认无Cargo/compiler进程后，指定clean移除117756 files/33.1GiB，日志`/tmp/jftrade-embedded-research-clean.log`。重跑`/tmp/jftrade-embedded-research-quick-clean.log`虽2244 passed/0 failed/0 skipped，随后fmt拒绝新增module注册顺序，整体退出1。只按formatter调整注册顺序，独立fmt退出0并重新focused生成formatted receipt；原始名字为canonical的五条绿色保留，SHA-256 `c5bba70b8f947e8ea406633369af94a8057ba5db8343a04e0c7c4a94c374cc8e`，由formatted替代。旧源码与diff备份仍在`/tmp/jftrade-embedded-research-source`及`/tmp/jftrade-embedded-research-source-diff.bin`，原失败不记通过。
+- formatted现场quick退出0，日志`/tmp/jftrade-embedded-research-quick-formatted.log`：**2244 passed / 0 failed / 0 skipped**，fmt与Clippy、七类兼容回放、Pine worker **98 passed**。最终strict退出0；anchor对账 **2109 unique / 2061 recorded / 0 unrecorded / 0 stale / 48 unknown**。提交前再次核对两份Rust文件指纹匹配formatted receipt，只修改五条mapping及必要reuse。
+- 本批现场完整`pnpm run check:rust`退出0，日志`/tmp/jftrade-embedded-research-rust.log`：workspace **3805 passed / 0 failed / 2 skipped**，无LEAK；Rust static与七类兼容回放均通过。两条skipped不能计入已执行通过。最终AI context、diff检查均退出0。
+
 ## 2026-10-08 Pine UDF 调用与循环作用域
 
 - 本批只复核五条 mapping 与必要 reuse，净 **+3 exact / -3 partial / boundary 0**，当前 **1629 / 2182 / 640**。原838的六个脚本均以原错误片段拒绝；原unknown206的entry/exit unknown=1在60/61行经公开analysis拒绝；原window141完整脚本经公开analysis成功并逐项包含九个原需求key。撤销此前对window141“完整语义对象投影”和unknown206“私有parseState对象”的额外要求，它们未出现在冻结原文断言中。

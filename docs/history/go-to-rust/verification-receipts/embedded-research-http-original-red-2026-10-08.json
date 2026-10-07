@@ -1,0 +1,72 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(embedded_news_and_corporate_actions_http_preserve_original_projection) or test(embedded_news_actions_http_expose_original_lifecycle_error_boundaries) or test(embedded_rankings_and_industries_http_expose_original_provider_scope) or test(embedded_company_http_exposes_original_instrument_and_statement_scope) or test(embedded_calendar_macro_http_exposes_original_active_provider_scope)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 100,
+  "status": "failed",
+  "verifiedAt": "2026-10-07T18:27:20Z",
+  "sourceState": {
+    "verifiedCommit": "820fee0256e990320d9a1e9012537abca4886105",
+    "trackedDiffSha256": "09a092f6d5e5c438a3139fc011ad33c9041d5317d06799e2dc3b65f99611c60e",
+    "untrackedFiles": [
+      {
+        "path": "crates/jftrade-engine/src/product_embedded_research_http_parity_tests.rs",
+        "sha256": "354d7392d614b8f168f02e2711f367ff37ef423bd4f1682090bfb21f4e0fcb60"
+      }
+    ]
+  },
+  "rawOutputSha256": "1f11a3b4468d5e2fb010fd64ebc717beb2aca474175151924eb51334429ebaa2",
+  "passedTests": [
+    "jftrade-engine::jftrade_engine$product::tests::embedded_research_http_parity_tests::embedded_news_and_corporate_actions_http_preserve_original_projection"
+  ],
+  "failedTests": [
+    "jftrade-engine::jftrade_engine$product::tests::embedded_research_http_parity_tests::embedded_calendar_macro_http_exposes_original_active_provider_scope",
+    "jftrade-engine::jftrade_engine$product::tests::embedded_research_http_parity_tests::embedded_company_http_exposes_original_instrument_and_statement_scope",
+    "jftrade-engine::jftrade_engine$product::tests::embedded_research_http_parity_tests::embedded_news_actions_http_expose_original_lifecycle_error_boundaries",
+    "jftrade-engine::jftrade_engine$product::tests::embedded_research_http_parity_tests::embedded_rankings_and_industries_http_expose_original_provider_scope"
+  ],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 5,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "failed",
+      "passed": 1,
+      "failed": 4,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1812,
+      "exec_time": 24.037794084,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    }
+  ]
+}
