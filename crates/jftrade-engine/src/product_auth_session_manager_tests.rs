@@ -459,6 +459,44 @@ fn auth_session_store_corruption_fails_closed_without_rewrite() {
     assert_eq!(fs::read(session_path).expect("read original bytes"), before);
 }
 
+#[test]
+fn session_revocation_is_published_only_after_persistence_succeeds() {
+    let directory = tempfile::tempdir().expect("directory");
+    let session_path = directory.path().join(SESSION_STORE_FILENAME);
+    let security = SecuritySettingsService::new(Arc::new(MockSecurityStore(RwLock::new(None))));
+    let manager =
+        ProductionAuthSessionManager::open_at(security, session_path.clone()).expect("manager");
+    let session = StoredSession {
+        token_hash: token_hash("existing-session"),
+        csrf_hash: token_hash("csrf"),
+        expires_at_unix: unix_timestamp() + 100,
+    };
+    manager
+        .sessions
+        .write()
+        .expect("sessions")
+        .insert(session.token_hash.clone(), session);
+    manager.persist().expect("persist session");
+    let mut subscribed = manager.subscribe_revocation().expect("subscription");
+    let backup = directory.path().join("sessions-backup.json");
+    fs::rename(&session_path, &backup).expect("backup session file");
+    fs::create_dir(&session_path).expect("block atomic rename");
+    assert!(manager.invalidate_all().is_err());
+    assert!(manager.is_session_valid("existing-session"));
+    assert!(!subscribed.has_changed().expect("revocation state"));
+
+    fs::remove_dir(&session_path).expect("unblock persistence");
+    fs::rename(backup, session_path).expect("restore session file");
+    manager.invalidate_all().expect("invalidate sessions");
+    assert!(!manager.is_session_valid("existing-session"));
+    assert!(subscribed.has_changed().expect("successful revocation"));
+    subscribed.borrow_and_update();
+    let fresh = manager.subscribe_revocation().expect("new subscription");
+    assert!(!fresh.has_changed().expect("new generation"));
+    manager.invalidate_all().expect("next security change");
+    assert!(fresh.has_changed().expect("new subscriber revoked"));
+}
+
 // Parity: go:452dea11:internal/app/apiserver/webaccess/auth_boundaries_test.go:101 TestWebAuthRemainingAuthenticationStates
 #[test]
 fn expired_browser_sessions_fail_validation_and_are_pruned_on_restart() {

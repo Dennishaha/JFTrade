@@ -641,6 +641,9 @@ mod auth_session_tests;
 #[path = "product_ws_live_tests.rs"]
 mod ws_live_tests;
 
+#[path = "product_security_stream_tests.rs"]
+mod security_stream_tests;
+
 #[path = "product_strategy_pine_tests.rs"]
 mod strategy_pine_tests;
 

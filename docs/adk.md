@@ -154,6 +154,7 @@ ADK 发起研究回测或策略优化前会先检查本地 K 线覆盖，并把�
 - Web 默认关闭。用户在桌面设置中开启后，所有 `/api/v1/adk/*` 以及交易、策略、回测、设置和插件 API 都要求 Web 密码会话。
 - 浏览器以 Web 访问密码调用 `POST /api/v1/auth/login` 后获得 `HttpOnly`、`SameSite=Strict` 会话；会话默认 12 小时过期。
 - cookie 写请求必须来自配置的 GUI Origin，并携带登录或 session 状态接口返回的 `X-CSRF-Token`。
+- Web 安全设置保存成功并撤销会话后，已建立的浏览器 SSE 会结束，浏览器 WebSocket 会以 policy violation 关闭；桌面临时能力凭证的连接继续独立运行。会话 owner 仅在失效状态持久化成功后发布撤销，transport 在认证前订阅并负责释放连接。
 - 不再提供持久 Admin Key、Bearer 管理员旁路或 `/api/v1/auth/token`。外部脚本若通过可选 Web 入口调用，必须走同一密码会话和 CSRF 规则。
 - CORS 只回显配置的 GUI/API Origin；缺失 `Origin` 不再被视为可信请求。
 

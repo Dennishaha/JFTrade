@@ -9,6 +9,80 @@ use super::*;
 #[derive(Debug)]
 struct EnabledWsLiveSnapshotPort;
 
+// Parity: go:452dea11:internal/app/apiserver/servercore/security_test.go:43 TestSecurityChangeCancelsExistingWebStream
+#[tokio::test]
+async fn password_change_revokes_browser_websocket_and_keeps_desktop_capability() {
+    use super::security_stream_tests::{
+        protected_product_config, replace_web_password, web_client, web_login,
+    };
+
+    let directory = tempdir().expect("directory");
+    let settings_path = directory.path().join("settings.json");
+    let (config, web_address) = protected_product_config(&settings_path);
+    let handle = start_product(config).await.expect("production product");
+    let client = web_client();
+    let (cookie, _) = web_login(&client, web_address, "original browser password").await;
+    let origin = format!("http://{web_address}");
+    let browser =
+        websocket_handshake(web_address, &[("Cookie", &cookie), ("Origin", &origin)]).await;
+    assert_eq!(browser.status, 101, "browser handshake={browser:?}");
+    let mut browser = browser.upgraded_stream.expect("browser websocket");
+    assert!(
+        read_server_text_frame(&mut browser)
+            .await
+            .contains("heartbeat")
+    );
+    let desktop = websocket_handshake(
+        handle.startup_record().address,
+        &[(
+            "Sec-WebSocket-Protocol",
+            "jftrade.desktop.v1, aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        )],
+    )
+    .await;
+    assert_eq!(desktop.status, 101);
+    let mut desktop = desktop.upgraded_stream.expect("desktop websocket");
+    assert!(
+        read_server_text_frame(&mut desktop)
+            .await
+            .contains("heartbeat")
+    );
+    assert_eq!(handle.live_hub().snapshot().connected, 2);
+
+    replace_web_password(handle.startup_record().address, web_address).await;
+    let closed = tokio::time::timeout(
+        std::time::Duration::from_secs(2),
+        read_server_close_frame(&mut browser),
+    )
+    .await;
+    // A desktop subscription is still processed after browser revocation.
+    desktop
+        .write_all(&masked_text_frame(br#"{"type":"subscribe","subscriptions":{"providerBrokerId":"futu","activeInstruments":["US.TME"]}}"#))
+        .await
+        .expect("desktop message");
+    wait_for_live_projection_with_headers(
+        handle.startup_record().address,
+        1,
+        &["US.TME"],
+        &[("Authorization", "Bearer aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")],
+    )
+    .await;
+    drop(browser);
+    drop(desktop);
+    wait_for_live_projection_with_headers(
+        handle.startup_record().address,
+        0,
+        &[],
+        &[("Authorization", "Bearer aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")],
+    )
+    .await;
+    handle.shutdown().await.expect("shutdown product");
+    assert_eq!(
+        closed.expect("browser close deadline"),
+        (1008, "Web session revoked".to_owned())
+    );
+}
+
 impl WsLiveSnapshotPort for EnabledWsLiveSnapshotPort {
     fn enabled(&self) -> bool {
         true

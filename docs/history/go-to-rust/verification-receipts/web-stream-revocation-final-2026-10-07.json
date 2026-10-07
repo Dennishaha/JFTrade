@@ -1,0 +1,114 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "-p",
+    "jftrade-api",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(password_change_cancels_active_web_chat_stream_on_unchanged_listener) or test(password_change_revokes_browser_websocket_and_keeps_desktop_capability) or test(session_revocation_is_published_only_after_persistence_succeeds) or test(revoked_idle_sse_drops_its_producer_without_waiting_for_a_frame) or test(session_owner_disappearance_ends_pending_sse)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-10-07T04:34:04Z",
+  "sourceState": {
+    "verifiedCommit": "af1f59c8e567c6f3b477e2b71c56873236058058",
+    "trackedDiffSha256": "f78d67c07de92a7b865e123a39292bea7fc004934e8b4e97bc49e504a74556fa",
+    "untrackedFiles": [
+      {
+        "path": "crates/jftrade-api/src/session_lifecycle.rs",
+        "sha256": "36038fd18e382190e35f49cb6e25e95aacab24f519497c575b12f882a914b3a1"
+      },
+      {
+        "path": "crates/jftrade-engine/src/product_security_stream_tests.rs",
+        "sha256": "fe4e8b10a87588b62b6c2febc91bca44f2d9bb7b6e82002d28fd36faf8b2626d"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/web-stream-revocation-green-2026-10-07.json",
+        "sha256": "dff96375371e91a28f8c7b9ff125df147a040118eac2d461fe0b29c570062f34"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/web-stream-revocation-red-2026-10-07.json",
+        "sha256": "60a9926192c70ba2de4d5ea37f7619fdb058c8ea98347be9ce7d74818b0b2190"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/web-stream-revocation-verified-2026-10-07.json",
+        "sha256": "335366891619a63fa80bb398b905d88cd322eb4dd4b0d3e76508fb34880ff6d1"
+      }
+    ]
+  },
+  "rawOutputSha256": "9dbb263d89f3863f4cc7ff8fd8ae73df815ba319211053f9065c0e9066634751",
+  "passedTests": [
+    "jftrade-api::jftrade_api$session_lifecycle::tests::revoked_idle_sse_drops_its_producer_without_waiting_for_a_frame",
+    "jftrade-api::jftrade_api$session_lifecycle::tests::session_owner_disappearance_ends_pending_sse",
+    "jftrade-engine::jftrade_engine$product::product_auth_session_manager::tests::session_revocation_is_published_only_after_persistence_succeeds",
+    "jftrade-engine::jftrade_engine$product::tests::security_stream_tests::password_change_cancels_active_web_chat_stream_on_unchanged_listener",
+    "jftrade-engine::jftrade_engine$product::tests::ws_live_tests::password_change_revokes_browser_websocket_and_keeps_desktop_capability"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 3,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 2,
+      "nextest": {
+        "crate": "jftrade-api",
+        "test_binary": "jftrade_api",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 51,
+      "exec_time": 0.025985917,
+      "nextest": {
+        "crate": "jftrade-api",
+        "test_binary": "jftrade_api",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1734,
+      "exec_time": 14.962616418,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    }
+  ]
+}

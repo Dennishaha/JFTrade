@@ -52,6 +52,7 @@ pub struct ProductionAuthSessionManager {
     failed_attempts: Arc<Mutex<BTreeMap<String, LoginAttempt>>>,
     security: SecuritySettingsService,
     session_path: Arc<PathBuf>,
+    revocation: tokio::sync::watch::Sender<u64>,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -84,6 +85,7 @@ impl ProductionAuthSessionManager {
             failed_attempts: Arc::new(Mutex::new(BTreeMap::new())),
             security,
             session_path: Arc::new(session_path),
+            revocation: tokio::sync::watch::channel(0).0,
         };
         manager.persist()?;
         Ok(manager)
@@ -100,6 +102,8 @@ impl ProductionAuthSessionManager {
             *guard = previous;
             return Err(error);
         }
+        self.revocation
+            .send_modify(|generation| *generation = generation.wrapping_add(1));
         Ok(())
     }
 
@@ -178,6 +182,10 @@ impl AuthSessionInvalidationPort for ProductionAuthSessionManager {
 }
 
 impl WebSessionValidator for ProductionAuthSessionManager {
+    fn subscribe_revocation(&self) -> Option<tokio::sync::watch::Receiver<u64>> {
+        Some(self.revocation.subscribe())
+    }
+
     fn is_session_valid(&self, session_cookie: &str) -> bool {
         self.valid_session(session_cookie).is_some()
     }

@@ -6,7 +6,7 @@ use std::time::Instant;
 use axum::Router;
 use axum::body::{Body, to_bytes};
 use axum::extract::ws::{CloseFrame, Message, WebSocketUpgrade};
-use axum::extract::{ConnectInfo, Request, State};
+use axum::extract::{ConnectInfo, Extension, Request, State};
 use axum::http::header::{
     ACCEPT, ACCESS_CONTROL_ALLOW_CREDENTIALS, ACCESS_CONTROL_ALLOW_HEADERS,
     ACCESS_CONTROL_ALLOW_METHODS, ACCESS_CONTROL_ALLOW_ORIGIN, ACCESS_CONTROL_EXPOSE_HEADERS,
@@ -23,6 +23,7 @@ use tower_http::trace::TraceLayer;
 
 use crate::auth::{origin_provided, request_origin};
 use crate::envelope::{body_response, empty_response, error_response, success_response};
+use crate::session_lifecycle::{SessionRevocation, wait_for_revocation};
 use crate::websocket::{
     LiveDepthSubscription, LiveHub, LiveHubConnection, LiveHubLifecycle, LiveSecuritySubscription,
     LiveSubscriptionSnapshot,
@@ -175,14 +176,7 @@ async fn transport_middleware(
     } else if let Some(page) = web_access_status_page(&state, &request) {
         page
     } else if should_authenticate(request.uri().path()) {
-        match authorize(&state, &request) {
-            Ok(()) => {
-                CURRENT_REQUEST_CONTEXT
-                    .scope(request_context.clone(), next.run(request))
-                    .await
-            }
-            Err(failure) => error_response(&state.clock, failure),
-        }
+        run_authorized_request(&state, request, request_context, next).await
     } else {
         CURRENT_REQUEST_CONTEXT
             .scope(request_context, next.run(request))
@@ -200,6 +194,36 @@ async fn transport_middleware(
         &request_id,
     );
     response
+}
+
+async fn run_authorized_request(
+    state: &ApiState,
+    mut request: Request,
+    context: RequestContext,
+    next: Next,
+) -> Response<Body> {
+    let revocation = SessionRevocation::subscribe(&state.access, request.headers());
+    // Validate after subscribing so a security change cannot race admission.
+    // The same subscription crosses a WebSocket upgrade.
+    if let Err(failure) = authorize(state, &request) {
+        return error_response(&state.clock, failure);
+    }
+    if let Some(revocation) = revocation.as_ref() {
+        request.extensions_mut().insert(revocation.clone());
+    }
+    tokio::select! {
+        biased;
+        _ = wait_for_revocation(revocation.clone()) => error_response(
+            &state.clock,
+            ApiFailure::new(401, "WEB_AUTH_REQUIRED", "Web password authentication is required"),
+        ),
+        response = CURRENT_REQUEST_CONTEXT.scope(context, next.run(request)) => {
+            match revocation {
+                Some(revocation) => revocation.wrap_sse(response),
+                None => response,
+            }
+        }
+    }
 }
 
 fn request_context(request: &Request) -> RequestContext {
@@ -659,6 +683,7 @@ fn sse_response(events: Vec<SseEvent>) -> Response<Body> {
 
 async fn websocket_handler(
     State(state): State<ApiState>,
+    revocation: Option<Extension<SessionRevocation>>,
     headers: HeaderMap,
     upgrade: WebSocketUpgrade,
 ) -> Response<Body> {
@@ -737,7 +762,10 @@ async fn websocket_handler(
                 timestamp,
                 live_market_data_status,
                 live_connections,
-                shutdown,
+                WebsocketCancellation {
+                    shutdown,
+                    revocation: revocation.map(|Extension(revocation)| revocation),
+                },
             )
         })
 }
@@ -780,6 +808,11 @@ struct LiveClientMessage {
     subscriptions: LiveClientSubscriptions,
 }
 
+struct WebsocketCancellation {
+    shutdown: tokio::sync::watch::Receiver<bool>,
+    revocation: Option<SessionRevocation>,
+}
+
 async fn websocket_session(
     mut socket: axum::extract::ws::WebSocket,
     connection_permit: crate::LiveConnectionPermit,
@@ -787,8 +820,18 @@ async fn websocket_session(
     timestamp: String,
     live_market_data_status: Option<Arc<dyn LiveMarketDataStatusPort>>,
     live_connections: Arc<LiveConnectionMetrics>,
-    mut shutdown: tokio::sync::watch::Receiver<bool>,
+    cancellation: WebsocketCancellation,
 ) {
+    let WebsocketCancellation {
+        mut shutdown,
+        revocation,
+    } = cancellation;
+    if revocation
+        .as_ref()
+        .is_some_and(SessionRevocation::is_revoked)
+    {
+        return;
+    }
     if *shutdown.borrow() {
         let _ = socket
             .send(Message::Close(Some(CloseFrame {
@@ -816,6 +859,13 @@ async fn websocket_session(
 
     loop {
         tokio::select! {
+            _ = wait_for_revocation(revocation.clone()) => {
+                let _ = socket.send(Message::Close(Some(CloseFrame {
+                    code: 1008,
+                    reason: "Web session revoked".into(),
+                }))).await;
+                break;
+            }
             _ = interval.tick() => {
                 let timestamp = crate::SystemClock.now_rfc3339();
                 let hb = live_heartbeat_with_subscription(

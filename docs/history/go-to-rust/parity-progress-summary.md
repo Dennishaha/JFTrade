@@ -1,5 +1,14 @@
 # Go → Rust 对齐成果摘要
 
+## 2026-10-07 活动浏览器流的安全撤销
+
+- 本批复核五条相关 partial：安全变更取消活动 SSE、GET 重连写失败、replay watermark/清理、delta/final 发布、空请求终态错误。实际闭合并升级 `TestSecurityChangeCancelsExistingWebStream`；净变化 **exact +1 / partial -1 / boundary 0**，当前 **1594 / 2217 / 640**。Rust 测试扫描数 **3531**、数量比 **79.3%** 单列，不作为整体行为完成率。
+- 真实 production Web 登录与未结束的 loopback provider 证明：Web 保持开启、端口不变、仅更换密码，已经打开的聊天 SSE 正常结束；旧 cookie 失效、新密码仍能在原 listener 登录。会话 owner 在持久化成功后广播撤销，transport 在认证前订阅，结束 SSE 并释放 receiver；浏览器 WS 关闭，桌面 capability WS 仍能处理订阅。持久化失败不广播，owner 消失和首次 poll 前撤销也有直接回归。
+- 当前 canonical 为 `verification-receipts/web-stream-revocation-reviewed-2026-10-07.json`：**5 passed / 0 failed / 0 ignored**，另 **2213 filtered/skipped**；SHA-256 `eace474e6bb74ca4249b6fabba84285a74f72c7167d2362ab312dce042ae4749`。已核对 receipt 与记录时完整 tracked diff 的 SHA-256 `879eee23dd5ea674b56441f1f1350f7d4c113e3a8009ec06667b5972cbd3968b`、全部 untracked 摘要一致；随后仅重绑定 mapping 和更新说明，Rust 源码保持一致。
+- 三份原失败 receipt 保留：red 为原生产缺口；green 文件实际 failed（测试 Client 缺 rustls provider 初始化）；verified 文件实际 failed（4/1，误把协议忽略的非法 WS 消息当关闭帧）。final 与 canonical 文件为两次 5/5 中间通过；reviewed 在恢复原 WS select 公平性后定向重跑 5/5，替代前两份通过证据。详细替代关系见积压清单，不由文件名推断状态。
+- 普通/strict 审计通过；anchor **2037 unique / 1989 recorded / 0 unrecorded / 0 stale / 48 unknown**。quick 首轮在 target health 失败（超过 50,000 个 `.rcgu.o`），确认无 Cargo 进程后按仓库 `clean:rust:artifacts` 清理 **122701 files / 33.5 GiB**；重跑 quick 明确退出 **0**，受影响 nextest **2248 passed / 0 failed / 0 skipped**，Pine worker **98 passed**，七类 replay 与桌面检查通过。现场完整 `pnpm run check:rust` 也明确退出 **0**：workspace **3687 passed / 0 failed / 2 skipped**，静态检查与七类 replay 全通过。日志 `/tmp/jftrade-web-stream-quick-retry.log`、`/tmp/jftrade-web-stream-rust.log`；未生成 workspace JSON receipt，focused digest 不充当全量门禁摘要。
+- 四条 Assistant 继续 partial，并纠正过宽旧说明：GET reconnect 仍 materialized，不能用 POST live 撤销证明失败 writer；独立 live/replay 测试不能证明同一 reconnect 的 watermark 前后；Go 清理断言是 run timeout 加 retention 后 get 不再返回；空 ChatRequest 的 terminal error 不等于 Rust 缺 clientRequestId 的 400 JSON。下一批优先 GET replay 的逐帧取消、同连接 replay/live 和 listener 重配置的活动流退出；整体目标保持 active。
+
 ## 2026-10-07 认证 capability、登出与安全配置保持
 
 - 本批逐项复核七条相关 partial：logout 中间件、旧 admin bearer、desktop HTTP/WS token、默认 Web 关闭、desktop 启动保持安全配置、认证状态矩阵、安全变更取消活动流。只改变对应七条 mapping 和必要 reuse 关系。

@@ -7,6 +7,7 @@ mod observability;
 mod ports;
 mod route;
 mod router;
+mod session_lifecycle;
 mod sse;
 mod swagger_docs;
 mod websocket;

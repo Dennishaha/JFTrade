@@ -3592,7 +3592,7 @@
     "internal/api/assistant/chat_helpers_test.go:167:TestChatStreamExecutionPublishesDeltaAndFinalVariants": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_run_projection_tests.rs::stream_terminal_projection_trims_tool_outputs_from_final_response（Stream 终帧裁剪）；crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart（终帧保留与重放）；crates/jftrade-engine/src/product_adk_model_runtime_recovery_tests.rs::persisted_terminal_run_is_published_as_final_instead_of_a_second_error（终态只出 final）",
-      "conclusion": "partial：Rust 已覆盖终帧保留/重放、终态只产生一个 final（不伪造第二个 error），并新增 Stream route 回归：final response 中移除 toolCalls[].output，同时保留 durable run 的完整 tool activity。Go Hub 侧 delta 分类（空 delta 不消费、仅 timeline 才算 timeline-only、混合不算、仅 run 才算 run delta）仍是进程内 helper；Rust provider delta 直接进入 durable stream event，未建立同形内存分类测试，保持 partial。",
+      "conclusion": "partial：已核对冻结 Go 的完整 helper 序列；既有 Rust final 裁剪和 durable 终态证明有效。本批未新增 delta owner，不升级。缺口包括空/timeline-only/mixed/run-only 分类、nil/context/session/narrative 的发布序列及 final 裁剪；不能仅以终帧或 receipt 增长消除这些缺口。",
       "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(stream_terminal_projection_trims_tool_outputs_from_final_response) or test(adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart) or test(persisted_terminal_run_is_published_as_final_instead_of_a_second_error) or test(recovered_terminal_stream_frame_carries_the_replay_marker) or test(auxiliary_provider_failure_skips_only_the_failing_subscription_family) or test(news_actions_helper_request_rejects_a_missing_instrument_uri) or test(embedded_capability_errors_keep_the_broker_code_and_lifecycle_sentinels) or test(explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback) or test(screen_query_rejects_wrong_catalog_and_schema_versions) or test(route_and_page_validation_precede_provider_calls) or test(futu_screen_capability_errors_use_the_broker_code) or test(research_screen_fixture_replays_go_wire_for_the_post_route) or test(execution_write_fixture_replays_all_seven_go_owned_mutations)'",
       "evidence_type": "partial",
       "source": {
@@ -3641,7 +3641,8 @@
           "Rust tests cover terminal-frame tool-output trimming, durable terminal replay, single final emission, and preservation of tool activity."
         ],
         "uncovered": [
-          "No Rust in-memory delta classification matrix for empty, timeline-only, mixed, and run-only Go hub variants."
+          "空 delta 不消费、timeline-only 消费、mixed 不报 timeline-only、缺 run 不发布及 run-only 发布的分类矩阵未验证。",
+          "nil context 不发布、有效 context/session 与 reasoning/reply narrative 发布组合未在对应 stream owner 验证。"
         ],
         "source": "reviewed"
       },
@@ -3682,14 +3683,15 @@
         "Rust tests cover terminal-frame tool-output trimming, durable terminal replay, single final emission, and preservation of tool activity."
       ],
       "uncoveredAssertions": [
-        "No Rust in-memory delta classification matrix for empty, timeline-only, mixed, and run-only Go hub variants."
+        "空 delta 不消费、timeline-only 消费、mixed 不报 timeline-only、缺 run 不发布及 run-only 发布的分类矩阵未验证。",
+        "nil context 不发布、有效 context/session 与 reasoning/reply narrative 发布组合未在对应 stream owner 验证。"
       ],
       "boundaryReason": null
     },
     "internal/api/assistant/chat_helpers_test.go:216:TestExecuteADKChatStreamPublishesTerminalErrorForInvalidRequest": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::production_stream_missing_agent_emits_no_preview_frames（未知 agent 无 preview）；crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::production_live_chat_stream_emits_session_before_run_and_terminal_frame（有效 session preview 顺序）；crates/jftrade-engine/tests/adk_chat_stream_compatibility.rs::adk_chat_stream_replays_go_wire_fixture_for_leaf_owned_cases（非法 JSON error）",
-      "conclusion": "partial：Rust 已覆盖非法 JSON 的终局 error 帧、有效 agent 的 preview session→run 顺序，以及未知 agent fail-closed 时不发 session/run 预览帧。Go helper 内部的 `sessionSent` 布尔状态与 previewExecution 的进程内对象生命周期没有 Rust 同形状态，属于 transport owner 边界，保持 partial。",
+      "conclusion": "partial：冻结 Go 直接执行空 ChatRequest 要求非空 terminal error，已有 Rust malformed JSON 终帧不证明同一输入；Rust transport 对缺失 clientRequestId 返回 400 JSON，runtime 的无 message 验证同样在 stream admission 前失败。有效 session preview 与缺 agent 零 preview 的有限证据保留，尚未闭合空请求 terminal error 与一次 preview 序列。",
       "command": "pnpm run test:parity:receipt -- --package jftrade-engine --package jftrade-api --test production_stream_missing_agent_emits_no_preview_frames --test production_live_chat_stream_emits_session_before_run_and_terminal_frame --test adk_chat_stream_replays_go_wire_fixture_for_leaf_owned_cases --output docs/history/go-to-rust/verification-receipts/assistant-transport-boundaries-2026-09-30.json",
       "evidence_type": "partial",
       "source": {
@@ -3738,7 +3740,8 @@
           "Rust stream tests cover invalid-JSON terminal errors, valid session→run preview ordering, and unknown-agent fail-closed with no preview frames."
         ],
         "uncovered": [
-          "No Rust sessionSent/previewExecution in-memory lifecycle state equivalent; that Go helper state is transport-owner specific."
+          "Go 空 ChatRequest 的非空 terminal error，与 Rust 缺 clientRequestId 的 400 JSON admission failure 不同。",
+          "有效已有 session 的 preview 只发布一次及 context 联动，需结合同请求生产 owner 重新核对；不能只用 sessionSent 内部布尔差异解释残余。"
         ],
         "source": "reviewed"
       },
@@ -3781,7 +3784,8 @@
         "Rust stream tests cover invalid-JSON terminal errors, valid session→run preview ordering, and unknown-agent fail-closed with no preview frames."
       ],
       "uncoveredAssertions": [
-        "No Rust sessionSent/previewExecution in-memory lifecycle state equivalent; that Go helper state is transport-owner specific."
+        "Go 空 ChatRequest 的非空 terminal error，与 Rust 缺 clientRequestId 的 400 JSON admission failure 不同。",
+        "有效已有 session 的 preview 只发布一次及 context 联动，需结合同请求生产 owner 重新核对；不能只用 sessionSent 内部布尔差异解释残余。"
       ],
       "boundaryReason": null
     },
@@ -4180,7 +4184,7 @@
     "internal/api/assistant/chat_transport_disconnect_test.go:110:TestChatStreamReconnectAndReplayRespectClientDisconnect": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart; crates/jftrade-api/src/sse.rs::stream_loop_stops_after_trigger_write_failure_without_retrying; crates/jftrade-api/src/sse.rs::stream_loop_stops_after_ticker_write_failure_without_retrying",
-      "conclusion": "partial：Rust production ADK stream owner 已覆盖 retained terminal events、after 游标切片、reconnect route 标记、未知资源 fail-closed、499 disconnect 后 durable terminal/replay；jftrade-api SSE owner 现已用真实 FailingSink 断言通知与 heartbeat/retry 写失败第一次回调即返回错误且不重试。仍保留 partial：engine route 会先物化 SSE body，未在同一 ADK route 测试中证明 socket-like writer 的逐帧写次数。",
+      "conclusion": "partial：2026-10-07 逐项复核冻结 Go；新 POST live SSE 的安全撤销测试不能替代 GET stream/run reconnect 的失败 writer。GET owner product_adk_read_api::adk_read_output 仍拼完整 retry+events 返回 Raw；既有独立 FailingSink 证据不证明同一 ADK GET 路由首帧失败即退出。",
       "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E test(persisted_terminal_run_is_published_as_final_instead_of_a_second_error) or test(production_live_chat_stream_reuses_existing_session_preview_once) or test(adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart)",
       "evidence_type": "partial",
       "source": {
@@ -4230,7 +4234,8 @@
           "Real jftrade-api FailingSink tests prove notification and heartbeat/retry write failures return after one callback without retrying."
         ],
         "uncovered": [
-          "The ADK engine route still materializes the SSE body before transport, so no same-route socket-like writer assertion proves per-frame write count."
+          "GET stream 和 run reconnect 未证明 retry 写失败恰好一次且保留 stream-id header。",
+          "同 GET replay owner 未证明事件写失败一次即返回；预取消 idle request 未证明零 body。"
         ],
         "source": "reviewed"
       },
@@ -4274,7 +4279,8 @@
         "Real jftrade-api FailingSink tests prove notification and heartbeat/retry write failures return after one callback without retrying."
       ],
       "uncoveredAssertions": [
-        "The ADK engine route still materializes the SSE body before transport, so no same-route socket-like writer assertion proves per-frame write count."
+        "GET stream 和 run reconnect 未证明 retry 写失败恰好一次且保留 stream-id header。",
+        "同 GET replay owner 未证明事件写失败一次即返回；预取消 idle request 未证明零 body。"
       ],
       "boundaryReason": null
     },
@@ -6130,7 +6136,7 @@
     "internal/api/assistant/routes_test.go:136:TestChatStreamHubReplayAndCleanupBoundaries": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart；crates/jftrade-engine/src/product_adk_model_runtime_recovery_tests.rs::recovered_terminal_stream_frame_carries_the_replay_marker；crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::adk_chat_stream_replays_nonterminal_snapshot_without_fabricating_terminal_event",
-      "conclusion": "partial：已覆盖 retained 终帧带 replay:true、after 游标过滤旧帧与重启后一致，并新增真实 live stream 断言新帧不带 replay 标记。hub 过期清理在 Rust 无直接对应（durable 模型下不可恢复不跨重启残留未断言），因此仍保持 partial。",
+      "conclusion": "partial：既有 retained replay:true、游标/重启和独立 POST live frame 无 replay 证据有效；冻结 Go 还要求同一次 reconnect 的 watermark 前后分别 replay/live，以及根据 run timeout 与 retention 清理过期记录，Rust durable GET 未闭合。",
       "command": "pnpm run test:parity:receipt -- --package jftrade-engine --test adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart --test recovered_terminal_stream_frame_carries_the_replay_marker --test adk_chat_stream_replays_nonterminal_snapshot_without_fabricating_terminal_event --output docs/history/go-to-rust/verification-receipts/assistant-stream-replay-marker-2026-10-04.json",
       "evidence_type": "partial",
       "source": {
@@ -6176,12 +6182,12 @@
       ],
       "assertionCoverage": {
         "covered": [
-          "已覆盖 retained 终帧带 replay:true、after 游标过滤旧帧与重启后一致。",
-          "真实 POST stream route 断言 live frame 不携带 replay 标记。",
-          "hub 过期清理在 Rust 无直接对应（durable 模型下不可恢复不跨重启残留未断言）。"
+          "retained 终帧 replay:true、after 游标过滤和重启一致有既有 Rust 证据。",
+          "独立 POST live stream 的新帧不携 replay 标记；不等同于同一次 reconnect watermark。"
         ],
         "uncovered": [
-          "Go hub 的 30 分钟过期清理和内存事件上限在 Rust durable stream 模型中没有同形 owner 或直接断言。"
+          "同一次 reconnect watermark 前历史帧 replay=true、之后新帧 replay=false 未验证。",
+          "按 run StartedAt/MaxDurationMs 加 retention 清理过期 stream、get 不再返回，Rust durable owner 未实现或直接断言。"
         ],
         "source": "reviewed"
       },
@@ -6221,12 +6227,12 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "已覆盖 retained 终帧带 replay:true、after 游标过滤旧帧与重启后一致。",
-        "真实 POST stream route 断言 live frame 不携带 replay 标记。",
-        "hub 过期清理在 Rust 无直接对应（durable 模型下不可恢复不跨重启残留未断言）。"
+        "retained 终帧 replay:true、after 游标过滤和重启一致有既有 Rust 证据。",
+        "独立 POST live stream 的新帧不携 replay 标记；不等同于同一次 reconnect watermark。"
       ],
       "uncoveredAssertions": [
-        "Go hub 的 30 分钟过期清理和内存事件上限在 Rust durable stream 模型中没有同形 owner 或直接断言。"
+        "同一次 reconnect watermark 前历史帧 replay=true、之后新帧 replay=false 未验证。",
+        "按 run StartedAt/MaxDurationMs 加 retention 清理过期 stream、get 不再返回，Rust durable owner 未实现或直接断言。"
       ],
       "boundaryReason": null
     },
@@ -23777,18 +23783,18 @@
           "libtest-json-plus",
           "--no-fail-fast"
         ],
-          "testFilter": [
-            "execution_read_routes_match_group_fixture_in_cutover_only",
-            "execution_read_routes_preserve_the_port_failure_code_and_message",
-            "execution_order_detail_route_preserves_missing_and_store_failure_envelopes"
-          ],
+        "testFilter": [
+          "execution_read_routes_match_group_fixture_in_cutover_only",
+          "execution_read_routes_preserve_the_port_failure_code_and_message",
+          "execution_order_detail_route_preserves_missing_and_store_failure_envelopes"
+        ],
         "runnerVersion": "cargo-nextest-0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-          "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-          "verifiedAt": "2026-10-04T00:00:00Z",
-          "receiptDigest": "sha256:a154b23f7bf0cc642cbefbe4e39259a3724cebbe84a753b7710dba448a62e067"
+        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
+        "verifiedAt": "2026-10-04T00:00:00Z",
+        "receiptDigest": "sha256:a154b23f7bf0cc642cbefbe4e39259a3724cebbe84a753b7710dba448a62e067"
       },
       "risk": "high",
       "owner": "api_transport",
@@ -55393,11 +55399,11 @@
       "boundaryReason": null
     },
     "internal/app/apiserver/servercore/security_test.go:43:TestSecurityChangeCancelsExistingWebStream": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_server_tests.rs::disabled_web_access_does_not_start_a_listener; crates/jftrade-engine/src/product_auth_session_manager_tests.rs::auth_sessions_are_cookie_bound_hashed_and_restart_durable",
-      "conclusion": "partial：独立 Rust owner 证明默认禁用时不启动 Web listener，以及 invalidate_all 后已有 cookie 不再认证；未证明活动请求被取消。 冻结 Go 保持 Web 开启，仅替换密码就取消已打开的 SSE 请求。Rust save_security_settings 调用会话 invalidator，但 ProductWebServerRuntime::apply 在同 bind 时直接返回；尚无活动 SSE/WS 撤销信号或同路由直接断言。不能用 listener 停止或后续请求拒绝替代此行为。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'not test(production_helper_sync_cancel_aborts_in_flight_request) and not test(production_helper_sync_rejects_broken_pagination_cursors) and not test(production_helper_sync_forwards_page_query_and_persists_provider_values) and not test(production_helper_sync_retries_transient_page_and_records_retry)'",
-      "evidence_type": "partial",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-engine/src/product_security_stream_tests.rs::password_change_cancels_active_web_chat_stream_on_unchanged_listener; crates/jftrade-engine/src/product_ws_live_tests.rs::password_change_revokes_browser_websocket_and_keeps_desktop_capability",
+      "conclusion": "function_exact：冻结 Go 的核心断言是 Web 保持开启、仅换密码时取消已建立 SSE；新测试通过真实 production HTTP、会话 owner 和受控未结束 provider 直接闭合此行为。补充 WS 撤销及桌面连接隔离；不将会话失效或 listener shutdown 作为活动 SSE 的替代证据。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-engine --package jftrade-api --test password_change_cancels_active_web_chat_stream_on_unchanged_listener --test password_change_revokes_browser_websocket_and_keeps_desktop_capability --test session_revocation_is_published_only_after_persistence_succeeds --test revoked_idle_sse_drops_its_producer_without_waiting_for_a_frame --test session_owner_disappearance_ends_pending_sse --output docs/history/go-to-rust/verification-receipts/web-stream-revocation-reviewed-2026-10-07.json",
+      "evidence_type": "function_exact",
       "source": {
         "file": "internal/app/apiserver/servercore/security_test.go",
         "line": 43,
@@ -55406,35 +55412,34 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_server_tests.rs",
-          "test": "disabled_web_access_does_not_start_a_listener",
+          "file": "crates/jftrade-engine/src/product_security_stream_tests.rs",
+          "test": "password_change_cancels_active_web_chat_stream_on_unchanged_listener",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/app/apiserver/servercore/security_test.go",
             "goLine": 43,
-            "rustFile": "crates/jftrade-engine/src/product_server_tests.rs",
-            "rustLine": 20
+            "rustFile": "crates/jftrade-engine/src/product_security_stream_tests.rs",
+            "rustLine": 160
           }
         },
         {
-          "file": "crates/jftrade-engine/src/product_auth_session_manager_tests.rs",
-          "test": "auth_sessions_are_cookie_bound_hashed_and_restart_durable",
+          "file": "crates/jftrade-engine/src/product_ws_live_tests.rs",
+          "test": "password_change_revokes_browser_websocket_and_keeps_desktop_capability",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/app/apiserver/servercore/security_test.go",
             "goLine": 43,
-            "rustFile": "crates/jftrade-engine/src/product_auth_session_manager_tests.rs",
-            "rustLine": 384
+            "rustFile": "crates/jftrade-engine/src/product_ws_live_tests.rs",
+            "rustLine": 14
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "独立 Rust owner 证明默认禁用时不启动 Web listener，以及 invalidate_all 后已有 cookie 不再认证；未证明活动请求被取消。"
+          "真实 production Web 登录后打开活动聊天 SSE；loopback provider 保持未结束，在 Web 开启且 bind 不变时仅更换密码，原 SSE 在 deadline 内正常结束并释放响应，原 cookie 拒绝、新密码在同 listener 仍可登录。",
+          "同一会话撤销 owner 关闭已升级的浏览器 WS（1008），桌面 capability WS 仍可处理合法订阅，最终连接计数归零。"
         ],
-        "uncovered": [
-          "冻结 Go 保持 Web 开启，仅替换密码就取消已打开的 SSE 请求。Rust save_security_settings 调用会话 invalidator，但 ProductWebServerRuntime::apply 在同 bind 时直接返回；尚无活动 SSE/WS 撤销信号或同路由直接断言。不能用 listener 停止或后续请求拒绝替代此行为。"
-        ],
+        "uncovered": [],
         "source": "reviewed"
       },
       "verification": {
@@ -55444,39 +55449,41 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
+          "-p",
+          "jftrade-api",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(password_change_cancels_active_web_chat_stream_on_unchanged_listener) or test(password_change_revokes_browser_websocket_and_keeps_desktop_capability) or test(session_revocation_is_published_only_after_persistence_succeeds) or test(revoked_idle_sse_drops_its_producer_without_waiting_for_a_frame) or test(session_owner_disappearance_ends_pending_sse)"
         ],
         "testFilter": [
-          "auth_sessions_are_cookie_bound_hashed_and_restart_durable",
-          "disabled_web_access_does_not_start_a_listener"
+          "password_change_cancels_active_web_chat_stream_on_unchanged_listener",
+          "password_change_revokes_browser_websocket_and_keeps_desktop_capability"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "af1f59c8e567c6f3b477e2b71c56873236058058",
+        "verifiedAt": "2026-10-07T04:51:08Z",
+        "receiptDigest": "sha256:eace474e6bb74ca4249b6fabba84285a74f72c7167d2362ab312dce042ae4749"
       },
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "maintain_function_exact_evidence",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "独立 Rust owner 证明默认禁用时不启动 Web listener，以及 invalidate_all 后已有 cookie 不再认证；未证明活动请求被取消。"
+        "真实 production Web 登录后打开活动聊天 SSE；loopback provider 保持未结束，在 Web 开启且 bind 不变时仅更换密码，原 SSE 在 deadline 内正常结束并释放响应，原 cookie 拒绝、新密码在同 listener 仍可登录。",
+        "同一会话撤销 owner 关闭已升级的浏览器 WS（1008），桌面 capability WS 仍可处理合法订阅，最终连接计数归零。"
       ],
-      "uncoveredAssertions": [
-        "冻结 Go 保持 Web 开启，仅替换密码就取消已打开的 SSE 请求。Rust save_security_settings 调用会话 invalidator，但 ProductWebServerRuntime::apply 在同 bind 时直接返回；尚无活动 SSE/WS 撤销信号或同路由直接断言。不能用 listener 停止或后续请求拒绝替代此行为。"
-      ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/app/apiserver/servercore/server_application_lifecycle_test.go:37:TestServerCloseUsesApplicationResourceOrderAndStableAggregation": {
@@ -67536,81 +67543,81 @@
       "boundaryReason": null
     },
     "internal/app/apiserver/servercoretest/strategy_logs_test.go:15:TestStrategiesEndpointReturnsList": {
-    "status": "[x]",
-    "rust_entry": "crates/jftrade-engine/src/product_production_assembly_tests.rs::production_http_strategy_lifecycle_projects_started_activity",
-    "conclusion": "function_exact：真实 production Product HTTP 因果链创建 strategy definition、instantiate 实例并调用 start；随后通过同一 durable SQLite projection 的 /api/v1/strategies、/{instanceId}/logs 和 /{instanceId}/audit 分别断言实例可见、logs 含 started、audit 含 kind=STARTED。存储层把 RUNNING 状态转换与 STARTED 审计及 started info 日志放在同一事务中，避免只验证合成快照。",
-    "command": "node scripts/compatibility/run_parity_receipt.py --package jftrade-engine --test production_http_strategy_lifecycle_projects_started_activity --output docs/history/go-to-rust/verification-receipts/strategy-lifecycle-http-2026-10-07.json",
-    "evidence_type": "function_exact",
-    "source": {
-      "file": "internal/app/apiserver/servercoretest/strategy_logs_test.go",
-      "line": 15,
-      "test": "TestStrategiesEndpointReturnsList",
-      "blobSha": "da87e7f7dfe8080012cc70a9eff1ec6361e086d4"
-    },
-    "rustEvidence": [
-      {
-        "file": "crates/jftrade-engine/src/product_production_assembly_tests.rs",
-        "test": "production_http_strategy_lifecycle_projects_started_activity",
-        "crate": "jftrade-engine",
-        "anchor": {
-          "goFile": "internal/app/apiserver/servercoretest/strategy_logs_test.go",
-          "goLine": 15,
-          "rustFile": "crates/jftrade-engine/src/product_production_assembly_tests.rs",
-          "rustLine": 660
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-engine/src/product_production_assembly_tests.rs::production_http_strategy_lifecycle_projects_started_activity",
+      "conclusion": "function_exact：真实 production Product HTTP 因果链创建 strategy definition、instantiate 实例并调用 start；随后通过同一 durable SQLite projection 的 /api/v1/strategies、/{instanceId}/logs 和 /{instanceId}/audit 分别断言实例可见、logs 含 started、audit 含 kind=STARTED。存储层把 RUNNING 状态转换与 STARTED 审计及 started info 日志放在同一事务中，避免只验证合成快照。",
+      "command": "node scripts/compatibility/run_parity_receipt.py --package jftrade-engine --test production_http_strategy_lifecycle_projects_started_activity --output docs/history/go-to-rust/verification-receipts/strategy-lifecycle-http-2026-10-07.json",
+      "evidence_type": "function_exact",
+      "source": {
+        "file": "internal/app/apiserver/servercoretest/strategy_logs_test.go",
+        "line": 15,
+        "test": "TestStrategiesEndpointReturnsList",
+        "blobSha": "da87e7f7dfe8080012cc70a9eff1ec6361e086d4"
+      },
+      "rustEvidence": [
+        {
+          "file": "crates/jftrade-engine/src/product_production_assembly_tests.rs",
+          "test": "production_http_strategy_lifecycle_projects_started_activity",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/app/apiserver/servercoretest/strategy_logs_test.go",
+            "goLine": 15,
+            "rustFile": "crates/jftrade-engine/src/product_production_assembly_tests.rs",
+            "rustLine": 660
+          }
         }
-      }
-    ],
-    "assertionCoverage": {
-      "covered": [
+      ],
+      "assertionCoverage": {
+        "covered": [
+          "真实 HTTP 创建 definition、instantiate 实例并 start，响应状态为 RUNNING。",
+          "同一 production SQLite projection 的 /api/v1/strategies 列表包含新实例且 logs 含 started。",
+          "实例 /logs 返回 started，实例 /audit 返回 kind=STARTED。"
+        ],
+        "uncovered": [],
+        "source": "reviewed"
+      },
+      "verification": {
+        "argv": [
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+          "node",
+          "scripts/quality/cargo-nextest.mjs",
+          "run",
+          "-p",
+          "jftrade-engine",
+          "--all-targets",
+          "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
+          "-E",
+          "test(production_http_strategy_lifecycle_projects_started_activity)"
+        ],
+        "testFilter": [
+          "production_http_strategy_lifecycle_projects_started_activity"
+        ],
+        "runnerVersion": "cargo-nextest-0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "5098c4fe6397a9ebfc4c3682fbd6b0490001c564",
+        "verifiedAt": "2026-10-06T16:07:07Z",
+        "receiptDigest": "sha256:2afb5eb15f1837b14e7c4ef6697f20193c0855a7090310f70f9f6ef18e9c6200"
+      },
+      "risk": "high",
+      "owner": "api_transport",
+      "priority": "P1",
+      "nextAction": "none",
+      "blockedBy": [],
+      "waiverExpiresAt": null,
+      "coveredAssertions": [
         "真实 HTTP 创建 definition、instantiate 实例并 start，响应状态为 RUNNING。",
         "同一 production SQLite projection 的 /api/v1/strategies 列表包含新实例且 logs 含 started。",
         "实例 /logs 返回 started，实例 /audit 返回 kind=STARTED。"
       ],
-      "uncovered": [],
-      "source": "reviewed"
+      "uncoveredAssertions": [],
+      "boundaryReason": null
     },
-    "verification": {
-      "argv": [
-        "env",
-        "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
-        "node",
-        "scripts/quality/cargo-nextest.mjs",
-        "run",
-        "-p",
-        "jftrade-engine",
-        "--all-targets",
-        "--locked",
-        "--message-format",
-        "libtest-json-plus",
-        "--no-fail-fast",
-        "-E",
-        "test(production_http_strategy_lifecycle_projects_started_activity)"
-      ],
-      "testFilter": [
-        "production_http_strategy_lifecycle_projects_started_activity"
-      ],
-      "runnerVersion": "cargo-nextest-0.9.143",
-      "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
-      "status": "passed",
-      "exitCode": 0,
-      "verifiedCommit": "5098c4fe6397a9ebfc4c3682fbd6b0490001c564",
-      "verifiedAt": "2026-10-06T16:07:07Z",
-      "receiptDigest": "sha256:2afb5eb15f1837b14e7c4ef6697f20193c0855a7090310f70f9f6ef18e9c6200"
-    },
-    "risk": "high",
-    "owner": "api_transport",
-    "priority": "P1",
-    "nextAction": "none",
-    "blockedBy": [],
-    "waiverExpiresAt": null,
-    "coveredAssertions": [
-      "真实 HTTP 创建 definition、instantiate 实例并 start，响应状态为 RUNNING。",
-      "同一 production SQLite projection 的 /api/v1/strategies 列表包含新实例且 logs 含 started。",
-      "实例 /logs 返回 started，实例 /audit 返回 kind=STARTED。"
-    ],
-    "uncoveredAssertions": [],
-    "boundaryReason": null
-  },
     "internal/app/apiserver/servercoretest/strategy_logs_test.go:120:TestStrategiesEndpointIncludesPersistedRuntimeLogTail": {
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/product_production_assembly_tests.rs::production_http_strategies_list_includes_persisted_runtime_log_tail",
@@ -344985,17 +344992,16 @@
       "reviewNote": "2026-09-30 API remaining owner review: application, startup, lifecycle, status, settings, Futu probe, desktop and web-auth assertions were compared with the shared Rust owner; fan-out capped at six, high fan-out remains backlog."
     },
     "crates/jftrade-engine/src/product_server_tests.rs::disabled_web_access_does_not_start_a_listener": {
-      "referenceCount": 5,
+      "referenceCount": 4,
       "referenceKeys": [
         "internal/app/apiserver/lifecycle/lifecycle_test.go:90:TestStartForRunArgsReturnsNoopWhenDisabled",
         "internal/app/apiserver/lifecycle/lifecycle_test.go:222:TestWebAccessListenerBindUsesIndependentConfiguredPort",
-        "internal/app/apiserver/servercore/security_test.go:43:TestSecurityChangeCancelsExistingWebStream",
         "internal/app/apiserver/servercore/settings_security_test.go:116:TestDisablingWebImmediatelyInvalidatesBrowserButNotDesktop",
         "internal/app/apiserver/webaccess/security_integration_test.go:437:TestLoopbackPolicyBlocksRemoteBrowserUntilExplicitlyEnabled"
       ],
       "allowed": false,
       "reviewStatus": "reviewed",
-      "reviewNote": "2026-10-02 bounded reuse review: compared all 5 referenceKeys against the shared Rust owner (status mix {'[~]': 5}); assertion scopes are not interchangeable, so reuse remains disallowed and no function_exact row is upgraded by this relation."
+      "reviewNote": "2026-10-07：活动流取消映射改用独立 production SSE/WS owner；其余引用继续保留各自有限断言，reuse 未批准。"
     },
     "apps/desktop/src-tauri/tests/desktop_contracts.rs::lifecycle_starts_in_dependency_order_and_shuts_down_in_reverse": {
       "referenceCount": 4,
@@ -346940,15 +346946,14 @@
       "reviewNote": "2026-10-02 bounded reuse review: compared all 2 referenceKeys against the shared Rust owner (status mix {'[~]': 2}); assertion scopes are not interchangeable, so reuse remains disallowed and no function_exact row is upgraded by this relation."
     },
     "crates/jftrade-engine/src/product_auth_session_manager_tests.rs::auth_sessions_are_cookie_bound_hashed_and_restart_durable": {
-      "referenceCount": 3,
+      "referenceCount": 2,
       "referenceKeys": [
-        "internal/app/apiserver/servercore/security_test.go:43:TestSecurityChangeCancelsExistingWebStream",
         "internal/app/apiserver/servercore/settings_security_test.go:116:TestDisablingWebImmediatelyInvalidatesBrowserButNotDesktop",
         "internal/app/apiserver/webaccess/security_integration_test.go:352:TestPasswordChangesInvalidateWebSessions"
       ],
       "allowed": false,
       "reviewStatus": "reviewed",
-      "reviewNote": "2026-10-02 bounded reuse review: compared all 3 referenceKeys against the shared Rust owner (status mix {'[~]': 3}); assertion scopes are not interchangeable, so reuse remains disallowed and no function_exact row is upgraded by this relation."
+      "reviewNote": "2026-10-07：活动流取消映射改用独立 production SSE/WS owner；其余引用继续保留各自有限断言，reuse 未批准。"
     },
     "crates/jftrade-engine/src/product_production_assembly_tests.rs::direct_product_shutdown_stops_reconciliation_before_releasing_leases": {
       "referenceCount": 6,
@@ -364365,6 +364370,22 @@
       "referenceCount": 1,
       "referenceKeys": [
         "internal/app/apiserver/servercoretest/strategy_logs_test.go:120:TestStrategiesEndpointIncludesPersistedRuntimeLogTail"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_security_stream_tests.rs::password_change_cancels_active_web_chat_stream_on_unchanged_listener": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/app/apiserver/servercore/security_test.go:43:TestSecurityChangeCancelsExistingWebStream"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_ws_live_tests.rs::password_change_revokes_browser_websocket_and_keeps_desktop_capability": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/app/apiserver/servercore/security_test.go:43:TestSecurityChangeCancelsExistingWebStream"
       ],
       "allowed": true,
       "reviewStatus": "single"

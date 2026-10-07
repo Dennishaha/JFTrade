@@ -11,6 +11,12 @@ pub const SESSION_COOKIE: &str = "jftrade_web_session";
 pub trait WebSessionValidator: Send + Sync + std::fmt::Debug {
     fn is_session_valid(&self, session_cookie: &str) -> bool;
     fn is_csrf_valid(&self, session_cookie: &str, csrf_header: &str) -> bool;
+
+    /// Subscribe before validating a request so security changes cannot race
+    /// admission and leave an already admitted browser stream active.
+    fn subscribe_revocation(&self) -> Option<tokio::sync::watch::Receiver<u64>> {
+        None
+    }
 }
 
 /// Optional runtime origin provider used by listeners whose bind port can be

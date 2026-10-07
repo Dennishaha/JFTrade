@@ -1,5 +1,23 @@
 # Go → Rust 证据积压清单
 
+## 2026-10-07 活动流撤销批次与失败替代关系
+
+- 五条相关 partial 逐项核对；安全变更取消活动 SSE 有新的 production owner 直接行为证明，升级 exact；其余四条不升级。当前 **1594 exact / 2217 partial / 640 boundary**，净变化 **+1/-1/0**。
+- 以下文件均位于 `verification-receipts/`，原失败证据保持字节不变；canonical 为当前 mapping 唯一绑定的通过 receipt。
+
+  | 本批文件 | 实际结果与适用状态 | 后续证据 |
+  | --- | --- | --- |
+  | `web-stream-revocation-red-2026-10-07.json` | failed，0/1；原实现换密码未结束已建立 SSE | reviewed |
+  | `web-stream-revocation-green-2026-10-07.json` | failed，0/1；测试 Client 未显式初始化 rustls provider，名字不代表通过 | reviewed |
+  | `web-stream-revocation-verified-2026-10-07.json` | failed，4/1；桌面连接测试误认为非法 JSON 应收到 close，实际协议忽略该消息 | reviewed |
+  | `web-stream-revocation-final-2026-10-07.json` | passed，5/5；行为修复与合法订阅断言通过，连接 cancellation 参数整理前 | reviewed |
+  | `web-stream-revocation-canonical-2026-10-07.json` | passed，5/5；整理 cancellation 参数后、恢复 WS select 公平性前 | reviewed |
+  | `web-stream-revocation-reviewed-2026-10-07.json` | passed，5/5；最终 Rust 源码，与 sourceState 全部摘要匹配 | 当前 canonical |
+
+- quick 首轮失败日志 `/tmp/jftrade-web-stream-quick.log` 为 target health 编译缓存阈值，非测试通过；清理日志 `/tmp/jftrade-web-stream-clean.log`。quick 重跑日志 `/tmp/jftrade-web-stream-quick-retry.log` 已确认退出 **0**（2248 nextest、98 Pine、七类 replay 与 desktop 检查通过）；完整 Rust 日志 `/tmp/jftrade-web-stream-rust.log` 已确认退出 **0**（workspace **3687 passed / 0 failed / 2 skipped**，静态与七类 replay 通过）。未生成全量 JSON receipt，不使用 focused digest 代替 workspace 门禁摘要。
+- 残余 owner：`product_adk_read_api::adk_read_output` 返回拼接完整 Raw，缺 GET stream/run reconnect 首次写失败一次退出、事件失败与预取消 idle 零 body；`product_production_ports_adk_read::stream_snapshot` 只返回 retained history，缺同连接 watermark 后 live 与 timeout+retention 清理；delta 分类和 context/session/narrative 序列未闭合；空 ChatRequest terminal error 与当前 Rust admission framing 不同。
+- 进一步检查 listener 重配置：安全 `save` 先调用 runtime apply，再调用会话 invalidator；disable/rebind 的 graceful join 是否会等待活动 SSE，需要独立失败回归，不能从本批同 bind 换密码测试推导通过。下一批继续围绕这些高风险流生命周期条目选 5–10 条，目标保持 active。
+
 ## 2026-10-07 认证行为批次与保留缺口
 
 - 七条相关 partial 已逐项核对冻结 Go。logout middleware、旧 admin bearer 拒绝、带口令配置的 desktop 启动保持三条升级 exact；净变化 **exact +3 / partial -3 / boundary 0**，当前 **1593 / 2218 / 640**。不将测试数量、mapping 数量或 receipt 数量作为整体行为完成度。
