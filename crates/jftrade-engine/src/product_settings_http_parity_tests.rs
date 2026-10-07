@@ -6,6 +6,9 @@ use std::sync::Mutex;
 
 const AUTH: &[(&str, &str)] = &[("Authorization", "Bearer aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")];
 
+#[path = "product_settings_owner_http_parity_tests.rs"]
+mod owner_http_tests;
+
 fn config(directory: &tempfile::TempDir, seed: Value) -> ProductConfig {
     let path = directory.path().join("settings.json");
     std::fs::write(&path, serde_json::to_vec(&seed).expect("seed JSON")).expect("settings");

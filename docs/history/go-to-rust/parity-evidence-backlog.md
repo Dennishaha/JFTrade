@@ -1,5 +1,16 @@
 # Go → Rust 证据积压清单
 
+## 2026-10-08 Settings owner 与 MCP token HTTP
+
+- 逐项复核五条mapping及必要reuse，净 **+4 exact / -4 partial / boundary 0**，当前 **1637 / 2174 / 640**。原rebuild拒绝73、overview失败147、legacy形状247、一次性MCP token304由五个独立真实认证production HTTP测试支持；具体临时数据库、settings file与运行时owner实际装配，没有新增公开契约或持久化owner。
+- canonical `verification-receipts/settings-owner-http-canonical-2026-10-08.json`：**5 passed / 0 failed / 0 ignored / 1820 filtered_out**（该数字为receipt中的engine lib suite过滤数，不是workspace总数），SHA-256 `a10731d19643828222a50007ba314c42a96fe38b664c4ccb8fb2934c874e7185`。tracked diff与两份Rust源码指纹已核对，备份于`/tmp/jftrade-settings-owner-canonical-source`。首次`settings-owner-http-initial-2026-10-08.json`五条通过，属于补充MCP拒绝启用字节守卫及轮换后读取/落盘断言之前状态，由canonical替代，原字节保留。
+- MCP保持原始6697/token输入；初始读取隐藏hash，无token启用400且不写settings，reset只返回一次明文、后续PUT/GET隐藏token与hash。额外通过真实MCP监听器确认轮换前有效token进入405方法校验、轮换后旧token401/新token405，落盘不含新旧明文。原文未要求第二次reset/旧token失效，纠正旧mapping将其作为原始必要残余的描述，新增安全回归仍保留。
+- overview故障在具体owner中由损坏的临时rebuild marker触发，原文仅断言500与DATABASE_STATUS_FAILED，两者均通过；marker原字节保持，移除故障后同一运行时恢复200。rebuild畸形及wrong确认逐请求检查原400/code、无marker及settings字节不变。
+- 原callbacks754保留partial：overview200/id=adk及两条removed data-migration路由404已直接闭合；原合法single/adk/REBUILD adk在运行中的ADK WriterLease下实际409 DATABASE_MAINTENANCE_CONFLICT/零marker，Go callback要求200/restartRequired=true与转发成功。该production反例不能用synthetic成功替代，也不改变owner fence。
+- 本批只新增五条测试、注册、五条mapping及必要reuse和本说明。现场quick、完整Rust及最终审计仍待执行，定向receipt不作为全量门禁。
+- 现场quick明确退出0，日志`/tmp/jftrade-settings-owner-quick.log`：**2252 passed / 0 failed / 0 skipped**，fmt、Clippy、七类兼容回放及Pine worker **98 passed**。ordinary/strict、AI context与diff检查通过，anchor **2118 unique / 2070 recorded / 0 unrecorded / 0 stale / 48 unknown**；Rust inventory **3661**。两份Rust字节仍匹配canonical。完整Rust已启动，结束前不记通过。
+- 本批完整现场`pnpm run check:rust`明确退出0，日志`/tmp/jftrade-settings-owner-rust.log`：workspace **3817 passed / 0 failed / 2 skipped**，无LEAK；static和七类兼容回放通过。跳过项未计为已执行通过，未使用历史workspace结果代替本次门禁。
+
 ## 2026-10-08 Order-book wire 与最佳价发布
 
 - 复核五条partial及既有exact363，共六条mapping。净 **+3 exact / -3 partial / boundary 0**，当前 **1633 / 2178 / 640**。升级原orderbook13的NVDA当前wire布局、proto_v10813的Get/Update字段编号、trading_reads343的同session unsolicited派发；既有exact363改由完整原始HK.00700数值与无重复事件断言直接支持。没有改冻结fixture、generated protobuf、公开schema或依赖。
