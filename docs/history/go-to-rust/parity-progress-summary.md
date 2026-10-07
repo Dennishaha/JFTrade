@@ -1,5 +1,13 @@
 # Go → Rust 对齐成果摘要
 
+## 2026-10-07 embedded screen production HTTP 与 catalog 校验
+
+- 五条原始 partial 逐项审查，API 的未知 total 投影、embedded catalog 六组市场请求、embedded POST 成功响应及四分支 conflict matrix 升 exact；净 **exact +4 / partial -4 / boundary 0**，当前 **1605 / 2206 / 640**。facade 错误文本已补齐，Go `errors.Is` 对象身份不能由 HTTP envelope 证明，保留 partial。
+- 新增五项行为测试。catalog 和三个 provider 请求使用真实 production composition，注入的是原生 helper runtime resource，没有使用 caller route port 替代 concrete adapter。POST 的 range100..300、market_cap desc、offset0/limit25 完整 body 在 loopback helper 处核对；HTTP typed cells、provider metadata、total7、hasMore、nextOffset1 和 asOf 直接断言。
+- 首轮 **1 passed / 4 failed / 2144 filtered/skipped**，含失败时 LEAK。三项是 fixture/额外断言问题（未过滤 catalog 不含 market、string cell 空 unit、native helper error envelope）；一项是真实生产差异：`gt` 没有在 normalizer 按 embedded catalog 校验，返回 409 而非 400。修复为复用 catalog operators；futu preset/abs_desc/gt 均零 helper 调用，HK 请求确实到达 helper 并为 409。未改公开 schema 或冻结 fixture。
+- canonical `verification-receipts/research-screen-embedded-http-catalog-validated-2026-10-07.json`：**5 passed / 0 failed / 0 ignored / 2144 filtered/skipped**、无 LEAK，SHA-256 `19f2f31bf87010687ff7d455f173b45548714cb214912670cd6536304254b100`。Rust diff 与 untracked 指纹已核对；普通/strict 审计、engine Clippy 通过，anchor **2057 unique / 2009 recorded / 0 unrecorded / 0 stale / 48 unknown**。Rust 扫描 **3569**、数量比 **80.2%** 单列。
+- quick 明确退出 0：**2179 Rust passed / 0 failed / 0 skipped**，Pine **98 passed**、desktop **48 passed**，无 LEAK。完整 Rust 首轮因 target-health 的 50000 `.rcgu.o` 阈值退出 1；确认无构建进程后按提示 clean（119470 文件/34.6 GiB），现场重跑明确退出 0：**3725 passed / 0 failed / 2 skipped**，静态及七类 replay 通过、无 LEAK。日志分别为 `/tmp/jftrade-embedded-screen-quick.log`、`/tmp/jftrade-embedded-screen-rust.log`、`/tmp/jftrade-embedded-screen-clean.log`、`/tmp/jftrade-embedded-screen-rust-clean.log`；未将 skipped 或首轮失败记为通过。
+
 ## 2026-10-07 research screen HTTP、catalog 与执行定义
 
 - 五条 API partial 逐项重放原始输入。catalog 的 display semantics/无 providerId/SG 400、脏 broker/market 归一与默认 limit50、V1 形状拒绝三条升 exact；净变化 **exact +3 / partial -3 / boundary 0**，当前 **1601 / 2210 / 640**。另两条保留 Go generic FeatureQuery operation/cursor 及强类型 definition/具体生产 provider adapter 的严格证据缺口。

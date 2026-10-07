@@ -16843,11 +16843,11 @@
       "boundaryReason": null
     },
     "internal/api/productfeatures/research_screen_test.go:213:TestTypedResearchScreenResultOmitsUnknownTotal": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_production_ports_research_tests.rs::research_screen_helper_projects_rows_and_cells_without_fixture_defaults",
-      "conclusion": "partial：Go 断言未知 total 不序列化、已知 total 保留、行使用 cells-only 契约。Rust 引用用例断言筛选行与 cells 投影不注入 fixture 默认值并断言已知 total=1；未知 total 的省略分支无断言（mock server 只回放单一体）。缺口 owner：crates/jftrade-engine research screen 结果投影；回归要求：补“provider 省略 total → 响应体无 total 字段”断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'not test(production_helper_sync_cancel_aborts_in_flight_request) and not test(production_helper_sync_rejects_broken_pagination_cursors) and not test(production_helper_sync_forwards_page_query_and_persists_provider_values) and not test(production_helper_sync_retries_transient_page_and_records_retry)'",
-      "evidence_type": "partial",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-engine/src/product_research_screen_embedded_http_tests.rs::http_screen_result_omits_unknown_total_and_preserves_cells_only_quote_currency",
+      "conclusion": "function_exact：冻结 Go 三组结果输入经认证的 rehearsal HTTP 与真实 wire projector：空 entries/hasMorefalse/warnings 的未知 total 不序列化，已知 total7 保留，HK.80700/腾讯控股-R/CNY 行保留 quoteCurrency、补 cells={} 且没有 values。 本行比较纯 typed result projector；不声明 native helper 允许省略 total，具体 helper 契约仍要求 total。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-engine --test http_screen_result_omits_unknown_total_and_preserves_cells_only_quote_currency --output docs/history/go-to-rust/verification-receipts/research-screen-embedded-http-catalog-validated-2026-10-07.json",
+      "evidence_type": "function_exact",
       "source": {
         "file": "internal/api/productfeatures/research_screen_test.go",
         "line": 213,
@@ -16856,24 +16856,23 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_production_ports_research_tests.rs",
-          "test": "research_screen_helper_projects_rows_and_cells_without_fixture_defaults",
+          "file": "crates/jftrade-engine/src/product_research_screen_embedded_http_tests.rs",
+          "test": "http_screen_result_omits_unknown_total_and_preserves_cells_only_quote_currency",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/api/productfeatures/research_screen_test.go",
             "goLine": 213,
-            "rustFile": "crates/jftrade-engine/src/product_production_ports_research_tests.rs",
-            "rustLine": 779
+            "rustFile": "crates/jftrade-engine/src/product_research_screen_embedded_http_tests.rs",
+            "rustLine": 317
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust research helper test projects rows/cells without fixture defaults and preserves a known total."
+          "冻结 Go 三组结果输入经认证的 rehearsal HTTP 与真实 wire projector：空 entries/hasMorefalse/warnings 的未知 total 不序列化，已知 total7 保留，HK.80700/腾讯控股-R/CNY 行保留 quoteCurrency、补 cells={} 且没有 values。",
+          "本行比较纯 typed result projector；不声明 native helper 允许省略 total，具体 helper 契约仍要求 total。"
         ],
-        "uncovered": [
-          "No provider response with omitted total proving the API omits the total field rather than fabricating one."
-        ],
+        "uncovered": [],
         "source": "reviewed"
       },
       "verification": {
@@ -16883,46 +16882,46 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(production_http_screen_catalog_enforces_embedded_provider_market_matrix) or test(production_http_screen_executes_embedded_query_and_projects_typed_cells) or test(production_http_screen_conflicts_reject_before_helper_and_forward_unsupported_market) or test(production_http_screen_preserves_upstream_failure_message) or test(http_screen_result_omits_unknown_total_and_preserves_cells_only_quote_currency)"
         ],
         "testFilter": [
-          "research_screen_helper_projects_rows_and_cells_without_fixture_defaults"
+          "http_screen_result_omits_unknown_total_and_preserves_cells_only_quote_currency"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "57de1b9616966c40e6e44ec6dc750986819efebc",
+        "verifiedAt": "2026-10-07T07:36:12Z",
+        "receiptDigest": "sha256:19f2f31bf87010687ff7d455f173b45548714cb214912670cd6536304254b100"
       },
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "retain_reviewed_boundary_or_partial_and_reaudit",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "maintain_verified_function_exact",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust research helper test projects rows/cells without fixture defaults and preserves a known total."
+        "冻结 Go 三组结果输入经认证的 rehearsal HTTP 与真实 wire projector：空 entries/hasMorefalse/warnings 的未知 total 不序列化，已知 total7 保留，HK.80700/腾讯控股-R/CNY 行保留 quoteCurrency、补 cells={} 且没有 values。",
+        "本行比较纯 typed result projector；不声明 native helper 允许省略 total，具体 helper 契约仍要求 total。"
       ],
-      "uncoveredAssertions": [
-        "No provider response with omitted total proving the API omits the total field rather than fabricating one."
-      ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/api/productfeatures/research_screen_test.go:272:TestResearchScreenCatalogServesEmbeddedProviders": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_tests.rs::research_screen_catalog_route_matches_go_fixture_for_all_variants",
-      "conclusion": "partial：Go 断言内嵌 provider 的 catalog 变体与市场覆盖。Rust 引用用例逐变体断言 catalog 路由与 Go fixture 一致（含市场覆盖差异）；内嵌 provider 标识（yfinance/akshare 选择原因）未在同一断言中覆盖。缺口 owner：crates/jftrade-engine research catalog 投影；回归要求：补内嵌 provider 变体的 selectionReason/market 覆盖断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'not test(production_helper_sync_cancel_aborts_in_flight_request) and not test(production_helper_sync_rejects_broken_pagination_cursors) and not test(production_helper_sync_forwards_page_query_and_persists_provider_values) and not test(production_helper_sync_retries_transient_page_and_records_retry)'",
-      "evidence_type": "partial",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-engine/src/product_research_screen_embedded_http_tests.rs::production_http_screen_catalog_enforces_embedded_provider_market_matrix",
+      "conclusion": "function_exact：真实 production HTTP 对照 Go 六组原始 catalog 请求：yfinance 不带 market 时为200，embedded version/provider/simple.change_pct 存在且无HK；akshare/CN为200并含HK，yfinance/HK为400，akshare/US为200且marketUS，akshare/MO为400，unknown为409。 缺省 catalog 是未过滤集合而非隐式 marketUS，测试明确核对 market 字段省略；原始 Go 未要求 selectionReason，不能以旧映射的多余要求阻止闭合。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-engine --test production_http_screen_catalog_enforces_embedded_provider_market_matrix --output docs/history/go-to-rust/verification-receipts/research-screen-embedded-http-catalog-validated-2026-10-07.json",
+      "evidence_type": "function_exact",
       "source": {
         "file": "internal/api/productfeatures/research_screen_test.go",
         "line": 272,
@@ -16931,24 +16930,23 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_tests.rs",
-          "test": "research_screen_catalog_route_matches_go_fixture_for_all_variants",
+          "file": "crates/jftrade-engine/src/product_research_screen_embedded_http_tests.rs",
+          "test": "production_http_screen_catalog_enforces_embedded_provider_market_matrix",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/api/productfeatures/research_screen_test.go",
             "goLine": 272,
-            "rustFile": "crates/jftrade-engine/src/product_tests.rs",
-            "rustLine": 1819
+            "rustFile": "crates/jftrade-engine/src/product_research_screen_embedded_http_tests.rs",
+            "rustLine": 160
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust catalog fixture test matches Go catalog variants and market coverage."
+          "真实 production HTTP 对照 Go 六组原始 catalog 请求：yfinance 不带 market 时为200，embedded version/provider/simple.change_pct 存在且无HK；akshare/CN为200并含HK，yfinance/HK为400，akshare/US为200且marketUS，akshare/MO为400，unknown为409。",
+          "缺省 catalog 是未过滤集合而非隐式 marketUS，测试明确核对 market 字段省略；原始 Go 未要求 selectionReason，不能以旧映射的多余要求阻止闭合。"
         ],
-        "uncovered": [
-          "No same-test assertion for embedded provider selectionReason and provider-id selection rationale."
-        ],
+        "uncovered": [],
         "source": "reviewed"
       },
       "verification": {
@@ -16958,46 +16956,46 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(production_http_screen_catalog_enforces_embedded_provider_market_matrix) or test(production_http_screen_executes_embedded_query_and_projects_typed_cells) or test(production_http_screen_conflicts_reject_before_helper_and_forward_unsupported_market) or test(production_http_screen_preserves_upstream_failure_message) or test(http_screen_result_omits_unknown_total_and_preserves_cells_only_quote_currency)"
         ],
         "testFilter": [
-          "research_screen_catalog_route_matches_go_fixture_for_all_variants"
+          "production_http_screen_catalog_enforces_embedded_provider_market_matrix"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "57de1b9616966c40e6e44ec6dc750986819efebc",
+        "verifiedAt": "2026-10-07T07:36:12Z",
+        "receiptDigest": "sha256:19f2f31bf87010687ff7d455f173b45548714cb214912670cd6536304254b100"
       },
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "retain_reviewed_boundary_or_partial_and_reaudit",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "maintain_verified_function_exact",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust catalog fixture test matches Go catalog variants and market coverage."
+        "真实 production HTTP 对照 Go 六组原始 catalog 请求：yfinance 不带 market 时为200，embedded version/provider/simple.change_pct 存在且无HK；akshare/CN为200并含HK，yfinance/HK为400，akshare/US为200且marketUS，akshare/MO为400，unknown为409。",
+        "缺省 catalog 是未过滤集合而非隐式 marketUS，测试明确核对 market 字段省略；原始 Go 未要求 selectionReason，不能以旧映射的多余要求阻止闭合。"
       ],
-      "uncoveredAssertions": [
-        "No same-test assertion for embedded provider selectionReason and provider-id selection rationale."
-      ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/api/productfeatures/research_screen_test.go:355:TestResearchScreenPostServesEmbeddedProvider": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/research_screen_query.rs::futu_screen_capability_errors_use_the_broker_code; crates/jftrade-engine/tests/research_screens_compatibility.rs::research_screen_fixture_replays_go_wire_for_the_post_route",
-      "conclusion": "partial：Go 断言内嵌 provider（embedded-stock-screen-v1 + yfinance）服务 POST 并回投 catalogVersion/brokerId/selectionReason/nextOffset/hasMore/total/asOf/cells。Rust 冻结语料回放 futu-stock-screen-v1 变体的成功投影并断言 capability → 409 BROKER_CAPABILITY_UNAVAILABLE；内嵌变体的 selectionReason/brokerId 未断言。缺口 owner：crates/jftrade-engine research screen 写端口 + 语料；回归要求：补内嵌 provider 变体语料或断言。",
-      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(stream_terminal_projection_trims_tool_outputs_from_final_response) or test(adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart) or test(persisted_terminal_run_is_published_as_final_instead_of_a_second_error) or test(recovered_terminal_stream_frame_carries_the_replay_marker) or test(auxiliary_provider_failure_skips_only_the_failing_subscription_family) or test(news_actions_helper_request_rejects_a_missing_instrument_uri) or test(embedded_capability_errors_keep_the_broker_code_and_lifecycle_sentinels) or test(explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback) or test(screen_query_rejects_wrong_catalog_and_schema_versions) or test(route_and_page_validation_precede_provider_calls) or test(futu_screen_capability_errors_use_the_broker_code) or test(research_screen_fixture_replays_go_wire_for_the_post_route) or test(execution_write_fixture_replays_all_seven_go_owned_mutations)'",
-      "evidence_type": "partial",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-engine/src/product_research_screen_embedded_http_tests.rs::production_http_screen_executes_embedded_query_and_projects_typed_cells",
+      "conclusion": "function_exact：原始 yfinance/US V2 range100..300、market_cap desc、offset0/limit25 经真实 production HTTP、concrete helper adapter 到原生 loopback helper；完整 provider-neutral body 及POST路径逐字段核对，恰好一次调用。 原生 helper result 使用对应 entries、total7/has_moretrue/next_offset1/as_of/source；HTTP 响应直接断言 embedded catalog、brokerId、selectionReason、nextOffset1、hasMoretrue、total7、asOf、US.AAPL/AAPL 与 code string/price189.25 currency typed cells。 native helper 提供 next_offset，Go facade 从返回行数形成 offset；本行核对原始 POST 的可观察请求/响应，不宣称分页所有分支或跨语言 DTO 身份相同。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-engine --test production_http_screen_executes_embedded_query_and_projects_typed_cells --output docs/history/go-to-rust/verification-receipts/research-screen-embedded-http-catalog-validated-2026-10-07.json",
+      "evidence_type": "function_exact",
       "source": {
         "file": "internal/api/productfeatures/research_screen_test.go",
         "line": 355,
@@ -17006,35 +17004,24 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/research_screen_query.rs",
-          "test": "futu_screen_capability_errors_use_the_broker_code",
+          "file": "crates/jftrade-engine/src/product_research_screen_embedded_http_tests.rs",
+          "test": "production_http_screen_executes_embedded_query_and_projects_typed_cells",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/api/productfeatures/research_screen_test.go",
             "goLine": 355,
-            "rustFile": "crates/jftrade-engine/src/research_screen_query.rs",
-            "rustLine": 198
-          }
-        },
-        {
-          "file": "crates/jftrade-engine/tests/research_screens_compatibility.rs",
-          "test": "research_screen_fixture_replays_go_wire_for_the_post_route",
-          "crate": "jftrade-engine",
-          "anchor": {
-            "goFile": "internal/api/productfeatures/research_screen_test.go",
-            "goLine": 355,
-            "rustFile": "crates/jftrade-engine/tests/research_screens_compatibility.rs",
-            "rustLine": 130
+            "rustFile": "crates/jftrade-engine/src/product_research_screen_embedded_http_tests.rs",
+            "rustLine": 205
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust compatibility fixture covers successful research-screen projection and capability 409 behavior for the supported provider variant."
+          "原始 yfinance/US V2 range100..300、market_cap desc、offset0/limit25 经真实 production HTTP、concrete helper adapter 到原生 loopback helper；完整 provider-neutral body 及POST路径逐字段核对，恰好一次调用。",
+          "原生 helper result 使用对应 entries、total7/has_moretrue/next_offset1/as_of/source；HTTP 响应直接断言 embedded catalog、brokerId、selectionReason、nextOffset1、hasMoretrue、total7、asOf、US.AAPL/AAPL 与 code string/price189.25 currency typed cells。",
+          "native helper 提供 next_offset，Go facade 从返回行数形成 offset；本行核对原始 POST 的可观察请求/响应，不宣称分页所有分支或跨语言 DTO 身份相同。"
         ],
-        "uncovered": [
-          "No embedded-stock-screen-v1/yfinance fixture asserting catalogVersion, brokerId, selectionReason, pagination, total, asOf, and cells together."
-        ],
+        "uncovered": [],
         "source": "reviewed"
       },
       "verification": {
@@ -17044,46 +17031,47 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(production_http_screen_catalog_enforces_embedded_provider_market_matrix) or test(production_http_screen_executes_embedded_query_and_projects_typed_cells) or test(production_http_screen_conflicts_reject_before_helper_and_forward_unsupported_market) or test(production_http_screen_preserves_upstream_failure_message) or test(http_screen_result_omits_unknown_total_and_preserves_cells_only_quote_currency)"
         ],
         "testFilter": [
-          "research_screen_fixture_replays_go_wire_for_the_post_route"
+          "production_http_screen_executes_embedded_query_and_projects_typed_cells"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "57de1b9616966c40e6e44ec6dc750986819efebc",
+        "verifiedAt": "2026-10-07T07:36:12Z",
+        "receiptDigest": "sha256:19f2f31bf87010687ff7d455f173b45548714cb214912670cd6536304254b100"
       },
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "retain_reviewed_boundary_or_partial_and_reaudit",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "maintain_verified_function_exact",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust compatibility fixture covers successful research-screen projection and capability 409 behavior for the supported provider variant."
+        "原始 yfinance/US V2 range100..300、market_cap desc、offset0/limit25 经真实 production HTTP、concrete helper adapter 到原生 loopback helper；完整 provider-neutral body 及POST路径逐字段核对，恰好一次调用。",
+        "原生 helper result 使用对应 entries、total7/has_moretrue/next_offset1/as_of/source；HTTP 响应直接断言 embedded catalog、brokerId、selectionReason、nextOffset1、hasMoretrue、total7、asOf、US.AAPL/AAPL 与 code string/price189.25 currency typed cells。",
+        "native helper 提供 next_offset，Go facade 从返回行数形成 offset；本行核对原始 POST 的可观察请求/响应，不宣称分页所有分支或跨语言 DTO 身份相同。"
       ],
-      "uncoveredAssertions": [
-        "No embedded-stock-screen-v1/yfinance fixture asserting catalogVersion, brokerId, selectionReason, pagination, total, asOf, and cells together."
-      ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/api/productfeatures/research_screen_test.go:387:TestResearchScreenPostEmbeddedProviderConflictMatrix": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_research_screen_write_port_tests.rs::futu_interval_factor_rejects_non_catalog_operator_before_provider_call; crates/jftrade-engine/tests/research_screens_compatibility.rs::research_screen_fixture_replays_go_wire_for_the_post_route",
-      "conclusion": "partial：Go 冲突矩阵四条分支——futu preset 对嵌入 provider → 409、abs_desc 排序 → 409、gt 操作符 → 400（先于 provider）、HK 超覆盖 → 409 且请求带 market=HK 到达 provider。Rust 已覆盖操作符/未知 catalog 因子 400 与 capability 409 语料；futu preset、abs_desc 与“到达 provider 的 market 值”三条无断言。缺口 owner：crates/jftrade-engine research screen 写端口；回归要求：补三条分支断言后升级。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-      "evidence_type": "partial",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-engine/src/product_research_screen_embedded_http_tests.rs::production_http_screen_conflicts_reject_before_helper_and_forward_unsupported_market",
+      "conclusion": "function_exact：原始四分支逐项经 concrete production HTTP：futu preset为409、abs_desc为409、gt为400；前三项helper调用为零。HK请求为409/BROKER_CAPABILITY_UNAVAILABLE且恰好一次实际helper调用收到marketHK。 首轮gt返回409暴露生产normalizer绕过embedded operators；修复为复用catalog operators校验，400先于provider，不削弱owner fence或改fixture。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-engine --test production_http_screen_conflicts_reject_before_helper_and_forward_unsupported_market --output docs/history/go-to-rust/verification-receipts/research-screen-embedded-http-catalog-validated-2026-10-07.json",
+      "evidence_type": "function_exact",
       "source": {
         "file": "internal/api/productfeatures/research_screen_test.go",
         "line": 387,
@@ -17092,35 +17080,23 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_research_screen_write_port_tests.rs",
-          "test": "futu_interval_factor_rejects_non_catalog_operator_before_provider_call",
+          "file": "crates/jftrade-engine/src/product_research_screen_embedded_http_tests.rs",
+          "test": "production_http_screen_conflicts_reject_before_helper_and_forward_unsupported_market",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/api/productfeatures/research_screen_test.go",
             "goLine": 387,
-            "rustFile": "crates/jftrade-engine/src/product_research_screen_write_port_tests.rs",
-            "rustLine": 90
-          }
-        },
-        {
-          "file": "crates/jftrade-engine/tests/research_screens_compatibility.rs",
-          "test": "research_screen_fixture_replays_go_wire_for_the_post_route",
-          "crate": "jftrade-engine",
-          "anchor": {
-            "goFile": "internal/api/productfeatures/research_screen_test.go",
-            "goLine": 387,
-            "rustFile": "crates/jftrade-engine/tests/research_screens_compatibility.rs",
-            "rustLine": 130
+            "rustFile": "crates/jftrade-engine/src/product_research_screen_embedded_http_tests.rs",
+            "rustLine": 250
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust tests cover unsupported operators/unknown factors as 400 and capability conflicts as 409."
+          "原始四分支逐项经 concrete production HTTP：futu preset为409、abs_desc为409、gt为400；前三项helper调用为零。HK请求为409/BROKER_CAPABILITY_UNAVAILABLE且恰好一次实际helper调用收到marketHK。",
+          "首轮gt返回409暴露生产normalizer绕过embedded operators；修复为复用catalog operators校验，400先于provider，不削弱owner fence或改fixture。"
         ],
-        "uncovered": [
-          "No Rust assertions for futu preset conflict, abs_desc conflict, or HK overcoverage reaching the provider with market=HK."
-        ],
+        "uncovered": [],
         "source": "reviewed"
       },
       "verification": {
@@ -17130,38 +17106,38 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(production_http_screen_catalog_enforces_embedded_provider_market_matrix) or test(production_http_screen_executes_embedded_query_and_projects_typed_cells) or test(production_http_screen_conflicts_reject_before_helper_and_forward_unsupported_market) or test(production_http_screen_preserves_upstream_failure_message) or test(http_screen_result_omits_unknown_total_and_preserves_cells_only_quote_currency)"
         ],
         "testFilter": [
-          "research_screen_fixture_replays_go_wire_for_the_post_route"
+          "production_http_screen_conflicts_reject_before_helper_and_forward_unsupported_market"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "57de1b9616966c40e6e44ec6dc750986819efebc",
+        "verifiedAt": "2026-10-07T07:36:12Z",
+        "receiptDigest": "sha256:19f2f31bf87010687ff7d455f173b45548714cb214912670cd6536304254b100"
       },
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "retain_reviewed_boundary_or_partial_and_reaudit",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "maintain_verified_function_exact",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust tests cover unsupported operators/unknown factors as 400 and capability conflicts as 409."
+        "原始四分支逐项经 concrete production HTTP：futu preset为409、abs_desc为409、gt为400；前三项helper调用为零。HK请求为409/BROKER_CAPABILITY_UNAVAILABLE且恰好一次实际helper调用收到marketHK。",
+        "首轮gt返回409暴露生产normalizer绕过embedded operators；修复为复用catalog operators校验，400先于provider，不削弱owner fence或改fixture。"
       ],
-      "uncoveredAssertions": [
-        "No Rust assertions for futu preset conflict, abs_desc conflict, or HK overcoverage reaching the provider with market=HK."
-      ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/api/productfeatures/routes_test.go:19:TestProductFeatureRoutesCoverReadWritePredictionAndSnapshots": {
@@ -205630,9 +205606,9 @@
     },
     "internal/marketdata/screen_facade_test.go:78:TestServiceScreenPassesProviderErrorsThrough": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_production_ports_research_screen_tests.rs::embedded_screen_maps_capability_and_lifecycle_errors；crates/jftrade-engine/src/product_production_ports_research_screen_tests.rs::embedded_screen_serves_a_us_screen_via_akshare",
-      "conclusion": "partial：Rust 断言 provider 能力/生命周期错误映射（透传错误类别）与 US 屏幕经 akshare 服务的正向路径；差异：Go 断言 provider 错误文本原样返回，Rust 以错误类别断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+      "rust_entry": "crates/jftrade-engine/src/product_research_screen_embedded_http_tests.rs::production_http_screen_preserves_upstream_failure_message",
+      "conclusion": "partial：原始screen upstream failed文本置于native helper error envelope，经concrete production adapter/HTTP原样保持，502/BROKER_FEATURE_FAILED且helper一次调用；补齐旧映射未断言的文本。 Go errors.Is(providerError)对象身份的直接服务层透传无法由跨HTTP错误envelope证明；Rust重建分类错误，保留该service层身份差异，未将文本相同视为完整identity等价。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-engine --test production_http_screen_preserves_upstream_failure_message --output docs/history/go-to-rust/verification-receipts/research-screen-embedded-http-catalog-validated-2026-10-07.json",
       "evidence_type": "partial",
       "source": {
         "file": "internal/marketdata/screen_facade_test.go",
@@ -205642,34 +205618,23 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_production_ports_research_screen_tests.rs",
-          "test": "embedded_screen_maps_capability_and_lifecycle_errors",
+          "file": "crates/jftrade-engine/src/product_research_screen_embedded_http_tests.rs",
+          "test": "production_http_screen_preserves_upstream_failure_message",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/marketdata/screen_facade_test.go",
             "goLine": 78,
-            "rustFile": "crates/jftrade-engine/src/product_production_ports_research_screen_tests.rs",
-            "rustLine": 348
-          }
-        },
-        {
-          "file": "crates/jftrade-engine/src/product_production_ports_research_screen_tests.rs",
-          "test": "embedded_screen_serves_a_us_screen_via_akshare",
-          "crate": "jftrade-engine",
-          "anchor": {
-            "goFile": "internal/marketdata/screen_facade_test.go",
-            "goLine": 78,
-            "rustFile": "crates/jftrade-engine/src/product_production_ports_research_screen_tests.rs",
-            "rustLine": 424
+            "rustFile": "crates/jftrade-engine/src/product_research_screen_embedded_http_tests.rs",
+            "rustLine": 290
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust 断言 provider 能力/生命周期错误映射（透传错误类别）与 US 屏幕经 akshare 服务的正向路径；"
+          "原始screen upstream failed文本置于native helper error envelope，经concrete production adapter/HTTP原样保持，502/BROKER_FEATURE_FAILED且helper一次调用；补齐旧映射未断言的文本。"
         ],
         "uncovered": [
-          "差异：Go 断言 provider 错误文本原样返回，Rust 以错误类别断言。"
+          "Go errors.Is(providerError)对象身份的直接服务层透传无法由跨HTTP错误envelope证明；Rust重建分类错误，保留该service层身份差异，未将文本相同视为完整identity等价。"
         ],
         "source": "reviewed"
       },
@@ -205680,38 +205645,38 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(production_http_screen_catalog_enforces_embedded_provider_market_matrix) or test(production_http_screen_executes_embedded_query_and_projects_typed_cells) or test(production_http_screen_conflicts_reject_before_helper_and_forward_unsupported_market) or test(production_http_screen_preserves_upstream_failure_message) or test(http_screen_result_omits_unknown_total_and_preserves_cells_only_quote_currency)"
         ],
         "testFilter": [
-          "embedded_screen_maps_capability_and_lifecycle_errors",
-          "embedded_screen_serves_a_us_screen_via_akshare"
+          "production_http_screen_preserves_upstream_failure_message"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "57de1b9616966c40e6e44ec6dc750986819efebc",
+        "verifiedAt": "2026-10-07T07:36:12Z",
+        "receiptDigest": "sha256:19f2f31bf87010687ff7d455f173b45548714cb214912670cd6536304254b100"
       },
       "risk": "normal",
       "owner": "marketdata_quotes",
       "priority": "P2",
-      "nextAction": "add_exact_route_or_projection_assertions_for_uncovered_cases",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "preserve_partial_and_track_residual",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust 断言 provider 能力/生命周期错误映射（透传错误类别）与 US 屏幕经 akshare 服务的正向路径；"
+        "原始screen upstream failed文本置于native helper error envelope，经concrete production adapter/HTTP原样保持，502/BROKER_FEATURE_FAILED且helper一次调用；补齐旧映射未断言的文本。"
       ],
       "uncoveredAssertions": [
-        "差异：Go 断言 provider 错误文本原样返回，Rust 以错误类别断言。"
+        "Go errors.Is(providerError)对象身份的直接服务层透传无法由跨HTTP错误envelope证明；Rust重建分类错误，保留该service层身份差异，未将文本相同视为完整identity等价。"
       ],
       "boundaryReason": null
     },
@@ -342852,14 +342817,6 @@
       "reviewStatus": "reviewed",
       "reviewNote": "2026-10-07：research screen 五条移到直接 HTTP owner；旧关系仅移除本批引用，保留此前 allowed 审核范围，未新增共享批准。"
     },
-    "crates/jftrade-engine/src/product_tests.rs::research_screen_catalog_route_matches_go_fixture_for_all_variants": {
-      "referenceCount": 1,
-      "referenceKeys": [
-        "internal/api/productfeatures/research_screen_test.go:272:TestResearchScreenCatalogServesEmbeddedProviders"
-      ],
-      "allowed": true,
-      "reviewStatus": "single"
-    },
     "crates/jftrade-engine/src/product_research_screen_write_port_tests.rs::screen_query_defaults_the_page_and_keeps_catalog_columns": {
       "referenceCount": 3,
       "referenceKeys": [
@@ -342893,17 +342850,15 @@
       "reviewNote": "2026-09-29 API transport batch: bounded fan-out owner compared against every cited Go assertion; shared behavior is explicit and test-backed. Fan-out >5 remains backlog."
     },
     "crates/jftrade-engine/tests/research_screens_compatibility.rs::research_screen_fixture_replays_go_wire_for_the_post_route": {
-      "referenceCount": 5,
+      "referenceCount": 3,
       "referenceKeys": [
         "internal/api/productfeatures/research_screen_test.go:70:TestWriteResearchScreenErrorReturnsStructured429",
-        "internal/api/productfeatures/research_screen_test.go:355:TestResearchScreenPostServesEmbeddedProvider",
-        "internal/api/productfeatures/research_screen_test.go:387:TestResearchScreenPostEmbeddedProviderConflictMatrix",
         "internal/integration/akshare/provider_screen_test.go:16:TestClientScreenPostsConditionSortAndPagingBody",
         "internal/integration/yfinance/provider_screen_test.go:16:TestClientScreenPostsConditionSortAndPagingBody"
       ],
       "allowed": true,
       "reviewStatus": "reviewed",
-      "reviewNote": "2026-09-29 API transport batch: bounded fan-out owner compared against every cited Go assertion; shared behavior is explicit and test-backed. Fan-out >5 remains backlog."
+      "reviewNote": "2026-10-07：embedded screen 五条移到直接HTTP owner；旧关系仅移除本批引用，保留此前allowed审核范围，未新增共享批准。"
     },
     "crates/jftrade-engine/src/product_research_screen_write_port_tests.rs::route_and_page_validation_precede_provider_calls": {
       "referenceCount": 1,
@@ -342926,30 +342881,6 @@
       "allowed": true,
       "reviewStatus": "reviewed",
       "reviewNote": "2026-10-07：research screen 五条移到直接 HTTP owner；旧关系仅移除本批引用，保留此前 allowed 审核范围，未新增共享批准。"
-    },
-    "crates/jftrade-engine/src/product_production_ports_research_tests.rs::research_screen_helper_projects_rows_and_cells_without_fixture_defaults": {
-      "referenceCount": 1,
-      "referenceKeys": [
-        "internal/api/productfeatures/research_screen_test.go:213:TestTypedResearchScreenResultOmitsUnknownTotal"
-      ],
-      "allowed": true,
-      "reviewStatus": "single"
-    },
-    "crates/jftrade-engine/src/research_screen_query.rs::futu_screen_capability_errors_use_the_broker_code": {
-      "referenceCount": 1,
-      "referenceKeys": [
-        "internal/api/productfeatures/research_screen_test.go:355:TestResearchScreenPostServesEmbeddedProvider"
-      ],
-      "allowed": true,
-      "reviewStatus": "single"
-    },
-    "crates/jftrade-engine/src/product_research_screen_write_port_tests.rs::futu_interval_factor_rejects_non_catalog_operator_before_provider_call": {
-      "referenceCount": 1,
-      "referenceKeys": [
-        "internal/api/productfeatures/research_screen_test.go:387:TestResearchScreenPostEmbeddedProviderConflictMatrix"
-      ],
-      "allowed": true,
-      "reviewStatus": "single"
     },
     "crates/jftrade-engine/src/product_market_data_prediction_read_tests.rs::market_data_prediction_read_routes_match_group_fixture_in_cutover_only": {
       "referenceCount": 1,
@@ -345970,16 +345901,15 @@
       "reviewNote": "2026-09-30 API marketdata forwarding owner review: Go route/runtime assertions were compared with the shared Rust owner; this relation is limited to the small fan-out owner and does not approve high-fanout reuse."
     },
     "crates/jftrade-engine/src/product_production_ports_research_screen_tests.rs::embedded_screen_maps_capability_and_lifecycle_errors": {
-      "referenceCount": 4,
+      "referenceCount": 3,
       "referenceKeys": [
         "internal/app/apiserver/marketdataapp/runtime_screen_forwarding_test.go:63:TestRuntimeScreenPropagatesError",
         "internal/marketdata/screen_facade_test.go:23:TestServiceScreenRejectsProvidersWithoutCapability",
-        "internal/marketdata/screen_facade_test.go:78:TestServiceScreenPassesProviderErrorsThrough",
         "internal/productfeatures/provider_facade_screen_test.go:214:TestEmbeddedProviderMapsScreenCapabilityErrors"
       ],
       "allowed": true,
       "reviewStatus": "reviewed",
-      "reviewNote": "2026-09-29 API forwarding-wire review: all 4 referenceKeys were compared individually; 2 function_exact reference(s) retain their provider/route assertions and all remaining partial or boundary rows preserve their capability, conversion, collector, or transport-shape differences. Shared owner release does not upgrade non-exact rows."
+      "reviewNote": "2026-10-07：embedded screen 五条移到直接HTTP owner；旧关系仅移除本批引用，保留此前allowed审核范围，未新增共享批准。"
     },
     "crates/jftrade-engine/src/product_production_ports_research_screen_tests.rs::embedded_screen_rejects_shapes_the_helper_cannot_execute": {
       "referenceCount": 3,
@@ -357944,13 +357874,12 @@
       "reviewStatus": "single"
     },
     "crates/jftrade-engine/src/product_production_ports_research_screen_tests.rs::embedded_screen_serves_a_us_screen_via_akshare": {
-      "referenceCount": 2,
+      "referenceCount": 1,
       "referenceKeys": [
-        "internal/marketdata/screen_facade_test.go:78:TestServiceScreenPassesProviderErrorsThrough",
         "internal/productfeatures/provider_facade_screen_test.go:267:TestEmbeddedProviderServesUSScreenViaAkshare"
       ],
       "allowed": true,
-      "reviewStatus": "reviewed"
+      "reviewStatus": "single"
     },
     "crates/jftrade-engine/src/product_market_data_candle_pagination_tests.rs::tick_candles_surface_the_ticker_error_when_no_candle_is_retained": {
       "referenceCount": 1,
@@ -364550,6 +364479,46 @@
       "referenceCount": 1,
       "referenceKeys": [
         "internal/api/productfeatures/research_screen_test.go:19:TestResearchScreenCatalogRouteAndValidation"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_research_screen_embedded_http_tests.rs::http_screen_result_omits_unknown_total_and_preserves_cells_only_quote_currency": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/api/productfeatures/research_screen_test.go:213:TestTypedResearchScreenResultOmitsUnknownTotal"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_research_screen_embedded_http_tests.rs::production_http_screen_catalog_enforces_embedded_provider_market_matrix": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/api/productfeatures/research_screen_test.go:272:TestResearchScreenCatalogServesEmbeddedProviders"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_research_screen_embedded_http_tests.rs::production_http_screen_conflicts_reject_before_helper_and_forward_unsupported_market": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/api/productfeatures/research_screen_test.go:387:TestResearchScreenPostEmbeddedProviderConflictMatrix"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_research_screen_embedded_http_tests.rs::production_http_screen_executes_embedded_query_and_projects_typed_cells": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/api/productfeatures/research_screen_test.go:355:TestResearchScreenPostServesEmbeddedProvider"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_research_screen_embedded_http_tests.rs::production_http_screen_preserves_upstream_failure_message": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/marketdata/screen_facade_test.go:78:TestServiceScreenPassesProviderErrorsThrough"
       ],
       "allowed": true,
       "reviewStatus": "single"

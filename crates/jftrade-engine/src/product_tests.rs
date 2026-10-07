@@ -523,6 +523,8 @@ mod adk_chat_stream_product_tests;
 #[path = "product_plugins_write_product_tests.rs"]
 mod plugins_write_product_tests;
 
+#[path = "product_research_screen_embedded_http_tests.rs"]
+mod research_screen_embedded_http_tests;
 #[path = "product_research_screen_http_parity_tests.rs"]
 mod research_screen_http_parity_tests;
 #[path = "product_research_screen_write_product_tests.rs"]

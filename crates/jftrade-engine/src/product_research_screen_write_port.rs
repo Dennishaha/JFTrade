@@ -513,14 +513,14 @@ fn known_factor(catalog: &str, market: &str, factor: &str) -> bool {
 }
 
 fn catalog_factor_operators(catalog: &str, market: &str, factor: &str) -> Option<Vec<String>> {
-    // The embedded helper intentionally accepts generic comparison operators
-    // (gte/gt/lte/lt), even though its compact catalog uses a range editor.
-    // Futu's wire protocol only carries the catalog-declared filter forms, so
-    // enforce that list here and fail closed before encoding.
-    if catalog == EMBEDDED_CATALOG_VERSION {
-        return None;
-    }
-    jftrade_research::screen_catalog("futu", market)
+    // Both providers accept only their catalog-declared filter forms. Reject
+    // unsupported operators at normalization, before calling a provider.
+    let broker = if catalog == EMBEDDED_CATALOG_VERSION {
+        "akshare"
+    } else {
+        "futu"
+    };
+    jftrade_research::screen_catalog(broker, market)
         .ok()
         .and_then(|catalog| catalog.get("factors").and_then(Value::as_array).cloned())
         .and_then(|factors| {

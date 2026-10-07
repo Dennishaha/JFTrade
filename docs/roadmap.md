@@ -16,15 +16,15 @@
 - [ ] 逐批执行最窄测试、实际 receipt、审计及适用 quick/Rust 门禁，复查 diff 后提交；失败和未执行项保留证据。
 - [ ] 全部映射均有逐项审查依据、可实现行为差距完成修复、架构边界说明完整且所需门禁通过后，才确认整体完成。
 
-## 下一行为批次：embedded research screen 生产链路（2026-10-07）
+## 下一行为批次：Strategy/Pine 持久化守卫与入参边界（2026-10-07）
 
-research screen HTTP 批次已收口，净 exact +3/partial -3，现场 quick 与完整 Rust 门禁通过；结果、残余和失败证据关系见 [迁移成果摘要](history/go-to-rust/parity-progress-summary.md) 与 [证据积压清单](history/go-to-rust/parity-evidence-backlog.md)。下一批选择四条 API partial（冻结 research_screen_test 的 213/272/355/387）及 screen_facade_test 的 78 行，核对 concrete production adapter 与原始断言。
+embedded screen 批次已收口，净 exact +4/partial -4，现场 quick 与完整 Rust 门禁通过；结果、残余和失败证据关系见 [迁移成果摘要](history/go-to-rust/parity-progress-summary.md) 与 [证据积压清单](history/go-to-rust/parity-evidence-backlog.md)。下一批选择五条 partial：strategy routes_lifecycle_test 的 203/252/319、routes_boundary_contracts_test 的 75，以及 pine_routes_contracts_test 的 182。
 
-- [ ] production HTTP catalog 逐项核对 yfinance/akshare 默认市场、US/CN/HK/MO 和 unknown broker 矩阵。
-- [ ] production HTTP → 原生 loopback helper 核对原始 range/sort/page，成功响应保留 selectionReason、nextOffset、total、asOf 及 typed cells；不以 caller route port 替代生产 adapter。
-- [ ] futu preset、abs_desc、gt 拒绝时 helper 零调用；HK 超覆盖确实带 market=HK 到达 helper 并返回 409。
-- [ ] wire 结果投影单独验证未知 total 省略、已知 total7、HK.80700/CNY 与 cells-only，明确与 helper 必填 total 契约的区别。
-- [ ] 上游 failure message 穿过具体 adapter/HTTP；Go errors.Is 身份无法跨 wire 证明时保留 partial。
+- [ ] 原始 create/client-id/Draft、update/def-9/Updated 入参核对 owner 收到的身份归一；不把完整业务创建要求与叶层绑定混为一谈。
+- [ ] 真实 production HTTP 建立 linked instance 的定义删除 400 守卫；软删除实例、重启后删除定义应成功，先建立红测并检查唯一 writer 的持久化谓词。
+- [ ] production version history/snapshot 重启后核对 definitionId、savedAt、isCurrent、description 与 script；500/缺 URI 参数的未闭合断言保留。
+- [ ] 缺失实例 start 为 404/NOT_FOUND，已有 STOPPED sibling 不变；容量/preflight、worker start/stop 和转换回滚缺口逐项保留。
+- [ ] 原始 legacy sourceFormat 在未配置 worker 的 production HTTP 上先返回 400/BAD_REQUEST 和精确文案，不能由 worker unavailable 掩盖输入错误。
 - [ ] 至少闭合一条 partial；canonical receipt、普通/strict 与 anchor 审计、quick、完整 Rust 门禁、diff review、独立提交后继续。
 
 ## 质量门禁

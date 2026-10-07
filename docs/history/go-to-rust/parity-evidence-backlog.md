@@ -1,5 +1,13 @@
 # Go → Rust 证据积压清单
 
+## 2026-10-07 embedded screen production 行为回归
+
+- 五条 API/facade mapping 净 **exact +4 / partial -4**，当前 **1605 exact / 2206 partial / 640 boundary**；旧 reuse allowed 权限逐项保留，没有扩大共享批准。
+- `research-screen-embedded-http-initial-2026-10-07.json` 原字节保留：1 passed/4 failed，SHA-256 `56c8586145b546205707e3dd3b5f730c0e5b7172fa0e16f3161ad0b89024d3dd`。catalog 缺省 market、string cell 空 unit、helper envelope 三项属于测试装配/多余要求；gt 409→400 是真实 normalizer 回归，红测还记录失败期间 LEAK，不能称首轮通过。
+- `research-screen-embedded-http-catalog-validated-2026-10-07.json` 为当前 canonical：5 passed/0 failed/0 ignored/2144 filtered/skipped，无 LEAK，SHA-256 `19f2f31bf87010687ff7d455f173b45548714cb214912670cd6536304254b100`。匹配 Rust diff 与全部 untracked 指纹；concrete production HTTP→helper 与纯 wire result projector 的证据范围分别标注。
+- unknown total 用原始三组 FeatureResult 形状经 rehearsal wire projector 验证；不放宽 native helper 必填 total。native helper 的 next_offset1 与 Go facade 的逐行 offset 形成方式仍不同，本行仅证明原始 POST 行为，不宣称全分页等价。
+- provider failure 的文本已在 production HTTP 保留，但 Go errors.Is 对象身份尚无 Rust 服务层证明，facade78 保留 partial。普通/strict/anchor 与 engine Clippy 通过；quick 退出 0（2179 Rust passed、Pine 98 passed、desktop 48 passed，无 LEAK）。完整 Rust 首轮 target-health 因至少 50000 个 `.rcgu.o` 退出 1（`/tmp/jftrade-embedded-screen-rust.log`）；确认无 Cargo/rustc/nextest 后按门禁提示清理 119470 文件/34.6 GiB，clean 日志保留。完整重跑明确退出 0（3725 passed、0 failed、2 skipped，静态/七类 replay 通过、无 LEAK），日志 `/tmp/jftrade-embedded-screen-rust-clean.log`；失败仅被后续通过结果解释，未删除。
+
 ## 2026-10-07 research screen HTTP 的 production/rehearsal 边界
 
 - 仅 catalog、normalize、原始 V1 形状拒绝三条升级 exact；**1601 exact / 2210 partial / 640 boundary**，净变化 **+3/-3/0**。只改五条 mapping 与必要 reuse 子集，不扩大此前共享批准。
