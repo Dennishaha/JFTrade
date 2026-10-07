@@ -1,5 +1,22 @@
 # Go → Rust 证据积压清单
 
+## 2026-10-07 交易读参数与 portfolio 的红绿关系
+
+- 仅更新五条mapping及必要reuse；净 **+2 exact / -2 partial / boundary 0**，当前 **1614 / 2197 / 640**。原Go110的不存在sync计数要求已删除，原始filter和default REAL由production六行ledger/HTTP设置变化直接证明；Go249完整partial-fill tuple、missing404及重启直接证明。
+
+  | 文件（均位于 verification-receipts） | 实际结果 | 后续关系 |
+  | --- | --- | --- |
+  | `trading-read-http-initial-2026-10-07.json` | failed，3 passed/2 failed，2166 filtered/skipped；省略环境混入SIMULATE、测试误期望acc-1 portfolio400 | owner-verified修环境、如实核对native503；原字节保留 |
+  | `trading-read-http-owner-verified-2026-10-07.json` | failed，4 passed/1 failed，2166 filtered/skipped；US trd_market却投影HK.AAPL | native-market-verified修共享position市场投影 |
+  | `trading-read-http-native-market-verified-2026-10-07.json` | failed，5 passed/1 failed，2165 filtered/skipped；缺required averagePrice | wire-verified补OpenAPI已要求的portfolio字段 |
+  | `trading-read-http-wire-verified-2026-10-07.json` | passed，6/6，2165 filtered/skipped，无LEAK；含旧cost/PnL fallback | 修订前源码证据；missing-cost-verified为当前canonical |
+  | `trading-read-http-missing-cost-initial-2026-10-07.json` | failed，0 passed/1 failed，2170 filtered/skipped；缺成本时averagePrice为null | 保留HTTP红测，按Go firstFloat零值回退修复 |
+  | `trading-read-http-missing-cost-verified-2026-10-07.json` | passed，6/6，2165 filtered/skipped，无LEAK；average/legacy/缺成本三行直接核对 | 当前canonical |
+
+- canonical SHA-256 `290dbd8d1cdcb72e183a078b2757a97d01388a82452be45c0ad9d3163e060ca4`；各红测及绿色源码指纹已核对，保留完整diff与untracked备份。native-market补字段不是修改契约源，cash/positions lastError和position十个required键直接断言；broker与portfolio都核对US source market及价格。缺成本HTTP红测发现averagePrice=null违反既有number契约；补0回退后绿色，没有修改契约源或fixture。
+- residual：read71原始acc-1 cash-flow成功无法由native42替代；portfolio143原始acc-1要求200而实际503；helper17的通用Page绑定、generic500、snapshot429/Retry-After与risk409矩阵未闭合。没有把numeric成功请求当原始输入或引入多broker registry。
+- 普通/strict及anchor通过：2075 unique、2027 recorded、0 unrecorded、0 stale、48 unknown；AI context与diff检查通过。修订后quick明确退出0：2201 Rust passed/0 failed/0 skipped（含desktop Rust30）、Clippy、七类回放、Pine98和desktop检查通过，无LEAK。此前target-health失败日志保留，确认无构建进程后清理113901 files/28.5GiB；修订前quick也通过，但不用于替代修订后结果。现场完整Rust明确退出0：3749 passed/0 failed/2 skipped，静态与七类回放通过，无LEAK；两个skipped没有计为通过。最终Rust diff与canonical源码指纹一致，契约源、schema及冻结fixture无变化。
+
 ## 2026-10-07 策略失败矩阵与 durable 删除
 
 - 仅更新本批五条及必要 reuse；净 **+1 exact / -1 partial / boundary 0**，当前 **1612 / 2199 / 640**。Go lifecycle401 的 success200/inst-1 转发、missing404、busy400 由 production HTTP 与 shutdown/reopen 后 durable 副作用直接证明。

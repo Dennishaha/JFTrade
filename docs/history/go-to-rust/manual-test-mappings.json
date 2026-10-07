@@ -23020,11 +23020,11 @@
       "boundaryReason": null
     },
     "internal/api/trading/execution_test.go:110:TestHandleExecutionOrdersNormalizesScopeAndFilter": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_execution_read_tests.rs::execution_read_routes_match_group_fixture_in_cutover_only",
-      "conclusion": "partial：Go 断言订单列表 scope=ACTIVE/brokerId/accountId 去空白、market 归一，且 scope=active 只同步当前订单（current/history=1/0，默认 2/1）。Rust 读语料 case orders-active 断言路径归一后的响应数据；缺口：current/history 拉取计数属 Go order-updates worker 行为，Rust 读端口不承担拉取，无同形断言，owner = 交易订单同步 worker（如迁入需补计数回归）。",
-      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(execution_read_routes_match_group_fixture_in_cutover_only) or test(system_status_matches_go_stable_fields_without_claiming_migration_ownership) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable) or test(auth_manager_login_validate_and_logout_flow) or test(production_helper_sync_retries_transient_page_and_records_retry) or test(production_helper_sync_rejects_broken_pagination_cursors)'",
-      "evidence_type": "partial",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-engine/src/product_trading_read_http_parity_tests.rs::production_http_execution_filter_uses_live_default_environment_and_explicit_override",
+      "conclusion": "function_exact：冻结Go原始scope=%20active%20、brokerId=%20futu%20、accountId=%20acc-1%20与market=us经认证production HTTP和具体SQLite read owner；设置default REAL，六行ledger中只返回real-active，直接证明trim、market归一、account/broker/environment过滤及terminal排除。 真实红测确认省略环境会混入SIMULATE；read owner仅在显式参数为空时读取现有live default getter。显式simulate覆盖REAL，HTTP更新设置SIMULATE后省略参数读到simulate，显式REAL再次优先，全部200。 纠正旧conclusion：原Go110没有current/history调用计数断言，gotActiveOnly在测试内直接赋true；不把另一条sync测试的计数要求移入本行。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-engine --test production_http_execution_filter_uses_live_default_environment_and_explicit_override --output docs/history/go-to-rust/verification-receipts/trading-read-http-missing-cost-verified-2026-10-07.json",
+      "evidence_type": "function_exact",
       "source": {
         "file": "internal/api/trading/execution_test.go",
         "line": 110,
@@ -23033,24 +23033,24 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_execution_read_tests.rs",
-          "test": "execution_read_routes_match_group_fixture_in_cutover_only",
+          "file": "crates/jftrade-engine/src/product_trading_read_http_parity_tests.rs",
+          "test": "production_http_execution_filter_uses_live_default_environment_and_explicit_override",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/api/trading/execution_test.go",
             "goLine": 110,
-            "rustFile": "crates/jftrade-engine/src/product_execution_read_tests.rs",
-            "rustLine": 106
+            "rustFile": "crates/jftrade-engine/src/product_trading_read_http_parity_tests.rs",
+            "rustLine": 84
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust active-orders fixture covers normalized scope/filter response data."
+          "冻结Go原始scope=%20active%20、brokerId=%20futu%20、accountId=%20acc-1%20与market=us经认证production HTTP和具体SQLite read owner；设置default REAL，六行ledger中只返回real-active，直接证明trim、market归一、account/broker/environment过滤及terminal排除。",
+          "真实红测确认省略环境会混入SIMULATE；read owner仅在显式参数为空时读取现有live default getter。显式simulate覆盖REAL，HTTP更新设置SIMULATE后省略参数读到simulate，显式REAL再次优先，全部200。",
+          "纠正旧conclusion：原Go110没有current/history调用计数断言，gotActiveOnly在测试内直接赋true；不把另一条sync测试的计数要求移入本行。"
         ],
-        "uncovered": [
-          "No Rust current/history fetch-count assertion because order read port does not own the Go order-updates worker sync behavior."
-        ],
+        "uncovered": [],
         "source": "reviewed"
       },
       "verification": {
@@ -23060,38 +23060,39 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(production_http_execution_detail_preserves_partial_fill_receipt_after_restart) or test(production_http_execution_filter_uses_live_default_environment_and_explicit_override) or test(production_http_broker_queries_validate_and_forward_native_account_fee_and_margin_inputs) or test(production_http_portfolio_projects_native_cash_positions_and_rejects_unknown_broker) or test(production_http_broker_missing_identifiers_and_native_read_failure_preserve_owner_boundaries) or test(position_projection_prefers_diluted_cost_and_account_pnl_with_legacy_fallback)"
         ],
         "testFilter": [
-          "execution_read_routes_match_group_fixture_in_cutover_only"
+          "production_http_execution_filter_uses_live_default_environment_and_explicit_override"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "6171a970c5eb64417f20f1f3b40d763ff56bd736",
+        "verifiedAt": "2026-10-07T10:24:20Z",
+        "receiptDigest": "sha256:290dbd8d1cdcb72e183a078b2757a97d01388a82452be45c0ad9d3163e060ca4"
       },
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "retain_reviewed_boundary_or_partial_and_reaudit",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "maintain_verified_function_exact",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust active-orders fixture covers normalized scope/filter response data."
+        "冻结Go原始scope=%20active%20、brokerId=%20futu%20、accountId=%20acc-1%20与market=us经认证production HTTP和具体SQLite read owner；设置default REAL，六行ledger中只返回real-active，直接证明trim、market归一、account/broker/environment过滤及terminal排除。",
+        "真实红测确认省略环境会混入SIMULATE；read owner仅在显式参数为空时读取现有live default getter。显式simulate覆盖REAL，HTTP更新设置SIMULATE后省略参数读到simulate，显式REAL再次优先，全部200。",
+        "纠正旧conclusion：原Go110没有current/history调用计数断言，gotActiveOnly在测试内直接赋true；不把另一条sync测试的计数要求移入本行。"
       ],
-      "uncoveredAssertions": [
-        "No Rust current/history fetch-count assertion because order read port does not own the Go order-updates worker sync behavior."
-      ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/api/trading/execution_test.go:148:TestHandleExecutionCancelReturnsMappedEnvelope": {
@@ -23348,11 +23349,11 @@
       "boundaryReason": null
     },
     "internal/api/trading/execution_test.go:249:TestHandleExecutionOrderDetailsReturnsCanonicalReceiptAndNotFound": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_execution_read_tests.rs::execution_read_routes_match_group_fixture_in_cutover_only",
-      "conclusion": "partial：Go 断言订单详情 200 且 status=PARTIALLY_FILLED、rawBrokerStatus=FILLED_PART，缺失→404 ORDER_NOT_FOUND。Rust 读语料断言 order-details 200（冻结 data 为 status=BROKER_ACCEPTED/rawBrokerStatus=SUBMITTED）与 order-missing 404 ORDER_NOT_FOUND；状态映射函数（order_status_label/storage_status）存在但部分成交对未进入语料，缺口：补 PARTIALLY_FILLED+FILLED_PART 的详情投影断言。 批229高风险复核：Rust 关联测试纳入本批门禁并通过；保持 partial，Go 与 Rust owner、路由形状或逐分支断言差异继续按本条缺口记录。",
-      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(execution_read_routes_match_group_fixture_in_cutover_only) or test(system_status_matches_go_stable_fields_without_claiming_migration_ownership) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable) or test(auth_manager_login_validate_and_logout_flow) or test(production_helper_sync_retries_transient_page_and_records_retry) or test(production_helper_sync_rejects_broken_pagination_cursors)'",
-      "evidence_type": "partial",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-engine/src/product_trading_read_http_parity_tests.rs::production_http_execution_detail_preserves_partial_fill_receipt_after_restart",
+      "conclusion": "function_exact：原始internal-1的详情200、PARTIALLY_FILLED与FILLED_PART、missing404 ORDER_NOT_FOUND全部经认证production HTTP与具体SQLite ledger直接断言；shutdown/restart后同一tuple保持。冻结fixture未改。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-engine --test production_http_execution_detail_preserves_partial_fill_receipt_after_restart --output docs/history/go-to-rust/verification-receipts/trading-read-http-missing-cost-verified-2026-10-07.json",
+      "evidence_type": "function_exact",
       "source": {
         "file": "internal/api/trading/execution_test.go",
         "line": 249,
@@ -23361,24 +23362,22 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_execution_read_tests.rs",
-          "test": "execution_read_routes_match_group_fixture_in_cutover_only",
+          "file": "crates/jftrade-engine/src/product_trading_read_http_parity_tests.rs",
+          "test": "production_http_execution_detail_preserves_partial_fill_receipt_after_restart",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/api/trading/execution_test.go",
             "goLine": 249,
-            "rustFile": "crates/jftrade-engine/src/product_execution_read_tests.rs",
-            "rustLine": 106
+            "rustFile": "crates/jftrade-engine/src/product_trading_read_http_parity_tests.rs",
+            "rustLine": 64
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust order-details fixture covers 200 canonical receipt shape and missing order 404 ORDER_NOT_FOUND."
+          "原始internal-1的详情200、PARTIALLY_FILLED与FILLED_PART、missing404 ORDER_NOT_FOUND全部经认证production HTTP与具体SQLite ledger直接断言；shutdown/restart后同一tuple保持。冻结fixture未改。"
         ],
-        "uncovered": [
-          "No Rust PARTIALLY_FILLED/FILLED_PART detail projection fixture; current frozen status is BROKER_ACCEPTED/SUBMITTED."
-        ],
+        "uncovered": [],
         "source": "reviewed"
       },
       "verification": {
@@ -23388,36 +23387,37 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(production_http_execution_detail_preserves_partial_fill_receipt_after_restart) or test(production_http_execution_filter_uses_live_default_environment_and_explicit_override) or test(production_http_broker_queries_validate_and_forward_native_account_fee_and_margin_inputs) or test(production_http_portfolio_projects_native_cash_positions_and_rejects_unknown_broker) or test(production_http_broker_missing_identifiers_and_native_read_failure_preserve_owner_boundaries) or test(position_projection_prefers_diluted_cost_and_account_pnl_with_legacy_fallback)"
         ],
         "testFilter": [
-          "execution_read_routes_match_group_fixture_in_cutover_only"
+          "production_http_execution_detail_preserves_partial_fill_receipt_after_restart"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "6171a970c5eb64417f20f1f3b40d763ff56bd736",
+        "verifiedAt": "2026-10-07T10:24:20Z",
+        "receiptDigest": "sha256:290dbd8d1cdcb72e183a078b2757a97d01388a82452be45c0ad9d3163e060ca4"
       },
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "retain_reviewed_boundary_or_partial_and_reaudit",
+      "nextAction": "maintain_verified_function_exact",
       "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust order-details fixture covers 200 canonical receipt shape and missing order 404 ORDER_NOT_FOUND."
+        "原始internal-1的详情200、PARTIALLY_FILLED与FILLED_PART、missing404 ORDER_NOT_FOUND全部经认证production HTTP与具体SQLite ledger直接断言；shutdown/restart后同一tuple保持。冻结fixture未改。"
       ],
-      "uncoveredAssertions": [
-        "No Rust PARTIALLY_FILLED/FILLED_PART detail projection fixture; current frozen status is BROKER_ACCEPTED/SUBMITTED."
-      ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/api/trading/execution_validation_contracts_test.go:52:TestExecutionRoutesValidatePayloadsAndMapHandlerErrors": {
@@ -23850,9 +23850,9 @@
     },
     "internal/api/trading/routes_broker_contracts_test.go:143:TestPortfolioRoutesUseBrokerSnapshotsAndMissingBrokerSemantics": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::position_projection_prefers_diluted_cost_and_account_pnl_with_legacy_fallback",
-      "conclusion": "partial：Go 断言 portfolio funds/positions 走 broker 快照、缺 broker 返回明确错误。Rust 用例断言 positions 投影（摊薄成本/账户 PnL 与旧字段回退）；缺口：缺 broker 的 404/错误码族与 funds 快照路径无路由级断言，owner = portfolio 读投影。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --locked -E 'test(position_projection_prefers_diluted_cost_and_account_pnl_with_legacy_fallback)'",
+      "rust_entry": "crates/jftrade-engine/src/product_trading_read_http_parity_tests.rs::production_http_portfolio_projects_native_cash_positions_and_rejects_unknown_broker",
+      "conclusion": "partial：原始acc-1的cash/positions在concrete native owner没有匹配账户，均503 PORTFOLIO_UNAVAILABLE且零funds/positions调用；另用native42重放USD/cashBalance1234.5、US.AAPL/averagePrice98.7与owner header REAL/42，missing ib404。 真实红测暴露raw trd_market US被请求默认HK覆盖、以及缺OpenAPI required averagePrice。共享position projection按记录交易市场投影，portfolio补brokerId/averagePrice/createdAt/updatedAt及cash/positions lastError；两个HTTP surface均直接核对US market/symbol及price，原成本/PnL fallback测试再次通过。 Go原始acc-1要求成功200，Rust原生Futu数字账户与匹配规则不等价，503反例保留；没有加入Go多broker registry或将42改称原始输入。 补充HTTP红测证明成本全缺失时averagePrice不得为null；按Go firstFloat回退0，averageCost优先和legacy cost回退同样直接验证。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-engine --test production_http_portfolio_projects_native_cash_positions_and_rejects_unknown_broker --output docs/history/go-to-rust/verification-receipts/trading-read-http-missing-cost-verified-2026-10-07.json",
       "evidence_type": "partial",
       "source": {
         "file": "internal/api/trading/routes_broker_contracts_test.go",
@@ -23862,23 +23862,25 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs",
-          "test": "position_projection_prefers_diluted_cost_and_account_pnl_with_legacy_fallback",
+          "file": "crates/jftrade-engine/src/product_trading_read_http_parity_tests.rs",
+          "test": "production_http_portfolio_projects_native_cash_positions_and_rejects_unknown_broker",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/api/trading/routes_broker_contracts_test.go",
             "goLine": 143,
-            "rustFile": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs",
-            "rustLine": 1015
+            "rustFile": "crates/jftrade-engine/src/product_trading_read_http_parity_tests.rs",
+            "rustLine": 398
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust positions projection test covers diluted cost/account PnL with legacy fallback."
+          "原始acc-1的cash/positions在concrete native owner没有匹配账户，均503 PORTFOLIO_UNAVAILABLE且零funds/positions调用；另用native42重放USD/cashBalance1234.5、US.AAPL/averagePrice98.7与owner header REAL/42，missing ib404。",
+          "真实红测暴露raw trd_market US被请求默认HK覆盖、以及缺OpenAPI required averagePrice。共享position projection按记录交易市场投影，portfolio补brokerId/averagePrice/createdAt/updatedAt及cash/positions lastError；两个HTTP surface均直接核对US market/symbol及price，原成本/PnL fallback测试再次通过。",
+          "补充HTTP红测证明成本全缺失时averagePrice不得为null；按Go firstFloat回退0，averageCost优先和legacy cost回退同样直接验证。"
         ],
         "uncovered": [
-          "No route-level missing-broker 404/error matrix or broker-funds snapshot assertion for portfolio reads."
+          "Go原始acc-1要求成功200，Rust原生Futu数字账户与匹配规则不等价，503反例保留；没有加入Go多broker registry或将42改称原始输入。"
         ],
         "source": "reviewed"
       },
@@ -23889,37 +23891,40 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(production_http_execution_detail_preserves_partial_fill_receipt_after_restart) or test(production_http_execution_filter_uses_live_default_environment_and_explicit_override) or test(production_http_broker_queries_validate_and_forward_native_account_fee_and_margin_inputs) or test(production_http_portfolio_projects_native_cash_positions_and_rejects_unknown_broker) or test(production_http_broker_missing_identifiers_and_native_read_failure_preserve_owner_boundaries) or test(position_projection_prefers_diluted_cost_and_account_pnl_with_legacy_fallback)"
         ],
         "testFilter": [
-          "position_projection_prefers_diluted_cost_and_account_pnl_with_legacy_fallback"
+          "production_http_portfolio_projects_native_cash_positions_and_rejects_unknown_broker"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "6171a970c5eb64417f20f1f3b40d763ff56bd736",
+        "verifiedAt": "2026-10-07T10:24:20Z",
+        "receiptDigest": "sha256:290dbd8d1cdcb72e183a078b2757a97d01388a82452be45c0ad9d3163e060ca4"
       },
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "retain_reviewed_boundary_or_partial_and_reaudit",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "preserve_partial_and_track_residual",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust positions projection test covers diluted cost/account PnL with legacy fallback."
+        "原始acc-1的cash/positions在concrete native owner没有匹配账户，均503 PORTFOLIO_UNAVAILABLE且零funds/positions调用；另用native42重放USD/cashBalance1234.5、US.AAPL/averagePrice98.7与owner header REAL/42，missing ib404。",
+        "真实红测暴露raw trd_market US被请求默认HK覆盖、以及缺OpenAPI required averagePrice。共享position projection按记录交易市场投影，portfolio补brokerId/averagePrice/createdAt/updatedAt及cash/positions lastError；两个HTTP surface均直接核对US market/symbol及price，原成本/PnL fallback测试再次通过。",
+        "补充HTTP红测证明成本全缺失时averagePrice不得为null；按Go firstFloat回退0，averageCost优先和legacy cost回退同样直接验证。"
       ],
       "uncoveredAssertions": [
-        "No route-level missing-broker 404/error matrix or broker-funds snapshot assertion for portfolio reads."
+        "Go原始acc-1要求成功200，Rust原生Futu数字账户与匹配规则不等价，503反例保留；没有加入Go多broker registry或将42改称原始输入。"
       ],
       "boundaryReason": null
     },
@@ -24155,9 +24160,9 @@
     },
     "internal/api/trading/routes_helper_boundaries_test.go:17:TestTradingRouteHelpersWriteHTTPBoundaryErrors": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::broker_read_fails_closed_without_trade_client",
-      "conclusion": "partial：Go 子用例断言 bindBrokerURI 缺参→404、bindQuery 类型错误→400、writeReadResult 后端错误→500 BROKER_READ_FAILED、未知 broker→404、限流→429+Retry-After、writeOperationResult 保留 409 风控拒绝。Rust 用例断言缺 trade client 时 fail-closed；缺口：上述六类边界的逐项路由级断言（含 Retry-After），owner = 交易路由 helper 层。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'test(broker_klines_valid_request_fails_closed_without_historical_source) or test(broker_securities_returns_real_empty_result_when_cache_has_no_symbol) or test(production_http_broker_reads_reject_invalid_query_shapes_with_rust_messages) or test(trade_write_methods_propagate_write_disconnects) or test(cancel_rejects_missing_terminal_and_unidentified_persisted_orders) or test(funds_projection_keeps_missing_margin_fields_absent) or test(broker_read_fails_closed_without_trade_client)'",
+      "rust_entry": "crates/jftrade-engine/src/product_trading_read_http_parity_tests.rs::production_http_broker_missing_identifiers_and_native_read_failure_preserve_owner_boundaries",
+      "conclusion": "partial：真实production HTTP缺broker及unknown broker404，native accountId=bad400且零reader数据调用；正常funds带Page=bad仍200并实际一次reader调用，随后native disconnected reader503 BROKER_READ_UNAVAILABLE且第二次调用直接观察。 Go直接helper的通用Page整型绑定400与native broker未声明Page的200不同；Go generic backend error500 BROKER_READ_FAILED与typed disconnected native503不同。snapshot429/Retry-After1或2、risk409两个码及无params独立handler seam未在本批HTTP矩阵闭合。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-engine --test production_http_broker_missing_identifiers_and_native_read_failure_preserve_owner_boundaries --output docs/history/go-to-rust/verification-receipts/trading-read-http-missing-cost-verified-2026-10-07.json",
       "evidence_type": "partial",
       "source": {
         "file": "internal/api/trading/routes_helper_boundaries_test.go",
@@ -24167,23 +24172,23 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs",
-          "test": "broker_read_fails_closed_without_trade_client",
+          "file": "crates/jftrade-engine/src/product_trading_read_http_parity_tests.rs",
+          "test": "production_http_broker_missing_identifiers_and_native_read_failure_preserve_owner_boundaries",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/api/trading/routes_helper_boundaries_test.go",
             "goLine": 17,
-            "rustFile": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs",
-            "rustLine": 619
+            "rustFile": "crates/jftrade-engine/src/product_trading_read_http_parity_tests.rs",
+            "rustLine": 491
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust trade read tests fail closed without a trade client."
+          "真实production HTTP缺broker及unknown broker404，native accountId=bad400且零reader数据调用；正常funds带Page=bad仍200并实际一次reader调用，随后native disconnected reader503 BROKER_READ_UNAVAILABLE且第二次调用直接观察。"
         ],
         "uncovered": [
-          "No route-level matrix for missing URI 404, query 400, BROKER_READ_FAILED 500, unknown broker 404, 429 Retry-After, and 409 risk rejection."
+          "Go直接helper的通用Page整型绑定400与native broker未声明Page的200不同；Go generic backend error500 BROKER_READ_FAILED与typed disconnected native503不同。snapshot429/Retry-After1或2、risk409两个码及无params独立handler seam未在本批HTTP矩阵闭合。"
         ],
         "source": "reviewed"
       },
@@ -24194,43 +24199,38 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(production_http_execution_detail_preserves_partial_fill_receipt_after_restart) or test(production_http_execution_filter_uses_live_default_environment_and_explicit_override) or test(production_http_broker_queries_validate_and_forward_native_account_fee_and_margin_inputs) or test(production_http_portfolio_projects_native_cash_positions_and_rejects_unknown_broker) or test(production_http_broker_missing_identifiers_and_native_read_failure_preserve_owner_boundaries) or test(position_projection_prefers_diluted_cost_and_account_pnl_with_legacy_fallback)"
         ],
         "testFilter": [
-          "broker_klines_valid_request_fails_closed_without_historical_source",
-          "broker_securities_returns_real_empty_result_when_cache_has_no_symbol",
-          "production_http_broker_reads_reject_invalid_query_shapes_with_rust_messages",
-          "trade_write_methods_propagate_write_disconnects",
-          "cancel_rejects_missing_terminal_and_unidentified_persisted_orders",
-          "funds_projection_keeps_missing_margin_fields_absent",
-          "broker_read_fails_closed_without_trade_client"
+          "production_http_broker_missing_identifiers_and_native_read_failure_preserve_owner_boundaries"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "6171a970c5eb64417f20f1f3b40d763ff56bd736",
+        "verifiedAt": "2026-10-07T10:24:20Z",
+        "receiptDigest": "sha256:290dbd8d1cdcb72e183a078b2757a97d01388a82452be45c0ad9d3163e060ca4"
       },
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "retain_reviewed_boundary_or_partial_and_reaudit",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "preserve_partial_and_track_residual",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust trade read tests fail closed without a trade client."
+        "真实production HTTP缺broker及unknown broker404，native accountId=bad400且零reader数据调用；正常funds带Page=bad仍200并实际一次reader调用，随后native disconnected reader503 BROKER_READ_UNAVAILABLE且第二次调用直接观察。"
       ],
       "uncoveredAssertions": [
-        "No route-level matrix for missing URI 404, query 400, BROKER_READ_FAILED 500, unknown broker 404, 429 Retry-After, and 409 risk rejection."
+        "Go直接helper的通用Page整型绑定400与native broker未声明Page的200不同；Go generic backend error500 BROKER_READ_FAILED与typed disconnected native503不同。snapshot429/Retry-After1或2、risk409两个码及无params独立handler seam未在本批HTTP矩阵闭合。"
       ],
       "boundaryReason": null
     },
@@ -24443,9 +24443,9 @@
     },
     "internal/api/trading/routes_read_handlers_test.go:71:TestTradingReadHandlersValidateAndNormalizeBusinessQueries": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::broker_account_analytics_project_fees_margin_cash_flow_and_buying_power",
-      "conclusion": "partial：Go 断言 cash-flows 缺 clearingDate→400、order-fees 合并去重 orderIdEx/orderIdExList、margin-ratios 缺 symbol→400 且按 market 归一、quote/securities 合并别名去重、未知资源→404。Rust 用例断言 fees/margin/cash-flow/buying-power 投影字段；缺口：参数归一与缺参 400/未知资源 404 的逐项路由断言，owner = 交易读端口。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'not test(production_helper_sync_cancel_aborts_in_flight_request) and not test(production_helper_sync_rejects_broken_pagination_cursors) and not test(production_helper_sync_forwards_page_query_and_persists_provider_values) and not test(production_helper_sync_retries_transient_page_and_records_retry)'",
+      "rust_entry": "crates/jftrade-engine/src/product_trading_read_http_parity_tests.rs::production_http_broker_queries_validate_and_forward_native_account_fee_and_margin_inputs",
+      "conclusion": "partial：真实production HTTP验证原始cash-flow缺date、margin缺symbol/跨市场symbol、quote/securities缺symbol均400 BAD_REQUEST且零native reader数据调用；原始fees ord-1加ord-2,ord-1直接在reader核对去重序列，原始margin AAPL/MSFT,AAPL核对US11与AAPL/MSFT。 数值账户42的cash-flow日期2026-06-23/OUT2及header直接记录；原始quote/securities别名组合经cache owner返回恰好两个US.AAPL/US.MSFT，unknown resource404。 Go原始成功cash-flow使用acc-1，Rust native Futu header要求数字账户，实测原始完整acc-1请求400；数值42的成功入参不能消除这一同形输入差异。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-engine --test production_http_broker_queries_validate_and_forward_native_account_fee_and_margin_inputs --output docs/history/go-to-rust/verification-receipts/trading-read-http-missing-cost-verified-2026-10-07.json",
       "evidence_type": "partial",
       "source": {
         "file": "internal/api/trading/routes_read_handlers_test.go",
@@ -24455,23 +24455,24 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs",
-          "test": "broker_account_analytics_project_fees_margin_cash_flow_and_buying_power",
+          "file": "crates/jftrade-engine/src/product_trading_read_http_parity_tests.rs",
+          "test": "production_http_broker_queries_validate_and_forward_native_account_fee_and_margin_inputs",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/api/trading/routes_read_handlers_test.go",
             "goLine": 71,
-            "rustFile": "crates/jftrade-engine/src/product_production_ports_trade_tests.rs",
-            "rustLine": 1194
+            "rustFile": "crates/jftrade-engine/src/product_trading_read_http_parity_tests.rs",
+            "rustLine": 337
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust trade tests project fees, margin, cash-flow, and buying-power fields."
+          "真实production HTTP验证原始cash-flow缺date、margin缺symbol/跨市场symbol、quote/securities缺symbol均400 BAD_REQUEST且零native reader数据调用；原始fees ord-1加ord-2,ord-1直接在reader核对去重序列，原始margin AAPL/MSFT,AAPL核对US11与AAPL/MSFT。",
+          "数值账户42的cash-flow日期2026-06-23/OUT2及header直接记录；原始quote/securities别名组合经cache owner返回恰好两个US.AAPL/US.MSFT，unknown resource404。"
         ],
         "uncovered": [
-          "No route assertions for clearingDate/symbol required fields, orderIdEx/orderIdExList deduplication, market normalization, alias merging, or unknown-resource 404."
+          "Go原始成功cash-flow使用acc-1，Rust native Futu header要求数字账户，实测原始完整acc-1请求400；数值42的成功入参不能消除这一同形输入差异。"
         ],
         "source": "reviewed"
       },
@@ -24482,37 +24483,39 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(production_http_execution_detail_preserves_partial_fill_receipt_after_restart) or test(production_http_execution_filter_uses_live_default_environment_and_explicit_override) or test(production_http_broker_queries_validate_and_forward_native_account_fee_and_margin_inputs) or test(production_http_portfolio_projects_native_cash_positions_and_rejects_unknown_broker) or test(production_http_broker_missing_identifiers_and_native_read_failure_preserve_owner_boundaries) or test(position_projection_prefers_diluted_cost_and_account_pnl_with_legacy_fallback)"
         ],
         "testFilter": [
-          "broker_account_analytics_project_fees_margin_cash_flow_and_buying_power"
+          "production_http_broker_queries_validate_and_forward_native_account_fee_and_margin_inputs"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "6171a970c5eb64417f20f1f3b40d763ff56bd736",
+        "verifiedAt": "2026-10-07T10:24:20Z",
+        "receiptDigest": "sha256:290dbd8d1cdcb72e183a078b2757a97d01388a82452be45c0ad9d3163e060ca4"
       },
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "retain_reviewed_boundary_or_partial_and_reaudit",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "preserve_partial_and_track_residual",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust trade tests project fees, margin, cash-flow, and buying-power fields."
+        "真实production HTTP验证原始cash-flow缺date、margin缺symbol/跨市场symbol、quote/securities缺symbol均400 BAD_REQUEST且零native reader数据调用；原始fees ord-1加ord-2,ord-1直接在reader核对去重序列，原始margin AAPL/MSFT,AAPL核对US11与AAPL/MSFT。",
+        "数值账户42的cash-flow日期2026-06-23/OUT2及header直接记录；原始quote/securities别名组合经cache owner返回恰好两个US.AAPL/US.MSFT，unknown resource404。"
       ],
       "uncoveredAssertions": [
-        "No route assertions for clearingDate/symbol required fields, orderIdEx/orderIdExList deduplication, market normalization, alias merging, or unknown-resource 404."
+        "Go原始成功cash-flow使用acc-1，Rust native Futu header要求数字账户，实测原始完整acc-1请求400；数值42的成功入参不能消除这一同形输入差异。"
       ],
       "boundaryReason": null
     },
@@ -343486,18 +343489,16 @@
       "reviewNote": "2026-09-29 execution API batch: shared Rust owner reviewed against each referenced Go assertion; partial references remain partial and do not inherit function_exact."
     },
     "crates/jftrade-engine/src/product_execution_read_tests.rs::execution_read_routes_match_group_fixture_in_cutover_only": {
-      "referenceCount": 6,
+      "referenceCount": 4,
       "referenceKeys": [
-        "internal/api/trading/execution_test.go:110:TestHandleExecutionOrdersNormalizesScopeAndFilter",
         "internal/api/trading/execution_test.go:205:TestExecutionPlacePreviewAndEventsRoutes",
-        "internal/api/trading/execution_test.go:249:TestHandleExecutionOrderDetailsReturnsCanonicalReceiptAndNotFound",
         "internal/api/trading/execution_validation_contracts_test.go:52:TestExecutionRoutesValidatePayloadsAndMapHandlerErrors",
         "internal/api/trading/execution_validation_contracts_test.go:238:TestExecutionOrderDetailsRouteMapsMissingAndStoreFailures",
         "internal/app/apiserver/servercoretest/execution_routes_test.go:53:TestExecutionOrdersEndpointFiltersByTradingEnvironmentAndScope"
       ],
       "allowed": true,
       "reviewStatus": "reviewed",
-      "reviewNote": "2026-09-29 execution API batch: shared Rust owner reviewed against each referenced Go assertion; partial references remain partial and do not inherit function_exact."
+      "reviewNote": "2026-10-07：本批五条分别转到真实HTTP owner，仅移除旧引用，保留此前allowed及其它条目审核范围；三条native形状/故障残余明确保持partial。"
     },
     "crates/jftrade-engine/src/product_execution_write_product_tests.rs::execution_write_product_replays_browser_boundary_failure_recovery_and_restart": {
       "referenceCount": 3,
@@ -343565,9 +343566,8 @@
       "reviewNote": "2026-09-30 API servercore owner review: data-management, live volume, notification, capability, strategy-runtime, health and security assertions were compared with the shared Rust owner; fan-out capped at six, high fan-out remains backlog."
     },
     "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::position_projection_prefers_diluted_cost_and_account_pnl_with_legacy_fallback": {
-      "referenceCount": 8,
+      "referenceCount": 7,
       "referenceKeys": [
-        "internal/api/trading/routes_broker_contracts_test.go:143:TestPortfolioRoutesUseBrokerSnapshotsAndMissingBrokerSemantics",
         "internal/app/apiserver/servercoretest/broker_read_test.go:72:TestBrokerReadEndpointsReturnExchangeBackedData",
         "pkg/futu/adapter_bridge_test.go:191:TestBrokerAdapterMarketDataReaderTradingSnapshots",
         "pkg/futu/trade_proto_business_test.go:103:TestBrokerReadProtoSnapshotsNormalizePositionMarginAndQuantityDetails",
@@ -343577,7 +343577,8 @@
         "internal/trading/risk_status_broker_boundaries_test.go:187:TestLowLevelTradingFallbackHelpers"
       ],
       "allowed": true,
-      "reviewStatus": "reviewed"
+      "reviewStatus": "reviewed",
+      "reviewNote": "2026-10-07：本批五条分别转到真实HTTP owner，仅移除旧引用，保留此前allowed及其它条目审核范围；三条native形状/故障残余明确保持partial。"
     },
     "crates/jftrade-engine/src/product_brokers_write_product_tests.rs::brokers_write_sqlite_test_cutover_replays_transport_and_restart": {
       "referenceCount": 1,
@@ -343606,14 +343607,12 @@
       "reviewNote": "2026-09-29 API batch: all referenced assertions were reviewed together; partial/boundary conclusions remain unchanged."
     },
     "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::broker_read_fails_closed_without_trade_client": {
-      "referenceCount": 2,
+      "referenceCount": 1,
       "referenceKeys": [
-        "internal/api/trading/routes_helper_boundaries_test.go:17:TestTradingRouteHelpersWriteHTTPBoundaryErrors",
         "internal/app/apiserver/servercoretest/broker_routes_test.go:14:TestBrokerFundsEndpointReturnsDisconnectedSummary"
       ],
       "allowed": false,
-      "reviewStatus": "reviewed",
-      "reviewNote": "2026-10-02 bounded reuse review: compared all 2 referenceKeys against the shared Rust owner (status mix {'[~]': 2}); assertion scopes are not interchangeable, so reuse remains disallowed and no function_exact row is upgraded by this relation."
+      "reviewStatus": "single"
     },
     "crates/jftrade-engine/src/product_production_assembly_tests.rs::production_http_broker_reads_reject_missing_uri_broker_and_unknown_resource": {
       "referenceCount": 1,
@@ -343642,14 +343641,14 @@
       "reviewNote": "2026-09-29 API batch: all referenced assertions were reviewed together; partial/boundary conclusions remain unchanged."
     },
     "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::broker_account_analytics_project_fees_margin_cash_flow_and_buying_power": {
-      "referenceCount": 3,
+      "referenceCount": 2,
       "referenceKeys": [
-        "internal/api/trading/routes_read_handlers_test.go:71:TestTradingReadHandlersValidateAndNormalizeBusinessQueries",
         "internal/app/apiserver/servercoretest/broker_read_test.go:72:TestBrokerReadEndpointsReturnExchangeBackedData",
         "pkg/futu/adapter_bridge_test.go:465:TestBrokerAdapterMarketDataReaderAccountAnalytics"
       ],
       "allowed": true,
-      "reviewStatus": "reviewed"
+      "reviewStatus": "reviewed",
+      "reviewNote": "2026-10-07：本批五条分别转到真实HTTP owner，仅移除旧引用，保留此前allowed及其它条目审核范围；三条native形状/故障残余明确保持partial。"
     },
     "crates/jftrade-engine/src/product_production_ports_execution_reconciliation_provider_tests.rs::helper_market_data_providers_project_futu_broker_and_portfolio_routes": {
       "referenceCount": 2,
@@ -364604,6 +364603,46 @@
       "referenceCount": 1,
       "referenceKeys": [
         "internal/api/strategy/routes_failure_boundaries_test.go:138:TestDefinitionOrchestrationRoutesMapBusinessFailures"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_trading_read_http_parity_tests.rs::production_http_broker_missing_identifiers_and_native_read_failure_preserve_owner_boundaries": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/api/trading/routes_helper_boundaries_test.go:17:TestTradingRouteHelpersWriteHTTPBoundaryErrors"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_trading_read_http_parity_tests.rs::production_http_broker_queries_validate_and_forward_native_account_fee_and_margin_inputs": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/api/trading/routes_read_handlers_test.go:71:TestTradingReadHandlersValidateAndNormalizeBusinessQueries"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_trading_read_http_parity_tests.rs::production_http_execution_detail_preserves_partial_fill_receipt_after_restart": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/api/trading/execution_test.go:249:TestHandleExecutionOrderDetailsReturnsCanonicalReceiptAndNotFound"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_trading_read_http_parity_tests.rs::production_http_execution_filter_uses_live_default_environment_and_explicit_override": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/api/trading/execution_test.go:110:TestHandleExecutionOrdersNormalizesScopeAndFilter"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_trading_read_http_parity_tests.rs::production_http_portfolio_projects_native_cash_positions_and_rejects_unknown_broker": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/api/trading/routes_broker_contracts_test.go:143:TestPortfolioRoutesUseBrokerSnapshotsAndMissingBrokerSemantics"
       ],
       "allowed": true,
       "reviewStatus": "single"

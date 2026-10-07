@@ -459,7 +459,11 @@ impl ExecutionReadSnapshotPort for ProductionExecutionPort {
             let environment = query
                 .get_first("tradingEnvironment")
                 .map(str::trim)
-                .filter(|v| !v.is_empty());
+                .filter(|v| !v.is_empty())
+                .map(str::to_owned)
+                .or_else(|| self.default_trading_environment.as_ref().map(|getter| getter()))
+                .map(|value| value.trim().to_owned())
+                .filter(|value| !value.is_empty());
             let account_id = query
                 .get_first("accountId")
                 .map(str::trim)
@@ -479,6 +483,7 @@ impl ExecutionReadSnapshotPort for ProductionExecutionPort {
                 (!scope_active || !is_terminal_status(&order.status))
                     && broker_id.is_none_or(|value| order.broker_id.eq_ignore_ascii_case(value))
                     && environment
+                        .as_deref()
                         .is_none_or(|value| order.trading_environment.eq_ignore_ascii_case(value))
                     && account_id.is_none_or(|value| order.account_id.trim() == value)
                     && market.is_none_or(|value| order.market.eq_ignore_ascii_case(value))

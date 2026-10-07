@@ -31,11 +31,22 @@
 
 选择五条partial：trading execution_test.go的110/249、routes_read_handlers_test.go的71、routes_broker_contracts_test.go的143、routes_helper_boundaries_test.go的17。逐项核对冻结Go原测试，现有mapping不能替代原始断言。
 
-- [ ] 在真实production HTTP和SQLite ledger上重放PARTIALLY_FILLED/FILLED_PART与missing404 ORDER_NOT_FOUND，shutdown/restart后保持。
-- [ ] 重放原始空白scope/brokerId/accountId及小写market；同一ledger包含REAL/SIMULATE、其它账户/券商/市场及terminal对照，核对当前默认环境和显式override。原Go110没有current/history调用计数断言，不沿用旧误记。
-- [ ] 费用ID合并去重、margin symbol归一、cash-flow方向/日期与quote/securities两工具合并走concrete adapter，记录原生reader实际入参；Go acc-1与Futu数字账户残余单独保留。
-- [ ] portfolio cash/position原字段与missing broker404直接断言；typed账户形状和generic helper Page/error/Retry-After差异不能由合法数字请求消除。
-- [ ] 如发现生产缺口，保留红测后修所属owner；canonical receipt、普通/strict及anchor审计、quick、完整Rust门禁和diff review通过后独立提交，再继续。
+- [x] 在真实production HTTP和SQLite ledger上重放PARTIALLY_FILLED/FILLED_PART与missing404 ORDER_NOT_FOUND，shutdown/restart后保持。
+- [x] 重放原始空白scope/brokerId/accountId及小写market；同一ledger包含REAL/SIMULATE、其它账户/券商/市场及terminal对照，修复省略环境未读取live default getter，设置变化和显式override已验证。原Go110没有current/history调用计数断言，不沿用旧误记。
+- [x] 费用ID合并去重、margin symbol归一、cash-flow方向/日期与quote/securities两工具合并走concrete adapter，记录原生reader实际入参；Go acc-1与Futu数字账户残余单独保留。
+- [x] portfolio cash/position原字段与missing broker404直接断言；修复源US被请求默认HK覆盖及缺required wire字段。typed账户形状和generic helper Page/error/Retry-After差异继续保持partial。
+- [x] 保留四份红测，修复省略环境、源交易市场、portfolio required字段与缺成本number回退；canonical六项通过，普通/strict及anchor、quick2201/0/0、现场完整Rust3749/0/2通过，diff review后独立提交再继续。仅两条升exact，其余三条残余保留。
+
+## 后续行为批次：设置失败与 durable 状态（2026-10-07）
+
+候选五条partial：settings `routes_accounts_validation_test.go:18`、`routes_failure_boundaries_test.go:48/84/125`、`routes_test.go:935`。冻结Go原始请求及断言已逐项读取；先提交交易读批次，再落入本批源码。
+
+- [ ] 真实production HTTP重放十一条设置写失败，直接验证500 SETTINGS_SAVE_FAILED、每次失败后的所有设置回读和原文件字节不变。
+- [ ] managed account原始record-1/client-id冲突请求验证路径ID优先；实际文件写失败后保持原账户，shutdown/restart验证成功状态仍在。
+- [ ] onboarding原始completed/dismissed=false和空白lastBrokerId重置请求清除两个时间戳、保留futu，落盘与重启后回读一致。
+- [ ] 通知设置原始important/trading与off/system请求直接核对归一结果和落盘；不能把Rust important模式扩展默认类别的差异误标exact。
+- [ ] 通知测试第三次事件system-notification-3、delivered及host入参直接核对；缺host当前503 SYSTEM_NOTIFICATION_UNAVAILABLE与Go500残余明确保留。
+- [ ] 本批canonical receipt、普通/strict与anchor、quick及完整Rust门禁通过并复查diff后独立提交，继续下一批。
 
 ## 质量门禁
 

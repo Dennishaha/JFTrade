@@ -60,7 +60,7 @@ use trade_projection::{
     cash_flow_value, currency_label, fill_status_label, fill_value, funds_value,
     map_broker_header_error,
     map_portfolio_header_error, margin_ratio_value, market_label_from_code,
-    max_trade_order_type_label, max_trade_quantity_value, non_empty, order_fee_value,
+    max_trade_order_type_label, max_trade_quantity_value, non_empty, order_fee_value, portfolio_position_value,
     order_status_label, order_type_label, order_value, position_value, qualify_symbol,
     security_firm_label, session_error, session_label, simulated_account_type_label,
     time_in_force_label, trade_market_authority, trade_side, unavailable, unavailable_portfolio,
@@ -556,7 +556,7 @@ impl PortfolioSnapshotPort for ProductionPortfolioPort {
                     )
                     .map_err(|e| unavailable_portfolio(e.to_string()))?;
                 Ok(
-                    json!({"checkedAt": checked_at(), "connectivity": "connected", "positions": positions.into_iter().map(|v| position_value(&resolved, v)).collect::<Vec<_>>() }),
+                    json!({"checkedAt": checked_at(), "connectivity": "connected", "lastError": Value::Null, "positions": positions.into_iter().map(|v| portfolio_position_value(&request.broker_id, &resolved, v)).collect::<Vec<_>>() }),
                 )
             }
             "cash-balances" => {
@@ -566,7 +566,7 @@ impl PortfolioSnapshotPort for ProductionPortfolioPort {
                 let balances =
                     portfolio_cash_balance_values(&request.broker_id, &resolved, &funds.funds);
                 Ok(
-                    json!({"checkedAt": checked_at(), "connectivity": "connected", "balances": balances }),
+                    json!({"checkedAt": checked_at(), "connectivity": "connected", "lastError": Value::Null, "balances": balances }),
                 )
             }
             _ => Err(unavailable_portfolio(format!(

@@ -1,5 +1,15 @@
 # Go → Rust 对齐成果摘要
 
+## 2026-10-07 交易读参数、回执与 portfolio wire
+
+- 五条partial逐项核对冻结Go；订单筛选和部分成交详情两条升exact，净 **exact +2 / partial -2 / boundary 0**，当前 **1614 / 2197 / 640**。纠正Go110旧结论：原测试只核对归一后的filter，未断言current/history调用次数，测试内gotActiveOnly直接赋true。
+- 真实红测发现省略环境参数会混入SIMULATE订单；production ledger read在参数为空时读取现有live default getter，显式参数优先。六行REAL/SIMULATE、其它account/broker/market和terminal对照，设置更新后默认值变化，全部直接经HTTP断言。PARTIALLY_FILLED/FILLED_PART、missing404及重启保持同样走具体SQLite owner。
+- 后续红测发现原生US持仓被请求默认HK投影成HK.AAPL，portfolio缺少OpenAPI required averagePrice。共享position投影优先记录trd_market，portfolio补brokerId/averagePrice/createdAt/updatedAt及cash/positions lastError；两条HTTP surface核对US market/symbol/price，十个required字段直接检查，旧成本/PnL fallback回归通过。契约源和schema未改。
+- 原始fee ID合并、margin市场和symbol去重、cash-flow日期/OUT2及native header在recording reader直接核对；quote/securities两工具合并、missing/invalid参数400零数据调用、unknown broker/resource404也已执行。原始acc-1在broker cash-flow为400、portfolio为503，numeric42的成功不消除该差异；Page=bad在native未声明所以200，disconnected reader503与Go generic500不同，三条保持partial。
+- 修订前 `verification-receipts/trading-read-http-wire-verified-2026-10-07.json`：**6 passed / 0 failed / 0 ignored / 2165 filtered/skipped**，无LEAK，SHA-256 `09bc43199acb33112f808c6fe225cf3db056641d339952ffbbfdb71ecebc5f37`。完整tracked diff/untracked指纹已核对并备份。initial 3/2包含环境真实红测及portfolio预期400的测试错误；owner-verified 4/1暴露HK.AAPL；native-market-verified 5/1暴露required averagePrice。三份失败receipt保留，不由名字判断状态。
+- 最终diff复核补查成本全缺失边界，新增HTTP红测 **0 passed / 1 failed / 2170 filtered/skipped**，实际averagePrice=null；冻结Go firstFloat此时返回0，现有OpenAPI要求number。portfolio补0回退，averageCost优先、legacy cost回退和缺成本三行直接经HTTP断言。当前canonical改为 `verification-receipts/trading-read-http-missing-cost-verified-2026-10-07.json`，**6 passed / 0 failed / 0 ignored / 2165 filtered/skipped**，SHA-256 `290dbd8d1cdcb72e183a078b2757a97d01388a82452be45c0ad9d3163e060ca4`；wire-verified保留为修订前源码证据。
+- 普通/strict、anchor与AI context通过；anchor 2075 unique/2027 recorded/0 unrecorded/0 stale/48 unknown。修订后quick明确退出0：2201 Rust passed/0 failed/0 skipped（含desktop Rust30）、Clippy、七类回放、Pine98和desktop检查通过，无LEAK。target-health初次失败保留日志，确认无构建进程后按仓库命令清理113901 files/28.5GiB。现场完整Rust明确退出0：3749 passed/0 failed/2 skipped，静态与七类回放通过，无LEAK；两个skipped没有计为通过。最终Rust diff与canonical源码指纹一致，契约源、schema及冻结fixture无变化。
+
 ## 2026-10-07 策略 HTTP 失败与实例删除副作用
 
 - 五条 partial 逐项核对冻结 Go。实例删除原始三个结果经真实认证 production HTTP 和具体 SQLite owner 证明，升 exact；净 **exact +1 / partial -1 / boundary 0**，当前 **1612 / 2199 / 640**。其余四条保留具体生产故障分类、固定 fixture 和 handler 参数残余。

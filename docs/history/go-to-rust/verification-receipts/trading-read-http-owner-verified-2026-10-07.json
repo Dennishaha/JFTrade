@@ -1,0 +1,76 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(production_http_execution_detail_preserves_partial_fill_receipt_after_restart) or test(production_http_execution_filter_uses_live_default_environment_and_explicit_override) or test(production_http_broker_queries_validate_and_forward_native_account_fee_and_margin_inputs) or test(production_http_portfolio_projects_native_cash_positions_and_rejects_unknown_broker) or test(production_http_broker_missing_identifiers_and_native_read_failure_preserve_owner_boundaries)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 100,
+  "status": "failed",
+  "verifiedAt": "2026-10-07T09:54:25Z",
+  "sourceState": {
+    "verifiedCommit": "6171a970c5eb64417f20f1f3b40d763ff56bd736",
+    "trackedDiffSha256": "16db5d400888270ae2ee961892e9921c1bcb26bd2b88dbde64fd6952bb9091d8",
+    "untrackedFiles": [
+      {
+        "path": "crates/jftrade-engine/src/product_trading_read_http_parity_tests.rs",
+        "sha256": "991f08e9e9fcc5f7abad94f6ad61d8c495127811b77eedb7ef05b3e14aad21df"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/trading-read-http-initial-2026-10-07.json",
+        "sha256": "c9045f44e7914d2cb3b75ba13dd3d9c5478749ab1edc1184984261633098741a"
+      }
+    ]
+  },
+  "rawOutputSha256": "e9dcba3924da7eb3786d88faeb3a72421e649708c937706db6d6674f33c6d57b",
+  "passedTests": [
+    "jftrade-engine::jftrade_engine$product::tests::trading_read_http_parity_tests::production_http_broker_missing_identifiers_and_native_read_failure_preserve_owner_boundaries",
+    "jftrade-engine::jftrade_engine$product::tests::trading_read_http_parity_tests::production_http_broker_queries_validate_and_forward_native_account_fee_and_margin_inputs",
+    "jftrade-engine::jftrade_engine$product::tests::trading_read_http_parity_tests::production_http_execution_detail_preserves_partial_fill_receipt_after_restart",
+    "jftrade-engine::jftrade_engine$product::tests::trading_read_http_parity_tests::production_http_execution_filter_uses_live_default_environment_and_explicit_override"
+  ],
+  "failedTests": [
+    "jftrade-engine::jftrade_engine$product::tests::trading_read_http_parity_tests::production_http_portfolio_projects_native_cash_positions_and_rejects_unknown_broker"
+  ],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 5,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "failed",
+      "passed": 4,
+      "failed": 1,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1777,
+      "exec_time": 26.203241458,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    }
+  ]
+}

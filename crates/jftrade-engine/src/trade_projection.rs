@@ -222,7 +222,26 @@ pub(crate) fn position_value(
     let cost_price = value.diluted_cost_price.or(value.cost_price);
     let unrealized_pnl = value.unrealized_pl.or(Some(value.pl_val));
     let pnl_ratio = value.average_pl_ratio.or(value.pl_ratio);
-    json!({"accountId": request.account_id, "tradingEnvironment": request.environment, "market": request.market, "symbol": qualify_symbol(&request.market, &value.code), "symbolName": non_empty(&value.name), "quantity": value.qty, "sellableQuantity": value.can_sell_qty, "lastPrice": value.price, "costPrice": cost_price, "averageCostPrice": value.average_cost_price, "marketValue": value.val, "unrealizedPnl": unrealized_pnl, "realizedPnl": value.realized_pl, "pnlRatio": pnl_ratio, "currency": currency_label(value.currency)})
+    let market = market_label_from_code(value.trd_market).unwrap_or(request.market.as_str());
+    json!({"accountId": request.account_id, "tradingEnvironment": request.environment, "market": market, "symbol": qualify_symbol(market, &value.code), "symbolName": non_empty(&value.name), "quantity": value.qty, "sellableQuantity": value.can_sell_qty, "lastPrice": value.price, "costPrice": cost_price, "averageCostPrice": value.average_cost_price, "marketValue": value.val, "unrealizedPnl": unrealized_pnl, "realizedPnl": value.realized_pl, "pnlRatio": pnl_ratio, "currency": currency_label(value.currency)})
+}
+
+pub(crate) fn portfolio_position_value(
+    broker_id: &str,
+    request: &ResolvedTradeRequest,
+    position: jftrade_integration_futu::TradePositionSnapshot,
+) -> Value {
+    let mut value = position_value(request, position);
+    value["brokerId"] = json!(broker_id);
+    value["averagePrice"] = if value["averageCostPrice"].is_null() {
+        json!(value["costPrice"].as_f64().unwrap_or(0.0))
+    } else {
+        value["averageCostPrice"].clone()
+    };
+    let timestamp = checked_at();
+    value["createdAt"] = json!(timestamp);
+    value["updatedAt"] = value["createdAt"].clone();
+    value
 }
 
 pub(super) fn order_value(

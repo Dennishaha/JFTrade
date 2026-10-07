@@ -584,6 +584,8 @@ mod research_preset_read_tests;
 
 #[path = "product_execution_read_tests.rs"]
 mod execution_read_tests;
+#[path = "product_trading_read_http_parity_tests.rs"]
+mod trading_read_http_parity_tests;
 
 #[path = "product_market_data_provider_read_tests.rs"]
 mod market_data_provider_read_tests;
