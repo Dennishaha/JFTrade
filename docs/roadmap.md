@@ -16,15 +16,15 @@
 - [ ] 逐批执行最窄测试、实际 receipt、审计及适用 quick/Rust 门禁，复查 diff 后提交；失败和未执行项保留证据。
 - [ ] 全部映射均有逐项审查依据、可实现行为差距完成修复、架构边界说明完整且所需门禁通过后，才确认整体完成。
 
-## 下一行为批次：审批持久化与结清（2026-10-07）
+## 下一行为批次：research screen HTTP 与执行定义（2026-10-07）
 
-Web proxy/session 与 Assistant canvas 批次已收口；结果、残余及原始红绿证据见 [迁移成果摘要](history/go-to-rust/parity-progress-summary.md) 与 [证据积压清单](history/go-to-rust/parity-evidence-backlog.md)。下一批选择五条审批相关 partial，先定位 store 事务 owner 和 engine continuation，再按冻结原始输入补行为。
+审批 durable boundaries 与 runtime sibling 拒绝批次已收口；结果、残余和红绿证据见 [迁移成果摘要](history/go-to-rust/parity-progress-summary.md) 与 [证据积压清单](history/go-to-rust/parity-evidence-backlog.md)。下一批选择五条 research screen partial，逐项重放原始 HTTP/definition 输入，先定位 parser、catalog 和 provider port。
 
-- [ ] 复现 target approval、run、sibling durable payload 损坏；确认拒绝且审批/运行完整快照不变，修复实际失败的 owner。
-- [ ] 注入 run staging 写失败，核对暂态、最后审批及拒绝路径的事务回滚、错误传播和可重试性。
-- [ ] 复核 missing/already-resolved/non-pending/not-embedded 分支；Rust nil receiver 边界明确保留。
-- [ ] 复核已持久化 resolution 的恢复与一次 continuation；parent 聚合缺口单列。
-- [ ] 经真实 runtime 和执行计数验证拒绝一个 action 后 sibling 结清、零 tool execution。
+- [ ] 真实 production HTTP catalog 核对 display semantics、providerId 不泄露及 market=SG 的 400。
+- [ ] 使用原始 brokerId=" FUTU "/market="us" 输入，断言 provider port 收到 futu/US/默认 limit50；version1 拒绝且零调用。
+- [ ] HTTP POST 经 recording provider port 核对同一归一执行定义、offset50/limit25；Go FeatureQuery operation/cursor 的结构差异明确保留。
+- [ ] 原始 V2 interval 的 min/max/inclusion、column identity/label 与响应 metadata 逐字段核对。
+- [ ] querySchemaVersion2 + legacy filters/columns 的原始 V1 形状返回 400，provider 调用数为零。
 - [ ] 至少闭合一条 partial；canonical receipt、普通/strict 与 anchor 审计、quick、完整 Rust 门禁、diff review、独立提交后继续。
 
 ## 质量门禁

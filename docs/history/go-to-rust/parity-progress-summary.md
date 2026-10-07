@@ -1,5 +1,13 @@
 # Go → Rust 对齐成果摘要
 
+## 2026-10-07 审批持久化、损坏负载与 sibling 拒绝
+
+- 五条 partial 逐项核对冻结 Go 输入与断言。损坏 durable payload 三分支升 exact，净变化 **exact +1 / partial -1 / boundary 0**，当前 **1598 / 2213 / 640**。其余四条保留 nil receiver、parent WorkflowStatus/ChildRunIDs、async/sync facade 和 background supervisor 的具体差异。
+- 实际红测确认 target/sibling `id=[]` 被接受，并被权威列覆盖。生产 store 在覆盖前校验审批字符串字段与 input 对象类型，保留缺失/null 的兼容语义；解码错误仍在原事务内返回。新增原始 JSON、status、createdAt/updatedAt 快照对照，证明 target 修改随 run/sibling 解码失败回滚。
+- 在唯一 store 连接上注入 TEMP UPDATE ABORT，暂态、final、DENIED 三路径错误可观察、完整快照不变，移除 fault/reopen 后可重试；runtime/catalog staging 两个 gated actions，拒绝一项后两项 durable approval/toolCall 都 DENIED、同步 resume 达终态、recording executor 计数零、重复结清不变。后者未重放 Go Chat XML/统一 facade，仍 partial。
+- canonical `verification-receipts/approval-durable-behavior-verified-2026-10-07.json`：**8 passed / 0 failed / 0 ignored / 2331 filtered/skipped**，SHA-256 `3b554192f59797d99e388a77da27ef8983a82c16151b8a68d16c65322594e0ce`。完整 sourceState 已核对并备份；初始 schema fault、修正后的两项真实红测、编译失败及中间 green 保留原字节，关系见证据积压清单。
+- 普通/strict 审计通过；三项错误类型断言改为测试正文直接断言后，helper-only 警告归零。anchor **2050 unique / 2002 recorded / 0 unrecorded / 0 stale / 48 unknown**；Rust 扫描 **3559**、数量比 **80.0%** 单列。quick 首轮 **2369 tests passed** 后 Clippy 拒绝新 fixture 的 redundant_closure，整体退出 **1**；第二轮 target-health 失败，确认无 Cargo/rustc/nextest 后指定 clean 移除 **122891 files / 29.7 GiB**。第三轮 `/tmp/jftrade-approval-quick-clean.log` 明确退出 **0**：**2369 passed / 0 failed / 0 skipped**，Clippy、七类 replay、Pine **98 passed**、桌面 **48 passed**，本次无 LEAK。完整 `/tmp/jftrade-approval-rust.log` 明确退出 **0**：workspace **3715 passed / 0 failed / 2 skipped**、静态及七类 replay 通过，本次无 LEAK。focused digest 不充当全量摘要，未另生成 workspace JSON receipt。AI context 与 diff review 通过；下一批转向 research screen HTTP/执行定义，整体目标继续 active。
+
 ## 2026-10-07 Assistant canvas 保存与执行
 
 - 本批逐项核对五条 partial：完整图保存/重读、Start/Agent/Monitor 执行日志、research/report 子节点输入输出、无图 fallback、可达图终态。图保存条目新增 production mutation/read 与 SQLite 重启后的完整 JSON 对照，含节点坐标、version、edge type，升为 exact。净变化 **exact +1 / partial -1 / boundary 0**，当前 **1597 / 2214 / 640**。

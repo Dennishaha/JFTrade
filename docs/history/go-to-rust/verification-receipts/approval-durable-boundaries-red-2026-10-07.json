@@ -1,0 +1,73 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-store-sqlite",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(approval_resolution_rejects_a_corrupt_target_identity_without_mutation) or test(approval_resolution_rejects_a_corrupt_run_json_without_mutation) or test(approval_resolution_rejects_a_corrupt_sibling_identity_without_mutation) or test(approval_staging_write_errors_preserve_retryable_approval_and_run_snapshots) or test(approval_resolution_boundary_states_do_not_stage_unrelated_runs) or test(persisted_approval_resolution_restages_once_after_store_recreation)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 100,
+  "status": "failed",
+  "verifiedAt": "2026-10-07T06:32:31Z",
+  "sourceState": {
+    "verifiedCommit": "e549001257b7cdebbf73f2bda737a4b0a832489e",
+    "trackedDiffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "untrackedFiles": [
+      {
+        "path": "crates/jftrade-store-sqlite/tests/approval_resolution_failure_parity.rs",
+        "sha256": "a7e8b9afacc6af54f0388e11dc245e5315b2170b8a1551a37f1ae310e91a1725"
+      }
+    ]
+  },
+  "rawOutputSha256": "708d7bca7e0db00a5f7cac90713b6a70f22eed891afc308667626950b79f43aa",
+  "passedTests": [
+    "jftrade-store-sqlite::approval_resolution_failure_parity$approval_resolution_boundary_states_do_not_stage_unrelated_runs",
+    "jftrade-store-sqlite::approval_resolution_failure_parity$approval_resolution_rejects_a_corrupt_run_json_without_mutation",
+    "jftrade-store-sqlite::approval_resolution_failure_parity$persisted_approval_resolution_restages_once_after_store_recreation"
+  ],
+  "failedTests": [
+    "jftrade-store-sqlite::approval_resolution_failure_parity$approval_resolution_rejects_a_corrupt_sibling_identity_without_mutation",
+    "jftrade-store-sqlite::approval_resolution_failure_parity$approval_resolution_rejects_a_corrupt_target_identity_without_mutation",
+    "jftrade-store-sqlite::approval_resolution_failure_parity$approval_staging_write_errors_preserve_retryable_approval_and_run_snapshots"
+  ],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 6,
+      "nextest": {
+        "crate": "jftrade-store-sqlite",
+        "test_binary": "approval_resolution_failure_parity",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "failed",
+      "passed": 3,
+      "failed": 3,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 0,
+      "exec_time": 0.877727998,
+      "nextest": {
+        "crate": "jftrade-store-sqlite",
+        "test_binary": "approval_resolution_failure_parity",
+        "kind": "test"
+      }
+    }
+  ]
+}

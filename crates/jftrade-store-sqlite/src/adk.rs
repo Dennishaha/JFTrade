@@ -18,6 +18,10 @@ use crate::session_deletion_fence;
 #[path = "adk_workflow_queue.rs"]
 mod workflow_queue;
 
+#[cfg(test)]
+#[path = "adk_approval_resolution_failure_tests.rs"]
+mod approval_resolution_failure_tests;
+
 const ADK_COMPONENT: &str = "adk";
 const ADK_SCHEMA_VERSION: i64 = 4;
 pub const ADK_TEST_CUTOVER_PROFILE: &str = "cutover-test-only.v1";
@@ -3079,7 +3083,7 @@ impl AdkStore {
 
         let mut changed = false;
         if approval.status.trim().eq_ignore_ascii_case("PENDING") {
-            let mut payload = decode_json_object(&approval.payload_json, "approval")?;
+            let mut payload = decode_approval_payload(&approval.payload_json)?;
             payload.insert("status".to_owned(), Value::String(status.clone()));
             payload.insert("updatedAt".to_owned(), Value::String(now.clone()));
             let payload_json = serde_json::to_string(&Value::Object(payload))
@@ -5101,8 +5105,45 @@ fn decode_json_object(
     })
 }
 
+fn decode_approval_payload(raw: &str) -> Result<serde_json::Map<String, Value>, AdkStoreError> {
+    let value = decode_json_object(raw, "approval")?;
+    // Validate before authoritative columns replace fields, so a corrupt durable
+    // payload cannot be silently repaired by resolution. Missing/null fields
+    // retain the reference decoder's zero-value semantics.
+    for field in [
+        "id",
+        "runId",
+        "agentId",
+        "toolName",
+        "status",
+        "reason",
+        "functionCallId",
+        "confirmationCallId",
+        "createdAt",
+        "updatedAt",
+    ] {
+        if value
+            .get(field)
+            .is_some_and(|item| !item.is_null() && !item.is_string())
+        {
+            return Err(AdkStoreError::Validation(format!(
+                "stored approval field {field} must be a string or null"
+            )));
+        }
+    }
+    if value
+        .get("input")
+        .is_some_and(|item| !item.is_null() && !item.is_object())
+    {
+        return Err(AdkStoreError::Validation(
+            "stored approval field input must be an object or null".to_owned(),
+        ));
+    }
+    Ok(value)
+}
+
 fn stored_approval_value(approval: &StoredAdkApproval) -> Result<Value, AdkStoreError> {
-    let mut value = decode_json_object(&approval.payload_json, "approval")?;
+    let mut value = decode_approval_payload(&approval.payload_json)?;
     value.insert("id".to_owned(), Value::String(approval.id.clone()));
     value.insert("runId".to_owned(), Value::String(approval.run_id.clone()));
     value.insert(

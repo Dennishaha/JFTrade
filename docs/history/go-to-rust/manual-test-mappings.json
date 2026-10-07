@@ -84607,9 +84607,9 @@
     },
     "internal/assistant/engine/approval_persistence_failures_test.go:9:TestApprovalPersistenceFailuresRemainObservable": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-store-sqlite/tests/adk_store_contracts.rs::adk_approval_resolution_stages_continuation_and_denial_cas",
-      "conclusion": "partial：Go 断言审批持久化失败向上可见、不被吞掉。Rust 的审批结清以 CAS 写入实现并在失败时返回端口错误（无静默成功路径），但没有故障注入用例。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-integration-pine -p jftrade-strategy -p jftrade-backtest -p jftrade-assistant -p jftrade-api --all-targets --locked --no-fail-fast -E 'not test(analyze_script_supports_trend_and_stateful_ta_functions)'",
+      "rust_entry": "crates/jftrade-store-sqlite/src/adk_approval_resolution_failure_tests.rs::approval_staging_write_errors_preserve_retryable_approval_and_run_snapshots",
+      "conclusion": "partial：在 production store 的唯一连接上注入 TEMP UPDATE ABORT；两审批暂态、单审批 final 和拒绝路径返回 typed Query 错误并保留 trigger 诊断；完整快照回滚，移除 fault/reopen 后重试成功。 未经过 Go 对应 async/sync API facade 与 background supervisor 故障路径；store typed 错误不能替代所有运行时错误传播分支及 missing continuation envelope。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-store-sqlite --package jftrade-engine --test approval_staging_write_errors_preserve_retryable_approval_and_run_snapshots --output docs/history/go-to-rust/verification-receipts/approval-durable-behavior-verified-2026-10-07.json",
       "evidence_type": "partial",
       "source": {
         "file": "internal/assistant/engine/approval_persistence_failures_test.go",
@@ -84619,23 +84619,23 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-store-sqlite/tests/adk_store_contracts.rs",
-          "test": "adk_approval_resolution_stages_continuation_and_denial_cas",
+          "file": "crates/jftrade-store-sqlite/src/adk_approval_resolution_failure_tests.rs",
+          "test": "approval_staging_write_errors_preserve_retryable_approval_and_run_snapshots",
           "crate": "jftrade-store-sqlite",
           "anchor": {
             "goFile": "internal/assistant/engine/approval_persistence_failures_test.go",
             "goLine": 9,
-            "rustFile": "crates/jftrade-store-sqlite/tests/adk_store_contracts.rs",
-            "rustLine": 510
+            "rustFile": "crates/jftrade-store-sqlite/src/adk_approval_resolution_failure_tests.rs",
+            "rustLine": 161
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Go 断言审批持久化失败向上可见、不被吞掉。"
+          "在 production store 的唯一连接上注入 TEMP UPDATE ABORT；两审批暂态、单审批 final 和拒绝路径返回 typed Query 错误并保留 trigger 诊断；完整快照回滚，移除 fault/reopen 后重试成功。"
         ],
         "uncovered": [
-          "Rust 的审批结清以 CAS 写入实现并在失败时返回端口错误（无静默成功路径），但没有故障注入用例。"
+          "未经过 Go 对应 async/sync API facade 与 background supervisor 故障路径；store typed 错误不能替代所有运行时错误传播分支及 missing continuation envelope。"
         ],
         "source": "reviewed"
       },
@@ -84646,45 +84646,48 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-store-sqlite",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(approval_resolution_rejects_a_corrupt_target_identity_without_mutation) or test(approval_resolution_rejects_a_corrupt_run_json_without_mutation) or test(approval_resolution_rejects_a_corrupt_sibling_identity_without_mutation) or test(approval_staging_write_errors_preserve_retryable_approval_and_run_snapshots) or test(approval_resolution_boundary_states_do_not_stage_unrelated_runs) or test(persisted_approval_resolution_restages_once_after_store_recreation) or test(approval_payload_decoder_rejects_wrong_types_and_accepts_nullable_fields) or test(denying_a_staged_action_closes_siblings_without_executing_tools)"
         ],
         "testFilter": [
-          "adk_approval_resolution_stages_continuation_and_denial_cas"
+          "approval_staging_write_errors_preserve_retryable_approval_and_run_snapshots"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "e549001257b7cdebbf73f2bda737a4b0a832489e",
+        "verifiedAt": "2026-10-07T06:47:32Z",
+        "receiptDigest": "sha256:3b554192f59797d99e388a77da27ef8983a82c16151b8a68d16c65322594e0ce"
       },
       "risk": "normal",
       "owner": "assistant_workflow",
       "priority": "P2",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "preserve_partial_and_track_residual",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Go 断言审批持久化失败向上可见、不被吞掉。"
+        "在 production store 的唯一连接上注入 TEMP UPDATE ABORT；两审批暂态、单审批 final 和拒绝路径返回 typed Query 错误并保留 trigger 诊断；完整快照回滚，移除 fault/reopen 后重试成功。"
       ],
       "uncoveredAssertions": [
-        "Rust 的审批结清以 CAS 写入实现并在失败时返回端口错误（无静默成功路径），但没有故障注入用例。"
+        "未经过 Go 对应 async/sync API facade 与 background supervisor 故障路径；store typed 错误不能替代所有运行时错误传播分支及 missing continuation envelope。"
       ],
       "boundaryReason": null
     },
     "internal/assistant/engine/approval_persistence_failures_test.go:75:TestWorkflowApprovalReconcilerRestagesPersistedResolution": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-store-sqlite/tests/adk_store_contracts.rs::adk_approval_resolution_restages_a_stale_embedded_approval",
-      "conclusion": "partial：Go 断言 reconcile 时已持久化的审批决议被重新 staging（避免丢失结清）。Rust 的等价断言在 adk_approval_resolution_restages_a_stale_embedded_approval（陈旧内嵌审批被重置并可结清），已作为 adk_tool_edges 行的证据之一；本行不重复批准。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-integration-pine -p jftrade-strategy -p jftrade-backtest -p jftrade-assistant -p jftrade-api --all-targets --locked --no-fail-fast -E 'not test(analyze_script_supports_trend_and_stateful_ta_functions)'",
+      "rust_entry": "crates/jftrade-store-sqlite/src/adk_approval_resolution_failure_tests.rs::persisted_approval_resolution_restages_once_after_store_recreation",
+      "conclusion": "partial：durable APPROVED/embedded PENDING 经 store 重建后 restage 为 RUNNING/approval_resuming；审批 changed=false、should_continue=true，重复结清无变化。 Go reconcileWorkflowParent 的 parent WorkflowStatus/ChildRunIDs 同步与 continuation barrier 未证明；Rust store 重建不是 parent reconciler 执行证据。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-store-sqlite --package jftrade-engine --test persisted_approval_resolution_restages_once_after_store_recreation --output docs/history/go-to-rust/verification-receipts/approval-durable-behavior-verified-2026-10-07.json",
       "evidence_type": "partial",
       "source": {
         "file": "internal/assistant/engine/approval_persistence_failures_test.go",
@@ -84694,25 +84697,23 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-store-sqlite/tests/adk_store_contracts.rs",
-          "test": "adk_approval_resolution_restages_a_stale_embedded_approval",
+          "file": "crates/jftrade-store-sqlite/src/adk_approval_resolution_failure_tests.rs",
+          "test": "persisted_approval_resolution_restages_once_after_store_recreation",
           "crate": "jftrade-store-sqlite",
           "anchor": {
             "goFile": "internal/assistant/engine/approval_persistence_failures_test.go",
             "goLine": 75,
-            "rustFile": "crates/jftrade-store-sqlite/tests/adk_store_contracts.rs",
-            "rustLine": 894
+            "rustFile": "crates/jftrade-store-sqlite/src/adk_approval_resolution_failure_tests.rs",
+            "rustLine": 274
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Go 断言 reconcile 时已持久化的审批决议被重新 staging（避免丢失结清）。",
-          "Rust 的等价断言在 adk_approval_resolution_restages_a_stale_embedded_approval（陈旧内嵌审批被重置并可结清），已作为 adk_tool_edges 行的证据之一；",
-          "本行不重复批准。"
+          "durable APPROVED/embedded PENDING 经 store 重建后 restage 为 RUNNING/approval_resuming；审批 changed=false、should_continue=true，重复结清无变化。"
         ],
         "uncovered": [
-          "Rust owner covers the durable invariant but has no same helper or failure-injection seam; retain this residual."
+          "Go reconcileWorkflowParent 的 parent WorkflowStatus/ChildRunIDs 同步与 continuation barrier 未证明；Rust store 重建不是 parent reconciler 执行证据。"
         ],
         "source": "reviewed"
       },
@@ -84723,39 +84724,40 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-store-sqlite",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(approval_resolution_rejects_a_corrupt_target_identity_without_mutation) or test(approval_resolution_rejects_a_corrupt_run_json_without_mutation) or test(approval_resolution_rejects_a_corrupt_sibling_identity_without_mutation) or test(approval_staging_write_errors_preserve_retryable_approval_and_run_snapshots) or test(approval_resolution_boundary_states_do_not_stage_unrelated_runs) or test(persisted_approval_resolution_restages_once_after_store_recreation) or test(approval_payload_decoder_rejects_wrong_types_and_accepts_nullable_fields) or test(denying_a_staged_action_closes_siblings_without_executing_tools)"
         ],
         "testFilter": [
-          "adk_approval_resolution_restages_a_stale_embedded_approval"
+          "persisted_approval_resolution_restages_once_after_store_recreation"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "e549001257b7cdebbf73f2bda737a4b0a832489e",
+        "verifiedAt": "2026-10-07T06:47:32Z",
+        "receiptDigest": "sha256:3b554192f59797d99e388a77da27ef8983a82c16151b8a68d16c65322594e0ce"
       },
       "risk": "high",
       "owner": "assistant_workflow",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "preserve_partial_and_track_residual",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Go 断言 reconcile 时已持久化的审批决议被重新 staging（避免丢失结清）。",
-        "Rust 的等价断言在 adk_approval_resolution_restages_a_stale_embedded_approval（陈旧内嵌审批被重置并可结清），已作为 adk_tool_edges 行的证据之一；",
-        "本行不重复批准。"
+        "durable APPROVED/embedded PENDING 经 store 重建后 restage 为 RUNNING/approval_resuming；审批 changed=false、should_continue=true，重复结清无变化。"
       ],
       "uncoveredAssertions": [
-        "Rust owner covers the durable invariant but has no same helper or failure-injection seam; retain this residual."
+        "Go reconcileWorkflowParent 的 parent WorkflowStatus/ChildRunIDs 同步与 continuation barrier 未证明；Rust store 重建不是 parent reconciler 执行证据。"
       ],
       "boundaryReason": null
     },
@@ -84913,9 +84915,9 @@
     },
     "internal/assistant/engine/approval_retry_sibling_cancellation_test.go:14:TestSynchronousApprovalDenialCancelsSiblingActions": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-assistant/src/runtime.rs::sibling_approvals_resume_once_after_every_decision",
-      "conclusion": "partial：Go 断言同步拒绝某审批会取消同批其他动作。Rust 的 sibling 审批用例断言每次决策后各 sibling 恰好续跑一次（含拒绝路径的结清），取消同批动作的语义由一次结清 + 不重复执行表达，没有“取消 sibling”显式断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-integration-pine -p jftrade-strategy -p jftrade-backtest -p jftrade-assistant -p jftrade-api --all-targets --locked --no-fail-fast -E 'not test(analyze_script_supports_trend_and_stateful_ta_functions)'",
+      "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_catalog_policy_tests.rs::denying_a_staged_action_closes_siblings_without_executing_tools",
+      "conclusion": "partial：production runtime/catalog 真实 staging 两个 write_strategy gated actions；deny 一项后两个 durable approvals/toolCalls 均 DENIED，同步 resume 达 DENIED 终态，recording executor 执行数为零，重复 resolution/resume 不变。 当前直接注入 ModelResponse 并分别驱动 store/runtime；Go 初始 Chat XML registry 与统一 ResolveApproval facade 的完整调用链未重放，保留 partial。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-store-sqlite --package jftrade-engine --test denying_a_staged_action_closes_siblings_without_executing_tools --output docs/history/go-to-rust/verification-receipts/approval-durable-behavior-verified-2026-10-07.json",
       "evidence_type": "partial",
       "source": {
         "file": "internal/assistant/engine/approval_retry_sibling_cancellation_test.go",
@@ -84925,23 +84927,23 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-assistant/src/runtime.rs",
-          "test": "sibling_approvals_resume_once_after_every_decision",
-          "crate": "jftrade-assistant",
+          "file": "crates/jftrade-engine/src/product_adk_model_runtime_catalog_policy_tests.rs",
+          "test": "denying_a_staged_action_closes_siblings_without_executing_tools",
+          "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/assistant/engine/approval_retry_sibling_cancellation_test.go",
             "goLine": 14,
-            "rustFile": "crates/jftrade-assistant/src/runtime.rs",
-            "rustLine": 728
+            "rustFile": "crates/jftrade-engine/src/product_adk_model_runtime_catalog_policy_tests.rs",
+            "rustLine": 451
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Go 断言同步拒绝某审批会取消同批其他动作。"
+          "production runtime/catalog 真实 staging 两个 write_strategy gated actions；deny 一项后两个 durable approvals/toolCalls 均 DENIED，同步 resume 达 DENIED 终态，recording executor 执行数为零，重复 resolution/resume 不变。"
         ],
         "uncovered": [
-          "Rust 的 sibling 审批用例断言每次决策后各 sibling 恰好续跑一次（含拒绝路径的结清），取消同批动作的语义由一次结清 + 不重复执行表达，没有“取消 sibling”显式断言。"
+          "当前直接注入 ModelResponse 并分别驱动 store/runtime；Go 初始 Chat XML registry 与统一 ResolveApproval facade 的完整调用链未重放，保留 partial。"
         ],
         "source": "reviewed"
       },
@@ -84952,37 +84954,40 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-store-sqlite",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(approval_resolution_rejects_a_corrupt_target_identity_without_mutation) or test(approval_resolution_rejects_a_corrupt_run_json_without_mutation) or test(approval_resolution_rejects_a_corrupt_sibling_identity_without_mutation) or test(approval_staging_write_errors_preserve_retryable_approval_and_run_snapshots) or test(approval_resolution_boundary_states_do_not_stage_unrelated_runs) or test(persisted_approval_resolution_restages_once_after_store_recreation) or test(approval_payload_decoder_rejects_wrong_types_and_accepts_nullable_fields) or test(denying_a_staged_action_closes_siblings_without_executing_tools)"
         ],
         "testFilter": [
-          "sibling_approvals_resume_once_after_every_decision"
+          "denying_a_staged_action_closes_siblings_without_executing_tools"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "e549001257b7cdebbf73f2bda737a4b0a832489e",
+        "verifiedAt": "2026-10-07T06:47:32Z",
+        "receiptDigest": "sha256:3b554192f59797d99e388a77da27ef8983a82c16151b8a68d16c65322594e0ce"
       },
       "risk": "high",
       "owner": "assistant_workflow",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "preserve_partial_and_track_residual",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Go 断言同步拒绝某审批会取消同批其他动作。"
+        "production runtime/catalog 真实 staging 两个 write_strategy gated actions；deny 一项后两个 durable approvals/toolCalls 均 DENIED，同步 resume 达 DENIED 终态，recording executor 执行数为零，重复 resolution/resume 不变。"
       ],
       "uncoveredAssertions": [
-        "Rust 的 sibling 审批用例断言每次决策后各 sibling 恰好续跑一次（含拒绝路径的结清），取消同批动作的语义由一次结清 + 不重复执行表达，没有“取消 sibling”显式断言。"
+        "当前直接注入 ModelResponse 并分别驱动 store/runtime；Go 初始 Chat XML registry 与统一 ResolveApproval facade 的完整调用链未重放，保留 partial。"
       ],
       "boundaryReason": null
     },
@@ -85065,9 +85070,9 @@
     },
     "internal/assistant/engine/approval_stage_boundaries_test.go:8:TestResolveAndStageApprovalBoundaryStates": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-store-sqlite/tests/adk_store_contracts.rs::adk_approval_resolution_stages_continuation_and_denial_cas",
-      "conclusion": "partial：Go 覆盖 resolve/stage 审批的边界状态（无审批、非 PENDING、已结清、缺运行）。Rust 的审批结清 CAS 覆盖批准/拒绝、幂等与非 PENDING 拒绝，缺运行/无审批由 mutation 端口校验报错。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-integration-pine -p jftrade-strategy -p jftrade-backtest -p jftrade-assistant -p jftrade-api --all-targets --locked --no-fail-fast -E 'not test(analyze_script_supports_trend_and_stateful_ta_functions)'",
+      "rust_entry": "crates/jftrade-store-sqlite/src/adk_approval_resolution_failure_tests.rs::approval_resolution_boundary_states_do_not_stage_unrelated_runs",
+      "conclusion": "partial：真实 store 覆盖 missing approval、另一已结清状态、缺 run、非 PENDING run、snapshot 不含审批；逐项断言 changed/run/should_continue 与运行快照不变。 Rust 无 nil receiver；Go nil Store 返回零值 envelope 的分支没有同形 owner，保留整条 partial。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-store-sqlite --package jftrade-engine --test approval_resolution_boundary_states_do_not_stage_unrelated_runs --output docs/history/go-to-rust/verification-receipts/approval-durable-behavior-verified-2026-10-07.json",
       "evidence_type": "partial",
       "source": {
         "file": "internal/assistant/engine/approval_stage_boundaries_test.go",
@@ -85077,24 +85082,23 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-store-sqlite/tests/adk_store_contracts.rs",
-          "test": "adk_approval_resolution_stages_continuation_and_denial_cas",
+          "file": "crates/jftrade-store-sqlite/src/adk_approval_resolution_failure_tests.rs",
+          "test": "approval_resolution_boundary_states_do_not_stage_unrelated_runs",
           "crate": "jftrade-store-sqlite",
           "anchor": {
             "goFile": "internal/assistant/engine/approval_stage_boundaries_test.go",
             "goLine": 8,
-            "rustFile": "crates/jftrade-store-sqlite/tests/adk_store_contracts.rs",
-            "rustLine": 510
+            "rustFile": "crates/jftrade-store-sqlite/src/adk_approval_resolution_failure_tests.rs",
+            "rustLine": 218
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Go 覆盖 resolve/stage 审批的边界状态（无审批、非 PENDING、已结清、缺运行）。",
-          "Rust 的审批结清 CAS 覆盖批准/拒绝、幂等与非 PENDING 拒绝，缺运行/无审批由 mutation 端口校验报错。"
+          "真实 store 覆盖 missing approval、另一已结清状态、缺 run、非 PENDING run、snapshot 不含审批；逐项断言 changed/run/should_continue 与运行快照不变。"
         ],
         "uncovered": [
-          "Rust owner covers the durable behavior but lacks the same Go helper or field-level failure seam; retain this residual."
+          "Rust 无 nil receiver；Go nil Store 返回零值 envelope 的分支没有同形 owner，保留整条 partial。"
         ],
         "source": "reviewed"
       },
@@ -85105,47 +85109,49 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-store-sqlite",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(approval_resolution_rejects_a_corrupt_target_identity_without_mutation) or test(approval_resolution_rejects_a_corrupt_run_json_without_mutation) or test(approval_resolution_rejects_a_corrupt_sibling_identity_without_mutation) or test(approval_staging_write_errors_preserve_retryable_approval_and_run_snapshots) or test(approval_resolution_boundary_states_do_not_stage_unrelated_runs) or test(persisted_approval_resolution_restages_once_after_store_recreation) or test(approval_payload_decoder_rejects_wrong_types_and_accepts_nullable_fields) or test(denying_a_staged_action_closes_siblings_without_executing_tools)"
         ],
         "testFilter": [
-          "adk_approval_resolution_stages_continuation_and_denial_cas"
+          "approval_resolution_boundary_states_do_not_stage_unrelated_runs"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "e549001257b7cdebbf73f2bda737a4b0a832489e",
+        "verifiedAt": "2026-10-07T06:47:32Z",
+        "receiptDigest": "sha256:3b554192f59797d99e388a77da27ef8983a82c16151b8a68d16c65322594e0ce"
       },
       "risk": "high",
       "owner": "assistant_workflow",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "preserve_partial_and_track_residual",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Go 覆盖 resolve/stage 审批的边界状态（无审批、非 PENDING、已结清、缺运行）。",
-        "Rust 的审批结清 CAS 覆盖批准/拒绝、幂等与非 PENDING 拒绝，缺运行/无审批由 mutation 端口校验报错。"
+        "真实 store 覆盖 missing approval、另一已结清状态、缺 run、非 PENDING run、snapshot 不含审批；逐项断言 changed/run/should_continue 与运行快照不变。"
       ],
       "uncoveredAssertions": [
-        "Rust owner covers the durable behavior but lacks the same Go helper or field-level failure seam; retain this residual."
+        "Rust 无 nil receiver；Go nil Store 返回零值 envelope 的分支没有同形 owner，保留整条 partial。"
       ],
       "boundaryReason": null
     },
     "internal/assistant/engine/approval_stage_boundaries_test.go:75:TestResolveAndStageApprovalRejectsCorruptDurablePayloads": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_lifecycle_tests.rs::durable_error_classification_keeps_invariants_fatal",
-      "conclusion": "partial：Go 断言损坏的持久审批负载被拒绝。Rust 把持久层不变式违规分类为 fatal（ADK_STORAGE_CORRUPT）并拒绝继续，覆盖同一 fail-closed 语义；没有针对审批负载的逐字段损坏用例。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'not test(production_helper_sync_cancel_aborts_in_flight_request) and not test(production_helper_sync_rejects_broken_pagination_cursors) and not test(production_helper_sync_forwards_page_query_and_persists_provider_values) and not test(production_helper_sync_retries_transient_page_and_records_retry)'",
-      "evidence_type": "partial",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-store-sqlite/src/adk_approval_resolution_failure_tests.rs::approval_resolution_rejects_a_corrupt_target_identity_without_mutation; crates/jftrade-store-sqlite/src/adk_approval_resolution_failure_tests.rs::approval_resolution_rejects_a_corrupt_run_json_without_mutation; crates/jftrade-store-sqlite/src/adk_approval_resolution_failure_tests.rs::approval_resolution_rejects_a_corrupt_sibling_identity_without_mutation",
+      "conclusion": "function_exact：逐项重放冻结 Go 三分支：target id=[]、run JSON={、sibling id=[] 都返回 Validation；真实 production AdkStore 事务 owner 拒绝结清。 额外核对审批及 run 的 status、原始 JSON、createdAt/updatedAt 完整快照不变，确认 target 更新也随 sibling/run 解码失败回滚。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-store-sqlite --package jftrade-engine --test approval_resolution_rejects_a_corrupt_target_identity_without_mutation --test approval_resolution_rejects_a_corrupt_run_json_without_mutation --test approval_resolution_rejects_a_corrupt_sibling_identity_without_mutation --output docs/history/go-to-rust/verification-receipts/approval-durable-behavior-verified-2026-10-07.json",
+      "evidence_type": "function_exact",
       "source": {
         "file": "internal/assistant/engine/approval_stage_boundaries_test.go",
         "line": 75,
@@ -85154,25 +85160,45 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_adk_model_runtime_lifecycle_tests.rs",
-          "test": "durable_error_classification_keeps_invariants_fatal",
-          "crate": "jftrade-engine",
+          "file": "crates/jftrade-store-sqlite/src/adk_approval_resolution_failure_tests.rs",
+          "test": "approval_resolution_rejects_a_corrupt_target_identity_without_mutation",
+          "crate": "jftrade-store-sqlite",
           "anchor": {
             "goFile": "internal/assistant/engine/approval_stage_boundaries_test.go",
             "goLine": 75,
-            "rustFile": "crates/jftrade-engine/src/product_adk_model_runtime_lifecycle_tests.rs",
-            "rustLine": 444
+            "rustFile": "crates/jftrade-store-sqlite/src/adk_approval_resolution_failure_tests.rs",
+            "rustLine": 97
+          }
+        },
+        {
+          "file": "crates/jftrade-store-sqlite/src/adk_approval_resolution_failure_tests.rs",
+          "test": "approval_resolution_rejects_a_corrupt_run_json_without_mutation",
+          "crate": "jftrade-store-sqlite",
+          "anchor": {
+            "goFile": "internal/assistant/engine/approval_stage_boundaries_test.go",
+            "goLine": 75,
+            "rustFile": "crates/jftrade-store-sqlite/src/adk_approval_resolution_failure_tests.rs",
+            "rustLine": 97
+          }
+        },
+        {
+          "file": "crates/jftrade-store-sqlite/src/adk_approval_resolution_failure_tests.rs",
+          "test": "approval_resolution_rejects_a_corrupt_sibling_identity_without_mutation",
+          "crate": "jftrade-store-sqlite",
+          "anchor": {
+            "goFile": "internal/assistant/engine/approval_stage_boundaries_test.go",
+            "goLine": 75,
+            "rustFile": "crates/jftrade-store-sqlite/src/adk_approval_resolution_failure_tests.rs",
+            "rustLine": 97
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Go 断言损坏的持久审批负载被拒绝。",
-          "Rust 把持久层不变式违规分类为 fatal（ADK_STORAGE_CORRUPT）并拒绝继续，覆盖同一 fail-closed 语义；"
+          "逐项重放冻结 Go 三分支：target id=[]、run JSON={、sibling id=[] 都返回 Validation；真实 production AdkStore 事务 owner 拒绝结清。",
+          "额外核对审批及 run 的 status、原始 JSON、createdAt/updatedAt 完整快照不变，确认 target 更新也随 sibling/run 解码失败回滚。"
         ],
-        "uncovered": [
-          "没有针对审批负载的逐字段损坏用例。"
-        ],
+        "uncovered": [],
         "source": "reviewed"
       },
       "verification": {
@@ -85182,39 +85208,42 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-store-sqlite",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(approval_resolution_rejects_a_corrupt_target_identity_without_mutation) or test(approval_resolution_rejects_a_corrupt_run_json_without_mutation) or test(approval_resolution_rejects_a_corrupt_sibling_identity_without_mutation) or test(approval_staging_write_errors_preserve_retryable_approval_and_run_snapshots) or test(approval_resolution_boundary_states_do_not_stage_unrelated_runs) or test(persisted_approval_resolution_restages_once_after_store_recreation) or test(approval_payload_decoder_rejects_wrong_types_and_accepts_nullable_fields) or test(denying_a_staged_action_closes_siblings_without_executing_tools)"
         ],
         "testFilter": [
-          "durable_error_classification_keeps_invariants_fatal"
+          "approval_resolution_rejects_a_corrupt_target_identity_without_mutation",
+          "approval_resolution_rejects_a_corrupt_run_json_without_mutation",
+          "approval_resolution_rejects_a_corrupt_sibling_identity_without_mutation"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "e549001257b7cdebbf73f2bda737a4b0a832489e",
+        "verifiedAt": "2026-10-07T06:47:32Z",
+        "receiptDigest": "sha256:3b554192f59797d99e388a77da27ef8983a82c16151b8a68d16c65322594e0ce"
       },
       "risk": "high",
       "owner": "assistant_workflow",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "maintain_verified_function_exact",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Go 断言损坏的持久审批负载被拒绝。",
-        "Rust 把持久层不变式违规分类为 fatal（ADK_STORAGE_CORRUPT）并拒绝继续，覆盖同一 fail-closed 语义；"
+        "逐项重放冻结 Go 三分支：target id=[]、run JSON={、sibling id=[] 都返回 Validation；真实 production AdkStore 事务 owner 拒绝结清。",
+        "额外核对审批及 run 的 status、原始 JSON、createdAt/updatedAt 完整快照不变，确认 target 更新也随 sibling/run 解码失败回滚。"
       ],
-      "uncoveredAssertions": [
-        "没有针对审批负载的逐字段损坏用例。"
-      ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/assistant/engine/approval_state_guard_test.go:9:TestSaveRunProtectsClaimedApprovalContinuationFromStaleSnapshot": {
@@ -349341,14 +349370,14 @@
       "reviewStatus": "reviewed"
     },
     "crates/jftrade-assistant/src/runtime.rs::sibling_approvals_resume_once_after_every_decision": {
-      "referenceCount": 3,
+      "referenceCount": 2,
       "referenceKeys": [
         "internal/assistant/engine/adk22regression/native_runtime_test.go:24:TestConfirmedToolsResumeInRequestOrder",
-        "internal/assistant/engine/approval_retry_sibling_cancellation_test.go:14:TestSynchronousApprovalDenialCancelsSiblingActions",
         "internal/assistant/engine/runner_approval_concurrency_test.go:92:TestConcurrentSiblingApprovalsAreMergedBeforeContinuation"
       ],
       "allowed": true,
-      "reviewStatus": "reviewed"
+      "reviewStatus": "reviewed",
+      "reviewNote": "2026-10-07：审批五条转为各自真实 owner；剩余旧关系保留此前 allowed 审核结论，仅移除本批引用，未新增等价范围。"
     },
     "crates/jftrade-engine/tests/adk_workflow_canvas_contracts.rs::restart_keeps_completed_nodes_and_the_inflight_request_identity": {
       "referenceCount": 2,
@@ -349488,11 +349517,9 @@
       "reviewNote": "2026-09-29 Assistant shared-owner review: all 7 referenceKeys were compared; 2 function_exact reference(s) retain their reviewed assertion owners and other partial rows preserve their rehydrate, secret, long-running, or failure-branch differences. Shared owner release does not upgrade non-exact rows."
     },
     "crates/jftrade-store-sqlite/tests/adk_store_contracts.rs::adk_approval_resolution_stages_continuation_and_denial_cas": {
-      "referenceCount": 8,
+      "referenceCount": 6,
       "referenceKeys": [
         "internal/assistant/engine/adk_runner_edges_test.go:352:TestRunnerApprovalStateMachineAdditionalBranches",
-        "internal/assistant/engine/approval_persistence_failures_test.go:9:TestApprovalPersistenceFailuresRemainObservable",
-        "internal/assistant/engine/approval_stage_boundaries_test.go:8:TestResolveAndStageApprovalBoundaryStates",
         "internal/assistant/engine/exec_bounds_test.go:275:TestGoogleADKExecutionApprovalResolutionAndPendingBoundaries",
         "internal/assistant/engine/persistence_failure_boundaries_test.go:216:TestApprovalContinuationPersistenceFailuresRemainRetryable",
         "internal/assistant/engine/store_approve_test.go:41:TestSaveRunAndDenyPendingApprovalsDeniesOnlyPendingRecords",
@@ -349501,7 +349528,7 @@
       ],
       "allowed": false,
       "reviewStatus": "reviewed",
-      "reviewNote": "2026-10-02 bounded reuse review: compared all 8 referenceKeys against the shared Rust owner (status mix {'[~]': 8}); assertion scopes are not interchangeable, so reuse remains disallowed and no function_exact row is upgraded by this relation."
+      "reviewNote": "2026-10-07：审批五条转为各自真实 owner；剩余旧关系保留此前 allowed 审核结论，仅移除本批引用，未新增等价范围。"
     },
     "crates/jftrade-engine/src/product_mcp_server_tests.rs::reviewed_mcp_descriptors_expose_strict_per_tool_schemas": {
       "referenceCount": 5,
@@ -349631,10 +349658,9 @@
       "reviewStatus": "reviewed"
     },
     "crates/jftrade-store-sqlite/tests/adk_store_contracts.rs::adk_approval_resolution_restages_a_stale_embedded_approval": {
-      "referenceCount": 7,
+      "referenceCount": 6,
       "referenceKeys": [
         "internal/assistant/engine/adk_tool_edges_test.go:165:TestNormalizeAndApprovalResolutionBoundaryBranches",
-        "internal/assistant/engine/approval_persistence_failures_test.go:75:TestWorkflowApprovalReconcilerRestagesPersistedResolution",
         "internal/assistant/engine/google_execution_replay_guards_test.go:13:TestGoogleExecutionEventReplayKeepsApprovalStateIdempotent",
         "internal/assistant/engine/persistence_failure_boundaries_test.go:266:TestWorkflowChildContinuationPersistsRecoveryDecisions",
         "internal/assistant/engine/store_async_test.go:10:TestResolveApprovalAsyncDenialRejectsSiblingApprovalsWithoutExecutingTools",
@@ -349642,7 +349668,8 @@
         "internal/assistant/engine/workflow_reconcile_test.go:128:TestWorkflowParentReconcilesResolvedChildApproval"
       ],
       "allowed": true,
-      "reviewStatus": "reviewed"
+      "reviewStatus": "reviewed",
+      "reviewNote": "2026-10-07：审批五条转为各自真实 owner；剩余旧关系保留此前 allowed 审核结论，仅移除本批引用，未新增等价范围。"
     },
     "crates/jftrade-assistant/src/workflow.rs::complete": {
       "referenceCount": 1,
@@ -349685,15 +349712,14 @@
       "reviewNote": "2026-10-02 bounded reuse review: compared all 2 referenceKeys against the shared Rust owner (status mix {'[~]': 2}); assertion scopes are not interchangeable, so reuse remains disallowed and no function_exact row is upgraded by this relation."
     },
     "crates/jftrade-engine/src/product_adk_model_runtime_lifecycle_tests.rs::durable_error_classification_keeps_invariants_fatal": {
-      "referenceCount": 3,
+      "referenceCount": 2,
       "referenceKeys": [
-        "internal/assistant/engine/approval_stage_boundaries_test.go:75:TestResolveAndStageApprovalRejectsCorruptDurablePayloads",
         "internal/assistant/engine/runner_continuation_boundaries_test.go:188:TestStartRunPersistsExecutionLeaseClaimFailure",
         "internal/assistant/engine/workflowexec/goal_turn_failure_boundaries_test.go:115:TestGoalWorkflowSaveFailureReturnsFailedResponseWithoutRunningModel"
       ],
       "allowed": false,
       "reviewStatus": "reviewed",
-      "reviewNote": "2026-10-02 bounded reuse review: compared all 3 referenceKeys against the shared Rust owner (status mix {'[~]': 3}); assertion scopes are not interchangeable, so reuse remains disallowed and no function_exact row is upgraded by this relation."
+      "reviewNote": "2026-10-07：审批五条转为各自真实 owner；剩余旧关系保留此前 allowed 审核结论，仅移除本批引用，未新增等价范围。"
     },
     "crates/jftrade-store-sqlite/tests/adk_run_lifecycle_cas.rs::completed_run_reopens_only_for_a_fresh_durable_approval": {
       "referenceCount": 4,
@@ -364473,6 +364499,62 @@
       "referenceCount": 1,
       "referenceKeys": [
         "internal/assistant/engine/workflow_canvas_test.go:133:TestRunCanvasWorkflowExecutesAReachableAgentGraph"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_adk_model_runtime_catalog_policy_tests.rs::denying_a_staged_action_closes_siblings_without_executing_tools": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/assistant/engine/approval_retry_sibling_cancellation_test.go:14:TestSynchronousApprovalDenialCancelsSiblingActions"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-store-sqlite/src/adk_approval_resolution_failure_tests.rs::approval_resolution_boundary_states_do_not_stage_unrelated_runs": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/assistant/engine/approval_stage_boundaries_test.go:8:TestResolveAndStageApprovalBoundaryStates"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-store-sqlite/src/adk_approval_resolution_failure_tests.rs::approval_resolution_rejects_a_corrupt_run_json_without_mutation": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/assistant/engine/approval_stage_boundaries_test.go:75:TestResolveAndStageApprovalRejectsCorruptDurablePayloads"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-store-sqlite/src/adk_approval_resolution_failure_tests.rs::approval_resolution_rejects_a_corrupt_sibling_identity_without_mutation": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/assistant/engine/approval_stage_boundaries_test.go:75:TestResolveAndStageApprovalRejectsCorruptDurablePayloads"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-store-sqlite/src/adk_approval_resolution_failure_tests.rs::approval_resolution_rejects_a_corrupt_target_identity_without_mutation": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/assistant/engine/approval_stage_boundaries_test.go:75:TestResolveAndStageApprovalRejectsCorruptDurablePayloads"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-store-sqlite/src/adk_approval_resolution_failure_tests.rs::approval_staging_write_errors_preserve_retryable_approval_and_run_snapshots": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/assistant/engine/approval_persistence_failures_test.go:9:TestApprovalPersistenceFailuresRemainObservable"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-store-sqlite/src/adk_approval_resolution_failure_tests.rs::persisted_approval_resolution_restages_once_after_store_recreation": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/assistant/engine/approval_persistence_failures_test.go:75:TestWorkflowApprovalReconcilerRestagesPersistedResolution"
       ],
       "allowed": true,
       "reviewStatus": "single"

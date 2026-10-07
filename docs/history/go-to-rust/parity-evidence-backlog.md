@@ -1,5 +1,22 @@
 # Go → Rust 证据积压清单
 
+## 2026-10-07 审批 durable boundaries 与运行时拒绝
+
+- 五条相关 partial 仅损坏负载三分支升 exact，**1598 exact / 2213 partial / 640 boundary**。只改变本批五条 mapping 和必要 reuse 子集；旧关系保留此前审核权限，不新增共享等价范围。
+
+  | 文件（均位于 verification-receipts） | 实际结果 | 后续关系 |
+  | --- | --- | --- |
+  | `approval-durable-boundaries-red-2026-10-07.json` | failed，3 passed/3 failed；两项损坏 payload 被接受，第三项在 open 的 schema trigger 校验失败，未到写入 | owner-fault-red 修正故障注入；原字节保留 |
+  | `approval-durable-owner-fault-red-2026-10-07.json` | failed，4 passed/2 failed；TEMP trigger 注入三种 rollback/retry 已通过，target/sibling 类型损坏仍失败 | 修复 production decoder 后 final 替代 |
+  | `approval-durable-behavior-reviewed-2026-10-07.json` | failed，0 tests；新增测试误用不存在的 get_approval，编译退出 101 | 改用已有 list 查询，closed 替代；文件名不表示通过 |
+  | `approval-durable-behavior-closed-2026-10-07.json` | passed，8/8；错误类型断言仍位于 helper | final 将错误类型直接断言于三项测试正文后替代 |
+  | `approval-durable-behavior-final-2026-10-07.json` | passed，8/8，2331 filtered/skipped；quick 后 Clippy 要求去除 fixture 冗余闭包 | verified 替代 |
+  | `approval-durable-behavior-verified-2026-10-07.json` | passed，8/8，2331 filtered/skipped；fixture closure 修正后复跑 | 当前 canonical |
+
+- verified SHA-256 `3b554192f59797d99e388a77da27ef8983a82c16151b8a68d16c65322594e0ce`；编译时 tracked diff 与 untracked 文件摘要已核对，后续只改 metadata/docs。普通/strict 和 anchor 通过。quick 首轮 `/tmp/jftrade-approval-quick.log` 在 **2369 tests passed** 后因新 fixture 的 Clippy redundant_closure 退出 **1**；修正后三个受影响 package Clippy 已通过，后续完整结果见下文。未将 focused receipt 用作全量门禁证据。
+- 残余：Rust 没有 nil Store；重开 store 的 restage 不证明 parent reconciler；store fault 不证明所有 async/sync facade、background supervisor 或 missing-continuation envelope；直接 ModelResponse staging/两阶段 resume 不证明 Go 初始 Chat XML/统一 ResolveApproval 入口。
+- quick 第二轮 `/tmp/jftrade-approval-quick-retry.log` 在 target-health 退出 **1**，未进入测试；确认无 Cargo/rustc/nextest 后运行指定 `clean:rust:artifacts`，移除 **122891 files / 29.7 GiB**。第三轮 `/tmp/jftrade-approval-quick-clean.log` 明确退出 **0**：**2369 passed / 0 failed / 0 skipped**，本次无 LEAK；Clippy、七类 replay、Pine **98 passed**、桌面 **48 passed**。完整 `/tmp/jftrade-approval-rust.log` 明确退出 **0**：workspace **3715 passed / 0 failed / 2 skipped**，静态/七类 replay 通过，本次无 LEAK；源码保持 verified receipt 对应状态。未另生成 workspace JSON receipt，focused digest 不代表全量门禁摘要。
+
 ## 2026-10-07 Assistant canvas 保存与执行
 
 - 五条 partial 中仅图保存/重读升级 exact，当前 **1597 exact / 2214 partial / 640 boundary**，净变化 **+1/-1/0**。其余四条新增 production 断言后保留具体差异，不以 durable 输出存在证明 Go parent/Markdown/plan 字段等价。

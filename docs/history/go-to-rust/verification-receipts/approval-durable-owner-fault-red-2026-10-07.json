@@ -1,0 +1,77 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-store-sqlite",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(approval_resolution_rejects_a_corrupt_target_identity_without_mutation) or test(approval_resolution_rejects_a_corrupt_run_json_without_mutation) or test(approval_resolution_rejects_a_corrupt_sibling_identity_without_mutation) or test(approval_staging_write_errors_preserve_retryable_approval_and_run_snapshots) or test(approval_resolution_boundary_states_do_not_stage_unrelated_runs) or test(persisted_approval_resolution_restages_once_after_store_recreation)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 100,
+  "status": "failed",
+  "verifiedAt": "2026-10-07T06:36:14Z",
+  "sourceState": {
+    "verifiedCommit": "e549001257b7cdebbf73f2bda737a4b0a832489e",
+    "trackedDiffSha256": "839c54b90beca6b09e534119a92724fb95205710c99301568e86200687af8536",
+    "untrackedFiles": [
+      {
+        "path": "crates/jftrade-store-sqlite/src/adk_approval_resolution_failure_tests.rs",
+        "sha256": "eafc5652ebc8a715dcb8ff820aa010fa093b7dc275e839981057822238a16334"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/approval-durable-boundaries-red-2026-10-07.json",
+        "sha256": "5e5a2dab8675bb8ff6f712363c32fa699d29653ae2999c23817dd1071b461598"
+      }
+    ]
+  },
+  "rawOutputSha256": "806d11a6da84c82f11cf5c4d029c0ba0ab2c52bc99dfcf08b9777ec56c518233",
+  "passedTests": [
+    "jftrade-store-sqlite::jftrade_store_sqlite$adk::approval_resolution_failure_tests::approval_resolution_boundary_states_do_not_stage_unrelated_runs",
+    "jftrade-store-sqlite::jftrade_store_sqlite$adk::approval_resolution_failure_tests::approval_resolution_rejects_a_corrupt_run_json_without_mutation",
+    "jftrade-store-sqlite::jftrade_store_sqlite$adk::approval_resolution_failure_tests::approval_staging_write_errors_preserve_retryable_approval_and_run_snapshots",
+    "jftrade-store-sqlite::jftrade_store_sqlite$adk::approval_resolution_failure_tests::persisted_approval_resolution_restages_once_after_store_recreation"
+  ],
+  "failedTests": [
+    "jftrade-store-sqlite::jftrade_store_sqlite$adk::approval_resolution_failure_tests::approval_resolution_rejects_a_corrupt_sibling_identity_without_mutation",
+    "jftrade-store-sqlite::jftrade_store_sqlite$adk::approval_resolution_failure_tests::approval_resolution_rejects_a_corrupt_target_identity_without_mutation"
+  ],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 6,
+      "nextest": {
+        "crate": "jftrade-store-sqlite",
+        "test_binary": "jftrade_store_sqlite",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "failed",
+      "passed": 4,
+      "failed": 2,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 24,
+      "exec_time": 0.910512251,
+      "nextest": {
+        "crate": "jftrade-store-sqlite",
+        "test_binary": "jftrade_store_sqlite",
+        "kind": "lib"
+      }
+    }
+  ]
+}

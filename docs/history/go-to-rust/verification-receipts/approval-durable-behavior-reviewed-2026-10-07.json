@@ -1,0 +1,49 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-store-sqlite",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(approval_resolution_rejects_a_corrupt_target_identity_without_mutation) or test(approval_resolution_rejects_a_corrupt_run_json_without_mutation) or test(approval_resolution_rejects_a_corrupt_sibling_identity_without_mutation) or test(approval_staging_write_errors_preserve_retryable_approval_and_run_snapshots) or test(approval_resolution_boundary_states_do_not_stage_unrelated_runs) or test(persisted_approval_resolution_restages_once_after_store_recreation) or test(approval_payload_decoder_rejects_wrong_types_and_accepts_nullable_fields) or test(denying_a_staged_action_closes_siblings_without_executing_tools)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 101,
+  "status": "failed",
+  "verifiedAt": "2026-10-07T06:39:08Z",
+  "sourceState": {
+    "verifiedCommit": "e549001257b7cdebbf73f2bda737a4b0a832489e",
+    "trackedDiffSha256": "94057c8616e2d7103da9f930d0e7b4a80de9d7e7eac0ce47f09615d20a6a5f16",
+    "untrackedFiles": [
+      {
+        "path": "crates/jftrade-store-sqlite/src/adk_approval_resolution_failure_tests.rs",
+        "sha256": "e3699e292c757d1b94bb6e6ecf329de79c174d44dd435bd840f561ad9d2a9125"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/approval-durable-boundaries-red-2026-10-07.json",
+        "sha256": "5e5a2dab8675bb8ff6f712363c32fa699d29653ae2999c23817dd1071b461598"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/approval-durable-owner-fault-red-2026-10-07.json",
+        "sha256": "19306a56546225b23401e3353d4e21bf0775f587ca4a02ca242154c03b307b74"
+      }
+    ]
+  },
+  "rawOutputSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "passedTests": [],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": []
+}

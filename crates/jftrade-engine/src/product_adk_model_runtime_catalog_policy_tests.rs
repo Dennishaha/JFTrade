@@ -448,6 +448,103 @@ fn gated_call_persists_the_go_approval_projection() {
     assert_eq!(payload["toolCalls"][0]["requiresUser"], true);
 }
 
+// Parity: go:452dea11:internal/assistant/engine/approval_retry_sibling_cancellation_test.go:14 TestSynchronousApprovalDenialCancelsSiblingActions
+#[test]
+fn denying_a_staged_action_closes_siblings_without_executing_tools() {
+    let (directory, store, session_store) = initialized_stores();
+    let names = vec!["approval.sync.one", "approval.sync.two"];
+    let executor = Arc::new(RecordingToolExecutor::new(names.clone()));
+    let catalog = crate::product::product_production_ports::ProductionToolCatalog::from_tool_rows(
+        names
+            .iter()
+            .map(|name| {
+                json!({
+                    "id": name, "name": name, "permission": "write_strategy",
+                    "riskLevel": "high", "requiresApprovalIn": ["approval"],
+                    "allowedModes": ["approval"], "idempotencyMode": "replay_safe",
+                })
+            })
+            .collect(),
+    );
+    let runtime = runtime_with_catalog(
+        &store,
+        &session_store,
+        &directory,
+        Arc::clone(&executor),
+        catalog,
+    );
+    let run_id = "run-sibling-denial";
+    create_run(&store, run_id);
+    let chat = seed_run(run_id, "approval", names[0]);
+    let lease = RunLeaseGuard::acquire(Arc::clone(&store), run_id, "owner-sibling")
+        .expect("acquire staging lease");
+    let response = ModelResponse {
+        text: String::new(),
+        tool_calls: names
+            .iter()
+            .enumerate()
+            .map(|(index, name)| ModelToolCall {
+                id: format!("call-{index}"),
+                name: (*name).to_owned(),
+                arguments: json!({}),
+            })
+            .collect(),
+    };
+    assert!(matches!(
+        runtime
+            .persist_tool_calls(&chat, &response, &lease)
+            .expect("stage both actions"),
+        ToolCallStaging::Pending(_)
+    ));
+    drop(lease);
+    let pending = run_payload(&store, run_id);
+    let approvals = pending["pendingApprovals"]
+        .as_array()
+        .expect("pending approvals");
+    assert_eq!(approvals.len(), 2);
+    assert!(executor.executed().is_empty());
+    let approval_id = approvals[0]["id"].as_str().expect("approval id");
+    let resolution = store
+        .resolve_and_stage_approval(approval_id, "DENIED")
+        .expect("deny and stage continuation")
+        .expect("resolution");
+    assert!(resolution.changed && resolution.should_continue);
+    runtime
+        .resume_approval(run_id)
+        .expect("synchronous denied continuation");
+    let terminal = store
+        .get_run(run_id)
+        .expect("read terminal run")
+        .expect("run");
+    assert_eq!(terminal.status, "DENIED");
+    let payload = run_payload(&store, run_id);
+    assert_eq!(payload["resumeState"], "approval_denied");
+    for approval in approvals {
+        let row = store
+            .list_approvals()
+            .expect("read approvals")
+            .into_iter()
+            .find(|row| row.id == approval["id"].as_str().expect("approval id"))
+            .expect("approval row");
+        assert_eq!(row.status, "DENIED");
+    }
+    for call in payload["toolCalls"].as_array().expect("calls") {
+        assert_eq!(call["status"], "DENIED");
+        assert_eq!(call["requiresUser"], false);
+    }
+    assert!(executor.executed().is_empty(), "neither action may execute");
+    let duplicate = store
+        .resolve_and_stage_approval(approval_id, "DENIED")
+        .expect("duplicate denial")
+        .expect("approval");
+    assert!(!duplicate.changed && !duplicate.should_continue);
+    runtime
+        .resume_approval(run_id)
+        .expect("duplicate continuation");
+    assert_eq!(store.get_run(run_id).expect("run").expect("row"), terminal);
+    assert!(executor.executed().is_empty());
+}
+
 /// Go's `TestLiveTradingToolsAreAvailableInAllModesWithApproval`: a
 /// `live_trading` descriptor stays selectable in every permission mode and
 /// still requires approval even in `all`.  The runtime must therefore park such
