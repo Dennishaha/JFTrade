@@ -701,6 +701,10 @@ fn pine_error_message(error: PineExecutionError) -> String {
     error.to_string()
 }
 
+fn strategy_pine_session_id(instance_id: &str, market: &str, symbol: &str) -> String {
+    format!("strategy:{instance_id}:{market}.{symbol}")
+}
+
 #[allow(clippy::too_many_arguments)]
 fn close_strategy_pine_sessions(
     runtime: &tokio::runtime::Runtime,
@@ -728,7 +732,7 @@ fn close_strategy_pine_sessions(
                 mode: "live".to_owned(),
                 candles: Vec::new(),
                 params: binding_params(binding),
-                session_id: format!("strategy:{instance_id}:{symbol}"),
+                session_id: strategy_pine_session_id(instance_id, &market, &symbol),
                 session_operation: "close".to_owned(),
                 expected_revision: session.revision,
             };

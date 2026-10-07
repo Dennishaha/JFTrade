@@ -293687,11 +293687,11 @@
       "boundaryReason": null
     },
     "internal/strategy/liveruntime/pineworker_live_business_test.go:226:TestPineWorkerLiveUsesStatefulSessionAfterWarmup": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/strategy_runtime_mutation.rs::pine_runtime_checkpoint_restores_latest_bar_and_intent_keys",
-      "conclusion": "partial：参考实现断言预热后使用有状态会话（open/append 复用同一 worker 会话、revision 递增、预热请求带历史 K 线）。Rust 的等价物是执行端口的 live 会话契约（open/append/close 与 revision 递增，见 jftrade-integration-pine 的执行契约用例）与运行时检查点恢复（引用用例断言恢复最新 K 线与意图键）；没有“同一会话复用 + 预热载荷”的单点断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'not test(production_helper_sync_cancel_aborts_in_flight_request) and not test(production_helper_sync_rejects_broken_pagination_cursors) and not test(production_helper_sync_forwards_page_query_and_persists_provider_values) and not test(production_helper_sync_retries_transient_page_and_records_retry)'",
-      "evidence_type": "partial",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-engine/src/strategy_runtime_session_identity_parity_tests.rs::pine_original_two_bar_warmup_appends_one_candle_and_closes_the_same_market_qualified_session",
+      "conclusion": "function_exact：原stateful-instance、US.AAPL、1m与原Pine源在真实manager任务中预热09:58价100/09:59价101两根，open恰两根且sessionId为strategy:stateful-instance:US.AAPL。 原10:00价102闭合K线只append一次且恰一根，open_time匹配原毫秒；请求序列恰open/append/close，零full-history调用，cancel/join后恰一次close。 三个请求保持完整instrument/session身份，revision依次0/1/2；同实例US.AAPL/HK.AAPL独立打开关闭且fixture会话全部释放。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(pine_original_two_bar_warmup_appends_one_candle_and_closes_the_same_market_qualified_session) or test(pine_live_same_symbol_in_two_markets_opens_and_closes_independent_sessions) or test(pine_original_blank_source_and_warmup_query_failure_never_execute_worker_requests) or test(pine_session_close_error_is_reported_after_join_and_repeated_shutdown_never_recloses)'",
+      "evidence_type": "function_exact",
       "source": {
         "file": "internal/strategy/liveruntime/pineworker_live_business_test.go",
         "line": 226,
@@ -293700,25 +293700,24 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/strategy_runtime_mutation.rs",
-          "test": "pine_runtime_checkpoint_restores_latest_bar_and_intent_keys",
+          "file": "crates/jftrade-engine/src/strategy_runtime_session_identity_parity_tests.rs",
+          "test": "pine_original_two_bar_warmup_appends_one_candle_and_closes_the_same_market_qualified_session",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/strategy/liveruntime/pineworker_live_business_test.go",
             "goLine": 226,
-            "rustFile": "crates/jftrade-engine/src/strategy_runtime_mutation.rs",
-            "rustLine": 601
+            "rustFile": "crates/jftrade-engine/src/strategy_runtime_session_identity_parity_tests.rs",
+            "rustLine": 27
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "参考实现断言预热后使用有状态会话（open/append 复用同一 worker 会话、revision 递增、预热请求带历史 K 线）。",
-          "Rust 的等价物是执行端口的 live 会话契约（open/append/close 与 revision 递增，见 jftrade-integration-pine 的执行契约用例）与运行时检查点恢复（引用用例断言恢复最新 K 线与意图键）；"
+          "原stateful-instance、US.AAPL、1m与原Pine源在真实manager任务中预热09:58价100/09:59价101两根，open恰两根且sessionId为strategy:stateful-instance:US.AAPL。",
+          "原10:00价102闭合K线只append一次且恰一根，open_time匹配原毫秒；请求序列恰open/append/close，零full-history调用，cancel/join后恰一次close。",
+          "三个请求保持完整instrument/session身份，revision依次0/1/2；同实例US.AAPL/HK.AAPL独立打开关闭且fixture会话全部释放。"
         ],
-        "uncovered": [
-          "没有“同一会话复用 + 预热载荷”的单点断言。"
-        ],
+        "uncovered": [],
         "source": "reviewed"
       },
       "verification": {
@@ -293728,44 +293727,49 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(pine_original_two_bar_warmup_appends_one_candle_and_closes_the_same_market_qualified_session) or test(pine_live_same_symbol_in_two_markets_opens_and_closes_independent_sessions) or test(pine_original_blank_source_and_warmup_query_failure_never_execute_worker_requests) or test(pine_session_close_error_is_reported_after_join_and_repeated_shutdown_never_recloses)"
         ],
         "testFilter": [
-          "pine_runtime_checkpoint_restores_latest_bar_and_intent_keys"
+          "pine_original_two_bar_warmup_appends_one_candle_and_closes_the_same_market_qualified_session",
+          "pine_original_blank_source_and_warmup_query_failure_never_execute_worker_requests",
+          "pine_session_close_error_is_reported_after_join_and_repeated_shutdown_never_recloses",
+          "pine_live_same_symbol_in_two_markets_opens_and_closes_independent_sessions"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "545273362950ebc1f856b66b502b8fb149a3b5bc",
+        "verifiedAt": "2026-10-07T21:02:50Z",
+        "receiptDigest": "sha256:915e7e5a5d294978d66fb361e9bd4c163da018a8531dc7ec0f44d82613841f09"
       },
       "risk": "high",
       "owner": "strategy_pine",
       "priority": "P1",
-      "nextAction": "implement_or_document_boundary",
+      "nextAction": "maintain_behavioral_regression",
       "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "参考实现断言预热后使用有状态会话（open/append 复用同一 worker 会话、revision 递增、预热请求带历史 K 线）。",
-        "Rust 的等价物是执行端口的 live 会话契约（open/append/close 与 revision 递增，见 jftrade-integration-pine 的执行契约用例）与运行时检查点恢复（引用用例断言恢复最新 K 线与意图键）；"
+        "原stateful-instance、US.AAPL、1m与原Pine源在真实manager任务中预热09:58价100/09:59价101两根，open恰两根且sessionId为strategy:stateful-instance:US.AAPL。",
+        "原10:00价102闭合K线只append一次且恰一根，open_time匹配原毫秒；请求序列恰open/append/close，零full-history调用，cancel/join后恰一次close。",
+        "三个请求保持完整instrument/session身份，revision依次0/1/2；同实例US.AAPL/HK.AAPL独立打开关闭且fixture会话全部释放。"
       ],
-      "uncoveredAssertions": [
-        "没有“同一会话复用 + 预热载荷”的单点断言。"
-      ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/strategy/liveruntime/pineworker_live_business_test.go:270:TestPineWorkerLiveRemainingConstructorAndWarmupErrors": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-integration-pine/src/execution/tests.rs::run_script_maps_remote_unavailable_timeout_and_cancellation",
-      "conclusion": "partial：参考实现断言构造与预热阶段的错误映射（远程不可用、超时、取消分别归类）。Rust 由执行端口的错误映射用例覆盖（引用用例），运行时侧把错误冒泡为运行失败；缺“预热失败 → 实例状态与审计”的同形断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine --all-targets --locked",
+      "rust_entry": "crates/jftrade-engine/src/strategy_runtime_session_identity_parity_tests.rs::pine_original_blank_source_and_warmup_query_failure_never_execute_worker_requests",
+      "conclusion": "partial：原空白source在实际spawn_task前拒绝400/STRATEGY_SCRIPT_REQUIRED，审计不变且零worker请求。 原klines failed错误经实际quotes owner传播，任务STOPPED、恰一个RUNTIME_EXITED包含错误，shutdown/join后零worker请求。 原nil executor/runtime拒绝、not pine warmup错误、worker failed的onClosed错误整组尚未在对应运行时输入闭合；类型安全不能代替这些错误断言。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(pine_original_two_bar_warmup_appends_one_candle_and_closes_the_same_market_qualified_session) or test(pine_live_same_symbol_in_two_markets_opens_and_closes_independent_sessions) or test(pine_original_blank_source_and_warmup_query_failure_never_execute_worker_requests) or test(pine_session_close_error_is_reported_after_join_and_repeated_shutdown_never_recloses)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/strategy/liveruntime/pineworker_live_business_test.go",
@@ -293775,25 +293779,24 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-integration-pine/src/execution/tests.rs",
-          "test": "run_script_maps_remote_unavailable_timeout_and_cancellation",
-          "crate": "jftrade-integration-pine",
+          "file": "crates/jftrade-engine/src/strategy_runtime_session_identity_parity_tests.rs",
+          "test": "pine_original_blank_source_and_warmup_query_failure_never_execute_worker_requests",
+          "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/strategy/liveruntime/pineworker_live_business_test.go",
             "goLine": 270,
-            "rustFile": "crates/jftrade-integration-pine/src/execution/tests.rs",
-            "rustLine": 345
+            "rustFile": "crates/jftrade-engine/src/strategy_runtime_session_identity_parity_tests.rs",
+            "rustLine": 211
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "参考实现断言构造与预热阶段的错误映射（远程不可用、超时、取消分别归类）。",
-          "Rust 由执行端口的错误映射用例覆盖（引用用例），运行时侧把错误冒泡为运行失败；",
-          "缺“预热失败 → 实例状态与审计”的同形断言。"
+          "原空白source在实际spawn_task前拒绝400/STRATEGY_SCRIPT_REQUIRED，审计不变且零worker请求。",
+          "原klines failed错误经实际quotes owner传播，任务STOPPED、恰一个RUNTIME_EXITED包含错误，shutdown/join后零worker请求。"
         ],
         "uncovered": [
-          "未从该结论中拆出独立 Rust 缺口；需按原始 Go 断言与 Rust 测试逐项复核。"
+          "原nil executor/runtime拒绝、not pine warmup错误、worker failed的onClosed错误整组尚未在对应运行时输入闭合；类型安全不能代替这些错误断言。"
         ],
         "source": "reviewed"
       },
@@ -293804,23 +293807,29 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(pine_original_two_bar_warmup_appends_one_candle_and_closes_the_same_market_qualified_session) or test(pine_live_same_symbol_in_two_markets_opens_and_closes_independent_sessions) or test(pine_original_blank_source_and_warmup_query_failure_never_execute_worker_requests) or test(pine_session_close_error_is_reported_after_join_and_repeated_shutdown_never_recloses)"
         ],
         "testFilter": [
-          "run_script_maps_remote_unavailable_timeout_and_cancellation"
+          "pine_original_two_bar_warmup_appends_one_candle_and_closes_the_same_market_qualified_session",
+          "pine_original_blank_source_and_warmup_query_failure_never_execute_worker_requests",
+          "pine_session_close_error_is_reported_after_join_and_repeated_shutdown_never_recloses",
+          "pine_live_same_symbol_in_two_markets_opens_and_closes_independent_sessions"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "545273362950ebc1f856b66b502b8fb149a3b5bc",
+        "verifiedAt": "2026-10-07T21:02:50Z",
+        "receiptDigest": "sha256:915e7e5a5d294978d66fb361e9bd4c163da018a8531dc7ec0f44d82613841f09"
       },
       "risk": "normal",
       "owner": "strategy_pine",
@@ -293831,19 +293840,18 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "参考实现断言构造与预热阶段的错误映射（远程不可用、超时、取消分别归类）。",
-        "Rust 由执行端口的错误映射用例覆盖（引用用例），运行时侧把错误冒泡为运行失败；",
-        "缺“预热失败 → 实例状态与审计”的同形断言。"
+        "原空白source在实际spawn_task前拒绝400/STRATEGY_SCRIPT_REQUIRED，审计不变且零worker请求。",
+        "原klines failed错误经实际quotes owner传播，任务STOPPED、恰一个RUNTIME_EXITED包含错误，shutdown/join后零worker请求。"
       ],
       "uncoveredAssertions": [
-        "未从该结论中拆出独立 Rust 缺口；需按原始 Go 断言与 Rust 测试逐项复核。"
+        "原nil executor/runtime拒绝、not pine warmup错误、worker failed的onClosed错误整组尚未在对应运行时输入闭合；类型安全不能代替这些错误断言。"
       ],
       "boundaryReason": null
     },
     "internal/strategy/liveruntime/pineworker_live_business_test.go:305:TestPineWorkerLiveRemainingMarketAndSizerBoundaries": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/tests/strategy_simulate_closed_loop.rs::test_strategy_simulate_cash_and_position_limits",
-      "conclusion": "partial：参考实现断言市场元数据与 sizing 边界（现金不足、仓位上限、最小手数等）下的数量决策。Rust 的等价断言在策略模拟闭环用例（引用）与数量解析（quantity/percent_of_equity）里；缺逐条 sizing 边界的同形断言。缺口（P2）：sizing 边界需要回归。",
+      "conclusion": "partial：既有SIMULATE账户fixture直接证明现金1000时买20股×100拒绝、资金和仓位不变，成功买5股后余额500，持5卖10拒绝；这些不是原live sizer逐项断言。 原market/kline错symbol、nil sizer/error/zero position、pct0/-1/NaN/Inf拒绝与unsupported cancel尚未闭合。 原short=-4、无price/equity拒绝、equity1000/price100/pct10得到qty1、close200%封顶4及无position错误未同输入证明；Rust entry pct0/无position可能Ok(None)，保留语义差异。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
       "evidence_type": "partial",
       "source": {
@@ -293867,12 +293875,11 @@
       ],
       "assertionCoverage": {
         "covered": [
-          "参考实现断言市场元数据与 sizing 边界（现金不足、仓位上限、最小手数等）下的数量决策。",
-          "Rust 的等价断言在策略模拟闭环用例（引用）与数量解析（quantity/percent_of_equity）里；",
-          "缺逐条 sizing 边界的同形断言。"
+          "既有SIMULATE账户fixture直接证明现金1000时买20股×100拒绝、资金和仓位不变，成功买5股后余额500，持5卖10拒绝；这些不是原live sizer逐项断言。"
         ],
         "uncovered": [
-          "缺口（P2）：sizing 边界需要回归。"
+          "原market/kline错symbol、nil sizer/error/zero position、pct0/-1/NaN/Inf拒绝与unsupported cancel尚未闭合。",
+          "原short=-4、无price/equity拒绝、equity1000/price100/pct10得到qty1、close200%封顶4及无position错误未同输入证明；Rust entry pct0/无position可能Ok(None)，保留语义差异。"
         ],
         "source": "reviewed"
       },
@@ -293910,19 +293917,18 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "参考实现断言市场元数据与 sizing 边界（现金不足、仓位上限、最小手数等）下的数量决策。",
-        "Rust 的等价断言在策略模拟闭环用例（引用）与数量解析（quantity/percent_of_equity）里；",
-        "缺逐条 sizing 边界的同形断言。"
+        "既有SIMULATE账户fixture直接证明现金1000时买20股×100拒绝、资金和仓位不变，成功买5股后余额500，持5卖10拒绝；这些不是原live sizer逐项断言。"
       ],
       "uncoveredAssertions": [
-        "缺口（P2）：sizing 边界需要回归。"
+        "原market/kline错symbol、nil sizer/error/zero position、pct0/-1/NaN/Inf拒绝与unsupported cancel尚未闭合。",
+        "原short=-4、无price/equity拒绝、equity1000/price100/pct10得到qty1、close200%封顶4及无position错误未同输入证明；Rust entry pct0/无position可能Ok(None)，保留语义差异。"
       ],
       "boundaryReason": null
     },
     "internal/strategy/liveruntime/pineworker_live_business_test.go:368:TestPineWorkerLiveRemainingEquityPriceAndParamBoundaries": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/strategy_runtime_account_tests.rs::simulated_broker_account_supplies_real_balance_and_sellable_positions",
-      "conclusion": "partial：参考实现断言权益、价格与参数边界（可用资金/持仓缺失、价格为零或非有限、参数类型异常）下的行为。Rust 由模拟账户与策略运行时的账户输入（引用用例）承担，价格与参数校验在解析层；缺同一组边界的同形断言。缺口（P2）。",
+      "conclusion": "partial：既有broker account fixture经真实账户读取证明可用现金2400、持仓50/可卖40及SIMULATE账户42/US headers；不等于原余额25+locked5的equity30。 原nil account/blank quote currency错误、USD available25+locked5得到equity30未闭合。 原limit10.12>10、stop11.2、current10.19按tick0.1截断10.1，以及duration time.Second变1s/unsupported参数未同输入证明；JSON类型边界不由账户fixture消除。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
       "evidence_type": "partial",
       "source": {
@@ -293946,12 +293952,11 @@
       ],
       "assertionCoverage": {
         "covered": [
-          "参考实现断言权益、价格与参数边界（可用资金/持仓缺失、价格为零或非有限、参数类型异常）下的行为。",
-          "Rust 由模拟账户与策略运行时的账户输入（引用用例）承担，价格与参数校验在解析层；",
-          "缺同一组边界的同形断言。"
+          "既有broker account fixture经真实账户读取证明可用现金2400、持仓50/可卖40及SIMULATE账户42/US headers；不等于原余额25+locked5的equity30。"
         ],
         "uncovered": [
-          "缺口（P2）。"
+          "原nil account/blank quote currency错误、USD available25+locked5得到equity30未闭合。",
+          "原limit10.12>10、stop11.2、current10.19按tick0.1截断10.1，以及duration time.Second变1s/unsupported参数未同输入证明；JSON类型边界不由账户fixture消除。"
         ],
         "source": "reviewed"
       },
@@ -293989,20 +293994,19 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "参考实现断言权益、价格与参数边界（可用资金/持仓缺失、价格为零或非有限、参数类型异常）下的行为。",
-        "Rust 由模拟账户与策略运行时的账户输入（引用用例）承担，价格与参数校验在解析层；",
-        "缺同一组边界的同形断言。"
+        "既有broker account fixture经真实账户读取证明可用现金2400、持仓50/可卖40及SIMULATE账户42/US headers；不等于原余额25+locked5的equity30。"
       ],
       "uncoveredAssertions": [
-        "缺口（P2）。"
+        "原nil account/blank quote currency错误、USD available25+locked5得到equity30未闭合。",
+        "原limit10.12>10、stop11.2、current10.19按tick0.1截断10.1，以及duration time.Second变1s/unsupported参数未同输入证明；JSON类型边界不由账户fixture消除。"
       ],
       "boundaryReason": null
     },
     "internal/strategy/liveruntime/pineworker_live_business_test.go:404:TestPineWorkerLiveSessionFailureBoundaries": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-integration-pine/src/execution/tests.rs::close_rejects_a_different_session_or_a_stale_explicit_revision",
-      "conclusion": "partial：参考实现断言 live 会话失败边界（会话缺失/过期 revision/worker 不匹配等）。Rust 的执行端口会话契约用例覆盖 revision 与 session 匹配（引用用例），运行时会话失败走错误冒泡；缺运行时层的会话失败断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-integration-pine -p jftrade-strategy -p jftrade-backtest -p jftrade-assistant -p jftrade-api --all-targets --locked --no-fail-fast -E 'not test(analyze_script_supports_trend_and_stateful_ta_functions)'",
+      "rust_entry": "crates/jftrade-engine/src/strategy_runtime_session_identity_parity_tests.rs::pine_session_close_error_is_reported_after_join_and_repeated_shutdown_never_recloses",
+      "conclusion": "partial：实际manager会话成功open后close失败经shutdown/join传播；恰一次close、完整strategy:one:US.AAPL身份、revision1及恰一次SESSION_CLOSE_FAILED审计。 重复shutdown返回同一缓存close错误且不再关闭；直接保留与原helper第二次empty close返回nil的层级/返回差异。 原nil live close成功、open errors.Is身份/nil session、open revision2错误且close一次、重复open幂等和append errors.Is身份尚未完整证明。 原helper失败close后第二次empty close返回nil；Rust owner重复shutdown缓存失败，当前直接断言该差异，不能升级整条。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(pine_original_two_bar_warmup_appends_one_candle_and_closes_the_same_market_qualified_session) or test(pine_live_same_symbol_in_two_markets_opens_and_closes_independent_sessions) or test(pine_original_blank_source_and_warmup_query_failure_never_execute_worker_requests) or test(pine_session_close_error_is_reported_after_join_and_repeated_shutdown_never_recloses)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/strategy/liveruntime/pineworker_live_business_test.go",
@@ -294012,25 +294016,25 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-integration-pine/src/execution/tests.rs",
-          "test": "close_rejects_a_different_session_or_a_stale_explicit_revision",
-          "crate": "jftrade-integration-pine",
+          "file": "crates/jftrade-engine/src/strategy_runtime_session_identity_parity_tests.rs",
+          "test": "pine_session_close_error_is_reported_after_join_and_repeated_shutdown_never_recloses",
+          "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/strategy/liveruntime/pineworker_live_business_test.go",
             "goLine": 404,
-            "rustFile": "crates/jftrade-integration-pine/src/execution/tests.rs",
-            "rustLine": 39
+            "rustFile": "crates/jftrade-engine/src/strategy_runtime_session_identity_parity_tests.rs",
+            "rustLine": 256
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "参考实现断言 live 会话失败边界（会话缺失/过期 revision/worker 不匹配等）。",
-          "Rust 的执行端口会话契约用例覆盖 revision 与 session 匹配（引用用例），运行时会话失败走错误冒泡；",
-          "缺运行时层的会话失败断言。"
+          "实际manager会话成功open后close失败经shutdown/join传播；恰一次close、完整strategy:one:US.AAPL身份、revision1及恰一次SESSION_CLOSE_FAILED审计。",
+          "重复shutdown返回同一缓存close错误且不再关闭；直接保留与原helper第二次empty close返回nil的层级/返回差异。"
         ],
         "uncovered": [
-          "未从该结论中拆出独立 Rust 缺口；需按原始 Go 断言与 Rust 测试逐项复核。"
+          "原nil live close成功、open errors.Is身份/nil session、open revision2错误且close一次、重复open幂等和append errors.Is身份尚未完整证明。",
+          "原helper失败close后第二次empty close返回nil；Rust owner重复shutdown缓存失败，当前直接断言该差异，不能升级整条。"
         ],
         "source": "reviewed"
       },
@@ -294041,23 +294045,29 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(pine_original_two_bar_warmup_appends_one_candle_and_closes_the_same_market_qualified_session) or test(pine_live_same_symbol_in_two_markets_opens_and_closes_independent_sessions) or test(pine_original_blank_source_and_warmup_query_failure_never_execute_worker_requests) or test(pine_session_close_error_is_reported_after_join_and_repeated_shutdown_never_recloses)"
         ],
         "testFilter": [
-          "close_rejects_a_different_session_or_a_stale_explicit_revision"
+          "pine_original_two_bar_warmup_appends_one_candle_and_closes_the_same_market_qualified_session",
+          "pine_original_blank_source_and_warmup_query_failure_never_execute_worker_requests",
+          "pine_session_close_error_is_reported_after_join_and_repeated_shutdown_never_recloses",
+          "pine_live_same_symbol_in_two_markets_opens_and_closes_independent_sessions"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "545273362950ebc1f856b66b502b8fb149a3b5bc",
+        "verifiedAt": "2026-10-07T21:02:50Z",
+        "receiptDigest": "sha256:915e7e5a5d294978d66fb361e9bd4c163da018a8531dc7ec0f44d82613841f09"
       },
       "risk": "high",
       "owner": "strategy_pine",
@@ -294066,12 +294076,12 @@
       "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "参考实现断言 live 会话失败边界（会话缺失/过期 revision/worker 不匹配等）。",
-        "Rust 的执行端口会话契约用例覆盖 revision 与 session 匹配（引用用例），运行时会话失败走错误冒泡；",
-        "缺运行时层的会话失败断言。"
+        "实际manager会话成功open后close失败经shutdown/join传播；恰一次close、完整strategy:one:US.AAPL身份、revision1及恰一次SESSION_CLOSE_FAILED审计。",
+        "重复shutdown返回同一缓存close错误且不再关闭；直接保留与原helper第二次empty close返回nil的层级/返回差异。"
       ],
       "uncoveredAssertions": [
-        "未从该结论中拆出独立 Rust 缺口；需按原始 Go 断言与 Rust 测试逐项复核。"
+        "原nil live close成功、open errors.Is身份/nil session、open revision2错误且close一次、重复open幂等和append errors.Is身份尚未完整证明。",
+        "原helper失败close后第二次empty close返回nil；Rust owner重复shutdown缓存失败，当前直接断言该差异，不能升级整条。"
       ],
       "boundaryReason": null
     },
@@ -352996,11 +353006,10 @@
       "reviewNote": "2026-10-02 bounded reuse review: compared all 6 referenceKeys against the shared Rust owner (status mix {'[~]': 6}); assertion scopes are not interchangeable, so reuse remains disallowed and no function_exact row is upgraded by this relation."
     },
     "crates/jftrade-integration-pine/src/execution/tests.rs::run_script_maps_remote_unavailable_timeout_and_cancellation": {
-      "referenceCount": 6,
+      "referenceCount": 5,
       "referenceKeys": [
         "pkg/backtest/pineworker_replay_pump_test.go:118:TestPineWorkerReplayPumpPropagatesCommandErrors",
         "pkg/backtest/pineworker_replay_test.go:144:TestPineWorkerReplayPlannerPropagatesWorkerError",
-        "internal/strategy/liveruntime/pineworker_live_business_test.go:270:TestPineWorkerLiveRemainingConstructorAndWarmupErrors",
         "pkg/strategy/pineengine/pine_ts_client_test.go:56:TestPinetsWorkerClientMapsRuntimeErrors",
         "pkg/strategy/pineworker/client_test.go:81:TestClientRunScriptMapsTransportError",
         "pkg/strategy/pineworker/proto_mapping_test.go:182:TestProtoMappingHandlesNilResponses"
@@ -361674,26 +361683,10 @@
       "allowed": true,
       "reviewStatus": "single"
     },
-    "crates/jftrade-engine/src/strategy_runtime_mutation.rs::pine_runtime_checkpoint_restores_latest_bar_and_intent_keys": {
-      "referenceCount": 1,
-      "referenceKeys": [
-        "internal/strategy/liveruntime/pineworker_live_business_test.go:226:TestPineWorkerLiveUsesStatefulSessionAfterWarmup"
-      ],
-      "allowed": true,
-      "reviewStatus": "single"
-    },
     "crates/jftrade-engine/tests/strategy_simulate_closed_loop.rs::test_strategy_simulate_cash_and_position_limits": {
       "referenceCount": 1,
       "referenceKeys": [
         "internal/strategy/liveruntime/pineworker_live_business_test.go:305:TestPineWorkerLiveRemainingMarketAndSizerBoundaries"
-      ],
-      "allowed": true,
-      "reviewStatus": "single"
-    },
-    "crates/jftrade-integration-pine/src/execution/tests.rs::close_rejects_a_different_session_or_a_stale_explicit_revision": {
-      "referenceCount": 1,
-      "referenceKeys": [
-        "internal/strategy/liveruntime/pineworker_live_business_test.go:404:TestPineWorkerLiveSessionFailureBoundaries"
       ],
       "allowed": true,
       "reviewStatus": "single"
@@ -364956,6 +364949,30 @@
       "referenceKeys": [
         "internal/api/live/dispatcher_boundaries_test.go:219:TestBackendReceivesExplicitBrokerSelection"
       ],
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/strategy_runtime_session_identity_parity_tests.rs::pine_original_two_bar_warmup_appends_one_candle_and_closes_the_same_market_qualified_session": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/strategy/liveruntime/pineworker_live_business_test.go:226:TestPineWorkerLiveUsesStatefulSessionAfterWarmup"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/strategy_runtime_session_identity_parity_tests.rs::pine_original_blank_source_and_warmup_query_failure_never_execute_worker_requests": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/strategy/liveruntime/pineworker_live_business_test.go:270:TestPineWorkerLiveRemainingConstructorAndWarmupErrors"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/strategy_runtime_session_identity_parity_tests.rs::pine_session_close_error_is_reported_after_join_and_repeated_shutdown_never_recloses": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/strategy/liveruntime/pineworker_live_business_test.go:404:TestPineWorkerLiveSessionFailureBoundaries"
+      ],
+      "allowed": true,
       "reviewStatus": "single"
     },
     "crates/jftrade-engine/src/product_ws_depth_http_parity_tests.rs::production_websocket_depth_provider_failure_keeps_session_available_for_retry": {

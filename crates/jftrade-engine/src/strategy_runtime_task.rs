@@ -263,7 +263,7 @@ impl StrategyRuntimeManager {
                                     .map(|c| c.candle.clone())
                                     .collect(),
                                 params: binding_params(&binding),
-                                session_id: format!("strategy:{id_for_thread}:{symbol}"),
+                                session_id: strategy_pine_session_id(&id_for_thread, &market, &symbol),
                                 session_operation: "open".to_owned(),
                                 expected_revision: 0,
                             };
@@ -342,7 +342,7 @@ impl StrategyRuntimeManager {
                                 mode: "live".to_owned(),
                                 candles: vec![closed_bar.candle.clone()],
                                 params: binding_params(&binding),
-                                session_id: format!("strategy:{id_for_thread}:{symbol}"),
+                                session_id: strategy_pine_session_id(&id_for_thread, &market, &symbol),
                                 session_operation: "append".to_owned(),
                                 expected_revision: session.revision,
                             };

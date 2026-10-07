@@ -1,0 +1,103 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(pine_original_two_bar_warmup_appends_one_candle_and_closes_the_same_market_qualified_session) or test(pine_live_same_symbol_in_two_markets_opens_and_closes_independent_sessions)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-10-07T20:58:18Z",
+  "sourceState": {
+    "verifiedCommit": "545273362950ebc1f856b66b502b8fb149a3b5bc",
+    "trackedDiffSha256": "88a2e92548442dbfc84c42f0eb91e15232216b859b14f937d4050c2e37e38a79",
+    "untrackedFiles": [
+      {
+        "path": "crates/jftrade-engine/src/strategy_runtime_session_identity_parity_tests.rs",
+        "sha256": "eb55a8c164263a18ffc827d0f78fe1dd438de591082cd62be883bc55e620ce80"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/pine-session-market-identity-original-red-2026-10-08.json",
+        "sha256": "6b4119f5d358374ce17b4f63e2d2a8e1baf2ac4208745810481845fd496a97ca"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/pine-session-market-identity-owner-red-2026-10-08.json",
+        "sha256": "5ece84a8905c2527fae2e075ea39f76d948791d86cf29b8cddb807b6ac39d6c1"
+      }
+    ]
+  },
+  "rawOutputSha256": "68d2d2ea032142cb55688062c6ee07a3c5faad314da4e033208e32ad61a02237",
+  "passedTests": [
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_strategy::product_production_ports_strategy_runtime::owner_tests::session_identity_parity::pine_live_same_symbol_in_two_markets_opens_and_closes_independent_sessions",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_strategy::product_production_ports_strategy_runtime::owner_tests::session_identity_parity::pine_original_two_bar_warmup_appends_one_candle_and_closes_the_same_market_qualified_session",
+    "jftrade-engine::strategy_runtime_lifecycle_bounded_tests$strategy_runtime::owner_tests::session_identity_parity::pine_live_same_symbol_in_two_markets_opens_and_closes_independent_sessions",
+    "jftrade-engine::strategy_runtime_lifecycle_bounded_tests$strategy_runtime::owner_tests::session_identity_parity::pine_original_two_bar_warmup_appends_one_candle_and_closes_the_same_market_qualified_session"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 2,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "strategy_runtime_lifecycle_bounded_tests",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 2,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1837,
+      "exec_time": 1.245624793,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 75,
+      "exec_time": 1.347213041,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "strategy_runtime_lifecycle_bounded_tests",
+        "kind": "test"
+      }
+    }
+  ]
+}

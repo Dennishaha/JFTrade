@@ -5,6 +5,9 @@ use jftrade_integration_pine::{
 use std::sync::Condvar;
 use std::time::{Duration, Instant};
 
+#[path = "strategy_runtime_session_identity_parity_tests.rs"]
+mod session_identity_parity;
+
 #[derive(Debug, Default)]
 struct Quotes {
     rows: Mutex<Value>,
