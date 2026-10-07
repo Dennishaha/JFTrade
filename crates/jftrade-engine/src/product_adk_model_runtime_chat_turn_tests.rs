@@ -21,6 +21,9 @@ use crate::product::product_adk_chat_stream_port::{
 
 use super::{AdkToolExecutor, ProductionAdkChatRuntime, RunCancellationRegistry};
 
+#[path = "product_adk_provider_context_prefix_parity_tests.rs"]
+mod context_prefix_parity;
+
 fn initialized_stores() -> (tempfile::TempDir, Arc<AdkStore>, Arc<AdkSessionStore>) {
     let directory = tempdir().expect("temporary directory");
     let adk_path = directory.path().join("adk.db");

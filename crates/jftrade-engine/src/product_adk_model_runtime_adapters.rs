@@ -223,19 +223,9 @@ fn durable_context_items(
         .and_then(Value::as_u64)
         .and_then(|value| usize::try_from(value).ok())
         .unwrap_or(0);
-    let segments = store
-        .list_handoff_segments(session_id, true)
-        .map_err(storage_unavailable)?;
     let mut segment_compacted_count = 0usize;
     let mut summaries = Vec::new();
-    for segment in &segments {
-        let value: Value = serde_json::from_str(&segment.payload_json).map_err(|error| {
-            AdkChatPortError::Failed {
-                status: 500,
-                code: "ADK_STORAGE_CORRUPT".to_owned(),
-                message: format!("stored handoff segment is invalid JSON: {error}"),
-            }
-        })?;
+    for value in current_context_handoff_payloads(store, session_id, context_value.as_ref())? {
         if let Some(end) = value
             .get("endEventIndex")
             .and_then(Value::as_u64)
@@ -301,6 +291,41 @@ fn durable_context_items(
         items.push(json!({"role": role, "content": content}));
     }
     Ok(items)
+}
+
+/// A durable active row may belong to a superseded revision. Apply the same
+/// current-revision fence as the context view before using its summary or cutoff.
+fn current_context_handoff_payloads(
+    store: &AdkStore,
+    session_id: &str,
+    context: Option<&Value>,
+) -> Result<Vec<Value>, AdkChatPortError> {
+    let current_revision = context
+        .and_then(|value| value.get("contextRevisionId"))
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .unwrap_or_default();
+    let mut selected = Vec::new();
+    for segment in store
+        .list_handoff_segments(session_id, true)
+        .map_err(storage_unavailable)?
+    {
+        let value: Value = serde_json::from_str(&segment.payload_json).map_err(|error| {
+            AdkChatPortError::Failed {
+                status: 500,
+                code: "ADK_STORAGE_CORRUPT".to_owned(),
+                message: format!("stored handoff segment is invalid JSON: {error}"),
+            }
+        })?;
+        let revision = value
+            .get("contextRevisionId")
+            .and_then(Value::as_str)
+            .map(str::trim);
+        if !current_revision.is_empty() && revision == Some(current_revision) {
+            selected.push(value);
+        }
+    }
+    Ok(selected)
 }
 
 #[derive(Clone, Debug)]

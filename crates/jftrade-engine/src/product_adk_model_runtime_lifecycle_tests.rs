@@ -533,7 +533,7 @@ fn compacted_context_survives_restart_and_precedes_current_user_message() {
                 "session-1",
                 "handoff-1",
                 1,
-                r#"{"endEventIndex":2,"summary":"handoff summary"}"#,
+                r#"{"contextRevisionId":"revision-1","endEventIndex":2,"summary":"handoff summary"}"#,
             )
             .expect("persist handoff segment");
     }
