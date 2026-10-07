@@ -1,7 +1,7 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::sync::Arc;
-use std::sync::RwLock;
 use std::sync::atomic::{AtomicU8, AtomicUsize, Ordering};
+use std::sync::{Mutex, RwLock};
 
 use axum::http::HeaderMap;
 use serde_json::Value;
@@ -221,6 +221,8 @@ impl LiveHubLifecycle {
 #[derive(Debug)]
 pub struct LiveHub {
     sender: broadcast::Sender<Value>,
+    notification_history: Mutex<VecDeque<Value>>,
+    notification_capacity: usize,
     shutdown_sender: watch::Sender<bool>,
     subscriptions: Arc<RwLock<BTreeMap<u64, LiveSubscription>>>,
     next_connection_id: AtomicUsize,
@@ -248,6 +250,7 @@ pub struct LiveHubConnection {
     id: u64,
     hub: Arc<LiveHub>,
     receiver: broadcast::Receiver<Value>,
+    pending_notifications: VecDeque<Value>,
 }
 
 impl std::fmt::Debug for LiveHubConnection {
@@ -271,6 +274,8 @@ impl LiveHub {
         let (shutdown_sender, _) = watch::channel(false);
         Self {
             sender,
+            notification_history: Mutex::new(VecDeque::new()),
+            notification_capacity: capacity.max(1),
             shutdown_sender,
             subscriptions: Arc::new(RwLock::new(BTreeMap::new())),
             next_connection_id: AtomicUsize::new(0),
@@ -326,10 +331,17 @@ impl LiveHub {
             .write()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .insert(id, LiveSubscription::default());
+        // Publish uses the same lock: an event belongs either to this replay
+        // snapshot or to the live receiver, never both and never neither.
+        let history = self
+            .notification_history
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         LiveHubConnection {
             id,
             hub: Arc::clone(self),
             receiver: self.sender.subscribe(),
+            pending_notifications: history.clone(),
         }
     }
 
@@ -344,6 +356,28 @@ impl LiveHub {
     /// is currently subscribed; callers may use that to avoid unnecessary
     /// provider work without changing the wire contract.
     pub fn publish(&self, event: Value) -> bool {
+        let mut history = self
+            .notification_history
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if event["type"] == "system.notification" {
+            // A durable projector retries while there are no subscribers.
+            // Retaining a frame does not acknowledge delivery. Once a client
+            // connects, the same retained identity is already in its replay
+            // snapshot (or live queue), so a retry must not send it twice.
+            if let Some(id) = event
+                .get("eventId")
+                .and_then(Value::as_str)
+                .filter(|id| !id.is_empty())
+                && history.iter().any(|previous| previous["eventId"] == id)
+            {
+                return self.sender.receiver_count() > 0;
+            }
+            history.push_back(event.clone());
+            if history.len() > self.notification_capacity {
+                history.pop_front();
+            }
+        }
         self.sender.send(event).is_ok()
     }
 
@@ -497,12 +531,15 @@ impl LiveHubConnection {
 
     pub async fn recv(&mut self) -> Option<Value> {
         loop {
-            let event = match self.receiver.recv().await {
-                Ok(event) => event,
-                Err(broadcast::error::RecvError::Lagged(dropped)) => {
-                    return Some(live_resync_event(dropped));
-                }
-                Err(broadcast::error::RecvError::Closed) => return None,
+            let event = match self.pending_notifications.pop_front() {
+                Some(event) => event,
+                None => match self.receiver.recv().await {
+                    Ok(event) => event,
+                    Err(broadcast::error::RecvError::Lagged(dropped)) => {
+                        return Some(live_resync_event(dropped));
+                    }
+                    Err(broadcast::error::RecvError::Closed) => return None,
+                },
             };
             if self.hub.event_matches(self.id, &event) {
                 return Some(event);
@@ -689,6 +726,70 @@ mod tests {
         hub.mark_stopped();
         assert_eq!(hub.lifecycle(), LiveHubLifecycle::Stopped);
         assert_eq!(hub.lifecycle().as_str(), "stopped");
+    }
+
+    fn notification(sequence: u64) -> Value {
+        serde_json::json!({"type": "system.notification", "eventId": format!("notification-{sequence}"), "payload": {"sequence": sequence}})
+    }
+
+    #[tokio::test]
+    async fn notification_replay_is_bounded_ordered_and_retries_do_not_acknowledge_without_clients()
+    {
+        let hub = Arc::new(LiveHub::new(2));
+        assert!(!hub.publish(serde_json::json!({"type": "market-data.tick"})));
+        for sequence in 1..=3 {
+            assert!(!hub.publish(notification(sequence)));
+        }
+        assert!(!hub.publish(notification(3)));
+        assert_eq!(hub.notification_history.lock().expect("history").len(), 2);
+        let mut connection = hub.connect();
+        assert_eq!(connection.recv().await, Some(notification(2)));
+        assert!(
+            hub.publish(notification(3)),
+            "retained retry acknowledged only with a client"
+        );
+        assert!(hub.publish(notification(4)));
+        assert_eq!(connection.recv().await, Some(notification(3)));
+        assert_eq!(connection.recv().await, Some(notification(4)));
+        assert!(
+            tokio::time::timeout(std::time::Duration::from_millis(20), connection.recv())
+                .await
+                .is_err()
+        );
+        drop(connection);
+        assert!(!hub.publish(notification(4)));
+        let mut reconnected = hub.connect();
+        assert_eq!(reconnected.recv().await, Some(notification(3)));
+        assert_eq!(reconnected.recv().await, Some(notification(4)));
+    }
+
+    #[tokio::test]
+    async fn concurrent_notification_publish_and_connect_replay_each_event_once() {
+        for sequence in 1..=64 {
+            let hub = Arc::new(LiveHub::new(4));
+            let barrier = Arc::new(std::sync::Barrier::new(2));
+            let publisher_hub = hub.clone();
+            let publisher_barrier = barrier.clone();
+            let publisher = std::thread::spawn(move || {
+                publisher_barrier.wait();
+                publisher_hub.publish(notification(sequence));
+            });
+            barrier.wait();
+            let mut connection = hub.connect();
+            publisher.join().expect("publisher joined");
+            assert_eq!(
+                tokio::time::timeout(std::time::Duration::from_secs(1), connection.recv())
+                    .await
+                    .expect("no missing event"),
+                Some(notification(sequence))
+            );
+            assert!(
+                tokio::time::timeout(std::time::Duration::from_millis(1), connection.recv())
+                    .await
+                    .is_err(),
+                "event duplicated at connect/publish boundary"
+            );
+        }
     }
 
     // Parity: go:452dea11:internal/live/client_test.go:63 TestClientSnapshotIsIsolatedAndUpdateIsCoalesced

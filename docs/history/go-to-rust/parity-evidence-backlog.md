@@ -1,5 +1,14 @@
 # Go → Rust 证据积压清单
 
+## 2026-10-07 WebSocket 重放的红绿关系
+
+- 仅本批五条mapping及必要reuse，净 **+3 exact / -3 partial / boundary 0**，当前 **1619 / 2192 / 640**。新exact均有实际认证production握手、直接wire断言和独立主测试；旧共享reuse allowed保留，没有扩大共享批准。
+- `verification-receipts/websocket-production-http-initial-2026-10-07.json`：failed，4 passed/1 failed/2175 filtered/skipped，SHA-256 `9ce62828da8d448cecbd6e85c6f31a90d611ee4772625bcd2acf1b918b97015d`。唯一红测是连接前seq1通知未重放；原receipt与修订前源码备份保留，未改冻结fixture。
+- `verification-receipts/websocket-production-http-verified-2026-10-07.json`：passed，8 passed/0 failed/0 ignored/2274 filtered/skipped，无LEAK，SHA-256 `cec56d13b2c5bc4ea190315c0091a4c177f1e5a227e62b6cefe2164e6e40b791`。现有hub有界保留、顺序/重试去重、connect/publish线性化和SQLite cursor确认条件都有实际测试；没有新增持久化owner或schema，wire字段不变。
+- 原Go缺provider没有关闭码要求，fixture1006与Rust1008差异不阻止该Go条目闭合。当前Web listener动态同源接受真实Cookie/Origin，旧Tauri-only判断纠正。具体残余：depth订阅初始snapshot、num50/entityId|50；原0.0.0.0:0 admission和未装assets Web根200。两条保持partial。
+- 普通/strict及anchor通过，2082 unique/2034 recorded/0 unrecorded/0 stale/48 unknown。审计复核曾拒绝无Go anchor的附加引用及不一致reuse，诊断留在`/tmp/jftrade-websocket-production-http-strict-citation-failures.log`；mapping收窄到主WebSocket测试直接证明的原Go行为，三项补充owner回归保留于receipt与报告，原共享批准保留，未补虚假anchor或放宽审计。
+- quick明确退出0：2312 passed/0 failed/0 skipped，Clippy、七类回放、Pine98及desktop48通过，无LEAK。完整Rust首轮target-health失败保留`/tmp/jftrade-websocket-production-http-rust.log`；确认无构建进程后清理121241 files/32.5GiB，`/tmp/jftrade-websocket-production-http-rust-clean.log`明确退出0：3760 passed/0 failed/2 skipped、静态及七类回放通过，无LEAK。skipped未计为通过，canonical Rust指纹与最终源码一致，源码备份保留。
+
 ## 2026-10-07 设置失败矩阵与 durable 状态
 
 - 仅本批五条mapping及必要reuse，净 **+2 exact / -2 partial / boundary 0**，当前 **1616 / 2195 / 640**。两个exact分别为account路径ID/500失败及onboarding重置；都有生产HTTP、具体file owner、重启及唯一主入口证据。

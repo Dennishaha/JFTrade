@@ -10454,11 +10454,11 @@
       "boundaryReason": null
     },
     "internal/api/live/handler_test.go:207:TestHandlerRejectsSubscriptionWithoutProvider": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/tests/ws_live_compatibility.rs::ws_live_replays_complete_go_corpus; crates/jftrade-api/src/router.rs::subscription_message_matches_go_ignore_update_and_close_rules",
-      "conclusion": "partial（本批补证据与差异）：Rust 在消息分类层断言缺 providerBrokerId 的 subscribe 触发关闭，语料 invalid-subscription-closes-without-code-frame 固定“握手后仅 heartbeat 帧 + 1006 关闭”。差异：运行时实际发送 Close(1008, subscription policy violation)，与语料/Go 的“无 close 帧（1006）”不一致。owner：crates/jftrade-api router.rs websocket_session；回归要求：统一运行时与语料（改为直接断开或更新语料契约）后再升级。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'not test(production_helper_sync_cancel_aborts_in_flight_request) and not test(production_helper_sync_rejects_broken_pagination_cursors) and not test(production_helper_sync_forwards_page_query_and_persists_provider_values) and not test(production_helper_sync_retries_transient_page_and_records_retry)'",
-      "evidence_type": "partial",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-engine/src/product_ws_http_parity_tests.rs::production_websocket_missing_provider_closes_and_releases_connection",
+      "conclusion": "function_exact：原始缺providerBrokerId且activeInstruments=[US.AAPL]的subscribe在真实认证production upgrade及首heartbeat后收到Close1008，释放连接和订阅，重连成功。冻结Go仅要求ReadMessage错误及连接结束，没有1006断言；纠正旧mapping把冻结fixture关闭码当成Go断言的误判。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-api --package jftrade-engine --test production_websocket_missing_provider_closes_and_releases_connection --output docs/history/go-to-rust/verification-receipts/websocket-production-http-verified-2026-10-07.json",
+      "evidence_type": "function_exact",
       "source": {
         "file": "internal/api/live/handler_test.go",
         "line": 207,
@@ -10467,35 +10467,22 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/tests/ws_live_compatibility.rs",
-          "test": "ws_live_replays_complete_go_corpus",
+          "file": "crates/jftrade-engine/src/product_ws_http_parity_tests.rs",
+          "test": "production_websocket_missing_provider_closes_and_releases_connection",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/api/live/handler_test.go",
             "goLine": 207,
-            "rustFile": "crates/jftrade-engine/tests/ws_live_compatibility.rs",
-            "rustLine": 19
-          }
-        },
-        {
-          "file": "crates/jftrade-api/src/router.rs",
-          "test": "subscription_message_matches_go_ignore_update_and_close_rules",
-          "crate": "jftrade-api",
-          "anchor": {
-            "goFile": "internal/api/live/handler_test.go",
-            "goLine": 207,
-            "rustFile": "crates/jftrade-api/src/router.rs",
-            "rustLine": 1110
+            "rustFile": "crates/jftrade-engine/src/product_ws_http_parity_tests.rs",
+            "rustLine": 60
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust message classification closes a subscription missing providerBrokerId; compatibility corpus captures heartbeat/close behavior."
+          "Original missing-provider subscribe closes the production WebSocket after heartbeat; hub and metrics release state, and reconnection succeeds."
         ],
-        "uncovered": [
-          "Runtime sends Close(1008) while the frozen Go corpus expects direct 1006, so no exact close-frame parity until runtime and corpus are reconciled."
-        ],
+        "uncovered": [],
         "source": "reviewed"
       },
       "verification": {
@@ -10505,45 +10492,46 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-api",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(production_websocket_missing_provider_closes_and_releases_connection) or test(production_websocket_accepts_authenticated_listener_origin_and_rejects_foreign_port) or test(production_websocket_replays_preconnection_notification_and_receives_live_successor_once) or test(production_separate_web_listener_preserves_desktop_fence_and_releases_both_ports) or test(ws_live_depth_subscription_receives_updated_opend_book_payloads) or test(notification_replay_is_bounded_ordered_and_retries_do_not_acknowledge_without_clients) or test(concurrent_notification_publish_and_connect_replay_each_event_once) or test(test_notification_projector_advances_cursors_and_is_idempotent)"
         ],
         "testFilter": [
-          "ws_live_replays_complete_go_corpus"
+          "production_websocket_missing_provider_closes_and_releases_connection"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "bb80a578748fa29ba9e96776accac5a8227f1898",
+        "verifiedAt": "2026-10-07T11:11:34Z",
+        "receiptDigest": "sha256:cec56d13b2c5bc4ea190315c0091a4c177f1e5a227e62b6cefe2164e6e40b791"
       },
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "retain_reviewed_boundary_or_partial_and_reaudit",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "maintain_verified_function_exact",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust message classification closes a subscription missing providerBrokerId; compatibility corpus captures heartbeat/close behavior."
+        "Original missing-provider subscribe closes the production WebSocket after heartbeat; hub and metrics release state, and reconnection succeeds."
       ],
-      "uncoveredAssertions": [
-        "Runtime sends Close(1008) while the frozen Go corpus expects direct 1006, so no exact close-frame parity until runtime and corpus are reconciled."
-      ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/api/live/handler_test.go:244:TestHandlerDepthUpdatePublishesFreshPayload": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_ws_live_tests.rs::ws_live_depth_subscription_receives_updated_opend_book_payloads; crates/jftrade-engine/tests/ws_live_compatibility.rs::ws_live_replays_complete_go_corpus; crates/jftrade-engine/src/product_runtime_opend_listener_tests.rs::order_book_pushes_publish_depth_for_the_subscribed_instrument",
-      "conclusion": "partial：新增真实 WebSocket upgrade、depth subscribe 和 OpenD listener 连线测试；两次 book push 更新 bids price 与 meta.resolvedAt，保持 source=market-data、instrumentId=US.TME，并在 disconnect 后释放订阅。仍不等价于 Go 的订阅触发初始 snapshot：Rust 依赖后续 push，request.num=实际返回档数（本测试为 1）而非请求的 50，entityId=US.TME 而非 US.TME|50；不升级 exact。",
-      "command": "pnpm run test:parity:receipt -- --package jftrade-engine --test backtest_sync_http_rejects_request_errors_before_queuing --test sync_request_rejects_invalid_ranges_and_intervals --test ws_live_depth_subscription_receives_updated_opend_book_payloads --test order_book_pushes_publish_depth_for_the_subscribed_instrument --test ws_live_replays_complete_go_corpus --output docs/history/go-to-rust/verification-receipts/api-sync-http-ws-depth-2026-10-06.json",
+      "rust_entry": "crates/jftrade-engine/src/product_ws_live_tests.rs::ws_live_depth_subscription_receives_updated_opend_book_payloads",
+      "conclusion": "partial：认证production WebSocket原始futu/us/tme/US.TME/num50订阅，具体OpenD listener两次book push将resolvedAt从原始00:00:01Z更新为00:00:02Z，price/volume/orderCount/source经wire直接断言；disconnect释放订阅。依赖push而非订阅初始snapshot，request.num为实际档数1而非50，entityId US.TME而非US.TME|50，保持partial。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-api --package jftrade-engine --test ws_live_depth_subscription_receives_updated_opend_book_payloads --output docs/history/go-to-rust/verification-receipts/websocket-production-http-verified-2026-10-07.json",
       "evidence_type": "partial",
       "source": {
         "file": "internal/api/live/handler_test.go",
@@ -10560,40 +10548,16 @@
             "goFile": "internal/api/live/handler_test.go",
             "goLine": 244,
             "rustFile": "crates/jftrade-engine/src/product_ws_live_tests.rs",
-            "rustLine": 283
-          }
-        },
-        {
-          "file": "crates/jftrade-engine/tests/ws_live_compatibility.rs",
-          "test": "ws_live_replays_complete_go_corpus",
-          "crate": "jftrade-engine",
-          "anchor": {
-            "goFile": "internal/api/live/handler_test.go",
-            "goLine": 244,
-            "rustFile": "crates/jftrade-engine/tests/ws_live_compatibility.rs",
-            "rustLine": 19
-          }
-        },
-        {
-          "file": "crates/jftrade-engine/src/product_runtime_opend_listener_tests.rs",
-          "test": "order_book_pushes_publish_depth_for_the_subscribed_instrument",
-          "crate": "jftrade-engine",
-          "anchor": {
-            "goFile": "internal/api/live/handler_test.go",
-            "goLine": 244,
-            "rustFile": "crates/jftrade-engine/src/product_runtime_opend_listener_tests.rs",
-            "rustLine": 121
+            "rustLine": 542
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust compatibility corpus emits two depth frames and subscription/unsubscribe counts; OpenD listener test covers real market.depth payloads.",
-          "Real WebSocket depth subscription receives two OpenD listener book updates with changed price and meta.resolvedAt; disconnect releases connected and active-instrument statistics."
+          "Authenticated production WebSocket receives both concrete OpenD book pushes with original updated resolvedAt, source and changing bid values; disconnect releases demand."
         ],
         "uncovered": [
-          "No connected-session owner fetches the initial depth snapshot on subscribe before any OpenD push.",
-          "OpenD push request.num is the observed book depth (1 in this test), not the requested subscription size 50; entityId lacks the Go |50 suffix."
+          "No subscription-triggered initial snapshot; request.num=1 instead of 50 and entityId=US.TME instead of US.TME|50."
         ],
         "source": "reviewed"
       },
@@ -10605,6 +10569,8 @@
           "scripts/quality/cargo-nextest.mjs",
           "run",
           "-p",
+          "jftrade-api",
+          "-p",
           "jftrade-engine",
           "--all-targets",
           "--locked",
@@ -10612,45 +10578,39 @@
           "libtest-json-plus",
           "--no-fail-fast",
           "-E",
-          "test(backtest_sync_http_rejects_request_errors_before_queuing) or test(sync_request_rejects_invalid_ranges_and_intervals) or test(ws_live_depth_subscription_receives_updated_opend_book_payloads) or test(order_book_pushes_publish_depth_for_the_subscribed_instrument) or test(ws_live_replays_complete_go_corpus)"
+          "test(production_websocket_missing_provider_closes_and_releases_connection) or test(production_websocket_accepts_authenticated_listener_origin_and_rejects_foreign_port) or test(production_websocket_replays_preconnection_notification_and_receives_live_successor_once) or test(production_separate_web_listener_preserves_desktop_fence_and_releases_both_ports) or test(ws_live_depth_subscription_receives_updated_opend_book_payloads) or test(notification_replay_is_bounded_ordered_and_retries_do_not_acknowledge_without_clients) or test(concurrent_notification_publish_and_connect_replay_each_event_once) or test(test_notification_projector_advances_cursors_and_is_idempotent)"
         ],
         "testFilter": [
-          "ws_live_depth_subscription_receives_updated_opend_book_payloads",
-          "ws_live_replays_complete_go_corpus",
-          "order_book_pushes_publish_depth_for_the_subscribed_instrument"
+          "ws_live_depth_subscription_receives_updated_opend_book_payloads"
         ],
         "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "5ecbebc57dedb1b6b19c66b4c325b3f275d1efae",
-        "verifiedAt": "2026-10-06T02:58:48Z",
-        "receiptDigest": "sha256:b31ef3a7a788aed0d740e0641ada3e1450243c2d719530c42be6c3506f2c679b"
+        "verifiedCommit": "bb80a578748fa29ba9e96776accac5a8227f1898",
+        "verifiedAt": "2026-10-07T11:11:34Z",
+        "receiptDigest": "sha256:cec56d13b2c5bc4ea190315c0091a4c177f1e5a227e62b6cefe2164e6e40b791"
       },
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "retain_reviewed_boundary_or_partial_and_reaudit",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "preserve_partial_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust compatibility corpus emits two depth frames and subscription/unsubscribe counts; OpenD listener test covers real market.depth payloads.",
-        "Real WebSocket depth subscription receives two OpenD listener book updates with changed price and meta.resolvedAt; disconnect releases connected and active-instrument statistics."
+        "Authenticated production WebSocket receives both concrete OpenD book pushes with original updated resolvedAt, source and changing bid values; disconnect releases demand."
       ],
       "uncoveredAssertions": [
-        "No connected-session owner fetches the initial depth snapshot on subscribe before any OpenD push.",
-        "OpenD push request.num is the observed book depth (1 in this test), not the requested subscription size 50; entityId lacks the Go |50 suffix."
+        "No subscription-triggered initial snapshot; request.num=1 instead of 50 and entityId=US.TME instead of US.TME|50."
       ],
       "boundaryReason": null
     },
     "internal/api/live/handler_test.go:316:TestHandlerNotificationSequenceZeroReplay": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/tests/ws_live_compatibility.rs::ws_live_replays_complete_go_corpus",
-      "conclusion": "partial：Go 断言首帧之后仍重放通知事件（sequence=1、id/source 固定）。Rust 语料 notification-replay-tick-and-deduplication 逐字断言 system.notification 帧（id=system-notification-1、source=notification）与去重；缺口：真实连接上未断言重放路径。owner：crates/jftrade-engine 通知桥 + api hub；回归要求：真实 WS 用例补 sequence=0/1 通知重放。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'not test(production_helper_sync_cancel_aborts_in_flight_request) and not test(production_helper_sync_rejects_broken_pagination_cursors) and not test(production_helper_sync_forwards_page_query_and_persists_provider_values) and not test(production_helper_sync_retries_transient_page_and_records_retry)'",
-      "evidence_type": "partial",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-engine/src/product_ws_http_parity_tests.rs::production_websocket_replays_preconnection_notification_and_receives_live_successor_once",
+      "conclusion": "function_exact：原始seq1/at/level/title/message/source/category通知在连接前进入现有LiveHub，无订阅者publish仍false；真实production握手首heartbeat后重放完整system.notification/source notification/payload.id system-notification-1。重试seq1后seq2只收到一次，重连按序重放1/2。红测超时后修复hub有界保留、连接/发送线性化和eventId去重；API容量/顺序/并发及具体SQLite cursor条件均通过。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-api --package jftrade-engine --test production_websocket_replays_preconnection_notification_and_receives_live_successor_once --output docs/history/go-to-rust/verification-receipts/websocket-production-http-verified-2026-10-07.json",
+      "evidence_type": "function_exact",
       "source": {
         "file": "internal/api/live/handler_test.go",
         "line": 316,
@@ -10659,24 +10619,23 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/tests/ws_live_compatibility.rs",
-          "test": "ws_live_replays_complete_go_corpus",
+          "file": "crates/jftrade-engine/src/product_ws_http_parity_tests.rs",
+          "test": "production_websocket_replays_preconnection_notification_and_receives_live_successor_once",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/api/live/handler_test.go",
             "goLine": 316,
-            "rustFile": "crates/jftrade-engine/tests/ws_live_compatibility.rs",
-            "rustLine": 19
+            "rustFile": "crates/jftrade-engine/src/product_ws_http_parity_tests.rs",
+            "rustLine": 120
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust corpus asserts notification replay frame id/source and deduplication."
+          "Original preconnection sequence 1 notification is replayed after production handshake heartbeat with source=notification and payload.id=system-notification-1.",
+          "Retained eventId retry does not duplicate replay; live successor arrives once and reconnect replays 1/2 in order."
         ],
-        "uncovered": [
-          "No Rust live connection test exercises sequence 0→1 notification replay; current evidence is corpus-level."
-        ],
+        "uncovered": [],
         "source": "reviewed"
       },
       "verification": {
@@ -10686,38 +10645,40 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-api",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(production_websocket_missing_provider_closes_and_releases_connection) or test(production_websocket_accepts_authenticated_listener_origin_and_rejects_foreign_port) or test(production_websocket_replays_preconnection_notification_and_receives_live_successor_once) or test(production_separate_web_listener_preserves_desktop_fence_and_releases_both_ports) or test(ws_live_depth_subscription_receives_updated_opend_book_payloads) or test(notification_replay_is_bounded_ordered_and_retries_do_not_acknowledge_without_clients) or test(concurrent_notification_publish_and_connect_replay_each_event_once) or test(test_notification_projector_advances_cursors_and_is_idempotent)"
         ],
         "testFilter": [
-          "ws_live_replays_complete_go_corpus"
+          "production_websocket_replays_preconnection_notification_and_receives_live_successor_once"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "bb80a578748fa29ba9e96776accac5a8227f1898",
+        "verifiedAt": "2026-10-07T11:11:34Z",
+        "receiptDigest": "sha256:cec56d13b2c5bc4ea190315c0091a4c177f1e5a227e62b6cefe2164e6e40b791"
       },
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "retain_reviewed_boundary_or_partial_and_reaudit",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "maintain_verified_function_exact",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust corpus asserts notification replay frame id/source and deduplication."
+        "Original preconnection sequence 1 notification is replayed after production handshake heartbeat with source=notification and payload.id=system-notification-1.",
+        "Retained eventId retry does not duplicate replay; live successor arrives once and reconnect replays 1/2 in order."
       ],
-      "uncoveredAssertions": [
-        "No Rust live connection test exercises sequence 0→1 notification replay; current evidence is corpus-level."
-      ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/api/live/handler_test.go:342:TestHandlerConnectionLimitAndCloseLifecycle": {
@@ -10871,11 +10832,11 @@
       "boundaryReason": null
     },
     "internal/api/live/handler_test.go:421:TestHandlerAcceptsSameOriginWebSocket": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_ws_live_tests.rs::ws_live_transport_accepts_trusted_origin_and_streams_heartbeat_first",
-      "conclusion": "partial：Rust 已验证受信 Origin 握手 101 与首个 heartbeat；Go 的同源判定按 Host 相同，Rust 按允许 Origin 列表（Tauri/本机端口），判定 owner 与输入域不同，不能标为 function_exact。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --lib -E 'test(ws_live_transport_accepts_trusted_origin_and_streams_heartbeat_first)' --locked",
-      "evidence_type": "partial",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-engine/src/product_ws_http_parity_tests.rs::production_websocket_accepts_authenticated_listener_origin_and_rejects_foreign_port",
+      "conclusion": "function_exact：真实production独立Web listener先取得现有密码owner的Cookie，以该listener实际http://address作为Origin升级101并读首heartbeat。不同端口403、缺Cookie401保留认证fence。原Go只要求server.URL Origin成功握手读帧，当前动态同源策略实现该断言，纠正旧Tauri-only结论。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-api --package jftrade-engine --test production_websocket_accepts_authenticated_listener_origin_and_rejects_foreign_port --output docs/history/go-to-rust/verification-receipts/websocket-production-http-verified-2026-10-07.json",
+      "evidence_type": "function_exact",
       "source": {
         "file": "internal/api/live/handler_test.go",
         "line": 421,
@@ -10884,24 +10845,22 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_ws_live_tests.rs",
-          "test": "ws_live_transport_accepts_trusted_origin_and_streams_heartbeat_first",
+          "file": "crates/jftrade-engine/src/product_ws_http_parity_tests.rs",
+          "test": "production_websocket_accepts_authenticated_listener_origin_and_rejects_foreign_port",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/api/live/handler_test.go",
             "goLine": 421,
-            "rustFile": "crates/jftrade-engine/src/product_ws_live_tests.rs",
-            "rustLine": 194
+            "rustFile": "crates/jftrade-engine/src/product_ws_http_parity_tests.rs",
+            "rustLine": 90
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust trusted-origin websocket test returns 101 and sends heartbeat first."
+          "Authenticated production Web listener accepts its actual HTTP Origin with 101 and heartbeat; different port is 403 and absent Cookie is 401."
         ],
-        "uncovered": [
-          "Rust origin policy uses an allowlist rather than Go Host-equality same-origin semantics, so the input domain differs and remains partial."
-        ],
+        "uncovered": [],
         "source": "reviewed"
       },
       "verification": {
@@ -10911,36 +10870,39 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-api",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(production_websocket_missing_provider_closes_and_releases_connection) or test(production_websocket_accepts_authenticated_listener_origin_and_rejects_foreign_port) or test(production_websocket_replays_preconnection_notification_and_receives_live_successor_once) or test(production_separate_web_listener_preserves_desktop_fence_and_releases_both_ports) or test(ws_live_depth_subscription_receives_updated_opend_book_payloads) or test(notification_replay_is_bounded_ordered_and_retries_do_not_acknowledge_without_clients) or test(concurrent_notification_publish_and_connect_replay_each_event_once) or test(test_notification_projector_advances_cursors_and_is_idempotent)"
         ],
         "testFilter": [
-          "ws_live_transport_accepts_trusted_origin_and_streams_heartbeat_first"
+          "production_websocket_accepts_authenticated_listener_origin_and_rejects_foreign_port"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "bb80a578748fa29ba9e96776accac5a8227f1898",
+        "verifiedAt": "2026-10-07T11:11:34Z",
+        "receiptDigest": "sha256:cec56d13b2c5bc4ea190315c0091a4c177f1e5a227e62b6cefe2164e6e40b791"
       },
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "preserve_partial_and_reaudit",
+      "nextAction": "maintain_verified_function_exact",
       "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust trusted-origin websocket test returns 101 and sends heartbeat first."
+        "Authenticated production Web listener accepts its actual HTTP Origin with 101 and heartbeat; different port is 403 and absent Cookie is 401."
       ],
-      "uncoveredAssertions": [
-        "Rust origin policy uses an allowlist rather than Go Host-equality same-origin semantics, so the input domain differs and remains partial."
-      ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/api/live/handler_test.go:441:TestDispatcherDeduplicatesTickObservedAt": {
@@ -33809,9 +33771,9 @@
     },
     "internal/app/apiserver/lifecycle/lifecycle_test.go:243:TestSeparateWebListenerStartsAlongsideLoopbackDesktopSidecar": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_server_tests.rs::enabled_web_access_binds_and_shutdown_releases_port",
-      "conclusion": "partial（收回过宽exact）：Go断言StartForRunArgs编排下独立Web listener随API共存启动并回200。Rust仅覆盖独立runtime绑定/服务/关闭；启动编排与API共存无对应断言，故降为partial。回归要求：补编排共存断言后再升级。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'not test(production_helper_sync_cancel_aborts_in_flight_request) and not test(production_helper_sync_rejects_broken_pagination_cursors) and not test(production_helper_sync_forwards_page_query_and_persists_provider_values) and not test(production_helper_sync_retries_transient_page_and_records_retry)'",
+      "rust_entry": "crates/jftrade-engine/src/product_ws_http_parity_tests.rs::production_separate_web_listener_preserves_desktop_fence_and_releases_both_ports",
+      "conclusion": "partial：production desktop和独立Web listener共存，两端分别经Cookie/Origin和desktop capability升级读heartbeat。shutdown关闭两连接1001，两端口拒绝连接且可重绑。原始0.0.0.0:0仍被NonLoopbackBind拒绝，未装embedded assets的fixture Web根404而非Go200；补共存编排证据不消除这些差异。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-api --package jftrade-engine --test production_separate_web_listener_preserves_desktop_fence_and_releases_both_ports --output docs/history/go-to-rust/verification-receipts/websocket-production-http-verified-2026-10-07.json",
       "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/lifecycle/lifecycle_test.go",
@@ -33821,23 +33783,23 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_server_tests.rs",
-          "test": "enabled_web_access_binds_and_shutdown_releases_port",
+          "file": "crates/jftrade-engine/src/product_ws_http_parity_tests.rs",
+          "test": "production_separate_web_listener_preserves_desktop_fence_and_releases_both_ports",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/app/apiserver/lifecycle/lifecycle_test.go",
             "goLine": 243,
-            "rustFile": "crates/jftrade-engine/src/product_server_tests.rs",
-            "rustLine": 72
+            "rustFile": "crates/jftrade-engine/src/product_ws_http_parity_tests.rs",
+            "rustLine": 153
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust tests cover independent web runtime bind/service/shutdown."
+          "Production composition serves authenticated desktop and separate browser WebSockets concurrently; shutdown closes both and releases both ports."
         ],
         "uncovered": [
-          "No startup orchestration test proves web listener and desktop API sidecar coexist and both return 200."
+          "Original 0.0.0.0:0 is rejected by desktop loopback fence; unconfigured Web root is 404 instead of Go stub 200."
         ],
         "source": "reviewed"
       },
@@ -33848,37 +33810,40 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-api",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(production_websocket_missing_provider_closes_and_releases_connection) or test(production_websocket_accepts_authenticated_listener_origin_and_rejects_foreign_port) or test(production_websocket_replays_preconnection_notification_and_receives_live_successor_once) or test(production_separate_web_listener_preserves_desktop_fence_and_releases_both_ports) or test(ws_live_depth_subscription_receives_updated_opend_book_payloads) or test(notification_replay_is_bounded_ordered_and_retries_do_not_acknowledge_without_clients) or test(concurrent_notification_publish_and_connect_replay_each_event_once) or test(test_notification_projector_advances_cursors_and_is_idempotent)"
         ],
         "testFilter": [
-          "enabled_web_access_binds_and_shutdown_releases_port"
+          "production_separate_web_listener_preserves_desktop_fence_and_releases_both_ports"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "bb80a578748fa29ba9e96776accac5a8227f1898",
+        "verifiedAt": "2026-10-07T11:11:34Z",
+        "receiptDigest": "sha256:cec56d13b2c5bc4ea190315c0091a4c177f1e5a227e62b6cefe2164e6e40b791"
       },
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "preserve_partial_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust tests cover independent web runtime bind/service/shutdown."
+        "Production composition serves authenticated desktop and separate browser WebSockets concurrently; shutdown closes both and releases both ports."
       ],
       "uncoveredAssertions": [
-        "No startup orchestration test proves web listener and desktop API sidecar coexist and both return 200."
+        "Original 0.0.0.0:0 is rejected by desktop loopback fence; unconfigured Web root is 404 instead of Go stub 200."
       ],
       "boundaryReason": null
     },
@@ -341978,16 +341943,13 @@
       "reviewStatus": "single"
     },
     "crates/jftrade-engine/tests/ws_live_compatibility.rs::ws_live_replays_complete_go_corpus": {
-      "referenceCount": 20,
+      "referenceCount": 17,
       "referenceKeys": [
         "internal/api/live/dispatcher_boundaries_test.go:20:TestDispatcherInitialAndLiveDataFailures",
         "internal/api/live/dispatcher_boundaries_test.go:59:TestDispatcherAuxiliarySubscriptionBranches",
         "internal/api/live/dispatcher_boundaries_test.go:219:TestBackendReceivesExplicitBrokerSelection",
         "internal/api/live/dispatcher_boundaries_test.go:295:TestDepthUpdateSubscriptionFiltersAndCoalesces",
         "internal/api/live/handler_test.go:113:TestHandlerHeartbeatSubscribeNormalizationAndPayloads",
-        "internal/api/live/handler_test.go:207:TestHandlerRejectsSubscriptionWithoutProvider",
-        "internal/api/live/handler_test.go:244:TestHandlerDepthUpdatePublishesFreshPayload",
-        "internal/api/live/handler_test.go:316:TestHandlerNotificationSequenceZeroReplay",
         "internal/api/live/handler_test.go:441:TestDispatcherDeduplicatesTickObservedAt",
         "internal/api/live/handler_test.go:480:TestDispatcherProviderSwitchTagsAndDoesNotDeduplicateNewProvider",
         "internal/app/apiserver/marketdataapp/heartbeat_test.go:14:TestLiveHeartbeatProjectsSamplesRetriesAndClientState",
@@ -342044,10 +342006,9 @@
       "reviewNote": "2026-10-02 bounded reuse review: compared all 4 referenceKeys against the shared Rust owner (status mix {'[~]': 4}); assertion scopes are not interchangeable, so reuse remains disallowed and no function_exact row is upgraded by this relation."
     },
     "crates/jftrade-engine/src/product_ws_live_tests.rs::ws_live_transport_accepts_trusted_origin_and_streams_heartbeat_first": {
-      "referenceCount": 3,
+      "referenceCount": 2,
       "referenceKeys": [
         "internal/api/live/handler_test.go:113:TestHandlerHeartbeatSubscribeNormalizationAndPayloads",
-        "internal/api/live/handler_test.go:421:TestHandlerAcceptsSameOriginWebSocket",
         "internal/app/apiserver/servercore/ws_events_test.go:45:TestLiveWebSocketSendsSystemNotification"
       ],
       "allowed": true,
@@ -342062,18 +342023,9 @@
       "allowed": true,
       "reviewStatus": "reviewed"
     },
-    "crates/jftrade-api/src/router.rs::subscription_message_matches_go_ignore_update_and_close_rules": {
-      "referenceCount": 1,
-      "referenceKeys": [
-        "internal/api/live/handler_test.go:207:TestHandlerRejectsSubscriptionWithoutProvider"
-      ],
-      "allowed": true,
-      "reviewStatus": "single"
-    },
     "crates/jftrade-engine/src/product_runtime_opend_listener_tests.rs::order_book_pushes_publish_depth_for_the_subscribed_instrument": {
-      "referenceCount": 4,
+      "referenceCount": 3,
       "referenceKeys": [
-        "internal/api/live/handler_test.go:244:TestHandlerDepthUpdatePublishesFreshPayload",
         "internal/app/apiserver/servercore/market_depth_test.go:33:TestMarketDepthWebSocketSendsInitialPayload",
         "pkg/futu/exchange_business_boundary_test.go:277:TestExchangeLocalMarketAndOrderBookHandlerBoundaries",
         "pkg/futu/stream_connection_quote_boundaries_test.go:292:TestOrderBookStreamConnectionBoundaries"
@@ -344915,9 +344867,8 @@
       "reviewNote": "2026-10-02 bounded reuse review: compared all 2 referenceKeys against the shared Rust owner (status mix {'[~]': 2}); assertion scopes are not interchangeable, so reuse remains disallowed and no function_exact row is upgraded by this relation."
     },
     "crates/jftrade-engine/src/product_server_tests.rs::enabled_web_access_binds_and_shutdown_releases_port": {
-      "referenceCount": 3,
+      "referenceCount": 2,
       "referenceKeys": [
-        "internal/app/apiserver/lifecycle/lifecycle_test.go:243:TestSeparateWebListenerStartsAlongsideLoopbackDesktopSidecar",
         "internal/app/apiserver/servercore/desktop_token_test.go:46:TestDesktopSidecarDoesNotDoubleAsBrowserListener",
         "internal/app/apiserver/servercoretest/frontend_test.go:198:TestRunAPIOnlyStopsAfterCallerCancellation"
       ],
@@ -364686,6 +364637,38 @@
       ],
       "allowed": true,
       "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_ws_http_parity_tests.rs::production_websocket_missing_provider_closes_and_releases_connection": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/api/live/handler_test.go:207:TestHandlerRejectsSubscriptionWithoutProvider"
+      ],
+      "reviewStatus": "single",
+      "allowed": true
+    },
+    "crates/jftrade-engine/src/product_ws_http_parity_tests.rs::production_separate_web_listener_preserves_desktop_fence_and_releases_both_ports": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/app/apiserver/lifecycle/lifecycle_test.go:243:TestSeparateWebListenerStartsAlongsideLoopbackDesktopSidecar"
+      ],
+      "reviewStatus": "single",
+      "allowed": true
+    },
+    "crates/jftrade-engine/src/product_ws_http_parity_tests.rs::production_websocket_replays_preconnection_notification_and_receives_live_successor_once": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/api/live/handler_test.go:316:TestHandlerNotificationSequenceZeroReplay"
+      ],
+      "reviewStatus": "single",
+      "allowed": true
+    },
+    "crates/jftrade-engine/src/product_ws_http_parity_tests.rs::production_websocket_accepts_authenticated_listener_origin_and_rejects_foreign_port": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/api/live/handler_test.go:421:TestHandlerAcceptsSameOriginWebSocket"
+      ],
+      "reviewStatus": "single",
+      "allowed": true
     }
   }
 }

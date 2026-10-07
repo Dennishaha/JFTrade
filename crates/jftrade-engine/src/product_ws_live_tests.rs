@@ -6,6 +6,9 @@ use tokio::net::TcpStream;
 
 use super::*;
 
+#[path = "product_ws_http_parity_tests.rs"]
+mod http_parity_tests;
+
 #[derive(Debug)]
 struct EnabledWsLiveSnapshotPort;
 
@@ -547,9 +550,12 @@ async fn ws_live_depth_subscription_receives_updated_opend_book_payloads() {
     };
 
     let directory = tempdir().expect("temporary directory");
-    let config = ProductConfig::test_cutover(
+    let settings_path = directory.path().join("settings.json");
+    product_data_management::initialize_production_databases(&settings_path).expect("databases");
+    let config = ProductConfig::desktop_production(
         "127.0.0.1:0".parse().expect("address"),
-        directory.path().join("settings.json"),
+        settings_path,
+        "a".repeat(32),
     )
     .expect("config")
     .with_ws_live_snapshot_port(Arc::new(EnabledWsLiveSnapshotPort));
@@ -559,14 +565,26 @@ async fn ws_live_depth_subscription_receives_updated_opend_book_payloads() {
         handle.live_hub(),
         Arc::new(tokio::sync::Notify::new()),
     );
-    let mut websocket = websocket_upgrade(address).await;
+    let upgrade = websocket_handshake(
+        address,
+        &[(
+            "Sec-WebSocket-Protocol",
+            "jftrade.desktop.v1, aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        )],
+    )
+    .await;
+    assert_eq!(upgrade.status, 101);
+    let mut websocket = upgrade
+        .upgraded_stream
+        .expect("authenticated production websocket");
     let heartbeat: serde_json::Value =
         serde_json::from_str(&read_server_text_frame(&mut websocket).await).expect("heartbeat");
     assert_eq!(heartbeat["type"], "heartbeat");
     websocket.write_all(&masked_text_frame(
         br#"{"type":"subscribe","subscriptions":{"providerBrokerId":"futu","depth":[{"market":"us","symbol":"tme","instrumentId":"US.TME","num":50}]}}"#,
     )).await.expect("subscribe to depth");
-    wait_for_live_projection(address, 1, &["US.TME"]).await;
+    let auth = &[("Authorization", "Bearer aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")];
+    wait_for_live_projection_with_headers(address, 1, &["US.TME"], auth).await;
 
     for (at, price) in [
         ("2026-06-14T00:00:01Z", 100.0),
@@ -619,7 +637,7 @@ async fn ws_live_depth_subscription_receives_updated_opend_book_payloads() {
         assert_eq!(event["serverTime"], at);
     }
     drop(websocket);
-    wait_for_live_projection(address, 0, &[]).await;
+    wait_for_live_projection_with_headers(address, 0, &[], auth).await;
     handle.shutdown().await.expect("shutdown product");
 }
 

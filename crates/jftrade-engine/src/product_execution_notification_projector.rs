@@ -382,7 +382,6 @@ mod tests {
 
         let notifier = Arc::new(MockNotificationPort::default());
         let live_hub = Arc::new(jftrade_api::LiveHub::new(16));
-        let mut connection = live_hub.connect();
 
         let projector = ExecutionNotificationProjector::new(
             store.clone(),
@@ -390,8 +389,13 @@ mod tests {
             Some(live_hub.clone()),
         );
 
-        let (notified, published) = projector.project_pending().expect("project pending");
+        let (notified, published) = projector.project_pending().expect("no subscribers");
         assert_eq!(notified, 1);
+        assert_eq!(published, 0);
+        assert_eq!(store.get_sequence(CURSOR_LIVEHUB).unwrap(), 0);
+        let mut connection = live_hub.connect();
+        let (notified, published) = projector.project_pending().expect("retained event retry");
+        assert_eq!(notified, 0);
         assert_eq!(published, 1);
 
         assert_eq!(notifier.delivered.lock().unwrap().len(), 1);
@@ -410,6 +414,12 @@ mod tests {
         assert_eq!(live_event["payload"]["source"], "execution-orders");
         assert_eq!(live_event["payload"]["category"], "broker.order.submitted");
         assert_eq!(live_event["payload"]["level"], "info");
+        assert!(
+            tokio::time::timeout(std::time::Duration::from_millis(20), connection.recv())
+                .await
+                .is_err(),
+            "retry duplicated the replayed event"
+        );
 
         // Idempotency check: projecting again processes 0 new events
         let (notified2, published2) = projector.project_pending().expect("second project");

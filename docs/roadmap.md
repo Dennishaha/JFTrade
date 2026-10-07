@@ -48,8 +48,15 @@
 - [x] 通知测试第三次事件system-notification-3、delivered及host入参直接核对；缺host当前503 SYSTEM_NOTIFICATION_UNAVAILABLE与Go500残余明确保留partial。
 - [x] 本批canonical receipt、普通/strict与anchor通过；quick 2206 passed及现场完整Rust 3754 passed/2 skipped明确退出0，首轮target-health失败与清理证据保留，源码指纹与diff已复核，独立提交后继续下一批。
 
-## 质量门禁
+## 后续行为批次：production WebSocket 与通知重放（2026-10-07）
 
+设置批次已提交`bb80a578`。候选五条partial：live `handler_test.go:207/244/316/421`及lifecycle `lifecycle_test.go:243`，冻结Go逐项读取。缺provider原测试只要求连接结束，不要求1006；同源测试只要求server.URL Origin成功握手和读帧。当前生产Web listener动态同源策略须用实际Cookie/Origin验证。
+
+- [x] 五项production transport测试先跑红测4/1；保留depth初始snapshot/num/entityId和原nonloopback bind/Web root差异。缺provider关闭、真实Web listener同源和通知seq1重放三条闭合，净exact +3/partial -3。
+- [x] 沿用现有LiveHub有界保留通知wire帧，连接快照与发送线性化；重试去重保持无订阅者false，具体SQLite projector无client cursor=0/重试推进/只收到一次验证通过。canonical八项测试通过，原失败receipt保留。
+- [x] focused receipt 8/8、逐项mapping、ordinary/strict/anchor通过；quick 2312 passed及现场完整Rust 3760 passed/2 skipped均明确退出0，target-health首次失败及清理证据保留，源码指纹与diff复核后独立提交，继续Pine wire五条候选。
+
+## 质量门禁
 - [ ] 通过普通 PR 验证 affected fail-closed 计划和唯一 required context `Build & Test`。
 - [ ] 合入后由 `main` CI 验证 Policy、Contracts、Rust Static、Rust Tests + Compatibility、Web、Pine、Python 和 Desktop 完整计划。
 - [ ] 收集至少三次可比 CI 墙钟，目标 PR 核心中位数约 20–30 分钟；性能目标不得降低正确性门槛。

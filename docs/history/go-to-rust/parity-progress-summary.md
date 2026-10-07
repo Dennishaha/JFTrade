@@ -1,5 +1,14 @@
 # Go → Rust 对齐成果摘要
 
+## 2026-10-07 production WebSocket 与通知重放
+
+- 五条partial逐项核对冻结Go，缺provider关闭、实际Web listener同源握手、连接前通知重放三条升exact，净 **exact +3 / partial -3 / boundary 0**，当前 **1619 / 2192 / 640**。旧mapping把fixture1006当成Go关闭码断言、把生产动态同源策略当成Tauri-only，两处判断由原Go源码与真实握手纠正。
+- 缺provider的原始US.AAPL订阅在认证production握手及首heartbeat后Close1008，连接与订阅释放并可重连；原Go仅要求ReadMessage错误。Web listener经真实密码owner取得Cookie，Origin为实际listener URL时101并读heartbeat，不同端口403、缺Cookie401，生产认证fence保留。
+- 真实红测 **4 passed / 1 failed** 暴露连接前seq1通知丢失。现有LiveHub按容量有界保留已有通知wire帧，连接快照与publish共用锁；eventId重试去重，无subscriber仍false。真实WebSocket首heartbeat后读完整system.notification、source notification、payload.id system-notification-1，seq1重试后只读seq2一次，重连按序读1/2。容量淘汰、并发连接无重复/遗漏及具体SQLite projector无client cursor=0、重试才推进且不重复投递均通过。
+- depth用例已切到认证production HTTP，原始num50订阅和两次具体OpenD push证明原始resolvedAt更新；仍没有订阅触发初始snapshot，wire request.num=1而非50、entityId缺|50，保持partial。双listener真实共存、shutdown1001及两端口释放/重绑已验证；原0.0.0.0:0被NonLoopbackBind拒绝、无assets fixture Web根404而非Go200，保持partial。
+- canonical `verification-receipts/websocket-production-http-verified-2026-10-07.json`：**8 passed / 0 failed / 0 ignored / 2274 filtered/skipped**，SHA-256 `cec56d13b2c5bc4ea190315c0091a4c177f1e5a227e62b6cefe2164e6e40b791`，无LEAK。原initial失败receipt保留。普通/strict通过；anchor2082 unique/2034 recorded/0 unrecorded/0 stale/48 unknown。mapping主入口只记录该Go测试的直接行为，容量/并发/SQLite cursor回归保留为receipt中的补充证据。
+- quick明确退出0：2312 passed/0 failed/0 skipped，Clippy、七类回放、Pine98及desktop48通过，无LEAK。完整Rust首轮target-health失败保留，确认无构建进程后清理121241 files/32.5GiB；现场重跑明确退出0：3760 passed/0 failed/2 skipped、静态及七类回放通过，无LEAK。两个skipped未计为通过，最终Rust源码与canonical指纹一致，diff review后独立提交，继续Pine wire候选。
+
 ## 2026-10-07 设置失败与 durable 状态
 
 - 五条partial逐项读取冻结Go，新增五项认证production HTTP/file owner测试。managed account路径ID优先和onboarding重置两条闭合，净 **exact +2 / partial -2 / boundary 0**，当前 **1616 / 2195 / 640**。
