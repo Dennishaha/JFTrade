@@ -1,0 +1,72 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(production_http_plugin_whitespace_identifiers_reject_before_file_mutation) or test(production_http_plugin_lifecycle_persists_operations_and_sorted_catalog_after_restart) or test(production_http_plugin_missing_resources_and_unlink_failure_preserve_marker) or test(production_http_plugin_legacy_build_tuple_exposes_native_artifact_boundary) or test(production_http_plugin_malformed_marker_does_not_change_artifact_or_history)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 100,
+  "status": "failed",
+  "verifiedAt": "2026-10-07T08:35:24Z",
+  "sourceState": {
+    "verifiedCommit": "0beb99fb524e30c97183cf78d8fe60b1ce7e7aec",
+    "trackedDiffSha256": "3449aedbb08ddc5b8f5e6895d290003d953572a99bff09817d41b736419e3cbd",
+    "untrackedFiles": [
+      {
+        "path": "crates/jftrade-engine/src/product_plugins_http_parity_tests.rs",
+        "sha256": "0b221bd02e23c3711d09d3a2dd31f7f73a6f7f88223a575fe6c6385bb445947f"
+      }
+    ]
+  },
+  "rawOutputSha256": "5554326aa5a60d46822452db607701f75763ad0f783f2b6e745ddeda7078f93f",
+  "passedTests": [
+    "jftrade-engine::jftrade_engine$product::tests::plugins_http_parity_tests::production_http_plugin_legacy_build_tuple_exposes_native_artifact_boundary",
+    "jftrade-engine::jftrade_engine$product::tests::plugins_http_parity_tests::production_http_plugin_lifecycle_persists_operations_and_sorted_catalog_after_restart",
+    "jftrade-engine::jftrade_engine$product::tests::plugins_http_parity_tests::production_http_plugin_missing_resources_and_unlink_failure_preserve_marker",
+    "jftrade-engine::jftrade_engine$product::tests::plugins_http_parity_tests::production_http_plugin_whitespace_identifiers_reject_before_file_mutation"
+  ],
+  "failedTests": [
+    "jftrade-engine::jftrade_engine$product::tests::plugins_http_parity_tests::production_http_plugin_malformed_marker_does_not_change_artifact_or_history"
+  ],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 5,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "failed",
+      "passed": 4,
+      "failed": 1,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1765,
+      "exec_time": 26.662334125,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    }
+  ]
+}

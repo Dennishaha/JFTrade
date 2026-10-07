@@ -20777,11 +20777,11 @@
       "boundaryReason": null
     },
     "internal/api/strategy/routes_failure_boundaries_test.go:230:TestPluginRoutesRejectWhitespaceIdentifiers": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_tests.rs::plugin_uninstall_guidance_route_fails_closed_when_snapshot_port_is_unavailable",
-      "conclusion": "partial：Go 断言 operations/%20、plugins/%20/install、plugins/%20/uninstall-guidance 三路→400 BAD_REQUEST。Rust 插件指引路由在缺快照端口时 fail-closed（503 PLUGIN_UNINSTALL_GUIDANCE_UNAVAILABLE）；标识符解码后空/空白 → 400 的判定在插件写路由/产品 wire 层，无三条路由级断言（缺口已登记，owner = 插件路由层）。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'not test(production_helper_sync_cancel_aborts_in_flight_request) and not test(production_helper_sync_rejects_broken_pagination_cursors) and not test(production_helper_sync_forwards_page_query_and_persists_provider_values) and not test(production_helper_sync_retries_transient_page_and_records_retry)'",
-      "evidence_type": "partial",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-engine/src/product_plugins_http_parity_tests.rs::production_http_plugin_whitespace_identifiers_reject_before_file_mutation",
+      "conclusion": "function_exact：原始GET operations/%20、POST plugins/%20/install、GET plugins/%20/uninstall-guidance三请求经认证production HTTP均400 BAD_REQUEST；合法plugin-a marker保持原字节且无artifact，具体file owner未被fixture port替换。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-engine --test production_http_plugin_whitespace_identifiers_reject_before_file_mutation --output docs/history/go-to-rust/verification-receipts/plugin-http-file-owner-shape-verified-2026-10-07.json",
+      "evidence_type": "function_exact",
       "source": {
         "file": "internal/api/strategy/routes_failure_boundaries_test.go",
         "line": 230,
@@ -20790,24 +20790,22 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_tests.rs",
-          "test": "plugin_uninstall_guidance_route_fails_closed_when_snapshot_port_is_unavailable",
+          "file": "crates/jftrade-engine/src/product_plugins_http_parity_tests.rs",
+          "test": "production_http_plugin_whitespace_identifiers_reject_before_file_mutation",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/api/strategy/routes_failure_boundaries_test.go",
             "goLine": 230,
-            "rustFile": "crates/jftrade-engine/src/product_tests.rs",
-            "rustLine": 2172
+            "rustFile": "crates/jftrade-engine/src/product_plugins_http_parity_tests.rs",
+            "rustLine": 41
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust plugin guidance route fails closed with 503 when snapshot port is unavailable; plugin layers reject decoded empty identifiers."
+          "原始GET operations/%20、POST plugins/%20/install、GET plugins/%20/uninstall-guidance三请求经认证production HTTP均400 BAD_REQUEST；合法plugin-a marker保持原字节且无artifact，具体file owner未被fixture port替换。"
         ],
-        "uncovered": [
-          "No three-route HTTP matrix proving whitespace identifiers return 400 for operations, install, and uninstall-guidance."
-        ],
+        "uncovered": [],
         "source": "reviewed"
       },
       "verification": {
@@ -20817,38 +20815,37 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(production_http_plugin_whitespace_identifiers_reject_before_file_mutation) or test(production_http_plugin_lifecycle_persists_operations_and_sorted_catalog_after_restart) or test(production_http_plugin_missing_resources_and_unlink_failure_preserve_marker) or test(production_http_plugin_legacy_build_tuple_exposes_native_artifact_boundary) or test(production_http_plugin_malformed_marker_does_not_change_artifact_or_history) or test(native_plugin_missing_install_and_uninstall_return_not_found_without_artifacts)"
         ],
         "testFilter": [
-          "plugin_uninstall_guidance_route_fails_closed_when_snapshot_port_is_unavailable"
+          "production_http_plugin_whitespace_identifiers_reject_before_file_mutation"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "0beb99fb524e30c97183cf78d8fe60b1ce7e7aec",
+        "verifiedAt": "2026-10-07T09:05:58Z",
+        "receiptDigest": "sha256:efbad0612e192d6e9f827b983d8c9657517d6b11240fc9b3ef23e7f830b9e845"
       },
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "retain_reviewed_boundary_or_partial_and_reaudit",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "maintain_verified_function_exact",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust plugin guidance route fails closed with 503 when snapshot port is unavailable; plugin layers reject decoded empty identifiers."
+        "原始GET operations/%20、POST plugins/%20/install、GET plugins/%20/uninstall-guidance三请求经认证production HTTP均400 BAD_REQUEST；合法plugin-a marker保持原字节且无artifact，具体file owner未被fixture port替换。"
       ],
-      "uncoveredAssertions": [
-        "No three-route HTTP matrix proving whitespace identifiers return 400 for operations, install, and uninstall-guidance."
-      ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/api/strategy/routes_failure_boundaries_test.go:252:TestWriteStrategyErrorIgnoresNil": {
@@ -21379,11 +21376,11 @@
       "boundaryReason": null
     },
     "internal/api/strategy/routes_lifecycle_test.go:642:TestPluginRoutesCoverCatalogOperationMutationAndGuidance": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_tests.rs::plugin_uninstall_guidance_route_matches_go_fixture_in_cutover_only",
-      "conclusion": "partial：Go 断言 /plugins 目录 200、operations/op-1 200、install/uninstall 200 且传递 ID、guidance 200。Rust 卸载指引 fixture 用例断言 guidance 路由对齐，插件写路由用例覆盖目录与安装/卸载变更；未合并复刻五条断言（缺口已登记）。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --locked -E 'test(plugin_)'",
-      "evidence_type": "partial",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-engine/src/product_plugins_http_parity_tests.rs::production_http_plugin_lifecycle_persists_operations_and_sorted_catalog_after_restart",
+      "conclusion": "function_exact：原始GET /plugins、GET operations/op-1、POST plugin-a/install和uninstall、GET plugin-a/uninstall-guidance均200；两个mutation operation直接核对pluginId为plugin-a，真实文件复制/删除提供owner参数副作用。 production adapter的operationId/status/phase/progress、静态op-1及动态operation逐字查询，marker序列/lastOperation/INSTALLED→NOT_INSTALLED和重启后两项operation逐字读取是额外真实行为证据。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-engine --test production_http_plugin_lifecycle_persists_operations_and_sorted_catalog_after_restart --output docs/history/go-to-rust/verification-receipts/plugin-http-file-owner-shape-verified-2026-10-07.json",
+      "evidence_type": "function_exact",
       "source": {
         "file": "internal/api/strategy/routes_lifecycle_test.go",
         "line": 642,
@@ -21392,24 +21389,23 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_tests.rs",
-          "test": "plugin_uninstall_guidance_route_matches_go_fixture_in_cutover_only",
+          "file": "crates/jftrade-engine/src/product_plugins_http_parity_tests.rs",
+          "test": "production_http_plugin_lifecycle_persists_operations_and_sorted_catalog_after_restart",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/api/strategy/routes_lifecycle_test.go",
             "goLine": 642,
-            "rustFile": "crates/jftrade-engine/src/product_tests.rs",
-            "rustLine": 2116
+            "rustFile": "crates/jftrade-engine/src/product_plugins_http_parity_tests.rs",
+            "rustLine": 63
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust plugin fixtures cover catalog and install/uninstall mutations; guidance fixture matches the route contract."
+          "原始GET /plugins、GET operations/op-1、POST plugin-a/install和uninstall、GET plugin-a/uninstall-guidance均200；两个mutation operation直接核对pluginId为plugin-a，真实文件复制/删除提供owner参数副作用。",
+          "production adapter的operationId/status/phase/progress、静态op-1及动态operation逐字查询，marker序列/lastOperation/INSTALLED→NOT_INSTALLED和重启后两项operation逐字读取是额外真实行为证据。"
         ],
-        "uncovered": [
-          "No single five-route assertion for catalog, operation, install, uninstall, and guidance IDs/statuses."
-        ],
+        "uncovered": [],
         "source": "reviewed"
       },
       "verification": {
@@ -21419,46 +21415,46 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(production_http_plugin_whitespace_identifiers_reject_before_file_mutation) or test(production_http_plugin_lifecycle_persists_operations_and_sorted_catalog_after_restart) or test(production_http_plugin_missing_resources_and_unlink_failure_preserve_marker) or test(production_http_plugin_legacy_build_tuple_exposes_native_artifact_boundary) or test(production_http_plugin_malformed_marker_does_not_change_artifact_or_history) or test(native_plugin_missing_install_and_uninstall_return_not_found_without_artifacts)"
         ],
         "testFilter": [
-          "plugin_uninstall_guidance_route_matches_go_fixture_in_cutover_only"
+          "production_http_plugin_lifecycle_persists_operations_and_sorted_catalog_after_restart"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "0beb99fb524e30c97183cf78d8fe60b1ce7e7aec",
+        "verifiedAt": "2026-10-07T09:05:58Z",
+        "receiptDigest": "sha256:efbad0612e192d6e9f827b983d8c9657517d6b11240fc9b3ef23e7f830b9e845"
       },
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "retain_reviewed_boundary_or_partial_and_reaudit",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "maintain_verified_function_exact",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust plugin fixtures cover catalog and install/uninstall mutations; guidance fixture matches the route contract."
+        "原始GET /plugins、GET operations/op-1、POST plugin-a/install和uninstall、GET plugin-a/uninstall-guidance均200；两个mutation operation直接核对pluginId为plugin-a，真实文件复制/删除提供owner参数副作用。",
+        "production adapter的operationId/status/phase/progress、静态op-1及动态operation逐字查询，marker序列/lastOperation/INSTALLED→NOT_INSTALLED和重启后两项operation逐字读取是额外真实行为证据。"
       ],
-      "uncoveredAssertions": [
-        "No single five-route assertion for catalog, operation, install, uninstall, and guidance IDs/statuses."
-      ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/api/strategy/routes_lifecycle_test.go:689:TestPluginMutationRoutesMapNotFoundAndInternalFailures": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_tests.rs::plugin_uninstall_guidance_route_fails_closed_when_snapshot_port_is_unavailable",
-      "conclusion": "partial：Go 断言 install 缺失(os.ErrNotExist)→404、uninstall 普通错误→500、operation 缺失→404、guidance 缺失→404。Rust 用例断言 guidance 在缺快照端口时 fail-closed（503）；404/500 逐码断言未复刻（缺口已登记，owner = 插件路由层）。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'not test(production_helper_sync_cancel_aborts_in_flight_request) and not test(production_helper_sync_rejects_broken_pagination_cursors) and not test(production_helper_sync_forwards_page_query_and_persists_provider_values) and not test(production_helper_sync_retries_transient_page_and_records_retry)'",
-      "evidence_type": "partial",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-engine/src/product_plugins_http_parity_tests.rs::production_http_plugin_missing_resources_and_unlink_failure_preserve_marker",
+      "conclusion": "function_exact：原始install missing→404、uninstall plugin-a非普通artifact路径错误→500、operation missing和guidance missing→404全部经真实production HTTP；另补missing uninstall404。404 envelope为NOT_FOUND，失败unlink为INTERNAL_ERROR且marker原字节/目录均保留。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-engine --test production_http_plugin_missing_resources_and_unlink_failure_preserve_marker --output docs/history/go-to-rust/verification-receipts/plugin-http-file-owner-shape-verified-2026-10-07.json",
+      "evidence_type": "function_exact",
       "source": {
         "file": "internal/api/strategy/routes_lifecycle_test.go",
         "line": 689,
@@ -21467,24 +21463,22 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_tests.rs",
-          "test": "plugin_uninstall_guidance_route_fails_closed_when_snapshot_port_is_unavailable",
+          "file": "crates/jftrade-engine/src/product_plugins_http_parity_tests.rs",
+          "test": "production_http_plugin_missing_resources_and_unlink_failure_preserve_marker",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/api/strategy/routes_lifecycle_test.go",
             "goLine": 689,
-            "rustFile": "crates/jftrade-engine/src/product_tests.rs",
-            "rustLine": 2172
+            "rustFile": "crates/jftrade-engine/src/product_plugins_http_parity_tests.rs",
+            "rustLine": 149
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust guidance route fails closed with 503 without snapshot port; plugin route owners expose typed failure paths."
+          "原始install missing→404、uninstall plugin-a非普通artifact路径错误→500、operation missing和guidance missing→404全部经真实production HTTP；另补missing uninstall404。404 envelope为NOT_FOUND，失败unlink为INTERNAL_ERROR且marker原字节/目录均保留。"
         ],
-        "uncovered": [
-          "No independent 404 install/operation/guidance missing matrix or 500 uninstall ordinary-error assertion."
-        ],
+        "uncovered": [],
         "source": "reviewed"
       },
       "verification": {
@@ -21494,38 +21488,37 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(production_http_plugin_whitespace_identifiers_reject_before_file_mutation) or test(production_http_plugin_lifecycle_persists_operations_and_sorted_catalog_after_restart) or test(production_http_plugin_missing_resources_and_unlink_failure_preserve_marker) or test(production_http_plugin_legacy_build_tuple_exposes_native_artifact_boundary) or test(production_http_plugin_malformed_marker_does_not_change_artifact_or_history) or test(native_plugin_missing_install_and_uninstall_return_not_found_without_artifacts)"
         ],
         "testFilter": [
-          "plugin_uninstall_guidance_route_fails_closed_when_snapshot_port_is_unavailable"
+          "production_http_plugin_missing_resources_and_unlink_failure_preserve_marker"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "0beb99fb524e30c97183cf78d8fe60b1ce7e7aec",
+        "verifiedAt": "2026-10-07T09:05:58Z",
+        "receiptDigest": "sha256:efbad0612e192d6e9f827b983d8c9657517d6b11240fc9b3ef23e7f830b9e845"
       },
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "retain_reviewed_boundary_or_partial_and_reaudit",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "maintain_verified_function_exact",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust guidance route fails closed with 503 without snapshot port; plugin route owners expose typed failure paths."
+        "原始install missing→404、uninstall plugin-a非普通artifact路径错误→500、operation missing和guidance missing→404全部经真实production HTTP；另补missing uninstall404。404 envelope为NOT_FOUND，失败unlink为INTERNAL_ERROR且marker原字节/目录均保留。"
       ],
-      "uncoveredAssertions": [
-        "No independent 404 install/operation/guidance missing matrix or 500 uninstall ordinary-error assertion."
-      ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/api/strategy/routes_test.go:41:TestWriteStrategyErrorMapsBusinessErrors": {
@@ -65305,9 +65298,9 @@
     },
     "internal/app/apiserver/servercoretest/plugin_lifecycle_test.go:16:TestPluginCatalogLifecycleEndpoints": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_plugins_tests.rs::plugins_read_routes_fail_closed_when_snapshot_port_is_unavailable; crates/jftrade-engine/src/product_production_assembly_tests.rs::production_plugin_artifact_operations_are_atomic_and_restart_safe; crates/jftrade-engine/src/product_tests.rs::plugin_uninstall_guidance_route_matches_go_fixture_in_cutover_only",
-      "conclusion": "partial：Go 断言插件目录（1 条、requiresRebuild=true）→install→operations→uninstall-guidance→uninstall 的整链。Rust 以冻结语料回放插件写路由（install/uninstall/操作查询的错误码与路径隔离）、读侧 guidance 有 fixture 回放（引用测试）。缺口一：生产投影的 compatibility 固定 requiresRebuild=false（product_production_ports_plugins.rs compatibility 行），而 Go 用例断言 true；缺口二：缺少单条按 Go 顺序串联五步请求的用例。owner：crates/jftrade-engine 插件投影/路由。回归要求：requiresRebuild 由旧构建元组推导后补断言，并串联五步生命周期用例。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(production_plugin_artifact_operations_are_atomic_and_restart_safe) | test(plugins_read_routes_fail_closed_when_snapshot_port_is_unavailable)'",
+      "rust_entry": "crates/jftrade-engine/src/product_plugins_http_parity_tests.rs::production_http_plugin_legacy_build_tuple_exposes_native_artifact_boundary",
+      "conclusion": "partial：原始demo-plugin descriptor和legacy-version build tuple的native marker经production catalog200，一条descriptor完整保留；直接断言native requiresRebuildfalse、无artifact source安装503 PLUGINS_UNAVAILABLE且marker/安装路径不变，提供真实差异证据。 Go requiresRebuildtrue及metadata-only install200与Rust native concrete artifact admission不同；本批合法source的其它生命周期链不证明原始demo-plugin输入的同等行为。没有引入Go/Wails运行时或改schema，保留partial。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-engine --test production_http_plugin_legacy_build_tuple_exposes_native_artifact_boundary --output docs/history/go-to-rust/verification-receipts/plugin-http-file-owner-shape-verified-2026-10-07.json",
       "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/servercoretest/plugin_lifecycle_test.go",
@@ -65317,49 +65310,23 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_plugins_tests.rs",
-          "test": "plugins_read_routes_fail_closed_when_snapshot_port_is_unavailable",
+          "file": "crates/jftrade-engine/src/product_plugins_http_parity_tests.rs",
+          "test": "production_http_plugin_legacy_build_tuple_exposes_native_artifact_boundary",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/app/apiserver/servercoretest/plugin_lifecycle_test.go",
             "goLine": 16,
-            "rustFile": "crates/jftrade-engine/src/product_plugins_tests.rs",
-            "rustLine": 158
-          }
-        },
-        {
-          "file": "crates/jftrade-engine/src/product_production_assembly_tests.rs",
-          "test": "production_plugin_artifact_operations_are_atomic_and_restart_safe",
-          "crate": "jftrade-engine",
-          "anchor": {
-            "goFile": "internal/app/apiserver/servercoretest/plugin_lifecycle_test.go",
-            "goLine": 16,
-            "rustFile": "crates/jftrade-engine/src/product_production_assembly_tests.rs",
-            "rustLine": 1687
-          }
-        },
-        {
-          "file": "crates/jftrade-engine/src/product_tests.rs",
-          "test": "plugin_uninstall_guidance_route_matches_go_fixture_in_cutover_only",
-          "crate": "jftrade-engine",
-          "anchor": {
-            "goFile": "internal/app/apiserver/servercoretest/plugin_lifecycle_test.go",
-            "goLine": 16,
-            "rustFile": "crates/jftrade-engine/src/product_tests.rs",
-            "rustLine": 2116
+            "rustFile": "crates/jftrade-engine/src/product_plugins_http_parity_tests.rs",
+            "rustLine": 177
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Go 断言插件目录（1 条、requiresRebuild=true）→install→operations→uninstall-guidance→uninstall 的整链。",
-          "Rust 以冻结语料回放插件写路由（install/uninstall/操作查询的错误码与路径隔离）、读侧 guidance 有 fixture 回放（引用测试）。",
-          "owner：crates/jftrade-engine 插件投影/路由。"
+          "原始demo-plugin descriptor和legacy-version build tuple的native marker经production catalog200，一条descriptor完整保留；直接断言native requiresRebuildfalse、无artifact source安装503 PLUGINS_UNAVAILABLE且marker/安装路径不变，提供真实差异证据。"
         ],
         "uncovered": [
-          "缺口一：生产投影的 compatibility 固定 requiresRebuild=false（product_production_ports_plugins.rs compatibility 行），而 Go 用例断言 true；",
-          "缺口二：缺少单条按 Go 顺序串联五步请求的用例。",
-          "回归要求：requiresRebuild 由旧构建元组推导后补断言，并串联五步生命周期用例。"
+          "Go requiresRebuildtrue及metadata-only install200与Rust native concrete artifact admission不同；本批合法source的其它生命周期链不证明原始demo-plugin输入的同等行为。没有引入Go/Wails运行时或改schema，保留partial。"
         ],
         "source": "reviewed"
       },
@@ -65370,42 +65337,38 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(production_http_plugin_whitespace_identifiers_reject_before_file_mutation) or test(production_http_plugin_lifecycle_persists_operations_and_sorted_catalog_after_restart) or test(production_http_plugin_missing_resources_and_unlink_failure_preserve_marker) or test(production_http_plugin_legacy_build_tuple_exposes_native_artifact_boundary) or test(production_http_plugin_malformed_marker_does_not_change_artifact_or_history) or test(native_plugin_missing_install_and_uninstall_return_not_found_without_artifacts)"
         ],
         "testFilter": [
-          "production_plugin_artifact_operations_are_atomic_and_restart_safe",
-          "plugin_uninstall_guidance_route_matches_go_fixture_in_cutover_only"
+          "production_http_plugin_legacy_build_tuple_exposes_native_artifact_boundary"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "0beb99fb524e30c97183cf78d8fe60b1ce7e7aec",
+        "verifiedAt": "2026-10-07T09:05:58Z",
+        "receiptDigest": "sha256:efbad0612e192d6e9f827b983d8c9657517d6b11240fc9b3ef23e7f830b9e845"
       },
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "preserve_partial_and_track_residual",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Go 断言插件目录（1 条、requiresRebuild=true）→install→operations→uninstall-guidance→uninstall 的整链。",
-        "Rust 以冻结语料回放插件写路由（install/uninstall/操作查询的错误码与路径隔离）、读侧 guidance 有 fixture 回放（引用测试）。",
-        "owner：crates/jftrade-engine 插件投影/路由。"
+        "原始demo-plugin descriptor和legacy-version build tuple的native marker经production catalog200，一条descriptor完整保留；直接断言native requiresRebuildfalse、无artifact source安装503 PLUGINS_UNAVAILABLE且marker/安装路径不变，提供真实差异证据。"
       ],
       "uncoveredAssertions": [
-        "缺口一：生产投影的 compatibility 固定 requiresRebuild=false（product_production_ports_plugins.rs compatibility 行），而 Go 用例断言 true；",
-        "缺口二：缺少单条按 Go 顺序串联五步请求的用例。",
-        "回归要求：requiresRebuild 由旧构建元组推导后补断言，并串联五步生命周期用例。"
+        "Go requiresRebuildtrue及metadata-only install200与Rust native concrete artifact admission不同；本批合法source的其它生命周期链不证明原始demo-plugin输入的同等行为。没有引入Go/Wails运行时或改schema，保留partial。"
       ],
       "boundaryReason": null
     },
@@ -289018,9 +288981,9 @@
     },
     "internal/strategy/catalog/plugin_normalization_business_test.go:13:TestCatalogPluginLifecyclePersistsSortedMetadataAndOperations": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_production_assembly_tests.rs::production_plugin_artifact_operations_are_atomic_and_restart_safe",
-      "conclusion": "partial：参考实现断言插件生命周期的元数据排序与操作持久化（安装/卸载记录按序保存、重启后可恢复）。Rust 的插件工件操作具备原子性与重启安全（引用用例），排序与操作序列的持久化形状没有同形断言。缺口（P2）。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+      "rust_entry": "crates/jftrade-engine/src/product_plugins_http_parity_tests.rs::production_http_plugin_lifecycle_persists_operations_and_sorted_catalog_after_restart",
+      "conclusion": "partial：真实file owner的catalog按plugin-a/plugin-z排序；install SUCCEEDED/installed/100、operation逐字读取、installation metadata更新，uninstall SUCCEEDED/uninstalled/NOT_INSTALLED；持久化operations数组与lastOperation逐字对照，重启后两operation保持。 真实红测确认installation非object时500却留下已复制artifact，marker根null时500却删除既有artifact；根object及installation/operations形状校验均移到文件变更前。四组字段install/uninstall与四种根值uninstall共八场景失败500后marker原字节、artifact存在性和内容不变。 Go RegisterPlugin的原始plugin.alpha/plugin.zeta、空字段默认type/displayName/version、重复注册覆盖与repository.saveCount=5未由Rust同形注册API重放；文件mutation/reopen不能证明这些注册语义，保留partial。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-engine --test production_http_plugin_lifecycle_persists_operations_and_sorted_catalog_after_restart --test production_http_plugin_malformed_marker_does_not_change_artifact_or_history --output docs/history/go-to-rust/verification-receipts/plugin-http-file-owner-shape-verified-2026-10-07.json",
       "evidence_type": "partial",
       "source": {
         "file": "internal/strategy/catalog/plugin_normalization_business_test.go",
@@ -289030,24 +288993,35 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_production_assembly_tests.rs",
-          "test": "production_plugin_artifact_operations_are_atomic_and_restart_safe",
+          "file": "crates/jftrade-engine/src/product_plugins_http_parity_tests.rs",
+          "test": "production_http_plugin_lifecycle_persists_operations_and_sorted_catalog_after_restart",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/strategy/catalog/plugin_normalization_business_test.go",
             "goLine": 13,
-            "rustFile": "crates/jftrade-engine/src/product_production_assembly_tests.rs",
-            "rustLine": 1687
+            "rustFile": "crates/jftrade-engine/src/product_plugins_http_parity_tests.rs",
+            "rustLine": 64
+          }
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_plugins_http_parity_tests.rs",
+          "test": "production_http_plugin_malformed_marker_does_not_change_artifact_or_history",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/strategy/catalog/plugin_normalization_business_test.go",
+            "goLine": 13,
+            "rustFile": "crates/jftrade-engine/src/product_plugins_http_parity_tests.rs",
+            "rustLine": 204
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "参考实现断言插件生命周期的元数据排序与操作持久化（安装/卸载记录按序保存、重启后可恢复）。"
+          "真实file owner的catalog按plugin-a/plugin-z排序；install SUCCEEDED/installed/100、operation逐字读取、installation metadata更新，uninstall SUCCEEDED/uninstalled/NOT_INSTALLED；持久化operations数组与lastOperation逐字对照，重启后两operation保持。",
+          "真实红测确认installation非object时500却留下已复制artifact，marker根null时500却删除既有artifact；根object及installation/operations形状校验均移到文件变更前。四组字段install/uninstall与四种根值uninstall共八场景失败500后marker原字节、artifact存在性和内容不变。"
         ],
         "uncovered": [
-          "Rust 的插件工件操作具备原子性与重启安全（引用用例），排序与操作序列的持久化形状没有同形断言。",
-          "缺口（P2）。"
+          "Go RegisterPlugin的原始plugin.alpha/plugin.zeta、空字段默认type/displayName/version、重复注册覆盖与repository.saveCount=5未由Rust同形注册API重放；文件mutation/reopen不能证明这些注册语义，保留partial。"
         ],
         "source": "reviewed"
       },
@@ -289058,47 +289032,49 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(production_http_plugin_whitespace_identifiers_reject_before_file_mutation) or test(production_http_plugin_lifecycle_persists_operations_and_sorted_catalog_after_restart) or test(production_http_plugin_missing_resources_and_unlink_failure_preserve_marker) or test(production_http_plugin_legacy_build_tuple_exposes_native_artifact_boundary) or test(production_http_plugin_malformed_marker_does_not_change_artifact_or_history) or test(native_plugin_missing_install_and_uninstall_return_not_found_without_artifacts)"
         ],
         "testFilter": [
-          "production_plugin_artifact_operations_are_atomic_and_restart_safe"
+          "production_http_plugin_lifecycle_persists_operations_and_sorted_catalog_after_restart",
+          "production_http_plugin_malformed_marker_does_not_change_artifact_or_history"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "0beb99fb524e30c97183cf78d8fe60b1ce7e7aec",
+        "verifiedAt": "2026-10-07T09:05:58Z",
+        "receiptDigest": "sha256:efbad0612e192d6e9f827b983d8c9657517d6b11240fc9b3ef23e7f830b9e845"
       },
       "risk": "normal",
       "owner": "strategy_pine",
       "priority": "P2",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "preserve_partial_and_track_residual",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "参考实现断言插件生命周期的元数据排序与操作持久化（安装/卸载记录按序保存、重启后可恢复）。"
+        "真实file owner的catalog按plugin-a/plugin-z排序；install SUCCEEDED/installed/100、operation逐字读取、installation metadata更新，uninstall SUCCEEDED/uninstalled/NOT_INSTALLED；持久化operations数组与lastOperation逐字对照，重启后两operation保持。",
+        "真实红测确认installation非object时500却留下已复制artifact，marker根null时500却删除既有artifact；根object及installation/operations形状校验均移到文件变更前。四组字段install/uninstall与四种根值uninstall共八场景失败500后marker原字节、artifact存在性和内容不变。"
       ],
       "uncoveredAssertions": [
-        "Rust 的插件工件操作具备原子性与重启安全（引用用例），排序与操作序列的持久化形状没有同形断言。",
-        "缺口（P2）。"
+        "Go RegisterPlugin的原始plugin.alpha/plugin.zeta、空字段默认type/displayName/version、重复注册覆盖与repository.saveCount=5未由Rust同形注册API重放；文件mutation/reopen不能证明这些注册语义，保留partial。"
       ],
       "boundaryReason": null
     },
     "internal/strategy/catalog/plugin_normalization_business_test.go:89:TestCatalogPluginLifecycleClassifiesMissingResource": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_plugins_write_product_tests.rs::plugins_write_routes_preserve_go_error_and_default_route_isolation",
-      "conclusion": "partial：参考实现断言插件生命周期操作对缺失资源给出确定错误分类（未找到）。Rust 的插件写路由保留参考实现的错误形状与默认路由隔离（引用用例）；缺逐操作（安装/卸载/查询）的未找到分类断言。缺口（P2）。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-      "evidence_type": "partial",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-engine/src/product_production_ports_plugins.rs::native_plugin_missing_install_and_uninstall_return_not_found_without_artifacts",
+      "conclusion": "function_exact：冻结Go原始测试只断言InstallPlugin和UninstallPlugin missing两项err非nil；直接native file owner分别返回PluginWritePortError::NotFound，catalog仍为空、missing marker/artifact未生成；另有真实HTTP404对应证据。未把旧映射额外query分支冒充原Go要求。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-engine --test native_plugin_missing_install_and_uninstall_return_not_found_without_artifacts --output docs/history/go-to-rust/verification-receipts/plugin-http-file-owner-shape-verified-2026-10-07.json",
+      "evidence_type": "function_exact",
       "source": {
         "file": "internal/strategy/catalog/plugin_normalization_business_test.go",
         "line": 89,
@@ -289107,26 +289083,22 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_plugins_write_product_tests.rs",
-          "test": "plugins_write_routes_preserve_go_error_and_default_route_isolation",
+          "file": "crates/jftrade-engine/src/product_production_ports_plugins.rs",
+          "test": "native_plugin_missing_install_and_uninstall_return_not_found_without_artifacts",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/strategy/catalog/plugin_normalization_business_test.go",
             "goLine": 89,
-            "rustFile": "crates/jftrade-engine/src/product_plugins_write_product_tests.rs",
-            "rustLine": 100
+            "rustFile": "crates/jftrade-engine/src/product_production_ports_plugins.rs",
+            "rustLine": 692
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "参考实现断言插件生命周期操作对缺失资源给出确定错误分类（未找到）。",
-          "Rust 的插件写路由保留参考实现的错误形状与默认路由隔离（引用用例）；",
-          "缺逐操作（安装/卸载/查询）的未找到分类断言。"
+          "冻结Go原始测试只断言InstallPlugin和UninstallPlugin missing两项err非nil；直接native file owner分别返回PluginWritePortError::NotFound，catalog仍为空、missing marker/artifact未生成；另有真实HTTP404对应证据。未把旧映射额外query分支冒充原Go要求。"
         ],
-        "uncovered": [
-          "缺口（P2）。"
-        ],
+        "uncovered": [],
         "source": "reviewed"
       },
       "verification": {
@@ -289136,40 +289108,37 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(production_http_plugin_whitespace_identifiers_reject_before_file_mutation) or test(production_http_plugin_lifecycle_persists_operations_and_sorted_catalog_after_restart) or test(production_http_plugin_missing_resources_and_unlink_failure_preserve_marker) or test(production_http_plugin_legacy_build_tuple_exposes_native_artifact_boundary) or test(production_http_plugin_malformed_marker_does_not_change_artifact_or_history) or test(native_plugin_missing_install_and_uninstall_return_not_found_without_artifacts)"
         ],
         "testFilter": [
-          "plugins_write_routes_preserve_go_error_and_default_route_isolation"
+          "native_plugin_missing_install_and_uninstall_return_not_found_without_artifacts"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "0beb99fb524e30c97183cf78d8fe60b1ce7e7aec",
+        "verifiedAt": "2026-10-07T09:05:58Z",
+        "receiptDigest": "sha256:efbad0612e192d6e9f827b983d8c9657517d6b11240fc9b3ef23e7f830b9e845"
       },
       "risk": "normal",
       "owner": "strategy_pine",
       "priority": "P2",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "maintain_verified_function_exact",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "参考实现断言插件生命周期操作对缺失资源给出确定错误分类（未找到）。",
-        "Rust 的插件写路由保留参考实现的错误形状与默认路由隔离（引用用例）；",
-        "缺逐操作（安装/卸载/查询）的未找到分类断言。"
+        "冻结Go原始测试只断言InstallPlugin和UninstallPlugin missing两项err非nil；直接native file owner分别返回PluginWritePortError::NotFound，catalog仍为空、missing marker/artifact未生成；另有真实HTTP404对应证据。未把旧映射额外query分支冒充原Go要求。"
       ],
-      "uncoveredAssertions": [
-        "缺口（P2）。"
-      ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/strategy/catalog/plugin_normalization_business_test.go:99:TestCatalogNormalizesLegacySnapshotAndDropsRuntimeOnlyFields": {
@@ -343276,16 +343245,6 @@
       "reviewStatus": "reviewed",
       "reviewNote": "2026-10-02 bounded reuse review: compared all 6 referenceKeys against the shared Rust owner (status mix {'[~]': 6}); assertion scopes are not interchangeable, so reuse remains disallowed and no function_exact row is upgraded by this relation."
     },
-    "crates/jftrade-engine/src/product_tests.rs::plugin_uninstall_guidance_route_fails_closed_when_snapshot_port_is_unavailable": {
-      "referenceCount": 2,
-      "referenceKeys": [
-        "internal/api/strategy/routes_failure_boundaries_test.go:230:TestPluginRoutesRejectWhitespaceIdentifiers",
-        "internal/api/strategy/routes_lifecycle_test.go:689:TestPluginMutationRoutesMapNotFoundAndInternalFailures"
-      ],
-      "allowed": true,
-      "reviewStatus": "reviewed",
-      "reviewNote": "2026-09-29 API batch: all referenced assertions were reviewed together; partial/boundary conclusions remain unchanged."
-    },
     "crates/jftrade-engine/tests/strategy_definitions_write_compatibility.rs::sqlite_test_cutover_preserves_versions_rollback_linked_delete_and_restart": {
       "referenceCount": 5,
       "referenceKeys": [
@@ -343323,15 +343282,12 @@
       "reviewNote": "2026-10-02 bounded reuse review: compared all 4 referenceKeys against the shared Rust owner (status mix {'[~]': 4}); assertion scopes are not interchangeable, so reuse remains disallowed and no function_exact row is upgraded by this relation."
     },
     "crates/jftrade-engine/src/product_tests.rs::plugin_uninstall_guidance_route_matches_go_fixture_in_cutover_only": {
-      "referenceCount": 3,
+      "referenceCount": 1,
       "referenceKeys": [
-        "internal/api/strategy/routes_lifecycle_test.go:642:TestPluginRoutesCoverCatalogOperationMutationAndGuidance",
-        "internal/app/apiserver/servercoretest/plugin_lifecycle_test.go:16:TestPluginCatalogLifecycleEndpoints",
         "internal/strategy/catalog/plugin_normalization_business_test.go:186:TestCatalogPluginCompatibilityAndUninstallCommandsDescribeHostBoundary"
       ],
       "allowed": false,
-      "reviewStatus": "reviewed",
-      "reviewNote": "2026-10-02 bounded reuse review: compared all 3 referenceKeys against the shared Rust owner (status mix {'[~]': 3}); assertion scopes are not interchangeable, so reuse remains disallowed and no function_exact row is upgraded by this relation."
+      "reviewStatus": "single"
     },
     "crates/jftrade-engine/src/product_production_ports_strategy_tests.rs::strategy_definition_preview_derives_warmup_bars_and_overrides_preview_parameters": {
       "referenceCount": 3,
@@ -347640,24 +347596,6 @@
       ],
       "allowed": true,
       "reviewStatus": "single"
-    },
-    "crates/jftrade-engine/src/product_plugins_tests.rs::plugins_read_routes_fail_closed_when_snapshot_port_is_unavailable": {
-      "referenceCount": 1,
-      "referenceKeys": [
-        "internal/app/apiserver/servercoretest/plugin_lifecycle_test.go:16:TestPluginCatalogLifecycleEndpoints"
-      ],
-      "allowed": true,
-      "reviewStatus": "single"
-    },
-    "crates/jftrade-engine/src/product_production_assembly_tests.rs::production_plugin_artifact_operations_are_atomic_and_restart_safe": {
-      "referenceCount": 2,
-      "referenceKeys": [
-        "internal/app/apiserver/servercoretest/plugin_lifecycle_test.go:16:TestPluginCatalogLifecycleEndpoints",
-        "internal/strategy/catalog/plugin_normalization_business_test.go:13:TestCatalogPluginLifecyclePersistsSortedMetadataAndOperations"
-      ],
-      "allowed": false,
-      "reviewStatus": "reviewed",
-      "reviewNote": "2026-10-02 bounded reuse review: compared all 2 referenceKeys against the shared Rust owner (status mix {'[~]': 2}); assertion scopes are not interchangeable, so reuse remains disallowed and no function_exact row is upgraded by this relation."
     },
     "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::portfolio_cash_balances_fall_back_to_summary_currency_when_breakdown_is_empty": {
       "referenceCount": 1,
@@ -361650,14 +361588,6 @@
       "allowed": true,
       "reviewStatus": "single"
     },
-    "crates/jftrade-engine/src/product_plugins_write_product_tests.rs::plugins_write_routes_preserve_go_error_and_default_route_isolation": {
-      "referenceCount": 1,
-      "referenceKeys": [
-        "internal/strategy/catalog/plugin_normalization_business_test.go:89:TestCatalogPluginLifecycleClassifiesMissingResource"
-      ],
-      "allowed": true,
-      "reviewStatus": "single"
-    },
     "crates/jftrade-engine/src/strategy_runtime_mutation.rs::test_stopped_strategy_update_succeeds_with_normalization": {
       "referenceCount": 1,
       "referenceKeys": [
@@ -364574,6 +364504,56 @@
       "referenceCount": 1,
       "referenceKeys": [
         "internal/api/strategy/pine_routes_contracts_test.go:182:TestAnalyzeStrategyPineRouteRejectsUnsupportedSourceFormat"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_plugins_http_parity_tests.rs::production_http_plugin_legacy_build_tuple_exposes_native_artifact_boundary": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/app/apiserver/servercoretest/plugin_lifecycle_test.go:16:TestPluginCatalogLifecycleEndpoints"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_plugins_http_parity_tests.rs::production_http_plugin_lifecycle_persists_operations_and_sorted_catalog_after_restart": {
+      "referenceCount": 2,
+      "referenceKeys": [
+        "internal/api/strategy/routes_lifecycle_test.go:642:TestPluginRoutesCoverCatalogOperationMutationAndGuidance",
+        "internal/strategy/catalog/plugin_normalization_business_test.go:13:TestCatalogPluginLifecyclePersistsSortedMetadataAndOperations"
+      ],
+      "allowed": true,
+      "reviewStatus": "reviewed",
+      "reviewNote": "2026-10-07：插件六条逐项审核。lifecycle证明API642完整请求和catalog13的窄持久化子集；missing证明API689错误matrix和catalog89两mutation失败，原Go89无query要求。catalog13仍partial。旧reuse仅移除本批引用，保留此前allowed。"
+    },
+    "crates/jftrade-engine/src/product_plugins_http_parity_tests.rs::production_http_plugin_malformed_marker_does_not_change_artifact_or_history": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/strategy/catalog/plugin_normalization_business_test.go:13:TestCatalogPluginLifecyclePersistsSortedMetadataAndOperations"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_plugins_http_parity_tests.rs::production_http_plugin_missing_resources_and_unlink_failure_preserve_marker": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/api/strategy/routes_lifecycle_test.go:689:TestPluginMutationRoutesMapNotFoundAndInternalFailures"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_plugins_http_parity_tests.rs::production_http_plugin_whitespace_identifiers_reject_before_file_mutation": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/api/strategy/routes_failure_boundaries_test.go:230:TestPluginRoutesRejectWhitespaceIdentifiers"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_production_ports_plugins.rs::native_plugin_missing_install_and_uninstall_return_not_found_without_artifacts": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/strategy/catalog/plugin_normalization_business_test.go:89:TestCatalogPluginLifecycleClassifiesMissingResource"
       ],
       "allowed": true,
       "reviewStatus": "single"

@@ -1,5 +1,21 @@
 # Go → Rust 证据积压清单
 
+## 2026-10-07 插件 HTTP / concrete file owner
+
+- 六条映射净 **+4 exact / -4 partial / boundary 0**，当前 **1611 / 2200 / 640**。仅改本批六条及必要reuse，旧allowed权限保留。HTTP lifecycle复用于API642完整五路与catalog13持久化窄子集，后者仍partial；catalog89使用直接owner独立主入口。
+
+  | 文件（均位于 verification-receipts） | 实际结果 | 后续关系 |
+  | --- | --- | --- |
+  | `plugin-http-file-owner-red-2026-10-07.json` | failed，4 passed/1 failed，2154 filtered/skipped；installation错误500却生成artifact | verified修复文件变更前类型校验；原字节保留 |
+  | `plugin-http-file-owner-verified-2026-10-07.json` | passed，5/5，2154 filtered/skipped，无LEAK | reviewed增加catalog missing的直接owner断言；之前两个exact主入口重复被审计拒绝 |
+  | `plugin-http-file-owner-reviewed-2026-10-07.json` | passed，6/6，2154 filtered/skipped，无LEAK；尚未补marker根值 | shape-verified替代 |
+  | `plugin-http-root-shape-red-2026-10-07.json` | failed，0 passed/1 failed，2159 filtered/skipped；null marker卸载500却已删除工件 | 根object校验移到文件变更前；原字节保留 |
+  | `plugin-http-file-owner-shape-verified-2026-10-07.json` | passed，6/6，2154 filtered/skipped，无LEAK；八种畸形marker场景 | 当前canonical |
+
+- shape-verified SHA-256 `efbad0612e192d6e9f827b983d8c9657517d6b11240fc9b3ef23e7f830b9e845`；tracked diff/untracked指纹已核对并备份，Rust源码保持。普通/strict与anchor通过，未削弱unique exact主入口规则。初始普通/strict失败日志为`/tmp/jftrade-plugin-audit.log`、`/tmp/jftrade-plugin-strict.log`，复跑为reviewed/shape后缀。五项HTTP版quick明确退出0；六项quick首轮target-health退出1，确认无构建进程后指定clean（121662文件/32.3 GiB），重跑明确退出0（2190 Rust passed、Pine98、desktop48、Clippy/回放通过、无LEAK），日志见成果摘要。
+- 根形状复查前完整Rust `/tmp/jftrade-plugin-rust.log` 在1667/3738通过时主动中断（退出1），不能算完整通过。shape-verified源码下最终quick `/tmp/jftrade-plugin-quick-shape.log` 明确退出0（2190 Rust passed、Pine98、desktop48、Clippy/回放通过、无LEAK）；完整Rust `/tmp/jftrade-plugin-rust-shape.log` 明确退出0（3738 passed、0 failed、2 skipped，静态/七类replay通过、无LEAK）。focused digest不代表全量门禁，最终源码指纹、AI context与diff review已核对。
+- residual：catalog13缺原始RegisterPlugin默认descriptor、重复注册覆盖、saveCount5；servercore16原始legacy build tuple实测requiresRebuildfalse/安装503，与Go true/200不同。合法source生命周期不替代原始demo-plugin差异。
+
 ## 2026-10-07 Strategy/Pine durable HTTP 的红绿关系
 
 - 本批五条映射净 **+2 exact / -2 partial / boundary 0**，当前 **1607 / 2204 / 640**。只改五条 mapping 与必要 reuse，保留此前共享审核权限。missing-start 测试复用于 Go75 的missing分支和 Go319 的instantiate/list窄子集，两条仍partial，不宣称其它生命周期等价。

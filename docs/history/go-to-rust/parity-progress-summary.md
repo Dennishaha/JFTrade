@@ -1,5 +1,16 @@
 # Go → Rust 对齐成果摘要
 
+## 2026-10-07 插件 production HTTP 与文件变更前校验
+
+- 六条 partial 逐项核对冻结 Go。三条 API（空白ID、生命周期五路、缺失/内部失败）及 catalog missing两mutation升exact，净 **exact +4 / partial -4 / boundary 0**，当前 **1611 / 2200 / 640**。catalog注册归一/saveCount与legacy build tuple两条保留具体partial。
+- 五项production HTTP测试使用临时marker和未执行工件，经过认证listener及concrete file owner；原始三条%20均400/BAD_REQUEST，op-1和plugin-a安装/卸载/指引全部200，missing四路404，unlink非普通文件500且marker/目录不变。operations数组/lastOperation/installed/status直接对照，重启后两个generated operation逐字保持。新增直接native owner测试断言missing install/uninstall均NotFound且无工件。
+- 首轮 **4 passed / 1 failed / 2154 filtered/skipped** 暴露真实差异：installation非object时返回500却已生成artifact。最终复查补根形状后红测 **0 passed / 1 failed / 2159 filtered/skipped**，确认null marker卸载500却删除既有artifact。production owner在复制/删除前校验根object与installation/operations类型；四组字段install/uninstall和null/array/number/string四种根值uninstall，共八场景失败500后marker原字节、artifact存在性及内容保持。未修改fixture、公开schema或production fence。
+- canonical `verification-receipts/plugin-http-file-owner-shape-verified-2026-10-07.json`：**6 passed / 0 failed / 0 ignored / 2154 filtered/skipped**，无LEAK，SHA-256 `efbad0612e192d6e9f827b983d8c9657517d6b11240fc9b3ef23e7f830b9e845`。tracked diff/untracked指纹已核对；普通/strict通过，anchor **2068 unique / 2020 recorded / 0 unrecorded / 0 stale / 48 unknown**。Rust扫描 **3582**、数量比 **80.5%** 单列，不当行为完成率。
+- 五项HTTP版本quick退出0（2189 Rust passed、Pine98、desktop48，Clippy/回放通过）；增加直接owner测试后首轮quick在target-health退出1，确认无构建进程后指定clean移除121662文件/32.3 GiB。根形状补全前quick明确退出0：**2190 Rust passed / 0 failed / 0 skipped**，Pine98、desktop48，Clippy/回放通过、无LEAK。日志分别为`/tmp/jftrade-plugin-quick.log`、`/tmp/jftrade-plugin-quick-reviewed.log`、`/tmp/jftrade-plugin-clean.log`、`/tmp/jftrade-plugin-quick-clean.log`；补全根形状后的最终门禁见下文。
+- 首轮审计因两个exact主入口重复失败，补直接owner断言后复跑通过，未改审计规则。focused digest不充当全量门禁摘要。
+- 根形状复查前的完整Rust `/tmp/jftrade-plugin-rust.log` 在3738项中的1667项通过后主动中断，退出1，仅证明当时已执行部分；不是完整通过。根形状补全后quick `/tmp/jftrade-plugin-quick-shape.log` 明确退出0（2190 passed、0 failed、0 skipped；Pine98、desktop48、Clippy/回放通过、无LEAK）；现场完整Rust `/tmp/jftrade-plugin-rust-shape.log` 明确退出0：**3738 passed / 0 failed / 2 skipped**，静态及七类replay通过、无LEAK。最终Rust源码与shape-verified receipt匹配，AI context与diff review通过。
+- 原始Go RegisterPlugin默认字段、重复覆盖及saveCount5与Rust marker API不同；legacy metadata-only安装200/requiresRebuildtrue与native artifact admission的503/false不同，实测反例保留partial。
+
 ## 2026-10-07 Strategy/Pine 持久化守卫与 HTTP 投影
 
 - 五条 partial 逐项对照冻结 Go 原始断言。create/update 身份归一与 linked 删除保护、legacy Pine source 精确拒绝两条升 exact，净 **exact +2 / partial -2 / boundary 0**，当前 **1607 / 2204 / 640**。版本历史、启动边界和完整生命周期三条保留 partial。

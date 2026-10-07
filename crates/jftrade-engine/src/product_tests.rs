@@ -514,6 +514,8 @@ mod strategy_definition_tests;
 
 #[path = "product_plugins_tests.rs"]
 mod plugin_tests;
+#[path = "product_plugins_http_parity_tests.rs"]
+mod plugins_http_parity_tests;
 
 #[path = "product_alerts_write_product_tests.rs"]
 mod alerts_write_product_tests;

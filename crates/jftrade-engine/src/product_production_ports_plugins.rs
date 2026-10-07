@@ -261,6 +261,7 @@ impl PluginWritePort for ProductionPluginPort {
                 marker_path.display()
             ))
         })?;
+        validate_plugin_operation_metadata(&marker)?;
         let install_path = self.root.join(format!("{plugin_id}.so"));
         let artifact_change = match operation {
             PluginWriteOperation::Install => {
@@ -340,6 +341,33 @@ enum PluginArtifactChange {
     Created,
     Removed(Vec<u8>),
     Unchanged,
+}
+
+fn validate_plugin_operation_metadata(marker: &Value) -> Result<(), PluginWritePortError> {
+    // These fields are mutated after the artifact is copied or removed. Reject
+    // invalid shapes before either filesystem side effect can happen.
+    if !marker.is_object() {
+        return Err(PluginWritePortError::Internal(
+            "plugin marker must be a JSON object".to_owned(),
+        ));
+    }
+    if marker
+        .get("installation")
+        .is_some_and(|value| !value.is_object())
+    {
+        return Err(PluginWritePortError::Internal(
+            "plugin installation must be a JSON object".to_owned(),
+        ));
+    }
+    if marker
+        .get("operations")
+        .is_some_and(|value| !value.is_array())
+    {
+        return Err(PluginWritePortError::Internal(
+            "plugin operations must be a JSON array".to_owned(),
+        ));
+    }
+    Ok(())
 }
 
 fn is_safe_plugin_id(plugin_id: &str) -> bool {
@@ -660,6 +688,26 @@ fn timestamp_suffix() -> u128 {
 mod tests {
     use super::*;
     use tempfile::tempdir;
+
+    // Parity: go:452dea11:internal/strategy/catalog/plugin_normalization_business_test.go:89 TestCatalogPluginLifecycleClassifiesMissingResource
+    #[test]
+    fn native_plugin_missing_install_and_uninstall_return_not_found_without_artifacts() {
+        let directory = tempdir().expect("plugin directory");
+        let settings = directory.path().join("settings.json");
+        std::fs::write(&settings, b"{}").expect("settings");
+        let port = ProductionPluginPort::open(&settings).expect("native file owner");
+        assert!(matches!(
+            port.mutate(PluginWriteOperation::Install, "missing"),
+            Err(PluginWritePortError::NotFound(_))
+        ));
+        assert!(matches!(
+            port.mutate(PluginWriteOperation::Uninstall, "missing"),
+            Err(PluginWritePortError::NotFound(_))
+        ));
+        assert_eq!(port.catalog().expect("unchanged catalog")["plugins"], json!([]));
+        assert!(!directory.path().join("plugins/missing.json").exists());
+        assert!(!directory.path().join("plugins/missing.so").exists());
+    }
 
     #[test]
     fn catalog_rejects_marker_without_descriptor() {
