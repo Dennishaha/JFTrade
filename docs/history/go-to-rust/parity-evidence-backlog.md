@@ -1,5 +1,19 @@
 # Go → Rust 证据积压清单
 
+## 2026-10-07 Assistant canvas 保存与执行
+
+- 五条 partial 中仅图保存/重读升级 exact，当前 **1597 exact / 2214 partial / 640 boundary**，净变化 **+1/-1/0**。其余四条新增 production 断言后保留具体差异，不以 durable 输出存在证明 Go parent/Markdown/plan 字段等价。
+
+  | 文件（均位于 verification-receipts） | 实际结果 | 后续关系 |
+  | --- | --- | --- |
+  | `workflow-canvas-behavior-red-2026-10-07.json` | failed，4 passed/2 failed；Go 点前缀模板未渲染、输入中的占位符被二次解释 | 修复 canvas owner 后 reviewed 替代；保持失败原字节 |
+  | `workflow-canvas-behavior-green-2026-10-07.json` | passed，6/6；尚未加入 JSON/Unicode/未闭合与下游 node-output literal 断言 | reviewed 替代 |
+  | `workflow-canvas-behavior-reviewed-2026-10-07.json` | passed，7/7，2131 filtered/skipped | 当前 canonical |
+
+- reviewed SHA-256 `f5a70d548a085876241cc45e2430d1898c1785d94adcb4edaa9f07e24fe5e9b2`；已验证 sourceState 与编译时完整 diff/untracked 文件相符，更新 mapping/docs 后 Rust diff 相同。只改变五条 mapping 和原共享关系的必要子集，没有新增共享审批。
+- 普通/strict audit 与 anchor 通过，unrecorded/stale=0。quick 首轮 `/tmp/jftrade-workflow-canvas-quick.log` 为 target-health 失败；确认无 Cargo 进程后按指定入口移除 **118677 files / 31.3 GiB**，原日志保留。重跑 quick `/tmp/jftrade-workflow-canvas-quick-retry.log` 明确退出 **0**：nextest **2168 passed（1 leaky）/ 0 failed / 0 skipped**、Pine **98 passed**、桌面 **48 passed**，Clippy 和七类 replay 通过。leaky 为既有 `test_non_futu_helper_candles_failure_uses_generic_market_code`，并非新增 canvas 测试。完整 `check:rust` `/tmp/jftrade-workflow-canvas-rust.log` 明确退出 **0**：workspace **3707 passed / 0 failed / 2 skipped**、静态和七类 replay 通过；同 helper 测试 PASS，本次无 LEAK 标记。保留 quick 的观测，不因全量未复现而称该历史退出风险已修复。未另生成 workspace JSON receipt。
+- 残余：Go Result.Markdown、parent workflowEngine/childRunIDs/workflowPlan/workflowStatus 尚无 Rust 同形投影；Go 无图拒绝与 Rust legacy fallback 不同。当前修复只处理真实输入/输出模板行为，不改公开 DTO 或现有 fallback 策略。
+
 ## 2026-10-07 Web proxy/session 与 Origin 原始请求复核
 
 - 五条 partial 中两条升级 exact；旧开发 Origin exact 撤回，另一条 Origin exact 改用真实 POST login owner，净变化 **+1/-1/0**，当前 **1596 exact / 2215 partial / 640 boundary**。

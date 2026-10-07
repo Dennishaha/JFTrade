@@ -1,0 +1,81 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(workflow_canvas_save_read_and_restart_preserve_the_submitted_graph) or test(workflow_run_persists_ordered_start_agent_monitor_outputs) or test(workflow_child_nodes_receive_rendered_inputs_and_persist_their_outputs) or test(workflow_without_canvas_uses_the_existing_durable_single_agent_path) or test(reachable_workflow_graph_executes_once_and_records_terminal_node_states) or test(workflow_template_input_values_are_not_evaluated_as_other_placeholders) or test(workflow_node_output_placeholders_remain_literal_downstream_data)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-10-07T06:07:28Z",
+  "sourceState": {
+    "verifiedCommit": "2e6a8d22e7f1afd9a0fe292e1e3913ffca841e86",
+    "trackedDiffSha256": "3fae37673f44df0da20ff2e54846a77eb42baa58036d537e8c4099ed412deaff",
+    "untrackedFiles": [
+      {
+        "path": "crates/jftrade-engine/tests/workflow_canvas_behavior_parity.rs",
+        "sha256": "8d70c6f15c5a693d41f28263a2c5faa4e25c179f832fcdff105c2a7dc0de80d3"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/workflow-canvas-behavior-green-2026-10-07.json",
+        "sha256": "c0a9586eb49f4cfa25e6863fa86fa963a1dd852a5cc6e3c87dfb8f9dd9697a3a"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/workflow-canvas-behavior-red-2026-10-07.json",
+        "sha256": "2641a996aeeb20bf5576dda868ad97c9265c13a258a96d8f6f73f752f1b5aa40"
+      }
+    ]
+  },
+  "rawOutputSha256": "b9c492f15f322ab7685c3bdecb21a68456ed2854294041f7cbf315ae49d0daa8",
+  "passedTests": [
+    "jftrade-engine::workflow_canvas_behavior_parity$reachable_workflow_graph_executes_once_and_records_terminal_node_states",
+    "jftrade-engine::workflow_canvas_behavior_parity$workflow_canvas_save_read_and_restart_preserve_the_submitted_graph",
+    "jftrade-engine::workflow_canvas_behavior_parity$workflow_child_nodes_receive_rendered_inputs_and_persist_their_outputs",
+    "jftrade-engine::workflow_canvas_behavior_parity$workflow_node_output_placeholders_remain_literal_downstream_data",
+    "jftrade-engine::workflow_canvas_behavior_parity$workflow_run_persists_ordered_start_agent_monitor_outputs",
+    "jftrade-engine::workflow_canvas_behavior_parity$workflow_template_input_values_are_not_evaluated_as_other_placeholders",
+    "jftrade-engine::workflow_canvas_behavior_parity$workflow_without_canvas_uses_the_existing_durable_single_agent_path"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 7,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "workflow_canvas_behavior_parity",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 0,
+      "exec_time": 1.119565291,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "workflow_canvas_behavior_parity",
+        "kind": "test"
+      }
+    }
+  ]
+}

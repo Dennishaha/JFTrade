@@ -24,33 +24,49 @@ pub(super) fn render_canvas_template(
     inputs: &Value,
     node_outputs: &BTreeMap<String, Value>,
 ) -> String {
-    let mut output = template.to_owned();
-    if let Some(object) = inputs.as_object() {
-        for (key, value) in object {
-            let rendered = value
-                .as_str()
-                .map(str::to_owned)
-                .unwrap_or_else(|| value.to_string());
-            output = output.replace(&format!("{{{{{key}}}}}"), &rendered);
-            output = output.replace(&format!("{{{{input.{key}}}}}"), &rendered);
-            output = output.replace(&format!("{{{{inputs.{key}}}}}"), &rendered);
+    let mut output = String::with_capacity(template.len());
+    let mut remaining = template;
+    // Only scan the submitted template. Inserted values remain data even when
+    // they contain another placeholder or a node-output reference.
+    while let Some(start) = remaining.find("{{") {
+        output.push_str(&remaining[..start]);
+        remaining = &remaining[start..];
+        let Some(end) = remaining[2..].find("}}") else {
+            break;
+        };
+        let end = end + 2;
+        let key = remaining[2..end].trim();
+        match canvas_template_value(key, inputs, node_outputs) {
+            Some(value) => output.push_str(&value),
+            None => output.push_str(&remaining[..end + 2]),
         }
+        remaining = &remaining[end + 2..];
     }
-    for (node_id, node_output) in node_outputs {
-        if let Some(obj) = node_output.as_object() {
-            for (field, val) in obj {
-                let rendered = val
-                    .as_str()
-                    .map(str::to_owned)
-                    .unwrap_or_else(|| val.to_string());
-                output = output.replace(&format!("{{{{{node_id}.{field}}}}}"), &rendered);
-            }
-        }
-        if let Some(reply) = node_output.get("reply").and_then(Value::as_str) {
-            output = output.replace(&format!("{{{{{node_id}}}}}"), reply);
-        }
-    }
+    output.push_str(remaining);
     output
+}
+
+fn canvas_template_value(
+    key: &str,
+    inputs: &Value,
+    node_outputs: &BTreeMap<String, Value>,
+) -> Option<String> {
+    let input_key = key
+        .strip_prefix("input.")
+        .or_else(|| key.strip_prefix("inputs."))
+        .or_else(|| key.strip_prefix('.'))
+        .unwrap_or(key);
+    let value = inputs.get(input_key).or_else(|| {
+        node_outputs.iter().find_map(|(node_id, output)| {
+            if key == node_id {
+                return output.get("reply").filter(|value| value.is_string());
+            }
+            key.strip_prefix(node_id)
+                .and_then(|suffix| suffix.strip_prefix('.'))
+                .and_then(|field| output.get(field))
+        })
+    })?;
+    Some(value.as_str().map(str::to_owned).unwrap_or_else(|| value.to_string()))
 }
 
 pub(super) struct CanvasExecutionContext<'a> {

@@ -119495,9 +119495,9 @@
     },
     "internal/assistant/engine/workflow_canvas_test.go:133:TestRunCanvasWorkflowExecutesAReachableAgentGraph": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/tests/adk_workflow_canvas_contracts.rs::test_canvas_workflow_multi_node_execution_and_context_propagation",
-      "conclusion": "partial（本批纠正过宽）：Go 端到端断言可达图运行落 COMPLETED、画布计划 DONE、1 条子运行、非空回复。Rust 的多节点执行用例断言可达图成功执行、上下文传播与节点持久化；原条目引用的菱形编译顺序与错误跳过下游两个用例不断言成功执行，更换引用。运行终局、DONE计划、子运行派生、回复非空四分支无等价断言。回归要求：补可达图运行终局与子运行断言后再升级。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'not test(production_helper_sync_cancel_aborts_in_flight_request) and not test(production_helper_sync_rejects_broken_pagination_cursors) and not test(production_helper_sync_forwards_page_query_and_persists_provider_values) and not test(production_helper_sync_retries_transient_page_and_records_retry)'",
+      "rust_entry": "crates/jftrade-engine/tests/workflow_canvas_behavior_parity.rs::reachable_workflow_graph_executes_once_and_records_terminal_node_states",
+      "conclusion": "partial：新增同次 production canvas 行为与持久化断言；Rust 没有 Go parent run workflowStatus=complete、workflowEngine=ADK2Canvas、workflowPlan DONE 与 childRunIDs 的聚合投影。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-engine --test reachable_workflow_graph_executes_once_and_records_terminal_node_states --output docs/history/go-to-rust/verification-receipts/workflow-canvas-behavior-reviewed-2026-10-07.json",
       "evidence_type": "partial",
       "source": {
         "file": "internal/assistant/engine/workflow_canvas_test.go",
@@ -119507,23 +119507,24 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/tests/adk_workflow_canvas_contracts.rs",
-          "test": "test_canvas_workflow_multi_node_execution_and_context_propagation",
+          "file": "crates/jftrade-engine/tests/workflow_canvas_behavior_parity.rs",
+          "test": "reachable_workflow_graph_executes_once_and_records_terminal_node_states",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/assistant/engine/workflow_canvas_test.go",
             "goLine": 133,
-            "rustFile": "crates/jftrade-engine/tests/adk_workflow_canvas_contracts.rs",
-            "rustLine": 220
+            "rustFile": "crates/jftrade-engine/tests/workflow_canvas_behavior_parity.rs",
+            "rustLine": 300
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust reachable multi-node canvas executes successfully with context propagation and node persistence."
+          "可达 production canvas agent 只 dispatch 一次且实际 message 为冻结 Go Research 输入；返回 run COMPLETED/reply=ok。",
+          "durable log 为 SUCCEEDED，start/agent/monitor 全部 SUCCEEDED。"
         ],
         "uncovered": [
-          "Rust does not prove every Go terminal projection field (COMPLETED, plan DONE, child-run count, non-empty reply) in one end-to-end receipt."
+          "Rust 没有 Go parent run workflowStatus=complete、workflowEngine=ADK2Canvas、workflowPlan DONE 与 childRunIDs 的聚合投影。"
         ],
         "source": "reviewed"
       },
@@ -119534,37 +119535,39 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(workflow_canvas_save_read_and_restart_preserve_the_submitted_graph) or test(workflow_run_persists_ordered_start_agent_monitor_outputs) or test(workflow_child_nodes_receive_rendered_inputs_and_persist_their_outputs) or test(workflow_without_canvas_uses_the_existing_durable_single_agent_path) or test(reachable_workflow_graph_executes_once_and_records_terminal_node_states) or test(workflow_template_input_values_are_not_evaluated_as_other_placeholders) or test(workflow_node_output_placeholders_remain_literal_downstream_data)"
         ],
         "testFilter": [
-          "test_canvas_workflow_multi_node_execution_and_context_propagation"
+          "reachable_workflow_graph_executes_once_and_records_terminal_node_states"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "2e6a8d22e7f1afd9a0fe292e1e3913ffca841e86",
+        "verifiedAt": "2026-10-07T06:07:28Z",
+        "receiptDigest": "sha256:f5a70d548a085876241cc45e2430d1898c1785d94adcb4edaa9f07e24fe5e9b2"
       },
       "risk": "normal",
       "owner": "assistant_workflow",
       "priority": "P2",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "preserve_partial_and_track_residual",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust reachable multi-node canvas executes successfully with context propagation and node persistence."
+        "可达 production canvas agent 只 dispatch 一次且实际 message 为冻结 Go Research 输入；返回 run COMPLETED/reply=ok。",
+        "durable log 为 SUCCEEDED，start/agent/monitor 全部 SUCCEEDED。"
       ],
       "uncoveredAssertions": [
-        "Rust does not prove every Go terminal projection field (COMPLETED, plan DONE, child-run count, non-empty reply) in one end-to-end receipt."
+        "Rust 没有 Go parent run workflowStatus=complete、workflowEngine=ADK2Canvas、workflowPlan DONE 与 childRunIDs 的聚合投影。"
       ],
       "boundaryReason": null
     },
@@ -133857,11 +133860,11 @@
       "boundaryReason": null
     },
     "internal/assistant/workflows_test.go:157:TestSaveWorkflowRoundTripsCanvasGraph": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_adk_workflow_tool_error_tests.rs::workflow_writes_apply_the_documented_write_fields",
-      "conclusion": "partial：Go 断言保存工作流后读回的画布图与写入一致。Rust 的工作流写入用例断言写入字段按文档生效（同一写入往返契约）；Go 的画布图逐节点往返在 Rust 由画布持久化 schema 用例覆盖。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'not test(production_helper_sync_cancel_aborts_in_flight_request) and not test(production_helper_sync_rejects_broken_pagination_cursors) and not test(production_helper_sync_forwards_page_query_and_persists_provider_values) and not test(production_helper_sync_retries_transient_page_and_records_retry)'",
-      "evidence_type": "partial",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-engine/tests/workflow_canvas_behavior_parity.rs::workflow_canvas_save_read_and_restart_preserve_the_submitted_graph",
+      "conclusion": "function_exact：完整 production 图保存/读取/重启证明原始 Go 的节点与边往返断言。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-engine --test workflow_canvas_save_read_and_restart_preserve_the_submitted_graph --output docs/history/go-to-rust/verification-receipts/workflow-canvas-behavior-reviewed-2026-10-07.json",
+      "evidence_type": "function_exact",
       "source": {
         "file": "internal/assistant/workflows_test.go",
         "line": 157,
@@ -133870,24 +133873,23 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_adk_workflow_tool_error_tests.rs",
-          "test": "workflow_writes_apply_the_documented_write_fields",
+          "file": "crates/jftrade-engine/tests/workflow_canvas_behavior_parity.rs",
+          "test": "workflow_canvas_save_read_and_restart_preserve_the_submitted_graph",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/assistant/workflows_test.go",
             "goLine": 157,
-            "rustFile": "crates/jftrade-engine/src/product_adk_workflow_tool_error_tests.rs",
-            "rustLine": 113
+            "rustFile": "crates/jftrade-engine/tests/workflow_canvas_behavior_parity.rs",
+            "rustLine": 161
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust workflow write test applies documented write fields; canvas persistence schema test covers strict per-node graph round-trip."
+          "原始 Go 两节点画布与边经 production CreateWorkflow/read port 返回逐字段相等；含 position、version、smoothstep edge type，status=DISABLED。",
+          "释放 production port 后重开 SQLite，GET 投影和 durable payload 仍逐字段等于提交图，零 chat dispatch。"
         ],
-        "uncovered": [
-          "No single Rust save/read assertion compares every canvas node and edge field byte-for-byte with the submitted graph."
-        ],
+        "uncovered": [],
         "source": "reviewed"
       },
       "verification": {
@@ -133897,45 +133899,45 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(workflow_canvas_save_read_and_restart_preserve_the_submitted_graph) or test(workflow_run_persists_ordered_start_agent_monitor_outputs) or test(workflow_child_nodes_receive_rendered_inputs_and_persist_their_outputs) or test(workflow_without_canvas_uses_the_existing_durable_single_agent_path) or test(reachable_workflow_graph_executes_once_and_records_terminal_node_states) or test(workflow_template_input_values_are_not_evaluated_as_other_placeholders) or test(workflow_node_output_placeholders_remain_literal_downstream_data)"
         ],
         "testFilter": [
-          "workflow_writes_apply_the_documented_write_fields"
+          "workflow_canvas_save_read_and_restart_preserve_the_submitted_graph"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "2e6a8d22e7f1afd9a0fe292e1e3913ffca841e86",
+        "verifiedAt": "2026-10-07T06:07:28Z",
+        "receiptDigest": "sha256:f5a70d548a085876241cc45e2430d1898c1785d94adcb4edaa9f07e24fe5e9b2"
       },
       "risk": "normal",
       "owner": "assistant_workflow",
       "priority": "P2",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "maintain_verified_function_exact",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust workflow write test applies documented write fields; canvas persistence schema test covers strict per-node graph round-trip."
+        "原始 Go 两节点画布与边经 production CreateWorkflow/read port 返回逐字段相等；含 position、version、smoothstep edge type，status=DISABLED。",
+        "释放 production port 后重开 SQLite，GET 投影和 durable payload 仍逐字段等于提交图，零 chat dispatch。"
       ],
-      "uncoveredAssertions": [
-        "No single Rust save/read assertion compares every canvas node and edge field byte-for-byte with the submitted graph."
-      ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/assistant/workflows_test.go:198:TestRunWorkflowStoresResultAndNodeTrace": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/tests/adk_workflow_canvas_adversarial.rs::test_context_interpolation_multi_node_pipeline_and_diamond_join",
-      "conclusion": "partial：Go 断言工作流运行结果与节点轨迹（Start/Agent/Monitor 顺序、agent 输出、触发器日志含结果与轨迹）。Rust 的多节点管线用例断言多节点顺序与菱形汇合（同一节点轨迹语义）；Go 的触发器日志字段级断言在 Rust 由节点运行持久化用例覆盖。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'not test(production_helper_sync_cancel_aborts_in_flight_request) and not test(production_helper_sync_rejects_broken_pagination_cursors) and not test(production_helper_sync_forwards_page_query_and_persists_provider_values) and not test(production_helper_sync_retries_transient_page_and_records_retry)'",
+      "rust_entry": "crates/jftrade-engine/tests/workflow_canvas_behavior_parity.rs::workflow_run_persists_ordered_start_agent_monitor_outputs",
+      "conclusion": "partial：新增同次 production canvas 行为与持久化断言；Go Result.Markdown 包含 ok；Rust result 是模型 response 对象，仅有 reply，没有 markdown 字段。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-engine --test workflow_run_persists_ordered_start_agent_monitor_outputs --output docs/history/go-to-rust/verification-receipts/workflow-canvas-behavior-reviewed-2026-10-07.json",
       "evidence_type": "partial",
       "source": {
         "file": "internal/assistant/workflows_test.go",
@@ -133945,23 +133947,24 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/tests/adk_workflow_canvas_adversarial.rs",
-          "test": "test_context_interpolation_multi_node_pipeline_and_diamond_join",
+          "file": "crates/jftrade-engine/tests/workflow_canvas_behavior_parity.rs",
+          "test": "workflow_run_persists_ordered_start_agent_monitor_outputs",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/assistant/workflows_test.go",
             "goLine": 198,
-            "rustFile": "crates/jftrade-engine/tests/adk_workflow_canvas_adversarial.rs",
-            "rustLine": 186
+            "rustFile": "crates/jftrade-engine/tests/workflow_canvas_behavior_parity.rs",
+            "rustLine": 204
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust multi-node pipeline test covers node order and diamond join; node-run persistence tests cover stored execution traces."
+          "同一次 production RunWorkflow 确认 start/agent:primary/monitor 顺序、agent reply=ok、monitor lastReply=ok，trigger log=SUCCEEDED。",
+          "durable trigger log 的 nodeRuns/result 与 mutation response 相等。"
         ],
         "uncovered": [
-          "No combined Rust assertion verifies Start/Agent/Monitor ordering, agent output, and trigger-log result/trace fields in one workflow run."
+          "Go Result.Markdown 包含 ok；Rust result 是模型 response 对象，仅有 reply，没有 markdown 字段。"
         ],
         "source": "reviewed"
       },
@@ -133972,45 +133975,47 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(workflow_canvas_save_read_and_restart_preserve_the_submitted_graph) or test(workflow_run_persists_ordered_start_agent_monitor_outputs) or test(workflow_child_nodes_receive_rendered_inputs_and_persist_their_outputs) or test(workflow_without_canvas_uses_the_existing_durable_single_agent_path) or test(reachable_workflow_graph_executes_once_and_records_terminal_node_states) or test(workflow_template_input_values_are_not_evaluated_as_other_placeholders) or test(workflow_node_output_placeholders_remain_literal_downstream_data)"
         ],
         "testFilter": [
-          "test_context_interpolation_multi_node_pipeline_and_diamond_join"
+          "workflow_run_persists_ordered_start_agent_monitor_outputs"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "2e6a8d22e7f1afd9a0fe292e1e3913ffca841e86",
+        "verifiedAt": "2026-10-07T06:07:28Z",
+        "receiptDigest": "sha256:f5a70d548a085876241cc45e2430d1898c1785d94adcb4edaa9f07e24fe5e9b2"
       },
       "risk": "high",
       "owner": "assistant_workflow",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "preserve_partial_and_track_residual",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust multi-node pipeline test covers node order and diamond join; node-run persistence tests cover stored execution traces."
+        "同一次 production RunWorkflow 确认 start/agent:primary/monitor 顺序、agent reply=ok、monitor lastReply=ok，trigger log=SUCCEEDED。",
+        "durable trigger log 的 nodeRuns/result 与 mutation response 相等。"
       ],
       "uncoveredAssertions": [
-        "No combined Rust assertion verifies Start/Agent/Monitor ordering, agent output, and trigger-log result/trace fields in one workflow run."
+        "Go Result.Markdown 包含 ok；Rust result 是模型 response 对象，仅有 reply，没有 markdown 字段。"
       ],
       "boundaryReason": null
     },
     "internal/assistant/workflows_test.go:248:TestRunWorkflowWithoutCanvasGraphFailsInsteadOfChatFallback": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-assistant/src/workflow_canvas.rs::test_canvas_no_executable_nodes",
-      "conclusion": "partial：参考断言无画布图的工作流运行失败（错误含 canvas graph is required）、无 Response 回退、日志为失败态。Rust 仅在编译器层断言无可执行节点被拒；运行入口 product_production_ports_adk_mutation_workflow_runtime.rs 在 canvasGraph 缺失时以 WorkflowCanvasGraph::single_agent() 兜底继续运行（与参考的失败语义相反），且无不断言回退的用例。缺口 P1：缺图失败与禁回退的运行入口断言。修复位置：运行入口的缺图分支。回归要求：补运行入口用例（缺图必须失败且无回退响应），或明确记录保留兜底的产品决策后再关闭。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-integration-pine -p jftrade-strategy -p jftrade-backtest -p jftrade-assistant -p jftrade-api --all-targets --locked --no-fail-fast -E 'not test(analyze_script_supports_trend_and_stateful_ta_functions)'",
+      "rust_entry": "crates/jftrade-engine/tests/workflow_canvas_behavior_parity.rs::workflow_without_canvas_uses_the_existing_durable_single_agent_path",
+      "conclusion": "partial：新增同次 production canvas 行为与持久化断言；Go 同一输入要求 canvas graph is required、failed log 和空 response；Rust 现有 legacy fallback 成功，保持明确差异。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-engine --test workflow_without_canvas_uses_the_existing_durable_single_agent_path --output docs/history/go-to-rust/verification-receipts/workflow-canvas-behavior-reviewed-2026-10-07.json",
       "evidence_type": "partial",
       "source": {
         "file": "internal/assistant/workflows_test.go",
@@ -134020,23 +134025,23 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-assistant/src/workflow_canvas.rs",
-          "test": "test_canvas_no_executable_nodes",
-          "crate": "jftrade-assistant",
+          "file": "crates/jftrade-engine/tests/workflow_canvas_behavior_parity.rs",
+          "test": "workflow_without_canvas_uses_the_existing_durable_single_agent_path",
+          "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/assistant/workflows_test.go",
             "goLine": 248,
-            "rustFile": "crates/jftrade-assistant/src/workflow_canvas.rs",
-            "rustLine": 491
+            "rustFile": "crates/jftrade-engine/tests/workflow_canvas_behavior_parity.rs",
+            "rustLine": 281
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust compiler test rejects a graph with no executable nodes."
+          "production mutation 无 canvasGraph 时生成单 agent 图，调用 chat 一次，durable SUCCEEDED log 有 trigger/start/agent/monitor 四节点及 reply=ok。"
         ],
         "uncovered": [
-          "Rust runtime currently synthesizes a single-agent graph when canvasGraph is absent, so no Rust assertion enforces Go’s fail-with-canvas-graph-required and no-chat-fallback behavior; this remains an explicit compatibility boundary."
+          "Go 同一输入要求 canvas graph is required、failed log 和空 response；Rust 现有 legacy fallback 成功，保持明确差异。"
         ],
         "source": "reviewed"
       },
@@ -134047,45 +134052,46 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(workflow_canvas_save_read_and_restart_preserve_the_submitted_graph) or test(workflow_run_persists_ordered_start_agent_monitor_outputs) or test(workflow_child_nodes_receive_rendered_inputs_and_persist_their_outputs) or test(workflow_without_canvas_uses_the_existing_durable_single_agent_path) or test(reachable_workflow_graph_executes_once_and_records_terminal_node_states) or test(workflow_template_input_values_are_not_evaluated_as_other_placeholders) or test(workflow_node_output_placeholders_remain_literal_downstream_data)"
         ],
         "testFilter": [
-          "test_canvas_no_executable_nodes"
+          "workflow_without_canvas_uses_the_existing_durable_single_agent_path"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "2e6a8d22e7f1afd9a0fe292e1e3913ffca841e86",
+        "verifiedAt": "2026-10-07T06:07:28Z",
+        "receiptDigest": "sha256:f5a70d548a085876241cc45e2430d1898c1785d94adcb4edaa9f07e24fe5e9b2"
       },
       "risk": "high",
       "owner": "assistant_workflow",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "preserve_partial_and_track_residual",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust compiler test rejects a graph with no executable nodes."
+        "production mutation 无 canvasGraph 时生成单 agent 图，调用 chat 一次，durable SUCCEEDED log 有 trigger/start/agent/monitor 四节点及 reply=ok。"
       ],
       "uncoveredAssertions": [
-        "Rust runtime currently synthesizes a single-agent graph when canvasGraph is absent, so no Rust assertion enforces Go’s fail-with-canvas-graph-required and no-chat-fallback behavior; this remains an explicit compatibility boundary."
+        "Go 同一输入要求 canvas graph is required、failed log 和空 response；Rust 现有 legacy fallback 成功，保持明确差异。"
       ],
       "boundaryReason": null
     },
     "internal/assistant/workflows_test.go:276:TestRunWorkflowCanvasCompilesAndStoresNodeOutputs": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/tests/adk_workflow_canvas_contracts.rs::test_canvas_workflow_error_skips_downstream_nodes",
-      "conclusion": "partial：Go 断言画布编译并存储各节点输出。Rust 的画布用例断言节点错误跳过下游（同一节点输出与状态存储语义）；Go 的逐节点输出内容断言在 Rust 由节点运行持久化 schema 用例覆盖。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'not test(production_helper_sync_cancel_aborts_in_flight_request) and not test(production_helper_sync_rejects_broken_pagination_cursors) and not test(production_helper_sync_forwards_page_query_and_persists_provider_values) and not test(production_helper_sync_retries_transient_page_and_records_retry)'",
+      "rust_entry": "crates/jftrade-engine/tests/workflow_canvas_behavior_parity.rs::workflow_child_nodes_receive_rendered_inputs_and_persist_their_outputs",
+      "conclusion": "partial：新增同次 production canvas 行为与持久化断言；Rust 返回最后 child response，缺 Go 聚合 parent run 的 workflowEngine=ADK2Canvas 与 childRunIDs 两项投影。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-engine --test workflow_child_nodes_receive_rendered_inputs_and_persist_their_outputs --output docs/history/go-to-rust/verification-receipts/workflow-canvas-behavior-reviewed-2026-10-07.json",
       "evidence_type": "partial",
       "source": {
         "file": "internal/assistant/workflows_test.go",
@@ -134095,23 +134101,24 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/tests/adk_workflow_canvas_contracts.rs",
-          "test": "test_canvas_workflow_error_skips_downstream_nodes",
+          "file": "crates/jftrade-engine/tests/workflow_canvas_behavior_parity.rs",
+          "test": "workflow_child_nodes_receive_rendered_inputs_and_persist_their_outputs",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/assistant/workflows_test.go",
             "goLine": 276,
-            "rustFile": "crates/jftrade-engine/tests/adk_workflow_canvas_contracts.rs",
-            "rustLine": 658
+            "rustFile": "crates/jftrade-engine/tests/workflow_canvas_behavior_parity.rs",
+            "rustLine": 232
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust canvas error test persists node failure and skips downstream nodes; node-run schema tests cover stored output/state shape."
+          "原始 Go research/report 图经 production canvas runtime 执行两次 chat；research 选 child agent、report 回退 parent，显式 US.MSFT 覆盖默认 US.AAPL。",
+          "修复 Go {{ .symbol }} 模板；durable nodes 顺序 start/research/report/monitor，inputs agentId/message 等于实际 dispatch，两项 outputs reply=ok。"
         ],
         "uncovered": [
-          "No Rust field-level assertion compares every node output payload from a successful compiled canvas run."
+          "Rust 返回最后 child response，缺 Go 聚合 parent run 的 workflowEngine=ADK2Canvas 与 childRunIDs 两项投影。"
         ],
         "source": "reviewed"
       },
@@ -134122,37 +134129,39 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(workflow_canvas_save_read_and_restart_preserve_the_submitted_graph) or test(workflow_run_persists_ordered_start_agent_monitor_outputs) or test(workflow_child_nodes_receive_rendered_inputs_and_persist_their_outputs) or test(workflow_without_canvas_uses_the_existing_durable_single_agent_path) or test(reachable_workflow_graph_executes_once_and_records_terminal_node_states) or test(workflow_template_input_values_are_not_evaluated_as_other_placeholders) or test(workflow_node_output_placeholders_remain_literal_downstream_data)"
         ],
         "testFilter": [
-          "test_canvas_workflow_error_skips_downstream_nodes"
+          "workflow_child_nodes_receive_rendered_inputs_and_persist_their_outputs"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "2e6a8d22e7f1afd9a0fe292e1e3913ffca841e86",
+        "verifiedAt": "2026-10-07T06:07:28Z",
+        "receiptDigest": "sha256:f5a70d548a085876241cc45e2430d1898c1785d94adcb4edaa9f07e24fe5e9b2"
       },
       "risk": "high",
       "owner": "assistant_workflow",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "preserve_partial_and_track_residual",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust canvas error test persists node failure and skips downstream nodes; node-run schema tests cover stored output/state shape."
+        "原始 Go research/report 图经 production canvas runtime 执行两次 chat；research 选 child agent、report 回退 parent，显式 US.MSFT 覆盖默认 US.AAPL。",
+        "修复 Go {{ .symbol }} 模板；durable nodes 顺序 start/research/report/monitor，inputs agentId/message 等于实际 dispatch，两项 outputs reply=ok。"
       ],
       "uncoveredAssertions": [
-        "No Rust field-level assertion compares every node output payload from a successful compiled canvas run."
+        "Rust 返回最后 child response，缺 Go 聚合 parent run 的 workflowEngine=ADK2Canvas 与 childRunIDs 两项投影。"
       ],
       "boundaryReason": null
     },
@@ -341574,16 +341583,15 @@
       "reviewStatus": "single"
     },
     "crates/jftrade-engine/tests/adk_workflow_canvas_contracts.rs::test_canvas_workflow_multi_node_execution_and_context_propagation": {
-      "referenceCount": 4,
+      "referenceCount": 3,
       "referenceKeys": [
         "internal/api/assistant/workflow_routes_test.go:14:TestWorkflowRoutesCoverDefinitionTriggerRunAndWebhookContracts",
         "internal/assistant/engine/canvas_provider_model_overrides_test.go:8:TestCanvasWorkflowAppliesExplicitProviderAndModelOverrides",
-        "internal/assistant/engine/workflow_canvas_test.go:11:TestWorkflowCanvasCompilerSequentialFanOutAndJoin",
-        "internal/assistant/engine/workflow_canvas_test.go:133:TestRunCanvasWorkflowExecutesAReachableAgentGraph"
+        "internal/assistant/engine/workflow_canvas_test.go:11:TestWorkflowCanvasCompilerSequentialFanOutAndJoin"
       ],
       "allowed": true,
       "reviewStatus": "reviewed",
-      "reviewNote": "2026-09-29 Assistant workflow API batch: canvas/workflow owner reviewed against API route assertions; non-exact references remain unchanged."
+      "reviewNote": "2026-10-07：仅移除本批改用独立 canvas owner 的引用；剩余为原已审核关系子集，保留原 reuse 结论。"
     },
     "crates/jftrade-engine/tests/adk_workflow_canvas_contracts.rs::disabled_workflow_and_webhook_routes_keep_the_go_error_codes": {
       "referenceCount": 2,
@@ -351782,14 +351790,12 @@
       "reviewStatus": "reviewed"
     },
     "crates/jftrade-assistant/src/workflow_canvas.rs::test_canvas_no_executable_nodes": {
-      "referenceCount": 2,
+      "referenceCount": 1,
       "referenceKeys": [
-        "internal/assistant/engine/workflow_canvas_test.go:60:TestWorkflowCanvasCompilerRejectsInvalidGraphs",
-        "internal/assistant/workflows_test.go:248:TestRunWorkflowWithoutCanvasGraphFailsInsteadOfChatFallback"
+        "internal/assistant/engine/workflow_canvas_test.go:60:TestWorkflowCanvasCompilerRejectsInvalidGraphs"
       ],
-      "allowed": false,
-      "reviewStatus": "reviewed",
-      "reviewNote": "2026-10-02 bounded reuse review: compared all 2 referenceKeys against the shared Rust owner (status mix {'[~]': 2}); assertion scopes are not interchangeable, so reuse remains disallowed and no function_exact row is upgraded by this relation."
+      "allowed": true,
+      "reviewStatus": "single"
     },
     "crates/jftrade-assistant/src/workflow_canvas.rs::test_canvas_invalid_node_and_edge_inputs": {
       "referenceCount": 2,
@@ -351822,14 +351828,12 @@
       "reviewNote": "2026-10-02 bounded reuse review: compared all 4 referenceKeys against the shared Rust owner (status mix {'[~]': 4}); assertion scopes are not interchangeable, so reuse remains disallowed and no function_exact row is upgraded by this relation."
     },
     "crates/jftrade-engine/tests/adk_workflow_canvas_contracts.rs::test_canvas_workflow_error_skips_downstream_nodes": {
-      "referenceCount": 2,
+      "referenceCount": 1,
       "referenceKeys": [
-        "internal/assistant/engine/workflow_child_test.go:79:TestCompletedChildReopensPendingParentWorkflowToRunning",
-        "internal/assistant/workflows_test.go:276:TestRunWorkflowCanvasCompilesAndStoresNodeOutputs"
+        "internal/assistant/engine/workflow_child_test.go:79:TestCompletedChildReopensPendingParentWorkflowToRunning"
       ],
-      "allowed": false,
-      "reviewStatus": "reviewed",
-      "reviewNote": "2026-10-02 bounded reuse review: compared all 2 referenceKeys against the shared Rust owner (status mix {'[~]': 2}); assertion scopes are not interchangeable, so reuse remains disallowed and no function_exact row is upgraded by this relation."
+      "allowed": true,
+      "reviewStatus": "single"
     },
     "crates/jftrade-assistant/src/workflow_canvas.rs::test_canvas_linear_chain": {
       "referenceCount": 1,
@@ -351848,14 +351852,12 @@
       "reviewStatus": "single"
     },
     "crates/jftrade-engine/src/product_adk_workflow_tool_error_tests.rs::workflow_writes_apply_the_documented_write_fields": {
-      "referenceCount": 2,
+      "referenceCount": 1,
       "referenceKeys": [
-        "internal/assistant/engine/workflow_execution_persistence_test.go:7:TestSanitizeWorkflowPlanStepRewritesEchoedMessages",
-        "internal/assistant/workflows_test.go:157:TestSaveWorkflowRoundTripsCanvasGraph"
+        "internal/assistant/engine/workflow_execution_persistence_test.go:7:TestSanitizeWorkflowPlanStepRewritesEchoedMessages"
       ],
-      "allowed": false,
-      "reviewStatus": "reviewed",
-      "reviewNote": "2026-10-02 bounded reuse review: compared all 2 referenceKeys against the shared Rust owner (status mix {'[~]': 2}); assertion scopes are not interchangeable, so reuse remains disallowed and no function_exact row is upgraded by this relation."
+      "allowed": true,
+      "reviewStatus": "single"
     },
     "crates/jftrade-engine/tests/adk_workflow_canvas_adversarial.rs::test_partial_failure_cascade_records_skipped_nodes_in_sqlite": {
       "referenceCount": 1,
@@ -352240,14 +352242,6 @@
       "referenceCount": 1,
       "referenceKeys": [
         "internal/assistant/workflows_resource_recovery_test.go:11:TestWorkflowResourcesRejectCrossWorkflowAndInvalidRequests"
-      ],
-      "allowed": true,
-      "reviewStatus": "single"
-    },
-    "crates/jftrade-engine/tests/adk_workflow_canvas_adversarial.rs::test_context_interpolation_multi_node_pipeline_and_diamond_join": {
-      "referenceCount": 1,
-      "referenceKeys": [
-        "internal/assistant/workflows_test.go:198:TestRunWorkflowStoresResultAndNodeTrace"
       ],
       "allowed": true,
       "reviewStatus": "single"
@@ -364439,6 +364433,46 @@
       "referenceCount": 1,
       "referenceKeys": [
         "internal/app/apiserver/webaccess/security_integration_test.go:422:TestUntrustedOriginIsRejectedButSameOriginLANHostWorks"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/tests/workflow_canvas_behavior_parity.rs::workflow_canvas_save_read_and_restart_preserve_the_submitted_graph": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/assistant/workflows_test.go:157:TestSaveWorkflowRoundTripsCanvasGraph"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/tests/workflow_canvas_behavior_parity.rs::workflow_child_nodes_receive_rendered_inputs_and_persist_their_outputs": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/assistant/workflows_test.go:276:TestRunWorkflowCanvasCompilesAndStoresNodeOutputs"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/tests/workflow_canvas_behavior_parity.rs::workflow_run_persists_ordered_start_agent_monitor_outputs": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/assistant/workflows_test.go:198:TestRunWorkflowStoresResultAndNodeTrace"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/tests/workflow_canvas_behavior_parity.rs::workflow_without_canvas_uses_the_existing_durable_single_agent_path": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/assistant/workflows_test.go:248:TestRunWorkflowWithoutCanvasGraphFailsInsteadOfChatFallback"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/tests/workflow_canvas_behavior_parity.rs::reachable_workflow_graph_executes_once_and_records_terminal_node_states": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/assistant/engine/workflow_canvas_test.go:133:TestRunCanvasWorkflowExecutesAReachableAgentGraph"
       ],
       "allowed": true,
       "reviewStatus": "single"

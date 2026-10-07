@@ -1,0 +1,76 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(workflow_canvas_save_read_and_restart_preserve_the_submitted_graph) or test(workflow_run_persists_ordered_start_agent_monitor_outputs) or test(workflow_child_nodes_receive_rendered_inputs_and_persist_their_outputs) or test(workflow_without_canvas_uses_the_existing_durable_single_agent_path) or test(reachable_workflow_graph_executes_once_and_records_terminal_node_states) or test(workflow_template_input_values_are_not_evaluated_as_other_placeholders)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-10-07T06:06:42Z",
+  "sourceState": {
+    "verifiedCommit": "2e6a8d22e7f1afd9a0fe292e1e3913ffca841e86",
+    "trackedDiffSha256": "3fae37673f44df0da20ff2e54846a77eb42baa58036d537e8c4099ed412deaff",
+    "untrackedFiles": [
+      {
+        "path": "crates/jftrade-engine/tests/workflow_canvas_behavior_parity.rs",
+        "sha256": "4ed0f91a9a775996b698bc9861678ac12a156954bd3e06a44d8a63e0187ca3b4"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/workflow-canvas-behavior-red-2026-10-07.json",
+        "sha256": "2641a996aeeb20bf5576dda868ad97c9265c13a258a96d8f6f73f752f1b5aa40"
+      }
+    ]
+  },
+  "rawOutputSha256": "912e0fe0c903a54c6cf2a8eae7e2d2f9dae59b0edd39e216b455aa64a9de10c8",
+  "passedTests": [
+    "jftrade-engine::workflow_canvas_behavior_parity$reachable_workflow_graph_executes_once_and_records_terminal_node_states",
+    "jftrade-engine::workflow_canvas_behavior_parity$workflow_canvas_save_read_and_restart_preserve_the_submitted_graph",
+    "jftrade-engine::workflow_canvas_behavior_parity$workflow_child_nodes_receive_rendered_inputs_and_persist_their_outputs",
+    "jftrade-engine::workflow_canvas_behavior_parity$workflow_run_persists_ordered_start_agent_monitor_outputs",
+    "jftrade-engine::workflow_canvas_behavior_parity$workflow_template_input_values_are_not_evaluated_as_other_placeholders",
+    "jftrade-engine::workflow_canvas_behavior_parity$workflow_without_canvas_uses_the_existing_durable_single_agent_path"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 6,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "workflow_canvas_behavior_parity",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 0,
+      "exec_time": 1.2087997910000001,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "workflow_canvas_behavior_parity",
+        "kind": "test"
+      }
+    }
+  ]
+}

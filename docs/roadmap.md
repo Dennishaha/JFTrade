@@ -1,6 +1,6 @@
 # JFTrade 活动路线图
 
-更新时间：2026-09-30。
+更新时间：2026-10-07。
 
 当前活动包括迁移行为核验、产品质量和发布资格工作。迁移历史与证据位于 `docs/history/go-to-rust`；历史阶段完成声明不能代替全部映射的逐项审查。
 
@@ -16,17 +16,16 @@
 - [ ] 逐批执行最窄测试、实际 receipt、审计及适用 quick/Rust 门禁，复查 diff 后提交；失败和未执行项保留证据。
 - [ ] 全部映射均有逐项审查依据、可实现行为差距完成修复、架构边界说明完整且所需门禁通过后，才确认整体完成。
 
-## 当前行为批次：Web 代理与会话失效（2026-10-07）
+## 下一行为批次：审批持久化与结清（2026-10-07）
 
-上一批 GET replay/listener 重配置已提交并通过现场 quick 与完整 Rust 门禁。
-本批核对冻结 Go 的五条 partial，并复查原始请求与现有测试 seam 不同的 exact。
+Web proxy/session 与 Assistant canvas 批次已收口；结果、残余及原始红绿证据见 [迁移成果摘要](history/go-to-rust/parity-progress-summary.md) 与 [证据积压清单](history/go-to-rust/parity-evidence-backlog.md)。下一批选择五条审批相关 partial，先定位 store 事务 owner 和 engine continuation，再按冻结原始输入补行为。
 
-- [x] 用真实 production Web router 和测试 peer 重放远端 X-Forwarded-Proto 登录请求，验证拒绝与 cookie 安全属性。
-- [x] 核对同机代理 X-Forwarded-For 与 private/public 边界，保留监听地址和逐请求拒绝的明确差异。
-- [x] 补保持 listener bind 的 HTTP 换密码 → 旧 cookie 会话快照失效闭环，验证新密码仍可登录。
-- [x] 补同进程 Web 禁用与 desktop capability 对照，保留尚未一致的状态码。
-- [x] 复查开发 Origin 的原始 POST login，不能用自定义策略的 GET 读路由证明 production 拒绝。
-- [x] 定向 receipt、普通/strict 审计、anchor、quick、完整 Rust 门禁、diff review 和独立提交。
+- [ ] 复现 target approval、run、sibling durable payload 损坏；确认拒绝且审批/运行完整快照不变，修复实际失败的 owner。
+- [ ] 注入 run staging 写失败，核对暂态、最后审批及拒绝路径的事务回滚、错误传播和可重试性。
+- [ ] 复核 missing/already-resolved/non-pending/not-embedded 分支；Rust nil receiver 边界明确保留。
+- [ ] 复核已持久化 resolution 的恢复与一次 continuation；parent 聚合缺口单列。
+- [ ] 经真实 runtime 和执行计数验证拒绝一个 action 后 sibling 结清、零 tool execution。
+- [ ] 至少闭合一条 partial；canonical receipt、普通/strict 与 anchor 审计、quick、完整 Rust 门禁、diff review、独立提交后继续。
 
 ## 质量门禁
 

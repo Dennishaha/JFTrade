@@ -1,5 +1,14 @@
 # Go → Rust 对齐成果摘要
 
+## 2026-10-07 Assistant canvas 保存与执行
+
+- 本批逐项核对五条 partial：完整图保存/重读、Start/Agent/Monitor 执行日志、research/report 子节点输入输出、无图 fallback、可达图终态。图保存条目新增 production mutation/read 与 SQLite 重启后的完整 JSON 对照，含节点坐标、version、edge type，升为 exact。净变化 **exact +1 / partial -1 / boundary 0**，当前 **1597 / 2214 / 640**。
+- 真实红测发现冻结 Go 的 `{{ .symbol }}` 不被渲染，输入值中的后续占位符也被二次替换。修复 canvas 模板 owner：扫描原模板一次，兼容 Go 点前缀输入，保留已有 input/inputs 和节点字段引用；插入值始终作为数据。production 回归直接核对子 agent、显式输入覆盖默认值、节点顺序、特殊字符/JSON/未闭合占位符及下游 literal node output。
+- canonical receipt `verification-receipts/workflow-canvas-behavior-reviewed-2026-10-07.json`：**7 passed / 0 failed / 0 ignored / 2131 filtered/skipped**，SHA-256 `f5a70d548a085876241cc45e2430d1898c1785d94adcb4edaa9f07e24fe5e9b2`。保存并核对完整 tracked diff 与 untracked 摘要；随后仅改 metadata/docs，Rust 源码不变。red **4 passed / 2 failed** 与中间 green **6 passed** 保留原字节。
+- 四条仍 partial：Rust result 为 model response，缺 Go Result.Markdown；返回最后 child 而非 parent workflowEngine/childRunIDs/plan 聚合；无图现有 durable fallback 成功，而 Go 要求 failed/无 response。真实 durable nodeRuns/result 对照不能消除这些投影或执行分支差异。
+- 普通/strict 与 anchor 审计通过；anchor **2045 unique / 1997 recorded / 0 unrecorded / 0 stale / 48 unknown**。Rust 扫描 **3551**、数量比 **79.8%** 单列，不作为整体完成率。
+- quick 首轮 target-health 因至少 50,000 个 `.rcgu.o` 失败，日志 `/tmp/jftrade-workflow-canvas-quick.log`；确认无 Cargo 进程后指定 clean 入口移除 **118677 files / 31.3 GiB**。重跑 quick `/tmp/jftrade-workflow-canvas-quick-retry.log` 明确退出 **0**：nextest **2168 passed（1 leaky）/ 0 failed / 0 skipped**、Pine **98 passed**、桌面检查 **48 passed**，Clippy 与七类 replay 通过。leaky 为既有 `test_non_futu_helper_candles_failure_uses_generic_market_code`，日志保留。完整 `check:rust` `/tmp/jftrade-workflow-canvas-rust.log` 明确退出 **0**：workspace **3707 passed / 0 failed / 2 skipped**、静态与七类 replay 通过；同 helper 测试通过且本次无 LEAK 标记，不表示历史退出风险已被修复。未另生成 workspace JSON receipt，focused digest 不充当全量摘要。AI context 与 diff review 通过，下一批为审批持久化/损坏负载与 sibling 拒绝；整体目标继续 active。
+
 ## 2026-10-07 Web 代理、Origin 与会话失效
 
 - 复核五条 Web partial 与两条旧 Origin exact，新增七条 production HTTP owner。远端 HTTPS scheme spoof、保存密码触发旧会话 snapshot 失效两条升 exact；开发 Origin 原始登录实测 200 而非 Go 403，撤回旧 exact；另一条 Origin exact 以真实 POST login 的拒绝/成功对照替换旧自定义 GET 读路由 owner。净变化 **exact +1 / partial -1 / boundary 0**，当前 **1596 / 2215 / 640**。
