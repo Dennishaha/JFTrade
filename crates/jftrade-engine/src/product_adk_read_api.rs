@@ -3,11 +3,11 @@ use std::fmt;
 
 use jftrade_api::{encode_event, encode_retry};
 
-
 #[derive(Clone, Debug, PartialEq)]
 pub enum AdkReadOutput {
     Json(Value),
     Stream(AdkReadStream),
+    LiveStream(AdkReadLiveStream),
 }
 
 #[derive(Clone, Debug, Eq, Error, PartialEq)]
@@ -51,6 +51,11 @@ pub fn dispatch_adk_read(
             "ADK read snapshot port is not configured",
         ));
     };
+    if route_is_stream(route)
+        && let Some(stream) = port.open_stream(path, query).map_err(snapshot_failure)?
+    {
+        return Ok(AdkReadOutput::LiveStream(stream));
+    }
     match port.read(path, query).map_err(snapshot_failure)? {
         AdkReadSnapshot::Json(value) if !route_is_stream(route) => Ok(AdkReadOutput::Json(value)),
         AdkReadSnapshot::Stream(stream) if route_is_stream(route) => {
@@ -80,14 +85,30 @@ impl ProductApi {
 fn adk_read_output(output: AdkReadOutput) -> ApiOutput {
     match output {
         AdkReadOutput::Json(value) => ApiOutput::Json(value),
+        AdkReadOutput::LiveStream(stream) => ApiOutput::RawStream {
+            status: 200,
+            content_type: "text/event-stream".to_owned(),
+            stream: stream.body,
+            headers: stream
+                .headers
+                .into_iter()
+                .chain([
+                    ("cache-control".to_owned(), "no-cache".to_owned()),
+                    ("connection".to_owned(), "keep-alive".to_owned()),
+                ])
+                .collect(),
+        },
         AdkReadOutput::Stream(stream) => {
-            let frames = std::iter::once(Ok(encode_retry(3000).into_bytes()))
-                .chain(stream.events.into_iter().map(|event| {
+            let frames = std::iter::once(Ok(encode_retry(3000).into_bytes())).chain(
+                stream.events.into_iter().map(|event| {
                     encode_event(&SseEvent {
-                    id: event.id,
-                    data: event.data,
-                    }).map(String::into_bytes).map_err(std::io::Error::other)
-                }));
+                        id: event.id,
+                        data: event.data,
+                    })
+                    .map(String::into_bytes)
+                    .map_err(std::io::Error::other)
+                }),
+            );
             let mut headers: BTreeMap<String, String> = stream.headers.into_iter().collect();
             headers
                 .entry("cache-control".to_owned())
@@ -197,8 +218,7 @@ fn validate_query(route: AdkReadRoute, query: &str) -> Result<(), AdkReadFailure
             .iter()
             .find_map(|(key, value)| (key == "after").then_some(value))
             .is_some_and(|value| {
-                !value.trim().is_empty()
-                    && value.parse::<i64>().map_or(true, |parsed| parsed < 0)
+                !value.trim().is_empty() && value.parse::<i64>().map_or(true, |parsed| parsed < 0)
             })
         {
             return Err(AdkReadFailure::new(400, "BAD_REQUEST", "after is invalid"));
@@ -235,11 +255,7 @@ fn query_failure(route: AdkReadRoute) -> AdkReadFailure {
         AdkReadRoute::Workflows => "workflows",
         _ => "ADK",
     };
-    AdkReadFailure::new(
-        400,
-        "BAD_REQUEST",
-        format!("invalid {resource} query"),
-    )
+    AdkReadFailure::new(400, "BAD_REQUEST", format!("invalid {resource} query"))
 }
 
 fn decode_query(query: &str) -> Result<Vec<(String, String)>, ()> {
@@ -280,7 +296,7 @@ impl fmt::Display for AdkReadOutput {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Json(_) => formatter.write_str("json"),
-            Self::Stream(_) => formatter.write_str("stream"),
+            Self::Stream(_) | Self::LiveStream(_) => formatter.write_str("stream"),
         }
     }
 }

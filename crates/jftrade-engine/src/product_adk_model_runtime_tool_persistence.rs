@@ -52,6 +52,7 @@ impl ProductionAdkChatRuntime {
                 message: "stored ADK run payload must be a JSON object".to_owned(),
             });
         }
+        runtime_projection::merge_provider_usage(&mut payload, response.usage_metadata.as_ref());
         let input_calls = response
             .tool_calls
             .iter()
@@ -78,12 +79,7 @@ impl ProductionAdkChatRuntime {
             // the same turn can retry with the feedback attached.
             if let Some(error) = request_user_arguments_error(&input_call.arguments) {
                 self.persist_correctable_input_feedback(
-                    chat,
-                    input_call,
-                    &run,
-                    payload,
-                    run_lease,
-                    &error,
+                    chat, input_call, &run, payload, run_lease, &error,
                 )?;
                 return Ok(ToolCallStaging::Released);
             }
@@ -111,7 +107,10 @@ impl ProductionAdkChatRuntime {
         let gated = response
             .tool_calls
             .iter()
-            .map(|call| self.tool_catalog.requires_approval(&call.name, &chat.permission_mode))
+            .map(|call| {
+                self.tool_catalog
+                    .requires_approval(&call.name, &chat.permission_mode)
+            })
             .collect::<Vec<_>>();
         let any_gated = gated.iter().any(|value| *value);
         let status = if !known {

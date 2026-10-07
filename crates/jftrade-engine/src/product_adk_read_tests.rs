@@ -500,7 +500,9 @@ fn adk_read_routes_clamp_pagination_beyond_available_items() {
                     "path {path} empty collection"
                 );
             }
-            AdkReadOutput::Stream(_) => panic!("unexpected stream output for {path}"),
+            AdkReadOutput::Stream(_) | AdkReadOutput::LiveStream(_) => {
+                panic!("unexpected stream output for {path}")
+            }
         }
     }
 }

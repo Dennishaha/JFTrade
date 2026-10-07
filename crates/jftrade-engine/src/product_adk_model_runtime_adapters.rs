@@ -347,6 +347,7 @@ fn model_input(request: &ModelRequest) -> Vec<Value> {
 struct ModelResponse {
     text: String,
     tool_calls: Vec<ModelToolCall>,
+    usage_metadata: Option<Value>,
 }
 
 #[derive(Clone, Debug)]
@@ -460,13 +461,25 @@ fn execute_model(
             .map_err(|error| upstream_error(format!("decode model response: {error}")))?;
         let text = extract_text(&value).trim().to_owned();
         let tool_calls = extract_tool_calls(&value)?;
+        let usage_metadata = value
+            .get("usage")
+            .filter(|value| value.is_object())
+            .cloned();
         if !tool_calls.is_empty() {
-            return Ok(ModelResponse { text, tool_calls });
+            return Ok(ModelResponse {
+                text,
+                tool_calls,
+                usage_metadata,
+            });
         }
         if text.is_empty() {
             return Err(upstream_error("assistant model returned an empty response"));
         }
-        Ok(ModelResponse { text, tool_calls })
+        Ok(ModelResponse {
+            text,
+            tool_calls,
+            usage_metadata,
+        })
     })
 }
 

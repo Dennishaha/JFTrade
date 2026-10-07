@@ -46,6 +46,7 @@ pub struct ModelToolCall {
 pub struct ModelResponse {
     pub text: String,
     pub tool_calls: Vec<ModelToolCall>,
+    pub usage_metadata: Option<Value>,
 }
 
 pub fn extract_text(response: &Value) -> String {

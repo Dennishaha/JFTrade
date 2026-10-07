@@ -18,6 +18,10 @@ use crate::session_deletion_fence;
 #[path = "adk_workflow_queue.rs"]
 mod workflow_queue;
 
+#[path = "adk_stream_cursor.rs"]
+mod stream_cursor;
+pub use stream_cursor::{AdkStreamCursor, AdkStreamPage};
+
 #[cfg(test)]
 #[path = "adk_approval_resolution_failure_tests.rs"]
 mod approval_resolution_failure_tests;

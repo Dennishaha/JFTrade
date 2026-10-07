@@ -108,8 +108,13 @@ impl ApiStream {
     pub fn from_chunks(
         chunks: impl Iterator<Item = Result<Vec<u8>, io::Error>> + Send + 'static,
     ) -> Self {
+        Self::from_stream(Box::pin(tokio_stream::iter(chunks)))
+    }
+
+    /// Keep one consumer for a pull-driven body without starting a producer task.
+    pub fn from_stream(body: ApiStreamBody) -> Self {
         Self {
-            receiver: Arc::new(Mutex::new(Some(Box::pin(tokio_stream::iter(chunks))))),
+            receiver: Arc::new(Mutex::new(Some(body))),
         }
     }
 

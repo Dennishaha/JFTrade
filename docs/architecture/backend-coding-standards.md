@@ -20,6 +20,11 @@ iterator body 只随 HTTP 消费推进逐帧编码，释放 body 即释放剩余
 重配置不关闭共享 desktop live hub。浏览器 HTTP 与 WebSocket 使用同一 Origin
 策略，包括当前 Web listener 的动态端口校验。
 
+ADK GET 重连 body 由 HTTP 消费者持有，无后台 producer task。SQLite adapter 固定
+重连时的 sequence watermark，每页最多向 Rust 解码 64 条历史/新事件；watermark
+之前标记 replay，之后为 live。终态排空所有页后结束，连接释放即释放 reader 与 timer。
+事件仍保存在 run 的 JSON 数组中，SQLite 每页仍扫描该数组；这不承诺索引读取或固定查询成本。
+
 ### 领域 crates
 
 `jftrade-{settings,marketdata,trading,strategy,backtest,assistant,research,watchlist}` 承载业务规则与协议中立 port。不得依赖 `jftrade-api`、Axum handler、具体 SQLite driver、Futu protobuf 或桌面类型。

@@ -420,6 +420,7 @@ fn a_gated_call_parks_the_run_and_audits_awaiting_approval() {
         .expect("acquire run lease");
 
     let response = super::ModelResponse {
+        usage_metadata: None,
         text: String::new(),
         tool_calls: vec![super::ModelToolCall {
             id: "call-alert".to_owned(),
@@ -491,6 +492,7 @@ fn a_completed_run_links_its_final_assistant_message_across_the_transcript() {
         .persist_success(
             &chat,
             super::ModelResponse {
+                usage_metadata: None,
                 text: "all set".to_owned(),
                 tool_calls: Vec::new(),
             },
@@ -556,6 +558,7 @@ fn a_completed_run_persists_the_reply_and_audits_run_completed() {
         .persist_success(
             &chat,
             super::ModelResponse {
+                usage_metadata: None,
                 text: "final answer".to_owned(),
                 tool_calls: Vec::new(),
             },
@@ -849,6 +852,7 @@ fn a_pending_input_run_audits_awaiting_input_with_the_decision_kind() {
         .expect("acquire run lease");
 
     let response = super::ModelResponse {
+        usage_metadata: None,
         text: String::new(),
         tool_calls: vec![super::ModelToolCall {
             id: "call-input".to_owned(),

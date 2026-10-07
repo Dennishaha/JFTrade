@@ -60,7 +60,12 @@ impl ProductionAdkChatRuntime {
         // Go projects the stored run (including its tool calls) into the chat
         // envelope, so a failed tool stays visible on the returned run while
         // the run-level `failureReason`/`errorCode` stay empty.
-        let stored: Value = serde_json::from_str(&run.payload_json).map_err(storage_unavailable)?;
+        let mut stored: Value =
+            serde_json::from_str(&run.payload_json).map_err(storage_unavailable)?;
+        runtime_projection::merge_provider_usage(
+            &mut stored,
+            model_response.usage_metadata.as_ref(),
+        );
         // `MarkCompletedChatRun` clears the run-level failure projection before
         // Go projects the run onto the wire, so a stale `errorCode` or
         // `failureReason` from an earlier attempt never reaches the console.
@@ -333,11 +338,12 @@ impl ProductionAdkChatRuntime {
         });
         Ok(response)
     }
-
 }
 
 fn trim_stream_tool_outputs(response: &mut Value) {
-    let Some(tool_calls) = response.pointer_mut("/run/toolCalls").and_then(Value::as_array_mut)
+    let Some(tool_calls) = response
+        .pointer_mut("/run/toolCalls")
+        .and_then(Value::as_array_mut)
     else {
         return;
     };

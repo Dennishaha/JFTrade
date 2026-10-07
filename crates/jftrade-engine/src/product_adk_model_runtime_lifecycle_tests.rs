@@ -10,6 +10,12 @@ use super::*;
 #[path = "product_adk_workflow_shutdown_tests.rs"]
 mod workflow_shutdown;
 
+#[path = "product_adk_stream_usage_tests.rs"]
+mod stream_usage;
+
+#[path = "product_adk_reconnect_live_tests.rs"]
+mod reconnect_live;
+
 fn read_http_json_body(stream: &mut std::net::TcpStream) -> Value {
     let mut request = Vec::new();
     let mut chunk = [0_u8; 4096];

@@ -237,6 +237,80 @@ fn run_payload(store: &AdkStore, run_id: &str) -> Value {
     serde_json::from_str(&run.payload_json).expect("decode run payload")
 }
 
+#[test]
+fn tool_round_and_final_usage_accumulate_without_overwriting_prior_totals() {
+    let (directory, store, sessions) = initialized_stores();
+    create_running_run(&store, "run-usage-rounds", json!([]));
+    record_user_message(&sessions, "run-usage-rounds");
+    let mut seeded = run_payload(&store, "run-usage-rounds");
+    seeded["usage"]["tokensIn"] = json!(4);
+    seeded["usage"]["tokensOut"] = json!(1);
+    store
+        .update_run_payload("run-usage-rounds", &seeded.to_string())
+        .unwrap();
+    let executor = Arc::new(RecordingToolExecutor::new(vec!["system.status"]));
+    let runtime = runtime_with_production_catalog(&directory, &store, &sessions, executor);
+    let chat = chat_for("run-usage-rounds", "http://127.0.0.1:1/v1/responses");
+    let lease = RunLeaseGuard::acquire(store.clone(), "run-usage-rounds", "owner-usage").unwrap();
+    runtime
+        .persist_tool_calls(
+            &chat,
+            &ModelResponse {
+                text: "looking up system status".to_owned(),
+                tool_calls: vec![super::ModelToolCall {
+                    id: "call-usage".to_owned(),
+                    name: "system.status".to_owned(),
+                    arguments: json!({}),
+                }],
+                usage_metadata: Some(
+                    json!({"input_tokens":9, "output_tokens":3, "total_tokens":12}),
+                ),
+            },
+            &lease,
+        )
+        .unwrap();
+    let staged = run_payload(&store, "run-usage-rounds");
+    let response = runtime
+        .persist_success(
+            &chat,
+            ModelResponse {
+                text: "done".to_owned(),
+                tool_calls: Vec::new(),
+                usage_metadata: Some(
+                    json!({"input_tokens":5, "output_tokens":2, "total_tokens":7}),
+                ),
+            },
+            &lease,
+        )
+        .unwrap();
+    let completed = run_payload(&store, "run-usage-rounds");
+    let replay = runtime
+        .persist_success(
+            &chat,
+            ModelResponse {
+                text: "must not overwrite completed reply".to_owned(),
+                tool_calls: Vec::new(),
+                usage_metadata: Some(json!({"input_tokens":5, "output_tokens":2})),
+            },
+            &lease,
+        )
+        .unwrap();
+    runtime.shutdown();
+    assert_eq!(
+        staged["usage"]["tokensIn"], 13,
+        "persist first provider round over prior usage"
+    );
+    assert_eq!(staged["usage"]["tokensOut"], 4);
+    assert_eq!(response["run"]["usage"]["tokensIn"], 18);
+    assert_eq!(response["run"]["usage"]["tokensOut"], 6);
+    assert_eq!(completed["usage"]["tokensIn"], 18);
+    assert_eq!(completed["usage"]["tokensOut"], 6);
+    assert_eq!(
+        replay, response,
+        "terminal replay must not count the same final usage twice"
+    );
+}
+
 /// Parity: go:452dea11:internal/assistant/model/timeline_helper_test.go:5 TestTimelineHelperBoundaries
 /// Parity: go:452dea11:internal/assistant/engine/runner_chat_test.go:490
 /// `TestProjectedChatResponseAppliesProjectionToRunFields`.
@@ -306,6 +380,7 @@ fn a_tool_round_projects_the_pre_tool_reply_and_session_timeline() {
         .persist_success(
             &chat,
             ModelResponse {
+                usage_metadata: None,
                 text: "优化已启动。".to_owned(),
                 tool_calls: Vec::new(),
             },
@@ -404,6 +479,7 @@ fn stream_terminal_projection_trims_tool_outputs_from_final_response() {
         .persist_success(
             &chat,
             ModelResponse {
+                usage_metadata: None,
                 text: "done".to_owned(),
                 tool_calls: Vec::new(),
             },
@@ -462,6 +538,7 @@ fn staging_a_tool_round_freezes_the_pre_tool_assistant_text() {
         .persist_tool_calls(
             &chat,
             &ModelResponse {
+                usage_metadata: None,
                 text: "  先说明一下。 ".to_owned(),
                 tool_calls: vec![super::ModelToolCall {
                     id: "call-status-first".to_owned(),
@@ -486,6 +563,7 @@ fn staging_a_tool_round_freezes_the_pre_tool_assistant_text() {
         .persist_tool_calls(
             &chat,
             &ModelResponse {
+                usage_metadata: None,
                 text: "第二轮说明。".to_owned(),
                 tool_calls: vec![super::ModelToolCall {
                     id: "call-status-second".to_owned(),
@@ -558,6 +636,7 @@ fn the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals(
         .persist_success(
             &chat,
             ModelResponse {
+                usage_metadata: None,
                 text: "all set".to_owned(),
                 tool_calls: Vec::new(),
             },
@@ -648,6 +727,7 @@ fn a_completed_projection_hides_resolved_approvals() {
         .persist_success(
             &chat,
             ModelResponse {
+                usage_metadata: None,
                 text: "done".to_owned(),
                 tool_calls: Vec::new(),
             },
@@ -689,6 +769,7 @@ fn a_top_level_follow_up_reply_keeps_its_run_completed() {
         .persist_success(
             &chat,
             ModelResponse {
+                usage_metadata: None,
                 text: reply.to_owned(),
                 tool_calls: Vec::new(),
             },
@@ -752,6 +833,7 @@ fn a_started_run_serves_its_snapshot_and_drops_the_active_handle() {
         .persist_success(
             &chat,
             ModelResponse {
+                usage_metadata: None,
                 text: "done".to_owned(),
                 tool_calls: Vec::new(),
             },

@@ -1,10 +1,22 @@
-/// Captured Assistant projections supplied by the current Go owner.
-///
-/// The port deliberately transports complete wire values and replay events.
-/// Rust does not open the ADK database, run a Provider, reconcile state, or
-/// create a second lifecycle owner before the composition-root cutover.
+/// Assistant read projections and optional reconnect bodies supplied by the
+/// runtime owner. Fixture adapters may serve a finite snapshot; the production
+/// adapter supplies a cursor reader owned by the HTTP body consumer.
 pub trait AdkReadSnapshotPort: Send + Sync + Debug {
     fn read(&self, path: &str, query: &str) -> Result<AdkReadSnapshot, AdkReadSnapshotError>;
+
+    fn open_stream(
+        &self,
+        _path: &str,
+        _query: &str,
+    ) -> Result<Option<AdkReadLiveStream>, AdkReadSnapshotError> {
+        Ok(None)
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct AdkReadLiveStream {
+    pub headers: Vec<(String, String)>,
+    pub body: jftrade_api::ApiStream,
 }
 
 #[derive(Clone, Debug, PartialEq)]

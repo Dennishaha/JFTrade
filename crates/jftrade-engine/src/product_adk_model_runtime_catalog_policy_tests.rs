@@ -184,6 +184,7 @@ fn create_run(store: &AdkStore, run_id: &str) {
 
 fn response_with_call(call_id: &str, name: &str) -> ModelResponse {
     ModelResponse {
+        usage_metadata: None,
         text: String::new(),
         tool_calls: vec![ModelToolCall {
             id: call_id.to_owned(),
@@ -479,6 +480,7 @@ fn denying_a_staged_action_closes_siblings_without_executing_tools() {
     let lease = RunLeaseGuard::acquire(Arc::clone(&store), run_id, "owner-sibling")
         .expect("acquire staging lease");
     let response = ModelResponse {
+        usage_metadata: None,
         text: String::new(),
         tool_calls: names
             .iter()

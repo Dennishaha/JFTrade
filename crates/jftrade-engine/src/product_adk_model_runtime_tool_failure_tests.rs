@@ -618,6 +618,7 @@ fn persist_success_marks_a_run_degraded_from_its_failed_tool_calls() {
         .persist_success(
             &chat,
             super::ModelResponse {
+                usage_metadata: None,
                 text: "保存失败，请检查磁盘空间。".to_owned(),
                 tool_calls: Vec::new(),
             },
@@ -826,6 +827,7 @@ fn a_resumed_approval_run_completes_with_the_confirmation_resolved_state() {
         .persist_success(
             &chat,
             super::ModelResponse {
+                usage_metadata: None,
                 text: "resumed reply".to_owned(),
                 tool_calls: Vec::new(),
             },

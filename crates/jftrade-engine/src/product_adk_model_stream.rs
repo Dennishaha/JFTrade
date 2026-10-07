@@ -77,12 +77,21 @@ where
             if text.is_empty() && tool_calls.is_empty() {
                 return Err(upstream_error("assistant model returned an empty response"));
             }
-            return Ok(ModelResponse { text, tool_calls });
+            let usage_metadata = value
+                .get("usage")
+                .filter(|value| value.is_object())
+                .cloned();
+            return Ok(ModelResponse {
+                text,
+                tool_calls,
+                usage_metadata,
+            });
         }
 
         let mut stream = response.bytes_stream().eventsource();
         let mut text = String::new();
         let mut tool_calls = Vec::new();
+        let mut usage_metadata = None;
         let mut completed = false;
         let mut bytes_seen = 0usize;
         loop {
@@ -141,6 +150,10 @@ where
                 }
                 "response.completed" => {
                     if let Some(response) = value.get("response") {
+                        usage_metadata = response
+                            .get("usage")
+                            .filter(|value| value.is_object())
+                            .cloned();
                         let completed_text = extract_text(response);
                         if !completed_text.trim().is_empty() {
                             text = completed_text;
@@ -172,7 +185,11 @@ where
         if text.is_empty() && tool_calls.is_empty() {
             return Err(upstream_error("assistant model returned an empty response"));
         }
-        Ok(ModelResponse { text, tool_calls })
+        Ok(ModelResponse {
+            text,
+            tool_calls,
+            usage_metadata,
+        })
     })
 }
 

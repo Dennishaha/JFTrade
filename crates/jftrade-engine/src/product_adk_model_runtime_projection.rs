@@ -16,6 +16,25 @@
 use jftrade_store_sqlite::StoredAdkEvent;
 use serde_json::{Map, Value, json};
 
+/// Add one completed model response to the durable run. The caller commits
+/// this payload under the existing run revision and execution-lease fence.
+pub(super) fn merge_provider_usage(payload: &mut Value, metadata: Option<&Value>) {
+    let Some(metadata) = metadata else { return };
+    let Some(payload) = payload.as_object_mut() else {
+        return;
+    };
+    let usage = payload.entry("usage").or_insert_with(|| json!({}));
+    if !usage.is_object() {
+        *usage = json!({});
+    }
+    for (source, target) in [("input_tokens", "tokensIn"), ("output_tokens", "tokensOut")] {
+        if let Some(tokens) = metadata.get(source).and_then(Value::as_u64) {
+            let previous = usage.get(target).and_then(Value::as_u64).unwrap_or(0);
+            usage[target] = json!(previous.saturating_add(tokens).min(i64::MAX as u64));
+        }
+    }
+}
+
 /// Byte budget Go's `SummarizeToolOutput` uses before it appends the
 /// `...(truncated)` marker.
 const TOOL_SUMMARY_LIMIT: usize = 1800;

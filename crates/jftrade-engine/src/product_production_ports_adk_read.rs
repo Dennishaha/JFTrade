@@ -2,12 +2,12 @@ use super::*;
 
 #[path = "product_production_ports_adk_read_context.rs"]
 pub(crate) mod context_projection;
-#[path = "product_production_ports_adk_read_helpers.rs"]
-pub(crate) mod read_helpers;
 #[path = "product_production_ports_adk_context_window.rs"]
 pub(crate) mod context_window;
 #[path = "product_production_ports_adk_notices.rs"]
 pub(crate) mod notices;
+#[path = "product_production_ports_adk_read_helpers.rs"]
+pub(crate) mod read_helpers;
 
 use read_helpers::{
     estimate_context_tokens, is_context_user_event, protected_context_event_start,
@@ -27,6 +27,27 @@ impl From<AdkSessionStoreError> for AdkReadSnapshotError {
 }
 
 impl AdkReadSnapshotPort for ProductionAdkPort {
+    fn open_stream(
+        &self,
+        path: &str,
+        query: &str,
+    ) -> Result<Option<AdkReadLiveStream>, AdkReadSnapshotError> {
+        let id = dynamic_id(path, "/api/v1/adk/streams/", "")
+            .or_else(|| dynamic_id(path, "/api/v1/adk/runs/", "/stream"));
+        let Some(id) = id else { return Ok(None) };
+        let cursor = self
+            .store
+            .open_stream_cursor(&id)?
+            .ok_or_else(|| not_found("stream not found"))?;
+        let after = query_param(query, "after")
+            .and_then(|value| value.parse::<u64>().ok())
+            .unwrap_or(0);
+        Ok(Some(AdkReadLiveStream {
+            headers: vec![("X-ADK-Stream-ID".to_owned(), cursor.stream_id.clone())],
+            body: reconnect_stream::body(self.store.clone(), cursor, after),
+        }))
+    }
+
     fn read(&self, path: &str, query: &str) -> Result<AdkReadSnapshot, AdkReadSnapshotError> {
         match path {
             "/api/v1/adk" => self.snapshot(),
@@ -72,8 +93,9 @@ impl ProductionAdkPort {
         let Some(runtime) = self.chat_runtime.as_deref() else {
             return Ok(());
         };
-        runtime.reconcile_expired_runs().map_err(|error| {
-            AdkReadSnapshotError::Failed {
+        runtime
+            .reconcile_expired_runs()
+            .map_err(|error| AdkReadSnapshotError::Failed {
                 status: 500,
                 code: "ADK_RUN_RECONCILE_FAILED".to_owned(),
                 message: match error {
@@ -82,8 +104,7 @@ impl ProductionAdkPort {
                     AdkChatPortError::Failed { code, message, .. } => format!("{code}: {message}"),
                 },
                 retry_after_seconds: None,
-            }
-        })
+            })
     }
 
     fn snapshot(&self) -> Result<AdkReadSnapshot, AdkReadSnapshotError> {
@@ -147,8 +168,9 @@ impl ProductionAdkPort {
     /// Active agent rows in Go's `StoreCore.ListAgents` order: soft-deleted
     /// rows are dropped.  The store keeps the raw ordering for the shared
     /// listing helpers, so filtering stays at the projection owner.
-    fn active_agent_rows(&self) -> Result<Vec<jftrade_store_sqlite::StoredAdkEntity>, AdkReadSnapshotError>
-    {
+    fn active_agent_rows(
+        &self,
+    ) -> Result<Vec<jftrade_store_sqlite::StoredAdkEntity>, AdkReadSnapshotError> {
         self.store
             .list_agents()?
             .into_iter()
@@ -351,11 +373,12 @@ impl ProductionAdkPort {
             .list_approvals()?
             .into_iter()
             .filter(|row| {
-                status.as_deref().is_none_or(|expected| {
-                    row.status.trim().eq_ignore_ascii_case(expected)
-                }) && agent_id
+                status
                     .as_deref()
-                    .is_none_or(|expected| row.agent_id == expected)
+                    .is_none_or(|expected| row.status.trim().eq_ignore_ascii_case(expected))
+                    && agent_id
+                        .as_deref()
+                        .is_none_or(|expected| row.agent_id == expected)
             })
             .map(|row| {
                 payload(
@@ -497,9 +520,9 @@ impl ProductionAdkPort {
                     && trigger_id
                         .as_deref()
                         .is_none_or(|expected| row.trigger_id == expected)
-                    && status.as_deref().is_none_or(|expected| {
-                        row.status.trim().eq_ignore_ascii_case(expected)
-                    })
+                    && status
+                        .as_deref()
+                        .is_none_or(|expected| row.status.trim().eq_ignore_ascii_case(expected))
             })
             .map(|row| {
                 payload(
@@ -577,13 +600,11 @@ impl ProductionAdkPort {
             let messages = self
                 .session_store
                 .list_events(&id)
-                .map_err(|e| {
-                    AdkReadSnapshotError::Failed {
-                        status: 500,
-                        code: "ADK_MESSAGES_GET_FAILED".to_owned(),
-                        message: e.to_string(),
-                        retry_after_seconds: None,
-                    }
+                .map_err(|e| AdkReadSnapshotError::Failed {
+                    status: 500,
+                    code: "ADK_MESSAGES_GET_FAILED".to_owned(),
+                    message: e.to_string(),
+                    retry_after_seconds: None,
                 })?
                 .into_iter()
                 .enumerate()

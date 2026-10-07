@@ -18,8 +18,11 @@ use crate::product::product_adk_chat_stream_port::{
 use crate::product::product_production_route_registry::ProductionRouteAdapter;
 use crate::product::{
     ActiveProviderState, AdkReadEvent, AdkReadSnapshot, AdkReadSnapshotError, AdkReadSnapshotPort,
-    AdkReadStream,
+    AdkReadStream, AdkReadLiveStream,
 };
+
+#[path = "product_adk_reconnect_stream.rs"]
+mod reconnect_stream;
 
 #[path = "product_production_ports_adk_metrics.rs"]
 mod metrics;
