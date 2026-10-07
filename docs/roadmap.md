@@ -16,15 +16,15 @@
 - [ ] 逐批执行最窄测试、实际 receipt、审计及适用 quick/Rust 门禁，复查 diff 后提交；失败和未执行项保留证据。
 - [ ] 全部映射均有逐项审查依据、可实现行为差距完成修复、架构边界说明完整且所需门禁通过后，才确认整体完成。
 
-## 下一行为批次：research screen HTTP 与执行定义（2026-10-07）
+## 下一行为批次：embedded research screen 生产链路（2026-10-07）
 
-审批 durable boundaries 与 runtime sibling 拒绝批次已收口；结果、残余和红绿证据见 [迁移成果摘要](history/go-to-rust/parity-progress-summary.md) 与 [证据积压清单](history/go-to-rust/parity-evidence-backlog.md)。下一批选择五条 research screen partial，逐项重放原始 HTTP/definition 输入，先定位 parser、catalog 和 provider port。
+research screen HTTP 批次已收口，净 exact +3/partial -3，现场 quick 与完整 Rust 门禁通过；结果、残余和失败证据关系见 [迁移成果摘要](history/go-to-rust/parity-progress-summary.md) 与 [证据积压清单](history/go-to-rust/parity-evidence-backlog.md)。下一批选择四条 API partial（冻结 research_screen_test 的 213/272/355/387）及 screen_facade_test 的 78 行，核对 concrete production adapter 与原始断言。
 
-- [ ] 真实 production HTTP catalog 核对 display semantics、providerId 不泄露及 market=SG 的 400。
-- [ ] 使用原始 brokerId=" FUTU "/market="us" 输入，断言 provider port 收到 futu/US/默认 limit50；version1 拒绝且零调用。
-- [ ] HTTP POST 经 recording provider port 核对同一归一执行定义、offset50/limit25；Go FeatureQuery operation/cursor 的结构差异明确保留。
-- [ ] 原始 V2 interval 的 min/max/inclusion、column identity/label 与响应 metadata 逐字段核对。
-- [ ] querySchemaVersion2 + legacy filters/columns 的原始 V1 形状返回 400，provider 调用数为零。
+- [ ] production HTTP catalog 逐项核对 yfinance/akshare 默认市场、US/CN/HK/MO 和 unknown broker 矩阵。
+- [ ] production HTTP → 原生 loopback helper 核对原始 range/sort/page，成功响应保留 selectionReason、nextOffset、total、asOf 及 typed cells；不以 caller route port 替代生产 adapter。
+- [ ] futu preset、abs_desc、gt 拒绝时 helper 零调用；HK 超覆盖确实带 market=HK 到达 helper 并返回 409。
+- [ ] wire 结果投影单独验证未知 total 省略、已知 total7、HK.80700/CNY 与 cells-only，明确与 helper 必填 total 契约的区别。
+- [ ] 上游 failure message 穿过具体 adapter/HTTP；Go errors.Is 身份无法跨 wire 证明时保留 partial。
 - [ ] 至少闭合一条 partial；canonical receipt、普通/strict 与 anchor 审计、quick、完整 Rust 门禁、diff review、独立提交后继续。
 
 ## 质量门禁

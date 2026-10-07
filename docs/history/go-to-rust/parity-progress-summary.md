@@ -1,5 +1,13 @@
 # Go → Rust 对齐成果摘要
 
+## 2026-10-07 research screen HTTP、catalog 与执行定义
+
+- 五条 API partial 逐项重放原始输入。catalog 的 display semantics/无 providerId/SG 400、脏 broker/market 归一与默认 limit50、V1 形状拒绝三条升 exact；净变化 **exact +3 / partial -3 / boundary 0**，当前 **1601 / 2210 / 640**。另两条保留 Go generic FeatureQuery operation/cursor 及强类型 definition/具体生产 provider adapter 的严格证据缺口。
+- 新增五项真实 HTTP 测试。catalog 与原始 V1 拒绝使用 concrete production composition；recording provider 请求明确走带 desktop 认证的 rehearsal listener，调用同一 parser/normalizer。原始 conditions/columns/sorts、offset50/limit25、interval min/max/inclusion、column identity/中文 label 逐字段对照；V1 400/零 query 后合法请求 200/一次 query，证明 recording boundary 确实接入。
+- 原始首轮请求漏 Authorization，0 passed/5 failed；认证后 2 passed/3 failed，409 来自生产装配清除 caller route port 后的 active-provider unavailable。没有削弱 production owner fence，没有把被忽略的 recording port 零调用算作等价证明，也没有生产业务修复。后续明确证据 seam，新增真正的零调用正向控制。
+- canonical `verification-receipts/research-screen-http-scoped-2026-10-07.json`：**5 passed / 0 failed / 0 ignored / 2139 filtered/skipped**，SHA-256 `40969aaf7677396ada5d27a5f9e1297c965c2b244849632ccb51c5275d5975e6`；sourceState 的 Rust diff 与全部 untracked 文件指纹已核对，后续 Rust 源码保持不变。普通/strict 审计通过；anchor **2053 unique / 2005 recorded / 0 unrecorded / 0 stale / 48 unknown**。Rust 扫描 **3564**、数量比 **80.1%** 单列，不表示行为完成率。
+- 现场 quick 明确退出 0：**2174 Rust tests passed / 0 failed / 0 skipped**，Pine **98 passed**，受影响 Clippy 与兼容回放通过；完整 `pnpm run check:rust` 明确退出 0：**3720 passed / 0 failed / 2 skipped**，静态检查及七类 replay 通过，未见 LEAK。两项 skipped 保留原语义，未计入通过。日志为 `/tmp/jftrade-research-screen-quick.log` 与 `/tmp/jftrade-research-screen-rust.log`。
+
 ## 2026-10-07 审批持久化、损坏负载与 sibling 拒绝
 
 - 五条 partial 逐项核对冻结 Go 输入与断言。损坏 durable payload 三分支升 exact，净变化 **exact +1 / partial -1 / boundary 0**，当前 **1598 / 2213 / 640**。其余四条保留 nil receiver、parent WorkflowStatus/ChildRunIDs、async/sync facade 和 background supervisor 的具体差异。

@@ -1,5 +1,18 @@
 # Go → Rust 证据积压清单
 
+## 2026-10-07 research screen HTTP 的 production/rehearsal 边界
+
+- 仅 catalog、normalize、原始 V1 形状拒绝三条升级 exact；**1601 exact / 2210 partial / 640 boundary**，净变化 **+3/-3/0**。只改五条 mapping 与必要 reuse 子集，不扩大此前共享批准。
+
+  | 文件（均位于 verification-receipts） | 实际结果 | 后续关系 |
+  | --- | --- | --- |
+  | `research-screen-http-initial-2026-10-07.json` | failed，0 passed/5 failed；请求未携带 Authorization，均 401，未进入 screen 行为 | authenticated 修正测试凭证；不是生产缺陷红测 |
+  | `research-screen-http-authenticated-2026-10-07.json` | failed，2 passed/3 failed；catalog/V1 400 通过，正向查询 409；production fence 清除了 recording route port | scoped 明确 rehearsal seam；没有削弱 fence，不将未接入的 zero query 视为证明 |
+  | `research-screen-http-scoped-2026-10-07.json` | passed，5/5，2139 filtered/skipped | 当前 canonical |
+
+- scoped SHA-256 `40969aaf7677396ada5d27a5f9e1297c965c2b244849632ccb51c5275d5975e6`；编译时 tracked diff 与 untracked source 已核对。catalog 与 V1 400 是 production HTTP；录制 definition 的三个请求是认证后的 rehearsal HTTP，与真实 parser/normalizer 相连，没有伪造 production broker readiness。legacy 形状还在同一 rehearsal listener 以合法 V2 的 200/一次 query 作正向控制。
+- 两条 residual 明确保留 generic FeatureQuery operation/pageFrom/字符串 Cursor、Go ScreenDefinitionV2 强类型值与具体生产 adapter 的证据差异。普通/strict/anchor 与 engine Clippy 通过。现场 quick 退出 0（2174 Rust passed、Pine 98 passed）；完整 Rust 门禁退出 0（3720 passed、0 failed、2 skipped，静态与七类 replay 通过、无 LEAK）。focused digest 不充当全量摘要。
+
 ## 2026-10-07 审批 durable boundaries 与运行时拒绝
 
 - 五条相关 partial 仅损坏负载三分支升 exact，**1598 exact / 2213 partial / 640 boundary**。只改变本批五条 mapping 和必要 reuse 子集；旧关系保留此前审核权限，不新增共享等价范围。
