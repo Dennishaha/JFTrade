@@ -1,5 +1,14 @@
 # Go → Rust 对齐成果摘要
 
+## 2026-10-07 Web 代理、Origin 与会话失效
+
+- 复核五条 Web partial 与两条旧 Origin exact，新增七条 production HTTP owner。远端 HTTPS scheme spoof、保存密码触发旧会话 snapshot 失效两条升 exact；开发 Origin 原始登录实测 200 而非 Go 403，撤回旧 exact；另一条 Origin exact 以真实 POST login 的拒绝/成功对照替换旧自定义 GET 读路由 owner。净变化 **exact +1 / partial -1 / boundary 0**，当前 **1596 / 2215 / 640**。
+- 七条测试经过真实 production router、密码 manager 与 listener；测试 peer 元数据只用于模拟 Go httptest 的 remote/proxy 输入，不代表真实机器 LAN 连通性。新增旧 cookie authenticated/browser=false、CSRF/expiry=null，旧密码 401/新密码 200；远端 XFP 不产生 Secure cookie；Web disabled 时 desktop token 200；private/public HTTP 设置触发真实绑定迁移。
+- 保留 private proxy 的实测残余：原始 HTTPS Origin 被 403 ORIGIN_FORBIDDEN 拒绝，并非 Go REMOTE_WEB_ACCESS_DISABLED；同 loopback proxy/XFF remote、允许 Origin 仍登录 200。private binding 不等同逐请求 remote 拒绝；Web disabled browser 401/403 和开发 Origin grant 差异均未隐藏。
+- canonical receipt `verification-receipts/web-proxy-session-boundaries-reviewed-2026-10-07.json`：**7 passed / 0 failed / 0 ignored / 2124 filtered/skipped**，SHA-256 `709229962c0a61d8fdde7a1511f691b1508c9e946d6c5911458d541c78071cdf`，源码摘要已匹配。开发 Origin 0/1 红测与中间 6/6 receipt 保持原字节。
+- 普通/strict audit 与 anchor 已通过，strict 首轮误将两个原已审核 reuse 子集改为不允许，修正 metadata 后复跑，未放宽审计。扫描 Rust **3544**、数量比 **79.6%** 单列；anchor **2041 unique / 1993 recorded / 0 unrecorded / 0 stale / 48 unknown**。
+- 六条 owner 的中间 quick 退出 **0**（2160 passed）；第七条加入后的最终 quick 也明确退出 **0**：**2161 passed / 0 failed / 0 skipped**，Pine worker **98 passed**、静态与七类 replay 通过。完整 `check:rust` 明确退出 **0**：workspace **3700 passed / 0 failed / 2 skipped**，静态与七类 replay 通过。日志 `/tmp/jftrade-web-proxy-session-quick-reviewed.log`、`/tmp/jftrade-web-proxy-session-rust.log`；未另生成 workspace JSON receipt，focused digest 不充当全量门禁摘要。
+
 ## 2026-10-07 GET replay 与 Web listener 重配置
 
 - 本批五条 partial：GET disconnect/reconnect、hub replay/cleanup、Web bind 矩阵、热重绑/冲突恢复、关闭 Web 后 browser/desktop 隔离。只升级热重绑/冲突恢复一条；**1595 exact / 2216 partial / 640 boundary**，净变化 **+1/-1/0**。

@@ -1,5 +1,21 @@
 # Go → Rust 证据积压清单
 
+## 2026-10-07 Web proxy/session 与 Origin 原始请求复核
+
+- 五条 partial 中两条升级 exact；旧开发 Origin exact 撤回，另一条 Origin exact 改用真实 POST login owner，净变化 **+1/-1/0**，当前 **1596 exact / 2215 partial / 640 boundary**。
+- 本批 `verification-receipts/` 文件保持原字节，名字不能代替结果。
+
+  | 文件 | 实际结果与范围 | 当前关系 |
+  | --- | --- | --- |
+  | `web-security-development-origin-red-2026-10-07.json` | failed，0 passed/1 failed；真实生产 POST login 开发 Origin 为 200，Go 期待 403 | 保留行为反例，mapping 已恢复 partial |
+  | `web-proxy-session-boundaries-2026-10-07.json` | passed，6/6；原始代理、密码触发与架构反例，第七条 Origin POST 尚未加入 | reviewed 替代 |
+  | `web-proxy-session-boundaries-reviewed-2026-10-07.json` | passed，7/7；包含真实 POST login 的 evil/current-listener Origin 对照 | 当前 canonical |
+
+- canonical SHA-256 `709229962c0a61d8fdde7a1511f691b1508c9e946d6c5911458d541c78071cdf`；**2124 filtered/skipped** 不计通过。已复核 trackedDiff/untracked 摘要；sourceState 指向编译时的测试代码，后续只更新 metadata/docs。
+- 首轮 strict `/tmp/jftrade-web-proxy-session-strict.log` 因拆分 owner 后误拒绝原已审核的两个 reuse 子集失败；保留原审核子集后 `/tmp/jftrade-web-proxy-session-strict-reviewed.log` 通过，没有修改审计规则或批准新共享复用。普通 audit、anchor 通过。
+- 六条 owner 的中间 quick `/tmp/jftrade-web-proxy-session-quick.log` 退出 **0**（2160 passed）；第七条加入后的最终 quick `/tmp/jftrade-web-proxy-session-quick-reviewed.log` 明确退出 **0**，nextest **2161 passed / 0 failed / 0 skipped**，Pine **98 passed**，静态和七类 replay 通过。完整 `check:rust` `/tmp/jftrade-web-proxy-session-rust.log` 明确退出 **0**：workspace **3700 passed / 0 failed / 2 skipped**、静态与七类 replay 通过；未另生成 workspace JSON receipt。
+- 具体残余：private loopback proxy/XFF remote 的逐请求拒绝不存在；TCP bind 与 Go REMOTE_WEB_ACCESS_DISABLED 不同；Web disabled browser 401/403；生产开发 Origin grant 的 200/403。已用真实反例断言，不把它们视为等价完成。后续转向 Strategy/Pine 或 Assistant 的可闭合 partial，目标继续 active。
+
 ## 2026-10-07 GET replay 与 Web listener 重配置批次
 
 - 五条相关 partial 逐项核对冻结 Go；热重绑/冲突恢复升级 exact，其余四条保留明确残余。当前 **1595 exact / 2216 partial / 640 boundary**，净变化 **+1/-1/0**。

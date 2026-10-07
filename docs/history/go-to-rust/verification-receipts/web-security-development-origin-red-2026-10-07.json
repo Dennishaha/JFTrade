@@ -1,0 +1,62 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(production_web_login_rejects_development_origin)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 100,
+  "status": "failed",
+  "verifiedAt": "2026-10-07T05:42:37Z",
+  "sourceState": {
+    "verifiedCommit": "31df7567a58f07063e1561b5bc64c792efdf2584",
+    "trackedDiffSha256": "a5e3a0d2cf6631f6222f5f3100c313b90545ec197e75bb87833b45189a0c59b3",
+    "untrackedFiles": []
+  },
+  "rawOutputSha256": "9e5f9be9df697e3680c7fde7e2548bb0c01128ca60aa8edd4616c87d993b64da",
+  "passedTests": [],
+  "failedTests": [
+    "jftrade-engine::jftrade_engine$product::tests::security_stream_tests::production_web_login_rejects_development_origin"
+  ],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "failed",
+      "passed": 0,
+      "failed": 1,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1742,
+      "exec_time": 4.072276041,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    }
+  ]
+}

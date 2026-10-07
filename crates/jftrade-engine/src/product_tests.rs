@@ -644,6 +644,9 @@ mod ws_live_tests;
 #[path = "product_security_stream_tests.rs"]
 mod security_stream_tests;
 
+#[path = "product_security_proxy_tests.rs"]
+mod security_proxy_tests;
+
 #[path = "product_strategy_pine_tests.rs"]
 mod strategy_pine_tests;
 

@@ -16,6 +16,18 @@
 - [ ] 逐批执行最窄测试、实际 receipt、审计及适用 quick/Rust 门禁，复查 diff 后提交；失败和未执行项保留证据。
 - [ ] 全部映射均有逐项审查依据、可实现行为差距完成修复、架构边界说明完整且所需门禁通过后，才确认整体完成。
 
+## 当前行为批次：Web 代理与会话失效（2026-10-07）
+
+上一批 GET replay/listener 重配置已提交并通过现场 quick 与完整 Rust 门禁。
+本批核对冻结 Go 的五条 partial，并复查原始请求与现有测试 seam 不同的 exact。
+
+- [x] 用真实 production Web router 和测试 peer 重放远端 X-Forwarded-Proto 登录请求，验证拒绝与 cookie 安全属性。
+- [x] 核对同机代理 X-Forwarded-For 与 private/public 边界，保留监听地址和逐请求拒绝的明确差异。
+- [x] 补保持 listener bind 的 HTTP 换密码 → 旧 cookie 会话快照失效闭环，验证新密码仍可登录。
+- [x] 补同进程 Web 禁用与 desktop capability 对照，保留尚未一致的状态码。
+- [x] 复查开发 Origin 的原始 POST login，不能用自定义策略的 GET 读路由证明 production 拒绝。
+- [x] 定向 receipt、普通/strict 审计、anchor、quick、完整 Rust 门禁、diff review 和独立提交。
+
 ## 质量门禁
 
 - [ ] 通过普通 PR 验证 affected fail-closed 计划和唯一 required context `Build & Test`。

@@ -72401,72 +72401,84 @@
       "boundaryReason": null
     },
     "internal/app/apiserver/webaccess/security_integration_test.go:237:TestNetworkClientCannotSpoofHTTPSProxyScheme": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-api/src/router.rs",
-      "conclusion": "partial：Go 断言非 loopback 客户端携带 X-Forwarded-Proto: https 也不能伪装成 HTTPS（登录被 403 拒）。Rust 的实现同源：router 仅当 peer 是 loopback 且转发头为 https 才置 secure，且 origin/CSRF 校验对非受信来源返回 403 ORIGIN_FORBIDDEN；但工作区没有针对“远端 + 转发协议头”的测试，登记为待补断言。",
-      "command": "python3 - <<'PY'  # owner review: verify every remaining source-only/boundary row has explicit gap evidence\n...\nPY",
-      "evidence_type": "partial",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-engine/src/product_security_proxy_tests.rs::public_web_login_rejects_remote_https_scheme_spoofing",
+      "conclusion": "function_exact：重放冻结 Go 的原始 method/path/Host/Origin/peer/proxy header 与有效密码，生产 auth owner 返回 403；另以合法 HTTP Origin 正向控制验证远端 XFP 不产生 Secure cookie。测试 peer 是 Go httptest 同类 transport fixture，不是实际远端网络连通性证明。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-engine --test public_web_login_rejects_remote_https_scheme_spoofing --output docs/history/go-to-rust/verification-receipts/web-proxy-session-boundaries-reviewed-2026-10-07.json",
+      "evidence_type": "function_exact",
       "source": {
         "file": "internal/app/apiserver/webaccess/security_integration_test.go",
         "line": 237,
         "test": "TestNetworkClientCannotSpoofHTTPSProxyScheme",
         "blobSha": "2d4c11f542de7577702ffc79b9a9be71727f608d"
       },
-      "rustEvidence": [],
+      "rustEvidence": [
+        {
+          "file": "crates/jftrade-engine/src/product_security_proxy_tests.rs",
+          "test": "public_web_login_rejects_remote_https_scheme_spoofing",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/app/apiserver/webaccess/security_integration_test.go",
+            "goLine": 237,
+            "rustFile": "crates/jftrade-engine/src/product_security_proxy_tests.rs",
+            "rustLine": 155
+          }
+        }
+      ],
       "assertionCoverage": {
         "covered": [
-          "Go 断言非 loopback 客户端携带 X-Forwarded-Proto: https 也不能伪装成 HTTPS（登录被 403 拒）。",
-          "Rust 的实现同源：router 仅当 peer 是 loopback 且转发头为 https 才置 secure，且 origin/CSRF 校验对非受信来源返回 403 ORIGIN_FORBIDDEN；"
+          "public=true 的真实 production Web router 注入 Go remote peer 192.0.2.20:42000；原始 POST login + Host trade.example + Origin https://trade.example + X-Forwarded-Proto https 返回 403，且不发 cookie。",
+          "同 remote peer 的合法 HTTP Origin 登录为 200；HttpOnly/Strict cookie 不带 Secure，证明伪造远端代理头未授予安全传输属性。"
         ],
-        "uncovered": [
-          "但工作区没有针对“远端 + 转发协议头”的测试，登记为待补断言。"
-        ],
+        "uncovered": [],
         "source": "reviewed"
       },
       "verification": {
         "argv": [
-          "python3",
-          "scripts/compatibility/verify_manual_mapping_evidence.py",
-          "--mapping",
-          "docs/history/go-to-rust/manual-test-mappings.json",
-          "--workspace-receipt",
-          "docs/history/go-to-rust/verification-receipts/workspace-nextest-2026-10-03-final.json",
-          "--output",
-          "docs/history/go-to-rust/verification-receipts/manual-evidence-review-2026-10-03.json"
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+          "node",
+          "scripts/quality/cargo-nextest.mjs",
+          "run",
+          "-p",
+          "jftrade-engine",
+          "--all-targets",
+          "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
+          "-E",
+          "test(production_web_login_preserves_configured_development_origin_grant) or test(production_password_change_invalidates_browser_session_snapshot) or test(public_web_login_rejects_remote_https_scheme_spoofing) or test(private_web_proxy_login_preserves_origin_and_forwarded_client_boundaries) or test(production_web_network_admission_is_owned_by_the_listener_bind) or test(disabled_production_web_keeps_desktop_capability_and_rejects_browser_access) or test(production_web_login_rejects_foreign_origin_and_accepts_listener_origin)"
         ],
         "testFilter": [
-          "owner_review_source_and_boundary_rows"
+          "public_web_login_rejects_remote_https_scheme_spoofing"
         ],
-        "runnerVersion": "manual-evidence-review.v1",
-        "toolchain": "repository evidence verifier",
+        "runnerVersion": "cargo-nextest 0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-03T00:00:00Z",
-        "receiptDigest": "sha256:dabdaee2e19d689b2d81e39b431141ef5b34fb1ae09c5fe0feb8e30679a8e13e"
+        "verifiedCommit": "31df7567a58f07063e1561b5bc64c792efdf2584",
+        "verifiedAt": "2026-10-07T05:54:27Z",
+        "receiptDigest": "sha256:709229962c0a61d8fdde7a1511f691b1508c9e946d6c5911458d541c78071cdf"
       },
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "maintain_verified_function_exact",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Go 断言非 loopback 客户端携带 X-Forwarded-Proto: https 也不能伪装成 HTTPS（登录被 403 拒）。",
-        "Rust 的实现同源：router 仅当 peer 是 loopback 且转发头为 https 才置 secure，且 origin/CSRF 校验对非受信来源返回 403 ORIGIN_FORBIDDEN；"
+        "public=true 的真实 production Web router 注入 Go remote peer 192.0.2.20:42000；原始 POST login + Host trade.example + Origin https://trade.example + X-Forwarded-Proto https 返回 403，且不发 cookie。",
+        "同 remote peer 的合法 HTTP Origin 登录为 200；HttpOnly/Strict cookie 不带 Secure，证明伪造远端代理头未授予安全传输属性。"
       ],
-      "uncoveredAssertions": [
-        "但工作区没有针对“远端 + 转发协议头”的测试，登记为待补断言。"
-      ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/app/apiserver/webaccess/security_integration_test.go:256:TestSameHostProxyCannotBypassPublicAccessSetting": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_server_runtime.rs; crates/jftrade-engine/src/product_server_tests.rs::enabled_web_access_binds_and_shutdown_releases_port",
-      "conclusion": "partial（产品边界差异）：Go 在 publicAccess 关闭时不拦截端口，而对远端请求（含 X-Forwarded-For 伪装）返回 403 REMOTE_WEB_ACCESS_DISABLED。Rust 用绑定策略表达同一意图：publicAccessEnabled=false 只绑 127.0.0.1、true 才绑 0.0.0.0（引用实现与监听测试），远端客户端得到连接拒绝而不是 403；Rust 无 REMOTE_WEB_ACCESS_DISABLED 码（零命中），差异已登记，未擅自改成 Go 的每请求判定。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'not test(production_helper_sync_cancel_aborts_in_flight_request) and not test(production_helper_sync_rejects_broken_pagination_cursors) and not test(production_helper_sync_forwards_page_query_and_persists_provider_values) and not test(production_helper_sync_retries_transient_page_and_records_retry)'",
+      "rust_entry": "crates/jftrade-engine/src/product_security_proxy_tests.rs::private_web_proxy_login_preserves_origin_and_forwarded_client_boundaries",
+      "conclusion": "partial：原始代理请求与正向控制均经过真实 production auth owner；403 原因和 private/forwarded-client admission 仍不同。不能把 Origin 拒绝称为 publicAccess 防绕过已闭合。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-engine --test private_web_proxy_login_preserves_origin_and_forwarded_client_boundaries --output docs/history/go-to-rust/verification-receipts/web-proxy-session-boundaries-reviewed-2026-10-07.json",
       "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/webaccess/security_integration_test.go",
@@ -72476,24 +72488,25 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_server_tests.rs",
-          "test": "enabled_web_access_binds_and_shutdown_releases_port",
+          "file": "crates/jftrade-engine/src/product_security_proxy_tests.rs",
+          "test": "private_web_proxy_login_preserves_origin_and_forwarded_client_boundaries",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/app/apiserver/webaccess/security_integration_test.go",
             "goLine": 256,
-            "rustFile": "crates/jftrade-engine/src/product_server_tests.rs",
-            "rustLine": 72
+            "rustFile": "crates/jftrade-engine/src/product_security_proxy_tests.rs",
+            "rustLine": 219
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust 用绑定策略表达同一意图：publicAccessEnabled=false 只绑 127.0.0.1、true 才绑 0.0.0.0（引用实现与监听测试），远端客户端得到连接拒绝而不是 403；"
+          "真实 production private Web router 注入 loopback proxy peer；原始 Go Host/HTTPS Origin/XFP/XFF remote 登录返回 403，无 cookie，错误码为 ORIGIN_FORBIDDEN。",
+          "相同代理与 remote forwarded client、换成允许的 HTTP Origin 后仍 200 并发 Secure cookie，直接记录 Rust 绑定策略的 counterexample。"
         ],
         "uncovered": [
-          "partial（产品边界差异）：Go 在 publicAccess 关闭时不拦截端口，而对远端请求（含 X-Forwarded-For 伪装）返回 403 REMOTE_WEB_ACCESS_DISABLED。",
-          "Rust 无 REMOTE_WEB_ACCESS_DISABLED 码（零命中），差异已登记，未擅自改成 Go 的每请求判定。"
+          "Go 原始请求要求 REMOTE_WEB_ACCESS_DISABLED，Rust 为 ORIGIN_FORBIDDEN。",
+          "Rust private 以 TCP bind 限制网络入口，未按 X-Forwarded-For 拒绝经 loopback proxy 到达的远端 client。"
         ],
         "source": "reviewed"
       },
@@ -72504,38 +72517,40 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(production_web_login_preserves_configured_development_origin_grant) or test(production_password_change_invalidates_browser_session_snapshot) or test(public_web_login_rejects_remote_https_scheme_spoofing) or test(private_web_proxy_login_preserves_origin_and_forwarded_client_boundaries) or test(production_web_network_admission_is_owned_by_the_listener_bind) or test(disabled_production_web_keeps_desktop_capability_and_rejects_browser_access) or test(production_web_login_rejects_foreign_origin_and_accepts_listener_origin)"
         ],
         "testFilter": [
-          "enabled_web_access_binds_and_shutdown_releases_port"
+          "private_web_proxy_login_preserves_origin_and_forwarded_client_boundaries"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "31df7567a58f07063e1561b5bc64c792efdf2584",
+        "verifiedAt": "2026-10-07T05:54:27Z",
+        "receiptDigest": "sha256:709229962c0a61d8fdde7a1511f691b1508c9e946d6c5911458d541c78071cdf"
       },
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "preserve_partial_and_track_residual",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust 用绑定策略表达同一意图：publicAccessEnabled=false 只绑 127.0.0.1、true 才绑 0.0.0.0（引用实现与监听测试），远端客户端得到连接拒绝而不是 403；"
+        "真实 production private Web router 注入 loopback proxy peer；原始 Go Host/HTTPS Origin/XFP/XFF remote 登录返回 403，无 cookie，错误码为 ORIGIN_FORBIDDEN。",
+        "相同代理与 remote forwarded client、换成允许的 HTTP Origin 后仍 200 并发 Secure cookie，直接记录 Rust 绑定策略的 counterexample。"
       ],
       "uncoveredAssertions": [
-        "partial（产品边界差异）：Go 在 publicAccess 关闭时不拦截端口，而对远端请求（含 X-Forwarded-For 伪装）返回 403 REMOTE_WEB_ACCESS_DISABLED。",
-        "Rust 无 REMOTE_WEB_ACCESS_DISABLED 码（零命中），差异已登记，未擅自改成 Go 的每请求判定。"
+        "Go 原始请求要求 REMOTE_WEB_ACCESS_DISABLED，Rust 为 ORIGIN_FORBIDDEN。",
+        "Rust private 以 TCP bind 限制网络入口，未按 X-Forwarded-For 拒绝经 loopback proxy 到达的远端 client。"
       ],
       "boundaryReason": null
     },
@@ -72771,11 +72786,11 @@
       "boundaryReason": null
     },
     "internal/app/apiserver/webaccess/security_integration_test.go:352:TestPasswordChangesInvalidateWebSessions": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_auth_session_manager_tests.rs::auth_sessions_are_cookie_bound_hashed_and_restart_durable; crates/jftrade-engine/src/product_auth_session_manager_tests.rs::auth_manager_login_validate_and_logout_flow",
-      "conclusion": "partial：Rust invalidates sessions and proves an old token becomes unauthenticated, but the mapped manager test calls `invalidate_all()` directly rather than changing the password through the HTTP/security-settings path. It does not prove the Go password-change trigger.",
-      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(execution_read_routes_match_group_fixture_in_cutover_only) or test(system_status_matches_go_stable_fields_without_claiming_migration_ownership) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable) or test(auth_manager_login_validate_and_logout_flow) or test(production_helper_sync_retries_transient_page_and_records_retry) or test(production_helper_sync_rejects_broken_pagination_cursors)'",
-      "evidence_type": "partial",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-engine/src/product_security_proxy_tests.rs::production_password_change_invalidates_browser_session_snapshot",
+      "conclusion": "function_exact：真实 production HTTP 证明密码设置保存触发旧 Web 会话失效，直接闭合 Go authenticated=false 断言；不再用 manager.invalidate_all 的直接调用替代 trigger。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-engine --test production_password_change_invalidates_browser_session_snapshot --output docs/history/go-to-rust/verification-receipts/web-proxy-session-boundaries-reviewed-2026-10-07.json",
+      "evidence_type": "function_exact",
       "source": {
         "file": "internal/app/apiserver/webaccess/security_integration_test.go",
         "line": 352,
@@ -72784,104 +72799,21 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_auth_session_manager_tests.rs",
-          "test": "auth_sessions_are_cookie_bound_hashed_and_restart_durable",
+          "file": "crates/jftrade-engine/src/product_security_proxy_tests.rs",
+          "test": "production_password_change_invalidates_browser_session_snapshot",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/app/apiserver/webaccess/security_integration_test.go",
             "goLine": 352,
-            "rustFile": "crates/jftrade-engine/src/product_auth_session_manager_tests.rs",
-            "rustLine": 384
-          }
-        },
-        {
-          "file": "crates/jftrade-engine/src/product_auth_session_manager_tests.rs",
-          "test": "auth_manager_login_validate_and_logout_flow",
-          "crate": "jftrade-engine",
-          "anchor": {
-            "goFile": "internal/app/apiserver/webaccess/security_integration_test.go",
-            "goLine": 352,
-            "rustFile": "crates/jftrade-engine/src/product_auth_session_manager_tests.rs",
-            "rustLine": 58
+            "rustFile": "crates/jftrade-engine/src/product_security_proxy_tests.rs",
+            "rustLine": 117
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust invalidates sessions and proves an old token becomes unauthenticated, but the mapped manager test calls `invalidate_all()` directly rather than changing the password through the HTTP/security-settings path. It does not prove the Go password-change trigger."
-        ],
-        "uncovered": [
-          "未从该结论中拆出独立 Rust 缺口；需按原始 Go 断言与 Rust 测试逐项复核。"
-        ],
-        "source": "reviewed"
-      },
-      "verification": {
-        "argv": [
-          "env",
-          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
-          "node",
-          "scripts/quality/cargo-nextest.mjs",
-          "run",
-          "--workspace",
-          "--all-targets",
-          "--locked",
-          "--message-format",
-          "libtest-json-plus",
-          "--no-fail-fast"
-        ],
-        "testFilter": [
-          "auth_sessions_are_cookie_bound_hashed_and_restart_durable"
-        ],
-        "runnerVersion": "cargo-nextest-0.9.143",
-        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
-        "status": "passed",
-        "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
-      },
-      "risk": "high",
-      "owner": "api_transport",
-      "priority": "P1",
-      "nextAction": "add_same_shape_http_test",
-      "blockedBy": [],
-      "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "Rust invalidates sessions and proves an old token becomes unauthenticated, but the mapped manager test calls `invalidate_all()` directly rather than changing the password through the HTTP/security-settings path. It does not prove the Go password-change trigger."
-      ],
-      "uncoveredAssertions": [
-        "未从该结论中拆出独立 Rust 缺口；需按原始 Go 断言与 Rust 测试逐项复核。"
-      ],
-      "boundaryReason": null
-    },
-    "internal/app/apiserver/webaccess/security_integration_test.go:362:TestProductionWebDoesNotTrustDevelopmentOrigin": {
-      "status": "[x]",
-      "rust_entry": "crates/jftrade-api/tests/transport_contracts.rs::web_mode_rejects_the_development_origin",
-      "conclusion": "function_exact：Go 断言生产 Web 模式不接受开发期 Origin（http://localhost:3003）并以 403 ORIGIN_FORBIDDEN 拒绝登录。Rust 新增用例以同一开发期 Origin 携带会话 cookie 请求受保护读路由，断言 403、错误码 ORIGIN_FORBIDDEN，且请求在进入认证与端口前即被拒绝（端口零调用）；该用例带本行 // Parity: 锚点。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --all-targets --locked",
-      "evidence_type": "function_exact",
-      "source": {
-        "file": "internal/app/apiserver/webaccess/security_integration_test.go",
-        "line": 362,
-        "test": "TestProductionWebDoesNotTrustDevelopmentOrigin",
-        "blobSha": "2d4c11f542de7577702ffc79b9a9be71727f608d"
-      },
-      "rustEvidence": [
-        {
-          "file": "crates/jftrade-api/tests/transport_contracts.rs",
-          "test": "web_mode_rejects_the_development_origin",
-          "crate": "jftrade-api",
-          "anchor": {
-            "goFile": "internal/app/apiserver/webaccess/security_integration_test.go",
-            "goLine": 362,
-            "rustFile": "crates/jftrade-api/tests/transport_contracts.rs",
-            "rustLine": 1259
-          }
-        }
-      ],
-      "assertionCoverage": {
-        "covered": [
-          "function_exact：Go 断言生产 Web 模式不接受开发期 Origin（http://localhost:3003）并以 403 ORIGIN_FORBIDDEN 拒绝登录。Rust 新增用例以同一开发期 Origin 携带会话 cookie 请求受保护读路由，断言 403、错误码 ORIGIN_FORBIDDEN，且请求在进入认证与端口前即被拒绝（端口零调用）；该用例带本行 // Parity: 锚点。"
+          "生产 HTTP 登录后 session snapshot authenticated/browser=true；保持同 listener bind，经 desktop PUT 换密码后旧 cookie snapshot 两者为 false，CSRF/expiry 为 null。",
+          "原密码 401 且无 Set-Cookie，新密码重新登录 200，新 cookie 不同且 session authenticated=true。"
         ],
         "uncovered": [],
         "source": "reviewed"
@@ -72893,34 +72825,116 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(production_web_login_preserves_configured_development_origin_grant) or test(production_password_change_invalidates_browser_session_snapshot) or test(public_web_login_rejects_remote_https_scheme_spoofing) or test(private_web_proxy_login_preserves_origin_and_forwarded_client_boundaries) or test(production_web_network_admission_is_owned_by_the_listener_bind) or test(disabled_production_web_keeps_desktop_capability_and_rejects_browser_access) or test(production_web_login_rejects_foreign_origin_and_accepts_listener_origin)"
         ],
         "testFilter": [
-          "web_mode_rejects_the_development_origin"
+          "production_password_change_invalidates_browser_session_snapshot"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "31df7567a58f07063e1561b5bc64c792efdf2584",
+        "verifiedAt": "2026-10-07T05:54:27Z",
+        "receiptDigest": "sha256:709229962c0a61d8fdde7a1511f691b1508c9e946d6c5911458d541c78071cdf"
+      },
+      "risk": "high",
+      "owner": "api_transport",
+      "priority": "P1",
+      "nextAction": "maintain_verified_function_exact",
+      "blockedBy": [],
+      "waiverExpiresAt": null,
+      "coveredAssertions": [
+        "生产 HTTP 登录后 session snapshot authenticated/browser=true；保持同 listener bind，经 desktop PUT 换密码后旧 cookie snapshot 两者为 false，CSRF/expiry 为 null。",
+        "原密码 401 且无 Set-Cookie，新密码重新登录 200，新 cookie 不同且 session authenticated=true。"
+      ],
+      "uncoveredAssertions": [],
+      "boundaryReason": null
+    },
+    "internal/app/apiserver/webaccess/security_integration_test.go:362:TestProductionWebDoesNotTrustDevelopmentOrigin": {
+      "status": "[~]",
+      "rust_entry": "crates/jftrade-engine/src/product_security_proxy_tests.rs::production_web_login_preserves_configured_development_origin_grant",
+      "conclusion": "partial（撤回过宽 exact）：旧 owner 是自定义 allowed_origins + GET settings/ui，不能证明 production POST login。真实红测发现 200/403 差异；保留配置化开发 Origin 策略与 counterexample，不通过改写 fixture 或继续宣称 exact 隐藏差异。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-engine --test production_web_login_preserves_configured_development_origin_grant --output docs/history/go-to-rust/verification-receipts/web-proxy-session-boundaries-reviewed-2026-10-07.json",
+      "evidence_type": "partial",
+      "source": {
+        "file": "internal/app/apiserver/webaccess/security_integration_test.go",
+        "line": 362,
+        "test": "TestProductionWebDoesNotTrustDevelopmentOrigin",
+        "blobSha": "2d4c11f542de7577702ffc79b9a9be71727f608d"
+      },
+      "rustEvidence": [
+        {
+          "file": "crates/jftrade-engine/src/product_security_proxy_tests.rs",
+          "test": "production_web_login_preserves_configured_development_origin_grant",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/app/apiserver/webaccess/security_integration_test.go",
+            "goLine": 362,
+            "rustFile": "crates/jftrade-engine/src/product_security_proxy_tests.rs",
+            "rustLine": 92
+          }
+        }
+      ],
+      "assertionCoverage": {
+        "covered": [
+          "真实 production POST login 的 localhost:3003 Origin 200、authenticated=true 且发 session cookie，匹配当前装配的显式开发 Origin grant。",
+          "先按 Go 403 期待运行失败，receipt web-security-development-origin-red-2026-10-07.json 保留原始失败；旧测试只证明自定义策略 GET 读路由拒绝。"
+        ],
+        "uncovered": [
+          "Go production Web 原始 POST login 要求 403 ORIGIN_FORBIDDEN；Rust production 固定 grant localhost:3003，实际为 200。"
+        ],
+        "source": "reviewed"
+      },
+      "verification": {
+        "argv": [
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+          "node",
+          "scripts/quality/cargo-nextest.mjs",
+          "run",
+          "-p",
+          "jftrade-engine",
+          "--all-targets",
+          "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
+          "-E",
+          "test(production_web_login_preserves_configured_development_origin_grant) or test(production_password_change_invalidates_browser_session_snapshot) or test(public_web_login_rejects_remote_https_scheme_spoofing) or test(private_web_proxy_login_preserves_origin_and_forwarded_client_boundaries) or test(production_web_network_admission_is_owned_by_the_listener_bind) or test(disabled_production_web_keeps_desktop_capability_and_rejects_browser_access) or test(production_web_login_rejects_foreign_origin_and_accepts_listener_origin)"
+        ],
+        "testFilter": [
+          "production_web_login_preserves_configured_development_origin_grant"
+        ],
+        "runnerVersion": "cargo-nextest 0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "31df7567a58f07063e1561b5bc64c792efdf2584",
+        "verifiedAt": "2026-10-07T05:54:27Z",
+        "receiptDigest": "sha256:709229962c0a61d8fdde7a1511f691b1508c9e946d6c5911458d541c78071cdf"
       },
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "retain_receipt_and_reaudit",
+      "nextAction": "preserve_partial_and_track_residual",
       "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "function_exact：Go 断言生产 Web 模式不接受开发期 Origin（http://localhost:3003）并以 403 ORIGIN_FORBIDDEN 拒绝登录。Rust 新增用例以同一开发期 Origin 携带会话 cookie 请求受保护读路由，断言 403、错误码 ORIGIN_FORBIDDEN，且请求在进入认证与端口前即被拒绝（端口零调用）；该用例带本行 // Parity: 锚点。"
+        "真实 production POST login 的 localhost:3003 Origin 200、authenticated=true 且发 session cookie，匹配当前装配的显式开发 Origin grant。",
+        "先按 Go 403 期待运行失败，receipt web-security-development-origin-red-2026-10-07.json 保留原始失败；旧测试只证明自定义策略 GET 读路由拒绝。"
       ],
-      "uncoveredAssertions": [],
+      "uncoveredAssertions": [
+        "Go production Web 原始 POST login 要求 403 ORIGIN_FORBIDDEN；Rust production 固定 grant localhost:3003，实际为 200。"
+      ],
       "boundaryReason": null
     },
     "internal/app/apiserver/webaccess/security_integration_test.go:379:TestWebLogoutClearsSessionCookie": {
@@ -73093,9 +73107,9 @@
     },
     "internal/app/apiserver/webaccess/security_integration_test.go:422:TestUntrustedOriginIsRejectedButSameOriginLANHostWorks": {
       "status": "[x]",
-      "rust_entry": "crates/jftrade-api/tests/transport_contracts.rs::untrusted_origin_is_rejected_while_the_allowed_lan_origin_authenticates",
-      "conclusion": "function_exact：Go 断言 https://evil.example.com 登录被 403 拒绝，而配置为同源的 LAN host 登录成功。Rust 新增用例在允许来源含 http://192.168.1.10:3008 的策略下断言未受信 Origin 403、允许的 LAN 来源 200，且端口只被调用一次（仅成功请求）；该用例带本行 // Parity: 锚点。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api --all-targets --locked",
+      "rust_entry": "crates/jftrade-engine/src/product_security_proxy_tests.rs::production_web_login_rejects_foreign_origin_and_accepts_listener_origin",
+      "conclusion": "function_exact：将旧自定义策略 GET settings/ui owner 替换为真实 production POST login。Go 原始 evil HTTPS Origin 为 403 且不发 cookie；当前 listener Origin 登录为 200，真实 auth/session snapshot authenticated=true。没有用读路由或 dummy port 代替登录 owner。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-engine --test production_web_login_rejects_foreign_origin_and_accepts_listener_origin --output docs/history/go-to-rust/verification-receipts/web-proxy-session-boundaries-reviewed-2026-10-07.json",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/app/apiserver/webaccess/security_integration_test.go",
@@ -73105,20 +73119,21 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-api/tests/transport_contracts.rs",
-          "test": "untrusted_origin_is_rejected_while_the_allowed_lan_origin_authenticates",
-          "crate": "jftrade-api",
+          "file": "crates/jftrade-engine/src/product_security_proxy_tests.rs",
+          "test": "production_web_login_rejects_foreign_origin_and_accepts_listener_origin",
+          "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/app/apiserver/webaccess/security_integration_test.go",
             "goLine": 422,
-            "rustFile": "crates/jftrade-api/tests/transport_contracts.rs",
-            "rustLine": 1288
+            "rustFile": "crates/jftrade-engine/src/product_security_proxy_tests.rs",
+            "rustLine": 8
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "function_exact：Go 断言 https://evil.example.com 登录被 403 拒绝，而配置为同源的 LAN host 登录成功。Rust 新增用例在允许来源含 http://192.168.1.10:3008 的策略下断言未受信 Origin 403、允许的 LAN 来源 200，且端口只被调用一次（仅成功请求）；该用例带本行 // Parity: 锚点。"
+          "真实 production Web 私有 listener：POST login + evil HTTPS Origin 返回 403 ORIGIN_FORBIDDEN 且不发 cookie。",
+          "相同有效密码与 listener Origin 登录 200，发 cookie 并可读取 authenticated=true 的会话快照。"
         ],
         "uncovered": [],
         "source": "reviewed"
@@ -73130,23 +73145,26 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(production_web_login_preserves_configured_development_origin_grant) or test(production_password_change_invalidates_browser_session_snapshot) or test(public_web_login_rejects_remote_https_scheme_spoofing) or test(private_web_proxy_login_preserves_origin_and_forwarded_client_boundaries) or test(production_web_network_admission_is_owned_by_the_listener_bind) or test(disabled_production_web_keeps_desktop_capability_and_rejects_browser_access) or test(production_web_login_rejects_foreign_origin_and_accepts_listener_origin)"
         ],
         "testFilter": [
-          "untrusted_origin_is_rejected_while_the_allowed_lan_origin_authenticates"
+          "production_web_login_rejects_foreign_origin_and_accepts_listener_origin"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "31df7567a58f07063e1561b5bc64c792efdf2584",
+        "verifiedAt": "2026-10-07T05:54:27Z",
+        "receiptDigest": "sha256:709229962c0a61d8fdde7a1511f691b1508c9e946d6c5911458d541c78071cdf"
       },
       "risk": "normal",
       "owner": "api_transport",
@@ -73155,16 +73173,17 @@
       "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "function_exact：Go 断言 https://evil.example.com 登录被 403 拒绝，而配置为同源的 LAN host 登录成功。Rust 新增用例在允许来源含 http://192.168.1.10:3008 的策略下断言未受信 Origin 403、允许的 LAN 来源 200，且端口只被调用一次（仅成功请求）；该用例带本行 // Parity: 锚点。"
+        "真实 production Web 私有 listener：POST login + evil HTTPS Origin 返回 403 ORIGIN_FORBIDDEN 且不发 cookie。",
+        "相同有效密码与 listener Origin 登录 200，发 cookie 并可读取 authenticated=true 的会话快照。"
       ],
       "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/app/apiserver/webaccess/security_integration_test.go:437:TestLoopbackPolicyBlocksRemoteBrowserUntilExplicitlyEnabled": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_server_tests.rs::disabled_web_access_does_not_start_a_listener; crates/jftrade-engine/src/product_server_runtime.rs::desired_bind",
-      "conclusion": "partial（产品边界差异）：Go 断言 private 模式下远端浏览器 403 REMOTE_WEB_ACCESS_DISABLED，显式开启 publicAccess 后才放行。Rust 以监听地址表达（关闭不监听、private 绑 127.0.0.1、public 绑 0.0.0.0，引用实现与测试），远端在 private 模式下无法建立连接；无对应 403 文案，差异同 security_integration_test.go:256。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'not test(production_helper_sync_cancel_aborts_in_flight_request) and not test(production_helper_sync_rejects_broken_pagination_cursors) and not test(production_helper_sync_forwards_page_query_and_persists_provider_values) and not test(production_helper_sync_retries_transient_page_and_records_retry)'",
+      "rust_entry": "crates/jftrade-engine/src/product_security_proxy_tests.rs::production_web_network_admission_is_owned_by_the_listener_bind",
+      "conclusion": "partial：真实 settings PUT 闭合 private/public listener 绑定迁移；注入远端 peer 的 GET / 明确显示 Rust 不执行 Go 的逐请求 private 403，不升级。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-engine --test production_web_network_admission_is_owned_by_the_listener_bind --output docs/history/go-to-rust/verification-receipts/web-proxy-session-boundaries-reviewed-2026-10-07.json",
       "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/webaccess/security_integration_test.go",
@@ -73174,35 +73193,25 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_server_tests.rs",
-          "test": "disabled_web_access_does_not_start_a_listener",
+          "file": "crates/jftrade-engine/src/product_security_proxy_tests.rs",
+          "test": "production_web_network_admission_is_owned_by_the_listener_bind",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/app/apiserver/webaccess/security_integration_test.go",
             "goLine": 437,
-            "rustFile": "crates/jftrade-engine/src/product_server_tests.rs",
-            "rustLine": 20
-          }
-        },
-        {
-          "file": "crates/jftrade-engine/src/product_server_runtime.rs",
-          "test": "desired_bind",
-          "crate": "jftrade-engine",
-          "anchor": {
-            "goFile": "internal/app/apiserver/webaccess/security_integration_test.go",
-            "goLine": 437,
-            "rustFile": "crates/jftrade-engine/src/product_server_runtime.rs",
-            "rustLine": 117
+            "rustFile": "crates/jftrade-engine/src/product_security_proxy_tests.rs",
+            "rustLine": 274
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust 以监听地址表达（关闭不监听、private 绑 127.0.0.1、public 绑 0.0.0.0，引用实现与测试），远端在 private 模式下无法建立连接；"
+          "生产 Web listener 私有 bind 为 127.0.0.1:配置端口，desktop HTTP 显式开启 public 后真实重绑为 0.0.0.0:同端口。",
+          "通过测试 peer 元数据模拟远端、绕过 kernel bind 后，private/public GET / handler 都不返回 403，明确记录 handler seam 差异。"
         ],
         "uncovered": [
-          "partial（产品边界差异）：Go 断言 private 模式下远端浏览器 403 REMOTE_WEB_ACCESS_DISABLED，显式开启 publicAccess 后才放行。",
-          "无对应 403 文案，差异同 security_integration_test.go:256。"
+          "Go private handler 要求 403 REMOTE_WEB_ACCESS_DISABLED，public handler 不再 403；Rust private 只限制监听地址，没有同形逐请求拒绝。",
+          "peer 元数据 fixture 不证明机器 LAN 的真实远端连通性；普通测试不依赖实际网络接口。"
         ],
         "source": "reviewed"
       },
@@ -73213,47 +73222,48 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(production_web_login_preserves_configured_development_origin_grant) or test(production_password_change_invalidates_browser_session_snapshot) or test(public_web_login_rejects_remote_https_scheme_spoofing) or test(private_web_proxy_login_preserves_origin_and_forwarded_client_boundaries) or test(production_web_network_admission_is_owned_by_the_listener_bind) or test(disabled_production_web_keeps_desktop_capability_and_rejects_browser_access) or test(production_web_login_rejects_foreign_origin_and_accepts_listener_origin)"
         ],
         "testFilter": [
-          "desired_bind",
-          "disabled_web_access_does_not_start_a_listener"
+          "production_web_network_admission_is_owned_by_the_listener_bind"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "31df7567a58f07063e1561b5bc64c792efdf2584",
+        "verifiedAt": "2026-10-07T05:54:27Z",
+        "receiptDigest": "sha256:709229962c0a61d8fdde7a1511f691b1508c9e946d6c5911458d541c78071cdf"
       },
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "preserve_partial_and_track_residual",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust 以监听地址表达（关闭不监听、private 绑 127.0.0.1、public 绑 0.0.0.0，引用实现与测试），远端在 private 模式下无法建立连接；"
+        "生产 Web listener 私有 bind 为 127.0.0.1:配置端口，desktop HTTP 显式开启 public 后真实重绑为 0.0.0.0:同端口。",
+        "通过测试 peer 元数据模拟远端、绕过 kernel bind 后，private/public GET / handler 都不返回 403，明确记录 handler seam 差异。"
       ],
       "uncoveredAssertions": [
-        "partial（产品边界差异）：Go 断言 private 模式下远端浏览器 403 REMOTE_WEB_ACCESS_DISABLED，显式开启 publicAccess 后才放行。",
-        "无对应 403 文案，差异同 security_integration_test.go:256。"
+        "Go private handler 要求 403 REMOTE_WEB_ACCESS_DISABLED，public handler 不再 403；Rust private 只限制监听地址，没有同形逐请求拒绝。",
+        "peer 元数据 fixture 不证明机器 LAN 的真实远端连通性；普通测试不依赖实际网络接口。"
       ],
       "boundaryReason": null
     },
     "internal/app/apiserver/webaccess/security_integration_test.go:461:TestDesktopCapabilityStaysPasswordlessWhenWebAccessIsDisabled": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-api/tests/transport_contracts.rs::desktop_token_reaches_port_with_stable_envelope_and_request_id; crates/jftrade-engine/src/product_auth_session_write_port.rs",
-      "conclusion": "partial：Go 断言 Web 关闭时桌面 bearer 仍可读（200），而浏览器入口被 403 WEB_ACCESS_DISABLED。Rust 的桌面 token 通道有独立测试（引用）且写端口定义 WEB_ACCESS_DISABLED（禁用时登录/会话被拒），但浏览器入口无 HTML/403 文案（同 security_integration_test.go:188），缺的是“同一进程内桌面 200 + 浏览器 403”的对照断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-api -E 'test(desktop_token_reaches_port_with_stable_envelope_and_request_id)'",
+      "rust_entry": "crates/jftrade-engine/src/product_security_proxy_tests.rs::disabled_production_web_keeps_desktop_capability_and_rejects_browser_access",
+      "conclusion": "partial：同进程 desktop capability 仍可访问和无 Web listener 已有真实 HTTP 证明；browser 403/401 与 handler seam 差异明确保留。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-engine --test disabled_production_web_keeps_desktop_capability_and_rejects_browser_access --output docs/history/go-to-rust/verification-receipts/web-proxy-session-boundaries-reviewed-2026-10-07.json",
       "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/webaccess/security_integration_test.go",
@@ -73263,24 +73273,25 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-api/tests/transport_contracts.rs",
-          "test": "desktop_token_reaches_port_with_stable_envelope_and_request_id",
-          "crate": "jftrade-api",
+          "file": "crates/jftrade-engine/src/product_security_proxy_tests.rs",
+          "test": "disabled_production_web_keeps_desktop_capability_and_rejects_browser_access",
+          "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/app/apiserver/webaccess/security_integration_test.go",
             "goLine": 461,
-            "rustFile": "crates/jftrade-api/tests/transport_contracts.rs",
-            "rustLine": 329
+            "rustFile": "crates/jftrade-engine/src/product_security_proxy_tests.rs",
+            "rustLine": 321
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Go 断言 Web 关闭时桌面 bearer 仍可读（200），而浏览器入口被 403 WEB_ACCESS_DISABLED。",
-          "Rust 的桌面 token 通道有独立测试（引用）且写端口定义 WEB_ACCESS_DISABLED（禁用时登录/会话被拒），但浏览器入口无 HTML/403 文案（同 security_integration_test.go:188），缺的是“同一进程内桌面 200 + 浏览器 403”的对照断言。"
+          "Web disabled 的同一 production 进程，注入 remote peer 的 desktop bearer GET system/status=200、ok=true；匿名请求 401 WEB_AUTH_REQUIRED。",
+          "禁用 Web 端口可重新 bind，证明未启动 browser listener。"
         ],
         "uncovered": [
-          "未从该结论中拆出独立 Rust 缺口；需按原始 Go 断言与 Rust 测试逐项复核。"
+          "冻结 Go browser WebAccessHandler 为 403 WEB_ACCESS_DISABLED；Rust 没有独立禁用 Web listener，desktop handler 匿名拒绝为 401。",
+          "Go browser 请求的独立 handler/loopback peer seam 与当前 Rust 同进程 desktop router 不同。"
         ],
         "source": "reviewed"
       },
@@ -73291,38 +73302,40 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(production_web_login_preserves_configured_development_origin_grant) or test(production_password_change_invalidates_browser_session_snapshot) or test(public_web_login_rejects_remote_https_scheme_spoofing) or test(private_web_proxy_login_preserves_origin_and_forwarded_client_boundaries) or test(production_web_network_admission_is_owned_by_the_listener_bind) or test(disabled_production_web_keeps_desktop_capability_and_rejects_browser_access) or test(production_web_login_rejects_foreign_origin_and_accepts_listener_origin)"
         ],
         "testFilter": [
-          "desktop_token_reaches_port_with_stable_envelope_and_request_id"
+          "disabled_production_web_keeps_desktop_capability_and_rejects_browser_access"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "31df7567a58f07063e1561b5bc64c792efdf2584",
+        "verifiedAt": "2026-10-07T05:54:27Z",
+        "receiptDigest": "sha256:709229962c0a61d8fdde7a1511f691b1508c9e946d6c5911458d541c78071cdf"
       },
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "preserve_partial_and_track_residual",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Go 断言 Web 关闭时桌面 bearer 仍可读（200），而浏览器入口被 403 WEB_ACCESS_DISABLED。",
-        "Rust 的桌面 token 通道有独立测试（引用）且写端口定义 WEB_ACCESS_DISABLED（禁用时登录/会话被拒），但浏览器入口无 HTML/403 文案（同 security_integration_test.go:188），缺的是“同一进程内桌面 200 + 浏览器 403”的对照断言。"
+        "Web disabled 的同一 production 进程，注入 remote peer 的 desktop bearer GET system/status=200、ok=true；匿名请求 401 WEB_AUTH_REQUIRED。",
+        "禁用 Web 端口可重新 bind，证明未启动 browser listener。"
       ],
       "uncoveredAssertions": [
-        "未从该结论中拆出独立 Rust 缺口；需按原始 Go 断言与 Rust 测试逐项复核。"
+        "冻结 Go browser WebAccessHandler 为 403 WEB_ACCESS_DISABLED；Rust 没有独立禁用 Web listener，desktop handler 匿名拒绝为 401。",
+        "Go browser 请求的独立 handler/loopback peer seam 与当前 Rust 同进程 desktop router 不同。"
       ],
       "boundaryReason": null
     },
@@ -344980,14 +344993,12 @@
       "reviewNote": "2026-09-30 API remaining owner review: application, startup, lifecycle, status, settings, Futu probe, desktop and web-auth assertions were compared with the shared Rust owner; fan-out capped at six, high fan-out remains backlog."
     },
     "crates/jftrade-engine/src/product_server_tests.rs::disabled_web_access_does_not_start_a_listener": {
-      "referenceCount": 2,
+      "referenceCount": 1,
       "referenceKeys": [
-        "internal/app/apiserver/lifecycle/lifecycle_test.go:90:TestStartForRunArgsReturnsNoopWhenDisabled",
-        "internal/app/apiserver/webaccess/security_integration_test.go:437:TestLoopbackPolicyBlocksRemoteBrowserUntilExplicitlyEnabled"
+        "internal/app/apiserver/lifecycle/lifecycle_test.go:90:TestStartForRunArgsReturnsNoopWhenDisabled"
       ],
-      "allowed": false,
-      "reviewStatus": "reviewed",
-      "reviewNote": "2026-10-07：本批改用独立 reconnect/listener/security owner；剩余共享引用只支持各自有限断言，未批准 exact reuse。"
+      "allowed": true,
+      "reviewStatus": "single"
     },
     "apps/desktop/src-tauri/tests/desktop_contracts.rs::lifecycle_starts_in_dependency_order_and_shuts_down_in_reverse": {
       "referenceCount": 4,
@@ -345011,16 +345022,15 @@
       "reviewNote": "2026-10-02 bounded reuse review: compared all 2 referenceKeys against the shared Rust owner (status mix {'[~]': 2}); assertion scopes are not interchangeable, so reuse remains disallowed and no function_exact row is upgraded by this relation."
     },
     "crates/jftrade-engine/src/product_server_tests.rs::enabled_web_access_binds_and_shutdown_releases_port": {
-      "referenceCount": 4,
+      "referenceCount": 3,
       "referenceKeys": [
         "internal/app/apiserver/lifecycle/lifecycle_test.go:243:TestSeparateWebListenerStartsAlongsideLoopbackDesktopSidecar",
         "internal/app/apiserver/servercore/desktop_token_test.go:46:TestDesktopSidecarDoesNotDoubleAsBrowserListener",
-        "internal/app/apiserver/servercoretest/frontend_test.go:198:TestRunAPIOnlyStopsAfterCallerCancellation",
-        "internal/app/apiserver/webaccess/security_integration_test.go:256:TestSameHostProxyCannotBypassPublicAccessSetting"
+        "internal/app/apiserver/servercoretest/frontend_test.go:198:TestRunAPIOnlyStopsAfterCallerCancellation"
       ],
       "allowed": false,
       "reviewStatus": "reviewed",
-      "reviewNote": "2026-10-07：本批改用独立 reconnect/listener/security owner；剩余共享引用只支持各自有限断言，未批准 exact reuse。"
+      "reviewNote": "2026-10-07：本批六条 Web 映射改用独立 production proxy/session owner；剩余引用仅支持各自有限断言，未批准额外 exact reuse。"
     },
     "crates/jftrade-engine/src/product_server_tests.rs::port_conflict_keeps_the_previous_listener_running": {
       "referenceCount": 5,
@@ -346707,15 +346717,15 @@
       "reviewStatus": "reviewed"
     },
     "crates/jftrade-api/tests/transport_contracts.rs::desktop_token_reaches_port_with_stable_envelope_and_request_id": {
-      "referenceCount": 4,
+      "referenceCount": 3,
       "referenceKeys": [
         "internal/app/apiserver/servercore/request_observability_test.go:14:TestRequestObservabilityInjectsStableContextAndRecordsSummary",
         "internal/app/apiserver/servercoretest/system_routes_test.go:89:TestRequestObservabilityMiddlewarePropagatesRequestID",
-        "internal/app/apiserver/webaccess/security_integration_test.go:461:TestDesktopCapabilityStaysPasswordlessWhenWebAccessIsDisabled",
         "cmd/jftrade-desktop/main_test.go:66:TestDesktopRuntimeConfigDisablesAuth"
       ],
       "allowed": true,
-      "reviewStatus": "reviewed"
+      "reviewStatus": "reviewed",
+      "reviewNote": "2026-10-07：仅移除本批已拆成独立 production owner 的引用；剩余引用是原已审核关系的子集，保留原有 reuse 结论。"
     },
     "crates/jftrade-api/tests/transport_contracts.rs::invalid_request_id_is_replaced_before_observation_and_dispatch": {
       "referenceCount": 2,
@@ -346928,14 +346938,6 @@
       "allowed": false,
       "reviewStatus": "reviewed",
       "reviewNote": "2026-10-02 bounded reuse review: compared all 2 referenceKeys against the shared Rust owner (status mix {'[~]': 2}); assertion scopes are not interchangeable, so reuse remains disallowed and no function_exact row is upgraded by this relation."
-    },
-    "crates/jftrade-engine/src/product_auth_session_manager_tests.rs::auth_sessions_are_cookie_bound_hashed_and_restart_durable": {
-      "referenceCount": 1,
-      "referenceKeys": [
-        "internal/app/apiserver/webaccess/security_integration_test.go:352:TestPasswordChangesInvalidateWebSessions"
-      ],
-      "allowed": true,
-      "reviewStatus": "single"
     },
     "crates/jftrade-engine/src/product_production_assembly_tests.rs::direct_product_shutdown_stops_reconciliation_before_releasing_leases": {
       "referenceCount": 6,
@@ -348306,44 +348308,19 @@
       "reviewStatus": "single"
     },
     "crates/jftrade-engine/src/product_auth_session_manager_tests.rs::auth_manager_login_validate_and_logout_flow": {
-      "referenceCount": 3,
+      "referenceCount": 2,
       "referenceKeys": [
-        "internal/app/apiserver/webaccess/security_integration_test.go:352:TestPasswordChangesInvalidateWebSessions",
         "internal/app/apiserver/webaccess/security_integration_test.go:379:TestWebLogoutClearsSessionCookie",
         "internal/app/apiserver/webaccess/security_integration_test.go:400:TestWebLoginCookieIsHttpOnlyAndSameSiteStrict"
       ],
       "allowed": true,
       "reviewStatus": "reviewed",
-      "reviewNote": "2026-09-30 API remaining owner review: application, startup, lifecycle, status, settings, Futu probe, desktop and web-auth assertions were compared with the shared Rust owner; fan-out capped at six, high fan-out remains backlog."
-    },
-    "crates/jftrade-api/tests/transport_contracts.rs::web_mode_rejects_the_development_origin": {
-      "referenceCount": 1,
-      "referenceKeys": [
-        "internal/app/apiserver/webaccess/security_integration_test.go:362:TestProductionWebDoesNotTrustDevelopmentOrigin"
-      ],
-      "allowed": true,
-      "reviewStatus": "single"
+      "reviewNote": "2026-10-07：仅移除本批已拆成独立 production owner 的引用；剩余引用是原已审核关系的子集，保留原有 reuse 结论。"
     },
     "crates/jftrade-engine/src/product_auth_session_write_product_tests.rs::auth_session_write_product_preserves_browser_context_and_recovers": {
       "referenceCount": 1,
       "referenceKeys": [
         "internal/app/apiserver/webaccess/security_integration_test.go:379:TestWebLogoutClearsSessionCookie"
-      ],
-      "allowed": true,
-      "reviewStatus": "single"
-    },
-    "crates/jftrade-api/tests/transport_contracts.rs::untrusted_origin_is_rejected_while_the_allowed_lan_origin_authenticates": {
-      "referenceCount": 1,
-      "referenceKeys": [
-        "internal/app/apiserver/webaccess/security_integration_test.go:422:TestUntrustedOriginIsRejectedButSameOriginLANHostWorks"
-      ],
-      "allowed": true,
-      "reviewStatus": "single"
-    },
-    "crates/jftrade-engine/src/product_server_runtime.rs::desired_bind": {
-      "referenceCount": 1,
-      "referenceKeys": [
-        "internal/app/apiserver/webaccess/security_integration_test.go:437:TestLoopbackPolicyBlocksRemoteBrowserUntilExplicitlyEnabled"
       ],
       "allowed": true,
       "reviewStatus": "single"
@@ -364406,6 +364383,62 @@
       "referenceCount": 1,
       "referenceKeys": [
         "internal/app/apiserver/servercore/security_test.go:43:TestSecurityChangeCancelsExistingWebStream"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_security_proxy_tests.rs::disabled_production_web_keeps_desktop_capability_and_rejects_browser_access": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/app/apiserver/webaccess/security_integration_test.go:461:TestDesktopCapabilityStaysPasswordlessWhenWebAccessIsDisabled"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_security_proxy_tests.rs::private_web_proxy_login_preserves_origin_and_forwarded_client_boundaries": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/app/apiserver/webaccess/security_integration_test.go:256:TestSameHostProxyCannotBypassPublicAccessSetting"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_security_proxy_tests.rs::production_password_change_invalidates_browser_session_snapshot": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/app/apiserver/webaccess/security_integration_test.go:352:TestPasswordChangesInvalidateWebSessions"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_security_proxy_tests.rs::production_web_login_preserves_configured_development_origin_grant": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/app/apiserver/webaccess/security_integration_test.go:362:TestProductionWebDoesNotTrustDevelopmentOrigin"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_security_proxy_tests.rs::production_web_network_admission_is_owned_by_the_listener_bind": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/app/apiserver/webaccess/security_integration_test.go:437:TestLoopbackPolicyBlocksRemoteBrowserUntilExplicitlyEnabled"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_security_proxy_tests.rs::public_web_login_rejects_remote_https_scheme_spoofing": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/app/apiserver/webaccess/security_integration_test.go:237:TestNetworkClientCannotSpoofHTTPSProxyScheme"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_security_proxy_tests.rs::production_web_login_rejects_foreign_origin_and_accepts_listener_origin": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/app/apiserver/webaccess/security_integration_test.go:422:TestUntrustedOriginIsRejectedButSameOriginLANHostWorks"
       ],
       "allowed": true,
       "reviewStatus": "single"
