@@ -529,6 +529,8 @@ mod research_screen_embedded_http_tests;
 mod research_screen_http_parity_tests;
 #[path = "product_research_screen_write_product_tests.rs"]
 mod research_screen_write_product_tests;
+#[path = "product_strategy_durable_http_parity_tests.rs"]
+mod strategy_durable_http_parity_tests;
 #[path = "product_strategy_research_write_product_tests.rs"]
 mod strategy_research_write_product_tests;
 

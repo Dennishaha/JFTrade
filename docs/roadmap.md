@@ -16,15 +16,15 @@
 - [ ] 逐批执行最窄测试、实际 receipt、审计及适用 quick/Rust 门禁，复查 diff 后提交；失败和未执行项保留证据。
 - [ ] 全部映射均有逐项审查依据、可实现行为差距完成修复、架构边界说明完整且所需门禁通过后，才确认整体完成。
 
-## 下一行为批次：Strategy/Pine 持久化守卫与入参边界（2026-10-07）
+## 下一行为批次：插件 HTTP 与文件 owner（2026-10-07）
 
-embedded screen 批次已收口，净 exact +4/partial -4，现场 quick 与完整 Rust 门禁通过；结果、残余和失败证据关系见 [迁移成果摘要](history/go-to-rust/parity-progress-summary.md) 与 [证据积压清单](history/go-to-rust/parity-evidence-backlog.md)。下一批选择五条 partial：strategy routes_lifecycle_test 的 203/252/319、routes_boundary_contracts_test 的 75，以及 pine_routes_contracts_test 的 182。
+Strategy/Pine 持久化批次已收口，修复 linked 定义删除与 version current marker，净 exact +2/partial -2；现场 quick 与完整 Rust 门禁通过。结果、残余和失败关系见 [迁移成果摘要](history/go-to-rust/parity-progress-summary.md) 与 [证据积压清单](history/go-to-rust/parity-evidence-backlog.md)。下一批选择六条 partial：strategy API routes_failure_boundaries_test 的 230、routes_lifecycle_test 的 642/689，catalog plugin_normalization_business_test 的 13/89，以及 servercoretest plugin_lifecycle_test 的 16。
 
-- [ ] 原始 create/client-id/Draft、update/def-9/Updated 入参核对 owner 收到的身份归一；不把完整业务创建要求与叶层绑定混为一谈。
-- [ ] 真实 production HTTP 建立 linked instance 的定义删除 400 守卫；软删除实例、重启后删除定义应成功，先建立红测并检查唯一 writer 的持久化谓词。
-- [ ] production version history/snapshot 重启后核对 definitionId、savedAt、isCurrent、description 与 script；500/缺 URI 参数的未闭合断言保留。
-- [ ] 缺失实例 start 为 404/NOT_FOUND，已有 STOPPED sibling 不变；容量/preflight、worker start/stop 和转换回滚缺口逐项保留。
-- [ ] 原始 legacy sourceFormat 在未配置 worker 的 production HTTP 上先返回 400/BAD_REQUEST 和精确文案，不能由 worker unavailable 掩盖输入错误。
+- [ ] 原始三条 `%20` operation/install/guidance 经认证 production HTTP 返回400/BAD_REQUEST，marker与artifact不变。
+- [ ] 临时工件通过真实file owner完成catalog、op-1、install/uninstall plugin-a、guidance；generated operations逐字读取，重启后恢复序列与排序。
+- [ ] 缺失资源install/uninstall/operation/guidance返回404；非普通文件导致unlink失败500，marker保持原字节。
+- [ ] malformed installation/operations各核对install与uninstall；先建立红测，失败后marker、artifact存在性和字节应保持，修复对应owner。
+- [ ] Go RegisterPlugin默认descriptor/repository.saveCount与legacy build tuple的requiresRebuild/metadata-only安装差异逐项保留，不能伪造Go运行时等价。
 - [ ] 至少闭合一条 partial；canonical receipt、普通/strict 与 anchor 审计、quick、完整 Rust 门禁、diff review、独立提交后继续。
 
 ## 质量门禁

@@ -1,0 +1,72 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(definition_mutation_normalizes_original_client_identity_before_owner_call) or test(production_http_definition_delete_guard_releases_after_linked_instance_soft_delete) or test(production_http_definition_versions_preserve_snapshot_and_current_marker_after_restart) or test(production_http_pine_legacy_source_is_rejected_before_missing_worker) or test(production_http_missing_strategy_start_does_not_change_a_stopped_sibling)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 100,
+  "status": "failed",
+  "verifiedAt": "2026-10-07T07:59:54Z",
+  "sourceState": {
+    "verifiedCommit": "8c70af1056a251ce5bab39556c941a9e2c3cb416",
+    "trackedDiffSha256": "92b293245c23a73c4ab2ed313036c36decb4d2501c050426554be04b2ca13b79",
+    "untrackedFiles": [
+      {
+        "path": "crates/jftrade-engine/src/product_strategy_durable_http_parity_tests.rs",
+        "sha256": "d8f38631d1e31d0e9abc22a0f8ed964c08af2a241ede7bf1f4d2386ba8a6a10d"
+      }
+    ]
+  },
+  "rawOutputSha256": "db05598abf1f96284224f371548039404e0596482c27cef60b968ffbb165ed90",
+  "passedTests": [
+    "jftrade-engine::jftrade_engine$product::tests::strategy_durable_http_parity_tests::definition_mutation_normalizes_original_client_identity_before_owner_call",
+    "jftrade-engine::jftrade_engine$product::tests::strategy_durable_http_parity_tests::production_http_missing_strategy_start_does_not_change_a_stopped_sibling",
+    "jftrade-engine::jftrade_engine$product::tests::strategy_durable_http_parity_tests::production_http_pine_legacy_source_is_rejected_before_missing_worker"
+  ],
+  "failedTests": [
+    "jftrade-engine::jftrade_engine$product::tests::strategy_durable_http_parity_tests::production_http_definition_delete_guard_releases_after_linked_instance_soft_delete",
+    "jftrade-engine::jftrade_engine$product::tests::strategy_durable_http_parity_tests::production_http_definition_versions_preserve_snapshot_and_current_marker_after_restart"
+  ],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 5,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "failed",
+      "passed": 3,
+      "failed": 2,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1760,
+      "exec_time": 20.604798542,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    }
+  ]
+}

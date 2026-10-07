@@ -346,15 +346,7 @@ impl StrategyDefinitionStore {
         let existing = get_definition_query(&transaction, id, false)?
             .ok_or(StrategyDefinitionStoreError::NotFound)?;
 
-        let active_count: i64 = transaction
-            .query_row(
-                "SELECT COUNT(*) FROM strategy_catalog_operations WHERE plugin_id = ?1",
-                params![id],
-                |row| row.get(0),
-            )
-            .optional()
-            .map_err(StrategyDefinitionStoreError::Query)?
-            .unwrap_or(0);
+        let active_count = linked_instance_count(&transaction, id)?;
 
         if active_count > 0 {
             return Err(StrategyDefinitionStoreError::DeleteGuard(format!(
@@ -540,6 +532,49 @@ fn increment_patch_version(version: &str) -> String {
     let minor = parts.next().unwrap_or(1);
     let patch = parts.next().unwrap_or(0).saturating_add(1);
     format!("{major}.{minor}.{patch}")
+}
+
+fn linked_instance_count(
+    connection: &Connection,
+    definition_id: &str,
+) -> Result<usize, StrategyDefinitionStoreError> {
+    let mut statement = connection
+        .prepare(
+            "SELECT operation_id, plugin_id, status, updated_at, payload_json
+             FROM strategy_catalog_operations",
+        )
+        .map_err(StrategyDefinitionStoreError::Query)?;
+    let rows = statement
+        .query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, String>(3)?,
+                row.get::<_, String>(4)?,
+            ))
+        })
+        .map_err(StrategyDefinitionStoreError::Query)?;
+    let mut count = 0;
+    for row in rows {
+        let (id, plugin_id, status, updated_at, payload) =
+            row.map_err(StrategyDefinitionStoreError::Query)?;
+        let instance = crate::strategy_runtime_records::decode_instance(
+            id, plugin_id, status, updated_at, &payload,
+        )
+        .map_err(|error| StrategyDefinitionStoreError::Incompatible(error.to_string()))?;
+        // Native instances link through metadata or binding. The plugin column
+        // remains a fallback for persisted rows from the compatibility profile.
+        let linked_id = instance
+            .definition_id
+            .as_deref()
+            .or_else(|| crate::strategy_runtime_link::binding_definition_id(&instance.binding))
+            .or_else(|| (!instance.plugin_id.is_empty()).then_some(instance.plugin_id.as_str()));
+        if !instance.deleted && linked_id == Some(definition_id) {
+            count += 1;
+        }
+    }
+    Ok(count)
 }
 
 fn validate_rfc3339_timestamp(timestamp: &str) -> Result<(), StrategyDefinitionStoreError> {

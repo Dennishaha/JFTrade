@@ -1,0 +1,53 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "-p",
+    "jftrade-store-sqlite",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(definition_mutation_normalizes_original_client_identity_before_owner_call) or test(production_http_definition_delete_guard_releases_after_linked_instance_soft_delete) or test(production_http_definition_versions_preserve_snapshot_and_current_marker_after_restart) or test(production_http_pine_legacy_source_is_rejected_before_missing_worker) or test(production_http_missing_strategy_start_does_not_change_a_stopped_sibling) or test(definition_delete_guard_tracks_metadata_and_binding_links_until_soft_delete) or test(definition_delete_rejects_malformed_catalog_payload_without_mutation)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 101,
+  "status": "failed",
+  "verifiedAt": "2026-10-07T08:05:23Z",
+  "sourceState": {
+    "verifiedCommit": "8c70af1056a251ce5bab39556c941a9e2c3cb416",
+    "trackedDiffSha256": "0a1f3bc57dfe758823fe3badea54a6e8175bbbaa60df6936aa70e5b0be4c7952",
+    "untrackedFiles": [
+      {
+        "path": "crates/jftrade-engine/src/product_production_ports_strategy_definition_read.rs",
+        "sha256": "bc4cf60115594fd0b61abc90241ea4c53c3cd5ee42adb0126b3afde694411f57"
+      },
+      {
+        "path": "crates/jftrade-engine/src/product_strategy_durable_http_parity_tests.rs",
+        "sha256": "c70fc5f1bdcb26857b98836bb40d51cac3b4d3c5718c108b663d2ab1a5019438"
+      },
+      {
+        "path": "crates/jftrade-store-sqlite/tests/strategy_definition_guard_contracts.rs",
+        "sha256": "12a4617d553732b2f72aa1fee26b621e28b509785596d0490822fdfc9299b53f"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/strategy-durable-http-initial-2026-10-07.json",
+        "sha256": "5399437f728e07295209ab763ca22bf3bfacabd909176956ea3a0a5f3385c830"
+      }
+    ]
+  },
+  "rawOutputSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "passedTests": [],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": []
+}

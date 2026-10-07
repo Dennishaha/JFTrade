@@ -19702,11 +19702,11 @@
       "boundaryReason": null
     },
     "internal/api/strategy/pine_routes_contracts_test.go:182:TestAnalyzeStrategyPineRouteRejectsUnsupportedSourceFormat": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/tests/strategy_pine_compatibility.rs::strategy_pine_applies_input_validation_and_error_precedence_before_the_port",
-      "conclusion": "partial：Go 断言 sourceFormat=legacy → 400 且 error.message 逐字等于 \"strategy-pine analyze supports pine-v6 only\"。Rust 校验用例断言非路由与输入校验先于端口（400 族），fixture 的 unsupported-source-format case 断言 400 + BAD_REQUEST；Rust 校验消息由端口生成，未与 Go 文案逐字比对。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'not test(production_helper_sync_cancel_aborts_in_flight_request) and not test(production_helper_sync_rejects_broken_pagination_cursors) and not test(production_helper_sync_forwards_page_query_and_persists_provider_values) and not test(production_helper_sync_retries_transient_page_and_records_retry)'",
-      "evidence_type": "partial",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-engine/src/product_strategy_durable_http_parity_tests.rs::production_http_pine_legacy_source_is_rejected_before_missing_worker",
+      "conclusion": "function_exact：原始legacy sourceFormat和Analyze脚本经真实认证production HTTP，400、okfalse、BAD_REQUEST、精确message strategy-pine analyze supports pine-v6 only；在缺worker时输入校验仍优先。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-engine --package jftrade-store-sqlite --test production_http_pine_legacy_source_is_rejected_before_missing_worker --output docs/history/go-to-rust/verification-receipts/strategy-durable-http-reviewed-2026-10-07.json",
+      "evidence_type": "function_exact",
       "source": {
         "file": "internal/api/strategy/pine_routes_contracts_test.go",
         "line": 182,
@@ -19715,24 +19715,22 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/tests/strategy_pine_compatibility.rs",
-          "test": "strategy_pine_applies_input_validation_and_error_precedence_before_the_port",
+          "file": "crates/jftrade-engine/src/product_strategy_durable_http_parity_tests.rs",
+          "test": "production_http_pine_legacy_source_is_rejected_before_missing_worker",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/api/strategy/pine_routes_contracts_test.go",
             "goLine": 182,
-            "rustFile": "crates/jftrade-engine/tests/strategy_pine_compatibility.rs",
-            "rustLine": 194
+            "rustFile": "crates/jftrade-engine/src/product_strategy_durable_http_parity_tests.rs",
+            "rustLine": 234
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust validation tests reject unsupported input before the port and fixture asserts 400 BAD_REQUEST."
+          "原始legacy sourceFormat和Analyze脚本经真实认证production HTTP，400、okfalse、BAD_REQUEST、精确message strategy-pine analyze supports pine-v6 only；在缺worker时输入校验仍优先。"
         ],
-        "uncovered": [
-          "No exact Rust message assertion for \"strategy-pine analyze supports pine-v6 only\"."
-        ],
+        "uncovered": [],
         "source": "reviewed"
       },
       "verification": {
@@ -19742,38 +19740,39 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
+          "-p",
+          "jftrade-store-sqlite",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(definition_mutation_normalizes_original_client_identity_before_owner_call) or test(production_http_definition_delete_guard_releases_after_linked_instance_soft_delete) or test(production_http_definition_versions_preserve_snapshot_and_current_marker_after_restart) or test(production_http_pine_legacy_source_is_rejected_before_missing_worker) or test(production_http_missing_strategy_start_does_not_change_a_stopped_sibling) or test(definition_delete_guard_tracks_metadata_and_binding_links_until_soft_delete) or test(definition_delete_rejects_malformed_catalog_payload_without_mutation)"
         ],
         "testFilter": [
-          "strategy_pine_applies_input_validation_and_error_precedence_before_the_port"
+          "production_http_pine_legacy_source_is_rejected_before_missing_worker"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "8c70af1056a251ce5bab39556c941a9e2c3cb416",
+        "verifiedAt": "2026-10-07T08:10:07Z",
+        "receiptDigest": "sha256:ec5b49114e12b375cab15947c19c7ba6729d6b154365575c3fc66cca4e0f70a4"
       },
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "retain_reviewed_boundary_or_partial_and_reaudit",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "maintain_verified_function_exact",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust validation tests reject unsupported input before the port and fixture asserts 400 BAD_REQUEST."
+        "原始legacy sourceFormat和Analyze脚本经真实认证production HTTP，400、okfalse、BAD_REQUEST、精确message strategy-pine analyze supports pine-v6 only；在缺worker时输入校验仍优先。"
       ],
-      "uncoveredAssertions": [
-        "No exact Rust message assertion for \"strategy-pine analyze supports pine-v6 only\"."
-      ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/api/strategy/pine_routes_contracts_test.go:217:TestAnalyzeStrategyPineRouteReportsUnsupportedSyntax": {
@@ -20282,9 +20281,9 @@
     },
     "internal/api/strategy/routes_boundary_contracts_test.go:75:TestStrategyStartRouteMapsPreflightRuntimeAndTransitionBoundaries": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/tests/strategies_write_compatibility.rs::sqlite_test_cutover_preserves_repeated_transitions_rollback_and_restart",
-      "conclusion": "partial：Go 断言缺失实例→404 NOT_FOUND、startability guard→400 BAD_REQUEST、worker 容量(pineworker.ErrCapacityExceeded)→400 BAD_REQUEST、转换失败→502 STRATEGY_RUNTIME_START_FAILED 且停止已启动 runtime。Rust cutover 端口用例断言 STARTING→RUNNING 失败回滚（502 STRATEGY_RUNTIME_START_FAILED、状态保持、无 STARTED 事件）；生产端口把状态 CAS 失败映射为 409 CONFLICT 并 cancel+release_demand（语义差异已登记）；缺失实例 404 映射存在但无用例断言；startability guard 与 worker 容量无 HTTP 级用例。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --locked -E 'test(sqlite_test_cutover_preserves_repeated_transitions_rollback_and_restart)'",
+      "rust_entry": "crates/jftrade-engine/src/product_strategy_durable_http_parity_tests.rs::production_http_missing_strategy_start_does_not_change_a_stopped_sibling",
+      "conclusion": "partial：原始missing instance分支经真实production HTTP为404 NOT_FOUND，已存在STOPPED sibling状态不变。 startability guard400、worker capacity400、transition失败502 STRATEGY_RUNTIME_START_FAILED及runtime.Stop已启动实例尚未在本批production路径证明；既有production CAS映射409的差异仍保留。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-engine --package jftrade-store-sqlite --test production_http_missing_strategy_start_does_not_change_a_stopped_sibling --output docs/history/go-to-rust/verification-receipts/strategy-durable-http-reviewed-2026-10-07.json",
       "evidence_type": "partial",
       "source": {
         "file": "internal/api/strategy/routes_boundary_contracts_test.go",
@@ -20294,23 +20293,23 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/tests/strategies_write_compatibility.rs",
-          "test": "sqlite_test_cutover_preserves_repeated_transitions_rollback_and_restart",
+          "file": "crates/jftrade-engine/src/product_strategy_durable_http_parity_tests.rs",
+          "test": "production_http_missing_strategy_start_does_not_change_a_stopped_sibling",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/api/strategy/routes_boundary_contracts_test.go",
             "goLine": 75,
-            "rustFile": "crates/jftrade-engine/tests/strategies_write_compatibility.rs",
-            "rustLine": 350
+            "rustFile": "crates/jftrade-engine/src/product_strategy_durable_http_parity_tests.rs",
+            "rustLine": 255
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust cutover test rolls STARTING→RUNNING failure back with 502 STRATEGY_RUNTIME_START_FAILED and no STARTED event; production CAS failure cancels/releases demand."
+          "原始missing instance分支经真实production HTTP为404 NOT_FOUND，已存在STOPPED sibling状态不变。"
         ],
         "uncovered": [
-          "No HTTP assertions for missing instance, startability guard, worker capacity, or the Go 400/502 matrix; production CAS failure maps 409 in Rust."
+          "startability guard400、worker capacity400、transition失败502 STRATEGY_RUNTIME_START_FAILED及runtime.Stop已启动实例尚未在本批production路径证明；既有production CAS映射409的差异仍保留。"
         ],
         "source": "reviewed"
       },
@@ -20321,37 +20320,40 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
+          "-p",
+          "jftrade-store-sqlite",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(definition_mutation_normalizes_original_client_identity_before_owner_call) or test(production_http_definition_delete_guard_releases_after_linked_instance_soft_delete) or test(production_http_definition_versions_preserve_snapshot_and_current_marker_after_restart) or test(production_http_pine_legacy_source_is_rejected_before_missing_worker) or test(production_http_missing_strategy_start_does_not_change_a_stopped_sibling) or test(definition_delete_guard_tracks_metadata_and_binding_links_until_soft_delete) or test(definition_delete_rejects_malformed_catalog_payload_without_mutation)"
         ],
         "testFilter": [
-          "sqlite_test_cutover_preserves_repeated_transitions_rollback_and_restart"
+          "production_http_missing_strategy_start_does_not_change_a_stopped_sibling"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "8c70af1056a251ce5bab39556c941a9e2c3cb416",
+        "verifiedAt": "2026-10-07T08:10:07Z",
+        "receiptDigest": "sha256:ec5b49114e12b375cab15947c19c7ba6729d6b154365575c3fc66cca4e0f70a4"
       },
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "retain_reviewed_boundary_or_partial_and_reaudit",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "preserve_partial_and_track_residual",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust cutover test rolls STARTING→RUNNING failure back with 502 STRATEGY_RUNTIME_START_FAILED and no STARTED event; production CAS failure cancels/releases demand."
+        "原始missing instance分支经真实production HTTP为404 NOT_FOUND，已存在STOPPED sibling状态不变。"
       ],
       "uncoveredAssertions": [
-        "No HTTP assertions for missing instance, startability guard, worker capacity, or the Go 400/502 matrix; production CAS failure maps 409 in Rust."
+        "startability guard400、worker capacity400、transition失败502 STRATEGY_RUNTIME_START_FAILED及runtime.Stop已启动实例尚未在本批production路径证明；既有production CAS映射409的差异仍保留。"
       ],
       "boundaryReason": null
     },
@@ -20910,11 +20912,11 @@
       "boundaryReason": null
     },
     "internal/api/strategy/routes_lifecycle_test.go:203:TestDefinitionRoutesNormalizeCreateUpdateAndDeleteGuards": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_strategy_definition_write_port.rs::create_clears_client_id_and_update_overrides_body_id",
-      "conclusion": "partial：Go 断言 create 清空客户端 ID、update 以路径 ID 覆盖 body、linked 实例存在时 delete→400、解除关联后 delete→200 且传递 def-1。Rust 端口用例断言 create 清 ID 与 update 覆盖 ID；delete 的 linked 守卫 400/200 转换由产品写端口路径承载，无同场景用例（缺口已登记）。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'not test(production_helper_sync_cancel_aborts_in_flight_request) and not test(production_helper_sync_rejects_broken_pagination_cursors) and not test(production_helper_sync_forwards_page_query_and_persists_provider_values) and not test(production_helper_sync_retries_transient_page_and_records_retry)'",
-      "evidence_type": "partial",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-engine/src/product_strategy_durable_http_parity_tests.rs::definition_mutation_normalizes_original_client_identity_before_owner_call",
+      "conclusion": "function_exact：原始 create client-id/Draft 与 update def-9/Updated 经真实 mutation dispatcher，recording owner 直接核对清空客户端 ID、路径覆盖 ID 和名称，均200；没有在owner之后才归一。 真实认证 production HTTP 创建定义与关联实例，list200、关联存在时DELETE400并保留定义；软删除实例并重启后DELETE200且响应为原definitionId，list不再包含已删除定义。原Go使用def-1 fixture，本测试使用生产生成ID并核对同一ID的持久化副作用。 红测暴露plugin_id为空时漏掉payload definitionId关系；修复同一删除事务内读取metadata/binding链接、跳过deleted实例并保留兼容plugin fallback，未改变WriterLease或schema。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-engine --package jftrade-store-sqlite --test definition_mutation_normalizes_original_client_identity_before_owner_call --test production_http_definition_delete_guard_releases_after_linked_instance_soft_delete --output docs/history/go-to-rust/verification-receipts/strategy-durable-http-reviewed-2026-10-07.json",
+      "evidence_type": "function_exact",
       "source": {
         "file": "internal/api/strategy/routes_lifecycle_test.go",
         "line": 203,
@@ -20923,24 +20925,35 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_strategy_definition_write_port.rs",
-          "test": "create_clears_client_id_and_update_overrides_body_id",
+          "file": "crates/jftrade-engine/src/product_strategy_durable_http_parity_tests.rs",
+          "test": "definition_mutation_normalizes_original_client_identity_before_owner_call",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/api/strategy/routes_lifecycle_test.go",
             "goLine": 203,
-            "rustFile": "crates/jftrade-engine/src/product_strategy_definition_write_port.rs",
-            "rustLine": 419
+            "rustFile": "crates/jftrade-engine/src/product_strategy_durable_http_parity_tests.rs",
+            "rustLine": 75
+          }
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_strategy_durable_http_parity_tests.rs",
+          "test": "production_http_definition_delete_guard_releases_after_linked_instance_soft_delete",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/api/strategy/routes_lifecycle_test.go",
+            "goLine": 203,
+            "rustFile": "crates/jftrade-engine/src/product_strategy_durable_http_parity_tests.rs",
+            "rustLine": 123
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust definition port clears client id on create and path id overrides body id; product path carries linked-delete 400/200 guard semantics."
+          "原始 create client-id/Draft 与 update def-9/Updated 经真实 mutation dispatcher，recording owner 直接核对清空客户端 ID、路径覆盖 ID 和名称，均200；没有在owner之后才归一。",
+          "真实认证 production HTTP 创建定义与关联实例，list200、关联存在时DELETE400并保留定义；软删除实例并重启后DELETE200且响应为原definitionId，list不再包含已删除定义。原Go使用def-1 fixture，本测试使用生产生成ID并核对同一ID的持久化副作用。",
+          "红测暴露plugin_id为空时漏掉payload definitionId关系；修复同一删除事务内读取metadata/binding链接、跳过deleted实例并保留兼容plugin fallback，未改变WriterLease或schema。"
         ],
-        "uncovered": [
-          "No scenario test creates a linked instance, rejects delete with 400, unlinks, then deletes with 200 and def-1 forwarding."
-        ],
+        "uncovered": [],
         "source": "reviewed"
       },
       "verification": {
@@ -20950,45 +20963,49 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
+          "-p",
+          "jftrade-store-sqlite",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(definition_mutation_normalizes_original_client_identity_before_owner_call) or test(production_http_definition_delete_guard_releases_after_linked_instance_soft_delete) or test(production_http_definition_versions_preserve_snapshot_and_current_marker_after_restart) or test(production_http_pine_legacy_source_is_rejected_before_missing_worker) or test(production_http_missing_strategy_start_does_not_change_a_stopped_sibling) or test(definition_delete_guard_tracks_metadata_and_binding_links_until_soft_delete) or test(definition_delete_rejects_malformed_catalog_payload_without_mutation)"
         ],
         "testFilter": [
-          "create_clears_client_id_and_update_overrides_body_id"
+          "definition_mutation_normalizes_original_client_identity_before_owner_call",
+          "production_http_definition_delete_guard_releases_after_linked_instance_soft_delete"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "8c70af1056a251ce5bab39556c941a9e2c3cb416",
+        "verifiedAt": "2026-10-07T08:10:07Z",
+        "receiptDigest": "sha256:ec5b49114e12b375cab15947c19c7ba6729d6b154365575c3fc66cca4e0f70a4"
       },
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "retain_reviewed_boundary_or_partial_and_reaudit",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "maintain_verified_function_exact",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust definition port clears client id on create and path id overrides body id; product path carries linked-delete 400/200 guard semantics."
+        "原始 create client-id/Draft 与 update def-9/Updated 经真实 mutation dispatcher，recording owner 直接核对清空客户端 ID、路径覆盖 ID 和名称，均200；没有在owner之后才归一。",
+        "真实认证 production HTTP 创建定义与关联实例，list200、关联存在时DELETE400并保留定义；软删除实例并重启后DELETE200且响应为原definitionId，list不再包含已删除定义。原Go使用def-1 fixture，本测试使用生产生成ID并核对同一ID的持久化副作用。",
+        "红测暴露plugin_id为空时漏掉payload definitionId关系；修复同一删除事务内读取metadata/binding链接、跳过deleted实例并保留兼容plugin fallback，未改变WriterLease或schema。"
       ],
-      "uncoveredAssertions": [
-        "No scenario test creates a linked instance, rejects delete with 400, unlinks, then deletes with 200 and def-1 forwarding."
-      ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/api/strategy/routes_lifecycle_test.go:252:TestDefinitionVersionRoutesExposeHistoryAndSnapshots": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/tests/strategy_definitions_write_compatibility.rs::sqlite_test_cutover_preserves_versions_rollback_linked_delete_and_restart",
-      "conclusion": "partial：Go 断言 versions 列表字段（definitionId/isCurrent/savedAt）、detail 字段（description/script）、缺失→404 NOT_FOUND、store 失败→500 STRATEGY_FAILED、handler 缺参→400。Rust SQLite cutover 用例断言版本历史/回滚/关联删除/重启；404/500 映射在 wire 层并由 fixture case 覆盖缺失路径；缺参 400 分支属 routes_boundary_contracts_test.go:31 已登记的 404/400 差异。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --locked -E 'test(sqlite_test_cutover_preserves_versions_rollback_linked_delete_and_restart)'",
+      "rust_entry": "crates/jftrade-engine/src/product_strategy_durable_http_parity_tests.rs::production_http_definition_versions_preserve_snapshot_and_current_marker_after_restart",
+      "conclusion": "partial：真实production HTTP创建两个版本，重启后列表两条definitionId/savedAt存在、isCurrent仅当前0.1.1为true；0.1.0 detail保留first snapshot/script且isCurrentfalse；missing定义/版本均404 NOT_FOUND。 红测发现版本projection缺少已在OpenAPI required的isCurrent；production read adapter复用immutable version与当前定义投影字段。 未重放Go固定savedAt 2026-07-25T09:00:00Z及全部原始fixture字段；history/snapshot store故障500 STRATEGY_FAILED与直接handler缺URI400尚无本批断言，不能升exact。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-engine --package jftrade-store-sqlite --test production_http_definition_versions_preserve_snapshot_and_current_marker_after_restart --output docs/history/go-to-rust/verification-receipts/strategy-durable-http-reviewed-2026-10-07.json",
       "evidence_type": "partial",
       "source": {
         "file": "internal/api/strategy/routes_lifecycle_test.go",
@@ -20998,23 +21015,24 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/tests/strategy_definitions_write_compatibility.rs",
-          "test": "sqlite_test_cutover_preserves_versions_rollback_linked_delete_and_restart",
+          "file": "crates/jftrade-engine/src/product_strategy_durable_http_parity_tests.rs",
+          "test": "production_http_definition_versions_preserve_snapshot_and_current_marker_after_restart",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/api/strategy/routes_lifecycle_test.go",
             "goLine": 252,
-            "rustFile": "crates/jftrade-engine/tests/strategy_definitions_write_compatibility.rs",
-            "rustLine": 306
+            "rustFile": "crates/jftrade-engine/src/product_strategy_durable_http_parity_tests.rs",
+            "rustLine": 169
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust SQLite cutover covers version history, rollback, linked delete, and restart; fixtures cover missing/500 mappings."
+          "真实production HTTP创建两个版本，重启后列表两条definitionId/savedAt存在、isCurrent仅当前0.1.1为true；0.1.0 detail保留first snapshot/script且isCurrentfalse；missing定义/版本均404 NOT_FOUND。",
+          "红测发现版本projection缺少已在OpenAPI required的isCurrent；production read adapter复用immutable version与当前定义投影字段。"
         ],
         "uncovered": [
-          "No combined version response-field matrix or handler-missing-parameter assertion; missing-URI 400/404 remains the documented router boundary."
+          "未重放Go固定savedAt 2026-07-25T09:00:00Z及全部原始fixture字段；history/snapshot store故障500 STRATEGY_FAILED与直接handler缺URI400尚无本批断言，不能升exact。"
         ],
         "source": "reviewed"
       },
@@ -21025,45 +21043,49 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
+          "-p",
+          "jftrade-store-sqlite",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(definition_mutation_normalizes_original_client_identity_before_owner_call) or test(production_http_definition_delete_guard_releases_after_linked_instance_soft_delete) or test(production_http_definition_versions_preserve_snapshot_and_current_marker_after_restart) or test(production_http_pine_legacy_source_is_rejected_before_missing_worker) or test(production_http_missing_strategy_start_does_not_change_a_stopped_sibling) or test(definition_delete_guard_tracks_metadata_and_binding_links_until_soft_delete) or test(definition_delete_rejects_malformed_catalog_payload_without_mutation)"
         ],
         "testFilter": [
-          "sqlite_test_cutover_preserves_versions_rollback_linked_delete_and_restart"
+          "production_http_definition_versions_preserve_snapshot_and_current_marker_after_restart"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "8c70af1056a251ce5bab39556c941a9e2c3cb416",
+        "verifiedAt": "2026-10-07T08:10:07Z",
+        "receiptDigest": "sha256:ec5b49114e12b375cab15947c19c7ba6729d6b154365575c3fc66cca4e0f70a4"
       },
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "retain_reviewed_boundary_or_partial_and_reaudit",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "preserve_partial_and_track_residual",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust SQLite cutover covers version history, rollback, linked delete, and restart; fixtures cover missing/500 mappings."
+        "真实production HTTP创建两个版本，重启后列表两条definitionId/savedAt存在、isCurrent仅当前0.1.1为true；0.1.0 detail保留first snapshot/script且isCurrentfalse；missing定义/版本均404 NOT_FOUND。",
+        "红测发现版本projection缺少已在OpenAPI required的isCurrent；production read adapter复用immutable version与当前定义投影字段。"
       ],
       "uncoveredAssertions": [
-        "No combined version response-field matrix or handler-missing-parameter assertion; missing-URI 400/404 remains the documented router boundary."
+        "未重放Go固定savedAt 2026-07-25T09:00:00Z及全部原始fixture字段；history/snapshot store故障500 STRATEGY_FAILED与直接handler缺URI400尚无本批断言，不能升exact。"
       ],
       "boundaryReason": null
     },
     "internal/api/strategy/routes_lifecycle_test.go:319:TestInstantiateApplyAndLifecycleRoutesFollowBusinessStateTransitions": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_strategy_runtime_write_product_tests.rs::strategy_runtime_write_product_replays_browser_failure_recovery_and_restart",
-      "conclusion": "partial：Go 断言 instantiate/apply/update/runtime-risk/pause/stop/start/refresh 的入参透传与状态转换（pause/stop 触发 runtime.Stop、start 置 RUNNING）。Rust 产品 HTTP 用例回放七条写路由的失败/恢复/重启，SQLite cutover 用例断言重复转换与事件；逐转换的 runtime.Stop 调用与参数透传断言未全部复刻（缺口已登记）。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --locked -E 'test(strategy_runtime_write_product_replays_browser_failure_recovery_and_restart)'",
+      "rust_entry": "crates/jftrade-engine/src/product_strategy_durable_http_parity_tests.rs::production_http_missing_strategy_start_does_not_change_a_stopped_sibling",
+      "conclusion": "partial：真实production HTTP instantiate创建US.AAPL/1m实例、list200并保持STOPPED；unknown start404 NOT_FOUND不改变sibling。 本批实例输入不是Go无body默认binding；apply/update/runtime-risk/refresh的原始入参，pause/stop runtime.Stop计数、start成功RUNNING与所有业务状态转换未完整重放，原partial保留。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-engine --package jftrade-store-sqlite --test production_http_missing_strategy_start_does_not_change_a_stopped_sibling --output docs/history/go-to-rust/verification-receipts/strategy-durable-http-reviewed-2026-10-07.json",
       "evidence_type": "partial",
       "source": {
         "file": "internal/api/strategy/routes_lifecycle_test.go",
@@ -21073,23 +21095,23 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_strategy_runtime_write_product_tests.rs",
-          "test": "strategy_runtime_write_product_replays_browser_failure_recovery_and_restart",
+          "file": "crates/jftrade-engine/src/product_strategy_durable_http_parity_tests.rs",
+          "test": "production_http_missing_strategy_start_does_not_change_a_stopped_sibling",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/api/strategy/routes_lifecycle_test.go",
             "goLine": 319,
-            "rustFile": "crates/jftrade-engine/src/product_strategy_runtime_write_product_tests.rs",
-            "rustLine": 125
+            "rustFile": "crates/jftrade-engine/src/product_strategy_durable_http_parity_tests.rs",
+            "rustLine": 256
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust product and SQLite cutover tests replay seven write routes with failure/recovery/restart and repeated transitions/events."
+          "真实production HTTP instantiate创建US.AAPL/1m实例、list200并保持STOPPED；unknown start404 NOT_FOUND不改变sibling。"
         ],
         "uncovered": [
-          "No per-transition assertion for runtime.Stop calls, exact argument forwarding, or every pause/stop/start/refresh state edge."
+          "本批实例输入不是Go无body默认binding；apply/update/runtime-risk/refresh的原始入参，pause/stop runtime.Stop计数、start成功RUNNING与所有业务状态转换未完整重放，原partial保留。"
         ],
         "source": "reviewed"
       },
@@ -21100,37 +21122,40 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
+          "-p",
+          "jftrade-store-sqlite",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(definition_mutation_normalizes_original_client_identity_before_owner_call) or test(production_http_definition_delete_guard_releases_after_linked_instance_soft_delete) or test(production_http_definition_versions_preserve_snapshot_and_current_marker_after_restart) or test(production_http_pine_legacy_source_is_rejected_before_missing_worker) or test(production_http_missing_strategy_start_does_not_change_a_stopped_sibling) or test(definition_delete_guard_tracks_metadata_and_binding_links_until_soft_delete) or test(definition_delete_rejects_malformed_catalog_payload_without_mutation)"
         ],
         "testFilter": [
-          "strategy_runtime_write_product_replays_browser_failure_recovery_and_restart"
+          "production_http_missing_strategy_start_does_not_change_a_stopped_sibling"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "8c70af1056a251ce5bab39556c941a9e2c3cb416",
+        "verifiedAt": "2026-10-07T08:10:07Z",
+        "receiptDigest": "sha256:ec5b49114e12b375cab15947c19c7ba6729d6b154365575c3fc66cca4e0f70a4"
       },
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "retain_reviewed_boundary_or_partial_and_reaudit",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "preserve_partial_and_track_residual",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust product and SQLite cutover tests replay seven write routes with failure/recovery/restart and repeated transitions/events."
+        "真实production HTTP instantiate创建US.AAPL/1m实例、list200并保持STOPPED；unknown start404 NOT_FOUND不改变sibling。"
       ],
       "uncoveredAssertions": [
-        "No per-transition assertion for runtime.Stop calls, exact argument forwarding, or every pause/stop/start/refresh state edge."
+        "本批实例输入不是Go无body默认binding；apply/update/runtime-risk/refresh的原始入参，pause/stop runtime.Stop计数、start成功RUNNING与所有业务状态转换未完整重放，原partial保留。"
       ],
       "boundaryReason": null
     },
@@ -343118,16 +343143,15 @@
       "reviewNote": "2026-09-29 Strategy/Pine API batch: owner reviewed against referenced Go assertions; partial references retain partial status."
     },
     "crates/jftrade-engine/tests/strategy_pine_compatibility.rs::strategy_pine_applies_input_validation_and_error_precedence_before_the_port": {
-      "referenceCount": 4,
+      "referenceCount": 3,
       "referenceKeys": [
-        "internal/api/strategy/pine_routes_contracts_test.go:182:TestAnalyzeStrategyPineRouteRejectsUnsupportedSourceFormat",
         "internal/api/strategy/routes_failure_boundaries_test.go:16:TestAnalyzePineRouteCoversSuccessMalformedAndAnalysisFailure",
         "internal/api/strategy/routes_test.go:181:TestHandleAnalyzePineMapsValidationErrors",
         "internal/strategy/service_test.go:198:TestServiceAnalyzePineRejectsUnsupportedSourceFormat"
       ],
       "allowed": true,
       "reviewStatus": "reviewed",
-      "reviewNote": "2026-09-29 Strategy/Pine API batch: owner reviewed against referenced Go assertions; partial references retain partial status."
+      "reviewNote": "2026-10-07：本批五条移到直接owner。新的missing-start测试仅证明Go75 missing分支及Go319 instantiate/list的窄子集，两条仍partial；不声明其它生命周期等价。旧reuse只移除本批引用，保留此前allowed审核范围。"
     },
     "crates/jftrade-engine/tests/strategy_pine_compatibility.rs::strategy_pine_preserves_worker_shadow_errors_as_successful_projections": {
       "referenceCount": 1,
@@ -343154,14 +343178,12 @@
       "reviewStatus": "single"
     },
     "crates/jftrade-engine/tests/strategies_write_compatibility.rs::sqlite_test_cutover_preserves_repeated_transitions_rollback_and_restart": {
-      "referenceCount": 2,
+      "referenceCount": 1,
       "referenceKeys": [
-        "internal/api/strategy/routes_boundary_contracts_test.go:75:TestStrategyStartRouteMapsPreflightRuntimeAndTransitionBoundaries",
         "internal/strategy/catalog/catalog_boundary_behavior_test.go:58:TestCatalogActivityWriteFailureDoesNotBlockControlState"
       ],
       "allowed": false,
-      "reviewStatus": "reviewed",
-      "reviewNote": "2026-10-06 bounded reuse review: the two remaining boundary references stay on the shared Rust owner; their assertion scopes are not interchangeable, so reuse remains disallowed. The lifecycle persistence reference now has a dedicated Product HTTP owner."
+      "reviewStatus": "single"
     },
     "crates/jftrade-engine/src/product_strategy_runtime_write_product_tests.rs::strategy_runtime_sqlite_test_cutover_replays_transport_and_restart": {
       "referenceCount": 1,
@@ -343264,18 +343286,9 @@
       "reviewStatus": "reviewed",
       "reviewNote": "2026-09-29 API batch: all referenced assertions were reviewed together; partial/boundary conclusions remain unchanged."
     },
-    "crates/jftrade-engine/src/product_strategy_definition_write_port.rs::create_clears_client_id_and_update_overrides_body_id": {
-      "referenceCount": 1,
-      "referenceKeys": [
-        "internal/api/strategy/routes_lifecycle_test.go:203:TestDefinitionRoutesNormalizeCreateUpdateAndDeleteGuards"
-      ],
-      "allowed": true,
-      "reviewStatus": "single"
-    },
     "crates/jftrade-engine/tests/strategy_definitions_write_compatibility.rs::sqlite_test_cutover_preserves_versions_rollback_linked_delete_and_restart": {
-      "referenceCount": 6,
+      "referenceCount": 5,
       "referenceKeys": [
-        "internal/api/strategy/routes_lifecycle_test.go:252:TestDefinitionVersionRoutesExposeHistoryAndSnapshots",
         "internal/app/apiserver/servercore/strategy_definition_delete_guard_test.go:16:TestDeleteStrategyDefinitionRequiresDeletingLinkedInstancesFirst",
         "internal/app/apiserver/servercoretest/server_definitions_test.go:17:TestStrategyDefinitionEndpoints",
         "internal/app/apiserver/servercoretest/server_definitions_test.go:316:TestDeleteMissingStrategyDefinitionReturnsNotFound",
@@ -343284,18 +343297,18 @@
       ],
       "allowed": true,
       "reviewStatus": "reviewed",
-      "reviewNote": "2026-09-30 API servercore owner review: data-management, live volume, notification, capability, strategy-runtime, health and security assertions were compared with the shared Rust owner; fan-out capped at six, high fan-out remains backlog."
+      "reviewNote": "2026-10-07：本批五条移到直接owner。新的missing-start测试仅证明Go75 missing分支及Go319 instantiate/list的窄子集，两条仍partial；不声明其它生命周期等价。旧reuse只移除本批引用，保留此前allowed审核范围。"
     },
     "crates/jftrade-engine/src/product_strategy_runtime_write_product_tests.rs::strategy_runtime_write_product_replays_browser_failure_recovery_and_restart": {
-      "referenceCount": 4,
+      "referenceCount": 3,
       "referenceKeys": [
-        "internal/api/strategy/routes_lifecycle_test.go:319:TestInstantiateApplyAndLifecycleRoutesFollowBusinessStateTransitions",
         "internal/app/apiserver/servercoretest/strategy_sync_test.go:17:TestStrategiesExposeDefinitionSyncAndRefreshDefinitionRoute",
         "internal/assistant/assembly/application_strategy_lifecycle_test.go:84:TestApplicationAdapterStrategyInstanceLifecyclePorts",
         "internal/strategy/catalog/repository_failure_business_test.go:126:TestCatalogReturnsIndependentCopiesAcrossRepositoryAndCallers"
       ],
       "allowed": true,
-      "reviewStatus": "reviewed"
+      "reviewStatus": "reviewed",
+      "reviewNote": "2026-10-07：本批五条移到直接owner。新的missing-start测试仅证明Go75 missing分支及Go319 instantiate/list的窄子集，两条仍partial；不声明其它生命周期等价。旧reuse只移除本批引用，保留此前allowed审核范围。"
     },
     "crates/jftrade-engine/tests/strategies_write_compatibility.rs::strategies_runtime_write_fixture_matches_go_owner_for_all_seven_routes": {
       "referenceCount": 4,
@@ -364519,6 +364532,48 @@
       "referenceCount": 1,
       "referenceKeys": [
         "internal/marketdata/screen_facade_test.go:78:TestServiceScreenPassesProviderErrorsThrough"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_strategy_durable_http_parity_tests.rs::definition_mutation_normalizes_original_client_identity_before_owner_call": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/api/strategy/routes_lifecycle_test.go:203:TestDefinitionRoutesNormalizeCreateUpdateAndDeleteGuards"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_strategy_durable_http_parity_tests.rs::production_http_definition_delete_guard_releases_after_linked_instance_soft_delete": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/api/strategy/routes_lifecycle_test.go:203:TestDefinitionRoutesNormalizeCreateUpdateAndDeleteGuards"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_strategy_durable_http_parity_tests.rs::production_http_definition_versions_preserve_snapshot_and_current_marker_after_restart": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/api/strategy/routes_lifecycle_test.go:252:TestDefinitionVersionRoutesExposeHistoryAndSnapshots"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_strategy_durable_http_parity_tests.rs::production_http_missing_strategy_start_does_not_change_a_stopped_sibling": {
+      "referenceCount": 2,
+      "referenceKeys": [
+        "internal/api/strategy/routes_boundary_contracts_test.go:75:TestStrategyStartRouteMapsPreflightRuntimeAndTransitionBoundaries",
+        "internal/api/strategy/routes_lifecycle_test.go:319:TestInstantiateApplyAndLifecycleRoutesFollowBusinessStateTransitions"
+      ],
+      "allowed": true,
+      "reviewStatus": "reviewed",
+      "reviewNote": "2026-10-07：本批五条移到直接owner。新的missing-start测试仅证明Go75 missing分支及Go319 instantiate/list的窄子集，两条仍partial；不声明其它生命周期等价。旧reuse只移除本批引用，保留此前allowed审核范围。"
+    },
+    "crates/jftrade-engine/src/product_strategy_durable_http_parity_tests.rs::production_http_pine_legacy_source_is_rejected_before_missing_worker": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/api/strategy/pine_routes_contracts_test.go:182:TestAnalyzeStrategyPineRouteRejectsUnsupportedSourceFormat"
       ],
       "allowed": true,
       "reviewStatus": "single"

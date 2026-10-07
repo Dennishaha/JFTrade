@@ -1,5 +1,20 @@
 # Go → Rust 证据积压清单
 
+## 2026-10-07 Strategy/Pine durable HTTP 的红绿关系
+
+- 本批五条映射净 **+2 exact / -2 partial / boundary 0**，当前 **1607 / 2204 / 640**。只改五条 mapping 与必要 reuse，保留此前共享审核权限。missing-start 测试复用于 Go75 的missing分支和 Go319 的instantiate/list窄子集，两条仍partial，不宣称其它生命周期等价。
+
+  | 文件（均位于 verification-receipts） | 实际结果 | 后续关系 |
+  | --- | --- | --- |
+  | `strategy-durable-http-initial-2026-10-07.json` | failed，3 passed/2 failed、2149 filtered/skipped；linked删除错误200、version缺isCurrent | 两项真实生产差异由reviewed复跑通过解释，原字节保留 |
+  | `strategy-durable-http-owner-verified-2026-10-07.json` | failed，0 tests；store fixture误用seed_instance参数，编译失败 | corrected修正测试装配；名字不代表通过 |
+  | `strategy-durable-http-owner-corrected-2026-10-07.json` | failed，0 tests；移动read adapter后原测试缺Preview/Snapshot trait import | read-imports修正测试作用域 |
+  | `strategy-durable-http-read-imports-2026-10-07.json` | passed，7/7、2349 filtered/skipped；编译时仍有未使用import警告 | reviewed移除import并整理新测试排版后重新构建，无警告 |
+  | `strategy-durable-http-reviewed-2026-10-07.json` | passed，7/7、2349 filtered/skipped，无LEAK | 当前canonical |
+
+- reviewed SHA-256 `ec5b49114e12b375cab15947c19c7ba6729d6b154365575c3fc66cca4e0f70a4`；完整tracked diff与三个untracked Rust文件指纹已核对并备份，随后Rust源码不变。普通/strict、anchor、AI context通过。quick明确退出0（2386 Rust passed、Pine98、desktop48、无LEAK）；完整Rust首轮target-health退出1，确认无构建进程后指定clean移除127344文件/33.3 GiB。重跑明确退出0（3732 passed、0 failed、2 skipped，静态/七类replay通过、无LEAK）。四份日志见成果摘要，focused digest不充当全量门禁摘要，失败原日志保留。
+- 残余：版本固定savedAt及500/直接handler缺URI400；worker capacity/preflight400、失败转换502与runtime.Stop副作用；Go无body instantiate、apply/update/runtime-risk/refresh与pause/stop/start完整状态矩阵仍未闭合。
+
 ## 2026-10-07 embedded screen production 行为回归
 
 - 五条 API/facade mapping 净 **exact +4 / partial -4**，当前 **1605 exact / 2206 partial / 640 boundary**；旧 reuse allowed 权限逐项保留，没有扩大共享批准。

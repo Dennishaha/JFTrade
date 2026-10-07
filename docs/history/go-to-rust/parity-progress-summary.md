@@ -1,5 +1,14 @@
 # Go → Rust 对齐成果摘要
 
+## 2026-10-07 Strategy/Pine 持久化守卫与 HTTP 投影
+
+- 五条 partial 逐项对照冻结 Go 原始断言。create/update 身份归一与 linked 删除保护、legacy Pine source 精确拒绝两条升 exact，净 **exact +2 / partial -2 / boundary 0**，当前 **1607 / 2204 / 640**。版本历史、启动边界和完整生命周期三条保留 partial。
+- 首轮真实 production HTTP 回归 **3 passed / 2 failed / 2149 filtered/skipped**：payload `definitionId` 关联实例未被旧 `plugin_id` COUNT 识别，删除定义错误返回 200；版本列表缺少 OpenAPI 已要求的 `isCurrent`。删除 owner 在原事务中复用实例 decoder，读取 metadata/binding 关系并保留兼容 plugin fallback；仅软删除实例不计入关联数，损坏 payload 阻止删除且定义更新时间、deletedAt 和历史不变。read adapter 按当前定义版本投影 `isCurrent`，未改公开 schema。
+- 原始 client-id/Draft 与 def-9/Updated 在 mutation owner 前直接验证；真实认证 HTTP 验证 linked DELETE400、实例软删除、重启后 DELETE200 和同一 definitionId/list 副作用。版本历史重启后验证两条记录、definitionId/savedAt、current marker、description/script、两类404。legacy body 返回400/okfalse/BAD_REQUEST和逐字文案，缺失 start404 不改变 STOPPED sibling。
+- canonical `verification-receipts/strategy-durable-http-reviewed-2026-10-07.json`：**7 passed / 0 failed / 0 ignored / 2349 filtered/skipped**，无 LEAK，SHA-256 `ec5b49114e12b375cab15947c19c7ba6729d6b154365575c3fc66cca4e0f70a4`。sourceState 的完整 tracked diff 与 untracked 指纹已核对；普通/strict、AI context 通过，anchor **2062 unique / 2014 recorded / 0 unrecorded / 0 stale / 48 unknown**。Rust 扫描 **3576**、数量比 **80.3%** 单列。
+- quick 明确退出0：**2386 Rust passed / 0 failed / 0 skipped**，Pine **98 passed**、desktop **48 passed**，无LEAK。完整Rust首轮因target-health的50000个`.rcgu.o`阈值退出1；确认无构建进程后按指定入口clean（127344文件/33.3 GiB），重跑明确退出0：**3732 passed / 0 failed / 2 skipped**，静态与七类replay通过、无LEAK。日志为`/tmp/jftrade-strategy-durable-quick.log`、`/tmp/jftrade-strategy-durable-rust.log`、`/tmp/jftrade-strategy-durable-clean.log`和`/tmp/jftrade-strategy-durable-rust-clean.log`；focused digest不充当全量摘要。
+- 版本fixed savedAt、history/snapshot故障500和handler缺URI400，以及capacity/preflight、成功转换与runtime.Stop回滚仍未闭合。下一批转向插件HTTP/文件owner，整体目标继续active。
+
 ## 2026-10-07 embedded screen production HTTP 与 catalog 校验
 
 - 五条原始 partial 逐项审查，API 的未知 total 投影、embedded catalog 六组市场请求、embedded POST 成功响应及四分支 conflict matrix 升 exact；净 **exact +4 / partial -4 / boundary 0**，当前 **1605 / 2206 / 640**。facade 错误文本已补齐，Go `errors.Is` 对象身份不能由 HTTP envelope 证明，保留 partial。
