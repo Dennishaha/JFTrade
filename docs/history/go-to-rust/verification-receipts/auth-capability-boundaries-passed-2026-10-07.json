@@ -1,0 +1,98 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-api",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(auth_protects_logout) or test(production_desktop_start_preserves_configured_web_security) or test(production_web_listener_rejects_legacy_admin_bearer) or test(production_default_security_exposes_no_web_listener_and_requires_desktop_token) or test(production_desktop_http_and_websocket_require_the_same_private_capability)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-10-07T04:07:44Z",
+  "sourceState": {
+    "verifiedCommit": "bcfc90ef455136531f0972916a71f9fca94dd60c",
+    "trackedDiffSha256": "18dbe659b31b6edebf4a4f71ae0935f3a9c586a0b9bb61b553c617c65caa6d61",
+    "untrackedFiles": [
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/auth-capability-boundaries-2026-10-07.json",
+        "sha256": "bdbda76d6c49c12f987f1fce8b47e8c31b3eabde8ba57815d09ecccb4075555c"
+      }
+    ]
+  },
+  "rawOutputSha256": "dfbca337876d23f0f3de8a34b2523403e9bfc7db8ade9ac728676c92765afc44",
+  "passedTests": [
+    "jftrade-api::transport_contracts$auth_protects_logout",
+    "jftrade-engine::jftrade_engine$product::tests::production_assembly_tests::product_production_assembly_tests::production_default_security_exposes_no_web_listener_and_requires_desktop_token",
+    "jftrade-engine::jftrade_engine$product::tests::production_assembly_tests::product_production_assembly_tests::production_desktop_start_preserves_configured_web_security",
+    "jftrade-engine::jftrade_engine$product::tests::production_assembly_tests::product_production_assembly_tests::production_web_listener_rejects_legacy_admin_bearer",
+    "jftrade-engine::jftrade_engine$product::tests::ws_live_tests::production_desktop_http_and_websocket_require_the_same_private_capability"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 4,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1,
+      "nextest": {
+        "crate": "jftrade-api",
+        "test_binary": "transport_contracts",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 31,
+      "exec_time": 0.02800375,
+      "nextest": {
+        "crate": "jftrade-api",
+        "test_binary": "transport_contracts",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1729,
+      "exec_time": 19.461578,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    }
+  ]
+}

@@ -1,5 +1,15 @@
 # Go → Rust 对齐成果摘要
 
+## 2026-10-07 认证 capability、登出与安全配置保持
+
+- 本批逐项复核七条相关 partial：logout 中间件、旧 admin bearer、desktop HTTP/WS token、默认 Web 关闭、desktop 启动保持安全配置、认证状态矩阵、安全变更取消活动流。只改变对应七条 mapping 和必要 reuse 关系。
+- `TestAuthProtectsLogout` 补齐 Go 中间件 harness 的 401/403/204、零拒绝 dispatch、一次授权 dispatch 和空 body；`TestAdminBearerMechanismNoLongerAuthenticates` 经真实 production Web listener 验证旧 bearer 401；`TestStartDesktopDoesNotMutatePersistedWebAccessSettings` 使用配置口令的 production 启动、HTTP 设置读取、内存 seed record/重开 store 等值与原密码登录，三条从 partial 升为 exact。生产 logout JSON 契约保持原样。
+- HTTP/WS desktop capability 已补真实升级、错误 token 拒绝、协商协议不回显 token 和断开计数归零；默认 Web 关闭已补同一路由错误信封与无 listener 断言；过期会话已补 session/CSRF 拒绝、匿名 snapshot 和重启持久化清除。四条仍 partial：Go/Rust 403/401、204/200 差异，完整认证状态矩阵，以及保持 Web 开启时换密码取消活动 SSE 的缺口均未消除。
+- focused canonical receipt `verification-receipts/auth-capability-boundaries-verified-2026-10-07.json` 为 **6 passed、0 failed、0 ignored**（另有 **2207 filtered/skipped**），SHA-256 `b177620849815de016133d265bc257df159004bac5ac5a7f651dd6672c384978`；此前 4/1 失败是 WS 状态轮询 helper 未携 production token，原失败文件保留。5/5 与中间 6/6 receipt 由最终加入 record 等值断言的 canonical receipt 替代。
+- 普通/strict audit 与 anchor reconcile 已通过：**1593 exact / 2218 partial / 640 boundary**，净变化 **+3/-3/0**；Rust 测试数 **3526**、数量比 **79.2%** 单列，不作为整体行为完成率。anchor **2036 unique / 1988 recorded / 0 unrecorded / 0 stale / 48 unknown**。strict 初审发现 libtest receipt 的 `$` test-binary 分隔符混入 testFilter，已修正 metadata 后复跑通过，未改审计规则。
+- 本批现场 `pnpm run check:quick`、完整 `pnpm run check:rust` 均明确退出 **0**：受影响 nextest **2243 passed、0 failed、0 skipped**，Pine worker **98 passed**；workspace **3682 passed、0 failed、2 skipped**，七类 compatibility replay 全部通过。日志为 `/tmp/jftrade-auth-capability-quick-2026-10-07.log` 和 `/tmp/jftrade-auth-capability-rust-2026-10-07.log`；未另生成 workspace JSON receipt，focused digest 不作为全量门禁摘要。
+- 下一批优先安全变更取消、重连首帧写失败和 idle replay 请求取消。新聊天已走 `RawStream`，但 `product_adk_read_api` 的 GET 重连/重放仍拼接完整 body；必须逐 owner 验证，不能用会话失效、聊天流测试或 graceful listener shutdown 代替活动重连流证据。持续目标仍 active，未将本批完成视为整体行为等价完成。
+
 ## 2026-10-07 Broker 写边界严格复核与行为闭环（更正前两批结论）
 
 - 本批计划与退出条件：复核 broker unlock/place/cancel 的冻结 Go 原始断言；补真实 production HTTP、writer 调用计数与持久化断言；只升级逐条等价的条目；完成 focused receipt、quick、完整 Rust 门禁、strict/anchor 审计和独立提交。

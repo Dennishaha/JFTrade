@@ -14,6 +14,7 @@ use tower::ServiceExt;
 #[derive(Default)]
 struct RecordingPort {
     requests: Mutex<Vec<ApiRequest>>,
+    no_content: bool,
 }
 
 #[tokio::test]
@@ -83,7 +84,11 @@ impl ApiPort for RecordingPort {
     fn dispatch(&self, request: ApiRequest) -> PortFuture<'_> {
         Box::pin(async move {
             self.requests.lock().expect("requests").push(request);
-            Ok(ApiOutput::Json(json!({"theme": "system"})))
+            Ok(if self.no_content {
+                ApiOutput::NoContent
+            } else {
+                ApiOutput::Json(json!({"theme": "system"}))
+            })
         })
     }
 }
@@ -1016,7 +1021,14 @@ async fn unconfigured_marketdata_route_returns_json_not_found() {
 fn auth_router(
     routes: impl IntoIterator<Item = (&'static str, &'static str)>,
 ) -> (axum::Router, Arc<RecordingPort>) {
-    let port = Arc::new(RecordingPort::default());
+    auth_router_with_port(routes, RecordingPort::default())
+}
+
+fn auth_router_with_port(
+    routes: impl IntoIterator<Item = (&'static str, &'static str)>,
+    port: RecordingPort,
+) -> (axum::Router, Arc<RecordingPort>) {
+    let port = Arc::new(port);
     let routes = RouteCatalog::new(routes.into_iter().map(|(method, path)| RouteSpec {
         method: method.to_owned(),
         path: path.to_owned(),
@@ -1065,7 +1077,16 @@ async fn auth_skips_public_paths_without_credentials() {
 #[tokio::test]
 async fn auth_protects_logout() {
     // Parity: internal/api/middleware/auth_test.go:51 TestAuthProtectsLogout
-    let (router, _) = auth_router([("POST", "/api/v1/auth/logout")]);
+    // The Go middleware harness uses a 204 downstream handler. This port
+    // proves admission and response passthrough without replacing the
+    // production logout endpoint's JSON response contract.
+    let (router, port) = auth_router_with_port(
+        [("POST", "/api/v1/auth/logout")],
+        RecordingPort {
+            no_content: true,
+            ..Default::default()
+        },
+    );
     let unauthenticated = router
         .clone()
         .oneshot(
@@ -1078,9 +1099,9 @@ async fn auth_protects_logout() {
         .await
         .expect("logout response");
     assert_eq!(unauthenticated.status(), StatusCode::UNAUTHORIZED);
+    assert!(port.requests.lock().expect("requests").is_empty());
 
     // An authenticated session write still requires origin + CSRF.
-    let (router, _) = auth_router([("POST", "/api/v1/auth/logout")]);
     let without_origin = router
         .clone()
         .oneshot(
@@ -1095,6 +1116,7 @@ async fn auth_protects_logout() {
         .await
         .expect("logout response");
     assert_eq!(without_origin.status(), StatusCode::FORBIDDEN);
+    assert!(port.requests.lock().expect("requests").is_empty());
 
     let allowed = router
         .oneshot(
@@ -1109,7 +1131,22 @@ async fn auth_protects_logout() {
         )
         .await
         .expect("logout response");
-    assert_eq!(allowed.status(), StatusCode::OK);
+    assert_eq!(allowed.status(), StatusCode::NO_CONTENT);
+    assert!(
+        allowed
+            .into_body()
+            .collect()
+            .await
+            .expect("empty logout body")
+            .to_bytes()
+            .is_empty()
+    );
+    let requests = port.requests.lock().expect("requests");
+    assert_eq!(requests.len(), 1);
+    assert_eq!(requests[0].path, "/api/v1/auth/logout");
+    assert!(requests[0].browser_authenticated);
+    assert!(requests[0].origin_allowed);
+    assert!(requests[0].csrf_valid);
 }
 
 #[tokio::test]

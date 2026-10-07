@@ -459,6 +459,62 @@ fn auth_session_store_corruption_fails_closed_without_rewrite() {
     assert_eq!(fs::read(session_path).expect("read original bytes"), before);
 }
 
+// Parity: go:452dea11:internal/app/apiserver/webaccess/auth_boundaries_test.go:101 TestWebAuthRemainingAuthenticationStates
+#[test]
+fn expired_browser_sessions_fail_validation_and_are_pruned_on_restart() {
+    let directory = tempfile::tempdir().expect("temporary directory");
+    let settings_path = directory.path().join("settings.json");
+    let store = Arc::new(MockSecurityStore(RwLock::new(Some(
+        SecuritySettingsRecord::new(true, true, 3000, "configured-verifier"),
+    ))));
+    let security = SecuritySettingsService::new(store);
+    let manager = ProductionAuthSessionManager::open(security.clone(), &settings_path)
+        .expect("open session manager");
+    let now = unix_timestamp();
+    {
+        let mut sessions = manager.sessions.write().expect("sessions");
+        for (token, expires_at_unix) in [("expired", now), ("active", now + 3600)] {
+            sessions.insert(
+                token_hash(token),
+                StoredSession {
+                    token_hash: token_hash(token),
+                    csrf_hash: token_hash("csrf"),
+                    expires_at_unix,
+                },
+            );
+        }
+    }
+    assert!(!manager.is_session_valid("expired"));
+    assert!(!manager.is_csrf_valid("expired", "csrf"));
+    assert!(manager.is_session_valid("active"));
+    assert!(manager.is_csrf_valid("active", "csrf"));
+    let snapshot = manager
+        .session(AuthSessionSnapshotRequest {
+            desktop_trusted: false,
+            browser_authenticated: true,
+            session_cookie: Some("expired".to_owned()),
+            origin_provided: false,
+            origin_allowed: false,
+        })
+        .expect("expired snapshot");
+    assert_eq!(snapshot["authenticated"], false);
+    assert_eq!(snapshot["csrfToken"], Value::Null);
+    assert_eq!(snapshot["expiresAt"], Value::Null);
+    manager.persist().expect("persist expiration fixture");
+    drop(manager);
+
+    let restarted = ProductionAuthSessionManager::open(security, &settings_path)
+        .expect("restart session manager");
+    assert!(!restarted.is_session_valid("expired"));
+    assert!(restarted.is_session_valid("active"));
+    let document: StoredSessionDocument = serde_json::from_slice(
+        &fs::read(directory.path().join(SESSION_STORE_FILENAME)).expect("session bytes"),
+    )
+    .expect("persisted session document");
+    assert_eq!(document.sessions.len(), 1);
+    assert_eq!(document.sessions[0].token_hash, token_hash("active"));
+}
+
 fn cookie_token(cookie: &str) -> String {
     cookie
         .split(';')

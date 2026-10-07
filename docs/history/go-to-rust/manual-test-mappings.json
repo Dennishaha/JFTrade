@@ -14337,11 +14337,11 @@
       "boundaryReason": null
     },
     "internal/api/middleware/auth_test.go:51:TestAuthProtectsLogout": {
-      "status": "[~]",
+      "status": "[x]",
       "rust_entry": "crates/jftrade-api/tests/transport_contracts.rs::auth_protects_logout",
-      "conclusion": "partial：Rust transport test covers the authentication/Origin/CSRF decision matrix (401, 403, and an allowed response), but its generic route harness asserts 200 for the allowed request while Go requires 204 NoContent. The test therefore does not prove the production auth-session logout response projection; retain the status seam as a real gap until an end-to-end route assertion is added.",
-      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-api --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(auth_skips_public_paths_without_credentials) or test(auth_protects_logout)'",
-      "evidence_type": "partial",
+      "conclusion": "function_exact：冻结 Go 中间件 harness 的三种状态逐项覆盖：匿名 logout 401；已认证且 CSRF 有效但无 Origin 为 403；已认证、受信 Origin 与有效 CSRF 放行下游 204。 拒绝请求均零 dispatch；授权请求恰好一次并携带 browser_authenticated/origin_allowed/csrf_valid，透传空 204 body。生产 logout 的 JSON 契约未改变。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-api --package jftrade-engine --test auth_protects_logout --test expired_browser_sessions_fail_validation_and_are_pruned_on_restart --test production_default_security_exposes_no_web_listener_and_requires_desktop_token --test production_desktop_start_preserves_configured_web_security --test production_web_listener_rejects_legacy_admin_bearer --test production_desktop_http_and_websocket_require_the_same_private_capability --output docs/history/go-to-rust/verification-receipts/auth-capability-boundaries-verified-2026-10-07.json",
+      "evidence_type": "function_exact",
       "source": {
         "file": "internal/api/middleware/auth_test.go",
         "line": 51,
@@ -14357,17 +14357,16 @@
             "goFile": "internal/api/middleware/auth_test.go",
             "goLine": 51,
             "rustFile": "crates/jftrade-api/tests/transport_contracts.rs",
-            "rustLine": 996
+            "rustLine": 1078
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust transport tests cover authentication, Origin, and CSRF outcomes for protected routes."
+          "冻结 Go 中间件 harness 的三种状态逐项覆盖：匿名 logout 401；已认证且 CSRF 有效但无 Origin 为 403；已认证、受信 Origin 与有效 CSRF 放行下游 204。",
+          "拒绝请求均零 dispatch；授权请求恰好一次并携带 browser_authenticated/origin_allowed/csrf_valid，透传空 204 body。生产 logout 的 JSON 契约未改变。"
         ],
-        "uncovered": [
-          "Allowed route harness asserts 200 while Go logout requires 204 NoContent; no end-to-end Rust logout response projection test."
-        ],
+        "uncovered": [],
         "source": "reviewed"
       },
       "verification": {
@@ -14377,36 +14376,45 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-api",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(auth_protects_logout) or test(production_desktop_start_preserves_configured_web_security) or test(production_web_listener_rejects_legacy_admin_bearer) or test(production_default_security_exposes_no_web_listener_and_requires_desktop_token) or test(production_desktop_http_and_websocket_require_the_same_private_capability) or test(expired_browser_sessions_fail_validation_and_are_pruned_on_restart)"
         ],
         "testFilter": [
-          "auth_protects_logout"
+          "auth_protects_logout",
+          "expired_browser_sessions_fail_validation_and_are_pruned_on_restart",
+          "production_default_security_exposes_no_web_listener_and_requires_desktop_token",
+          "production_desktop_start_preserves_configured_web_security",
+          "production_web_listener_rejects_legacy_admin_bearer",
+          "production_desktop_http_and_websocket_require_the_same_private_capability"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "bcfc90ef455136531f0972916a71f9fca94dd60c",
+        "verifiedAt": "2026-10-07T04:10:10Z",
+        "receiptDigest": "sha256:b177620849815de016133d265bc257df159004bac5ac5a7f651dd6672c384978"
       },
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "add_production_logout_status_test",
+      "nextAction": "reviewed",
       "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust transport tests cover authentication, Origin, and CSRF outcomes for protected routes."
+        "冻结 Go 中间件 harness 的三种状态逐项覆盖：匿名 logout 401；已认证且 CSRF 有效但无 Origin 为 403；已认证、受信 Origin 与有效 CSRF 放行下游 204。",
+        "拒绝请求均零 dispatch；授权请求恰好一次并携带 browser_authenticated/origin_allowed/csrf_valid，透传空 204 body。生产 logout 的 JSON 契约未改变。"
       ],
-      "uncoveredAssertions": [
-        "Allowed route harness asserts 200 while Go logout requires 204 NoContent; no end-to-end Rust logout response projection test."
-      ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/api/middleware/auth_test.go:71:TestAuthProtectsSystemStatus": {
@@ -47934,11 +47942,11 @@
       "boundaryReason": null
     },
     "internal/app/apiserver/server_test.go:85:TestStartDesktopDoesNotMutatePersistedWebAccessSettings": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_system_control_read_tests.rs::system_status_matches_go_stable_fields_without_claiming_migration_ownership; crates/jftrade-engine/src/product_server_tests.rs::dynamic_origin_allowlist_tracks_the_current_web_port",
-      "conclusion": "partial：Rust 系统状态测试断言启动加状态查询加关闭后 settings 文件字节不变，但种子不含 security/web 访问段（无 password hash），Go 钉住的“已配置 Web 访问口令场景下内存与落盘均不变”无对应；原引用的 allowlist 用例主题是重绑跟踪，与写回无关，已移出。回归要求：种子加入含口令 hash 的 security 段或补专用回归测试。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked -E 'test(dynamic_origin_allowlist_tracks_the_current_web_port)'",
-      "evidence_type": "partial",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-engine/src/product_production_assembly_tests.rs::production_desktop_start_preserves_configured_web_security",
+      "conclusion": "function_exact：预先持久化 webAccessEnabled=true、独立 Web port 与 Argon2id hash，启动真实 production desktop 后携 capability 的 GET security 为 200、启用/口令配置标志和 port 不变。 与冻结 Go 相同，原 seed store 内存 SecuritySettingsRecord 及重开 store 记录相等（包括 passwordHash）；运行期间与关闭后的落盘 security 段均与种子相等。 真实 Web listener 仍能用预设密码登录；公开设置响应不含 passwordHash。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-api --package jftrade-engine --test auth_protects_logout --test expired_browser_sessions_fail_validation_and_are_pruned_on_restart --test production_default_security_exposes_no_web_listener_and_requires_desktop_token --test production_desktop_start_preserves_configured_web_security --test production_web_listener_rejects_legacy_admin_bearer --test production_desktop_http_and_websocket_require_the_same_private_capability --output docs/history/go-to-rust/verification-receipts/auth-capability-boundaries-verified-2026-10-07.json",
+      "evidence_type": "function_exact",
       "source": {
         "file": "internal/app/apiserver/server_test.go",
         "line": 85,
@@ -47947,25 +47955,24 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_system_control_read_tests.rs",
-          "test": "system_status_matches_go_stable_fields_without_claiming_migration_ownership",
+          "file": "crates/jftrade-engine/src/product_production_assembly_tests.rs",
+          "test": "production_desktop_start_preserves_configured_web_security",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/app/apiserver/server_test.go",
             "goLine": 85,
-            "rustFile": "crates/jftrade-engine/src/product_system_control_read_tests.rs",
-            "rustLine": 340
+            "rustFile": "crates/jftrade-engine/src/product_production_assembly_tests.rs",
+            "rustLine": 103
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "原引用的 allowlist 用例主题是重绑跟踪，与写回无关，已移出。"
+          "预先持久化 webAccessEnabled=true、独立 Web port 与 Argon2id hash，启动真实 production desktop 后携 capability 的 GET security 为 200、启用/口令配置标志和 port 不变。",
+          "与冻结 Go 相同，原 seed store 内存 SecuritySettingsRecord 及重开 store 记录相等（包括 passwordHash）；运行期间与关闭后的落盘 security 段均与种子相等。",
+          "真实 Web listener 仍能用预设密码登录；公开设置响应不含 passwordHash。"
         ],
-        "uncovered": [
-          "Rust 系统状态测试断言启动加状态查询加关闭后 settings 文件字节不变，但种子不含 security/web 访问段（无 password hash），Go 钉住的“已配置 Web 访问口令场景下内存与落盘均不变”无对应；",
-          "回归要求：种子加入含口令 hash 的 security 段或补专用回归测试。"
-        ],
+        "uncovered": [],
         "source": "reviewed"
       },
       "verification": {
@@ -47975,39 +47982,46 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-api",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(auth_protects_logout) or test(production_desktop_start_preserves_configured_web_security) or test(production_web_listener_rejects_legacy_admin_bearer) or test(production_default_security_exposes_no_web_listener_and_requires_desktop_token) or test(production_desktop_http_and_websocket_require_the_same_private_capability) or test(expired_browser_sessions_fail_validation_and_are_pruned_on_restart)"
         ],
         "testFilter": [
-          "dynamic_origin_allowlist_tracks_the_current_web_port"
+          "auth_protects_logout",
+          "expired_browser_sessions_fail_validation_and_are_pruned_on_restart",
+          "production_default_security_exposes_no_web_listener_and_requires_desktop_token",
+          "production_desktop_start_preserves_configured_web_security",
+          "production_web_listener_rejects_legacy_admin_bearer",
+          "production_desktop_http_and_websocket_require_the_same_private_capability"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "bcfc90ef455136531f0972916a71f9fca94dd60c",
+        "verifiedAt": "2026-10-07T04:10:10Z",
+        "receiptDigest": "sha256:b177620849815de016133d265bc257df159004bac5ac5a7f651dd6672c384978"
       },
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "reviewed",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "原引用的 allowlist 用例主题是重绑跟踪，与写回无关，已移出。"
+        "预先持久化 webAccessEnabled=true、独立 Web port 与 Argon2id hash，启动真实 production desktop 后携 capability 的 GET security 为 200、启用/口令配置标志和 port 不变。",
+        "与冻结 Go 相同，原 seed store 内存 SecuritySettingsRecord 及重开 store 记录相等（包括 passwordHash）；运行期间与关闭后的落盘 security 段均与种子相等。",
+        "真实 Web listener 仍能用预设密码登录；公开设置响应不含 passwordHash。"
       ],
-      "uncoveredAssertions": [
-        "Rust 系统状态测试断言启动加状态查询加关闭后 settings 文件字节不变，但种子不含 security/web 访问段（无 password hash），Go 钉住的“已配置 Web 访问口令场景下内存与落盘均不变”无对应；",
-        "回归要求：种子加入含口令 hash 的 security 段或补专用回归测试。"
-      ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/app/apiserver/server_test.go:150:TestResolveDesktopRuntimeConfigUsesProfileBindInsteadOfPersistedInterfaceBind": {
@@ -49978,9 +49992,9 @@
     },
     "internal/app/apiserver/servercore/desktop_token_test.go:14:TestDesktopTokenMiddlewareProtectsHTTPAndWebSocket": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_system_control_read_tests.rs::system_control_reads_are_authenticated_and_do_not_create_control_state",
-      "conclusion": "部分覆盖：Go 断言桌面 token 中间件同时保护 HTTP（无 token 403、有 token 204）与 WebSocket（协议头带 token 放行）。Rust 的 system_control_reads_are_authenticated_and_do_not_create_control_state 覆盖 HTTP bearer 401/200 矩阵且不创建控制态；差异是 WS 协议头 token 路径无断言（原组合第二元为限流/来源用例，主题不相干，已摘除）。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'not test(production_helper_sync_cancel_aborts_in_flight_request) and not test(production_helper_sync_rejects_broken_pagination_cursors) and not test(production_helper_sync_forwards_page_query_and_persists_provider_values) and not test(production_helper_sync_retries_transient_page_and_records_retry)'",
+      "rust_entry": "crates/jftrade-engine/src/product_ws_live_tests.rs::production_desktop_http_and_websocket_require_the_same_private_capability",
+      "conclusion": "partial：真实 production HTTP：匿名/错误 bearer 为 401；正确 desktop capability 读 system/status 为 200。 真实 WS：匿名/错误协议 token 不升级且连接计数为零；协议头正确 token 升级 101并收到 heartbeat；仅协商 jftrade.desktop.v1、不回显 token，断开后连接数归零。 冻结 Go 中间件 harness 的匿名 HTTP 为 403、放行 handler 为 204；Rust production HTTP 为 401/200，实际 WS 升级为 101。token 接入已验证，但状态码与 harness 分层差异仍保留 partial。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-api --package jftrade-engine --test auth_protects_logout --test expired_browser_sessions_fail_validation_and_are_pruned_on_restart --test production_default_security_exposes_no_web_listener_and_requires_desktop_token --test production_desktop_start_preserves_configured_web_security --test production_web_listener_rejects_legacy_admin_bearer --test production_desktop_http_and_websocket_require_the_same_private_capability --output docs/history/go-to-rust/verification-receipts/auth-capability-boundaries-verified-2026-10-07.json",
       "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/servercore/desktop_token_test.go",
@@ -49990,24 +50004,24 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_system_control_read_tests.rs",
-          "test": "system_control_reads_are_authenticated_and_do_not_create_control_state",
+          "file": "crates/jftrade-engine/src/product_ws_live_tests.rs",
+          "test": "production_desktop_http_and_websocket_require_the_same_private_capability",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/app/apiserver/servercore/desktop_token_test.go",
             "goLine": 14,
-            "rustFile": "crates/jftrade-engine/src/product_system_control_read_tests.rs",
-            "rustLine": 97
+            "rustFile": "crates/jftrade-engine/src/product_ws_live_tests.rs",
+            "rustLine": 20
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Go 断言桌面 token 中间件同时保护 HTTP（无 token 403、有 token 204）与 WebSocket（协议头带 token 放行）。",
-          "Rust 的 system_control_reads_are_authenticated_and_do_not_create_control_state 覆盖 HTTP bearer 401/200 矩阵且不创建控制态；"
+          "真实 production HTTP：匿名/错误 bearer 为 401；正确 desktop capability 读 system/status 为 200。",
+          "真实 WS：匿名/错误协议 token 不升级且连接计数为零；协议头正确 token 升级 101并收到 heartbeat；仅协商 jftrade.desktop.v1、不回显 token，断开后连接数归零。"
         ],
         "uncovered": [
-          "差异是 WS 协议头 token 路径无断言（原组合第二元为限流/来源用例，主题不相干，已摘除）。"
+          "冻结 Go 中间件 harness 的匿名 HTTP 为 403、放行 handler 为 204；Rust production HTTP 为 401/200，实际 WS 升级为 101。token 接入已验证，但状态码与 harness 分层差异仍保留 partial。"
         ],
         "source": "reviewed"
       },
@@ -50018,23 +50032,33 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-api",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(auth_protects_logout) or test(production_desktop_start_preserves_configured_web_security) or test(production_web_listener_rejects_legacy_admin_bearer) or test(production_default_security_exposes_no_web_listener_and_requires_desktop_token) or test(production_desktop_http_and_websocket_require_the_same_private_capability) or test(expired_browser_sessions_fail_validation_and_are_pruned_on_restart)"
         ],
         "testFilter": [
-          "system_control_reads_are_authenticated_and_do_not_create_control_state"
+          "auth_protects_logout",
+          "expired_browser_sessions_fail_validation_and_are_pruned_on_restart",
+          "production_default_security_exposes_no_web_listener_and_requires_desktop_token",
+          "production_desktop_start_preserves_configured_web_security",
+          "production_web_listener_rejects_legacy_admin_bearer",
+          "production_desktop_http_and_websocket_require_the_same_private_capability"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "bcfc90ef455136531f0972916a71f9fca94dd60c",
+        "verifiedAt": "2026-10-07T04:10:10Z",
+        "receiptDigest": "sha256:b177620849815de016133d265bc257df159004bac5ac5a7f651dd6672c384978"
       },
       "risk": "normal",
       "owner": "api_transport",
@@ -50045,11 +50069,11 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Go 断言桌面 token 中间件同时保护 HTTP（无 token 403、有 token 204）与 WebSocket（协议头带 token 放行）。",
-        "Rust 的 system_control_reads_are_authenticated_and_do_not_create_control_state 覆盖 HTTP bearer 401/200 矩阵且不创建控制态；"
+        "真实 production HTTP：匿名/错误 bearer 为 401；正确 desktop capability 读 system/status 为 200。",
+        "真实 WS：匿名/错误协议 token 不升级且连接计数为零；协议头正确 token 升级 101并收到 heartbeat；仅协商 jftrade.desktop.v1、不回显 token，断开后连接数归零。"
       ],
       "uncoveredAssertions": [
-        "差异是 WS 协议头 token 路径无断言（原组合第二元为限流/来源用例，主题不相干，已摘除）。"
+        "冻结 Go 中间件 harness 的匿名 HTTP 为 403、放行 handler 为 204；Rust production HTTP 为 401/200，实际 WS 升级为 101。token 接入已验证，但状态码与 harness 分层差异仍保留 partial。"
       ],
       "boundaryReason": null
     },
@@ -55371,7 +55395,7 @@
     "internal/app/apiserver/servercore/security_test.go:43:TestSecurityChangeCancelsExistingWebStream": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_server_tests.rs::disabled_web_access_does_not_start_a_listener; crates/jftrade-engine/src/product_auth_session_manager_tests.rs::auth_sessions_are_cookie_bound_hashed_and_restart_durable",
-      "conclusion": "partial：Go 断言安全设置变更立即取消已存在的 web 流；Rust 由“禁用 web 即停止 listener + invalidate_all”实现等价效果（流随 listener 关闭结束），但没有直接断言进行中 SSE 流被取消。",
+      "conclusion": "partial：独立 Rust owner 证明默认禁用时不启动 Web listener，以及 invalidate_all 后已有 cookie 不再认证；未证明活动请求被取消。 冻结 Go 保持 Web 开启，仅替换密码就取消已打开的 SSE 请求。Rust save_security_settings 调用会话 invalidator，但 ProductWebServerRuntime::apply 在同 bind 时直接返回；尚无活动 SSE/WS 撤销信号或同路由直接断言。不能用 listener 停止或后续请求拒绝替代此行为。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'not test(production_helper_sync_cancel_aborts_in_flight_request) and not test(production_helper_sync_rejects_broken_pagination_cursors) and not test(production_helper_sync_forwards_page_query_and_persists_provider_values) and not test(production_helper_sync_retries_transient_page_and_records_retry)'",
       "evidence_type": "partial",
       "source": {
@@ -55406,10 +55430,10 @@
       ],
       "assertionCoverage": {
         "covered": [
-          "Go 断言安全设置变更立即取消已存在的 web 流；"
+          "独立 Rust owner 证明默认禁用时不启动 Web listener，以及 invalidate_all 后已有 cookie 不再认证；未证明活动请求被取消。"
         ],
         "uncovered": [
-          "Rust 由“禁用 web 即停止 listener + invalidate_all”实现等价效果（流随 listener 关闭结束），但没有直接断言进行中 SSE 流被取消。"
+          "冻结 Go 保持 Web 开启，仅替换密码就取消已打开的 SSE 请求。Rust save_security_settings 调用会话 invalidator，但 ProductWebServerRuntime::apply 在同 bind 时直接返回；尚无活动 SSE/WS 撤销信号或同路由直接断言。不能用 listener 停止或后续请求拒绝替代此行为。"
         ],
         "source": "reviewed"
       },
@@ -55448,10 +55472,10 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Go 断言安全设置变更立即取消已存在的 web 流；"
+        "独立 Rust owner 证明默认禁用时不启动 Web listener，以及 invalidate_all 后已有 cookie 不再认证；未证明活动请求被取消。"
       ],
       "uncoveredAssertions": [
-        "Rust 由“禁用 web 即停止 listener + invalidate_all”实现等价效果（流随 listener 关闭结束），但没有直接断言进行中 SSE 流被取消。"
+        "冻结 Go 保持 Web 开启，仅替换密码就取消已打开的 SSE 请求。Rust save_security_settings 调用会话 invalidator，但 ProductWebServerRuntime::apply 在同 bind 时直接返回；尚无活动 SSE/WS 撤销信号或同路由直接断言。不能用 listener 停止或后续请求拒绝替代此行为。"
       ],
       "boundaryReason": null
     },
@@ -58382,9 +58406,9 @@
     },
     "internal/app/apiserver/servercore/settings_security_test.go:14:TestWebAccessSettingsDefaultToDesktopOnly": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_system_control_read_tests.rs::system_control_reads_are_authenticated_and_do_not_create_control_state; crates/jftrade-settings/src/security.rs::access_fails_closed_without_a_configured_password",
-      "conclusion": "partial（wire 状态码分叉）：Go 断言未开启 web 时浏览器 GET /api/v1/system/status 返回 403 且正文含 WEB_ACCESS_DISABLED，桌面 GET 安全设置返回 webAccessEnabled:false/passwordConfigured:false。Rust system_control_reads 用例断言 enforcing 下无凭据读控制面返回 401 且桌面 token 可读、不落控制状态，access_fails_closed 用例断言无密码时 fail-closed；但同一输入（无凭据浏览器请求）Go 给 403+WEB_ACCESS_DISABLED、Rust 给 401+ok:false，wire 契约不一致。默认体半侧由 product_server_persists_ui_settings 用例断言（未在本行引用）。缺口与回归要求：明确未开启 web 时匿名浏览器读状态的 wire 契约（403+WEB_ACCESS_DISABLED 还是 401+WEB_AUTH_REQUIRED），补路由级用例后再升级。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'not test(production_helper_sync_cancel_aborts_in_flight_request) and not test(production_helper_sync_rejects_broken_pagination_cursors) and not test(production_helper_sync_forwards_page_query_and_persists_provider_values) and not test(production_helper_sync_retries_transient_page_and_records_retry)'",
+      "rust_entry": "crates/jftrade-engine/src/product_production_assembly_tests.rs::production_default_security_exposes_no_web_listener_and_requires_desktop_token",
+      "conclusion": "partial：真实 production 默认设置：desktop capability GET security 为 200、webAccessEnabled=false、passwordConfigured=false；Web runtime 无 server/bind。 匿名 GET system/status 现场为 401 WEB_AUTH_REQUIRED；同一路由的错误信封已有直接断言。 冻结 Go 同一匿名请求要求 403 WEB_ACCESS_DISABLED；Rust 为 401 WEB_AUTH_REQUIRED。保持当前监听器与认证策略，继续 partial。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-api --package jftrade-engine --test auth_protects_logout --test expired_browser_sessions_fail_validation_and_are_pruned_on_restart --test production_default_security_exposes_no_web_listener_and_requires_desktop_token --test production_desktop_start_preserves_configured_web_security --test production_web_listener_rejects_legacy_admin_bearer --test production_desktop_http_and_websocket_require_the_same_private_capability --output docs/history/go-to-rust/verification-receipts/auth-capability-boundaries-verified-2026-10-07.json",
       "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/servercore/settings_security_test.go",
@@ -58394,37 +58418,24 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_system_control_read_tests.rs",
-          "test": "system_control_reads_are_authenticated_and_do_not_create_control_state",
+          "file": "crates/jftrade-engine/src/product_production_assembly_tests.rs",
+          "test": "production_default_security_exposes_no_web_listener_and_requires_desktop_token",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/app/apiserver/servercore/settings_security_test.go",
             "goLine": 14,
-            "rustFile": "crates/jftrade-engine/src/product_system_control_read_tests.rs",
-            "rustLine": 97
-          }
-        },
-        {
-          "file": "crates/jftrade-settings/src/security.rs",
-          "test": "access_fails_closed_without_a_configured_password",
-          "crate": "jftrade-settings",
-          "anchor": {
-            "goFile": "internal/app/apiserver/servercore/settings_security_test.go",
-            "goLine": 14,
-            "rustFile": "crates/jftrade-settings/src/security.rs",
-            "rustLine": 489
+            "rustFile": "crates/jftrade-engine/src/product_production_assembly_tests.rs",
+            "rustLine": 214
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "partial（wire 状态码分叉）：Go 断言未开启 web 时浏览器 GET /api/v1/system/status 返回 403 且正文含 WEB_ACCESS_DISABLED，桌面 GET 安全设置返回 webAccessEnabled:false/passwordConfigured:false。",
-          "Rust system_control_reads 用例断言 enforcing 下无凭据读控制面返回 401 且桌面 token 可读、不落控制状态，access_fails_closed 用例断言无密码时 fail-closed；",
-          "但同一输入（无凭据浏览器请求）Go 给 403+WEB_ACCESS_DISABLED、Rust 给 401+ok:false，wire 契约不一致。",
-          "默认体半侧由 product_server_persists_ui_settings 用例断言（未在本行引用）。"
+          "真实 production 默认设置：desktop capability GET security 为 200、webAccessEnabled=false、passwordConfigured=false；Web runtime 无 server/bind。",
+          "匿名 GET system/status 现场为 401 WEB_AUTH_REQUIRED；同一路由的错误信封已有直接断言。"
         ],
         "uncovered": [
-          "缺口与回归要求：明确未开启 web 时匿名浏览器读状态的 wire 契约（403+WEB_ACCESS_DISABLED 还是 401+WEB_AUTH_REQUIRED），补路由级用例后再升级。"
+          "冻结 Go 同一匿名请求要求 403 WEB_ACCESS_DISABLED；Rust 为 401 WEB_AUTH_REQUIRED。保持当前监听器与认证策略，继续 partial。"
         ],
         "source": "reviewed"
       },
@@ -58435,40 +58446,48 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-api",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(auth_protects_logout) or test(production_desktop_start_preserves_configured_web_security) or test(production_web_listener_rejects_legacy_admin_bearer) or test(production_default_security_exposes_no_web_listener_and_requires_desktop_token) or test(production_desktop_http_and_websocket_require_the_same_private_capability) or test(expired_browser_sessions_fail_validation_and_are_pruned_on_restart)"
         ],
         "testFilter": [
-          "system_control_reads_are_authenticated_and_do_not_create_control_state"
+          "auth_protects_logout",
+          "expired_browser_sessions_fail_validation_and_are_pruned_on_restart",
+          "production_default_security_exposes_no_web_listener_and_requires_desktop_token",
+          "production_desktop_start_preserves_configured_web_security",
+          "production_web_listener_rejects_legacy_admin_bearer",
+          "production_desktop_http_and_websocket_require_the_same_private_capability"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "bcfc90ef455136531f0972916a71f9fca94dd60c",
+        "verifiedAt": "2026-10-07T04:10:10Z",
+        "receiptDigest": "sha256:b177620849815de016133d265bc257df159004bac5ac5a7f651dd6672c384978"
       },
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
       "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "partial（wire 状态码分叉）：Go 断言未开启 web 时浏览器 GET /api/v1/system/status 返回 403 且正文含 WEB_ACCESS_DISABLED，桌面 GET 安全设置返回 webAccessEnabled:false/passwordConfigured:false。",
-        "Rust system_control_reads 用例断言 enforcing 下无凭据读控制面返回 401 且桌面 token 可读、不落控制状态，access_fails_closed 用例断言无密码时 fail-closed；",
-        "但同一输入（无凭据浏览器请求）Go 给 403+WEB_ACCESS_DISABLED、Rust 给 401+ok:false，wire 契约不一致。",
-        "默认体半侧由 product_server_persists_ui_settings 用例断言（未在本行引用）。"
+        "真实 production 默认设置：desktop capability GET security 为 200、webAccessEnabled=false、passwordConfigured=false；Web runtime 无 server/bind。",
+        "匿名 GET system/status 现场为 401 WEB_AUTH_REQUIRED；同一路由的错误信封已有直接断言。"
       ],
       "uncoveredAssertions": [
-        "缺口与回归要求：明确未开启 web 时匿名浏览器读状态的 wire 契约（403+WEB_ACCESS_DISABLED 还是 401+WEB_AUTH_REQUIRED），补路由级用例后再升级。"
+        "冻结 Go 同一匿名请求要求 403 WEB_ACCESS_DISABLED；Rust 为 401 WEB_AUTH_REQUIRED。保持当前监听器与认证策略，继续 partial。"
       ],
       "boundaryReason": null
     },
@@ -71235,9 +71254,9 @@
     },
     "internal/app/apiserver/webaccess/auth_boundaries_test.go:101:TestWebAuthRemainingAuthenticationStates": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-api/tests/transport_contracts.rs::auth_skips_public_paths_without_credentials; crates/jftrade-api/tests/transport_contracts.rs::auth_rejects_requests_without_any_authenticator",
-      "conclusion": "partial：Go 断言未强制/已强制/不可用三种状态下的认证结果、公开访问放行、过期会话不再认证、桌面受信请求被信任。Rust 的 router 测试覆盖公开路径免认证与无认证器即拒绝（引用），过期会话由 auth manager 的 session_expired/prune 处理但无独立断言；缺“过期会话快照 false”的测试。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-integration-pine -p jftrade-strategy -p jftrade-backtest -p jftrade-assistant -p jftrade-api --all-targets --locked --no-fail-fast -E 'not test(analyze_script_supports_trend_and_stateful_ta_functions)'",
+      "rust_entry": "crates/jftrade-engine/src/product_auth_session_manager_tests.rs::expired_browser_sessions_fail_validation_and_are_pruned_on_restart",
+      "conclusion": "partial：过期时间等于当前时刻的会话不通过 session/CSRF 校验；即使 snapshot 输入 browser_authenticated=true，仍为 authenticated=false、csrfToken/expiresAt=null。 未来有效会话仍通过校验；重启从持久化 session 文件清除过期条目，保留唯一有效 token hash。 冻结 Go 还要求未强制 disabled 的 trusted bypass、强制 disabled/不可用认证拒绝、public browser access 放行及显式 trusted request；新 owner 只闭合过期会话与恢复，尚无完整五种状态矩阵。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-api --package jftrade-engine --test auth_protects_logout --test expired_browser_sessions_fail_validation_and_are_pruned_on_restart --test production_default_security_exposes_no_web_listener_and_requires_desktop_token --test production_desktop_start_preserves_configured_web_security --test production_web_listener_rejects_legacy_admin_bearer --test production_desktop_http_and_websocket_require_the_same_private_capability --output docs/history/go-to-rust/verification-receipts/auth-capability-boundaries-verified-2026-10-07.json",
       "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/webaccess/auth_boundaries_test.go",
@@ -71247,35 +71266,24 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-api/tests/transport_contracts.rs",
-          "test": "auth_skips_public_paths_without_credentials",
-          "crate": "jftrade-api",
+          "file": "crates/jftrade-engine/src/product_auth_session_manager_tests.rs",
+          "test": "expired_browser_sessions_fail_validation_and_are_pruned_on_restart",
+          "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/app/apiserver/webaccess/auth_boundaries_test.go",
             "goLine": 101,
-            "rustFile": "crates/jftrade-api/tests/transport_contracts.rs",
-            "rustLine": 969
-          }
-        },
-        {
-          "file": "crates/jftrade-api/tests/transport_contracts.rs",
-          "test": "auth_rejects_requests_without_any_authenticator",
-          "crate": "jftrade-api",
-          "anchor": {
-            "goFile": "internal/app/apiserver/webaccess/auth_boundaries_test.go",
-            "goLine": 101,
-            "rustFile": "crates/jftrade-api/tests/transport_contracts.rs",
-            "rustLine": 1062
+            "rustFile": "crates/jftrade-engine/src/product_auth_session_manager_tests.rs",
+            "rustLine": 464
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust 的 router 测试覆盖公开路径免认证与无认证器即拒绝（引用），过期会话由 auth manager 的 session_expired/prune 处理但无独立断言；",
-          "缺“过期会话快照 false”的测试。"
+          "过期时间等于当前时刻的会话不通过 session/CSRF 校验；即使 snapshot 输入 browser_authenticated=true，仍为 authenticated=false、csrfToken/expiresAt=null。",
+          "未来有效会话仍通过校验；重启从持久化 session 文件清除过期条目，保留唯一有效 token hash。"
         ],
         "uncovered": [
-          "Go 断言未强制/已强制/不可用三种状态下的认证结果、公开访问放行、过期会话不再认证、桌面受信请求被信任。"
+          "冻结 Go 还要求未强制 disabled 的 trusted bypass、强制 disabled/不可用认证拒绝、public browser access 放行及显式 trusted request；新 owner 只闭合过期会话与恢复，尚无完整五种状态矩阵。"
         ],
         "source": "reviewed"
       },
@@ -71286,24 +71294,33 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-api",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(auth_protects_logout) or test(production_desktop_start_preserves_configured_web_security) or test(production_web_listener_rejects_legacy_admin_bearer) or test(production_default_security_exposes_no_web_listener_and_requires_desktop_token) or test(production_desktop_http_and_websocket_require_the_same_private_capability) or test(expired_browser_sessions_fail_validation_and_are_pruned_on_restart)"
         ],
         "testFilter": [
-          "auth_rejects_requests_without_any_authenticator",
-          "auth_skips_public_paths_without_credentials"
+          "auth_protects_logout",
+          "expired_browser_sessions_fail_validation_and_are_pruned_on_restart",
+          "production_default_security_exposes_no_web_listener_and_requires_desktop_token",
+          "production_desktop_start_preserves_configured_web_security",
+          "production_web_listener_rejects_legacy_admin_bearer",
+          "production_desktop_http_and_websocket_require_the_same_private_capability"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "bcfc90ef455136531f0972916a71f9fca94dd60c",
+        "verifiedAt": "2026-10-07T04:10:10Z",
+        "receiptDigest": "sha256:b177620849815de016133d265bc257df159004bac5ac5a7f651dd6672c384978"
       },
       "risk": "normal",
       "owner": "api_transport",
@@ -71314,11 +71331,11 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust 的 router 测试覆盖公开路径免认证与无认证器即拒绝（引用），过期会话由 auth manager 的 session_expired/prune 处理但无独立断言；",
-        "缺“过期会话快照 false”的测试。"
+        "过期时间等于当前时刻的会话不通过 session/CSRF 校验；即使 snapshot 输入 browser_authenticated=true，仍为 authenticated=false、csrfToken/expiresAt=null。",
+        "未来有效会话仍通过校验；重启从持久化 session 文件清除过期条目，保留唯一有效 token hash。"
       ],
       "uncoveredAssertions": [
-        "Go 断言未强制/已强制/不可用三种状态下的认证结果、公开访问放行、过期会话不再认证、桌面受信请求被信任。"
+        "冻结 Go 还要求未强制 disabled 的 trusted bypass、强制 disabled/不可用认证拒绝、public browser access 放行及显式 trusted request；新 owner 只闭合过期会话与恢复，尚无完整五种状态矩阵。"
       ],
       "boundaryReason": null
     },
@@ -72528,11 +72545,11 @@
       "boundaryReason": null
     },
     "internal/app/apiserver/webaccess/security_integration_test.go:278:TestAdminBearerMechanismNoLongerAuthenticates": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-api/tests/transport_contracts.rs::managed_sidecar_requires_bearer_protocol_and_verified_surface; crates/jftrade-api/src/router.rs",
-      "conclusion": "partial：Go 断言历史 admin bearer 不再能认证（401）。Rust 只在内部代理协议开启时认 bearer，且要求专用 internal proxy token（引用测试断言缺协议/未验证面时 401 或 403）；任意 Bearer 值在普通 Web 模式下不构成认证，语义一致，但错误码为 INTERNAL_PROXY_AUTH_REQUIRED/WEB_AUTH_REQUIRED 而非 Go 的单一 401 形状。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-integration-pine -p jftrade-strategy -p jftrade-backtest -p jftrade-assistant -p jftrade-api --all-targets --locked --no-fail-fast -E 'not test(analyze_script_supports_trend_and_stateful_ta_functions)'",
-      "evidence_type": "partial",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-engine/src/product_production_assembly_tests.rs::production_web_listener_rejects_legacy_admin_bearer",
+      "conclusion": "function_exact：真实 production Web listener 开启口令认证后，同一路由 GET system/status 的 Authorization: Bearer legacy-admin-key 返回冻结 Go 要求的 401。 响应 ok=false/WEB_AUTH_REQUIRED；有效 desktop capability 也不能在独立 Web listener 代替浏览器会话。",
+      "command": "pnpm run test:parity:receipt -- --package jftrade-api --package jftrade-engine --test auth_protects_logout --test expired_browser_sessions_fail_validation_and_are_pruned_on_restart --test production_default_security_exposes_no_web_listener_and_requires_desktop_token --test production_desktop_start_preserves_configured_web_security --test production_web_listener_rejects_legacy_admin_bearer --test production_desktop_http_and_websocket_require_the_same_private_capability --output docs/history/go-to-rust/verification-receipts/auth-capability-boundaries-verified-2026-10-07.json",
+      "evidence_type": "function_exact",
       "source": {
         "file": "internal/app/apiserver/webaccess/security_integration_test.go",
         "line": 278,
@@ -72541,25 +72558,23 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-api/tests/transport_contracts.rs",
-          "test": "managed_sidecar_requires_bearer_protocol_and_verified_surface",
-          "crate": "jftrade-api",
+          "file": "crates/jftrade-engine/src/product_production_assembly_tests.rs",
+          "test": "production_web_listener_rejects_legacy_admin_bearer",
+          "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/app/apiserver/webaccess/security_integration_test.go",
             "goLine": 278,
-            "rustFile": "crates/jftrade-api/tests/transport_contracts.rs",
-            "rustLine": 20
+            "rustFile": "crates/jftrade-engine/src/product_production_assembly_tests.rs",
+            "rustLine": 189
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust 只在内部代理协议开启时认 bearer，且要求专用 internal proxy token（引用测试断言缺协议/未验证面时 401 或 403）；",
-          "任意 Bearer 值在普通 Web 模式下不构成认证，语义一致，但错误码为 INTERNAL_PROXY_AUTH_REQUIRED/WEB_AUTH_REQUIRED 而非 Go 的单一 401 形状。"
+          "真实 production Web listener 开启口令认证后，同一路由 GET system/status 的 Authorization: Bearer legacy-admin-key 返回冻结 Go 要求的 401。",
+          "响应 ok=false/WEB_AUTH_REQUIRED；有效 desktop capability 也不能在独立 Web listener 代替浏览器会话。"
         ],
-        "uncovered": [
-          "Go 断言历史 admin bearer 不再能认证（401）。"
-        ],
+        "uncovered": [],
         "source": "reviewed"
       },
       "verification": {
@@ -72569,39 +72584,45 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-api",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(auth_protects_logout) or test(production_desktop_start_preserves_configured_web_security) or test(production_web_listener_rejects_legacy_admin_bearer) or test(production_default_security_exposes_no_web_listener_and_requires_desktop_token) or test(production_desktop_http_and_websocket_require_the_same_private_capability) or test(expired_browser_sessions_fail_validation_and_are_pruned_on_restart)"
         ],
         "testFilter": [
-          "managed_sidecar_requires_bearer_protocol_and_verified_surface"
+          "auth_protects_logout",
+          "expired_browser_sessions_fail_validation_and_are_pruned_on_restart",
+          "production_default_security_exposes_no_web_listener_and_requires_desktop_token",
+          "production_desktop_start_preserves_configured_web_security",
+          "production_web_listener_rejects_legacy_admin_bearer",
+          "production_desktop_http_and_websocket_require_the_same_private_capability"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "bcfc90ef455136531f0972916a71f9fca94dd60c",
+        "verifiedAt": "2026-10-07T04:10:10Z",
+        "receiptDigest": "sha256:b177620849815de016133d265bc257df159004bac5ac5a7f651dd6672c384978"
       },
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "reviewed",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust 只在内部代理协议开启时认 bearer，且要求专用 internal proxy token（引用测试断言缺协议/未验证面时 401 或 403）；",
-        "任意 Bearer 值在普通 Web 模式下不构成认证，语义一致，但错误码为 INTERNAL_PROXY_AUTH_REQUIRED/WEB_AUTH_REQUIRED 而非 Go 的单一 401 形状。"
+        "真实 production Web listener 开启口令认证后，同一路由 GET system/status 的 Authorization: Bearer legacy-admin-key 返回冻结 Go 要求的 401。",
+        "响应 ok=false/WEB_AUTH_REQUIRED；有效 desktop capability 也不能在独立 Web listener 代替浏览器会话。"
       ],
-      "uncoveredAssertions": [
-        "Go 断言历史 admin bearer 不再能认证（401）。"
-      ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/app/apiserver/webaccess/security_integration_test.go:293:TestWebPasswordSessionSupportsReadAndCSRFProtectedWrite": {
@@ -340673,6 +340694,46 @@
     }
   },
   "reuse": {
+    "crates/jftrade-engine/src/product_auth_session_manager_tests.rs::expired_browser_sessions_fail_validation_and_are_pruned_on_restart": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/app/apiserver/webaccess/auth_boundaries_test.go:101:TestWebAuthRemainingAuthenticationStates"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_production_assembly_tests.rs::production_default_security_exposes_no_web_listener_and_requires_desktop_token": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/app/apiserver/servercore/settings_security_test.go:14:TestWebAccessSettingsDefaultToDesktopOnly"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_production_assembly_tests.rs::production_desktop_start_preserves_configured_web_security": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/app/apiserver/server_test.go:85:TestStartDesktopDoesNotMutatePersistedWebAccessSettings"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_production_assembly_tests.rs::production_web_listener_rejects_legacy_admin_bearer": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/app/apiserver/webaccess/security_integration_test.go:278:TestAdminBearerMechanismNoLongerAuthenticates"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_ws_live_tests.rs::production_desktop_http_and_websocket_require_the_same_private_capability": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/app/apiserver/servercore/desktop_token_test.go:14:TestDesktopTokenMiddlewareProtectsHTTPAndWebSocket"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
+    },
     "crates/jftrade-engine/src/product_production_assembly_tests.rs::production_http_broker_unlock_rejects_malformed_payload_without_writes": {
       "referenceCount": 1,
       "referenceKeys": [
@@ -342523,13 +342584,12 @@
       "reviewNote": "2026-09-29 manual high-fan-out review: six references compared. The exact API validation row shares the invalid-input and provider-error mapping owner; provider-boundary and resolver references remain partial where their cache or parameter-matrix shape differs. Reviewed for the exact claim only."
     },
     "crates/jftrade-api/tests/transport_contracts.rs::auth_skips_public_paths_without_credentials": {
-      "referenceCount": 2,
+      "referenceCount": 1,
       "referenceKeys": [
-        "internal/api/middleware/auth_test.go:13:TestAuthSkipsPublicPaths",
-        "internal/app/apiserver/webaccess/auth_boundaries_test.go:101:TestWebAuthRemainingAuthenticationStates"
+        "internal/api/middleware/auth_test.go:13:TestAuthSkipsPublicPaths"
       ],
-      "allowed": false,
-      "reviewStatus": "reviewed",
+      "allowed": true,
+      "reviewStatus": "single",
       "reviewNote": "2026-10-02 bounded reuse review: compared all 2 referenceKeys against the shared Rust owner (status mix {'[~]': 2}); assertion scopes are not interchangeable, so reuse remains disallowed and no function_exact row is upgraded by this relation."
     },
     "crates/jftrade-api/src/router.rs::current_request_context": {
@@ -342573,11 +342633,10 @@
       "reviewStatus": "single"
     },
     "crates/jftrade-api/tests/transport_contracts.rs::auth_rejects_requests_without_any_authenticator": {
-      "referenceCount": 3,
+      "referenceCount": 2,
       "referenceKeys": [
         "internal/api/middleware/auth_test.go:112:TestAuthRejectsNilAuthenticator",
-        "internal/api/middleware/security_boundaries_test.go:17:TestAuthenticationBoundaryDecisions",
-        "internal/app/apiserver/webaccess/auth_boundaries_test.go:101:TestWebAuthRemainingAuthenticationStates"
+        "internal/api/middleware/security_boundaries_test.go:17:TestAuthenticationBoundaryDecisions"
       ],
       "allowed": true,
       "reviewStatus": "reviewed"
@@ -343350,11 +343409,9 @@
       "reviewStatus": "single"
     },
     "crates/jftrade-engine/src/product_system_control_read_tests.rs::system_control_reads_are_authenticated_and_do_not_create_control_state": {
-      "referenceCount": 4,
+      "referenceCount": 2,
       "referenceKeys": [
         "internal/api/system/routes_test.go:19:TestSystemRoutesReturnEnvelopes",
-        "internal/app/apiserver/servercore/desktop_token_test.go:14:TestDesktopTokenMiddlewareProtectsHTTPAndWebSocket",
-        "internal/app/apiserver/servercore/settings_security_test.go:14:TestWebAccessSettingsDefaultToDesktopOnly",
         "internal/system/service_test.go:309:TestFutuHealthAndResetDelegates"
       ],
       "allowed": false,
@@ -343440,11 +343497,10 @@
       "reviewStatus": "single"
     },
     "crates/jftrade-engine/src/product_system_control_read_tests.rs::system_status_matches_go_stable_fields_without_claiming_migration_ownership": {
-      "referenceCount": 6,
+      "referenceCount": 5,
       "referenceKeys": [
         "internal/api/system/status_mapper_test.go:11:TestSystemStatusTransportMapperPreservesDomainJSON",
         "internal/app/apiserver/runtime/resources_test.go:78:TestRuntimeResourceSummaryIncludesCountAndItems",
-        "internal/app/apiserver/server_test.go:85:TestStartDesktopDoesNotMutatePersistedWebAccessSettings",
         "internal/app/apiserver/servercoretest/system_routes_test.go:12:TestSystemStatusEndpointReturnsStatus",
         "internal/assistant/assembly/application_adapter_boundaries_test.go:71:TestApplicationAdapterUsesConfiguredRuntimeAndSettings",
         "internal/system/service_test.go:13:TestStatusDefaultsAndInjectedSummaries"
@@ -344954,13 +345010,12 @@
       "reviewNote": "2026-10-02 bounded reuse review: compared all 4 referenceKeys against the shared Rust owner (status mix {'[~]': 4}); assertion scopes are not interchangeable, so reuse remains disallowed and no function_exact row is upgraded by this relation."
     },
     "crates/jftrade-settings/src/security.rs::access_fails_closed_without_a_configured_password": {
-      "referenceCount": 2,
+      "referenceCount": 1,
       "referenceKeys": [
-        "internal/app/apiserver/lifecycle/lifecycle_test.go:196:TestWebAccessBindDefaultsToLoopbackAndRequiresCompletePublicConfiguration",
-        "internal/app/apiserver/servercore/settings_security_test.go:14:TestWebAccessSettingsDefaultToDesktopOnly"
+        "internal/app/apiserver/lifecycle/lifecycle_test.go:196:TestWebAccessBindDefaultsToLoopbackAndRequiresCompletePublicConfiguration"
       ],
-      "allowed": false,
-      "reviewStatus": "reviewed",
+      "allowed": true,
+      "reviewStatus": "single",
       "reviewNote": "2026-10-02 bounded reuse review: compared all 2 referenceKeys against the shared Rust owner (status mix {'[~]': 2}); assertion scopes are not interchangeable, so reuse remains disallowed and no function_exact row is upgraded by this relation."
     },
     "crates/jftrade-engine/src/product_server_tests.rs::enabled_web_access_binds_and_shutdown_releases_port": {
@@ -348238,14 +348293,6 @@
       "allowed": true,
       "reviewStatus": "single",
       "reviewNote": "2026-09-30 API transport batch: real loopback HTTP composition asserted forwarded HTTPS secure cookie attributes and no-store response."
-    },
-    "crates/jftrade-api/tests/transport_contracts.rs::managed_sidecar_requires_bearer_protocol_and_verified_surface": {
-      "referenceCount": 1,
-      "referenceKeys": [
-        "internal/app/apiserver/webaccess/security_integration_test.go:278:TestAdminBearerMechanismNoLongerAuthenticates"
-      ],
-      "allowed": true,
-      "reviewStatus": "single"
     },
     "crates/jftrade-api/tests/transport_contracts.rs::session_cookie_reads_and_csrf_protected_writes_share_one_browser_flow": {
       "referenceCount": 1,

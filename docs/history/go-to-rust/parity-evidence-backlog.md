@@ -1,5 +1,21 @@
 # Go → Rust 证据积压清单
 
+## 2026-10-07 认证行为批次与保留缺口
+
+- 七条相关 partial 已逐项核对冻结 Go。logout middleware、旧 admin bearer 拒绝、带口令配置的 desktop 启动保持三条升级 exact；净变化 **exact +3 / partial -3 / boundary 0**，当前 **1593 / 2218 / 640**。不将测试数量、mapping 数量或 receipt 数量作为整体行为完成度。
+- 保留四条具体残余：desktop token 的 Go harness 403/204 与 Rust production 401/200；默认 Web 关闭的 Go `403 WEB_ACCESS_DISABLED` 与 Rust `401 WEB_AUTH_REQUIRED`；认证状态测试只闭合过期会话/CSRF/snapshot/重启清除，未闭合未强制、不可用、public/trusted 全矩阵；换密码保持同 Web bind 时，尚无活动 SSE/WS 取消信号或同路由断言。
+- 当前有效 receipt 为 `auth-capability-boundaries-verified-2026-10-07.json`（6/6 passed，SHA-256 `b177620849815de016133d265bc257df159004bac5ac5a7f651dd6672c384978`）；六条新 owner mapping 绑定此 receipt，第七条活动流取消继续保留独立旧 owner 的有限证据。
+
+  | 本批 verification-receipts 文件 | 实际状态及适用源码 | 当前替代 |
+  | --- | --- | --- |
+  | `auth-capability-boundaries-2026-10-07.json` | failed，4 passed/1 failed；WS 清理状态轮询没有 desktop token，属于测试装配失败 | verified receipt |
+  | `auth-capability-boundaries-passed-2026-10-07.json` | passed，5/5；已修正认证轮询，尚未加入过期会话 owner | verified receipt |
+  | `auth-capability-boundaries-current-2026-10-07.json` | passed，6/6；过期会话已闭合，安全配置尚未增加完整 record 等值断言 | verified receipt |
+  | `auth-capability-boundaries-verified-2026-10-07.json` | passed，6/6；当前六条 owner 的最终源码 | canonical |
+
+- 原始失败 receipt 保持字节不变。focused 的 2207 filtered/skipped 不计为已执行测试；现场 quick 与完整 Rust 门禁均退出 **0**，受影响 nextest **2243 passed、0 failed、0 skipped**，Pine worker **98 passed**，workspace **3682 passed、0 failed、2 skipped**，七类 compatibility replay 全通过。日志为 `/tmp/jftrade-auth-capability-quick-2026-10-07.log` 和 `/tmp/jftrade-auth-capability-rust-2026-10-07.log`；未生成 workspace JSON receipt。普通/strict audit、anchor reconcile 通过，strict 首轮 filter 元数据错误及修复保留于摘要。
+- 下一批五条相关候选：`TestSecurityChangeCancelsExistingWebStream`、`TestChatStreamReconnectAndReplayRespectClientDisconnect`、`TestChatStreamHubReplayAndCleanupBoundaries`、`TestChatStreamExecutionPublishesDeltaAndFinalVariants`、`TestExecuteADKChatStreamPublishesTerminalErrorForInvalidRequest`。已核对冻结 Go；live chat 的 `RawStream` 与 GET replay 的 materialized owner 要分开验证，整体目标保持 active。
+
 ## 2026-10-07 Broker 写边界严格复核与行为闭环
 
 - `TestBrokerUnlockDisconnectedOpenD`、`TestBrokerPlaceOrderNoBroker` 撤回过强 exact：前者 Go `UNLOCK_FAILED/connect` 与 Rust `BROKER_NOT_CONNECTED/closed` 不同；后者原始无 query 请求在 Rust 返回 400，补账户 query 后的 502 不等同于原始 Go 行为。保留 Rust owner 与 receipt，恢复 partial。

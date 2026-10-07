@@ -84,6 +84,163 @@ mod product_production_assembly_tests {
         (temp_dir, settings_path, config, security)
     }
 
+    fn seed_password_protected_web(security: &SecuritySettingsService) -> SocketAddr {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("reserve Web port");
+        let address = listener.local_addr().expect("Web address");
+        security
+            .save(&jftrade_settings::SecuritySettingsUpdate {
+                web_access_enabled: true,
+                web_port: i32::from(address.port()),
+                new_password: "a memorable Web passphrase".to_owned(),
+                ..Default::default()
+            })
+            .expect("seed Web security");
+        address
+    }
+
+    // Parity: go:452dea11:internal/app/apiserver/server_test.go:85 TestStartDesktopDoesNotMutatePersistedWebAccessSettings
+    #[tokio::test]
+    async fn production_desktop_start_preserves_configured_web_security() {
+        let (_directory, settings_path, config, _security) = setup_test_env();
+        let seed_store = Arc::new(SettingsFileStore::open(&settings_path).expect("seed store"));
+        let security = SecuritySettingsService::new(seed_store.clone());
+        let web_address = seed_password_protected_web(&security);
+        let expected_record =
+            jftrade_settings::SecuritySettingsStorePort::load_security_record(seed_store.as_ref())
+                .expect("seed security record")
+                .expect("configured record");
+        let before: Value =
+            serde_json::from_slice(&fs::read(&settings_path).expect("seed settings"))
+                .expect("seed JSON");
+        let expected = before["security"].clone();
+        assert!(
+            expected["passwordHash"]
+                .as_str()
+                .expect("hash")
+                .starts_with("$argon2id$")
+        );
+        let handle = start_product(config)
+            .await
+            .expect("start production desktop");
+        let (status, response) = request_json_with_status(
+            handle.startup_record().address,
+            "GET",
+            "/api/v1/settings/security",
+            None,
+            &[("Authorization", "Bearer aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")],
+        )
+        .await;
+        assert_eq!(status, 200, "desktop security: {response}");
+        assert_eq!(response["data"]["webAccessEnabled"], true);
+        assert_eq!(response["data"]["passwordConfigured"], true);
+        assert_eq!(response["data"]["webPort"], web_address.port());
+        assert!(response["data"].get("passwordHash").is_none());
+
+        let origin = format!("http://{web_address}");
+        let (status, login) = request_json_with_status(
+            web_address,
+            "POST",
+            "/api/v1/auth/login",
+            Some(r#"{"password":"a memorable Web passphrase"}"#),
+            &[("Origin", origin.as_str())],
+        )
+        .await;
+        assert_eq!(
+            status, 200,
+            "persisted password still authenticates: {login}"
+        );
+        assert_eq!(login["data"]["authenticated"], true);
+        let running: Value =
+            serde_json::from_slice(&fs::read(&settings_path).expect("running settings"))
+                .expect("running JSON");
+        assert_eq!(running["security"], expected);
+        assert_eq!(
+            jftrade_settings::SecuritySettingsStorePort::load_security_record(seed_store.as_ref())
+                .expect("in-memory security after startup"),
+            Some(expected_record.clone())
+        );
+        handle.shutdown().await.expect("shutdown desktop");
+        let reloaded: Value =
+            serde_json::from_slice(&fs::read(&settings_path).expect("reloaded settings"))
+                .expect("reloaded JSON");
+        assert_eq!(reloaded["security"], expected);
+        let reloaded_store =
+            SettingsFileStore::open_read_only(&settings_path).expect("reload store");
+        assert_eq!(
+            jftrade_settings::SecuritySettingsStorePort::load_security_record(&reloaded_store)
+                .expect("reloaded security record"),
+            Some(expected_record)
+        );
+        assert!(
+            security
+                .settings()
+                .expect("seed security")
+                .web_access_enabled
+        );
+        assert!(
+            security
+                .verify_password("a memorable Web passphrase")
+                .expect("verify")
+        );
+    }
+
+    // Parity: go:452dea11:internal/app/apiserver/webaccess/security_integration_test.go:278 TestAdminBearerMechanismNoLongerAuthenticates
+    #[tokio::test]
+    async fn production_web_listener_rejects_legacy_admin_bearer() {
+        let (_directory, _settings_path, config, security) = setup_test_env();
+        let web_address = seed_password_protected_web(&security);
+        let handle = start_product(config)
+            .await
+            .expect("start production product");
+        for bearer in ["legacy-admin-key", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"] {
+            let authorization = format!("Bearer {bearer}");
+            let (status, response) = request_json_with_status(
+                web_address,
+                "GET",
+                "/api/v1/system/status",
+                None,
+                &[("Authorization", authorization.as_str())],
+            )
+            .await;
+            assert_eq!(status, 401, "browser bearer response={response}");
+            assert_eq!(response["ok"], false);
+            assert_eq!(response["error"]["code"], "WEB_AUTH_REQUIRED");
+        }
+        handle.shutdown().await.expect("shutdown product");
+    }
+
+    // Parity: go:452dea11:internal/app/apiserver/servercore/settings_security_test.go:14 TestWebAccessSettingsDefaultToDesktopOnly
+    #[tokio::test]
+    async fn production_default_security_exposes_no_web_listener_and_requires_desktop_token() {
+        let (_directory, _settings_path, config, _security) = setup_test_env();
+        let handle = start_product(config)
+            .await
+            .expect("start production product");
+        let address = handle.startup_record().address;
+        let (status, response) =
+            request_json_with_status(address, "GET", "/api/v1/system/status", None, &[]).await;
+        assert_eq!(status, 401, "desktop-sidecar anonymous response={response}");
+        assert_eq!(response["error"]["code"], "WEB_AUTH_REQUIRED");
+        let (status, response) = request_json_with_status(
+            address,
+            "GET",
+            "/api/v1/settings/security",
+            None,
+            &[("Authorization", "Bearer aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")],
+        )
+        .await;
+        assert_eq!(status, 200, "desktop settings response={response}");
+        assert_eq!(response["data"]["webAccessEnabled"], false);
+        assert_eq!(response["data"]["passwordConfigured"], false);
+        let web_runtime = handle.web_runtime.as_ref().expect("production Web runtime");
+        {
+            let state = web_runtime.inner.lock().expect("Web runtime state");
+            assert!(state.server.is_none());
+            assert!(state.bind.is_none());
+        }
+        handle.shutdown().await.expect("shutdown product");
+    }
+
     #[test]
     fn production_route_fence_discards_embedding_ports() {
         let (_temp_dir, _settings_path, config, _security) = setup_test_env();

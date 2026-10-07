@@ -15,6 +15,85 @@ impl WsLiveSnapshotPort for EnabledWsLiveSnapshotPort {
     }
 }
 
+// Parity: go:452dea11:internal/app/apiserver/servercore/desktop_token_test.go:14 TestDesktopTokenMiddlewareProtectsHTTPAndWebSocket
+#[tokio::test]
+async fn production_desktop_http_and_websocket_require_the_same_private_capability() {
+    let directory = tempdir().expect("temporary directory");
+    let settings_path = directory.path().join("settings.json");
+    let token = "desktop-private-capability-0123456789";
+    let mut config = ProductConfig::new(
+        "127.0.0.1:0".parse().expect("address"),
+        &settings_path,
+        AccessPolicy::desktop(Some(token.to_owned())),
+    )
+    .expect("config");
+    config.capabilities = ProductCapabilities::all();
+    config.production = true;
+    let handle = start_product(config)
+        .await
+        .expect("start production product");
+    let address = handle.startup_record().address;
+
+    for headers in [vec![], vec![("Authorization", "Bearer wrong-token")]] {
+        let (status, response) =
+            request_json_with_status(address, "GET", "/api/v1/system/status", None, &headers).await;
+        assert_eq!(status, 401, "HTTP response={response}");
+        assert_eq!(response["error"]["code"], "WEB_AUTH_REQUIRED");
+    }
+    let authorization = format!("Bearer {token}");
+    let (status, response) = request_json_with_status(
+        address,
+        "GET",
+        "/api/v1/system/status",
+        None,
+        &[("Authorization", authorization.as_str())],
+    )
+    .await;
+    assert_eq!(status, 200, "HTTP response={response}");
+    assert_eq!(response["ok"], true);
+
+    for headers in [
+        vec![],
+        vec![("Sec-WebSocket-Protocol", "jftrade.desktop.v1, wrong-token")],
+    ] {
+        let response = websocket_handshake(address, &headers).await;
+        assert_eq!(response.status, 401, "handshake={response:?}");
+        assert_eq!(handle.live_hub().snapshot().connected, 0);
+    }
+    let protocol = format!("jftrade.desktop.v1, {token}");
+    let response = websocket_handshake(address, &[("Sec-WebSocket-Protocol", &protocol)]).await;
+    assert_eq!(response.status, 101, "capability handshake={response:?}");
+    assert_eq!(
+        response
+            .headers
+            .iter()
+            .find(|(name, _)| name.eq_ignore_ascii_case("sec-websocket-protocol"))
+            .map(|(_, value)| value.as_str()),
+        Some("jftrade.desktop.v1")
+    );
+    assert!(
+        response
+            .headers
+            .iter()
+            .all(|(_, value)| !value.contains(token))
+    );
+    let mut websocket = response.upgraded_stream.expect("websocket stream");
+    let heartbeat: serde_json::Value =
+        serde_json::from_str(&read_server_text_frame(&mut websocket).await)
+            .expect("heartbeat JSON");
+    assert_eq!(heartbeat["type"], "heartbeat");
+    assert_eq!(heartbeat["payload"]["liveClients"]["connected"], 1);
+    drop(websocket);
+    wait_for_live_projection_with_headers(
+        address,
+        0,
+        &[],
+        &[("Authorization", authorization.as_str())],
+    )
+    .await;
+    handle.shutdown().await.expect("shutdown product");
+}
+
 #[tokio::test]
 async fn ws_live_route_is_registered_only_with_explicit_snapshot_port() {
     let directory = tempdir().expect("temporary directory");
@@ -550,9 +629,18 @@ async fn wait_for_live_projection(
     connected: u64,
     active_instruments: &[&str],
 ) {
+    wait_for_live_projection_with_headers(address, connected, active_instruments, &[]).await;
+}
+
+async fn wait_for_live_projection_with_headers(
+    address: std::net::SocketAddr,
+    connected: u64,
+    active_instruments: &[&str],
+    headers: &[(&str, &str)],
+) {
     for _ in 0..100 {
         let (status, response) =
-            request_json_with_status(address, "GET", "/api/v1/system/status", None, &[]).await;
+            request_json_with_status(address, "GET", "/api/v1/system/status", None, headers).await;
         assert_eq!(status, 200, "system status response: {response}");
         let live = &response["data"]["observability"]["live"];
         if live["connected"] == connected
