@@ -88346,7 +88346,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/product_adk_durable_tool_owner_tests.rs::production_read_tool_result_replays_from_the_same_durable_invocation_without_execution; crates/jftrade-engine/src/product_adk_durable_tool_owner_tests.rs::production_read_checkpoint_replay_restores_the_original_result_without_execution; crates/jftrade-engine/src/product_adk_durable_tool_owner_tests.rs::production_handler_observes_a_stable_run_key_and_replay_keeps_the_same_output_key; crates/jftrade-engine/src/product_adk_keyed_tool_owner_tests.rs::production_keyed_handler_consuming_the_key_completes_and_replays_without_execution",
       "conclusion": "function_exact：2026-10-08冻结Go逐项复核。真实两次run_tool_loop由生产timeout worker向handler交付非空稳定context key，包含run-wrapper且精确run-wrapper:function-call-test；first/second output.key与完整output一致，handler计数1。原durable claim/replay与checkpoint恢复直接owner回归保持通过，原全部断言闭合。",
-      "command": "env CARGO_INCREMENTAL=0 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+      "command": "env CARGO_INCREMENTAL=0 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-store-sqlite --all-targets --locked",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/assistant/engine/execution_claims_test.go",
@@ -88396,7 +88396,7 @@
             "goFile": "internal/assistant/engine/execution_claims_test.go",
             "goLine": 54,
             "rustFile": "crates/jftrade-engine/src/product_adk_keyed_tool_owner_tests.rs",
-            "rustLine": 194
+            "rustLine": 195
           }
         }
       ],
@@ -88412,7 +88412,7 @@
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedAt": "2026-10-08T14:34:35Z",
+        "verifiedAt": "2026-10-08T14:55:47.152015+00:00",
         "argv": [
           "env",
           "CARGO_INCREMENTAL=0",
@@ -88422,13 +88422,15 @@
           "run",
           "-p",
           "jftrade-engine",
+          "-p",
+          "jftrade-store-sqlite",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
           "--no-fail-fast",
           "-E",
-          "test(durable_tool::) or test(tool_deadline_tests::)"
+          "test(durable_tool) | test(tool_deadline_tests) | test(tool_invocation) | test(tool_result)"
         ],
         "testFilter": [
           "production_read_tool_result_replays_from_the_same_durable_invocation_without_execution",
@@ -88436,8 +88438,8 @@
           "production_handler_observes_a_stable_run_key_and_replay_keeps_the_same_output_key",
           "production_keyed_handler_consuming_the_key_completes_and_replays_without_execution"
         ],
-        "verifiedCommit": "bf5a768f881428c2f613129311201f76736f8aec",
-        "receiptDigest": "sha256:4db6ba020bd6c8db7c1bed61b6cbe586e967f2d32713bf756338ef205aeb0672"
+        "verifiedCommit": "de2450571859e6fe6408fdc0bee0206c59686384",
+        "receiptDigest": "sha256:162b33feb75ab5087913fb23dd63524514850812f621fb35497e0700a67b5eee"
       },
       "risk": "normal",
       "owner": "assistant_workflow",
@@ -88455,7 +88457,7 @@
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_adk_durable_tool_owner_tests.rs::production_failed_read_persists_its_false_output_and_failed_call; crates/jftrade-engine/src/product_adk_durable_tool_owner_tests.rs::production_failed_read_checkpoint_replay_preserves_the_original_error_without_execution; crates/jftrade-engine/src/product_adk_durable_tool_owner_tests.rs::production_checkpoint_replay_journal_failure_rolls_back_the_projection",
       "conclusion": "partial：2026-10-08冻结Go逐项复核。实际FAILED read持久success=false、原error.message及FAILED call/error、一次执行和run COMPLETED；第二次真实loop verbatim复用原失败envelope/原call error，不生成persisted failed outcome替代文本。journal实际INSERT故障回滚完整run/event/ledger，移除故障后原output恢复且事件不重复。 剩余：Go durable invocation.status=COMPLETED，Rust保持FAILED；本批不改schema或terminal状态拼写。journal回滚是补充原owner验证，不冒称新Go原断言。",
-      "command": "env CARGO_INCREMENTAL=0 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+      "command": "env CARGO_INCREMENTAL=0 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-store-sqlite --all-targets --locked",
       "evidence_type": "partial",
       "source": {
         "file": "internal/assistant/engine/execution_claims_test.go",
@@ -88512,7 +88514,7 @@
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedAt": "2026-10-08T14:34:35Z",
+        "verifiedAt": "2026-10-08T14:55:47.152015+00:00",
         "argv": [
           "env",
           "CARGO_INCREMENTAL=0",
@@ -88522,21 +88524,23 @@
           "run",
           "-p",
           "jftrade-engine",
+          "-p",
+          "jftrade-store-sqlite",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
           "--no-fail-fast",
           "-E",
-          "test(durable_tool::) or test(tool_deadline_tests::)"
+          "test(durable_tool) | test(tool_deadline_tests) | test(tool_invocation) | test(tool_result)"
         ],
         "testFilter": [
           "production_failed_read_persists_its_false_output_and_failed_call",
           "production_failed_read_checkpoint_replay_preserves_the_original_error_without_execution",
           "production_checkpoint_replay_journal_failure_rolls_back_the_projection"
         ],
-        "verifiedCommit": "bf5a768f881428c2f613129311201f76736f8aec",
-        "receiptDigest": "sha256:4db6ba020bd6c8db7c1bed61b6cbe586e967f2d32713bf756338ef205aeb0672"
+        "verifiedCommit": "de2450571859e6fe6408fdc0bee0206c59686384",
+        "receiptDigest": "sha256:162b33feb75ab5087913fb23dd63524514850812f621fb35497e0700a67b5eee"
       },
       "risk": "normal",
       "owner": "assistant_workflow",
@@ -88556,9 +88560,9 @@
     },
     "internal/assistant/engine/execution_claims_test.go:167:TestGoogleADKToolRejectsStaleContextAfterLeaseTurnover": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_adk_durable_tool_owner_tests.rs::production_stale_run_lease_executes_no_read_tool_and_preserves_the_replacement; crates/jftrade-engine/src/product_adk_durable_tool_owner_tests.rs::production_checkpoint_replay_rejects_the_stale_owner_and_restores_under_takeover",
+      "rust_entry": "crates/jftrade-engine/src/product_adk_durable_tool_owner_tests.rs::production_stale_run_lease_executes_no_read_tool_and_preserves_the_replacement; crates/jftrade-engine/src/product_adk_durable_tool_owner_tests.rs::production_checkpoint_replay_rejects_the_stale_owner_and_restores_under_takeover; crates/jftrade-engine/src/product_adk_keyed_tool_owner_tests.rs::production_unknown_replay_rejects_stale_owner_and_late_results_before_takeover_restoration",
       "conclusion": "partial：2026-10-08冻结Go逐项复核。显式过期/接管后旧guard零执行且run/new lease不变；新replay投影owner对旧Run token返回Conflict，完整run/session events不变；current owner恢复原结果，ledger完全不变且执行计数仍1。 剩余：Go tool.Run返回ErrRunLeaseLost；Rust旧claim/loop内部静默退出，新增persister Conflict只证明SQLite恢复写入的owner拒绝，未闭合Go tool.Run返回分类。",
-      "command": "env CARGO_INCREMENTAL=0 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+      "command": "env CARGO_INCREMENTAL=0 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-store-sqlite --all-targets --locked",
       "evidence_type": "partial",
       "source": {
         "file": "internal/assistant/engine/execution_claims_test.go",
@@ -88588,6 +88592,17 @@
             "rustFile": "crates/jftrade-engine/src/product_adk_durable_tool_owner_tests.rs",
             "rustLine": 293
           }
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_adk_keyed_tool_owner_tests.rs",
+          "test": "production_unknown_replay_rejects_stale_owner_and_late_results_before_takeover_restoration",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/assistant/engine/execution_claims_test.go",
+            "goLine": 167,
+            "rustFile": "crates/jftrade-engine/src/product_adk_keyed_tool_owner_tests.rs",
+            "rustLine": 245
+          }
         }
       ],
       "assertionCoverage": {
@@ -88604,7 +88619,7 @@
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedAt": "2026-10-08T14:34:35Z",
+        "verifiedAt": "2026-10-08T14:55:47.152015+00:00",
         "argv": [
           "env",
           "CARGO_INCREMENTAL=0",
@@ -88614,20 +88629,23 @@
           "run",
           "-p",
           "jftrade-engine",
+          "-p",
+          "jftrade-store-sqlite",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
           "--no-fail-fast",
           "-E",
-          "test(durable_tool::) or test(tool_deadline_tests::)"
+          "test(durable_tool) | test(tool_deadline_tests) | test(tool_invocation) | test(tool_result)"
         ],
         "testFilter": [
           "production_stale_run_lease_executes_no_read_tool_and_preserves_the_replacement",
-          "production_checkpoint_replay_rejects_the_stale_owner_and_restores_under_takeover"
+          "production_checkpoint_replay_rejects_the_stale_owner_and_restores_under_takeover",
+          "production_unknown_replay_rejects_stale_owner_and_late_results_before_takeover_restoration"
         ],
-        "verifiedCommit": "bf5a768f881428c2f613129311201f76736f8aec",
-        "receiptDigest": "sha256:4db6ba020bd6c8db7c1bed61b6cbe586e967f2d32713bf756338ef205aeb0672"
+        "verifiedCommit": "de2450571859e6fe6408fdc0bee0206c59686384",
+        "receiptDigest": "sha256:162b33feb75ab5087913fb23dd63524514850812f621fb35497e0700a67b5eee"
       },
       "risk": "normal",
       "owner": "assistant_workflow",
@@ -88647,9 +88665,9 @@
     },
     "internal/assistant/engine/execution_claims_test.go:214:TestGoogleADKKeyedToolFailsClosedWhenHandlerIgnoresKey": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_adk_keyed_tool_owner_tests.rs::production_worker_returns_unknown_and_its_validation_does_not_count_as_handler_consumption; crates/jftrade-engine/src/product_adk_keyed_tool_owner_tests.rs::production_keyed_handler_ignoring_key_fails_unknown_once_and_blocks_the_second_attempt",
-      "conclusion": "partial：2026-10-08冻结Go及runner_plugin/tool getter逐项复核。真实keyed descriptor经过生产claim/timeout worker：handler忽略key时worker返回ADK_TOOL_OUTCOME_UNKNOWN，框架验证不计handler消费；实际两次tool loop保持同一UNKNOWN invocation及SUBMISSION_UNKNOWN输出、handler计数1。首轮Go afterToolCallback语义为FAILED call、SUBMISSION_UNKNOWN、run COMPLETED/degraded；第二轮禁止重复执行且UNKNOWN row完全不变。 剩余：Go原两次tool.Run均以ErrToolOutcomeUnknown返回；Rust直接worker只闭合首次分类，第二次loop的既有Unknown-claim分支仍使Run FAILED/MODEL_CALL_FAILED，未提供同形tool.Run返回。Go MarkIndeterminate没有该映射输出，Rust UNKNOWN ledger保存错误envelope，继续保留表示差异。",
-      "command": "env CARGO_INCREMENTAL=0 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+      "rust_entry": "crates/jftrade-engine/src/product_adk_keyed_tool_owner_tests.rs::production_worker_returns_unknown_and_its_validation_does_not_count_as_handler_consumption; crates/jftrade-engine/src/product_adk_keyed_tool_owner_tests.rs::production_keyed_handler_ignoring_key_fails_unknown_once_and_blocks_the_second_attempt; crates/jftrade-engine/src/product_adk_keyed_tool_owner_tests.rs::production_unknown_replay_rejects_stale_owner_and_late_results_before_takeover_restoration; crates/jftrade-engine/src/product_adk_keyed_tool_owner_tests.rs::production_unknown_replay_journal_failure_rolls_back_run_events_and_ledger",
+      "conclusion": "partial：2026-10-08冻结Go及afterToolCallback逐项复核。真实keyed descriptor经生产claim/timeout worker返回ADK_TOOL_OUTCOME_UNKNOWN，框架检查不计handler消费。两次真实tool loop及接管恢复均保持原UNKNOWN row和SUBMISSION_UNKNOWN输出、执行计数1；两轮FAILED call、原错误文本、Run COMPLETED/degraded，run errorCode/failureReason为空。SQLite唯一投影owner拒绝stale owner、UNKNOWN转成功和不同输出的晚到提交；journal INSERT故障回滚run/events/ledger，移除故障后恢复原结果及事件。 剩余：Go原两次tool.Run均以ErrToolOutcomeUnknown返回；Rust直接worker只闭合首次typed分类，第二轮loop恢复错误投影并继续模型，尚无同形第二次tool.Run返回。Go MarkIndeterminate无映射输出，Rust UNKNOWN ledger保存错误envelope，表示差异保留；普通expiry UNKNOWN的空输出尚不进入callback恢复。",
+      "command": "env CARGO_INCREMENTAL=0 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-store-sqlite --all-targets --locked",
       "evidence_type": "partial",
       "source": {
         "file": "internal/assistant/engine/execution_claims_test.go",
@@ -88679,14 +88697,36 @@
             "rustFile": "crates/jftrade-engine/src/product_adk_keyed_tool_owner_tests.rs",
             "rustLine": 138
           }
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_adk_keyed_tool_owner_tests.rs",
+          "test": "production_unknown_replay_rejects_stale_owner_and_late_results_before_takeover_restoration",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/assistant/engine/execution_claims_test.go",
+            "goLine": 214,
+            "rustFile": "crates/jftrade-engine/src/product_adk_keyed_tool_owner_tests.rs",
+            "rustLine": 244
+          }
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_adk_keyed_tool_owner_tests.rs",
+          "test": "production_unknown_replay_journal_failure_rolls_back_run_events_and_ledger",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/assistant/engine/execution_claims_test.go",
+            "goLine": 214,
+            "rustFile": "crates/jftrade-engine/src/product_adk_keyed_tool_owner_tests.rs",
+            "rustLine": 330
+          }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "真实keyed descriptor经过生产claim/timeout worker：handler忽略key时worker返回ADK_TOOL_OUTCOME_UNKNOWN，框架验证不计handler消费；实际两次tool loop保持同一UNKNOWN invocation及SUBMISSION_UNKNOWN输出、handler计数1。首轮Go afterToolCallback语义为FAILED call、SUBMISSION_UNKNOWN、run COMPLETED/degraded；第二轮禁止重复执行且UNKNOWN row完全不变。"
+          "真实keyed descriptor经生产claim/timeout worker返回ADK_TOOL_OUTCOME_UNKNOWN，框架检查不计handler消费。两次真实tool loop及接管恢复均保持原UNKNOWN row和SUBMISSION_UNKNOWN输出、执行计数1；两轮FAILED call、原错误文本、Run COMPLETED/degraded，run errorCode/failureReason为空。SQLite唯一投影owner拒绝stale owner、UNKNOWN转成功和不同输出的晚到提交；journal INSERT故障回滚run/events/ledger，移除故障后恢复原结果及事件。"
         ],
         "uncovered": [
-          "Go原两次tool.Run均以ErrToolOutcomeUnknown返回；Rust直接worker只闭合首次分类，第二次loop的既有Unknown-claim分支仍使Run FAILED/MODEL_CALL_FAILED，未提供同形tool.Run返回。Go MarkIndeterminate没有该映射输出，Rust UNKNOWN ledger保存错误envelope，继续保留表示差异。"
+          "Go原两次tool.Run均以ErrToolOutcomeUnknown返回；Rust直接worker只闭合首次typed分类，第二轮loop恢复错误投影并继续模型，尚无同形第二次tool.Run返回。Go MarkIndeterminate无映射输出，Rust UNKNOWN ledger保存错误envelope，表示差异保留；普通expiry UNKNOWN的空输出尚不进入callback恢复。"
         ],
         "source": "reviewed"
       },
@@ -88695,7 +88735,7 @@
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedAt": "2026-10-08T14:34:35Z",
+        "verifiedAt": "2026-10-08T14:55:47.152015+00:00",
         "argv": [
           "env",
           "CARGO_INCREMENTAL=0",
@@ -88705,20 +88745,24 @@
           "run",
           "-p",
           "jftrade-engine",
+          "-p",
+          "jftrade-store-sqlite",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
           "--no-fail-fast",
           "-E",
-          "test(durable_tool::) or test(tool_deadline_tests::)"
+          "test(durable_tool) | test(tool_deadline_tests) | test(tool_invocation) | test(tool_result)"
         ],
         "testFilter": [
           "production_worker_returns_unknown_and_its_validation_does_not_count_as_handler_consumption",
-          "production_keyed_handler_ignoring_key_fails_unknown_once_and_blocks_the_second_attempt"
+          "production_keyed_handler_ignoring_key_fails_unknown_once_and_blocks_the_second_attempt",
+          "production_unknown_replay_rejects_stale_owner_and_late_results_before_takeover_restoration",
+          "production_unknown_replay_journal_failure_rolls_back_run_events_and_ledger"
         ],
-        "verifiedCommit": "bf5a768f881428c2f613129311201f76736f8aec",
-        "receiptDigest": "sha256:4db6ba020bd6c8db7c1bed61b6cbe586e967f2d32713bf756338ef205aeb0672"
+        "verifiedCommit": "de2450571859e6fe6408fdc0bee0206c59686384",
+        "receiptDigest": "sha256:162b33feb75ab5087913fb23dd63524514850812f621fb35497e0700a67b5eee"
       },
       "risk": "normal",
       "owner": "assistant_workflow",
@@ -88729,10 +88773,10 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "真实keyed descriptor经过生产claim/timeout worker：handler忽略key时worker返回ADK_TOOL_OUTCOME_UNKNOWN，框架验证不计handler消费；实际两次tool loop保持同一UNKNOWN invocation及SUBMISSION_UNKNOWN输出、handler计数1。首轮Go afterToolCallback语义为FAILED call、SUBMISSION_UNKNOWN、run COMPLETED/degraded；第二轮禁止重复执行且UNKNOWN row完全不变。"
+        "真实keyed descriptor经生产claim/timeout worker返回ADK_TOOL_OUTCOME_UNKNOWN，框架检查不计handler消费。两次真实tool loop及接管恢复均保持原UNKNOWN row和SUBMISSION_UNKNOWN输出、执行计数1；两轮FAILED call、原错误文本、Run COMPLETED/degraded，run errorCode/failureReason为空。SQLite唯一投影owner拒绝stale owner、UNKNOWN转成功和不同输出的晚到提交；journal INSERT故障回滚run/events/ledger，移除故障后恢复原结果及事件。"
       ],
       "uncoveredAssertions": [
-        "Go原两次tool.Run均以ErrToolOutcomeUnknown返回；Rust直接worker只闭合首次分类，第二次loop的既有Unknown-claim分支仍使Run FAILED/MODEL_CALL_FAILED，未提供同形tool.Run返回。Go MarkIndeterminate没有该映射输出，Rust UNKNOWN ledger保存错误envelope，继续保留表示差异。"
+        "Go原两次tool.Run均以ErrToolOutcomeUnknown返回；Rust直接worker只闭合首次typed分类，第二轮loop恢复错误投影并继续模型，尚无同形第二次tool.Run返回。Go MarkIndeterminate无映射输出，Rust UNKNOWN ledger保存错误envelope，表示差异保留；普通expiry UNKNOWN的空输出尚不进入callback恢复。"
       ],
       "boundaryReason": null
     },
@@ -88740,7 +88784,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/product_adk_durable_tool_owner_tests.rs::production_expiry_reconciliation_preserves_a_fresh_foreign_lease_and_run",
       "conclusion": "function_exact：2026-10-08冻结Go逐项复核。实际ProductionAdkChatRuntime reconciliation面对过期预算及fresh foreign 60秒lease，无error且完整RUNNING run/lease、零audit保持；显式过期后正向控制TIMED_OUT。原全部断言保持闭合。",
-      "command": "env CARGO_INCREMENTAL=0 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+      "command": "env CARGO_INCREMENTAL=0 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-store-sqlite --all-targets --locked",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/assistant/engine/execution_claims_test.go",
@@ -88773,7 +88817,7 @@
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedAt": "2026-10-08T14:34:35Z",
+        "verifiedAt": "2026-10-08T14:55:47.152015+00:00",
         "argv": [
           "env",
           "CARGO_INCREMENTAL=0",
@@ -88783,19 +88827,21 @@
           "run",
           "-p",
           "jftrade-engine",
+          "-p",
+          "jftrade-store-sqlite",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
           "--no-fail-fast",
           "-E",
-          "test(durable_tool::) or test(tool_deadline_tests::)"
+          "test(durable_tool) | test(tool_deadline_tests) | test(tool_invocation) | test(tool_result)"
         ],
         "testFilter": [
           "production_expiry_reconciliation_preserves_a_fresh_foreign_lease_and_run"
         ],
-        "verifiedCommit": "bf5a768f881428c2f613129311201f76736f8aec",
-        "receiptDigest": "sha256:4db6ba020bd6c8db7c1bed61b6cbe586e967f2d32713bf756338ef205aeb0672"
+        "verifiedCommit": "de2450571859e6fe6408fdc0bee0206c59686384",
+        "receiptDigest": "sha256:162b33feb75ab5087913fb23dd63524514850812f621fb35497e0700a67b5eee"
       },
       "risk": "high",
       "owner": "assistant_workflow",
@@ -88892,9 +88938,9 @@
     },
     "internal/assistant/engine/execution_claims_test.go:343:TestRunSaveIsFencedWithExecutionLeaseContext": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_adk_durable_tool_owner_tests.rs::production_run_writes_reject_stale_and_mismatched_fences_before_the_current_write; crates/jftrade-engine/src/product_adk_durable_tool_owner_tests.rs::production_checkpoint_replay_rejects_the_stale_owner_and_restores_under_takeover",
+      "rust_entry": "crates/jftrade-engine/src/product_adk_durable_tool_owner_tests.rs::production_run_writes_reject_stale_and_mismatched_fences_before_the_current_write; crates/jftrade-engine/src/product_adk_durable_tool_owner_tests.rs::production_checkpoint_replay_rejects_the_stale_owner_and_restores_under_takeover; crates/jftrade-engine/src/product_adk_keyed_tool_owner_tests.rs::production_unknown_replay_rejects_stale_owner_and_late_results_before_takeover_restoration",
       "conclusion": "partial：2026-10-08冻结Go逐项复核。实际SQLite stale/cross-run fenced CAS返回false且两完整row保持，current write成功；额外replay projection在接管后旧owner返回Conflict、完整run/session events保持，current owner才恢复原结果且ledger不改。 剩余：Go SaveRun陈旧及跨run返回ErrRunLeaseLost；Rust既有save CAS返回Ok(false)，新增恢复persister Conflict不代表原SaveRun返回契约闭合。",
-      "command": "env CARGO_INCREMENTAL=0 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+      "command": "env CARGO_INCREMENTAL=0 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-store-sqlite --all-targets --locked",
       "evidence_type": "partial",
       "source": {
         "file": "internal/assistant/engine/execution_claims_test.go",
@@ -88924,6 +88970,17 @@
             "rustFile": "crates/jftrade-engine/src/product_adk_durable_tool_owner_tests.rs",
             "rustLine": 294
           }
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_adk_keyed_tool_owner_tests.rs",
+          "test": "production_unknown_replay_rejects_stale_owner_and_late_results_before_takeover_restoration",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/assistant/engine/execution_claims_test.go",
+            "goLine": 343,
+            "rustFile": "crates/jftrade-engine/src/product_adk_keyed_tool_owner_tests.rs",
+            "rustLine": 246
+          }
         }
       ],
       "assertionCoverage": {
@@ -88940,7 +88997,7 @@
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedAt": "2026-10-08T14:34:35Z",
+        "verifiedAt": "2026-10-08T14:55:47.152015+00:00",
         "argv": [
           "env",
           "CARGO_INCREMENTAL=0",
@@ -88950,20 +89007,23 @@
           "run",
           "-p",
           "jftrade-engine",
+          "-p",
+          "jftrade-store-sqlite",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
           "--no-fail-fast",
           "-E",
-          "test(durable_tool::) or test(tool_deadline_tests::)"
+          "test(durable_tool) | test(tool_deadline_tests) | test(tool_invocation) | test(tool_result)"
         ],
         "testFilter": [
           "production_run_writes_reject_stale_and_mismatched_fences_before_the_current_write",
-          "production_checkpoint_replay_rejects_the_stale_owner_and_restores_under_takeover"
+          "production_checkpoint_replay_rejects_the_stale_owner_and_restores_under_takeover",
+          "production_unknown_replay_rejects_stale_owner_and_late_results_before_takeover_restoration"
         ],
-        "verifiedCommit": "bf5a768f881428c2f613129311201f76736f8aec",
-        "receiptDigest": "sha256:4db6ba020bd6c8db7c1bed61b6cbe586e967f2d32713bf756338ef205aeb0672"
+        "verifiedCommit": "de2450571859e6fe6408fdc0bee0206c59686384",
+        "receiptDigest": "sha256:162b33feb75ab5087913fb23dd63524514850812f621fb35497e0700a67b5eee"
       },
       "risk": "normal",
       "owner": "assistant_workflow",
@@ -366066,7 +366126,7 @@
       ],
       "allowed": true,
       "reviewStatus": "single",
-      "reviewNote": "2026-10-08: six execution_claims originals reviewed. Real handler consumption and first worker UNKNOWN now verified; framework validation is not a handler read. UNKNOWN replay caller/error and ledger representation remain partial. Generic expiry proof does not close an ignored-key trigger. Stable key/replay stays exact; durable status and stale return-classification gaps remain."
+      "reviewNote": "2026-10-08: six frozen execution_claims originals reviewed. UNKNOWN mapped output restores FAILED callback and model continuation through the current SQLite owner; stale owner and late changes rejected, journal failure rolled back. Original second tool.Run typed return, empty UNKNOWN output and Go ledger representation stay partial. 54/265 exact unchanged; durable status and stale return gaps remain."
     },
     "crates/jftrade-engine/src/product_adk_durable_tool_owner_tests.rs::production_stale_run_lease_executes_no_read_tool_and_preserves_the_replacement": {
       "referenceCount": 1,
@@ -366075,7 +366135,7 @@
       ],
       "allowed": true,
       "reviewStatus": "single",
-      "reviewNote": "2026-10-08: six execution_claims originals reviewed. Real handler consumption and first worker UNKNOWN now verified; framework validation is not a handler read. UNKNOWN replay caller/error and ledger representation remain partial. Generic expiry proof does not close an ignored-key trigger. Stable key/replay stays exact; durable status and stale return-classification gaps remain."
+      "reviewNote": "2026-10-08: six frozen execution_claims originals reviewed. UNKNOWN mapped output restores FAILED callback and model continuation through the current SQLite owner; stale owner and late changes rejected, journal failure rolled back. Original second tool.Run typed return, empty UNKNOWN output and Go ledger representation stay partial. 54/265 exact unchanged; durable status and stale return gaps remain."
     },
     "crates/jftrade-engine/src/product_adk_durable_tool_owner_tests.rs::production_expiry_reconciliation_preserves_a_fresh_foreign_lease_and_run": {
       "referenceCount": 1,
@@ -366084,7 +366144,7 @@
       ],
       "allowed": true,
       "reviewStatus": "single",
-      "reviewNote": "2026-10-08: six execution_claims originals reviewed. Real handler consumption and first worker UNKNOWN now verified; framework validation is not a handler read. UNKNOWN replay caller/error and ledger representation remain partial. Generic expiry proof does not close an ignored-key trigger. Stable key/replay stays exact; durable status and stale return-classification gaps remain."
+      "reviewNote": "2026-10-08: six frozen execution_claims originals reviewed. UNKNOWN mapped output restores FAILED callback and model continuation through the current SQLite owner; stale owner and late changes rejected, journal failure rolled back. Original second tool.Run typed return, empty UNKNOWN output and Go ledger representation stay partial. 54/265 exact unchanged; durable status and stale return gaps remain."
     },
     "crates/jftrade-engine/src/product_adk_durable_tool_owner_tests.rs::production_read_tool_result_replays_from_the_same_durable_invocation_without_execution": {
       "referenceCount": 1,
@@ -366093,7 +366153,7 @@
       ],
       "allowed": true,
       "reviewStatus": "single",
-      "reviewNote": "2026-10-08: six execution_claims originals reviewed. Real handler consumption and first worker UNKNOWN now verified; framework validation is not a handler read. UNKNOWN replay caller/error and ledger representation remain partial. Generic expiry proof does not close an ignored-key trigger. Stable key/replay stays exact; durable status and stale return-classification gaps remain."
+      "reviewNote": "2026-10-08: six frozen execution_claims originals reviewed. UNKNOWN mapped output restores FAILED callback and model continuation through the current SQLite owner; stale owner and late changes rejected, journal failure rolled back. Original second tool.Run typed return, empty UNKNOWN output and Go ledger representation stay partial. 54/265 exact unchanged; durable status and stale return gaps remain."
     },
     "crates/jftrade-engine/src/product_adk_durable_tool_owner_tests.rs::production_run_writes_reject_stale_and_mismatched_fences_before_the_current_write": {
       "referenceCount": 1,
@@ -366102,7 +366162,7 @@
       ],
       "allowed": true,
       "reviewStatus": "single",
-      "reviewNote": "2026-10-08: six execution_claims originals reviewed. Real handler consumption and first worker UNKNOWN now verified; framework validation is not a handler read. UNKNOWN replay caller/error and ledger representation remain partial. Generic expiry proof does not close an ignored-key trigger. Stable key/replay stays exact; durable status and stale return-classification gaps remain."
+      "reviewNote": "2026-10-08: six frozen execution_claims originals reviewed. UNKNOWN mapped output restores FAILED callback and model continuation through the current SQLite owner; stale owner and late changes rejected, journal failure rolled back. Original second tool.Run typed return, empty UNKNOWN output and Go ledger representation stay partial. 54/265 exact unchanged; durable status and stale return gaps remain."
     },
     "crates/jftrade-store-sqlite/src/adk_run_lease_snapshot_tests.rs::heartbeat_near_expiry_caller_snapshot_uses_the_full_requested_ttl": {
       "referenceCount": 1,
@@ -366157,7 +366217,7 @@
       ],
       "allowed": true,
       "reviewStatus": "single",
-      "reviewNote": "2026-10-08: six execution_claims originals reviewed. Real handler consumption and first worker UNKNOWN now verified; framework validation is not a handler read. UNKNOWN replay caller/error and ledger representation remain partial. Generic expiry proof does not close an ignored-key trigger. Stable key/replay stays exact; durable status and stale return-classification gaps remain."
+      "reviewNote": "2026-10-08: six frozen execution_claims originals reviewed. UNKNOWN mapped output restores FAILED callback and model continuation through the current SQLite owner; stale owner and late changes rejected, journal failure rolled back. Original second tool.Run typed return, empty UNKNOWN output and Go ledger representation stay partial. 54/265 exact unchanged; durable status and stale return gaps remain."
     },
     "crates/jftrade-engine/src/product_adk_durable_tool_owner_tests.rs::production_failed_read_checkpoint_replay_preserves_the_original_error_without_execution": {
       "referenceCount": 1,
@@ -366166,7 +366226,7 @@
       ],
       "allowed": true,
       "reviewStatus": "single",
-      "reviewNote": "2026-10-08: six execution_claims originals reviewed. Real handler consumption and first worker UNKNOWN now verified; framework validation is not a handler read. UNKNOWN replay caller/error and ledger representation remain partial. Generic expiry proof does not close an ignored-key trigger. Stable key/replay stays exact; durable status and stale return-classification gaps remain."
+      "reviewNote": "2026-10-08: six frozen execution_claims originals reviewed. UNKNOWN mapped output restores FAILED callback and model continuation through the current SQLite owner; stale owner and late changes rejected, journal failure rolled back. Original second tool.Run typed return, empty UNKNOWN output and Go ledger representation stay partial. 54/265 exact unchanged; durable status and stale return gaps remain."
     },
     "crates/jftrade-engine/src/product_adk_durable_tool_owner_tests.rs::production_checkpoint_replay_journal_failure_rolls_back_the_projection": {
       "referenceCount": 1,
@@ -366175,7 +366235,7 @@
       ],
       "allowed": true,
       "reviewStatus": "single",
-      "reviewNote": "2026-10-08: six execution_claims originals reviewed. Real handler consumption and first worker UNKNOWN now verified; framework validation is not a handler read. UNKNOWN replay caller/error and ledger representation remain partial. Generic expiry proof does not close an ignored-key trigger. Stable key/replay stays exact; durable status and stale return-classification gaps remain."
+      "reviewNote": "2026-10-08: six frozen execution_claims originals reviewed. UNKNOWN mapped output restores FAILED callback and model continuation through the current SQLite owner; stale owner and late changes rejected, journal failure rolled back. Original second tool.Run typed return, empty UNKNOWN output and Go ledger representation stay partial. 54/265 exact unchanged; durable status and stale return gaps remain."
     },
     "crates/jftrade-engine/src/product_adk_durable_tool_owner_tests.rs::production_checkpoint_replay_rejects_the_stale_owner_and_restores_under_takeover": {
       "referenceCount": 2,
@@ -366185,7 +366245,7 @@
       ],
       "allowed": true,
       "reviewStatus": "reviewed",
-      "reviewNote": "2026-10-08: six execution_claims originals reviewed. Real handler consumption and first worker UNKNOWN now verified; framework validation is not a handler read. UNKNOWN replay caller/error and ledger representation remain partial. Generic expiry proof does not close an ignored-key trigger. Stable key/replay stays exact; durable status and stale return-classification gaps remain."
+      "reviewNote": "2026-10-08: six frozen execution_claims originals reviewed. UNKNOWN mapped output restores FAILED callback and model continuation through the current SQLite owner; stale owner and late changes rejected, journal failure rolled back. Original second tool.Run typed return, empty UNKNOWN output and Go ledger representation stay partial. 54/265 exact unchanged; durable status and stale return gaps remain."
     },
     "crates/jftrade-engine/src/product_adk_durable_tool_owner_tests.rs::production_handler_observes_a_stable_run_key_and_replay_keeps_the_same_output_key": {
       "referenceCount": 1,
@@ -366194,7 +366254,7 @@
       ],
       "allowed": true,
       "reviewStatus": "single",
-      "reviewNote": "2026-10-08: six execution_claims originals reviewed. Real handler consumption and first worker UNKNOWN now verified; framework validation is not a handler read. UNKNOWN replay caller/error and ledger representation remain partial. Generic expiry proof does not close an ignored-key trigger. Stable key/replay stays exact; durable status and stale return-classification gaps remain."
+      "reviewNote": "2026-10-08: six frozen execution_claims originals reviewed. UNKNOWN mapped output restores FAILED callback and model continuation through the current SQLite owner; stale owner and late changes rejected, journal failure rolled back. Original second tool.Run typed return, empty UNKNOWN output and Go ledger representation stay partial. 54/265 exact unchanged; durable status and stale return gaps remain."
     },
     "crates/jftrade-engine/src/product_adk_keyed_tool_owner_tests.rs::production_keyed_handler_ignoring_key_fails_unknown_once_and_blocks_the_second_attempt": {
       "referenceCount": 1,
@@ -366203,7 +366263,7 @@
       ],
       "allowed": true,
       "reviewStatus": "single",
-      "reviewNote": "2026-10-08: six execution_claims originals reviewed. Real handler consumption and first worker UNKNOWN now verified; framework validation is not a handler read. UNKNOWN replay caller/error and ledger representation remain partial. Generic expiry proof does not close an ignored-key trigger. Stable key/replay stays exact; durable status and stale return-classification gaps remain."
+      "reviewNote": "2026-10-08: six frozen execution_claims originals reviewed. UNKNOWN mapped output restores FAILED callback and model continuation through the current SQLite owner; stale owner and late changes rejected, journal failure rolled back. Original second tool.Run typed return, empty UNKNOWN output and Go ledger representation stay partial. 54/265 exact unchanged; durable status and stale return gaps remain."
     },
     "crates/jftrade-engine/src/product_adk_keyed_tool_owner_tests.rs::production_keyed_handler_consuming_the_key_completes_and_replays_without_execution": {
       "referenceCount": 1,
@@ -366212,7 +366272,7 @@
       ],
       "allowed": true,
       "reviewStatus": "single",
-      "reviewNote": "2026-10-08: six execution_claims originals reviewed. Real handler consumption and first worker UNKNOWN now verified; framework validation is not a handler read. UNKNOWN replay caller/error and ledger representation remain partial. Generic expiry proof does not close an ignored-key trigger. Stable key/replay stays exact; durable status and stale return-classification gaps remain."
+      "reviewNote": "2026-10-08: six frozen execution_claims originals reviewed. UNKNOWN mapped output restores FAILED callback and model continuation through the current SQLite owner; stale owner and late changes rejected, journal failure rolled back. Original second tool.Run typed return, empty UNKNOWN output and Go ledger representation stay partial. 54/265 exact unchanged; durable status and stale return gaps remain."
     },
     "crates/jftrade-engine/src/product_adk_keyed_tool_owner_tests.rs::production_worker_returns_unknown_and_its_validation_does_not_count_as_handler_consumption": {
       "referenceCount": 1,
@@ -366221,7 +366281,27 @@
       ],
       "allowed": true,
       "reviewStatus": "single",
-      "reviewNote": "2026-10-08: six execution_claims originals reviewed. Real handler consumption and first worker UNKNOWN now verified; framework validation is not a handler read. UNKNOWN replay caller/error and ledger representation remain partial. Generic expiry proof does not close an ignored-key trigger. Stable key/replay stays exact; durable status and stale return-classification gaps remain."
+      "reviewNote": "2026-10-08: six frozen execution_claims originals reviewed. UNKNOWN mapped output restores FAILED callback and model continuation through the current SQLite owner; stale owner and late changes rejected, journal failure rolled back. Original second tool.Run typed return, empty UNKNOWN output and Go ledger representation stay partial. 54/265 exact unchanged; durable status and stale return gaps remain."
+    },
+    "crates/jftrade-engine/src/product_adk_keyed_tool_owner_tests.rs::production_unknown_replay_journal_failure_rolls_back_run_events_and_ledger": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/assistant/engine/execution_claims_test.go:214:TestGoogleADKKeyedToolFailsClosedWhenHandlerIgnoresKey"
+      ],
+      "allowed": true,
+      "reviewStatus": "single",
+      "reviewNote": "2026-10-08: six frozen execution_claims originals reviewed. UNKNOWN mapped output restores FAILED callback and model continuation through the current SQLite owner; stale owner and late changes rejected, journal failure rolled back. Original second tool.Run typed return, empty UNKNOWN output and Go ledger representation stay partial. 54/265 exact unchanged; durable status and stale return gaps remain."
+    },
+    "crates/jftrade-engine/src/product_adk_keyed_tool_owner_tests.rs::production_unknown_replay_rejects_stale_owner_and_late_results_before_takeover_restoration": {
+      "referenceCount": 3,
+      "referenceKeys": [
+        "internal/assistant/engine/execution_claims_test.go:167:TestGoogleADKToolRejectsStaleContextAfterLeaseTurnover",
+        "internal/assistant/engine/execution_claims_test.go:214:TestGoogleADKKeyedToolFailsClosedWhenHandlerIgnoresKey",
+        "internal/assistant/engine/execution_claims_test.go:343:TestRunSaveIsFencedWithExecutionLeaseContext"
+      ],
+      "allowed": true,
+      "reviewStatus": "reviewed",
+      "reviewNote": "2026-10-08: six frozen execution_claims originals reviewed. UNKNOWN mapped output restores FAILED callback and model continuation through the current SQLite owner; stale owner and late changes rejected, journal failure rolled back. Original second tool.Run typed return, empty UNKNOWN output and Go ledger representation stay partial. 54/265 exact unchanged; durable status and stale return gaps remain."
     }
   }
 }

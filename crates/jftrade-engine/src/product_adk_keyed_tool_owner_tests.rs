@@ -139,11 +139,11 @@ fn production_worker_returns_unknown_and_its_validation_does_not_count_as_handle
 #[test]
 fn production_keyed_handler_ignoring_key_fails_unknown_once_and_blocks_the_second_attempt() {
     let (fixture, mut chat) = keyed_fixture(false);
-    let provider = Provider::new();
-    chat.request.endpoint = provider.endpoint.parse().unwrap();
     let lease = RunLeaseGuard::acquire(fixture.store.clone(), &chat.run_id, "key-owner").unwrap();
     let mut first_invocation = None;
     for attempt in 0..2 {
+        let provider = Provider::new();
+        chat.request.endpoint = provider.endpoint.parse().unwrap();
         fixture
             .runtime
             .run_tool_loop(chat.clone(), Arc::new(AtomicBool::new(false)), &lease);
@@ -172,15 +172,16 @@ fn production_keyed_handler_ignoring_key_fails_unknown_once_and_blocks_the_secon
             first_invocation = Some(invocation);
             restore_keyed_checkpoint(&fixture, &chat, &lease);
         } else {
-            // The existing Unknown-claim continuation still fails the Run;
-            // this is a caller-level gap, not a proof of Go tool.Run parity.
-            assert_eq!(run.status, "FAILED", "{payload}");
-            assert_eq!(payload["errorCode"], "MODEL_CALL_FAILED");
+            assert_eq!(run.status, "COMPLETED", "{payload}");
+            assert_eq!(payload["errorCode"], "");
+            assert_eq!(payload["degraded"], true);
+            assert_eq!(payload["toolCalls"][0]["status"], "FAILED");
+            assert_eq!(payload["failureReason"], "");
             assert!(
-                payload["failureReason"]
+                payload["toolCalls"][0]["error"]
                     .as_str()
                     .unwrap()
-                    .contains("outcome unknown")
+                    .contains("did not consume")
             );
             assert_eq!(
                 Some(invocation),
@@ -213,4 +214,178 @@ fn production_keyed_handler_consuming_the_key_completes_and_replays_without_exec
     assert_eq!(run.status, "COMPLETED");
     assert_eq!(payload["toolResults"][0]["output"], output);
     assert_eq!(fixture.calls.load(Ordering::Acquire), 1);
+}
+
+fn unknown_checkpoint() -> (
+    ToolFixture,
+    ChatExecution,
+    RunLeaseGuard,
+    Value,
+    jftrade_store_sqlite::StoredAdkToolInvocation,
+) {
+    let (fixture, mut chat) = keyed_fixture(false);
+    let provider = Provider::new();
+    chat.request.endpoint = provider.endpoint.parse().unwrap();
+    let lease =
+        RunLeaseGuard::acquire(fixture.store.clone(), &chat.run_id, "unknown-owner").unwrap();
+    fixture
+        .runtime
+        .run_tool_loop(chat.clone(), Arc::new(AtomicBool::new(false)), &lease);
+    let output = fixture.restore_tool_checkpoint(&chat, &lease);
+    let invocation = fixture
+        .store
+        .get_tool_invocation(&chat.run_id, "function-call-test")
+        .unwrap()
+        .unwrap();
+    assert_eq!(invocation.status, "UNKNOWN");
+    (fixture, chat, lease, output, invocation)
+}
+
+// Parity: go:452dea11:internal/assistant/engine/execution_claims_test.go:214 TestGoogleADKKeyedToolFailsClosedWhenHandlerIgnoresKey
+// Parity: go:452dea11:internal/assistant/engine/execution_claims_test.go:167 TestGoogleADKToolRejectsStaleContextAfterLeaseTurnover
+// Parity: go:452dea11:internal/assistant/engine/execution_claims_test.go:343 TestRunSaveIsFencedWithExecutionLeaseContext
+#[test]
+fn production_unknown_replay_rejects_stale_owner_and_late_results_before_takeover_restoration() {
+    let (fixture, mut chat, stale, output, invocation) = unknown_checkpoint();
+    fixture.expire(&chat.run_id);
+    let current =
+        RunLeaseGuard::acquire(fixture.store.clone(), &chat.run_id, "current-owner").unwrap();
+    assert!(current.token() > stale.token());
+    let before = fixture.store.get_run(&chat.run_id).unwrap().unwrap();
+    let payload: Value = serde_json::from_str(&before.payload_json).unwrap();
+    let events = fixture.sessions.list_events(&chat.session_id).unwrap();
+    for (owner, token, proposed, status) in [
+        (stale.owner_id(), stale.token(), output.clone(), "UNKNOWN"),
+        (
+            current.owner_id(),
+            current.token(),
+            output.clone(),
+            "SUCCEEDED",
+        ),
+        (
+            current.owner_id(),
+            current.token(),
+            json!({"success":true}),
+            "UNKNOWN",
+        ),
+    ] {
+        assert!(matches!(
+            fixture.runtime.persist_tool_result(
+                &chat,
+                &payload["toolCalls"][0],
+                "function-call-test",
+                proposed,
+                status,
+                None,
+                owner,
+                invocation.fencing_token,
+                token,
+            ),
+            Err(AdkChatPortError::Conflict(_))
+        ));
+        assert_eq!(
+            fixture.store.get_run(&chat.run_id).unwrap().unwrap(),
+            before
+        );
+        assert_eq!(
+            fixture.sessions.list_events(&chat.session_id).unwrap(),
+            events
+        );
+        assert_eq!(
+            fixture
+                .store
+                .get_tool_invocation(&chat.run_id, "function-call-test")
+                .unwrap()
+                .unwrap(),
+            invocation
+        );
+    }
+    let provider = Provider::new();
+    chat.request.endpoint = provider.endpoint.parse().unwrap();
+    fixture
+        .runtime
+        .run_tool_loop(chat.clone(), Arc::new(AtomicBool::new(false)), &current);
+    let restored = fixture.store.get_run(&chat.run_id).unwrap().unwrap();
+    let payload: Value = serde_json::from_str(&restored.payload_json).unwrap();
+    assert_eq!(restored.status, "COMPLETED");
+    assert_eq!(payload["toolResults"][0]["output"], output);
+    assert_eq!(payload["toolCalls"][0]["status"], "FAILED");
+    assert_eq!(payload["toolCalls"][0]["errorCode"], "SUBMISSION_UNKNOWN");
+    assert_eq!(payload["degraded"], true);
+    assert_eq!(fixture.calls.load(Ordering::Acquire), 1);
+    assert_eq!(
+        fixture.sessions.list_events(&chat.session_id).unwrap(),
+        events
+    );
+    assert_eq!(
+        fixture
+            .store
+            .get_tool_invocation(&chat.run_id, "function-call-test")
+            .unwrap()
+            .unwrap(),
+        invocation
+    );
+}
+
+// Parity: go:452dea11:internal/assistant/engine/execution_claims_test.go:214 TestGoogleADKKeyedToolFailsClosedWhenHandlerIgnoresKey
+#[test]
+fn production_unknown_replay_journal_failure_rolls_back_run_events_and_ledger() {
+    let (fixture, chat, lease, output, invocation) = unknown_checkpoint();
+    let before = fixture.store.get_run(&chat.run_id).unwrap().unwrap();
+    let payload: Value = serde_json::from_str(&before.payload_json).unwrap();
+    let events = fixture.sessions.list_events(&chat.session_id).unwrap();
+    let connection = Connection::open(fixture.directory.path().join("adk-session.db")).unwrap();
+    connection.execute_batch("CREATE TRIGGER reject_tool_replay BEFORE INSERT ON events
+        WHEN NEW.author='assistant.tool' BEGIN SELECT RAISE(FAIL, 'replay journal write failed'); END;").unwrap();
+    let persist = || {
+        fixture.runtime.persist_tool_result(
+            &chat,
+            &payload["toolCalls"][0],
+            "function-call-test",
+            output.clone(),
+            "UNKNOWN",
+            None,
+            lease.owner_id(),
+            invocation.fencing_token,
+            lease.token(),
+        )
+    };
+    assert!(matches!(persist(), Err(AdkChatPortError::Unavailable(_))));
+    assert_eq!(
+        fixture.store.get_run(&chat.run_id).unwrap().unwrap(),
+        before
+    );
+    assert_eq!(
+        fixture.sessions.list_events(&chat.session_id).unwrap(),
+        events
+    );
+    assert_eq!(
+        fixture
+            .store
+            .get_tool_invocation(&chat.run_id, "function-call-test")
+            .unwrap()
+            .unwrap(),
+        invocation
+    );
+    connection
+        .execute_batch("DROP TRIGGER reject_tool_replay")
+        .unwrap();
+    persist().unwrap();
+    let restored = fixture.store.get_run(&chat.run_id).unwrap().unwrap();
+    let payload: Value = serde_json::from_str(&restored.payload_json).unwrap();
+    assert_eq!(payload["toolResults"][0]["output"], output);
+    assert_eq!(payload["toolCalls"][0]["status"], "FAILED");
+    assert_eq!(fixture.calls.load(Ordering::Acquire), 1);
+    assert_eq!(
+        fixture.sessions.list_events(&chat.session_id).unwrap(),
+        events
+    );
+    assert_eq!(
+        fixture
+            .store
+            .get_tool_invocation(&chat.run_id, "function-call-test")
+            .unwrap()
+            .unwrap(),
+        invocation
+    );
 }

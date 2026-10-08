@@ -12,7 +12,9 @@ handler stable key与消费批次已验证，六条原测试复核后当前 1661
 - [x] 定向18 passed、quick2385 Rust/98 Pine与desktop Node11+48通过；现场完整Rust3980 passed、0 failed、2 skipped，无LEAK，static/七类replay退出0。外置卷断开及launcher原30秒超时失败留证，未改源码或放宽deadline；launcher原样20次与prediction路由20次重复通过。receipt/reuse/anchor/context/diff及1020个Rust文件冻结指纹复核后独立提交。
 - [x] 214的keyed descriptor与handler实际读取观测已接入真实worker，框架非空检查不计消费；定向21通过。首轮UNKNOWN ledger、FAILED call/SUBMISSION_UNKNOWN、Run COMPLETED/degraded，第二轮UNKNOWN row保持、handler计数1。原第二次tool.Run返回与既有Unknown-claim Run终态差异继续partial，当前1661/2152/638。
 - [x] 消费批次定向21、quick2388 Rust/98 Pine与desktop Node11+48通过；现场完整Rust3983 passed、0 failed、2 skipped，无LEAK。1021个Rust文件冻结指纹与receipt/reuse/anchor/context/diff复核后独立提交，夹具错误与编译失败保留。
-- [ ] UNKNOWN checkpoint恢复沿同一SQLite投影事务与当前owner fence保持原ledger；参考冻结afterToolCallback验证第二轮工具失败、模型继续及零重复执行，逐项闭合214返回/终态残余。
+- [x] 已映射UNKNOWN checkpoint沿同一SQLite事务及当前owner恢复FAILED callback并继续模型；两次loop、takeover、旧owner/晚到结果拒绝和journal回滚定向26通过，原ledger/输出/事件及计数1保持。214第二次tool.Run typed返回、Go空输出表示及普通expiry UNKNOWN恢复仍partial。
+- [x] 本批quick2597 Rust/98 Pine及desktop Node11+48通过；现场完整Rust3985 passed、0 failed、2 skipped，static/七类replay退出0，无LEAK。1021个Rust源码冻结指纹及receipt/anchor/reuse/diff已复核，数量保持1661/2152/638。
+- [ ] 推进stale tool claim的生产owner typed错误返回，保留静默停止、禁止执行及新owner终态保护；随后继续失败读取durable终态及UNKNOWN返回边界。
 - [ ] 每批继续核对5–10条原测试，定向nextest、quick及现场完整Rust门禁通过后复核并提交；整体对齐未完成不标complete。
 
 ## 已验证批次：ADK checkpoint replay 与唯一投影 owner

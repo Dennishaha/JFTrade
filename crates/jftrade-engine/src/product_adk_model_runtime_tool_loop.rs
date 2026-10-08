@@ -128,21 +128,21 @@ impl ProductionAdkChatRuntime {
                 );
                 let (outcome, claim_owner, claim_fencing_token) = match claim {
                     Ok(Some(AdkToolInvocationClaim::Replay(invocation))) => (
-                        serde_json::from_str::<Value>(&invocation.output_json)
-                            .map(|output| {
-                                // This is already the mapped durable output;
-                                // mapping it again would rewrite error text.
-                                Ok(MappedToolOutput {
-                                    error_text: (!invocation.status.eq_ignore_ascii_case("SUCCEEDED"))
-                                        .then(|| tool_result_error_message(&output)),
-                                    status: invocation.status.clone(),
-                                    output,
-                                })
-                            })
-                            .unwrap_or_else(|error| Err(storage_unavailable(error))),
+                        replay_mapped_tool_output(&invocation),
                         owner_id.clone(),
                         invocation.fencing_token,
                     ),
+                    Ok(Some(AdkToolInvocationClaim::Unknown(invocation)))
+                        if has_mapped_unknown_output(&invocation) =>
+                    {
+                        // Restore the failed callback and continue the model,
+                        // without executing or rewriting the UNKNOWN ledger.
+                        (
+                            replay_mapped_tool_output(&invocation),
+                            owner_id.clone(),
+                            invocation.fencing_token,
+                        )
+                    }
                     Ok(Some(AdkToolInvocationClaim::Execute(invocation))) => {
                         if run_lease.is_lost() {
                             return;
@@ -574,6 +574,26 @@ impl ProductionAdkChatRuntime {
 }
 
 include!("product_adk_model_runtime_tool_timeout.rs");
+
+fn has_mapped_unknown_output(invocation: &jftrade_store_sqlite::StoredAdkToolInvocation) -> bool {
+    serde_json::from_str::<Value>(&invocation.output_json).is_ok_and(|output| {
+        output["success"] == false
+            && output.pointer("/error/code").and_then(Value::as_str) == Some("SUBMISSION_UNKNOWN")
+    })
+}
+
+fn replay_mapped_tool_output(
+    invocation: &jftrade_store_sqlite::StoredAdkToolInvocation,
+) -> Result<MappedToolOutput, AdkChatPortError> {
+    // Durable output is already mapped; a second mapping changes error text.
+    let output: Value = serde_json::from_str(&invocation.output_json).map_err(storage_unavailable)?;
+    Ok(MappedToolOutput {
+        error_text: (!invocation.status.eq_ignore_ascii_case("SUCCEEDED"))
+            .then(|| tool_result_error_message(&output)),
+        status: invocation.status.clone(),
+        output,
+    })
+}
 
 /// Select calls released by approval that do not yet have a durable result.
 fn executable_tool_calls(payload: &Value) -> Vec<Value> {

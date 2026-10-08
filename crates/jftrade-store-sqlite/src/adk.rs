@@ -2752,9 +2752,14 @@ impl AdkStore {
                 }
                 if matches!(
                     existing.status.to_ascii_uppercase().as_str(),
-                    "SUCCEEDED" | "FAILED"
+                    "SUCCEEDED" | "FAILED" | "UNKNOWN"
                 ) {
                     if existing.output_json != output_json || existing.status != status {
+                        if existing.status.eq_ignore_ascii_case("UNKNOWN") {
+                            return Err(AdkStoreError::LeaseLost(format!(
+                                "tool invocation {idempotency_key} is fenced with unknown outcome"
+                            )));
+                        }
                         return Ok(AdkToolResultCommit {
                             changed: false,
                             invocation: existing.clone(),

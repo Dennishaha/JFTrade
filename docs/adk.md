@@ -85,6 +85,8 @@ heartbeat 在访问 SQLite 连接前拒绝已经过期的调用方租约快照�
 
 descriptor 明确声明 `keyed` 时，handler 的 key getter 记录读取；框架验证 key 非空不计作读取。未读取 key 的结果在现有 SQLite 事务内记为 `UNKNOWN`，后续恢复不再执行该 handler。已读取 key 的成功结果保持原 replay 路径。当前内置 adapter 尚未声明 keyed 能力，该检查不推断下游去重能力；公开 descriptor 字段保持原投影。
 
+UNKNOWN invocation 已保存 `SUBMISSION_UNKNOWN` 错误结果时，checkpoint 恢复复用原输出，工具调用保持 FAILED，模型继续完成并记录 degraded。恢复投影沿同一 SQLite 事务校验当前 Run owner 和 revision，原 UNKNOWN 行保持不变；改为成功或不同输出的晚到提交仍被拒绝。租约过期产生的空 UNKNOWN 输出继续报告结果未知，不自动执行 handler。
+
 产品工具的每次实际调用以 Run 和 GO-ADK function-call ID 为稳定身份写入 `adk_tool_invocations`。完成结果会持久化并在同一调用恢复时直接重放；执行中的调用有独立心跳，并同时受 Run fencing token 约束。Tool descriptor 的 `idempotencyMode` 有三种值：
 
 - `replay_safe`：无副作用的读取；调用租约过期后允许安全接管。`read*` permission 默认使用此模式。
