@@ -29,6 +29,22 @@ fn durable_tool_completion_status(call_status: &str) -> &str {
     }
 }
 
+fn fail_closed_tool_error(name: &str, error: AdkChatPortError, fail_closed: bool) -> AdkChatPortError {
+    if fail_closed
+        && matches!(&error, AdkChatPortError::Failed { code, .. } if code == "TOOL_EXECUTION_FAILED")
+    {
+        return AdkChatPortError::Failed {
+            status: 500,
+            code: "ADK_TOOL_OUTCOME_UNKNOWN".to_owned(),
+            message: format!(
+                "tool {name} returned an uncertain write failure: {}",
+                tool_error_text(&error),
+            ),
+        };
+    }
+    error
+}
+
 fn replayed_tool_call_status(invocation: &StoredAdkToolInvocation, output: &Value) -> String {
     if !invocation.status.eq_ignore_ascii_case("COMPLETED") {
         return invocation.status.clone();

@@ -12,6 +12,9 @@ mod keyed_tool;
 #[path = "product_adk_durable_completion_owner_tests.rs"]
 mod durable_completion;
 
+#[path = "product_adk_uncertain_write_owner_tests.rs"]
+mod uncertain_write;
+
 #[derive(Debug)]
 struct ReadTool {
     calls: Arc<AtomicUsize>,
@@ -72,11 +75,15 @@ impl ToolFixture {
     }
 
     fn seed_with_value(&self, run_id: &str, value: &str) -> ChatExecution {
+        self.seed_with_tool(run_id, value, "market.snapshot")
+    }
+
+    fn seed_with_tool(&self, run_id: &str, value: &str, tool: &str) -> ChatExecution {
         create_running_run(
             &self.store,
             run_id,
             json!([{
-                "id":"function-call-test", "name":"market.snapshot", "toolName":"market.snapshot",
+                "id":"function-call-test", "name":tool, "toolName":tool,
                 "arguments":{"value":value}, "status":"RUNNING", "requiresUser":false,
             }]),
         );

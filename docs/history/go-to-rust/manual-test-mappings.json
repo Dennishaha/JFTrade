@@ -88385,7 +88385,7 @@
             "goFile": "internal/assistant/engine/execution_claims_test.go",
             "goLine": 54,
             "rustFile": "crates/jftrade-engine/src/product_adk_durable_tool_owner_tests.rs",
-            "rustLine": 449
+            "rustLine": 456
           }
         },
         {
@@ -88396,7 +88396,7 @@
             "goFile": "internal/assistant/engine/execution_claims_test.go",
             "goLine": 54,
             "rustFile": "crates/jftrade-engine/src/product_adk_durable_tool_owner_tests.rs",
-            "rustLine": 236
+            "rustLine": 243
           }
         },
         {
@@ -88407,7 +88407,7 @@
             "goFile": "internal/assistant/engine/execution_claims_test.go",
             "goLine": 54,
             "rustFile": "crates/jftrade-engine/src/product_adk_durable_tool_owner_tests.rs",
-            "rustLine": 193
+            "rustLine": 200
           }
         },
         {
@@ -88445,7 +88445,7 @@
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedAt": "2026-10-08T16:19:37.496955+00:00",
+        "verifiedAt": "2026-10-08T17:00:10.699494+00:00",
         "argv": [
           "env",
           "CARGO_INCREMENTAL=0",
@@ -88461,7 +88461,7 @@
           "libtest-json-plus",
           "--no-fail-fast",
           "-E",
-          "test(durable_tool) | test(tool_failure_tests) | test(takeover_tests) | test(fencing_tests) | test(run_lease::snapshot)"
+          "test(durable_tool) | test(tool_failure_tests) | test(takeover_tests) | test(fencing_tests) | test(run_lease::snapshot) | test(tool_deadline_tests) | test(chat_turn_tests) | test(catalog_policy_tests)"
         ],
         "testFilter": [
           "production_read_tool_result_replays_from_the_same_durable_invocation_without_execution",
@@ -88470,8 +88470,8 @@
           "production_keyed_handler_consuming_the_key_completes_and_replays_without_execution",
           "production_checkpoint_replays_legacy_terminal_labels_without_rewriting_the_ledger"
         ],
-        "verifiedCommit": "41e0ffbde1bc7cfd4c90d5e96ed31686fb6cb807",
-        "receiptDigest": "sha256:b888dcdfe329241a64d0a9ebd46459e63bb232f0f707d4a2c6a3bcdd28cca697"
+        "verifiedCommit": "c68e4e0a735d460b501272b521e8ff44a1546dee",
+        "receiptDigest": "sha256:cd6ce723b254e21132311d84e5b471a7b1f8dfb18d2b099e6e14e85aaa69d0d2"
       },
       "risk": "normal",
       "owner": "assistant_workflow",
@@ -88506,7 +88506,7 @@
             "goFile": "internal/assistant/engine/execution_claims_test.go",
             "goLine": 108,
             "rustFile": "crates/jftrade-engine/src/product_adk_durable_tool_owner_tests.rs",
-            "rustLine": 510
+            "rustLine": 517
           }
         },
         {
@@ -88517,7 +88517,7 @@
             "goFile": "internal/assistant/engine/execution_claims_test.go",
             "goLine": 108,
             "rustFile": "crates/jftrade-engine/src/product_adk_durable_tool_owner_tests.rs",
-            "rustLine": 242
+            "rustLine": 249
           }
         },
         {
@@ -88528,7 +88528,7 @@
             "goFile": "internal/assistant/engine/execution_claims_test.go",
             "goLine": 108,
             "rustFile": "crates/jftrade-engine/src/product_adk_durable_tool_owner_tests.rs",
-            "rustLine": 367
+            "rustLine": 374
           }
         },
         {
@@ -88555,7 +88555,7 @@
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedAt": "2026-10-08T16:19:37.496955+00:00",
+        "verifiedAt": "2026-10-08T17:00:10.699494+00:00",
         "argv": [
           "env",
           "CARGO_INCREMENTAL=0",
@@ -88571,7 +88571,7 @@
           "libtest-json-plus",
           "--no-fail-fast",
           "-E",
-          "test(durable_tool) | test(tool_failure_tests) | test(takeover_tests) | test(fencing_tests) | test(run_lease::snapshot)"
+          "test(durable_tool) | test(tool_failure_tests) | test(takeover_tests) | test(fencing_tests) | test(run_lease::snapshot) | test(tool_deadline_tests) | test(chat_turn_tests) | test(catalog_policy_tests)"
         ],
         "testFilter": [
           "production_failed_read_persists_its_false_output_and_failed_call",
@@ -88579,8 +88579,8 @@
           "production_checkpoint_replay_journal_failure_rolls_back_the_projection",
           "production_checkpoint_replays_legacy_terminal_labels_without_rewriting_the_ledger"
         ],
-        "verifiedCommit": "41e0ffbde1bc7cfd4c90d5e96ed31686fb6cb807",
-        "receiptDigest": "sha256:b888dcdfe329241a64d0a9ebd46459e63bb232f0f707d4a2c6a3bcdd28cca697"
+        "verifiedCommit": "c68e4e0a735d460b501272b521e8ff44a1546dee",
+        "receiptDigest": "sha256:cd6ce723b254e21132311d84e5b471a7b1f8dfb18d2b099e6e14e85aaa69d0d2"
       },
       "risk": "normal",
       "owner": "assistant_workflow",
@@ -88615,7 +88615,7 @@
             "goFile": "internal/assistant/engine/execution_claims_test.go",
             "goLine": 167,
             "rustFile": "crates/jftrade-engine/src/product_adk_durable_tool_owner_tests.rs",
-            "rustLine": 545
+            "rustLine": 552
           }
         },
         {
@@ -88626,7 +88626,7 @@
             "goFile": "internal/assistant/engine/execution_claims_test.go",
             "goLine": 167,
             "rustFile": "crates/jftrade-engine/src/product_adk_durable_tool_owner_tests.rs",
-            "rustLine": 301
+            "rustLine": 308
           }
         },
         {
@@ -88648,7 +88648,7 @@
             "goFile": "internal/assistant/engine/execution_claims_test.go",
             "goLine": 167,
             "rustFile": "crates/jftrade-engine/src/product_adk_durable_tool_owner_tests.rs",
-            "rustLine": 619
+            "rustLine": 626
           }
         },
         {
@@ -88659,7 +88659,7 @@
             "goFile": "internal/assistant/engine/execution_claims_test.go",
             "goLine": 167,
             "rustFile": "crates/jftrade-engine/src/product_adk_durable_tool_owner_tests.rs",
-            "rustLine": 661
+            "rustLine": 668
           }
         }
       ],
@@ -88677,7 +88677,7 @@
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedAt": "2026-10-08T16:19:37.496955+00:00",
+        "verifiedAt": "2026-10-08T17:00:10.699494+00:00",
         "argv": [
           "env",
           "CARGO_INCREMENTAL=0",
@@ -88693,7 +88693,7 @@
           "libtest-json-plus",
           "--no-fail-fast",
           "-E",
-          "test(durable_tool) | test(tool_failure_tests) | test(takeover_tests) | test(fencing_tests) | test(run_lease::snapshot)"
+          "test(durable_tool) | test(tool_failure_tests) | test(takeover_tests) | test(fencing_tests) | test(run_lease::snapshot) | test(tool_deadline_tests) | test(chat_turn_tests) | test(catalog_policy_tests)"
         ],
         "testFilter": [
           "production_stale_run_lease_executes_no_read_tool_and_preserves_the_replacement",
@@ -88702,8 +88702,8 @@
           "production_tool_claim_preserves_precancellation_and_allows_its_current_owner",
           "production_tool_claim_classifies_sql_owner_and_cross_run_fence_rejections_as_lease_lost"
         ],
-        "verifiedCommit": "41e0ffbde1bc7cfd4c90d5e96ed31686fb6cb807",
-        "receiptDigest": "sha256:b888dcdfe329241a64d0a9ebd46459e63bb232f0f707d4a2c6a3bcdd28cca697"
+        "verifiedCommit": "c68e4e0a735d460b501272b521e8ff44a1546dee",
+        "receiptDigest": "sha256:cd6ce723b254e21132311d84e5b471a7b1f8dfb18d2b099e6e14e85aaa69d0d2"
       },
       "risk": "normal",
       "owner": "assistant_workflow",
@@ -88793,7 +88793,7 @@
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedAt": "2026-10-08T16:19:37.496955+00:00",
+        "verifiedAt": "2026-10-08T17:00:10.699494+00:00",
         "argv": [
           "env",
           "CARGO_INCREMENTAL=0",
@@ -88809,7 +88809,7 @@
           "libtest-json-plus",
           "--no-fail-fast",
           "-E",
-          "test(durable_tool) | test(tool_failure_tests) | test(takeover_tests) | test(fencing_tests) | test(run_lease::snapshot)"
+          "test(durable_tool) | test(tool_failure_tests) | test(takeover_tests) | test(fencing_tests) | test(run_lease::snapshot) | test(tool_deadline_tests) | test(chat_turn_tests) | test(catalog_policy_tests)"
         ],
         "testFilter": [
           "production_worker_returns_unknown_and_its_validation_does_not_count_as_handler_consumption",
@@ -88817,8 +88817,8 @@
           "production_unknown_replay_rejects_stale_owner_and_late_results_before_takeover_restoration",
           "production_unknown_replay_journal_failure_rolls_back_run_events_and_ledger"
         ],
-        "verifiedCommit": "41e0ffbde1bc7cfd4c90d5e96ed31686fb6cb807",
-        "receiptDigest": "sha256:b888dcdfe329241a64d0a9ebd46459e63bb232f0f707d4a2c6a3bcdd28cca697"
+        "verifiedCommit": "c68e4e0a735d460b501272b521e8ff44a1546dee",
+        "receiptDigest": "sha256:cd6ce723b254e21132311d84e5b471a7b1f8dfb18d2b099e6e14e85aaa69d0d2"
       },
       "risk": "normal",
       "owner": "assistant_workflow",
@@ -88857,7 +88857,7 @@
             "goFile": "internal/assistant/engine/execution_claims_test.go",
             "goLine": 265,
             "rustFile": "crates/jftrade-engine/src/product_adk_durable_tool_owner_tests.rs",
-            "rustLine": 718
+            "rustLine": 725
           }
         }
       ],
@@ -88873,7 +88873,7 @@
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedAt": "2026-10-08T16:19:37.496955+00:00",
+        "verifiedAt": "2026-10-08T17:00:10.699494+00:00",
         "argv": [
           "env",
           "CARGO_INCREMENTAL=0",
@@ -88889,13 +88889,13 @@
           "libtest-json-plus",
           "--no-fail-fast",
           "-E",
-          "test(durable_tool) | test(tool_failure_tests) | test(takeover_tests) | test(fencing_tests) | test(run_lease::snapshot)"
+          "test(durable_tool) | test(tool_failure_tests) | test(takeover_tests) | test(fencing_tests) | test(run_lease::snapshot) | test(tool_deadline_tests) | test(chat_turn_tests) | test(catalog_policy_tests)"
         ],
         "testFilter": [
           "production_expiry_reconciliation_preserves_a_fresh_foreign_lease_and_run"
         ],
-        "verifiedCommit": "41e0ffbde1bc7cfd4c90d5e96ed31686fb6cb807",
-        "receiptDigest": "sha256:b888dcdfe329241a64d0a9ebd46459e63bb232f0f707d4a2c6a3bcdd28cca697"
+        "verifiedCommit": "c68e4e0a735d460b501272b521e8ff44a1546dee",
+        "receiptDigest": "sha256:cd6ce723b254e21132311d84e5b471a7b1f8dfb18d2b099e6e14e85aaa69d0d2"
       },
       "risk": "high",
       "owner": "assistant_workflow",
@@ -88957,7 +88957,7 @@
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedAt": "2026-10-08T16:19:37.496955+00:00",
+        "verifiedAt": "2026-10-08T17:00:10.699494+00:00",
         "argv": [
           "env",
           "CARGO_INCREMENTAL=0",
@@ -88973,14 +88973,14 @@
           "libtest-json-plus",
           "--no-fail-fast",
           "-E",
-          "test(durable_tool) | test(tool_failure_tests) | test(takeover_tests) | test(fencing_tests) | test(run_lease::snapshot)"
+          "test(durable_tool) | test(tool_failure_tests) | test(takeover_tests) | test(fencing_tests) | test(run_lease::snapshot) | test(tool_deadline_tests) | test(chat_turn_tests) | test(catalog_policy_tests)"
         ],
         "testFilter": [
           "production_heartbeat_keeps_its_owner_live_beyond_the_initial_snapshot_expiry",
           "production_configured_run_lease_heartbeat_rejects_takeover_at_initial_expiry"
         ],
-        "verifiedCommit": "41e0ffbde1bc7cfd4c90d5e96ed31686fb6cb807",
-        "receiptDigest": "sha256:b888dcdfe329241a64d0a9ebd46459e63bb232f0f707d4a2c6a3bcdd28cca697"
+        "verifiedCommit": "c68e4e0a735d460b501272b521e8ff44a1546dee",
+        "receiptDigest": "sha256:cd6ce723b254e21132311d84e5b471a7b1f8dfb18d2b099e6e14e85aaa69d0d2"
       },
       "risk": "normal",
       "owner": "assistant_workflow",
@@ -89015,7 +89015,7 @@
             "goFile": "internal/assistant/engine/execution_claims_test.go",
             "goLine": 343,
             "rustFile": "crates/jftrade-engine/src/product_adk_durable_tool_owner_tests.rs",
-            "rustLine": 766
+            "rustLine": 773
           }
         },
         {
@@ -89026,7 +89026,7 @@
             "goFile": "internal/assistant/engine/execution_claims_test.go",
             "goLine": 343,
             "rustFile": "crates/jftrade-engine/src/product_adk_durable_tool_owner_tests.rs",
-            "rustLine": 302
+            "rustLine": 309
           }
         },
         {
@@ -89055,7 +89055,7 @@
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedAt": "2026-10-08T16:19:37.496955+00:00",
+        "verifiedAt": "2026-10-08T17:00:10.699494+00:00",
         "argv": [
           "env",
           "CARGO_INCREMENTAL=0",
@@ -89071,15 +89071,15 @@
           "libtest-json-plus",
           "--no-fail-fast",
           "-E",
-          "test(durable_tool) | test(tool_failure_tests) | test(takeover_tests) | test(fencing_tests) | test(run_lease::snapshot)"
+          "test(durable_tool) | test(tool_failure_tests) | test(takeover_tests) | test(fencing_tests) | test(run_lease::snapshot) | test(tool_deadline_tests) | test(chat_turn_tests) | test(catalog_policy_tests)"
         ],
         "testFilter": [
           "production_run_writes_reject_stale_and_mismatched_fences_before_the_current_write",
           "production_checkpoint_replay_rejects_the_stale_owner_and_restores_under_takeover",
           "production_unknown_replay_rejects_stale_owner_and_late_results_before_takeover_restoration"
         ],
-        "verifiedCommit": "41e0ffbde1bc7cfd4c90d5e96ed31686fb6cb807",
-        "receiptDigest": "sha256:b888dcdfe329241a64d0a9ebd46459e63bb232f0f707d4a2c6a3bcdd28cca697"
+        "verifiedCommit": "c68e4e0a735d460b501272b521e8ff44a1546dee",
+        "receiptDigest": "sha256:cd6ce723b254e21132311d84e5b471a7b1f8dfb18d2b099e6e14e85aaa69d0d2"
       },
       "risk": "normal",
       "owner": "assistant_workflow",
@@ -366206,7 +366206,7 @@
       ],
       "allowed": true,
       "reviewStatus": "single",
-      "reviewNote": "2026-10-09: seven frozen execution_claims originals and blob SHA reviewed. 108 original invalid input, success=false, COMPLETED durable invocation and FAILED call/error close through the real production loop. Fresh completions and unchanged legacy SUCCEEDED/FAILED replay retain output, events and count one; stale fencing, UNKNOWN and journal rollback pass. Full tool.Run/SaveRun caller error and UNKNOWN representation gaps stay partial. Shared tests do not upgrade other originals."
+      "reviewNote": "2026-10-09: seven frozen execution_claims originals and blob SHA rechecked without status upgrades. Supplementary frozen runner_tools production branch proves fail-closed execution error must be indeterminate. Real Rust tool loop now persists UNKNOWN/SUBMISSION_UNKNOWN, rejects late success, replays the same output/events without duplicate execution; structured rejection stays COMPLETED/FAILED. Typed full Go tool.Run caller returns and empty indeterminate output representation remain partial."
     },
     "crates/jftrade-engine/src/product_adk_durable_tool_owner_tests.rs::production_stale_run_lease_executes_no_read_tool_and_preserves_the_replacement": {
       "referenceCount": 1,
@@ -366215,7 +366215,7 @@
       ],
       "allowed": true,
       "reviewStatus": "single",
-      "reviewNote": "2026-10-09: seven frozen execution_claims originals and blob SHA reviewed. 108 original invalid input, success=false, COMPLETED durable invocation and FAILED call/error close through the real production loop. Fresh completions and unchanged legacy SUCCEEDED/FAILED replay retain output, events and count one; stale fencing, UNKNOWN and journal rollback pass. Full tool.Run/SaveRun caller error and UNKNOWN representation gaps stay partial. Shared tests do not upgrade other originals."
+      "reviewNote": "2026-10-09: seven frozen execution_claims originals and blob SHA rechecked without status upgrades. Supplementary frozen runner_tools production branch proves fail-closed execution error must be indeterminate. Real Rust tool loop now persists UNKNOWN/SUBMISSION_UNKNOWN, rejects late success, replays the same output/events without duplicate execution; structured rejection stays COMPLETED/FAILED. Typed full Go tool.Run caller returns and empty indeterminate output representation remain partial."
     },
     "crates/jftrade-engine/src/product_adk_durable_tool_owner_tests.rs::production_expiry_reconciliation_preserves_a_fresh_foreign_lease_and_run": {
       "referenceCount": 1,
@@ -366224,7 +366224,7 @@
       ],
       "allowed": true,
       "reviewStatus": "single",
-      "reviewNote": "2026-10-09: seven frozen execution_claims originals and blob SHA reviewed. 108 original invalid input, success=false, COMPLETED durable invocation and FAILED call/error close through the real production loop. Fresh completions and unchanged legacy SUCCEEDED/FAILED replay retain output, events and count one; stale fencing, UNKNOWN and journal rollback pass. Full tool.Run/SaveRun caller error and UNKNOWN representation gaps stay partial. Shared tests do not upgrade other originals."
+      "reviewNote": "2026-10-09: seven frozen execution_claims originals and blob SHA rechecked without status upgrades. Supplementary frozen runner_tools production branch proves fail-closed execution error must be indeterminate. Real Rust tool loop now persists UNKNOWN/SUBMISSION_UNKNOWN, rejects late success, replays the same output/events without duplicate execution; structured rejection stays COMPLETED/FAILED. Typed full Go tool.Run caller returns and empty indeterminate output representation remain partial."
     },
     "crates/jftrade-engine/src/product_adk_durable_tool_owner_tests.rs::production_read_tool_result_replays_from_the_same_durable_invocation_without_execution": {
       "referenceCount": 1,
@@ -366233,7 +366233,7 @@
       ],
       "allowed": true,
       "reviewStatus": "single",
-      "reviewNote": "2026-10-09: seven frozen execution_claims originals and blob SHA reviewed. 108 original invalid input, success=false, COMPLETED durable invocation and FAILED call/error close through the real production loop. Fresh completions and unchanged legacy SUCCEEDED/FAILED replay retain output, events and count one; stale fencing, UNKNOWN and journal rollback pass. Full tool.Run/SaveRun caller error and UNKNOWN representation gaps stay partial. Shared tests do not upgrade other originals."
+      "reviewNote": "2026-10-09: seven frozen execution_claims originals and blob SHA rechecked without status upgrades. Supplementary frozen runner_tools production branch proves fail-closed execution error must be indeterminate. Real Rust tool loop now persists UNKNOWN/SUBMISSION_UNKNOWN, rejects late success, replays the same output/events without duplicate execution; structured rejection stays COMPLETED/FAILED. Typed full Go tool.Run caller returns and empty indeterminate output representation remain partial."
     },
     "crates/jftrade-engine/src/product_adk_durable_tool_owner_tests.rs::production_run_writes_reject_stale_and_mismatched_fences_before_the_current_write": {
       "referenceCount": 1,
@@ -366242,7 +366242,7 @@
       ],
       "allowed": true,
       "reviewStatus": "single",
-      "reviewNote": "2026-10-09: seven frozen execution_claims originals and blob SHA reviewed. 108 original invalid input, success=false, COMPLETED durable invocation and FAILED call/error close through the real production loop. Fresh completions and unchanged legacy SUCCEEDED/FAILED replay retain output, events and count one; stale fencing, UNKNOWN and journal rollback pass. Full tool.Run/SaveRun caller error and UNKNOWN representation gaps stay partial. Shared tests do not upgrade other originals."
+      "reviewNote": "2026-10-09: seven frozen execution_claims originals and blob SHA rechecked without status upgrades. Supplementary frozen runner_tools production branch proves fail-closed execution error must be indeterminate. Real Rust tool loop now persists UNKNOWN/SUBMISSION_UNKNOWN, rejects late success, replays the same output/events without duplicate execution; structured rejection stays COMPLETED/FAILED. Typed full Go tool.Run caller returns and empty indeterminate output representation remain partial."
     },
     "crates/jftrade-store-sqlite/src/adk_run_lease_snapshot_tests.rs::heartbeat_near_expiry_caller_snapshot_uses_the_full_requested_ttl": {
       "referenceCount": 1,
@@ -366270,7 +366270,7 @@
       ],
       "allowed": true,
       "reviewStatus": "reviewed",
-      "reviewNote": "2026-10-09: seven frozen execution_claims originals and blob SHA reviewed. 108 original invalid input, success=false, COMPLETED durable invocation and FAILED call/error close through the real production loop. Fresh completions and unchanged legacy SUCCEEDED/FAILED replay retain output, events and count one; stale fencing, UNKNOWN and journal rollback pass. Full tool.Run/SaveRun caller error and UNKNOWN representation gaps stay partial. Shared tests do not upgrade other originals."
+      "reviewNote": "2026-10-09: seven frozen execution_claims originals and blob SHA rechecked without status upgrades. Supplementary frozen runner_tools production branch proves fail-closed execution error must be indeterminate. Real Rust tool loop now persists UNKNOWN/SUBMISSION_UNKNOWN, rejects late success, replays the same output/events without duplicate execution; structured rejection stays COMPLETED/FAILED. Typed full Go tool.Run caller returns and empty indeterminate output representation remain partial."
     },
     "crates/jftrade-store-sqlite/src/adk_run_lease_snapshot_tests.rs::heartbeat_snapshot_at_the_expiry_boundary_preserves_the_live_durable_row": {
       "referenceCount": 1,
@@ -366297,7 +366297,7 @@
       ],
       "allowed": true,
       "reviewStatus": "single",
-      "reviewNote": "2026-10-09: seven frozen execution_claims originals and blob SHA reviewed. 108 original invalid input, success=false, COMPLETED durable invocation and FAILED call/error close through the real production loop. Fresh completions and unchanged legacy SUCCEEDED/FAILED replay retain output, events and count one; stale fencing, UNKNOWN and journal rollback pass. Full tool.Run/SaveRun caller error and UNKNOWN representation gaps stay partial. Shared tests do not upgrade other originals."
+      "reviewNote": "2026-10-09: seven frozen execution_claims originals and blob SHA rechecked without status upgrades. Supplementary frozen runner_tools production branch proves fail-closed execution error must be indeterminate. Real Rust tool loop now persists UNKNOWN/SUBMISSION_UNKNOWN, rejects late success, replays the same output/events without duplicate execution; structured rejection stays COMPLETED/FAILED. Typed full Go tool.Run caller returns and empty indeterminate output representation remain partial."
     },
     "crates/jftrade-engine/src/product_adk_durable_tool_owner_tests.rs::production_failed_read_checkpoint_replay_preserves_the_original_error_without_execution": {
       "referenceCount": 1,
@@ -366306,7 +366306,7 @@
       ],
       "allowed": true,
       "reviewStatus": "single",
-      "reviewNote": "2026-10-09: seven frozen execution_claims originals and blob SHA reviewed. 108 original invalid input, success=false, COMPLETED durable invocation and FAILED call/error close through the real production loop. Fresh completions and unchanged legacy SUCCEEDED/FAILED replay retain output, events and count one; stale fencing, UNKNOWN and journal rollback pass. Full tool.Run/SaveRun caller error and UNKNOWN representation gaps stay partial. Shared tests do not upgrade other originals."
+      "reviewNote": "2026-10-09: seven frozen execution_claims originals and blob SHA rechecked without status upgrades. Supplementary frozen runner_tools production branch proves fail-closed execution error must be indeterminate. Real Rust tool loop now persists UNKNOWN/SUBMISSION_UNKNOWN, rejects late success, replays the same output/events without duplicate execution; structured rejection stays COMPLETED/FAILED. Typed full Go tool.Run caller returns and empty indeterminate output representation remain partial."
     },
     "crates/jftrade-engine/src/product_adk_durable_tool_owner_tests.rs::production_checkpoint_replay_journal_failure_rolls_back_the_projection": {
       "referenceCount": 1,
@@ -366315,7 +366315,7 @@
       ],
       "allowed": true,
       "reviewStatus": "single",
-      "reviewNote": "2026-10-09: seven frozen execution_claims originals and blob SHA reviewed. 108 original invalid input, success=false, COMPLETED durable invocation and FAILED call/error close through the real production loop. Fresh completions and unchanged legacy SUCCEEDED/FAILED replay retain output, events and count one; stale fencing, UNKNOWN and journal rollback pass. Full tool.Run/SaveRun caller error and UNKNOWN representation gaps stay partial. Shared tests do not upgrade other originals."
+      "reviewNote": "2026-10-09: seven frozen execution_claims originals and blob SHA rechecked without status upgrades. Supplementary frozen runner_tools production branch proves fail-closed execution error must be indeterminate. Real Rust tool loop now persists UNKNOWN/SUBMISSION_UNKNOWN, rejects late success, replays the same output/events without duplicate execution; structured rejection stays COMPLETED/FAILED. Typed full Go tool.Run caller returns and empty indeterminate output representation remain partial."
     },
     "crates/jftrade-engine/src/product_adk_durable_tool_owner_tests.rs::production_checkpoint_replay_rejects_the_stale_owner_and_restores_under_takeover": {
       "referenceCount": 2,
@@ -366325,7 +366325,7 @@
       ],
       "allowed": true,
       "reviewStatus": "reviewed",
-      "reviewNote": "2026-10-09: seven frozen execution_claims originals and blob SHA reviewed. 108 original invalid input, success=false, COMPLETED durable invocation and FAILED call/error close through the real production loop. Fresh completions and unchanged legacy SUCCEEDED/FAILED replay retain output, events and count one; stale fencing, UNKNOWN and journal rollback pass. Full tool.Run/SaveRun caller error and UNKNOWN representation gaps stay partial. Shared tests do not upgrade other originals."
+      "reviewNote": "2026-10-09: seven frozen execution_claims originals and blob SHA rechecked without status upgrades. Supplementary frozen runner_tools production branch proves fail-closed execution error must be indeterminate. Real Rust tool loop now persists UNKNOWN/SUBMISSION_UNKNOWN, rejects late success, replays the same output/events without duplicate execution; structured rejection stays COMPLETED/FAILED. Typed full Go tool.Run caller returns and empty indeterminate output representation remain partial."
     },
     "crates/jftrade-engine/src/product_adk_durable_tool_owner_tests.rs::production_handler_observes_a_stable_run_key_and_replay_keeps_the_same_output_key": {
       "referenceCount": 1,
@@ -366334,7 +366334,7 @@
       ],
       "allowed": true,
       "reviewStatus": "single",
-      "reviewNote": "2026-10-09: seven frozen execution_claims originals and blob SHA reviewed. 108 original invalid input, success=false, COMPLETED durable invocation and FAILED call/error close through the real production loop. Fresh completions and unchanged legacy SUCCEEDED/FAILED replay retain output, events and count one; stale fencing, UNKNOWN and journal rollback pass. Full tool.Run/SaveRun caller error and UNKNOWN representation gaps stay partial. Shared tests do not upgrade other originals."
+      "reviewNote": "2026-10-09: seven frozen execution_claims originals and blob SHA rechecked without status upgrades. Supplementary frozen runner_tools production branch proves fail-closed execution error must be indeterminate. Real Rust tool loop now persists UNKNOWN/SUBMISSION_UNKNOWN, rejects late success, replays the same output/events without duplicate execution; structured rejection stays COMPLETED/FAILED. Typed full Go tool.Run caller returns and empty indeterminate output representation remain partial."
     },
     "crates/jftrade-engine/src/product_adk_keyed_tool_owner_tests.rs::production_keyed_handler_ignoring_key_fails_unknown_once_and_blocks_the_second_attempt": {
       "referenceCount": 1,
@@ -366343,7 +366343,7 @@
       ],
       "allowed": true,
       "reviewStatus": "single",
-      "reviewNote": "2026-10-09: seven frozen execution_claims originals and blob SHA reviewed. 108 original invalid input, success=false, COMPLETED durable invocation and FAILED call/error close through the real production loop. Fresh completions and unchanged legacy SUCCEEDED/FAILED replay retain output, events and count one; stale fencing, UNKNOWN and journal rollback pass. Full tool.Run/SaveRun caller error and UNKNOWN representation gaps stay partial. Shared tests do not upgrade other originals."
+      "reviewNote": "2026-10-09: seven frozen execution_claims originals and blob SHA rechecked without status upgrades. Supplementary frozen runner_tools production branch proves fail-closed execution error must be indeterminate. Real Rust tool loop now persists UNKNOWN/SUBMISSION_UNKNOWN, rejects late success, replays the same output/events without duplicate execution; structured rejection stays COMPLETED/FAILED. Typed full Go tool.Run caller returns and empty indeterminate output representation remain partial."
     },
     "crates/jftrade-engine/src/product_adk_keyed_tool_owner_tests.rs::production_keyed_handler_consuming_the_key_completes_and_replays_without_execution": {
       "referenceCount": 1,
@@ -366352,7 +366352,7 @@
       ],
       "allowed": true,
       "reviewStatus": "single",
-      "reviewNote": "2026-10-09: seven frozen execution_claims originals and blob SHA reviewed. 108 original invalid input, success=false, COMPLETED durable invocation and FAILED call/error close through the real production loop. Fresh completions and unchanged legacy SUCCEEDED/FAILED replay retain output, events and count one; stale fencing, UNKNOWN and journal rollback pass. Full tool.Run/SaveRun caller error and UNKNOWN representation gaps stay partial. Shared tests do not upgrade other originals."
+      "reviewNote": "2026-10-09: seven frozen execution_claims originals and blob SHA rechecked without status upgrades. Supplementary frozen runner_tools production branch proves fail-closed execution error must be indeterminate. Real Rust tool loop now persists UNKNOWN/SUBMISSION_UNKNOWN, rejects late success, replays the same output/events without duplicate execution; structured rejection stays COMPLETED/FAILED. Typed full Go tool.Run caller returns and empty indeterminate output representation remain partial."
     },
     "crates/jftrade-engine/src/product_adk_keyed_tool_owner_tests.rs::production_worker_returns_unknown_and_its_validation_does_not_count_as_handler_consumption": {
       "referenceCount": 1,
@@ -366361,7 +366361,7 @@
       ],
       "allowed": true,
       "reviewStatus": "single",
-      "reviewNote": "2026-10-09: seven frozen execution_claims originals and blob SHA reviewed. 108 original invalid input, success=false, COMPLETED durable invocation and FAILED call/error close through the real production loop. Fresh completions and unchanged legacy SUCCEEDED/FAILED replay retain output, events and count one; stale fencing, UNKNOWN and journal rollback pass. Full tool.Run/SaveRun caller error and UNKNOWN representation gaps stay partial. Shared tests do not upgrade other originals."
+      "reviewNote": "2026-10-09: seven frozen execution_claims originals and blob SHA rechecked without status upgrades. Supplementary frozen runner_tools production branch proves fail-closed execution error must be indeterminate. Real Rust tool loop now persists UNKNOWN/SUBMISSION_UNKNOWN, rejects late success, replays the same output/events without duplicate execution; structured rejection stays COMPLETED/FAILED. Typed full Go tool.Run caller returns and empty indeterminate output representation remain partial."
     },
     "crates/jftrade-engine/src/product_adk_keyed_tool_owner_tests.rs::production_unknown_replay_journal_failure_rolls_back_run_events_and_ledger": {
       "referenceCount": 1,
@@ -366370,7 +366370,7 @@
       ],
       "allowed": true,
       "reviewStatus": "single",
-      "reviewNote": "2026-10-09: seven frozen execution_claims originals and blob SHA reviewed. 108 original invalid input, success=false, COMPLETED durable invocation and FAILED call/error close through the real production loop. Fresh completions and unchanged legacy SUCCEEDED/FAILED replay retain output, events and count one; stale fencing, UNKNOWN and journal rollback pass. Full tool.Run/SaveRun caller error and UNKNOWN representation gaps stay partial. Shared tests do not upgrade other originals."
+      "reviewNote": "2026-10-09: seven frozen execution_claims originals and blob SHA rechecked without status upgrades. Supplementary frozen runner_tools production branch proves fail-closed execution error must be indeterminate. Real Rust tool loop now persists UNKNOWN/SUBMISSION_UNKNOWN, rejects late success, replays the same output/events without duplicate execution; structured rejection stays COMPLETED/FAILED. Typed full Go tool.Run caller returns and empty indeterminate output representation remain partial."
     },
     "crates/jftrade-engine/src/product_adk_keyed_tool_owner_tests.rs::production_unknown_replay_rejects_stale_owner_and_late_results_before_takeover_restoration": {
       "referenceCount": 3,
@@ -366381,7 +366381,7 @@
       ],
       "allowed": true,
       "reviewStatus": "reviewed",
-      "reviewNote": "2026-10-09: seven frozen execution_claims originals and blob SHA reviewed. 108 original invalid input, success=false, COMPLETED durable invocation and FAILED call/error close through the real production loop. Fresh completions and unchanged legacy SUCCEEDED/FAILED replay retain output, events and count one; stale fencing, UNKNOWN and journal rollback pass. Full tool.Run/SaveRun caller error and UNKNOWN representation gaps stay partial. Shared tests do not upgrade other originals."
+      "reviewNote": "2026-10-09: seven frozen execution_claims originals and blob SHA rechecked without status upgrades. Supplementary frozen runner_tools production branch proves fail-closed execution error must be indeterminate. Real Rust tool loop now persists UNKNOWN/SUBMISSION_UNKNOWN, rejects late success, replays the same output/events without duplicate execution; structured rejection stays COMPLETED/FAILED. Typed full Go tool.Run caller returns and empty indeterminate output representation remain partial."
     },
     "crates/jftrade-engine/src/product_adk_durable_tool_owner_tests.rs::production_tool_claim_classifies_sql_owner_and_cross_run_fence_rejections_as_lease_lost": {
       "referenceCount": 1,
@@ -366390,7 +366390,7 @@
       ],
       "allowed": true,
       "reviewStatus": "single",
-      "reviewNote": "2026-10-09: seven frozen execution_claims originals and blob SHA reviewed. 108 original invalid input, success=false, COMPLETED durable invocation and FAILED call/error close through the real production loop. Fresh completions and unchanged legacy SUCCEEDED/FAILED replay retain output, events and count one; stale fencing, UNKNOWN and journal rollback pass. Full tool.Run/SaveRun caller error and UNKNOWN representation gaps stay partial. Shared tests do not upgrade other originals."
+      "reviewNote": "2026-10-09: seven frozen execution_claims originals and blob SHA rechecked without status upgrades. Supplementary frozen runner_tools production branch proves fail-closed execution error must be indeterminate. Real Rust tool loop now persists UNKNOWN/SUBMISSION_UNKNOWN, rejects late success, replays the same output/events without duplicate execution; structured rejection stays COMPLETED/FAILED. Typed full Go tool.Run caller returns and empty indeterminate output representation remain partial."
     },
     "crates/jftrade-engine/src/product_adk_durable_tool_owner_tests.rs::production_tool_claim_preserves_precancellation_and_allows_its_current_owner": {
       "referenceCount": 1,
@@ -366399,7 +366399,7 @@
       ],
       "allowed": true,
       "reviewStatus": "single",
-      "reviewNote": "2026-10-09: seven frozen execution_claims originals and blob SHA reviewed. 108 original invalid input, success=false, COMPLETED durable invocation and FAILED call/error close through the real production loop. Fresh completions and unchanged legacy SUCCEEDED/FAILED replay retain output, events and count one; stale fencing, UNKNOWN and journal rollback pass. Full tool.Run/SaveRun caller error and UNKNOWN representation gaps stay partial. Shared tests do not upgrade other originals."
+      "reviewNote": "2026-10-09: seven frozen execution_claims originals and blob SHA rechecked without status upgrades. Supplementary frozen runner_tools production branch proves fail-closed execution error must be indeterminate. Real Rust tool loop now persists UNKNOWN/SUBMISSION_UNKNOWN, rejects late success, replays the same output/events without duplicate execution; structured rejection stays COMPLETED/FAILED. Typed full Go tool.Run caller returns and empty indeterminate output representation remain partial."
     },
     "crates/jftrade-engine/src/product_adk_run_lease_snapshot_tests.rs::production_configured_run_lease_heartbeat_rejects_takeover_at_initial_expiry": {
       "referenceCount": 1,
@@ -366408,7 +366408,7 @@
       ],
       "allowed": true,
       "reviewStatus": "single",
-      "reviewNote": "2026-10-09: seven frozen execution_claims originals and blob SHA reviewed. 108 original invalid input, success=false, COMPLETED durable invocation and FAILED call/error close through the real production loop. Fresh completions and unchanged legacy SUCCEEDED/FAILED replay retain output, events and count one; stale fencing, UNKNOWN and journal rollback pass. Full tool.Run/SaveRun caller error and UNKNOWN representation gaps stay partial. Shared tests do not upgrade other originals."
+      "reviewNote": "2026-10-09: seven frozen execution_claims originals and blob SHA rechecked without status upgrades. Supplementary frozen runner_tools production branch proves fail-closed execution error must be indeterminate. Real Rust tool loop now persists UNKNOWN/SUBMISSION_UNKNOWN, rejects late success, replays the same output/events without duplicate execution; structured rejection stays COMPLETED/FAILED. Typed full Go tool.Run caller returns and empty indeterminate output representation remain partial."
     },
     "crates/jftrade-engine/src/product_adk_durable_completion_owner_tests.rs::production_checkpoint_replays_legacy_terminal_labels_without_rewriting_the_ledger": {
       "referenceCount": 2,
@@ -366418,7 +366418,7 @@
       ],
       "allowed": true,
       "reviewStatus": "reviewed",
-      "reviewNote": "2026-10-09: seven frozen execution_claims originals and blob SHA reviewed. 108 original invalid input, success=false, COMPLETED durable invocation and FAILED call/error close through the real production loop. Fresh completions and unchanged legacy SUCCEEDED/FAILED replay retain output, events and count one; stale fencing, UNKNOWN and journal rollback pass. Full tool.Run/SaveRun caller error and UNKNOWN representation gaps stay partial. Shared tests do not upgrade other originals."
+      "reviewNote": "2026-10-09: seven frozen execution_claims originals and blob SHA rechecked without status upgrades. Supplementary frozen runner_tools production branch proves fail-closed execution error must be indeterminate. Real Rust tool loop now persists UNKNOWN/SUBMISSION_UNKNOWN, rejects late success, replays the same output/events without duplicate execution; structured rejection stays COMPLETED/FAILED. Typed full Go tool.Run caller returns and empty indeterminate output representation remain partial."
     },
     "crates/jftrade-engine/src/product_adk_reconnect_disconnect_tests.rs::production_malformed_chat_stops_after_the_first_retry_write_failure": {
       "referenceCount": 1,

@@ -24,7 +24,9 @@ handler stable key、消费、UNKNOWN恢复及确定性takeover批次已验证�
 - [x] 原状态断言红测0 passed/1 failed保留；最终定向47、quick2601 Rust/98 Pine与desktop Node11+48通过。现场完整Rust3989 passed/0 failed/2 skipped，static/七类replay退出0，无LEAK；1022个Rust源码冻结，receipt/reuse/anchor/diff复核后独立提交。
 - [x] 真实ProductionAdkPort POST malformed输入首次retry写失败为200 SSE、一次BrokenPipe、零event、reader释放且无run写入；五条原测试复核，55缺runtime有效请求后台终态仍partial。fixture未注册POST的24 passed/1 failed保留，注册既有生产port后定向25通过。
 - [x] 本批quick2395 Rust/98 Pine与现场完整Rust3990 passed/0 failed/2 skipped通过，static/七类replay退出0，无LEAK；1022个Rust文件冻结，receipt/reuse/anchor/diff复核，1661/2152/638保持。独立desktop Node检查未被本批planner选择，不计通过。
-- [ ] 缺runtime后台终态、request-context预取消、UNKNOWN返回与已明确的策略panic/停止态边界仍待闭合；继续核对实际生产tool failure的fail-closed行为。
+- [x] fail-closed写工具执行错误经原事务UNKNOWN/SUBMISSION_UNKNOWN，二次loop保持原output/ledger/events与计数1，迟到成功拒绝；结构化拒绝仍COMPLETED/FAILED。quick暴露workflow.wait名称分类误判，生产owner修复为优先descriptor显式模式/缺省read权限，保留原workflow文本/errorCode断言；最终定向77通过。
+- [x] 七条原测试及Go生产错误分支复核，分类不变。最终quick2398 Rust/98 Pine与desktop Node11+48通过；现场完整Rust重跑3993 passed/0 failed/2 skipped，无LEAK，static/七类replay退出0；1023个Rust文件冻结。初次行为红、quick68 passed/1 failed、首次完整3993 passed含1 LEAK均留证；LEAK原样20次未复现，未声称修复。
+- [ ] 缺runtime后台终态、request-context预取消、UNKNOWN返回与已明确的策略panic/停止态边界继续推进；完整运行的未复现LEAK风险仍保留。GitHub登录已可用，提交复核后同步当前分支。
 - [ ] 每批继续核对5–10条原测试，定向nextest、quick及现场完整Rust门禁通过后复核并提交；整体对齐未完成不标complete。
 
 ## 已验证批次：ADK checkpoint replay 与唯一投影 owner

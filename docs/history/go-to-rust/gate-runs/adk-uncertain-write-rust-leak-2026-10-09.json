@@ -1,0 +1,30 @@
+{
+  "schemaVersion": "jftrade.local-quality-gate.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "pnpm",
+    "run",
+    "check:rust"
+  ],
+  "status": "failed",
+  "exitCode": 0,
+  "verifiedAt": "2026-10-08T17:07:02.977323+00:00",
+  "verifiedCommit": "c68e4e0a735d460b501272b521e8ff44a1546dee",
+  "rawOutputPath": "/Volumes/帆帆PM961-512/Github/JFTrade/.git/adk-uncertain-write-rust-leak-20261009.log",
+  "rawOutputSha256": "d0866746b8d619632b40802d8855e2c72bbc77819b66ab38c560eb0db29e3397",
+  "nextestSummary": {
+    "planned": 3993,
+    "passed": 3993,
+    "failed": 0,
+    "skipped": 2,
+    "leaky": 1
+  },
+  "rustSourceFingerprintSha256": "adc861638502ca1fe6529499ec6d0b1f60f31ef00a2d0cb5e7ff54f9094f70a4",
+  "frozenRustFiles": 1023,
+  "leakyTestMarkerCount": 1,
+  "leakyTests": [
+    "challenge_continuation_supervisor_claims_are_exclusive_and_released"
+  ],
+  "remainingRisk": "Nextest exited zero but emitted one LEAK marker on an existing continuation teardown test. This run is not clean success. Preserve source and log; repeat the exact test and full gate without editing Rust to determine reproducibility."
+}

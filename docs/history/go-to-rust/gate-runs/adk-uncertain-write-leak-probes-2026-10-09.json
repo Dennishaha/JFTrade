@@ -1,0 +1,182 @@
+{
+  "schemaVersion": "jftrade.local-quality-gate.v1",
+  "status": "passed",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "-E",
+    "test(challenge_continuation_supervisor_claims_are_exclusive_and_released)"
+  ],
+  "verifiedAt": "2026-10-08T17:07:50.990619+00:00",
+  "iterations": [
+    {
+      "iteration": 1,
+      "rawOutputPath": "/Volumes/帆帆PM961-512/Github/JFTrade/.git/adk-uncertain-write-leak-probe-1-20261009.log",
+      "rawOutputSha256": "a27409b1460a18eef76183d0d49e7ea1695a5678c93af0a93858331201e80e3e",
+      "exitCode": 0,
+      "passed": 1,
+      "leaky": 0
+    },
+    {
+      "iteration": 2,
+      "rawOutputPath": "/Volumes/帆帆PM961-512/Github/JFTrade/.git/adk-uncertain-write-leak-probe-2-20261009.log",
+      "rawOutputSha256": "f3c973fd500817dcd8c0ac48989665487aa70a0688071d87aa83a06e33260e6b",
+      "exitCode": 0,
+      "passed": 1,
+      "leaky": 0
+    },
+    {
+      "iteration": 3,
+      "rawOutputPath": "/Volumes/帆帆PM961-512/Github/JFTrade/.git/adk-uncertain-write-leak-probe-3-20261009.log",
+      "rawOutputSha256": "d1e3b36677ea907e7eae14b86d737797f02dd4a9ece0e0eff99a9feb45c31ce4",
+      "exitCode": 0,
+      "passed": 1,
+      "leaky": 0
+    },
+    {
+      "iteration": 4,
+      "rawOutputPath": "/Volumes/帆帆PM961-512/Github/JFTrade/.git/adk-uncertain-write-leak-probe-4-20261009.log",
+      "rawOutputSha256": "ed7580e154f6737242d5aefbd9dff4c30a66bae57c2e86455bda543e705b0d8f",
+      "exitCode": 0,
+      "passed": 1,
+      "leaky": 0
+    },
+    {
+      "iteration": 5,
+      "rawOutputPath": "/Volumes/帆帆PM961-512/Github/JFTrade/.git/adk-uncertain-write-leak-probe-5-20261009.log",
+      "rawOutputSha256": "11a49d3f7976b1610f63985664d78ac2c0ea0ba3ec104903b539fbbe62e88204",
+      "exitCode": 0,
+      "passed": 1,
+      "leaky": 0
+    },
+    {
+      "iteration": 6,
+      "rawOutputPath": "/Volumes/帆帆PM961-512/Github/JFTrade/.git/adk-uncertain-write-leak-probe-6-20261009.log",
+      "rawOutputSha256": "2391ddc015528a9bafbcd86a51a0b1d94715799acc66159daec1cead246e366b",
+      "exitCode": 0,
+      "passed": 1,
+      "leaky": 0
+    },
+    {
+      "iteration": 7,
+      "rawOutputPath": "/Volumes/帆帆PM961-512/Github/JFTrade/.git/adk-uncertain-write-leak-probe-7-20261009.log",
+      "rawOutputSha256": "8dd634552212b196848c60df44134b0f1615c4e01cc16b6d0fb1379c2630c4b9",
+      "exitCode": 0,
+      "passed": 1,
+      "leaky": 0
+    },
+    {
+      "iteration": 8,
+      "rawOutputPath": "/Volumes/帆帆PM961-512/Github/JFTrade/.git/adk-uncertain-write-leak-probe-8-20261009.log",
+      "rawOutputSha256": "c2b2a6f1a3fc79438f5997ec23562c89858546bf37caaa1248bc8bb13368cd97",
+      "exitCode": 0,
+      "passed": 1,
+      "leaky": 0
+    },
+    {
+      "iteration": 9,
+      "rawOutputPath": "/Volumes/帆帆PM961-512/Github/JFTrade/.git/adk-uncertain-write-leak-probe-9-20261009.log",
+      "rawOutputSha256": "61404dbec9694be90ed28d2001fe9fddb78184724e040847ecceb724763c666c",
+      "exitCode": 0,
+      "passed": 1,
+      "leaky": 0
+    },
+    {
+      "iteration": 10,
+      "rawOutputPath": "/Volumes/帆帆PM961-512/Github/JFTrade/.git/adk-uncertain-write-leak-probe-10-20261009.log",
+      "rawOutputSha256": "ec0f3ad9489811eaa9eaa386b6c737c7da81b8f746670bc62fdba4a5ac71d764",
+      "exitCode": 0,
+      "passed": 1,
+      "leaky": 0
+    },
+    {
+      "iteration": 11,
+      "rawOutputPath": "/Volumes/帆帆PM961-512/Github/JFTrade/.git/adk-uncertain-write-leak-probe-11-20261009.log",
+      "rawOutputSha256": "70ba9ced9ed13a747fdefe71621763730a180c2fec29d404c94218d7c9f2c6f4",
+      "exitCode": 0,
+      "passed": 1,
+      "leaky": 0
+    },
+    {
+      "iteration": 12,
+      "rawOutputPath": "/Volumes/帆帆PM961-512/Github/JFTrade/.git/adk-uncertain-write-leak-probe-12-20261009.log",
+      "rawOutputSha256": "06c209c487b7321578a98194a81735a3950d37579c6c570aa770b384ddfb1200",
+      "exitCode": 0,
+      "passed": 1,
+      "leaky": 0
+    },
+    {
+      "iteration": 13,
+      "rawOutputPath": "/Volumes/帆帆PM961-512/Github/JFTrade/.git/adk-uncertain-write-leak-probe-13-20261009.log",
+      "rawOutputSha256": "b10f57361fe29eaef53e7f66e76fb0e3ca22a79da4e9441c49379ab5089b76cb",
+      "exitCode": 0,
+      "passed": 1,
+      "leaky": 0
+    },
+    {
+      "iteration": 14,
+      "rawOutputPath": "/Volumes/帆帆PM961-512/Github/JFTrade/.git/adk-uncertain-write-leak-probe-14-20261009.log",
+      "rawOutputSha256": "b6086c7f11145b76aeadd85504be5b48692667e128453ab65dc150d25e91e2fa",
+      "exitCode": 0,
+      "passed": 1,
+      "leaky": 0
+    },
+    {
+      "iteration": 15,
+      "rawOutputPath": "/Volumes/帆帆PM961-512/Github/JFTrade/.git/adk-uncertain-write-leak-probe-15-20261009.log",
+      "rawOutputSha256": "119021ae246589e3e9b8c3637fd193f21592f27bed7468eb18aa80c742a1880f",
+      "exitCode": 0,
+      "passed": 1,
+      "leaky": 0
+    },
+    {
+      "iteration": 16,
+      "rawOutputPath": "/Volumes/帆帆PM961-512/Github/JFTrade/.git/adk-uncertain-write-leak-probe-16-20261009.log",
+      "rawOutputSha256": "fce0b628fa95cf02bcd85304ab049af982fa74e2146ca7ae7fa0926863a68427",
+      "exitCode": 0,
+      "passed": 1,
+      "leaky": 0
+    },
+    {
+      "iteration": 17,
+      "rawOutputPath": "/Volumes/帆帆PM961-512/Github/JFTrade/.git/adk-uncertain-write-leak-probe-17-20261009.log",
+      "rawOutputSha256": "4b115579df09a2ec44fd131262fbd2ba809f98544138b1fdd5b7e3b481370bb6",
+      "exitCode": 0,
+      "passed": 1,
+      "leaky": 0
+    },
+    {
+      "iteration": 18,
+      "rawOutputPath": "/Volumes/帆帆PM961-512/Github/JFTrade/.git/adk-uncertain-write-leak-probe-18-20261009.log",
+      "rawOutputSha256": "d041e8699b950305c0cd8c3b15fec38bd34079c19ff571536a198e1b9090a74d",
+      "exitCode": 0,
+      "passed": 1,
+      "leaky": 0
+    },
+    {
+      "iteration": 19,
+      "rawOutputPath": "/Volumes/帆帆PM961-512/Github/JFTrade/.git/adk-uncertain-write-leak-probe-19-20261009.log",
+      "rawOutputSha256": "86cfa249d96bb8745386cbd833a820ad4ed2ddac46d565471976e131a1da73f9",
+      "exitCode": 0,
+      "passed": 1,
+      "leaky": 0
+    },
+    {
+      "iteration": 20,
+      "rawOutputPath": "/Volumes/帆帆PM961-512/Github/JFTrade/.git/adk-uncertain-write-leak-probe-20-20261009.log",
+      "rawOutputSha256": "50b207a656fb4e88f0da574bcb2b50117a96832e8bb56bd0646f75b078826d0b",
+      "exitCode": 0,
+      "passed": 1,
+      "leaky": 0
+    }
+  ],
+  "rustSourceFingerprintSha256": "adc861638502ca1fe6529499ec6d0b1f60f31ef00a2d0cb5e7ff54f9094f70a4",
+  "remainingRisk": "20 same-source passes do not erase or fix the single earlier full-gate LEAK. Retain original evidence and require a fresh clean full gate."
+}

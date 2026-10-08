@@ -12,6 +12,16 @@
 /// from the catalog still requires confirmation: failing closed is the only
 /// safe default when the metadata is unavailable.
 impl ProductionToolCatalog {
+    pub(crate) fn invocation_fails_closed(&self, name: &str) -> Option<bool> {
+        let tool = self.values().into_iter().find(|tool| tool["id"] == name)?;
+        let mode = tool["idempotencyMode"].as_str().unwrap_or_default().trim().to_ascii_lowercase();
+        Some(match mode.as_str() {
+            "fail_closed" => true,
+            "replay_safe" | "keyed" => false,
+            _ => !tool["permission"].as_str().unwrap_or_default().trim().to_ascii_lowercase().starts_with("read"),
+        })
+    }
+
     /// A keyed descriptor requires a handler read of the invocation context;
     /// the runtime must not infer this capability from the tool's name.
     pub(crate) fn requires_idempotency_key(&self, name: &str) -> bool {

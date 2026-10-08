@@ -1,0 +1,29 @@
+{
+  "schemaVersion": "jftrade.local-quality-gate.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "pnpm",
+    "run",
+    "check:quick"
+  ],
+  "status": "failed",
+  "exitCode": 1,
+  "verifiedAt": "2026-10-08T16:58:33.702814+00:00",
+  "verifiedCommit": "c68e4e0a735d460b501272b521e8ff44a1546dee",
+  "rawOutputPath": "/Volumes/帆帆PM961-512/Github/JFTrade/.git/adk-uncertain-write-quick-policy-failure-20261009.log",
+  "rawOutputSha256": "b5a83ddc58635e7dc40a55a1a4a1b7ceb77f4a7e08e4aff1a5fed1e66435f324",
+  "nextestSummary": {
+    "planned": 2397,
+    "passed": 68,
+    "failed": 1,
+    "skipped": 0,
+    "unrun": 2328
+  },
+  "rustSourceFingerprintSha256": "25de4c649f1194b0eeb7a130f9b5c3e398bd44d2fb541a7e72482bc5104c9f1a",
+  "frozenRustFiles": 1023,
+  "failedTests": [
+    "a_failed_workflow_execution_surfaces_on_the_loop_chat_path"
+  ],
+  "remainingRisk": "Descriptor replay_safe/read semantics were ignored by the name allowlist. Preserve exact original workflow failure/errorCode assertions and repair production policy owner after gate exit."
+}

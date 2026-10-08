@@ -106,7 +106,8 @@ impl ProductionAdkChatRuntime {
                     return;
                 }
                 let keyed = self.tool_catalog.requires_idempotency_key(&name);
-                let fail_closed = !keyed && !replay_safe_tool(&name);
+                let fail_closed = !keyed && self.tool_catalog.invocation_fails_closed(&name)
+                    .unwrap_or_else(|| !replay_safe_tool(&name));
                 let idempotency_key = call_id.clone();
                 let input_json = match serde_json::to_string(&arguments) {
                     Ok(input_json) => input_json,
@@ -240,6 +241,7 @@ impl ProductionAdkChatRuntime {
                         }
                     }
                     Err(error) => {
+                        let error = fail_closed_tool_error(&name, error, fail_closed);
                         // Go keeps the run alive when only a tool failed.
                         // `afterToolCallback` records the FAILED call and
                         // swallows the error, so the model keeps its turn and

@@ -1,0 +1,55 @@
+{
+  "schemaVersion": "jftrade.local-quality-gate.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "pnpm",
+    "run",
+    "check:rust"
+  ],
+  "status": "passed",
+  "exitCode": 0,
+  "verifiedAt": "2026-10-08T17:10:01.876379+00:00",
+  "verifiedCommit": "c68e4e0a735d460b501272b521e8ff44a1546dee",
+  "rawOutputPath": "/Volumes/帆帆PM961-512/Github/JFTrade/.git/adk-uncertain-write-rust-full-20261009.log",
+  "rawOutputSha256": "3433eaf1ac1b5ea93900794ffdcf4046eaa4d67496767c8cab2a3a088bdc8b08",
+  "environment": {
+    "CARGO_TARGET_DIR": "/Users/jiangfan/.cache/jftrade/targets/parity-assistant-20261008",
+    "rustc": "1.97.1",
+    "node": "24.19.0",
+    "pnpm": "12.3.4",
+    "protoc": "34.1",
+    "nextest": "0.9.143",
+    "cargoDeny": "0.20.2",
+    "gitProxy": "macOS configured http://127.0.0.1:10808; child Git only"
+  },
+  "nextestSummary": {
+    "planned": 3993,
+    "passed": 3993,
+    "failed": 0,
+    "skipped": 2,
+    "testSeconds": 108.0
+  },
+  "compatibilityReplays": {
+    "storage": "passed",
+    "backtest": "passed",
+    "provider-runtime": "passed",
+    "trading-strategy": "passed",
+    "assistant-runtime": "passed",
+    "api-transport": "passed",
+    "desktop-runtime": "passed"
+  },
+  "affectedSourceSha256": {
+    "crates/jftrade-engine/src/product_adk_durable_tool_owner_tests.rs": "c8542ea3034fbaca7718c3976202a2d30045c09c42be35df5ff78cc10956e879",
+    "crates/jftrade-engine/src/product_adk_model_runtime_tool_loop.rs": "5caa96fdc96ee6cb509ad253ba66860cea045f56a1e7aebc88b907290b7508a7",
+    "crates/jftrade-engine/src/product_adk_model_runtime_tool_result.rs": "dd8359f8d46627a44769a80210d8c26b24b9c4f157d11c8a3b8e0f849e42af1e",
+    "crates/jftrade-engine/src/product_production_ports_adk_policy.rs": "e1029b00cb24fb7d88969d2e956decd5c50e531b6936de1189bd5bc89cc7919c",
+    "crates/jftrade-engine/src/product_adk_uncertain_write_owner_tests.rs": "bfeae92123bacd5abcb06e0bdc2c9f1a3fa6d720a157c9c4b13dadd7f6a59cbb"
+  },
+  "rustSourceFingerprintSha256": "adc861638502ca1fe6529499ec6d0b1f60f31ef00a2d0cb5e7ff54f9094f70a4",
+  "frozenRustFiles": 1023,
+  "rustSourceChangedDuringGate": [],
+  "leakyTestMarkerCount": 0,
+  "remainingRisk": "Fail-closed ordinary execution errors become UNKNOWN/SUBMISSION_UNKNOWN through the same projection transaction. Real two-loop recovery keeps output, ledger, events and count one; late success is rejected. Structured rejection remains a known COMPLETED/FAILED call; context/deadline/fencing regression passes. Seven originals and supplementary Go production branch reviewed with no status upgrades; typed caller returns and empty indeterminate output remain partial. Whole parity active; red failure and first quick descriptor failure retained. First full gate had one LEAK despite exit zero; 20 same-source exact-test probes did not reproduce it. Original full-gate LEAK remains unresolved evidence; this successful receipt must require no LEAK in a new full run.",
+  "static": "passed"
+}
