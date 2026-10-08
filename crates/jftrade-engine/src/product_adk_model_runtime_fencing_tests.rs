@@ -15,6 +15,31 @@ use jftrade_store_sqlite::{
 
 use super::{AdkToolExecutor, replay_safe_tool};
 
+fn expire_run_and_tool_leases(directory: &tempfile::TempDir, run_id: &str, call_id: &str) {
+    let mut connection = Connection::open(directory.path().join("adk.db")).expect("fixture DB");
+    let transaction = connection.transaction().expect("expiry transaction");
+    assert_eq!(
+        transaction
+            .execute(
+                "UPDATE adk_run_leases SET expires_at_unix_ms = 0 WHERE run_id = ?1",
+                [run_id],
+            )
+            .expect("expire run lease"),
+        1
+    );
+    assert_eq!(
+        transaction
+            .execute(
+                "UPDATE adk_tool_invocations SET lease_expires_at_unix_ms = 0
+                 WHERE run_id = ?1 AND idempotency_key = ?2",
+                [run_id, call_id],
+            )
+            .expect("expire tool lease"),
+        1
+    );
+    transaction.commit().expect("commit fixture expiry");
+}
+
 fn initialized_stores() -> (tempfile::TempDir, Arc<AdkStore>, Arc<AdkSessionStore>) {
     let directory = tempdir().expect("temporary directory");
     let adk_path = directory.path().join("adk.db");
@@ -136,20 +161,16 @@ impl AdkToolExecutor for MockSideEffectToolExecutor {
 #[test]
 // Parity: go:452dea11:internal/assistant/engine/runner_approval_concurrency_test.go:119 TestConcurrentSiblingAsyncApprovalsEnqueueOneContinuation
 fn fail_closed_lease_takeover_blocks_duplicate_tool_execution_and_stale_commit() {
-    let (_directory, store, session_store) = initialized_stores();
+    let (directory, store, session_store) = initialized_stores();
     let run = create_test_run(&store, "run-fail-closed");
     let first_lease = store
-        .claim_run_lease(
-            "run-fail-closed",
-            "owner-worker-1",
-            Duration::from_millis(50),
-        )
+        .claim_run_lease("run-fail-closed", "owner-worker-1", Duration::from_secs(60))
         .expect("claim first run lease");
 
     let call_count = Arc::new(AtomicUsize::new(0));
     let executor = Arc::new(MockSideEffectToolExecutor {
         call_count: Arc::clone(&call_count),
-        delay: Duration::from_millis(150),
+        delay: Duration::ZERO,
     });
 
     let first_claim = match claim_tool(
@@ -161,7 +182,7 @@ fn fail_closed_lease_takeover_blocks_duplicate_tool_execution_and_stale_commit()
         &run.updated_at,
         "owner-worker-1",
         first_lease.fencing_token,
-        Duration::from_millis(50),
+        Duration::from_secs(60),
         true,
     )
     .expect("claim first tool invocation")
@@ -172,14 +193,25 @@ fn fail_closed_lease_takeover_blocks_duplicate_tool_execution_and_stale_commit()
     assert_eq!(first_claim.fencing_token, 1);
 
     let executor_w1 = Arc::clone(&executor);
+    let (started_tx, started_rx) = std::sync::mpsc::sync_channel(1);
+    let (release_tx, release_rx) = std::sync::mpsc::sync_channel(1);
     let worker1_handle = thread::spawn(move || {
-        executor_w1.execute("trade.place_order", &json!({"symbol":"AAPL","quantity":10}))
+        let result =
+            executor_w1.execute("trade.place_order", &json!({"symbol":"AAPL","quantity":10}));
+        started_tx.send(()).expect("signal side effect performed");
+        release_rx
+            .recv_timeout(Duration::from_secs(5))
+            .expect("release old worker after takeover");
+        result
     });
 
-    thread::sleep(Duration::from_millis(75));
+    started_rx
+        .recv_timeout(Duration::from_secs(5))
+        .expect("old worker performed side effect before takeover");
+    expire_run_and_tool_leases(&directory, "run-fail-closed", "call-trade-1");
 
     let second_lease = store
-        .claim_run_lease("run-fail-closed", "owner-worker-2", Duration::from_secs(10))
+        .claim_run_lease("run-fail-closed", "owner-worker-2", Duration::from_secs(60))
         .expect("claim second run lease");
 
     let takeover_claim = claim_tool(
@@ -191,7 +223,7 @@ fn fail_closed_lease_takeover_blocks_duplicate_tool_execution_and_stale_commit()
         &run.updated_at,
         "owner-worker-2",
         second_lease.fencing_token,
-        Duration::from_millis(100),
+        Duration::from_secs(60),
         true,
     )
     .expect("takeover claim query");
@@ -203,6 +235,7 @@ fn fail_closed_lease_takeover_blocks_duplicate_tool_execution_and_stale_commit()
     assert!(takeover_inv.fencing_token > first_claim.fencing_token);
     assert_eq!(call_count.load(Ordering::SeqCst), 1);
 
+    release_tx.send(()).expect("release old worker");
     let worker1_result = worker1_handle.join().expect("worker 1 finish");
     assert!(worker1_result.is_ok());
     assert_eq!(call_count.load(Ordering::SeqCst), 1);
@@ -243,7 +276,7 @@ fn fail_closed_lease_takeover_blocks_duplicate_tool_execution_and_stale_commit()
         &run.updated_at,
         "owner-worker-2",
         second_lease.fencing_token,
-        Duration::from_millis(100),
+        Duration::from_secs(60),
         true,
     )
     .expect("third claim query");
@@ -253,13 +286,13 @@ fn fail_closed_lease_takeover_blocks_duplicate_tool_execution_and_stale_commit()
 
 #[test]
 fn multiple_workers_simultaneous_takeover_after_lease_expiry_never_executes_fail_closed_tool() {
-    let (_directory, store, _session_store) = initialized_stores();
+    let (directory, store, _session_store) = initialized_stores();
     let run = create_test_run(&store, "run-multi-takeover");
     let initial_lease = store
         .claim_run_lease(
             "run-multi-takeover",
             "owner-worker-1",
-            Duration::from_millis(40),
+            Duration::from_secs(60),
         )
         .expect("claim initial run lease");
 
@@ -272,7 +305,7 @@ fn multiple_workers_simultaneous_takeover_after_lease_expiry_never_executes_fail
         &run.updated_at,
         "owner-worker-1",
         initial_lease.fencing_token,
-        Duration::from_millis(40),
+        Duration::from_secs(60),
         true,
     )
     .expect("initial claim")
@@ -281,7 +314,7 @@ fn multiple_workers_simultaneous_takeover_after_lease_expiry_never_executes_fail
         other => panic!("expected Execute for initial claim, got {other:?}"),
     };
     assert_eq!(initial_claim.fencing_token, 1);
-    thread::sleep(Duration::from_millis(60));
+    expire_run_and_tool_leases(&directory, "run-multi-takeover", "call-multi-trade");
 
     let num_workers = 10;
     let mut handles = Vec::new();
@@ -294,7 +327,7 @@ fn multiple_workers_simultaneous_takeover_after_lease_expiry_never_executes_fail
         let owner = format!("owner-worker-{worker_idx}");
         let handle = thread::spawn(move || {
             let run_lease_res =
-                store.claim_run_lease("run-multi-takeover", &owner, Duration::from_millis(500));
+                store.claim_run_lease("run-multi-takeover", &owner, Duration::from_secs(60));
             let (run_lease_token, run_lease_success) = match run_lease_res {
                 Ok(lease) => (lease.fencing_token, true),
                 Err(_) => (1, false),
@@ -308,7 +341,7 @@ fn multiple_workers_simultaneous_takeover_after_lease_expiry_never_executes_fail
                 &updated_at,
                 &owner,
                 run_lease_token,
-                Duration::from_millis(100),
+                Duration::from_secs(60),
                 true,
             );
             (owner, run_lease_success, claim_res)
@@ -341,7 +374,7 @@ fn multiple_workers_simultaneous_takeover_after_lease_expiry_never_executes_fail
 
 #[test]
 fn takeover_worker_never_invokes_external_tool_for_expired_running_invocation() {
-    let (_directory, store, _session_store) = initialized_stores();
+    let (directory, store, _session_store) = initialized_stores();
     let run = create_test_run(&store, "run-never-invoke");
     let call_count = Arc::new(AtomicUsize::new(0));
     let _executor = Arc::new(MockSideEffectToolExecutor {
@@ -357,7 +390,7 @@ fn takeover_worker_never_invokes_external_tool_for_expired_running_invocation() 
         .claim_run_lease(
             "run-never-invoke",
             "owner-worker-1",
-            Duration::from_millis(30),
+            Duration::from_secs(60),
         )
         .expect("claim w1 lease");
     let w1_claim = claim_tool(
@@ -369,19 +402,19 @@ fn takeover_worker_never_invokes_external_tool_for_expired_running_invocation() 
         &run.updated_at,
         "owner-worker-1",
         w1_lease.fencing_token,
-        Duration::from_millis(30),
+        Duration::from_secs(60),
         fail_closed,
     )
     .expect("w1 claim");
     assert!(matches!(w1_claim, AdkToolInvocationClaim::Execute(_)));
     assert_eq!(call_count.load(Ordering::SeqCst), 0);
-    thread::sleep(Duration::from_millis(50));
+    expire_run_and_tool_leases(&directory, "run-never-invoke", "call-trade-never");
 
     let w2_lease = store
         .claim_run_lease(
             "run-never-invoke",
             "owner-worker-2",
-            Duration::from_millis(500),
+            Duration::from_secs(60),
         )
         .expect("claim w2 lease");
     assert_eq!(w2_lease.fencing_token, 2);
@@ -395,7 +428,7 @@ fn takeover_worker_never_invokes_external_tool_for_expired_running_invocation() 
         &run.updated_at,
         "owner-worker-2",
         w2_lease.fencing_token,
-        Duration::from_millis(100),
+        Duration::from_secs(60),
         fail_closed,
     )
     .expect("w2 claim");
@@ -421,7 +454,7 @@ fn takeover_worker_never_invokes_external_tool_for_expired_running_invocation() 
             &run.updated_at,
             "owner-worker-2",
             w2_lease.fencing_token,
-            Duration::from_millis(100),
+            Duration::from_secs(60),
             fail_closed,
         )
         .expect("retry claim");

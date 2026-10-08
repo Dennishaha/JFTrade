@@ -1,0 +1,35 @@
+{
+  "schemaVersion": "jftrade.local-quality-gate.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "pnpm",
+    "run",
+    "check:quick"
+  ],
+  "environment": {
+    "CARGO_TARGET_DIR": "/Users/jiangfan/.cache/jftrade/targets/parity-assistant-20261008",
+    "node": "24.19.0",
+    "pnpm": "12.3.4",
+    "protoc": "34.1"
+  },
+  "status": "passed",
+  "exitCode": 0,
+  "verifiedAt": "2026-10-08T10:30:28.236391+00:00",
+  "verifiedCommit": "88d94643ecd49c8e26ddba4e36176acf0b82414f",
+  "rawOutputPath": "/Volumes/帆帆PM961-512/Github/JFTrade/.git/lease-quick-apfs-20261008.log",
+  "rawOutputSha256": "a5dbf15c4ae872f1d0e8b65d2b599602865875b4ee3bcb7320063411679f60b8",
+  "nextestSummary": {
+    "passed": 2353,
+    "failed": 0,
+    "skipped": 0
+  },
+  "pineworkerSummary": {
+    "passed": 98,
+    "failed": 0
+  },
+  "static": "passed",
+  "compatibilityReplays": "all seven passed",
+  "rustSourceFingerprintSha256": "a14feba731574c620afa7f2cba6650caa2f84b8c405a3c3943899bdfb5ae87c5",
+  "previousFailure": "adk-lease-quick-appledouble-failure-2026-10-08.json"
+}

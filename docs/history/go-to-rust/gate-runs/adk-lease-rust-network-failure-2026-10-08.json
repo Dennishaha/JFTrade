@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "jftrade.local-quality-gate.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "pnpm",
+    "run",
+    "check:rust"
+  ],
+  "status": "failed",
+  "exitCode": 1,
+  "verifiedAt": "2026-10-08T10:33:10.261075+00:00",
+  "verifiedCommit": "88d94643ecd49c8e26ddba4e36176acf0b82414f",
+  "rawOutputPath": "/Volumes/帆帆PM961-512/Github/JFTrade/.git/lease-rust-full-20261008.log",
+  "rawOutputSha256": "67ca26e888029d20c12440e7121d7416859b55d95545b0dbe03d320f247d4cdb",
+  "static": "target health, architecture, production policy, fmt and clippy passed; cargo deny advisory fetch failed",
+  "nextestSummary": {
+    "executed": 0
+  },
+  "error": "Direct GitHub connection could not clone the RustSec advisory database. macOS system HTTPS proxy exists, but shell Git did not inherit it.",
+  "rustSourceFingerprintSha256": "a14feba731574c620afa7f2cba6650caa2f84b8c405a3c3943899bdfb5ae87c5"
+}

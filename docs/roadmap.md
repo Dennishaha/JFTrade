@@ -6,9 +6,8 @@
 
 ## 当前批次：ADK 重连失败与取消
 
-Assistant 内置 agent 配置批次已完成现场验证：定向 11 passed，quick 通过，完整 Rust 重跑 3945 passed、0 failed、2 skipped，净 exact +1 / partial −1。首次完整门禁失败及既有 50ms 租约夹具风险保留；结果见 [证据积压清单](history/go-to-rust/parity-evidence-backlog.md)。补测试分支为 `codex/parity-assistant-builtin-config-20261008`。整体行为目标尚未完成，Codex 目标工具当前返回 paused，自动续跑需界面恢复。
+内置 agent 配置批次之后，租约夹具已改为受控失效及 worker 同步信号，保留 takeover、UNKNOWN、禁止重复执行和旧 fencing token 拒绝断言。新机器定向 12 passed，quick 2353 passed，完整 Rust 3945 passed、0 failed、2 skipped；五条 Go 原测试复核中纠正一条证据不足的 exact，当前 1660 exact、2153 partial、638 boundary。失败及通过证据见 [证据积压清单](history/go-to-rust/parity-evidence-backlog.md)。开发分支为 `codex/parity-assistant-builtin-config-20261008`，整体行为目标继续 active。
 
-- [ ] 优先消除租约并发夹具对初次 setup 在 50ms 内完成的依赖，以受控失效阶段保留 takeover/UNKNOWN/禁止重复执行/旧 fencing token 拒绝的完整断言，不放宽断言。
 - [ ] 逐项复核 chat_transport_disconnect55/110、chat_helpers167/216 和 service_test49；具体重连路径的写失败与预取消必须有直接 owner 证据，不能仅用 generic SSE 测试替代。
 - [ ] 真实缺口补测，必要时独立红后修复；完整原行为闭合才升级 exact，公开 admission 差异和未执行分支仍保持 partial。
 - [ ] 最窄 receipt、ordinary/strict、anchor/context、quick 计划与现场 quick、完整 Rust 门禁、diff/源码指纹复核后独立提交。

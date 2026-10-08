@@ -1,0 +1,51 @@
+{
+  "schemaVersion": "jftrade.local-quality-gate.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "pnpm",
+    "run",
+    "check:rust"
+  ],
+  "status": "passed",
+  "exitCode": 0,
+  "verifiedAt": "2026-10-08T10:37:45.748998+00:00",
+  "verifiedCommit": "88d94643ecd49c8e26ddba4e36176acf0b82414f",
+  "rawOutputPath": "/Volumes/帆帆PM961-512/Github/JFTrade/.git/lease-rust-full-proxy-20261008.log",
+  "rawOutputSha256": "9c676c8410687adf307b5b4f73ea8caf4e95ff2d251c7091e66adf6f3cded109",
+  "environment": {
+    "CARGO_TARGET_DIR": "/Users/jiangfan/.cache/jftrade/targets/parity-assistant-20261008",
+    "gitProxy": "macOS configured http://127.0.0.1:10808; child Git only",
+    "rustc": "1.97.1",
+    "node": "24.19.0",
+    "pnpm": "12.3.4",
+    "protoc": "34.1",
+    "cargoDeny": "0.20.2",
+    "nextest": "0.9.143"
+  },
+  "nextestSummary": {
+    "planned": 3945,
+    "passed": 3945,
+    "failed": 0,
+    "skipped": 2,
+    "testSeconds": 167.687
+  },
+  "static": "passed",
+  "compatibilityReplays": {
+    "storage": "passed",
+    "backtest": "passed",
+    "provider-runtime": "passed",
+    "trading-strategy": "passed",
+    "assistant-runtime": "passed",
+    "api-transport": "passed",
+    "desktop-runtime": "passed"
+  },
+  "affectedSourceSha256": {
+    "crates/jftrade-engine/src/product_adk_model_runtime_fencing_tests.rs": "e28f74e7059f290aeca0894f18935730ba25067cb51223bc1fc6cc826b1c614a",
+    "crates/jftrade-engine/tests/adk_lease_fencing_takeover_edge_conditions.rs": "dbb668de70cca452f1dc45a555da836e6776466c8b66de49b149efc387e835e4"
+  },
+  "rustSourceFingerprintSha256": "a14feba731574c620afa7f2cba6650caa2f84b8c405a3c3943899bdfb5ae87c5",
+  "frozenRustFiles": 1011,
+  "previousFailure": "adk-lease-rust-network-failure-2026-10-08.json",
+  "remainingRisk": "Five reviewed Go tests keep explicit partial residuals; concurrent sibling approval completion was downgraded from unsupported exact. Whole parity objective remains active."
+}

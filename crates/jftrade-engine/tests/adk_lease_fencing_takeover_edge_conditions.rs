@@ -3,7 +3,6 @@ mod product_adk_chat_stream_port;
 
 use std::fs::File;
 use std::sync::Arc;
-use std::thread;
 use std::time::Duration;
 
 use jftrade_store_sqlite::{
@@ -303,7 +302,7 @@ fn test_lease_expiration_boundary_before_and_after_expiry() {
         other => panic!("expected LeaseLost for expired commit, got: {other:?}"),
     }
 
-    // Case 1D: Wall-clock dynamic boundary test
+    // Case 1D: Explicit expiry while the current run owner stays unchanged.
     let clock_claim = store
         .claim_tool_invocation_if_status_and_revision(
             "run-boundary",
@@ -314,13 +313,13 @@ fn test_lease_expiration_boundary_before_and_after_expiry() {
             &run_current.updated_at,
             "worker-2",
             run_lease_w2.fencing_token,
-            Duration::from_millis(20), // 20ms short TTL
+            Duration::from_secs(60),
             true,
         )
         .expect("clock claim");
     assert!(matches!(clock_claim, AdkToolInvocationClaim::Execute(_)));
 
-    // Immediately check: must be Live
+    // A live lease must remain Live before the fixture explicitly expires it.
     let live_clock = store
         .claim_tool_invocation_if_status_and_revision(
             "run-boundary",
@@ -337,8 +336,15 @@ fn test_lease_expiration_boundary_before_and_after_expiry() {
         .expect("immediate clock check");
     assert!(matches!(live_clock, AdkToolInvocationClaim::Live(_)));
 
-    // Sleep past the 20ms expiry
-    thread::sleep(Duration::from_millis(30));
+    assert_eq!(
+        conn.execute(
+            "UPDATE adk_tool_invocations SET lease_expires_at_unix_ms = 0
+             WHERE run_id = ?1 AND idempotency_key = ?2",
+            params!["run-boundary", "call-boundary-clock"],
+        )
+        .expect("expire current owner's tool lease"),
+        1
+    );
 
     // Now check: must be Unknown
     let unknown_clock = store

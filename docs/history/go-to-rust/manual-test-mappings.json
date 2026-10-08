@@ -89236,8 +89236,8 @@
     "internal/assistant/engine/google_exec_concurrency_test.go:12:TestGoogleADKExecutionSerializesConcurrentToolCallbacks": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_fencing_tests.rs::fail_closed_lease_takeover_blocks_duplicate_tool_execution_and_stale_commit",
-      "conclusion": "partial（第 129 批分片十二由 [x] 纠正：引用用例证明至多一次执行，不能证明回调串行化）。Go 断言并发工具回调被串行化（delta 不重叠、最终回复只含一次文本）。Rust 的 fail_closed_lease_takeover_blocks_duplicate_tool_execution_and_stale_commit 断言重复执行被围栏阻断、陈旧提交不生效（至多一次执行），没有 delta 重叠检测与单次文本断言；即使回调重叠该用例仍可通过。回归要求：在 jftrade-engine 为并发回调补串行化用例（重叠检测加单次文本断言）。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'not test(production_helper_sync_cancel_aborts_in_flight_request) and not test(production_helper_sync_rejects_broken_pagination_cursors) and not test(production_helper_sync_forwards_page_query_and_persists_provider_values) and not test(production_helper_sync_retries_transient_page_and_records_retry)'",
+      "conclusion": "partial：2026-10-08 冻结 Go 原断言复核。Rust SQLite owner fences an expired fail-closed invocation as UNKNOWN, prevents another execution and rejects the old worker commit. 剩余：Missing concurrent delta overlap detection, 64-fragment final reply and single emitted reply assertions.",
+      "command": "env CARGO_INCREMENTAL=0 NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-assistant --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(fail_closed_lease_takeover) or test(multiple_workers_simultaneous_takeover) or test(takeover_worker_never_invokes) or binary(adk_lease_fencing_takeover_edge_conditions) or test(adk_approval_wakeup_accepts_an_already_claimed_continuation) or test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(run_lease_expiry_fencing_and_stale_release_are_rejected) or test(fail_closed_stale_claim_becomes_indeterminate)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/assistant/engine/google_exec_concurrency_test.go",
@@ -89254,61 +89254,63 @@
             "goFile": "internal/assistant/engine/google_exec_concurrency_test.go",
             "goLine": 12,
             "rustFile": "crates/jftrade-engine/src/product_adk_model_runtime_fencing_tests.rs",
-            "rustLine": 138
+            "rustLine": 160
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Go 断言并发工具回调被串行化（delta 不重叠、最终回复只含一次文本）。",
-          "即使回调重叠该用例仍可通过。"
+          "Rust SQLite owner fences an expired fail-closed invocation as UNKNOWN, prevents another execution and rejects the old worker commit."
         ],
         "uncovered": [
-          "Rust 的 fail_closed_lease_takeover_blocks_duplicate_tool_execution_and_stale_commit 断言重复执行被围栏阻断、陈旧提交不生效（至多一次执行），没有 delta 重叠检测与单次文本断言；",
-          "回归要求：在 jftrade-engine 为并发回调补串行化用例（重叠检测加单次文本断言）。"
+          "Missing concurrent delta overlap detection, 64-fragment final reply and single emitted reply assertions."
         ],
         "source": "reviewed"
       },
       "verification": {
+        "runnerVersion": "cargo-nextest 0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedAt": "2026-10-08T10:13:53Z",
         "argv": [
           "env",
+          "CARGO_INCREMENTAL=0",
           "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
+          "-p",
+          "jftrade-assistant",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(fail_closed_lease_takeover) or test(multiple_workers_simultaneous_takeover) or test(takeover_worker_never_invokes) or binary(adk_lease_fencing_takeover_edge_conditions) or test(adk_approval_wakeup_accepts_an_already_claimed_continuation) or test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(run_lease_expiry_fencing_and_stale_release_are_rejected) or test(fail_closed_stale_claim_becomes_indeterminate)"
         ],
         "testFilter": [
           "fail_closed_lease_takeover_blocks_duplicate_tool_execution_and_stale_commit"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
-        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
-        "status": "passed",
-        "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "88d94643ecd49c8e26ddba4e36176acf0b82414f",
+        "receiptDigest": "sha256:2160fe5ae994ab2fe90082d1b1829f3135c0c9e223b0f69e583d590d80ad5dd6"
       },
       "risk": "normal",
       "owner": "assistant_workflow",
       "priority": "P2",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
+      "nextAction": "close_production_owner_assertions",
       "blockedBy": [
         "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Go 断言并发工具回调被串行化（delta 不重叠、最终回复只含一次文本）。",
-        "即使回调重叠该用例仍可通过。"
+        "Rust SQLite owner fences an expired fail-closed invocation as UNKNOWN, prevents another execution and rejects the old worker commit."
       ],
       "uncoveredAssertions": [
-        "Rust 的 fail_closed_lease_takeover_blocks_duplicate_tool_execution_and_stale_commit 断言重复执行被围栏阻断、陈旧提交不生效（至多一次执行），没有 delta 重叠检测与单次文本断言；",
-        "回归要求：在 jftrade-engine 为并发回调补串行化用例（重叠检测加单次文本断言）。"
+        "Missing concurrent delta overlap detection, 64-fragment final reply and single emitted reply assertions."
       ],
       "boundaryReason": null
     },
@@ -97926,11 +97928,11 @@
       "boundaryReason": null
     },
     "internal/assistant/engine/runner_approval_concurrency_test.go:119:TestConcurrentSiblingAsyncApprovalsEnqueueOneContinuation": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_approval_wakeup_accepts_an_already_claimed_continuation；crates/jftrade-engine/src/product_adk_model_runtime_fencing_tests.rs::fail_closed_lease_takeover_blocks_duplicate_tool_execution_and_stale_commit",
-      "conclusion": "function_exact：Go 在启动前先 claim continuation（`approvalRuns[runID]`），因此第二个并发/重试的 wakeup 直接返回 resolution envelope 而不是错误，并保证 approved tool 只执行一次。本轮修复 product_production_ports_adk_mutation_runs.rs：approve/deny 遇到 `AdkChatPortError::Conflict`（\"assistant continuation is already running\"，即已有 owner 在飞）时不再 rollback staged resolution，也不再返回 503 `ADK_CONTINUATION_UNAVAILABLE`，而是照常投影 `APPROVED`/`RUNNING`/`approval_resuming`/toolCall RUNNING envelope；只有真正的启动失败（Unavailable/Failed）才回滚。回归测试 `adk_approval_wakeup_accepts_an_already_claimed_continuation` 用冲突 runtime 断言 envelope 与「approval 不回退 PENDING、run 保持 RUNNING」。单次执行的 fencing 由 `fail_closed_lease_takeover_blocks_duplicate_tool_execution_and_stale_commit` 覆盖。探针：把 Conflict 分支恢复为无条件 rollback 时该测试转红（503 ADK_CONTINUATION_UNAVAILABLE）。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-      "evidence_type": "function_exact",
+      "conclusion": "partial：2026-10-08 冻结 Go 原断言复核。Production approval mutation preserves APPROVED/RUNNING when the continuation is already claimed; deterministic SQLite takeover prevents duplicate side effects and stale commits. 剩余：Missing concurrent approval of every sibling through the production runtime, eventual COMPLETED and exactly one execution per approved sibling; the conflict stub plus unrelated lease takeover do not close these assertions.",
+      "command": "env CARGO_INCREMENTAL=0 NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-assistant --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(fail_closed_lease_takeover) or test(multiple_workers_simultaneous_takeover) or test(takeover_worker_never_invokes) or binary(adk_lease_fencing_takeover_edge_conditions) or test(adk_approval_wakeup_accepts_an_already_claimed_continuation) or test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(run_lease_expiry_fencing_and_stale_release_are_rejected) or test(fail_closed_stale_claim_becomes_indeterminate)'",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/assistant/engine/runner_approval_concurrency_test.go",
         "line": 119,
@@ -97957,53 +97959,65 @@
             "goFile": "internal/assistant/engine/runner_approval_concurrency_test.go",
             "goLine": 119,
             "rustFile": "crates/jftrade-engine/src/product_adk_model_runtime_fencing_tests.rs",
-            "rustLine": 138
+            "rustLine": 162
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "function_exact：Go 在启动前先 claim continuation（`approvalRuns[runID]`），因此第二个并发/重试的 wakeup 直接返回 resolution envelope 而不是错误，并保证 approved tool 只执行一次。本轮修复 product_production_ports_adk_mutation_runs.rs：approve/deny 遇到 `AdkChatPortError::Conflict`（\"assistant continuation is already running\"，即已有 owner 在飞）时不再 rollback staged resolution，也不再返回 503 `ADK_CONTINUATION_UNAVAILABLE`，而是照常投影 `APPROVED`/`RUNNING`/`approval_resuming`/toolCall RUNNING envelope；只有真正的启动失败（Unavailable/Failed）才回滚。回归测试 `adk_approval_wakeup_accepts_an_already_claimed_continuation` 用冲突 runtime 断言 envelope 与「approval 不回退 PENDING、run 保持 RUNNING」。单次执行的 fencing 由 `fail_closed_lease_takeover_blocks_duplicate_tool_execution_and_stale_commit` 覆盖。探针：把 Conflict 分支恢复为无条件 rollback 时该测试转红（503 ADK_CONTINUATION_UNAVAILABLE）。"
+          "Production approval mutation preserves APPROVED/RUNNING when the continuation is already claimed; deterministic SQLite takeover prevents duplicate side effects and stale commits."
         ],
-        "uncovered": [],
+        "uncovered": [
+          "Missing concurrent approval of every sibling through the production runtime, eventual COMPLETED and exactly one execution per approved sibling; the conflict stub plus unrelated lease takeover do not close these assertions."
+        ],
         "source": "reviewed"
       },
       "verification": {
+        "runnerVersion": "cargo-nextest 0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedAt": "2026-10-08T10:13:53Z",
         "argv": [
           "env",
+          "CARGO_INCREMENTAL=0",
           "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
+          "-p",
+          "jftrade-assistant",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(fail_closed_lease_takeover) or test(multiple_workers_simultaneous_takeover) or test(takeover_worker_never_invokes) or binary(adk_lease_fencing_takeover_edge_conditions) or test(adk_approval_wakeup_accepts_an_already_claimed_continuation) or test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(run_lease_expiry_fencing_and_stale_release_are_rejected) or test(fail_closed_stale_claim_becomes_indeterminate)"
         ],
         "testFilter": [
           "adk_approval_wakeup_accepts_an_already_claimed_continuation",
           "fail_closed_lease_takeover_blocks_duplicate_tool_execution_and_stale_commit"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
-        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
-        "status": "passed",
-        "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "88d94643ecd49c8e26ddba4e36176acf0b82414f",
+        "receiptDigest": "sha256:2160fe5ae994ab2fe90082d1b1829f3135c0c9e223b0f69e583d590d80ad5dd6"
       },
       "risk": "normal",
       "owner": "assistant_workflow",
       "priority": "P2",
-      "nextAction": "retain_receipt_and_reaudit",
-      "blockedBy": [],
+      "nextAction": "close_production_owner_assertions",
+      "blockedBy": [
+        "behavioral-parity-review"
+      ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "function_exact：Go 在启动前先 claim continuation（`approvalRuns[runID]`），因此第二个并发/重试的 wakeup 直接返回 resolution envelope 而不是错误，并保证 approved tool 只执行一次。本轮修复 product_production_ports_adk_mutation_runs.rs：approve/deny 遇到 `AdkChatPortError::Conflict`（\"assistant continuation is already running\"，即已有 owner 在飞）时不再 rollback staged resolution，也不再返回 503 `ADK_CONTINUATION_UNAVAILABLE`，而是照常投影 `APPROVED`/`RUNNING`/`approval_resuming`/toolCall RUNNING envelope；只有真正的启动失败（Unavailable/Failed）才回滚。回归测试 `adk_approval_wakeup_accepts_an_already_claimed_continuation` 用冲突 runtime 断言 envelope 与「approval 不回退 PENDING、run 保持 RUNNING」。单次执行的 fencing 由 `fail_closed_lease_takeover_blocks_duplicate_tool_execution_and_stale_commit` 覆盖。探针：把 Conflict 分支恢复为无条件 rollback 时该测试转红（503 ADK_CONTINUATION_UNAVAILABLE）。"
+        "Production approval mutation preserves APPROVED/RUNNING when the continuation is already claimed; deterministic SQLite takeover prevents duplicate side effects and stale commits."
       ],
-      "uncoveredAssertions": [],
+      "uncoveredAssertions": [
+        "Missing concurrent approval of every sibling through the production runtime, eventual COMPLETED and exactly one execution per approved sibling; the conflict stub plus unrelated lease takeover do not close these assertions."
+      ],
       "boundaryReason": null
     },
     "internal/assistant/engine/runner_approval_concurrency_test.go:154:TestAsyncApprovalWaitsForLocalInputContinuationLease": {
@@ -102363,8 +102377,8 @@
     "internal/assistant/engine/runtime_execution_lease_boundaries_test.go:108:TestRunExecutionLeaseHeartbeatFailureCancelsOwner": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_terminal_audit_tests.rs::a_cancelled_run_audits_run_cancelled_and_terminates_once",
-      "conclusion": "partial：Go 断言心跳失败会取消持有者（运行终止且只终止一次）。Rust 的取消一次性与 run.cancelled 审计由 a_cancelled_run_audits_run_cancelled_and_terminates_once 覆盖（已作为 runner_chat_test.go:1124 的等价证据）；心跳失败→取消的触发链没有独立用例。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'not test(production_helper_sync_cancel_aborts_in_flight_request) and not test(production_helper_sync_rejects_broken_pagination_cursors) and not test(production_helper_sync_forwards_page_query_and_persists_provider_values) and not test(production_helper_sync_retries_transient_page_and_records_retry)'",
+      "conclusion": "partial：2026-10-08 冻结 Go 原断言复核。Production runtime cancellation commits CANCELLED and its audit once, including repeated terminal cancellation. 剩余：Missing heartbeat storage failure -> owner cancellation -> join through production RunLeaseGuard; terminal cancellation does not exercise that trigger.",
+      "command": "env CARGO_INCREMENTAL=0 NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-assistant --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(fail_closed_lease_takeover) or test(multiple_workers_simultaneous_takeover) or test(takeover_worker_never_invokes) or binary(adk_lease_fencing_takeover_edge_conditions) or test(adk_approval_wakeup_accepts_an_already_claimed_continuation) or test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(run_lease_expiry_fencing_and_stale_release_are_rejected) or test(fail_closed_stale_claim_becomes_indeterminate)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/assistant/engine/runtime_execution_lease_boundaries_test.go",
@@ -102387,59 +102401,65 @@
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust cancellation audits run cancellation and terminates it once."
+          "Production runtime cancellation commits CANCELLED and its audit once, including repeated terminal cancellation."
         ],
         "uncovered": [
-          "Rust does not connect a heartbeat failure to owner cancellation in the cited test or prove the complete Go termination-once propagation path."
+          "Missing heartbeat storage failure -> owner cancellation -> join through production RunLeaseGuard; terminal cancellation does not exercise that trigger."
         ],
         "source": "reviewed"
       },
       "verification": {
+        "runnerVersion": "cargo-nextest 0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedAt": "2026-10-08T10:13:53Z",
         "argv": [
           "env",
+          "CARGO_INCREMENTAL=0",
           "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
+          "-p",
+          "jftrade-assistant",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(fail_closed_lease_takeover) or test(multiple_workers_simultaneous_takeover) or test(takeover_worker_never_invokes) or binary(adk_lease_fencing_takeover_edge_conditions) or test(adk_approval_wakeup_accepts_an_already_claimed_continuation) or test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(run_lease_expiry_fencing_and_stale_release_are_rejected) or test(fail_closed_stale_claim_becomes_indeterminate)"
         ],
         "testFilter": [
           "a_cancelled_run_audits_run_cancelled_and_terminates_once"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
-        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
-        "status": "passed",
-        "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "88d94643ecd49c8e26ddba4e36176acf0b82414f",
+        "receiptDigest": "sha256:2160fe5ae994ab2fe90082d1b1829f3135c0c9e223b0f69e583d590d80ad5dd6"
       },
       "risk": "high",
       "owner": "assistant_workflow",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
+      "nextAction": "close_production_owner_assertions",
       "blockedBy": [
         "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust cancellation audits run cancellation and terminates it once."
+        "Production runtime cancellation commits CANCELLED and its audit once, including repeated terminal cancellation."
       ],
       "uncoveredAssertions": [
-        "Rust does not connect a heartbeat failure to owner cancellation in the cited test or prove the complete Go termination-once propagation path."
+        "Missing heartbeat storage failure -> owner cancellation -> join through production RunLeaseGuard; terminal cancellation does not exercise that trigger."
       ],
       "boundaryReason": null
     },
     "internal/assistant/engine/runtime_execution_lease_boundaries_test.go:133:TestRefreshRunExecutionLeaseRejectsExpiredLeaseBeforeStoreWrite": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-assistant/tests/assistant_claims_runtime_contracts.rs::run_lease_expiry_fencing_and_stale_release_are_rejected",
-      "conclusion": "partial：Go 断言已过期租约在续租时被拒且不写存储。Rust 的过期租约刷新/释放被拒由 run_lease_expiry_fencing_and_stale_release_are_rejected 覆盖；有效续租不推进围栏由 same_owner_heartbeat_renews_without_advancing_fence 覆盖，但两条 Go 断言（先校验后写 + 续租路径）未合并为单一等价用例。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-integration-pine -p jftrade-strategy -p jftrade-backtest -p jftrade-assistant -p jftrade-api --all-targets --locked --no-fail-fast -E 'not test(analyze_script_supports_trend_and_stateful_ta_functions)'",
+      "conclusion": "partial：2026-10-08 冻结 Go 原断言复核。ClaimStore rejects stale heartbeat/release after takeover and preserves the replacement lease. 剩余：Missing production expired heartbeat rejection before any store write; the cited ClaimStore test exercises a stale token after takeover.",
+      "command": "env CARGO_INCREMENTAL=0 NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-assistant --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(fail_closed_lease_takeover) or test(multiple_workers_simultaneous_takeover) or test(takeover_worker_never_invokes) or binary(adk_lease_fencing_takeover_edge_conditions) or test(adk_approval_wakeup_accepts_an_already_claimed_continuation) or test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(run_lease_expiry_fencing_and_stale_release_are_rejected) or test(fail_closed_stale_claim_becomes_indeterminate)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/assistant/engine/runtime_execution_lease_boundaries_test.go",
@@ -102462,51 +102482,57 @@
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust rejects expired lease refresh/release and stale release attempts before accepting the operation."
+          "ClaimStore rejects stale heartbeat/release after takeover and preserves the replacement lease."
         ],
         "uncovered": [
-          "Rust does not independently assert that an expired refresh performs no store write with the Go call ordering and error result."
+          "Missing production expired heartbeat rejection before any store write; the cited ClaimStore test exercises a stale token after takeover."
         ],
         "source": "reviewed"
       },
       "verification": {
+        "runnerVersion": "cargo-nextest 0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedAt": "2026-10-08T10:13:53Z",
         "argv": [
           "env",
+          "CARGO_INCREMENTAL=0",
           "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
+          "-p",
+          "jftrade-assistant",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(fail_closed_lease_takeover) or test(multiple_workers_simultaneous_takeover) or test(takeover_worker_never_invokes) or binary(adk_lease_fencing_takeover_edge_conditions) or test(adk_approval_wakeup_accepts_an_already_claimed_continuation) or test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(run_lease_expiry_fencing_and_stale_release_are_rejected) or test(fail_closed_stale_claim_becomes_indeterminate)"
         ],
         "testFilter": [
           "run_lease_expiry_fencing_and_stale_release_are_rejected"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
-        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
-        "status": "passed",
-        "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "88d94643ecd49c8e26ddba4e36176acf0b82414f",
+        "receiptDigest": "sha256:2160fe5ae994ab2fe90082d1b1829f3135c0c9e223b0f69e583d590d80ad5dd6"
       },
       "risk": "normal",
       "owner": "assistant_workflow",
       "priority": "P2",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
+      "nextAction": "close_production_owner_assertions",
       "blockedBy": [
         "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust rejects expired lease refresh/release and stale release attempts before accepting the operation."
+        "ClaimStore rejects stale heartbeat/release after takeover and preserves the replacement lease."
       ],
       "uncoveredAssertions": [
-        "Rust does not independently assert that an expired refresh performs no store write with the Go call ordering and error result."
+        "Missing production expired heartbeat rejection before any store write; the cited ClaimStore test exercises a stale token after takeover."
       ],
       "boundaryReason": null
     },
@@ -102588,8 +102614,8 @@
     "internal/assistant/engine/runtime_execution_lease_boundaries_test.go:161:TestRunExecutionLeaseUsesSafeDefaults": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-assistant/src/claims.rs::fail_closed_stale_claim_becomes_indeterminate",
-      "conclusion": "partial：Go 断言未显式配置时使用安全默认（正 TTL、正心跳间隔）。Rust 的 claims 拒绝非正 TTL 并使用默认常量，安全默认由构造期常量表达，无逐字段断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-integration-pine -p jftrade-strategy -p jftrade-backtest -p jftrade-assistant -p jftrade-api --all-targets --locked --no-fail-fast -E 'not test(analyze_script_supports_trend_and_stateful_ta_functions)'",
+      "conclusion": "partial：2026-10-08 冻结 Go 原断言复核。ClaimStore returns ToolOutcomeUnknown for an expired fail-closed invocation after run takeover. 剩余：Missing acquisition with omitted configuration asserting the production default TTL and positive heartbeat interval; the cited stale claim test does not assert defaults.",
+      "command": "env CARGO_INCREMENTAL=0 NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-assistant --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(fail_closed_lease_takeover) or test(multiple_workers_simultaneous_takeover) or test(takeover_worker_never_invokes) or binary(adk_lease_fencing_takeover_edge_conditions) or test(adk_approval_wakeup_accepts_an_already_claimed_continuation) or test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(run_lease_expiry_fencing_and_stale_release_are_rejected) or test(fail_closed_stale_claim_becomes_indeterminate)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/assistant/engine/runtime_execution_lease_boundaries_test.go",
@@ -102612,51 +102638,57 @@
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust claims reject non-positive TTLs and use positive default constants."
+          "ClaimStore returns ToolOutcomeUnknown for an expired fail-closed invocation after run takeover."
         ],
         "uncovered": [
-          "Rust does not assert each Go safe-default field (TTL and heartbeat interval) after omitted configuration; defaults are compile-time constants."
+          "Missing acquisition with omitted configuration asserting the production default TTL and positive heartbeat interval; the cited stale claim test does not assert defaults."
         ],
         "source": "reviewed"
       },
       "verification": {
+        "runnerVersion": "cargo-nextest 0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedAt": "2026-10-08T10:13:53Z",
         "argv": [
           "env",
+          "CARGO_INCREMENTAL=0",
           "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
+          "-p",
+          "jftrade-assistant",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(fail_closed_lease_takeover) or test(multiple_workers_simultaneous_takeover) or test(takeover_worker_never_invokes) or binary(adk_lease_fencing_takeover_edge_conditions) or test(adk_approval_wakeup_accepts_an_already_claimed_continuation) or test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(run_lease_expiry_fencing_and_stale_release_are_rejected) or test(fail_closed_stale_claim_becomes_indeterminate)"
         ],
         "testFilter": [
           "fail_closed_stale_claim_becomes_indeterminate"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
-        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
-        "status": "passed",
-        "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "88d94643ecd49c8e26ddba4e36176acf0b82414f",
+        "receiptDigest": "sha256:2160fe5ae994ab2fe90082d1b1829f3135c0c9e223b0f69e583d590d80ad5dd6"
       },
       "risk": "normal",
       "owner": "assistant_workflow",
       "priority": "P2",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
+      "nextAction": "close_production_owner_assertions",
       "blockedBy": [
         "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust claims reject non-positive TTLs and use positive default constants."
+        "ClaimStore returns ToolOutcomeUnknown for an expired fail-closed invocation after run takeover."
       ],
       "uncoveredAssertions": [
-        "Rust does not assert each Go safe-default field (TTL and heartbeat interval) after omitted configuration; defaults are compile-time constants."
+        "Missing acquisition with omitted configuration asserting the production default TTL and positive heartbeat interval; the cited stale claim test does not assert defaults."
       ],
       "boundaryReason": null
     },
@@ -350166,7 +350198,8 @@
         "internal/assistant/engine/runner_approval_concurrency_test.go:119:TestConcurrentSiblingAsyncApprovalsEnqueueOneContinuation"
       ],
       "allowed": true,
-      "reviewStatus": "reviewed"
+      "reviewStatus": "reviewed",
+      "reviewNote": "2026-10-08: both references remain partial. Deterministic takeover proves at-most-once side effects, not callback delta serialization or concurrent sibling approval completion."
     },
     "crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs::transient_provider_failure_round_trips_and_clears_on_recovery": {
       "referenceCount": 1,
@@ -350712,7 +350745,7 @@
       ],
       "allowed": true,
       "reviewStatus": "reviewed",
-      "reviewNote": "2026-09-30 Assistant shared-owner review: all 2 referenceKeys were compared; 2 function_exact reference(s) retain their claims, runtime, workflow, timeout, approval, or tool-failure assertions and partial rows preserve their missing-stub, live-adapter, or error-branch differences."
+      "reviewNote": "2026-10-08: sibling approval reference is partial; this conflict stub proves wakeup envelope preservation only. Other reference conclusions remain unchanged."
     },
     "crates/jftrade-engine/src/product_adk_model_runtime_fencing_tests.rs::challenge_continuation_supervisor_releases_claims_without_extra_initialization": {
       "referenceCount": 2,

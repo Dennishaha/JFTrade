@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "jftrade.local-quality-gate.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "pnpm",
+    "run",
+    "check:quick"
+  ],
+  "status": "failed",
+  "exitCode": 1,
+  "verifiedAt": "2026-10-08T10:18:48.295022+00:00",
+  "verifiedCommit": "88d94643ecd49c8e26ddba4e36176acf0b82414f",
+  "rawOutputPath": "/Volumes/帆帆PM961-512/Github/JFTrade/.git/lease-quick-20261008.log",
+  "rawOutputSha256": "8156a49563084b68d3f74122e23c4dad36f1c19b950ffdac916657918b83396d",
+  "error": "Tauri generated permissions reader treated AppleDouble ._default.toml on the external volume as UTF-8 TOML.",
+  "recovery": "Preserve failure evidence and source; rerun with Cargo build output on the internal APFS volume.",
+  "affectedSourceSha256": {
+    "crates/jftrade-engine/src/product_adk_model_runtime_fencing_tests.rs": "e28f74e7059f290aeca0894f18935730ba25067cb51223bc1fc6cc826b1c614a",
+    "crates/jftrade-engine/tests/adk_lease_fencing_takeover_edge_conditions.rs": "dbb668de70cca452f1dc45a555da836e6776466c8b66de49b149efc387e835e4"
+  }
+}

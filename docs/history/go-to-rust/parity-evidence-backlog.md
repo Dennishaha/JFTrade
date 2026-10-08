@@ -1276,3 +1276,14 @@ runtime resource ownership 与 lifecycle 两批已完成真实 owner 测试、as
 - `TestCatalogSessionRunAndObservabilityContracts` 由 port-level partial 补为真实 Product HTTP composition：同一 ProductionAdkPort seed 下逐一请求 12 个 catalog/session/run/observability GET 路由，断言 HTTP 200 + `ok=true`，并断言 DELETE provider 200 + `ok=true`。
 - 定向 nextest 1/1 passed；receipt `api-adk-catalog-http-reviewed-2026-09-30.json`，文件 digest `sha256:8249f1afebb9345f3c0a4bb8fefb4eab02ac313e3706f75b39fdc26e5283e383`。
 - mapping 从 partial 升 `function_exact`，strict function_exact **1498→1499**，partial 实际 **2318→2317**；数量比例不作为完成率。
+
+## 2026-10-08 新机器租约夹具与五条 Go 原断言复核
+
+- 三条 fail-closed takeover 夹具使用明确的 SQLite 过期状态；旧 worker 通过信号确认副作用已经发生，并在 takeover 后才返回。保留 UNKNOWN、禁止重复执行和旧 fencing token 提交拒绝断言。边界测试的 20ms TTL/sleep 同样改为显式过期。
+- 新机器定向 nextest 12/12 passed，receipt `adk-lease-deterministic-owner-2026-10-08.json`；原始 stdout/stderr 保存在本机 `.git/lease-nextest-verified-20261008.*`。首次 nextest 下载失败的现场日志也保留，不计通过。
+- 逐条核对冻结 Go 的 callback concurrency、sibling async approvals、heartbeat failure、expired refresh 和 safe defaults 共五条原测试及 blob SHA。
+- sibling async approvals 原 exact 证据只覆盖已 claim 的冲突 envelope 与独立 takeover；缺并发批准所有 sibling 后 COMPLETED 和每个工具单次执行，纠正为 partial。其余四条保持 partial，明确保留 delta 序列化、heartbeat failure 触发链、生产写入前拒绝及默认值断言缺口。
+- 本批不升级 exact；修复时间敏感夹具、纠正覆盖结论后执行 quick 与现场完整 Rust 门禁。整体真实行为对齐仍未完成。
+- 新机器 quick：2353 Rust tests passed、98 Pine worker tests passed、七类 replay passed；完整 `CARGO_INCREMENTAL=0 pnpm run check:rust` 明确退出 0，3945 passed、0 failed、2 skipped，static 与七类 replay 全部通过。receipt 为 `gate-runs/adk-lease-quick-verified-2026-10-08.json`、`gate-runs/adk-lease-rust-verified-2026-10-08.json`；1011 个 Rust 源文件在运行期间指纹未变。
+- 首次 quick 的外置卷 AppleDouble/Tauri 构建失败，以及首次完整 Rust 的直接 GitHub advisory 拉取失败分别保留独立失败 receipt。编译输出移至内置 APFS，子 Git 继承已配置系统代理后重跑，未修改 Rust 源码、依赖、门禁或断言。
+- strict/ordinary 审计通过，当前 1660 exact、2153 partial、638 boundary；anchor 未登记 0、stale 0，原有 unknown Go line 48 保持显式结果。接续 ADK 重连失败、预取消和断连终态的生产 owner 验证。
