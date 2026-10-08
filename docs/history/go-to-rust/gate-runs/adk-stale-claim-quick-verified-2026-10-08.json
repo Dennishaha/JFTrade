@@ -1,0 +1,60 @@
+{
+  "schemaVersion": "jftrade.local-quality-gate.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "pnpm",
+    "run",
+    "check:quick"
+  ],
+  "status": "passed",
+  "exitCode": 0,
+  "verifiedAt": "2026-10-08T15:16:20.544034+00:00",
+  "verifiedCommit": "b0ab14184a34ee9beffafff7386fc4c6e72b2ffe",
+  "rawOutputPath": "/Volumes/帆帆PM961-512/Github/JFTrade/.git/adk-stale-claim-quick-20261008.log",
+  "rawOutputSha256": "43ddb5e31cdbcb47a3e115fcc0bd87926a8e45592ae37772a47540374a140e5e",
+  "environment": {
+    "CARGO_TARGET_DIR": "/Users/jiangfan/.cache/jftrade/targets/parity-assistant-20261008",
+    "rustc": "1.97.1",
+    "node": "24.19.0",
+    "pnpm": "12.3.4",
+    "protoc": "34.1",
+    "nextest": "0.9.143",
+    "cargoDeny": "0.20.2",
+    "gitProxy": "macOS configured http://127.0.0.1:10808; child Git only"
+  },
+  "nextestSummary": {
+    "planned": 2392,
+    "passed": 2392,
+    "failed": 0,
+    "skipped": 0,
+    "testSeconds": 109.609
+  },
+  "compatibilityReplays": {
+    "storage": "passed",
+    "backtest": "passed",
+    "provider-runtime": "passed",
+    "trading-strategy": "passed",
+    "assistant-runtime": "passed",
+    "api-transport": "passed",
+    "desktop-runtime": "passed"
+  },
+  "affectedSourceSha256": {
+    "crates/jftrade-engine/src/product_adk_durable_tool_owner_tests.rs": "115213e20f390b17d699ae6b3ffa7826fc05073eae628affe07205fa2021ad91",
+    "crates/jftrade-engine/src/product_adk_model_runtime.rs": "86d4d688368170e7ea2c2c9b47ffe6932ef2ff8a09da229313f74913db692654",
+    "crates/jftrade-engine/src/product_adk_model_runtime_tool_loop.rs": "c388c8750d0f22cf156723e2900d89410205a0cc7e186cfd914110ca25e97a16",
+    "crates/jftrade-engine/src/product_adk_model_runtime_tool_result.rs": "b5f066d7d989d12608bdcf4d8fb56ddd1ac222eac4eeae6a5540eb10ba9efa0e"
+  },
+  "rustSourceFingerprintSha256": "3efdfd33712adf932bdab098df151e8d6add36b9fd02aba829c56a6e86f95dfe",
+  "frozenRustFiles": 1021,
+  "rustSourceChangedDuringGate": [],
+  "leakyTestMarkerCount": 0,
+  "remainingRisk": "Stale and SQL identity-fenced tool claim now return ADK_RUN_LEASE_LOST, while the loop stops without execution or writes. Full Go tool.Run caller return and other durable/UNKNOWN/SaveRun/short-heartbeat gaps remain partial. Whole goal active; red failure retained.",
+  "pineWorkerTests": {
+    "passed": 98
+  },
+  "desktopChecks": {
+    "runtimeNodeTestsPassed": 11,
+    "scriptNodeTestsPassed": 48
+  }
+}

@@ -209,6 +209,7 @@ impl ProductionAdkChatRuntime {
                         unreachable!("live tool claims are consumed by the retry helper")
                     }
                     Ok(None) => return,
+                    Err(error) if is_nonfatal_durable_error(&error) => return,
                     Err(error) => {
                         let _ = self.persist_failure(&chat, &error, run_lease);
                         return;
@@ -369,10 +370,10 @@ impl ProductionAdkChatRuntime {
         fail_closed: bool,
     ) -> Result<Option<AdkToolInvocationClaim>, AdkChatPortError> {
         loop {
-            if run_lease.is_lost()
-                || cancellation.load(Ordering::Acquire)
-                || self.run_is_cancelled(&chat.run_id)
-            {
+            if run_lease.is_lost() {
+                return Err(tool_claim_lease_lost("assistant run lease is no longer current"));
+            }
+            if cancellation.load(Ordering::Acquire) || self.run_is_cancelled(&chat.run_id) {
                 return Ok(None);
             }
             let run = self
@@ -395,16 +396,17 @@ impl ProductionAdkChatRuntime {
             match claim {
                 Ok(AdkToolInvocationClaim::Live(invocation)) => {
                     while unix_now_ms() < invocation.lease_expires_at_unix_ms {
-                        if run_lease.is_lost()
-                            || cancellation.load(Ordering::Acquire)
-                            || self.run_is_cancelled(&chat.run_id)
-                        {
+                        if run_lease.is_lost() {
+                            return Err(tool_claim_lease_lost("assistant run lease is no longer current"));
+                        }
+                        if cancellation.load(Ordering::Acquire) || self.run_is_cancelled(&chat.run_id) {
                             return Ok(None);
                         }
                         thread::sleep(Duration::from_millis(100));
                     }
                 }
                 Ok(claim) => return Ok(Some(claim)),
+                Err(AdkStoreError::LeaseLost(message)) => return Err(tool_claim_lease_lost(message)),
                 Err(error) => match classify_durable_store_error(&error) {
                     DurableErrorClass::LeaseHeldOrLost | DurableErrorClass::RevisionConflict => {
                         return Ok(None);

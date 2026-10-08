@@ -4,7 +4,7 @@
 
 当前活动包括迁移行为核验、产品质量和发布资格工作。迁移历史与证据位于 `docs/history/go-to-rust`；历史阶段完成声明不能代替全部映射的逐项审查。
 
-## 当前批次：ADK UNKNOWN checkpoint 与 callback owner
+## 当前批次：ADK stale tool claim 错误分类
 
 handler stable key与消费批次已验证，六条原测试复核后当前 1661 exact、2152 partial、638 boundary。失败及通过证据见 [证据积压清单](history/go-to-rust/parity-evidence-backlog.md)。开发分支为 `codex/parity-assistant-builtin-config-20261008`，整体行为目标继续 active。
 
@@ -14,7 +14,9 @@ handler stable key与消费批次已验证，六条原测试复核后当前 1661
 - [x] 消费批次定向21、quick2388 Rust/98 Pine与desktop Node11+48通过；现场完整Rust3983 passed、0 failed、2 skipped，无LEAK。1021个Rust文件冻结指纹与receipt/reuse/anchor/context/diff复核后独立提交，夹具错误与编译失败保留。
 - [x] 已映射UNKNOWN checkpoint沿同一SQLite事务及当前owner恢复FAILED callback并继续模型；两次loop、takeover、旧owner/晚到结果拒绝和journal回滚定向26通过，原ledger/输出/事件及计数1保持。214第二次tool.Run typed返回、Go空输出表示及普通expiry UNKNOWN恢复仍partial。
 - [x] 本批quick2597 Rust/98 Pine及desktop Node11+48通过；现场完整Rust3985 passed、0 failed、2 skipped，static/七类replay退出0，无LEAK。1021个Rust源码冻结指纹及receipt/anchor/reuse/diff已复核，数量保持1661/2152/638。
-- [ ] 推进stale tool claim的生产owner typed错误返回，保留静默停止、禁止执行及新owner终态保护；随后继续失败读取durable终态及UNKNOWN返回边界。
+- [x] stale及SQL identity fence的生产claim owner返回ADK_RUN_LEASE_LOST，保留loop协调停止、零执行及新owner状态；current执行及precancellation控制通过。定向63 passed，167完整Go tool.Run返回边界保持partial。
+- [x] 本批quick2392 Rust/98 Pine及desktop Node11+48通过；现场完整Rust3987 passed、0 failed、2 skipped，static/七类replay退出0，无LEAK。1021个Rust冻结源码与receipt/anchor/reuse/diff复核，数量保持1661/2152/638。
+- [ ] 294短心跳按原3秒TTL/100ms配置、2秒观察窗口及initial expiry+1ms接管时点验证生产worker；继续失败读取durable终态与UNKNOWN返回边界。
 - [ ] 每批继续核对5–10条原测试，定向nextest、quick及现场完整Rust门禁通过后复核并提交；整体对齐未完成不标complete。
 
 ## 已验证批次：ADK checkpoint replay 与唯一投影 owner

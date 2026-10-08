@@ -557,8 +557,12 @@ fn production_stale_run_lease_executes_no_read_tool_and_preserves_the_replacemen
             &Arc::new(AtomicBool::new(false)),
             false,
         )
-        .unwrap();
-    assert!(claim.is_none());
+        .unwrap_err();
+    assert!(matches!(
+        claim,
+        super::super::AdkChatPortError::Failed { status: 409, code, .. }
+            if code == "ADK_RUN_LEASE_LOST"
+    ));
     fixture
         .runtime
         .run_tool_loop(chat.clone(), Arc::new(AtomicBool::new(false)), &stale);
@@ -584,6 +588,123 @@ fn production_stale_run_lease_executes_no_read_tool_and_preserves_the_replacemen
         replacement
     );
     assert!(!current.is_lost());
+    let provider = Provider::new();
+    let mut current_chat = chat;
+    current_chat.request.endpoint = provider.endpoint.parse().unwrap();
+    fixture.runtime.run_tool_loop(
+        current_chat.clone(),
+        Arc::new(AtomicBool::new(false)),
+        &current,
+    );
+    assert_eq!(fixture.calls.load(Ordering::Acquire), 1);
+    assert_eq!(
+        fixture
+            .store
+            .get_run(&current_chat.run_id)
+            .unwrap()
+            .unwrap()
+            .status,
+        "COMPLETED"
+    );
+}
+
+// Parity: go:452dea11:internal/assistant/engine/execution_claims_test.go:167 TestGoogleADKToolRejectsStaleContextAfterLeaseTurnover
+#[test]
+fn production_tool_claim_preserves_precancellation_and_allows_its_current_owner() {
+    let fixture = ToolFixture::new(false);
+    let chat = fixture.seed("run-claim-cancelled");
+    let lease =
+        RunLeaseGuard::acquire(fixture.store.clone(), &chat.run_id, "current-owner").unwrap();
+    let before = fixture.store.get_run(&chat.run_id).unwrap().unwrap();
+    let cancelled = Arc::new(AtomicBool::new(true));
+    let claim = || {
+        fixture.runtime.claim_tool_invocation_with_retry(
+            &chat,
+            "function-call-test",
+            "market.snapshot",
+            r#"{"value":"once"}"#,
+            lease.owner_id(),
+            &lease,
+            &cancelled,
+            false,
+        )
+    };
+    assert!(claim().unwrap().is_none());
+    assert_eq!(
+        fixture.store.get_run(&chat.run_id).unwrap().unwrap(),
+        before
+    );
+    assert!(
+        fixture
+            .store
+            .get_tool_invocation(&chat.run_id, "function-call-test")
+            .unwrap()
+            .is_none()
+    );
+    cancelled.store(false, Ordering::Release);
+    let Some(AdkToolInvocationClaim::Execute(invocation)) = claim().unwrap() else {
+        panic!("current owner must obtain an execution claim");
+    };
+    assert_eq!(invocation.owner_id, lease.owner_id());
+    assert_eq!(invocation.run_lease_token, lease.token());
+    assert_eq!(fixture.calls.load(Ordering::Acquire), 0);
+}
+
+// Parity: go:452dea11:internal/assistant/engine/execution_claims_test.go:167 TestGoogleADKToolRejectsStaleContextAfterLeaseTurnover
+#[test]
+fn production_tool_claim_classifies_sql_owner_and_cross_run_fence_rejections_as_lease_lost() {
+    let fixture = ToolFixture::new(false);
+    let chat = fixture.seed("run-claim-bound");
+    let other_chat = fixture.seed("run-claim-other");
+    let lease =
+        RunLeaseGuard::acquire(fixture.store.clone(), &chat.run_id, "current-owner").unwrap();
+    let before = fixture.store.get_run(&chat.run_id).unwrap().unwrap();
+    let other_before = fixture.store.get_run(&other_chat.run_id).unwrap().unwrap();
+    let durable = fixture.store.get_run_lease(&chat.run_id).unwrap().unwrap();
+    for (attempt, owner) in [(&chat, "wrong-owner"), (&other_chat, lease.owner_id())] {
+        assert!(
+            !lease.is_lost(),
+            "SQL fence rejects a valid lease bound to another identity"
+        );
+        let error = fixture
+            .runtime
+            .claim_tool_invocation_with_retry(
+                attempt,
+                "function-call-test",
+                "market.snapshot",
+                r#"{"value":"once"}"#,
+                owner,
+                &lease,
+                &Arc::new(AtomicBool::new(false)),
+                false,
+            )
+            .unwrap_err();
+        assert!(super::super::is_nonfatal_durable_error(&error));
+        assert!(
+            matches!(error, super::super::AdkChatPortError::Failed { status:409, code, .. }
+            if code == "ADK_RUN_LEASE_LOST")
+        );
+        assert!(
+            fixture
+                .store
+                .get_tool_invocation(&attempt.run_id, "function-call-test")
+                .unwrap()
+                .is_none()
+        );
+    }
+    assert_eq!(fixture.calls.load(Ordering::Acquire), 0);
+    assert_eq!(
+        fixture.store.get_run(&chat.run_id).unwrap().unwrap(),
+        before
+    );
+    assert_eq!(
+        fixture.store.get_run(&other_chat.run_id).unwrap().unwrap(),
+        other_before
+    );
+    assert_eq!(
+        fixture.store.get_run_lease(&chat.run_id).unwrap().unwrap(),
+        durable
+    );
 }
 
 // Parity: go:452dea11:internal/assistant/engine/execution_claims_test.go:265 TestRuntimeReconciliationDoesNotStealFreshForeignLease

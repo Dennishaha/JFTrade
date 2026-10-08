@@ -451,6 +451,7 @@ pub(crate) fn runtime_store_error(error: AdkStoreError) -> AdkChatPortError {
 
 pub(crate) fn is_nonfatal_durable_error(error: &AdkChatPortError) -> bool {
     matches!(error, AdkChatPortError::Conflict(_))
+        || matches!(error, AdkChatPortError::Failed { code, .. } if code == "ADK_RUN_LEASE_LOST")
 }
 
 /// RAII guard for a durable ADK run lease and its heartbeat worker.

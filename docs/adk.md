@@ -79,6 +79,8 @@ JFTrade 的 Run、Approval、Audit 和前端 SSE 是产品控制面，不替代 
 
 heartbeat 在访问 SQLite 连接前拒绝已经过期的调用方租约快照，即使数据库行仍有效也不能凭旧快照续租。后台 owner 每次续租成功后采用返回的新快照；数据库中的 owner、fencing token 和有效期仍须同时通过 UPDATE 条件，续租失败继续取消执行并 join。
 
+工具认领 owner 将已丢失的 Run lease 和 SQLite lease fence 拒绝分类为 `ADK_RUN_LEASE_LOST`。tool loop 将它视为协调停止，禁止旧 owner 执行 handler 或写入失败终态。正常取消仍在认领前停止，当前 owner 可继续认领与执行。
+
 恢复 checkpoint 后，已终结的工具 invocation 复用原输出并在现有 SQLite 事务内恢复 Run 的工具结果及 session event。恢复写入校验当前 Run owner、token、状态与 revision；保持原 invocation 行及错误文本，重复结果不重新执行工具。journal 写失败会回滚整个恢复投影。
 
 执行 handler 前，runtime 从已经认领的 invocation 构造稳定的 `run:invocation` key，通过现有 timeout worker 交付不可变 context。它只携带工具幂等身份，不授予写租约；取消、deadline 和 panic recovery 沿用同一执行 owner。结果 replay 复用原输出及 key，不再次调用 handler。

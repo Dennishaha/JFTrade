@@ -72,6 +72,14 @@ fn tool_error_envelope(name: &str, error: &AdkChatPortError) -> Value {
     })
 }
 
+fn tool_claim_lease_lost(message: impl Into<String>) -> AdkChatPortError {
+    AdkChatPortError::Failed {
+        status: 409,
+        code: "ADK_RUN_LEASE_LOST".to_owned(),
+        message: message.into(),
+    }
+}
+
 /// Go's `structuredToolError`: `{"success":false}` uses the trimmed `message`
 /// (defaulting to `tool execution failed`), and the legacy `{"error": ...}`
 /// shape is a failure unless the rendered text is blank or `<nil>`.
