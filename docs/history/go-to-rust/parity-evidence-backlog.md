@@ -1,5 +1,14 @@
 # Go → Rust 证据积压清单
 
+## 2026-10-09 同步 chat durable 解码与原函数复核
+
+- 冻结Go的`ChatRunByClientRequestID`在指纹比较前`decodeRun`；同步handler把错误映射为400/ADK_CHAT_FAILED，stream仍为500。恢复工作区现场红0 passed/1 failed：已损坏row的同请求返回200保存回复；红receipt SHA `cc9568f76f1c0ad554b2064ae5e8d8e6080cb1bb3685f45f51b03850275779e1`、六字段红测源码与1041文件指纹独立保留。
+- 生产`prepare_existing_run`在identity与保存response前复用领域字段校验。实际HTTP测试八类字段错误×同/冲突body均400、非空ADK_CHAT_FAILED且无data；完整run/audit/native sessions不变，零provider连接。有效null/重复/未知扩展仍200重放或409冲突。现场控制11 passed，最终定向229 passed/0 failed，无LEAK；canonical receipt SHA `48f29cff2d7cbfb578db8a2f37df6c8d9dcbf0072fb2e8aeed61f2b41f6973c7`。
+- 逐项核对8条冻结原函数及blob：routes301、identity17、concurrent48、runner_chat737、persistence31、service_business169、recovery41、helpers216。runner_chat737的注册测试只证明新approval停泊，未证明混合已resolved审批、快照/原生消息/投影/计数/audit全函数，exact→partial。persistence31的私有provider wire字段已有保存/恢复owner，旧ModelResponse文本slot差异不能构成boundary；boundary→partial，尚无直接owner值与公开JSON隐私断言，verification为unverified。1665 exact/2149 partial/637 boundary；不扩大现有exact结论。
+- 原外置盘在quick执行期间消失：已确认2442 Rust及七类replay通过，但Pine/desktop及pnpm最终退出未知，完整Rust未启动；[中断证据](gate-runs/adk-sync-typed-external-volume-interrupted-2026-10-09.json)不计为通过。在内置盘新checkout复原同分支HEAD1350aa10与Go基线，锁定依赖，重新生成现场红、控制、定向和后续门禁证据。原盘未提交内容未回退，旧盘恢复后不得覆盖。
+- 恢复checkout查看quick计划后，2442 Rust/98 Pine/desktop Node11+48及七类replay通过，退出0；同源码现场完整`CARGO_INCREMENTAL=0 pnpm run check:rust`4042 passed/0 failed/2 skipped，static/七类replay退出0，无LEAK。[quick](gate-runs/adk-sync-typed-quick-verified-2026-10-09.json) SHA `fa780171b334c48584f91d57ebc0141b2c35a3fc8f1cce8e448612fb041b837b`，[完整Rust](gate-runs/adk-sync-typed-rust-verified-2026-10-09.json) SHA `fd6576a53659e9fe75a202d7123d83bbc1054f671070c693d77e036392edd7c8`。三份receipt/raw SHA、失败与最终源码、8条原函数、17处reuse/anchor、两条分类diff及1041源码指纹复核通过；strict/context退出0，unrecorded/stale0、既有unknown48。
+- 内置盘证据与失败快照保存在`/Users/jiangfan/.cache/jftrade/parity-sync-typed-recovery-20261009`。GET typed解码/history、私有reasoning保存/恢复值及公开隐私、整个chat投影原函数、旧请求语义重排、known-context、context首次revision、原生partial/tool投影和lease启动仍开放；历史LEAK未定位，整体未完成，提交后继续。
+
 ## 2026-10-09 durable Run 字段解码优先于 stream 重放
 
 - 实际HTTP生产红0 passed/1 failed：已有COMPLETED row的`message:42`被缺runtime保留记录重放为200，冻结Go的`ChatRunByClientRequestID`先`decodeRun`，应在handshake前返回500/ADK_CHAT_FAILED。原diff、1040文件源码快照及红receipt SHA `ad2d6c781a842b200a6b0e66c4aef39d3b205c99898103e7cf87672d7c6105f4`保留。

@@ -95,6 +95,8 @@ impl ProductionAdkChatRuntime {
         route: AdkChatRoute,
         identity: &crate::product::product_adk_chat_identity::ChatRequestIdentity,
     ) -> Result<PreparedChat, AdkChatPortError> {
+        jftrade_assistant::validate_persisted_run_payload(&existing.payload_json)
+            .map_err(storage_unavailable)?;
         if !identity.matches(&existing.request_fingerprint) {
             return Err(AdkChatPortError::Conflict(
                 "clientRequestId was already used with a different request".to_owned(),

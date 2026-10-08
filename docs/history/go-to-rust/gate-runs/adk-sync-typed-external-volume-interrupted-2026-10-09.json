@@ -1,0 +1,26 @@
+{
+  "observedAt": "2026-10-08T22:28:48.895169+00:00",
+  "workspace": "/Volumes/帆帆PM961-512/Github/JFTrade",
+  "gate": "env CARGO_INCREMENTAL=0 pnpm run check:quick",
+  "status": "interrupted",
+  "shellExitCode": 1,
+  "gateExitCodeConfirmed": false,
+  "lastConfirmedResults": {
+    "rustPassed": 2442,
+    "rustFailed": 0,
+    "rustSkipped": 0,
+    "compatibilityReplaysPassed": 7
+  },
+  "evidence": [
+    "Failed to create unified exec process: No such file or directory (os error 2)",
+    "/Volumes contains Macintosh HD and Recovery only; diskutil list external returns no disks",
+    "zsh:5: device not configured: .git/adk-sync-typed-quick-20261009.exit",
+    "tail: .git/adk-sync-typed-quick-20261009.log: Device not configured"
+  ],
+  "notPassed": [
+    "quick completion",
+    "Pine completion",
+    "desktop completion",
+    "full Rust gate"
+  ]
+}

@@ -1,0 +1,51 @@
+{
+  "schemaVersion": "jftrade.local-quality-gate.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "pnpm",
+    "run",
+    "check:rust"
+  ],
+  "status": "passed",
+  "exitCode": 0,
+  "verifiedAt": "2026-10-08T22:43:27.344336+00:00",
+  "verifiedCommit": "1350aa10037adde7ae057e6f7d7afdcb01076432",
+  "rawOutputPath": "/Users/jiangfan/.cache/jftrade/parity-sync-typed-recovery-20261009/workspace/.git/adk-sync-typed-rust-20261009.log",
+  "rawOutputSha256": "7e171c322d8597d96d8958c4eb3a043be846cf8c4e06a14f763f58a8eb5dd2be",
+  "environment": {
+    "CARGO_TARGET_DIR": "/Users/jiangfan/.cache/jftrade/targets/parity-assistant-20261008",
+    "CARGO_INCREMENTAL": "0",
+    "rustc": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+    "node": "v24.19.0",
+    "pnpm": "12.3.4",
+    "protoc": "libprotoc 34.1",
+    "nextest": "0.9.143"
+  },
+  "nextestSummary": {
+    "planned": 4042,
+    "passed": 4042,
+    "failed": 0,
+    "skipped": 2,
+    "testSeconds": 113.895
+  },
+  "compatibilityReplays": {
+    "storage": "passed",
+    "backtest": "passed",
+    "provider-runtime": "passed",
+    "trading-strategy": "passed",
+    "assistant-runtime": "passed",
+    "api-transport": "passed",
+    "desktop-runtime": "passed"
+  },
+  "affectedSourceSha256": {
+    "crates/jftrade-engine/src/product_adk_durable_identity_preflight_tests.rs": "b5a5438b7ca7febfe04442c5a83eb8af30de6726cf7f7d4a09d6c1175669b1bd",
+    "crates/jftrade-engine/src/product_adk_model_runtime_replay.rs": "69f3910a3830a7e78476bd0d8c2661b3f2aeec185f0b31f9ea891f5991fd9d69"
+  },
+  "rustSourceFingerprintSha256": "2d93c499ce7ae6ee04d0c804ea7a174aaea066239a47c00ae1ad0b57256de9ee",
+  "frozenRustFiles": 1041,
+  "rustSourceChangedDuringGate": [],
+  "leakyTestMarkerCount": 0,
+  "remainingRisk": "Production sync chat validates persisted Run types before saved response or fingerprint conflict and returns400 ADK_CHAT_FAILED without provider/store mutation. Stream retains500. Eight frozen originals reviewed; runner_chat737 exact→partial and persistence31 boundary→partial:1665 exact/2149 partial/637 boundary. GET decode/history, private reasoning privacy, full projection, legacy request semantic reformatting, known-context, context revision, native partial/tool projection and lease startup gaps remain. Historical LEAKs unresolved; whole goal unfinished. External-volume quick interrupted and not counted passed; this receipt is the fresh internal checkout onsite rerun.",
+  "static": "passed"
+}

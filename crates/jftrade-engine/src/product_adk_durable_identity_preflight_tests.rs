@@ -3,6 +3,79 @@ use crate::product::product_adk_chat_stream_port::{AdkChatInput, AdkChatRoute, A
 use sha2::Digest;
 
 #[tokio::test]
+async fn production_sync_chat_decodes_durable_fields_before_saved_response_or_conflict() {
+    let _ = rustls::crypto::ring::default_provider().install_default();
+    let (_directory, port, provider) = retained_readiness::configured_port();
+    retained_readiness::set_provider(&port, &provider, true);
+    let request = "11111111-1111-4111-8111-111111111112";
+    port.store.upsert_session("session-sync-typed","agent-sync-typed",
+        r#"{"id":"session-sync-typed","agentId":"agent-sync-typed"}"#).unwrap();
+    port.session_store.upsert_session("jftrade","local","session-sync-typed","{}").unwrap();
+    let original = json!({"clientRequestId":request,"message":"hello"}).to_string();
+    let fingerprint = sha2::Sha256::digest(original.as_bytes()).iter()
+        .map(|byte| format!("{byte:02x}")).collect::<String>();
+    port.store.create_run(CreateAdkRunParams {
+        id:"run-sync-typed",session_id:"session-sync-typed",agent_id:"agent-sync-typed",
+        status:"COMPLETED",client_request_id:request,request_fingerprint:&fingerprint,payload_json:"{}",
+    }).unwrap();
+    let prepared = prepared_router_with_chat(port.clone(), true).await;
+    let handle = crate::product::expose_prepared_product(prepared).unwrap();
+    let url = format!("http://{}/api/v1/adk/chat",handle.startup_record().address);
+    let mut observed = Vec::new();
+    for fields in [
+        r#""message":42"#,r#""toolCalls":"invalid""#,
+        r#""pendingApprovals":[{"input":false}]"#,
+        r#""usage":{"modelCalls":true}"#,
+        r#""inputRequest":{"questions":[{"allowOther":"false"}]}"#,
+        r#""message":42,"MESSAGE":"later valid message""#,
+        r#""message":"hello", "maxDurationMs":1e3"#,
+        r#""message":"hello", "toolCalls":[{"output":1e309}]"#,
+    ] {
+        let payload = format!(r#"{{"route":"chat","response":{{"reply":"saved winner"}},{fields}}}"#);
+        port.store.update_run_state("run-sync-typed","COMPLETED",&payload).unwrap();
+        let runs = port.store.list_runs().unwrap();
+        let audit = port.store.list_audit_events().unwrap();
+        let native = port.session_store.list_sessions().unwrap();
+        for message in ["hello","changed"] {
+            let response = reqwest::Client::new().post(&url)
+                .json(&json!({"clientRequestId":request,"message":message}))
+                .send().await.unwrap();
+            observed.push((fields,message,response.status(),response.text().await.unwrap()));
+        }
+        assert_eq!(port.store.list_runs().unwrap(),runs);
+        assert_eq!(port.store.list_audit_events().unwrap(),audit);
+        assert_eq!(port.session_store.list_sessions().unwrap(),native);
+    }
+    let valid = r#"{"id":"run-sync-typed","sessionId":"session-sync-typed","agentId":"agent-sync-typed","status":"COMPLETED","route":"chat","message":null,"usage":null,"toolCalls":null,"message":"later value","future":{"message":42},"response":{"reply":"saved winner"}}"#;
+    port.store.update_run_state("run-sync-typed","COMPLETED",valid).unwrap();
+    let runs = port.store.list_runs().unwrap();
+    let audit = port.store.list_audit_events().unwrap();
+    let mut valid_results = Vec::new();
+    for message in ["hello","changed"] {
+        let response = reqwest::Client::new().post(&url)
+            .json(&json!({"clientRequestId":request,"message":message}))
+            .send().await.unwrap();
+        valid_results.push((message,response.status(),response.json::<Value>().await.unwrap()));
+    }
+    handle.shutdown().await.unwrap();
+    port.shutdown_with_error().unwrap();
+    assert_eq!(provider.accept().unwrap_err().kind(),io::ErrorKind::WouldBlock);
+    for (fields,message,status,body) in observed {
+        assert_eq!(status,400,"fields={fields},message={message},body={body}");
+        let error:Value=serde_json::from_str(&body).unwrap();
+        assert_eq!(error["error"]["code"],"ADK_CHAT_FAILED");
+        assert!(!error["error"]["message"].as_str().unwrap().is_empty());
+        assert!(error.get("data").is_none());
+    }
+    assert_eq!(valid_results[0].1,200);
+    assert_eq!(valid_results[0].2["data"]["reply"],"saved winner");
+    assert_eq!(valid_results[1].1,409);
+    assert_eq!(valid_results[1].2["error"]["code"],"ADK_CHAT_IDEMPOTENCY_CONFLICT");
+    assert_eq!(port.store.list_runs().unwrap(),runs);
+    assert_eq!(port.store.list_audit_events().unwrap(),audit);
+}
+
+#[tokio::test]
 async fn production_stream_preflight_rejects_typed_run_corruption_before_replay_or_conflict() {
     let _ = rustls::crypto::ring::default_provider().install_default();
     let mut observed = Vec::new();

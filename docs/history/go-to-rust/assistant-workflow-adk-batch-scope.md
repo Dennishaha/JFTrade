@@ -3329,4 +3329,12 @@ Go 这两条把 workflow bridge 钉在两件事上：manager 的 CRUD/分页/run
 
 两批失败原日志、源码快照和receipt均保留。最终字段解码 [生产owner receipt](verification-receipts/adk-typed-run-production-owner-verified-2026-10-09.json) 对应定向227 passed；[quick](gate-runs/adk-typed-run-quick-verified-2026-10-09.json) 与 [完整Rust](gate-runs/adk-typed-run-rust-verified-2026-10-09.json) 绑定同一1041文件冻结指纹。同步chat的400解码返回、GET缺失history/typed解码、请求重复与大小写解码、known-context、context首次revision、原生partial/tool投影及lease启动仍为活动缺口；历史LEAK未定位，整体目标未完成。
 
+### 2026-10-09 同步 durable 字段解码与冻结原函数分类复核
+
+生产`prepare_existing_run`在identity比较及保存response前校验persisted Run；实际HTTP8类损坏×同/冲突body均400/ADK_CHAT_FAILED，无data、零provider连接，run/audit/native sessions保持。有效null/重复/未知扩展返回保存回复或409。冻结Go同步handler错误400与stream500分别保留。恢复checkout红0/1、控制11、[最终定向receipt](verification-receipts/adk-sync-typed-production-owner-verified-2026-10-09.json)229 passed/0 failed；红源码与指纹独立保留。
+
+本批8条原函数逐项核对：routes301、identity17、concurrent48、runner_chat737、persistence31、service_business169、recovery41、helpers216。runner_chat737注册停泊测试未构造混合resolved approvals，快照/原生消息/投影/计数/audit仍缺，exact退回partial。persistence31私有provider reasoning wire字段已有保存/恢复owner，旧ModelResponse文本slot的boundary解释错误；改partial，明确值/公开隐私未验证并撤销旧passed手工review。两条以外mapping与reuse保持，1665 exact/2149 partial/637 boundary。
+
+原外置盘quick中断不计通过，完整Rust当时未启动；[中断证据](gate-runs/adk-sync-typed-external-volume-interrupted-2026-10-09.json)保留。内置盘恢复同分支/基线，现场[quick](gate-runs/adk-sync-typed-quick-verified-2026-10-09.json)2442 Rust/98 Pine/desktop11+48及七类replay通过；[完整Rust](gate-runs/adk-sync-typed-rust-verified-2026-10-09.json)4042 passed/0 failed/2 skipped、static/七类replay退出0，无LEAK。1041文件冻结，三份receipt/raw SHA、两份gate、8条Go函数/blob、17处reuse/anchor与diff核验，strict/context通过、unrecorded/stale0、既有unknown48。失败与最终源码/日志备份在`/Users/jiangfan/.cache/jftrade/parity-sync-typed-recovery-20261009`。私有reasoning保存/恢复值及公开隐私、GET typed解码/history、完整chat投影等继续开放；整体目标未完成。
+
 验证：定向227/227、quick2696 Rust/98 Pine/desktop Node11+48、现场`CARGO_INCREMENTAL=0 check:rust`4041 passed/0 failed/2 skipped、static及七类replay退出0，无LEAK；五份receipt、两份gate、8条Go原函数、20处reuse/anchor、源码指纹与diff复核通过。

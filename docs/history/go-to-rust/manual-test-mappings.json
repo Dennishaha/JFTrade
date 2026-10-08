@@ -94961,10 +94961,10 @@
     },
     "internal/assistant/engine/persistence/store_run_test.go:31:TestRunReasoningSnapshotIsPrivateAndRestored": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_projection.rs",
-      "conclusion": "boundary（结构差异）：Go 断言 run 的 reasoning 快照私有存储并在恢复时还原。Rust 的 ModelResponse 只携带可见文本与工具调用（stream_success.rs 明确“reasoning slot stays empty”），运行负载中的 preToolReasoning 为投影字段，没有 reasoning 快照存储/还原链路。",
-      "command": "python3 - <<'PY'  # owner review: verify every remaining source-only/boundary row has explicit gap evidence\n...\nPY",
-      "evidence_type": "boundary",
+      "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_events.rs; crates/jftrade-engine/src/product_adk_model_runtime_resume.rs",
+      "conclusion": "partial：Go的私有reasoning快照是provider wire配置；Rust已有保存和恢复owner，旧ModelResponse文本slot差异不能作为boundary。尚未直接验证保存/恢复值和公开JSON隐私。",
+      "command": "unverified: repository source owner review; no production-owner test receipt",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/assistant/engine/persistence/store_run_test.go",
         "line": 31,
@@ -94974,48 +94974,35 @@
       "rustEvidence": [],
       "assertionCoverage": {
         "covered": [
-          "Rust run projection restores visible text and tool calls from durable state."
+          "源码定位：生产events owner持久化reasoningEffortField/Value，resume owner将其恢复到provider.reasoning；仅定位，不视为行为验证。"
         ],
         "uncovered": [
-          "Rust ModelResponse does not carry the Go reasoning snapshot slot, so private reasoning persistence and restoration are not implemented or asserted."
+          "缺少直接生产owner断言：私有provider reasoning字段持久化并读取原值、resume完整还原，以及公开JSON不暴露这些字段。"
         ],
         "source": "reviewed"
       },
       "verification": {
-        "argv": [
-          "python3",
-          "scripts/compatibility/verify_manual_mapping_evidence.py",
-          "--mapping",
-          "docs/history/go-to-rust/manual-test-mappings.json",
-          "--workspace-receipt",
-          "docs/history/go-to-rust/verification-receipts/workspace-nextest-2026-10-03-final.json",
-          "--output",
-          "docs/history/go-to-rust/verification-receipts/manual-evidence-review-2026-10-03.json"
-        ],
-        "testFilter": [
-          "owner_review_source_and_boundary_rows"
-        ],
-        "runnerVersion": "manual-evidence-review.v1",
-        "toolchain": "repository evidence verifier",
-        "status": "passed",
-        "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-03T00:00:00Z",
-        "receiptDigest": "sha256:dabdaee2e19d689b2d81e39b431141ef5b34fb1ae09c5fe0feb8e30679a8e13e"
+        "argv": [],
+        "testFilter": [],
+        "runnerVersion": "unverified",
+        "toolchain": "repository source owner review",
+        "status": "unverified",
+        "exitCode": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "receiptDigest": null
       },
-      "risk": "normal",
+      "risk": "high",
       "owner": "assistant_workflow",
-      "priority": "P2",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "priority": "P1",
+      "nextAction": "verify_private_reasoning_snapshot_owner",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust run projection restores visible text and tool calls from durable state."
+        "源码定位：生产events owner持久化reasoningEffortField/Value，resume owner将其恢复到provider.reasoning；仅定位，不视为行为验证。"
       ],
       "uncoveredAssertions": [
-        "Rust ModelResponse does not carry the Go reasoning snapshot slot, so private reasoning persistence and restoration are not implemented or asserted."
+        "缺少直接生产owner断言：私有provider reasoning字段持久化并读取原值、resume完整还原，以及公开JSON不暴露这些字段。"
       ],
       "boundaryReason": null
     },
@@ -100331,11 +100318,11 @@
       "boundaryReason": null
     },
     "internal/assistant/engine/runner_chat_test.go:737:TestRunnerChatProjectionPersistenceAndAssistantBoundaries": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_chat_turn_tests.rs::a_gated_tool_call_parks_the_run_with_only_pending_approvals",
-      "conclusion": "function_exact（可迁移子契约）+ boundary（Go 内部辅助函数）：该 Go 测试是一组边界断言的集合。已迁移并可验证的部分：①`finishPendingApprovalRun` 的停泊分支 —— run.status=PENDING、只发布仍待审批的 approvals（已 resolved 的不回流）、tool call=PENDING_APPROVAL、回复为审批提示，由 a_gated_tool_call_parks_the_run_with_only_pending_approvals 覆盖（approval 模式 + http.fetch 的 medium 风险审批）；②`applySessionProjectionToRun` 的 finalMessageId / preToolContent / optimizationTaskId / usage.toolCallsTotal / pendingApprovals 由第二十九批 the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals 与 a_completed_projection_hides_resolved_approvals 覆盖。boundary 部分：persistRunActivitySnapshot / AuthoritativeRunSnapshot / appendAssistantMessageEvent / EnsureAssistantMessage 是 Go「run 快照可写 + session 投影可读」的双来源 api；Rust 的 run 行由 runtime 唯一写者持有、session 事件不参与重建 run 字段，没有等价内部 api，硬造会引入第二写者。shouldPreferProjectedToolCalls / terminalToolCallCount / pendingApprovalToolCallCount 只在 Go 的 payload 与 session transcript 对账时存在，Rust 无对账需求；若将来引入第二来源必须重新评估并补回归。",
+      "conclusion": "partial：注册的生产停泊测试仅证明新审批调用PENDING与未执行；整个冻结Go函数的快照、原生消息、投影、计数和audit断言未闭合。",
       "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(a_gated_tool_call_parks_the_run_with_only_pending_approvals)'",
-      "evidence_type": "function_exact",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/assistant/engine/runner_chat_test.go",
         "line": 737,
@@ -100357,46 +100344,68 @@
       ],
       "assertionCoverage": {
         "covered": [
-          "function_exact（可迁移子契约）+ boundary（Go 内部辅助函数）：该 Go 测试是一组边界断言的集合。已迁移并可验证的部分：①`finishPendingApprovalRun` 的停泊分支 —— run.status=PENDING、只发布仍待审批的 approvals（已 resolved 的不回流）、tool call=PENDING_APPROVAL、回复为审批提示，由 a_gated_tool_call_parks_the_run_with_only_pending_approvals 覆盖（approval 模式 + http.fetch 的 medium 风险审批）；②`applySessionProjectionToRun` 的 finalMessageId / preToolContent / optimizationTaskId / usage.toolCallsTotal / pendingApprovals 由第二十九批 the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals 与 a_completed_projection_hides_resolved_approvals 覆盖。boundary 部分：persistRunActivitySnapshot / AuthoritativeRunSnapshot / appendAssistantMessageEvent / EnsureAssistantMessage 是 Go「run 快照可写 + session 投影可读」的双来源 api；Rust 的 run 行由 runtime 唯一写者持有、session 事件不参与重建 run 字段，没有等价内部 api，硬造会引入第二写者。shouldPreferProjectedToolCalls / terminalToolCallCount / pendingApprovalToolCallCount 只在 Go 的 payload 与 session transcript 对账时存在，Rust 无对账需求；若将来引入第二来源必须重新评估并补回归。"
+          "实际生产approval模式的http.fetch新调用停泊：run与approval为PENDING，tool call为PENDING_APPROVAL，回复为审批提示且executor未执行。"
         ],
-        "uncovered": [],
+        "uncovered": [
+          "未构造混合pending/approved输入，未直接证明已resolved approval不会回流。",
+          "未闭合activity快照status/preToolContent/usage/completed/cancelled时间合并、stored FAILED权威优先及missing-store fallback。",
+          "未闭合native assistant session/run/reply/reasoning、同ID EnsureAssistantMessage、nil session service与create错误。",
+          "未闭合projection的finalMessageId/preToolContent/optimizationTaskId/tool总数/pending approvals、projected/current tool call优先级及terminal/pending计数。",
+          "未闭合FAILED audit文本与字段。"
+        ],
         "source": "reviewed"
       },
       "verification": {
         "argv": [
           "env",
+          "CARGO_INCREMENTAL=0",
           "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
+          "-p",
+          "jftrade-api",
+          "-p",
+          "jftrade-store-sqlite",
+          "-p",
+          "jftrade-assistant",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(request_cancellation) | test(reconnect) | test(terminal_audit) | test(fenc) | test(lease) | test(UNKNOWN) | test(revoked_idle_sse) | test(session_owner_disappearance) | test(persisted_run_types) | test(preflight) | test(canonical_identity) | test(retained_error) | test(pre_run) | test(terminal_recovery) | test(a_gated_tool_call_parks_the_run)"
         ],
         "testFilter": [
           "a_gated_tool_call_parks_the_run_with_only_pending_approvals"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "1350aa10037adde7ae057e6f7d7afdcb01076432",
+        "verifiedAt": "2026-10-08T22:36:37Z",
+        "receiptDigest": "sha256:48f29cff2d7cbfb578db8a2f37df6c8d9dcbf0072fb2e8aeed61f2b41f6973c7"
       },
-      "risk": "normal",
+      "risk": "high",
       "owner": "assistant_workflow",
-      "priority": "P2",
-      "nextAction": "retain_receipt_and_reaudit",
+      "priority": "P1",
+      "nextAction": "close_chat_projection_persistence_owner",
       "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "function_exact（可迁移子契约）+ boundary（Go 内部辅助函数）：该 Go 测试是一组边界断言的集合。已迁移并可验证的部分：①`finishPendingApprovalRun` 的停泊分支 —— run.status=PENDING、只发布仍待审批的 approvals（已 resolved 的不回流）、tool call=PENDING_APPROVAL、回复为审批提示，由 a_gated_tool_call_parks_the_run_with_only_pending_approvals 覆盖（approval 模式 + http.fetch 的 medium 风险审批）；②`applySessionProjectionToRun` 的 finalMessageId / preToolContent / optimizationTaskId / usage.toolCallsTotal / pendingApprovals 由第二十九批 the_run_projection_derives_tool_summaries_optimization_task_and_usage_totals 与 a_completed_projection_hides_resolved_approvals 覆盖。boundary 部分：persistRunActivitySnapshot / AuthoritativeRunSnapshot / appendAssistantMessageEvent / EnsureAssistantMessage 是 Go「run 快照可写 + session 投影可读」的双来源 api；Rust 的 run 行由 runtime 唯一写者持有、session 事件不参与重建 run 字段，没有等价内部 api，硬造会引入第二写者。shouldPreferProjectedToolCalls / terminalToolCallCount / pendingApprovalToolCallCount 只在 Go 的 payload 与 session transcript 对账时存在，Rust 无对账需求；若将来引入第二来源必须重新评估并补回归。"
+        "实际生产approval模式的http.fetch新调用停泊：run与approval为PENDING，tool call为PENDING_APPROVAL，回复为审批提示且executor未执行。"
       ],
-      "uncoveredAssertions": [],
+      "uncoveredAssertions": [
+        "未构造混合pending/approved输入，未直接证明已resolved approval不会回流。",
+        "未闭合activity快照status/preToolContent/usage/completed/cancelled时间合并、stored FAILED权威优先及missing-store fallback。",
+        "未闭合native assistant session/run/reply/reasoning、同ID EnsureAssistantMessage、nil session service与create错误。",
+        "未闭合projection的finalMessageId/preToolContent/optimizationTaskId/tool总数/pending approvals、projected/current tool call优先级及terminal/pending计数。",
+        "未闭合FAILED audit文本与字段。"
+      ],
       "boundaryReason": null
     },
     "internal/assistant/engine/runner_chat_test.go:846:TestProjectedChatResponseDoesNotExposeResolvedApprovals": {
