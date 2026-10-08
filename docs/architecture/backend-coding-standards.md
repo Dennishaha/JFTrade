@@ -37,6 +37,8 @@ ADK GET 重连 body 由 HTTP 消费者持有，无后台 producer task。SQLite 
 持有。engine adapter 读取当前状态并验证 provider 可用性，领域规则通过后才交由
 现有 store writer 保存；创建与更新入口使用同一保护规则。
 
+Assistant chat请求身份的字段规范化与有序JSON表示同样归领域crate；engine计算摘要并在现有durable和无run保留owner比较身份，旧摘要兼容不引入第二写入者。
+
 ### Store crates
 
 `jftrade-store-sqlite` 和 `jftrade-store-settings-file` 负责持久化、migration、事务、编码和 `WriterLease`。业务决策留在领域层；store 不依赖 HTTP transport 或具体外部协议。

@@ -1,0 +1,61 @@
+{
+  "schemaVersion": "jftrade.local-quality-gate.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "pnpm",
+    "run",
+    "check:rust"
+  ],
+  "status": "passed",
+  "exitCode": 0,
+  "verifiedAt": "2026-10-08T20:00:07.773743+00:00",
+  "verifiedCommit": "436a322b9da91220bcfc37a43a85b74cbbb57fd3",
+  "rawOutputPath": "/Volumes/帆帆PM961-512/Github/JFTrade/.git/adk-canonical-identity-rust-20261009.log",
+  "rawOutputSha256": "0fcd583b31fc9bc601ed081b3b5f1c2534683714342b52282fd5df09d2d761c2",
+  "environment": {
+    "CARGO_TARGET_DIR": "/Users/jiangfan/.cache/jftrade/targets/parity-assistant-20261008",
+    "CARGO_INCREMENTAL": "0",
+    "rustc": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+    "node": "v24.19.0",
+    "pnpm": "12.3.4",
+    "protoc": "libprotoc 34.1",
+    "nextest": "0.9.143"
+  },
+  "nextestSummary": {
+    "planned": 4020,
+    "passed": 4020,
+    "failed": 0,
+    "skipped": 2,
+    "testSeconds": 109.17
+  },
+  "compatibilityReplays": {
+    "storage": "passed",
+    "backtest": "passed",
+    "provider-runtime": "passed",
+    "trading-strategy": "passed",
+    "assistant-runtime": "passed",
+    "api-transport": "passed",
+    "desktop-runtime": "passed"
+  },
+  "affectedSourceSha256": {
+    "crates/jftrade-assistant/src/lib.rs": "a1bd21820ec7f0a1c3f01cb969cd9f6bf42f67f2696cf7aa5c107bb16e02e2d9",
+    "crates/jftrade-engine/src/product.rs": "e715de91e91fe6361fa0260ac589434b0da0c0733d1a2d031ba11cbc3da12949",
+    "crates/jftrade-engine/src/product_adk_chat_stream_port.rs": "1aca10c4bd935acce70f4a6837f032f39b9061c3eff188d5a7b2660b0e39c3c8",
+    "crates/jftrade-engine/src/product_adk_model_runtime.rs": "fd587279a71418ac047f7454696d38be18c403d697b605426826ceb56fe09908",
+    "crates/jftrade-engine/src/product_adk_model_runtime_adapters.rs": "243c499d0c67fbe8b2d31980f010484dd549cbcc0d9626195e046835e21c5a7e",
+    "crates/jftrade-engine/src/product_adk_model_runtime_events.rs": "f563a3ef03d3c7dd9b2dcb006a0abcac53c2d81084360b23648a0a0b24bd5df3",
+    "crates/jftrade-engine/src/product_adk_model_runtime_replay.rs": "e4ab32b03ec8d58568800e9895a6c9508e8f4b26811e3e1ed2d7f54211fc9d21",
+    "crates/jftrade-engine/src/product_adk_reconnect_disconnect_tests.rs": "1b82cf1330bde4c56ac9a1998f058268cdce01b88f7f3b7e03fcebb95443bb3c",
+    "crates/jftrade-engine/src/product_adk_unavailable_stream.rs": "a71daea7b6e0598bae3fa25f128c7f701829264c0d3958d4867ec0fa10b70a72",
+    "crates/jftrade-assistant/src/chat_identity.rs": "36e8f23ff34b185dae320d6dc6c33a95510036d8f42a4afe05071ea61572ed37",
+    "crates/jftrade-engine/src/product_adk_canonical_identity_owner_tests.rs": "a4d6c66f213c1449ef160584593fca0f8fdfcab450ffd93006287ec145836264",
+    "crates/jftrade-engine/src/product_adk_chat_identity.rs": "3b8db3897b690241daf43bbdc7462010644c33ce180b3c3c2707e9ae0838d711"
+  },
+  "rustSourceFingerprintSha256": "de540f8997d0ab563a7c5d1c0c7084b4b429ec2cb423d7b30e6947c8843f865d",
+  "frozenRustFiles": 1031,
+  "rustSourceChangedDuringGate": [],
+  "leakyTestMarkerCount": 0,
+  "remainingRisk": "Canonical request identity shared by durable/pre-run owners: equivalent JSON replays the original terminal, changed reasoning/objective/budget conflicts, legacy raw fingerprint replays exact bytes without writes. Eight frozen originals reviewed; identity17 exact closes UUID/message/reasoning assertions. Legacy semantic reformatting, duplicate/case-insensitive field decode, durable typed payload, post-creation terminal retention, known context, concurrent successful responses/native final event and idle per-request pre-cancellation remain open. Stable two-test 409-versus-200 red and escaping fixture/compile failures preserved. Whole parity active.",
+  "static": "passed"
+}

@@ -178,6 +178,8 @@ use product_strategy_definition_write_port::{
     StrategyDefinitionWritePort, StrategyDefinitionWriteResponse,
     dispatch_strategy_definition_write, strategy_definition_write_routes,
 };
+#[path = "product_adk_chat_identity.rs"]
+mod product_adk_chat_identity;
 #[path = "product_adk_chat_stream_port.rs"]
 pub mod product_adk_chat_stream_port;
 pub use product_adk_chat_stream_port::{ADK_CHAT_PATH, ADK_CHAT_STREAM_PATH, AdkChatStreamPort};

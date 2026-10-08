@@ -14,7 +14,8 @@ fn check_durable_request_identity(store: &AdkStore, input: &AdkChatInput) -> Res
     // fingerprints. A corrupt row must not be hidden by a transport record.
     let _: Option<serde_json::Map<String, Value>> = serde_json::from_str(&existing.payload_json)
         .map_err(|error| failure(error.to_string()))?;
-    if existing.request_fingerprint != fingerprint(&input.body) {
+    if !crate::product::product_adk_chat_identity::ChatRequestIdentity::decode(&input.body)?
+        .matches(&existing.request_fingerprint) {
         return Err(AdkChatPortError::Conflict(
             "clientRequestId was already used with a different request".to_owned(),
         ));

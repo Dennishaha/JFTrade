@@ -1,5 +1,13 @@
 # Go → Rust 证据积压清单
 
+## 2026-10-09 canonical 请求身份与旧 raw 指纹重放
+
+- 两条真实HTTP生产红均在首请求成功后复现等价JSON返回409：缺runtime保留错误在同runtime配置恢复后不复用，以及已完成durable chat不复用。红receipt SHA `c789d2e2e47769c46881de152efd9e9029b8b8e3a0574f034bdf51dfc807b3ff`，0 passed/2 failed；运行前diff与1029个Rust文件指纹保存，红源码按原指纹归档。转义夹具20 passed/1 failed留证：尾部U+2028/U+2029被TrimSpace移除，改到字符串中间后保留全部转义断言；path-included测试引用composition模块的E0432编译失败另存原diff/源码，改为公开domain入口。
+- `jftrade-assistant`持有固定字段顺序、空白/mode/reasoning、objective和loop预算规范化、Go HTML与line separator转义；engine共用SHA256身份。真实配置恢复保留原stream ID/error/sequence/replay，reasoning/objective/budget变化409，零run/audit/provider连接。真实成功chat的等价JSON重放相同COMPLETED响应，run/audit/native events完整保持，provider恰好一次。旧raw指纹fixture原body重放成功且不改写durable owner，改变message、语义重排或跨route均409。
+- 核对8条冻结原函数及blob：helpers167/216、recovery41、disconnect55/110、routes301、identity17/48。实际decode_input的缺失/非法UUID拒绝、URN大写规范化、message规范化/变化、low/high reasoning区分，加真实生产owner重放/冲突控制，identity17完整闭合升级exact。其余7条分类保持，当前1661 exact/2152 partial/638 boundary；并发双成功终态与原生assistant消息、known-context及idle每请求预取消仍partial。
+- 最终定向38 passed/0 failed，receipt `adk-canonical-identity-production-owner-verified-2026-10-09.json` SHA `2abf2578eaf01be922372ba7251650841e852c3b2294aaa4fcd8e5f309278706`。查看quick计划后2468 Rust/98 Pine/desktop Node11+48通过；现场`CARGO_INCREMENTAL=0 pnpm run check:rust`4020 passed/0 failed/2 skipped，static和七类replay通过且exit0，无LEAK。1031个Rust文件从最终定向到完整门禁冻结，2 skipped不计通过。
+- 三份receipt、两份gate/raw SHA、8条原函数、20处reuse、anchor与diff复核；strict/context通过，unrecorded/stale0、既有unknown48。本机证据`.git/adk-canonical-identity-*`及内置盘备份`/Users/jiangfan/.cache/jftrade/parity-canonical-identity-recovery-20261009`。旧body语义重排、重复或大小写字段解码、durable字段类型解码、创建后准备失败终态、成功并发与private context组合继续开放。历史LEAK未定位，整体active；继续下一批生产owner。
+
 ## 2026-10-09 durable 请求预检的 payload 解码优先级
 
 - 冻结Go `persistence.ChatRunByClientRequestID`先decodeRun后比指纹；真实生产红证明配置未就绪、指纹相同但payload畸形的已有run被保留流遮蔽为200。`adk-durable-preflight-red-2026-10-09.json`0 passed/1 failed，SHA `e29f46ebbca611ec2268c079932ff96c3756cf93e03974394dc8e31c37a26813`。原tested diff SHA、1028个Rust源码指纹及新测试全文在运行前保存；红源码按原指纹逐文件归档，不依赖旧机器/tmp。

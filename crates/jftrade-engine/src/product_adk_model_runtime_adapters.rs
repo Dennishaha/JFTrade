@@ -705,6 +705,7 @@ fn read_secrets(path: &Path) -> Result<BTreeMap<String, String>, AdkChatPortErro
     })
 }
 
+#[cfg(test)]
 fn fingerprint(bytes: &[u8]) -> String {
     let digest = Sha256::digest(bytes);
     digest.iter().map(|byte| format!("{byte:02x}")).collect()

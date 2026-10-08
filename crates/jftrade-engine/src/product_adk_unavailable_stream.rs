@@ -8,6 +8,7 @@ use jftrade_api::{ApiStream, SseEvent, encode_event, encode_retry};
 use serde_json::{Value, json};
 
 use crate::product::AdkReadLiveStream;
+use crate::product::product_adk_chat_identity::ChatRequestIdentity;
 use crate::product::product_adk_chat_stream_port::{
     AdkChatInput, AdkChatLiveStream, AdkChatPortError, AdkChatPortOutput,
 };
@@ -19,7 +20,7 @@ pub(super) const UNAVAILABLE: &str =
 #[derive(Debug)]
 struct TerminalRecord {
     id: String,
-    request_body: Vec<u8>,
+    request_fingerprint: String,
     expires_at: Instant,
     event: Value,
 }
@@ -90,7 +91,7 @@ impl UnavailableStreams {
                 (
                     entry.insert(TerminalRecord {
                         id,
-                        request_body: input.body.clone(),
+                        request_fingerprint: ChatRequestIdentity::decode(&input.body)?.canonical,
                         expires_at: now + RETENTION,
                         event,
                     }),
@@ -120,7 +121,7 @@ impl UnavailableStreams {
 }
 
 fn check_identity(record: &TerminalRecord, input: &AdkChatInput) -> Result<(), AdkChatPortError> {
-    if record.request_body != input.body {
+    if record.request_fingerprint != ChatRequestIdentity::decode(&input.body)?.canonical {
         return Err(AdkChatPortError::Conflict(format!(
             "clientRequestId {} was already used with a different chat request",
             input.client_request_id
@@ -167,7 +168,7 @@ mod tests {
         let streams = UnavailableStreams::default();
         let input = AdkChatInput {
             client_request_id: "request-retention".to_owned(),
-            body: b"hello".to_vec(),
+            body: br#"{"message":"hello"}"#.to_vec(),
         };
         streams.dispatch(&input).unwrap();
         let id = {

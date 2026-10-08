@@ -251,14 +251,14 @@ impl ProductionAdkChatRuntime {
         let permission_override = validate_permission_mode_override(object)?;
         validate_work_mode_override(object)?;
         let reasoning_override = validate_reasoning_effort_override(object)?;
-        let fingerprint = fingerprint(&input.body);
+        let identity = crate::product::product_adk_chat_identity::ChatRequestIdentity::decode(&input.body)?;
         if let Some(existing) = self
             .store
             .get_run_by_client_request_id(&input.client_request_id)
             .map_err(storage_unavailable)?
         {
             *durable_run_may_exist = true;
-            return self.prepare_existing_run(existing, route, &fingerprint);
+            return self.prepare_existing_run(existing, route, &identity);
         }
         // Go's `runChat` admits the run here: after the idempotent replay check
         // (a reused `clientRequestId` never consumes a slot) and before agent or
@@ -430,7 +430,7 @@ impl ProductionAdkChatRuntime {
                     agent_id: &agent_id,
                     status: "RUNNING",
                     client_request_id: &input.client_request_id,
-                    request_fingerprint: &fingerprint,
+                    request_fingerprint: &identity.canonical,
                     payload_json: &initial_payload_json,
                 },
                 self.session_store.as_ref(),
@@ -440,7 +440,7 @@ impl ProductionAdkChatRuntime {
             )
             .map_err(storage_unavailable)?;
         let Some(stored_lease) = stored_lease else {
-            return self.prepare_existing_run(existing_or_created, route, &fingerprint);
+            return self.prepare_existing_run(existing_or_created, route, &identity);
         };
         let run_lease = RunLeaseGuard::from_lease(
             Arc::clone(&self.store), stored_lease, RUN_LEASE_TTL, RUN_LEASE_HEARTBEAT,
@@ -505,9 +505,9 @@ impl ProductionAdkChatRuntime {
         &self,
         existing: StoredAdkRun,
         route: AdkChatRoute,
-        fingerprint: &str,
+        identity: &crate::product::product_adk_chat_identity::ChatRequestIdentity,
     ) -> Result<PreparedChat, AdkChatPortError> {
-        if existing.request_fingerprint != fingerprint {
+        if !identity.matches(&existing.request_fingerprint) {
             return Err(AdkChatPortError::Conflict(
                 "clientRequestId was already used with a different request".to_owned(),
             ));

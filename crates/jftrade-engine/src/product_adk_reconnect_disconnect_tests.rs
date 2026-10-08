@@ -19,6 +19,9 @@ mod pre_run;
 #[path = "product_adk_durable_identity_preflight_tests.rs"]
 mod durable_identity;
 
+#[path = "product_adk_canonical_identity_owner_tests.rs"]
+mod canonical_identity;
+
 // Inject only the socket failure. Routes, cursor projection, body polling and
 // connection cleanup all run through the prepared production router/Hyper.
 struct FailingListener {

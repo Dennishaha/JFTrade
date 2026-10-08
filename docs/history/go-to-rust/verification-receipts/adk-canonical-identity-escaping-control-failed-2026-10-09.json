@@ -1,0 +1,178 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-assistant",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(canonical_identity) | test(canonical_chat) | test(production_legacy_raw_chat) | test(production_retained_error_reuses_equivalent_chat_payload) | test(production_durable_chat_reuses_equivalent_payload) | test(retained_error) | test(pre_run) | test(preflight) | test(expired_unavailable_stream) | test(chat_request_identity)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 100,
+  "status": "failed",
+  "verifiedAt": "2026-10-08T19:47:05Z",
+  "sourceState": {
+    "verifiedCommit": "436a322b9da91220bcfc37a43a85b74cbbb57fd3",
+    "trackedDiffSha256": "d1500eee14c812425a071c7c1241ed3d27d6ad408cade94c736822886593e1e2",
+    "untrackedFiles": [
+      {
+        "path": "crates/jftrade-assistant/src/chat_identity.rs",
+        "sha256": "d864a207e4ed6f8cdaa710dfe32fd4816641c0f420d0362f4d7a8a80f9998d9d"
+      },
+      {
+        "path": "crates/jftrade-engine/src/product_adk_canonical_identity_owner_tests.rs",
+        "sha256": "a4d6c66f213c1449ef160584593fca0f8fdfcab450ffd93006287ec145836264"
+      },
+      {
+        "path": "crates/jftrade-engine/src/product_adk_chat_identity.rs",
+        "sha256": "3b8db3897b690241daf43bbdc7462010644c33ce180b3c3c2707e9ae0838d711"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/adk-canonical-identity-red-2026-10-09.json",
+        "sha256": "c789d2e2e47769c46881de152efd9e9029b8b8e3a0574f034bdf51dfc807b3ff"
+      }
+    ]
+  },
+  "rawOutputSha256": "786aef2cb5c5acbf9dcb2de67894d1d0b9e23e4efed9bc15a4777d31b8079ddc",
+  "passedTests": [
+    "jftrade-assistant::jftrade_assistant$chat_identity::tests::canonical_identity_accepts_null_fields_and_rejects_malformed_field_types",
+    "jftrade-assistant::jftrade_assistant$chat_identity::tests::canonical_identity_normalizes_equivalent_payload_and_distinguishes_each_field",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::disconnect::canonical_identity::production_durable_chat_reuses_equivalent_payload_without_second_provider_call",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::disconnect::canonical_identity::production_legacy_raw_chat_fingerprint_replays_without_rewriting_the_durable_owner",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::disconnect::canonical_identity::production_retained_error_reuses_equivalent_chat_payload_after_configuration_change",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::disconnect::durable_identity::production_stream_preflight_rejects_corrupt_durable_payload_before_conflict_or_cached_replay",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::disconnect::pre_run::production_configured_stream_concurrent_prepare_errors_share_one_retained_identity",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::disconnect::pre_run::production_configured_stream_existing_identity_keeps_early_validation_with_durable_owner",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::disconnect::pre_run::production_configured_stream_keeps_existing_durable_payload_failure_out_of_memory_owner",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::disconnect::pre_run::production_configured_stream_keeps_post_creation_context_failure_with_durable_owner",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::disconnect::pre_run::production_configured_stream_preserves_prepare_errors_after_retry_disconnect",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::disconnect::production_unavailable_chat_reuses_retained_error_over_http_and_rejects_conflicts",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::disconnect::retained_readiness::production_retained_error_does_not_mask_durable_lookup_failure",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::disconnect::retained_readiness::production_retained_error_does_not_mask_durable_request_conflict_when_runtime_unready",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::disconnect::retained_readiness::production_retained_error_replays_with_valid_matching_durable_identity_without_run_changes",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::disconnect::retained_readiness::production_retained_error_survives_runtime_readiness_change_after_retry_disconnect",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_adk::unavailable_stream::tests::expired_unavailable_stream_removes_request_identity_and_allows_new_record",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_strategy::product_production_ports_strategy_runtime::strategy_runtime_execution::tests::test_execute_strategy_intents_preflights_later_cancel_before_earlier_order",
+    "jftrade-engine::strategy_runtime_lifecycle_bounded_tests$strategy_runtime::strategy_runtime_execution::tests::test_execute_strategy_intents_preflights_later_cancel_before_earlier_order",
+    "jftrade-engine::strategy_simulate_closed_loop$strategy_runtime_execution::tests::test_execute_strategy_intents_preflights_later_cancel_before_earlier_order"
+  ],
+  "failedTests": [
+    "jftrade-assistant::jftrade_assistant$chat_identity::tests::canonical_identity_preserves_go_field_order_defaults_and_escaping"
+  ],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 16,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 3,
+      "nextest": {
+        "crate": "jftrade-assistant",
+        "test_binary": "jftrade_assistant",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "failed",
+      "passed": 2,
+      "failed": 1,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 28,
+      "exec_time": 0.047324292,
+      "nextest": {
+        "crate": "jftrade-assistant",
+        "test_binary": "jftrade_assistant",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "strategy_runtime_lifecycle_bounded_tests",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "strategy_simulate_closed_loop",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 86,
+      "exec_time": 0.0354685,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "strategy_runtime_lifecycle_bounded_tests",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 44,
+      "exec_time": 0.037559666,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "strategy_simulate_closed_loop",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 16,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1950,
+      "exec_time": 19.417098626,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    }
+  ]
+}

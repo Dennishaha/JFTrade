@@ -300,6 +300,8 @@ fn decode_input(body: &[u8]) -> Result<AdkChatInput, InputDecodeError> {
     let client_request_id = canonical_uuid(client_request_id).ok_or_else(|| {
         InputDecodeError::Identity("clientRequestId must be a valid UUID".to_owned())
     })?;
+    jftrade_assistant::canonical_chat_request_json(body)
+        .map_err(|error| InputDecodeError::Payload(error.to_string()))?;
     Ok(AdkChatInput {
         body: body.to_vec(),
         client_request_id,
@@ -509,6 +511,41 @@ mod tests {
             path: path.to_owned(),
             body: br#"{"clientRequestId":"11111111-1111-4111-8111-111111111111"}"#.to_vec(),
         }
+    }
+
+    // Parity: go:452dea11:internal/assistant/engine/chat_request_idempotency_test.go:17 TestChatRequestIdentityValidationAndFingerprintConflict
+    #[test]
+    fn chat_request_identity_validates_uuid_normalizes_message_and_distinguishes_reasoning() {
+        use jftrade_assistant::canonical_chat_request_json;
+        for body in [
+            br#"{"message":"hello"}"#.as_slice(),
+            br#"{"clientRequestId":"not-a-uuid","message":"hello"}"#.as_slice(),
+        ] {
+            assert!(matches!(
+                decode_input(body),
+                Err(InputDecodeError::Identity(_))
+            ));
+        }
+        let input = decode_input(br#"{"clientRequestId":" URN:UUID:ABCDEFAB-CDEF-4ABC-8DEF-ABCDEFABCDEF ","message":" hello "}"#).unwrap_or_else(|_|panic!("valid UUID"));
+        assert_eq!(
+            input.client_request_id,
+            "abcdefab-cdef-4abc-8def-abcdefabcdef"
+        );
+        let identity = canonical_chat_request_json(&input.body).unwrap();
+        assert!(!identity.is_empty());
+        assert_eq!(
+            identity,
+            canonical_chat_request_json(br#"{"message":"hello"}"#).unwrap()
+        );
+        let changed = canonical_chat_request_json(br#"{"message":"different"}"#).unwrap();
+        assert_ne!(identity, changed);
+        let low =
+            canonical_chat_request_json(br#"{"message":"hello","reasoningEffortOverride":"low"}"#)
+                .unwrap();
+        let high =
+            canonical_chat_request_json(br#"{"message":"hello","reasoningEffortOverride":"high"}"#)
+                .unwrap();
+        assert_ne!(low, high);
     }
 
     #[test]

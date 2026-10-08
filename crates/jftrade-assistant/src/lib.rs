@@ -7,6 +7,7 @@
 
 mod artifact;
 mod builtin_agent;
+mod chat_identity;
 mod claims;
 mod model;
 mod ports;
@@ -19,6 +20,7 @@ pub use artifact::{ArtifactError, ArtifactStore};
 pub use builtin_agent::{
     BuiltinAgentConfiguration, BuiltinAgentConfigurationError, prepare_builtin_agent_configuration,
 };
+pub use chat_identity::canonical_chat_request_json;
 pub use claims::{
     ClaimCheckpoint, ClaimError, ClaimStore, RunLease, ToolClaimRequest, ToolInvocation,
     ToolInvocationStatus, ToolInvocationTicket,
