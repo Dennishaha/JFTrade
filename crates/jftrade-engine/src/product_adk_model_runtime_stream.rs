@@ -154,6 +154,17 @@ impl ProductionAdkChatRuntime {
             run_id: chat.run_id.clone(),
             token: Arc::clone(&cancellation),
         };
+        // A terminal transition can win after prepare_chat handed this worker
+        // its execution. Replay retained history without another model call.
+        match self.store().get_run(&chat.run_id) {
+            Ok(Some(run)) if !run.status.eq_ignore_ascii_case("RUNNING") => {
+                if let Ok(Some(event)) = self.latest_stream_event(&chat.run_id) {
+                    let _ = sender.send(super::encode_sse_event(&event));
+                }
+                return;
+            }
+            _ => {}
+        }
         let result = super::stream_adapter::execute_model_stream(
             chat.request.clone(),
             |event| self.forward_provider_event(&chat, event, &sender, &run_lease),

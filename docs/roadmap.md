@@ -30,6 +30,8 @@ handler stable key、消费、UNKNOWN恢复及确定性takeover批次已验证�
 - [ ] 每批继续核对5–10条原测试，定向nextest、quick及现场完整Rust门禁通过后复核并提交；整体对齐未完成不标complete。
 - [x] keyed 模式去除空白和忽略大小写后仍要求 handler 消费 key；真实 loop 红测确认原 COMPLETED 错判，修复 catalog 后定向78通过。两种规范化变体的消费/未消费控制及二次恢复保持原 output/ledger/events、执行次数1。
 - [x] keyed 规范化批次 quick2399 Rust/98 Pine/desktop Node11+48与现场完整Rust3994 passed/0 failed/2 skipped通过，无LEAK，static/七类replay退出0；1023个Rust文件冻结。七条原测试分类保持，完整 typed tool.Run 返回和空 UNKNOWN 输出缺口不由规范化控制推断闭合。
+- [x] 完整stream worker在已非RUNNING时复用保留事件、零模型连接。六种停止状态的open/disconnected body控制保持完整run/session events/audit，预取消/body断连只记录一次取消终态并释放登记与lease；RUNNING正向控制实际请求模型并持久化RUN_TIMED_OUT。稳定生产红0/1、最终定向27通过，无LEAK；七条原测试分类保持。
+- [x] stream终态批次最终quick2402 Rust/98 Pine/desktop Node11+48→现场完整Rust3997 passed/0 failed/2 skipped通过，无LEAK，static/七类replay退出0；1024个Rust文件冻结。三次定向运行的既有重连LEAK、quick既有MCP LEAK、夹具nested runtime/错误码层级和Clippy失败全部留证，未声称LEAK修复；初次完整Rust通过结果也保留。缺runtime后台终态和idle request-context预取消仍partial。
 
 ## 已验证批次：ADK checkpoint replay 与唯一投影 owner
 

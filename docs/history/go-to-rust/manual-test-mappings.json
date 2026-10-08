@@ -3610,30 +3610,20 @@
             "goFile": "internal/api/assistant/chat_helpers_test.go",
             "goLine": 167,
             "rustFile": "crates/jftrade-engine/src/product_adk_model_runtime_run_projection_tests.rs",
-            "rustLine": 360
+            "rustLine": 433
           }
         },
         {
           "file": "crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs",
           "test": "adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart",
           "crate": "jftrade-engine",
-          "anchor": {
-            "goFile": "internal/api/assistant/chat_helpers_test.go",
-            "goLine": 167,
-            "rustFile": "crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs",
-            "rustLine": 648
-          }
+          "anchor": null
         },
         {
           "file": "crates/jftrade-engine/src/product_adk_model_runtime_recovery_tests.rs",
           "test": "persisted_terminal_run_is_published_as_final_instead_of_a_second_error",
           "crate": "jftrade-engine",
-          "anchor": {
-            "goFile": "internal/api/assistant/chat_helpers_test.go",
-            "goLine": 167,
-            "rustFile": "crates/jftrade-engine/src/product_adk_model_runtime_recovery_tests.rs",
-            "rustLine": 276
-          }
+          "anchor": null
         }
       ],
       "assertionCoverage": {
@@ -3651,7 +3641,7 @@
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedAt": "2026-10-08T16:33:39.433371+00:00",
+        "verifiedAt": "2026-10-08T17:42:58.406387+00:00",
         "argv": [
           "env",
           "CARGO_INCREMENTAL=0",
@@ -3667,15 +3657,15 @@
           "libtest-json-plus",
           "--no-fail-fast",
           "-E",
-          "test(reconnect) | test(late_disconnect) | test(production_malformed_chat) | test(production_agent_templates_remain_available) | test(production_live_chat_stream) | test(test_client_disconnect_returns_499) | test(production_stream_missing_agent) | test(adk_chat_stream_replays_go_wire_fixture) | test(stream_terminal_projection_trims_tool_outputs) | test(persisted_terminal_run_is_published_as_final) | test(adk_chat_stream_replays_retained_terminal)"
+          "test(adk_chat_stream_replays_go_wire_fixture_for_leaf_owned_cases) | test(adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart) | test(adk_reconnect_routes_return_an_incremental_body_instead_of_materializing_history) | test(late_disconnect_and_failure_preserve_terminal_run_history_and_audit) | test(persisted_terminal_run_is_published_as_final_instead_of_a_second_error) | test(production_agent_templates_remain_available_without_chat_runtime) | test(production_live_chat_stream_emits_session_before_run_and_terminal_frame) | test(production_live_chat_stream_emits_session_run_and_final_events) | test(production_live_chat_stream_reuses_existing_session_preview_once) | test(production_malformed_chat_stops_after_the_first_retry_write_failure) | test(production_reconnect_precancelled_listener_writes_no_body_or_run_changes) | test(production_reconnect_retry_and_replay_write_failures_preserve_terminal_history) | test(production_stream_missing_agent_emits_no_preview_frames) | test(reconnect) | test(reconnect_http_shutdown_closes_idle_connection_without_mutating_the_run) | test(reconnect_reader_drop_releases_idle_store_reference_without_background_reads) | test(stream_owner) | test(stream_terminal_projection_trims_tool_outputs_from_final_response) | test(test_client_disconnect_returns_499_within_250ms)"
         ],
         "testFilter": [
           "stream_terminal_projection_trims_tool_outputs_from_final_response",
           "adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart",
           "persisted_terminal_run_is_published_as_final_instead_of_a_second_error"
         ],
-        "verifiedCommit": "3ca68100957de67bc92034499ae43e6fe960ac8b",
-        "receiptDigest": "sha256:20aec12c955dda70ac5156eb0eab4849a44364a06d73a6ee1238a8c1034d4e37"
+        "verifiedCommit": "99a49f514668a283fad13762c46c845f74c32041",
+        "receiptDigest": "sha256:153a1fbf8faf4f5c8d5a0fed5884f0dab2c692ffe2d2897c233f16c1345cbc01"
       },
       "risk": "normal",
       "owner": "api_transport",
@@ -3713,7 +3703,7 @@
             "goFile": "internal/api/assistant/chat_helpers_test.go",
             "goLine": 216,
             "rustFile": "crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs",
-            "rustLine": 1785
+            "rustLine": 1751
           }
         },
         {
@@ -3724,7 +3714,7 @@
             "goFile": "internal/api/assistant/chat_helpers_test.go",
             "goLine": 216,
             "rustFile": "crates/jftrade-engine/tests/adk_chat_stream_compatibility.rs",
-            "rustLine": 87
+            "rustLine": 85
           }
         },
         {
@@ -3749,7 +3739,7 @@
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedAt": "2026-10-08T16:33:39.433371+00:00",
+        "verifiedAt": "2026-10-08T17:42:58.406387+00:00",
         "argv": [
           "env",
           "CARGO_INCREMENTAL=0",
@@ -3765,15 +3755,15 @@
           "libtest-json-plus",
           "--no-fail-fast",
           "-E",
-          "test(reconnect) | test(late_disconnect) | test(production_malformed_chat) | test(production_agent_templates_remain_available) | test(production_live_chat_stream) | test(test_client_disconnect_returns_499) | test(production_stream_missing_agent) | test(adk_chat_stream_replays_go_wire_fixture) | test(stream_terminal_projection_trims_tool_outputs) | test(persisted_terminal_run_is_published_as_final) | test(adk_chat_stream_replays_retained_terminal)"
+          "test(adk_chat_stream_replays_go_wire_fixture_for_leaf_owned_cases) | test(adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart) | test(adk_reconnect_routes_return_an_incremental_body_instead_of_materializing_history) | test(late_disconnect_and_failure_preserve_terminal_run_history_and_audit) | test(persisted_terminal_run_is_published_as_final_instead_of_a_second_error) | test(production_agent_templates_remain_available_without_chat_runtime) | test(production_live_chat_stream_emits_session_before_run_and_terminal_frame) | test(production_live_chat_stream_emits_session_run_and_final_events) | test(production_live_chat_stream_reuses_existing_session_preview_once) | test(production_malformed_chat_stops_after_the_first_retry_write_failure) | test(production_reconnect_precancelled_listener_writes_no_body_or_run_changes) | test(production_reconnect_retry_and_replay_write_failures_preserve_terminal_history) | test(production_stream_missing_agent_emits_no_preview_frames) | test(reconnect) | test(reconnect_http_shutdown_closes_idle_connection_without_mutating_the_run) | test(reconnect_reader_drop_releases_idle_store_reference_without_background_reads) | test(stream_owner) | test(stream_terminal_projection_trims_tool_outputs_from_final_response) | test(test_client_disconnect_returns_499_within_250ms)"
         ],
         "testFilter": [
           "production_stream_missing_agent_emits_no_preview_frames",
           "adk_chat_stream_replays_go_wire_fixture_for_leaf_owned_cases",
           "production_live_chat_stream_emits_session_before_run_and_terminal_frame"
         ],
-        "verifiedCommit": "3ca68100957de67bc92034499ae43e6fe960ac8b",
-        "receiptDigest": "sha256:20aec12c955dda70ac5156eb0eab4849a44364a06d73a6ee1238a8c1034d4e37"
+        "verifiedCommit": "99a49f514668a283fad13762c46c845f74c32041",
+        "receiptDigest": "sha256:153a1fbf8faf4f5c8d5a0fed5884f0dab2c692ffe2d2897c233f16c1345cbc01"
       },
       "risk": "normal",
       "owner": "api_transport",
@@ -4037,7 +4027,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_recovery_tests.rs::persisted_terminal_run_is_published_as_final_instead_of_a_second_error; crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::production_live_chat_stream_reuses_existing_session_preview_once",
       "conclusion": "exact：Go 的两个可观察断言均由 Rust owner 覆盖：已知 context/session 只投影一次 preview 后进入 run；持久化终态 run 恢复为单个 final 且不追加 error。Rust 生产 SSE 测试与 recovery projection 测试分别锁定真实 route 行为和终态帧序列。",
-      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E test(persisted_terminal_run_is_published_as_final_instead_of_a_second_error) or test(production_live_chat_stream_reuses_existing_session_preview_once) or test(adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart)",
+      "command": "env CARGO_INCREMENTAL=0 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/api/assistant/chat_stream_recovery_contracts_test.go",
@@ -4054,7 +4044,7 @@
             "goFile": "internal/api/assistant/chat_stream_recovery_contracts_test.go",
             "goLine": 41,
             "rustFile": "crates/jftrade-engine/src/product_adk_model_runtime_recovery_tests.rs",
-            "rustLine": 276
+            "rustLine": 266
           }
         },
         {
@@ -4065,7 +4055,7 @@
             "goFile": "internal/api/assistant/chat_stream_recovery_contracts_test.go",
             "goLine": 41,
             "rustFile": "crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs",
-            "rustLine": 1718
+            "rustLine": 1684
           }
         }
       ],
@@ -4078,30 +4068,34 @@
         "source": "reviewed"
       },
       "verification": {
+        "runnerVersion": "cargo-nextest 0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedAt": "2026-10-08T17:42:58.406387+00:00",
         "argv": [
           "env",
+          "CARGO_INCREMENTAL=0",
           "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(adk_chat_stream_replays_go_wire_fixture_for_leaf_owned_cases) | test(adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart) | test(adk_reconnect_routes_return_an_incremental_body_instead_of_materializing_history) | test(late_disconnect_and_failure_preserve_terminal_run_history_and_audit) | test(persisted_terminal_run_is_published_as_final_instead_of_a_second_error) | test(production_agent_templates_remain_available_without_chat_runtime) | test(production_live_chat_stream_emits_session_before_run_and_terminal_frame) | test(production_live_chat_stream_emits_session_run_and_final_events) | test(production_live_chat_stream_reuses_existing_session_preview_once) | test(production_malformed_chat_stops_after_the_first_retry_write_failure) | test(production_reconnect_precancelled_listener_writes_no_body_or_run_changes) | test(production_reconnect_retry_and_replay_write_failures_preserve_terminal_history) | test(production_stream_missing_agent_emits_no_preview_frames) | test(reconnect) | test(reconnect_http_shutdown_closes_idle_connection_without_mutating_the_run) | test(reconnect_reader_drop_releases_idle_store_reference_without_background_reads) | test(stream_owner) | test(stream_terminal_projection_trims_tool_outputs_from_final_response) | test(test_client_disconnect_returns_499_within_250ms)"
         ],
         "testFilter": [
           "persisted_terminal_run_is_published_as_final_instead_of_a_second_error",
           "production_live_chat_stream_reuses_existing_session_preview_once"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
-        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
-        "status": "passed",
-        "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "99a49f514668a283fad13762c46c845f74c32041",
+        "receiptDigest": "sha256:153a1fbf8faf4f5c8d5a0fed5884f0dab2c692ffe2d2897c233f16c1345cbc01"
       },
       "risk": "high",
       "owner": "api_transport",
@@ -4137,7 +4131,7 @@
             "goFile": "internal/api/assistant/chat_transport_disconnect_test.go",
             "goLine": 55,
             "rustFile": "crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs",
-            "rustLine": 1581
+            "rustLine": 677
           }
         },
         {
@@ -4182,7 +4176,7 @@
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedAt": "2026-10-08T16:33:39.433371+00:00",
+        "verifiedAt": "2026-10-08T17:42:58.406387+00:00",
         "argv": [
           "env",
           "CARGO_INCREMENTAL=0",
@@ -4198,7 +4192,7 @@
           "libtest-json-plus",
           "--no-fail-fast",
           "-E",
-          "test(reconnect) | test(late_disconnect) | test(production_malformed_chat) | test(production_agent_templates_remain_available) | test(production_live_chat_stream) | test(test_client_disconnect_returns_499) | test(production_stream_missing_agent) | test(adk_chat_stream_replays_go_wire_fixture) | test(stream_terminal_projection_trims_tool_outputs) | test(persisted_terminal_run_is_published_as_final) | test(adk_chat_stream_replays_retained_terminal)"
+          "test(adk_chat_stream_replays_go_wire_fixture_for_leaf_owned_cases) | test(adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart) | test(adk_reconnect_routes_return_an_incremental_body_instead_of_materializing_history) | test(late_disconnect_and_failure_preserve_terminal_run_history_and_audit) | test(persisted_terminal_run_is_published_as_final_instead_of_a_second_error) | test(production_agent_templates_remain_available_without_chat_runtime) | test(production_live_chat_stream_emits_session_before_run_and_terminal_frame) | test(production_live_chat_stream_emits_session_run_and_final_events) | test(production_live_chat_stream_reuses_existing_session_preview_once) | test(production_malformed_chat_stops_after_the_first_retry_write_failure) | test(production_reconnect_precancelled_listener_writes_no_body_or_run_changes) | test(production_reconnect_retry_and_replay_write_failures_preserve_terminal_history) | test(production_stream_missing_agent_emits_no_preview_frames) | test(reconnect) | test(reconnect_http_shutdown_closes_idle_connection_without_mutating_the_run) | test(reconnect_reader_drop_releases_idle_store_reference_without_background_reads) | test(stream_owner) | test(stream_terminal_projection_trims_tool_outputs_from_final_response) | test(test_client_disconnect_returns_499_within_250ms)"
         ],
         "testFilter": [
           "production_live_chat_stream_emits_session_run_and_final_events",
@@ -4206,8 +4200,8 @@
           "late_disconnect_and_failure_preserve_terminal_run_history_and_audit",
           "production_malformed_chat_stops_after_the_first_retry_write_failure"
         ],
-        "verifiedCommit": "3ca68100957de67bc92034499ae43e6fe960ac8b",
-        "receiptDigest": "sha256:20aec12c955dda70ac5156eb0eab4849a44364a06d73a6ee1238a8c1034d4e37"
+        "verifiedCommit": "99a49f514668a283fad13762c46c845f74c32041",
+        "receiptDigest": "sha256:153a1fbf8faf4f5c8d5a0fed5884f0dab2c692ffe2d2897c233f16c1345cbc01"
       },
       "risk": "high",
       "owner": "api_transport",
@@ -4246,7 +4240,7 @@
             "goFile": "internal/api/assistant/chat_transport_disconnect_test.go",
             "goLine": 110,
             "rustFile": "crates/jftrade-engine/src/product_adk_reconnect_live_tests.rs",
-            "rustLine": 124
+            "rustLine": 127
           }
         },
         {
@@ -4263,19 +4257,14 @@
             "goFile": "internal/api/assistant/chat_transport_disconnect_test.go",
             "goLine": 110,
             "rustFile": "crates/jftrade-engine/src/product_adk_read_tests.rs",
-            "rustLine": 326
+            "rustLine": 324
           }
         },
         {
           "file": "crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs",
           "test": "adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart",
           "crate": "jftrade-engine",
-          "anchor": {
-            "goFile": "internal/api/assistant/chat_transport_disconnect_test.go",
-            "goLine": 110,
-            "rustFile": "crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs",
-            "rustLine": 648
-          }
+          "anchor": null
         },
         {
           "file": "crates/jftrade-engine/src/product_adk_reconnect_disconnect_tests.rs",
@@ -4315,7 +4304,7 @@
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedAt": "2026-10-08T16:33:39.433371+00:00",
+        "verifiedAt": "2026-10-08T17:42:58.406387+00:00",
         "argv": [
           "env",
           "CARGO_INCREMENTAL=0",
@@ -4331,7 +4320,7 @@
           "libtest-json-plus",
           "--no-fail-fast",
           "-E",
-          "test(reconnect) | test(late_disconnect) | test(production_malformed_chat) | test(production_agent_templates_remain_available) | test(production_live_chat_stream) | test(test_client_disconnect_returns_499) | test(production_stream_missing_agent) | test(adk_chat_stream_replays_go_wire_fixture) | test(stream_terminal_projection_trims_tool_outputs) | test(persisted_terminal_run_is_published_as_final) | test(adk_chat_stream_replays_retained_terminal)"
+          "test(adk_chat_stream_replays_go_wire_fixture_for_leaf_owned_cases) | test(adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart) | test(adk_reconnect_routes_return_an_incremental_body_instead_of_materializing_history) | test(late_disconnect_and_failure_preserve_terminal_run_history_and_audit) | test(persisted_terminal_run_is_published_as_final_instead_of_a_second_error) | test(production_agent_templates_remain_available_without_chat_runtime) | test(production_live_chat_stream_emits_session_before_run_and_terminal_frame) | test(production_live_chat_stream_emits_session_run_and_final_events) | test(production_live_chat_stream_reuses_existing_session_preview_once) | test(production_malformed_chat_stops_after_the_first_retry_write_failure) | test(production_reconnect_precancelled_listener_writes_no_body_or_run_changes) | test(production_reconnect_retry_and_replay_write_failures_preserve_terminal_history) | test(production_stream_missing_agent_emits_no_preview_frames) | test(reconnect) | test(reconnect_http_shutdown_closes_idle_connection_without_mutating_the_run) | test(reconnect_reader_drop_releases_idle_store_reference_without_background_reads) | test(stream_owner) | test(stream_terminal_projection_trims_tool_outputs_from_final_response) | test(test_client_disconnect_returns_499_within_250ms)"
         ],
         "testFilter": [
           "reconnect_reader_drop_releases_idle_store_reference_without_background_reads",
@@ -4341,8 +4330,8 @@
           "production_reconnect_retry_and_replay_write_failures_preserve_terminal_history",
           "production_reconnect_precancelled_listener_writes_no_body_or_run_changes"
         ],
-        "verifiedCommit": "3ca68100957de67bc92034499ae43e6fe960ac8b",
-        "receiptDigest": "sha256:20aec12c955dda70ac5156eb0eab4849a44364a06d73a6ee1238a8c1034d4e37"
+        "verifiedCommit": "99a49f514668a283fad13762c46c845f74c32041",
+        "receiptDigest": "sha256:153a1fbf8faf4f5c8d5a0fed5884f0dab2c692ffe2d2897c233f16c1345cbc01"
       },
       "risk": "high",
       "owner": "api_transport",
@@ -100720,7 +100709,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/product_adk_terminal_disconnect_tests.rs::late_disconnect_and_failure_preserve_terminal_run_history_and_audit",
       "conclusion": "function_exact：2026-10-08冻结Go原断言复核。直接生产 persist_cancelled/persist_failure 在COMPLETED、FAILED、CANCELLED、TIMED_OUT、DENIED表重复执行；COMPLETED status/message保持，完整row/时间戳/stream history/session events/audit不变，无新增run.cancelled审计；CANCELLED/DENIED失败分类也断言。",
-      "command": "env CARGO_INCREMENTAL=0 NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(production_reconnect_retry_and_replay_write_failures) or test(production_reconnect_precancelled_listener) or test(production_agent_templates_remain_available) or test(late_disconnect_and_failure) or test(stream_terminal_projection_trims_tool_outputs_from_final_response) or test(adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart) or test(persisted_terminal_run_is_published_as_final_instead_of_a_second_error) or test(production_stream_missing_agent_emits_no_preview_frames) or test(production_live_chat_stream_emits_session_before_run_and_terminal_frame) or test(adk_chat_stream_replays_go_wire_fixture_for_leaf_owned_cases) or test(production_live_chat_stream_emits_session_run_and_final_events) or test(test_client_disconnect_returns_499_within_250ms) or test(reconnect_reader_drop_releases_idle_store_reference_without_background_reads) or test(reconnect_http_shutdown_closes_idle_connection_without_mutating_the_run) or test(adk_reconnect_routes_return_an_incremental_body_instead_of_materializing_history)'",
+      "command": "env CARGO_INCREMENTAL=0 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/assistant/engine/runner_chat_test.go",
@@ -100737,7 +100726,7 @@
             "goFile": "internal/assistant/engine/runner_chat_test.go",
             "goLine": 1124,
             "rustFile": "crates/jftrade-engine/src/product_adk_terminal_disconnect_tests.rs",
-            "rustLine": 3
+            "rustLine": 6
           }
         }
       ],
@@ -100753,7 +100742,7 @@
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedAt": "2026-10-08T10:51:01Z",
+        "verifiedAt": "2026-10-08T17:42:58.406387+00:00",
         "argv": [
           "env",
           "CARGO_INCREMENTAL=0",
@@ -100769,13 +100758,13 @@
           "libtest-json-plus",
           "--no-fail-fast",
           "-E",
-          "test(production_reconnect_retry_and_replay_write_failures) or test(production_reconnect_precancelled_listener) or test(production_agent_templates_remain_available) or test(late_disconnect_and_failure) or test(stream_terminal_projection_trims_tool_outputs_from_final_response) or test(adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart) or test(persisted_terminal_run_is_published_as_final_instead_of_a_second_error) or test(production_stream_missing_agent_emits_no_preview_frames) or test(production_live_chat_stream_emits_session_before_run_and_terminal_frame) or test(adk_chat_stream_replays_go_wire_fixture_for_leaf_owned_cases) or test(production_live_chat_stream_emits_session_run_and_final_events) or test(test_client_disconnect_returns_499_within_250ms) or test(reconnect_reader_drop_releases_idle_store_reference_without_background_reads) or test(reconnect_http_shutdown_closes_idle_connection_without_mutating_the_run) or test(adk_reconnect_routes_return_an_incremental_body_instead_of_materializing_history)"
+          "test(adk_chat_stream_replays_go_wire_fixture_for_leaf_owned_cases) | test(adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart) | test(adk_reconnect_routes_return_an_incremental_body_instead_of_materializing_history) | test(late_disconnect_and_failure_preserve_terminal_run_history_and_audit) | test(persisted_terminal_run_is_published_as_final_instead_of_a_second_error) | test(production_agent_templates_remain_available_without_chat_runtime) | test(production_live_chat_stream_emits_session_before_run_and_terminal_frame) | test(production_live_chat_stream_emits_session_run_and_final_events) | test(production_live_chat_stream_reuses_existing_session_preview_once) | test(production_malformed_chat_stops_after_the_first_retry_write_failure) | test(production_reconnect_precancelled_listener_writes_no_body_or_run_changes) | test(production_reconnect_retry_and_replay_write_failures_preserve_terminal_history) | test(production_stream_missing_agent_emits_no_preview_frames) | test(reconnect) | test(reconnect_http_shutdown_closes_idle_connection_without_mutating_the_run) | test(reconnect_reader_drop_releases_idle_store_reference_without_background_reads) | test(stream_owner) | test(stream_terminal_projection_trims_tool_outputs_from_final_response) | test(test_client_disconnect_returns_499_within_250ms)"
         ],
         "testFilter": [
           "late_disconnect_and_failure_preserve_terminal_run_history_and_audit"
         ],
-        "verifiedCommit": "1b648d4193356893c86b56da268662a3b9d82b99",
-        "receiptDigest": "sha256:f10680553656f7d848a1928ac38de2bcf7eea8a6c7235fc8f88dec5b4f91f192"
+        "verifiedCommit": "99a49f514668a283fad13762c46c845f74c32041",
+        "receiptDigest": "sha256:153a1fbf8faf4f5c8d5a0fed5884f0dab2c692ffe2d2897c233f16c1345cbc01"
       },
       "risk": "high",
       "owner": "assistant_workflow",
@@ -131739,7 +131728,7 @@
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedAt": "2026-10-08T16:33:39.433371+00:00",
+        "verifiedAt": "2026-10-08T17:42:58.406387+00:00",
         "argv": [
           "env",
           "CARGO_INCREMENTAL=0",
@@ -131755,13 +131744,13 @@
           "libtest-json-plus",
           "--no-fail-fast",
           "-E",
-          "test(reconnect) | test(late_disconnect) | test(production_malformed_chat) | test(production_agent_templates_remain_available) | test(production_live_chat_stream) | test(test_client_disconnect_returns_499) | test(production_stream_missing_agent) | test(adk_chat_stream_replays_go_wire_fixture) | test(stream_terminal_projection_trims_tool_outputs) | test(persisted_terminal_run_is_published_as_final) | test(adk_chat_stream_replays_retained_terminal)"
+          "test(adk_chat_stream_replays_go_wire_fixture_for_leaf_owned_cases) | test(adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart) | test(adk_reconnect_routes_return_an_incremental_body_instead_of_materializing_history) | test(late_disconnect_and_failure_preserve_terminal_run_history_and_audit) | test(persisted_terminal_run_is_published_as_final_instead_of_a_second_error) | test(production_agent_templates_remain_available_without_chat_runtime) | test(production_live_chat_stream_emits_session_before_run_and_terminal_frame) | test(production_live_chat_stream_emits_session_run_and_final_events) | test(production_live_chat_stream_reuses_existing_session_preview_once) | test(production_malformed_chat_stops_after_the_first_retry_write_failure) | test(production_reconnect_precancelled_listener_writes_no_body_or_run_changes) | test(production_reconnect_retry_and_replay_write_failures_preserve_terminal_history) | test(production_stream_missing_agent_emits_no_preview_frames) | test(reconnect) | test(reconnect_http_shutdown_closes_idle_connection_without_mutating_the_run) | test(reconnect_reader_drop_releases_idle_store_reference_without_background_reads) | test(stream_owner) | test(stream_terminal_projection_trims_tool_outputs_from_final_response) | test(test_client_disconnect_returns_499_within_250ms)"
         ],
         "testFilter": [
           "production_agent_templates_remain_available_without_chat_runtime"
         ],
-        "verifiedCommit": "3ca68100957de67bc92034499ae43e6fe960ac8b",
-        "receiptDigest": "sha256:20aec12c955dda70ac5156eb0eab4849a44364a06d73a6ee1238a8c1034d4e37"
+        "verifiedCommit": "99a49f514668a283fad13762c46c845f74c32041",
+        "receiptDigest": "sha256:153a1fbf8faf4f5c8d5a0fed5884f0dab2c692ffe2d2897c233f16c1345cbc01"
       },
       "risk": "normal",
       "owner": "assistant_workflow",
@@ -341905,7 +341894,7 @@
       ],
       "allowed": true,
       "reviewStatus": "reviewed",
-      "reviewNote": "2026-10-09: five frozen stream disconnect/helper/template originals and blob SHA reviewed. Real production POST decode and Hyper socket now prove malformed retry failure once, SSE headers, no event frame or run writes and reader release. Absent runtime valid-request retained terminal error, request-context precancellation and private delta/preview combinations stay partial. Template availability exact remains unchanged; shared terminal/replay evidence does not upgrade other originals."
+      "reviewNote": "2026-10-09: seven frozen chat helpers/disconnect/recovery/terminal/templates originals and blobs rechecked without status upgrades. Full production stream worker now skips provider calls after a stopped run wins and replays retained events. Six stopped statuses retain complete run/session events/audit under open or disconnected bodies; precancel/body drop persist one durable terminal error and release registration/lease. Missing-runtime POST503 vs Go background error, idle request-context zero body and private delta/preview combinations remain partial."
     },
     "crates/jftrade-engine/src/product_adk_model_runtime_tool_failure_tests.rs::a_completed_run_with_a_failed_tool_replays_as_the_chat_envelope": {
       "referenceCount": 2,
@@ -341945,7 +341934,7 @@
       ],
       "allowed": true,
       "reviewStatus": "reviewed",
-      "reviewNote": "2026-10-09: five frozen stream disconnect/helper/template originals and blob SHA reviewed. Real production POST decode and Hyper socket now prove malformed retry failure once, SSE headers, no event frame or run writes and reader release. Absent runtime valid-request retained terminal error, request-context precancellation and private delta/preview combinations stay partial. Template availability exact remains unchanged; shared terminal/replay evidence does not upgrade other originals."
+      "reviewNote": "2026-10-09: seven frozen chat helpers/disconnect/recovery/terminal/templates originals and blobs rechecked without status upgrades. Full production stream worker now skips provider calls after a stopped run wins and replays retained events. Six stopped statuses retain complete run/session events/audit under open or disconnected bodies; precancel/body drop persist one durable terminal error and release registration/lease. Missing-runtime POST503 vs Go background error, idle request-context zero body and private delta/preview combinations remain partial."
     },
     "crates/jftrade-engine/tests/adk_mutations_compatibility.rs::adk_provider_save_rejects_the_truncated_payload_with_the_reference_message": {
       "referenceCount": 1,
@@ -342102,7 +342091,7 @@
       ],
       "allowed": true,
       "reviewStatus": "single",
-      "reviewNote": "2026-10-09: five frozen stream disconnect/helper/template originals and blob SHA reviewed. Real production POST decode and Hyper socket now prove malformed retry failure once, SSE headers, no event frame or run writes and reader release. Absent runtime valid-request retained terminal error, request-context precancellation and private delta/preview combinations stay partial. Template availability exact remains unchanged; shared terminal/replay evidence does not upgrade other originals."
+      "reviewNote": "2026-10-09: seven frozen chat helpers/disconnect/recovery/terminal/templates originals and blobs rechecked without status upgrades. Full production stream worker now skips provider calls after a stopped run wins and replays retained events. Six stopped statuses retain complete run/session events/audit under open or disconnected bodies; precancel/body drop persist one durable terminal error and release registration/lease. Missing-runtime POST503 vs Go background error, idle request-context zero body and private delta/preview combinations remain partial."
     },
     "crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart": {
       "referenceCount": 2,
@@ -342112,7 +342101,7 @@
       ],
       "allowed": true,
       "reviewStatus": "reviewed",
-      "reviewNote": "2026-10-09: five frozen stream disconnect/helper/template originals and blob SHA reviewed. Real production POST decode and Hyper socket now prove malformed retry failure once, SSE headers, no event frame or run writes and reader release. Absent runtime valid-request retained terminal error, request-context precancellation and private delta/preview combinations stay partial. Template availability exact remains unchanged; shared terminal/replay evidence does not upgrade other originals."
+      "reviewNote": "2026-10-09: seven frozen chat helpers/disconnect/recovery/terminal/templates originals and blobs rechecked without status upgrades. Full production stream worker now skips provider calls after a stopped run wins and replays retained events. Six stopped statuses retain complete run/session events/audit under open or disconnected bodies; precancel/body drop persist one durable terminal error and release registration/lease. Missing-runtime POST503 vs Go background error, idle request-context zero body and private delta/preview combinations remain partial."
     },
     "crates/jftrade-engine/src/product_adk_model_runtime_recovery_tests.rs::persisted_terminal_run_is_published_as_final_instead_of_a_second_error": {
       "referenceCount": 3,
@@ -342123,7 +342112,7 @@
       ],
       "allowed": true,
       "reviewStatus": "reviewed",
-      "reviewNote": "2026-10-09: five frozen stream disconnect/helper/template originals and blob SHA reviewed. Real production POST decode and Hyper socket now prove malformed retry failure once, SSE headers, no event frame or run writes and reader release. Absent runtime valid-request retained terminal error, request-context precancellation and private delta/preview combinations stay partial. Template availability exact remains unchanged; shared terminal/replay evidence does not upgrade other originals."
+      "reviewNote": "2026-10-09: seven frozen chat helpers/disconnect/recovery/terminal/templates originals and blobs rechecked without status upgrades. Full production stream worker now skips provider calls after a stopped run wins and replays retained events. Six stopped statuses retain complete run/session events/audit under open or disconnected bodies; precancel/body drop persist one durable terminal error and release registration/lease. Missing-runtime POST503 vs Go background error, idle request-context zero body and private delta/preview combinations remain partial."
     },
     "crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::production_stream_missing_agent_emits_no_preview_frames": {
       "referenceCount": 1,
@@ -342132,7 +342121,7 @@
       ],
       "allowed": true,
       "reviewStatus": "single",
-      "reviewNote": "2026-10-09: five frozen stream disconnect/helper/template originals and blob SHA reviewed. Real production POST decode and Hyper socket now prove malformed retry failure once, SSE headers, no event frame or run writes and reader release. Absent runtime valid-request retained terminal error, request-context precancellation and private delta/preview combinations stay partial. Template availability exact remains unchanged; shared terminal/replay evidence does not upgrade other originals."
+      "reviewNote": "2026-10-09: seven frozen chat helpers/disconnect/recovery/terminal/templates originals and blobs rechecked without status upgrades. Full production stream worker now skips provider calls after a stopped run wins and replays retained events. Six stopped statuses retain complete run/session events/audit under open or disconnected bodies; precancel/body drop persist one durable terminal error and release registration/lease. Missing-runtime POST503 vs Go background error, idle request-context zero body and private delta/preview combinations remain partial."
     },
     "crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::adk_chat_stream_routes_are_isolated_without_port": {
       "referenceCount": 1,
@@ -342166,7 +342155,8 @@
         "internal/api/assistant/chat_stream_recovery_contracts_test.go:41:TestChatStreamExecutionReusesKnownContextAndRecoversTerminalRun"
       ],
       "allowed": true,
-      "reviewStatus": "single"
+      "reviewStatus": "single",
+      "reviewNote": "2026-10-09: seven frozen chat helpers/disconnect/recovery/terminal/templates originals and blobs rechecked without status upgrades. Full production stream worker now skips provider calls after a stopped run wins and replays retained events. Six stopped statuses retain complete run/session events/audit under open or disconnected bodies; precancel/body drop persist one durable terminal error and release registration/lease. Missing-runtime POST503 vs Go background error, idle request-context zero body and private delta/preview combinations remain partial."
     },
     "crates/jftrade-engine/tests/adk_chat_stream_timing_challenge.rs::test_client_disconnect_returns_499_within_250ms": {
       "referenceCount": 1,
@@ -342175,7 +342165,7 @@
       ],
       "allowed": true,
       "reviewStatus": "single",
-      "reviewNote": "2026-10-09: five frozen stream disconnect/helper/template originals and blob SHA reviewed. Real production POST decode and Hyper socket now prove malformed retry failure once, SSE headers, no event frame or run writes and reader release. Absent runtime valid-request retained terminal error, request-context precancellation and private delta/preview combinations stay partial. Template availability exact remains unchanged; shared terminal/replay evidence does not upgrade other originals."
+      "reviewNote": "2026-10-09: seven frozen chat helpers/disconnect/recovery/terminal/templates originals and blobs rechecked without status upgrades. Full production stream worker now skips provider calls after a stopped run wins and replays retained events. Six stopped statuses retain complete run/session events/audit under open or disconnected bodies; precancel/body drop persist one durable terminal error and release registration/lease. Missing-runtime POST503 vs Go background error, idle request-context zero body and private delta/preview combinations remain partial."
     },
     "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_respond_to_input_maps_the_go_error_codes_and_retries": {
       "referenceCount": 2,
@@ -342452,7 +342442,7 @@
       ],
       "allowed": true,
       "reviewStatus": "reviewed",
-      "reviewNote": "2026-10-09: five frozen stream disconnect/helper/template originals and blob SHA reviewed. Real production POST decode and Hyper socket now prove malformed retry failure once, SSE headers, no event frame or run writes and reader release. Absent runtime valid-request retained terminal error, request-context precancellation and private delta/preview combinations stay partial. Template availability exact remains unchanged; shared terminal/replay evidence does not upgrade other originals."
+      "reviewNote": "2026-10-09: seven frozen chat helpers/disconnect/recovery/terminal/templates originals and blobs rechecked without status upgrades. Full production stream worker now skips provider calls after a stopped run wins and replays retained events. Six stopped statuses retain complete run/session events/audit under open or disconnected bodies; precancel/body drop persist one durable terminal error and release registration/lease. Missing-runtime POST503 vs Go background error, idle request-context zero body and private delta/preview combinations remain partial."
     },
     "crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::adk_chat_idempotency_contract_matches_the_go_routes": {
       "referenceCount": 2,
@@ -364871,7 +364861,7 @@
       ],
       "allowed": true,
       "reviewStatus": "single",
-      "reviewNote": "2026-10-09: five frozen stream disconnect/helper/template originals and blob SHA reviewed. Real production POST decode and Hyper socket now prove malformed retry failure once, SSE headers, no event frame or run writes and reader release. Absent runtime valid-request retained terminal error, request-context precancellation and private delta/preview combinations stay partial. Template availability exact remains unchanged; shared terminal/replay evidence does not upgrade other originals."
+      "reviewNote": "2026-10-09: seven frozen chat helpers/disconnect/recovery/terminal/templates originals and blobs rechecked without status upgrades. Full production stream worker now skips provider calls after a stopped run wins and replays retained events. Six stopped statuses retain complete run/session events/audit under open or disconnected bodies; precancel/body drop persist one durable terminal error and release registration/lease. Missing-runtime POST503 vs Go background error, idle request-context zero body and private delta/preview combinations remain partial."
     },
     "crates/jftrade-engine/src/product_ws_live_tests.rs::password_change_revokes_browser_websocket_and_keeps_desktop_capability": {
       "referenceCount": 1,
@@ -365488,7 +365478,7 @@
       ],
       "allowed": true,
       "reviewStatus": "single",
-      "reviewNote": "2026-10-09: five frozen stream disconnect/helper/template originals and blob SHA reviewed. Real production POST decode and Hyper socket now prove malformed retry failure once, SSE headers, no event frame or run writes and reader release. Absent runtime valid-request retained terminal error, request-context precancellation and private delta/preview combinations stay partial. Template availability exact remains unchanged; shared terminal/replay evidence does not upgrade other originals."
+      "reviewNote": "2026-10-09: seven frozen chat helpers/disconnect/recovery/terminal/templates originals and blobs rechecked without status upgrades. Full production stream worker now skips provider calls after a stopped run wins and replays retained events. Six stopped statuses retain complete run/session events/audit under open or disconnected bodies; precancel/body drop persist one durable terminal error and release registration/lease. Missing-runtime POST503 vs Go background error, idle request-context zero body and private delta/preview combinations remain partial."
     },
     "crates/jftrade-engine/src/product_adk_reconnect_live_tests.rs::reconnect_http_shutdown_closes_idle_connection_without_mutating_the_run": {
       "referenceCount": 1,
@@ -365497,7 +365487,7 @@
       ],
       "allowed": true,
       "reviewStatus": "single",
-      "reviewNote": "2026-10-09: five frozen stream disconnect/helper/template originals and blob SHA reviewed. Real production POST decode and Hyper socket now prove malformed retry failure once, SSE headers, no event frame or run writes and reader release. Absent runtime valid-request retained terminal error, request-context precancellation and private delta/preview combinations stay partial. Template availability exact remains unchanged; shared terminal/replay evidence does not upgrade other originals."
+      "reviewNote": "2026-10-09: seven frozen chat helpers/disconnect/recovery/terminal/templates originals and blobs rechecked without status upgrades. Full production stream worker now skips provider calls after a stopped run wins and replays retained events. Six stopped statuses retain complete run/session events/audit under open or disconnected bodies; precancel/body drop persist one durable terminal error and release registration/lease. Missing-runtime POST503 vs Go background error, idle request-context zero body and private delta/preview combinations remain partial."
     },
     "crates/jftrade-engine/src/product_adk_reconnect_live_tests.rs::reconnect_http_replays_history_then_tails_live_events_on_the_same_connection": {
       "allowed": true,
@@ -366032,7 +366022,7 @@
       ],
       "allowed": true,
       "reviewStatus": "reviewed",
-      "reviewNote": "2026-10-09: five frozen stream disconnect/helper/template originals and blob SHA reviewed. Real production POST decode and Hyper socket now prove malformed retry failure once, SSE headers, no event frame or run writes and reader release. Absent runtime valid-request retained terminal error, request-context precancellation and private delta/preview combinations stay partial. Template availability exact remains unchanged; shared terminal/replay evidence does not upgrade other originals."
+      "reviewNote": "2026-10-09: seven frozen chat helpers/disconnect/recovery/terminal/templates originals and blobs rechecked without status upgrades. Full production stream worker now skips provider calls after a stopped run wins and replays retained events. Six stopped statuses retain complete run/session events/audit under open or disconnected bodies; precancel/body drop persist one durable terminal error and release registration/lease. Missing-runtime POST503 vs Go background error, idle request-context zero body and private delta/preview combinations remain partial."
     },
     "crates/jftrade-engine/src/product_adk_reconnect_disconnect_tests.rs::production_reconnect_retry_and_replay_write_failures_preserve_terminal_history": {
       "referenceCount": 1,
@@ -366041,7 +366031,7 @@
       ],
       "allowed": true,
       "reviewStatus": "single",
-      "reviewNote": "2026-10-09: five frozen stream disconnect/helper/template originals and blob SHA reviewed. Real production POST decode and Hyper socket now prove malformed retry failure once, SSE headers, no event frame or run writes and reader release. Absent runtime valid-request retained terminal error, request-context precancellation and private delta/preview combinations stay partial. Template availability exact remains unchanged; shared terminal/replay evidence does not upgrade other originals."
+      "reviewNote": "2026-10-09: seven frozen chat helpers/disconnect/recovery/terminal/templates originals and blobs rechecked without status upgrades. Full production stream worker now skips provider calls after a stopped run wins and replays retained events. Six stopped statuses retain complete run/session events/audit under open or disconnected bodies; precancel/body drop persist one durable terminal error and release registration/lease. Missing-runtime POST503 vs Go background error, idle request-context zero body and private delta/preview combinations remain partial."
     },
     "crates/jftrade-engine/src/product_adk_reconnect_disconnect_tests.rs::production_reconnect_precancelled_listener_writes_no_body_or_run_changes": {
       "referenceCount": 1,
@@ -366050,7 +366040,7 @@
       ],
       "allowed": true,
       "reviewStatus": "single",
-      "reviewNote": "2026-10-09: five frozen stream disconnect/helper/template originals and blob SHA reviewed. Real production POST decode and Hyper socket now prove malformed retry failure once, SSE headers, no event frame or run writes and reader release. Absent runtime valid-request retained terminal error, request-context precancellation and private delta/preview combinations stay partial. Template availability exact remains unchanged; shared terminal/replay evidence does not upgrade other originals."
+      "reviewNote": "2026-10-09: seven frozen chat helpers/disconnect/recovery/terminal/templates originals and blobs rechecked without status upgrades. Full production stream worker now skips provider calls after a stopped run wins and replays retained events. Six stopped statuses retain complete run/session events/audit under open or disconnected bodies; precancel/body drop persist one durable terminal error and release registration/lease. Missing-runtime POST503 vs Go background error, idle request-context zero body and private delta/preview combinations remain partial."
     },
     "crates/jftrade-engine/src/product_adk_reconnect_disconnect_tests.rs::production_agent_templates_remain_available_without_chat_runtime": {
       "referenceCount": 1,
@@ -366059,7 +366049,7 @@
       ],
       "allowed": true,
       "reviewStatus": "single",
-      "reviewNote": "2026-10-09: five frozen stream disconnect/helper/template originals and blob SHA reviewed. Real production POST decode and Hyper socket now prove malformed retry failure once, SSE headers, no event frame or run writes and reader release. Absent runtime valid-request retained terminal error, request-context precancellation and private delta/preview combinations stay partial. Template availability exact remains unchanged; shared terminal/replay evidence does not upgrade other originals."
+      "reviewNote": "2026-10-09: seven frozen chat helpers/disconnect/recovery/terminal/templates originals and blobs rechecked without status upgrades. Full production stream worker now skips provider calls after a stopped run wins and replays retained events. Six stopped statuses retain complete run/session events/audit under open or disconnected bodies; precancel/body drop persist one durable terminal error and release registration/lease. Missing-runtime POST503 vs Go background error, idle request-context zero body and private delta/preview combinations remain partial."
     },
     "crates/jftrade-engine/src/product_adk_run_lease_owner_tests.rs::production_heartbeat_rejects_expired_durable_lease_without_changing_the_row": {
       "referenceCount": 1,
@@ -366427,7 +366417,7 @@
       ],
       "allowed": true,
       "reviewStatus": "single",
-      "reviewNote": "2026-10-09: five frozen stream disconnect/helper/template originals and blob SHA reviewed. Real production POST decode and Hyper socket now prove malformed retry failure once, SSE headers, no event frame or run writes and reader release. Absent runtime valid-request retained terminal error, request-context precancellation and private delta/preview combinations stay partial. Template availability exact remains unchanged; shared terminal/replay evidence does not upgrade other originals."
+      "reviewNote": "2026-10-09: seven frozen chat helpers/disconnect/recovery/terminal/templates originals and blobs rechecked without status upgrades. Full production stream worker now skips provider calls after a stopped run wins and replays retained events. Six stopped statuses retain complete run/session events/audit under open or disconnected bodies; precancel/body drop persist one durable terminal error and release registration/lease. Missing-runtime POST503 vs Go background error, idle request-context zero body and private delta/preview combinations remain partial."
     }
   }
 }

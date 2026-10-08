@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "jftrade.local-quality-gate.v1",
+  "status": "failed",
+  "exitCode": 100,
+  "verifiedAt": "2026-10-08T17:32:10.553940+00:00",
+  "verifiedCommit": "99a49f514668a283fad13762c46c845f74c32041",
+  "rawOutputPath": "/Volumes/帆帆PM961-512/Github/JFTrade/.git/adk-stream-stopped-initial-owner-failure-20261009.jsonl",
+  "rawOutputSha256": "0047d78298155b434f98f8f77ddea4e1cd4c3706af6eb1edca12599063be6006",
+  "stderrPath": "/Volumes/帆帆PM961-512/Github/JFTrade/.git/adk-stream-stopped-initial-owner-failure-20261009.stderr",
+  "stderrSha256": "c9a1cb7a15ecc700ce4b9b264e1e451c332fff906c72ef09cf2310237c12579f",
+  "fixtureSourcePath": "/Volumes/帆帆PM961-512/Github/JFTrade/.git/adk-stream-stopped-initial-owner-failure-source-20261009.rs",
+  "fixtureSourceSha256": "f8271beb0d7e9a835d6ad6a5d4f4fcd0cabcee2fe38c0579a5db34a5b435c646",
+  "remainingRisk": "Positive timeout fixture expected MODEL_CALL_TIMEOUT at run-level; frozen Go maps to RUN_TIMED_OUT. Keep exact assertion after correcting expected layer. A separate existing reconnect reader test was marked LEAK; unresolved risk retained."
+}

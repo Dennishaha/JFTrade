@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "jftrade.local-quality-gate.v1",
+  "status": "failed",
+  "exitCode": 0,
+  "verifiedAt": "2026-10-08T17:33:35.360963+00:00",
+  "verifiedCommit": "99a49f514668a283fad13762c46c845f74c32041",
+  "rawOutputPath": "/Volumes/帆帆PM961-512/Github/JFTrade/.git/adk-stream-stopped-initial-owner-leak-20261009.jsonl",
+  "rawOutputSha256": "33534eda8972cbc120ce59db8a15c49b1b08cbc89ebaeb8223ae1514207ce560",
+  "stderrPath": "/Volumes/帆帆PM961-512/Github/JFTrade/.git/adk-stream-stopped-initial-owner-leak-20261009.stderr",
+  "stderrSha256": "7eaccc355c8e7bdd1bd3defd8f30ea00da71e45b22c5adb7cac911f20b3c2d18",
+  "nextestSummary": {
+    "planned": 27,
+    "passed": 27,
+    "failed": 0,
+    "skipped": 2345,
+    "leaky": 1
+  },
+  "remainingRisk": "Exit zero includes a LEAK on existing reconnect_store_failure_ends_body_after_one_error; not accepted as a clean gate. No Rust source changed before rerunning the same filter. Earlier initial failure also had a LEAK on reconnect_reader_drop_releases_idle_store_reference_without_background_reads; neither is claimed repaired."
+}

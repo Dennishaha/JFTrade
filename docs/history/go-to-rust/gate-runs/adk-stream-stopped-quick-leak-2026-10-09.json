@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "jftrade.local-quality-gate.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "pnpm",
+    "run",
+    "check:quick"
+  ],
+  "status": "failed",
+  "exitCode": 0,
+  "verifiedAt": "2026-10-08T17:48:08.757406+00:00",
+  "verifiedCommit": "99a49f514668a283fad13762c46c845f74c32041",
+  "rawOutputPath": "/Volumes/帆帆PM961-512/Github/JFTrade/.git/adk-stream-stopped-quick-leak-20261009.log",
+  "rawOutputSha256": "d4a29549ed691fecbb2d6dad47d4c13dc05c533bc34ccff071ffa7912ad361ed",
+  "nextestSummary": {
+    "planned": 2402,
+    "passed": 2402,
+    "failed": 0,
+    "skipped": 0,
+    "leaky": 1
+  },
+  "failedGate": "LEAK on existing mcp_tools_list_exposes_only_reviewed_read_tools",
+  "rustSourceFingerprintSha256": "728faf17731f5b7849300dc9784c9cdbfff9cb21aaac9a261d660c80d3dce025",
+  "frozenRustFiles": 1024,
+  "remainingRisk": "Exit zero is not accepted as a clean gate. Full Rust had started before raw-output review discovered the LEAK; preserve that run too, then finish quick followed by full Rust again. No leak threshold or source assertions changed."
+}

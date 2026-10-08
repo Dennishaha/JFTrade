@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "jftrade.local-quality-gate.v1",
+  "status": "failed",
+  "exitCode": 100,
+  "verifiedAt": "2026-10-08T17:32:10.543846+00:00",
+  "verifiedCommit": "99a49f514668a283fad13762c46c845f74c32041",
+  "rawOutputPath": "/Volumes/帆帆PM961-512/Github/JFTrade/.git/adk-stream-stopped-fixture-nested-runtime-20261009.jsonl",
+  "rawOutputSha256": "a2212552c32561ffaf3cac6a43430bd68e28c633ffe48b98e87539f96f4db35a",
+  "stderrPath": "/Volumes/帆帆PM961-512/Github/JFTrade/.git/adk-stream-stopped-fixture-nested-runtime-20261009.stderr",
+  "stderrSha256": "2b51af5e1fce00604f16a73d359274505bbff9329cad47b518e655a1f9f2677c",
+  "fixtureSourcePath": "/Volumes/帆帆PM961-512/Github/JFTrade/.git/adk-stream-stopped-fixture-nested-runtime-source-20261009.rs",
+  "fixtureSourceSha256": "2a12ae4042a9b11ad7a68c3301fd2b51d0379a750db6966678cb80598d1bc31e",
+  "remainingRisk": "Fixture used a Tokio test runtime around a synchronous owner that creates its own runtime. Not production behavior red."
+}

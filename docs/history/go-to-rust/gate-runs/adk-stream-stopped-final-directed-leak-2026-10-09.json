@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "jftrade.local-quality-gate.v1",
+  "status": "failed",
+  "exitCode": 0,
+  "verifiedAt": "2026-10-08T17:42:29.487411+00:00",
+  "verifiedCommit": "99a49f514668a283fad13762c46c845f74c32041",
+  "rawOutputPath": "/Volumes/帆帆PM961-512/Github/JFTrade/.git/adk-stream-stopped-final-directed-leak-20261009.jsonl",
+  "rawOutputSha256": "a339d649d0f88197efd89aa8159fceb80b9d2bc57f56a21a37e70b16bb8140c1",
+  "stderrPath": "/Volumes/帆帆PM961-512/Github/JFTrade/.git/adk-stream-stopped-final-directed-leak-20261009.stderr",
+  "stderrSha256": "752fae05bc8ad0a5c028f117dc2c8bffea97cebb77543a04df4a5401d342e694",
+  "nextestSummary": {
+    "planned": 27,
+    "passed": 27,
+    "failed": 0,
+    "skipped": 2345,
+    "leaky": 1
+  },
+  "rustSourceFingerprintSha256": "728faf17731f5b7849300dc9784c9cdbfff9cb21aaac9a261d660c80d3dce025",
+  "frozenRustFiles": 1024,
+  "remainingRisk": "Existing reconnect_reader_drop_releases_idle_store_reference_without_background_reads marked LEAK again. Test owner and store/WriterLease code were inspected; no spawned child process was found on this path. Preserve unresolved runner/process-handle evidence; do not weaken leak thresholds or mark exit-zero as a clean success."
+}

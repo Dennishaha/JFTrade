@@ -1,0 +1,59 @@
+{
+  "schemaVersion": "jftrade.local-quality-gate.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "pnpm",
+    "run",
+    "check:quick"
+  ],
+  "status": "passed",
+  "exitCode": 0,
+  "verifiedAt": "2026-10-08T17:53:18.762621+00:00",
+  "verifiedCommit": "99a49f514668a283fad13762c46c845f74c32041",
+  "rawOutputPath": "/Volumes/帆帆PM961-512/Github/JFTrade/.git/adk-stream-stopped-quick-20261009.log",
+  "rawOutputSha256": "a66953edf0b73f0def12bc4dcb67b11dfc3c8c0d31d12740c139d19c008d05ba",
+  "environment": {
+    "CARGO_TARGET_DIR": "/Users/jiangfan/.cache/jftrade/targets/parity-assistant-20261008",
+    "rustc": "1.97.1",
+    "node": "24.19.0",
+    "pnpm": "12.3.4",
+    "protoc": "34.1",
+    "nextest": "0.9.143",
+    "cargoDeny": "0.20.2",
+    "gitProxy": "macOS configured http://127.0.0.1:10808; child Git only"
+  },
+  "nextestSummary": {
+    "planned": 2402,
+    "passed": 2402,
+    "failed": 0,
+    "skipped": 0,
+    "testSeconds": 106.539
+  },
+  "compatibilityReplays": {
+    "storage": "passed",
+    "backtest": "passed",
+    "provider-runtime": "passed",
+    "trading-strategy": "passed",
+    "assistant-runtime": "passed",
+    "api-transport": "passed",
+    "desktop-runtime": "passed"
+  },
+  "affectedSourceSha256": {
+    "crates/jftrade-engine/src/product_adk_model_runtime_stream.rs": "213cbbb30e4331855513c1a95fb1537d8baa27fe805cb977db2c7066173e55e7",
+    "crates/jftrade-engine/src/product_adk_terminal_disconnect_tests.rs": "24b9aa1f8d172c23b6f500478e1f11d4c65227f5a40d3e0e5d7951a8a2adb0fd",
+    "crates/jftrade-engine/src/product_adk_stream_stopped_owner_tests.rs": "fe461169e6a0cb065c7f567b206e908a981e3551a457cd9e2791d0824e13c9c2"
+  },
+  "rustSourceFingerprintSha256": "728faf17731f5b7849300dc9784c9cdbfff9cb21aaac9a261d660c80d3dce025",
+  "frozenRustFiles": 1024,
+  "rustSourceChangedDuringGate": [],
+  "leakyTestMarkerCount": 0,
+  "remainingRisk": "Full production stream worker replays retained events without contacting the provider when the run is no longer RUNNING. Six stopped statuses preserve complete run/session events/audit for open and disconnected bodies; precancel/body closure create one durable cancellation error and release registry/lease. RUNNING positive control actually contacts loopback provider and persists TIMED_OUT/RUN_TIMED_OUT. Seven frozen originals reviewed without classification upgrades. Missing-runtime POST503 vs Go background error, idle request-context zero body and private delta/preview combinations remain partial. Fixture nesting and timeout-layer expectation failures retained separately from production red. Three targeted runs contained one LEAK each on existing reconnect tests, unresolved; a quick run also reported a LEAK on the existing MCP tools list test. Clean targeted run and gates do not claim these repaired. Whole parity active.",
+  "pineWorkerTests": {
+    "passed": 98
+  },
+  "desktopChecks": {
+    "runtimeNodeTestsPassed": 11,
+    "scriptNodeTestsPassed": 48
+  }
+}

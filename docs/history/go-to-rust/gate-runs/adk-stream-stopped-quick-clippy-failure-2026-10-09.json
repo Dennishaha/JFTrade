@@ -1,0 +1,31 @@
+{
+  "schemaVersion": "jftrade.local-quality-gate.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "pnpm",
+    "run",
+    "check:quick"
+  ],
+  "status": "failed",
+  "exitCode": 1,
+  "verifiedAt": "2026-10-08T17:39:54.946372+00:00",
+  "verifiedCommit": "99a49f514668a283fad13762c46c845f74c32041",
+  "rawOutputPath": "/Volumes/帆帆PM961-512/Github/JFTrade/.git/adk-stream-stopped-quick-clippy-failure-20261009.log",
+  "rawOutputSha256": "24a58255645489907121c74c84887486e0afa90961bd4ba3a386dcbda9fb23bb",
+  "nextestSummary": {
+    "planned": 2402,
+    "passed": 2402,
+    "failed": 0,
+    "skipped": 0
+  },
+  "failedGate": "Clippy -D warnings: unused AtomicBool import in new stream owner fixture",
+  "notRun": [
+    "seven compatibility replays",
+    "Pine worker tests",
+    "desktop checks"
+  ],
+  "rustSourceFingerprintSha256": "6e94edfe163d876edb6ff727443e5bce8d07b873b3adf0ef28ffe14257aed2ac",
+  "frozenRustFiles": 1024,
+  "remainingRisk": "Remove the unused import without weakening Clippy, then rerun directed/quick/full gates with a new source freeze. Existing targeted LEAK evidence remains unresolved."
+}

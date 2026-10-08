@@ -1,5 +1,8 @@
 use super::*;
 
+#[path = "product_adk_stream_stopped_owner_tests.rs"]
+mod stream_owner;
+
 // Parity: go:452dea11:internal/assistant/engine/runner_chat_test.go:1124 TestCancelRunOnTerminalStateIsNoop
 #[test]
 fn late_disconnect_and_failure_preserve_terminal_run_history_and_audit() {
