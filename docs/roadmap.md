@@ -4,13 +4,20 @@
 
 当前活动包括迁移行为核验、产品质量和发布资格工作。迁移历史与证据位于 `docs/history/go-to-rust`；历史阶段完成声明不能代替全部映射的逐项审查。
 
-## 当前批次：ADK durable 工具与 owner fence
+## 当前批次：ADK heartbeat 调用方快照与写入前拒绝
 
-审批并发及shutdown批次已完成，当前 1662 exact、2151 partial、638 boundary。失败及通过证据见 [证据积压清单](history/go-to-rust/parity-evidence-backlog.md)。开发分支为 `codex/parity-assistant-builtin-config-20261008`，整体行为目标继续 active。
+durable 工具批次已完成，当前 1661 exact、2152 partial、638 boundary。失败及通过证据见 [证据积压清单](history/go-to-rust/parity-evidence-backlog.md)。开发分支为 `codex/parity-assistant-builtin-config-20261008`，整体行为目标继续 active。
 
-- [ ] 复核execution_claims_test.go的54/108/167/265/343五条，直接定位生产tool loop、durable replay、过期reconciliation和SQLite状态写入owner。
-- [ ] 验证durable结果复用、失败工具投影、旧租约零工具执行、fresh foreign lease保护及跨run fence拒绝；稳定key context和持久化状态拼写差异须明确保留。
+- [ ] 复核lease_boundaries14/108/133/144/161五条，直接验证过期caller snapshot在真实owner写入前拒绝；不能仅由durable row过期推断。
+- [ ] heartbeat成功后更新worker snapshot，避免初始快照过期后错误取消仍有效owner；定时断言使用确定信号和显式过期。
 - [ ] 定向 receipt、ordinary/strict、anchor/context、quick 计划与现场 quick、完整 Rust 门禁、diff/源码指纹复核后独立提交。
+
+## 已验证批次：ADK durable 工具与 owner fence
+
+- [x] 五条冻结execution_claims54/108/167/265/343复核，真实tool loop执行读取一次、恢复checkpoint复用同一durable输出；FAILED output原error.message及call投影保持，旧owner零工具执行，fresh foreign lease保持完整run及lease，stale/cross-run CAS拒绝且两row不变。
+- [x] 265换直接runtime reconciliation证据且保持exact；167旧generic exact降partial。context key、Go durable COMPLETED/Rust FAILED和ErrRunLeaseLost/Rust None或false的返回差异保留；当前1661 exact、2152 partial、638 boundary。
+- [x] 首轮3 passed/2 failed证据保留，最终定向10 passed；首次quick单个旧catalog LEAK保留，未改源码的20次stress及quick重跑均无LEAK。quick2379 Rust/98 Pine通过，现场完整Rust3971 passed、0 failed、2 skipped，static/七类replay通过并退出0。
+- [x] 1017个Rust文件指纹不变；ordinary/strict/anchor/context、五条Go blob/receipt/reuse/diff复核后提交，继续heartbeat快照边界。
 
 ## 已验证批次：ADK shutdown 与租约释放
 

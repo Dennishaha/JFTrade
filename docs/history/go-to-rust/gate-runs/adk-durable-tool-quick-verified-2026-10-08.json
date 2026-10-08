@@ -1,0 +1,51 @@
+{
+  "schemaVersion": "jftrade.local-quality-gate.v1",
+  "environment": {
+    "CARGO_TARGET_DIR": "/Users/jiangfan/.cache/jftrade/targets/parity-assistant-20261008",
+    "rustc": "1.97.1",
+    "node": "24.19.0",
+    "pnpm": "12.3.4",
+    "protoc": "34.1",
+    "nextest": "0.9.143",
+    "cargoDeny": "0.20.2",
+    "gitProxy": "macOS configured http://127.0.0.1:10808; child Git only"
+  },
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "pnpm",
+    "run",
+    "check:quick"
+  ],
+  "status": "passed",
+  "exitCode": 0,
+  "verifiedAt": "2026-10-08T12:33:59.617827+00:00",
+  "verifiedCommit": "10add55a8050860453ba614c5a000b989d9dcfdf",
+  "rawOutputPath": "/Volumes/帆帆PM961-512/Github/JFTrade/.git/adk-durable-tool-quick-rerun-20261008.log",
+  "rawOutputSha256": "e916c14bc985f0f75f17107c44be04a7747d00332a495fb8bd5033fd5be989a9",
+  "rustSourceFingerprintSha256": "5ad3180c1938d8aff17ab724b9885271149a87cf7944564f0a1caae8c95c25c7",
+  "frozenRustFiles": 1017,
+  "rustSourceChangedDuringGate": [],
+  "leakyTestMarkerCount": 0,
+  "nextestSummary": {
+    "planned": 2379,
+    "passed": 2379,
+    "failed": 0,
+    "skipped": 0,
+    "leaky": 0,
+    "testSeconds": 106.12
+  },
+  "pineWorkerTests": {
+    "passed": 98
+  },
+  "static": "passed",
+  "compatibilityReplays": {
+    "storage": "passed",
+    "backtest": "passed",
+    "provider-runtime": "passed",
+    "trading-strategy": "passed",
+    "assistant-runtime": "passed",
+    "api-transport": "passed",
+    "desktop-runtime": "passed"
+  }
+}

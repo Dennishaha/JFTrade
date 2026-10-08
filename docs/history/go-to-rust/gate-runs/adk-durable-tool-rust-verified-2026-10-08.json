@@ -1,0 +1,53 @@
+{
+  "schemaVersion": "jftrade.local-quality-gate.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "pnpm",
+    "run",
+    "check:rust"
+  ],
+  "status": "passed",
+  "exitCode": 0,
+  "verifiedAt": "2026-10-08T12:34:57.560332+00:00",
+  "verifiedCommit": "10add55a8050860453ba614c5a000b989d9dcfdf",
+  "rawOutputPath": "/Volumes/帆帆PM961-512/Github/JFTrade/.git/adk-durable-tool-rust-full-20261008.log",
+  "rawOutputSha256": "bcc19c6178a89ea8b768286b90f508e2cab9fd0af03e36783843178fea1e701b",
+  "environment": {
+    "CARGO_TARGET_DIR": "/Users/jiangfan/.cache/jftrade/targets/parity-assistant-20261008",
+    "rustc": "1.97.1",
+    "node": "24.19.0",
+    "pnpm": "12.3.4",
+    "protoc": "34.1",
+    "nextest": "0.9.143",
+    "cargoDeny": "0.20.2",
+    "gitProxy": "macOS configured http://127.0.0.1:10808; child Git only"
+  },
+  "nextestSummary": {
+    "planned": 3971,
+    "passed": 3971,
+    "failed": 0,
+    "skipped": 2,
+    "testSeconds": 108.58
+  },
+  "static": "passed",
+  "compatibilityReplays": {
+    "storage": "passed",
+    "backtest": "passed",
+    "provider-runtime": "passed",
+    "trading-strategy": "passed",
+    "assistant-runtime": "passed",
+    "api-transport": "passed",
+    "desktop-runtime": "passed"
+  },
+  "affectedSourceSha256": {
+    "crates/jftrade-engine/src/product_adk_approval_concurrency_owner_tests.rs": "a77c43780dc412efaba1f249e4911393ad2c6c1758b15b56e9bf300a3cfa8f1c",
+    "crates/jftrade-engine/src/product_adk_model_runtime_terminal_audit_tests.rs": "5ef0a003c81f5136f0db18b369d886f5c5a2efc59ab727e7778ef5fe62232614",
+    "crates/jftrade-engine/src/product_adk_durable_tool_owner_tests.rs": "0c076bb0f31baf6227c9f44aeecbcda4e8037d16efc95f367c9beeb21af56002"
+  },
+  "rustSourceFingerprintSha256": "5ad3180c1938d8aff17ab724b9885271149a87cf7944564f0a1caae8c95c25c7",
+  "frozenRustFiles": 1017,
+  "rustSourceChangedDuringGate": [],
+  "leakyTestMarkerCount": 0,
+  "remainingRisk": "Provider context invocation key, Go COMPLETED durable failure status and ErrRunLeaseLost return contracts remain partial; whole goal active."
+}

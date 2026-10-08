@@ -1,0 +1,418 @@
+use super::*;
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::thread;
+
+use super::super::{AdkToolExecutor, RUN_LEASE_TTL};
+use jftrade_store_sqlite::AdkToolInvocationClaim;
+
+#[derive(Debug)]
+struct ReadTool {
+    calls: Arc<AtomicUsize>,
+    fail: bool,
+}
+
+impl AdkToolExecutor for ReadTool {
+    fn supports(&self, name: &str) -> bool {
+        name == "market.snapshot"
+    }
+    fn execute(&self, _: &str, arguments: &Value) -> Result<Value, String> {
+        self.calls.fetch_add(1, Ordering::AcqRel);
+        if self.fail {
+            Err("provider rejected the request".to_owned())
+        } else {
+            Ok(json!({"value":arguments["value"]}))
+        }
+    }
+}
+
+struct ToolFixture {
+    directory: tempfile::TempDir,
+    store: Arc<AdkStore>,
+    sessions: Arc<AdkSessionStore>,
+    runtime: ProductionAdkChatRuntime,
+    calls: Arc<AtomicUsize>,
+}
+
+impl ToolFixture {
+    fn new(fail: bool) -> Self {
+        let (directory, store, sessions) = initialized_stores();
+        let calls = Arc::new(AtomicUsize::new(0));
+        let runtime = ProductionAdkChatRuntime::with_tool_executor_for_test(
+            store.clone(),
+            sessions.clone(),
+            &directory.path().join("settings.json"),
+            Arc::new(RunCancellationRegistry::default()),
+            Arc::new(
+                crate::product::product_production_ports::ProductionToolCatalog::empty_for_test(),
+            ),
+            Arc::new(ReadTool {
+                calls: calls.clone(),
+                fail,
+            }),
+        );
+        Self {
+            directory,
+            store,
+            sessions,
+            runtime,
+            calls,
+        }
+    }
+
+    fn seed(&self, run_id: &str) -> ChatExecution {
+        create_running_run(
+            &self.store,
+            run_id,
+            json!([{
+                "id":"function-call-test", "name":"market.snapshot", "toolName":"market.snapshot",
+                "arguments":{"value":"once"}, "status":"RUNNING", "requiresUser":false,
+            }]),
+        );
+        self.sessions
+            .upsert_session("jftrade", "local", &format!("session-{run_id}"), "{}")
+            .unwrap();
+        chat_for(run_id)
+    }
+
+    fn expire(&self, run_id: &str) {
+        assert_eq!(
+            Connection::open(self.directory.path().join("adk.db"))
+                .unwrap()
+                .execute(
+                    "UPDATE adk_run_leases SET expires_at_unix_ms=0 WHERE run_id=?1",
+                    [run_id]
+                )
+                .unwrap(),
+            1
+        );
+    }
+}
+
+impl Drop for ToolFixture {
+    fn drop(&mut self) {
+        self.runtime.shutdown();
+    }
+}
+
+struct Provider {
+    endpoint: String,
+    stop: Arc<AtomicBool>,
+    worker: Option<thread::JoinHandle<()>>,
+}
+
+impl Provider {
+    fn new() -> Self {
+        let (endpoint, stop, worker) = super::approval_concurrency::response_provider();
+        Self {
+            endpoint,
+            stop,
+            worker: Some(worker),
+        }
+    }
+}
+
+impl Drop for Provider {
+    fn drop(&mut self) {
+        self.stop.store(true, Ordering::Release);
+        if let Some(worker) = self.worker.take() {
+            let result = worker.join();
+            if !thread::panicking() {
+                result.unwrap();
+            }
+        }
+    }
+}
+
+// Parity: go:452dea11:internal/assistant/engine/execution_claims_test.go:54 TestGoogleADKToolUsesDurableInvocationKeyAndReplay
+#[test]
+fn production_read_tool_result_replays_from_the_same_durable_invocation_without_execution() {
+    let fixture = ToolFixture::new(false);
+    let provider = Provider::new();
+    let mut chat = fixture.seed("run-wrapper");
+    chat.request.endpoint = provider.endpoint.parse().unwrap();
+    let lease =
+        RunLeaseGuard::acquire(fixture.store.clone(), &chat.run_id, "replay-owner").unwrap();
+    fixture
+        .runtime
+        .run_tool_loop(chat.clone(), Arc::new(AtomicBool::new(false)), &lease);
+    let completed = fixture.store.get_run(&chat.run_id).unwrap().unwrap();
+    assert_eq!(completed.status, "COMPLETED");
+    let mut payload: Value = serde_json::from_str(&completed.payload_json).unwrap();
+    let first = payload["toolResults"][0]["output"].clone();
+    assert_eq!(first, json!({"value":"once"}));
+    assert_eq!(fixture.calls.load(Ordering::Acquire), 1);
+    // Restore an in-progress checkpoint while retaining its durable result.
+    // This exercises the production claim/replay owner, not another executor.
+    payload["status"] = json!("RUNNING");
+    assert!(
+        fixture
+            .store
+            .update_run_state_if_status_and_revision_with_lease(
+                &chat.run_id,
+                "COMPLETED",
+                &completed.updated_at,
+                "RUNNING",
+                &payload.to_string(),
+                lease.owner_id(),
+                lease.token(),
+            )
+            .unwrap()
+    );
+    let replay = fixture
+        .runtime
+        .claim_tool_invocation_with_retry(
+            &chat,
+            "function-call-test",
+            "market.snapshot",
+            r#"{"value":"once"}"#,
+            lease.owner_id(),
+            &lease,
+            &Arc::new(AtomicBool::new(false)),
+            false,
+        )
+        .unwrap()
+        .unwrap();
+    let AdkToolInvocationClaim::Replay(replay) = replay else {
+        panic!("completed result must replay");
+    };
+    assert_eq!(replay.run_id, chat.run_id);
+    assert_eq!(replay.idempotency_key, "function-call-test");
+    assert_eq!(
+        serde_json::from_str::<Value>(&replay.output_json).unwrap(),
+        first
+    );
+    assert_eq!(fixture.calls.load(Ordering::Acquire), 1);
+}
+
+// Parity: go:452dea11:internal/assistant/engine/execution_claims_test.go:108 TestFailedReadIsDurablyCompletedButProjectedAsFailedToolCall
+#[test]
+fn production_failed_read_persists_its_false_output_and_failed_call() {
+    let fixture = ToolFixture::new(true);
+    let provider = Provider::new();
+    let mut chat = fixture.seed("run-failed-read");
+    chat.request.endpoint = provider.endpoint.parse().unwrap();
+    let lease =
+        RunLeaseGuard::acquire(fixture.store.clone(), &chat.run_id, "failed-read-owner").unwrap();
+    fixture
+        .runtime
+        .run_tool_loop(chat.clone(), Arc::new(AtomicBool::new(false)), &lease);
+    let run = fixture.store.get_run(&chat.run_id).unwrap().unwrap();
+    let payload: Value = serde_json::from_str(&run.payload_json).unwrap();
+    let invocation = fixture
+        .store
+        .get_tool_invocation(&chat.run_id, "function-call-test")
+        .unwrap()
+        .unwrap();
+    let output: Value = serde_json::from_str(&invocation.output_json).unwrap();
+    assert_eq!(output["success"], false);
+    assert_eq!(invocation.status, "FAILED");
+    assert_eq!(output["error"]["message"], "provider rejected the request");
+    assert_eq!(payload["toolResults"][0]["output"], output);
+    assert_eq!(payload["toolCalls"][0]["status"], "FAILED");
+    assert!(
+        payload["toolCalls"][0]["error"]
+            .as_str()
+            .unwrap()
+            .contains("provider rejected")
+    );
+    assert_eq!(fixture.calls.load(Ordering::Acquire), 1);
+    assert_eq!(run.status, "COMPLETED");
+}
+
+// Parity: go:452dea11:internal/assistant/engine/execution_claims_test.go:167 TestGoogleADKToolRejectsStaleContextAfterLeaseTurnover
+#[test]
+fn production_stale_run_lease_executes_no_read_tool_and_preserves_the_replacement() {
+    let fixture = ToolFixture::new(false);
+    let chat = fixture.seed("run-stale-context");
+    let stale = RunLeaseGuard::acquire(fixture.store.clone(), &chat.run_id, "stale-owner").unwrap();
+    fixture.expire(&chat.run_id);
+    let current =
+        RunLeaseGuard::acquire(fixture.store.clone(), &chat.run_id, "current-owner").unwrap();
+    let before = fixture.store.get_run(&chat.run_id).unwrap().unwrap();
+    let replacement = fixture.store.get_run_lease(&chat.run_id).unwrap().unwrap();
+    let claim = fixture
+        .runtime
+        .claim_tool_invocation_with_retry(
+            &chat,
+            "function-call-test",
+            "market.snapshot",
+            r#"{"value":"once"}"#,
+            stale.owner_id(),
+            &stale,
+            &Arc::new(AtomicBool::new(false)),
+            false,
+        )
+        .unwrap();
+    assert!(claim.is_none());
+    fixture
+        .runtime
+        .run_tool_loop(chat.clone(), Arc::new(AtomicBool::new(false)), &stale);
+    assert_eq!(fixture.calls.load(Ordering::Acquire), 0);
+    assert_eq!(
+        fixture.store.get_run(&chat.run_id).unwrap().unwrap(),
+        before
+    );
+    assert_eq!(
+        fixture.store.get_run_lease(&chat.run_id).unwrap().unwrap(),
+        replacement
+    );
+    assert!(
+        fixture
+            .store
+            .get_tool_invocation(&chat.run_id, "function-call-test")
+            .unwrap()
+            .is_none()
+    );
+    drop(stale);
+    assert_eq!(
+        fixture.store.get_run_lease(&chat.run_id).unwrap().unwrap(),
+        replacement
+    );
+    assert!(!current.is_lost());
+}
+
+// Parity: go:452dea11:internal/assistant/engine/execution_claims_test.go:265 TestRuntimeReconciliationDoesNotStealFreshForeignLease
+#[test]
+fn production_expiry_reconciliation_preserves_a_fresh_foreign_lease_and_run() {
+    let fixture = ToolFixture::new(false);
+    let chat = fixture.seed("run-owned-elsewhere");
+    let original = fixture.store.get_run(&chat.run_id).unwrap().unwrap();
+    let payload =
+        json!({"status":"RUNNING", "startedAt":"2020-01-01T00:00:00Z", "maxDurationMs":1});
+    assert!(
+        fixture
+            .store
+            .update_run_state_if_status_and_revision(
+                &chat.run_id,
+                "RUNNING",
+                &original.updated_at,
+                "RUNNING",
+                &payload.to_string()
+            )
+            .unwrap()
+    );
+    let foreign = fixture
+        .store
+        .claim_run_lease(
+            &chat.run_id,
+            "executor-other-process",
+            Duration::from_secs(60),
+        )
+        .unwrap();
+    let before = fixture.store.get_run(&chat.run_id).unwrap().unwrap();
+    fixture.runtime.reconcile_expired_runs().unwrap();
+    assert_eq!(
+        fixture.store.get_run(&chat.run_id).unwrap().unwrap(),
+        before
+    );
+    assert_eq!(
+        fixture.store.get_run_lease(&chat.run_id).unwrap().unwrap(),
+        foreign
+    );
+    assert_eq!(before.status, "RUNNING");
+    assert!(fixture.store.list_audit_events().unwrap().is_empty());
+    fixture.expire(&chat.run_id);
+    fixture.runtime.reconcile_expired_runs().unwrap();
+    assert_eq!(
+        fixture.store.get_run(&chat.run_id).unwrap().unwrap().status,
+        "TIMED_OUT"
+    );
+}
+
+// Parity: go:452dea11:internal/assistant/engine/execution_claims_test.go:343 TestRunSaveIsFencedWithExecutionLeaseContext
+#[test]
+fn production_run_writes_reject_stale_and_mismatched_fences_before_the_current_write() {
+    let fixture = ToolFixture::new(false);
+    let chat = fixture.seed("run-save-fenced");
+    fixture.seed("run-save-fenced-other");
+    let row = fixture.store.get_run(&chat.run_id).unwrap().unwrap();
+    let before_payload = json!({"status":"RUNNING", "message":"before takeover"});
+    assert!(
+        fixture
+            .store
+            .update_run_state_if_status_and_revision(
+                &chat.run_id,
+                "RUNNING",
+                &row.updated_at,
+                "RUNNING",
+                &before_payload.to_string()
+            )
+            .unwrap()
+    );
+    let stale = fixture
+        .store
+        .claim_run_lease(&chat.run_id, "executor-stale", RUN_LEASE_TTL)
+        .unwrap();
+    fixture.expire(&chat.run_id);
+    let current = fixture
+        .store
+        .claim_run_lease(&chat.run_id, "executor-current", RUN_LEASE_TTL)
+        .unwrap();
+    let before = fixture.store.get_run(&chat.run_id).unwrap().unwrap();
+    let other = fixture
+        .store
+        .get_run("run-save-fenced-other")
+        .unwrap()
+        .unwrap();
+    let stale_payload = json!({"status":"RUNNING", "message":"stale write"});
+    assert!(matches!(
+        fixture
+            .store
+            .update_run_state_if_status_and_revision_with_lease(
+                &chat.run_id,
+                "RUNNING",
+                &before.updated_at,
+                "RUNNING",
+                &stale_payload.to_string(),
+                &stale.owner_id,
+                stale.fencing_token,
+            ),
+        Ok(false)
+    ));
+    assert_eq!(
+        fixture.store.get_run(&chat.run_id).unwrap().unwrap(),
+        before
+    );
+    assert!(matches!(
+        fixture
+            .store
+            .update_run_state_if_status_and_revision_with_lease(
+                &other.id,
+                "RUNNING",
+                &other.updated_at,
+                "RUNNING",
+                &stale_payload.to_string(),
+                &current.owner_id,
+                current.fencing_token,
+            ),
+        Ok(false)
+    ));
+    assert_eq!(fixture.store.get_run(&other.id).unwrap().unwrap(), other);
+    let payload = json!({"status":"RUNNING", "message":"current write"});
+    assert!(
+        fixture
+            .store
+            .update_run_state_if_status_and_revision_with_lease(
+                &chat.run_id,
+                "RUNNING",
+                &before.updated_at,
+                "RUNNING",
+                &payload.to_string(),
+                &current.owner_id,
+                current.fencing_token,
+            )
+            .unwrap()
+    );
+    assert_eq!(
+        serde_json::from_str::<Value>(
+            &fixture
+                .store
+                .get_run(&chat.run_id)
+                .unwrap()
+                .unwrap()
+                .payload_json
+        )
+        .unwrap()["message"],
+        "current write"
+    );
+}

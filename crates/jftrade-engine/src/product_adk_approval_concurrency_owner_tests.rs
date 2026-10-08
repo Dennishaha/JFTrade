@@ -50,7 +50,7 @@ impl AdkToolExecutor for CountedTools {
     }
 }
 
-fn response_provider() -> (String, Arc<AtomicBool>, thread::JoinHandle<()>) {
+pub(super) fn response_provider() -> (String, Arc<AtomicBool>, thread::JoinHandle<()>) {
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     listener.set_nonblocking(true).unwrap();
     let address = listener.local_addr().unwrap();

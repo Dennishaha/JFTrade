@@ -1170,3 +1170,6 @@ mod run_lease;
 
 #[path = "product_adk_approval_concurrency_owner_tests.rs"]
 mod approval_concurrency;
+
+#[path = "product_adk_durable_tool_owner_tests.rs"]
+mod durable_tool;

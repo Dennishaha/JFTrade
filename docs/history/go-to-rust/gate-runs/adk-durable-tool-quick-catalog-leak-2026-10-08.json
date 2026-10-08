@@ -1,0 +1,35 @@
+{
+  "schemaVersion": "jftrade.local-quality-gate.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "pnpm",
+    "run",
+    "check:quick"
+  ],
+  "status": "passed_with_leak",
+  "exitCode": 0,
+  "verifiedAt": "2026-10-08T12:27:28.515015+00:00",
+  "verifiedCommit": "10add55a8050860453ba614c5a000b989d9dcfdf",
+  "rawOutputPath": "/Volumes/帆帆PM961-512/Github/JFTrade/.git/adk-durable-tool-quick-20261008.log",
+  "rawOutputSha256": "1ee033c54cd93cf9a021e06554672e87ec9d40b733057610eaf820f18eebb545",
+  "nextestSummary": {
+    "planned": 2379,
+    "passed": 2379,
+    "failed": 0,
+    "skipped": 0,
+    "leaky": 1,
+    "testSeconds": 107.271
+  },
+  "pineWorkerTests": {
+    "passed": 98
+  },
+  "leakyTestMarkerCount": 1,
+  "leakyTests": [
+    "jftrade-engine::product::product_mcp_server::tests::production_catalog_registers_application_tools_from_the_composition_root"
+  ],
+  "rustSourceFingerprintSha256": "5ad3180c1938d8aff17ab724b9885271149a87cf7944564f0a1caae8c95c25c7",
+  "frozenRustFiles": 1017,
+  "rustSourceChangedDuringGate": [],
+  "diagnostic": "Command exited 0 with one nextest LEAK in an existing static catalog test. The test and its catalog construction/value projection call chain start no threads or processes. Preserve this observation; do not claim leak-free verification."
+}
