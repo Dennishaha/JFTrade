@@ -1,0 +1,67 @@
+{
+  "schemaVersion": "jftrade.local-quality-gate.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "pnpm",
+    "run",
+    "check:quick"
+  ],
+  "status": "passed",
+  "exitCode": 0,
+  "verifiedAt": "2026-10-08T21:20:07.486487+00:00",
+  "verifiedCommit": "c5915bae7f96a5bf2cce23c0c6b2d3a68656836d",
+  "rawOutputPath": "/Volumes/帆帆PM961-512/Github/JFTrade/.git/adk-terminal-projection-recovery-quick-20261009.log",
+  "rawOutputSha256": "612e4f9965ed9ecc0f4d2e338feaa85e4b9791a9b80f2961981b52ac9c7fcad3",
+  "environment": {
+    "CARGO_TARGET_DIR": "/Users/jiangfan/.cache/jftrade/targets/parity-assistant-20261008",
+    "CARGO_INCREMENTAL": "0",
+    "rustc": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+    "node": "v24.19.0",
+    "pnpm": "12.3.4",
+    "protoc": "libprotoc 34.1",
+    "nextest": "0.9.143"
+  },
+  "nextestSummary": {
+    "planned": 2644,
+    "passed": 2644,
+    "failed": 0,
+    "skipped": 0,
+    "testSeconds": 110.796
+  },
+  "compatibilityReplays": {
+    "storage": "passed",
+    "backtest": "passed",
+    "provider-runtime": "passed",
+    "trading-strategy": "passed",
+    "assistant-runtime": "passed",
+    "api-transport": "passed",
+    "desktop-runtime": "passed"
+  },
+  "affectedSourceSha256": {
+    "crates/jftrade-engine/src/product_adk_created_run_failure_owner_tests.rs": "72cbc520d6ba31058514e7af9a226ba0cf6f1188004b5cb1a09007f90c14e3e3",
+    "crates/jftrade-engine/src/product_adk_model_runtime_events.rs": "34b371d920c05f4f1fcbb4cfdd2a1c82402675fd467da0f9503d0614665ee77f",
+    "crates/jftrade-engine/src/product_adk_model_runtime_replay.rs": "784e914e60282b4a778fe9ca0b68240064423470124ac39a7461fbbfe268cf2d",
+    "crates/jftrade-engine/src/product_adk_model_runtime_stream.rs": "35c2f7fc3e5015a0cf170fe5e28b5a34828eb99c90df0b445fa80c6bb519ba33",
+    "crates/jftrade-engine/src/product_adk_reconnect_stream.rs": "0ce8e94d9e171c83677c9eea4601429457ef6d31dfd30b4754ada105c83e6f0a",
+    "crates/jftrade-engine/src/product_production_ports_adk_read.rs": "9fdf63d477b7db3cf221dee3426474a03ee919f25404b82bc6355f76ee25ff21",
+    "crates/jftrade-store-sqlite/src/adk.rs": "9bc0098d5366084bb3efe0b5629d63151dad74cac24e165d03c62a631d038eab",
+    "crates/jftrade-store-sqlite/src/adk_stream_cursor.rs": "ad8afa34ae6796eba1560a84b585f36130e107b30b676071f399c26bfeca9bb5",
+    "crates/jftrade-store-sqlite/src/lib.rs": "4b8cfb325d698b3d057ab9f4533d374287a5450bbc6f0f21e3f907cc1f2cb4fe",
+    "crates/jftrade-engine/src/product_adk_model_runtime_terminal_recovery.rs": "44e3c4d33e590ad96edde8f65bb9fba6d4af13f9aa96e8d71ba26f94acd9df0a",
+    "crates/jftrade-engine/src/product_adk_terminal_projection_recovery_owner_tests.rs": "d1655c671c4caa7778f71e5e587828b1f2fcea1b579177d9ac2b7ff85f9280a5",
+    "crates/jftrade-engine/src/product_adk_terminal_recovery_contract_tests.rs": "d7cb3010d03d7c95cb01f9d8378b968153842477057bdac612712fd22f094bd0"
+  },
+  "rustSourceFingerprintSha256": "29f39e4b90803e91a9fddbd1e19d421d11a12052398dc67e399d8f571e824364",
+  "frozenRustFiles": 1038,
+  "rustSourceChangedDuringGate": [],
+  "leakyTestMarkerCount": 0,
+  "remainingRisk": "Live, repeated POST and GET reconnect recover terminal final without a saved response or new message write. Dedicated production owner tests close service169/recovery10/lifecycle95; counts1665 exact/2148 partial/638 boundary. Eight frozen originals reviewed. Known-context suppression, idle per-request pre-cancellation, durable typed decoding, legacy semantic reformatting, context revision initialization, native partial/tool projection and lease startup failures remain gaps. Historical LEAKs unresolved; whole goal active.",
+  "pineWorkerTests": {
+    "passed": 98
+  },
+  "desktopChecks": {
+    "runtimeNodeTestsPassed": 11,
+    "scriptNodeTestsPassed": 48
+  }
+}

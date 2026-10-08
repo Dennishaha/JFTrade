@@ -3,19 +3,30 @@
 // `product_adk_model_runtime_adapters.rs` so the items stay in the same
 // module scope as the rest of the runtime.
 
-fn check_durable_request_identity(store: &AdkStore, input: &AdkChatInput) -> Result<(), AdkChatPortError> {
+include!("product_adk_model_runtime_terminal_recovery.rs");
+
+fn check_durable_request_identity(
+    store: &AdkStore,
+    input: &AdkChatInput,
+) -> Result<(), AdkChatPortError> {
     let failure = |message: String| AdkChatPortError::Failed {
-        status: 500, code: "ADK_CHAT_FAILED".to_owned(), message,
+        status: 500,
+        code: "ADK_CHAT_FAILED".to_owned(),
+        message,
     };
-    let Some(existing) = store.get_run_by_client_request_id(&input.client_request_id)
+    let Some(existing) = store
+        .get_run_by_client_request_id(&input.client_request_id)
         .map_err(|error| failure(error.to_string()))?
-    else { return Ok(()) };
+    else {
+        return Ok(());
+    };
     // Go's ChatRunByClientRequestID decodes the persisted run before comparing
     // fingerprints. A corrupt row must not be hidden by a transport record.
-    let _: Option<serde_json::Map<String, Value>> = serde_json::from_str(&existing.payload_json)
-        .map_err(|error| failure(error.to_string()))?;
+    let _: Option<serde_json::Map<String, Value>> =
+        serde_json::from_str(&existing.payload_json).map_err(|error| failure(error.to_string()))?;
     if !crate::product::product_adk_chat_identity::ChatRequestIdentity::decode(&input.body)?
-        .matches(&existing.request_fingerprint) {
+        .matches(&existing.request_fingerprint)
+    {
         return Err(AdkChatPortError::Conflict(
             "clientRequestId was already used with a different request".to_owned(),
         ));
@@ -78,10 +89,68 @@ fn first_tool_call_failure(payload_json: &str) -> Option<String> {
 /// the run loop persisted instead of inventing a response from the release
 /// decision.
 impl ProductionAdkChatRuntime {
-    pub(super) fn persisted_turn_response(
+    fn prepare_existing_run(
         &self,
-        run_id: &str,
-    ) -> Result<Value, AdkChatPortError> {
+        existing: StoredAdkRun,
+        route: AdkChatRoute,
+        identity: &crate::product::product_adk_chat_identity::ChatRequestIdentity,
+    ) -> Result<PreparedChat, AdkChatPortError> {
+        if !identity.matches(&existing.request_fingerprint) {
+            return Err(AdkChatPortError::Conflict(
+                "clientRequestId was already used with a different request".to_owned(),
+            ));
+        }
+        let payload: Value =
+            serde_json::from_str(&existing.payload_json).map_err(storage_unavailable)?;
+        let persisted_route = payload
+            .get("route")
+            .and_then(Value::as_str)
+            .unwrap_or("chat");
+        let requested_route = match route {
+            AdkChatRoute::Chat => "chat",
+            AdkChatRoute::Stream => "stream",
+        };
+        if persisted_route != requested_route {
+            return Err(AdkChatPortError::Conflict(
+                "clientRequestId was already used on a different chat route".to_owned(),
+            ));
+        }
+        if route == AdkChatRoute::Stream
+            && matches!(
+                existing.status.to_ascii_uppercase().as_str(),
+                "COMPLETED" | "FAILED" | "CANCELLED" | "TIMED_OUT" | "DENIED"
+            )
+        {
+            return self
+                .recovered_stream_output(&existing)
+                .map(PreparedChat::Existing);
+        }
+        if let Some(response) = persisted_response(&existing.payload_json)? {
+            return Ok(PreparedChat::Existing(match route {
+                AdkChatRoute::Chat => AdkChatPortOutput::Json(response),
+                AdkChatRoute::Stream => stream_from_payload(&existing.payload_json)?,
+            }));
+        }
+        if matches!(
+            existing.status.to_ascii_uppercase().as_str(),
+            "FAILED" | "TIMED_OUT" | "CANCELLED"
+        ) && route == AdkChatRoute::Chat
+        {
+            return Err(replayed_run_error(&payload, &existing.status));
+        }
+        if existing.status.eq_ignore_ascii_case("RUNNING")
+            && runtime_recovery::retry_is_due(&payload)
+        {
+            match self.resume_approval(&existing.id) {
+                Ok(()) | Err(AdkChatPortError::Conflict(_)) => {}
+                Err(AdkChatPortError::Unavailable(_)) => {}
+                Err(error) => return Err(error),
+            }
+        }
+        existing_run_output(&existing, route).map(PreparedChat::Existing)
+    }
+
+    pub(super) fn persisted_turn_response(&self, run_id: &str) -> Result<Value, AdkChatPortError> {
         let run = self
             .store
             .get_run(run_id)
@@ -95,12 +164,10 @@ impl ProductionAdkChatRuntime {
         match run.status.to_ascii_uppercase().as_str() {
             "COMPLETED" => persisted_response(&run.payload_json)?
                 .ok_or_else(|| unavailable("completed ADK run has no persisted response")),
-            "FAILED" | "TIMED_OUT" | "CANCELLED" | "DENIED" => {
-                Err(replayed_run_error(
-                    &serde_json::from_str(&run.payload_json).map_err(storage_unavailable)?,
-                    &run.status,
-                ))
-            }
+            "FAILED" | "TIMED_OUT" | "CANCELLED" | "DENIED" => Err(replayed_run_error(
+                &serde_json::from_str(&run.payload_json).map_err(storage_unavailable)?,
+                &run.status,
+            )),
             _ => existing_run_output(&run, AdkChatRoute::Chat).and_then(|output| match output {
                 AdkChatPortOutput::Json(response) => Ok(response),
                 _ => Err(unavailable("persisted ADK run has no JSON projection")),

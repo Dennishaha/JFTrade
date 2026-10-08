@@ -1,5 +1,15 @@
 # Go → Rust 证据积压清单
 
+## 2026-10-09 无内嵌 response 的生产终态恢复
+
+- 两条生产红0 passed/2 failed：实际provider失败且最终原生消息追加被SQLite trigger拒绝时，live发送error；无response的Go式COMPLETED row经两路真实HTTP重连只有run且直接EOF。红receipt `adk-terminal-projection-recovery-red-2026-10-09.json` SHA `ea50688e34a3570de77ba198e06f88d2bf21be4a52efe95d3a1d0fa3503c91e4`，当时diff、1036文件指纹及源码全文保留。
+- live、重复POST stream与GET reader共用实际生产只读恢复owner。终态优先finalMessageId对应的原生assistant回复/推理，缺失时取最新assistant；空transcript不虚构失败回复。已有final保持，临时error按同sequence替换，缺终态frame时使用下一sequence；读取不追加消息、不改run/events/audit、不调用provider。同步消息追加失败的错误语义保持。
+- SQLite metadata读取去掉stream/provider历史数组并只解码最后一条event；GET仍固定每页最多64条。实际reader验证第64条临时error替换、完整64条页后final65、after过滤及无重复；打开时已终态的恢复标replay，打开后完成的恢复标live。HTTP失败追加、重复POST和GET的final响应及sequence一致，provider恰好一次；全run/events/audit保持。
+- 编译E0425、rustls provider未初始化导致的1 passed/1 failed、原生timeline未解码及空reasoning未省略导致的1 passed/2 failed全部独立留证；逐项修复后5条控制通过。首次quick在policy拒绝events.rs 801行，Rust测试尚未运行；按职责将已有请求回放方法归入replay文件，不调高门禁。最终定向202 passed/0 failed，closed-owner receipt SHA `364bf0e6c4164a340ad8276b41218e2ee9c897fa2285744568da6f5d251c7beb`，之前2/5/199/202通过receipt也保留各自原源码证据。
+- 查看quick计划后2644 Rust/98 Pine/desktop Node11+48通过；现场`CARGO_INCREMENTAL=0 pnpm run check:rust`4035 passed/0 failed/2 skipped，static与七类replay退出0，无LEAK。1038个Rust文件从最终定向至完整门禁冻结。quick gate SHA `690cfb0bb46202c2086a4b5fa819f438bbe280f023676b24e222e70c77219cff`，rust gate SHA `62da603a3705cd8c2e84038e469db52b1e14f23685fb771996699dcdd67d188e`。
+- 8条冻结原函数及blob复核：helpers167/216、recovery41、disconnect110、service_business169、service_recovery10、service_lifecycle95、runner_chat1124。三条service原断言由专属生产owner测试完整闭合，exact+3/partial−3，当前1665 exact/2148 partial/638 boundary。最终验证器发现三条旧generic replay证据的物理anchor指向API原测试或不存在；保留失败日志，从service exact声明移除这些错误复用，已有API证据仍保持，不放宽anchor验证。recovery41的known-context分支和disconnect110的每请求预取消仍partial。
+- 八份receipt、失败gate及两份通过gate/raw SHA、测试时diff、Go原函数、20处reuse和物理anchor核验；strict/context通过，unrecorded/stale0、既有unknown48。现场证据`.git/adk-terminal-projection-recovery-*`及内置盘备份`/Users/jiangfan/.cache/jftrade/parity-terminal-projection-recovery-20261009`。恢复context首次revision写入、原生partial/tool投影、known-context、durable字段类型解码、旧请求语义重排、lease启动失败和每请求预取消仍开放；历史LEAK未定位，整体active，提交后继续下一批。
+
 ## 2026-10-09 创建后 context 失败与生产终态 final
 
 - 两条真实生产红0 passed/2 failed：创建run后的context错误返回JSON且遗留RUNNING；live provider失败虽已保存FAILED响应，仍发布临时error。红receipt `adk-created-run-failure-red-2026-10-09.json` SHA `3caee12e8d26931e2a2f2eae59b08125c41493eba1b34898b4b7cf817c192ff1`，原diff、1034文件指纹与源码全文归档保留。

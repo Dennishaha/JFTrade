@@ -32,11 +32,11 @@ pub use schema_migrations::migrate_legacy_schema;
 
 pub use adk::{
     ADK_PRODUCTION_PROFILE, ADK_TEST_CUTOVER_PROFILE, AdkApprovalResolution, AdkApprovalStage,
-    AdkRunEvent, AdkStore, AdkStoreError, AdkStreamCursor, AdkStreamPage, AdkTestCutoverStore,
-    AdkToolInvocationClaim, AdkToolResultCommit, CreateAdkRunParams, StoredAdkApproval,
-    StoredAdkEntity, StoredAdkHandoffSegment, StoredAdkMemory, StoredAdkRun, StoredAdkRunLease,
-    StoredAdkTask, StoredAdkToolInvocation, StoredAdkWorkflow, StoredAdkWorkflowTrigger,
-    StoredAdkWorkflowTriggerLog,
+    AdkRunEvent, AdkStore, AdkStoreError, AdkStreamCursor, AdkStreamPage, AdkStreamProjection,
+    AdkTestCutoverStore, AdkToolInvocationClaim, AdkToolResultCommit, CreateAdkRunParams,
+    StoredAdkApproval, StoredAdkEntity, StoredAdkHandoffSegment, StoredAdkMemory, StoredAdkRun,
+    StoredAdkRunLease, StoredAdkTask, StoredAdkToolInvocation, StoredAdkWorkflow,
+    StoredAdkWorkflowTrigger, StoredAdkWorkflowTriggerLog,
 };
 pub use adk_artifact::{
     ADK_ARTIFACT_PRODUCTION_PROFILE, ADK_ARTIFACT_TEST_CUTOVER_PROFILE, AdkArtifactStore,

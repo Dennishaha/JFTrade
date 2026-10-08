@@ -274,26 +274,17 @@ impl ProductionAdkChatRuntime {
                         let _ = self.persist_cancelled(&chat, &error, &run_lease);
                         return;
                     }
-                    let persisted = match self.persist_failure(&chat, &error, &run_lease) {
-                        Ok(()) => true,
+                    match self.persist_failure(&chat, &error, &run_lease) {
+                        Ok(()) => {}
                         Err(persist_error)
                             if super::is_run_cancelled(&persist_error)
                                 || self.run_is_cancelled(&chat.run_id) =>
                         {
                             return;
                         }
-                        Err(_) => false,
+                        Err(_) => {}
                     };
-                    let event = if persisted {
-                        self.latest_stream_event(&chat.run_id)
-                            .ok()
-                            .flatten()
-                            .unwrap_or_else(|| {
-                                json!({"type":"error","message":super::format_adk_error(&error)})
-                            })
-                    } else {
-                        json!({"type":"error","message":super::format_adk_error(&error)})
-                    };
+                    let event = self.terminal_failure_event(&chat.run_id, &error);
                     let _ = sender.send(super::encode_sse_event(&event));
                 }
             },
@@ -311,26 +302,17 @@ impl ProductionAdkChatRuntime {
                 // The persisted terminal row already carries that projection,
                 // so the retained history supplies the frame; the bare `error`
                 // event is only the degenerate case where nothing was stored.
-                let persisted = match self.persist_failure(&chat, &error, &run_lease) {
-                    Ok(()) => true,
+                match self.persist_failure(&chat, &error, &run_lease) {
+                    Ok(()) => {}
                     Err(persist_error)
                         if super::is_run_cancelled(&persist_error)
                             || self.run_is_cancelled(&chat.run_id) =>
                     {
                         return;
                     }
-                    Err(_) => false,
+                    Err(_) => {}
                 };
-                let event = if persisted {
-                    self.latest_stream_event(&chat.run_id)
-                        .ok()
-                        .flatten()
-                        .unwrap_or_else(
-                            || json!({"type":"error","message":super::format_adk_error(&error)}),
-                        )
-                } else {
-                    json!({"type":"error","message":super::format_adk_error(&error)})
-                };
+                let event = self.terminal_failure_event(&chat.run_id, &error);
                 let _ = sender.send(super::encode_sse_event(&event));
             }
         }
@@ -428,19 +410,24 @@ impl ProductionAdkChatRuntime {
         &self,
         run_id: &str,
     ) -> Result<Option<Value>, AdkChatPortError> {
-        let Some(run) = self
+        if let Some(event) =
+            super::recover_terminal_stream_event(self.store(), &self.session_store, run_id)?
+        {
+            return Ok(Some(event));
+        }
+        Ok(self
             .store()
-            .get_run(run_id)
-            .map_err(super::storage_unavailable)?
-        else {
-            return Ok(None);
-        };
-        let payload: Value =
-            serde_json::from_str(&run.payload_json).map_err(super::storage_unavailable)?;
-        Ok(payload
-            .get("streamEvents")
-            .and_then(Value::as_array)
-            .and_then(|events| events.last().cloned()))
+            .read_stream_projection(run_id)
+            .map_err(storage_unavailable)?
+            .and_then(|projection| projection.last_event.map(|(_, event)| event)))
+    }
+
+    fn terminal_failure_event(&self, run_id: &str, error: &AdkChatPortError) -> Value {
+        self.latest_stream_event(run_id)
+            .ok()
+            .flatten()
+            .filter(|event| matches!(event["type"].as_str(), Some("final" | "error")))
+            .unwrap_or_else(|| json!({"type":"error","message":super::format_adk_error(error)}))
     }
 
     pub(super) fn finish_chat(
@@ -481,6 +468,9 @@ impl ProductionAdkChatRuntime {
                     .get_run(&chat.run_id)
                     .map_err(storage_unavailable)?
                     .ok_or_else(|| unavailable("persisted ADK run disappeared"))?;
+                if chat.route == AdkChatRoute::Stream {
+                    return self.recovered_stream_output(&run);
+                }
                 if let Some(response) = super::persisted_response(&run.payload_json)? {
                     return Ok(match chat.route {
                         AdkChatRoute::Chat => AdkChatPortOutput::Json(response),

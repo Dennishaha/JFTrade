@@ -1,5 +1,8 @@
 use super::*;
 
+#[path = "product_adk_terminal_projection_recovery_owner_tests.rs"]
+mod projection_recovery;
+
 #[test]
 fn production_created_sync_context_failure_returns_stored_failed_projection_on_replay() {
     let (_directory, port, provider, input) = context_failure_port();

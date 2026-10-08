@@ -23,7 +23,7 @@ mod tool_replay;
 
 #[path = "adk_stream_cursor.rs"]
 mod stream_cursor;
-pub use stream_cursor::{AdkStreamCursor, AdkStreamPage};
+pub use stream_cursor::{AdkStreamCursor, AdkStreamPage, AdkStreamProjection};
 
 #[cfg(test)]
 #[path = "adk_approval_resolution_failure_tests.rs"]

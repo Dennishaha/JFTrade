@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "jftrade.local-quality-gate.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "pnpm",
+    "run",
+    "check:quick"
+  ],
+  "status": "failed",
+  "exitCode": 1,
+  "verifiedCommit": "c5915bae7f96a5bf2cce23c0c6b2d3a68656836d",
+  "verifiedAt": "2026-10-08T21:13:42.900951+00:00",
+  "rawOutputPath": "/Volumes/帆帆PM961-512/Github/JFTrade/.git/adk-terminal-projection-recovery-quick-architecture-failure-20261009.log",
+  "rawOutputSha256": "d26bc434d68714de9ac6d1dda6027525e41516ced9b1a2787cc074ac5bcf78a6",
+  "rustSourceFingerprintSha256": "d66aa2875e535fa750c30bfafc7c879a3e37b3ae5d7f09466997d207b4e98018",
+  "failure": "product_adk_model_runtime_events.rs has 801 lines, production limit 800. Policy failed; Rust tests and subsequent gates were not executed.",
+  "rustSourceChangedDuringGate": []
+}

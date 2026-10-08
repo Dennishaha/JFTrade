@@ -5,6 +5,7 @@ pub struct AdkStreamCursor {
     pub run_id: String,
     pub stream_id: String,
     pub replay_until: u64,
+    pub terminal_at_open: bool,
 }
 
 #[derive(Debug)]
@@ -13,7 +14,50 @@ pub struct AdkStreamPage {
     pub events: Vec<(u64, Value)>,
 }
 
+/// Metadata needed to recover a terminal response without decoding its history.
+#[derive(Debug)]
+pub struct AdkStreamProjection {
+    pub run: StoredAdkRun,
+    pub last_event: Option<(u64, Value)>,
+}
+
 impl AdkStore {
+    pub fn read_stream_projection(
+        &self,
+        run_id: &str,
+    ) -> Result<Option<AdkStreamProjection>, AdkStoreError> {
+        let connection = self.lock_connection()?;
+        let run = connection
+            .query_row(
+                "SELECT id, session_id, agent_id, status, client_request_id, request_fingerprint,
+             json_remove(payload_json, '$.streamEvents', '$.providerEvents'), created_at, updated_at
+             FROM adk_runs WHERE id = ?1",
+                params![run_id],
+                stored_run,
+            )
+            .optional()
+            .map_err(AdkStoreError::Query)?;
+        let Some(run) = run else { return Ok(None) };
+        let last: Option<(i64, String)> = connection.query_row(
+            "SELECT sequence, value FROM (
+                SELECT CASE WHEN json_type(e.value, '$.sequence') = 'integer'
+                    AND json_extract(e.value, '$.sequence') >= 0
+                    THEN json_extract(e.value, '$.sequence') ELSE CAST(e.key AS INTEGER) + 1 END AS sequence,
+                    e.value AS value
+                FROM adk_runs r, json_each(r.payload_json, '$.streamEvents') e WHERE r.id = ?1
+             ) ORDER BY sequence DESC LIMIT 1",
+            params![run_id], |row| Ok((row.get(0)?, row.get(1)?)),
+        ).optional().map_err(AdkStoreError::Query)?;
+        let last_event = last
+            .map(|(sequence, raw)| {
+                serde_json::from_str(&raw)
+                    .map(|event| (sequence as u64, event))
+                    .map_err(|error| AdkStoreError::Validation(error.to_string()))
+            })
+            .transpose()?;
+        Ok(Some(AdkStreamProjection { run, last_event }))
+    }
+
     /// Resolve the reconnect identity and watermark without returning run payloads.
     pub fn open_stream_cursor(&self, id: &str) -> Result<Option<AdkStreamCursor>, AdkStoreError> {
         let connection = self.lock_connection()?;
@@ -23,7 +67,7 @@ impl AdkStore {
                 COALESCE((SELECT MAX(CASE WHEN json_type(e.value, '$.sequence') = 'integer'
                     AND json_extract(e.value, '$.sequence') >= 0
                     THEN json_extract(e.value, '$.sequence') ELSE CAST(e.key AS INTEGER) + 1 END)
-                    FROM json_each(r.payload_json, '$.streamEvents') e), 0)
+                    FROM json_each(r.payload_json, '$.streamEvents') e), 0), r.status
              FROM adk_runs r WHERE (r.id = ?1 OR json_extract(r.payload_json, '$.streamId') = ?1)
                 AND json_type(r.payload_json, '$.streamEvents') = 'array'
              ORDER BY (r.id = ?1) DESC, r.created_at DESC LIMIT 1",
@@ -33,6 +77,15 @@ impl AdkStore {
                         run_id: row.get(0)?,
                         stream_id: row.get(1)?,
                         replay_until: row.get::<_, i64>(2)? as u64,
+                        terminal_at_open: matches!(
+                            row.get::<_, String>(3)?.to_ascii_uppercase().as_str(),
+                            "COMPLETED"
+                                | "FAILED"
+                                | "TIMED_OUT"
+                                | "CANCELLED"
+                                | "DENIED"
+                                | "PENDING"
+                        ),
                     })
                 },
             )

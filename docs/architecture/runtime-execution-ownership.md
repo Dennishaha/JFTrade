@@ -26,6 +26,7 @@
 - 请求身份规范化由 `jftrade-assistant` 持有：固定字段顺序、去除首尾空白、mode/reasoning规范化、objective与loop预算缺省，并使用Go JSON转义。engine为新durable请求和无run保留流使用同一SHA256身份；UUID与无关字段不进入摘要。旧Rust原始字节摘要只允许原body重放，不改写SQLite；旧body语义等价但字节不同仍可能冲突，跨route冲突保持。
 - stream 准入在该 port 内串行到准备结果返回。模型 runtime 显式区分尚未尝试创建 run 的准备错误与已存在/已尝试创建 durable run 的失败；前者保留原错误文本供重连，后者继续使用原 run/lease owner 的错误路径，不生成第二份内存终态。准入锁只覆盖准备阶段，运行中的模型执行与不同 HTTP reader 不持有该锁。
 - run 创建后的 context compaction/读取失败由同一 Run lease 完成 FAILED 状态、原生 synthetic message 和响应投影；同步请求返回保存的失败投影，stream 首次交付及重连均读取原 durable 终态。最终消息与投影按 revision/fencing token 事务保存；成功时以同一 sequence 将临时 error 替换为 final，事务失败仍保留 error，不声称已完成投影。旧 owner 无法写入新租约持有者的终态或消息。
+- 最终消息追加失败或终态缺少保存的 response 时，live、重复 POST stream 与 GET 重连共用只读恢复方法：从权威 run/session 和原生 transcript 重建 final，优先 finalMessageId，缺失时选最新 assistant 的回复及推理。读取不追加消息、不改 run/events/audit；已有 final 保持，临时 error 的 sequence 保持，无终态事件时使用下一 sequence。GET 每页最多解码64条事件，恢复只读取去掉历史数组的 metadata 与最后一条事件；历史终态恢复标 replay，reader 打开后的终态标 live，after 过滤已消费 final。
 - 工具 claim 的 Run guard 丢失与 SQLite lease fence 拒绝返回 ADK_RUN_LEASE_LOST，tool loop 按非致命协调停止处理；取消和 revision 冲突保持原停止路径，不把新 owner 的 run 改为失败。
 - checkpoint 缺失工具结果时，终态 invocation 原输出由现有 SQLite owner 按当前 Run lease 和 revision 恢复投影，并在同一事务校验 session event；不改 invocation，不重新执行工具，不重写已映射错误文本。
 - 普通成功或失败工具响应的执行记录为 COMPLETED；工具调用投影分别保留 SUCCEEDED 或 FAILED，失败文本仍来自原输出。恢复也接受已有 SUCCEEDED/FAILED 执行记录并保持原行，不能用不同输出替换胜者；UNKNOWN 继续沿独立 fence 路径处理。

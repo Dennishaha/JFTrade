@@ -51,7 +51,7 @@ impl AdkReadSnapshotPort for ProductionAdkPort {
             .ok_or_else(|| not_found("stream not found"))?;
         Ok(Some(AdkReadLiveStream {
             headers: vec![("X-ADK-Stream-ID".to_owned(), cursor.stream_id.clone())],
-            body: reconnect_stream::body(self.store.clone(), cursor, after),
+            body: reconnect_stream::body(self.store.clone(), self.session_store.clone(), cursor, after),
         }))
     }
 

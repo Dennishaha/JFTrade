@@ -4040,7 +4040,7 @@
     "internal/api/assistant/chat_stream_recovery_contracts_test.go:41:TestChatStreamExecutionReusesKnownContextAndRecoversTerminalRun": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_recovery_tests.rs::persisted_terminal_run_is_published_as_final_instead_of_a_second_error; crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::production_live_chat_stream_reuses_existing_session_preview_once; crates/jftrade-engine/src/product_adk_created_run_failure_owner_tests.rs::production_live_failure_replays_final_projection_without_provisional_error",
-      "conclusion": "partial（2026-10-09冻结原测试复核）：已持久终态恢复为final而非第二条error的断言闭合；已有session在真实HTTP执行中仅发一次preview也已验证。但Go已知contextSent时ensureSessionAndContext只发布一个session且不重新获取context的独立分支，不能由完整执行流中session计数1替代。 本批新增真实live provider失败终态final及创建后context失败控制；known-context缺口保持，不升级exact。",
+      "conclusion": "partial（2026-10-09冻结原测试复核）：已持久终态恢复为final而非第二条error的断言闭合；已有session在真实HTTP执行中仅发一次preview也已验证。但Go已知contextSent时ensureSessionAndContext只发布一个session且不重新获取context的独立分支，不能由完整执行流中session计数1替代。 本批新增真实live provider失败终态final及创建后context失败控制；known-context缺口保持，不升级exact。 2026-10-09：实际生产live最终消息追加失败仍保存FAILED而无response；只读恢复发布final，重复POST/GET重放同response/sequence且provider一次、完整row/events/audit保持。无内嵌response的Go式终态run经两路真实HTTP重连恢复final并EOF。 已知context的preview/no-refetch原断言继续partial。",
       "command": "env CARGO_INCREMENTAL=0 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
       "evidence_type": "partial",
       "source": {
@@ -4082,13 +4082,24 @@
             "rustFile": "crates/jftrade-engine/src/product_adk_created_run_failure_owner_tests.rs",
             "rustLine": 124
           }
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_adk_terminal_projection_recovery_owner_tests.rs",
+          "test": "production_failed_message_append_recovers_final_without_saved_response",
+          "crate": "jftrade-engine"
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_adk_terminal_projection_recovery_owner_tests.rs",
+          "test": "production_reconnect_recovers_go_terminal_run_without_embedded_response",
+          "crate": "jftrade-engine"
         }
       ],
       "assertionCoverage": {
         "covered": [
           "已持久终态run在错误恢复时发布final而非第二条error。",
           "真实HTTP执行已有session仅发一次preview且session先于run。",
-          "真实配置runtime与HTTP provider失败保存FAILED响应，并发布final而非临时error；最终消息事务失败保留error，同sequence成功attachment及stale fence拒绝由生产owner控制覆盖。"
+          "真实配置runtime与HTTP provider失败保存FAILED响应，并发布final而非临时error；最终消息事务失败保留error，同sequence成功attachment及stale fence拒绝由生产owner控制覆盖。",
+          "实际生产live最终消息追加失败仍保存FAILED而无response；只读恢复发布final，重复POST/GET重放同response/sequence且provider一次、完整row/events/audit保持。无内嵌response的Go式终态run经两路真实HTTP重连恢复final并EOF。"
         ],
         "uncovered": [
           "已知context时preview只发session、不重新获取或发布context的分支尚缺对应owner断言。"
@@ -4134,7 +4145,8 @@
       "coveredAssertions": [
         "已持久终态run在错误恢复时发布final而非第二条error。",
         "真实HTTP执行已有session仅发一次preview且session先于run。",
-        "真实配置runtime与HTTP provider失败保存FAILED响应，并发布final而非临时error；最终消息事务失败保留error，同sequence成功attachment及stale fence拒绝由生产owner控制覆盖。"
+        "真实配置runtime与HTTP provider失败保存FAILED响应，并发布final而非临时error；最终消息事务失败保留error，同sequence成功attachment及stale fence拒绝由生产owner控制覆盖。",
+        "实际生产live最终消息追加失败仍保存FAILED而无response；只读恢复发布final，重复POST/GET重放同response/sequence且provider一次、完整row/events/audit保持。无内嵌response的Go式终态run经两路真实HTTP重连恢复final并EOF。"
       ],
       "uncoveredAssertions": [
         "已知context时preview只发session、不重新获取或发布context的分支尚缺对应owner断言。"
@@ -130015,11 +130027,11 @@
       "boundaryReason": null
     },
     "internal/assistant/service_business_test.go:169:TestServiceRecoverTerminalChatResponseFromProjection": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_tool_failure_tests.rs::a_completed_run_with_a_failed_tool_replays_as_the_chat_envelope",
-      "conclusion": "partial：Go 断言从投影恢复终态聊天响应：运行中返回 nil，完成后返回最终回复/推理/标识与时间线。Rust 的用例断言已完成的失败工具运行可重放为聊天信封（同一\"完成后可恢复响应\"语义）；Go 的“运行中返回 nil”与时间线条目恢复在 Rust 由运行投影用例覆盖。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'not test(production_helper_sync_cancel_aborts_in_flight_request) and not test(production_helper_sync_rejects_broken_pagination_cursors) and not test(production_helper_sync_forwards_page_query_and_persists_provider_values) and not test(production_helper_sync_retries_transient_page_and_records_retry)'",
-      "evidence_type": "partial",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-engine/src/product_adk_terminal_recovery_contract_tests.rs::production_terminal_recovery_selects_final_message_reply_reasoning_and_native_timeline",
+      "conclusion": "function_exact：2026-10-09冻结Go原函数逐项复核。直接生产只读恢复owner：RUNNING返回None，COMPLETED恢复finalMessageId对应的最终回复/推理、run/session标识、时间戳及原生timeline；更晚assistant不覆盖指定final，完整row/events/audit不变且零provider调用。",
+      "command": "env CARGO_INCREMENTAL=0 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-store-sqlite --all-targets --locked",
+      "evidence_type": "function_exact",
       "source": {
         "file": "internal/assistant/service_business_test.go",
         "line": 169,
@@ -130028,65 +130040,65 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_adk_model_runtime_tool_failure_tests.rs",
-          "test": "a_completed_run_with_a_failed_tool_replays_as_the_chat_envelope",
+          "file": "crates/jftrade-engine/src/product_adk_terminal_recovery_contract_tests.rs",
+          "test": "production_terminal_recovery_selects_final_message_reply_reasoning_and_native_timeline",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/assistant/service_business_test.go",
             "goLine": 169,
-            "rustFile": "crates/jftrade-engine/src/product_adk_model_runtime_tool_failure_tests.rs",
-            "rustLine": 220
+            "rustFile": "crates/jftrade-engine/src/product_adk_terminal_recovery_contract_tests.rs",
+            "rustLine": 57
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust completed failed-tool run test replays a durable chat envelope; run projection tests cover completed-state recovery and timeline projection."
+          "直接生产只读恢复owner：RUNNING返回None，COMPLETED恢复finalMessageId对应的最终回复/推理、run/session标识、时间戳及原生timeline；更晚assistant不覆盖指定final，完整row/events/audit不变且零provider调用。"
         ],
-        "uncovered": [
-          "No single Rust service assertion combines running→nil behavior with final reply, reasoning, identifiers, timestamps, and restored timeline entries."
-        ],
+        "uncovered": [],
         "source": "reviewed"
       },
       "verification": {
+        "runnerVersion": "cargo-nextest 0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedAt": "2026-10-08T21:15:57Z",
         "argv": [
           "env",
+          "CARGO_INCREMENTAL=0",
           "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
+          "-p",
+          "jftrade-store-sqlite",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(production_terminal_recovery_) | test(production_failed_message_append_recovers_final) | test(production_reconnect_recovers_go_terminal_run) | test(reconnect) | test(created_run) | test(terminal_audit) | test(fenc) | test(lease) | test(UNKNOWN) | test(a_completed_run_with_a_failed_tool_replays_as_the_chat_envelope) | test(a_terminal_run_without_a_stream_final_frame_recovers_a_final_frame) | test(adk_chat_stream_replays_nonterminal_snapshot_without_fabricating_terminal_event)"
         ],
         "testFilter": [
-          "a_completed_run_with_a_failed_tool_replays_as_the_chat_envelope"
+          "production_terminal_recovery_selects_final_message_reply_reasoning_and_native_timeline"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
-        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
-        "status": "passed",
-        "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "c5915bae7f96a5bf2cce23c0c6b2d3a68656836d",
+        "receiptDigest": "sha256:364bf0e6c4164a340ad8276b41218e2ee9c897fa2285744568da6f5d251c7beb"
       },
       "risk": "normal",
       "owner": "assistant_workflow",
       "priority": "P2",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust completed failed-tool run test replays a durable chat envelope; run projection tests cover completed-state recovery and timeline projection."
+        "直接生产只读恢复owner：RUNNING返回None，COMPLETED恢复finalMessageId对应的最终回复/推理、run/session标识、时间戳及原生timeline；更晚assistant不覆盖指定final，完整row/events/audit不变且零provider调用。"
       ],
-      "uncoveredAssertions": [
-        "No single Rust service assertion combines running→nil behavior with final reply, reasoning, identifiers, timestamps, and restored timeline entries."
-      ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/assistant/service_business_test.go:230:TestServiceCRUDQueriesAndSnapshots": {
@@ -130762,11 +130774,11 @@
       "boundaryReason": null
     },
     "internal/assistant/service_lifecycle_boundaries_test.go:95:TestServiceRecoverTerminalChatResponseHandlesBlankRunIDAndMissingProjection": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::adk_chat_stream_replays_nonterminal_snapshot_without_fabricating_terminal_event",
-      "conclusion": "partial：Go 断言空 run id 返回 (nil,nil)、空投影恢复时不得凭空造回复但返回标识。Rust 的聊天流用例断言非终态快照重放时不伪造终态事件（同一“不编造内容”契约）；Go 的空 run id 分支在 Rust 由必填校验取代，无等价断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'not test(production_helper_sync_cancel_aborts_in_flight_request) and not test(production_helper_sync_rejects_broken_pagination_cursors) and not test(production_helper_sync_forwards_page_query_and_persists_provider_values) and not test(production_helper_sync_retries_transient_page_and_records_retry)'",
-      "evidence_type": "partial",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-engine/src/product_adk_terminal_recovery_contract_tests.rs::production_terminal_recovery_blank_id_is_none_and_empty_transcript_keeps_identifiers_without_reply",
+      "conclusion": "function_exact：2026-10-09冻结Go原函数逐项复核。直接生产只读恢复owner：空白或缺失run返回None，COMPLETED空transcript恢复原run/session标识与空reply，不虚构reasoning或timeline；run/events/audit不变且零provider调用。",
+      "command": "env CARGO_INCREMENTAL=0 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-store-sqlite --all-targets --locked",
+      "evidence_type": "function_exact",
       "source": {
         "file": "internal/assistant/service_lifecycle_boundaries_test.go",
         "line": 95,
@@ -130775,65 +130787,65 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs",
-          "test": "adk_chat_stream_replays_nonterminal_snapshot_without_fabricating_terminal_event",
+          "file": "crates/jftrade-engine/src/product_adk_terminal_recovery_contract_tests.rs",
+          "test": "production_terminal_recovery_blank_id_is_none_and_empty_transcript_keeps_identifiers_without_reply",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/assistant/service_lifecycle_boundaries_test.go",
             "goLine": 95,
-            "rustFile": "crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs",
-            "rustLine": 750
+            "rustFile": "crates/jftrade-engine/src/product_adk_terminal_recovery_contract_tests.rs",
+            "rustLine": 175
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust chat-stream replay test avoids fabricating terminal events from a nonterminal snapshot."
+          "直接生产只读恢复owner：空白或缺失run返回None，COMPLETED空transcript恢复原run/session标识与空reply，不虚构reasoning或timeline；run/events/audit不变且零provider调用。"
         ],
-        "uncovered": [
-          "No Rust blank-run-id nil result or missing-projection identifier-only recovery assertion; required-ID validation replaces the blank-ID branch."
-        ],
+        "uncovered": [],
         "source": "reviewed"
       },
       "verification": {
+        "runnerVersion": "cargo-nextest 0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedAt": "2026-10-08T21:15:57Z",
         "argv": [
           "env",
+          "CARGO_INCREMENTAL=0",
           "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
+          "-p",
+          "jftrade-store-sqlite",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(production_terminal_recovery_) | test(production_failed_message_append_recovers_final) | test(production_reconnect_recovers_go_terminal_run) | test(reconnect) | test(created_run) | test(terminal_audit) | test(fenc) | test(lease) | test(UNKNOWN) | test(a_completed_run_with_a_failed_tool_replays_as_the_chat_envelope) | test(a_terminal_run_without_a_stream_final_frame_recovers_a_final_frame) | test(adk_chat_stream_replays_nonterminal_snapshot_without_fabricating_terminal_event)"
         ],
         "testFilter": [
-          "adk_chat_stream_replays_nonterminal_snapshot_without_fabricating_terminal_event"
+          "production_terminal_recovery_blank_id_is_none_and_empty_transcript_keeps_identifiers_without_reply"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
-        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
-        "status": "passed",
-        "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "c5915bae7f96a5bf2cce23c0c6b2d3a68656836d",
+        "receiptDigest": "sha256:364bf0e6c4164a340ad8276b41218e2ee9c897fa2285744568da6f5d251c7beb"
       },
       "risk": "normal",
       "owner": "assistant_workflow",
       "priority": "P2",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust chat-stream replay test avoids fabricating terminal events from a nonterminal snapshot."
+        "直接生产只读恢复owner：空白或缺失run返回None，COMPLETED空transcript恢复原run/session标识与空reply，不虚构reasoning或timeline；run/events/audit不变且零provider调用。"
       ],
-      "uncoveredAssertions": [
-        "No Rust blank-run-id nil result or missing-projection identifier-only recovery assertion; required-ID validation replaces the blank-ID branch."
-      ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/assistant/service_persistence_runtime_boundaries_test.go:12:TestServicePropagatesCancelledPersistenceContextAcrossAssistantResources": {
@@ -131225,11 +131237,11 @@
       "boundaryReason": null
     },
     "internal/assistant/service_recovery_test.go:10:TestServiceRecoverTerminalChatResponseFallsBackToLatestAssistant": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_tool_failure_tests.rs::a_terminal_run_without_a_stream_final_frame_recovers_a_final_frame",
-      "conclusion": "partial：Go 断言从投影恢复终态聊天响应，缺少最终消息时回退到最近一条助手消息。Rust 的用例断言终态运行缺少流终帧时可恢复出终帧（同一恢复语义）；Go 的“最近助手消息回退”在 Rust 由运行负载回复字段派生，没有逐条优先级断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'not test(production_helper_sync_cancel_aborts_in_flight_request) and not test(production_helper_sync_rejects_broken_pagination_cursors) and not test(production_helper_sync_forwards_page_query_and_persists_provider_values) and not test(production_helper_sync_retries_transient_page_and_records_retry)'",
-      "evidence_type": "partial",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-engine/src/product_adk_terminal_recovery_contract_tests.rs::production_terminal_recovery_missing_final_id_uses_latest_assistant_not_user_or_bookkeeping",
+      "conclusion": "function_exact：2026-10-09冻结Go原函数逐项复核。直接生产只读恢复owner：finalMessageId指向缺失消息时选择最新assistant的回复/推理，更晚user与stream bookkeeping不覆盖；恢复不改run/events/audit且零provider调用。",
+      "command": "env CARGO_INCREMENTAL=0 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-store-sqlite --all-targets --locked",
+      "evidence_type": "function_exact",
       "source": {
         "file": "internal/assistant/service_recovery_test.go",
         "line": 10,
@@ -131238,65 +131250,65 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_adk_model_runtime_tool_failure_tests.rs",
-          "test": "a_terminal_run_without_a_stream_final_frame_recovers_a_final_frame",
+          "file": "crates/jftrade-engine/src/product_adk_terminal_recovery_contract_tests.rs",
+          "test": "production_terminal_recovery_missing_final_id_uses_latest_assistant_not_user_or_bookkeeping",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/assistant/service_recovery_test.go",
             "goLine": 10,
-            "rustFile": "crates/jftrade-engine/src/product_adk_model_runtime_tool_failure_tests.rs",
-            "rustLine": 382
+            "rustFile": "crates/jftrade-engine/src/product_adk_terminal_recovery_contract_tests.rs",
+            "rustLine": 120
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust terminal-run replay test recovers a final frame when the stream final frame is absent."
+          "直接生产只读恢复owner：finalMessageId指向缺失消息时选择最新assistant的回复/推理，更晚user与stream bookkeeping不覆盖；恢复不改run/events/audit且零provider调用。"
         ],
-        "uncovered": [
-          "No Rust priority assertion falls back specifically to the latest assistant message when the projection has no final message."
-        ],
+        "uncovered": [],
         "source": "reviewed"
       },
       "verification": {
+        "runnerVersion": "cargo-nextest 0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedAt": "2026-10-08T21:15:57Z",
         "argv": [
           "env",
+          "CARGO_INCREMENTAL=0",
           "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
+          "-p",
+          "jftrade-store-sqlite",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(production_terminal_recovery_) | test(production_failed_message_append_recovers_final) | test(production_reconnect_recovers_go_terminal_run) | test(reconnect) | test(created_run) | test(terminal_audit) | test(fenc) | test(lease) | test(UNKNOWN) | test(a_completed_run_with_a_failed_tool_replays_as_the_chat_envelope) | test(a_terminal_run_without_a_stream_final_frame_recovers_a_final_frame) | test(adk_chat_stream_replays_nonterminal_snapshot_without_fabricating_terminal_event)"
         ],
         "testFilter": [
-          "a_terminal_run_without_a_stream_final_frame_recovers_a_final_frame"
+          "production_terminal_recovery_missing_final_id_uses_latest_assistant_not_user_or_bookkeeping"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
-        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
-        "status": "passed",
-        "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "c5915bae7f96a5bf2cce23c0c6b2d3a68656836d",
+        "receiptDigest": "sha256:364bf0e6c4164a340ad8276b41218e2ee9c897fa2285744568da6f5d251c7beb"
       },
       "risk": "high",
       "owner": "assistant_workflow",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust terminal-run replay test recovers a final frame when the stream final frame is absent."
+        "直接生产只读恢复owner：finalMessageId指向缺失消息时选择最新assistant的回复/推理，更晚user与stream bookkeeping不覆盖；恢复不改run/events/audit且零provider调用。"
       ],
-      "uncoveredAssertions": [
-        "No Rust priority assertion falls back specifically to the latest assistant message when the projection has no final message."
-      ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/assistant/service_skill_state_recovery_test.go:19:TestServiceSkillRecoveryContracts": {
@@ -341953,14 +341965,13 @@
       "reviewNote": "2026-10-09: nine frozen originals and blobs rechecked. Transport disconnect55 directly covers both malformed and valid missing-runtime first-retry failures, terminal retention and nonempty error replay. Generic stream/499/late-disconnect reuse removed from its exact claim. Service unready test renamed and reverified; all eight other classifications unchanged. Idle per-request cancellation, private delta/context combinations and canonical request fingerprint remain explicit gaps."
     },
     "crates/jftrade-engine/src/product_adk_model_runtime_tool_failure_tests.rs::a_completed_run_with_a_failed_tool_replays_as_the_chat_envelope": {
-      "referenceCount": 2,
+      "referenceCount": 1,
       "referenceKeys": [
-        "internal/api/assistant/adk_routes_test.go:359:TestADKChatReturnsCompletedEnvelopeWithVisibleToolFailure",
-        "internal/assistant/service_business_test.go:169:TestServiceRecoverTerminalChatResponseFromProjection"
+        "internal/api/assistant/adk_routes_test.go:359:TestADKChatReturnsCompletedEnvelopeWithVisibleToolFailure"
       ],
       "allowed": true,
-      "reviewStatus": "reviewed",
-      "reviewNote": "2026-09-30 API/Assistant stream batch: reviewed route wire assertions against each referenced Go contract; shared owner reuse is intentional for the same behavior family."
+      "reviewStatus": "single",
+      "reviewNote": "2026-10-09: removed generic replay evidence from native service recovery claims; its physical anchor refers to the API original only. Dedicated service owner tests carry the actual service anchors and close all original assertions."
     },
     "crates/jftrade-engine/src/product_adk_model_runtime_tool_failure_tests.rs::a_completed_run_with_a_failed_tool_replays_as_a_stream_final_frame": {
       "referenceCount": 2,
@@ -341973,14 +341984,13 @@
       "reviewNote": "2026-09-30 API/Assistant stream batch: reviewed route wire assertions against each referenced Go contract; shared owner reuse is intentional for the same behavior family."
     },
     "crates/jftrade-engine/src/product_adk_model_runtime_tool_failure_tests.rs::a_terminal_run_without_a_stream_final_frame_recovers_a_final_frame": {
-      "referenceCount": 2,
+      "referenceCount": 1,
       "referenceKeys": [
-        "internal/api/assistant/adk_routes_test.go:481:TestADKChatStreamRecoversCompletedRunAsFinalEventWhenFinalMessageAppendFails",
-        "internal/assistant/service_recovery_test.go:10:TestServiceRecoverTerminalChatResponseFallsBackToLatestAssistant"
+        "internal/api/assistant/adk_routes_test.go:481:TestADKChatStreamRecoversCompletedRunAsFinalEventWhenFinalMessageAppendFails"
       ],
       "allowed": true,
-      "reviewStatus": "reviewed",
-      "reviewNote": "2026-09-30 API/Assistant stream batch: reviewed route wire assertions against each referenced Go contract; shared owner reuse is intentional for the same behavior family."
+      "reviewStatus": "single",
+      "reviewNote": "2026-10-09: removed generic replay evidence from native service recovery claims; its physical anchor refers to the API original only. Dedicated service owner tests carry the actual service anchors and close all original assertions."
     },
     "crates/jftrade-engine/tests/adk_chat_stream_compatibility.rs::adk_chat_stream_replays_go_wire_fixture_for_leaf_owned_cases": {
       "referenceCount": 2,
@@ -352755,15 +352765,6 @@
       ],
       "allowed": true,
       "reviewStatus": "single"
-    },
-    "crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::adk_chat_stream_replays_nonterminal_snapshot_without_fabricating_terminal_event": {
-      "referenceCount": 1,
-      "referenceKeys": [
-        "internal/assistant/service_lifecycle_boundaries_test.go:95:TestServiceRecoverTerminalChatResponseHandlesBlankRunIDAndMissingProjection"
-      ],
-      "allowed": true,
-      "reviewStatus": "single",
-      "reviewNote": "2026-10-04 replay marker review: the same production stream owner now proves both nonterminal live frames without replay and the retained replay marker; each referencing Go assertion remains partial where durable retention differs from the in-memory hub lifecycle."
     },
     "crates/jftrade-engine/src/product_adk_mutation_product_tests.rs::optimization_task_cancel_route_preserves_go_operation_identity": {
       "referenceCount": 1,
@@ -366525,6 +366526,51 @@
       "allowed": true,
       "reviewStatus": "single",
       "reviewNote": "2026-10-09: production live failure saves and emits the FAILED final projection. Only terminal recovery portion of recovery41; known-context branch remains partial. No other original assertions claimed."
+    },
+    "crates/jftrade-engine/src/product_adk_terminal_projection_recovery_owner_tests.rs::production_failed_message_append_recovers_final_without_saved_response": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/api/assistant/chat_stream_recovery_contracts_test.go:41:TestChatStreamExecutionReusesKnownContextAndRecoversTerminalRun"
+      ],
+      "allowed": true,
+      "reviewStatus": "single",
+      "reviewNote": "2026-10-09: frozen service169/recovery10/lifecycle95 assertions closed by the direct production terminal read owner. Prior generic replay evidence retained only for its documented subassertions; new native selection, blank/empty and read-only assertions use dedicated tests. Stream recovery41 remains partial for known-context suppression; request precancellation is not inferred."
+    },
+    "crates/jftrade-engine/src/product_adk_terminal_projection_recovery_owner_tests.rs::production_reconnect_recovers_go_terminal_run_without_embedded_response": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/api/assistant/chat_stream_recovery_contracts_test.go:41:TestChatStreamExecutionReusesKnownContextAndRecoversTerminalRun"
+      ],
+      "allowed": true,
+      "reviewStatus": "single",
+      "reviewNote": "2026-10-09: frozen service169/recovery10/lifecycle95 assertions closed by the direct production terminal read owner. Prior generic replay evidence retained only for its documented subassertions; new native selection, blank/empty and read-only assertions use dedicated tests. Stream recovery41 remains partial for known-context suppression; request precancellation is not inferred."
+    },
+    "crates/jftrade-engine/src/product_adk_terminal_recovery_contract_tests.rs::production_terminal_recovery_selects_final_message_reply_reasoning_and_native_timeline": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/assistant/service_business_test.go:169:TestServiceRecoverTerminalChatResponseFromProjection"
+      ],
+      "allowed": true,
+      "reviewStatus": "single",
+      "reviewNote": "2026-10-09: frozen service169/recovery10/lifecycle95 assertions closed by the direct production terminal read owner. Prior generic replay evidence retained only for its documented subassertions; new native selection, blank/empty and read-only assertions use dedicated tests. Stream recovery41 remains partial for known-context suppression; request precancellation is not inferred."
+    },
+    "crates/jftrade-engine/src/product_adk_terminal_recovery_contract_tests.rs::production_terminal_recovery_missing_final_id_uses_latest_assistant_not_user_or_bookkeeping": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/assistant/service_recovery_test.go:10:TestServiceRecoverTerminalChatResponseFallsBackToLatestAssistant"
+      ],
+      "allowed": true,
+      "reviewStatus": "single",
+      "reviewNote": "2026-10-09: frozen service169/recovery10/lifecycle95 assertions closed by the direct production terminal read owner. Prior generic replay evidence retained only for its documented subassertions; new native selection, blank/empty and read-only assertions use dedicated tests. Stream recovery41 remains partial for known-context suppression; request precancellation is not inferred."
+    },
+    "crates/jftrade-engine/src/product_adk_terminal_recovery_contract_tests.rs::production_terminal_recovery_blank_id_is_none_and_empty_transcript_keeps_identifiers_without_reply": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/assistant/service_lifecycle_boundaries_test.go:95:TestServiceRecoverTerminalChatResponseHandlesBlankRunIDAndMissingProjection"
+      ],
+      "allowed": true,
+      "reviewStatus": "single",
+      "reviewNote": "2026-10-09: frozen service169/recovery10/lifecycle95 assertions closed by the direct production terminal read owner. Prior generic replay evidence retained only for its documented subassertions; new native selection, blank/empty and read-only assertions use dedicated tests. Stream recovery41 remains partial for known-context suppression; request precancellation is not inferred."
     }
   }
 }

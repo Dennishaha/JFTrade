@@ -7,13 +7,19 @@ use std::task::{Context, Poll};
 use std::time::Duration;
 
 use jftrade_api::{ApiStream, SseEvent, encode_event, encode_retry};
-use jftrade_store_sqlite::{AdkStore, AdkStreamCursor};
+use jftrade_store_sqlite::{AdkSessionStore, AdkStore, AdkStreamCursor};
 use serde_json::{Value, json};
 use tokio_stream::Stream;
 
-pub(super) fn body(store: Arc<AdkStore>, cursor: AdkStreamCursor, after: u64) -> ApiStream {
+pub(super) fn body(
+    store: Arc<AdkStore>,
+    sessions: Arc<AdkSessionStore>,
+    cursor: AdkStreamCursor,
+    after: u64,
+) -> ApiStream {
     ApiStream::from_stream(Box::pin(ReconnectBody {
         store,
+        sessions,
         cursor,
         after,
         retry: true,
@@ -27,6 +33,7 @@ pub(super) fn body(store: Arc<AdkStore>, cursor: AdkStreamCursor, after: u64) ->
 // store reference; no detached poller, second writer or recovery owner exists.
 struct ReconnectBody {
     store: Arc<AdkStore>,
+    sessions: Arc<AdkSessionStore>,
     cursor: AdkStreamCursor,
     after: u64,
     retry: bool,
@@ -36,6 +43,30 @@ struct ReconnectBody {
 }
 
 impl ReconnectBody {
+    fn recover_final(&mut self, events: &mut Vec<(u64, Value)>) -> Result<(), io::Error> {
+        use crate::product::product_adk_model_runtime::recover_terminal_stream_event;
+        let Some(event) =
+            recover_terminal_stream_event(&self.store, &self.sessions, &self.cursor.run_id)
+                .map_err(|error| io::Error::other(format!("{error:?}")))?
+        else {
+            return Ok(());
+        };
+        let Some(sequence) = event["sequence"].as_u64() else {
+            return Ok(());
+        };
+        if self.cursor.terminal_at_open {
+            self.cursor.replay_until = self.cursor.replay_until.max(sequence);
+        }
+        if let Some((_, current)) = events.iter_mut().find(|(id, _)| *id == sequence) {
+            if current["type"] == "error" {
+                *current = event;
+            }
+        } else if self.done && sequence > self.after {
+            events.push((sequence, event));
+        }
+        Ok(())
+    }
+
     fn next_event(&mut self) -> Option<Result<Vec<u8>, io::Error>> {
         let (sequence, mut data) = self.events.pop_front()?;
         self.after = sequence;
@@ -80,7 +111,7 @@ impl Stream for ReconnectBody {
             .store
             .read_stream_page(&self.cursor.run_id, self.after, 64)
         {
-            Ok(page) => {
+            Ok(mut page) => {
                 // A terminal status is observed under the same connection lock
                 // as its page. Drain every page before ending the connection.
                 self.done = page.events.len() < 64
@@ -88,6 +119,16 @@ impl Stream for ReconnectBody {
                         page.status.to_ascii_uppercase().as_str(),
                         "COMPLETED" | "FAILED" | "CANCELLED" | "TIMED_OUT" | "DENIED" | "PENDING"
                     );
+                if (self.done
+                    || page
+                        .events
+                        .iter()
+                        .any(|(_, event)| event["type"] == "error"))
+                    && let Err(error) = self.recover_final(&mut page.events)
+                {
+                    self.done = true;
+                    return Poll::Ready(Some(Err(error)));
+                }
                 self.events = page.events.into();
             }
             Err(error) => {

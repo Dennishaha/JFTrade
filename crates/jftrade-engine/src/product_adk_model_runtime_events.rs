@@ -521,57 +521,6 @@ impl ProductionAdkChatRuntime {
         Ok(())
     }
 
-    fn prepare_existing_run(
-        &self,
-        existing: StoredAdkRun,
-        route: AdkChatRoute,
-        identity: &crate::product::product_adk_chat_identity::ChatRequestIdentity,
-    ) -> Result<PreparedChat, AdkChatPortError> {
-        if !identity.matches(&existing.request_fingerprint) {
-            return Err(AdkChatPortError::Conflict(
-                "clientRequestId was already used with a different request".to_owned(),
-            ));
-        }
-        let payload: Value =
-            serde_json::from_str(&existing.payload_json).map_err(storage_unavailable)?;
-        let persisted_route = payload
-            .get("route")
-            .and_then(Value::as_str)
-            .unwrap_or("chat");
-        let requested_route = match route {
-            AdkChatRoute::Chat => "chat",
-            AdkChatRoute::Stream => "stream",
-        };
-        if persisted_route != requested_route {
-            return Err(AdkChatPortError::Conflict(
-                "clientRequestId was already used on a different chat route".to_owned(),
-            ));
-        }
-        if let Some(response) = persisted_response(&existing.payload_json)? {
-            return Ok(PreparedChat::Existing(match route {
-                AdkChatRoute::Chat => AdkChatPortOutput::Json(response),
-                AdkChatRoute::Stream => stream_from_payload(&existing.payload_json)?,
-            }));
-        }
-        if matches!(
-            existing.status.to_ascii_uppercase().as_str(),
-            "FAILED" | "TIMED_OUT" | "CANCELLED"
-        ) && route == AdkChatRoute::Chat
-        {
-            return Err(replayed_run_error(&payload, &existing.status));
-        }
-        if existing.status.eq_ignore_ascii_case("RUNNING")
-            && runtime_recovery::retry_is_due(&payload)
-        {
-            match self.resume_approval(&existing.id) {
-                Ok(()) | Err(AdkChatPortError::Conflict(_)) => {}
-                Err(AdkChatPortError::Unavailable(_)) => {}
-                Err(error) => return Err(error),
-            }
-        }
-        existing_run_output(&existing, route).map(PreparedChat::Existing)
-    }
-
     fn execute_chat(
         &self,
         chat: ChatExecution,
