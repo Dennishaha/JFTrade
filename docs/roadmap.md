@@ -4,13 +4,20 @@
 
 当前活动包括迁移行为核验、产品质量和发布资格工作。迁移历史与证据位于 `docs/history/go-to-rust`；历史阶段完成声明不能代替全部映射的逐项审查。
 
-## 当前批次：ADK durable handler key 与 checkpoint replay
+## 当前批次：ADK handler stable key 与消费约束
 
-heartbeat 快照批次已完成，当前 1661 exact、2152 partial、638 boundary。失败及通过证据见 [证据积压清单](history/go-to-rust/parity-evidence-backlog.md)。开发分支为 `codex/parity-assistant-builtin-config-20261008`，整体行为目标继续 active。
+checkpoint replay批次已完成，当前 1660 exact、2153 partial、638 boundary。失败及通过证据见 [证据积压清单](history/go-to-rust/parity-evidence-backlog.md)。开发分支为 `codex/parity-assistant-builtin-config-20261008`，整体行为目标继续 active。
 
-- [ ] 复核execution_claims54/108/214/265/294五条；补handler可观察stable key及两次真实tool loop replay，核对旧heartbeat exact是否覆盖生产原时间断言。
-- [ ] 建立checkpoint恢复后缺结果及失败文本被替换的真实红；沿现有SQLite事务owner恢复投影，保留原durable输出及禁止重复执行。
+- [ ] 从冻结runner_tools/tools定位handler context stable key与observed判定；按5–10条原测试复核，54和214的handler可观察key缺口优先。
+- [ ] 沿现有executor/timeout/lease owner交付稳定run:invocation key，真实两次tool loop验证handler只执行一次及output.key相同；keyed模式缺口继续逐项闭合。
 - [ ] 定向 receipt、ordinary/strict、anchor/context、quick 计划与现场 quick、完整 Rust 门禁、diff/源码指纹复核后独立提交。
+
+## 已验证批次：ADK checkpoint replay 与唯一投影 owner
+
+- [x] execution_claims54/108/167/265/294/343六条原测试及blob SHA复核。最初single-use mock provider在第二次调用不可用，失败/诊断证据按夹具分类保留；有效第二个provider与原生产实现独立重建0 passed/2 failed红，精确缺失toolResults output。
+- [x] 已映射terminal invocation output不再二次映射或替换失败文本；同一SQLite事务按当前Run lease/revision恢复checkpoint投影及journal，原invocation完全不变。stale owner拒绝且run/events不变，current takeover恢复；journal真实故障回滚全部状态，正向控制恢复成功且零重复执行/事件。
+- [x] 294旧domain-only heartbeat exact纠正partial；默认真实worker不足以证明3秒TTL/100ms heartbeat及2秒/合成时点原断言。handler context key、COMPLETED/FAILED和tool.Run/SaveRun错误分类继续partial，当前1660/2153/638。
+- [x] 参数E0061编译失败留证，最终定向15 passed；quick2591 Rust/98 Pine、desktop11+48通过，现场完整Rust3979 passed、0 failed、2 skipped，static/七类replay通过且exit0，无LEAK。1020个Rust文件冻结指纹一致，ordinary/strict/anchor/context、receipt/reuse/diff复核后独立提交并继续handler key。
 
 ## 已验证批次：ADK heartbeat 调用方快照与写入前拒绝
 

@@ -37,6 +37,7 @@ fn production_heartbeat_rejects_expired_caller_snapshot_before_attempting_a_writ
 }
 
 // Parity: go:452dea11:internal/assistant/engine/runtime_execution_lease_boundaries_test.go:161 TestRunExecutionLeaseUsesSafeDefaults
+// Parity: go:452dea11:internal/assistant/engine/execution_claims_test.go:294 TestRuntimeRunLeaseHeartbeatPreventsPrematureTakeover
 #[test]
 fn production_heartbeat_keeps_its_owner_live_beyond_the_initial_snapshot_expiry() {
     let (_directory, store, _sessions) = initialized_stores();

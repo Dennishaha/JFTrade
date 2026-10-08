@@ -128,22 +128,18 @@ impl ProductionAdkChatRuntime {
                 let (outcome, claim_owner, claim_fencing_token) = match claim {
                     Ok(Some(AdkToolInvocationClaim::Replay(invocation))) => (
                         serde_json::from_str::<Value>(&invocation.output_json)
-                            .map(|value| {
-                                if invocation.status.eq_ignore_ascii_case("SUCCEEDED") {
-                                    Ok(value)
-                                } else {
-                                    // Go replays a persisted terminal result
-                                    // verbatim, so a previously failed tool
-                                    // reports the same failure again instead
-                                    // of being retried.
-                                    Err(tool_failed(format!(
-                                        "tool {} returned a persisted failed outcome",
-                                        invocation.tool_name
-                                    )))
-                                }
+                            .map(|output| {
+                                // This is already the mapped durable output;
+                                // mapping it again would rewrite error text.
+                                Ok(MappedToolOutput {
+                                    error_text: (!invocation.status.eq_ignore_ascii_case("SUCCEEDED"))
+                                        .then(|| tool_result_error_message(&output)),
+                                    status: invocation.status.clone(),
+                                    output,
+                                })
                             })
                             .unwrap_or_else(|error| Err(storage_unavailable(error))),
-                        invocation.owner_id,
+                        owner_id.clone(),
                         invocation.fencing_token,
                     ),
                     Ok(Some(AdkToolInvocationClaim::Execute(invocation))) => {
@@ -194,7 +190,7 @@ impl ProductionAdkChatRuntime {
                         if heartbeat.stop() || run_lease.is_lost() {
                             return;
                         }
-                        (outcome, invocation.owner_id, invocation.fencing_token)
+                        (outcome.map(|output| map_tool_output(&name, output)), invocation.owner_id, invocation.fencing_token)
                     }
                     Ok(Some(AdkToolInvocationClaim::Unknown(_))) => {
                         let error = AdkChatPortError::Failed {
@@ -217,13 +213,12 @@ impl ProductionAdkChatRuntime {
                     }
                 };
                 match outcome {
-                    Ok(output) => {
+                    Ok(mapped) => {
                         // Go's `googleADKTool.executeAndMap` owns this
                         // projection: a handler result that is not an object
                         // becomes `{"result": …}`, and a structured failure
                         // response becomes `structuredToolErrorEnvelope` and a
                         // failed call instead of a successful one.
-                        let mapped = map_tool_output(&name, output);
                         if let Err(error) = self.persist_tool_result(
                             &chat,
                             &call,

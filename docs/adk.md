@@ -79,6 +79,8 @@ JFTrade 的 Run、Approval、Audit 和前端 SSE 是产品控制面，不替代 
 
 heartbeat 在访问 SQLite 连接前拒绝已经过期的调用方租约快照，即使数据库行仍有效也不能凭旧快照续租。后台 owner 每次续租成功后采用返回的新快照；数据库中的 owner、fencing token 和有效期仍须同时通过 UPDATE 条件，续租失败继续取消执行并 join。
 
+恢复 checkpoint 后，已终结的工具 invocation 复用原输出并在现有 SQLite 事务内恢复 Run 的工具结果及 session event。恢复写入校验当前 Run owner、token、状态与 revision；保持原 invocation 行及错误文本，重复结果不重新执行工具。journal 写失败会回滚整个恢复投影。
+
 产品工具的每次实际调用以 Run 和 GO-ADK function-call ID 为稳定身份写入 `adk_tool_invocations`。完成结果会持久化并在同一调用恢复时直接重放；执行中的调用有独立心跳，并同时受 Run fencing token 约束。Tool descriptor 的 `idempotencyMode` 有三种值：
 
 - `replay_safe`：无副作用的读取；调用租约过期后允许安全接管。`read*` permission 默认使用此模式。

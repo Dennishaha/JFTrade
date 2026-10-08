@@ -86,6 +86,30 @@ impl ToolFixture {
             1
         );
     }
+
+    fn restore_tool_checkpoint(&self, chat: &ChatExecution, lease: &RunLeaseGuard) -> Value {
+        let completed = self.store.get_run(&chat.run_id).unwrap().unwrap();
+        assert_eq!(completed.status, "COMPLETED");
+        let mut payload: Value = serde_json::from_str(&completed.payload_json).unwrap();
+        let output = payload["toolResults"][0]["output"].clone();
+        payload["status"] = json!("RUNNING");
+        payload["toolCalls"][0]["status"] = json!("RUNNING");
+        payload["toolResults"] = json!([]);
+        assert!(
+            self.store
+                .update_run_state_if_status_and_revision_with_lease(
+                    &chat.run_id,
+                    "COMPLETED",
+                    &completed.updated_at,
+                    "RUNNING",
+                    &payload.to_string(),
+                    lease.owner_id(),
+                    lease.token(),
+                )
+                .unwrap()
+        );
+        output
+    }
 }
 
 impl Drop for ToolFixture {
@@ -121,6 +145,218 @@ impl Drop for Provider {
             }
         }
     }
+}
+
+// Parity: go:452dea11:internal/assistant/engine/execution_claims_test.go:54 TestGoogleADKToolUsesDurableInvocationKeyAndReplay
+#[test]
+fn production_read_checkpoint_replay_restores_the_original_result_without_execution() {
+    replay_restored_checkpoint(false);
+}
+
+// Parity: go:452dea11:internal/assistant/engine/execution_claims_test.go:108 TestFailedReadIsDurablyCompletedButProjectedAsFailedToolCall
+#[test]
+fn production_failed_read_checkpoint_replay_preserves_the_original_error_without_execution() {
+    replay_restored_checkpoint(true);
+}
+
+fn replay_restored_checkpoint(fail: bool) {
+    let fixture = ToolFixture::new(fail);
+    let provider = Provider::new();
+    let mut chat = fixture.seed("run-checkpoint-replay");
+    chat.request.endpoint = provider.endpoint.parse().unwrap();
+    let lease =
+        RunLeaseGuard::acquire(fixture.store.clone(), &chat.run_id, "replay-owner").unwrap();
+    fixture
+        .runtime
+        .run_tool_loop(chat.clone(), Arc::new(AtomicBool::new(false)), &lease);
+    let first = fixture.restore_tool_checkpoint(&chat, &lease);
+    let invocation = fixture
+        .store
+        .get_tool_invocation(&chat.run_id, "function-call-test")
+        .unwrap()
+        .unwrap();
+    let replay_provider = Provider::new();
+    chat.request.endpoint = replay_provider.endpoint.parse().unwrap();
+    fixture
+        .runtime
+        .run_tool_loop(chat.clone(), Arc::new(AtomicBool::new(false)), &lease);
+    let replayed = fixture.store.get_run(&chat.run_id).unwrap().unwrap();
+    let payload: Value = serde_json::from_str(&replayed.payload_json).unwrap();
+    assert_eq!(replayed.status, "COMPLETED", "{payload}");
+    assert_eq!(payload["toolResults"][0]["output"], first);
+    assert_eq!(payload["toolCalls"][0]["output"], first);
+    assert_eq!(
+        payload["toolCalls"][0]["status"],
+        if fail { "FAILED" } else { "SUCCEEDED" }
+    );
+    if fail {
+        assert_eq!(
+            payload["toolResults"][0]["output"]["error"]["message"],
+            "provider rejected the request"
+        );
+        assert_eq!(
+            payload["toolCalls"][0]["error"],
+            "provider rejected the request"
+        );
+    }
+    assert_eq!(fixture.calls.load(Ordering::Acquire), 1);
+    assert_eq!(
+        fixture
+            .store
+            .get_tool_invocation(&chat.run_id, "function-call-test")
+            .unwrap()
+            .unwrap(),
+        invocation,
+        "terminal invocation remains unchanged"
+    );
+}
+
+// Parity: go:452dea11:internal/assistant/engine/execution_claims_test.go:167 TestGoogleADKToolRejectsStaleContextAfterLeaseTurnover
+// Parity: go:452dea11:internal/assistant/engine/execution_claims_test.go:343 TestRunSaveIsFencedWithExecutionLeaseContext
+#[test]
+fn production_checkpoint_replay_rejects_the_stale_owner_and_restores_under_takeover() {
+    let fixture = ToolFixture::new(false);
+    let provider = Provider::new();
+    let mut chat = fixture.seed("run-replay-takeover");
+    chat.request.endpoint = provider.endpoint.parse().unwrap();
+    let stale = RunLeaseGuard::acquire(fixture.store.clone(), &chat.run_id, "stale-owner").unwrap();
+    fixture
+        .runtime
+        .run_tool_loop(chat.clone(), Arc::new(AtomicBool::new(false)), &stale);
+    let output = fixture.restore_tool_checkpoint(&chat, &stale);
+    let invocation = fixture
+        .store
+        .get_tool_invocation(&chat.run_id, "function-call-test")
+        .unwrap()
+        .unwrap();
+    fixture.expire(&chat.run_id);
+    let current =
+        RunLeaseGuard::acquire(fixture.store.clone(), &chat.run_id, "current-owner").unwrap();
+    let before = fixture.store.get_run(&chat.run_id).unwrap().unwrap();
+    let payload: Value = serde_json::from_str(&before.payload_json).unwrap();
+    let events = fixture.sessions.list_events(&chat.session_id).unwrap();
+    assert!(matches!(
+        fixture.runtime.persist_tool_result(
+            &chat,
+            &payload["toolCalls"][0],
+            "function-call-test",
+            output.clone(),
+            "SUCCEEDED",
+            None,
+            stale.owner_id(),
+            invocation.fencing_token,
+            stale.token(),
+        ),
+        Err(super::super::AdkChatPortError::Conflict(_))
+    ));
+    assert_eq!(
+        fixture.store.get_run(&chat.run_id).unwrap().unwrap(),
+        before
+    );
+    assert_eq!(
+        fixture.sessions.list_events(&chat.session_id).unwrap(),
+        events
+    );
+    let replay_provider = Provider::new();
+    chat.request.endpoint = replay_provider.endpoint.parse().unwrap();
+    fixture
+        .runtime
+        .run_tool_loop(chat.clone(), Arc::new(AtomicBool::new(false)), &current);
+    let restored = fixture.store.get_run(&chat.run_id).unwrap().unwrap();
+    let payload: Value = serde_json::from_str(&restored.payload_json).unwrap();
+    assert_eq!(restored.status, "COMPLETED");
+    assert_eq!(payload["toolResults"][0]["output"], output);
+    assert_eq!(fixture.calls.load(Ordering::Acquire), 1);
+    assert_eq!(
+        fixture
+            .store
+            .get_tool_invocation(&chat.run_id, "function-call-test")
+            .unwrap()
+            .unwrap(),
+        invocation
+    );
+}
+
+// Parity: go:452dea11:internal/assistant/engine/execution_claims_test.go:108 TestFailedReadIsDurablyCompletedButProjectedAsFailedToolCall
+#[test]
+fn production_checkpoint_replay_journal_failure_rolls_back_the_projection() {
+    let fixture = ToolFixture::new(true);
+    let provider = Provider::new();
+    let mut chat = fixture.seed("run-replay-journal-fault");
+    chat.request.endpoint = provider.endpoint.parse().unwrap();
+    let lease =
+        RunLeaseGuard::acquire(fixture.store.clone(), &chat.run_id, "replay-owner").unwrap();
+    fixture
+        .runtime
+        .run_tool_loop(chat.clone(), Arc::new(AtomicBool::new(false)), &lease);
+    let output = fixture.restore_tool_checkpoint(&chat, &lease);
+    let before = fixture.store.get_run(&chat.run_id).unwrap().unwrap();
+    let payload: Value = serde_json::from_str(&before.payload_json).unwrap();
+    let invocation = fixture
+        .store
+        .get_tool_invocation(&chat.run_id, "function-call-test")
+        .unwrap()
+        .unwrap();
+    let events = fixture.sessions.list_events(&chat.session_id).unwrap();
+    let connection = Connection::open(fixture.directory.path().join("adk-session.db")).unwrap();
+    connection.execute_batch("CREATE TRIGGER reject_tool_replay BEFORE INSERT ON events
+        WHEN NEW.author='assistant.tool' BEGIN SELECT RAISE(FAIL, 'replay journal write failed'); END;").unwrap();
+    let result = fixture.runtime.persist_tool_result(
+        &chat,
+        &payload["toolCalls"][0],
+        "function-call-test",
+        output.clone(),
+        "FAILED",
+        None,
+        lease.owner_id(),
+        invocation.fencing_token,
+        lease.token(),
+    );
+    assert!(matches!(
+        result,
+        Err(super::super::AdkChatPortError::Unavailable(_))
+    ));
+    assert_eq!(
+        fixture.store.get_run(&chat.run_id).unwrap().unwrap(),
+        before
+    );
+    assert_eq!(
+        fixture.sessions.list_events(&chat.session_id).unwrap(),
+        events
+    );
+    assert_eq!(
+        fixture
+            .store
+            .get_tool_invocation(&chat.run_id, "function-call-test")
+            .unwrap()
+            .unwrap(),
+        invocation
+    );
+    connection
+        .execute_batch("DROP TRIGGER reject_tool_replay")
+        .unwrap();
+    fixture
+        .runtime
+        .persist_tool_result(
+            &chat,
+            &payload["toolCalls"][0],
+            "function-call-test",
+            output.clone(),
+            "FAILED",
+            None,
+            lease.owner_id(),
+            invocation.fencing_token,
+            lease.token(),
+        )
+        .unwrap();
+    let restored = fixture.store.get_run(&chat.run_id).unwrap().unwrap();
+    let payload: Value = serde_json::from_str(&restored.payload_json).unwrap();
+    assert_eq!(payload["toolResults"][0]["output"], output);
+    assert_eq!(
+        fixture.sessions.list_events(&chat.session_id).unwrap(),
+        events
+    );
+    assert_eq!(fixture.calls.load(Ordering::Acquire), 1);
 }
 
 // Parity: go:452dea11:internal/assistant/engine/execution_claims_test.go:54 TestGoogleADKToolUsesDurableInvocationKeyAndReplay

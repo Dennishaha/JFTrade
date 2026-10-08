@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "jftrade.local-quality-gate.v1",
+  "status": "failed",
+  "exitCode": 101,
+  "verifiedAt": "2026-10-08T12:57:48.517173+00:00",
+  "verifiedCommit": "7d7727fdfbd149c46e9a7b66bb6ddb2d4049e4b3",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(production_read_checkpoint_replay) or test(production_failed_read_checkpoint_replay)"
+  ],
+  "rawOutputPath": "/Volumes/\u5e06\u5e06PM961-512/Github/JFTrade/.git/adk-checkpoint-replay-first-green-20261008.stderr",
+  "rawOutputSha256": "d3e0037b8fbd45fddca08de159851e1cf2a89b013335b73cd6fb6323dd507bf8",
+  "diagnostic": "E0061: passed a now argument to the existing four-argument lease validator. Compilation failed; no tests ran."
+}

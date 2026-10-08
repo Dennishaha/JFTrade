@@ -1,0 +1,55 @@
+{
+  "schemaVersion": "jftrade.local-quality-gate.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "pnpm",
+    "run",
+    "check:rust"
+  ],
+  "status": "passed",
+  "exitCode": 0,
+  "verifiedAt": "2026-10-08T13:20:25.609978+00:00",
+  "verifiedCommit": "7d7727fdfbd149c46e9a7b66bb6ddb2d4049e4b3",
+  "rawOutputPath": "/Volumes/帆帆PM961-512/Github/JFTrade/.git/adk-checkpoint-replay-rust-full-20261008.log",
+  "rawOutputSha256": "fb88a02f7661b6340410a0d163600cd01ea9bc82ef6b8374c8645a4dd90359b1",
+  "environment": {
+    "CARGO_TARGET_DIR": "/Users/jiangfan/.cache/jftrade/targets/parity-assistant-20261008",
+    "rustc": "1.97.1",
+    "node": "24.19.0",
+    "pnpm": "12.3.4",
+    "protoc": "34.1",
+    "nextest": "0.9.143",
+    "cargoDeny": "0.20.2",
+    "gitProxy": "macOS configured http://127.0.0.1:10808; child Git only"
+  },
+  "nextestSummary": {
+    "planned": 3979,
+    "passed": 3979,
+    "failed": 0,
+    "skipped": 2,
+    "testSeconds": 111.99
+  },
+  "static": "passed",
+  "compatibilityReplays": {
+    "storage": "passed",
+    "backtest": "passed",
+    "provider-runtime": "passed",
+    "trading-strategy": "passed",
+    "assistant-runtime": "passed",
+    "api-transport": "passed",
+    "desktop-runtime": "passed"
+  },
+  "affectedSourceSha256": {
+    "crates/jftrade-engine/src/product_adk_durable_tool_owner_tests.rs": "c43843360ce165424d83fee69adb4c6f7543070937fd0760fff6e5d28c7dff78",
+    "crates/jftrade-engine/src/product_adk_model_runtime_tool_loop.rs": "1c52b71bdee75f62ff309de9642d40b768f056925bf0735dd515fc4185b0fbe1",
+    "crates/jftrade-engine/src/product_adk_run_lease_snapshot_tests.rs": "6b02af899b0cd7ca2a866005858d39ea1afb80753e64d4f3d8e0df9aabe55ec1",
+    "crates/jftrade-store-sqlite/src/adk.rs": "0b35a353e5ff3cc167b2c1f7a6a35d2adabf5d6f31261c29ab1ba2d20f176776",
+    "crates/jftrade-store-sqlite/src/adk_tool_replay.rs": "29b33b82bf94f730cf42d7811e78e629e89d138b2147d20eead4aaf886be269d"
+  },
+  "rustSourceFingerprintSha256": "072d3da228ca1bfdace8766ba0bf2b8c2d749fb65c2c03597f5bb5dfa9476e90",
+  "frozenRustFiles": 1020,
+  "rustSourceChangedDuringGate": [],
+  "leakyTestMarkerCount": 0,
+  "remainingRisk": "Handler context key/consumption, durable COMPLETED versus FAILED, original tool.Run/SaveRun ErrRunLeaseLost and configured two-second heartbeat renewal remain partial; whole goal active."
+}

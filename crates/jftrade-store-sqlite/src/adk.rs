@@ -18,6 +18,9 @@ use crate::session_deletion_fence;
 #[path = "adk_workflow_queue.rs"]
 mod workflow_queue;
 
+#[path = "adk_tool_replay.rs"]
+mod tool_replay;
+
 #[path = "adk_stream_cursor.rs"]
 mod stream_cursor;
 pub use stream_cursor::{AdkStreamCursor, AdkStreamPage};
@@ -2751,9 +2754,28 @@ impl AdkStore {
                     existing.status.to_ascii_uppercase().as_str(),
                     "SUCCEEDED" | "FAILED"
                 ) {
+                    if existing.output_json != output_json || existing.status != status {
+                        return Ok(AdkToolResultCommit {
+                            changed: false,
+                            invocation: existing.clone(),
+                        });
+                    }
+                    let changed = tool_replay::restore_projection(
+                        &transaction,
+                        existing,
+                        tool_replay::TerminalReplay {
+                            expected_status,
+                            expected_updated_at,
+                            payload_json,
+                            owner_id,
+                            run_lease_token,
+                            event,
+                        },
+                        &now,
+                    )?;
                     transaction.commit().map_err(AdkStoreError::Query)?;
                     return Ok(AdkToolResultCommit {
-                        changed: false,
+                        changed,
                         invocation: existing.clone(),
                     });
                 }
