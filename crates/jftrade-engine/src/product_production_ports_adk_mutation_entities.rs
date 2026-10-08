@@ -36,8 +36,14 @@ pub(super) fn dispatch(
                 .map(normalize_id)
                 .filter(|value| !value.is_empty())
                 .unwrap_or_else(|| next_id("agent"));
-            let mut payload = new_entity_payload(&input.body, "agent", &id)?;
-            super::agent_validation::validate_agent_write(port, &id, &payload)?;
+            let mut payload = if id == "jftrade-default" {
+                super::builtin_agent::configuration_payload(port, &input.body)?
+            } else {
+                new_entity_payload(&input.body, "agent", &id)?
+            };
+            if id != "jftrade-default" {
+                super::agent_validation::validate_agent_write(port, &id, &payload)?;
+            }
             let object = payload
                 .as_object_mut()
                 .ok_or_else(|| invalid_mutation_input("invalid agent payload"))?;
@@ -60,11 +66,12 @@ pub(super) fn dispatch(
         AdkMutationOperation::UpdateAgent => {
             let id = required_identifier(input, "agentId")?;
             if id == "jftrade-default" {
-                return Err(AdkMutationPortError::Failed {
-                    status: 409,
-                    code: "ADK_AGENT_PROTECTED".to_owned(),
-                    message: "the built-in agent cannot be modified".to_owned(),
-                });
+                let payload = super::builtin_agent::configuration_payload(port, &input.body)?;
+                let stored = port
+                    .store
+                    .upsert_agent(&id, &payload.to_string())
+                    .map_err(agent_write_store_failure)?;
+                return decode_mutation_payload(&stored.payload_json, "agent");
             }
             if port
                 .store

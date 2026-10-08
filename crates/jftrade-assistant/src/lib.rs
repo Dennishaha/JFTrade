@@ -6,6 +6,7 @@
 //! [`rig_adapter`], so provider SDK types cannot become persisted business state.
 
 mod artifact;
+mod builtin_agent;
 mod claims;
 mod model;
 mod ports;
@@ -15,6 +16,9 @@ mod workflow;
 mod workflow_canvas;
 
 pub use artifact::{ArtifactError, ArtifactStore};
+pub use builtin_agent::{
+    BuiltinAgentConfiguration, BuiltinAgentConfigurationError, prepare_builtin_agent_configuration,
+};
 pub use claims::{
     ClaimCheckpoint, ClaimError, ClaimStore, RunLease, ToolClaimRequest, ToolInvocation,
     ToolInvocationStatus, ToolInvocationTicket,

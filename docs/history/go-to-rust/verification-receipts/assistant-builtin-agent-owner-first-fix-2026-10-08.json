@@ -1,0 +1,79 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(builtin_agent_http_updates_provider_reasoning_and_keeps_protected_fields) or test(builtin_agent_http_create_cannot_overwrite_protected_behavior) or test(builtin_default_agent_tools_all_resolve_in_the_assembled_catalog) or test(adk_catalog_boundary_status_codes_match_the_go_matrix)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 100,
+  "status": "failed",
+  "verifiedAt": "2026-10-08T09:02:54Z",
+  "sourceState": {
+    "verifiedCommit": "bce011d9f90e99f237c1f088a8cfa3e851037a55",
+    "trackedDiffSha256": "f742b2a77edd151f8c6fa30de505a50625f53b8f90ce31465f461de07bdf87fb",
+    "untrackedFiles": [
+      {
+        "path": "crates/jftrade-engine/src/product_adk_builtin_agent_http_tests.rs",
+        "sha256": "92a8c9b2ccc544ed8d0edfcfea0f239787e020a069eadb777d0160844817100f"
+      },
+      {
+        "path": "crates/jftrade-engine/src/product_production_ports_adk_mutation_builtin_agent.rs",
+        "sha256": "482d60d8181fd15d9d91b743ca22748c31a6a4e0636959d474348d219a52a56f"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/assistant-builtin-agent-owner-red-2026-10-08.json",
+        "sha256": "458d0b046111e0375dbf6b3e57e8cba8c7d26f67cae77eb7eb54e7a373899006"
+      }
+    ]
+  },
+  "rawOutputSha256": "b68360cd77eaa232e0f40736203472a4a1a42ca3ec97e354da24a00c5918348f",
+  "passedTests": [
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_adk::tests::adk_catalog_boundary_status_codes_match_the_go_matrix",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_adk::tests::builtin_agent_http::builtin_agent_http_create_cannot_overwrite_protected_behavior",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_adk::tests::builtin_agent_http::builtin_agent_http_updates_provider_reasoning_and_keeps_protected_fields"
+  ],
+  "failedTests": [
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_adk::tests::builtin_default_agent_tools_all_resolve_in_the_assembled_catalog"
+  ],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 4,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "failed",
+      "passed": 3,
+      "failed": 1,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1895,
+      "exec_time": 5.127202749,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    }
+  ]
+}

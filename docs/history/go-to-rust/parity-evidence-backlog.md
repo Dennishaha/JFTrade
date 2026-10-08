@@ -1,5 +1,17 @@
 # Go → Rust 证据积压清单
 
+## 2026-10-08 Assistant 内置 agent 配置与保护
+
+- 完整 Rust 同源码重跑明确退出 0：workspace **3945 passed / 0 failed / 2 skipped**，16 项 slow、无 LEAK；static、冻结 manifest 和七类兼容回放通过，日志 `/tmp/jftrade-assistant-builtin-agent-rust-retry.log`。两条 skipped 不计执行通过。新成功 gate 记录 `gate-runs/assistant-builtin-agent-rust-verified-2026-10-08.json` 关联首次失败，失败状态和原日志保持；50ms 夹具的调度敏感性没有被修复，后续需消除真实时间依赖。十二份 Rust 指纹与 canonical 快照保持一致，本批完成后继续 ADK 重连与取消行为。
+
+- 真实 HTTP 独立红复现合法 PUT 被 blanket 409 拒绝及 POST 同 ID 覆盖保护字段：`assistant-builtin-agent-owner-red-2026-10-08.json` 为 **0 passed / 2 failed**。首次修复为 **3 passed / 1 failed**，失败来自 assembled-tools 夹具尝试改内置名称；核对冻结原测试仅要求 registry 全部可解析后改用实际 builtin 模板，原工具断言全部保留。两份失败 receipt 和源码快照保留，不覆盖。
+- 保护字段比较、原规范化和允许配置选择归 `jftrade-assistant`；engine 读取 persisted/fallback 状态、调用规则和已有 provider 验证，再由唯一 store owner 写入。仅允许 providerId/model/reasoningEffort；POST/PUT 共同拒绝保护变更、bare ID 和非法 provider 配置。真实 SQLite 重开保持成功配置，拒绝时 row/timestamps 不变，没有公开契约、schema、依赖或冻结 fixture 修改。
+- 早期 verified **9/0** 和 closed **11/0** receipt 只证明移动前源码；新 canonical `assistant-builtin-agent-owner-domain-closed-2026-10-08.json` 明确退出 0：**11 passed / 0 failed / 0 ignored / 2422 filtered**，SHA `1520f062fa05879a8262eeac564174f5265b569e2dc94d9d219f741df54ba356`。十二份当前源码快照和指纹于 `/tmp/jftrade-assistant-builtin-agent-domain-closed-source`，日志 `/tmp/jftrade-assistant-builtin-agent-domain-closed.log`。
+- 六条 mapping / 十二处必要 reuse 已逐项复核。builtin_edit10 的原合法配置返回与 instruction/status 保护三分支闭合，**exact +1 / partial −1 / boundary 0**，当前 **1661 / 2152 / 638**；不把额外 POST/sparse 回归冒称 Go 原断言。取消零查询、scheduler/nil Stop、完整 helper 分类、service wrappers 成功序列和 absent-runtime templates 仍明确 partial；移除 builtin_skills 证明 agent templates 的错误归因。
+- ordinary/strict、anchor/context 与 diff 实际通过，anchor **2170 unique / 2122 recorded / 0 unrecorded / 0 stale / 48 unknown**。quick 计划已查看并现场明确退出 0：受影响 Rust **2396 passed / 0 failed / 0 skipped**，Pine **98 passed**，desktop 脚本 **48 passed**；fmt/Clippy 和七类兼容回放通过，日志 `/tmp/jftrade-assistant-builtin-agent-quick.log`。完整 `CARGO_INCREMENTAL=0 pnpm run check:rust` 正在运行，完成前不记通过。现有 Codex goal 工具返回 paused，自动续跑尚需界面恢复。
+- 用户已授权推送到新的补测试分支，当前分支为 `codex/parity-assistant-builtin-config-20261008`；它继承本地既有 1953 个尚未推送的已完成提交。完成现场完整 Rust 门禁与最终复核后提交并推送新分支，保留失败证据。
+- 首次现场完整 Rust 明确退出 100：**406 passed / 1 failed / 2 skipped**，3538 条因 fail-fast 未运行；既有 `fail_closed_lease_takeover_blocks_duplicate_tool_execution_and_stale_commit` 的 50ms run lease 在首次 tool claim 前过期。原始日志 `/tmp/jftrade-assistant-builtin-agent-rust.log` 保留，机器记录见 `gate-runs/assistant-builtin-agent-rust-first-failure-2026-10-08.json`。同一测试原样定向重跑 **1 passed**，receipt SHA `98c7fd90744fc405034b357e58722ab3e6ecc5d8d0304080e74123f83cda3047`；没有修改 TTL 或断言。完整门禁同源码重跑中，日志 `/tmp/jftrade-assistant-builtin-agent-rust-retry.log`；真实时间夹具的调度敏感性仍是待修风险。
+
 ## 2026-10-08 Pine 重复tuple别名与冻结helper诊断
 
 - 完整现场Rust明确退出0：workspace **3941 passed / 0 failed / 2 skipped**，无LEAK；static、冻结manifest与七类compatibility replay全部通过，日志`/tmp/jftrade-pine-semantic-rejections-rust.log`。两条skipped不计执行通过；红绿SHA、快照内部七份指纹和当前源码匹配已复核，五条mapping/十二处reuse范围保持。提交本批后继续Assistant默认内置agent配置：原允许provider/model/reasoning更新被PUT blanket409阻断，POST同ID却可覆盖保护字段，先建真实HTTP独立红，整体goal继续active。

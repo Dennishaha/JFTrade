@@ -5,6 +5,9 @@ use std::net::SocketAddr;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 
+#[path = "product_adk_builtin_agent_http_tests.rs"]
+mod builtin_agent_http;
+
 async fn request_json_with_status(
     address: SocketAddr,
     method: &str,
@@ -3603,16 +3606,13 @@ fn builtin_default_agent_tools_all_resolve_in_the_assembled_catalog() {
         "the assembled catalog must expose at least one tool"
     );
 
+    let mut template = builtin_agent(&port.tool_catalog);
+    template["providerId"] = json!("");
     let default_agent = port
         .mutate(&AdkMutationInput {
             operation: AdkMutationOperation::CreateAgent,
             identifiers: BTreeMap::new(),
-            body: json!({
-                "id": "jftrade-default",
-                "name": "JFTrade Default",
-                "status": "ENABLED",
-                "tools": assembled.clone(),
-            }),
+            body: template,
             webhook_secret: None,
         })
         .expect("the builtin default template must only reference assembled tools");

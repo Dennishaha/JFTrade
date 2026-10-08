@@ -1,0 +1,49 @@
+{
+  "schemaVersion": "jftrade.local-quality-gate.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "pnpm",
+    "run",
+    "check:rust"
+  ],
+  "status": "passed",
+  "exitCode": 0,
+  "verifiedAt": "2026-10-08T09:48:38.595928+00:00",
+  "verifiedCommit": "bce011d9f90e99f237c1f088a8cfa3e851037a55",
+  "rawOutputPath": "/tmp/jftrade-assistant-builtin-agent-rust-retry.log",
+  "rawOutputSha256": "81e354c6aeb383a4176b48434b88deec77176248d16f9516782f69da8dfa2fba",
+  "nextestSummary": {
+    "passed": 3945,
+    "failed": 0,
+    "skipped": 2,
+    "slow": 16,
+    "testSeconds": 969.434
+  },
+  "static": "passed",
+  "compatibilityReplays": {
+    "storage": "passed",
+    "backtest": "passed",
+    "provider-runtime": "passed",
+    "trading-strategy": "passed",
+    "assistant-runtime": "passed",
+    "api-transport": "passed",
+    "desktop-runtime": "passed"
+  },
+  "affectedSourceSha256": {
+    "crates/jftrade-assistant/src/builtin_agent.rs": "363402aa976de36a5bf1ea2153afc8af84f0a349695f187ecfc8266c4de8d671",
+    "crates/jftrade-assistant/src/lib.rs": "8e5e7d1ebdefad4c332c20cdb1706e2dd5f48885646c9df17931f4b38b5af8f9",
+    "crates/jftrade-engine/src/product_production_ports_adk_mutation.rs": "f8580afcf67529019f5b09cab6a3231c84161d227c19c7bcaa3e597f2d0629f7",
+    "crates/jftrade-engine/src/product_production_ports_adk_mutation_entities.rs": "8376ba7c0a28387109ddccb628abbd918c285c51e6e8d1115878fa9317759774",
+    "crates/jftrade-engine/src/product_production_ports_adk_mutation_builtin_agent.rs": "05d0219d069d15b79f8c07a252accc1929261f9613dfc2011f6ddcb8037157de",
+    "crates/jftrade-engine/src/product_production_ports_adk_tests.rs": "9528f00565995be3a2dd850a5216c6c9e69cfb549c9920a841beb3fd903a341d",
+    "crates/jftrade-engine/src/product_adk_builtin_agent_http_tests.rs": "e18c0c88341ef239a96e60fef6f04f5cc607761f92c907d2b518dadebb1ca6e8",
+    "crates/jftrade-engine/src/product_production_ports_adk_mutation_agent_validation.rs": "bb11346eedaa4c61b8ea2d0d913fa6a5c856a587aef2d0105b6017e2a6661594",
+    "crates/jftrade-engine/src/product_production_ports_adk_projection.rs": "53896705c31bcd6e836d6c196c447122dc80cffe9f59b293bc1aec008cea6faf",
+    "crates/jftrade-api/src/auth.rs": "f8e38f3424fd3b5f5ecf47be8da3742000a9de5619d13b4fd9b9367e1fcf6cad",
+    "crates/jftrade-engine/src/product_production_assembly_tests.rs": "dfc0028c4e56b7152bf7c0281fecc16307550243e1955f2a979f141854fe8de8",
+    "crates/jftrade-engine/src/product_production_dispatch.rs": "ea4e474749292c819fa1049d0ab42c49b562c4d199d67000668126fe09bfb6ec"
+  },
+  "previousFailure": "assistant-builtin-agent-rust-first-failure-2026-10-08.json",
+  "remainingRisk": "The existing 50ms run lease fixture is sensitive to scheduling. Focused and full reruns passed without changing its TTL or assertions; the fixture timing dependency has not been fixed."
+}

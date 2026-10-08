@@ -9,10 +9,12 @@ use crate::product::product_adk_mutation_port::{
     AdkMutationInput, AdkMutationOperation, AdkMutationPort, AdkMutationPortError,
 };
 
-#[path = "product_production_ports_adk_mutation_context.rs"]
-pub(crate) mod context;
 #[path = "product_production_ports_adk_mutation_agent_validation.rs"]
 mod agent_validation;
+#[path = "product_production_ports_adk_mutation_builtin_agent.rs"]
+mod builtin_agent;
+#[path = "product_production_ports_adk_mutation_context.rs"]
+pub(crate) mod context;
 #[path = "product_production_ports_adk_mutation_entities.rs"]
 mod entities;
 #[path = "product_production_ports_adk_mutation_helpers.rs"]

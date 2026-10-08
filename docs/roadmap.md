@@ -4,7 +4,16 @@
 
 当前活动包括迁移行为核验、产品质量和发布资格工作。迁移历史与证据位于 `docs/history/go-to-rust`；历史阶段完成声明不能代替全部映射的逐项审查。
 
-## 当前批次：Pine tuple重复别名与公共helper诊断
+## 当前批次：ADK 重连失败与取消
+
+Assistant 内置 agent 配置批次已完成现场验证：定向 11 passed，quick 通过，完整 Rust 重跑 3945 passed、0 failed、2 skipped，净 exact +1 / partial −1。首次完整门禁失败及既有 50ms 租约夹具风险保留；结果见 [证据积压清单](history/go-to-rust/parity-evidence-backlog.md)。补测试分支为 `codex/parity-assistant-builtin-config-20261008`。整体行为目标尚未完成，Codex 目标工具当前返回 paused，自动续跑需界面恢复。
+
+- [ ] 优先消除租约并发夹具对初次 setup 在 50ms 内完成的依赖，以受控失效阶段保留 takeover/UNKNOWN/禁止重复执行/旧 fencing token 拒绝的完整断言，不放宽断言。
+- [ ] 逐项复核 chat_transport_disconnect55/110、chat_helpers167/216 和 service_test49；具体重连路径的写失败与预取消必须有直接 owner 证据，不能仅用 generic SSE 测试替代。
+- [ ] 真实缺口补测，必要时独立红后修复；完整原行为闭合才升级 exact，公开 admission 差异和未执行分支仍保持 partial。
+- [ ] 最窄 receipt、ordinary/strict、anchor/context、quick 计划与现场 quick、完整 Rust 门禁、diff/源码指纹复核后独立提交。
+
+## 已验证批次：Pine tuple重复别名与公共helper诊断
 
 Web Origin批次已提交`1150e2c6`，现场完整Rust为3934 passed、0 failed、2 skipped。Codex整体目标继续active。
 

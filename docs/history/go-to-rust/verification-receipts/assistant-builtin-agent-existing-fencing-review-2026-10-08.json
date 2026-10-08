@@ -1,0 +1,95 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(fail_closed_lease_takeover_blocks_duplicate_tool_execution_and_stale_commit)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-10-08T09:30:26Z",
+  "sourceState": {
+    "verifiedCommit": "bce011d9f90e99f237c1f088a8cfa3e851037a55",
+    "trackedDiffSha256": "233955ed1d1b04b063551e809787b388a8be00d098fcedeef2cf9a5f97c0e8bf",
+    "untrackedFiles": [
+      {
+        "path": "crates/jftrade-assistant/src/builtin_agent.rs",
+        "sha256": "363402aa976de36a5bf1ea2153afc8af84f0a349695f187ecfc8266c4de8d671"
+      },
+      {
+        "path": "crates/jftrade-engine/src/product_adk_builtin_agent_http_tests.rs",
+        "sha256": "e18c0c88341ef239a96e60fef6f04f5cc607761f92c907d2b518dadebb1ca6e8"
+      },
+      {
+        "path": "crates/jftrade-engine/src/product_production_ports_adk_mutation_builtin_agent.rs",
+        "sha256": "05d0219d069d15b79f8c07a252accc1929261f9613dfc2011f6ddcb8037157de"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/assistant-builtin-agent-owner-closed-2026-10-08.json",
+        "sha256": "bb9e3b5fa33cfcc13c7322da99b6ee9bdf45eda94f33315902fdce766cdd2df5"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/assistant-builtin-agent-owner-domain-closed-2026-10-08.json",
+        "sha256": "1520f062fa05879a8262eeac564174f5265b569e2dc94d9d219f741df54ba356"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/assistant-builtin-agent-owner-first-fix-2026-10-08.json",
+        "sha256": "15bb67a06b4144ccba5ddb72647edc580b4b47cf1bc8f653673b8c3a4118af6b"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/assistant-builtin-agent-owner-red-2026-10-08.json",
+        "sha256": "458d0b046111e0375dbf6b3e57e8cba8c7d26f67cae77eb7eb54e7a373899006"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/assistant-builtin-agent-owner-verified-2026-10-08.json",
+        "sha256": "a0984ba3bcf763b17628a66589c51790c5c368238a0eb90a75e574eb6f895cf8"
+      }
+    ]
+  },
+  "rawOutputSha256": "9e59a0b0c2c9241628c7ad640693119b128ccd8d964564b0fb7473b00aa33477",
+  "passedTests": [
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::fencing_tests::fail_closed_lease_takeover_blocks_duplicate_tool_execution_and_stale_commit"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1900,
+      "exec_time": 0.247405833,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    }
+  ]
+}

@@ -33,6 +33,10 @@ ADK GET 重连 body 由 HTTP 消费者持有，无后台 producer task。SQLite 
 
 跨域交互使用窄 DTO/port；第三处重复的 projection、validation 或 lifecycle 逻辑应提升到最窄共享 owner，而不是创建含糊的 `common/shared/utils` crate。
 
+内置 Assistant agent 的保护字段比较、规范化及可编辑配置选择由 `jftrade-assistant`
+持有。engine adapter 读取当前状态并验证 provider 可用性，领域规则通过后才交由
+现有 store writer 保存；创建与更新入口使用同一保护规则。
+
 ### Store crates
 
 `jftrade-store-sqlite` 和 `jftrade-store-settings-file` 负责持久化、migration、事务、编码和 `WriterLease`。业务决策留在领域层；store 不依赖 HTTP transport 或具体外部协议。

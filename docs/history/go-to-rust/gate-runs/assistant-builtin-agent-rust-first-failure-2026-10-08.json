@@ -1,0 +1,32 @@
+{
+  "schemaVersion": "jftrade.local-quality-gate.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "pnpm",
+    "run",
+    "check:rust"
+  ],
+  "status": "failed",
+  "exitCode": 100,
+  "verifiedCommit": "bce011d9f90e99f237c1f088a8cfa3e851037a55",
+  "rawOutputPath": "/tmp/jftrade-assistant-builtin-agent-rust.log",
+  "rawOutputSha256": "114611d95e987c906ff2802d3ae413b26de32995c1d2cf1e1a8259e985d1fda8",
+  "nextestSummary": {
+    "planned": 3945,
+    "executed": 407,
+    "passed": 406,
+    "failed": 1,
+    "skipped": 2,
+    "notRunAfterFailure": 3538
+  },
+  "failedTests": [
+    "product::product_adk_model_runtime::fencing_tests::fail_closed_lease_takeover_blocks_duplicate_tool_execution_and_stale_commit"
+  ],
+  "error": "claim first tool invocation: LeaseLost(\"run run-fail-closed lease fencing token 1 is no longer current\")",
+  "source": {
+    "file": "crates/jftrade-engine/src/product_adk_model_runtime_fencing_tests.rs",
+    "sha256": "aa0924a25c469a6d7e48e807737be89c75565b8607be408c7e050bda606bbe1b"
+  },
+  "review": "Existing fixture uses a 50ms run lease before its first tool claim. Focused review passed unchanged; no assertion or TTL was modified. The whole gate is being rerun on the same Rust source. This failed gate does not count as passed."
+}
