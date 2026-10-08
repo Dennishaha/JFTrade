@@ -225,13 +225,14 @@ fn existing_run_output(
     run: &StoredAdkRun,
     route: AdkChatRoute,
 ) -> Result<AdkChatPortOutput, AdkChatPortError> {
-    let payload: Value = serde_json::from_str(&run.payload_json).map_err(storage_unavailable)?;
+    let mut payload: Value = serde_json::from_str(&run.payload_json).map_err(storage_unavailable)?;
     if let Some(response) = payload.get("response").cloned() {
         return match route {
             AdkChatRoute::Chat => Ok(AdkChatPortOutput::Json(response)),
             AdkChatRoute::Stream => stream_from_payload(&run.payload_json),
         };
     }
+    crate::product::product_production_ports::product_production_ports_adk::projection::public_run(&mut payload);
     let reply = payload
         .get("reply")
         .or_else(|| payload.get("message"))

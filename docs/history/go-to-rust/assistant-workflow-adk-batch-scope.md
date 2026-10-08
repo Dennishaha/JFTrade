@@ -3337,4 +3337,12 @@ Go 这两条把 workflow bridge 钉在两件事上：manager 的 CRUD/分页/run
 
 原外置盘quick中断不计通过，完整Rust当时未启动；[中断证据](gate-runs/adk-sync-typed-external-volume-interrupted-2026-10-09.json)保留。内置盘恢复同分支/基线，现场[quick](gate-runs/adk-sync-typed-quick-verified-2026-10-09.json)2442 Rust/98 Pine/desktop11+48及七类replay通过；[完整Rust](gate-runs/adk-sync-typed-rust-verified-2026-10-09.json)4042 passed/0 failed/2 skipped、static/七类replay退出0，无LEAK。1041文件冻结，三份receipt/raw SHA、两份gate、8条Go函数/blob、17处reuse/anchor与diff核验，strict/context通过、unrecorded/stale0、既有unknown48。失败与最终源码/日志备份在`/Users/jiangfan/.cache/jftrade/parity-sync-typed-recovery-20261009`。私有reasoning保存/恢复值及公开隐私、GET typed解码/history、完整chat投影等继续开放；整体目标未完成。
 
+### 2026-10-09 私有 reasoning 保存/读取与公开 run owner
+
+生产红0/2确认GET run与同步RUNNING重放泄露reasoningEffortField/Value；追加真实HTTP终态cancel红0/1确认mutation输出也需同一公开投影。engine读取、重放和mutation输出仅移除两个私有字段，保存/恢复输入保留原值，公开effort保持。直接prepare/finish持久化与读取field/value，实际HTTP三条GET、RUNNING重放和终态cancel验证隐私及完整row/audit/native sessions、零provider连接；provider改名/model=v2后的session过滤列表仍恰好一个run且model=v1。
+
+9条冻结原函数及blob复核：persistence31、reasoning10/23、config8/27/65、runner_chat552、routes29、adk_approval335。persistence31由完整原保存/读取/隐私断言升exact；runner_chat552补齐此前缺少的SessionRuns断言，exact保持。reasoning10旧session三级优先级不属于原函数，残余改为agent medium继承与request max覆盖缺直接owner证据；reasoning23实际chat/workflow恢复仍partial。1666 exact/2148 partial/637 boundary，新主测试的双引用经审核，只闭合两个原函数的不同断言。
+
+编译trait装配101、TLS0/2、GET红与idle shutdown174秒/SIGTERM、有界关闭诊断0/1及mutation误接线6/1失败均保留原源码、指纹和日志。测试明确connection close并先停runtime owner、释放lease，再等待listener；不把idle关闭等待当作已修复。最终控制7、[生产owner receipt](verification-receipts/adk-private-reasoning-production-owner-verified-2026-10-09.json)236 passed/0 failed，无LEAK；[quick](gate-runs/adk-private-reasoning-quick-verified-2026-10-09.json)2445 Rust/98 Pine/desktop11+48与[完整Rust](gate-runs/adk-private-reasoning-rust-verified-2026-10-09.json)4045 passed/0 failed/2 skipped通过，static/七类replay退出0。1042文件冻结，十份receipt/raw SHA、两份gate、9条Go函数、10处reuse/anchor与diff核验；strict/context通过、unrecorded/stale0、既有unknown48。verifier的单引用allowed误判原错误保留，按仓库单/多引用规则校正，未放宽多引用审核条件或改旧关系。内置盘证据备份`/Users/jiangfan/.cache/jftrade/parity-private-reasoning-20261009`；整体未完成，继续实际恢复和GET边界。
+
 验证：定向227/227、quick2696 Rust/98 Pine/desktop Node11+48、现场`CARGO_INCREMENTAL=0 check:rust`4041 passed/0 failed/2 skipped、static及七类replay退出0，无LEAK；五份receipt、两份gate、8条Go原函数、20处reuse/anchor、源码指纹与diff复核通过。

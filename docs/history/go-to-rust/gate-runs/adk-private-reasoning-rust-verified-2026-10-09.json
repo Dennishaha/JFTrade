@@ -1,0 +1,54 @@
+{
+  "schemaVersion": "jftrade.local-quality-gate.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "pnpm",
+    "run",
+    "check:rust"
+  ],
+  "status": "passed",
+  "exitCode": 0,
+  "verifiedAt": "2026-10-08T23:08:26.083347+00:00",
+  "verifiedCommit": "767588e884d2c5dafc919f3c2cf32d64a593f461",
+  "rawOutputPath": "/Users/jiangfan/.cache/jftrade/parity-sync-typed-recovery-20261009/workspace/.git/adk-private-reasoning-rust-20261009.log",
+  "rawOutputSha256": "459e60778b9f4f39edc5361689b66f9cc505ab9792b2b384548d170b61dfbd52",
+  "environment": {
+    "CARGO_TARGET_DIR": "/Users/jiangfan/.cache/jftrade/targets/parity-assistant-20261008",
+    "CARGO_INCREMENTAL": "0",
+    "rustc": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+    "node": "v24.19.0",
+    "pnpm": "12.3.4",
+    "protoc": "libprotoc 34.1",
+    "nextest": "0.9.143"
+  },
+  "nextestSummary": {
+    "planned": 4045,
+    "passed": 4045,
+    "failed": 0,
+    "skipped": 2,
+    "testSeconds": 114.365
+  },
+  "compatibilityReplays": {
+    "storage": "passed",
+    "backtest": "passed",
+    "provider-runtime": "passed",
+    "trading-strategy": "passed",
+    "assistant-runtime": "passed",
+    "api-transport": "passed",
+    "desktop-runtime": "passed"
+  },
+  "affectedSourceSha256": {
+    "crates/jftrade-engine/src/product_adk_model_runtime_replay.rs": "6646dfca28e7147daa71f07f92f4fa4260ed3f7db1567e125165b2d4998cbdb6",
+    "crates/jftrade-engine/src/product_adk_reconnect_disconnect_tests.rs": "a5e942711493483a6fb12164918e8533c561e533e0739cd1241e3876e8c6f2c0",
+    "crates/jftrade-engine/src/product_production_ports_adk_mutation.rs": "be04a8187367124aaff2920813365757d717be11bc8d52b3bd0f370517a70166",
+    "crates/jftrade-engine/src/product_production_ports_adk_projection.rs": "518069bc64429f4d4e485e08537e726fc17b35ddcba94009841b1b9a170a3d9f",
+    "crates/jftrade-engine/src/product_adk_private_reasoning_owner_tests.rs": "09e7ff1914d491a506394f28d32b18e7ba62841531dd84b88b42c8e988f9d386"
+  },
+  "rustSourceFingerprintSha256": "af048c0073de66987ddeba13b20e2b7c591c3c85c169ac198142e29e4f9e23ad",
+  "frozenRustFiles": 1042,
+  "rustSourceChangedDuringGate": [],
+  "leakyTestMarkerCount": 0,
+  "remainingRisk": "Production prepare/finish persists and restores original private reasoning field/value. Shared public projection removes them from read, sync fallback and mutation outputs without changing durable input. Actual HTTP controls preserve row/audit/native sessions, public effort and zero provider calls. Nine frozen originals reviewed; persistence31 partial→exact, model snapshot552 SessionRuns proof repaired, override10 false session-priority gap corrected.1666 exact/2148 partial/637 boundary. Resume config drift, GET typed decode/history, whole chat projection, legacy request semantic reformatting, known-context, context revision, native partial/tool projection, lease startup, historical LEAKs and the observed HTTP idle graceful-shutdown wait remain gaps; whole goal unfinished.",
+  "static": "passed"
+}

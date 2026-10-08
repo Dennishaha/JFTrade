@@ -1,5 +1,15 @@
 # Go → Rust 证据积压清单
 
+## 2026-10-09 私有 provider reasoning 快照与公开 run 投影
+
+- 实际HTTP生产红0 passed/2 failed：GET run及RUNNING同步重放均泄露`reasoningEffortField/Value`。生产prepare owner已保存正确field=provider.reasoning.level/value=DEEP，公开字段应按冻结Go `persistedRun`私有保存及Run JSON规则隐藏。红receipt SHA `93048e626899b3e95d2b41d1491376c8051afa66f269b60feea219a14dfc051a`、1042文件源码及diff独立保留。
+- engine公开run投影只移除两个私有字段，供GET run/list/session、无保存response的同步重放和mutation返回复用；保存/恢复输入保持原私有值，公开reasoningEffort保留。追加终态cancel真实HTTP红0/1确认mutation输出也泄露，receipt SHA `d6c63084d50fa1b18482cd854220c3835bd93d7eff720fc46a12067187736877`。首次接线误放到通用entity helper，控制6 passed/1 failed保留；diff复核纠正到run_entity_value，不改变断言。
+- 初次测试装配使用trait对象调用具体owner方法，编译101保留；补装配后rustls未安装导致0/2，保留失败与源码。GET隐私红成功捕获时，同步控制在HTTP idle graceful shutdown等待超过174秒，SIGTERM退出及原线程采样保留；有界诊断0/1定位到listener shutdown而非请求返回。测试明确connection close、先停止runtime owner及释放lease再等待listener，不放宽隐私/run/audit/native sessions或零provider断言。原idle关闭等待仍为活动缺口，不据此宣称已修复生产关闭。
+- 控制初次6 passed及最终7 passed，最终定向236 passed/0 failed，无LEAK；canonical receipt SHA `198ac1285f78ed4110c3cc65d774c9c31e38b4374c128756bab59d2945b99ebe`。直接prepare/finish保存并读取原值；真实HTTP三条GET、同步RUNNING重放和终态cancel均隐藏私有字段且公开effort保持，完整run/audit/native sessions保持、零provider连接。provider改名/model=v2后的session过滤列表恰好一个run且model=v1，补齐旧runner_chat552注册证据缺少的列表断言。
+- 逐项复核9条冻结原函数/blob：persistence31、reasoning_lifecycle10/23、provider_reasoning_config8/27/65、runner_chat552、routes29、adk_approval335。persistence31 partial→exact；runner_chat552 exact补证，reasoning10旧session三级优先级缺口并非原函数断言，纠正为agent medium继承/request max覆盖缺直接owner证据。reasoning23的provider配置变化后恢复及workflow恢复仍partial，不从私有保存/读取推断闭合。当前1666 exact/2148 partial/637 boundary。
+- 查看quick计划后2445 Rust/98 Pine/desktop Node11+48及七类replay通过，退出0；现场同源码`CARGO_INCREMENTAL=0 pnpm run check:rust`4045 passed/0 failed/2 skipped，static/七类replay退出0，无LEAK。[quick](gate-runs/adk-private-reasoning-quick-verified-2026-10-09.json) SHA `fe50550bad31a9c960cfa3deef6cec448e4efce58687c84f09d54fe83bbec03f`，[完整Rust](gate-runs/adk-private-reasoning-rust-verified-2026-10-09.json) SHA `7d33979eeac84667d727534879ed1f146c811fe2202411f6972fe240b29daa1f`。1042文件冻结；十份receipt/raw SHA、失败/最终源码、两份gate、9条原函数、10处reuse/anchor及diff复核，strict/context退出0，unrecorded/stale0、既有unknown48。
+- 初版本批verifier错误要求单引用关系的allowed=true，原错误及脚本保留；依据仓库`parity_inventory.py`单/多引用规则修正验证器，两个单引用保持allowed=false，多引用仍必须allowed=true/reviewed，不改mapping的旧reuse关系。新私有测试仅经审核复用于persistence31及runner_chat552的不同断言。现场证据与原采样备份`/Users/jiangfan/.cache/jftrade/parity-private-reasoning-20261009`；provider配置变化后实际恢复、GET typed/history、整个chat投影、request优先级、旧身份语义、known-context、context首次revision、原生partial/tool投影、lease启动、历史LEAK与idle关闭等待仍开放，整体未完成。
+
 ## 2026-10-09 同步 chat durable 解码与原函数复核
 
 - 冻结Go的`ChatRunByClientRequestID`在指纹比较前`decodeRun`；同步handler把错误映射为400/ADK_CHAT_FAILED，stream仍为500。恢复工作区现场红0 passed/1 failed：已损坏row的同请求返回200保存回复；红receipt SHA `cc9568f76f1c0ad554b2064ae5e8d8e6080cb1bb3685f45f51b03850275779e1`、六字段红测源码与1041文件指纹独立保留。

@@ -28,6 +28,9 @@ mod canonical_identity;
 #[path = "product_adk_sync_responses_owner_tests.rs"]
 mod sync_responses;
 
+#[path = "product_adk_private_reasoning_owner_tests.rs"]
+mod private_reasoning;
+
 // Inject only the socket failure. Routes, cursor projection, body polling and
 // connection cleanup all run through the prepared production router/Hyper.
 struct FailingListener {

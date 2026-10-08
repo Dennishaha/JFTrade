@@ -1,0 +1,40 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(production_private_reasoning_snapshot) | test(production_sync_running_replay_hides_private_reasoning)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 101,
+  "status": "failed",
+  "verifiedAt": "2026-10-08T22:48:05Z",
+  "sourceState": {
+    "verifiedCommit": "767588e884d2c5dafc919f3c2cf32d64a593f461",
+    "trackedDiffSha256": "037b6c20018beaf750313a85ce56b9a36a9ff5191873ac9f19d36857fd66ef05",
+    "untrackedFiles": [
+      {
+        "path": "crates/jftrade-engine/src/product_adk_private_reasoning_owner_tests.rs",
+        "sha256": "2dc34c0500390791f8ac17c10ac45d87320b56e4e8c7b2a17bb46041077364d0"
+      }
+    ]
+  },
+  "rawOutputSha256": "f57697bd0381420caad69e0711a901470440e9f42070dfe6797a7f48916bf3f2",
+  "passedTests": [],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": []
+}

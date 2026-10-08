@@ -17,7 +17,16 @@ pub(super) fn payload<const N: usize>(
         put_string(&mut value, key, field_value);
     }
     if resource == "workflow trigger log" { public_workflow_log(&mut value); }
+    if resource == "run" { public_run(&mut value); }
     Ok(value)
+}
+
+/// Provider wire mappings are durable execution details, excluded from Go's Run JSON.
+pub(crate) fn public_run(value: &mut Value) {
+    if let Some(object) = value.as_object_mut() {
+        object.remove("reasoningEffortField");
+        object.remove("reasoningEffortValue");
+    }
 }
 
 pub(crate) fn public_workflow_log(value: &mut Value) {

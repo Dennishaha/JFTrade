@@ -252,6 +252,7 @@ fn run_entity_value(
         "updatedAt".to_owned(),
         Value::String(stored.updated_at.clone()),
     );
+    super::projection::public_run(&mut value);
     Ok(value)
 }
 
