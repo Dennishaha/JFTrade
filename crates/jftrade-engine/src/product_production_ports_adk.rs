@@ -24,6 +24,10 @@ use crate::product::{
 #[path = "product_adk_reconnect_stream.rs"]
 mod reconnect_stream;
 
+#[path = "product_adk_unavailable_stream.rs"]
+mod unavailable_stream;
+use unavailable_stream::UnavailableStreams;
+
 #[path = "product_production_ports_adk_metrics.rs"]
 mod metrics;
 #[path = "product_production_ports_adk_mcp.rs"]
@@ -58,6 +62,7 @@ pub struct ProductionAdkPort {
     /// layer) ensures configured runtimes can execute both chat and stream
     /// requests while an unconfigured runtime remains explicitly unavailable.
     pub chat_runtime: Option<Arc<dyn AdkChatStreamPort>>,
+    pub(crate) unavailable_streams: UnavailableStreams,
 }
 
 impl ProductionAdkPort {
@@ -74,6 +79,7 @@ impl ProductionAdkPort {
             tool_catalog: Arc::new(ProductionToolCatalog::empty_for_test()),
             settings_path,
             chat_runtime: None,
+            unavailable_streams: UnavailableStreams::default(),
         }
     }
 }

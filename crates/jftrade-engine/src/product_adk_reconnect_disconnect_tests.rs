@@ -1,4 +1,5 @@
 use super::*;
+use crate::product::AdkReadSnapshotPort;
 use std::io;
 use std::net::SocketAddr;
 use std::pin::Pin;
@@ -141,7 +142,7 @@ async fn fail_stream_write(
     body: Option<&[u8]>,
     needle: &'static [u8],
     expected_stream_id: Option<&str>,
-) {
+) -> Option<String> {
     let prepared = prepared_router_with_chat(port.clone(), body.is_some()).await;
     let socket = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let address = socket.local_addr().unwrap();
@@ -220,13 +221,179 @@ async fn fail_stream_write(
             "retry must precede failed replay: {body}"
         );
     } else {
-        assert!(!body.contains("data: "), "a frame followed the failed retry: {body}");
+        assert!(
+            !body.contains("data: "),
+            "a frame followed the failed retry: {body}"
+        );
     }
     assert_eq!(
         Arc::strong_count(&port.store),
         baseline,
         "failed HTTP body must release the production reader"
     );
+    headers.lines().find_map(|line| {
+        line.strip_prefix("x-adk-stream-id: ")
+            .map(|value| value.trim().to_owned())
+    })
+}
+
+// Parity: go:452dea11:internal/api/assistant/chat_transport_disconnect_test.go:55 TestChatStreamTransportHandlesDisconnectedClients
+#[tokio::test]
+async fn production_unavailable_chat_retains_terminal_error_after_retry_disconnect() {
+    let (_directory, port) = reconnect_port();
+    assert!(port.chat_runtime.is_none());
+    let runs = port.store.list_runs().unwrap();
+    let audit = port.store.list_audit_events().unwrap();
+    let payload =
+        br#"{"clientRequestId":"11111111-1111-4111-8111-111111111111","message":"hello"}"#;
+    let stream_id = fail_stream_write(
+        port.clone(),
+        "/api/v1/adk/chat/stream",
+        Some(payload),
+        b"retry: 3000",
+        Some("stream-"),
+    )
+    .await
+    .expect("stream identity assigned before failed retry");
+    let path = format!("/api/v1/adk/streams/{stream_id}");
+    let replay = port.open_stream(&path, "").unwrap().unwrap();
+    assert_eq!(
+        replay.headers,
+        vec![("X-ADK-Stream-ID".to_owned(), stream_id.clone())]
+    );
+    let mut reader = replay.body.take_body().unwrap();
+    assert_eq!(reader.next().await.unwrap().unwrap(), b"retry: 3000\n\n");
+    let frame = String::from_utf8(reader.next().await.unwrap().unwrap()).unwrap();
+    assert!(frame.contains(&format!("id: {stream_id}:1\n")), "{frame}");
+    let data: Value = serde_json::from_str(
+        frame
+            .lines()
+            .find_map(|line| line.strip_prefix("data: "))
+            .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(data["type"], "error");
+    assert_eq!(data["streamId"], stream_id);
+    assert_eq!(data["sequence"], 1);
+    assert_eq!(data["replay"], true);
+    assert!(!data["message"].as_str().unwrap().is_empty());
+    assert!(data.get("runId").is_none());
+    assert!(reader.next().await.is_none());
+    let after = port.open_stream(&path, "after=1").unwrap().unwrap();
+    let mut reader = after.body.take_body().unwrap();
+    assert_eq!(reader.next().await.unwrap().unwrap(), b"retry: 3000\n\n");
+    assert!(reader.next().await.is_none());
+    assert_eq!(port.store.list_runs().unwrap(), runs);
+    assert_eq!(port.store.list_audit_events().unwrap(), audit);
+}
+
+#[tokio::test]
+async fn production_unavailable_chat_reuses_retained_error_over_http_and_rejects_conflicts() {
+    let _ = rustls::crypto::ring::default_provider().install_default();
+    let (_directory, port) = reconnect_port();
+    let runs = port.store.list_runs().unwrap();
+    let audit = port.store.list_audit_events().unwrap();
+    let prepared = prepared_router_with_chat(port.clone(), true).await;
+    let handle = crate::product::expose_prepared_product(prepared).unwrap();
+    let base = format!("http://{}", handle.startup_record().address);
+    let client = reqwest::Client::new();
+    let payload =
+        json!({"clientRequestId":"11111111-1111-4111-8111-111111111111", "message":"hello"});
+    let first = client
+        .post(format!("{base}/api/v1/adk/chat/stream"))
+        .json(&payload)
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(first.status(), 200);
+    assert_eq!(first.headers()["content-type"], "text/event-stream");
+    let id = first.headers()["x-adk-stream-id"]
+        .to_str()
+        .unwrap()
+        .to_owned();
+    let initial = first.text().await.unwrap();
+    assert!(initial.starts_with("retry: 3000\n\n"));
+    assert!(initial.contains(&format!("id: {id}:1\n")));
+    let mut event: Value = serde_json::from_str(
+        initial
+            .lines()
+            .find_map(|line| line.strip_prefix("data: "))
+            .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(event["type"], "error");
+    assert!(!event["message"].as_str().unwrap().is_empty());
+    assert!(event.get("replay").is_none());
+    event["replay"] = json!(true);
+    for response in [
+        client
+            .post(format!("{base}/api/v1/adk/chat/stream"))
+            .json(&payload)
+            .send()
+            .await
+            .unwrap(),
+        client
+            .get(format!("{base}/api/v1/adk/streams/{id}"))
+            .send()
+            .await
+            .unwrap(),
+    ] {
+        assert_eq!(response.status(), 200);
+        assert_eq!(response.headers()["x-adk-stream-id"], id);
+        let body = response.text().await.unwrap();
+        assert!(body.starts_with("retry: 3000\n\n"));
+        let replay: Value = serde_json::from_str(
+            body.lines()
+                .find_map(|line| line.strip_prefix("data: "))
+                .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(replay, event);
+        assert_eq!(
+            body.lines()
+                .filter(|line| line.starts_with("data: "))
+                .count(),
+            1
+        );
+    }
+    let after = client
+        .get(format!("{base}/api/v1/adk/streams/{id}?after=1"))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(after.status(), 200);
+    assert_eq!(after.text().await.unwrap(), "retry: 3000\n\n");
+    let conflict = client
+        .post(format!("{base}/api/v1/adk/chat/stream"))
+        .json(&json!({"clientRequestId":payload["clientRequestId"], "message":"different"}))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(conflict.status(), 409);
+    assert_eq!(
+        conflict.json::<Value>().await.unwrap()["error"]["code"],
+        "ADK_CHAT_IDEMPOTENCY_CONFLICT"
+    );
+    let chat = client
+        .post(format!("{base}/api/v1/adk/chat"))
+        .json(&payload)
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(chat.status(), 503);
+    assert_eq!(
+        chat.json::<Value>().await.unwrap()["error"]["code"],
+        "ADK_UNAVAILABLE"
+    );
+    let missing = client
+        .get(format!("{base}/api/v1/adk/runs/{id}/stream"))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(missing.status(), 404);
+    handle.shutdown().await.unwrap();
+    assert_eq!(port.store.list_runs().unwrap(), runs);
+    assert_eq!(port.store.list_audit_events().unwrap(), audit);
 }
 
 // Parity: go:452dea11:internal/api/assistant/chat_transport_disconnect_test.go:55 TestChatStreamTransportHandlesDisconnectedClients

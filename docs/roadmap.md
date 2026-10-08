@@ -6,7 +6,7 @@
 
 ## 当前批次：ADK 确定性接管与 durable 工具完成
 
-handler stable key、消费、UNKNOWN恢复及确定性takeover批次已验证；durable完成批次复核七条原测试后为1661 exact、2152 partial、638 boundary。失败及通过证据见 [证据积压清单](history/go-to-rust/parity-evidence-backlog.md)。开发分支为 `codex/parity-assistant-builtin-config-20261008`，整体行为目标继续 active。
+handler stable key、消费、UNKNOWN恢复及确定性takeover批次已验证；缺runtime终态保留批次复核九条原测试后为1662 exact、2151 partial、638 boundary。失败及通过证据见 [证据积压清单](history/go-to-rust/parity-evidence-backlog.md)。开发分支为 `codex/parity-assistant-builtin-config-20261008`，整体行为目标继续 active。
 
 - [x] 冻结execution_claims54/108/167/265/343五条及blob SHA复核；稳定context key经生产timeout worker交付handler，真实两次tool loop证明key非空、包含run-wrapper、first/second output.key及完整output相同、只执行一次。54升级exact，其余状态及错误分类残余不变。
 - [x] 定向18 passed、quick2385 Rust/98 Pine与desktop Node11+48通过；现场完整Rust3980 passed、0 failed、2 skipped，无LEAK，static/七类replay退出0。外置卷断开及launcher原30秒超时失败留证，未改源码或放宽deadline；launcher原样20次与prediction路由20次重复通过。receipt/reuse/anchor/context/diff及1020个Rust文件冻结指纹复核后独立提交。
@@ -32,6 +32,9 @@ handler stable key、消费、UNKNOWN恢复及确定性takeover批次已验证�
 - [x] keyed 规范化批次 quick2399 Rust/98 Pine/desktop Node11+48与现场完整Rust3994 passed/0 failed/2 skipped通过，无LEAK，static/七类replay退出0；1023个Rust文件冻结。七条原测试分类保持，完整 typed tool.Run 返回和空 UNKNOWN 输出缺口不由规范化控制推断闭合。
 - [x] 完整stream worker在已非RUNNING时复用保留事件、零模型连接。六种停止状态的open/disconnected body控制保持完整run/session events/audit，预取消/body断连只记录一次取消终态并释放登记与lease；RUNNING正向控制实际请求模型并持久化RUN_TIMED_OUT。稳定生产红0/1、最终定向27通过，无LEAK；七条原测试分类保持。
 - [x] stream终态批次最终quick2402 Rust/98 Pine/desktop Node11+48→现场完整Rust3997 passed/0 failed/2 skipped通过，无LEAK，static/七类replay退出0；1024个Rust文件冻结。三次定向运行的既有重连LEAK、quick既有MCP LEAK、夹具nested runtime/错误码层级和Clippy失败全部留证，未声称LEAK修复；初次完整Rust通过结果也保留。缺runtime后台终态和idle request-context预取消仍partial。
+- [x] 缺runtime首次retry BrokenPipe的有效请求现在由生产port保留非空error终态，分配streamId、同序列重连和零run/audit写入闭合。健康HTTP初始/重复POST/GET replay、after过滤、冲突409、同步chat不可用及确定性过期控制通过；原disconnect55两子分支升级exact，其余八条分类保持。生产红0/1和遗漏trait的编译失败分别留证，最终定向31通过，无LEAK。
+- [x] 两个装配用例的旧stream503预期已按冻结Go改为200终态error并增强identity/sequence/零写入断言；其quick失败、enum导入编译失败与第二次quick Clippy失败分别留证。合并reader条件后最终定向33通过，无LEAK；最终quick2405 Rust/98 Pine/desktop Node11+48→现场完整Rust4000 passed/0 failed/2 skipped通过，无LEAK，static/七类replay退出0。
+- [x] 本批Rust1025文件冻结与四份receipt、六份gate、九条Go blob/anchor和20处reuse/diff复核通过，现场证据及源码已独立归档。继续idle request-context零body、canonical请求指纹和private delta/context组合缺口，历史LEAK不由本批clean通过推断修复。
 
 ## 已验证批次：ADK checkpoint replay 与唯一投影 owner
 

@@ -1,0 +1,61 @@
+{
+  "schemaVersion": "jftrade.local-quality-gate.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "pnpm",
+    "run",
+    "check:rust"
+  ],
+  "status": "passed",
+  "exitCode": 0,
+  "verifiedAt": "2026-10-08T18:36:49.563515+00:00",
+  "verifiedCommit": "42d01f3434de6d8543fb237925df425df3243e1a",
+  "rawOutputPath": "/Volumes/帆帆PM961-512/Github/JFTrade/.git/adk-unavailable-stream-closed-rust-20261009.log",
+  "rawOutputSha256": "724e16a68ea476a9c79f9607a8d5a4c1dfcd1cbd207171a85a9bc9635759974b",
+  "environment": {
+    "CARGO_TARGET_DIR": "/Users/jiangfan/.cache/jftrade/targets/parity-assistant-20261008",
+    "CARGO_INCREMENTAL": "0",
+    "rustc": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+    "node": "v24.19.0",
+    "pnpm": "12.3.4",
+    "protoc": "libprotoc 34.1",
+    "nextest": "0.9.143"
+  },
+  "nextestSummary": {
+    "planned": 4000,
+    "passed": 4000,
+    "failed": 0,
+    "skipped": 2,
+    "testSeconds": 107.402
+  },
+  "compatibilityReplays": {
+    "storage": "passed",
+    "backtest": "passed",
+    "provider-runtime": "passed",
+    "trading-strategy": "passed",
+    "assistant-runtime": "passed",
+    "api-transport": "passed",
+    "desktop-runtime": "passed"
+  },
+  "affectedSourceSha256": {
+    "crates/jftrade-engine/src/product_adk_input_response_parity_tests.rs": "a42f22a84b11b4f98ee0182a09c2a89b922fa27b545ff46a5b24748f22ceab4f",
+    "crates/jftrade-engine/src/product_adk_model_runtime_expiry_tests.rs": "5024e534b91008ffdac555df283239ee212b2ab3869292baa80ee002c40c195f",
+    "crates/jftrade-engine/src/product_adk_reconnect_disconnect_tests.rs": "1a078e89e6f70abbe00871a4ce2d850316c01d169fd5fac9918304667c575ae3",
+    "crates/jftrade-engine/src/product_production_assembly_tests.rs": "351ae9abf4933811611f076f349a2bedae5656408c9e07158089e899d8fd3a19",
+    "crates/jftrade-engine/src/product_production_ports.rs": "85dd6ec2d1f6fe99693ae3ad34e3bbda659c8eeb1b8eed005885d32ba2924538",
+    "crates/jftrade-engine/src/product_production_ports_adk.rs": "ca781329bf93d99d864e77cf7210395ba73ad279573ec2f50511bd25a70e407d",
+    "crates/jftrade-engine/src/product_production_ports_adk_mutation_provider.rs": "1207bf355308b3db8aefaa41613397e9fd4c3783c6e7e1e2d3a7a47cb4f189cc",
+    "crates/jftrade-engine/src/product_production_ports_adk_mutation_skill_tests.rs": "f904191e4e8cbb71c7abb7d56c29bf6830b9b7fce9ba00021853bae386d83927",
+    "crates/jftrade-engine/src/product_production_ports_adk_read.rs": "7759ec3b6e03cba850fb5e4ec3391d5b2bec7cc1438820b1249ed9aacc7e743f",
+    "crates/jftrade-engine/src/product_production_ports_adk_stream.rs": "482d57f31d00a0db63a1fe9faa1c62ccb192df040437959ff757069ac11a3446",
+    "crates/jftrade-engine/src/product_production_ports_adk_tests.rs": "1e70da3fa63476bf0f9e5726ac7709c4daa68cde5873d21b222f77b4684c6529",
+    "crates/jftrade-engine/src/product_adk_unavailable_stream.rs": "aaeeedbdde74775377b5229402cd306ed7e97ed3b7062cf65540b9ffd4cd18fe"
+  },
+  "rustSourceFingerprintSha256": "d5420329092152b88505da681bf86c82a69a6fc4acfce2bc3e6b3e8f46aacb4f",
+  "frozenRustFiles": 1025,
+  "rustSourceChangedDuringGate": [],
+  "leakyTestMarkerCount": 0,
+  "remainingRisk": "Missing/unready runtime terminal error is retained before first retry and replays after BrokenPipe; healthy initial/repeated POST, GET replay/after, conflict and explicit expiry controls pass without run/audit creation. Nine frozen originals reviewed; only disconnect55 upgraded exact. Two earlier quick failures (old503 assertions and Clippy) and two fixture import failures preserved. Initial production red source snapshot was not captured; its receipt states this limitation. Canonical Go fingerprint, idle per-request cancellation and private delta/context combinations remain gaps; historical LEAKs remain unresolved. Whole parity active.",
+  "static": "passed"
+}

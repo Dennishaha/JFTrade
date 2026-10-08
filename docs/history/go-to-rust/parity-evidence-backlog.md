@@ -1,5 +1,14 @@
 # Go → Rust 证据积压清单
 
+## 2026-10-09 ADK 缺 runtime 的断连终态保留
+
+- 实际生产 POST/Hyper socket 建立红：缺 runtime 的有效 UUID 请求原本直接503 JSON，未尝试 retry。新的 `ProductionAdkPort` 内存 owner 在 HTTP 消费前保存 stream ID/sequence1/非空error；按访问清理30分钟终态，不创建 run、audit 或后台 worker。同步 chat 仍503；字段仅在现有 engine composition 注入默认 owner，公开契约和 SQLite schema 未改。
+- 真正首次retry BrokenPipe仅一次失败，200 SSE与stream ID已经交付、零data逃逸；同port直接重连读取原非空error且EOF，健康HTTP重复POST和GET重连具有相同event与replay=true，after=1只有retry。同请求body复用原ID，不同body409；canonical Go fingerprint仍未移植，不能由该控制推断语义等价请求闭合。确定性过期控制回收记录和request ID，新请求可重新建立记录。
+- 九条冻结Go原函数及blob SHA复核：helpers167/216、recovery41、disconnect55/110、runner_chat1124、service49/24、service_business_helpers145。disconnect55只有malformed和valid两子分支，均由直接生产owner与真实socket覆盖，升级exact；去除三条泛化stream/499/late-disconnect证据在该条上的reuse，其他八条分类保持，当前1662 exact/2151 partial/638 boundary。
+- 首次缺trait编译失败独立保留；生产红receipt **0 passed/1 failed** 与初次定向receipt **31 passed/0 failed** 均在 `verification-receipts/adk-unavailable-stream-production-owner-*-2026-10-09.json`。原红源码未在运行前拍全树快照，失败receipt明确说明这个局限；不能冒称其source fingerprint完备。最终定向前1025个Rust文件已冻结，raw JSONL/stderr/exit、Go原函数review和源码指纹保存在本机 `.git/adk-unavailable-stream-*`，不依赖旧机器/tmp。
+- 首次quick **1667 passed/2 failed/736未运行**：两个装配用例仍要求stream503；按冻结Go/现有OpenAPI替换为明确的200 SSE单个非空error、identity/sequence与零run/audit写入控制。随后enum导入编译失败单独留证。第二次quick测试部分 **2405 passed/0 failed**、无LEAK，Clippy拒绝新增reader嵌套if；按建议合并条件，没有lint suppress。新的最终定向 **33 passed**、无LEAK，canonical receipt为 `adk-unavailable-stream-production-owner-closed-verified-2026-10-09.json`，SHA `6c41ff100d5dedd971a967e733f43fa2a3d9c67cdf6a12d52f61272dc86259e1`；此前31与33通过receipt保持绑定各自原源码，不替换失败证据。
+- 最终现场quick **2405 Rust/98 Pine/desktop Node11+48** → `CARGO_INCREMENTAL=0 pnpm run check:rust` **4000 passed/0 failed/2 skipped** 完整通过，static与七类兼容回放退出0，无LEAK。两个skipped不计执行通过；1025个Rust源码指纹从最终定向到完整门禁保持。九条Go blob、必要anchor及20处reuse逐项复核，strict/context/diff通过，anchor unrecorded0/stale0/known unknown48。失败与通过raw日志、receipt和源码归档至 `/Users/jiangfan/.cache/jftrade/parity-unavailable-stream-recovery-20261009`。idle request-context、canonical fingerprint与private delta/context仍是明确缺口，历史LEAK仍未定位修复，整体目标active，提交后继续下一批。
+
 ## 2026-10-08 Assistant 内置 agent 配置与保护
 
 - 完整 Rust 同源码重跑明确退出 0：workspace **3945 passed / 0 failed / 2 skipped**，16 项 slow、无 LEAK；static、冻结 manifest 和七类兼容回放通过，日志 `/tmp/jftrade-assistant-builtin-agent-rust-retry.log`。两条 skipped 不计执行通过。新成功 gate 记录 `gate-runs/assistant-builtin-agent-rust-verified-2026-10-08.json` 关联首次失败，失败状态和原日志保持；50ms 夹具的调度敏感性没有被修复，后续需消除真实时间依赖。十二份 Rust 指纹与 canonical 快照保持一致，本批完成后继续 ADK 重连与取消行为。

@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "jftrade.local-quality-gate.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "pnpm",
+    "run",
+    "check:quick"
+  ],
+  "status": "failed",
+  "exitCode": 1,
+  "verifiedAt": "2026-10-08T18:27:19.295311+00:00",
+  "rawOutputPath": "/Volumes/帆帆PM961-512/Github/JFTrade/.git/adk-unavailable-stream-quick-clippy-failure-20261009.log",
+  "rawOutputSha256": "8e4941e789155441384201a772c98e24cc7839195efeb76d3bfba230fb63171d",
+  "rustSourceFingerprintSha256": "4a76dceecb621187fd4aa7e5064bb02952f6621824bbab950e260a675a436822",
+  "frozenRustFiles": 1025,
+  "rustSourceChangedDuringGate": [],
+  "nextestSummary": {
+    "planned": 2405,
+    "run": 2405,
+    "passed": 2405,
+    "failed": 0,
+    "skipped": 0
+  },
+  "failedPhase": "Clippy collapsible_if in product_production_ports_adk_read.rs",
+  "leakyTestMarkerCount": 0,
+  "remainingRisk": "Quick nextest passed without LEAK but Clippy rejected nested conditions. Conditions collapsed without suppressing lint or changing assertions. New directed->quick->full sequence required for changed source."
+}

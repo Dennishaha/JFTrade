@@ -35,13 +35,20 @@ impl AdkReadSnapshotPort for ProductionAdkPort {
         let id = dynamic_id(path, "/api/v1/adk/streams/", "")
             .or_else(|| dynamic_id(path, "/api/v1/adk/runs/", "/stream"));
         let Some(id) = id else { return Ok(None) };
+        let after = query_param(query, "after")
+            .and_then(|value| value.parse::<u64>().ok())
+            .unwrap_or(0);
+        if path.starts_with("/api/v1/adk/streams/")
+            && let Some(stream) = self.unavailable_streams.open(&id, after).map_err(|_| {
+                AdkReadSnapshotError::Unavailable(unavailable_stream::UNAVAILABLE.to_owned())
+            })?
+        {
+            return Ok(Some(stream));
+        }
         let cursor = self
             .store
             .open_stream_cursor(&id)?
             .ok_or_else(|| not_found("stream not found"))?;
-        let after = query_param(query, "after")
-            .and_then(|value| value.parse::<u64>().ok())
-            .unwrap_or(0);
         Ok(Some(AdkReadLiveStream {
             headers: vec![("X-ADK-Stream-ID".to_owned(), cursor.stream_id.clone())],
             body: reconnect_stream::body(self.store.clone(), cursor, after),
@@ -77,8 +84,8 @@ include!("product_production_ports_adk_read_listings.rs");
 impl ProductionAdkPort {
     /// Attach a runtime-owned assistant chat adapter after the ADK stores and
     /// catalog have been validated.  This is intentionally explicit: a
-    /// missing adapter is surfaced as 503 by [`AdkChatStreamPort::dispatch`]
-    /// below and never masquerades as a successful synthetic response.
+    /// missing adapter returns an explicit terminal error on streams and
+    /// remains unavailable for synchronous chat.
     #[allow(dead_code)]
     pub(crate) fn with_chat_runtime(mut self, chat_runtime: Arc<dyn AdkChatStreamPort>) -> Self {
         self.chat_runtime = Some(chat_runtime);

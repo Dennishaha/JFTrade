@@ -1,0 +1,194 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(production_unavailable_chat) | test(expired_unavailable_stream) | test(chat_dispatch_retains_error_stream) | test(adk_chat_stream_replays_go_wire_fixture_for_leaf_owned_cases) | test(adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart) | test(adk_reconnect_routes_return_an_incremental_body_instead_of_materializing_history) | test(late_disconnect_and_failure_preserve_terminal_run_history_and_audit) | test(persisted_terminal_run_is_published_as_final_instead_of_a_second_error) | test(production_agent_templates_remain_available_without_chat_runtime) | test(production_live_chat_stream_emits_session_before_run_and_terminal_frame) | test(production_live_chat_stream_emits_session_run_and_final_events) | test(production_live_chat_stream_reuses_existing_session_preview_once) | test(production_malformed_chat_stops_after_the_first_retry_write_failure) | test(production_reconnect_precancelled_listener_writes_no_body_or_run_changes) | test(production_reconnect_retry_and_replay_write_failures_preserve_terminal_history) | test(production_stream_missing_agent_emits_no_preview_frames) | test(reconnect) | test(stream_owner) | test(stream_terminal_projection_trims_tool_outputs_from_final_response) | test(test_client_disconnect_returns_499_within_250ms) | test(production_adk_and_plugin_and_alert_ports) | test(canonical_278_routes_table_driven_reachability_and_auth_matrix)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-10-08T18:28:58.816871+00:00",
+  "sourceState": {
+    "verifiedCommit": "42d01f3434de6d8543fb237925df425df3243e1a",
+    "trackedDiffSha256": "d041458d56b44e4e18c5ed10b71796ce7daa07d87485af6a9d0b876cc97d1234",
+    "untrackedFiles": [
+      {
+        "path": "crates/jftrade-engine/src/._product_production_ports_adk_read.rs",
+        "sha256": "d2fdabe41fe17dd7446608064fb694bf732f357d5b9d3571dab36d625093ab09"
+      },
+      {
+        "path": "crates/jftrade-engine/src/product_adk_unavailable_stream.rs",
+        "sha256": "aaeeedbdde74775377b5229402cd306ed7e97ed3b7062cf65540b9ffd4cd18fe"
+      },
+      {
+        "path": "docs/history/go-to-rust/._manual-test-mappings.json",
+        "sha256": "d2fdabe41fe17dd7446608064fb694bf732f357d5b9d3571dab36d625093ab09"
+      },
+      {
+        "path": "docs/history/go-to-rust/gate-runs/._adk-unavailable-stream-quick-clippy-failure-2026-10-09.json",
+        "sha256": "d2fdabe41fe17dd7446608064fb694bf732f357d5b9d3571dab36d625093ab09"
+      },
+      {
+        "path": "docs/history/go-to-rust/gate-runs/adk-unavailable-stream-assembly-fixture-compile-failure-2026-10-09.json",
+        "sha256": "9dcfd453f831820d130af7437007042d3a3685bc318e793f42f234882e8d588b"
+      },
+      {
+        "path": "docs/history/go-to-rust/gate-runs/adk-unavailable-stream-fixture-compile-failure-2026-10-09.json",
+        "sha256": "ea065fd2e1fb347bf01af1eb0618074da0f5e7e1cebe89d2d17d70cbf5eec714"
+      },
+      {
+        "path": "docs/history/go-to-rust/gate-runs/adk-unavailable-stream-quick-clippy-failure-2026-10-09.json",
+        "sha256": "3468b4c5a994265a582f0bdb2d63e4256fefa6ecb0b0b0064a9996f4e5f34b54"
+      },
+      {
+        "path": "docs/history/go-to-rust/gate-runs/adk-unavailable-stream-quick-old-expectation-failure-2026-10-09.json",
+        "sha256": "0ab0cf1a811e62ecffbb1dee2f7c8f8021254fa3d5c7743e3637287fd0df4385"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/._adk-unavailable-stream-production-owner-final-verified-2026-10-09.json",
+        "sha256": "d2fdabe41fe17dd7446608064fb694bf732f357d5b9d3571dab36d625093ab09"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/adk-unavailable-stream-production-owner-failure-2026-10-09.json",
+        "sha256": "41758466d0c0dec918ae6fbaf5296909826783c0bbb8338950e870fba87a791a"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/adk-unavailable-stream-production-owner-final-verified-2026-10-09.json",
+        "sha256": "ff0c78fe571d61d9aa5ab055730e4bc8cb87c88e1d5e866755db144060c85f43"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/adk-unavailable-stream-production-owner-verified-2026-10-09.json",
+        "sha256": "ab24c537bc9c5039225359e58ec7d26983a8490aadb2eb7c4a2591d368e3840d"
+      }
+    ]
+  },
+  "rawOutputSha256": "694dfdc2a5349099d5aacd2fd96fccac706781e040ecd5bf5f1bc6f664f9bd2d",
+  "passedTests": [
+    "jftrade-engine::adk_chat_stream_compatibility$adk_chat_stream_replays_go_wire_fixture_for_leaf_owned_cases",
+    "jftrade-engine::adk_chat_stream_timing_challenge$test_client_disconnect_returns_499_within_250ms",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::disconnect::production_agent_templates_remain_available_without_chat_runtime",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::disconnect::production_malformed_chat_stops_after_the_first_retry_write_failure",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::disconnect::production_reconnect_precancelled_listener_writes_no_body_or_run_changes",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::disconnect::production_reconnect_retry_and_replay_write_failures_preserve_terminal_history",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::disconnect::production_unavailable_chat_retains_terminal_error_after_retry_disconnect",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::disconnect::production_unavailable_chat_reuses_retained_error_over_http_and_rejects_conflicts",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::reconnect_cursor_pages_history_without_duplicates_and_returns_canonical_stream_id",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::reconnect_http_replays_history_then_tails_live_events_on_the_same_connection",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::reconnect_http_shutdown_closes_idle_connection_without_mutating_the_run",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::reconnect_reader_drop_releases_idle_store_reference_without_background_reads",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::reconnect_store_failure_ends_body_after_one_error",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::run_projection_tests::stream_terminal_projection_trims_tool_outputs_from_final_response",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::runtime_recovery::health_tests::persisted_terminal_run_is_published_as_final_instead_of_a_second_error",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::disconnect::late_disconnect_and_failure_preserve_terminal_run_history_and_audit",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::disconnect::stream_owner::production_running_stream_owner_contacts_provider_and_persists_its_timeout",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::disconnect::stream_owner::production_stopped_stream_owner_replays_terminal_frame_without_a_provider_request",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::disconnect::stream_owner::production_stream_precancellation_and_body_disconnect_keep_one_durable_terminal_error",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_adk::tests::adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_adk::tests::chat_dispatch_retains_error_stream_for_an_installed_but_unready_runtime",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_adk::unavailable_stream::tests::expired_unavailable_stream_removes_request_identity_and_allows_new_record",
+    "jftrade-engine::jftrade_engine$product::tests::adk_chat_stream_product_tests::adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart",
+    "jftrade-engine::jftrade_engine$product::tests::adk_chat_stream_product_tests::production_live_chat_stream_emits_session_before_run_and_terminal_frame",
+    "jftrade-engine::jftrade_engine$product::tests::adk_chat_stream_product_tests::production_live_chat_stream_emits_session_run_and_final_events",
+    "jftrade-engine::jftrade_engine$product::tests::adk_chat_stream_product_tests::production_live_chat_stream_reuses_existing_session_preview_once",
+    "jftrade-engine::jftrade_engine$product::tests::adk_chat_stream_product_tests::production_stream_missing_agent_emits_no_preview_frames",
+    "jftrade-engine::jftrade_engine$product::tests::adk_read_tests::adk_reconnect_routes_return_an_incremental_body_instead_of_materializing_history",
+    "jftrade-engine::jftrade_engine$product::tests::production_assembly_tests::product_production_assembly_tests::canonical_278_routes_table_driven_reachability_and_auth_matrix",
+    "jftrade-engine::jftrade_engine$product::tests::production_assembly_tests::product_production_assembly_tests::production_adk_and_plugin_and_alert_ports",
+    "jftrade-engine::jftrade_engine$product::tests::system_control_read_tests::system_status_reflects_fixture_opend_poll_and_reconnect_lifecycle",
+    "jftrade-engine::jftrade_engine$product::tests::ws_live_tests::http_parity_tests::production_websocket_replays_preconnection_notification_and_receives_live_successor_once",
+    "jftrade-engine::jftrade_engine$product_runtime::product_runtime_opend_listener_tests::provider_reconnect_publishes_resync_events_and_wakes_reconciliation"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 31,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "adk_chat_stream_compatibility",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 3,
+      "exec_time": 0.008600208,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "adk_chat_stream_compatibility",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "adk_chat_stream_timing_challenge",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 5,
+      "exec_time": 1.5159046250000001,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "adk_chat_stream_timing_challenge",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 31,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1922,
+      "exec_time": 40.155696708,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    }
+  ]
+}

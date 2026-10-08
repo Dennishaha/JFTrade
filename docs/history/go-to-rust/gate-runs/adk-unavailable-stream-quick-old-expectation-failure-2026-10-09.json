@@ -1,0 +1,31 @@
+{
+  "schemaVersion": "jftrade.local-quality-gate.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "pnpm",
+    "run",
+    "check:quick"
+  ],
+  "status": "failed",
+  "exitCode": 1,
+  "verifiedAt": "2026-10-08T18:18:10.715911+00:00",
+  "rawOutputPath": "/Volumes/帆帆PM961-512/Github/JFTrade/.git/adk-unavailable-stream-quick-old-expectation-failure-20261009.log",
+  "rawOutputSha256": "96131685eb278a986ef2e2932089542bcadb024eb05117576c8406e3ef62063f",
+  "rustSourceFingerprintSha256": "bab0e338ac2a066b932e910ab4be8f622d3a7127d88d7a37becefd7ff1117e8c",
+  "frozenRustFiles": 1025,
+  "rustSourceChangedDuringGate": [],
+  "nextestSummary": {
+    "planned": 2405,
+    "run": 1669,
+    "passed": 1667,
+    "failed": 2,
+    "skipped": 0,
+    "notRunAfterFailure": 736
+  },
+  "failedTests": [
+    "production_adk_and_plugin_and_alert_ports",
+    "canonical_278_routes_table_driven_reachability_and_auth_matrix"
+  ],
+  "remainingRisk": "Old missing-runtime stream503 expectations conflicted with frozen Go and declared200 SSE. Retained failure; replacement assertions require nonempty terminal error, identity/sequence, one event and no run/audit changes. No LEAK markers in this failed gate. Full Rust not run yet."
+}

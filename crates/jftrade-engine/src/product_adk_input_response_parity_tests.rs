@@ -633,6 +633,7 @@ fn restarted_cluster_with_provider(
         tool_catalog: Arc::clone(&fixture_port.tool_catalog),
         settings_path: fixture_port.settings_path.clone(),
         chat_runtime: Some(Arc::clone(&runtime) as Arc<dyn AdkChatStreamPort>),
+        unavailable_streams: Default::default(),
     });
     RestartedCluster {
         port,

@@ -432,6 +432,7 @@ mod tests {
             tool_catalog: Arc::new(tool_catalog),
             settings_path: directory.path().join("settings.json"),
             chat_runtime: None,
+            unavailable_streams: Default::default(),
         };
         (port, directory)
     }

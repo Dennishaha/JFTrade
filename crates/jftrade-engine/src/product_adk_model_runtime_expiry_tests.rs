@@ -312,6 +312,7 @@ fn the_run_read_routes_reconcile_expired_runs_before_serving() {
         tool_catalog: Arc::new(ProductionToolCatalog::empty_for_test()),
         settings_path: directory.path().join("settings.json"),
         chat_runtime: Some(Arc::clone(&runtime) as Arc<dyn AdkChatStreamPort>),
+        unavailable_streams: Default::default(),
     };
     let started_at = minutes_ago(31);
     seed_running_run(&store, "run-route-expiry", &started_at, None, json!([]));

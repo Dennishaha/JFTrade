@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "jftrade.local-quality-gate.v1",
+  "status": "failed",
+  "exitCode": 101,
+  "verifiedAt": "2026-10-08T18:19:36.297253+00:00",
+  "phase": "directed nextest compilation",
+  "classification": "fixture import failure",
+  "rawOutputPath": "/Volumes/帆帆PM961-512/Github/JFTrade/.git/adk-unavailable-stream-fixture-compile-20261009.jsonl",
+  "rawOutputSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stderrPath": "/Volumes/帆帆PM961-512/Github/JFTrade/.git/adk-unavailable-stream-fixture-compile-20261009.stderr",
+  "stderrSha256": "f60b9a48c43512ab40dfae918f03c8bf02f5165712c37e1034ca6f7a85b904e2",
+  "remainingRisk": "Test trait/enum import missing. Not classified as production behavior red. Assertions retained; corrected import before rerun.",
+  "sourceLimitations": "No whole-source snapshot captured before this initial test compile failure."
+}

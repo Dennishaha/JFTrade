@@ -32,7 +32,7 @@ mod product_production_assembly_tests {
     use tempfile::TempDir;
 
     use crate::product::product_adk_chat_stream_port::{
-        AdkChatInput, AdkChatPortError, AdkChatRoute,
+        AdkChatInput, AdkChatPortError, AdkChatPortOutput, AdkChatRoute,
     };
     use crate::product::product_adk_mutation_port::{AdkMutationInput, AdkMutationOperation};
     use crate::product::product_alerts_write_port::{
@@ -2782,18 +2782,53 @@ mod product_production_assembly_tests {
             .expect("delete agent");
         assert_eq!(del_res["deleted"], true);
 
-        // ADK Chat Stream - Fail-closed when no model runtime configured
+        // Missing runtime produces a terminal error stream without executing a run.
         let adk_chat = ports.adk_chat_stream;
+        let runs_before = adk_read.read("/api/v1/adk/runs", "").unwrap();
+        let audit_before = adk_read.read("/api/v1/adk/audit", "").unwrap();
+        let input = AdkChatInput {
+            body: br#"{"clientRequestId":"11111111-1111-4111-8111-111111111111"}"#.to_vec(),
+            client_request_id: "11111111-1111-4111-8111-111111111111".to_owned(),
+        };
+        let AdkChatPortOutput::LiveStream(stream) = adk_chat
+            .dispatch(AdkChatRoute::Stream, &input)
+            .expect("retained unavailable error stream")
+        else {
+            panic!("unavailable stream must be a pull-driven body");
+        };
+        let stream_id = stream.headers["X-ADK-Stream-ID"].clone();
+        assert!(!stream_id.is_empty());
+        let mut body = stream.stream.take_body().unwrap();
+        tokio::runtime::Builder::new_current_thread()
+            .build()
+            .unwrap()
+            .block_on(async {
+                use tokio_stream::StreamExt;
+                assert_eq!(body.next().await.unwrap().unwrap(), b"retry: 3000\n\n");
+                let frame = String::from_utf8(body.next().await.unwrap().unwrap()).unwrap();
+                assert!(frame.contains(&format!("id: {stream_id}:1\n")));
+                let event: Value = serde_json::from_str(
+                    frame
+                        .lines()
+                        .find_map(|line| line.strip_prefix("data: "))
+                        .unwrap(),
+                )
+                .unwrap();
+                assert_eq!(event["type"], "error");
+                assert_eq!(event["streamId"], stream_id);
+                assert_eq!(event["sequence"], 1);
+                assert!(event["message"].as_str().unwrap().contains("unavailable"));
+                assert!(body.next().await.is_none());
+            });
         let chat_err = adk_chat
-            .dispatch(
-                AdkChatRoute::Stream,
-                &AdkChatInput {
-                    body: br#"{"clientRequestId":"11111111-1111-4111-8111-111111111111"}"#.to_vec(),
-                    client_request_id: "11111111-1111-4111-8111-111111111111".to_owned(),
-                },
-            )
-            .expect_err("adk chat stream must fail-closed without configured model");
+            .dispatch(AdkChatRoute::Chat, &input)
+            .expect_err("synchronous chat is unavailable without configured model");
         assert!(matches!(chat_err, AdkChatPortError::Unavailable(_)));
+        assert_eq!(adk_read.read("/api/v1/adk/runs", "").unwrap(), runs_before);
+        assert_eq!(
+            adk_read.read("/api/v1/adk/audit", "").unwrap(),
+            audit_before
+        );
 
         // Plugins are a local production catalog.  A fresh install is a valid
         // empty result; plugin mutations remain unavailable until the external
@@ -5700,8 +5735,8 @@ mod product_production_assembly_tests {
                 "/api/v1/adk/chat/stream",
                 "",
                 "{\"clientRequestId\":\"6f9619ff-8b86-d011-b42d-00cf96c96d3a\",\"message\":\"hello\"}",
-                503,
-                "ADK_UNAVAILABLE",
+                200,
+                "error",
             ),
             (
                 "POST",
@@ -6074,6 +6109,28 @@ mod product_production_assembly_tests {
                     "ExternalUnavailable route {} {} must project its baseline status (body={strict_body})",
                     binding.method, binding.path
                 );
+                if binding.path == "/api/v1/adk/chat/stream" {
+                    assert!(strict_body.contains("retry: 3000\n\n"));
+                    let events: Vec<_> = strict_body
+                        .lines()
+                        .filter_map(|line| line.strip_prefix("data: "))
+                        .collect();
+                    assert_eq!(
+                        events.len(),
+                        1,
+                        "only the retained terminal error is emitted"
+                    );
+                    let event: Value = serde_json::from_str(events[0]).unwrap();
+                    assert_eq!(event["type"], *expected_code);
+                    assert_eq!(event["sequence"], 1);
+                    let id = event["streamId"].as_str().unwrap();
+                    assert!(!id.is_empty());
+                    assert!(strict_body.contains(&format!("id: {id}:1\n")));
+                    assert!(event["message"].as_str().unwrap().contains("unavailable"));
+                    assert!(event.get("runId").is_none());
+                    covered.insert((binding.method.clone(), binding.path.clone()));
+                    continue;
+                }
                 let payload: Value = serde_json::from_str(&strict_body).unwrap_or_else(|error| {
                     panic!(
                         "route {} {} returned non-JSON body ({error}): {strict_body}",

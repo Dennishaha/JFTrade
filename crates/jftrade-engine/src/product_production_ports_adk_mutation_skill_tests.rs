@@ -41,6 +41,7 @@ fn test_port(root: &Path) -> Arc<ProductionAdkPort> {
         tool_catalog: Arc::new(ProductionToolCatalog::empty_for_test()),
         settings_path: root.join("settings.json"),
         chat_runtime: None,
+        unavailable_streams: Default::default(),
     })
 }
 

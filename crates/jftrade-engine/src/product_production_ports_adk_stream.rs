@@ -4,23 +4,19 @@ impl AdkChatStreamPort for ProductionAdkPort {
         route: AdkChatRoute,
         input: &AdkChatInput,
     ) -> Result<AdkChatPortOutput, AdkChatPortError> {
-        let Some(runtime) = self.chat_runtime.as_deref() else {
-            return Err(AdkChatPortError::Unavailable(
-                "assistant model runtime is unavailable; configure and attach a production model provider"
-                    .to_owned(),
-            ));
-        };
-        // A runtime object can be installed before its provider credentials
-        // and model session are configured.  Do not let such a placeholder
-        // delegate a synthetic success/stream through the production route;
-        // readiness is the fail-closed boundary for both chat and stream.
-        if !runtime.runtime_ready() {
-            return Err(AdkChatPortError::Unavailable(
-                "assistant model runtime is unavailable; configure and attach a production model provider"
-                    .to_owned(),
-            ));
+        if let Some(runtime) = self
+            .chat_runtime
+            .as_deref()
+            .filter(|runtime| runtime.runtime_ready())
+        {
+            return runtime.dispatch(route, input);
         }
-        runtime.dispatch(route, input)
+        if route == AdkChatRoute::Stream {
+            return self.unavailable_streams.dispatch(input);
+        }
+        Err(AdkChatPortError::Unavailable(
+            unavailable_stream::UNAVAILABLE.to_owned(),
+        ))
     }
 
     fn cancel_run(&self, run_id: &str) -> bool {

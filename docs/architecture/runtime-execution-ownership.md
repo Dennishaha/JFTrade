@@ -20,6 +20,7 @@
 - 同步请求、live stream 和审批继续中的 provider 等待同时检查运行取消及租约丢失。取消覆盖请求发送、响应头、JSON body 和 idle SSE 等待；heartbeat 写失败不能让旧 owner 继续等待模型回复。
 - 租约丢失后先结束当前执行，禁止旧 owner 写入迟到成功、失败或取消终态。SQLite 持续校验 owner/fencing token，终态与工具副作用仍由原有生产写入 owner 提交。
 - live stream worker 在模型请求前读取当前 run；已不再 RUNNING 时复用最后保留事件并退出，不再次连接模型。预取消或 body 断连仍由原写入 owner 保存取消终态；已有终态的 run、session events 与 audit 保持，执行登记和租约随 worker 退出释放。
+- 缺少或未就绪的 chat runtime 由 `ProductionAdkPort` 保存无 run 的终态 error stream，先分配 stream ID 再交付 SSE retry；首次写失败不丢失错误，stream reconnect 可读取同一序列。记录只归该 port 的内存 owner，保留30分钟并在访问时清理，释放 port 时释放记录；body 按消费编码，不启动 worker、不创建 SQLite run。同步 chat 继续报告不可用。
 - 工具 claim 的 Run guard 丢失与 SQLite lease fence 拒绝返回 ADK_RUN_LEASE_LOST，tool loop 按非致命协调停止处理；取消和 revision 冲突保持原停止路径，不把新 owner 的 run 改为失败。
 - checkpoint 缺失工具结果时，终态 invocation 原输出由现有 SQLite owner 按当前 Run lease 和 revision 恢复投影，并在同一事务校验 session event；不改 invocation，不重新执行工具，不重写已映射错误文本。
 - 普通成功或失败工具响应的执行记录为 COMPLETED；工具调用投影分别保留 SUCCEEDED 或 FAILED，失败文本仍来自原输出。恢复也接受已有 SUCCEEDED/FAILED 执行记录并保持原行，不能用不同输出替换胜者；UNKNOWN 继续沿独立 fence 路径处理。

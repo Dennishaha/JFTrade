@@ -115,6 +115,7 @@ fn unready_adk_port() -> (ProductionAdkPort, tempfile::TempDir) {
         tool_catalog,
         settings_path: directory.path().join("settings.json"),
         chat_runtime: Some(Arc::new(UnreadyChatRuntime)),
+        unavailable_streams: Default::default(),
     };
     (port, directory)
 }
@@ -199,20 +200,27 @@ fn ready_adk_port_with_fallback_provider() -> (Arc<ProductionAdkPort>, tempfile:
         tool_catalog,
         settings_path,
         chat_runtime: Some(runtime),
+        unavailable_streams: Default::default(),
     };
     (Arc::new(port), directory)
 }
 
 #[test]
-fn chat_dispatch_rejects_an_installed_but_unready_runtime() {
+fn chat_dispatch_retains_error_stream_for_an_installed_but_unready_runtime() {
     let (port, _directory) = unready_adk_port();
     let input = AdkChatInput {
         body: br#"{"clientRequestId":"11111111-1111-4111-8111-111111111111"}"#.to_vec(),
         client_request_id: "11111111-1111-4111-8111-111111111111".to_owned(),
     };
-    let error = port
+    let stream = port
         .dispatch(AdkChatRoute::Stream, &input)
-        .expect_err("unready runtime must fail closed");
+        .expect("terminal error stream");
+    assert!(matches!(stream, AdkChatPortOutput::LiveStream(_)));
+    assert!(!port.runtime_ready());
+    assert!(port.store.list_runs().unwrap().is_empty());
+    let error = port
+        .dispatch(AdkChatRoute::Chat, &input)
+        .expect_err("synchronous chat remains unavailable");
     assert!(matches!(error, AdkChatPortError::Unavailable(_)));
 }
 
@@ -730,6 +738,7 @@ fn adk_respond_to_input_enriches_response_and_unblocks_run() {
         tool_catalog,
         settings_path,
         chat_runtime: Some(adk_chat_runtime),
+        unavailable_streams: Default::default(),
     };
 
     let mut identifiers = BTreeMap::new();
@@ -1034,6 +1043,7 @@ fn adk_respond_to_input_strict_validation_idempotency_and_conflict() {
         tool_catalog: Arc::clone(&tool_catalog),
         settings_path: settings_path.clone(),
         chat_runtime: Some(runtime),
+        unavailable_streams: Default::default(),
     };
 
     let mut identifiers = BTreeMap::new();
@@ -1229,6 +1239,7 @@ fn adk_respond_to_input_strict_validation_idempotency_and_conflict() {
         tool_catalog: Arc::clone(&tool_catalog),
         settings_path: settings_path.clone(),
         chat_runtime: Some(Arc::new(FailingChatRuntime)),
+        unavailable_streams: Default::default(),
     };
     let rollback_run_id = format!(
         "run-rollback-{}",
@@ -1351,6 +1362,7 @@ fn adk_respond_to_input_concurrent_cas_winner_loser_semantics() {
         tool_catalog,
         settings_path,
         chat_runtime: Some(runtime),
+        unavailable_streams: Default::default(),
     };
 
     let run_id = "run-cas-race-1";
@@ -2302,6 +2314,7 @@ fn setup_test_adk_mutation_port(
         tool_catalog,
         settings_path,
         chat_runtime,
+        unavailable_streams: Default::default(),
     });
     (port, store, directory)
 }

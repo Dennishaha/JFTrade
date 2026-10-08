@@ -512,6 +512,7 @@ pub(crate) fn production_ports(
         tool_catalog: Arc::clone(&tool_catalog),
         settings_path: config.settings_path().to_owned(),
         chat_runtime: Some(Arc::clone(&adk_chat_runtime) as Arc<dyn crate::product::AdkChatStreamPort>),
+        unavailable_streams: Default::default(),
     });
     let alert_port = Arc::new(ProductionAlertPort {
         active_provider_state: Arc::clone(&active_provider_state),
@@ -766,6 +767,7 @@ pub(crate) fn production_ports(
         tool_catalog: Arc::clone(&adk_port.tool_catalog),
         settings_path: adk_port.settings_path.clone(),
         chat_runtime: None,
+        unavailable_streams: Default::default(),
     });
     adk_ports_bundle.adk_read = detached_adk_port.clone();
     adk_ports_bundle.adk_mutation = detached_adk_port.clone();
