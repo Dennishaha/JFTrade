@@ -4,13 +4,20 @@
 
 当前活动包括迁移行为核验、产品质量和发布资格工作。迁移历史与证据位于 `docs/history/go-to-rust`；历史阶段完成声明不能代替全部映射的逐项审查。
 
-## 当前批次：ADK heartbeat 调用方快照与写入前拒绝
+## 当前批次：ADK durable handler key 与 checkpoint replay
 
-durable 工具批次已完成，当前 1661 exact、2152 partial、638 boundary。失败及通过证据见 [证据积压清单](history/go-to-rust/parity-evidence-backlog.md)。开发分支为 `codex/parity-assistant-builtin-config-20261008`，整体行为目标继续 active。
+heartbeat 快照批次已完成，当前 1661 exact、2152 partial、638 boundary。失败及通过证据见 [证据积压清单](history/go-to-rust/parity-evidence-backlog.md)。开发分支为 `codex/parity-assistant-builtin-config-20261008`，整体行为目标继续 active。
 
-- [ ] 复核lease_boundaries14/108/133/144/161五条，直接验证过期caller snapshot在真实owner写入前拒绝；不能仅由durable row过期推断。
-- [ ] heartbeat成功后更新worker snapshot，避免初始快照过期后错误取消仍有效owner；定时断言使用确定信号和显式过期。
+- [ ] 复核execution_claims54/108/214/265/294五条；补handler可观察stable key及两次真实tool loop replay，核对旧heartbeat exact是否覆盖生产原时间断言。
+- [ ] 建立checkpoint恢复后缺结果及失败文本被替换的真实红；沿现有SQLite事务owner恢复投影，保留原durable输出及禁止重复执行。
 - [ ] 定向 receipt、ordinary/strict、anchor/context、quick 计划与现场 quick、完整 Rust 门禁、diff/源码指纹复核后独立提交。
+
+## 已验证批次：ADK heartbeat 调用方快照与写入前拒绝
+
+- [x] 五条冻结lease_boundaries14/108/133/144/161及blob SHA复核。真实SQLite写故障证明过期caller snapshot先前访问了writer；新增拒绝后旧worker初始snapshot在约30秒到期形成第二个独立红，两份失败receipt保留。
+- [x] Store在连接访问前按唯一now拒绝snapshot过期；worker成功后采用返回的新snapshot。有效durable row、原run不变，sparse expired snapshot对不可访问connection返回LeaseLost，expiry相等边界拒绝；生产默认worker超越初始到期仍同owner/fence、TTL30秒，Drop释放并join。
+- [x] 近过期原5秒durable/100ms caller输入和精确1秒TTL移至同一生产实现的确定now，消除短窗口竞态。144/161保持exact，14/108/133的nullable/context/短heartbeat时间分支保留partial，数量1661/2152/638不变。
+- [x] 缺run夹具失败9 passed/3 failed保留；补齐run后最终定向12 passed。quick2587 Rust/98 Pine、desktop11+48通过；现场完整Rust3975 passed、0 failed、2 skipped，static/七类replay通过且exit0，无LEAK。1019个Rust文件指纹不变，ordinary/strict/anchor/context、receipt/reuse/diff复核后提交并继续replay批次。
 
 ## 已验证批次：ADK durable 工具与 owner fence
 

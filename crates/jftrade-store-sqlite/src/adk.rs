@@ -26,6 +26,10 @@ pub use stream_cursor::{AdkStreamCursor, AdkStreamPage};
 #[path = "adk_approval_resolution_failure_tests.rs"]
 mod approval_resolution_failure_tests;
 
+#[cfg(test)]
+#[path = "adk_run_lease_snapshot_tests.rs"]
+mod run_lease_snapshot_tests;
+
 const ADK_COMPONENT: &str = "adk";
 const ADK_SCHEMA_VERSION: i64 = 4;
 pub const ADK_TEST_CUTOVER_PROFILE: &str = "cutover-test-only.v1";
@@ -1611,14 +1615,28 @@ impl AdkStore {
         lease: &StoredAdkRunLease,
         lease_ttl: Duration,
     ) -> Result<StoredAdkRunLease, AdkStoreError> {
+        self.heartbeat_run_lease_at(lease, lease_ttl, OffsetDateTime::now_utc())
+    }
+
+    fn heartbeat_run_lease_at(
+        &self,
+        lease: &StoredAdkRunLease,
+        lease_ttl: Duration,
+        now: OffsetDateTime,
+    ) -> Result<StoredAdkRunLease, AdkStoreError> {
+        let now_ms = (now.unix_timestamp_nanos() / 1_000_000) as i64;
+        if lease.expires_at_unix_ms <= now_ms {
+            return Err(AdkStoreError::LeaseLost(format!(
+                "run {} caller lease snapshot has expired",
+                lease.run_id
+            )));
+        }
         if lease.run_id.trim().is_empty() || lease.owner_id.trim().is_empty() || lease_ttl.is_zero()
         {
             return Err(AdkStoreError::Validation(
                 "run lease heartbeat requires a valid lease and positive TTL".to_owned(),
             ));
         }
-        let now = OffsetDateTime::now_utc();
-        let now_ms = (now.unix_timestamp_nanos() / 1_000_000) as i64;
         let expires_ms = now_ms.saturating_add(lease_ttl.as_millis().min(i64::MAX as u128) as i64);
         let now_text = now
             .format(&Rfc3339)

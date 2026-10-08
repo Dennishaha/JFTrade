@@ -486,7 +486,7 @@ impl RunLeaseGuard {
         let heartbeat_store = Arc::clone(&store);
         let heartbeat_stop = Arc::clone(&stop);
         let heartbeat_lost = Arc::clone(&lost);
-        let heartbeat_lease = lease.clone();
+        let mut heartbeat_lease = lease.clone();
         let heartbeat = match thread::Builder::new()
             .name("jftrade-adk-run-lease".to_owned())
             .spawn(move || {
@@ -494,12 +494,12 @@ impl RunLeaseGuard {
                     if receiver.recv_timeout(RUN_LEASE_HEARTBEAT).is_ok() {
                         break;
                     }
-                    if heartbeat_store
-                        .heartbeat_run_lease(&heartbeat_lease, RUN_LEASE_TTL)
-                        .is_err()
-                    {
-                        heartbeat_lost.store(true, Ordering::Release);
-                        break;
+                    match heartbeat_store.heartbeat_run_lease(&heartbeat_lease, RUN_LEASE_TTL) {
+                        Ok(refreshed) => heartbeat_lease = refreshed,
+                        Err(_) => {
+                            heartbeat_lost.store(true, Ordering::Release);
+                            break;
+                        }
                     }
                 }
             }) {

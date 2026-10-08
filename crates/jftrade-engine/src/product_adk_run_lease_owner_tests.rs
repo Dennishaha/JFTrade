@@ -10,6 +10,9 @@ use super::super::{AdkChatPortError, AdkChatRoute, RUN_LEASE_HEARTBEAT, RUN_LEAS
 #[path = "product_adk_run_lease_shutdown_tests.rs"]
 mod shutdown;
 
+#[path = "product_adk_run_lease_snapshot_tests.rs"]
+mod snapshot;
+
 // Parity: go:452dea11:internal/assistant/engine/runtime_execution_lease_boundaries_test.go:161 TestRunExecutionLeaseUsesSafeDefaults
 #[test]
 fn production_run_lease_defaults_use_thirty_second_ttl_and_join_on_drop() {
@@ -75,32 +78,6 @@ fn production_heartbeat_rejects_expired_durable_lease_without_changing_the_row()
         Err(jftrade_store_sqlite::AdkStoreError::LeaseLost(_))
     ));
     assert_eq!(store.get_run_lease("run-expired").unwrap().unwrap(), before);
-}
-
-// Parity: go:452dea11:internal/assistant/engine/runtime_execution_lease_boundaries_test.go:144 TestRefreshRunExecutionLeaseUsesRemainingTTLForNearExpiryLease
-#[test]
-fn production_heartbeat_near_expiry_snapshot_restores_the_requested_ttl() {
-    let (_directory, store, _sessions) = initialized_stores();
-    create_running_run(&store, "run-near-expiry", json!([]));
-    let mut lease = store
-        .claim_run_lease("run-near-expiry", "near-owner", RUN_LEASE_TTL)
-        .unwrap();
-    // Go shortens only the caller's snapshot; keep the durable lease live so
-    // scheduler load cannot turn this TTL assertion into an expiry race.
-    lease.expires_at_unix_ms = lease.heartbeat_at_unix_ms + 100;
-    let refreshed = store
-        .heartbeat_run_lease(&lease, Duration::from_secs(1))
-        .unwrap();
-    assert_eq!(
-        refreshed.expires_at_unix_ms - refreshed.heartbeat_at_unix_ms,
-        1_000
-    );
-    assert_eq!(refreshed.owner_id, lease.owner_id);
-    assert_eq!(refreshed.fencing_token, lease.fencing_token);
-    assert_eq!(
-        store.get_run_lease("run-near-expiry").unwrap().unwrap(),
-        refreshed
-    );
 }
 
 fn read_provider_request(socket: &mut std::net::TcpStream) {

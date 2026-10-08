@@ -1,0 +1,55 @@
+{
+  "schemaVersion": "jftrade.local-quality-gate.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "pnpm",
+    "run",
+    "check:rust"
+  ],
+  "status": "passed",
+  "exitCode": 0,
+  "verifiedAt": "2026-10-08T12:52:00.848616+00:00",
+  "verifiedCommit": "ac6fd77fcfacc160008dff25cc604dc4567abb75",
+  "rawOutputPath": "/Volumes/帆帆PM961-512/Github/JFTrade/.git/adk-snapshot-rust-full-20261008.log",
+  "rawOutputSha256": "a442e0d6f810257452f2e5fdd70262ffa80d2eaed70fa71e433093a1fc00e00a",
+  "environment": {
+    "CARGO_TARGET_DIR": "/Users/jiangfan/.cache/jftrade/targets/parity-assistant-20261008",
+    "rustc": "1.97.1",
+    "node": "24.19.0",
+    "pnpm": "12.3.4",
+    "protoc": "34.1",
+    "nextest": "0.9.143",
+    "cargoDeny": "0.20.2",
+    "gitProxy": "macOS configured http://127.0.0.1:10808; child Git only"
+  },
+  "nextestSummary": {
+    "planned": 3975,
+    "passed": 3975,
+    "failed": 0,
+    "skipped": 2,
+    "testSeconds": 121.636
+  },
+  "static": "passed",
+  "compatibilityReplays": {
+    "storage": "passed",
+    "backtest": "passed",
+    "provider-runtime": "passed",
+    "trading-strategy": "passed",
+    "assistant-runtime": "passed",
+    "api-transport": "passed",
+    "desktop-runtime": "passed"
+  },
+  "affectedSourceSha256": {
+    "crates/jftrade-engine/src/product_adk_model_runtime.rs": "0eb8ee00135fa63ea6c20cba37c8c55a6c6361cceb9353f2618a007f9625d439",
+    "crates/jftrade-engine/src/product_adk_run_lease_owner_tests.rs": "b01ac894db37acc6fddfaa4a5b3731f02e301c6d2b1d1be202b8412fab9e6b70",
+    "crates/jftrade-engine/src/product_adk_run_lease_snapshot_tests.rs": "d791dee006bd3ea970b9a110d2879f7a5fd02a28b7f69ac3eaac4df2c6a34e61",
+    "crates/jftrade-store-sqlite/src/adk.rs": "0b4e7746e97450f61c566a8968dd39fc0d611c086fb1d50d24ca734b61302d67",
+    "crates/jftrade-store-sqlite/src/adk_run_lease_snapshot_tests.rs": "664e2261fdd129db4dd328ad973ba86bbfc8eb02b0f8654294f738cd0f38e39a"
+  },
+  "rustSourceFingerprintSha256": "a98a05a0d8b926619752702f9c054e4d04ba848ed8b2cb265b2bec745ab263d2",
+  "frozenRustFiles": 1019,
+  "rustSourceChangedDuringGate": [],
+  "leakyTestMarkerCount": 0,
+  "remainingRisk": "Nil/storeless runtime and context helper shapes, original 100ms TTL/5ms heartbeat with one-second failure cancellation remain partial; whole goal active."
+}

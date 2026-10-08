@@ -77,6 +77,8 @@ JFTrade 的 Run、Approval、Audit 和前端 SSE 是产品控制面，不替代 
 
 每个实际执行中的 Run 都必须先在 `adk_run_leases` 取得持久租约。租约记录 executor owner、心跳时间、过期时间和 fencing token；默认租期为 30 秒、每 10 秒续租。启动恢复、超时扫描、审批继续、用户输入继续和目标恢复遇到其他进程的有效租约时不会接管或把 Run 误判为孤儿。租约过期后的接管会提升 fencing token；携带执行租约的 Run 状态写入会在同一个 SQLite 写事务内校验 token，旧进程的心跳、Run 写入和工具结果提交均会失败。
 
+heartbeat 在访问 SQLite 连接前拒绝已经过期的调用方租约快照，即使数据库行仍有效也不能凭旧快照续租。后台 owner 每次续租成功后采用返回的新快照；数据库中的 owner、fencing token 和有效期仍须同时通过 UPDATE 条件，续租失败继续取消执行并 join。
+
 产品工具的每次实际调用以 Run 和 GO-ADK function-call ID 为稳定身份写入 `adk_tool_invocations`。完成结果会持久化并在同一调用恢复时直接重放；执行中的调用有独立心跳，并同时受 Run fencing token 约束。Tool descriptor 的 `idempotencyMode` 有三种值：
 
 - `replay_safe`：无副作用的读取；调用租约过期后允许安全接管。`read*` permission 默认使用此模式。
