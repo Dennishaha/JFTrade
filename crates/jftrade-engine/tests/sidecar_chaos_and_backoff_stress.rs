@@ -430,7 +430,10 @@ async fn stress_test_rapid_consecutive_crash_on_startup_no_spinloop() {
     // Test a script that immediately exits with code 1 upon startup.
     // The supervisor must handle consecutive immediate crashes, increase backoff,
     // and NOT enter an infinite tight spinloop.
-    let (addr, _server_handle, _healthy) = build_mock_helper_server();
+    let (addr, _server_handle, healthy) = build_mock_helper_server();
+    // This endpoint represents the immediately crashing child. An unrelated
+    // ready mock would let a restart probe succeed before /bin/sh exits.
+    healthy.store(false, Ordering::Release);
 
     let client = HelperClient::new(HelperClientConfig {
         base_url: format!("http://127.0.0.1:{}", addr.port()),

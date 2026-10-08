@@ -1,0 +1,120 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(stress_test_rapid_consecutive_crash_on_startup_no_spinloop) or test(stress_test_live_helper_monitor_multi_crash_recovery) or test(stress_test_helper_repeated_sigkill_reaping_and_zombie_prevention) or test(stress_test_cancellation_during_backoff_sleep_is_immediate) or test(refresh_records_success_and_failure_with_timestamps)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-10-08T04:59:26Z",
+  "sourceState": {
+    "verifiedCommit": "98b4d468b4d404e0a093738d5983a51480f58391",
+    "trackedDiffSha256": "7044c135c41b4dc4878ef4837c7e0678a0f842dadde87f186f119a222209db5a",
+    "untrackedFiles": [
+      {
+        "path": "crates/jftrade-engine/src/strategy_runtime_order_type_parity_tests.rs",
+        "sha256": "ed801a8c78029f95f4595660b79c3dc134837e41a5b0d4f122f60d2e2b585c04"
+      },
+      {
+        "path": "crates/jftrade-engine/src/strategy_runtime_order_validation.rs",
+        "sha256": "2314e142f2a0ba93ebc666ff8dc076cc38f3870d0c25ff9f7df7f6a8f5087c8a"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/pine-batch-helper-startup-crash-reproduce-2026-10-08.json",
+        "sha256": "48c1dfc91ebd7ed802c2b8bcac38902610ec7588fc625799ba0bcafae1703792"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/pine-conditional-dispatch-original-2026-10-08.json",
+        "sha256": "b0cd7b7ef198d61da5c6ab93a7e1fbe8410391486d54a2bd50cda17cc1726f1b"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/pine-conditional-dispatch-owner-closed-2026-10-08.json",
+        "sha256": "28e42435b7ee4197cf954bf4c99c8a7e758ac55c732860fa24c884db5e1ba45c"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/pine-conditional-dispatch-owner-verified-2026-10-08.json",
+        "sha256": "9459652ede0d579da7f1da395c772627fcef111d6b7c4a648d991d1fa3152a1d"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/pine-conditional-preflight-original-2026-10-08.json",
+        "sha256": "8b49b4f56638fa2b937ae40405b8bf89b6d25bba056eaa92bdae8bd61a65841e"
+      }
+    ]
+  },
+  "rawOutputSha256": "96d42c3bc8b27f27ee6061eb247fbfed16f8748893725cbc7f06342e6045337c",
+  "passedTests": [
+    "jftrade-engine::jftrade_engine$product_runtime::product_runtime_helper_health::tests::refresh_records_success_and_failure_with_timestamps",
+    "jftrade-engine::sidecar_chaos_and_backoff_stress$stress_test_cancellation_during_backoff_sleep_is_immediate",
+    "jftrade-engine::sidecar_chaos_and_backoff_stress$stress_test_helper_repeated_sigkill_reaping_and_zombie_prevention",
+    "jftrade-engine::sidecar_chaos_and_backoff_stress$stress_test_live_helper_monitor_multi_crash_recovery",
+    "jftrade-engine::sidecar_chaos_and_backoff_stress$stress_test_rapid_consecutive_crash_on_startup_no_spinloop"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 4,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "sidecar_chaos_and_backoff_stress",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1878,
+      "exec_time": 0.033833917,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 3,
+      "exec_time": 1.542060708,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "sidecar_chaos_and_backoff_stress",
+        "kind": "test"
+      }
+    }
+  ]
+}
