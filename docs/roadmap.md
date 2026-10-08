@@ -22,7 +22,9 @@ handler stable key、消费、UNKNOWN恢复及确定性takeover批次已验证�
 - [x] takeover测试文件的短租约与过期sleep已换同一fixture事务的精确过期；原23个断言保持，新增3个fixture控制。定向36、quick2393 Rust/98 Pine及现场完整Rust3988 passed、0 failed、2 skipped通过，static/七类replay退出0，无LEAK。1021个Rust文件冻结，六条原测试/blob/receipt/reuse/anchor复核，1660/2153/638保持。
 - [x] 普通工具执行记录COMPLETED与SUCCEEDED/FAILED call投影分离，108原invalid输入、false输出、COMPLETED ledger与FAILED call/error闭合，升级exact。旧SUCCEEDED/FAILED整行、output与event保持，异输出不替换winner；journal回滚、stale fence及UNKNOWN回归通过。七条原测试复核，当前1661/2152/638。
 - [x] 原状态断言红测0 passed/1 failed保留；最终定向47、quick2601 Rust/98 Pine与desktop Node11+48通过。现场完整Rust3989 passed/0 failed/2 skipped，static/七类replay退出0，无LEAK；1022个Rust源码冻结，receipt/reuse/anchor/diff复核后独立提交。
-- [ ] 继续生产POST SSE malformed retry写失败验证；缺runtime后台终态、request-context预取消、UNKNOWN返回与已明确的策略panic/停止态边界仍待闭合。
+- [x] 真实ProductionAdkPort POST malformed输入首次retry写失败为200 SSE、一次BrokenPipe、零event、reader释放且无run写入；五条原测试复核，55缺runtime有效请求后台终态仍partial。fixture未注册POST的24 passed/1 failed保留，注册既有生产port后定向25通过。
+- [x] 本批quick2395 Rust/98 Pine与现场完整Rust3990 passed/0 failed/2 skipped通过，static/七类replay退出0，无LEAK；1022个Rust文件冻结，receipt/reuse/anchor/diff复核，1661/2152/638保持。独立desktop Node检查未被本批planner选择，不计通过。
+- [ ] 缺runtime后台终态、request-context预取消、UNKNOWN返回与已明确的策略panic/停止态边界仍待闭合；继续核对实际生产tool failure的fail-closed行为。
 - [ ] 每批继续核对5–10条原测试，定向nextest、quick及现场完整Rust门禁通过后复核并提交；整体对齐未完成不标complete。
 
 ## 已验证批次：ADK checkpoint replay 与唯一投影 owner

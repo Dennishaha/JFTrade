@@ -1,0 +1,51 @@
+{
+  "schemaVersion": "jftrade.local-quality-gate.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "pnpm",
+    "run",
+    "check:rust"
+  ],
+  "status": "passed",
+  "exitCode": 0,
+  "verifiedAt": "2026-10-08T16:41:51.966677+00:00",
+  "verifiedCommit": "3ca68100957de67bc92034499ae43e6fe960ac8b",
+  "rawOutputPath": "/Volumes/帆帆PM961-512/Github/JFTrade/.git/adk-malformed-retry-rust-full-20261009.log",
+  "rawOutputSha256": "c0875b0ff566cceb5838a72aa9e206c57c1073df61a4eaf1433dff7073b2013b",
+  "environment": {
+    "CARGO_TARGET_DIR": "/Users/jiangfan/.cache/jftrade/targets/parity-assistant-20261008",
+    "rustc": "1.97.1",
+    "node": "24.19.0",
+    "pnpm": "12.3.4",
+    "protoc": "34.1",
+    "nextest": "0.9.143",
+    "cargoDeny": "0.20.2",
+    "gitProxy": "macOS configured http://127.0.0.1:10808; child Git only"
+  },
+  "nextestSummary": {
+    "planned": 3990,
+    "passed": 3990,
+    "failed": 0,
+    "skipped": 2,
+    "testSeconds": 107.558
+  },
+  "compatibilityReplays": {
+    "storage": "passed",
+    "backtest": "passed",
+    "provider-runtime": "passed",
+    "trading-strategy": "passed",
+    "assistant-runtime": "passed",
+    "api-transport": "passed",
+    "desktop-runtime": "passed"
+  },
+  "affectedSourceSha256": {
+    "crates/jftrade-engine/src/product_adk_reconnect_disconnect_tests.rs": "416565095fd2c3e04631e9af83ed86a8a8cdb96255f58b362f40a6ef63a6ab9d"
+  },
+  "rustSourceFingerprintSha256": "321764f6e348dedab42f87dd27b96db2fb51c84c3d2889874e9871c33c82f1c6",
+  "frozenRustFiles": 1022,
+  "rustSourceChangedDuringGate": [],
+  "leakyTestMarkerCount": 0,
+  "remainingRisk": "Real registered production POST malformed payload retry write fails once with SSE headers, no subsequent event or run mutation and reader release. Five originals reviewed; absent-runtime valid request retained terminal error, request-context precancellation and helper combinations remain partial. Status totals unchanged; fixture registration failure retained; whole goal stays active.",
+  "static": "passed"
+}

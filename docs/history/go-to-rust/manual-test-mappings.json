@@ -3593,7 +3593,7 @@
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_run_projection_tests.rs::stream_terminal_projection_trims_tool_outputs_from_final_response; crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart; crates/jftrade-engine/src/product_adk_model_runtime_recovery_tests.rs::persisted_terminal_run_is_published_as_final_instead_of_a_second_error",
       "conclusion": "partial：2026-10-08在冻结Go同一blob重新逐项复核并本机重跑原owner证据。已重新核对冻结 helper 序列，复跑 final tool output 裁剪、保留工具活动、durable 终态与 single-final 的现有行为。空/timeline-only/mixed/run-only 分类与 nil/context/session/reasoning/reply 组合仍未在相同 owner 逐项闭合，不因本批 usage 与 reconnect 修复升级。",
-      "command": "env CARGO_INCREMENTAL=0 NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(production_reconnect_retry_and_replay_write_failures) or test(production_reconnect_precancelled_listener) or test(production_agent_templates_remain_available) or test(late_disconnect_and_failure) or test(stream_terminal_projection_trims_tool_outputs_from_final_response) or test(adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart) or test(persisted_terminal_run_is_published_as_final_instead_of_a_second_error) or test(production_stream_missing_agent_emits_no_preview_frames) or test(production_live_chat_stream_emits_session_before_run_and_terminal_frame) or test(adk_chat_stream_replays_go_wire_fixture_for_leaf_owned_cases) or test(production_live_chat_stream_emits_session_run_and_final_events) or test(test_client_disconnect_returns_499_within_250ms) or test(reconnect_reader_drop_releases_idle_store_reference_without_background_reads) or test(reconnect_http_shutdown_closes_idle_connection_without_mutating_the_run) or test(adk_reconnect_routes_return_an_incremental_body_instead_of_materializing_history)'",
+      "command": "env CARGO_INCREMENTAL=0 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
       "evidence_type": "partial",
       "source": {
         "file": "internal/api/assistant/chat_helpers_test.go",
@@ -3651,7 +3651,7 @@
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedAt": "2026-10-08T10:51:01Z",
+        "verifiedAt": "2026-10-08T16:33:39.433371+00:00",
         "argv": [
           "env",
           "CARGO_INCREMENTAL=0",
@@ -3667,15 +3667,15 @@
           "libtest-json-plus",
           "--no-fail-fast",
           "-E",
-          "test(production_reconnect_retry_and_replay_write_failures) or test(production_reconnect_precancelled_listener) or test(production_agent_templates_remain_available) or test(late_disconnect_and_failure) or test(stream_terminal_projection_trims_tool_outputs_from_final_response) or test(adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart) or test(persisted_terminal_run_is_published_as_final_instead_of_a_second_error) or test(production_stream_missing_agent_emits_no_preview_frames) or test(production_live_chat_stream_emits_session_before_run_and_terminal_frame) or test(adk_chat_stream_replays_go_wire_fixture_for_leaf_owned_cases) or test(production_live_chat_stream_emits_session_run_and_final_events) or test(test_client_disconnect_returns_499_within_250ms) or test(reconnect_reader_drop_releases_idle_store_reference_without_background_reads) or test(reconnect_http_shutdown_closes_idle_connection_without_mutating_the_run) or test(adk_reconnect_routes_return_an_incremental_body_instead_of_materializing_history)"
+          "test(reconnect) | test(late_disconnect) | test(production_malformed_chat) | test(production_agent_templates_remain_available) | test(production_live_chat_stream) | test(test_client_disconnect_returns_499) | test(production_stream_missing_agent) | test(adk_chat_stream_replays_go_wire_fixture) | test(stream_terminal_projection_trims_tool_outputs) | test(persisted_terminal_run_is_published_as_final) | test(adk_chat_stream_replays_retained_terminal)"
         ],
         "testFilter": [
           "stream_terminal_projection_trims_tool_outputs_from_final_response",
           "adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart",
           "persisted_terminal_run_is_published_as_final_instead_of_a_second_error"
         ],
-        "verifiedCommit": "1b648d4193356893c86b56da268662a3b9d82b99",
-        "receiptDigest": "sha256:f10680553656f7d848a1928ac38de2bcf7eea8a6c7235fc8f88dec5b4f91f192"
+        "verifiedCommit": "3ca68100957de67bc92034499ae43e6fe960ac8b",
+        "receiptDigest": "sha256:20aec12c955dda70ac5156eb0eab4849a44364a06d73a6ee1238a8c1034d4e37"
       },
       "risk": "normal",
       "owner": "api_transport",
@@ -3696,7 +3696,7 @@
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::production_stream_missing_agent_emits_no_preview_frames; crates/jftrade-engine/tests/adk_chat_stream_compatibility.rs::adk_chat_stream_replays_go_wire_fixture_for_leaf_owned_cases; crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::production_live_chat_stream_emits_session_before_run_and_terminal_frame",
       "conclusion": "partial：2026-10-08在冻结Go同一blob重新逐项复核并本机重跑原owner证据。复核原空 ChatRequest terminal error、已有 session preview/context 和未知 agent 零 preview 三分支；复跑有效 session→run→terminal、缺 agent 无 preview 和非法 JSON。原空请求与 Rust clientRequestId admission 返回400 JSON的差异仍在，有效 preview 不等同原 sessionSent 一次状态断言。",
-      "command": "env CARGO_INCREMENTAL=0 NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(production_reconnect_retry_and_replay_write_failures) or test(production_reconnect_precancelled_listener) or test(production_agent_templates_remain_available) or test(late_disconnect_and_failure) or test(stream_terminal_projection_trims_tool_outputs_from_final_response) or test(adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart) or test(persisted_terminal_run_is_published_as_final_instead_of_a_second_error) or test(production_stream_missing_agent_emits_no_preview_frames) or test(production_live_chat_stream_emits_session_before_run_and_terminal_frame) or test(adk_chat_stream_replays_go_wire_fixture_for_leaf_owned_cases) or test(production_live_chat_stream_emits_session_run_and_final_events) or test(test_client_disconnect_returns_499_within_250ms) or test(reconnect_reader_drop_releases_idle_store_reference_without_background_reads) or test(reconnect_http_shutdown_closes_idle_connection_without_mutating_the_run) or test(adk_reconnect_routes_return_an_incremental_body_instead_of_materializing_history)'",
+      "command": "env CARGO_INCREMENTAL=0 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
       "evidence_type": "partial",
       "source": {
         "file": "internal/api/assistant/chat_helpers_test.go",
@@ -3749,7 +3749,7 @@
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedAt": "2026-10-08T10:51:01Z",
+        "verifiedAt": "2026-10-08T16:33:39.433371+00:00",
         "argv": [
           "env",
           "CARGO_INCREMENTAL=0",
@@ -3765,15 +3765,15 @@
           "libtest-json-plus",
           "--no-fail-fast",
           "-E",
-          "test(production_reconnect_retry_and_replay_write_failures) or test(production_reconnect_precancelled_listener) or test(production_agent_templates_remain_available) or test(late_disconnect_and_failure) or test(stream_terminal_projection_trims_tool_outputs_from_final_response) or test(adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart) or test(persisted_terminal_run_is_published_as_final_instead_of_a_second_error) or test(production_stream_missing_agent_emits_no_preview_frames) or test(production_live_chat_stream_emits_session_before_run_and_terminal_frame) or test(adk_chat_stream_replays_go_wire_fixture_for_leaf_owned_cases) or test(production_live_chat_stream_emits_session_run_and_final_events) or test(test_client_disconnect_returns_499_within_250ms) or test(reconnect_reader_drop_releases_idle_store_reference_without_background_reads) or test(reconnect_http_shutdown_closes_idle_connection_without_mutating_the_run) or test(adk_reconnect_routes_return_an_incremental_body_instead_of_materializing_history)"
+          "test(reconnect) | test(late_disconnect) | test(production_malformed_chat) | test(production_agent_templates_remain_available) | test(production_live_chat_stream) | test(test_client_disconnect_returns_499) | test(production_stream_missing_agent) | test(adk_chat_stream_replays_go_wire_fixture) | test(stream_terminal_projection_trims_tool_outputs) | test(persisted_terminal_run_is_published_as_final) | test(adk_chat_stream_replays_retained_terminal)"
         ],
         "testFilter": [
           "production_stream_missing_agent_emits_no_preview_frames",
           "adk_chat_stream_replays_go_wire_fixture_for_leaf_owned_cases",
           "production_live_chat_stream_emits_session_before_run_and_terminal_frame"
         ],
-        "verifiedCommit": "1b648d4193356893c86b56da268662a3b9d82b99",
-        "receiptDigest": "sha256:f10680553656f7d848a1928ac38de2bcf7eea8a6c7235fc8f88dec5b4f91f192"
+        "verifiedCommit": "3ca68100957de67bc92034499ae43e6fe960ac8b",
+        "receiptDigest": "sha256:20aec12c955dda70ac5156eb0eab4849a44364a06d73a6ee1238a8c1034d4e37"
       },
       "risk": "normal",
       "owner": "api_transport",
@@ -4118,9 +4118,9 @@
     },
     "internal/api/assistant/chat_transport_disconnect_test.go:55:TestChatStreamTransportHandlesDisconnectedClients": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::production_live_chat_stream_emits_session_run_and_final_events; crates/jftrade-engine/tests/adk_chat_stream_timing_challenge.rs::test_client_disconnect_returns_499_within_250ms; crates/jftrade-engine/src/product_adk_terminal_disconnect_tests.rs::late_disconnect_and_failure_preserve_terminal_run_history_and_audit",
-      "conclusion": "partial：2026-10-08冻结Go原断言复核。既有 production 成功流 session/run/final 与断连收敛测试在本机复跑；本批五种终态迟到断连/失败保持完整 durable row、timestamps、stream history、session events 和 audit。 剩余：原 malformed payload 首次 retry 写失败后 SSE content-type/一次写，与 absent runtime 有效请求先分配 streamId、后台保留非空 error 终态仍未闭合；不能由成功流与499收敛合成 exact。",
-      "command": "env CARGO_INCREMENTAL=0 NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(production_reconnect_retry_and_replay_write_failures) or test(production_reconnect_precancelled_listener) or test(production_agent_templates_remain_available) or test(late_disconnect_and_failure) or test(stream_terminal_projection_trims_tool_outputs_from_final_response) or test(adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart) or test(persisted_terminal_run_is_published_as_final_instead_of_a_second_error) or test(production_stream_missing_agent_emits_no_preview_frames) or test(production_live_chat_stream_emits_session_before_run_and_terminal_frame) or test(adk_chat_stream_replays_go_wire_fixture_for_leaf_owned_cases) or test(production_live_chat_stream_emits_session_run_and_final_events) or test(test_client_disconnect_returns_499_within_250ms) or test(reconnect_reader_drop_releases_idle_store_reference_without_background_reads) or test(reconnect_http_shutdown_closes_idle_connection_without_mutating_the_run) or test(adk_reconnect_routes_return_an_incremental_body_instead_of_materializing_history)'",
+      "rust_entry": "crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::production_live_chat_stream_emits_session_run_and_final_events; crates/jftrade-engine/tests/adk_chat_stream_timing_challenge.rs::test_client_disconnect_returns_499_within_250ms; crates/jftrade-engine/src/product_adk_terminal_disconnect_tests.rs::late_disconnect_and_failure_preserve_terminal_run_history_and_audit; crates/jftrade-engine/src/product_adk_reconnect_disconnect_tests.rs::production_malformed_chat_stops_after_the_first_retry_write_failure",
+      "conclusion": "partial：2026-10-09冻结Go原函数与blob复核。实际prepared router已显式注册ProductionAdkPort POST入口，chat_runtime仍None；原malformed输入{message冒号在首次retry写入遇BrokenPipe。生产decode/200 SSE、content-type、无streamId、只有一次失败、零data帧、原run列表保持与reader释放由真实Hyper socket验证。既有生产成功流与499收敛、五种终态迟到取消/失败保持完整row/timestamps/history/events/audit回归通过。 剩余：Go有效请求在缺runtime时先分配streamId并保留后台非空error终态；Rust缺runtime的现有生产port仍返回503 JSON，未闭合该分支，不能由malformed的正确SSE推断exact。",
+      "command": "env CARGO_INCREMENTAL=0 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
       "evidence_type": "partial",
       "source": {
         "file": "internal/api/assistant/chat_transport_disconnect_test.go",
@@ -4155,14 +4155,25 @@
           "file": "crates/jftrade-engine/src/product_adk_terminal_disconnect_tests.rs",
           "test": "late_disconnect_and_failure_preserve_terminal_run_history_and_audit",
           "crate": "jftrade-engine"
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_adk_reconnect_disconnect_tests.rs",
+          "test": "production_malformed_chat_stops_after_the_first_retry_write_failure",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/api/assistant/chat_transport_disconnect_test.go",
+            "goLine": 55,
+            "rustFile": "crates/jftrade-engine/src/product_adk_reconnect_disconnect_tests.rs",
+            "rustLine": 232
+          }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "既有 production 成功流 session/run/final 与断连收敛测试在本机复跑；本批五种终态迟到断连/失败保持完整 durable row、timestamps、stream history、session events 和 audit。"
+          "实际prepared router已显式注册ProductionAdkPort POST入口，chat_runtime仍None；原malformed输入{message冒号在首次retry写入遇BrokenPipe。生产decode/200 SSE、content-type、无streamId、只有一次失败、零data帧、原run列表保持与reader释放由真实Hyper socket验证。既有生产成功流与499收敛、五种终态迟到取消/失败保持完整row/timestamps/history/events/audit回归通过。"
         ],
         "uncovered": [
-          "原 malformed payload 首次 retry 写失败后 SSE content-type/一次写，与 absent runtime 有效请求先分配 streamId、后台保留非空 error 终态仍未闭合；不能由成功流与499收敛合成 exact。"
+          "Go有效请求在缺runtime时先分配streamId并保留后台非空error终态；Rust缺runtime的现有生产port仍返回503 JSON，未闭合该分支，不能由malformed的正确SSE推断exact。"
         ],
         "source": "reviewed"
       },
@@ -4171,7 +4182,7 @@
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedAt": "2026-10-08T10:51:01Z",
+        "verifiedAt": "2026-10-08T16:33:39.433371+00:00",
         "argv": [
           "env",
           "CARGO_INCREMENTAL=0",
@@ -4187,15 +4198,16 @@
           "libtest-json-plus",
           "--no-fail-fast",
           "-E",
-          "test(production_reconnect_retry_and_replay_write_failures) or test(production_reconnect_precancelled_listener) or test(production_agent_templates_remain_available) or test(late_disconnect_and_failure) or test(stream_terminal_projection_trims_tool_outputs_from_final_response) or test(adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart) or test(persisted_terminal_run_is_published_as_final_instead_of_a_second_error) or test(production_stream_missing_agent_emits_no_preview_frames) or test(production_live_chat_stream_emits_session_before_run_and_terminal_frame) or test(adk_chat_stream_replays_go_wire_fixture_for_leaf_owned_cases) or test(production_live_chat_stream_emits_session_run_and_final_events) or test(test_client_disconnect_returns_499_within_250ms) or test(reconnect_reader_drop_releases_idle_store_reference_without_background_reads) or test(reconnect_http_shutdown_closes_idle_connection_without_mutating_the_run) or test(adk_reconnect_routes_return_an_incremental_body_instead_of_materializing_history)"
+          "test(reconnect) | test(late_disconnect) | test(production_malformed_chat) | test(production_agent_templates_remain_available) | test(production_live_chat_stream) | test(test_client_disconnect_returns_499) | test(production_stream_missing_agent) | test(adk_chat_stream_replays_go_wire_fixture) | test(stream_terminal_projection_trims_tool_outputs) | test(persisted_terminal_run_is_published_as_final) | test(adk_chat_stream_replays_retained_terminal)"
         ],
         "testFilter": [
           "production_live_chat_stream_emits_session_run_and_final_events",
           "test_client_disconnect_returns_499_within_250ms",
-          "late_disconnect_and_failure_preserve_terminal_run_history_and_audit"
+          "late_disconnect_and_failure_preserve_terminal_run_history_and_audit",
+          "production_malformed_chat_stops_after_the_first_retry_write_failure"
         ],
-        "verifiedCommit": "1b648d4193356893c86b56da268662a3b9d82b99",
-        "receiptDigest": "sha256:f10680553656f7d848a1928ac38de2bcf7eea8a6c7235fc8f88dec5b4f91f192"
+        "verifiedCommit": "3ca68100957de67bc92034499ae43e6fe960ac8b",
+        "receiptDigest": "sha256:20aec12c955dda70ac5156eb0eab4849a44364a06d73a6ee1238a8c1034d4e37"
       },
       "risk": "high",
       "owner": "api_transport",
@@ -4206,10 +4218,10 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "既有 production 成功流 session/run/final 与断连收敛测试在本机复跑；本批五种终态迟到断连/失败保持完整 durable row、timestamps、stream history、session events 和 audit。"
+        "实际prepared router已显式注册ProductionAdkPort POST入口，chat_runtime仍None；原malformed输入{message冒号在首次retry写入遇BrokenPipe。生产decode/200 SSE、content-type、无streamId、只有一次失败、零data帧、原run列表保持与reader释放由真实Hyper socket验证。既有生产成功流与499收敛、五种终态迟到取消/失败保持完整row/timestamps/history/events/audit回归通过。"
       ],
       "uncoveredAssertions": [
-        "原 malformed payload 首次 retry 写失败后 SSE content-type/一次写，与 absent runtime 有效请求先分配 streamId、后台保留非空 error 终态仍未闭合；不能由成功流与499收敛合成 exact。"
+        "Go有效请求在缺runtime时先分配streamId并保留后台非空error终态；Rust缺runtime的现有生产port仍返回503 JSON，未闭合该分支，不能由malformed的正确SSE推断exact。"
       ],
       "boundaryReason": null
     },
@@ -4217,7 +4229,7 @@
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_adk_reconnect_live_tests.rs::reconnect_reader_drop_releases_idle_store_reference_without_background_reads; crates/jftrade-engine/src/product_adk_reconnect_live_tests.rs::reconnect_http_shutdown_closes_idle_connection_without_mutating_the_run; crates/jftrade-engine/src/product_adk_read_tests.rs::adk_reconnect_routes_return_an_incremental_body_instead_of_materializing_history; crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart; crates/jftrade-engine/src/product_adk_reconnect_disconnect_tests.rs::production_reconnect_retry_and_replay_write_failures_preserve_terminal_history; crates/jftrade-engine/src/product_adk_reconnect_disconnect_tests.rs::production_reconnect_precancelled_listener_writes_no_body_or_run_changes",
       "conclusion": "partial：2026-10-08冻结Go原断言复核。真实 prepared HTTP router、ProductionAdkPort reader 与 Hyper socket 在 stream/run 两路 retry/event 写入注入 BrokenPipe；canonical streamId、一次失败、reader释放、完整终态不变和健康重连 replay 闭合。 production listener 预取消两路503空body、完整RUNNING row不变；这仅证明listener取消owner。 剩余：Go request-context 已预取消的 idle stream 零 body 返回分支未闭合；listener shutdown cancellation 与其不同。",
-      "command": "env CARGO_INCREMENTAL=0 NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(production_reconnect_retry_and_replay_write_failures) or test(production_reconnect_precancelled_listener) or test(production_agent_templates_remain_available) or test(late_disconnect_and_failure) or test(stream_terminal_projection_trims_tool_outputs_from_final_response) or test(adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart) or test(persisted_terminal_run_is_published_as_final_instead_of_a_second_error) or test(production_stream_missing_agent_emits_no_preview_frames) or test(production_live_chat_stream_emits_session_before_run_and_terminal_frame) or test(adk_chat_stream_replays_go_wire_fixture_for_leaf_owned_cases) or test(production_live_chat_stream_emits_session_run_and_final_events) or test(test_client_disconnect_returns_499_within_250ms) or test(reconnect_reader_drop_releases_idle_store_reference_without_background_reads) or test(reconnect_http_shutdown_closes_idle_connection_without_mutating_the_run) or test(adk_reconnect_routes_return_an_incremental_body_instead_of_materializing_history)'",
+      "command": "env CARGO_INCREMENTAL=0 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
       "evidence_type": "partial",
       "source": {
         "file": "internal/api/assistant/chat_transport_disconnect_test.go",
@@ -4273,7 +4285,7 @@
             "goFile": "internal/api/assistant/chat_transport_disconnect_test.go",
             "goLine": 110,
             "rustFile": "crates/jftrade-engine/src/product_adk_reconnect_disconnect_tests.rs",
-            "rustLine": 204
+            "rustLine": 249
           }
         },
         {
@@ -4284,7 +4296,7 @@
             "goFile": "internal/api/assistant/chat_transport_disconnect_test.go",
             "goLine": 110,
             "rustFile": "crates/jftrade-engine/src/product_adk_reconnect_disconnect_tests.rs",
-            "rustLine": 204
+            "rustLine": 278
           }
         }
       ],
@@ -4303,7 +4315,7 @@
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedAt": "2026-10-08T10:51:01Z",
+        "verifiedAt": "2026-10-08T16:33:39.433371+00:00",
         "argv": [
           "env",
           "CARGO_INCREMENTAL=0",
@@ -4319,7 +4331,7 @@
           "libtest-json-plus",
           "--no-fail-fast",
           "-E",
-          "test(production_reconnect_retry_and_replay_write_failures) or test(production_reconnect_precancelled_listener) or test(production_agent_templates_remain_available) or test(late_disconnect_and_failure) or test(stream_terminal_projection_trims_tool_outputs_from_final_response) or test(adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart) or test(persisted_terminal_run_is_published_as_final_instead_of_a_second_error) or test(production_stream_missing_agent_emits_no_preview_frames) or test(production_live_chat_stream_emits_session_before_run_and_terminal_frame) or test(adk_chat_stream_replays_go_wire_fixture_for_leaf_owned_cases) or test(production_live_chat_stream_emits_session_run_and_final_events) or test(test_client_disconnect_returns_499_within_250ms) or test(reconnect_reader_drop_releases_idle_store_reference_without_background_reads) or test(reconnect_http_shutdown_closes_idle_connection_without_mutating_the_run) or test(adk_reconnect_routes_return_an_incremental_body_instead_of_materializing_history)"
+          "test(reconnect) | test(late_disconnect) | test(production_malformed_chat) | test(production_agent_templates_remain_available) | test(production_live_chat_stream) | test(test_client_disconnect_returns_499) | test(production_stream_missing_agent) | test(adk_chat_stream_replays_go_wire_fixture) | test(stream_terminal_projection_trims_tool_outputs) | test(persisted_terminal_run_is_published_as_final) | test(adk_chat_stream_replays_retained_terminal)"
         ],
         "testFilter": [
           "reconnect_reader_drop_releases_idle_store_reference_without_background_reads",
@@ -4329,8 +4341,8 @@
           "production_reconnect_retry_and_replay_write_failures_preserve_terminal_history",
           "production_reconnect_precancelled_listener_writes_no_body_or_run_changes"
         ],
-        "verifiedCommit": "1b648d4193356893c86b56da268662a3b9d82b99",
-        "receiptDigest": "sha256:f10680553656f7d848a1928ac38de2bcf7eea8a6c7235fc8f88dec5b4f91f192"
+        "verifiedCommit": "3ca68100957de67bc92034499ae43e6fe960ac8b",
+        "receiptDigest": "sha256:20aec12c955dda70ac5156eb0eab4849a44364a06d73a6ee1238a8c1034d4e37"
       },
       "risk": "high",
       "owner": "api_transport",
@@ -131694,7 +131706,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/product_adk_reconnect_disconnect_tests.rs::production_agent_templates_remain_available_without_chat_runtime",
       "conclusion": "function_exact：2026-10-08冻结Go原断言复核。ProductionAdkPort.chat_runtime=None、ProductApi.adk_chat_stream_port=None 下直接调用生产 production_agent_templates owner，无error并返回非null templates；正确HTTP路径补充200/ok/array断言。冻结Go原测试仅要求nil runtime无error及非nil，不要求非空长度。",
-      "command": "env CARGO_INCREMENTAL=0 NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(production_reconnect_retry_and_replay_write_failures) or test(production_reconnect_precancelled_listener) or test(production_agent_templates_remain_available) or test(late_disconnect_and_failure) or test(stream_terminal_projection_trims_tool_outputs_from_final_response) or test(adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart) or test(persisted_terminal_run_is_published_as_final_instead_of_a_second_error) or test(production_stream_missing_agent_emits_no_preview_frames) or test(production_live_chat_stream_emits_session_before_run_and_terminal_frame) or test(adk_chat_stream_replays_go_wire_fixture_for_leaf_owned_cases) or test(production_live_chat_stream_emits_session_run_and_final_events) or test(test_client_disconnect_returns_499_within_250ms) or test(reconnect_reader_drop_releases_idle_store_reference_without_background_reads) or test(reconnect_http_shutdown_closes_idle_connection_without_mutating_the_run) or test(adk_reconnect_routes_return_an_incremental_body_instead_of_materializing_history)'",
+      "command": "env CARGO_INCREMENTAL=0 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/assistant/service_test.go",
@@ -131711,7 +131723,7 @@
             "goFile": "internal/assistant/service_test.go",
             "goLine": 49,
             "rustFile": "crates/jftrade-engine/src/product_adk_reconnect_disconnect_tests.rs",
-            "rustLine": 277
+            "rustLine": 322
           }
         }
       ],
@@ -131727,7 +131739,7 @@
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedAt": "2026-10-08T10:51:01Z",
+        "verifiedAt": "2026-10-08T16:33:39.433371+00:00",
         "argv": [
           "env",
           "CARGO_INCREMENTAL=0",
@@ -131743,13 +131755,13 @@
           "libtest-json-plus",
           "--no-fail-fast",
           "-E",
-          "test(production_reconnect_retry_and_replay_write_failures) or test(production_reconnect_precancelled_listener) or test(production_agent_templates_remain_available) or test(late_disconnect_and_failure) or test(stream_terminal_projection_trims_tool_outputs_from_final_response) or test(adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart) or test(persisted_terminal_run_is_published_as_final_instead_of_a_second_error) or test(production_stream_missing_agent_emits_no_preview_frames) or test(production_live_chat_stream_emits_session_before_run_and_terminal_frame) or test(adk_chat_stream_replays_go_wire_fixture_for_leaf_owned_cases) or test(production_live_chat_stream_emits_session_run_and_final_events) or test(test_client_disconnect_returns_499_within_250ms) or test(reconnect_reader_drop_releases_idle_store_reference_without_background_reads) or test(reconnect_http_shutdown_closes_idle_connection_without_mutating_the_run) or test(adk_reconnect_routes_return_an_incremental_body_instead_of_materializing_history)"
+          "test(reconnect) | test(late_disconnect) | test(production_malformed_chat) | test(production_agent_templates_remain_available) | test(production_live_chat_stream) | test(test_client_disconnect_returns_499) | test(production_stream_missing_agent) | test(adk_chat_stream_replays_go_wire_fixture) | test(stream_terminal_projection_trims_tool_outputs) | test(persisted_terminal_run_is_published_as_final) | test(adk_chat_stream_replays_retained_terminal)"
         ],
         "testFilter": [
           "production_agent_templates_remain_available_without_chat_runtime"
         ],
-        "verifiedCommit": "1b648d4193356893c86b56da268662a3b9d82b99",
-        "receiptDigest": "sha256:f10680553656f7d848a1928ac38de2bcf7eea8a6c7235fc8f88dec5b4f91f192"
+        "verifiedCommit": "3ca68100957de67bc92034499ae43e6fe960ac8b",
+        "receiptDigest": "sha256:20aec12c955dda70ac5156eb0eab4849a44364a06d73a6ee1238a8c1034d4e37"
       },
       "risk": "normal",
       "owner": "assistant_workflow",
@@ -341893,7 +341905,7 @@
       ],
       "allowed": true,
       "reviewStatus": "reviewed",
-      "reviewNote": "2026-10-08: disconnect55 corrected to partial; success frames and 499 convergence do not prove malformed retry write failure or absent-runtime retained terminal error. Other references unchanged."
+      "reviewNote": "2026-10-09: five frozen stream disconnect/helper/template originals and blob SHA reviewed. Real production POST decode and Hyper socket now prove malformed retry failure once, SSE headers, no event frame or run writes and reader release. Absent runtime valid-request retained terminal error, request-context precancellation and private delta/preview combinations stay partial. Template availability exact remains unchanged; shared terminal/replay evidence does not upgrade other originals."
     },
     "crates/jftrade-engine/src/product_adk_model_runtime_tool_failure_tests.rs::a_completed_run_with_a_failed_tool_replays_as_the_chat_envelope": {
       "referenceCount": 2,
@@ -341933,7 +341945,7 @@
       ],
       "allowed": true,
       "reviewStatus": "reviewed",
-      "reviewNote": "2026-09-30 API/Assistant stream batch: reviewed route wire assertions against each referenced Go contract; shared owner reuse is intentional for the same behavior family."
+      "reviewNote": "2026-10-09: five frozen stream disconnect/helper/template originals and blob SHA reviewed. Real production POST decode and Hyper socket now prove malformed retry failure once, SSE headers, no event frame or run writes and reader release. Absent runtime valid-request retained terminal error, request-context precancellation and private delta/preview combinations stay partial. Template availability exact remains unchanged; shared terminal/replay evidence does not upgrade other originals."
     },
     "crates/jftrade-engine/tests/adk_mutations_compatibility.rs::adk_provider_save_rejects_the_truncated_payload_with_the_reference_message": {
       "referenceCount": 1,
@@ -342089,7 +342101,8 @@
         "internal/api/assistant/chat_helpers_test.go:167:TestChatStreamExecutionPublishesDeltaAndFinalVariants"
       ],
       "allowed": true,
-      "reviewStatus": "single"
+      "reviewStatus": "single",
+      "reviewNote": "2026-10-09: five frozen stream disconnect/helper/template originals and blob SHA reviewed. Real production POST decode and Hyper socket now prove malformed retry failure once, SSE headers, no event frame or run writes and reader release. Absent runtime valid-request retained terminal error, request-context precancellation and private delta/preview combinations stay partial. Template availability exact remains unchanged; shared terminal/replay evidence does not upgrade other originals."
     },
     "crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart": {
       "referenceCount": 2,
@@ -342097,9 +342110,9 @@
         "internal/api/assistant/chat_helpers_test.go:167:TestChatStreamExecutionPublishesDeltaAndFinalVariants",
         "internal/api/assistant/chat_transport_disconnect_test.go:110:TestChatStreamReconnectAndReplayRespectClientDisconnect"
       ],
-      "allowed": false,
+      "allowed": true,
       "reviewStatus": "reviewed",
-      "reviewNote": "2026-10-07 本批五条范围复核：逐项保留直接行为断言；不同原函数的缺口不相互替代，沿用既有 allowed 判定。"
+      "reviewNote": "2026-10-09: five frozen stream disconnect/helper/template originals and blob SHA reviewed. Real production POST decode and Hyper socket now prove malformed retry failure once, SSE headers, no event frame or run writes and reader release. Absent runtime valid-request retained terminal error, request-context precancellation and private delta/preview combinations stay partial. Template availability exact remains unchanged; shared terminal/replay evidence does not upgrade other originals."
     },
     "crates/jftrade-engine/src/product_adk_model_runtime_recovery_tests.rs::persisted_terminal_run_is_published_as_final_instead_of_a_second_error": {
       "referenceCount": 3,
@@ -342110,7 +342123,7 @@
       ],
       "allowed": true,
       "reviewStatus": "reviewed",
-      "reviewNote": "2026-10-02 bounded reuse review: the shared owner asserts the terminal-run recovery invariant (single final, no second error) used by this mapping; other reference rows retain their own residual context/rehydration differences, so the relation is allowed only as scoped evidence reuse."
+      "reviewNote": "2026-10-09: five frozen stream disconnect/helper/template originals and blob SHA reviewed. Real production POST decode and Hyper socket now prove malformed retry failure once, SSE headers, no event frame or run writes and reader release. Absent runtime valid-request retained terminal error, request-context precancellation and private delta/preview combinations stay partial. Template availability exact remains unchanged; shared terminal/replay evidence does not upgrade other originals."
     },
     "crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::production_stream_missing_agent_emits_no_preview_frames": {
       "referenceCount": 1,
@@ -342118,7 +342131,8 @@
         "internal/api/assistant/chat_helpers_test.go:216:TestExecuteADKChatStreamPublishesTerminalErrorForInvalidRequest"
       ],
       "allowed": true,
-      "reviewStatus": "single"
+      "reviewStatus": "single",
+      "reviewNote": "2026-10-09: five frozen stream disconnect/helper/template originals and blob SHA reviewed. Real production POST decode and Hyper socket now prove malformed retry failure once, SSE headers, no event frame or run writes and reader release. Absent runtime valid-request retained terminal error, request-context precancellation and private delta/preview combinations stay partial. Template availability exact remains unchanged; shared terminal/replay evidence does not upgrade other originals."
     },
     "crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::adk_chat_stream_routes_are_isolated_without_port": {
       "referenceCount": 1,
@@ -342161,7 +342175,7 @@
       ],
       "allowed": true,
       "reviewStatus": "single",
-      "reviewNote": "2026-10-08: disconnect55 corrected to partial; success frames and 499 convergence do not prove malformed retry write failure or absent-runtime retained terminal error. Other references unchanged."
+      "reviewNote": "2026-10-09: five frozen stream disconnect/helper/template originals and blob SHA reviewed. Real production POST decode and Hyper socket now prove malformed retry failure once, SSE headers, no event frame or run writes and reader release. Absent runtime valid-request retained terminal error, request-context precancellation and private delta/preview combinations stay partial. Template availability exact remains unchanged; shared terminal/replay evidence does not upgrade other originals."
     },
     "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_respond_to_input_maps_the_go_error_codes_and_retries": {
       "referenceCount": 2,
@@ -342438,7 +342452,7 @@
       ],
       "allowed": true,
       "reviewStatus": "reviewed",
-      "reviewNote": "2026-10-07 本批五条范围复核：逐项保留直接行为断言；不同原函数的缺口不相互替代，沿用既有 allowed 判定。"
+      "reviewNote": "2026-10-09: five frozen stream disconnect/helper/template originals and blob SHA reviewed. Real production POST decode and Hyper socket now prove malformed retry failure once, SSE headers, no event frame or run writes and reader release. Absent runtime valid-request retained terminal error, request-context precancellation and private delta/preview combinations stay partial. Template availability exact remains unchanged; shared terminal/replay evidence does not upgrade other originals."
     },
     "crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::adk_chat_idempotency_contract_matches_the_go_routes": {
       "referenceCount": 2,
@@ -364856,7 +364870,8 @@
         "internal/api/assistant/chat_transport_disconnect_test.go:110:TestChatStreamReconnectAndReplayRespectClientDisconnect"
       ],
       "allowed": true,
-      "reviewStatus": "single"
+      "reviewStatus": "single",
+      "reviewNote": "2026-10-09: five frozen stream disconnect/helper/template originals and blob SHA reviewed. Real production POST decode and Hyper socket now prove malformed retry failure once, SSE headers, no event frame or run writes and reader release. Absent runtime valid-request retained terminal error, request-context precancellation and private delta/preview combinations stay partial. Template availability exact remains unchanged; shared terminal/replay evidence does not upgrade other originals."
     },
     "crates/jftrade-engine/src/product_ws_live_tests.rs::password_change_revokes_browser_websocket_and_keeps_desktop_capability": {
       "referenceCount": 1,
@@ -365467,20 +365482,22 @@
       "allowed": true
     },
     "crates/jftrade-engine/src/product_adk_reconnect_live_tests.rs::reconnect_reader_drop_releases_idle_store_reference_without_background_reads": {
-      "allowed": true,
+      "referenceCount": 1,
       "referenceKeys": [
         "internal/api/assistant/chat_transport_disconnect_test.go:110:TestChatStreamReconnectAndReplayRespectClientDisconnect"
       ],
-      "referenceCount": 1,
-      "reviewStatus": "single"
+      "allowed": true,
+      "reviewStatus": "single",
+      "reviewNote": "2026-10-09: five frozen stream disconnect/helper/template originals and blob SHA reviewed. Real production POST decode and Hyper socket now prove malformed retry failure once, SSE headers, no event frame or run writes and reader release. Absent runtime valid-request retained terminal error, request-context precancellation and private delta/preview combinations stay partial. Template availability exact remains unchanged; shared terminal/replay evidence does not upgrade other originals."
     },
     "crates/jftrade-engine/src/product_adk_reconnect_live_tests.rs::reconnect_http_shutdown_closes_idle_connection_without_mutating_the_run": {
-      "allowed": true,
+      "referenceCount": 1,
       "referenceKeys": [
         "internal/api/assistant/chat_transport_disconnect_test.go:110:TestChatStreamReconnectAndReplayRespectClientDisconnect"
       ],
-      "referenceCount": 1,
-      "reviewStatus": "single"
+      "allowed": true,
+      "reviewStatus": "single",
+      "reviewNote": "2026-10-09: five frozen stream disconnect/helper/template originals and blob SHA reviewed. Real production POST decode and Hyper socket now prove malformed retry failure once, SSE headers, no event frame or run writes and reader release. Absent runtime valid-request retained terminal error, request-context precancellation and private delta/preview combinations stay partial. Template availability exact remains unchanged; shared terminal/replay evidence does not upgrade other originals."
     },
     "crates/jftrade-engine/src/product_adk_reconnect_live_tests.rs::reconnect_http_replays_history_then_tails_live_events_on_the_same_connection": {
       "allowed": true,
@@ -366015,7 +366032,7 @@
       ],
       "allowed": true,
       "reviewStatus": "reviewed",
-      "reviewNote": "2026-10-08: terminal-state table closes COMPLETED cancel no-op; disconnect55 remains partial because malformed retry failure and unavailable-runtime background terminal error are absent. No other disconnect assertions implied."
+      "reviewNote": "2026-10-09: five frozen stream disconnect/helper/template originals and blob SHA reviewed. Real production POST decode and Hyper socket now prove malformed retry failure once, SSE headers, no event frame or run writes and reader release. Absent runtime valid-request retained terminal error, request-context precancellation and private delta/preview combinations stay partial. Template availability exact remains unchanged; shared terminal/replay evidence does not upgrade other originals."
     },
     "crates/jftrade-engine/src/product_adk_reconnect_disconnect_tests.rs::production_reconnect_retry_and_replay_write_failures_preserve_terminal_history": {
       "referenceCount": 1,
@@ -366023,7 +366040,8 @@
         "internal/api/assistant/chat_transport_disconnect_test.go:110:TestChatStreamReconnectAndReplayRespectClientDisconnect"
       ],
       "allowed": true,
-      "reviewStatus": "single"
+      "reviewStatus": "single",
+      "reviewNote": "2026-10-09: five frozen stream disconnect/helper/template originals and blob SHA reviewed. Real production POST decode and Hyper socket now prove malformed retry failure once, SSE headers, no event frame or run writes and reader release. Absent runtime valid-request retained terminal error, request-context precancellation and private delta/preview combinations stay partial. Template availability exact remains unchanged; shared terminal/replay evidence does not upgrade other originals."
     },
     "crates/jftrade-engine/src/product_adk_reconnect_disconnect_tests.rs::production_reconnect_precancelled_listener_writes_no_body_or_run_changes": {
       "referenceCount": 1,
@@ -366031,7 +366049,8 @@
         "internal/api/assistant/chat_transport_disconnect_test.go:110:TestChatStreamReconnectAndReplayRespectClientDisconnect"
       ],
       "allowed": true,
-      "reviewStatus": "single"
+      "reviewStatus": "single",
+      "reviewNote": "2026-10-09: five frozen stream disconnect/helper/template originals and blob SHA reviewed. Real production POST decode and Hyper socket now prove malformed retry failure once, SSE headers, no event frame or run writes and reader release. Absent runtime valid-request retained terminal error, request-context precancellation and private delta/preview combinations stay partial. Template availability exact remains unchanged; shared terminal/replay evidence does not upgrade other originals."
     },
     "crates/jftrade-engine/src/product_adk_reconnect_disconnect_tests.rs::production_agent_templates_remain_available_without_chat_runtime": {
       "referenceCount": 1,
@@ -366039,7 +366058,8 @@
         "internal/assistant/service_test.go:49:TestAgentTemplatesAvailableWithoutRuntime"
       ],
       "allowed": true,
-      "reviewStatus": "single"
+      "reviewStatus": "single",
+      "reviewNote": "2026-10-09: five frozen stream disconnect/helper/template originals and blob SHA reviewed. Real production POST decode and Hyper socket now prove malformed retry failure once, SSE headers, no event frame or run writes and reader release. Absent runtime valid-request retained terminal error, request-context precancellation and private delta/preview combinations stay partial. Template availability exact remains unchanged; shared terminal/replay evidence does not upgrade other originals."
     },
     "crates/jftrade-engine/src/product_adk_run_lease_owner_tests.rs::production_heartbeat_rejects_expired_durable_lease_without_changing_the_row": {
       "referenceCount": 1,
@@ -366399,6 +366419,15 @@
       "allowed": true,
       "reviewStatus": "reviewed",
       "reviewNote": "2026-10-09: seven frozen execution_claims originals and blob SHA reviewed. 108 original invalid input, success=false, COMPLETED durable invocation and FAILED call/error close through the real production loop. Fresh completions and unchanged legacy SUCCEEDED/FAILED replay retain output, events and count one; stale fencing, UNKNOWN and journal rollback pass. Full tool.Run/SaveRun caller error and UNKNOWN representation gaps stay partial. Shared tests do not upgrade other originals."
+    },
+    "crates/jftrade-engine/src/product_adk_reconnect_disconnect_tests.rs::production_malformed_chat_stops_after_the_first_retry_write_failure": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/api/assistant/chat_transport_disconnect_test.go:55:TestChatStreamTransportHandlesDisconnectedClients"
+      ],
+      "allowed": true,
+      "reviewStatus": "single",
+      "reviewNote": "2026-10-09: five frozen stream disconnect/helper/template originals and blob SHA reviewed. Real production POST decode and Hyper socket now prove malformed retry failure once, SSE headers, no event frame or run writes and reader release. Absent runtime valid-request retained terminal error, request-context precancellation and private delta/preview combinations stay partial. Template availability exact remains unchanged; shared terminal/replay evidence does not upgrade other originals."
     }
   }
 }

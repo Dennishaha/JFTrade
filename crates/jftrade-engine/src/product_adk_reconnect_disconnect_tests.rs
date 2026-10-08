@@ -109,12 +109,22 @@ impl AsyncWrite for FailingConnection {
 }
 
 async fn prepared_router(port: Arc<ProductionAdkPort>) -> crate::product::PreparedProduct {
-    let config = crate::product::ProductConfig::test_cutover(
+    prepared_router_with_chat(port, false).await
+}
+
+async fn prepared_router_with_chat(
+    port: Arc<ProductionAdkPort>,
+    include_chat: bool,
+) -> crate::product::PreparedProduct {
+    let mut config = crate::product::ProductConfig::test_cutover(
         "127.0.0.1:0".parse().unwrap(),
         &port.settings_path,
     )
     .unwrap()
-    .with_adk_read_snapshot_port(port);
+    .with_adk_read_snapshot_port(port.clone());
+    if include_chat {
+        config = config.with_adk_chat_stream_port(port);
+    }
     let runtime = crate::product_runtime::ProductRuntimeState::product_only(&config);
     crate::product::prepare_product_with_runtime_state(config, runtime, None)
         .await
@@ -122,7 +132,17 @@ async fn prepared_router(port: Arc<ProductionAdkPort>) -> crate::product::Prepar
 }
 
 async fn fail_reconnect_write(port: Arc<ProductionAdkPort>, path: &str, needle: &'static [u8]) {
-    let prepared = prepared_router(port.clone()).await;
+    fail_stream_write(port, path, None, needle, Some("stream-cursor")).await;
+}
+
+async fn fail_stream_write(
+    port: Arc<ProductionAdkPort>,
+    path: &str,
+    body: Option<&[u8]>,
+    needle: &'static [u8],
+    expected_stream_id: Option<&str>,
+) {
+    let prepared = prepared_router_with_chat(port.clone(), body.is_some()).await;
     let socket = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let address = socket.local_addr().unwrap();
     let failures = Arc::new(AtomicUsize::new(0));
@@ -145,13 +165,16 @@ async fn fail_reconnect_write(port: Arc<ProductionAdkPort>, path: &str, needle: 
             .into_future(),
     );
     let mut client = TcpStream::connect(address).await.unwrap();
+    let method = if body.is_some() { "POST" } else { "GET" };
+    let payload = body.unwrap_or_default();
     client
         .write_all(
-            format!("GET {path} HTTP/1.1\r\nHost: {address}\r\nConnection: close\r\n\r\n")
+            format!("{method} {path} HTTP/1.1\r\nHost: {address}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n", payload.len())
                 .as_bytes(),
         )
         .await
         .unwrap();
+    client.write_all(payload).await.unwrap();
     let mut response = Vec::new();
     tokio::time::timeout(Duration::from_secs(3), client.read_to_end(&mut response))
         .await
@@ -180,10 +203,13 @@ async fn fail_reconnect_write(port: Arc<ProductionAdkPort>, path: &str, needle: 
         headers.contains("content-type: text/event-stream"),
         "{headers}"
     );
-    assert!(
-        headers.contains("x-adk-stream-id: stream-cursor"),
-        "{headers}"
-    );
+    match expected_stream_id {
+        Some(stream_id) => assert!(
+            headers.contains(&format!("x-adk-stream-id: {stream_id}")),
+            "{headers}"
+        ),
+        None => assert!(!headers.contains("x-adk-stream-id:"), "{headers}"),
+    }
     assert!(
         !body.contains(std::str::from_utf8(needle).unwrap()),
         "failed frame reached client: {body}"
@@ -193,12 +219,31 @@ async fn fail_reconnect_write(port: Arc<ProductionAdkPort>, path: &str, needle: 
             body.contains("retry: 3000\n\n"),
             "retry must precede failed replay: {body}"
         );
+    } else {
+        assert!(!body.contains("data: "), "a frame followed the failed retry: {body}");
     }
     assert_eq!(
         Arc::strong_count(&port.store),
         baseline,
         "failed HTTP body must release the production reader"
     );
+}
+
+// Parity: go:452dea11:internal/api/assistant/chat_transport_disconnect_test.go:55 TestChatStreamTransportHandlesDisconnectedClients
+#[tokio::test]
+async fn production_malformed_chat_stops_after_the_first_retry_write_failure() {
+    let (_directory, port) = reconnect_port();
+    assert!(port.chat_runtime.is_none());
+    let before = port.store.list_runs().unwrap();
+    fail_stream_write(
+        port.clone(),
+        "/api/v1/adk/chat/stream",
+        Some(br#"{"message":"#),
+        b"retry: 3000",
+        None,
+    )
+    .await;
+    assert_eq!(port.store.list_runs().unwrap(), before);
 }
 
 // Parity: go:452dea11:internal/api/assistant/chat_transport_disconnect_test.go:110 TestChatStreamReconnectAndReplayRespectClientDisconnect
