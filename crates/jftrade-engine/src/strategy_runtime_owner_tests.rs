@@ -77,6 +77,29 @@ struct Notifications {
     delivered: Mutex<Vec<ProductNotificationRequest>>,
 }
 
+#[derive(Debug)]
+struct SubscriptionExitProbe {
+    router: Arc<Mutex<ProviderRouter>>,
+    observed: std::sync::mpsc::Sender<Vec<String>>,
+}
+
+impl ProductNotificationPort for SubscriptionExitProbe {
+    fn deliver(
+        &self,
+        _: ProductNotificationRequest,
+    ) -> crate::product::ProductNotificationDelivery {
+        let demand = self.router.lock().unwrap().demand();
+        self.observed
+            .send(demand.entries[0].consumers.clone())
+            .unwrap();
+        crate::product::ProductNotificationDelivery {
+            delivered: true,
+            status: "sent".to_owned(),
+            message: String::new(),
+        }
+    }
+}
+
 impl ProductNotificationPort for Notifications {
     fn deliver(
         &self,
@@ -301,6 +324,11 @@ fn runtime_exit_converges_to_stopped_with_audit_notification_and_error_log() {
             .unwrap()
             .is_some_and(|instance| instance.status == "STOPPED")
     });
+
+    assert!(
+        manager.cancel("one"),
+        "failed worker must join before reading its final writes"
+    );
 
     let observation = store
         .get_observation("one")
@@ -677,6 +705,11 @@ fn failed_pine_warmup_releases_only_its_own_subscription_once() {
         .acquire_demand("one", &binding())
         .expect("acquire runtime demand");
     assert_eq!(router.lock().unwrap().demand().logical_count, 1);
+    let (observed, exit_probe) = std::sync::mpsc::channel();
+    manager.notification = Some(Arc::new(SubscriptionExitProbe {
+        router: router.clone(),
+        observed,
+    }));
     manager
         .spawn_task("one".to_owned(), binding(), Arc::clone(&store))
         .expect("spawn runtime task");
@@ -688,6 +721,13 @@ fn failed_pine_warmup_releases_only_its_own_subscription_once() {
             .is_some_and(|instance| instance.status == "STOPPED")
     });
 
+    let consumers_at_notification = exit_probe.recv_timeout(Duration::from_secs(5)).unwrap();
+    assert_eq!(
+        consumers_at_notification,
+        vec!["other".to_owned()],
+        "runtime lease must be released before the exit notification"
+    );
+    assert!(manager.cancel("one"), "failed worker must join");
     let demand = router.lock().unwrap().demand();
     assert_eq!(demand.logical_count, 1, "shared demand was released twice");
     assert_eq!(demand.entries[0].consumers, vec!["other".to_owned()]);

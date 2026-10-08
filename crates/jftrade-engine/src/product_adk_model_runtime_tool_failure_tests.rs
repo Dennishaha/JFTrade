@@ -821,8 +821,13 @@ fn a_resumed_approval_run_completes_with_the_confirmation_resolved_state() {
             reasoning: None,
         },
     };
-    let run_lease =
-        super::RunLeaseGuard::from_lease(Arc::clone(&store), lease).expect("wrap run lease");
+    let run_lease = super::RunLeaseGuard::from_lease(
+        Arc::clone(&store),
+        lease,
+        super::RUN_LEASE_TTL,
+        super::RUN_LEASE_HEARTBEAT,
+    )
+    .expect("wrap run lease");
     let response = runtime
         .persist_success(
             &chat,

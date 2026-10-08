@@ -4,9 +4,9 @@
 
 当前活动包括迁移行为核验、产品质量和发布资格工作。迁移历史与证据位于 `docs/history/go-to-rust`；历史阶段完成声明不能代替全部映射的逐项审查。
 
-## 当前批次：ADK stale tool claim 错误分类
+## 当前批次：ADK 配置心跳与原接管时点
 
-handler stable key与消费批次已验证，六条原测试复核后当前 1661 exact、2152 partial、638 boundary。失败及通过证据见 [证据积压清单](history/go-to-rust/parity-evidence-backlog.md)。开发分支为 `codex/parity-assistant-builtin-config-20261008`，整体行为目标继续 active。
+handler stable key、消费及UNKNOWN恢复批次已验证；当前心跳与清理批次复核十条原测试后为1660 exact、2153 partial、638 boundary。失败及通过证据见 [证据积压清单](history/go-to-rust/parity-evidence-backlog.md)。开发分支为 `codex/parity-assistant-builtin-config-20261008`，整体行为目标继续 active。
 
 - [x] 冻结execution_claims54/108/167/265/343五条及blob SHA复核；稳定context key经生产timeout worker交付handler，真实两次tool loop证明key非空、包含run-wrapper、first/second output.key及完整output相同、只执行一次。54升级exact，其余状态及错误分类残余不变。
 - [x] 定向18 passed、quick2385 Rust/98 Pine与desktop Node11+48通过；现场完整Rust3980 passed、0 failed、2 skipped，无LEAK，static/七类replay退出0。外置卷断开及launcher原30秒超时失败留证，未改源码或放宽deadline；launcher原样20次与prediction路由20次重复通过。receipt/reuse/anchor/context/diff及1020个Rust文件冻结指纹复核后独立提交。
@@ -16,7 +16,10 @@ handler stable key与消费批次已验证，六条原测试复核后当前 1661
 - [x] 本批quick2597 Rust/98 Pine及desktop Node11+48通过；现场完整Rust3985 passed、0 failed、2 skipped，static/七类replay退出0，无LEAK。1021个Rust源码冻结指纹及receipt/anchor/reuse/diff已复核，数量保持1661/2152/638。
 - [x] stale及SQL identity fence的生产claim owner返回ADK_RUN_LEASE_LOST，保留loop协调停止、零执行及新owner状态；current执行及precancellation控制通过。定向63 passed，167完整Go tool.Run返回边界保持partial。
 - [x] 本批quick2392 Rust/98 Pine及desktop Node11+48通过；现场完整Rust3987 passed、0 failed、2 skipped，static/七类replay退出0，无LEAK。1021个Rust冻结源码与receipt/anchor/reuse/diff复核，数量保持1661/2152/638。
-- [ ] 294短心跳按原3秒TTL/100ms配置、2秒观察窗口及initial expiry+1ms接管时点验证生产worker；继续失败读取durable终态与UNKNOWN返回边界。
+- [x] 294真实worker按3秒TTL/100ms续租，原2秒窗口及initial expiry+1ms接管拒绝闭合；无心跳控制证明同一时点可接管，停止/join后token>1。定向44通过，294恢复exact，当前1662/2151/638。
+- [x] 首次完整Rust失败暴露Pine退出在STOPPED/通知后才释放订阅；生产owner修复为先释放自身消费者。通知时点探针红测两处失败，修复后心跳及清理定向68通过。十条原测试复核将未覆盖broker panic/活动汇总和停止态全量零写入的176/52纠正为partial，净exact−1，当前1660/2153/638。
+- [x] 修复后定向68及store3通过；重新查看quick计划并执行2600 Rust/98 Pine及desktop Node11+48通过。现场完整Rust3988 passed、0 failed、2 skipped，static/七类replay退出0，无LEAK；1021个Rust源码冻结指纹、十条receipt/reuse/anchor/diff复核，原1445 passed/1 failed的中断门禁及稳定红测保留。
+- [ ] 继续将takeover测试文件中30–40ms租约与固定sleep改为受控过期，保留expiry、UNKNOWN、旧token、terminal winner及并发单次认领断言；再推进失败读取durable终态、UNKNOWN返回及已明确的策略panic/停止态边界。
 - [ ] 每批继续核对5–10条原测试，定向nextest、quick及现场完整Rust门禁通过后复核并提交；整体对齐未完成不标complete。
 
 ## 已验证批次：ADK checkpoint replay 与唯一投影 owner

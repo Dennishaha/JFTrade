@@ -1,0 +1,34 @@
+{
+  "schemaVersion": "jftrade.local-quality-gate.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "pnpm",
+    "run",
+    "check:rust"
+  ],
+  "status": "failed",
+  "exitCode": 100,
+  "verifiedAt": "2026-10-08T15:40:35.718348+00:00",
+  "verifiedCommit": "96a35e513da1ad2bb6edba9e8cca5a50265d1eaa",
+  "rawOutputPath": "/Volumes/帆帆PM961-512/Github/JFTrade/.git/adk-configured-heartbeat-rust-full-warmup-failure-20261008.log",
+  "rawOutputSha256": "f9ea6ec9649116ff7b7420b3f473418c997af47fcec7798a62c2fdadd0cb9d6e",
+  "nextestSummary": {
+    "planned": 3988,
+    "ran": 1446,
+    "passed": 1445,
+    "failed": 1,
+    "skipped": 2,
+    "notRun": 2542,
+    "testSeconds": 33.38
+  },
+  "failedTests": [
+    "jftrade-engine::product::product_production_ports::product_production_ports_strategy::product_production_ports_strategy_runtime::owner_tests::failed_pine_warmup_releases_only_its_own_subscription_once"
+  ],
+  "failure": "Observed STOPPED but demand consumers were [one, other], expected [other]; cleanup is after terminal write and notification in production fail_strategy_task. Final result not accepted.",
+  "rustSourceFingerprintSha256": "8bc60049d18eb6e1454039a14d7a69f1af5b0b070b66f306bc90b2b573609311",
+  "frozenRustFiles": 1021,
+  "rustSourceChangedDuringGate": [],
+  "static": "passed",
+  "compatibilityReplays": "not run after nextest failure"
+}

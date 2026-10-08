@@ -1468,6 +1468,18 @@ impl AdkStore {
         owner_id: &str,
         lease_ttl: Duration,
     ) -> Result<StoredAdkRunLease, AdkStoreError> {
+        self.claim_run_lease_at(run_id, owner_id, lease_ttl, OffsetDateTime::now_utc())
+    }
+
+    /// Claim at an explicit instant through the same writer and fencing
+    /// transaction used by the wall-clock entry point.
+    pub fn claim_run_lease_at(
+        &self,
+        run_id: &str,
+        owner_id: &str,
+        lease_ttl: Duration,
+        now: OffsetDateTime,
+    ) -> Result<StoredAdkRunLease, AdkStoreError> {
         let run_id = run_id.trim();
         let owner_id = owner_id.trim();
         if run_id.is_empty() || owner_id.is_empty() || lease_ttl.is_zero() {
@@ -1475,7 +1487,6 @@ impl AdkStore {
                 "run lease requires run id, owner id and positive TTL".to_owned(),
             ));
         }
-        let now = OffsetDateTime::now_utc();
         let now_ms = (now.unix_timestamp_nanos() / 1_000_000) as i64;
         let expires_ms = now_ms.saturating_add(lease_ttl.as_millis().min(i64::MAX as u128) as i64);
         let now_text = now

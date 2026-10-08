@@ -429,7 +429,9 @@ impl ProductionAdkChatRuntime {
         let Some(stored_lease) = stored_lease else {
             return self.prepare_existing_run(existing_or_created, route, &fingerprint);
         };
-        let run_lease = RunLeaseGuard::from_lease(Arc::clone(&self.store), stored_lease)?;
+        let run_lease = RunLeaseGuard::from_lease(
+            Arc::clone(&self.store), stored_lease, RUN_LEASE_TTL, RUN_LEASE_HEARTBEAT,
+        )?;
         // Go's `ToolDescriptorsForAgent` scopes the model-visible tool list to
         // the resolved agent; an unrestricted agent keeps the whole catalog.
         let tool_scope = Self::agent_tool_scope(&provider.agent_payload);

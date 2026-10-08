@@ -1,0 +1,90 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-store-sqlite",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(run_lease) | test(lease_snapshot)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-10-08T15:29:53.778505+00:00",
+  "sourceState": {
+    "verifiedCommit": "96a35e513da1ad2bb6edba9e8cca5a50265d1eaa",
+    "trackedDiffSha256": "bf28c0f942186bd99f568ffc0220b9cda7545d3794300297db67a0205de7f9ad",
+    "untrackedFiles": [
+      {
+        "path": "docs/._roadmap.md",
+        "sha256": "d2fdabe41fe17dd7446608064fb694bf732f357d5b9d3571dab36d625093ab09"
+      },
+      {
+        "path": "docs/architecture/._runtime-execution-ownership.md",
+        "sha256": "d2fdabe41fe17dd7446608064fb694bf732f357d5b9d3571dab36d625093ab09"
+      },
+      {
+        "path": "docs/history/go-to-rust/._manual-test-mappings.json",
+        "sha256": "d2fdabe41fe17dd7446608064fb694bf732f357d5b9d3571dab36d625093ab09"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/._adk-configured-heartbeat-production-owner-verified-2026-10-08.json",
+        "sha256": "d2fdabe41fe17dd7446608064fb694bf732f357d5b9d3571dab36d625093ab09"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/adk-configured-heartbeat-production-owner-failure-2026-10-08.json",
+        "sha256": "39cf5d6cb49c825be9833ee94e0a127f1280f693bb72af6aba873efca16300f6"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/adk-configured-heartbeat-production-owner-verified-2026-10-08.json",
+        "sha256": "293353001da04c88ed2dddc4b9b927626097a13c445246aa09f8d9d270b701e7"
+      }
+    ]
+  },
+  "rawOutputSha256": "dd2b1736c50d8f0a4f836ace393fe6189dba25df1217350482555e5a2d64074d",
+  "passedTests": [
+    "jftrade-store-sqlite::jftrade_store_sqlite$adk::run_lease_snapshot_tests::heartbeat_expired_sparse_snapshot_is_rejected_before_store_access",
+    "jftrade-store-sqlite::jftrade_store_sqlite$adk::run_lease_snapshot_tests::heartbeat_near_expiry_caller_snapshot_uses_the_full_requested_ttl",
+    "jftrade-store-sqlite::jftrade_store_sqlite$adk::run_lease_snapshot_tests::heartbeat_snapshot_at_the_expiry_boundary_preserves_the_live_durable_row"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 3,
+      "nextest": {
+        "crate": "jftrade-store-sqlite",
+        "test_binary": "jftrade_store_sqlite",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 31,
+      "exec_time": 0.175951458,
+      "nextest": {
+        "crate": "jftrade-store-sqlite",
+        "test_binary": "jftrade_store_sqlite",
+        "kind": "lib"
+      }
+    }
+  ]
+}

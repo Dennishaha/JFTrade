@@ -805,6 +805,12 @@ fn fail_strategy_task(
     message: String,
 ) {
     let now = now_millis();
+    if let Some(router) = router.as_ref() {
+        let _ = router
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .release_demand_consumer_with_time(instance_id, now);
+    }
     let _ = store.update_observation_with_events(
         instance_id,
         "STOPPED",
@@ -839,12 +845,6 @@ fn fail_strategy_task(
             body: message.clone(),
             sound_enabled: true,
         });
-    }
-    if let Some(router) = router.as_ref() {
-        let _ = router
-            .lock()
-            .unwrap_or_else(|error| error.into_inner())
-            .release_demand_consumer_with_time(instance_id, now);
     }
 }
 

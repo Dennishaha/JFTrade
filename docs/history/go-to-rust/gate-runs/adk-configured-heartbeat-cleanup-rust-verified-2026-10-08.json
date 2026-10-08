@@ -1,0 +1,57 @@
+{
+  "schemaVersion": "jftrade.local-quality-gate.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "pnpm",
+    "run",
+    "check:rust"
+  ],
+  "status": "passed",
+  "exitCode": 0,
+  "verifiedAt": "2026-10-08T16:01:15.058114+00:00",
+  "verifiedCommit": "96a35e513da1ad2bb6edba9e8cca5a50265d1eaa",
+  "rawOutputPath": "/Volumes/帆帆PM961-512/Github/JFTrade/.git/adk-configured-heartbeat-cleanup-rust-full-20261008.log",
+  "rawOutputSha256": "b4b07d1f857208769735773b5080ff8c941657198bfc68f5e9b491f1739484f7",
+  "environment": {
+    "CARGO_TARGET_DIR": "/Users/jiangfan/.cache/jftrade/targets/parity-assistant-20261008",
+    "rustc": "1.97.1",
+    "node": "24.19.0",
+    "pnpm": "12.3.4",
+    "protoc": "34.1",
+    "nextest": "0.9.143",
+    "cargoDeny": "0.20.2",
+    "gitProxy": "macOS configured http://127.0.0.1:10808; child Git only"
+  },
+  "nextestSummary": {
+    "planned": 3988,
+    "passed": 3988,
+    "failed": 0,
+    "skipped": 2,
+    "testSeconds": 107.566
+  },
+  "compatibilityReplays": {
+    "storage": "passed",
+    "backtest": "passed",
+    "provider-runtime": "passed",
+    "trading-strategy": "passed",
+    "assistant-runtime": "passed",
+    "api-transport": "passed",
+    "desktop-runtime": "passed"
+  },
+  "affectedSourceSha256": {
+    "crates/jftrade-engine/src/product_adk_model_runtime.rs": "bad6db91bd6ed7b8ae942acd907598d026f252bd630d11ef0d61a76ebd420cf6",
+    "crates/jftrade-engine/src/product_adk_model_runtime_events.rs": "f66dccd4e7de3a4a0a6d4c8f7b52a988843dfa18757226b09219a6bc80282be2",
+    "crates/jftrade-engine/src/product_adk_model_runtime_tool_failure_tests.rs": "b36ff407cb1d71097ad68129f186c64c5829e74c0c095940419d435a399340e1",
+    "crates/jftrade-engine/src/product_adk_run_lease_snapshot_tests.rs": "4e3c18cfa19d5a553e827d077bb413a5ca4081fa7b3b54d4665dc24c75706fb4",
+    "crates/jftrade-engine/src/strategy_runtime.rs": "f5fd191eece5cf1ac5513cc3bd8ad5552fbf8f83e38f9eb16d8ca59dd9d05839",
+    "crates/jftrade-engine/src/strategy_runtime_owner_tests.rs": "fc27937539d4da405140bbaef6550f31941794060e1ec1015721f048059ab239",
+    "crates/jftrade-store-sqlite/src/adk.rs": "758c802caeba1214a966b96e1c8674b230170080535fe58206cb73c6a0f140fc"
+  },
+  "rustSourceFingerprintSha256": "4a2abcd620d0198622cecdde645937b0e5375119458cf52bf295101b573d098c",
+  "frozenRustFiles": 1021,
+  "rustSourceChangedDuringGate": [],
+  "leakyTestMarkerCount": 0,
+  "remainingRisk": "Configured heartbeat closes 294. Pine failure owner releases its own demand before terminal writes and notification. Whole Go parity remains active; broker panic/active summary/stopped zero-writes and ADK caller/durable/UNKNOWN gaps remain partial. Original gate and deterministic red failures retained.",
+  "static": "passed"
+}

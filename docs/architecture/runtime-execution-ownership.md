@@ -9,10 +9,12 @@
 - 日历模块统一确定 bar 完成时刻。日/周/月线使用交易所当地日期及日历 session，覆盖半日市和休市；尚无权威日历的市场保守等待周期边界或下一根 bar。内部 `closed` 标志不增加公开 HTTP 字段。
 - 首次启动可预热历史数据；恢复启动只预热到已持久化的 checkpoint，再按时间顺序逐根补齐之后的已收盘 bar。append 失败立即终止当前补 bar 批次，复开 session 后重试，不能把待处理数据当预热跳过。带时间的 intent 按时间匹配，bar index 不替代时间身份。
 - 每个实例的生命周期 mutation 串行；停止取消异步行情/Pine 等待。同步阻塞超过期限时保留 task owner、返回停止未完成，并阻止重启重叠。行情 I/O 期间仅持有 store 的弱引用；已在执行的券商命令仍保留真实写锁，不能强制释放后允许第二写入者。
+- Pine 失败退出的 owner 先释放该实例的行情需求，再保存 STOPPED 观察与实例、记录 audit/log 并通知；共享消费者保持。读取整套退出结果需等待 task completion barrier，单独读取 STOPPED 不代表所有后续写入已结束。
 
 ## ADK 模型执行
 
 - `RunLeaseGuard` 持有 durable run lease 和唯一 heartbeat worker；停止先唤醒并 join worker，再按 owner/fencing token 释放租约。
+- 包装已有租约时，TTL 与 heartbeat interval 传入同一 worker；生产入口使用30秒/10秒。SQLite 显式时点认领与 wall-clock 入口共用同一 writer、身份校验与 fencing 事务，接管判断使用该时点。
 - heartbeat 在访问连接前拒绝过期调用方快照，SQL 继续验证 durable owner/token/有效期。worker 每次成功续租采用返回的新快照，避免最初快照到期后错误取消仍有效的执行。
 - 同步 chat、live stream 和审批 continuation 共用生产 supervisor 的准入、取消与 completion barrier。关闭先拒绝新执行，再停止恢复扫描、取消 provider 并等待执行退出及租约释放；五秒内未结束时返回未完成并保留 task owner 和工具 ports，后续关闭可以重试。关闭后的 provider 注册继承取消状态，不能漏掉取消 fan-out。
 - 同步请求、live stream 和审批继续中的 provider 等待同时检查运行取消及租约丢失。取消覆盖请求发送、响应头、JSON body 和 idle SSE 等待；heartbeat 写失败不能让旧 owner 继续等待模型回复。

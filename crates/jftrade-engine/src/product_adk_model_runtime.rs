@@ -474,12 +474,14 @@ impl RunLeaseGuard {
         let lease = store
             .claim_run_lease(run_id, owner_id, RUN_LEASE_TTL)
             .map_err(runtime_store_error)?;
-        Self::from_lease(store, lease)
+        Self::from_lease(store, lease, RUN_LEASE_TTL, RUN_LEASE_HEARTBEAT)
     }
 
     fn from_lease(
         store: Arc<AdkStore>,
         lease: StoredAdkRunLease,
+        lease_ttl: Duration,
+        heartbeat_interval: Duration,
     ) -> Result<Self, AdkChatPortError> {
         let stop = Arc::new(AtomicBool::new(false));
         let lost = Arc::new(AtomicBool::new(false));
@@ -492,10 +494,10 @@ impl RunLeaseGuard {
             .name("jftrade-adk-run-lease".to_owned())
             .spawn(move || {
                 while !heartbeat_stop.load(Ordering::Acquire) {
-                    if receiver.recv_timeout(RUN_LEASE_HEARTBEAT).is_ok() {
+                    if receiver.recv_timeout(heartbeat_interval).is_ok() {
                         break;
                     }
-                    match heartbeat_store.heartbeat_run_lease(&heartbeat_lease, RUN_LEASE_TTL) {
+                    match heartbeat_store.heartbeat_run_lease(&heartbeat_lease, lease_ttl) {
                         Ok(refreshed) => heartbeat_lease = refreshed,
                         Err(_) => {
                             heartbeat_lost.store(true, Ordering::Release);
