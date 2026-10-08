@@ -6,6 +6,9 @@ use std::thread;
 use super::super::{AdkToolExecutor, AdkToolInvocationContext, RUN_LEASE_TTL};
 use jftrade_store_sqlite::AdkToolInvocationClaim;
 
+#[path = "product_adk_keyed_tool_owner_tests.rs"]
+mod keyed_tool;
+
 #[derive(Debug)]
 struct ReadTool {
     calls: Arc<AtomicUsize>,

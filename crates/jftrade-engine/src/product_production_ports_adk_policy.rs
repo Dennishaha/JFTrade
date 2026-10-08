@@ -12,6 +12,15 @@
 /// from the catalog still requires confirmation: failing closed is the only
 /// safe default when the metadata is unavailable.
 impl ProductionToolCatalog {
+    /// A keyed descriptor requires a handler read of the invocation context;
+    /// the runtime must not infer this capability from the tool's name.
+    pub(crate) fn requires_idempotency_key(&self, name: &str) -> bool {
+        self.values().into_iter().any(|tool| {
+            tool.get("id").and_then(Value::as_str) == Some(name)
+                && tool.get("idempotencyMode").and_then(Value::as_str) == Some("keyed")
+        })
+    }
+
     pub(crate) fn requires_approval(&self, name: &str, mode: &str) -> bool {
         let Some(tool) = self
             .values()

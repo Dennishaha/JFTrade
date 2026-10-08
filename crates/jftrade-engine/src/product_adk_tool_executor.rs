@@ -6,6 +6,7 @@
 //! implementation are handled here; every other call fails closed with a
 //! 503-compatible error instead of returning synthetic data.
 
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, RwLock};
 
 use serde_json::{Value, json};
@@ -18,17 +19,39 @@ use jftrade_store_sqlite::{AdkStore, StoredAdkToolInvocation};
 /// Immutable durable identity copied to the handler; it grants no write lease.
 pub(crate) struct AdkToolInvocationContext {
     idempotency_key: String,
+    requires_consumption: bool,
+    consumed: Arc<AtomicBool>,
 }
 
 impl AdkToolInvocationContext {
-    pub(crate) fn from_invocation(invocation: &StoredAdkToolInvocation) -> Self {
+    pub(crate) fn from_invocation(invocation: &StoredAdkToolInvocation, keyed: bool) -> Self {
         Self {
             idempotency_key: format!("{}:{}", invocation.run_id, invocation.idempotency_key),
+            requires_consumption: keyed,
+            consumed: Arc::new(AtomicBool::new(false)),
         }
     }
 
+    /// Only the handler getter records consumption. Runtime validation must
+    /// use `has_key` so merely delivering the context never fulfils the contract.
+    #[cfg_attr(
+        not(test),
+        expect(
+            dead_code,
+            reason = "Handler extension point; current built-in adapters do not declare keyed mode"
+        )
+    )]
     pub(crate) fn idempotency_key(&self) -> &str {
+        self.consumed.store(true, Ordering::Release);
         &self.idempotency_key
+    }
+
+    pub(crate) fn has_key(&self) -> bool {
+        !self.idempotency_key.is_empty()
+    }
+
+    pub(crate) fn key_consumption_missing(&self) -> bool {
+        self.requires_consumption && !self.consumed.load(Ordering::Acquire)
     }
 }
 

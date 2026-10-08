@@ -1,0 +1,152 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(durable_tool::) or test(tool_deadline_tests::)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-10-08T14:29:08Z",
+  "sourceState": {
+    "verifiedCommit": "bf5a768f881428c2f613129311201f76736f8aec",
+    "trackedDiffSha256": "0882630eab19643eea6ed0dcd973603eb1a46d0f18e716a6dc062c5f987d7f2a",
+    "untrackedFiles": [
+      {
+        "path": "crates/jftrade-engine/src/._product_adk_durable_tool_owner_tests.rs",
+        "sha256": "d2fdabe41fe17dd7446608064fb694bf732f357d5b9d3571dab36d625093ab09"
+      },
+      {
+        "path": "crates/jftrade-engine/src/._product_adk_keyed_tool_owner_tests.rs",
+        "sha256": "d2fdabe41fe17dd7446608064fb694bf732f357d5b9d3571dab36d625093ab09"
+      },
+      {
+        "path": "crates/jftrade-engine/src/._product_adk_model_runtime_tool_loop.rs",
+        "sha256": "d2fdabe41fe17dd7446608064fb694bf732f357d5b9d3571dab36d625093ab09"
+      },
+      {
+        "path": "crates/jftrade-engine/src/._product_adk_model_runtime_tool_timeout.rs",
+        "sha256": "d2fdabe41fe17dd7446608064fb694bf732f357d5b9d3571dab36d625093ab09"
+      },
+      {
+        "path": "crates/jftrade-engine/src/._product_adk_tool_executor.rs",
+        "sha256": "d2fdabe41fe17dd7446608064fb694bf732f357d5b9d3571dab36d625093ab09"
+      },
+      {
+        "path": "crates/jftrade-engine/src/._product_production_ports_adk_policy.rs",
+        "sha256": "d2fdabe41fe17dd7446608064fb694bf732f357d5b9d3571dab36d625093ab09"
+      },
+      {
+        "path": "crates/jftrade-engine/src/product_adk_keyed_tool_owner_tests.rs",
+        "sha256": "273b11d52271f13468ee94740aa3bd81fa98bffaf0f95357291dfca530b6bb3b"
+      },
+      {
+        "path": "docs/._adk.md",
+        "sha256": "d2fdabe41fe17dd7446608064fb694bf732f357d5b9d3571dab36d625093ab09"
+      },
+      {
+        "path": "docs/architecture/._runtime-execution-ownership.md",
+        "sha256": "d2fdabe41fe17dd7446608064fb694bf732f357d5b9d3571dab36d625093ab09"
+      },
+      {
+        "path": "docs/history/go-to-rust/gate-runs/._adk-keyed-owner-compilation-failure-2026-10-08.json",
+        "sha256": "d2fdabe41fe17dd7446608064fb694bf732f357d5b9d3571dab36d625093ab09"
+      },
+      {
+        "path": "docs/history/go-to-rust/gate-runs/._adk-keyed-worker-fixture-compilation-failure-2026-10-08.json",
+        "sha256": "d2fdabe41fe17dd7446608064fb694bf732f357d5b9d3571dab36d625093ab09"
+      },
+      {
+        "path": "docs/history/go-to-rust/gate-runs/adk-keyed-owner-compilation-failure-2026-10-08.json",
+        "sha256": "8d21ce4953d6136fe09d060968bed07bef1d82a20f0e03dd6530a4e9edebb473"
+      },
+      {
+        "path": "docs/history/go-to-rust/gate-runs/adk-keyed-worker-fixture-compilation-failure-2026-10-08.json",
+        "sha256": "209d94b0672f0ce7b1f13a45a6e09ba68708056d1ccc71c87a05416f6ad3873f"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/._adk-keyed-production-owner-failure-2026-10-08.json",
+        "sha256": "d2fdabe41fe17dd7446608064fb694bf732f357d5b9d3571dab36d625093ab09"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/._adk-keyed-terminal-code-fixture-failure-2026-10-08.json",
+        "sha256": "d2fdabe41fe17dd7446608064fb694bf732f357d5b9d3571dab36d625093ab09"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/adk-keyed-production-owner-failure-2026-10-08.json",
+        "sha256": "4e39699eb3a112082706b5f4c65c1be783ca9e2aab22f150135cf680aa867bd5"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/adk-keyed-terminal-code-fixture-failure-2026-10-08.json",
+        "sha256": "49f270817e5753bf21617784132211a1c4ffb231e6abcbeddf5117554c079a5e"
+      }
+    ]
+  },
+  "rawOutputSha256": "cfdd4592d30fcbdfca73e87841c7eaf754b43450fa673337d6dfacafa6de5bbf",
+  "passedTests": [
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::durable_tool::keyed_tool::production_keyed_handler_consuming_the_key_completes_and_replays_without_execution",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::durable_tool::keyed_tool::production_keyed_handler_ignoring_key_fails_unknown_once_and_blocks_the_second_attempt",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::durable_tool::keyed_tool::production_worker_returns_unknown_and_its_validation_does_not_count_as_handler_consumption",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::durable_tool::production_checkpoint_replay_journal_failure_rolls_back_the_projection",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::durable_tool::production_checkpoint_replay_rejects_the_stale_owner_and_restores_under_takeover",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::durable_tool::production_expiry_reconciliation_preserves_a_fresh_foreign_lease_and_run",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::durable_tool::production_failed_read_checkpoint_replay_preserves_the_original_error_without_execution",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::durable_tool::production_failed_read_persists_its_false_output_and_failed_call",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::durable_tool::production_handler_observes_a_stable_run_key_and_replay_keeps_the_same_output_key",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::durable_tool::production_read_checkpoint_replay_restores_the_original_result_without_execution",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::durable_tool::production_read_tool_result_replays_from_the_same_durable_invocation_without_execution",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::durable_tool::production_run_writes_reject_stale_and_mismatched_fences_before_the_current_write",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::durable_tool::production_stale_run_lease_executes_no_read_tool_and_preserves_the_replacement",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::tool_deadline_tests::a_cancelled_tool_call_reports_the_context_cancellation",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::tool_deadline_tests::a_hanging_tool_is_bounded_and_classified_as_a_timeout",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::tool_deadline_tests::a_panicking_tool_becomes_a_visible_tool_panic_failure",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::tool_deadline_tests::account_orders_completes_with_a_slow_portfolio_summary",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::tool_deadline_tests::account_orders_completes_without_hanging",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::tool_deadline_tests::account_orders_stream_completes",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::tool_deadline_tests::an_expired_tool_deadline_is_projected_onto_the_tool_call",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::tool_deadline_tests::the_default_tool_execution_deadline_is_thirty_seconds"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 21,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 21,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1915,
+      "exec_time": 4.039615792,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    }
+  ]
+}

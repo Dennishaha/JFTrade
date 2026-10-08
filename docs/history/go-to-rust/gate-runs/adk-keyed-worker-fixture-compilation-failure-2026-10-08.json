@@ -1,0 +1,31 @@
+{
+  "schemaVersion": "jftrade.local-quality-gate.v1",
+  "status": "failed",
+  "phase": "compilation",
+  "exitCode": 101,
+  "verifiedAt": "2026-10-08T14:28:12.883516+00:00",
+  "verifiedCommit": "bf5a768f881428c2f613129311201f76736f8aec",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(durable_tool::) or test(tool_deadline_tests::)"
+  ],
+  "testsRun": 0,
+  "failure": "E0433: added worker fixture lacks its AdkChatPortError import. No tests run.",
+  "rawOutputPath": "/Volumes/帆帆PM961-512/Github/JFTrade/.git/adk-keyed-owner-final-20261008.stderr",
+  "rawOutputSha256": "070149533e1631f473bc4ad2c3f0f17cb530648e1b65abf5ca3b5137ca40f7c9",
+  "rustSourceFingerprintSha256": "95cea6c26e25c90d5f700d1773a79242b13adf98e78dfa8ae54a4d1672dfd017",
+  "frozenRustFiles": 1021
+}

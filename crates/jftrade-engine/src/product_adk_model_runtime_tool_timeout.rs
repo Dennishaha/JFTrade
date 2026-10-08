@@ -50,6 +50,13 @@ fn execute_tool_handler(
         Some(context) => executor.execute_with_context(name, arguments, context, cancelled),
         None => executor.execute_cancellable(name, arguments, cancelled),
     }));
+    if invocation.is_some_and(AdkToolInvocationContext::key_consumption_missing) {
+        return Err(AdkChatPortError::Failed {
+            status: 500,
+            code: "ADK_TOOL_OUTCOME_UNKNOWN".to_owned(),
+            message: format!("keyed tool {name} did not consume its invocation idempotency key"),
+        });
+    }
     match outcome {
         Ok(Ok(value)) => Ok(value),
         Ok(Err(message)) => Err(tool_failed(message)),
@@ -73,7 +80,7 @@ fn execute_tool_with_timeout(
     if cancelled() {
         return Err(tool_cancelled_error());
     }
-    if invocation.is_some_and(|context| context.idempotency_key().is_empty()) {
+    if invocation.is_some_and(|context| !context.has_key()) {
         return Err(tool_failed("missing idempotency key"));
     }
     let deadline = Instant::now() + timeout;

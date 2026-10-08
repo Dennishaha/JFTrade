@@ -105,7 +105,8 @@ impl ProductionAdkChatRuntime {
                     let _ = self.persist_failure(&chat, &error, run_lease);
                     return;
                 }
-                let fail_closed = !replay_safe_tool(&name);
+                let keyed = self.tool_catalog.requires_idempotency_key(&name);
+                let fail_closed = !keyed && !replay_safe_tool(&name);
                 let idempotency_key = call_id.clone();
                 let input_json = match serde_json::to_string(&arguments) {
                     Ok(input_json) => input_json,
@@ -184,7 +185,7 @@ impl ProductionAdkChatRuntime {
                             &self.tool_executor,
                             &name,
                             &arguments,
-                            Some(&AdkToolInvocationContext::from_invocation(&invocation)),
+                            Some(&AdkToolInvocationContext::from_invocation(&invocation, keyed)),
                             cancellation_probe,
                             self.tool_executor.execution_deadline(),
                         );
@@ -250,13 +251,15 @@ impl ProductionAdkChatRuntime {
                         // `classifyToolError`, while the model-facing
                         // `message` carries the verb prefix.  `ToolCall.Error`
                         // is the raw text on both tool-failure paths.
+                        let unknown = matches!(&error,
+                            AdkChatPortError::Failed { code, .. } if code == "ADK_TOOL_OUTCOME_UNKNOWN");
                         let result = tool_error_envelope(&name, &error);
                         if let Err(commit_error) = self.persist_tool_result(
                             &chat,
                             &call,
                             &idempotency_key,
                             result,
-                            "FAILED",
+                            if unknown { "UNKNOWN" } else { "FAILED" },
                             None,
                             &claim_owner,
                             claim_fencing_token,
@@ -486,7 +489,10 @@ impl ProductionAdkChatRuntime {
                     continue;
                 }
                 if let Some(item) = item.as_object_mut() {
-                    item.insert("status".to_owned(), Value::String(status.to_owned()));
+                    // An indeterminate invocation remains UNKNOWN in the
+                    // ledger, while Go afterToolCallback records a FAILED call.
+                    let call_status = if status == "UNKNOWN" { "FAILED" } else { status };
+                    item.insert("status".to_owned(), Value::String(call_status.to_owned()));
                     item.insert("requiresUser".to_owned(), Value::Bool(false));
                     item.insert("output".to_owned(), output.clone());
                     item.insert(
@@ -514,11 +520,7 @@ impl ProductionAdkChatRuntime {
                         );
                         item.insert(
                             "errorCode".to_owned(),
-                            Value::String(if status == "UNKNOWN" {
-                                "ADK_TOOL_OUTCOME_UNKNOWN".to_owned()
-                            } else {
-                                tool_result_error_code(&output)
-                            }),
+                            Value::String(tool_result_error_code(&output)),
                         );
                     }
                 }

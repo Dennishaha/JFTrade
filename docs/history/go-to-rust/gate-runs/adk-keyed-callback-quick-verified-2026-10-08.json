@@ -1,0 +1,62 @@
+{
+  "schemaVersion": "jftrade.local-quality-gate.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "pnpm",
+    "run",
+    "check:quick"
+  ],
+  "status": "passed",
+  "exitCode": 0,
+  "verifiedAt": "2026-10-08T14:39:38.591972+00:00",
+  "verifiedCommit": "bf5a768f881428c2f613129311201f76736f8aec",
+  "rawOutputPath": "/Volumes/帆帆PM961-512/Github/JFTrade/.git/adk-keyed-callback-quick-20261008.log",
+  "rawOutputSha256": "bf46b8a22c4eda4b2c8bcf7bff9acec4f17101cb8372786bf94e6adc39477a66",
+  "environment": {
+    "CARGO_TARGET_DIR": "/Users/jiangfan/.cache/jftrade/targets/parity-assistant-20261008",
+    "rustc": "1.97.1",
+    "node": "24.19.0",
+    "pnpm": "12.3.4",
+    "protoc": "34.1",
+    "nextest": "0.9.143",
+    "cargoDeny": "0.20.2",
+    "gitProxy": "macOS configured http://127.0.0.1:10808; child Git only"
+  },
+  "nextestSummary": {
+    "planned": 2388,
+    "passed": 2388,
+    "failed": 0,
+    "skipped": 0,
+    "testSeconds": 120.312
+  },
+  "compatibilityReplays": {
+    "storage": "passed",
+    "backtest": "passed",
+    "provider-runtime": "passed",
+    "trading-strategy": "passed",
+    "assistant-runtime": "passed",
+    "api-transport": "passed",
+    "desktop-runtime": "passed"
+  },
+  "affectedSourceSha256": {
+    "crates/jftrade-engine/src/product_adk_durable_tool_owner_tests.rs": "b95c83d5e807f7eb1e14a981516b2be93447924a22483904a3bcd33cce84c8e9",
+    "crates/jftrade-engine/src/product_adk_model_runtime_tool_loop.rs": "4833f02af4efc223610abcbd36cdc5d166f43989bfcd94da497358a28990aff4",
+    "crates/jftrade-engine/src/product_adk_model_runtime_tool_timeout.rs": "0fdfb02810176e54900ce8253f3d7b8f01283bd23543b50228d21d506e5a4e72",
+    "crates/jftrade-engine/src/product_adk_tool_executor.rs": "172dae1463eb849cc2af5043b0df807514a19112741184dd77de6404328dfa79",
+    "crates/jftrade-engine/src/product_production_ports_adk_policy.rs": "9ae7951d82ca428fc002ec7185868ef1a00460b0e82d653f61ba3f44724146d5",
+    "crates/jftrade-engine/src/product_adk_keyed_tool_owner_tests.rs": "f5899456da20f8e081eb68f86652bcbb31682f6732e4c9f495a6daaab376e53d"
+  },
+  "rustSourceFingerprintSha256": "cf52da288ee9f8dc8b1bb753dd78c6eafe54a1d7108c8ab74512551a13c57b17",
+  "frozenRustFiles": 1021,
+  "rustSourceChangedDuringGate": [],
+  "leakyTestMarkerCount": 0,
+  "remainingRisk": "Unknown-claim replay caller/terminal behavior and ledger output representation remain partial, along with durable COMPLETED/FAILED, stale returns and configured short heartbeat. Whole goal active; earlier fixture and compilation evidence preserved.",
+  "pineWorkerTests": {
+    "passed": 98
+  },
+  "desktopChecks": {
+    "runtimeNodeTestsPassed": 11,
+    "scriptNodeTestsPassed": 48
+  }
+}

@@ -19,6 +19,7 @@
 - 租约丢失后先结束当前执行，禁止旧 owner 写入迟到成功、失败或取消终态。SQLite 持续校验 owner/fencing token，终态与工具副作用仍由原有生产写入 owner 提交。
 - checkpoint 缺失工具结果时，终态 invocation 原输出由现有 SQLite owner 按当前 Run lease 和 revision 恢复投影，并在同一事务校验 session event；不改 invocation，不重新执行工具，不重写已映射错误文本。
 - 已认领 invocation 的稳定 `run:invocation` key 经现有 timeout worker 交付 handler context；context 是不可变身份副本，写权限仍由 Run lease 和 SQLite owner 校验。默认 executor 继续传递原取消探针，panic 与 deadline 处理保持同一 owner。
+- keyed descriptor 的 key 消费观测由 handler getter 记录，框架的非空检查不计入。未消费的执行结果由既有 Run revision、invocation fence 和 session journal 事务提交为 UNKNOWN，恢复时拒绝再次执行；timeout worker 返回分类错误，不直接写库。
 
 ## 工作流
 

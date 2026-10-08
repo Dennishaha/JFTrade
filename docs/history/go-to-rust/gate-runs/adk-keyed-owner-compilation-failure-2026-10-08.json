@@ -1,0 +1,43 @@
+{
+  "schemaVersion": "jftrade.local-quality-gate.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(durable_tool::) or test(tool_deadline_tests::)"
+  ],
+  "status": "failed",
+  "phase": "compilation",
+  "exitCode": 101,
+  "verifiedAt": "2026-10-08T14:20:29.295626+00:00",
+  "verifiedCommit": "bf5a768f881428c2f613129311201f76736f8aec",
+  "rawOutputPath": "/Volumes/帆帆PM961-512/Github/JFTrade/.git/adk-keyed-owner-first-green-20261008.stderr",
+  "rawOutputSha256": "7864ed20ea5a2c5c60f46fd53fd0e9624dacdd13a01bd313a7b09171e7bd09f0",
+  "testsRun": 0,
+  "failure": "E0425: unknown bound in claim-error arm instead of execution-error arm; no tests run.",
+  "affectedSourceSha256": {
+    "crates/jftrade-engine/src/product_adk_durable_tool_owner_tests.rs": "b95c83d5e807f7eb1e14a981516b2be93447924a22483904a3bcd33cce84c8e9",
+    "crates/jftrade-engine/src/product_adk_keyed_tool_owner_tests.rs": "f1eb6afe464e401478fd2f53a5467f9b4bb85f0f86048453985e1a353baea00f",
+    "crates/jftrade-engine/src/product_adk_model_runtime_tool_loop.rs": "591f709bddf9430ddb38233faeb2bb7ee0f971bfcb662a98aa84a732783e9ded",
+    "crates/jftrade-engine/src/product_adk_tool_allowlist.rs": "5e8260660dbfdea58251cd60ed50769af737a0a36c9a3946c8a3ea82a41a5c73",
+    "crates/jftrade-engine/src/product_adk_tool_executor.rs": "9580e81ac09f21b835ceb38722000c5a25a0637236ca282fe82e68239242332d",
+    "crates/jftrade-engine/src/product_adk_model_runtime_tool_deadline_tests.rs": "9e42db52beb8cd099cd47aadcc33e17a6489bd6b3c874a410b8c3665f77af686",
+    "crates/jftrade-engine/src/product_adk_model_runtime_tool_failure_tests.rs": "f59ad4f9f9c6858b43b69767f907ba12b3c6e19213c23e5bcee720dbe10dd7d0",
+    "crates/jftrade-engine/src/product_adk_model_runtime_tool_persistence.rs": "3f8976476d428e0d43cd1422980768dbef5779dc673d3e016fcf496c70c16825",
+    "crates/jftrade-engine/src/product_adk_model_runtime_tool_result.rs": "924cc23572623d535bde43c7994b90c601e90f384f97c1a8d7d7a6c377b855ac",
+    "crates/jftrade-engine/src/product_adk_model_runtime_tool_timeout.rs": "0fdfb02810176e54900ce8253f3d7b8f01283bd23543b50228d21d506e5a4e72",
+    "crates/jftrade-engine/src/product_adk_tool_failure_boundary_tests.rs": "043402edede0ded8879c0423d5cae2420fec5f7fbb21198c0054a0001fdeb3d8",
+    "crates/jftrade-engine/src/product_adk_workflow_tool_error_tests.rs": "bc30d5e443e7d3e017229b2b83162c211c08d70198349fedd336659133fcf550"
+  }
+}
