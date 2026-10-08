@@ -293,6 +293,13 @@ async fn active_web_chat_does_not_block_listener_disable_or_rebind() {
         drop(stream);
         let _ = release.send(());
         provider.join().expect("provider thread");
+        // Consume the response while its listener is alive. Product shutdown
+        // may outlast the client's body deadline even after headers arrived.
+        let response = updated
+            .expect("listener change must not wait for the active provider")
+            .expect("security response");
+        let response_status = response.status();
+        let settings = response.json::<Value>().await;
         let (desktop_status, _) = request_json_with_status(
             handle.startup_record().address,
             "GET",
@@ -311,7 +318,7 @@ async fn active_web_chat_does_not_block_listener_disable_or_rebind() {
         .await;
         assert_eq!(browser_status, 401, "old cookie: {rejected}");
         assert_eq!(rejected["error"]["code"], "WEB_AUTH_REQUIRED");
-        if updated.is_ok() && !disable {
+        if !disable {
             let _ = web_login(&client, new_address, "original browser password").await;
         }
         handle.shutdown().await.expect("shutdown product");
@@ -320,11 +327,8 @@ async fn active_web_chat_does_not_block_listener_disable_or_rebind() {
             stream_ended,
             "listener change ends the active SSE before provider completion"
         );
-        let response = updated
-            .expect("listener change must not wait for the active provider")
-            .expect("security response");
-        assert_eq!(response.status(), 200, "disable={disable}");
-        let settings: Value = response.json().await.expect("security response body");
+        assert_eq!(response_status, 200, "disable={disable}");
+        let settings = settings.expect("security response body");
         assert_eq!(settings["data"]["webAccessEnabled"], !disable);
         assert_eq!(settings["data"]["webPort"], new_address.port());
     }

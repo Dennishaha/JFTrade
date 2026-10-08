@@ -156,6 +156,11 @@ fn backtests_write_fixture_replays_all_four_go_owned_mutations() {
             case.name
         );
         let port = FixturePort::from_case(case);
+        assert_eq!(
+            port.default_market_data_provider(),
+            None,
+            "detached mutation fixture has no production provider default"
+        );
         for (request, expected) in case.requests.iter().zip(&case.expected) {
             let response =
                 dispatch_backtests_write(&to_request(request), Some(&port), FIXTURE_TIMESTAMP);

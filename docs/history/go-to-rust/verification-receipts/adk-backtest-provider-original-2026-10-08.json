@@ -1,0 +1,72 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(research_default_provider_is_frozen_before_preparation_changes_the_queue_default) or test(optimization_default_provider_is_shared_by_preparation_and_every_candidate_queue_entry) or test(research_explicit_provider_is_normalized_without_reading_or_mutating_the_default) or test(concurrent_research_provider_overrides_reach_the_queue_together_without_default_reads) or test(backtest_tools_reject_malformed_inputs_before_reading_the_provider_or_queue)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 100,
+  "status": "failed",
+  "verifiedAt": "2026-10-08T02:31:35Z",
+  "sourceState": {
+    "verifiedCommit": "6ad7f22a416cba1f665b4d2fdd6f16de4a70ff24",
+    "trackedDiffSha256": "7452a38551a9ad8af39b30f2ca043ee2a93e554dd3177cf31389dbadfe57009a",
+    "untrackedFiles": [
+      {
+        "path": "crates/jftrade-engine/src/product_adk_backtest_provider_freeze_tests.rs",
+        "sha256": "831f7581bba9a926a9d3a5eaa7cc296d32b4cf65a56eb7033b48ca3614afa334"
+      }
+    ]
+  },
+  "rawOutputSha256": "c4264263f94ddc12a44b5aaf651de42976891670ec5a122a971c18dfce07de65",
+  "passedTests": [
+    "jftrade-engine::jftrade_engine$product::product_mcp_server::backtest_provider_freeze::backtest_tools_reject_malformed_inputs_before_reading_the_provider_or_queue",
+    "jftrade-engine::jftrade_engine$product::product_mcp_server::backtest_provider_freeze::concurrent_research_provider_overrides_reach_the_queue_together_without_default_reads"
+  ],
+  "failedTests": [
+    "jftrade-engine::jftrade_engine$product::product_mcp_server::backtest_provider_freeze::optimization_default_provider_is_shared_by_preparation_and_every_candidate_queue_entry",
+    "jftrade-engine::jftrade_engine$product::product_mcp_server::backtest_provider_freeze::research_default_provider_is_frozen_before_preparation_changes_the_queue_default",
+    "jftrade-engine::jftrade_engine$product::product_mcp_server::backtest_provider_freeze::research_explicit_provider_is_normalized_without_reading_or_mutating_the_default"
+  ],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 5,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "failed",
+      "passed": 2,
+      "failed": 3,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1860,
+      "exec_time": 2.8824243750000003,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    }
+  ]
+}

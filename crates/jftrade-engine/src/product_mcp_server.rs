@@ -660,3 +660,7 @@ mod watchlist_tool;
 #[cfg(test)]
 #[path = "product_adk_tool_failure_boundary_tests.rs"]
 mod tool_failure_boundary;
+
+#[cfg(test)]
+#[path = "product_adk_backtest_provider_freeze_tests.rs"]
+mod backtest_provider_freeze;

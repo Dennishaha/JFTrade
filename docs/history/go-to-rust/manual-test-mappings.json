@@ -75278,11 +75278,11 @@
       "boundaryReason": null
     },
     "internal/assistant/assembly/adk_strategy_test.go:699:TestADKBacktestProviderFreezesDefaultAcrossPreparationAndQueue": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_strategy_optimize_execution_tests.rs::candidate_payload_keeps_the_requested_provider_override",
-      "conclusion": "partial：显式 provider 归一（` YFINANCE ` → yfinance）与“冻结值写进每个候选 payload”由既有 optimize 测试覆盖（另一条用例断言冻结值被带到每个候选）；Rust 的冻结实现是 `requested_provider`（trim+lowercase+白名单校验）与 `persist_request_with_provider`（把 `__marketDataProvider` 落进存储请求）。差异记录：Go 的 `freezeBacktestProviderID(value, default)` 在 default 变化时不重读默认值的 prepare/queue 双点断言在 Rust 没有同名 helper/用例 —— Rust 的 research backtest 由持久化请求决定 provider，运行期不再读默认值；未在一处断言“prepare 后切换默认不影响 queue”。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'not test(production_helper_sync_cancel_aborts_in_flight_request) and not test(production_helper_sync_rejects_broken_pagination_cursors) and not test(production_helper_sync_forwards_page_query_and_persists_provider_values) and not test(production_helper_sync_retries_transient_page_and_records_retry)'",
-      "evidence_type": "partial",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-engine/src/product_adk_backtest_provider_freeze_tests.rs::provider_freeze_without_an_owner_default_preserves_an_unset_request",
+      "conclusion": "function_exact：逐项复核冻结 Go 原输入、输出、状态与副作用；显式 YFINANCE 经 trim/lowercase 为 yfinance，未读取或修改默认值。；无显式参数且 owner 无默认时冻结结果为空，保留 unset/empty 请求。；research 准备将默认值 yfinance 改为 akshare，coverage 与实际 queue payload 仍为 yfinance。；optimize 准备将 futu 改为 akshare、每次入队再改为 yfinance，两候选仍共用 futu，默认只读取一次。。同步 executor 的线程交汇与 queue/readiness ports 使用现有生产调用方，未创建第二 provider state 或 writer。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(research_default_provider_is_frozen_before_preparation_changes_the_queue_default) or test(optimization_default_provider_is_shared_by_preparation_and_every_candidate_queue_entry) or test(research_explicit_provider_is_normalized_without_reading_or_mutating_the_default) or test(concurrent_research_provider_overrides_reach_the_queue_together_without_default_reads) or test(backtest_tools_reject_malformed_inputs_before_reading_the_provider_or_queue) or test(provider_freeze_without_an_owner_default_preserves_an_unset_request) or test(research_backtest_pending_data_sync_returns_the_sync_task_without_starting_a_run) or test(backtests_write_fixture_replays_all_four_go_owned_mutations) or test(active_web_chat_does_not_block_listener_disable_or_rebind)'",
+      "evidence_type": "function_exact",
       "source": {
         "file": "internal/assistant/assembly/adk_strategy_test.go",
         "line": 699,
@@ -75291,24 +75291,58 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_strategy_optimize_execution_tests.rs",
-          "test": "candidate_payload_keeps_the_requested_provider_override",
+          "file": "crates/jftrade-engine/src/product_adk_backtest_provider_freeze_tests.rs",
+          "test": "provider_freeze_without_an_owner_default_preserves_an_unset_request",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/assistant/assembly/adk_strategy_test.go",
             "goLine": 699,
-            "rustFile": "crates/jftrade-engine/src/product_strategy_optimize_execution_tests.rs",
-            "rustLine": 55
+            "rustFile": "crates/jftrade-engine/src/product_adk_backtest_provider_freeze_tests.rs",
+            "rustLine": 186
+          }
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_adk_backtest_provider_freeze_tests.rs",
+          "test": "research_default_provider_is_frozen_before_preparation_changes_the_queue_default",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/assistant/assembly/adk_strategy_test.go",
+            "goLine": 699,
+            "rustFile": "crates/jftrade-engine/src/product_adk_backtest_provider_freeze_tests.rs",
+            "rustLine": 210
+          }
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_adk_backtest_provider_freeze_tests.rs",
+          "test": "optimization_default_provider_is_shared_by_preparation_and_every_candidate_queue_entry",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/assistant/assembly/adk_strategy_test.go",
+            "goLine": 699,
+            "rustFile": "crates/jftrade-engine/src/product_adk_backtest_provider_freeze_tests.rs",
+            "rustLine": 238
+          }
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_adk_backtest_provider_freeze_tests.rs",
+          "test": "research_explicit_provider_is_normalized_without_reading_or_mutating_the_default",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/assistant/assembly/adk_strategy_test.go",
+            "goLine": 699,
+            "rustFile": "crates/jftrade-engine/src/product_adk_backtest_provider_freeze_tests.rs",
+            "rustLine": 292
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust optimize candidate payload preserves the requested provider override for each queued candidate."
+          "显式 YFINANCE 经 trim/lowercase 为 yfinance，未读取或修改默认值。",
+          "无显式参数且 owner 无默认时冻结结果为空，保留 unset/empty 请求。",
+          "research 准备将默认值 yfinance 改为 akshare，coverage 与实际 queue payload 仍为 yfinance。",
+          "optimize 准备将 futu 改为 akshare、每次入队再改为 yfinance，两候选仍共用 futu，默认只读取一次。"
         ],
-        "uncovered": [
-          "Rust does not independently assert default-provider freeze across preparation and queue when no explicit override is supplied."
-        ],
+        "uncovered": [],
         "source": "reviewed"
       },
       "verification": {
@@ -75318,46 +75352,51 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(research_default_provider_is_frozen_before_preparation_changes_the_queue_default) or test(optimization_default_provider_is_shared_by_preparation_and_every_candidate_queue_entry) or test(research_explicit_provider_is_normalized_without_reading_or_mutating_the_default) or test(concurrent_research_provider_overrides_reach_the_queue_together_without_default_reads) or test(backtest_tools_reject_malformed_inputs_before_reading_the_provider_or_queue) or test(provider_freeze_without_an_owner_default_preserves_an_unset_request) or test(research_backtest_pending_data_sync_returns_the_sync_task_without_starting_a_run) or test(backtests_write_fixture_replays_all_four_go_owned_mutations) or test(active_web_chat_does_not_block_listener_disable_or_rebind)"
         ],
         "testFilter": [
-          "candidate_payload_keeps_the_requested_provider_override"
+          "provider_freeze_without_an_owner_default_preserves_an_unset_request",
+          "research_default_provider_is_frozen_before_preparation_changes_the_queue_default",
+          "optimization_default_provider_is_shared_by_preparation_and_every_candidate_queue_entry",
+          "research_explicit_provider_is_normalized_without_reading_or_mutating_the_default"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "6ad7f22a416cba1f665b4d2fdd6f16de4a70ff24",
+        "verifiedAt": "2026-10-08T03:02:15Z",
+        "receiptDigest": "sha256:16f88d3d32f7653779dfed4521abb62d60b9d1495641718b9a4cc5f075ed9800"
       },
       "risk": "normal",
       "owner": "assistant_workflow",
       "priority": "P2",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "maintain_behavioral_parity",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust optimize candidate payload preserves the requested provider override for each queued candidate."
+        "显式 YFINANCE 经 trim/lowercase 为 yfinance，未读取或修改默认值。",
+        "无显式参数且 owner 无默认时冻结结果为空，保留 unset/empty 请求。",
+        "research 准备将默认值 yfinance 改为 akshare，coverage 与实际 queue payload 仍为 yfinance。",
+        "optimize 准备将 futu 改为 akshare、每次入队再改为 yfinance，两候选仍共用 futu，默认只读取一次。"
       ],
-      "uncoveredAssertions": [
-        "Rust does not independently assert default-provider freeze across preparation and queue when no explicit override is supplied."
-      ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/assistant/assembly/adk_strategy_test.go:774:TestADKConcurrentResearchBacktestOverridesStayIsolated": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_strategy_optimize_execution_tests.rs::candidate_payload_keeps_the_requested_provider_override",
-      "conclusion": "partial：Go 断言显式 per-request override 既不读取也不改变默认 provider，并发两请求互不串扰。Rust 的结构保证是同一条：`requested_provider`/`frozen_market_data_provider` 只读请求 payload（经白名单校验），从不读 `BacktestMarketDataProviderState`，因此显式 override 天然隔离；既有测试覆盖归一与携带。差异记录：Rust 没有 Go 那样的双 goroutine 通道用例 —— ADK 工具执行器是同步接口（`execute_cancellable` 只对 workflow.wait 有取消通道），并发隔离由“每请求独立 payload”保证而非并发测试断言，登记为 P2（若要补，可在 model runtime 层加多线程 MCP 用例）。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'not test(production_helper_sync_cancel_aborts_in_flight_request) and not test(production_helper_sync_rejects_broken_pagination_cursors) and not test(production_helper_sync_forwards_page_query_and_persists_provider_values) and not test(production_helper_sync_retries_transient_page_and_records_retry)'",
-      "evidence_type": "partial",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-engine/src/product_adk_backtest_provider_freeze_tests.rs::concurrent_research_provider_overrides_reach_the_queue_together_without_default_reads",
+      "conclusion": "function_exact：逐项复核冻结 Go 原输入、输出、状态与副作用；同一 ProductionAdkToolExecutor 两线程调用原 Skeleton、US/US.AAPL、原日期与 yfinance/akshare override。；两个 queue entry 在 release 前同时到达，各 provider 恰好一次；有界等待、显式释放并 join，两个执行均无错误。；默认读取次数为零，默认仍为 futu；coverage 与队列均保持各自 provider。。同步 executor 的线程交汇与 queue/readiness ports 使用现有生产调用方，未创建第二 provider state 或 writer。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(research_default_provider_is_frozen_before_preparation_changes_the_queue_default) or test(optimization_default_provider_is_shared_by_preparation_and_every_candidate_queue_entry) or test(research_explicit_provider_is_normalized_without_reading_or_mutating_the_default) or test(concurrent_research_provider_overrides_reach_the_queue_together_without_default_reads) or test(backtest_tools_reject_malformed_inputs_before_reading_the_provider_or_queue) or test(provider_freeze_without_an_owner_default_preserves_an_unset_request) or test(research_backtest_pending_data_sync_returns_the_sync_task_without_starting_a_run) or test(backtests_write_fixture_replays_all_four_go_owned_mutations) or test(active_web_chat_does_not_block_listener_disable_or_rebind)'",
+      "evidence_type": "function_exact",
       "source": {
         "file": "internal/assistant/assembly/adk_strategy_test.go",
         "line": 774,
@@ -75366,24 +75405,24 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_strategy_optimize_execution_tests.rs",
-          "test": "candidate_payload_keeps_the_requested_provider_override",
+          "file": "crates/jftrade-engine/src/product_adk_backtest_provider_freeze_tests.rs",
+          "test": "concurrent_research_provider_overrides_reach_the_queue_together_without_default_reads",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/assistant/assembly/adk_strategy_test.go",
             "goLine": 774,
-            "rustFile": "crates/jftrade-engine/src/product_strategy_optimize_execution_tests.rs",
-            "rustLine": 55
+            "rustFile": "crates/jftrade-engine/src/product_adk_backtest_provider_freeze_tests.rs",
+            "rustLine": 322
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust candidate payload keeps each requested provider override isolated."
+          "同一 ProductionAdkToolExecutor 两线程调用原 Skeleton、US/US.AAPL、原日期与 yfinance/akshare override。",
+          "两个 queue entry 在 release 前同时到达，各 provider 恰好一次；有界等待、显式释放并 join，两个执行均无错误。",
+          "默认读取次数为零，默认仍为 futu；coverage 与队列均保持各自 provider。"
         ],
-        "uncovered": [
-          "Rust does not provide a concurrency test proving two simultaneous research-backtest overrides neither read nor mutate the default provider."
-        ],
+        "uncovered": [],
         "source": "reviewed"
       },
       "verification": {
@@ -75393,38 +75432,39 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(research_default_provider_is_frozen_before_preparation_changes_the_queue_default) or test(optimization_default_provider_is_shared_by_preparation_and_every_candidate_queue_entry) or test(research_explicit_provider_is_normalized_without_reading_or_mutating_the_default) or test(concurrent_research_provider_overrides_reach_the_queue_together_without_default_reads) or test(backtest_tools_reject_malformed_inputs_before_reading_the_provider_or_queue) or test(provider_freeze_without_an_owner_default_preserves_an_unset_request) or test(research_backtest_pending_data_sync_returns_the_sync_task_without_starting_a_run) or test(backtests_write_fixture_replays_all_four_go_owned_mutations) or test(active_web_chat_does_not_block_listener_disable_or_rebind)"
         ],
         "testFilter": [
-          "candidate_payload_keeps_the_requested_provider_override"
+          "concurrent_research_provider_overrides_reach_the_queue_together_without_default_reads"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "6ad7f22a416cba1f665b4d2fdd6f16de4a70ff24",
+        "verifiedAt": "2026-10-08T03:02:15Z",
+        "receiptDigest": "sha256:16f88d3d32f7653779dfed4521abb62d60b9d1495641718b9a4cc5f075ed9800"
       },
       "risk": "normal",
       "owner": "assistant_workflow",
       "priority": "P2",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "maintain_behavioral_parity",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust candidate payload keeps each requested provider override isolated."
+        "同一 ProductionAdkToolExecutor 两线程调用原 Skeleton、US/US.AAPL、原日期与 yfinance/akshare override。",
+        "两个 queue entry 在 release 前同时到达，各 provider 恰好一次；有界等待、显式释放并 join，两个执行均无错误。",
+        "默认读取次数为零，默认仍为 futu；coverage 与队列均保持各自 provider。"
       ],
-      "uncoveredAssertions": [
-        "Rust does not provide a concurrency test proving two simultaneous research-backtest overrides neither read nor mutate the default provider."
-      ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/assistant/assembly/adk_summary_contracts_test.go:9:TestADKStrategySummariesHideSourceDetailsAndCountLinkedInstances": {
@@ -348410,16 +348450,6 @@
       "allowed": true,
       "reviewStatus": "reviewed"
     },
-    "crates/jftrade-engine/src/product_strategy_optimize_execution_tests.rs::candidate_payload_keeps_the_requested_provider_override": {
-      "referenceCount": 2,
-      "referenceKeys": [
-        "internal/assistant/assembly/adk_strategy_test.go:699:TestADKBacktestProviderFreezesDefaultAcrossPreparationAndQueue",
-        "internal/assistant/assembly/adk_strategy_test.go:774:TestADKConcurrentResearchBacktestOverridesStayIsolated"
-      ],
-      "allowed": false,
-      "reviewStatus": "reviewed",
-      "reviewNote": "2026-10-02 bounded reuse review: compared all 2 referenceKeys against the shared Rust owner (status mix {'[~]': 2}); assertion scopes are not interchangeable, so reuse remains disallowed and no function_exact row is upgraded by this relation."
-    },
     "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_strategy_definition_catalog_counts_the_seeded_definitions": {
       "referenceCount": 1,
       "referenceKeys": [
@@ -365087,6 +365117,51 @@
         "internal/api/live/dispatcher_boundaries_test.go:59:TestDispatcherAuxiliarySubscriptionBranches"
       ],
       "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_adk_backtest_provider_freeze_tests.rs::provider_freeze_without_an_owner_default_preserves_an_unset_request": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/assistant/assembly/adk_strategy_test.go:699:TestADKBacktestProviderFreezesDefaultAcrossPreparationAndQueue"
+      ],
+      "allowed": true,
+      "reviewStatus": "single",
+      "reviewNote": "2026-10-08：单引用 owner，逐项复核冻结 Go 输入与全部断言；本批定向 receipt 实际执行该函数。"
+    },
+    "crates/jftrade-engine/src/product_adk_backtest_provider_freeze_tests.rs::research_default_provider_is_frozen_before_preparation_changes_the_queue_default": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/assistant/assembly/adk_strategy_test.go:699:TestADKBacktestProviderFreezesDefaultAcrossPreparationAndQueue"
+      ],
+      "allowed": true,
+      "reviewStatus": "single",
+      "reviewNote": "2026-10-08：单引用 owner，逐项复核冻结 Go 输入与全部断言；本批定向 receipt 实际执行该函数。"
+    },
+    "crates/jftrade-engine/src/product_adk_backtest_provider_freeze_tests.rs::optimization_default_provider_is_shared_by_preparation_and_every_candidate_queue_entry": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/assistant/assembly/adk_strategy_test.go:699:TestADKBacktestProviderFreezesDefaultAcrossPreparationAndQueue"
+      ],
+      "allowed": true,
+      "reviewStatus": "single",
+      "reviewNote": "2026-10-08：单引用 owner，逐项复核冻结 Go 输入与全部断言；本批定向 receipt 实际执行该函数。"
+    },
+    "crates/jftrade-engine/src/product_adk_backtest_provider_freeze_tests.rs::research_explicit_provider_is_normalized_without_reading_or_mutating_the_default": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/assistant/assembly/adk_strategy_test.go:699:TestADKBacktestProviderFreezesDefaultAcrossPreparationAndQueue"
+      ],
+      "allowed": true,
+      "reviewStatus": "single",
+      "reviewNote": "2026-10-08：单引用 owner，逐项复核冻结 Go 输入与全部断言；本批定向 receipt 实际执行该函数。"
+    },
+    "crates/jftrade-engine/src/product_adk_backtest_provider_freeze_tests.rs::concurrent_research_provider_overrides_reach_the_queue_together_without_default_reads": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/assistant/assembly/adk_strategy_test.go:774:TestADKConcurrentResearchBacktestOverridesStayIsolated"
+      ],
+      "allowed": true,
+      "reviewStatus": "single",
+      "reviewNote": "2026-10-08：单引用 owner，逐项复核冻结 Go 输入与全部断言；本批定向 receipt 实际执行该函数。"
     }
   }
 }

@@ -527,6 +527,15 @@ impl BacktestSyncReadSnapshotPort for ProductionBacktestPort {
 }
 
 impl BacktestsWritePort for ProductionBacktestPort {
+    fn default_market_data_provider(&self) -> Option<String> {
+        Some(
+            product_production_ports_backtest_parse::provider_id(
+                self.backtest_market_data_provider_state.get(),
+            )
+            .to_owned(),
+        )
+    }
+
     fn mutate(
         &self,
         input: &BacktestsWriteInput,

@@ -1923,6 +1923,11 @@ fn setup_test_bundle_and_executor() -> (
     )
     .expect("product config")
     .with_active_provider_state(active)
+    .with_backtest_market_data_provider_state(Arc::new(
+        crate::product::BacktestMarketDataProviderState::new(
+            jftrade_settings::MarketDataProvider::Futu,
+        ),
+    ))
     .with_trade_runtime(runtime)
     .with_trade_read_port(Some(Arc::new(AdkTestTradeReadPort)), Some(true))
     .with_market_data_runtime_status_port(Arc::new(AdkTestReadyRuntimeStatus))

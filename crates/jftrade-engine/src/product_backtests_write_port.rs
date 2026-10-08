@@ -105,6 +105,12 @@ pub enum BacktestsWritePortError {
 /// Mutation boundary. Implementations must own their persistence and external
 /// worker lifecycle; returning success without those dependencies is forbidden.
 pub trait BacktestsWritePort: Send + Sync + std::fmt::Debug {
+    /// Snapshot the queue owner's default before preparing one tool operation.
+    /// Detached adapters may have no default; explicit overrides bypass this read.
+    fn default_market_data_provider(&self) -> Option<String> {
+        None
+    }
+
     fn mutate(
         &self,
         input: &BacktestsWriteInput,

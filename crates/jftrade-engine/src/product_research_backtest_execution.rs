@@ -55,6 +55,38 @@ pub(crate) fn validate_trading_costs(arguments: &Value) -> Result<(), String> {
     }
 }
 
+/// Resolve one provider snapshot before readiness or queue calls can change
+/// the queue owner's default. Explicit overrides never read shared state.
+pub(crate) fn frozen_market_data_provider(
+    ports: &ProductionPortBundle,
+    arguments: &Value,
+) -> Option<String> {
+    let normalize = |value: String| {
+        let value = value.trim().to_ascii_lowercase();
+        (!value.is_empty()).then_some(value)
+    };
+    arguments
+        .get("marketDataProvider")
+        .and_then(Value::as_str)
+        .and_then(|value| normalize(value.to_owned()))
+        .or_else(|| {
+            ports
+                .backtests_write
+                .default_market_data_provider()
+                .and_then(normalize)
+        })
+}
+
+pub(crate) fn freeze_backtest_arguments(ports: &ProductionPortBundle, arguments: &Value) -> Value {
+    let mut frozen = arguments.clone();
+    if let Some(provider) = frozen_market_data_provider(ports, arguments)
+        && let Some(object) = frozen.as_object_mut()
+    {
+        object.insert("marketDataProvider".to_owned(), Value::String(provider));
+    }
+    frozen
+}
+
 pub(crate) fn prepare_start_payload(arguments: &Value, script: &str) -> Value {
     let mut start_payload = arguments.clone();
     if let Some(obj) = start_payload.as_object_mut() {
@@ -298,6 +330,8 @@ pub(crate) fn execute_research_backtest(
 
     let validation = validate_research_script(script)?;
     validate_trading_costs(arguments)?;
+    let frozen_arguments = freeze_backtest_arguments(ports, arguments);
+    let arguments = &frozen_arguments;
     let start_payload = prepare_start_payload(arguments, script);
 
     let (run_id, initial_status) = match ensure_research_data_readiness(

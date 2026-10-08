@@ -15,7 +15,7 @@ use crate::product::product_backtests_write_port::{
 };
 use crate::product::product_production_ports::ProductionPortBundle;
 use crate::product::product_research_backtest_execution::{
-    prepare_derived_start_payload, validate_trading_costs,
+    freeze_backtest_arguments, prepare_derived_start_payload, validate_trading_costs,
 };
 use crate::product::product_research_backtest_readiness::{
     EnsureDataOutcome, ensure_definitions_data_readiness,
@@ -41,6 +41,8 @@ pub(crate) fn execute_strategy_optimize(
         ));
     }
     validate_trading_costs(arguments)?;
+    let frozen_arguments = freeze_backtest_arguments(ports, arguments);
+    let arguments = &frozen_arguments;
     let objective = arguments
         .get("objective")
         .and_then(Value::as_str)
@@ -54,7 +56,7 @@ pub(crate) fn execute_strategy_optimize(
     // candidate is queued, and every candidate inherits that frozen value so a
     // concurrent default-provider change cannot split one optimization across
     // two data sources.
-    let frozen_provider = frozen_market_data_provider(ports, arguments);
+    let frozen_provider = arguments.get("marketDataProvider").and_then(Value::as_str);
     // Go's `strategy.optimize` runs `EnsureBacktestData` before it queues any
     // candidate (`tool_catalog.go`: `deps.EnsureBacktestData(definitionIDs,
     // startInput)`), so a candidate set whose shared window is not covered yet
@@ -69,7 +71,7 @@ pub(crate) fn execute_strategy_optimize(
     let mut runs = Vec::with_capacity(definition_ids.len());
     let mut run_refs = Vec::with_capacity(definition_ids.len());
     for definition_id in &definition_ids {
-        let payload = candidate_payload(arguments, definition_id, frozen_provider.as_deref());
+        let payload = candidate_payload(arguments, definition_id, frozen_provider);
         match ports
             .backtests_write
             .mutate(&BacktestsWriteInput::Start { payload })
@@ -186,19 +188,6 @@ fn candidate_payload(
         }
     }
     payload
-}
-
-/// Go's `freezeBacktestProviderID` lowercases and trims the requested
-/// provider.  When the caller names no provider the candidate payload stays
-/// provider-free, so the backtest write port resolves its own frozen default
-/// at queue time exactly like the reference service does.
-fn frozen_market_data_provider(_ports: &ProductionPortBundle, arguments: &Value) -> Option<String> {
-    arguments
-        .get("marketDataProvider")
-        .and_then(Value::as_str)
-        .map(str::trim)
-        .map(str::to_ascii_lowercase)
-        .filter(|value| !value.is_empty())
 }
 
 /// Go resolves every candidate definition before checking coverage, and the
