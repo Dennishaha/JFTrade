@@ -1,0 +1,20 @@
+{
+  "schemaVersion": "jftrade.local-quality-gate.v1",
+  "command": ["env", "CARGO_INCREMENTAL=0", "pnpm", "run", "check:quick"],
+  "status": "interrupted",
+  "processExitCode": 134,
+  "exitCodeFileMissing": true,
+  "verifiedAt": "2026-10-08T14:04:09.275954+00:00",
+  "verifiedCommit": "56c48821df853f256bad7dc685ce7d4ac12b1de3",
+  "rawOutputPath": "/Volumes/帆帆PM961-512/Github/JFTrade/.git/adk-handler-key-quick-20261008.log",
+  "rawOutputSha256": "2c4af3739452cef0d6cb6910a19e615329f4e57f775f8a1dd79e69e1a0312d28",
+  "failure": "External work volume disconnected. Gate process terminated with 134; exit file write failed. Recovered log ends during desktop replay, earlier live observation reached Pine tests. Incomplete gate is not passed.",
+  "liveObservationRecord": "/Users/jiangfan/.cache/jftrade/parity-volume-disconnect-20261008.json",
+  "liveObservationRecordSha256": "124e908136e39eccd07e6ccf1c4852740d9d3b60ecb38a931d79e04478c0e3e6",
+  "rustSourceFingerprintSha256": "0764261772336fe413359d65d2014837e2059194c2a5ef484cdb76a6c53eadcf",
+  "frozenRustFiles": 1020,
+  "rustSourceChangedDuringGate": [],
+  "leakyTestMarkerCount": 1,
+  "leakyTest": "market_data_prediction_read_compatibility::prediction_read_routes_cover_the_complete_group",
+  "remainingAction": "Re-run quick and full Rust gate; preserve interrupted evidence."
+}

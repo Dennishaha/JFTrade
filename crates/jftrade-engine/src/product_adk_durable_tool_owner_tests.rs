@@ -1,8 +1,9 @@
 use super::*;
+use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::thread;
 
-use super::super::{AdkToolExecutor, RUN_LEASE_TTL};
+use super::super::{AdkToolExecutor, AdkToolInvocationContext, RUN_LEASE_TTL};
 use jftrade_store_sqlite::AdkToolInvocationClaim;
 
 #[derive(Debug)]
@@ -35,8 +36,12 @@ struct ToolFixture {
 
 impl ToolFixture {
     fn new(fail: bool) -> Self {
-        let (directory, store, sessions) = initialized_stores();
         let calls = Arc::new(AtomicUsize::new(0));
+        Self::with_executor(calls.clone(), Arc::new(ReadTool { calls, fail }))
+    }
+
+    fn with_executor(calls: Arc<AtomicUsize>, executor: Arc<dyn AdkToolExecutor>) -> Self {
+        let (directory, store, sessions) = initialized_stores();
         let runtime = ProductionAdkChatRuntime::with_tool_executor_for_test(
             store.clone(),
             sessions.clone(),
@@ -45,10 +50,7 @@ impl ToolFixture {
             Arc::new(
                 crate::product::product_production_ports::ProductionToolCatalog::empty_for_test(),
             ),
-            Arc::new(ReadTool {
-                calls: calls.clone(),
-                fail,
-            }),
+            executor,
         );
         Self {
             directory,
@@ -145,6 +147,80 @@ impl Drop for Provider {
             }
         }
     }
+}
+
+#[derive(Debug)]
+struct ContextReadTool {
+    calls: Arc<AtomicUsize>,
+    observed_key: Arc<Mutex<Option<String>>>,
+}
+
+impl AdkToolExecutor for ContextReadTool {
+    fn supports(&self, name: &str) -> bool {
+        name == "market.snapshot"
+    }
+    fn execute(&self, _: &str, _: &Value) -> Result<Value, String> {
+        self.calls.fetch_add(1, Ordering::AcqRel);
+        Err("missing idempotency key".to_owned())
+    }
+    fn execute_with_context(
+        &self,
+        _: &str,
+        arguments: &Value,
+        invocation: &AdkToolInvocationContext,
+        _: &dyn Fn() -> bool,
+    ) -> Result<Value, String> {
+        self.calls.fetch_add(1, Ordering::AcqRel);
+        let key = invocation.idempotency_key();
+        if key.is_empty() {
+            return Err("missing idempotency key".to_owned());
+        }
+        *self.observed_key.lock().unwrap() = Some(key.to_owned());
+        Ok(json!({"value":arguments["value"], "key":key}))
+    }
+}
+
+// Parity: go:452dea11:internal/assistant/engine/execution_claims_test.go:54 TestGoogleADKToolUsesDurableInvocationKeyAndReplay
+#[test]
+fn production_handler_observes_a_stable_run_key_and_replay_keeps_the_same_output_key() {
+    let calls = Arc::new(AtomicUsize::new(0));
+    let observed_key = Arc::new(Mutex::new(None));
+    let fixture = ToolFixture::with_executor(
+        calls.clone(),
+        Arc::new(ContextReadTool {
+            calls: calls.clone(),
+            observed_key: observed_key.clone(),
+        }),
+    );
+    let provider = Provider::new();
+    let mut chat = fixture.seed("run-wrapper");
+    chat.request.endpoint = provider.endpoint.parse().unwrap();
+    let lease = RunLeaseGuard::acquire(fixture.store.clone(), &chat.run_id, "key-owner").unwrap();
+    fixture
+        .runtime
+        .run_tool_loop(chat.clone(), Arc::new(AtomicBool::new(false)), &lease);
+    let first = fixture.restore_tool_checkpoint(&chat, &lease);
+    assert_eq!(first["value"], "once", "{first}");
+    let key = observed_key
+        .lock()
+        .unwrap()
+        .clone()
+        .expect("handler observed key");
+    assert!(!key.is_empty());
+    assert!(key.contains("run-wrapper"));
+    assert_eq!(key, "run-wrapper:function-call-test");
+    assert_eq!(first["key"], key);
+    let replay_provider = Provider::new();
+    chat.request.endpoint = replay_provider.endpoint.parse().unwrap();
+    fixture
+        .runtime
+        .run_tool_loop(chat.clone(), Arc::new(AtomicBool::new(false)), &lease);
+    let replayed = fixture.store.get_run(&chat.run_id).unwrap().unwrap();
+    let payload: Value = serde_json::from_str(&replayed.payload_json).unwrap();
+    assert_eq!(replayed.status, "COMPLETED");
+    assert_eq!(payload["toolResults"][0]["output"], first);
+    assert_eq!(payload["toolResults"][0]["output"]["key"], key);
+    assert_eq!(calls.load(Ordering::Acquire), 1);
 }
 
 // Parity: go:452dea11:internal/assistant/engine/execution_claims_test.go:54 TestGoogleADKToolUsesDurableInvocationKeyAndReplay

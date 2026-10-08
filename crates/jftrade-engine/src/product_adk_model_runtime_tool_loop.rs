@@ -184,6 +184,7 @@ impl ProductionAdkChatRuntime {
                             &self.tool_executor,
                             &name,
                             &arguments,
+                            Some(&AdkToolInvocationContext::from_invocation(&invocation)),
                             cancellation_probe,
                             self.tool_executor.execution_deadline(),
                         );

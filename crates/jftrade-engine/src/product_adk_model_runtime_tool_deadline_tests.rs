@@ -91,6 +91,7 @@ fn a_hanging_tool_is_bounded_and_classified_as_a_timeout() {
         &executor,
         "portfolio.summary",
         &json!({}),
+        None,
         never_cancelled(),
         Duration::from_millis(250),
     )
@@ -116,6 +117,7 @@ fn a_panicking_tool_becomes_a_visible_tool_panic_failure() {
         &executor,
         "strategy.validate_pine",
         &json!({}),
+        None,
         never_cancelled(),
         Duration::from_secs(5),
     )
@@ -145,6 +147,7 @@ fn a_cancelled_tool_call_reports_the_context_cancellation() {
             &executor,
             "portfolio.summary",
             &json!({}),
+            None,
             probe,
             Duration::from_secs(30),
         )

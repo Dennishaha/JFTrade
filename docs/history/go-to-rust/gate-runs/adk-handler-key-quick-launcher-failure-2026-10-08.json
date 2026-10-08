@@ -1,0 +1,16 @@
+{
+  "schemaVersion": "jftrade.local-quality-gate.v1",
+  "command": ["env", "CARGO_INCREMENTAL=0", "pnpm", "run", "check:quick"],
+  "status": "failed",
+  "exitCode": 1,
+  "verifiedCommit": "56c48821df853f256bad7dc685ce7d4ac12b1de3",
+  "rawOutputPath": "/Volumes/帆帆PM961-512/Github/JFTrade/.git/adk-handler-key-quick-resumed-20261008.log",
+  "rawOutputSha256": "662fb8d743678d9d58727ee0c11e4daf9bdd911c2c995a050122d4258d784613",
+  "nextestSummary": {"planned": 2385, "passed": 2384, "failed": 1, "skipped": 0, "testSeconds": 143.341},
+  "failedTests": ["jftrade-engine::product_api_launcher_lifecycle::api_launcher_reports_startup_failure_when_the_configured_address_is_taken"],
+  "failure": "API launcher did not exit within the original 30 seconds. No assertion or deadline changed; retain this failed gate independently of subsequent retries.",
+  "rustSourceFingerprintSha256": "0764261772336fe413359d65d2014837e2059194c2a5ef484cdb76a6c53eadcf",
+  "frozenRustFiles": 1020,
+  "rustSourceChangedDuringGate": [],
+  "leakyTestMarkerCount": 0
+}

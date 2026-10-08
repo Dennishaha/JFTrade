@@ -39,6 +39,24 @@ fn panic_text(payload: Box<dyn std::any::Any + Send>) -> String {
     }
 }
 
+fn execute_tool_handler(
+    executor: &dyn AdkToolExecutor,
+    name: &str,
+    arguments: &Value,
+    invocation: Option<&AdkToolInvocationContext>,
+    cancelled: &dyn Fn() -> bool,
+) -> Result<Value, AdkChatPortError> {
+    let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| match invocation {
+        Some(context) => executor.execute_with_context(name, arguments, context, cancelled),
+        None => executor.execute_cancellable(name, arguments, cancelled),
+    }));
+    match outcome {
+        Ok(Ok(value)) => Ok(value),
+        Ok(Err(message)) => Err(tool_failed(message)),
+        Err(payload) => Err(tool_failed(format!("tool panic: {}", panic_text(payload)))),
+    }
+}
+
 /// Execute one adapter call under Go's tool deadline with panic recovery.
 ///
 /// The worker is detached when the deadline expires: Go cannot kill a running
@@ -48,33 +66,29 @@ fn execute_tool_with_timeout(
     executor: &Arc<dyn AdkToolExecutor>,
     name: &str,
     arguments: &Value,
+    invocation: Option<&AdkToolInvocationContext>,
     cancelled: Arc<dyn Fn() -> bool + Send + Sync>,
     timeout: Duration,
 ) -> Result<Value, AdkChatPortError> {
     if cancelled() {
         return Err(tool_cancelled_error());
     }
+    if invocation.is_some_and(|context| context.idempotency_key().is_empty()) {
+        return Err(tool_failed("missing idempotency key"));
+    }
     let deadline = Instant::now() + timeout;
     let executor = Arc::clone(executor);
     let tool_name = name.to_owned();
     let tool_arguments = arguments.clone();
+    let invocation = invocation.cloned();
     let worker_cancelled = Arc::clone(&cancelled);
     let (sender, receiver) = mpsc::channel();
     let worker = thread::Builder::new()
         .name("jftrade-adk-tool-exec".to_owned())
         .spawn(move || {
             let tool_deadline = move || worker_cancelled() || Instant::now() >= deadline;
-            let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                executor.execute_cancellable(&tool_name, &tool_arguments, &tool_deadline)
-            }));
-            let outcome = match outcome {
-                Ok(Ok(value)) => Ok(value),
-                Ok(Err(message)) => Err(tool_failed(message)),
-                Err(payload) => Err(tool_failed(format!(
-                    "tool panic: {}",
-                    panic_text(payload)
-                ))),
-            };
+            let outcome = execute_tool_handler(executor.as_ref(), &tool_name, &tool_arguments,
+                invocation.as_ref(), &tool_deadline);
             let _ = sender.send(outcome);
         })
         .map_err(|error| unavailable(format!("assistant tool worker: {error}")))?;

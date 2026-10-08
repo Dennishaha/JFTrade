@@ -1,0 +1,62 @@
+{
+  "schemaVersion": "jftrade.local-quality-gate.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "pnpm",
+    "run",
+    "check:quick"
+  ],
+  "status": "passed",
+  "exitCode": 0,
+  "verifiedAt": "2026-10-08T14:11:36.017226+00:00",
+  "verifiedCommit": "56c48821df853f256bad7dc685ce7d4ac12b1de3",
+  "rawOutputPath": "/Volumes/帆帆PM961-512/Github/JFTrade/.git/adk-handler-key-quick-retry-20261008.log",
+  "rawOutputSha256": "e58bd3216d29af1d1faa2806684e2de7d374b3d088c48cf5062ccb9ce2da9d6b",
+  "environment": {
+    "CARGO_TARGET_DIR": "/Users/jiangfan/.cache/jftrade/targets/parity-assistant-20261008",
+    "rustc": "1.97.1",
+    "node": "24.19.0",
+    "pnpm": "12.3.4",
+    "protoc": "34.1",
+    "nextest": "0.9.143",
+    "cargoDeny": "0.20.2",
+    "gitProxy": "macOS configured http://127.0.0.1:10808; child Git only"
+  },
+  "nextestSummary": {
+    "planned": 2385,
+    "passed": 2385,
+    "failed": 0,
+    "skipped": 0,
+    "testSeconds": 112.853
+  },
+  "compatibilityReplays": {
+    "storage": "passed",
+    "backtest": "passed",
+    "provider-runtime": "passed",
+    "trading-strategy": "passed",
+    "assistant-runtime": "passed",
+    "api-transport": "passed",
+    "desktop-runtime": "passed"
+  },
+  "affectedSourceSha256": {
+    "crates/jftrade-engine/src/product_adk_durable_tool_owner_tests.rs": "85a4a18e796a9f1b4b8aca7eba55c1a90a4d1525d4c975f4f6336776aa549ca6",
+    "crates/jftrade-engine/src/product_adk_model_runtime.rs": "eba07cdebe41bb5ef723f192874938fdfac85ef865799ddff77adf40660c6d10",
+    "crates/jftrade-engine/src/product_adk_model_runtime_tool_deadline_tests.rs": "9e42db52beb8cd099cd47aadcc33e17a6489bd6b3c874a410b8c3665f77af686",
+    "crates/jftrade-engine/src/product_adk_model_runtime_tool_loop.rs": "a7895797531bc513781e95450150d3d6d13ff0a50ccf2c31a232c9f3bd140f8b",
+    "crates/jftrade-engine/src/product_adk_model_runtime_tool_timeout.rs": "f64cba5f0f285f0243e8e5a13527f6ab34f55b9f4918c98bfc72cc30246ba4c8",
+    "crates/jftrade-engine/src/product_adk_tool_executor.rs": "f37fc88084254452721f11abe921cd6f476fcd931bbe659e26d1860b5ba50a73"
+  },
+  "rustSourceFingerprintSha256": "0764261772336fe413359d65d2014837e2059194c2a5ef484cdb76a6c53eadcf",
+  "frozenRustFiles": 1020,
+  "rustSourceChangedDuringGate": [],
+  "leakyTestMarkerCount": 0,
+  "remainingRisk": "Keyed handler consumption, durable COMPLETED versus FAILED, original tool.Run/SaveRun error classification and configured short heartbeat remain partial. Whole goal active. Interrupted and launcher-failed quick evidence remains preserved.",
+  "pineWorkerTests": {
+    "passed": 98
+  },
+  "desktopChecks": {
+    "runtimeNodeTestsPassed": 11,
+    "scriptNodeTestsPassed": 48
+  }
+}

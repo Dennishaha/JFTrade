@@ -12,7 +12,25 @@ use serde_json::{Value, json};
 
 use crate::product::product_mcp_production_executor::ProductionMcpToolExecutor;
 use crate::product::product_production_ports::{ProductionPortBundle, ProductionToolCatalog};
-use jftrade_store_sqlite::AdkStore;
+use jftrade_store_sqlite::{AdkStore, StoredAdkToolInvocation};
+
+#[derive(Clone, Debug)]
+/// Immutable durable identity copied to the handler; it grants no write lease.
+pub(crate) struct AdkToolInvocationContext {
+    idempotency_key: String,
+}
+
+impl AdkToolInvocationContext {
+    pub(crate) fn from_invocation(invocation: &StoredAdkToolInvocation) -> Self {
+        Self {
+            idempotency_key: format!("{}:{}", invocation.run_id, invocation.idempotency_key),
+        }
+    }
+
+    pub(crate) fn idempotency_key(&self) -> &str {
+        &self.idempotency_key
+    }
+}
 
 /// The module id the reference reports on `system.status.adk.module`.
 const GOOGLE_ADK_MODULE: &str = "google.golang.org/adk/v2";
@@ -24,6 +42,17 @@ pub(crate) trait AdkToolExecutor: Send + Sync + std::fmt::Debug {
     /// a descriptor exists in the catalog.
     fn supports(&self, name: &str) -> bool;
     fn execute(&self, name: &str, arguments: &Value) -> Result<Value, String>;
+    /// The runtime supplies this context after claiming the durable invocation.
+    /// Existing adapters keep their cancellation behavior through this default.
+    fn execute_with_context(
+        &self,
+        name: &str,
+        arguments: &Value,
+        _invocation: &AdkToolInvocationContext,
+        cancelled: &dyn Fn() -> bool,
+    ) -> Result<Value, String> {
+        self.execute_cancellable(name, arguments, cancelled)
+    }
     /// Execute `name` while honouring a caller cancellation signal.
     ///
     /// `workflow.wait` is the one production tool that spends its whole

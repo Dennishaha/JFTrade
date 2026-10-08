@@ -4,13 +4,13 @@
 
 当前活动包括迁移行为核验、产品质量和发布资格工作。迁移历史与证据位于 `docs/history/go-to-rust`；历史阶段完成声明不能代替全部映射的逐项审查。
 
-## 当前批次：ADK handler stable key 与消费约束
+## 当前批次：ADK handler key 消费约束
 
-checkpoint replay批次已完成，当前 1660 exact、2153 partial、638 boundary。失败及通过证据见 [证据积压清单](history/go-to-rust/parity-evidence-backlog.md)。开发分支为 `codex/parity-assistant-builtin-config-20261008`，整体行为目标继续 active。
+handler stable key定向18条通过，五条原测试复核后当前 1661 exact、2152 partial、638 boundary。失败及通过证据见 [证据积压清单](history/go-to-rust/parity-evidence-backlog.md)。开发分支为 `codex/parity-assistant-builtin-config-20261008`，整体行为目标继续 active。
 
-- [ ] 从冻结runner_tools/tools定位handler context stable key与observed判定；按5–10条原测试复核，54和214的handler可观察key缺口优先。
-- [ ] 沿现有executor/timeout/lease owner交付稳定run:invocation key，真实两次tool loop验证handler只执行一次及output.key相同；keyed模式缺口继续逐项闭合。
-- [ ] 定向 receipt、ordinary/strict、anchor/context、quick 计划与现场 quick、完整 Rust 门禁、diff/源码指纹复核后独立提交。
+- [x] 冻结execution_claims54/108/167/265/343五条及blob SHA复核；稳定context key经生产timeout worker交付handler，真实两次tool loop证明key非空、包含run-wrapper、first/second output.key及完整output相同、只执行一次。54升级exact，其余状态及错误分类残余不变。
+- [x] 定向18 passed、quick2385 Rust/98 Pine与desktop Node11+48通过；现场完整Rust3980 passed、0 failed、2 skipped，无LEAK，static/七类replay退出0。外置卷断开及launcher原30秒超时失败留证，未改源码或放宽deadline；launcher原样20次与prediction路由20次重复通过。receipt/reuse/anchor/context/diff及1020个Rust文件冻结指纹复核后独立提交。
+- [ ] 继续214的keyed descriptor与handler实际读取观测；框架非空检查不能计作handler消费。两次原UNKNOWN错误分类及一次执行需由生产owner直接验证。
 
 ## 已验证批次：ADK checkpoint replay 与唯一投影 owner
 
